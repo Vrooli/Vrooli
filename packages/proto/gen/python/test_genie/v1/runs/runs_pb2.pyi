@@ -1042,7 +1042,7 @@ class GetFleetHealthResponse(_message.Message):
     def __init__(self, fleet_health: _Optional[_Union[FleetHealth, _Mapping]] = ...) -> None: ...
 
 class FleetHealth(_message.Message):
-    __slots__ = ("window_days", "captured_at", "scenarios_tested", "scenarios_total", "total_runs", "total_issues", "scenarios", "top_finding_sources", "never_tested_in_window")
+    __slots__ = ("window_days", "captured_at", "scenarios_tested", "scenarios_total", "total_runs", "total_issues", "scenarios", "top_finding_sources", "never_tested_in_window", "alerts")
     WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
     CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
     SCENARIOS_TESTED_FIELD_NUMBER: _ClassVar[int]
@@ -1052,6 +1052,7 @@ class FleetHealth(_message.Message):
     SCENARIOS_FIELD_NUMBER: _ClassVar[int]
     TOP_FINDING_SOURCES_FIELD_NUMBER: _ClassVar[int]
     NEVER_TESTED_IN_WINDOW_FIELD_NUMBER: _ClassVar[int]
+    ALERTS_FIELD_NUMBER: _ClassVar[int]
     window_days: int
     captured_at: str
     scenarios_tested: int
@@ -1061,7 +1062,30 @@ class FleetHealth(_message.Message):
     scenarios: _containers.RepeatedCompositeFieldContainer[FleetScenarioHealth]
     top_finding_sources: _containers.RepeatedCompositeFieldContainer[FleetFindingSource]
     never_tested_in_window: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, window_days: _Optional[int] = ..., captured_at: _Optional[str] = ..., scenarios_tested: _Optional[int] = ..., scenarios_total: _Optional[int] = ..., total_runs: _Optional[int] = ..., total_issues: _Optional[int] = ..., scenarios: _Optional[_Iterable[_Union[FleetScenarioHealth, _Mapping]]] = ..., top_finding_sources: _Optional[_Iterable[_Union[FleetFindingSource, _Mapping]]] = ..., never_tested_in_window: _Optional[_Iterable[str]] = ...) -> None: ...
+    alerts: _containers.RepeatedCompositeFieldContainer[FleetAlert]
+    def __init__(self, window_days: _Optional[int] = ..., captured_at: _Optional[str] = ..., scenarios_tested: _Optional[int] = ..., scenarios_total: _Optional[int] = ..., total_runs: _Optional[int] = ..., total_issues: _Optional[int] = ..., scenarios: _Optional[_Iterable[_Union[FleetScenarioHealth, _Mapping]]] = ..., top_finding_sources: _Optional[_Iterable[_Union[FleetFindingSource, _Mapping]]] = ..., never_tested_in_window: _Optional[_Iterable[str]] = ..., alerts: _Optional[_Iterable[_Union[FleetAlert, _Mapping]]] = ...) -> None: ...
+
+class FleetAlert(_message.Message):
+    __slots__ = ("code", "severity", "scenario", "source", "message", "evidence_age_days", "owner", "next_action", "rollback_path")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_AGE_DAYS_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
+    ROLLBACK_PATH_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    severity: str
+    scenario: str
+    source: str
+    message: str
+    evidence_age_days: float
+    owner: str
+    next_action: str
+    rollback_path: str
+    def __init__(self, code: _Optional[str] = ..., severity: _Optional[str] = ..., scenario: _Optional[str] = ..., source: _Optional[str] = ..., message: _Optional[str] = ..., evidence_age_days: _Optional[float] = ..., owner: _Optional[str] = ..., next_action: _Optional[str] = ..., rollback_path: _Optional[str] = ...) -> None: ...
 
 class FleetScenarioHealth(_message.Message):
     __slots__ = ("scenario", "runs", "passed_runs", "failed_runs", "availability", "failure_rate", "issues", "last_run_at", "last_outcome", "age_days")
@@ -1269,6 +1293,20 @@ class DurationStats(_message.Message):
     avg: int
     def __init__(self, samples: _Optional[int] = ..., p50: _Optional[int] = ..., p95: _Optional[int] = ..., min: _Optional[int] = ..., max: _Optional[int] = ..., avg: _Optional[int] = ...) -> None: ...
 
+class SecurityFriction(_message.Message):
+    __slots__ = ("failed_attempts", "green_transitions", "recurring_failures", "time_to_green_samples", "time_to_green")
+    FAILED_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    GREEN_TRANSITIONS_FIELD_NUMBER: _ClassVar[int]
+    RECURRING_FAILURES_FIELD_NUMBER: _ClassVar[int]
+    TIME_TO_GREEN_SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    TIME_TO_GREEN_FIELD_NUMBER: _ClassVar[int]
+    failed_attempts: int
+    green_transitions: int
+    recurring_failures: int
+    time_to_green_samples: int
+    time_to_green: DurationStats
+    def __init__(self, failed_attempts: _Optional[int] = ..., green_transitions: _Optional[int] = ..., recurring_failures: _Optional[int] = ..., time_to_green_samples: _Optional[int] = ..., time_to_green: _Optional[_Union[DurationStats, _Mapping]] = ...) -> None: ...
+
 class ScenarioFailureRate(_message.Message):
     __slots__ = ("scenario", "executed", "failures", "failure_rate")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
@@ -1282,7 +1320,7 @@ class ScenarioFailureRate(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., executed: _Optional[int] = ..., failures: _Optional[int] = ..., failure_rate: _Optional[float] = ...) -> None: ...
 
 class PhaseReliability(_message.Message):
-    __slots__ = ("phase", "provider", "finding_source", "total_observations", "passed", "failed", "skipped", "degraded", "availability", "failure_rate", "metrics_adopted", "skip_reasons", "classifications", "duration", "worst_scenarios")
+    __slots__ = ("phase", "provider", "finding_source", "total_observations", "passed", "failed", "skipped", "degraded", "availability", "failure_rate", "metrics_adopted", "skip_reasons", "classifications", "duration", "worst_scenarios", "security_friction")
     PHASE_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
     FINDING_SOURCE_FIELD_NUMBER: _ClassVar[int]
@@ -1298,6 +1336,7 @@ class PhaseReliability(_message.Message):
     CLASSIFICATIONS_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     WORST_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    SECURITY_FRICTION_FIELD_NUMBER: _ClassVar[int]
     phase: str
     provider: str
     finding_source: str
@@ -1313,7 +1352,8 @@ class PhaseReliability(_message.Message):
     classifications: _containers.RepeatedCompositeFieldContainer[LabeledCount]
     duration: DurationStats
     worst_scenarios: _containers.RepeatedCompositeFieldContainer[ScenarioFailureRate]
-    def __init__(self, phase: _Optional[str] = ..., provider: _Optional[str] = ..., finding_source: _Optional[str] = ..., total_observations: _Optional[int] = ..., passed: _Optional[int] = ..., failed: _Optional[int] = ..., skipped: _Optional[int] = ..., degraded: _Optional[int] = ..., availability: _Optional[float] = ..., failure_rate: _Optional[float] = ..., metrics_adopted: _Optional[int] = ..., skip_reasons: _Optional[_Iterable[_Union[LabeledCount, _Mapping]]] = ..., classifications: _Optional[_Iterable[_Union[LabeledCount, _Mapping]]] = ..., duration: _Optional[_Union[DurationStats, _Mapping]] = ..., worst_scenarios: _Optional[_Iterable[_Union[ScenarioFailureRate, _Mapping]]] = ...) -> None: ...
+    security_friction: SecurityFriction
+    def __init__(self, phase: _Optional[str] = ..., provider: _Optional[str] = ..., finding_source: _Optional[str] = ..., total_observations: _Optional[int] = ..., passed: _Optional[int] = ..., failed: _Optional[int] = ..., skipped: _Optional[int] = ..., degraded: _Optional[int] = ..., availability: _Optional[float] = ..., failure_rate: _Optional[float] = ..., metrics_adopted: _Optional[int] = ..., skip_reasons: _Optional[_Iterable[_Union[LabeledCount, _Mapping]]] = ..., classifications: _Optional[_Iterable[_Union[LabeledCount, _Mapping]]] = ..., duration: _Optional[_Union[DurationStats, _Mapping]] = ..., worst_scenarios: _Optional[_Iterable[_Union[ScenarioFailureRate, _Mapping]]] = ..., security_friction: _Optional[_Union[SecurityFriction, _Mapping]] = ...) -> None: ...
 
 class ProviderReliability(_message.Message):
     __slots__ = ("provider", "phases", "total_observations", "passed", "failed", "skipped", "availability", "failure_rate", "metrics_adopted", "duration")

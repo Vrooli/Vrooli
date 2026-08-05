@@ -50,6 +50,9 @@ const (
 	// FacetsServiceMarkSupersededProcedure is the fully-qualified name of the FacetsService's
 	// MarkSuperseded RPC.
 	FacetsServiceMarkSupersededProcedure = "/vrooli.vrooli_memory.v1.facets.FacetsService/MarkSuperseded"
+	// FacetsServiceResolveThreadProcedure is the fully-qualified name of the FacetsService's
+	// ResolveThread RPC.
+	FacetsServiceResolveThreadProcedure = "/vrooli.vrooli_memory.v1.facets.FacetsService/ResolveThread"
 )
 
 // FacetsServiceClient is a client for the vrooli.vrooli_memory.v1.facets.FacetsService service.
@@ -60,6 +63,7 @@ type FacetsServiceClient interface {
 	ListPinProposals(context.Context, *connect.Request[facets.ListPinProposalsRequest]) (*connect.Response[facets.ListPinProposalsResponse], error)
 	ResolvePinProposal(context.Context, *connect.Request[facets.ResolvePinProposalRequest]) (*connect.Response[facets.ResolvePinProposalResponse], error)
 	MarkSuperseded(context.Context, *connect.Request[facets.MarkSupersededRequest]) (*connect.Response[facets.MarkSupersededResponse], error)
+	ResolveThread(context.Context, *connect.Request[facets.ResolveThreadRequest]) (*connect.Response[facets.ResolveThreadResponse], error)
 }
 
 // NewFacetsServiceClient constructs a client for the vrooli.vrooli_memory.v1.facets.FacetsService
@@ -109,6 +113,12 @@ func NewFacetsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(facetsServiceMethods.ByName("MarkSuperseded")),
 			connect.WithClientOptions(opts...),
 		),
+		resolveThread: connect.NewClient[facets.ResolveThreadRequest, facets.ResolveThreadResponse](
+			httpClient,
+			baseURL+FacetsServiceResolveThreadProcedure,
+			connect.WithSchema(facetsServiceMethods.ByName("ResolveThread")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -120,6 +130,7 @@ type facetsServiceClient struct {
 	listPinProposals   *connect.Client[facets.ListPinProposalsRequest, facets.ListPinProposalsResponse]
 	resolvePinProposal *connect.Client[facets.ResolvePinProposalRequest, facets.ResolvePinProposalResponse]
 	markSuperseded     *connect.Client[facets.MarkSupersededRequest, facets.MarkSupersededResponse]
+	resolveThread      *connect.Client[facets.ResolveThreadRequest, facets.ResolveThreadResponse]
 }
 
 // ListFacets calls vrooli.vrooli_memory.v1.facets.FacetsService.ListFacets.
@@ -152,6 +163,11 @@ func (c *facetsServiceClient) MarkSuperseded(ctx context.Context, req *connect.R
 	return c.markSuperseded.CallUnary(ctx, req)
 }
 
+// ResolveThread calls vrooli.vrooli_memory.v1.facets.FacetsService.ResolveThread.
+func (c *facetsServiceClient) ResolveThread(ctx context.Context, req *connect.Request[facets.ResolveThreadRequest]) (*connect.Response[facets.ResolveThreadResponse], error) {
+	return c.resolveThread.CallUnary(ctx, req)
+}
+
 // FacetsServiceHandler is an implementation of the vrooli.vrooli_memory.v1.facets.FacetsService
 // service.
 type FacetsServiceHandler interface {
@@ -161,6 +177,7 @@ type FacetsServiceHandler interface {
 	ListPinProposals(context.Context, *connect.Request[facets.ListPinProposalsRequest]) (*connect.Response[facets.ListPinProposalsResponse], error)
 	ResolvePinProposal(context.Context, *connect.Request[facets.ResolvePinProposalRequest]) (*connect.Response[facets.ResolvePinProposalResponse], error)
 	MarkSuperseded(context.Context, *connect.Request[facets.MarkSupersededRequest]) (*connect.Response[facets.MarkSupersededResponse], error)
+	ResolveThread(context.Context, *connect.Request[facets.ResolveThreadRequest]) (*connect.Response[facets.ResolveThreadResponse], error)
 }
 
 // NewFacetsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -206,6 +223,12 @@ func NewFacetsServiceHandler(svc FacetsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(facetsServiceMethods.ByName("MarkSuperseded")),
 		connect.WithHandlerOptions(opts...),
 	)
+	facetsServiceResolveThreadHandler := connect.NewUnaryHandler(
+		FacetsServiceResolveThreadProcedure,
+		svc.ResolveThread,
+		connect.WithSchema(facetsServiceMethods.ByName("ResolveThread")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_memory.v1.facets.FacetsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FacetsServiceListFacetsProcedure:
@@ -220,6 +243,8 @@ func NewFacetsServiceHandler(svc FacetsServiceHandler, opts ...connect.HandlerOp
 			facetsServiceResolvePinProposalHandler.ServeHTTP(w, r)
 		case FacetsServiceMarkSupersededProcedure:
 			facetsServiceMarkSupersededHandler.ServeHTTP(w, r)
+		case FacetsServiceResolveThreadProcedure:
+			facetsServiceResolveThreadHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -251,4 +276,8 @@ func (UnimplementedFacetsServiceHandler) ResolvePinProposal(context.Context, *co
 
 func (UnimplementedFacetsServiceHandler) MarkSuperseded(context.Context, *connect.Request[facets.MarkSupersededRequest]) (*connect.Response[facets.MarkSupersededResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.facets.FacetsService.MarkSuperseded is not implemented"))
+}
+
+func (UnimplementedFacetsServiceHandler) ResolveThread(context.Context, *connect.Request[facets.ResolveThreadRequest]) (*connect.Response[facets.ResolveThreadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.facets.FacetsService.ResolveThread is not implemented"))
 }

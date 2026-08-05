@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.toggle-group",
+    "name": "ToggleGroup",
+    "kind": "component",
+    "domain": "controls",
+    "description": "The single- or multiple-selection group with roving focus, shared styling, overflow handling, and an animated selection indicator that respects motion policy.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.toggle",
+        "reason": "Members are toggles and must share their selected semantics."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Composite widgets expose a single tab stop with arrow-key movement."
+      },
+      {
+        "asset": "hooks.use-controllable-state",
+        "reason": "Controlled and uncontrolled operation share one contract and one event shape."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "focus-order",
+    "reduced-motion",
+    "responsive-transformation"
+  ]
+}

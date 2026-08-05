@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.filter-bar",
+    "name": "FilterBar",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The query-control surface coordinating search, structured filters, active-filter chips, presets, reset, responsive overflow, and URL synchronization.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.search-input",
+        "reason": "Query entry, debouncing, and cancellation are shared."
+      },
+      {
+        "asset": "primitives.chip",
+        "reason": "Active filters render as removable chips."
+      },
+      {
+        "asset": "primitives.cluster",
+        "reason": "Chips wrap without resizing the bar."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced"
+  ]
+}

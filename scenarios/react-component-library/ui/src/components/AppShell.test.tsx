@@ -93,6 +93,7 @@ describe("AppShell", () => {
     const main = screen.getByTestId("app-main");
     expect(main.className).toContain("p-0");
     expect(main.className).toContain("flex-col");
+    expect(main.className).toContain("w-full");
   });
 
   it("renders the mobile sidebar branch when the media query matches", () => {

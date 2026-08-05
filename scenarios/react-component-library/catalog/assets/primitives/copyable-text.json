@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.copyable-text",
+    "name": "CopyableText",
+    "kind": "component",
+    "domain": "primitives",
+    "description": "The text primitive with a discoverable copy affordance, clipboard fallback, transient success feedback, and an accessible label describing what will be copied.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-async-action",
+        "reason": "Copying is an async action with success and failure states like any other."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "status-announced",
+    "pointer-independence",
+    "focus-visible-indicator"
+  ],
+  "requiredStates": [
+    "default",
+    "success",
+    "request-error"
+  ],
+  "beauty": {
+    "avoid": [
+      "hover-only-affordance"
+    ]
+  }
+}

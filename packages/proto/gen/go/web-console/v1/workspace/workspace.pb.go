@@ -33,10 +33,16 @@ type Pane struct {
 	SortOrder            int32                  `protobuf:"varint,6,opt,name=sort_order,json=sortOrder,proto3" json:"sort_order,omitempty"`
 	GroupId              string                 `protobuf:"bytes,7,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
 	SupportsMessagesView bool                   `protobuf:"varint,8,opt,name=supports_messages_view,json=supportsMessagesView,proto3" json:"supports_messages_view,omitempty"`
-	CreatedAt            string                 `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt            string                 `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// manually_unread is a user-set "come back to this" flag, deliberately
+	// independent of the conversation read cursor. The cursor is a factual
+	// record of what was displayed and only ever moves forward, so it cannot
+	// express "I have seen this but want it to look unread" — and it exists
+	// only for message-capable sessions, while this applies to any pane.
+	ManuallyUnread bool   `protobuf:"varint,11,opt,name=manually_unread,json=manuallyUnread,proto3" json:"manually_unread,omitempty"`
+	CreatedAt      string `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt      string `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Pane) Reset() {
@@ -121,6 +127,13 @@ func (x *Pane) GetGroupId() string {
 func (x *Pane) GetSupportsMessagesView() bool {
 	if x != nil {
 		return x.SupportsMessagesView
+	}
+	return false
+}
+
+func (x *Pane) GetManuallyUnread() bool {
+	if x != nil {
+		return x.ManuallyUnread
 	}
 	return false
 }
@@ -438,6 +451,8 @@ type UpdatePaneRequest struct {
 	HasGroupId              bool                   `protobuf:"varint,13,opt,name=has_group_id,json=hasGroupId,proto3" json:"has_group_id,omitempty"`
 	SupportsMessagesView    bool                   `protobuf:"varint,14,opt,name=supports_messages_view,json=supportsMessagesView,proto3" json:"supports_messages_view,omitempty"`
 	HasSupportsMessagesView bool                   `protobuf:"varint,15,opt,name=has_supports_messages_view,json=hasSupportsMessagesView,proto3" json:"has_supports_messages_view,omitempty"`
+	ManuallyUnread          bool                   `protobuf:"varint,16,opt,name=manually_unread,json=manuallyUnread,proto3" json:"manually_unread,omitempty"`
+	HasManuallyUnread       bool                   `protobuf:"varint,17,opt,name=has_manually_unread,json=hasManuallyUnread,proto3" json:"has_manually_unread,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -573,6 +588,20 @@ func (x *UpdatePaneRequest) GetSupportsMessagesView() bool {
 func (x *UpdatePaneRequest) GetHasSupportsMessagesView() bool {
 	if x != nil {
 		return x.HasSupportsMessagesView
+	}
+	return false
+}
+
+func (x *UpdatePaneRequest) GetManuallyUnread() bool {
+	if x != nil {
+		return x.ManuallyUnread
+	}
+	return false
+}
+
+func (x *UpdatePaneRequest) GetHasManuallyUnread() bool {
+	if x != nil {
+		return x.HasManuallyUnread
 	}
 	return false
 }
@@ -1023,7 +1052,7 @@ var File_web_console_v1_workspace_workspace_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_workspace_workspace_proto_rawDesc = "" +
 	"\n" +
-	"(web-console/v1/workspace/workspace.proto\x12\x1fvrooli.web_console.v1.workspace\"\xc2\x02\n" +
+	"(web-console/v1/workspace/workspace.proto\x12\x1fvrooli.web_console.v1.workspace\"\xeb\x02\n" +
 	"\x04Pane\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
@@ -1034,7 +1063,8 @@ const file_web_console_v1_workspace_workspace_proto_rawDesc = "" +
 	"\n" +
 	"sort_order\x18\x06 \x01(\x05R\tsortOrder\x12\x19\n" +
 	"\bgroup_id\x18\a \x01(\tR\agroupId\x124\n" +
-	"\x16supports_messages_view\x18\b \x01(\bR\x14supportsMessagesView\x12\x1d\n" +
+	"\x16supports_messages_view\x18\b \x01(\bR\x14supportsMessagesView\x12'\n" +
+	"\x0fmanually_unread\x18\v \x01(\bR\x0emanuallyUnread\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\t \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
@@ -1062,7 +1092,7 @@ const file_web_console_v1_workspace_workspace_proto_rawDesc = "" +
 	"activePane\x12\x1d\n" +
 	"\n" +
 	"pane_order\x18\x02 \x03(\tR\tpaneOrder\"\x14\n" +
-	"\x12SaveLayoutResponse\"\xa1\x04\n" +
+	"\x12SaveLayoutResponse\"\xfa\x04\n" +
 	"\x11UpdatePaneRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
@@ -1083,7 +1113,9 @@ const file_web_console_v1_workspace_workspace_proto_rawDesc = "" +
 	"\fhas_group_id\x18\r \x01(\bR\n" +
 	"hasGroupId\x124\n" +
 	"\x16supports_messages_view\x18\x0e \x01(\bR\x14supportsMessagesView\x12;\n" +
-	"\x1ahas_supports_messages_view\x18\x0f \x01(\bR\x17hasSupportsMessagesView\"O\n" +
+	"\x1ahas_supports_messages_view\x18\x0f \x01(\bR\x17hasSupportsMessagesView\x12'\n" +
+	"\x0fmanually_unread\x18\x10 \x01(\bR\x0emanuallyUnread\x12.\n" +
+	"\x13has_manually_unread\x18\x11 \x01(\bR\x11hasManuallyUnread\"O\n" +
 	"\x12UpdatePaneResponse\x129\n" +
 	"\x04pane\x18\x01 \x01(\v2%.vrooli.web_console.v1.workspace.PaneR\x04pane\"2\n" +
 	"\x11DeletePaneRequest\x12\x1d\n" +

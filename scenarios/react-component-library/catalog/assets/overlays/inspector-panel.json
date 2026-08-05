@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.inspector-panel",
+    "name": "InspectorPanel",
+    "kind": "component",
+    "domain": "overlays",
+    "description": "The contextual detail surface with tabs, navigation history, resize persistence, pinning, selection synchronization, and a responsive drawer fallback.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.responsive-panel",
+        "reason": "Presentation and resize behavior are shared."
+      },
+      {
+        "asset": "navigation.tabs",
+        "reason": "Section switching uses the shared tab semantics."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-containment",
+    "focus-restoration",
+    "status-announced",
+    "tap-target-size",
+    "focus-order"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error",
+    "permission-denied"
+  ],
+  "beauty": {
+    "avoid": [
+      "modal-for-routine-inspection"
+    ]
+  }
+}

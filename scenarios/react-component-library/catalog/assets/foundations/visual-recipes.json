@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "foundations.visual-recipes",
+    "name": "Visual Recipes",
+    "kind": "foundation",
+    "domain": "foundations",
+    "description": "The typed variant system that maps component variants and states to tokenized styles and keeps arbitrary one-off visual values from spreading, exporting each recipe in a shape tools can enumerate.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "A recipe resolves variant values to tokens; without the ramps there is nothing to resolve to."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "ramp-conformance"
+  ],
+  "rationale": "The mechanism behind the exported-typed-variant-map decision: recipes are what make an asset's declared variants comparable against its implementation, and what lets story args be derived rather than hand-written."
+}

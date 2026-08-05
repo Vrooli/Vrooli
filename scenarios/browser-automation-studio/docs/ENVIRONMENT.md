@@ -8,6 +8,16 @@ One canonical reference for configuring the browser-automation-studio scenario (
 - `UI_PORT` – UI server port (20000-24999)
 - `MINIO_PORT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET_NAME`
 - `VROOLI_LIFECYCLE_MANAGED` – must be `true`
+- `BAS_SESSION_STORE_KEY` – base64 raw 32-byte operator-managed key used to encrypt persisted browser session state
+
+## Protected Session Storage
+
+Session-profile metadata is stored separately from protected browser state.
+Cookies, local storage, proxy passwords, history, and restored-tab state are
+encrypted with `BAS_SESSION_STORE_KEY` and are never returned in profile metadata.
+Changing the key invalidates existing protected session state; operators must
+explicitly retire those profiles and sign in again. BAS performs no implicit
+relocation, backfill, or key-rotation logic.
 
 ## Optional Overrides
 

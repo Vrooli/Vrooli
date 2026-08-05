@@ -131,11 +131,6 @@
           "description": "Generate code embeddings for AI assistance"
         },
         {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh . || echo \"Resource population skipped\"",
-          "description": "Add app data to resources"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o product-manager-agent-api .",
           "description": "Build Go API binary"

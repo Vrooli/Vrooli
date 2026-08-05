@@ -173,7 +173,12 @@ async function componentStories(componentID) {
   const stories = new Map();
   for (const contract of payload.stories || []) {
     try {
-      for (const story of JSON.parse(contract.storiesJson || "[]")) stories.set(story.id, story.expect || []);
+      for (const story of JSON.parse(contract.storiesJson || "[]")) {
+        // Story IDs are scoped to a component version. Reusing an ID such as
+        // "primary" across released contracts must not let a historical
+        // expectation overwrite the version currently rendered in the frame.
+        stories.set(`${contract.version}:${story.id}`, story.expect || []);
+      }
     } catch {
       throw new Error("indexed story contract has invalid storiesJson");
     }
@@ -240,7 +245,11 @@ async function assertAssetPreview(page, componentID, target = {}) {
     // desktop shell it is an action toggle and can hide the active preview.
 
     const frameElements = page.locator('[data-testid="components-editor-preview-frame"]');
-    await frameElements.first().waitFor({ state: "attached", timeout: 10_000 });
+    // The catalog route can resolve the component content and its indexed
+    // story contract independently. On a cold API/database cache the host
+    // panel is visible before the first real specimen can be mounted; allow
+    // that bounded loading state to settle instead of racing it.
+    await frameElements.first().waitFor({ state: "attached", timeout: 30_000 });
 
     const frameSrc = await frameElements.first().getAttribute("src");
     if (!frameSrc?.includes(`/preview/${componentID}/harness.html`)) {
@@ -254,7 +263,16 @@ async function assertAssetPreview(page, componentID, target = {}) {
     }, null, { timeout: 10_000 });
 
     const frameCount = await frameElements.count();
-    const previewFrames = page.frames().filter((frame) => frame.url().includes(`/preview/${componentID}/`));
+    // Playwright retains Frame objects for an iframe briefly after React
+    // replaces it during content/story resolution. Derive the assertion set
+    // from the currently mounted DOM elements so an aborted predecessor can
+    // never satisfy the frame count or receive the current contract checks.
+    const previewFrames = [];
+    for (let index = 0; index < frameCount; index += 1) {
+      const handle = await frameElements.nth(index).elementHandle();
+      const frame = await handle?.contentFrame();
+      if (frame) previewFrames.push(frame);
+    }
     if (previewFrames.length < frameCount) {
       throw new Error(`expected ${frameCount} preview frame(s), found ${previewFrames.length}`);
     }
@@ -273,8 +291,10 @@ async function assertAssetPreview(page, componentID, target = {}) {
       if (rootHTML.trim() === "") {
         throw new Error("preview root was empty after rendered state");
       }
-      const story = new URL(previewFrame.url()).searchParams.get("story") || "__default__";
-      const declared = expectations.get(story);
+      const frameURL = new URL(previewFrame.url());
+      const story = frameURL.searchParams.get("story") || "__default__";
+      const version = frameURL.searchParams.get("version") || "__current__";
+      const declared = expectations.get(`${version}:${story}`);
       if (!declared) throw new Error(`preview frame ${story} has no indexed story expectations`);
       await assertStoryExpectations(previewFrame, story, declared);
       frameResults.push({ url: previewFrame.url(), story, expectationCount: declared.length });

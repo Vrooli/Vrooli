@@ -18,7 +18,7 @@ export interface WorkspaceHeaderProps {
 
 /** A structural header: callers own navigation state and action behavior. */
 export function WorkspaceHeader({ title, description, leading, primaryAction, actions, children, className }: WorkspaceHeaderProps) {
-  return <header data-testid="workspace-header" className={["shrink-0 border-b border-app-border bg-app-surface", className].filter(Boolean).join(" ")}>
+  return <header data-testid="workspace-header" className={["w-full min-w-0 max-w-full shrink-0 overflow-hidden border-b border-app-border bg-app-surface", className].filter(Boolean).join(" ")}>
     <div className="flex min-h-14 items-center gap-3 px-3 py-2 sm:px-4">
       {leading ? <div className="flex shrink-0 items-center">{leading}</div> : null}
       <div className="min-w-0 flex-1">

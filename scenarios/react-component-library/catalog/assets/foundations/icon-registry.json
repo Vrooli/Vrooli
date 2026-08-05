@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "foundations.icon-registry",
+    "name": "Icon Registry",
+    "kind": "foundation",
+    "domain": "foundations",
+    "description": "The normalized icon source and geometry registry supporting individual imports, optical sizing, stroke policy, direction-aware flipping, and accessibility metadata for decorative versus meaningful icons.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Optical sizes and stroke weights resolve to token ramps rather than per-icon values."
+      }
+    ]
+  },
+  "satisfies": [
+    "icon-registry"
+  ],
+  "requiredCapabilities": [
+    "icon-weight-consistency"
+  ],
+  "rationale": "A registry rather than direct imports is what makes icon weight consistency checkable at all, and what keeps a broad icon-package import out of the bundle."
+}

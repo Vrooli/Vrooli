@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.alert-dialog",
+    "name": "AlertDialog",
+    "kind": "component",
+    "domain": "overlays",
+    "description": "The focused confirmation surface for consequential decisions, explaining impact, separating safe from destructive actions, and resisting accidental dismissal.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.dialog",
+        "reason": "Focus containment, inert background, and lifecycle are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-containment",
+    "focus-restoration",
+    "status-announced",
+    "tap-target-size",
+    "destructive-confirmation",
+    "error-message-usefulness"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "request-error"
+  ],
+  "rationale": "Distinct from Dialog because it must not close on outside click or escape without confirmation. A destructive action dismissed by a stray click is the defect this asset exists to prevent."
+}

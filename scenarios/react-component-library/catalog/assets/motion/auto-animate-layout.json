@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "motion.auto-animate-layout",
+    "name": "AutoAnimateLayout",
+    "kind": "component",
+    "domain": "motion",
+    "description": "The declarative layout-transition component animating keyed insertion, removal, reordering, and resizing through layout-difference calculation rather than tweened layout properties.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      },
+      {
+        "asset": "motion.layout-group",
+        "reason": "Layout differences are computed within a coordination boundary."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "transition-class-conformance",
+    "reduced-motion",
+    "no-layout-animation",
+    "motion-duration-conformance"
+  ]
+}

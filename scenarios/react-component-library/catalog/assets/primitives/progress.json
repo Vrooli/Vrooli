@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.progress",
+    "name": "Progress",
+    "kind": "component",
+    "domain": "primitives",
+    "description": "The progress family covering linear, circular, determinate, indeterminate, buffered, and segmented presentation with accessible value reporting.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "status-announced",
+    "non-color-status",
+    "reduced-motion",
+    "contrast-floor"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "request-error"
+  ],
+  "api": {
+    "levels": [
+      "convenience"
+    ],
+    "variants": {
+      "shape": [
+        "linear",
+        "circular"
+      ],
+      "mode": [
+        "determinate",
+        "indeterminate",
+        "buffered",
+        "segmented"
+      ]
+    }
+  }
+}

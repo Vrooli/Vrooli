@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.dock",
+    "name": "Dock",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The compact launcher-style navigation surface with restrained magnification, labels, active state, badges, keyboard access, and reduced-motion behavior.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "navigation.nav-link",
+        "reason": "Items are shared navigation links."
+      },
+      {
+        "asset": "primitives.icon",
+        "reason": "Glyphs resolve through the registry."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "tap-target-size",
+    "reduced-motion",
+    "focus-order"
+  ],
+  "rationale": "Appropriate to the command-display kit and rarely to operational applications, where magnification is motion competing with live status."
+}

@@ -96,7 +96,7 @@ func ResolveRecordingsRoot(log *logrus.Logger) string {
 		return value
 	}
 
-	if resolved := resolveScenarioStoragePath("recordings", legacyRecordingsRoot()); resolved != "" {
+	if resolved := resolveScenarioStoragePath("recordings"); resolved != "" {
 		return resolved
 	}
 
@@ -151,7 +151,7 @@ func ResolveSessionProfilesRoot(log *logrus.Logger) string {
 		return value
 	}
 
-	if resolved := resolveScenarioStoragePath("session-profiles", legacySessionProfilesRoot()); resolved != "" {
+	if resolved := resolveScenarioStoragePath("session-profiles"); resolved != "" {
 		return resolved
 	}
 
@@ -194,7 +194,7 @@ func ResolveSessionProfilesRoot(log *logrus.Logger) string {
 	return root
 }
 
-func resolveScenarioStoragePath(rel, legacy string) string {
+func resolveScenarioStoragePath(rel string) string {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		AppID:   "vrooli",
 		Profile: storage.ProfileAuto,
@@ -206,62 +206,5 @@ func resolveScenarioStoragePath(rel, legacy string) string {
 	if err != nil {
 		return ""
 	}
-	_ = migrateLegacyDir(legacy, path)
 	return path
-}
-
-func legacyRecordingsRoot() string {
-	return resolveLegacyScenarioDataPath("recordings")
-}
-
-func legacySessionProfilesRoot() string {
-	return resolveLegacyScenarioDataPath("session-profiles")
-}
-
-func resolveLegacyScenarioDataPath(name string) string {
-	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
-		if scenarioDir, resolveErr := repocontract.ResolveScenarioPath(root, scenarioRoot); resolveErr == nil {
-			return filepath.Join(scenarioDir, "data", name)
-		}
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		return filepath.Join("scenarios", scenarioRoot, "data", name)
-	}
-
-	absCwd, err := filepath.Abs(cwd)
-	if err != nil {
-		return filepath.Join(cwd, "scenarios", scenarioRoot, "data", name)
-	}
-
-	for dir := absCwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
-		parent := filepath.Dir(dir)
-		if filepath.Base(dir) == scenarioRoot && filepath.Base(parent) == "scenarios" {
-			return filepath.Join(dir, "data", name)
-		}
-	}
-
-	return filepath.Join(absCwd, "scenarios", scenarioRoot, "data", name)
-}
-
-func migrateLegacyDir(src, dst string) error {
-	if src == "" || dst == "" || src == dst {
-		return nil
-	}
-	if _, err := os.Stat(src); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if _, err := os.Stat(dst); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-	return os.Rename(src, dst)
 }

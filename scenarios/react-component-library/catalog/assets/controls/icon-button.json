@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.icon-button",
+    "name": "IconButton",
+    "kind": "component",
+    "domain": "controls",
+    "description": "The compact icon-only action with a mandatory accessible name, expanded touch target beyond its visual bounds, tooltip integration, loading state, and optional toggle semantics.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "foundations.visual-recipes",
+        "reason": "Variant styling is declared as an enumerable recipe so the implementation is checkable against the catalog."
+      },
+      {
+        "asset": "controls.pressable",
+        "reason": "Pointer, touch, keyboard, press, and focus-visible behavior is owned once rather than reimplemented."
+      },
+      {
+        "asset": "primitives.icon",
+        "reason": "The glyph resolves through the registry so weight and direction stay consistent."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.tooltip",
+        "reason": "Icon-only controls in dense toolbars usually need a name on hover, though a labelled context may not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "request-error",
+    "retry"
+  ],
+  "beauty": {
+    "avoid": [
+      "icon-without-accessible-name"
+    ]
+  },
+  "rationale": "The asset most likely to fail the tap-target floor, because its visual size and its touch target are legitimately different and the expansion has to be deliberate."
+}

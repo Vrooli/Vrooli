@@ -172,7 +172,7 @@ export function ThemeSwitcher({
               data-testid={option.testid}
               variant={active ? "primary" : "secondary"}
               aria-pressed={active}
-              className="h-9 min-h-9 rounded-none border-0 px-2.5 text-xs"
+              className="h-11 min-h-11 rounded-none border-0 px-2.5 text-xs"
               onClick={() => setColorScheme(option.value)}
             >
               {t(option.label)}

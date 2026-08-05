@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.tool-approval-flow",
+    "name": "ToolApprovalFlow",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The permission workflow summarizing a proposed agent action, explaining consequences, capturing scope-limited approval, reporting execution, and preserving an auditable record of the decision.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "ai.approval-prompt",
+        "reason": "The decision surface and its scope statement are shared."
+      },
+      {
+        "asset": "ai.tool-execution-card",
+        "reason": "Execution reporting is shared."
+      },
+      {
+        "asset": "data-display.audit-trail",
+        "reason": "The decision and its outcome are recorded durably."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "permissions-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "destructive-confirmation",
+    "permission-explained"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "rationale": "Scope-limited is the operative constraint: approval must attach to the specific action and target that were shown, never to a class of future actions, or consent becomes meaningless."
+}

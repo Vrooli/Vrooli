@@ -1,0 +1,67 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "media.media-player",
+    "name": "MediaPlayer",
+    "kind": "component",
+    "domain": "media",
+    "description": "The unified audio and video player with custom controls, captions, chapters, quality and speed selection, preview scrubbing, keyboard shortcuts, and a native fallback.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Scales, palettes, spacing, and motion resolve to declared ramps."
+      },
+      {
+        "asset": "controls.slider",
+        "reason": "Scrubbing and volume use the shared range control."
+      },
+      {
+        "asset": "controls.icon-button",
+        "reason": "Transport controls are shared icon actions."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Position and outcome are announced through the one shared live region."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "content-reflow",
+    "contrast-floor",
+    "gesture-alternative",
+    "entrance-restraint",
+    "responsive-transformation",
+    "status-announced",
+    "safe-area-respected"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "request-error",
+    "offline",
+    "retry"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Scrubbing shows a live preview frame at the pointer position and releases exactly there, so seeking is aimed rather than guessed."
+    }
+  },
+  "rationale": "Captions are a hard requirement rather than a feature: a media player in a component library that treats caption rendering as optional will produce inaccessible products by default."
+}

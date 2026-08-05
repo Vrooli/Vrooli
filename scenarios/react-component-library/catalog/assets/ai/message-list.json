@@ -1,0 +1,86 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.message-list",
+    "name": "MessageList",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The message collection preserving streaming scroll position, supporting branching, grouping, history loading, a new-message indicator, and stable anchoring while content grows above and below.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.virtual-list",
+        "reason": "Windowing and focus preservation are shared."
+      },
+      {
+        "asset": "ai.message",
+        "reason": "Items are shared message components."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Loading, empty, partial, stale, error, and offline presentation are delegated rather than reimplemented."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TMessage"
+      ]
+    },
+    {
+      "capability": "virtualization-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "transition-non-blocking",
+    "entrance-restraint",
+    "reduced-motion",
+    "freshness-disclosure",
+    "recovery-path"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "offline",
+    "retry"
+  ],
+  "qualityGates": [
+    "performance",
+    "stress"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "New content streaming in never moves what the reader is currently looking at, and a single clear control returns them to the live edge when they choose to go back."
+    }
+  },
+  "rationale": "Scroll anchoring during streaming is the defining hard problem: content grows continuously at the bottom while history loads at the top, and almost every naive implementation either yanks the reader to the end or strands them mid-message."
+}

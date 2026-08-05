@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.permission-state",
+    "name": "PermissionState",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The authorization composition explaining that content is unavailable without disclosing why access is restricted, and offering request-access or navigation actions.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.error-state",
+        "reason": "Structure and action treatment are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "permissions-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "recovery-path",
+    "contrast-floor",
+    "content-reflow",
+    "text-scale-resilience",
+    "empty-state-craft",
+    "responsive-transformation",
+    "permission-explained"
+  ],
+  "requiredStates": [
+    "permission-denied"
+  ]
+}

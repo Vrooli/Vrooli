@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.stack",
+    "name": "Stack",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The vertical layout primitive giving consistent spacing, alignment, optional separators, wrapping, responsive values, and a choice of semantic element.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "ramp-conformance",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "reading-order-honest"
+  ]
+}

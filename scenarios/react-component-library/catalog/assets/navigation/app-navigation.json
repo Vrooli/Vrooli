@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.app-navigation",
+    "name": "AppNavigation",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The single navigation model presented as a sidebar, header navigation, rail, or bottom bar depending on viewport, owning the transformations between those presentations rather than leaving them to each page.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "navigation.sidebar",
+        "reason": "Desktop presentation."
+      },
+      {
+        "asset": "navigation.top-bar",
+        "reason": "Header presentation."
+      },
+      {
+        "asset": "navigation.bottom-navigation",
+        "reason": "Compact-viewport presentation."
+      },
+      {
+        "asset": "hooks.use-media-query",
+        "reason": "Presentation selection is a behavioral breakpoint, not a style one."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "navigation.navigation-rail",
+        "reason": "A rail suits icon-first workspaces but is redundant where a collapsible sidebar already exists."
+      },
+      {
+        "asset": "navigation.dock",
+        "reason": "A launcher dock fits command-display surfaces and is out of place in dense operational applications."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "responsive-transformation",
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "safe-area-respected",
+    "mobile-capability-parity",
+    "reading-order-honest"
+  ],
+  "rationale": "The composed asset decided in the navigation question: sidebar, header nav, and bottom nav are presentations of one model, so the DESIGN.md transformations are asserted here as machine claims. A floor could check each surface in isolation but could never assert that this sidebar becomes that drawer, which is the part that actually breaks."
+}

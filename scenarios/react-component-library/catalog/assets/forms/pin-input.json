@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.pin-input",
+    "name": "PinInput",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The fixed-length code field supporting paste, mobile input hints, optional masking, auto-advance, correction, and a single coherent screen-reader experience rather than one per box.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "hooks.use-controllable-state",
+        "reason": "Controlled and uncontrolled operation share one contract and one event shape."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "validation-error"
+  ],
+  "rationale": "The accessibility trap is that a six-box code field naively announces six separate unlabelled inputs. Treating it as one field with one label is the whole point of having it in the catalog."
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.model-picker",
+    "name": "ModelPicker",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The model selector presenting capability, cost, speed, availability, and context limits in role-oriented terms rather than exposing raw identifiers and parameter counts.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.select",
+        "reason": "Selection, keyboard model, and responsive presentation are shared."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency are expressed on the shared orthogonal axes rather than as one flat variant set."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TModel"
+      ],
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error"
+  ],
+  "rationale": "The design failure to avoid is a dropdown of opaque model names. The choice a user is actually making is between speed, cost, and capability, and the component should present that."
+}

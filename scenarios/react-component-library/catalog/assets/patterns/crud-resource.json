@@ -1,0 +1,86 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.crud-resource",
+    "name": "CRUDResource",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The complete resource lifecycle composing collection, detail, create, edit, duplicate, archive, delete, restore, permissions, and async feedback into one coherent surface family.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "patterns.resource-collection",
+        "reason": "Browsing is the shared collection pattern."
+      },
+      {
+        "asset": "patterns.editable-resource",
+        "reason": "Reading and editing are the shared resource pattern."
+      },
+      {
+        "asset": "patterns.async-form-flow",
+        "reason": "Creation uses the shared form workflow."
+      },
+      {
+        "asset": "patterns.undoable-destructive-action",
+        "reason": "Deletion prefers reversible removal with visible undo."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TRecord"
+      ]
+    },
+    {
+      "capability": "permissions-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "destructive-confirmation",
+    "permission-explained",
+    "optimistic-rollback"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "rationale": "Delivery is generated because the entire surface family is determined by a resource contract plus field metadata. This is the asset that should make a standard CRUD scenario a configuration rather than a build."
+}

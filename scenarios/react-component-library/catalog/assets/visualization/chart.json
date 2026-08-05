@@ -1,0 +1,103 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "visualization.chart",
+    "name": "Chart",
+    "kind": "component",
+    "domain": "visualization",
+    "description": "The responsive chart framework standardizing axes, legends, tooltips, value formatting, selection, theme integration, keyboard summaries, and every generic data state around a pluggable rendering engine.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Scales, palettes, spacing, and motion resolve to declared ramps."
+      },
+      {
+        "asset": "primitives.text",
+        "reason": "Labels and values use the shared text styles."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Loading, empty, partial, stale, error, and offline presentation are delegated rather than reimplemented."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "Axis values and tooltips are formatted for the active locale."
+      },
+      {
+        "asset": "hooks.use-element-rect",
+        "reason": "Responsive sizing measures without forcing layout on every render."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "charts-adapter"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TDatum"
+      ],
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "contrast-floor",
+    "non-color-status",
+    "dark-parity",
+    "forced-colors-legibility",
+    "keyboard-operable",
+    "status-announced",
+    "content-reflow",
+    "reduced-motion",
+    "text-scale-resilience"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "offline"
+  ],
+  "api": {
+    "levels": [
+      "controller",
+      "compound",
+      "convenience"
+    ],
+    "variants": {
+      "presentation": [
+        "contained",
+        "immersive"
+      ]
+    },
+    "parts": [
+      "plot",
+      "axis",
+      "legend",
+      "tooltip",
+      "annotation"
+    ]
+  },
+  "qualityGates": [
+    "performance"
+  ],
+  "rationale": "The framework carries the parts that are wrong in most chart usage: the accessible textual equivalent, the empty and partial states, and colour that survives high-contrast mode. The engine underneath is replaceable and deliberately not in the base bundle."
+}

@@ -22,5 +22,5 @@
     { "id": "voice-input-action", "type": "element-present", "statement": "The idle specimen exposes a named action to start voice input.", "tier": "machine", "elements": ["voice-control"], "states": ["idle"] },
     { "id": "error-dismiss-size-parity", "type": "size-parity", "statement": "The error dismissal control remains aligned to the declared recovery-control height.", "tier": "machine", "elements": ["voice-control", "dismiss"], "states": ["error"], "params": { "tolerance": 2 } }
   ],
-  "bindings": { "elements": { "voice-control": { "selector": "button" }, "dismiss": { "selector": "[aria-label='Dismiss voice input error']" } } }
+  "bindings": { "elements": { "voice-control": { "testid": "voice-input-control" }, "dismiss": { "testid": "voice-input-error-dismiss" } } }
 }

@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.text",
+    "name": "Text",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The semantic typography primitive exposing tokenized text styles with truncation, balancing, muted treatment, numeric alignment, and locale-aware rendering.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "contrast-floor",
+    "text-scale-resilience",
+    "ramp-conformance",
+    "text-balance"
+  ],
+  "rationale": "Text styles are bundled tokens pairing size, line height, weight, and tracking. Exposing them as one choice rather than four is what keeps typography consistent without per-component judgment."
+}

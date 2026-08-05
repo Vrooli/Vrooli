@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.heading",
+    "name": "Heading",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The heading primitive separating visual scale from semantic document level, so styling decisions never distort the accessible outline.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "primitives.text",
+        "reason": "A heading is a text style with document semantics attached."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "heading-hierarchy",
+    "semantic-structure",
+    "contrast-floor",
+    "text-scale-resilience"
+  ]
+}

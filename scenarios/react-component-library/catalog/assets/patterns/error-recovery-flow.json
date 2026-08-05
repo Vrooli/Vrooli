@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.error-recovery-flow",
+    "name": "ErrorRecoveryFlow",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The failure workflow classifying retryability, preserving user work, exposing safe diagnostics, offering alternatives, and restoring the last known good state.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.error-boundary",
+        "reason": "Rendering failures are contained and resettable."
+      },
+      {
+        "asset": "feedback.error-state",
+        "reason": "Failure presentation and recovery affordances are shared."
+      },
+      {
+        "asset": "hooks.use-retry",
+        "reason": "Retryable failures are distinguished from permanent ones."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "freshness-disclosure"
+  ],
+  "requiredStates": [
+    "default",
+    "request-error",
+    "offline",
+    "retry",
+    "stale"
+  ],
+  "rationale": "Retryability classification is the load-bearing part: blindly retrying a permanent failure wastes the user's time and hammers the backend, while failing to retry a transient one turns a hiccup into a dead end."
+}

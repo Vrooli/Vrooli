@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.relative-time",
+    "name": "RelativeTime",
+    "kind": "component",
+    "domain": "primitives",
+    "description": "The locale-aware timestamp component updating at meaningful intervals and exposing the precise absolute time through accessible and hoverable detail.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-locale",
+        "reason": "Relative formatting and interval thresholds are locale-specific."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "i18n-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "pointer-independence"
+  ],
+  "rationale": "Deliberately a component rather than a primitive: it owns a timer, and a naive implementation re-renders every second forever, which is a real performance defect in long-lived operational surfaces."
+}

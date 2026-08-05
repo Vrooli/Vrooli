@@ -1,5 +1,9 @@
 {
   "selectors": {
+    "components.harness.root": {
+      "testId": "component-harness-root",
+      "selector": "[data-testid=\"component-harness-root\"]"
+    },
     "app.title": {
       "testId": "app-title",
       "selector": "[data-testid=\"app-title\"]"
@@ -432,6 +436,14 @@
       "testId": "components-editor-preview-tools-toggle",
       "selector": "[data-testid=\"components-editor-preview-tools-toggle\"]"
     },
+    "components.editor.previewStage": {
+      "testId": "components-editor-preview-stage",
+      "selector": "[data-testid=\"components-editor-preview-stage\"]"
+    },
+    "components.editor.previewStageFullscreen": {
+      "testId": "components-editor-preview-stage-fullscreen",
+      "selector": "[data-testid=\"components-editor-preview-stage-fullscreen\"]"
+    },
     "components.editor.previewFrame": {
       "testId": "components-editor-preview-frame",
       "selector": "[data-testid=\"components-editor-preview-frame\"]"
@@ -571,6 +583,14 @@
     "components.emulator.viewport": {
       "testId": "components-emulator-viewport",
       "selector": "[data-testid=\"components-emulator-viewport\"]"
+    },
+    "components.emulator.viewportFrame": {
+      "testId": "components-emulator-viewport-frame",
+      "selector": "[data-testid=\"components-emulator-viewport-frame\"]"
+    },
+    "components.emulator.viewportCanvas": {
+      "testId": "components-emulator-viewport-canvas",
+      "selector": "[data-testid=\"components-emulator-viewport-canvas\"]"
     },
     "components.emulator.visionFilterSelect": {
       "testId": "components-emulator-vision-filter",

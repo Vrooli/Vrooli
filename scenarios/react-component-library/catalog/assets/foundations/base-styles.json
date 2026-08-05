@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "foundations.base-styles",
+    "name": "Base Styles",
+    "kind": "foundation",
+    "domain": "foundations",
+    "description": "A small global layer normalizing browser defaults, focus rings, scrolling, safe areas, reduced motion, forced colours, text selection, and print output, so no component compensates for browser inconsistency locally.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "design-tokens",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every normalized value resolves to a token rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "focus-visible-indicator",
+    "forced-colors-legibility"
+  ]
+}

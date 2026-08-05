@@ -180,7 +180,8 @@
               ]
             }
           ]
-        }
+        },
+        "regionId": "operations-runs"
       },
       "expect": [
         {
@@ -193,7 +194,7 @@
         },
         {
           "kind": "attribute",
-          "selector": "[data-experience-surface]",
+          "selector": "[data-experience-surface=\"operations-runs\"]",
           "name": "data-experience-state",
           "value": "ready"
         }

@@ -1,0 +1,81 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.app-shell",
+    "name": "AppShell",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The top-level application frame coordinating navigation, content, overlay hosting, safe areas, responsive breakpoints, skip links, and persistent workspace regions.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "navigation.app-navigation",
+        "reason": "Navigation is adopted as one coherent unit rather than as separate surfaces."
+      },
+      {
+        "asset": "services.layer-manager",
+        "reason": "The shell hosts the portal root and owns stacking order."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "router-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "chrome-pinned",
+    "safe-area-respected",
+    "responsive-transformation",
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "no-horizontal-overflow"
+  ],
+  "regions": [
+    {
+      "id": "navigation",
+      "purpose": "Primary application navigation in whichever presentation the viewport calls for.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "header",
+      "purpose": "Global toolbar for search, global actions, status, and account controls.",
+      "required": false,
+      "lifecycle": "static"
+    },
+    {
+      "id": "content",
+      "purpose": "The routed page content mounted beneath the shell.",
+      "required": true,
+      "lifecycle": "async"
+    },
+    {
+      "id": "aside",
+      "purpose": "Optional persistent workspace panel beside the main content.",
+      "required": false,
+      "lifecycle": "async"
+    }
+  ]
+}

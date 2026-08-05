@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-disclosure",
+    "name": "useDisclosure",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A declarative open-state controller exposing open, close, and toggle with dismissal-reason tracking, controlled operation, and stable callback identities.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-controllable-state",
+        "reason": "Disclosure is a controllable boolean and must not reimplement the controlled/uncontrolled contract."
+      }
+    ]
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.pricing-page",
+    "name": "PricingPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The pricing surface with clear comparison, billing-period switching, eligibility, feature explanation, FAQs, current-plan state, and responsive calls to action.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    },
+    "kits": [
+      "vrooli-conversion-landing"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "primitives.card",
+        "reason": "Plan tiles are genuinely framed objects."
+      },
+      {
+        "asset": "controls.segmented-control",
+        "reason": "Billing-period switching is the shared control."
+      },
+      {
+        "asset": "data-display.accordion",
+        "reason": "FAQs use the shared disclosure."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "i18n-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "plans",
+      "purpose": "The comparable plan options.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "comparison",
+      "purpose": "Detailed feature comparison.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "faq",
+      "purpose": "Objection handling.",
+      "required": false,
+      "lifecycle": "static"
+    }
+  ]
+}

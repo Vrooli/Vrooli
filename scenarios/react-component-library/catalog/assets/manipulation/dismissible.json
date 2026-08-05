@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "manipulation.dismissible",
+    "name": "Dismissible",
+    "kind": "component",
+    "domain": "manipulation",
+    "description": "The gesture-aware transient surface dismissable by drag, swipe, keyboard, explicit control, or programmatic state, with interruption-safe animation and a restore path.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-swipe",
+        "reason": "Drag dismissal shares thresholds and cancellation."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "Enter and exit lifecycle and reduced-motion collapse are owned once."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation",
+    "recovery-path",
+    "transition-class-conformance"
+  ]
+}

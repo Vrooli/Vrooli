@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.documentation-generator",
+    "name": "DocumentationGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Generates API references, behavior descriptions, examples, dependency diagrams, capability tables, installation guidance, and migration notes from the catalog and its evidence.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.composer-attachment-tray",
+    "name": "ComposerAttachmentTray",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The attachment manager for pending uploads, files, links, images, and contextual records, with progress, errors, cancellation, reordering, and removal per item.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "media.attachment-preview",
+        "reason": "Per-file presentation, progress, and retry are shared."
+      },
+      {
+        "asset": "primitives.cluster",
+        "reason": "Items wrap without resizing the composer."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "upload-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "recovery-path",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "empty",
+    "loading",
+    "success",
+    "partial",
+    "request-error",
+    "retry"
+  ]
+}

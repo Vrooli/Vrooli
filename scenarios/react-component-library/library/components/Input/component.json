@@ -1,14 +1,27 @@
 {
   "libraryId": "react-component-library:Input",
+  "catalogId": "forms.input",
   "displayName": "Input",
   "description": "Token-bound text input with mobile-safe font sizing and accessible focus styling.",
-  "tags": ["form", "interactive"],
+  "tags": [
+    "form",
+    "interactive"
+  ],
   "slot": "ui-primitive",
   "category": "forms",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native"
+    },
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "compatible"
+    },
+    {
+      "styleId": "vrooli-conversion-landing",
+      "affinity": "compatible"
+    }
   ],
   "latest": "1.1.0",
   "draft": "",

@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.animated-list",
+    "name": "AnimatedList",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The keyed collection preserving object constancy while items enter, leave, reorder, group, or change size, so a moving row is recognisably the same row.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.list",
+        "reason": "Row semantics and selection are shared."
+      },
+      {
+        "asset": "motion.auto-animate-layout",
+        "reason": "Insertion, removal, and reorder animate through the shared layout-difference primitive."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "reduced-motion",
+    "transition-causality",
+    "no-layout-animation"
+  ]
+}

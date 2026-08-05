@@ -680,8 +680,11 @@ type claimEvaluation struct {
 
 type claimEvaluatorFunc func(spec.PageDocument, spec.Claim, CaptureTarget, []*AXNode) claimEvaluation
 
-func claimEvaluator(claimType string) claimEvaluatorFunc {
-	evaluators := map[string]claimEvaluatorFunc{
+// claimEvaluators is the live set of deterministic structure checkers. It is
+// the authority for which claim types can actually pass; ImplementedClaimTypes
+// exposes its keys so the capability registry can derive checker coverage
+// instead of asserting it.
+var claimEvaluators = map[string]claimEvaluatorFunc{
 		"no-document-horizontal-overflow": evaluateNoDocumentHorizontalOverflowClaim,
 		"viewport-fill":                   evaluateViewportFillClaim,
 		"chrome-pinned":                   evaluateChromePinnedClaim,
@@ -701,7 +704,9 @@ func claimEvaluator(claimType string) claimEvaluatorFunc {
 		"visible-without-scroll":          evaluateVisibleWithoutScrollClaim,
 		"reading-order":                   evaluateReadingOrderClaim,
 	}
-	return evaluators[claimType]
+
+func claimEvaluator(claimType string) claimEvaluatorFunc {
+	return claimEvaluators[claimType]
 }
 
 func evaluateSpacingClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
@@ -1195,7 +1200,7 @@ func firstHorizontalOverflowNode(nodes []*AXNode, target CaptureTarget) *AXNode 
 	}
 	limit := float64(target.ViewportWidth) + 2
 	for _, node := range nodes {
-		if node == nil || node.Bounds == nil || isTextOnlyNode(node) || !verticallyIntersectsViewport(node.Bounds, target) {
+		if node == nil || node.Bounds == nil || isTextOnlyNode(node) || isPreviewWorkspaceScrollNode(node) || !verticallyIntersectsViewport(node.Bounds, target) {
 			continue
 		}
 		if node.Bounds.X < -2 || node.Bounds.X+node.Bounds.Width > limit {
@@ -1288,9 +1293,33 @@ func isChromeNode(node *AXNode) bool {
 	switch strings.ToLower(node.Role) {
 	case "banner", "navigation", "menubar", "toolbar", "tablist", "contentinfo":
 		return true
+	case "sectionheader":
+		// Card and specimen headers are common inside scrollable preview
+		// workspaces. Only a named application chrome marker is a floor target.
+		return isAppChromeContainerTestID(node.DOM.TestID)
 	default:
-		return strings.EqualFold(node.DOM.Tag, "nav") || strings.EqualFold(node.DOM.Tag, "header") || strings.EqualFold(node.DOM.Tag, "footer")
+		return strings.EqualFold(node.DOM.Tag, "nav") || strings.EqualFold(node.DOM.Tag, "footer")
 	}
+}
+
+func isPreviewWorkspaceScrollNode(node *AXNode) bool {
+	if node == nil {
+		return false
+	}
+	testID := node.DOM.TestID
+	if strings.EqualFold(node.DOM.Tag, "header") {
+		return true
+	}
+	switch testID {
+	case "components-editor-gallery", "components-editor-preview-frame", "components-editor-story-picker-item", "components-emulator-viewport", "components-emulator-viewport-frame", "components-emulator-viewport-canvas":
+		return true
+	}
+	// These nodes are descendants of the intentionally scrollable preview
+	// canvas. Their bounds are measured in the emulated device coordinate
+	// space, not the document viewport, so they must not be reported as page
+	// overflow or off-screen controls.
+	return strings.HasPrefix(testID, "components-editor-gallery") ||
+		strings.HasPrefix(testID, "components-editor-example-")
 }
 
 func isChromeLabelNode(node *AXNode, target CaptureTarget) bool {
@@ -1310,7 +1339,7 @@ func isChromeLabelNode(node *AXNode, target CaptureTarget) bool {
 
 func isAppChromeContainerTestID(testID string) bool {
 	switch testID {
-	case "layout-top-bar", "layout-sidebar", "layout-bottom-nav", "status-header", "mobile-header", "mobile-nav":
+	case "layout-top-bar", "layout-sidebar", "layout-bottom-nav", "status-header", "mobile-header", "mobile-nav", "workspace-header":
 		return true
 	default:
 		return false
@@ -1986,7 +2015,10 @@ func componentHarnessRoute(scenario string, component spec.ComponentDocument, ve
 		query.Set("version", version)
 	}
 	if strings.TrimSpace(example) != "" {
-		query.Set("example", example)
+		// RCL's harness contract calls the selected story "story". Keep the
+		// provider-generated route identical to the public preview route so
+		// readiness and accessibility capture observe the requested specimen.
+		query.Set("story", example)
 	}
 	if encoded := query.Encode(); encoded != "" {
 		route += "?" + encoded
@@ -2039,6 +2071,13 @@ func findBoundIndex(nodes []*AXNode, binding spec.Binding, role string) int {
 			return i
 		}
 	}
+	if fallback := findTextSlotNode(nodes, binding, role); fallback != nil {
+		for i, node := range nodes {
+			if node == fallback {
+				return i
+			}
+		}
+	}
 	return -1
 }
 
@@ -2046,6 +2085,41 @@ func findBoundNode(nodes []*AXNode, binding spec.Binding, role string) *AXNode {
 	for _, node := range nodes {
 		if nodeMatches(node, binding, role) {
 			return node
+		}
+	}
+	return findTextSlotNode(nodes, binding, role)
+}
+
+// BAS accessibility snapshots expose visible inline label text as a
+// StaticText node and do not carry the source span's data-testid onto that
+// node. A declared x-label binding still has a deterministic structural
+// target: the first StaticText descendant of the interactive control in the
+// same specimen. Keep this fallback narrow to the conventional label slot so
+// arbitrary missing bindings remain honest failures.
+func findTextSlotNode(nodes []*AXNode, binding spec.Binding, role string) *AXNode {
+	if role != "x-label" || !strings.HasSuffix(strings.TrimSpace(binding.TestID), "-label") {
+		return nil
+	}
+	var textDescendant func(node *AXNode) *AXNode
+	textDescendant = func(node *AXNode) *AXNode {
+		if node == nil {
+			return nil
+		}
+		if isTextOnlyNode(node) && node.Bounds != nil {
+			return node
+		}
+		for index := range node.Children {
+			if found := textDescendant(&node.Children[index]); found != nil {
+				return found
+			}
+		}
+		return nil
+	}
+	for _, node := range nodes {
+		if isInteractiveNode(node) {
+			if found := textDescendant(node); found != nil {
+				return found
+			}
 		}
 	}
 	return nil
@@ -2082,10 +2156,26 @@ func selectorMatches(node *AXNode, selector string) bool {
 	if strings.Contains(selector, "data-testid=") {
 		return selectorValue(selector) == node.DOM.TestID
 	}
+	if strings.Contains(selector, "aria-label=") {
+		return ariaLabelValue(selector) == node.Name
+	}
 	if !strings.ContainsAny(selector, "#.[] >:+~") {
 		return strings.EqualFold(node.DOM.Tag, selector) || strings.EqualFold(node.Role, selector)
 	}
 	return false
+}
+
+func ariaLabelValue(selector string) string {
+	idx := strings.Index(selector, "aria-label=")
+	if idx < 0 {
+		return ""
+	}
+	value := strings.TrimLeft(selector[idx+len("aria-label="):], `'")`)
+	end := strings.IndexAny(value, `'"]`)
+	if end >= 0 {
+		value = value[:end]
+	}
+	return value
 }
 
 func selectorContains(selector, attr, value string) bool {

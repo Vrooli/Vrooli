@@ -1515,6 +1515,21 @@
       ]
     },
     {
+      "name": "consumer-declarations",
+      "description": "Validate public, scenario-owned Browser Automation Studio consumer declarations.",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate inline declaration JSON. Read a scenario-owned file locally before invoking this command.",
+          "flags": [
+            { "name": "declaration-json", "required": true, "description": "Declaration JSON payload", "bind": { "field": "declaration_json", "kind": "raw_string" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ConsumerDeclarationsService", "method": "Validate" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
       "name": "drills",
       "description": "Run development-only controlled driver failure and recovery drills.",
       "commands": [

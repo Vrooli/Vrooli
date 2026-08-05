@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.audit-trail",
+    "name": "AuditTrail",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The structured history distinguishing actor, action, target, result, metadata, and before-and-after state, with filters, pagination, and export.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.timeline",
+        "reason": "Chronology, grouping, and pagination are shared."
+      },
+      {
+        "asset": "data-display.diff-viewer",
+        "reason": "Before-and-after state renders through the shared comparison surface."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "non-color-status",
+    "freshness-disclosure",
+    "permission-explained"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error",
+    "permission-denied"
+  ]
+}

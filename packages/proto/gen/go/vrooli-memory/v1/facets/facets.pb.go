@@ -653,6 +653,86 @@ func (*MarkSupersededResponse) Descriptor() ([]byte, []int) {
 	return file_vrooli_memory_v1_facets_facets_proto_rawDescGZIP(), []int{13}
 }
 
+type ResolveThreadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EntryId       string                 `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveThreadRequest) Reset() {
+	*x = ResolveThreadRequest{}
+	mi := &file_vrooli_memory_v1_facets_facets_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveThreadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveThreadRequest) ProtoMessage() {}
+
+func (x *ResolveThreadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_memory_v1_facets_facets_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveThreadRequest.ProtoReflect.Descriptor instead.
+func (*ResolveThreadRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_facets_facets_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ResolveThreadRequest) GetEntryId() string {
+	if x != nil {
+		return x.EntryId
+	}
+	return ""
+}
+
+type ResolveThreadResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveThreadResponse) Reset() {
+	*x = ResolveThreadResponse{}
+	mi := &file_vrooli_memory_v1_facets_facets_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveThreadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveThreadResponse) ProtoMessage() {}
+
+func (x *ResolveThreadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_memory_v1_facets_facets_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveThreadResponse.ProtoReflect.Descriptor instead.
+func (*ResolveThreadResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_facets_facets_proto_rawDescGZIP(), []int{15}
+}
+
 var File_vrooli_memory_v1_facets_facets_proto protoreflect.FileDescriptor
 
 const file_vrooli_memory_v1_facets_facets_proto_rawDesc = "" +
@@ -688,7 +768,10 @@ const file_vrooli_memory_v1_facets_facets_proto_rawDesc = "" +
 	"\x15MarkSupersededRequest\x12\x19\n" +
 	"\bentry_id\x18\x01 \x01(\tR\aentryId\x120\n" +
 	"\x14replacement_entry_id\x18\x02 \x01(\tR\x12replacementEntryId\"\x18\n" +
-	"\x16MarkSupersededResponse2\xfc\x05\n" +
+	"\x16MarkSupersededResponse\"1\n" +
+	"\x14ResolveThreadRequest\x12\x19\n" +
+	"\bentry_id\x18\x01 \x01(\tR\aentryId\"\x17\n" +
+	"\x15ResolveThreadResponse2\xfa\x06\n" +
 	"\rFacetsService\x12s\n" +
 	"\n" +
 	"ListFacets\x121.vrooli.vrooli_memory.v1.facets.ListFacetsRequest\x1a2.vrooli.vrooli_memory.v1.facets.ListFacetsResponse\x12v\n" +
@@ -696,7 +779,8 @@ const file_vrooli_memory_v1_facets_facets_proto_rawDesc = "" +
 	"\x06SetPin\x12-.vrooli.vrooli_memory.v1.facets.SetPinRequest\x1a..vrooli.vrooli_memory.v1.facets.SetPinResponse\x12\x85\x01\n" +
 	"\x10ListPinProposals\x127.vrooli.vrooli_memory.v1.facets.ListPinProposalsRequest\x1a8.vrooli.vrooli_memory.v1.facets.ListPinProposalsResponse\x12\x8b\x01\n" +
 	"\x12ResolvePinProposal\x129.vrooli.vrooli_memory.v1.facets.ResolvePinProposalRequest\x1a:.vrooli.vrooli_memory.v1.facets.ResolvePinProposalResponse\x12\x7f\n" +
-	"\x0eMarkSuperseded\x125.vrooli.vrooli_memory.v1.facets.MarkSupersededRequest\x1a6.vrooli.vrooli_memory.v1.facets.MarkSupersededResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/facets;facets_v1b\x06proto3"
+	"\x0eMarkSuperseded\x125.vrooli.vrooli_memory.v1.facets.MarkSupersededRequest\x1a6.vrooli.vrooli_memory.v1.facets.MarkSupersededResponse\x12|\n" +
+	"\rResolveThread\x124.vrooli.vrooli_memory.v1.facets.ResolveThreadRequest\x1a5.vrooli.vrooli_memory.v1.facets.ResolveThreadResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/facets;facets_v1b\x06proto3"
 
 var (
 	file_vrooli_memory_v1_facets_facets_proto_rawDescOnce sync.Once
@@ -710,7 +794,7 @@ func file_vrooli_memory_v1_facets_facets_proto_rawDescGZIP() []byte {
 	return file_vrooli_memory_v1_facets_facets_proto_rawDescData
 }
 
-var file_vrooli_memory_v1_facets_facets_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_vrooli_memory_v1_facets_facets_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_vrooli_memory_v1_facets_facets_proto_goTypes = []any{
 	(*Facet)(nil),                      // 0: vrooli.vrooli_memory.v1.facets.Facet
 	(*PinProposal)(nil),                // 1: vrooli.vrooli_memory.v1.facets.PinProposal
@@ -726,6 +810,8 @@ var file_vrooli_memory_v1_facets_facets_proto_goTypes = []any{
 	(*ResolvePinProposalResponse)(nil), // 11: vrooli.vrooli_memory.v1.facets.ResolvePinProposalResponse
 	(*MarkSupersededRequest)(nil),      // 12: vrooli.vrooli_memory.v1.facets.MarkSupersededRequest
 	(*MarkSupersededResponse)(nil),     // 13: vrooli.vrooli_memory.v1.facets.MarkSupersededResponse
+	(*ResolveThreadRequest)(nil),       // 14: vrooli.vrooli_memory.v1.facets.ResolveThreadRequest
+	(*ResolveThreadResponse)(nil),      // 15: vrooli.vrooli_memory.v1.facets.ResolveThreadResponse
 }
 var file_vrooli_memory_v1_facets_facets_proto_depIdxs = []int32{
 	0,  // 0: vrooli.vrooli_memory.v1.facets.ListFacetsResponse.facets:type_name -> vrooli.vrooli_memory.v1.facets.Facet
@@ -736,14 +822,16 @@ var file_vrooli_memory_v1_facets_facets_proto_depIdxs = []int32{
 	8,  // 5: vrooli.vrooli_memory.v1.facets.FacetsService.ListPinProposals:input_type -> vrooli.vrooli_memory.v1.facets.ListPinProposalsRequest
 	10, // 6: vrooli.vrooli_memory.v1.facets.FacetsService.ResolvePinProposal:input_type -> vrooli.vrooli_memory.v1.facets.ResolvePinProposalRequest
 	12, // 7: vrooli.vrooli_memory.v1.facets.FacetsService.MarkSuperseded:input_type -> vrooli.vrooli_memory.v1.facets.MarkSupersededRequest
-	3,  // 8: vrooli.vrooli_memory.v1.facets.FacetsService.ListFacets:output_type -> vrooli.vrooli_memory.v1.facets.ListFacetsResponse
-	5,  // 9: vrooli.vrooli_memory.v1.facets.FacetsService.AssignFacet:output_type -> vrooli.vrooli_memory.v1.facets.AssignFacetResponse
-	7,  // 10: vrooli.vrooli_memory.v1.facets.FacetsService.SetPin:output_type -> vrooli.vrooli_memory.v1.facets.SetPinResponse
-	9,  // 11: vrooli.vrooli_memory.v1.facets.FacetsService.ListPinProposals:output_type -> vrooli.vrooli_memory.v1.facets.ListPinProposalsResponse
-	11, // 12: vrooli.vrooli_memory.v1.facets.FacetsService.ResolvePinProposal:output_type -> vrooli.vrooli_memory.v1.facets.ResolvePinProposalResponse
-	13, // 13: vrooli.vrooli_memory.v1.facets.FacetsService.MarkSuperseded:output_type -> vrooli.vrooli_memory.v1.facets.MarkSupersededResponse
-	8,  // [8:14] is the sub-list for method output_type
-	2,  // [2:8] is the sub-list for method input_type
+	14, // 8: vrooli.vrooli_memory.v1.facets.FacetsService.ResolveThread:input_type -> vrooli.vrooli_memory.v1.facets.ResolveThreadRequest
+	3,  // 9: vrooli.vrooli_memory.v1.facets.FacetsService.ListFacets:output_type -> vrooli.vrooli_memory.v1.facets.ListFacetsResponse
+	5,  // 10: vrooli.vrooli_memory.v1.facets.FacetsService.AssignFacet:output_type -> vrooli.vrooli_memory.v1.facets.AssignFacetResponse
+	7,  // 11: vrooli.vrooli_memory.v1.facets.FacetsService.SetPin:output_type -> vrooli.vrooli_memory.v1.facets.SetPinResponse
+	9,  // 12: vrooli.vrooli_memory.v1.facets.FacetsService.ListPinProposals:output_type -> vrooli.vrooli_memory.v1.facets.ListPinProposalsResponse
+	11, // 13: vrooli.vrooli_memory.v1.facets.FacetsService.ResolvePinProposal:output_type -> vrooli.vrooli_memory.v1.facets.ResolvePinProposalResponse
+	13, // 14: vrooli.vrooli_memory.v1.facets.FacetsService.MarkSuperseded:output_type -> vrooli.vrooli_memory.v1.facets.MarkSupersededResponse
+	15, // 15: vrooli.vrooli_memory.v1.facets.FacetsService.ResolveThread:output_type -> vrooli.vrooli_memory.v1.facets.ResolveThreadResponse
+	9,  // [9:16] is the sub-list for method output_type
+	2,  // [2:9] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -760,7 +848,7 @@ func file_vrooli_memory_v1_facets_facets_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_memory_v1_facets_facets_proto_rawDesc), len(file_vrooli_memory_v1_facets_facets_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

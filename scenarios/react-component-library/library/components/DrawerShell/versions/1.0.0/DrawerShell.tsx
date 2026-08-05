@@ -114,7 +114,7 @@ export function DrawerShell({
               ref={closeButtonRef}
               type="button"
               onClick={onClose}
-              className="shrink-0 rounded-full p-1.5 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+              className="touch-target inline-flex shrink-0 items-center justify-center rounded-full p-1.5 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
               aria-label={closeAriaLabel}
             >
               <span aria-hidden>×</span>

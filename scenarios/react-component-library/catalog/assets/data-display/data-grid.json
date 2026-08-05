@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.data-grid",
+    "name": "DataGrid",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The high-capability virtualized grid with keyboard cell navigation, inline editing, grouping, pinning, resizing, reordering, selection, and persisted layout.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.data-grid-store",
+        "reason": "Column, sort, filter, focus, and layout state live in the shared store."
+      },
+      {
+        "asset": "data-display.data-table",
+        "reason": "Presentation, selection, and state delegation are shared."
+      },
+      {
+        "asset": "manipulation.resizable",
+        "reason": "Column resizing composes the shared resize primitive."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "virtualization-adapter"
+    },
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "density-adaptive-layout",
+    "input-preservation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "offline"
+  ],
+  "qualityGates": [
+    "performance",
+    "stress"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Keyboard focus moves cell by cell across a grid of any size without the window ever losing the focused cell, so a keyboard user can work at the speed of a spreadsheet."
+    }
+  }
+}

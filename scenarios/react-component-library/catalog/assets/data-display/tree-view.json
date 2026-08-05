@@ -1,0 +1,68 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.tree-view",
+    "name": "TreeView",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The hierarchical collection with lazily loaded nodes, expansion, selection, keyboard traversal, drag reordering, filtering, virtualization, and accessible tree semantics.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "motion.collapsible-region",
+        "reason": "Branch expansion animates through the shared region."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Traversal exposes one tab stop with arrow-key movement."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "manipulation.sortable",
+        "reason": "Only editable hierarchies need drag reordering."
+      },
+      {
+        "asset": "data-display.virtual-list",
+        "reason": "Windowing matters only for trees large enough to need it."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "virtualization-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "empty-state-craft"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error"
+  ]
+}

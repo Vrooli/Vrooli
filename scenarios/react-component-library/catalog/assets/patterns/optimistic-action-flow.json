@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.optimistic-action-flow",
+    "name": "OptimisticActionFlow",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The reusable action composition applying a predicted change immediately, showing transient state, committing on success, and rolling back visibly with a recovery path on failure.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-optimistic-action",
+        "reason": "Prediction, commit, and rollback mechanics are shared."
+      },
+      {
+        "asset": "feedback.inline-status",
+        "reason": "Transient and failed state is reported next to the affected content."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Progress and outcomes are announced through the one shared live region."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "optimistic-rollback"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "request-error",
+    "offline",
+    "retry"
+  ]
+}

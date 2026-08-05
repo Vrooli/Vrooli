@@ -1,0 +1,64 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.diff-approval",
+    "name": "DiffApproval",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The review surface for proposed changes with file navigation, semantic diff, comments, partial selection, risk indicators, approval, rejection, and revision requests.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.diff-viewer",
+        "reason": "Comparison, navigation, and colour-independent change marking are shared."
+      },
+      {
+        "asset": "ai.approval-prompt",
+        "reason": "The decision itself uses the shared approval semantics and scope statement."
+      },
+      {
+        "asset": "controls.button-group",
+        "reason": "Actions and overflow use the shared group."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "destructive-confirmation",
+    "non-color-status",
+    "error-message-usefulness",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "submitting",
+    "success",
+    "request-error",
+    "retry"
+  ],
+  "qualityGates": [
+    "performance"
+  ],
+  "rationale": "Partial selection is what makes this usable in practice: approving twelve of fifteen proposed changes is the normal case, and a surface that only offers accept-all forces users into all-or-nothing decisions they will get wrong."
+}

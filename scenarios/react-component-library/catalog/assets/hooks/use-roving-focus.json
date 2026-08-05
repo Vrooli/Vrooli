@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-roving-focus",
+    "name": "useRovingFocus",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A focus-management primitive for composite widgets, moving a single tab stop across toolbars, menus, tabs, radio groups, and grids.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-direction",
+        "reason": "Arrow-key movement reverses in right-to-left reading order."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-order"
+  ]
+}

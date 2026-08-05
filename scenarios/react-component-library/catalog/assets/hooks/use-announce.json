@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-announce",
+    "name": "useAnnounce",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A live-region primitive that queues, deduplicates, and times screen-reader messages through the shared announcer rather than creating competing regions.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "expects": [
+    {
+      "capability": "live-announcer"
+    }
+  ],
+  "requiredCapabilities": [
+    "status-announced"
+  ]
+}

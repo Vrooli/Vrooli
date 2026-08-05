@@ -126,11 +126,6 @@
           }
         },
         {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o data-tools-api ./cmd/server/",
           "description": "Build Go API server",

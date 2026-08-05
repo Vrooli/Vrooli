@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-swipe",
+    "name": "useSwipe",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A directional gesture primitive with distance and velocity thresholds, axis locking, touch cancellation, and a required non-gesture alternative.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-drag",
+        "reason": "Swipe is a constrained drag and must share its pointer-capture handling."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "gesture-alternative"
+  ]
+}

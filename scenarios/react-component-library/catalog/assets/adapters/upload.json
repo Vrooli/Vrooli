@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "adapters.upload",
+    "name": "UploadAdapter",
+    "kind": "adapter",
+    "domain": "adapters",
+    "description": "Connects file fields and upload flows to multipart, signed-URL, chunked, resumable, or application-specific transfer implementations.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "adapter",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Boundary types come from the shared framework-light vocabulary rather than being redeclared per adapter."
+      }
+    ]
+  },
+  "satisfies": [
+    "upload-adapter"
+  ]
+}

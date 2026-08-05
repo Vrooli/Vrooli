@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-minimum-duration",
+    "name": "useMinimumDuration",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A presentation-timing primitive that keeps short-lived loading or success states visible long enough to be perceived without delaying the underlying operation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  }
+}

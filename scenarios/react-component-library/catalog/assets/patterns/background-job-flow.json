@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.background-job-flow",
+    "name": "BackgroundJobFlow",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The long-running operation pattern that begins inline, moves to the task registry, survives navigation, and exposes progress, cancellation, retry, and results wherever the user goes next.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.background-task-registry",
+        "reason": "Long work survives navigation by living in the shared task registry."
+      },
+      {
+        "asset": "feedback.progress-toast",
+        "reason": "In-context progress is the shared notification."
+      },
+      {
+        "asset": "feedback.background-task-center",
+        "reason": "The durable home for the work is the shared centre."
+      },
+      {
+        "asset": "hooks.use-async-action",
+        "reason": "Pending, cancellation, retry, and stale-result handling use the one shared async contract."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "request-error",
+    "offline",
+    "retry"
+  ],
+  "rationale": "The handoff is the pattern: work that starts in a dialog must not die when the dialog closes, and the user must be able to find it again without remembering where it began."
+}

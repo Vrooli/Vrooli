@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "manipulation.minimap",
+    "name": "Minimap",
+    "kind": "component",
+    "domain": "manipulation",
+    "description": "The synchronized overview of a larger spatial canvas with viewport bounds, click and drag navigation, selection indicators, and adaptive simplification at small sizes.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "manipulation.canvas-viewport",
+        "reason": "Coordinate conversion and viewport state are shared."
+      },
+      {
+        "asset": "hooks.use-drag",
+        "reason": "Pointer capture, constraints, and velocity keep movement outside React rendering."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-resize-observer",
+    "name": "useResizeObserver",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A shared-observer primitive reporting element size changes without creating one native observer per component instance.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "evidence-registry",
+  "schemaVersion": "1.0.0",
+  "evidence": [
+    {
+      "id": "ax-tree",
+      "title": "Accessibility tree",
+      "description": "Roles, accessible names, and keyboard-reachability for every node, captured after the surface settles.",
+      "producer": { "kind": "bas-capture", "detail": "accessibility snapshot per capture target", "engineWorkRequired": false },
+      "notes": "The load-bearing evidence channel and the reason the contract is portable across platforms: every OS exposes an equivalent tree, so an ARIA-shaped claim is checkable on native targets too."
+    },
+    {
+      "id": "layout-box",
+      "title": "Layout box",
+      "description": "Position and size of a bound element in viewport coordinates.",
+      "producer": { "kind": "bas-capture", "detail": "AXNode.Bounds on the accessibility snapshot", "engineWorkRequired": false },
+      "notes": "Rides along with ax-tree but is not always populated — the three live `claim_unverifiable` warnings for spacing and size-parity are all missing bounds rather than missing nodes. Modeled separately so that distinction is expressible."
+    },
+    {
+      "id": "computed-style",
+      "title": "Computed style",
+      "description": "Resolved CSS values for a bound element: colors, dimensions, typography, border, shadow, and transition properties.",
+      "producer": { "kind": "bas-capture", "detail": "computed style read alongside the accessibility snapshot", "engineWorkRequired": true },
+      "notes": "The single highest-leverage gap in the system. Its absence is why contrast, spacing conformance, typography, ramp checking, and motion duration verification are all unprovable today, and why `hover-state-contrast` reports unverifiable rather than passing or failing."
+    },
+    {
+      "id": "screenshot",
+      "title": "Screenshot",
+      "description": "Rendered pixels for a capture target.",
+      "producer": { "kind": "bas-capture", "detail": "ACTION_TYPE_SCREENSHOT", "engineWorkRequired": false },
+      "notes": "Already produced by ui/scripts/preview-e2e.mjs and by ui-health's visualhealth analyzer, but never joined to experience evidence. Wiring is a plumbing problem, not a capture problem."
+    },
+    {
+      "id": "runtime-log",
+      "title": "Console and page errors",
+      "description": "Console output and uncaught errors emitted while the capture target rendered.",
+      "producer": { "kind": "bas-capture", "detail": "console and pageerror listeners during execution", "engineWorkRequired": false },
+      "notes": "Needed to prove that an error state is a designed state rather than a crash — a surface that renders its error UI while also throwing is not honestly in the error state."
+    },
+    {
+      "id": "timing",
+      "title": "Capture and transition timing",
+      "description": "How long the surface took to settle, and the measured duration of an observed transition.",
+      "producer": { "kind": "bas-capture", "detail": "reconcile.SaveCaptureTiming plus per-transition measurement", "engineWorkRequired": true },
+      "notes": "Settle timing already persists through CaptureTargetTiming. Per-transition measurement — what a motion-duration claim needs to verify a transition actually ran at its declared token — does not exist yet."
+    }
+  ]
+}

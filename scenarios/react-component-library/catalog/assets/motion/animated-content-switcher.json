@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "motion.animated-content-switcher",
+    "name": "AnimatedContentSwitcher",
+    "kind": "component",
+    "domain": "motion",
+    "description": "The state-transition component replacing arbitrary content with direction-aware entry, exit, crossfade, and height adaptation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "Enter and exit lifecycle, interruption, and nesting are owned once rather than per animated component."
+      },
+      {
+        "asset": "hooks.use-direction",
+        "reason": "Entry and exit direction reverse in right-to-left reading order."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "transition-class-conformance",
+    "reduced-motion",
+    "no-layout-animation",
+    "motion-duration-conformance",
+    "transition-causality",
+    "reading-order-honest"
+  ]
+}

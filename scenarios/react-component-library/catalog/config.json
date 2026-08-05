@@ -1,0 +1,153 @@
+{
+  "$schema": "../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-config",
+  "contract": {
+    "kind": "ui-catalog",
+    "schema": "catalog-asset/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "description": "Vocabularies and per-kind defaults for the desired-state UI asset catalog. Domains organize; kinds carry dependency rank and select gates. Nothing here records what exists.",
+  "domains": [
+    { "id": "foundations", "order": 10, "description": "Tokens, themes, recipes, providers, base styles, icon registry, and capability detection — the layer every other asset styles and composes against." },
+    { "id": "hooks", "order": 20, "description": "Reusable behavior primitives for state, async work, DOM measurement, interaction, and accessibility." },
+    { "id": "services", "order": 30, "description": "Scoped stores and global coordinators: layers, toasts, commands, background tasks, announcements, selection, and undo." },
+    { "id": "primitives", "order": 40, "description": "Layout, surface, typography, and small visual building blocks with no domain knowledge." },
+    { "id": "motion", "order": 50, "description": "Presence, transition, and layout-animation primitives that render the kit's declared transition classes." },
+    { "id": "controls", "order": 60, "description": "Interactive controls: buttons, toggles, sliders, steppers, toolbars, and pagination." },
+    { "id": "forms", "order": 70, "description": "Fields, form coordination, validation presentation, and schema-driven form generation." },
+    { "id": "overlays", "order": 80, "description": "Floating and modal surfaces: popovers, tooltips, menus, dialogs, drawers, sheets, and command palettes." },
+    { "id": "navigation", "order": 90, "description": "Application shell, navigation surfaces, tabs, breadcrumbs, and structural layout." },
+    { "id": "feedback", "order": 100, "description": "Alerts, toasts, progress, async boundaries, and the empty, error, offline, and permission state compositions." },
+    { "id": "data-display", "order": 110, "description": "Lists, trees, tables, grids, filters, and collection presentation." },
+    { "id": "visualization", "order": 120, "description": "Charts and data-visualization families, lazily loaded and adapter-backed." },
+    { "id": "media", "order": 130, "description": "Galleries, players, viewers, and file preview surfaces." },
+    { "id": "manipulation", "order": 140, "description": "Direct-manipulation interactions: drag, sort, resize, selection tools, and spatial canvases." },
+    { "id": "ai", "order": 150, "description": "Agent-interface surfaces: conversation, streaming, tool activity, approvals, plans, artifacts, and citations." },
+    { "id": "patterns", "order": 160, "description": "Behavior-complete workflows that own state coordination, responsive behavior, async feedback, and recovery." },
+    { "id": "templates", "order": 170, "description": "Controller-driven route-level surfaces that own their generic states and expose regions for domain content." },
+    { "id": "fixtures", "order": 180, "description": "Reusable adversarial mock data that stands in for a data source so surfaces can be validated without a scenario." },
+    { "id": "generators", "order": 190, "description": "Schema-to-UI compilers that emit configurations using the same public assets a human would use." },
+    { "id": "adapters", "order": 200, "description": "Ports to replaceable implementations: router, validation, icons, motion, positioning, virtualization, editors, storage, and telemetry." }
+  ],
+  "gates": [
+    {
+      "id": "types",
+      "description": "Strict compilation with exported public types, no accidental any, and a stable entrypoint.",
+      "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "generator"],
+      "blocking": true,
+      "runner": { "react-vite": "pnpm run catalog:check" }
+    },
+    {
+      "id": "api",
+      "description": "Declared variants, modes, and parts match what the implementation actually exports.",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true
+    },
+    {
+      "id": "unit",
+      "description": "Pure logic, state transitions, parsing, formatting, and edge cases.",
+      "appliesTo": ["runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "generator"],
+      "blocking": true,
+      "runner": { "react-vite": "react-component-library componenttests run" }
+    },
+    {
+      "id": "interaction",
+      "description": "Pointer, touch, keyboard, interruption, cancellation, nested use, and disabled behavior.",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": { "react-vite": "react-component-library componenttests run" }
+    },
+    {
+      "id": "accessibility",
+      "description": "Semantics, naming, focus order, announcement, keyboard operation, and contrast, reconciled against captured evidence.",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": { "react-vite": "vrooli scenario test react-component-library --phase experience" }
+    },
+    {
+      "id": "responsive",
+      "description": "Behavior across the kit's baseline viewport matrix, including the declared responsive transformations.",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": { "react-vite": "vrooli scenario test react-component-library --phase experience" }
+    },
+    {
+      "id": "visual",
+      "description": "Approved fixture matrix and screenshot regression coverage in light and dark.",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": { "react-vite": "node ui/scripts/preview-e2e.mjs" }
+    },
+    {
+      "id": "rtl",
+      "description": "Direction-aware layout, keyboard movement, gestures, icon direction, and transitions.",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true
+    },
+    {
+      "id": "reduced-motion",
+      "description": "Reduced or disabled motion with no meaning lost and no broken lifecycle.",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true
+    },
+    {
+      "id": "forced-colors",
+      "description": "Usable presentation under operating-system high-contrast mode.",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": false
+    },
+    {
+      "id": "stress",
+      "description": "Long text, localization expansion, empty values, large values, many items, and overflow.",
+      "appliesTo": ["component", "pattern", "page-template", "navigation"],
+      "blocking": true
+    },
+    {
+      "id": "performance",
+      "description": "Bundle profile, render benchmark, interaction latency, layout stability, and listener cleanup.",
+      "appliesTo": ["runtime-service", "component", "pattern", "page-template", "generator"],
+      "blocking": true
+    },
+    {
+      "id": "documentation",
+      "description": "Description, usage, API, behavior, accessibility, performance notes, and anti-patterns.",
+      "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "generator"],
+      "blocking": false
+    },
+    {
+      "id": "examples",
+      "description": "Named specimens covering every required state, authored as story contract data.",
+      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true
+    },
+    {
+      "id": "integration",
+      "description": "Works correctly with the shared managers, providers, tokens, and nested overlays it declares ports for.",
+      "appliesTo": ["component", "pattern", "page-template", "navigation"],
+      "blocking": true
+    },
+    {
+      "id": "fixture-adversarial",
+      "description": "The fixture supplies its declared data shapes and includes overflowing text, absent optional fields, at least one RTL string, a failure record where status is modeled, and a volume variant.",
+      "appliesTo": ["fixture"],
+      "blocking": true
+    },
+    {
+      "id": "migration",
+      "description": "Replacement and codemod information when a public API changes or the asset is deprecated.",
+      "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "generator"],
+      "blocking": false
+    }
+  ],
+  "avoidVocabulary": [
+    { "id": "uniform-card-grid", "lintable": false, "description": "Every item wrapped in an identical rounded rectangle, where alignment and typography would carry the structure better." },
+    { "id": "card-wrapping-page-sections", "lintable": true, "description": "Whole page sections framed as floating cards, which DESIGN.md forbids in every kit." },
+    { "id": "modal-for-routine-inspection", "lintable": false, "description": "A modal used for inspecting an item the user inspects constantly, where a contextual panel preserves position and flow." },
+    { "id": "color-without-semantic-purpose", "lintable": false, "description": "Color applied decoratively rather than to carry status, selection, or hierarchy." },
+    { "id": "decorative-gradient-background", "lintable": true, "description": "Gradient blobs, bokeh, or atmospheric backgrounds as default visual identity." },
+    { "id": "hover-only-affordance", "lintable": true, "description": "An action discoverable only on hover, unreachable on touch." },
+    { "id": "ambient-motion-competing-with-status", "lintable": false, "description": "Background animation that draws attention away from live operational state." },
+    { "id": "toast-as-only-error-record", "lintable": false, "description": "A blocking failure recorded only in a transient toast the user can miss entirely." },
+    { "id": "icon-without-accessible-name", "lintable": true, "description": "An icon-only control whose meaning exists solely in the glyph." }
+  ]
+}

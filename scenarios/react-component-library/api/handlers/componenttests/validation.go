@@ -7,6 +7,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"sync"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/metrics"
@@ -25,6 +26,14 @@ type sharedHandler struct {
 	service *domain.Service
 	assets  components.Service
 	logger  *log.Logger
+}
+
+const componentValidationWorkers = 4
+
+type assetValidationResult struct {
+	libraryID string
+	detail    string
+	failed    bool
 }
 
 // DescribeProvider answers Test Genie readiness from provider-owned facts.
@@ -51,41 +60,50 @@ func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	jobs := make(chan components.Component)
+	results := make(chan assetValidationResult, len(assets))
+	workers := componentValidationWorkers
+	if len(assets) < workers {
+		workers = len(assets)
+	}
+	var wait sync.WaitGroup
+	for range workers {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for asset := range jobs {
+				if asset.LatestVersion == "" {
+					continue
+				}
+				results <- h.validateAsset(ctx, asset)
+			}
+		}()
+	}
+	for _, asset := range assets {
+		if asset.LatestVersion != "" {
+			jobs <- asset
+		}
+	}
+	close(jobs)
+	wait.Wait()
+	close(results)
+
+	validated := make([]assetValidationResult, 0, len(results))
+	for result := range results {
+		validated = append(validated, result)
+	}
+	sort.Slice(validated, func(i, j int) bool { return validated[i].libraryID < validated[j].libraryID })
 	failed := false
 	failedAssets := []string{}
 	failureDetails := map[string]string{}
-	for _, asset := range assets {
-		if asset.LatestVersion == "" {
+	for _, result := range validated {
+		if !result.failed {
 			continue
 		}
-		report, runErr := h.service.Run(ctx, domain.Request{ComponentID: asset.ID, Version: asset.LatestVersion, IncludeClosure: true})
-		coverageGaps := h.storyCoverageGaps(ctx, asset.ID, asset.LatestVersion)
-		if len(coverageGaps) > 0 {
-			failureDetails[asset.LibraryID] = fmt.Sprintf("story coverage gaps: %v", coverageGaps)
-			if h.logger != nil {
-				h.logger.Printf("component-test story coverage failed for %s@%s: %v", asset.LibraryID, asset.LatestVersion, coverageGaps)
-			}
-			failed = true
-			failedAssets = append(failedAssets, asset.LibraryID)
-		}
-		if runErr != nil || report.Verdict != domain.VerdictPassed {
-			if h.logger != nil {
-				h.logger.Printf("component-test execution failed for %s@%s: run_error=%v verdict=%s results=%v", asset.LibraryID, asset.LatestVersion, runErr, report.Verdict, report.Results)
-			}
-			if runErr != nil {
-				failureDetails[asset.LibraryID] = "runner error: " + runErr.Error()
-			} else if report.Verdict == domain.VerdictFailed {
-				for _, result := range report.Results {
-					if result.Verdict == domain.VerdictFailed && result.Message != "" {
-						failureDetails[asset.LibraryID] = "failed story: " + result.Message
-						break
-					}
-				}
-			}
-			if runErr != nil || report.Verdict == domain.VerdictFailed {
-				failed = true
-				failedAssets = append(failedAssets, asset.LibraryID)
-			}
+		failed = true
+		failedAssets = append(failedAssets, result.libraryID)
+		if result.detail != "" {
+			failureDetails[result.libraryID] = result.detail
 		}
 	}
 	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
@@ -98,6 +116,37 @@ func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 		Assessment: componentTestsAssessment(req.Msg.GetScenario(), !failed, failedAssets, failureDetails),
 		Metrics:    collector.Stop(),
 	}), nil
+}
+
+func (h *sharedHandler) validateAsset(ctx context.Context, asset components.Component) assetValidationResult {
+	result := assetValidationResult{libraryID: asset.LibraryID}
+	report, runErr := h.service.Run(ctx, domain.Request{ComponentID: asset.ID, Version: asset.LatestVersion, IncludeClosure: true})
+	coverageGaps := h.storyCoverageGaps(ctx, asset.ID, asset.LatestVersion)
+	if len(coverageGaps) > 0 {
+		result.failed = true
+		result.detail = fmt.Sprintf("story coverage gaps: %v", coverageGaps)
+		if h.logger != nil {
+			h.logger.Printf("component-test story coverage failed for %s@%s: %v", asset.LibraryID, asset.LatestVersion, coverageGaps)
+		}
+	}
+	if runErr == nil && report.Verdict == domain.VerdictPassed {
+		return result
+	}
+	result.failed = true
+	if h.logger != nil {
+		h.logger.Printf("component-test execution failed for %s@%s: run_error=%v verdict=%s results=%v", asset.LibraryID, asset.LatestVersion, runErr, report.Verdict, report.Results)
+	}
+	if runErr != nil {
+		result.detail = "runner error: " + runErr.Error()
+		return result
+	}
+	for _, storyResult := range report.Results {
+		if storyResult.Verdict == domain.VerdictFailed && storyResult.Message != "" {
+			result.detail = "failed story: " + storyResult.Message
+			break
+		}
+	}
+	return result
 }
 
 func (h *sharedHandler) storyCoverageGaps(ctx context.Context, componentID, version string) []components.StoryCoverageGap {

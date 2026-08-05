@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.resource-detail",
+    "name": "ResourceDetail",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The detail pattern with header, metadata, sections, history, contextual actions, permission handling, responsive inspector, and editable regions.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page-header",
+        "reason": "Title, breadcrumbs, and actions are shared."
+      },
+      {
+        "asset": "data-display.description-list",
+        "reason": "Metadata presentation is shared."
+      },
+      {
+        "asset": "data-display.audit-trail",
+        "reason": "History uses the shared structured trail."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary rather than reimplemented per workflow."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TRecord"
+      ]
+    },
+    {
+      "capability": "permissions-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "permission-explained",
+    "freshness-disclosure",
+    "heading-hierarchy"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.asset-scaffold-generator",
+    "name": "AssetScaffoldGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Creates an implementation scaffold, tests, examples, documentation, exports, and evidence placeholders directly from a catalog asset descriptor.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    }
+  },
+  "rationale": "The seam that makes the catalog actionable rather than aspirational: an agent picks the next unblocked asset and gets a correctly shaped starting point, with the declared capabilities and states already present as failing checks."
+}

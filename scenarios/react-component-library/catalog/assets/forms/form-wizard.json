@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.form-wizard",
+    "name": "FormWizard",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The multi-step form controller with per-step validation boundaries, optional branches, resumable drafts, progress, back navigation, URL synchronization, and final submission.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.form",
+        "reason": "Values, validation, and submission use the shared form runtime."
+      },
+      {
+        "asset": "forms.form-section",
+        "reason": "Each step is a section with its own error summary."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "focus-order",
+    "input-preservation",
+    "recovery-path",
+    "status-announced",
+    "responsive-transformation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "submitting",
+    "success",
+    "validation-error",
+    "request-error",
+    "offline",
+    "retry"
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.settings-page",
+    "name": "SettingsPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The searchable settings surface with section navigation, per-field autosave, reset to defaults, permissions, save status, conflict handling, and responsive layout.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "navigation.page-header",
+        "reason": "Title, breadcrumbs, description, and actions are the shared header."
+      },
+      {
+        "asset": "patterns.autosaving-settings",
+        "reason": "Categorized autosave, search, and conflict handling are the shared workflow."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    },
+    {
+      "capability": "permissions-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "error-association",
+    "input-preservation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry",
+    "saving",
+    "success",
+    "validation-error"
+  ],
+  "regions": [
+    {
+      "id": "navigation",
+      "purpose": "Category navigation across settings sections.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "search",
+      "purpose": "Search across every setting, not only the visible section.",
+      "required": false,
+      "lifecycle": "static"
+    },
+    {
+      "id": "settings",
+      "purpose": "The fields for the active category.",
+      "required": true,
+      "lifecycle": "async",
+      "accepts": "forms"
+    },
+    {
+      "id": "status",
+      "purpose": "Save state, last-saved time, and reset affordances.",
+      "required": false,
+      "lifecycle": "static"
+    }
+  ],
+  "rationale": "Search across all settings rather than the visible section is the feature that makes a large settings surface usable, and the one most often omitted."
+}

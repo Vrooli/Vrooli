@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.chip",
+    "name": "Chip",
+    "kind": "component",
+    "domain": "primitives",
+    "description": "The interactive compact value component supporting selection, removal, leading icons or avatars, keyboard operation, and overflow within a cluster.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.badge",
+        "reason": "Visual treatment is shared with the static badge so a chip and a badge never disagree."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "controls.pressable",
+        "reason": "Only selectable or removable chips need the press model; a display-only chip should stay inert."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "tap-target-size",
+    "focus-visible-indicator",
+    "accessible-naming",
+    "non-color-status"
+  ]
+}

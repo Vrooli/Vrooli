@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.offline-state",
+    "name": "OfflineState",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The connectivity composition explaining what still works offline, what has been queued, when the surface last synchronized, and what reconnection will do.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.error-state",
+        "reason": "Structure and recovery affordances are shared."
+      },
+      {
+        "asset": "hooks.use-network-status",
+        "reason": "Connectivity is read through the shared best-effort hook."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "recovery-path",
+    "contrast-floor",
+    "content-reflow",
+    "text-scale-resilience",
+    "empty-state-craft",
+    "responsive-transformation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "offline",
+    "stale",
+    "retry"
+  ]
+}

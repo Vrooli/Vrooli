@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.progress-toast",
+    "name": "ProgressToast",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The persistent notification tracking one background operation from pending through progress, completion, failure, cancellation, and retry without blocking the interface.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.toast",
+        "reason": "Presentation and queueing are shared."
+      },
+      {
+        "asset": "primitives.progress",
+        "reason": "Progress rendering is shared."
+      },
+      {
+        "asset": "services.background-task-registry",
+        "reason": "Task identity and lifecycle live in the registry so the notification can be dismissed without losing the work."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "status-announced",
+    "non-color-status",
+    "contrast-floor",
+    "text-scale-resilience",
+    "forced-colors-legibility",
+    "content-reflow",
+    "recovery-path",
+    "reduced-motion"
+  ],
+  "requiredStates": [
+    "loading",
+    "success",
+    "request-error",
+    "retry"
+  ]
+}

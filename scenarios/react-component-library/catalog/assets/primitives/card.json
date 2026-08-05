@@ -1,0 +1,65 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.card",
+    "name": "Card",
+    "kind": "component",
+    "domain": "primitives",
+    "description": "The structured surface for a genuinely framed object, with header, body, footer, and media regions plus optional selection, press, and loading behavior.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "primitives.surface",
+        "reason": "A card is a surface with structure; it must not redefine elevation."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "controls.pressable",
+        "reason": "Only interactive cards need the press model, and a static record card should not inherit activation semantics."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "contrast-floor",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "card-restraint",
+    "dark-parity"
+  ],
+  "api": {
+    "levels": [
+      "compound",
+      "convenience"
+    ],
+    "parts": [
+      "header",
+      "media",
+      "body",
+      "footer"
+    ]
+  },
+  "beauty": {
+    "avoid": [
+      "uniform-card-grid",
+      "card-wrapping-page-sections"
+    ]
+  },
+  "rationale": "The most over-used asset in any library and the one most responsible for surfaces that look generic. Its catalog entry carries the restraint constraint explicitly so the default is not to reach for it."
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.kbd",
+    "name": "Kbd",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The keyboard-key primitive formatting shortcuts consistently per platform while exposing a readable label to assistive technology.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "i18n-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "contrast-floor"
+  ]
+}

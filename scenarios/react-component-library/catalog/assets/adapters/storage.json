@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "adapters.storage",
+    "name": "StorageAdapter",
+    "kind": "adapter",
+    "domain": "adapters",
+    "description": "Connects persistent UI preferences, drafts, and layout state to local, indexed, remote, or custom storage with versioned migrations and cross-tab coordination.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "adapter",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Boundary types come from the shared framework-light vocabulary rather than being redeclared per adapter."
+      }
+    ]
+  },
+  "satisfies": [
+    "storage-adapter"
+  ]
+}

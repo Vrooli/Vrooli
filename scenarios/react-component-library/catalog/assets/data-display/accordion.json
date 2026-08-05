@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.accordion",
+    "name": "Accordion",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The grouped disclosure with single or multiple expansion, keyboard navigation, animated height, deep linking, and nested content that does not clip.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "motion.collapsible-region",
+        "reason": "Height animation and accessible expanded semantics are shared."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Headers form one tab stop."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "heading-hierarchy",
+    "reduced-motion"
+  ],
+  "api": {
+    "levels": [
+      "compound",
+      "convenience"
+    ],
+    "parts": [
+      "item",
+      "trigger",
+      "panel"
+    ],
+    "modes": [
+      "controlled",
+      "uncontrolled"
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.scroll-shadow",
+    "name": "ScrollShadow",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The boundary-aware surface effect revealing that scrollable content continues above, below, or to either side of the visible region.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "hooks.use-scroll-state",
+        "reason": "Shadow state derives from scroll position, but a purely CSS implementation needs no subscription."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "forced-colors-legibility",
+    "reduced-motion"
+  ]
+}

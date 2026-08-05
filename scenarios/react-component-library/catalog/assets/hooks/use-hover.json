@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-hover",
+    "name": "useHover",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A hover-intent primitive accounting for pointer type, entry and exit delay, and movement between related floating surfaces.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.capability-detection",
+        "reason": "Hover behavior must not engage on devices without hover."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "pointer-independence"
+  ]
+}

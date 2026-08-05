@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "motion.stagger-group",
+    "name": "StaggerGroup",
+    "kind": "primitive",
+    "domain": "motion",
+    "description": "The coordinated presence primitive sequencing children by order, distance, or hierarchy so each child does not manage its own timing.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "Enter and exit lifecycle, interruption, and nesting are owned once rather than per animated component."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "transition-class-conformance",
+    "reduced-motion",
+    "no-layout-animation",
+    "motion-duration-conformance",
+    "entrance-restraint"
+  ]
+}

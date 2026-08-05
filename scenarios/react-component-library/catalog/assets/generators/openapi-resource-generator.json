@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.openapi-resource-generator",
+    "name": "OpenAPIResourceGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Converts selected API resource contracts into typed data-source ports, form schemas, table configurations, detail views, actions, and CRUD surfaces.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "generators.crud-page-generator",
+        "reason": "Surface generation is delegated rather than duplicated."
+      },
+      {
+        "asset": "generators.schema-form-renderer",
+        "reason": "Form generation is delegated."
+      }
+    ]
+  },
+  "rationale": "Emits ports and schemas, never network code. The moment a generator writes fetch calls into components, the library has acquired a data layer it was explicitly designed not to have."
+}

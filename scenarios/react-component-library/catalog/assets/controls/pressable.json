@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.pressable",
+    "name": "Pressable",
+    "kind": "component",
+    "domain": "controls",
+    "description": "The canonical interaction primitive unifying pointer, touch, and keyboard activation with pressed, hovered, focus-visible, selected, disabled, and busy state exposed as stable data attributes.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.slot",
+        "reason": "Behavior applies to a consumer-supplied element rather than forcing a wrapper."
+      },
+      {
+        "asset": "hooks.use-press",
+        "reason": "Activation semantics are shared."
+      },
+      {
+        "asset": "hooks.use-focus-visible",
+        "reason": "Focus modality must agree with press handling."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "activation-acknowledged",
+    "tap-target-size",
+    "pointer-independence",
+    "cursor-discipline"
+  ],
+  "rationale": "Every interactive asset in the catalog routes through this. Exposing interaction state as data attributes is what makes hover, focus, and pressed appearance checkable from captured evidence rather than only from source."
+}

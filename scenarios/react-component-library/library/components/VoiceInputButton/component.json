@@ -5,6 +5,7 @@
   "tags": ["voice", "microphone", "input", "accessibility"],
   "slot": "ui-primitive",
   "category": "inputs",
+  "entry": "VoiceInputButton.tsx",
   "dependencies": [{ "libraryId": "react-component-library:IconButton", "version": "2.0.0" }, { "libraryId": "react-component-library:useVoiceInput", "version": "3.0.0" }],
   "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }, { "styleId": "vrooli-command-display", "affinity": "native" }],
   "latest": "3.0.0",

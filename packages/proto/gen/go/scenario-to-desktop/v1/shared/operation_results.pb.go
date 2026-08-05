@@ -386,6 +386,8 @@ type ScreenRecordingSummary struct {
 	DurationMs    *int64                 `protobuf:"varint,2,opt,name=duration_ms,json=durationMs,proto3,oneof" json:"duration_ms,omitempty"`
 	FileSizeBytes *int64                 `protobuf:"varint,3,opt,name=file_size_bytes,json=fileSizeBytes,proto3,oneof" json:"file_size_bytes,omitempty"`
 	Error         *string                `protobuf:"bytes,4,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	// Capture ID resolved through the canonical captures evidence route.
+	CaptureId     *string `protobuf:"bytes,5,opt,name=capture_id,json=captureId,proto3,oneof" json:"capture_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -444,6 +446,13 @@ func (x *ScreenRecordingSummary) GetFileSizeBytes() int64 {
 func (x *ScreenRecordingSummary) GetError() string {
 	if x != nil && x.Error != nil {
 		return *x.Error
+	}
+	return ""
+}
+
+func (x *ScreenRecordingSummary) GetCaptureId() string {
+	if x != nil && x.CaptureId != nil {
+		return *x.CaptureId
 	}
 	return ""
 }
@@ -629,16 +638,19 @@ const file_scenario_to_desktop_v1_shared_operation_results_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0e\n" +
 	"\f_output_pathB\x0f\n" +
-	"\r_completed_at\"\xd0\x01\n" +
+	"\r_completed_at\"\x83\x02\n" +
 	"\x16ScreenRecordingSummary\x12\x1a\n" +
 	"\brecorded\x18\x01 \x01(\bR\brecorded\x12$\n" +
 	"\vduration_ms\x18\x02 \x01(\x03H\x00R\n" +
 	"durationMs\x88\x01\x01\x12+\n" +
 	"\x0ffile_size_bytes\x18\x03 \x01(\x03H\x01R\rfileSizeBytes\x88\x01\x01\x12\x19\n" +
-	"\x05error\x18\x04 \x01(\tH\x02R\x05error\x88\x01\x01B\x0e\n" +
+	"\x05error\x18\x04 \x01(\tH\x02R\x05error\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"capture_id\x18\x05 \x01(\tH\x03R\tcaptureId\x88\x01\x01B\x0e\n" +
 	"\f_duration_msB\x12\n" +
 	"\x10_file_size_bytesB\b\n" +
-	"\x06_error\"\x8a\x06\n" +
+	"\x06_errorB\r\n" +
+	"\v_capture_id\"\x8a\x06\n" +
 	"\x17SmokeTestStatusResponse\x12\"\n" +
 	"\rsmoke_test_id\x18\x01 \x01(\tR\vsmokeTestId\x12#\n" +
 	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12J\n" +

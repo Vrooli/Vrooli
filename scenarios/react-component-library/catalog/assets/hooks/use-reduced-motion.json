@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-reduced-motion",
+    "name": "useReducedMotion",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A motion-policy primitive resolving user preference and application policy into full, reduced, or disabled animation behavior for the calling surface.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "requiredCapabilities": [
+    "reduced-motion"
+  ]
+}

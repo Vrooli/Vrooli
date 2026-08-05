@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.top-bar",
+    "name": "TopBar",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The application-level toolbar for navigation, search, global actions, status, and account controls, with responsive overflow and single-line chrome discipline.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "primitives.inline",
+        "reason": "Layout uses the shared spacing ramp."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.command-palette",
+        "reason": "A search affordance in the bar usually opens the palette, though a local filter may not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "chrome-pinned",
+    "responsive-transformation",
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "safe-area-respected",
+    "no-horizontal-overflow"
+  ]
+}

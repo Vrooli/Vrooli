@@ -2,9 +2,9 @@
  * @vrooliComponentSource react-component-library:ControlBase
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 8a3af1ec-0e94-4b6a-ae8d-2bb53f995f27
- * @vrooliComponentAppliedAt 2026-08-04T15:20:42Z
- * @vrooliComponentSourceSha256 55442b4e753480564b69da2777521b4b77eba1b57de32b8ee736af3f37aebfde
- * @vrooliComponentDriftHash e6e74c8874bd6a7a990d665989cd6a75d32ecd4dae0de3c2339d74b12f93fa94
+ * @vrooliComponentAppliedAt 2026-08-04T23:16:42Z
+ * @vrooliComponentSourceSha256 8b785f0d4bdc836ef703c7d2dfa6fc9acda5b4cd83eaa114876b570b648ca6ec
+ * @vrooliComponentDriftHash e856525a26082615e813872dcaad962e0f55b88b2688c8b66ce30e68c334f5cc
  * @vrooliComponentTokenTranslation bg-app-danger->bg-app-danger,bg-app-info->bg-app-info,bg-app-primary->bg-app-primary,bg-app-success->bg-app-success,bg-app-surface->bg-app-surface,bg-app-surface-muted->bg-app-surface-muted,bg-app-warning->bg-app-warning,border-app-border->border-app-border,ring-app-primary/50->ring-app-primary/50,text-app-foreground->text-app-foreground,text-app-primary-foreground->text-app-primary-foreground
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -45,13 +45,13 @@ const variantClasses: Record<ControlVariant, string> = {
 };
 
 const sizeClasses: Record<ControlSize, string> = {
-  xs: "min-h-8 min-w-8 rounded-sm px-2 text-xs [&>svg]:size-3",
-  sm: "min-h-9 min-w-9 rounded-md px-3 text-sm [&>svg]:size-3.5",
-  md: "min-h-10 min-w-10 rounded-control px-3.5 text-sm [&>svg]:size-4",
+  xs: "min-h-11 min-w-11 rounded-sm px-2 text-xs [&>svg]:size-3",
+  sm: "min-h-11 min-w-11 rounded-md px-3 text-sm [&>svg]:size-3.5",
+  md: "min-h-11 min-w-11 rounded-control px-3.5 text-sm [&>svg]:size-4",
   lg: "min-h-11 min-w-11 rounded-lg px-4 text-base [&>svg]:size-5",
   xl: "min-h-12 min-w-12 rounded-xl px-5 text-base [&>svg]:size-5",
-  icon: "min-h-10 min-w-10 rounded-control p-0 text-sm [&>svg]:size-4",
-  default: "min-h-10 min-w-10 rounded-control px-3.5 text-sm [&>svg]:size-4",
+  icon: "min-h-11 min-w-11 rounded-control p-0 text-sm [&>svg]:size-4",
+  default: "min-h-11 min-w-11 rounded-control px-3.5 text-sm [&>svg]:size-4",
 };
 
 const densityClasses: Record<ControlDensity, string> = {
@@ -78,12 +78,14 @@ export const ControlBase = forwardRef<HTMLButtonElement, ControlBaseProps>(funct
   },
   ref,
 ) {
+  const testId = (props as ControlBaseProps & { "data-testid"?: string })["data-testid"];
   return (
     <button
       {...props}
       ref={ref}
       type={type}
       disabled={disabled}
+      data-testid={testId ?? "control-base-root"}
       data-control-density={density}
       data-control-shape={shape}
       data-control-size={size}

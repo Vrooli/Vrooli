@@ -23,7 +23,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "react-component-library",
-          "scenario_path": "/assets/bc29677f-b48c-440f-9f95-0fe2901f5f5e",
+          "scenario_path": "/assets/react-component-library%3AStatusBadge?tab=preview",
           "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
           "timeout_ms": 30000
         },

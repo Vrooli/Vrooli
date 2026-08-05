@@ -138,11 +138,6 @@
       },
       "steps": [
         {
-          "name": "populate-resources",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add scenario data to resources"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o bedtime-story-generator-api .",
           "description": "Build API server"

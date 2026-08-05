@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.timeline",
+    "name": "Timeline",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The chronological event component with date grouping, status markers, expandable detail, loading, pagination, and responsive alignment.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency treatment is shared rather than reinvented per surface."
+      },
+      {
+        "asset": "primitives.relative-time",
+        "reason": "Timestamps render and update through the shared component."
+      },
+      {
+        "asset": "data-display.list",
+        "reason": "Entries use the shared collection semantics."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "empty-state-craft",
+    "freshness-disclosure"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error"
+  ]
+}

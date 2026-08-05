@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.workspace-switcher",
+    "name": "WorkspaceSwitcher",
+    "kind": "component",
+    "domain": "navigation",
+    "description": "The searchable workspace selector with recent entries, favourites, creation actions, keyboard navigation, account context, and async loading.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.combobox",
+        "reason": "Search, option loading, and keyboard model are shared."
+      },
+      {
+        "asset": "primitives.avatar",
+        "reason": "Workspace identity uses the shared identity visual."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error"
+  ]
+}

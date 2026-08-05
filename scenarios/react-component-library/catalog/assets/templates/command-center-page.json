@@ -1,0 +1,136 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.command-center-page",
+    "name": "CommandCenterPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The operational overview surface with prioritized work, alerts, recent activity, background jobs, shortcuts, system status, and drill-down into any of them.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    },
+    "kits": [
+      "vrooli-command-display",
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "feedback.background-task-center",
+        "reason": "Running work is shown through the shared centre."
+      },
+      {
+        "asset": "patterns.global-command-system",
+        "reason": "Shortcuts and command surfacing are shared."
+      },
+      {
+        "asset": "data-display.stat-card",
+        "reason": "Status figures are shared metric surfaces."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TSignal"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "density-adaptive-layout",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "status",
+      "purpose": "System health and headline figures, legible across a room.",
+      "required": true,
+      "lifecycle": "async"
+    },
+    {
+      "id": "priority-work",
+      "purpose": "What needs attention now, ordered by urgency.",
+      "required": true,
+      "lifecycle": "async"
+    },
+    {
+      "id": "activity",
+      "purpose": "Recent events and running jobs.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "alerts",
+      "purpose": "Conditions requiring intervention.",
+      "required": false,
+      "lifecycle": "async"
+    }
+  ],
+  "beauty": {
+    "avoid": [
+      "ambient-motion-competing-with-status",
+      "decorative-gradient-background"
+    ]
+  },
+  "rationale": "Primary kit is command-display, which is read from across a room and left running. That changes the baseline capture matrix to wide, and makes ambient motion competing with live status a real defect rather than a stylistic preference."
+}

@@ -90,16 +90,18 @@ class BuildMetadata(_message.Message):
     def __init__(self, version: _Optional[str] = ..., git_branch: _Optional[str] = ..., git_commit_hash: _Optional[str] = ..., git_dirty: _Optional[bool] = ...) -> None: ...
 
 class ScreenRecordingSummary(_message.Message):
-    __slots__ = ("recorded", "duration_ms", "file_size_bytes", "error")
+    __slots__ = ("recorded", "duration_ms", "file_size_bytes", "error", "capture_id")
     RECORDED_FIELD_NUMBER: _ClassVar[int]
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     FILE_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_ID_FIELD_NUMBER: _ClassVar[int]
     recorded: bool
     duration_ms: int
     file_size_bytes: int
     error: str
-    def __init__(self, recorded: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., file_size_bytes: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
+    capture_id: str
+    def __init__(self, recorded: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., file_size_bytes: _Optional[int] = ..., error: _Optional[str] = ..., capture_id: _Optional[str] = ...) -> None: ...
 
 class DesktopRecordWithBuild(_message.Message):
     __slots__ = ("record", "build_status", "has_build", "build_state", "smoke_test_id", "screen_recording")

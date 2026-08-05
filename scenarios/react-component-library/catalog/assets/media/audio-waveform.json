@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "media.audio-waveform",
+    "name": "AudioWaveform",
+    "kind": "component",
+    "domain": "media",
+    "description": "The lazily rendered waveform with playback position, scrubbing, range selection, zoom, markers, loading treatment, and accessible time controls.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-drag",
+        "reason": "Pointer capture, constraints, and velocity keep movement outside React rendering."
+      },
+      {
+        "asset": "media.media-player",
+        "reason": "Transport state and time reporting are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "content-reflow",
+    "contrast-floor",
+    "gesture-alternative",
+    "entrance-restraint",
+    "responsive-transformation",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error"
+  ],
+  "qualityGates": [
+    "performance"
+  ]
+}

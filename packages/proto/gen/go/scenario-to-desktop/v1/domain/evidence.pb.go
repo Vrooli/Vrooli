@@ -949,8 +949,10 @@ type EvidenceCapture struct {
 	Height          *int32                 `protobuf:"varint,8,opt,name=height,proto3,oneof" json:"height,omitempty"`
 	DurationMs      *int64                 `protobuf:"varint,9,opt,name=duration_ms,json=durationMs,proto3,oneof" json:"duration_ms,omitempty"`
 	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// SHA-256 checksum of the producer-held capture bytes.
+	Checksum      string `protobuf:"bytes,11,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *EvidenceCapture) Reset() {
@@ -1051,6 +1053,13 @@ func (x *EvidenceCapture) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *EvidenceCapture) GetChecksum() string {
+	if x != nil {
+		return x.Checksum
+	}
+	return ""
 }
 
 type CaptureScreenshotResponse struct {
@@ -1185,6 +1194,110 @@ func (x *ListEvidenceCapturesResponse) GetCaptures() []*EvidenceCapture {
 	return nil
 }
 
+type GetEvidenceCaptureRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	CaptureId     string                 `protobuf:"bytes,2,opt,name=capture_id,json=captureId,proto3" json:"capture_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEvidenceCaptureRequest) Reset() {
+	*x = GetEvidenceCaptureRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEvidenceCaptureRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEvidenceCaptureRequest) ProtoMessage() {}
+
+func (x *GetEvidenceCaptureRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEvidenceCaptureRequest.ProtoReflect.Descriptor instead.
+func (*GetEvidenceCaptureRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_evidence_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetEvidenceCaptureRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *GetEvidenceCaptureRequest) GetCaptureId() string {
+	if x != nil {
+		return x.CaptureId
+	}
+	return ""
+}
+
+type GetEvidenceCaptureResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Capture       *EvidenceCapture       `protobuf:"bytes,1,opt,name=capture,proto3" json:"capture,omitempty"`
+	Content       []byte                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEvidenceCaptureResponse) Reset() {
+	*x = GetEvidenceCaptureResponse{}
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEvidenceCaptureResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEvidenceCaptureResponse) ProtoMessage() {}
+
+func (x *GetEvidenceCaptureResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEvidenceCaptureResponse.ProtoReflect.Descriptor instead.
+func (*GetEvidenceCaptureResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_evidence_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetEvidenceCaptureResponse) GetCapture() *EvidenceCapture {
+	if x != nil {
+		return x.Capture
+	}
+	return nil
+}
+
+func (x *GetEvidenceCaptureResponse) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
 type EvidenceCapturesSummary struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Count         int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
@@ -1195,7 +1308,7 @@ type EvidenceCapturesSummary struct {
 
 func (x *EvidenceCapturesSummary) Reset() {
 	*x = EvidenceCapturesSummary{}
-	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[15]
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1207,7 +1320,7 @@ func (x *EvidenceCapturesSummary) String() string {
 func (*EvidenceCapturesSummary) ProtoMessage() {}
 
 func (x *EvidenceCapturesSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[15]
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1220,7 +1333,7 @@ func (x *EvidenceCapturesSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidenceCapturesSummary.ProtoReflect.Descriptor instead.
 func (*EvidenceCapturesSummary) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_evidence_proto_rawDescGZIP(), []int{15}
+	return file_scenario_to_desktop_v1_domain_evidence_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *EvidenceCapturesSummary) GetCount() int32 {
@@ -1247,7 +1360,7 @@ type EvidenceCaptureRef struct {
 
 func (x *EvidenceCaptureRef) Reset() {
 	*x = EvidenceCaptureRef{}
-	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[16]
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1259,7 +1372,7 @@ func (x *EvidenceCaptureRef) String() string {
 func (*EvidenceCaptureRef) ProtoMessage() {}
 
 func (x *EvidenceCaptureRef) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[16]
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1272,7 +1385,7 @@ func (x *EvidenceCaptureRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidenceCaptureRef.ProtoReflect.Descriptor instead.
 func (*EvidenceCaptureRef) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_evidence_proto_rawDescGZIP(), []int{16}
+	return file_scenario_to_desktop_v1_domain_evidence_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *EvidenceCaptureRef) GetScenarioName() string {
@@ -1300,7 +1413,7 @@ type DesktopControlRequest struct {
 
 func (x *DesktopControlRequest) Reset() {
 	*x = DesktopControlRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[17]
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1312,7 +1425,7 @@ func (x *DesktopControlRequest) String() string {
 func (*DesktopControlRequest) ProtoMessage() {}
 
 func (x *DesktopControlRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[17]
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1325,7 +1438,7 @@ func (x *DesktopControlRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesktopControlRequest.ProtoReflect.Descriptor instead.
 func (*DesktopControlRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_evidence_proto_rawDescGZIP(), []int{17}
+	return file_scenario_to_desktop_v1_domain_evidence_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DesktopControlRequest) GetSessionId() string {
@@ -1358,7 +1471,7 @@ type DesktopControlResponse struct {
 
 func (x *DesktopControlResponse) Reset() {
 	*x = DesktopControlResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[18]
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1370,7 +1483,7 @@ func (x *DesktopControlResponse) String() string {
 func (*DesktopControlResponse) ProtoMessage() {}
 
 func (x *DesktopControlResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[18]
+	mi := &file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1383,7 +1496,7 @@ func (x *DesktopControlResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesktopControlResponse.ProtoReflect.Descriptor instead.
 func (*DesktopControlResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_evidence_proto_rawDescGZIP(), []int{18}
+	return file_scenario_to_desktop_v1_domain_evidence_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DesktopControlResponse) GetResult() *structpb.Struct {
@@ -1483,7 +1596,7 @@ const file_scenario_to_desktop_v1_domain_evidence_proto_rawDesc = "" +
 	"\rartifact_path\x18\x01 \x01(\tR\fartifactPath\"B\n" +
 	"\x18CaptureScreenshotRequest\x12&\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"\x97\x03\n" +
+	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tsessionId\"\xb3\x03\n" +
 	"\x0fEvidenceCapture\x12\x1d\n" +
 	"\n" +
 	"capture_id\x18\x01 \x01(\tR\tcaptureId\x12#\n" +
@@ -1498,7 +1611,8 @@ const file_scenario_to_desktop_v1_domain_evidence_proto_rawDesc = "" +
 	"durationMs\x88\x01\x01\x129\n" +
 	"\n" +
 	"created_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\b\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1a\n" +
+	"\bchecksum\x18\v \x01(\tR\bchecksumB\b\n" +
 	"\x06_widthB\t\n" +
 	"\a_heightB\x0e\n" +
 	"\f_duration_ms\"l\n" +
@@ -1507,7 +1621,14 @@ const file_scenario_to_desktop_v1_domain_evidence_proto_rawDesc = "" +
 	"\x1bListEvidenceCapturesRequest\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\"q\n" +
 	"\x1cListEvidenceCapturesResponse\x12Q\n" +
-	"\bcaptures\x18\x01 \x03(\v25.vrooli.scenario_to_desktop.v1.domain.EvidenceCaptureR\bcaptures\"P\n" +
+	"\bcaptures\x18\x01 \x03(\v25.vrooli.scenario_to_desktop.v1.domain.EvidenceCaptureR\bcaptures\"q\n" +
+	"\x19GetEvidenceCaptureRequest\x12,\n" +
+	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12&\n" +
+	"\n" +
+	"capture_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tcaptureId\"\x87\x01\n" +
+	"\x1aGetEvidenceCaptureResponse\x12O\n" +
+	"\acapture\x18\x01 \x01(\v25.vrooli.scenario_to_desktop.v1.domain.EvidenceCaptureR\acapture\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\fR\acontent\"P\n" +
 	"\x17EvidenceCapturesSummary\x12\x14\n" +
 	"\x05count\x18\x01 \x01(\x05R\x05count\x12\x1f\n" +
 	"\vtotal_bytes\x18\x02 \x01(\x03R\n" +
@@ -1535,7 +1656,7 @@ const file_scenario_to_desktop_v1_domain_evidence_proto_rawDesc = "" +
 	" DESKTOP_NETWORK_MODE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bDESKTOP_NETWORK_MODE_NORMAL\x10\x01\x12 \n" +
 	"\x1cDESKTOP_NETWORK_MODE_OFFLINE\x10\x02\x12\x1d\n" +
-	"\x19DESKTOP_NETWORK_MODE_SLOW\x10\x032\xc9\x0e\n" +
+	"\x19DESKTOP_NETWORK_MODE_SLOW\x10\x032\xe3\x0f\n" +
 	"\x0fEvidenceService\x12\x88\x01\n" +
 	"\x13StartDesktopSession\x12;.vrooli.scenario_to_desktop.v1.domain.DesktopSessionRequest\x1a4.vrooli.scenario_to_desktop.v1.domain.DesktopSession\x12\x82\x01\n" +
 	"\x11GetDesktopSession\x127.vrooli.scenario_to_desktop.v1.domain.DesktopSessionRef\x1a4.vrooli.scenario_to_desktop.v1.domain.DesktopSession\x12\x9a\x01\n" +
@@ -1546,7 +1667,8 @@ const file_scenario_to_desktop_v1_domain_evidence_proto_rawDesc = "" +
 	"\x11CaptureScreenshot\x12>.vrooli.scenario_to_desktop.v1.domain.CaptureScreenshotRequest\x1a?.vrooli.scenario_to_desktop.v1.domain.CaptureScreenshotResponse\x12\x8b\x01\n" +
 	"\x0eControlDesktop\x12;.vrooli.scenario_to_desktop.v1.domain.DesktopControlRequest\x1a<.vrooli.scenario_to_desktop.v1.domain.DesktopControlResponse\x12\x83\x01\n" +
 	"\x12StopDesktopSession\x127.vrooli.scenario_to_desktop.v1.domain.DesktopSessionRef\x1a4.vrooli.scenario_to_desktop.v1.domain.DesktopSession\x12\x9d\x01\n" +
-	"\x14ListEvidenceCaptures\x12A.vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesRequest\x1aB.vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesResponse\x12\x9e\x01\n" +
+	"\x14ListEvidenceCaptures\x12A.vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesRequest\x1aB.vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesResponse\x12\x97\x01\n" +
+	"\x12GetEvidenceCapture\x12?.vrooli.scenario_to_desktop.v1.domain.GetEvidenceCaptureRequest\x1a@.vrooli.scenario_to_desktop.v1.domain.GetEvidenceCaptureResponse\x12\x9e\x01\n" +
 	"\x1aGetEvidenceCapturesSummary\x12A.vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesRequest\x1a=.vrooli.scenario_to_desktop.v1.domain.EvidenceCapturesSummary\x12i\n" +
 	"\x15DeleteEvidenceCapture\x128.vrooli.scenario_to_desktop.v1.domain.EvidenceCaptureRef\x1a\x16.google.protobuf.Empty\x12v\n" +
 	"\x19DeleteAllEvidenceCaptures\x12A.vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesRequest\x1a\x16.google.protobuf.EmptyBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3"
@@ -1564,7 +1686,7 @@ func file_scenario_to_desktop_v1_domain_evidence_proto_rawDescGZIP() []byte {
 }
 
 var file_scenario_to_desktop_v1_domain_evidence_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_scenario_to_desktop_v1_domain_evidence_proto_goTypes = []any{
 	(DesktopSessionState)(0),             // 0: vrooli.scenario_to_desktop.v1.domain.DesktopSessionState
 	(DesktopNetworkMode)(0),              // 1: vrooli.scenario_to_desktop.v1.domain.DesktopNetworkMode
@@ -1584,63 +1706,68 @@ var file_scenario_to_desktop_v1_domain_evidence_proto_goTypes = []any{
 	(*CaptureScreenshotResponse)(nil),    // 15: vrooli.scenario_to_desktop.v1.domain.CaptureScreenshotResponse
 	(*ListEvidenceCapturesRequest)(nil),  // 16: vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesRequest
 	(*ListEvidenceCapturesResponse)(nil), // 17: vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesResponse
-	(*EvidenceCapturesSummary)(nil),      // 18: vrooli.scenario_to_desktop.v1.domain.EvidenceCapturesSummary
-	(*EvidenceCaptureRef)(nil),           // 19: vrooli.scenario_to_desktop.v1.domain.EvidenceCaptureRef
-	(*DesktopControlRequest)(nil),        // 20: vrooli.scenario_to_desktop.v1.domain.DesktopControlRequest
-	(*DesktopControlResponse)(nil),       // 21: vrooli.scenario_to_desktop.v1.domain.DesktopControlResponse
-	(shared.Platform)(0),                 // 22: vrooli.scenario_to_desktop.v1.shared.Platform
-	(*timestamppb.Timestamp)(nil),        // 23: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),              // 24: google.protobuf.Struct
-	(*emptypb.Empty)(nil),                // 25: google.protobuf.Empty
+	(*GetEvidenceCaptureRequest)(nil),    // 18: vrooli.scenario_to_desktop.v1.domain.GetEvidenceCaptureRequest
+	(*GetEvidenceCaptureResponse)(nil),   // 19: vrooli.scenario_to_desktop.v1.domain.GetEvidenceCaptureResponse
+	(*EvidenceCapturesSummary)(nil),      // 20: vrooli.scenario_to_desktop.v1.domain.EvidenceCapturesSummary
+	(*EvidenceCaptureRef)(nil),           // 21: vrooli.scenario_to_desktop.v1.domain.EvidenceCaptureRef
+	(*DesktopControlRequest)(nil),        // 22: vrooli.scenario_to_desktop.v1.domain.DesktopControlRequest
+	(*DesktopControlResponse)(nil),       // 23: vrooli.scenario_to_desktop.v1.domain.DesktopControlResponse
+	(shared.Platform)(0),                 // 24: vrooli.scenario_to_desktop.v1.shared.Platform
+	(*timestamppb.Timestamp)(nil),        // 25: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),              // 26: google.protobuf.Struct
+	(*emptypb.Empty)(nil),                // 27: google.protobuf.Empty
 }
 var file_scenario_to_desktop_v1_domain_evidence_proto_depIdxs = []int32{
 	2,  // 0: vrooli.scenario_to_desktop.v1.domain.EvidenceTarget.kind:type_name -> vrooli.scenario_to_desktop.v1.domain.EvidenceTarget.Kind
-	22, // 1: vrooli.scenario_to_desktop.v1.domain.DesktopSessionRequest.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	24, // 1: vrooli.scenario_to_desktop.v1.domain.DesktopSessionRequest.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
 	3,  // 2: vrooli.scenario_to_desktop.v1.domain.DesktopSessionRequest.target:type_name -> vrooli.scenario_to_desktop.v1.domain.EvidenceTarget
-	22, // 3: vrooli.scenario_to_desktop.v1.domain.DesktopSession.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	24, // 3: vrooli.scenario_to_desktop.v1.domain.DesktopSession.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
 	0,  // 4: vrooli.scenario_to_desktop.v1.domain.DesktopSession.state:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopSessionState
-	23, // 5: vrooli.scenario_to_desktop.v1.domain.DesktopSession.created_at:type_name -> google.protobuf.Timestamp
-	23, // 6: vrooli.scenario_to_desktop.v1.domain.DesktopSession.last_heartbeat_at:type_name -> google.protobuf.Timestamp
+	25, // 5: vrooli.scenario_to_desktop.v1.domain.DesktopSession.created_at:type_name -> google.protobuf.Timestamp
+	25, // 6: vrooli.scenario_to_desktop.v1.domain.DesktopSession.last_heartbeat_at:type_name -> google.protobuf.Timestamp
 	3,  // 7: vrooli.scenario_to_desktop.v1.domain.DesktopSession.target:type_name -> vrooli.scenario_to_desktop.v1.domain.EvidenceTarget
 	1,  // 8: vrooli.scenario_to_desktop.v1.domain.DesktopSession.network_mode:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopNetworkMode
 	6,  // 9: vrooli.scenario_to_desktop.v1.domain.DesktopSession.metrics:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopSessionMetrics
 	7,  // 10: vrooli.scenario_to_desktop.v1.domain.ListDesktopSessionsResponse.sessions:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopSession
-	23, // 11: vrooli.scenario_to_desktop.v1.domain.EvidenceCapture.created_at:type_name -> google.protobuf.Timestamp
+	25, // 11: vrooli.scenario_to_desktop.v1.domain.EvidenceCapture.created_at:type_name -> google.protobuf.Timestamp
 	14, // 12: vrooli.scenario_to_desktop.v1.domain.CaptureScreenshotResponse.capture:type_name -> vrooli.scenario_to_desktop.v1.domain.EvidenceCapture
 	14, // 13: vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesResponse.captures:type_name -> vrooli.scenario_to_desktop.v1.domain.EvidenceCapture
-	24, // 14: vrooli.scenario_to_desktop.v1.domain.DesktopControlRequest.params:type_name -> google.protobuf.Struct
-	24, // 15: vrooli.scenario_to_desktop.v1.domain.DesktopControlResponse.result:type_name -> google.protobuf.Struct
-	4,  // 16: vrooli.scenario_to_desktop.v1.domain.EvidenceService.StartDesktopSession:input_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSessionRequest
-	5,  // 17: vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetDesktopSession:input_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSessionRef
-	8,  // 18: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ListDesktopSessions:input_type -> vrooli.scenario_to_desktop.v1.domain.ListDesktopSessionsRequest
-	10, // 19: vrooli.scenario_to_desktop.v1.domain.EvidenceService.LaunchDesktopArtifact:input_type -> vrooli.scenario_to_desktop.v1.domain.LaunchDesktopArtifactRequest
-	5,  // 20: vrooli.scenario_to_desktop.v1.domain.EvidenceService.HeartbeatDesktopSession:input_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSessionRef
-	11, // 21: vrooli.scenario_to_desktop.v1.domain.EvidenceService.FindDesktopArtifact:input_type -> vrooli.scenario_to_desktop.v1.domain.FindDesktopArtifactRequest
-	13, // 22: vrooli.scenario_to_desktop.v1.domain.EvidenceService.CaptureScreenshot:input_type -> vrooli.scenario_to_desktop.v1.domain.CaptureScreenshotRequest
-	20, // 23: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ControlDesktop:input_type -> vrooli.scenario_to_desktop.v1.domain.DesktopControlRequest
-	5,  // 24: vrooli.scenario_to_desktop.v1.domain.EvidenceService.StopDesktopSession:input_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSessionRef
-	16, // 25: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ListEvidenceCaptures:input_type -> vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesRequest
-	16, // 26: vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetEvidenceCapturesSummary:input_type -> vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesRequest
-	19, // 27: vrooli.scenario_to_desktop.v1.domain.EvidenceService.DeleteEvidenceCapture:input_type -> vrooli.scenario_to_desktop.v1.domain.EvidenceCaptureRef
-	16, // 28: vrooli.scenario_to_desktop.v1.domain.EvidenceService.DeleteAllEvidenceCaptures:input_type -> vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesRequest
-	7,  // 29: vrooli.scenario_to_desktop.v1.domain.EvidenceService.StartDesktopSession:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSession
-	7,  // 30: vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetDesktopSession:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSession
-	9,  // 31: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ListDesktopSessions:output_type -> vrooli.scenario_to_desktop.v1.domain.ListDesktopSessionsResponse
-	7,  // 32: vrooli.scenario_to_desktop.v1.domain.EvidenceService.LaunchDesktopArtifact:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSession
-	7,  // 33: vrooli.scenario_to_desktop.v1.domain.EvidenceService.HeartbeatDesktopSession:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSession
-	12, // 34: vrooli.scenario_to_desktop.v1.domain.EvidenceService.FindDesktopArtifact:output_type -> vrooli.scenario_to_desktop.v1.domain.FindDesktopArtifactResponse
-	15, // 35: vrooli.scenario_to_desktop.v1.domain.EvidenceService.CaptureScreenshot:output_type -> vrooli.scenario_to_desktop.v1.domain.CaptureScreenshotResponse
-	21, // 36: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ControlDesktop:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopControlResponse
-	7,  // 37: vrooli.scenario_to_desktop.v1.domain.EvidenceService.StopDesktopSession:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSession
-	17, // 38: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ListEvidenceCaptures:output_type -> vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesResponse
-	18, // 39: vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetEvidenceCapturesSummary:output_type -> vrooli.scenario_to_desktop.v1.domain.EvidenceCapturesSummary
-	25, // 40: vrooli.scenario_to_desktop.v1.domain.EvidenceService.DeleteEvidenceCapture:output_type -> google.protobuf.Empty
-	25, // 41: vrooli.scenario_to_desktop.v1.domain.EvidenceService.DeleteAllEvidenceCaptures:output_type -> google.protobuf.Empty
-	29, // [29:42] is the sub-list for method output_type
-	16, // [16:29] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	14, // 14: vrooli.scenario_to_desktop.v1.domain.GetEvidenceCaptureResponse.capture:type_name -> vrooli.scenario_to_desktop.v1.domain.EvidenceCapture
+	26, // 15: vrooli.scenario_to_desktop.v1.domain.DesktopControlRequest.params:type_name -> google.protobuf.Struct
+	26, // 16: vrooli.scenario_to_desktop.v1.domain.DesktopControlResponse.result:type_name -> google.protobuf.Struct
+	4,  // 17: vrooli.scenario_to_desktop.v1.domain.EvidenceService.StartDesktopSession:input_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSessionRequest
+	5,  // 18: vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetDesktopSession:input_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSessionRef
+	8,  // 19: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ListDesktopSessions:input_type -> vrooli.scenario_to_desktop.v1.domain.ListDesktopSessionsRequest
+	10, // 20: vrooli.scenario_to_desktop.v1.domain.EvidenceService.LaunchDesktopArtifact:input_type -> vrooli.scenario_to_desktop.v1.domain.LaunchDesktopArtifactRequest
+	5,  // 21: vrooli.scenario_to_desktop.v1.domain.EvidenceService.HeartbeatDesktopSession:input_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSessionRef
+	11, // 22: vrooli.scenario_to_desktop.v1.domain.EvidenceService.FindDesktopArtifact:input_type -> vrooli.scenario_to_desktop.v1.domain.FindDesktopArtifactRequest
+	13, // 23: vrooli.scenario_to_desktop.v1.domain.EvidenceService.CaptureScreenshot:input_type -> vrooli.scenario_to_desktop.v1.domain.CaptureScreenshotRequest
+	22, // 24: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ControlDesktop:input_type -> vrooli.scenario_to_desktop.v1.domain.DesktopControlRequest
+	5,  // 25: vrooli.scenario_to_desktop.v1.domain.EvidenceService.StopDesktopSession:input_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSessionRef
+	16, // 26: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ListEvidenceCaptures:input_type -> vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesRequest
+	18, // 27: vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetEvidenceCapture:input_type -> vrooli.scenario_to_desktop.v1.domain.GetEvidenceCaptureRequest
+	16, // 28: vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetEvidenceCapturesSummary:input_type -> vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesRequest
+	21, // 29: vrooli.scenario_to_desktop.v1.domain.EvidenceService.DeleteEvidenceCapture:input_type -> vrooli.scenario_to_desktop.v1.domain.EvidenceCaptureRef
+	16, // 30: vrooli.scenario_to_desktop.v1.domain.EvidenceService.DeleteAllEvidenceCaptures:input_type -> vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesRequest
+	7,  // 31: vrooli.scenario_to_desktop.v1.domain.EvidenceService.StartDesktopSession:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSession
+	7,  // 32: vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetDesktopSession:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSession
+	9,  // 33: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ListDesktopSessions:output_type -> vrooli.scenario_to_desktop.v1.domain.ListDesktopSessionsResponse
+	7,  // 34: vrooli.scenario_to_desktop.v1.domain.EvidenceService.LaunchDesktopArtifact:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSession
+	7,  // 35: vrooli.scenario_to_desktop.v1.domain.EvidenceService.HeartbeatDesktopSession:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSession
+	12, // 36: vrooli.scenario_to_desktop.v1.domain.EvidenceService.FindDesktopArtifact:output_type -> vrooli.scenario_to_desktop.v1.domain.FindDesktopArtifactResponse
+	15, // 37: vrooli.scenario_to_desktop.v1.domain.EvidenceService.CaptureScreenshot:output_type -> vrooli.scenario_to_desktop.v1.domain.CaptureScreenshotResponse
+	23, // 38: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ControlDesktop:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopControlResponse
+	7,  // 39: vrooli.scenario_to_desktop.v1.domain.EvidenceService.StopDesktopSession:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopSession
+	17, // 40: vrooli.scenario_to_desktop.v1.domain.EvidenceService.ListEvidenceCaptures:output_type -> vrooli.scenario_to_desktop.v1.domain.ListEvidenceCapturesResponse
+	19, // 41: vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetEvidenceCapture:output_type -> vrooli.scenario_to_desktop.v1.domain.GetEvidenceCaptureResponse
+	20, // 42: vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetEvidenceCapturesSummary:output_type -> vrooli.scenario_to_desktop.v1.domain.EvidenceCapturesSummary
+	27, // 43: vrooli.scenario_to_desktop.v1.domain.EvidenceService.DeleteEvidenceCapture:output_type -> google.protobuf.Empty
+	27, // 44: vrooli.scenario_to_desktop.v1.domain.EvidenceService.DeleteAllEvidenceCaptures:output_type -> google.protobuf.Empty
+	31, // [31:45] is the sub-list for method output_type
+	17, // [17:31] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_domain_evidence_proto_init() }
@@ -1655,14 +1782,14 @@ func file_scenario_to_desktop_v1_domain_evidence_proto_init() {
 	file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[5].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[7].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[11].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[17].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_evidence_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_domain_evidence_proto_rawDesc), len(file_scenario_to_desktop_v1_domain_evidence_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

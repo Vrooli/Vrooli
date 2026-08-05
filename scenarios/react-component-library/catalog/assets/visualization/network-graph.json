@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "visualization.network-graph",
+    "name": "NetworkGraph",
+    "kind": "component",
+    "domain": "visualization",
+    "description": "The lazily loaded graph visualization with pan, zoom, selection, pluggable layout, minimap, a windowing policy, deterministic interaction, and an accessible structural summary.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "visualization.chart",
+        "reason": "Theming, states, and the accessible equivalent are shared."
+      },
+      {
+        "asset": "manipulation.canvas-viewport",
+        "reason": "Pan, zoom, and coordinate handling are the shared spatial surface."
+      },
+      {
+        "asset": "manipulation.minimap",
+        "reason": "Overview navigation is shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "contrast-floor",
+    "non-color-status",
+    "dark-parity",
+    "forced-colors-legibility",
+    "keyboard-operable",
+    "status-announced",
+    "content-reflow",
+    "reduced-motion",
+    "text-scale-resilience",
+    "gesture-alternative"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error"
+  ],
+  "qualityGates": [
+    "performance",
+    "stress"
+  ],
+  "rationale": "Determinism is the requirement most force-directed graphs miss: a layout that differs on every render makes the same data unrecognisable between visits and unusable as a reference."
+}

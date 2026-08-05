@@ -1,6 +1,7 @@
 package componenttests
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -15,12 +17,15 @@ import (
 
 var renderedStoryResult = regexp.MustCompile(`(?s)<pre[^>]*id="rcl-story-result"[^>]*>(.*?)</pre>`)
 
-// ChromeHarnessExecutor drives the exact harness route used by the preview
-// iframe. Chrome's dumped DOM includes the result element the harness writes
-// after React commits and story assertions settle.
+// ChromeHarnessExecutor drives the exact harness route through Playwright and
+// decodes the typed result emitted by the story page. The helper uses the same
+// browser-backed route as the browser preview, so catalog validation exercises
+// the page contract rather than a separate renderer.
 type ChromeHarnessExecutor struct {
 	BaseURL    string
 	ChromePath string
+	NodePath   string
+	RunnerPath string
 }
 
 func NewChromeHarnessExecutor() ChromeHarnessExecutor {
@@ -34,7 +39,32 @@ func NewChromeHarnessExecutor() ChromeHarnessExecutor {
 	if path == "" {
 		path = "google-chrome"
 	}
-	return ChromeHarnessExecutor{BaseURL: baseURL, ChromePath: path}
+	nodePath := strings.TrimSpace(os.Getenv("RCL_NODE_BIN"))
+	if nodePath == "" {
+		nodePath = "node"
+	}
+	return ChromeHarnessExecutor{
+		BaseURL:    baseURL,
+		ChromePath: path,
+		NodePath:   nodePath,
+		RunnerPath: componentHarnessRunnerPath(),
+	}
+}
+
+func componentHarnessRunnerPath() string {
+	if configured := strings.TrimSpace(os.Getenv("RCL_COMPONENT_HARNESS_RUNNER")); configured != "" {
+		return configured
+	}
+	for _, candidate := range []string{
+		filepath.Join("..", "ui", "scripts", "component-harness.mjs"),
+		filepath.Join("scenarios", "react-component-library", "ui", "scripts", "component-harness.mjs"),
+		filepath.Join("ui", "scripts", "component-harness.mjs"),
+	} {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return filepath.Join("..", "ui", "scripts", "component-harness.mjs")
 }
 
 func (e ChromeHarnessExecutor) ExecuteStory(ctx context.Context, libraryID, version, storyID string) (StoryExecution, error) {
@@ -42,7 +72,14 @@ func (e ChromeHarnessExecutor) ExecuteStory(ctx context.Context, libraryID, vers
 	if baseURL == "" {
 		return StoryExecution{}, fmt.Errorf("preview API base URL is required")
 	}
-	if _, err := exec.LookPath(e.ChromePath); err != nil {
+	if _, err := exec.LookPath(e.NodePath); err != nil {
+		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("locate Node executable %q: %w", e.NodePath, err)}
+	}
+	if _, err := os.Stat(e.RunnerPath); err != nil {
+		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("locate component harness runner %q: %w", e.RunnerPath, err)}
+	}
+	chromePath, err := exec.LookPath(e.ChromePath)
+	if err != nil {
 		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("locate Chrome executable %q: %w", e.ChromePath, err)}
 	}
 	u, err := url.Parse(baseURL + "/preview/" + url.PathEscape(libraryID) + "/harness.html")
@@ -55,12 +92,19 @@ func (e ChromeHarnessExecutor) ExecuteStory(ctx context.Context, libraryID, vers
 	q.Set("runner", "1")
 	u.RawQuery = q.Encode()
 	started := time.Now()
-	cmd := exec.CommandContext(ctx, e.ChromePath, "--headless=new", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage", "--run-all-compositor-stages-before-draw", "--virtual-time-budget=5000", "--dump-dom", u.String())
+	cmd := exec.CommandContext(ctx, e.NodePath, e.RunnerPath, u.String())
+	cmd.Env = environWithChrome(os.Environ(), chromePath)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return StoryExecution{}, fmt.Errorf("headless harness: %w", err)
+		detail := strings.TrimSpace(stderr.String())
+		if detail != "" {
+			return StoryExecution{}, fmt.Errorf("playwright harness: %w: %s", err, detail)
+		}
+		return StoryExecution{}, fmt.Errorf("playwright harness: %w", err)
 	}
-	execution, err := decodeRenderedStoryResult(out)
+	execution, err := decodeStoryResultJSON(out)
 	if err != nil {
 		return StoryExecution{}, err
 	}
@@ -68,18 +112,33 @@ func (e ChromeHarnessExecutor) ExecuteStory(ctx context.Context, libraryID, vers
 	return execution, nil
 }
 
+func environWithChrome(environ []string, chromePath string) []string {
+	filtered := make([]string, 0, len(environ)+1)
+	for _, entry := range environ {
+		if strings.HasPrefix(entry, "RCL_CHROME_BIN=") {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return append(filtered, "RCL_CHROME_BIN="+chromePath)
+}
+
 func decodeRenderedStoryResult(out []byte) (StoryExecution, error) {
 	match := renderedStoryResult.FindSubmatch(out)
 	if len(match) != 2 {
 		return StoryExecution{}, fmt.Errorf("harness completed without a story result")
 	}
+	return decodeStoryResultJSON([]byte(html.UnescapeString(string(match[1]))))
+}
+
+func decodeStoryResultJSON(out []byte) (StoryExecution, error) {
 	var result struct {
 		Passed   bool `json:"passed"`
 		Failures []struct {
 			Message string `json:"message"`
 		} `json:"failures"`
 	}
-	if err := json.Unmarshal([]byte(html.UnescapeString(string(match[1]))), &result); err != nil {
+	if err := json.Unmarshal(bytes.TrimSpace(out), &result); err != nil {
 		return StoryExecution{}, fmt.Errorf("decode harness story result: %w", err)
 	}
 	failures := make([]string, 0, len(result.Failures))

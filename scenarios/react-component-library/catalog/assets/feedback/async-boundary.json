@@ -1,0 +1,81 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.async-boundary",
+    "name": "AsyncBoundary",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The declarative boundary coordinating loading, empty, partial, stale, refreshing, offline, error, and success presentation around arbitrary content, so no surface hand-rolls its own state ladder.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.loading-state",
+        "reason": "Loading presentation is shared."
+      },
+      {
+        "asset": "feedback.empty-state",
+        "reason": "Empty presentation is shared."
+      },
+      {
+        "asset": "feedback.error-state",
+        "reason": "Failure presentation is shared."
+      },
+      {
+        "asset": "feedback.offline-state",
+        "reason": "Connectivity presentation is shared."
+      },
+      {
+        "asset": "feedback.permission-state",
+        "reason": "Authorization presentation is shared."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Messages are announced through the one shared live region."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "T"
+      ],
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "status-announced",
+    "recovery-path",
+    "partial-degradation",
+    "freshness-disclosure",
+    "offline-behavior",
+    "error-honesty",
+    "permission-explained",
+    "entrance-restraint"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "rationale": "The most reused asset in the target catalog after Button. Every template and pattern delegates its generic state ladder here, which is what makes state coverage a property of one asset rather than of two hundred."
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.responsive-application-frame",
+    "name": "ResponsiveApplicationFrame",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The complete application frame composing shell, navigation, global commands, overlay hosting, background task status, content boundaries, and every responsive transformation as one adoptable unit.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.app-shell",
+        "reason": "Frame structure, regions, skip links, and safe areas are the shared shell."
+      },
+      {
+        "asset": "patterns.global-command-system",
+        "reason": "Commands, shortcuts, and the palette are wired once at the frame."
+      },
+      {
+        "asset": "feedback.background-task-center",
+        "reason": "Long-running work has a durable home outside the toast queue."
+      },
+      {
+        "asset": "feedback.error-boundary",
+        "reason": "Content failures are contained without losing the frame."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "content-reflow",
+    "density-adaptive-layout",
+    "entrance-restraint",
+    "safe-area-respected",
+    "chrome-pinned",
+    "recovery-path"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error",
+    "offline"
+  ],
+  "rationale": "Distinct from navigation.app-shell, which is only the structural frame. This is the wired-up version: a scenario adopting it gets navigation, commands, task status, and error containment already connected, which is the difference between a shell and an application."
+}

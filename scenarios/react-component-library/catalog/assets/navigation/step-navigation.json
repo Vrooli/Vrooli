@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.step-navigation",
+    "name": "StepNavigation",
+    "kind": "component",
+    "domain": "navigation",
+    "description": "The workflow navigation representing completed, current, available, blocked, and errored steps, with optional non-linear movement and accessible progress reporting.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Step state uses shared certainty and urgency treatment."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Composite surfaces expose one tab stop with arrow-key movement."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "non-color-status",
+    "status-announced",
+    "responsive-transformation"
+  ]
+}

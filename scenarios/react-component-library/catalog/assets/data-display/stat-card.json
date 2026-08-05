@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.stat-card",
+    "name": "StatCard",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The metric surface combining a stat with optional visualization, actions, status, explanation, and responsive layout that keeps the number legible at every width.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.stat",
+        "reason": "The metric itself is the shared stat."
+      },
+      {
+        "asset": "primitives.card",
+        "reason": "Framing uses the shared card, which is a genuine object here."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "visualization.sparkline",
+        "reason": "A trend line helps where history matters and is clutter where it does not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "contrast-floor",
+    "content-reflow",
+    "responsive-transformation",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "stale",
+    "request-error"
+  ],
+  "beauty": {
+    "avoid": [
+      "uniform-card-grid"
+    ]
+  },
+  "rationale": "One of the few legitimate uses of Card: a metric tile is a genuinely framed object. The avoid constraint guards the failure mode of twelve identical tiles in a grid, which is the default shape of a mediocre dashboard."
+}

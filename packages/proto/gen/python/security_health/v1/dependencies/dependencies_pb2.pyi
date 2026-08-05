@@ -18,6 +18,12 @@ class Ecosystem(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ECOSYSTEM_UNSPECIFIED: _ClassVar[Ecosystem]
     ECOSYSTEM_GO: _ClassVar[Ecosystem]
     ECOSYSTEM_NPM: _ClassVar[Ecosystem]
+    ECOSYSTEM_YARN: _ClassVar[Ecosystem]
+    ECOSYSTEM_BUN: _ClassVar[Ecosystem]
+    ECOSYSTEM_PYTHON: _ClassVar[Ecosystem]
+    ECOSYSTEM_RUST: _ClassVar[Ecosystem]
+    ECOSYSTEM_C: _ClassVar[Ecosystem]
+    ECOSYSTEM_CPP: _ClassVar[Ecosystem]
 
 class VulnerabilitySource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -45,6 +51,12 @@ MODE_TEXT: Mode
 ECOSYSTEM_UNSPECIFIED: Ecosystem
 ECOSYSTEM_GO: Ecosystem
 ECOSYSTEM_NPM: Ecosystem
+ECOSYSTEM_YARN: Ecosystem
+ECOSYSTEM_BUN: Ecosystem
+ECOSYSTEM_PYTHON: Ecosystem
+ECOSYSTEM_RUST: Ecosystem
+ECOSYSTEM_C: Ecosystem
+ECOSYSTEM_CPP: Ecosystem
 VULNERABILITY_SOURCE_UNSPECIFIED: VulnerabilitySource
 VULNERABILITY_SOURCE_OSV: VulnerabilitySource
 VULNERABILITY_SOURCE_GOVULNCHECK: VulnerabilitySource

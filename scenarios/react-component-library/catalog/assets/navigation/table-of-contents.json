@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.table-of-contents",
+    "name": "TableOfContents",
+    "kind": "component",
+    "domain": "navigation",
+    "description": "The hierarchical page outline synchronized with document headings, with keyboard navigation, active-section tracking, and responsive collapse.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.scroll-spy-navigation",
+        "reason": "Active-section tracking is shared."
+      },
+      {
+        "asset": "navigation.nav-link",
+        "reason": "Entries are shared navigation links."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "heading-hierarchy",
+    "semantic-structure",
+    "keyboard-operable",
+    "responsive-transformation"
+  ]
+}

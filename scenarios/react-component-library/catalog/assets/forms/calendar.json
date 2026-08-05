@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.calendar",
+    "name": "Calendar",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The reusable calendar surface supporting single, multiple, range, week, and month selection with localization, constraints, keyboard navigation, and virtualized month rendering.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Composite widgets expose a single tab stop with arrow-key movement."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "First day of week, month naming, and calendar system are locale-specific."
+      },
+      {
+        "asset": "hooks.use-direction",
+        "reason": "Horizontal date movement reverses in right-to-left reading order."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "date-time-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "focus-order",
+    "reading-order-honest",
+    "responsive-transformation"
+  ]
+}

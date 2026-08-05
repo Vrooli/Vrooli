@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "adapters.virtualization",
+    "name": "VirtualizationAdapter",
+    "kind": "adapter",
+    "domain": "adapters",
+    "description": "Connects lists, grids, calendars, logs, and option collections to a windowing engine through stable measurement, focus preservation, and scroll anchoring.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "adapter",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Boundary types come from the shared framework-light vocabulary rather than being redeclared per adapter."
+      }
+    ]
+  },
+  "satisfies": [
+    "virtualization-adapter"
+  ],
+  "rationale": "Focus preservation is part of the contract rather than the engine's concern: a window change that drops keyboard focus is observable as the interface losing the user's place."
+}

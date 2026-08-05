@@ -233,7 +233,7 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory) string {
 </script>
 </head>
 <body>
-<div id="root"></div>
+<div id="root" data-testid="component-harness-root" data-experience-surface="component-harness" data-experience-state="loading"></div>
 `)
 	if len(importWarnings) > 0 {
 		sb.WriteString(`<div id="preview-importmap-diagnostics">`)
@@ -434,7 +434,12 @@ window.addEventListener("message", (ev) => {
 })();
 const errEl = document.getElementById("preview-error");
 const storyResultEl = document.getElementById("rcl-story-result");
+const harnessRoot = document.getElementById("root");
+const setHarnessState = (state) => {
+  if (harnessRoot) harnessRoot.dataset.experienceState = state;
+};
 const showPreviewError = (message) => {
+  setHarnessState("error");
   errEl.hidden = false;
   errEl.textContent = message;
   try {
@@ -646,7 +651,8 @@ try {
         const media = { acquire: () => fixture === "permission-denied" ? Promise.reject(new Error("permission denied")) : Promise.resolve({ stop() {}, onEnded() { return () => {}; } }) };
         const adapter = { connect: async () => {}, stop: () => {} };
         const voice = Hook({ adapter, media, mode: hookProps.mode || (fixture === "timeout" ? "timeout" : "always-on"), timeoutMs: 1 });
-        return React.createElement("div", { role: "status", "data-rcl-hook-root": true }, React.createElement("button", { type: "button", "data-rcl-hook-action": "start", onClick: () => void voice.start() }, "Start"), React.createElement("button", { type: "button", "data-rcl-hook-action": "stop", onClick: () => void voice.stop() }, "Stop"), React.createElement("output", null, voice.state));
+		const buttonClass = "min-h-11 min-w-11 rounded-control px-2 py-1";
+		return React.createElement("div", { role: "status", "data-rcl-hook-root": true }, React.createElement("button", { type: "button", className: buttonClass, "data-rcl-hook-action": "start", onClick: () => void voice.start() }, "Start"), React.createElement("button", { type: "button", className: buttonClass, "data-rcl-hook-action": "stop", onClick: () => void voice.stop() }, "Stop"), React.createElement("output", null, voice.state));
       };
       throw new Error("preview: no registered fixture for hook " + hookName);
     };
@@ -745,6 +751,7 @@ try {
     };
     renderPreview({});
     void runStory().then(() => {
+      setHarnessState("ready");
       parent.postMessage({ type: "preview-ready", id: ` + jsString(id) + `, sha256: ` + jsString(b.SHA256) + `, story: previewStory.name || "", version: previewStory.version || "" }, "*");
     }).catch((error) => {
       showPreviewError("preview: story execution failed - " + (error && error.stack || error));

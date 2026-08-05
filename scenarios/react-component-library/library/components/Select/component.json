@@ -1,14 +1,27 @@
 {
   "libraryId": "react-component-library:Select",
+  "catalogId": "forms.select",
   "displayName": "Select",
   "description": "Native select wrapper styled with Vrooli tokens and mobile-safe control sizing.",
-  "tags": ["form", "interactive"],
+  "tags": [
+    "form",
+    "interactive"
+  ],
   "slot": "ui-primitive",
   "category": "forms",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native"
+    },
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "compatible"
+    },
+    {
+      "styleId": "vrooli-conversion-landing",
+      "affinity": "compatible"
+    }
   ],
   "latest": "1.1.0",
   "draft": "",

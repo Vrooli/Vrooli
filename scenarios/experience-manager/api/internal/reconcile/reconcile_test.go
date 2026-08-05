@@ -287,7 +287,7 @@ func TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence(t *testing.T) { 
 		t.Fatalf("target state/example = %+v, want primary example", target)
 	}
 	if !strings.HasPrefix(target.Route, "/preview/react-component-library:Button/harness.html?") ||
-		!strings.Contains(target.Route, "example=primary") ||
+		!strings.Contains(target.Route, "story=primary") ||
 		!strings.Contains(target.Route, "version=1.2.0") {
 		t.Fatalf("target route = %q, want Button harness with version/example", target.Route)
 	}
@@ -493,6 +493,36 @@ func TestStructuredComponentClaimsEvaluateGeometryAndAppearance(t *testing.T) {
 	parityNodes[1].Bounds.Height = 41
 	if result := claimEvaluator("size-parity")(page, parity, target, parityNodes); !result.Pass {
 		t.Fatalf("size parity should pass within tolerance: %+v", result)
+	}
+}
+
+func TestFindBoundNodeResolvesAXStaticTextForLabelSlot(t *testing.T) {
+	label := &AXNode{Role: "StaticText", Name: "Save", Bounds: &Bounds{X: 52, Y: 28, Width: 31, Height: 19}}
+	button := &AXNode{Role: "button", DOM: DOMNode{TestID: "button-action"}, Children: []AXNode{*label}}
+	nodes := []*AXNode{button, label}
+
+	got := findBoundNode(nodes, spec.Binding{TestID: "button-label"}, "x-label")
+	if got != label && (got == nil || got.Name != "Save") {
+		t.Fatalf("label binding did not resolve to the AX text descendant: %+v", got)
+	}
+}
+
+func TestPreviewWorkspaceScrollNodesDoNotBecomePageOverflowFindings(t *testing.T) {
+	if !isPreviewWorkspaceScrollNode(&AXNode{DOM: DOMNode{TestID: "components-editor-story-picker-item"}}) {
+		t.Fatal("story picker controls should be treated as intentional preview scrolling")
+	}
+	if isPreviewWorkspaceScrollNode(&AXNode{DOM: DOMNode{TestID: "unrelated-control"}}) {
+		t.Fatal("unrelated controls must remain subject to page overflow floors")
+	}
+}
+
+func TestSelectorMatchesAriaLabelBinding(t *testing.T) {
+	node := &AXNode{Role: "button", Name: "Dismiss voice input error"}
+	if !selectorMatches(node, `[aria-label='Dismiss voice input error']`) {
+		t.Fatal("aria-label selector should match the accessibility name")
+	}
+	if selectorMatches(node, `[aria-label='Retry voice input']`) {
+		t.Fatal("aria-label selector should not match a different accessible name")
 	}
 }
 

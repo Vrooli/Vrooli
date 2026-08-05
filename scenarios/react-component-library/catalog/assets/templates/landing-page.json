@@ -1,0 +1,120 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.landing-page",
+    "name": "LandingPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The configurable product-marketing surface with expressive typography, layered visual treatment, responsive sections, restrained motion, accessibility, and fast first paint.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    },
+    "kits": [
+      "vrooli-conversion-landing"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "primitives.section",
+        "reason": "Section rhythm, width, and heading relationships are shared."
+      },
+      {
+        "asset": "motion.scroll-reveal",
+        "reason": "Entrance motion uses the shared restrained reveal."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "i18n-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "controlled-irregularity",
+    "celebration-budget"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error",
+    "offline"
+  ],
+  "regions": [
+    {
+      "id": "hero",
+      "purpose": "The primary claim and call to action.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "proof",
+      "purpose": "Evidence, artifacts, or case detail supporting the claim.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "sections",
+      "purpose": "Supporting narrative sections.",
+      "required": false,
+      "lifecycle": "static"
+    },
+    {
+      "id": "conversion",
+      "purpose": "Final call to action.",
+      "required": false,
+      "lifecycle": "static"
+    }
+  ],
+  "qualityGates": [
+    "performance"
+  ],
+  "beauty": {
+    "avoid": [
+      "decorative-gradient-background"
+    ]
+  },
+  "rationale": "The one template where controlled irregularity is appropriate rather than a defect, and the only one whose kit is conversion-landing exclusively. Fast first paint is a hard gate: a marketing page that fails performance has failed its only job."
+}

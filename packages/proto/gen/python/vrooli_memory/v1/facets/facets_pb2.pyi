@@ -93,3 +93,13 @@ class MarkSupersededRequest(_message.Message):
 class MarkSupersededResponse(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
+
+class ResolveThreadRequest(_message.Message):
+    __slots__ = ("entry_id",)
+    ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    entry_id: str
+    def __init__(self, entry_id: _Optional[str] = ...) -> None: ...
+
+class ResolveThreadResponse(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...

@@ -1,0 +1,106 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.dialog",
+    "name": "Dialog",
+    "kind": "component",
+    "domain": "overlays",
+    "description": "The modal or non-modal conversation surface with focus containment, inert background, reference-counted scroll lock, structured regions, async actions, and nested-overlay support.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "primitives.surface",
+        "reason": "Background and elevation come from the shared surface primitive rather than per-overlay shadow values."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "Enter and exit lifecycle, interruption, and reduced-motion collapse are owned once."
+      },
+      {
+        "asset": "hooks.use-focus-trap",
+        "reason": "Modal contexts contain focus, including nested scopes."
+      },
+      {
+        "asset": "hooks.use-focus-return",
+        "reason": "Focus returns to the trigger, or a deterministic fallback, on close."
+      },
+      {
+        "asset": "hooks.use-scroll-lock",
+        "reason": "Scroll locking is reference-counted so nested modals do not fight."
+      },
+      {
+        "asset": "hooks.use-escape-key",
+        "reason": "Escape closes only the topmost eligible surface."
+      },
+      {
+        "asset": "hooks.use-controllable-state",
+        "reason": "Open state uses the shared controlled and uncontrolled contract."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "layer-manager"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-containment",
+    "focus-restoration",
+    "status-announced",
+    "tap-target-size"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "submitting",
+    "success",
+    "request-error"
+  ],
+  "api": {
+    "levels": [
+      "compound",
+      "convenience"
+    ],
+    "modes": [
+      "controlled",
+      "uncontrolled"
+    ],
+    "parts": [
+      "trigger",
+      "overlay",
+      "content",
+      "header",
+      "title",
+      "description",
+      "body",
+      "footer",
+      "close"
+    ]
+  }
+}

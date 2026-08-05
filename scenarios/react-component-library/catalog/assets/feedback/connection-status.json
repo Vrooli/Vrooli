@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.connection-status",
+    "name": "ConnectionStatus",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The compact connectivity indicator combining browser signals, server health, sync state, retry behavior, and a last-known-good timestamp.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency treatment is shared rather than reinvented per surface."
+      },
+      {
+        "asset": "hooks.use-network-status",
+        "reason": "Connectivity is read through the shared hook."
+      },
+      {
+        "asset": "primitives.relative-time",
+        "reason": "Last-synchronized time uses the shared component."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "status-announced",
+    "non-color-status",
+    "contrast-floor",
+    "text-scale-resilience",
+    "forced-colors-legibility",
+    "content-reflow",
+    "offline-behavior",
+    "freshness-disclosure"
+  ],
+  "requiredStates": [
+    "default",
+    "syncing",
+    "stale",
+    "offline",
+    "retry"
+  ]
+}

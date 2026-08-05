@@ -95,7 +95,7 @@ export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
                       data-preset={preset.id}
                       variant={active ? "primary" : "secondary"}
                       aria-pressed={active}
-                      className="h-auto min-h-12 justify-between px-2.5 py-2 text-left text-xs"
+                      className="h-auto min-h-12 min-w-11 justify-between px-2.5 py-2 text-left text-xs"
                       onClick={() => emulator.setPreset(preset.id)}
                     >
                       <span>{preset.label}</span>
@@ -200,9 +200,9 @@ export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
 
 export function EmulatorViewport({ emulator, filters, children }: EmulatorViewportProps) {
   return (
-    <div className="h-full w-full overflow-auto bg-app-background">
+    <div data-testid={selectors.components.emulator.viewportFrame} className="h-full w-full overflow-auto bg-app-background">
       {filters && <DeviceVisionFilterDefs />}
-      <div style={{ width: emulator.scaledWidth, height: emulator.scaledHeight }} className="relative">
+      <div data-testid={selectors.components.emulator.viewportCanvas} style={{ width: emulator.scaledWidth, height: emulator.scaledHeight }} className="relative">
         <div
           data-testid={selectors.components.emulator.viewport}
           style={{

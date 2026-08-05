@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.virtual-list",
+    "name": "VirtualList",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The large-collection renderer with dynamic measurement, overscan, preserved focus, sticky items, scroll restoration, and accessible item-count semantics.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.list",
+        "reason": "Row semantics are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "virtualization-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced"
+  ],
+  "qualityGates": [
+    "performance"
+  ],
+  "rationale": "The accessibility trap is item counts: a windowed list that reports only the rendered rows tells a screen-reader user the collection is twenty items long when it is twenty thousand."
+}

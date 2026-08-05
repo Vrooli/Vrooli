@@ -161,6 +161,30 @@ describe("ComponentEditor", () => {
     }
   });
 
+  it("provides a viewport-sized preview fallback when native fullscreen is unavailable", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "// fullscreen", sha256: "sha-fullscreen" }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ComponentEditor id="cmp-fullscreen" libraryId="lib:Fullscreen" onClose={() => {}} activePane="preview" />,
+    );
+
+    const stage = await screen.findByTestId(selectors.components.editor.previewStage);
+    const toggle = screen.getByTestId(selectors.components.editor.previewStageFullscreen);
+    expect(stage).toHaveAttribute("data-preview-fullscreen", "false");
+
+    await user.click(toggle);
+    expect(stage).toHaveAttribute("data-preview-fullscreen", "true");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(toggle);
+    expect(stage).toHaveAttribute("data-preview-fullscreen", "false");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("opens the Files diff tab when a comparison arrives from Details", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(

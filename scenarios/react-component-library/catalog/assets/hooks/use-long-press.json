@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-long-press",
+    "name": "useLongPress",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A long-press primitive with movement tolerance, cancellation, context-menu coordination, and a required accessible alternative.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-press",
+        "reason": "Long press is a press variant and must share its cancellation semantics."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "gesture-alternative"
+  ]
+}

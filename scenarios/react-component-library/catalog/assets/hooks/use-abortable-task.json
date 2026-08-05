@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-abortable-task",
+    "name": "useAbortableTask",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A task primitive that automatically cancels obsolete work when inputs change, the component unmounts, or a newer invocation supersedes the current one.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Uses the shared abort and supersession vocabulary."
+      }
+    ]
+  }
+}

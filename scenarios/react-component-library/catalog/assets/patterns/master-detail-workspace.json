@@ -1,0 +1,70 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.master-detail-workspace",
+    "name": "MasterDetailWorkspace",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The list-and-detail workflow with route synchronization, preserved selection and scroll, independent loading boundaries per side, and drill-in navigation on compact viewports.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.master-detail",
+        "reason": "Adjacency, drill-in, and transition continuity are the shared layout."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary rather than reimplemented per workflow."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "content-reflow",
+    "density-adaptive-layout",
+    "entrance-restraint",
+    "recovery-path",
+    "freshness-disclosure"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Returning from a detail view restores the list exactly as it was, including scroll position and selection, so a long triage pass is never interrupted by navigation."
+    }
+  }
+}

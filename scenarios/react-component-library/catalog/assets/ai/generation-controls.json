@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.generation-controls",
+    "name": "GenerationControls",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The coordinated control set for stop, continue, retry, regenerate, branch, edit, and resume, with accurate availability and honest pending state for each.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.button-group",
+        "reason": "Actions and overflow use the shared group."
+      },
+      {
+        "asset": "controls.command-button",
+        "reason": "Each control is an async action button with real pending state."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "activation-acknowledged",
+    "recovery-path",
+    "tap-target-size"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "request-error",
+    "retry"
+  ],
+  "rationale": "Stop must actually stop and must acknowledge immediately. A stop control that stays pressed while tokens keep arriving is the clearest possible signal to a user that the interface is not in control of the system."
+}

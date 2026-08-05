@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-hotkeys",
+    "name": "useHotkeys",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A scoped keyboard-shortcut primitive with platform-aware labels, input-field suppression, collision detection, and reliable cleanup.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "expects": [
+    {
+      "capability": "i18n-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "keyboard-operable"
+  ]
+}

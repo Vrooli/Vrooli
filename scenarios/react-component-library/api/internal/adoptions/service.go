@@ -402,7 +402,7 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	}
 	experiencePath := ""
 	if strings.TrimSpace(v.ExperienceContract) != "" {
-		experiencePath = filepath.ToSlash(filepath.Join("experience", "components", cmp.Slug+".json"))
+		experiencePath = componentExperiencePath(cmp.Slug)
 		experienceExists, err := s.files.Exists(ctx, in.Scenario, experiencePath)
 		if err != nil {
 			return ApplyResult{}, err
@@ -644,7 +644,7 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		}
 	}
 	if strings.TrimSpace(v.ExperienceContract) != "" {
-		experiencePath := filepath.ToSlash(filepath.Join("experience", "components", root.Slug+".json"))
+		experiencePath := componentExperiencePath(root.Slug)
 		if _, err := s.files.Write(ctx, row.Scenario, experiencePath, []byte(v.ExperienceContract)); err != nil {
 			return Adoption{}, "", fmt.Errorf("write component experience contract: %w", err)
 		}
@@ -660,6 +660,14 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		return Adoption{}, "", err
 	}
 	return updated, written, nil
+}
+
+// componentExperiencePath is the single canonical location for a copied
+// component-scope experience contract. Catalog slugs retain their display
+// casing for library source paths, while experience ids and document names
+// are stable kebab-case identifiers.
+func componentExperiencePath(slug string) string {
+	return filepath.ToSlash(filepath.Join("experience", "components", toKebab(slug)+".json"))
 }
 
 func (s *service) resolveTokenNamespace(ctx context.Context, scenario string) (string, error) {

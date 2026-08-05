@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.markdown-message",
+    "name": "MarkdownMessage",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The safe rich-message renderer with lazily loaded code highlighting, tables, links, citations, task lists, copy affordances, and resilient handling of partial markup during streaming.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "ai.streaming-text",
+        "reason": "Incremental rendering, batching, and announcement policy are shared."
+      },
+      {
+        "asset": "data-display.code-block",
+        "reason": "Code fences render through the shared block with lazy highlighting."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "ai.citation",
+        "reason": "Only transcripts with sourced answers need inline references."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "transition-non-blocking",
+    "entrance-restraint",
+    "reduced-motion",
+    "semantic-structure",
+    "heading-hierarchy",
+    "no-horizontal-overflow"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "request-error"
+  ],
+  "rationale": "Partial markup is the streaming hazard: a half-arrived code fence or table must render as readable text rather than collapsing the layout, then upgrade cleanly once the delimiter arrives."
+}

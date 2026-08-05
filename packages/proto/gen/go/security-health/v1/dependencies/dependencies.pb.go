@@ -80,6 +80,12 @@ const (
 	Ecosystem_ECOSYSTEM_UNSPECIFIED Ecosystem = 0
 	Ecosystem_ECOSYSTEM_GO          Ecosystem = 1
 	Ecosystem_ECOSYSTEM_NPM         Ecosystem = 2
+	Ecosystem_ECOSYSTEM_YARN        Ecosystem = 3
+	Ecosystem_ECOSYSTEM_BUN         Ecosystem = 4
+	Ecosystem_ECOSYSTEM_PYTHON      Ecosystem = 5
+	Ecosystem_ECOSYSTEM_RUST        Ecosystem = 6
+	Ecosystem_ECOSYSTEM_C           Ecosystem = 7
+	Ecosystem_ECOSYSTEM_CPP         Ecosystem = 8
 )
 
 // Enum value maps for Ecosystem.
@@ -88,11 +94,23 @@ var (
 		0: "ECOSYSTEM_UNSPECIFIED",
 		1: "ECOSYSTEM_GO",
 		2: "ECOSYSTEM_NPM",
+		3: "ECOSYSTEM_YARN",
+		4: "ECOSYSTEM_BUN",
+		5: "ECOSYSTEM_PYTHON",
+		6: "ECOSYSTEM_RUST",
+		7: "ECOSYSTEM_C",
+		8: "ECOSYSTEM_CPP",
 	}
 	Ecosystem_value = map[string]int32{
 		"ECOSYSTEM_UNSPECIFIED": 0,
 		"ECOSYSTEM_GO":          1,
 		"ECOSYSTEM_NPM":         2,
+		"ECOSYSTEM_YARN":        3,
+		"ECOSYSTEM_BUN":         4,
+		"ECOSYSTEM_PYTHON":      5,
+		"ECOSYSTEM_RUST":        6,
+		"ECOSYSTEM_C":           7,
+		"ECOSYSTEM_CPP":         8,
 	}
 )
 
@@ -1445,11 +1463,17 @@ const file_security_health_v1_dependencies_dependencies_proto_rawDesc = "" +
 	"\x04Mode\x12\x14\n" +
 	"\x10MODE_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aMODE_AI\x10\x01\x12\r\n" +
-	"\tMODE_TEXT\x10\x02*K\n" +
+	"\tMODE_TEXT\x10\x02*\xc0\x01\n" +
 	"\tEcosystem\x12\x19\n" +
 	"\x15ECOSYSTEM_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fECOSYSTEM_GO\x10\x01\x12\x11\n" +
-	"\rECOSYSTEM_NPM\x10\x02*\xa4\x01\n" +
+	"\rECOSYSTEM_NPM\x10\x02\x12\x12\n" +
+	"\x0eECOSYSTEM_YARN\x10\x03\x12\x11\n" +
+	"\rECOSYSTEM_BUN\x10\x04\x12\x14\n" +
+	"\x10ECOSYSTEM_PYTHON\x10\x05\x12\x12\n" +
+	"\x0eECOSYSTEM_RUST\x10\x06\x12\x0f\n" +
+	"\vECOSYSTEM_C\x10\a\x12\x11\n" +
+	"\rECOSYSTEM_CPP\x10\b*\xa4\x01\n" +
 	"\x13VulnerabilitySource\x12$\n" +
 	" VULNERABILITY_SOURCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18VULNERABILITY_SOURCE_OSV\x10\x01\x12$\n" +

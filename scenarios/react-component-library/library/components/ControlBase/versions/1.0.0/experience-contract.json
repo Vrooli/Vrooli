@@ -17,5 +17,5 @@
   "claims": [
     { "id": "hover-state-contrast", "type": "state-contrast", "statement": "The hover treatment retains readable foreground contrast against the declared control background.", "tier": "machine", "elements": ["control"], "states": ["variant-primary"], "params": { "state": "hover", "background": "#020617", "minContrastRatio": 3 } }
   ],
-  "bindings": { "elements": { "control": { "selector": "button" } } }
+  "bindings": { "elements": { "control": { "testid": "control-base-root" } } }
 }

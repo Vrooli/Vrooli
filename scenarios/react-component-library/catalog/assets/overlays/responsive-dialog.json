@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.responsive-dialog",
+    "name": "ResponsiveDialog",
+    "kind": "component",
+    "domain": "overlays",
+    "description": "The adaptive overlay presenting as a centered dialog on pointer-first desktops and as a sheet or full-height drawer on constrained or touch-first viewports, without losing open state across the change.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.dialog",
+        "reason": "Desktop presentation is the shared dialog."
+      },
+      {
+        "asset": "overlays.bottom-sheet",
+        "reason": "Constrained presentation is the shared sheet."
+      },
+      {
+        "asset": "hooks.use-media-query",
+        "reason": "Presentation selection is a behavioral breakpoint, not a style one."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-containment",
+    "focus-restoration",
+    "status-announced",
+    "tap-target-size",
+    "gesture-alternative"
+  ],
+  "rationale": "One of the two assets that carry a DESIGN.md responsive transformation as its own contract: modal becomes sheet. Preserving open state across the breakpoint is the part that is easy to get wrong and invisible until a device rotates."
+}

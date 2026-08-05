@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.json-viewer",
+    "name": "JSONViewer",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The structured data viewer with expansion, search, copy, path display, type treatment, truncation, virtualization, and safe handling of large or circular values.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.code",
+        "reason": "Monospace rendering is shared."
+      },
+      {
+        "asset": "data-display.tree-view",
+        "reason": "Expansion, traversal, and keyboard model are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "virtualization-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest"
+  ],
+  "qualityGates": [
+    "performance"
+  ]
+}

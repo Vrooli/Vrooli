@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.empty-state",
+    "name": "EmptyState",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The contextual no-results composition explaining why nothing is shown, distinguishing an empty collection from a filtered-out one, and offering the most relevant next action.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.text",
+        "reason": "Copy uses the shared text styles rather than local typography."
+      },
+      {
+        "asset": "primitives.stack",
+        "reason": "Layout uses the shared spacing ramp."
+      },
+      {
+        "asset": "controls.button",
+        "reason": "Actions are shared buttons so affordances look and behave the same everywhere."
+      },
+      {
+        "asset": "primitives.icon",
+        "reason": "The illustrative glyph resolves through the registry."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "recovery-path",
+    "contrast-floor",
+    "content-reflow",
+    "text-scale-resilience",
+    "empty-state-craft",
+    "responsive-transformation"
+  ],
+  "requiredStates": [
+    "empty"
+  ],
+  "rationale": "Already implemented in the catalog at 1.1.0. The distinction it must carry is no-results versus never-created, because the useful next action is completely different in each case."
+}

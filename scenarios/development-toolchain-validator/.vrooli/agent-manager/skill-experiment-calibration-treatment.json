@@ -4,6 +4,7 @@
   "profileKey": "development-toolchain-validator/calibration-treatment",
   "description": "Calibration-only treatment profile with no tool restriction policy, suitable for the Codex runner.",
   "roleRef": "code.smart",
+  "roleReason": "The calibration treatment intentionally exercises the highest-capability reasoning path to measure skill effects.",
   "maxTurns": 8,
   "timeout": "300s",
   "skipPermissionPrompt": false,

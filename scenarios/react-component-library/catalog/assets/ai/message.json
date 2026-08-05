@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.message",
+    "name": "Message",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The structured conversational item carrying actor, content, status, citations, attachments, tool activity, actions, timestamp, error state, and expandable metadata as one coherent unit.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.text",
+        "reason": "Copy uses the shared text styles rather than local typography."
+      },
+      {
+        "asset": "primitives.relative-time",
+        "reason": "Timestamps render and update through the shared component."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency are expressed on the shared orthogonal axes rather than as one flat variant set."
+      },
+      {
+        "asset": "primitives.avatar",
+        "reason": "Actor identity uses the shared identity visual."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "ai.message-actions",
+        "reason": "Only transcripts that allow copy, retry, edit, or branching need the action group."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "semantic-structure",
+    "non-color-status",
+    "error-honesty"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "partial",
+    "success",
+    "request-error",
+    "retry"
+  ],
+  "api": {
+    "levels": [
+      "compound",
+      "convenience"
+    ],
+    "parts": [
+      "actor",
+      "content",
+      "attachments",
+      "citations",
+      "activity",
+      "actions",
+      "footer"
+    ]
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.banner",
+    "name": "Banner",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The page- or application-level notice with priority ordering, persistence policy, actions, responsive layout, and deterministic stacking when several apply at once.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.alert",
+        "reason": "Tone, structure, and non-colour treatment are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "status-announced",
+    "non-color-status",
+    "contrast-floor",
+    "text-scale-resilience",
+    "forced-colors-legibility",
+    "content-reflow",
+    "chrome-pinned",
+    "safe-area-respected"
+  ]
+}

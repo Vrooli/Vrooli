@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.toast",
+    "name": "Toast",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The transient notification rendered through the shared toast service, with queueing, deduplication, in-place updates, action affordances, timeout policy, and announcement.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.toast-manager",
+        "reason": "Queue, dedupe, limits, and lifetime belong to the service, not the component."
+      },
+      {
+        "asset": "primitives.surface",
+        "reason": "Background and elevation come from the shared surface primitive."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "Enter and exit lifecycle and reduced-motion collapse are owned once."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Messages are announced through the one shared live region."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "status-announced",
+    "non-color-status",
+    "contrast-floor",
+    "text-scale-resilience",
+    "forced-colors-legibility",
+    "content-reflow",
+    "reduced-motion",
+    "transition-class-conformance",
+    "safe-area-respected"
+  ],
+  "beauty": {
+    "avoid": [
+      "toast-as-only-error-record"
+    ]
+  },
+  "rationale": "Deliberately constrained to transient confirmation and background results. A blocking failure recorded only in a toast the user can miss is the anti-pattern this entry names explicitly."
+}

@@ -46,7 +46,7 @@
             "$node": "button",
             "props": {
               "type": "button",
-              "className": "min-h-[44px] min-w-[44px] rounded-control px-2 py-1 text-app-primary"
+              "className": "min-h-11 min-w-11 rounded-control px-2 py-1 text-app-primary"
             },
             "children": [
               {
@@ -153,7 +153,7 @@
           "$node": "button",
           "props": {
             "type": "button",
-            "className": "min-h-[44px] min-w-[44px] rounded-control px-2 py-1 text-app-primary"
+              "className": "min-h-11 min-w-11 rounded-control px-2 py-1 text-app-primary"
           },
           "children": [
             {

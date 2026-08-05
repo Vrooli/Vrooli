@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "manipulation.snap-guides",
+    "name": "SnapGuides",
+    "kind": "component",
+    "domain": "manipulation",
+    "description": "The spatial alignment service and overlay computing snap candidates from nearby objects and rendering guides without forcing a full canvas re-render.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "manipulation.canvas-viewport",
+        "reason": "Coordinates and transform state are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "reduced-motion",
+    "no-layout-animation",
+    "contrast-floor",
+    "forced-colors-legibility"
+  ],
+  "qualityGates": [
+    "performance"
+  ]
+}

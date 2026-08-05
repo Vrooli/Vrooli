@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.dashboard-generator",
+    "name": "DashboardGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Produces a dashboard from metric, chart, table, filter, layout, and refresh definitions while preserving loading, partial-failure, and responsive behavior.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "templates.dashboard-page",
+        "reason": "Output is the shared dashboard template."
+      }
+    ]
+  }
+}

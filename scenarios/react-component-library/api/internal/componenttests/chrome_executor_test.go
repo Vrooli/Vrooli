@@ -37,6 +37,28 @@ func TestDecodeRenderedStoryResultPreservesPlantedExpectationFailure(t *testing.
 	}
 }
 
+func TestDecodeStoryResultJSONAcceptsPlaywrightOutput(t *testing.T) {
+	execution, err := decodeStoryResultJSON([]byte(`{"passed":true,"failures":[]}`))
+	if err != nil {
+		t.Fatalf("decodeStoryResultJSON() error = %v", err)
+	}
+	if !execution.Passed {
+		t.Fatal("Playwright success result was reported as failed")
+	}
+}
+
+func TestEnvironWithChromeReplacesInheritedValue(t *testing.T) {
+	environ := environWithChrome([]string{"PATH=/bin", "RCL_CHROME_BIN=google-chrome", "RCL_CHROME_BIN=stale"}, "/usr/bin/google-chrome")
+	for _, entry := range environ {
+		if entry == "RCL_CHROME_BIN=google-chrome" || entry == "RCL_CHROME_BIN=stale" {
+			t.Fatalf("inherited Chrome value remained in environment: %q", entry)
+		}
+	}
+	if environ[len(environ)-1] != "RCL_CHROME_BIN=/usr/bin/google-chrome" {
+		t.Fatalf("normalized Chrome value = %q", environ[len(environ)-1])
+	}
+}
+
 func TestChromeHarnessExecutorReportsMissingChromeAsUnavailable(t *testing.T) {
 	executor := ChromeHarnessExecutor{BaseURL: "http://preview.example.test", ChromePath: "definitely-not-installed-rcl-chrome"}
 	_, err := executor.ExecuteStory(context.Background(), "rcl:button", "1.0.0", "default")

@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.spotlight",
+    "name": "Spotlight",
+    "kind": "component",
+    "domain": "overlays",
+    "description": "The feature-discovery overlay highlighting an anchored target, explaining an action, managing focus, tolerating layout change, and supporting multi-step tours.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.popover",
+        "reason": "Anchoring and collision handling are shared."
+      },
+      {
+        "asset": "hooks.use-focus-trap",
+        "reason": "Modal contexts contain focus, including nested scopes."
+      },
+      {
+        "asset": "hooks.use-focus-return",
+        "reason": "Focus returns to the trigger, or a deterministic fallback, on close."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-containment",
+    "focus-restoration",
+    "status-announced",
+    "tap-target-size"
+  ],
+  "beauty": {
+    "avoid": [
+      "ambient-motion-competing-with-status"
+    ]
+  }
+}

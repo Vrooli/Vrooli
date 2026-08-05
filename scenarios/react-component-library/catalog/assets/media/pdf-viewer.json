@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "media.pdf-viewer",
+    "name": "PDFViewer",
+    "kind": "component",
+    "domain": "media",
+    "description": "The lazily loaded document viewer with page windowing, search, zoom, thumbnails, text selection, download, and an accessible text fallback for the rendered pages.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.virtual-list",
+        "reason": "Page windowing and focus preservation are shared."
+      },
+      {
+        "asset": "forms.search-input",
+        "reason": "In-document search shares entry, debouncing, and cancellation."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "virtualization-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "content-reflow",
+    "contrast-floor",
+    "gesture-alternative",
+    "entrance-restraint",
+    "responsive-transformation",
+    "status-announced",
+    "no-horizontal-overflow"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error"
+  ],
+  "qualityGates": [
+    "performance",
+    "stress"
+  ],
+  "rationale": "The text fallback is the requirement: a PDF rendered only to canvas is completely opaque to assistive technology, which is the default outcome of every naive integration."
+}

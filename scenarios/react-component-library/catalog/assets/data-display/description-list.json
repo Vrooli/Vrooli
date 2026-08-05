@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.description-list",
+    "name": "DescriptionList",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The responsive name-and-value presentation for metadata, adapting between columns, rows, dense summaries, and long values without truncating meaning.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.text",
+        "reason": "Copy uses the shared text styles rather than local typography."
+      },
+      {
+        "asset": "foundations.tokens",
+        "reason": "Spacing, radius, and semantic colour resolve to declared ramps."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "text-scale-resilience"
+  ]
+}

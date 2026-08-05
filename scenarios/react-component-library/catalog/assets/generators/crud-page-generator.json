@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.crud-page-generator",
+    "name": "CRUDPageGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Produces collection, detail, create, edit, archive, restore, and delete surfaces from one resource contract plus typed data-source operations.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "patterns.crud-resource",
+        "reason": "Output is the shared lifecycle pattern."
+      }
+    ]
+  },
+  "rationale": "The highest-leverage generator in the catalog: most operational scenarios are mostly CRUD, and this is what turns that from a build into a configuration."
+}

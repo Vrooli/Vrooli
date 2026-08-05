@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.navigation-generator",
+    "name": "NavigationGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Produces navigation trees, rails, sidebars, breadcrumbs, commands, and compact-viewport navigation from one route-and-permission model.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.app-navigation",
+        "reason": "Output configures the composed navigation asset so every presentation stays derived from one model."
+      }
+    ]
+  },
+  "rationale": "One model producing every presentation is what keeps the sidebar, the bottom bar, and the breadcrumb trail from disagreeing about the application's own structure."
+}

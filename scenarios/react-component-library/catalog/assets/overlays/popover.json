@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.popover",
+    "name": "Popover",
+    "kind": "component",
+    "domain": "overlays",
+    "description": "The collision-aware anchored surface with focus management, pointer-safe interaction corridors, arrow positioning, nested layering, and a responsive fallback presentation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "primitives.surface",
+        "reason": "Background and elevation come from the shared surface primitive rather than per-overlay shadow values."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "Enter and exit lifecycle, interruption, and reduced-motion collapse are owned once."
+      },
+      {
+        "asset": "hooks.use-outside-interaction",
+        "reason": "Dismissal understands pointer, focus, nested layers, and portals."
+      },
+      {
+        "asset": "hooks.use-escape-key",
+        "reason": "Escape closes only the topmost eligible surface."
+      },
+      {
+        "asset": "hooks.use-controllable-state",
+        "reason": "Open state uses the shared controlled and uncontrolled contract."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "layer-manager"
+    },
+    {
+      "capability": "positioning-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation"
+  ],
+  "api": {
+    "levels": [
+      "compound",
+      "convenience"
+    ],
+    "parts": [
+      "trigger",
+      "content",
+      "arrow"
+    ],
+    "modes": [
+      "controlled",
+      "uncontrolled"
+    ]
+  },
+  "rationale": "The anchoring base for tooltip, menu, select, and hover card. Its pointer-safe corridor is the detail that separates a usable submenu from one that closes while you move toward it diagonally."
+}

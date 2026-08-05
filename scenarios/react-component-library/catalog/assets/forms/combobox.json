@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.combobox",
+    "name": "Combobox",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The searchable selection field supporting local or remote options, typeahead, creation of new values, result highlighting, virtualization, async cancellation, and accessible active-option reporting.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.select",
+        "reason": "Trigger, presentation, and option semantics are shared."
+      },
+      {
+        "asset": "forms.async-options-field",
+        "reason": "Remote option loading, debouncing, and stale-result protection are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "status-announced",
+    "focus-order",
+    "responsive-transformation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "validation-error",
+    "request-error"
+  ]
+}

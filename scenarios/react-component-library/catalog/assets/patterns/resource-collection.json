@@ -1,0 +1,82 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.resource-collection",
+    "name": "ResourceCollection",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The resource-list pattern with querying, sorting, filtering, selection, row actions, pagination, every generic state, and responsive row-or-card presentation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.data-table",
+        "reason": "Presentation, sorting, selection, and state delegation are shared."
+      },
+      {
+        "asset": "data-display.data-toolbar",
+        "reason": "Search, filters, views, and density controls are shared."
+      },
+      {
+        "asset": "patterns.search-filter-results",
+        "reason": "Query state and URL synchronization are shared."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "data-display.bulk-action-bar",
+        "reason": "Only collections with multi-item operations need it."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TRecord"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "empty-state-craft",
+    "freshness-disclosure"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.switch",
+    "name": "Switch",
+    "kind": "component",
+    "domain": "controls",
+    "description": "The binary settings control with spring-driven thumb motion, label association, loading state for remotely persisted settings, and read-only and disabled treatments.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "foundations.visual-recipes",
+        "reason": "Variant styling is declared as an enumerable recipe so the implementation is checkable against the catalog."
+      },
+      {
+        "asset": "hooks.use-controllable-state",
+        "reason": "Controlled and uncontrolled operation share one contract and one event shape."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Thumb motion collapses under reduced-motion policy."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "non-color-status",
+    "reduced-motion",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "saving",
+    "success",
+    "request-error"
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "../../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "capability-group",
+  "schemaVersion": "1.0.0",
+  "group": {
+    "id": "resilience",
+    "description": "Whether a surface is honest and usable when things go wrong or arrive incomplete — the offline, stale, partial, failed, and recovering states that DESIGN.md calls part of the design contract rather than implementation polish."
+  },
+  "capabilities": [
+    {
+      "id": "offline-behavior",
+      "title": "Offline is a designed state",
+      "facets": ["promises"],
+      "description": "Without connectivity the surface explains what still works, what has been queued, when it last synchronized, and what happens on reconnection — rather than failing silently or appearing merely slow.",
+      "proves": {
+        "axes": { "connectivity": ["offline", "degraded"] },
+        "evidence": ["ax-tree", "runtime-log"],
+        "claimTypes": ["state-covered", "state-distinct", "affordance-present"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "`offline` is in the canonical state list and in every kit's DESIGN.md state contract, and no scenario has ever captured it. The connectivity axis is available in BAS through network mocking and simply unwired."
+    },
+    {
+      "id": "error-honesty",
+      "title": "An error state is designed, not a crash",
+      "facets": ["promises"],
+      "description": "When the surface presents its error state it does so deliberately — rendering explanatory content without also throwing uncaught errors or logging failures it has not accounted for.",
+      "proves": {
+        "evidence": ["ax-tree", "runtime-log"],
+        "claimTypes": ["state-covered"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "The distinction the current model cannot make: a surface that renders error UI while also throwing looks identical to one that handled the failure. Console and page-error evidence is already produced by the engine and is read today only by the catalog's browser sweep, never by experience reconciliation."
+    },
+    {
+      "id": "error-message-usefulness",
+      "title": "Errors say what happened and what is next",
+      "facets": ["promises"],
+      "description": "A failure explains what went wrong, what is still safe, and the next available action — without exposing stack traces, secrets, tokens, or internals the user cannot act on.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["affordance-present", "element-absent"]
+      },
+      "tierCeiling": "manual",
+      "rationale": "The absence half is machine-checkable — a rendered stack trace or token-shaped string in an error surface is detectable, and `element-absent` is the claim type for it, which is notable because that type currently parses as machine-tier while having no evaluator at all. Whether the message is genuinely useful stays manual."
+    },
+    {
+      "id": "freshness-disclosure",
+      "title": "Stale content admits it is stale",
+      "facets": ["promises"],
+      "description": "When displayed content is known to be out of date and its age affects decisions, the surface discloses its freshness and offers a way to refresh.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["state-covered", "state-distinct", "affordance-present"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "page", "page-template", "pattern"],
+      "rationale": "`stale` and `refreshing` are distinct canonical states for a reason: showing old data while fetching new is the common case, and rendering it identically to fresh data is a correctness problem, not a cosmetic one."
+    },
+    {
+      "id": "partial-degradation",
+      "title": "Partial failure keeps the primary task usable",
+      "facets": ["promises"],
+      "description": "When a supporting region fails, the primary task remains operable and the unavailable part is explained in place rather than taking down the whole surface.",
+      "proves": {
+        "axes": { "data-shape": ["failure", "empty"] },
+        "evidence": ["ax-tree", "layout-box"],
+        "claimTypes": ["state-covered", "state-distinct", "element-present"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["page", "page-template", "pattern"],
+      "rationale": "Directly expressible through the existing region model: required regions block readiness while optional failures aggregate to `partial`. The declaration machinery exists; nothing captures the state to check it."
+    },
+    {
+      "id": "recovery-path",
+      "title": "Every fault offers a way forward",
+      "facets": ["promises"],
+      "description": "Each fault state exposes at least one actionable next step — retry, an alternate route, or a request for access — so the user is never left at a dead end.",
+      "proves": {
+        "evidence": ["ax-tree"],
+        "claimTypes": ["affordance-present", "state-covered"]
+      },
+      "tierCeiling": "machine",
+      "rationale": "Covers the whole fault group plus recovery uniformly, which is why states carry group membership. A fault state with no affordance is mechanically detectable and is one of the most common real defects."
+    },
+    {
+      "id": "input-preservation",
+      "title": "Failure never discards user work",
+      "facets": ["promises"],
+      "description": "When a submission or mutation fails, the values the user entered survive, and the surface offers a path that does not require re-entering them.",
+      "proves": {
+        "axes": { "connectivity": ["offline"] },
+        "evidence": ["ax-tree"],
+        "claimTypes": ["state-covered", "element-present"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "pattern", "page-template"],
+      "rationale": "Stated flatly in DESIGN.md: forms must preserve user input on failure. Verifying it requires capturing after a failed submission rather than a single settled snapshot, which is the same multi-step capture gap that blocks focus-restoration."
+    },
+    {
+      "id": "optimistic-rollback",
+      "title": "Optimistic changes roll back visibly",
+      "facets": ["promises"],
+      "description": "An optimistic update that fails either restores the previous state or marks the item as unsynced with a retry action — never silently leaving a change that did not happen.",
+      "proves": {
+        "evidence": ["ax-tree", "runtime-log"],
+        "claimTypes": ["state-distinct", "affordance-present"]
+      },
+      "tierCeiling": "machine",
+      "appliesTo": ["component", "pattern", "page-template"],
+      "rationale": "DESIGN.md permits optimistic updates only when rollback is clear. This is the capability that makes that condition enforceable rather than advisory."
+    }
+  ]
+}

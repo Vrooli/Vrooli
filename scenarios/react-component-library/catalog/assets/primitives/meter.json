@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.meter",
+    "name": "Meter",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The bounded-value visualization for capacity, quota, strength, or health, using semantic thresholds and explicitly not implying task progress.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "non-color-status",
+    "contrast-floor",
+    "accessible-naming"
+  ],
+  "rationale": "Separate from Progress on purpose: conflating a capacity gauge with task progress is a meaning error, and one component cannot honestly express both."
+}

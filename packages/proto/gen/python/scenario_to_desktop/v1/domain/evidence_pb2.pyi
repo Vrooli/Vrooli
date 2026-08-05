@@ -181,7 +181,7 @@ class CaptureScreenshotRequest(_message.Message):
     def __init__(self, session_id: _Optional[str] = ...) -> None: ...
 
 class EvidenceCapture(_message.Message):
-    __slots__ = ("capture_id", "scenario_name", "kind", "source_session_id", "filename", "file_size_bytes", "width", "height", "duration_ms", "created_at")
+    __slots__ = ("capture_id", "scenario_name", "kind", "source_session_id", "filename", "file_size_bytes", "width", "height", "duration_ms", "created_at", "checksum")
     CAPTURE_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -192,6 +192,7 @@ class EvidenceCapture(_message.Message):
     HEIGHT_FIELD_NUMBER: _ClassVar[int]
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CHECKSUM_FIELD_NUMBER: _ClassVar[int]
     capture_id: str
     scenario_name: str
     kind: str
@@ -202,7 +203,8 @@ class EvidenceCapture(_message.Message):
     height: int
     duration_ms: int
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, capture_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., kind: _Optional[str] = ..., source_session_id: _Optional[str] = ..., filename: _Optional[str] = ..., file_size_bytes: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., duration_ms: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    checksum: str
+    def __init__(self, capture_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., kind: _Optional[str] = ..., source_session_id: _Optional[str] = ..., filename: _Optional[str] = ..., file_size_bytes: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., duration_ms: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., checksum: _Optional[str] = ...) -> None: ...
 
 class CaptureScreenshotResponse(_message.Message):
     __slots__ = ("capture",)
@@ -221,6 +223,22 @@ class ListEvidenceCapturesResponse(_message.Message):
     CAPTURES_FIELD_NUMBER: _ClassVar[int]
     captures: _containers.RepeatedCompositeFieldContainer[EvidenceCapture]
     def __init__(self, captures: _Optional[_Iterable[_Union[EvidenceCapture, _Mapping]]] = ...) -> None: ...
+
+class GetEvidenceCaptureRequest(_message.Message):
+    __slots__ = ("scenario_name", "capture_id")
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario_name: str
+    capture_id: str
+    def __init__(self, scenario_name: _Optional[str] = ..., capture_id: _Optional[str] = ...) -> None: ...
+
+class GetEvidenceCaptureResponse(_message.Message):
+    __slots__ = ("capture", "content")
+    CAPTURE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    capture: EvidenceCapture
+    content: bytes
+    def __init__(self, capture: _Optional[_Union[EvidenceCapture, _Mapping]] = ..., content: _Optional[bytes] = ...) -> None: ...
 
 class EvidenceCapturesSummary(_message.Message):
     __slots__ = ("count", "total_bytes")

@@ -26,9 +26,9 @@
   ],
   "bindings": {
     "elements": {
-      "action": { "selector": "button" },
-      "icon": { "selector": "[data-control-slot=icon]" },
-      "label": { "selector": "[data-control-slot=label]" }
+      "action": { "testid": "button-action" },
+      "icon": { "testid": "button-icon" },
+      "label": { "testid": "button-label" }
     }
   }
 }

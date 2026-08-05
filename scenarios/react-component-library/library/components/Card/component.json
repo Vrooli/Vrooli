@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:Card",
+  "catalogId": "primitives.card",
   "displayName": "Card",
   "description": "Compact token-bound card primitives for repeated records, focused tools, and modal content.",
   "tags": [

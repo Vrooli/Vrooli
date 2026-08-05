@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.responsive-panel",
+    "name": "ResponsivePanel",
+    "kind": "component",
+    "domain": "overlays",
+    "description": "The adaptive contextual panel behaving as a persistent resizable sidebar on desktop and an above-page modal drawer on mobile, preserving open state, width, and focus behavior across the transition.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.drawer",
+        "reason": "Mobile presentation is the shared drawer."
+      },
+      {
+        "asset": "manipulation.resizable",
+        "reason": "Desktop resizing composes the shared resize primitive directly, rather than depending on a navigation shell."
+      },
+      {
+        "asset": "hooks.use-media-query",
+        "reason": "Presentation selection is a behavioral breakpoint."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-containment",
+    "focus-restoration",
+    "status-announced",
+    "tap-target-size",
+    "density-adaptive-layout"
+  ],
+  "rationale": "The second transformation-carrying overlay: sidebar becomes drawer. It composes the resize primitive directly rather than depending on navigation.resizable-sidebar, because a contextual inspector is not a navigation shell and inheriting one would invert the dependency direction. Focus containment and scroll lock apply only in the modal presentation, which is precisely the conditional behavior that gets hardcoded wrongly when each page rebuilds this."
+}

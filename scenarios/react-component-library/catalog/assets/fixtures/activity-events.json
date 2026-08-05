@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "fixtures.activity-events",
+    "name": "ActivityEventsFixture",
+    "kind": "fixture",
+    "domain": "fixtures",
+    "description": "Adversarial event records with actors, actions, targets, outcomes, and before-and-after state, for feeds, timelines, and audit trails.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "fixture",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    }
+  },
+  "fixture": {
+    "dataShapes": [
+      "empty",
+      "typical",
+      "overflow",
+      "volume",
+      "failure"
+    ],
+    "satisfies": {
+      "capability": "data-source",
+      "typeArguments": [
+        "ActivityEvent"
+      ]
+    },
+    "recordCount": {
+      "typical": 40,
+      "volume": 20000
+    }
+  },
+  "rationale": "Includes events whose actor is an agent rather than a person, events with no human-readable target, and failed actions among successful ones."
+}

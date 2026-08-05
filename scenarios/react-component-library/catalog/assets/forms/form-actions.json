@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.form-actions",
+    "name": "FormActions",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The coordinated action region for submit, cancel, reset, and delete, with save status, responsive placement, optional sticky behavior, and awareness of the form's async state.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.command-button",
+        "reason": "Submit is an async action button and must not reimplement pending state."
+      },
+      {
+        "asset": "primitives.inline",
+        "reason": "Action layout uses the shared spacing ramp."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "safe-area-respected",
+    "destructive-confirmation",
+    "activation-acknowledged"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "saving",
+    "success",
+    "request-error"
+  ]
+}

@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:code-block",
+  "catalogId": "data-display.code-block",
   "displayName": "Code Block",
   "description": "Code block with language label and copy feedback.",
   "tags": [
@@ -17,5 +18,11 @@
       "reason": "token-native operational-console baseline"
     }
   ],
-  "requiredTokens": ["--color-surface-muted", "--color-border", "--color-foreground", "--color-muted-foreground", "--color-accent"]
+  "requiredTokens": [
+    "--color-surface-muted",
+    "--color-border",
+    "--color-foreground",
+    "--color-muted-foreground",
+    "--color-accent"
+  ]
 }

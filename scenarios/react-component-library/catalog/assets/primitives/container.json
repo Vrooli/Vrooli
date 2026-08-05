@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.container",
+    "name": "Container",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The page-width primitive supplying readable maximum widths, responsive gutters, safe-area handling, and predictable nesting.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "ramp-conformance",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "reading-order-honest",
+    "safe-area-respected"
+  ]
+}

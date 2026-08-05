@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.form-field",
+    "name": "FormField",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The complete field composition binding label, control, description, required indicator, validation state, error message, and help text through stable identifier relationships.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.stack",
+        "reason": "Field parts are laid out with the shared spacing ramp."
+      },
+      {
+        "asset": "primitives.text",
+        "reason": "Labels, descriptions, and errors use shared text styles."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "error-association",
+    "contrast-floor",
+    "text-scale-resilience",
+    "ramp-conformance"
+  ],
+  "requiredStates": [
+    "default",
+    "validation-error"
+  ],
+  "api": {
+    "levels": [
+      "compound",
+      "convenience"
+    ],
+    "parts": [
+      "label",
+      "control",
+      "description",
+      "error"
+    ]
+  }
+}

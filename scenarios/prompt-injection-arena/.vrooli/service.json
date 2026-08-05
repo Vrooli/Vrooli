@@ -133,11 +133,6 @@
           "description": "Build production UI bundle"
         },
         {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add scenario data to resources"
-        },
-        {
           "name": "generate-embeddings",
           "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
           "description": "Generate injection technique embeddings for similarity search"

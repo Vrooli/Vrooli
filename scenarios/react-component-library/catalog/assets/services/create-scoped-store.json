@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "services.create-scoped-store",
+    "name": "createScopedStore",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The typed provider and store factory producing isolated store instances per provider, with selector hooks, imperative access, and safe lifecycle teardown.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "rationale": "The discipline that keeps component state out of module-level singletons. Every store-backed asset in the catalog depends on it, which is why it is template-seeded."
+}

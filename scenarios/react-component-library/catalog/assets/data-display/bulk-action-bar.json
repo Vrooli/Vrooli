@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.bulk-action-bar",
+    "name": "BulkActionBar",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The contextual action surface activated by selection, showing counts and scope, guarding destructive operations, and reporting progress, partial failure, and cancellation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.selection-store",
+        "reason": "Selection uses the shared model with stable identities across paging and reorder."
+      },
+      {
+        "asset": "controls.button-group",
+        "reason": "Actions and overflow are shared."
+      },
+      {
+        "asset": "feedback.task-progress",
+        "reason": "Long-running bulk work reports progress through the shared component."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "destructive-confirmation",
+    "status-announced",
+    "recovery-path",
+    "partial-degradation",
+    "safe-area-respected"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "partial",
+    "request-error",
+    "retry"
+  ],
+  "rationale": "Partial failure is the defining case: a bulk operation over two hundred records where six fail must report which six and offer a path for them, not a single red banner."
+}

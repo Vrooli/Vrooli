@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.breadcrumbs",
+    "name": "Breadcrumbs",
+    "kind": "component",
+    "domain": "navigation",
+    "description": "The hierarchical path component with semantic navigation, responsive collapsing into an overflow menu, current-item treatment, and optional transition direction hints.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.nav-link",
+        "reason": "Path items are shared navigation links."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.menu",
+        "reason": "Collapsed segments need a menu only where the hierarchy can exceed the available width."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "accessible-naming",
+    "responsive-transformation",
+    "no-horizontal-overflow",
+    "reading-order-honest"
+  ]
+}

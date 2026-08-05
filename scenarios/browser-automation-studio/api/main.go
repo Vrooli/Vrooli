@@ -26,6 +26,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/handlers"
 	aiserviceconnect "github.com/vrooli/browser-automation-studio/handlers/ai_service"
 	captureconnect "github.com/vrooli/browser-automation-studio/handlers/capture"
+	consumerdeclarationsconnect "github.com/vrooli/browser-automation-studio/handlers/consumer_declarations"
 	drillsconnect "github.com/vrooli/browser-automation-studio/handlers/drills"
 	entitlementconnect "github.com/vrooli/browser-automation-studio/handlers/entitlement"
 	executionsconnect "github.com/vrooli/browser-automation-studio/handlers/executions"
@@ -357,6 +358,7 @@ func main() {
 		drillSecret = sidecarDeps.AdminSecret
 	}
 	connectMounts := []connectx.ServiceMount{
+		consumerdeclarationsconnect.Module(consumerdeclarationsconnect.Deps{Logger: log}),
 		drillsconnect.Module(drillsconnect.Deps{AdminSecret: drillSecret, DriverClient: driverClient, Logger: log}),
 		captureconnect.Module(captureconnect.Deps{
 			Executor:          deps.ExecutionService,

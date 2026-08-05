@@ -1,0 +1,119 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.search-page",
+    "name": "SearchPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The full search surface with query context, suggestions, filters, history, result presentation, stale-result handling, empty and no-match distinction, errors, and pagination.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "patterns.search-filter-results",
+        "reason": "Query, filters, URL state, and results are the shared pattern."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TResult"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "query",
+      "purpose": "Search entry, scope selection, and suggestions.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "filters",
+      "purpose": "Structured refinement and active-filter chips.",
+      "required": false,
+      "lifecycle": "async"
+    },
+    {
+      "id": "results",
+      "purpose": "Ranked results with highlighting and grouping.",
+      "required": true,
+      "lifecycle": "async",
+      "accepts": "data-display"
+    },
+    {
+      "id": "empty",
+      "purpose": "The distinct treatments for no-match versus nothing-indexed.",
+      "required": false,
+      "lifecycle": "static"
+    }
+  ]
+}

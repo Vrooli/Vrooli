@@ -4,6 +4,7 @@
   "profileKey": "development-toolchain-validator/calibration-evaluator",
   "description": "Calibration-only independent evaluator profile.",
   "roleRef": "code.smart",
+  "roleReason": "Calibration evaluation must distinguish subtle prompt-quality effects and produce trustworthy independent evidence.",
   "maxTurns": 8,
   "timeout": "300s",
   "skipPermissionPrompt": false,

@@ -1,0 +1,82 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.prompt-composer",
+    "name": "PromptComposer",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The message composer with auto-resizing entry, attachments, slash commands, mentions, model and tool context, submit, stop, retry, draft persistence, and keyboard behavior that never traps the user.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.textarea",
+        "reason": "Auto-resizing entry, character handling, and validation treatment are shared."
+      },
+      {
+        "asset": "ai.composer-attachment-tray",
+        "reason": "Pending attachments are managed by the shared tray."
+      },
+      {
+        "asset": "controls.command-button",
+        "reason": "Submit is an async action control with real pending state."
+      },
+      {
+        "asset": "services.command-registry",
+        "reason": "Slash commands read the one registry shared with menus and the palette."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "ai.model-picker",
+        "reason": "Only surfaces that expose model choice need it."
+      },
+      {
+        "asset": "ai.tool-picker",
+        "reason": "Only surfaces that let the user scope tools need it."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "input-preservation",
+    "activation-acknowledged",
+    "status-announced",
+    "safe-area-respected",
+    "tap-target-size"
+  ],
+  "requiredStates": [
+    "default",
+    "submitting",
+    "success",
+    "validation-error",
+    "request-error",
+    "offline",
+    "retry"
+  ],
+  "rationale": "Draft preservation is non-negotiable: losing typed input to a navigation, a failed send, or a dropped connection is the single most damaging defect a composer can have."
+}

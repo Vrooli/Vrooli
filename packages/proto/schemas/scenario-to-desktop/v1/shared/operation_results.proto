@@ -70,6 +70,8 @@ message ScreenRecordingSummary {
   optional int64 duration_ms = 2;
   optional int64 file_size_bytes = 3;
   optional string error = 4;
+  // Capture ID resolved through the canonical captures evidence route.
+  optional string capture_id = 5;
 }
 
 message SmokeTestStatusResponse {

@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.tool-picker",
+    "name": "ToolPicker",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The tool-selection surface with search, categories, permission scope, availability, descriptions, and unmistakable indication of what the agent will be allowed to invoke.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.multi-select",
+        "reason": "Search, selection, and keyboard model are shared."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency are expressed on the shared orthogonal axes rather than as one flat variant set."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "permissions-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "permission-explained",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "permission-denied",
+    "request-error"
+  ]
+}

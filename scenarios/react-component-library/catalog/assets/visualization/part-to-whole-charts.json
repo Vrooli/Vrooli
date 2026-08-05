@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "visualization.part-to-whole-charts",
+    "name": "PartToWholeCharts",
+    "kind": "component",
+    "domain": "visualization",
+    "description": "The donut, segmented, funnel, and proportional family with explicit labelling and safeguards against displays that mislead or become unreadable below a slice threshold.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "visualization.chart",
+        "reason": "Framework, legends, and states are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "contrast-floor",
+    "non-color-status",
+    "dark-parity",
+    "forced-colors-legibility",
+    "keyboard-operable",
+    "status-announced",
+    "content-reflow",
+    "reduced-motion",
+    "text-scale-resilience"
+  ],
+  "api": {
+    "levels": [
+      "convenience"
+    ],
+    "variants": {
+      "kind": [
+        "donut",
+        "segmented",
+        "funnel",
+        "proportional"
+      ]
+    }
+  },
+  "rationale": "Carries a deliberate guardrail: below a readable slice threshold the family must aggregate into an other category rather than render slivers nobody can see or click."
+}

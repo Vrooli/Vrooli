@@ -113,7 +113,8 @@
               "$text": "Validated by 12 checks."
             }
           ]
-        }
+        },
+        "activitySurfaceId": "asset-activity"
       },
       "expect": [
         {
@@ -126,7 +127,7 @@
         },
         {
           "kind": "attribute",
-          "selector": "[data-experience-surface]",
+          "selector": "[data-experience-surface=\"asset-activity\"]",
           "name": "data-experience-state",
           "value": "ready"
         }

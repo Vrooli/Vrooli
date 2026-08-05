@@ -924,6 +924,22 @@ message FleetHealth {
   // never_tested_in_window names roster scenarios with no run in the window — an
   // explicit coverage gap, never a silent zero. Empty when no roster requested.
   repeated string never_tested_in_window = 9;
+  repeated FleetAlert alerts = 10;
+}
+
+// FleetAlert turns a non-clean fleet condition into an operator action. The
+// alert is computed from the same immutable run evidence as FleetHealth and
+// carries the evidence age and rollback path explicitly.
+message FleetAlert {
+  string code = 1;
+  string severity = 2; // warning | error
+  string scenario = 3;
+  string source = 4;
+  string message = 5;
+  double evidence_age_days = 6;
+  string owner = 7;
+  string next_action = 8;
+  string rollback_path = 9;
 }
 
 // FleetScenarioHealth is one scenario's rollup over the window, all from stored
@@ -1087,6 +1103,17 @@ message DurationStats {
   int32 avg = 6;
 }
 
+// SecurityFriction is the evidence-bound security-phase remediation signal.
+// It is intentionally derived only from completed phase observations: missing
+// or unavailable provider evidence is never converted into a successful fix.
+message SecurityFriction {
+  int32 failed_attempts = 1;
+  int32 green_transitions = 2;
+  int32 recurring_failures = 3;
+  int32 time_to_green_samples = 4;
+  DurationStats time_to_green = 5;
+}
+
 // ScenarioFailureRate ranks a scenario's failure rate for one phase.
 message ScenarioFailureRate {
   string scenario = 1;
@@ -1112,6 +1139,9 @@ message PhaseReliability {
   repeated LabeledCount classifications = 13;
   DurationStats duration = 14;
   repeated ScenarioFailureRate worst_scenarios = 15;
+  // Populated for the security phase (or a phase explicitly backed by the
+  // security finding source); empty for unrelated phases.
+  SecurityFriction security_friction = 16;
 }
 
 // ProviderReliability is the per-provider rollup across its phase(s).

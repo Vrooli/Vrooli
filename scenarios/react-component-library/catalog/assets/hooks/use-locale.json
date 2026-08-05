@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-locale",
+    "name": "useLocale",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A locale primitive exposing formatting, collation, segmentation, calendar behavior, and localized accessibility labels through the localization adapter.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "expects": [
+    {
+      "capability": "i18n-adapter"
+    }
+  ]
+}

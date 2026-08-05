@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.plan-view",
+    "name": "PlanView",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The structured plan showing goals, steps, dependencies, status, revisions, blockers, and user-editable checkpoints, with plain-language explanation of why a step is blocked.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.tree-view",
+        "reason": "Hierarchy, expansion, and keyboard traversal are shared."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency are expressed on the shared orthogonal axes rather than as one flat variant set."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "ai.task-graph",
+        "reason": "Dependency-heavy plans benefit from a graph view; linear plans do not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "semantic-structure",
+    "non-color-status",
+    "status-announced",
+    "recovery-path"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error"
+  ]
+}

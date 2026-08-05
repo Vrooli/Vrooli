@@ -7,6 +7,7 @@
 import { useCallback, useRef, useState, type ButtonHTMLAttributes, type PointerEvent } from "react";
 import { IconButton } from "../../../IconButton/versions/2.0.0/IconButton";
 import type { ControlDensity, ControlSize } from "../../../ControlBase/versions/1.0.0/ControlBase";
+import { VoiceInputButtonGlyph as Glyph, type VoiceInputGlyphKind } from "./VoiceInputButtonGlyph";
 
 export type VoiceInputButtonState = "idle" | "preparing" | "recording" | "recovering" | "transcribing" | "unavailable" | "error";
 export type VoiceInputButtonMode = "always-on" | "timeout";
@@ -46,20 +47,8 @@ const labels: Record<VoiceInputButtonState, string> = {
   idle: "Start voice input", preparing: "Preparing microphone", recording: "Stop voice input", recovering: "Listening for voice input", transcribing: "Transcribing voice input", unavailable: "Voice input unavailable", error: "Voice input error",
 };
 
-type GlyphKind = "alert" | "loader" | "mic" | "close";
-
-function Glyph({ kind, className = "" }: { kind: GlyphKind; className?: string }) {
-  return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {kind === "mic" && <><rect x="8" y="3" width="8" height="12" rx="4" /><path d="M5 11a7 7 0 0 0 14 0M12 21v-4M9 21h6" /></>}
-      {kind === "loader" && <><path d="M12 2a10 10 0 1 0 10 10" /><path d="M12 2v4" /></>}
-      {kind === "alert" && <><path d="M10.3 3.7 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" /></>}
-      {kind === "close" && <><path d="m6 6 12 12M18 6 6 18" /></>}
-    </svg>
-  );
-}
-
 export function VoiceInputButton({ state = "idle", mode = "always-on", size = "sm", density = "comfortable", level = 0, timeoutProgress = 0, error, rejectionReason, partialTranscript, onStart, onStop, onPrepare, onDismissError, onTranscribeAnyway, onCancel, onExitPassive, onReleaseMic, onTtsStop, onExportDiagnostic, staleLiveMic, isTtsSpeaking, canExportDiagnostic, backend, className, wrapperClassName, iconClassName, disabled, onPointerCancel, ...props }: VoiceInputButtonProps) {
+  const testId = (props as VoiceInputButtonProps & { "data-testid"?: string })["data-testid"];
   const [dismissedError, setDismissedError] = useState<string | undefined>();
   const pressStartedAt = useRef(0);
   const pressIntent = useRef<"start" | "stop" | "exit-passive" | "none">("none");
@@ -102,12 +91,13 @@ export function VoiceInputButton({ state = "idle", mode = "always-on", size = "s
     error: "border-app-warning bg-app-warning/10 text-app-warning",
     idle: "border-app-border bg-app-surface text-app-muted-foreground",
   };
-  const glyph = state === "transcribing" ? "loader" : state === "error" || state === "unavailable" ? "alert" : "mic";
+  const glyph: VoiceInputGlyphKind = state === "transcribing" ? "loader" : state === "error" || state === "unavailable" ? "alert" : "mic";
   const glyphClass = `relative z-10 ${size === "xs" ? "h-3 w-3" : size === "icon" ? "h-5 w-5" : size === "lg" || size === "xl" ? "h-5 w-5" : "h-4 w-4"} ${state === "preparing" || state === "recovering" ? "animate-pulse" : state === "transcribing" ? "animate-spin" : ""} ${iconClassName ?? ""}`;
 
   return <div className={`relative shrink-0 ${wrapperClassName ?? ""}`} data-voice-backend={backend}>
     <IconButton
       {...props}
+      data-testid={testId ?? "voice-input-control"}
       type="button"
       aria-label={accessibleLabel}
       aria-pressed={active}
@@ -129,7 +119,7 @@ export function VoiceInputButton({ state = "idle", mode = "always-on", size = "s
       {state === "recording" && mode === "timeout" && <svg aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-10 aspect-square h-[calc(100%-4px)] min-h-6 max-h-8 -translate-x-1/2 -translate-y-1/2 -rotate-90 overflow-visible" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="currentColor" strokeWidth="3" className="text-app-warning/80" strokeDasharray={RING_CIRCUMFERENCE} strokeDashoffset={RING_CIRCUMFERENCE * (1 - progress)} strokeLinecap="round" /></svg>}
       <span className="sr-only">{labels[state]}</span>
     </IconButton>
-    {visibleError && <div role="status" className="absolute bottom-full left-1/2 z-10 mb-1 flex w-52 -translate-x-1/2 items-start gap-1.5 rounded border border-app-warning/50 bg-app-surface px-2 py-1 text-[10px] text-app-warning shadow-lg"><span className="min-w-0 flex-1 break-words">{error}</span><button type="button" className="rounded p-0.5 hover:bg-app-warning/15" aria-label="Dismiss voice input error" onClick={() => { setDismissedError(error); onDismissError?.(); }}><Glyph kind="close" className="h-3 w-3" /></button></div>}
+    {visibleError && <div className="absolute left-1/2 top-full z-10 mt-1 flex w-52 -translate-x-1/2 items-start gap-1.5 rounded border border-app-warning/50 bg-app-surface px-2 py-1 text-[10px] text-app-warning shadow-lg"><div role="status" className="min-w-0 flex-1 break-words">{error}</div><button data-testid="voice-input-error-dismiss" type="button" className="touch-target shrink-0 rounded p-0.5 hover:bg-app-warning/15" aria-label="Dismiss voice input error" onClick={() => { setDismissedError(error); onDismissError?.(); }}><Glyph kind="close" className="h-3 w-3" /></button></div>}
     {active && partialTranscript && <div className="pointer-events-none absolute bottom-full left-1/2 mb-1 max-w-[200px] -translate-x-1/2 overflow-hidden text-ellipsis whitespace-nowrap rounded border border-app-border bg-app-surface px-2 py-1 text-[10px] text-app-muted-foreground shadow-lg">{partialTranscript}</div>}
     {rejectionReason && onTranscribeAnyway && <button type="button" className="ml-2 text-sm text-app-primary underline" onClick={onTranscribeAnyway}>Transcribe anyway</button>}
     {(state === "transcribing" && onCancel) || (staleLiveMic && onReleaseMic) || (isTtsSpeaking && onTtsStop) || (canExportDiagnostic && onExportDiagnostic) ? (

@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.faceted-filter",
+    "name": "FacetedFilter",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The filter surface showing available values with counts, search, selected values, exclusions, async loading, and virtualized option lists.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.multi-select",
+        "reason": "Search, selection, and keyboard model are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TFacet"
+      ]
+    },
+    {
+      "capability": "virtualization-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "empty-state-craft"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error"
+  ]
+}

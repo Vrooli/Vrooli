@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-previous",
+    "name": "usePrevious",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A small state-history primitive exposing the previous committed value alongside the current one, for transition and comparison logic.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  }
+}

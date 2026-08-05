@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.editor-field",
+    "name": "EditorField",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The lazily loaded rich text, Markdown, code, or JSON editing field selected through an adapter while sharing labels, errors, loading treatment, autosave, and form integration.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.form-field",
+        "reason": "Label, description, and error relationships are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "editor-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "saving",
+    "validation-error",
+    "request-error"
+  ],
+  "qualityGates": [
+    "performance"
+  ],
+  "rationale": "Explicitly lazy: editor implementations are the largest single thing that can end up in a base bundle, and the adapter boundary is what keeps them out of it."
+}

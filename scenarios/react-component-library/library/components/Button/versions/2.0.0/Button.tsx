@@ -21,10 +21,11 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
 }
 
 export function Button({ children, icon, ...props }: ButtonProps) {
+  const testId = (props as ButtonHTMLAttributes<HTMLButtonElement> & { "data-testid"?: string })["data-testid"];
   return (
-    <ControlBase {...props}>
-      {icon && <span data-control-slot="icon" className="shrink-0">{icon}</span>}
-      <span data-control-slot="label" className="min-w-0">{children}</span>
+    <ControlBase {...props} data-testid={testId ?? "button-action"}>
+      {icon && <span data-testid="button-icon" data-control-slot="icon" role="img" className="shrink-0">{icon}</span>}
+      <span data-testid="button-label" data-control-slot="label" className="min-w-0">{children}</span>
     </ControlBase>
   );
 }

@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.onboarding-flow",
+    "name": "OnboardingFlow",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The resumable onboarding composition with progress, optional steps, contextual guidance, validation, personalization, an honest skip path, and a completion state.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "patterns.multi-step-form-flow",
+        "reason": "Step orchestration, drafts, and resumability are shared."
+      },
+      {
+        "asset": "overlays.spotlight",
+        "reason": "In-context guidance uses the shared highlight surface."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "feedback.celebration",
+        "reason": "A milestone completion may warrant emphasis; routine setup does not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation",
+    "celebration-budget"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "beauty": {
+    "avoid": [
+      "ambient-motion-competing-with-status"
+    ]
+  }
+}

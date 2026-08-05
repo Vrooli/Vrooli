@@ -330,6 +330,9 @@ const literalSelectors = {
     bottomNav: "bottom-nav",
   },
   components: {
+    harness: {
+      root: "component-harness-root",
+    },
     card: "components-card",
     list: "components-list",
     loading: "components-loading",
@@ -416,6 +419,8 @@ const literalSelectors = {
       previewEventItem: "components-editor-preview-event-item",
       previewEventsEmpty: "components-editor-preview-events-empty",
       previewToolsToggle: "components-editor-preview-tools-toggle",
+      previewStage: "components-editor-preview-stage",
+      previewStageFullscreen: "components-editor-preview-stage-fullscreen",
       previewFrame: "components-editor-preview-frame",
       previewBadge: "components-editor-preview-badge",
       previewError: "components-editor-preview-error",
@@ -453,12 +458,14 @@ const literalSelectors = {
       rotate: "components-emulator-rotate",
       reset: "components-emulator-reset",
       viewport: "components-emulator-viewport",
+      viewportCanvas: "components-emulator-viewport-canvas",
       visionFilterSelect: "components-emulator-vision-filter",
       blurSlider: "components-emulator-blur-slider",
       blurValue: "components-emulator-blur-value",
       filterDefs: "components-emulator-filter-defs",
       overflowToggle: "components-emulator-overflow-toggle",
       overflowPanel: "components-emulator-overflow-panel",
+      viewportFrame: "components-emulator-viewport-frame",
     },
     themeSwitcher: {
       root: "components-theme-switcher",

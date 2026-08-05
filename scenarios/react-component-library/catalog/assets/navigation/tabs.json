@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.tabs",
+    "name": "Tabs",
+    "kind": "component",
+    "domain": "navigation",
+    "description": "The content-switching component with roving focus, a shared moving indicator, lazily mounted panels, optional URL synchronization, overflow handling, and reduced-motion behavior.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Composite surfaces expose one tab stop with arrow-key movement."
+      },
+      {
+        "asset": "motion.layout-group",
+        "reason": "The active indicator moves as a shared layout element rather than by tweened position."
+      },
+      {
+        "asset": "hooks.use-controllable-state",
+        "reason": "Selection uses the shared controlled contract."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "reduced-motion",
+    "responsive-transformation",
+    "tap-target-size"
+  ],
+  "api": {
+    "levels": [
+      "compound",
+      "convenience"
+    ],
+    "parts": [
+      "list",
+      "trigger",
+      "panel"
+    ],
+    "modes": [
+      "controlled",
+      "uncontrolled"
+    ]
+  }
+}

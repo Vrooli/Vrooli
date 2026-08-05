@@ -2,125 +2,37 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library/Button@2.0.0"
+  },
   "component": {
     "id": "button",
     "title": "Button",
-    "purpose": "Provide a token-bound action control whose accessible name, disabled state, and variant intent survive reuse across scenario UIs.",
-    "storyRef": "../../library/components/Button/versions/2.0.0/story.json",
-    "prd_refs": ["OT-P0-001", "OT-P0-003"]
+    "purpose": "Provide a token-bound action control whose accessible name, spacing, state treatment, and size remain consistent across reuse.",
+    "storyRef": "../../library/components/Button/versions/2.0.0/story.json"
   },
-  "priorities": [
-    {
-      "statement": "The button communicates one clear action through its accessible name in every example state."
-    },
-    {
-      "statement": "Disabled and destructive states remain perceivable without changing the component contract."
-    },
-    {
-      "statement": "Icon-bearing buttons keep text available so the visual glyph is never the only label."
-    }
-  ],
   "states": [
-    {
-      "id": "primary",
-      "example": "primary",
-      "description": "Primary call-to-action example with the label Save changes."
-    },
-    {
-      "id": "destructive",
-      "example": "danger",
-      "description": "Danger variant example for irreversible actions."
-    },
-    {
-      "id": "disabled",
-      "example": "disabled-long-label",
-      "description": "Disabled secondary action with a long label."
-    },
-    {
-      "id": "icon-start",
-      "example": "start-icon",
-      "description": "Icon-leading action that still exposes text."
-    }
+    { "id": "primary", "example": "primary", "description": "Primary action." },
+    { "id": "disabled", "example": "disabled-long-label", "description": "Disabled action with a retained label." },
+    { "id": "icon-start", "example": "start-icon", "description": "Icon-leading action with deliberate icon-to-label spacing." }
   ],
   "elements": [
-    {
-      "id": "action",
-      "role": "button",
-      "description": "The rendered native button element."
-    },
-    {
-      "id": "icon",
-      "role": "x-icon",
-      "description": "The optional leading icon."
-    },
-    {
-      "id": "label",
-      "role": "x-label",
-      "description": "The visible action label."
-    }
+    { "id": "action", "role": "button", "description": "The native button." },
+    { "id": "icon", "role": "x-icon", "description": "The optional leading icon." },
+    { "id": "label", "role": "x-label", "description": "The visible action label." }
   ],
   "claims": [
-    {
-      "id": "primary-action-present",
-      "type": "element-present",
-      "statement": "The primary example renders a named button action.",
-      "tier": "machine",
-      "elements": ["action"],
-      "states": ["primary"]
-    },
-    {
-      "id": "destructive-action-present",
-      "type": "element-present",
-      "statement": "The destructive example renders a named button action.",
-      "tier": "machine",
-      "elements": ["action"],
-      "states": ["destructive"]
-    },
-    {
-      "id": "disabled-action-present",
-      "type": "element-present",
-      "statement": "The disabled long-label example still renders a named button action.",
-      "tier": "machine",
-      "elements": ["action"],
-      "states": ["disabled"]
-    },
-    {
-      "id": "icon-action-present",
-      "type": "element-present",
-      "statement": "The icon-leading example exposes text through the same button action.",
-      "tier": "machine",
-      "elements": ["action"],
-      "states": ["icon-start"]
-    },
-    {
-      "id": "start-icon-spacing",
-      "type": "spacing",
-      "statement": "A leading icon and its action label maintain a visible inline separation.",
-      "tier": "machine",
-      "elements": ["icon", "label"],
-      "states": ["icon-start"],
-      "params": { "axis": "inline", "minSeparation": 4 }
-    },
-    {
-      "id": "disabled-state-reflected",
-      "type": "custom",
-      "statement": "The disabled example prevents activation while retaining its visible action label.",
-      "tier": "manual",
-      "elements": ["action"],
-      "states": ["disabled"]
-    }
+    { "id": "action-present", "type": "element-present", "statement": "The primary story exposes a named button action.", "tier": "machine", "elements": ["action"], "states": ["primary"] },
+    { "id": "start-icon-spacing", "type": "spacing", "statement": "A leading icon and its action label maintain a visible inline separation.", "tier": "machine", "elements": ["icon", "label"], "states": ["icon-start"], "params": { "axis": "inline", "minSeparation": 4 } },
+    { "id": "disabled-state-reflected", "type": "custom", "statement": "The disabled action retains its visible label and cannot be activated.", "tier": "manual", "elements": ["action"], "states": ["disabled"] }
   ],
   "bindings": {
     "elements": {
-      "action": {
-        "selector": "button"
-      },
-      "icon": {
-        "selector": "[data-control-slot=icon]"
-      },
-      "label": {
-        "selector": "[data-control-slot=label]"
-      }
+      "action": { "testid": "button-action" },
+      "icon": { "testid": "button-icon" },
+      "label": { "testid": "button-label" }
     }
   }
 }

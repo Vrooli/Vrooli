@@ -16,6 +16,7 @@ import (
 
 	"browser-automation-studio/cli/ai"
 	"browser-automation-studio/cli/capture"
+	consumerdeclarations "browser-automation-studio/cli/consumer_declarations"
 	"browser-automation-studio/cli/drills"
 	"browser-automation-studio/cli/entitlement"
 	"browser-automation-studio/cli/executions"
@@ -80,6 +81,7 @@ func SubcommandGroups(ctx *appctx.Context, manifest []byte) []cliapp.SubcommandG
 		{"ai", ai.Register},
 		{"vision-navigation", visionnavigation.Register},
 		{"session-profiles", session_profiles.Register},
+		{"consumer-declarations", consumerdeclarations.Register},
 		{"observability", observability.Register},
 		{"drills", drills.Register},
 		{"exports", exports.Register},

@@ -127,11 +127,6 @@
           "description": "Generate code embeddings for AI assistance"
         },
         {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add application data to resources (database schema, collections, workflows)"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o document-manager-api .",
           "description": "Build Go coordination API binary"

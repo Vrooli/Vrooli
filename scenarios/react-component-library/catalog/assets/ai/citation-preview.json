@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.citation-preview",
+    "name": "CitationPreview",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The hoverable or selectable source inspection surface showing relevant context around the cited passage while preserving the reader's position in the conversation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.hover-card",
+        "reason": "Anchoring, pointer travel, and keyboard access are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "pointer-independence",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error",
+    "permission-denied"
+  ],
+  "beauty": {
+    "avoid": [
+      "modal-for-routine-inspection"
+    ]
+  }
+}

@@ -1,14 +1,27 @@
 {
   "libraryId": "react-component-library:Dialog",
+  "catalogId": "overlays.dialog",
   "displayName": "Dialog",
   "description": "Accessible modal dialog shell with escape/backdrop dismissal and mobile-safe sizing.",
-  "tags": ["overlay", "interactive"],
+  "tags": [
+    "overlay",
+    "interactive"
+  ],
   "slot": "ui-pattern",
   "category": "overlays",
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "discouraged" }
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native"
+    },
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "compatible"
+    },
+    {
+      "styleId": "vrooli-conversion-landing",
+      "affinity": "discouraged"
+    }
   ],
   "latest": "1.1.0",
   "draft": "",

@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.badge",
+    "name": "Badge",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The compact status or metadata primitive with semantic variants, counters, overflow handling, and meaning carried by more than colour alone.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "non-color-status",
+    "contrast-floor",
+    "forced-colors-legibility",
+    "text-scale-resilience"
+  ],
+  "api": {
+    "levels": [
+      "convenience"
+    ],
+    "variants": {
+      "tone": [
+        "neutral",
+        "info",
+        "success",
+        "warning",
+        "danger"
+      ]
+    }
+  },
+  "beauty": {
+    "avoid": [
+      "color-without-semantic-purpose"
+    ]
+  }
+}

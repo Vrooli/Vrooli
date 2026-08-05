@@ -38,5 +38,5 @@
     "states": ["error"],
     "params": { "tolerance": 2 }
   }],
-  "bindings": { "elements": { "voice-control": { "selector": "button" }, "dismiss": { "selector": "[aria-label='Dismiss voice input error']" } } }
+  "bindings": { "elements": { "voice-control": { "testid": "voice-input-control" }, "dismiss": { "testid": "voice-input-error-dismiss" } } }
 }

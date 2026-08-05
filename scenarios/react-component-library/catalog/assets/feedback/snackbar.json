@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.snackbar",
+    "name": "Snackbar",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The lightweight action confirmation optimized for undo and brief outcomes, kept narrow enough that it does not become the destination for every application message.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.toast",
+        "reason": "Presentation, queueing, and announcement are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "status-announced",
+    "non-color-status",
+    "contrast-floor",
+    "text-scale-resilience",
+    "forced-colors-legibility",
+    "content-reflow",
+    "recovery-path",
+    "reduced-motion"
+  ]
+}

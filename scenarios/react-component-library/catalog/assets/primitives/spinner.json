@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.spinner",
+    "name": "Spinner",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The restrained indeterminate progress indicator with size, accessible label, appearance delay, contrast handling, and reduced-motion behavior.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "hooks.use-delayed-pending",
+        "reason": "Delaying appearance avoids flashes on fast work, but a spinner shown deliberately needs no delay."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "reduced-motion",
+    "accessible-naming",
+    "contrast-floor"
+  ]
+}

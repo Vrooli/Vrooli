@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "services.command-registry",
+    "name": "Command Registry",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The dynamic registry of commands with labels, shortcuts, grouping, visibility rules, availability predicates, and async execution, shared by palettes, menus, and toolbars.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.create-scoped-store",
+        "reason": "Registrations are scoped so a nested surface can contribute commands without leaking them."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "services.shortcut-registry",
+        "reason": "Only applications that bind commands to keys need collision resolution, and it brings platform-specific labelling with it."
+      }
+    ]
+  }
+}

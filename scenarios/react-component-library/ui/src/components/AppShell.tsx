@@ -84,8 +84,9 @@ export function AppShell({ children }: Props) {
   }, [isMobile, openDrawer]);
 
   const isComponentDetail = /^\/assets\/[^/]+/.test(location.pathname);
-  const pageTitle = isComponentDetail ? t("catalog.title", { defaultValue: "Component Library" }) : location.pathname === "/settings" ? t("settings.title", { defaultValue: "Settings" }) : location.pathname === "/catalog" ? t("catalog.title", { defaultValue: "Library workspace" }) : t("app.brand", { defaultValue: "Component Library" });
-  const pageDescription = isComponentDetail ? t("components.editor.subtitle", { defaultValue: "Source, preview, and viewport controls" }) : location.pathname === "/settings" ? t("settings.subtitle", { defaultValue: "Theme and locale preferences persist locally in your browser." }) : location.pathname === "/catalog" ? t("catalog.subtitle", { defaultValue: "Find reusable components and non-renderable hooks." }) : t("dashboard.subtitle", { defaultValue: "A clear view of your library's adoption and maintenance health." });
+  const isCatalog = location.pathname === "/" || location.pathname === "/catalog";
+  const pageTitle = isComponentDetail ? t("catalog.title", { defaultValue: "Component Library" }) : location.pathname === "/settings" ? t("settings.title", { defaultValue: "Settings" }) : isCatalog ? t("catalog.title", { defaultValue: "Library workspace" }) : t("app.brand", { defaultValue: "Component Library" });
+  const pageDescription = isComponentDetail ? t("components.editor.subtitle", { defaultValue: "Source, preview, and viewport controls" }) : location.pathname === "/settings" ? t("settings.subtitle", { defaultValue: "Theme and locale preferences persist locally in your browser." }) : isCatalog ? t("catalog.subtitle", { defaultValue: "Find reusable components and non-renderable hooks." }) : t("app.brand", { defaultValue: "Component Library" });
 
   return (
     <ShellNavigationContext.Provider value={{ sidebarCollapsed, openSidebar }}>
@@ -119,7 +120,7 @@ export function AppShell({ children }: Props) {
         />
       </SidebarShell>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 w-0 flex-1 flex-col">
         {!isComponentDetail && <WorkspaceHeader
           title={pageTitle}
           description={pageDescription}
@@ -130,8 +131,8 @@ export function AppShell({ children }: Props) {
           data-testid="app-main"
           className={
             isComponentDetail
-              ? "pb-safe flex min-h-0 min-w-0 flex-1 flex-col overflow-auto p-0 pb-20 md:pb-0"
-              : "pb-safe min-w-0 flex-1 overflow-auto px-4 py-4 pb-20 md:px-8 md:py-6 md:pb-8"
+              ? "pb-safe flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-auto p-0 pb-20 md:pb-0"
+              : "pb-safe min-w-0 w-0 max-w-full flex-1 overflow-auto px-4 py-4 pb-20 md:px-8 md:py-6 md:pb-8"
           }
         >
           {children ?? <Outlet />}

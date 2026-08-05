@@ -73,7 +73,7 @@ export function AnchoredMenu({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={id}
-        className="inline-flex h-9 min-h-9 max-w-full items-center justify-center gap-1.5 rounded-control border border-app-border bg-app-surface px-2.5 text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+        className="touch-target inline-flex h-11 min-h-11 max-w-full items-center justify-center gap-1.5 rounded-control border border-app-border bg-app-surface px-2.5 text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
         onClick={() => setOpen((current) => !current)}
       >
         {icon}

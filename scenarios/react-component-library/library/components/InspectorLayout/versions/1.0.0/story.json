@@ -89,7 +89,8 @@
               "$text": "Selected step details"
             }
           ]
-        }
+        },
+        "inspectorSurfaceId": "inspector"
       },
       "expect": [
         {
@@ -102,7 +103,7 @@
         },
         {
           "kind": "attribute",
-          "selector": "[data-experience-surface]",
+          "selector": "[data-experience-surface=\"inspector\"]",
           "name": "data-experience-state",
           "value": "ready"
         }

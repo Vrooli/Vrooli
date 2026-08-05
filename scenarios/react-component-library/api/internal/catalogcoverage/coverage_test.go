@@ -1,0 +1,149 @@
+package catalogcoverage
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	for range 8 {
+		if info, err := os.Stat(filepath.Join(dir, "scenarios", "react-component-library", "catalog")); err == nil && info.IsDir() {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	t.Skip("catalog not found from working directory")
+	return ""
+}
+
+func live(t *testing.T) ([]Asset, []Implementation) {
+	t.Helper()
+	root := repoRoot(t)
+	assets, err := LoadCatalog(filepath.Join(root, "scenarios", "react-component-library", "catalog"))
+	if err != nil {
+		t.Fatalf("load catalog: %v", err)
+	}
+	impls, err := LoadImplementations(filepath.Join(root, "scenarios", "react-component-library", "library"))
+	if err != nil {
+		t.Fatalf("load implementations: %v", err)
+	}
+	return assets, impls
+}
+
+func TestLoadCatalogReadsEveryAsset(t *testing.T) {
+	assets, _ := live(t)
+	if len(assets) < 400 {
+		t.Fatalf("expected the full catalog, got %d assets", len(assets))
+	}
+	for _, a := range assets {
+		if a.ID == "" || a.Domain == "" || a.Priority == "" || a.Delivery == "" {
+			t.Fatalf("asset %+v is missing required identity fields", a)
+		}
+	}
+}
+
+// TestEveryRowIsAccountedFor is the integrity property of the join: no asset and
+// no implementation may vanish, and nothing may be counted twice.
+func TestEveryRowIsAccountedFor(t *testing.T) {
+	assets, impls := live(t)
+	rep := Compute(assets, impls)
+
+	planned := rep.Totals[BucketPlannedBuilt] + rep.Totals[BucketPlannedUnbuilt]
+	if planned != len(assets) {
+		t.Errorf("planned rows %d != catalog assets %d", planned, len(assets))
+	}
+	accountedImpls := rep.Totals[BucketPlannedBuilt] + rep.Totals[BucketSupplemental]
+	if accountedImpls != len(impls) {
+		t.Errorf("built+supplemental %d != implementations %d", accountedImpls, len(impls))
+	}
+	if len(rep.Rows) != planned+rep.Totals[BucketSupplemental] {
+		t.Errorf("row count %d does not equal planned %d plus supplemental %d",
+			len(rep.Rows), planned, rep.Totals[BucketSupplemental])
+	}
+}
+
+func TestDomainAndPriorityRollupsSumToPlanned(t *testing.T) {
+	assets, impls := live(t)
+	rep := Compute(assets, impls)
+	planned := rep.Totals[BucketPlannedBuilt] + rep.Totals[BucketPlannedUnbuilt]
+
+	var byDomain, byPriority int
+	for _, c := range rep.ByDomain {
+		byDomain += c.Planned
+	}
+	for _, c := range rep.ByPriority {
+		byPriority += c.Planned
+	}
+	if byDomain != planned {
+		t.Errorf("domain rollup %d != planned %d", byDomain, planned)
+	}
+	if byPriority != planned {
+		t.Errorf("priority rollup %d != planned %d", byPriority, planned)
+	}
+}
+
+// TestNextWorkIsDeterministicAndLeveraged asserts the ordering contract that
+// makes an agent loop reproducible: highest downstream impact first, then
+// priority, then id, with no ties left to map iteration order.
+func TestNextWorkIsDeterministicAndLeveraged(t *testing.T) {
+	assets, impls := live(t)
+	rep := Compute(assets, impls)
+	first := NextWork(rep, 10)
+	if len(first) == 0 {
+		t.Fatal("expected unbuilt assets")
+	}
+	for i := 1; i < len(first); i++ {
+		a, b := first[i-1], first[i]
+		if a.BlocksDownstream < b.BlocksDownstream {
+			t.Fatalf("next-work not ordered by leverage: %s(%d) before %s(%d)",
+				a.AssetID, a.BlocksDownstream, b.AssetID, b.BlocksDownstream)
+		}
+	}
+	second := NextWork(rep, 10)
+	for i := range first {
+		if first[i].AssetID != second[i].AssetID {
+			t.Fatal("next-work ordering is not deterministic across calls")
+		}
+	}
+	t.Logf("next target: %s (blocks %d)", first[0].AssetID, first[0].BlocksDownstream)
+}
+
+func TestBlockedCountsIgnoreSuggests(t *testing.T) {
+	assets := []Asset{
+		{ID: "a.one", Requires: []string{"a.two"}, Suggests: []string{"a.three"}},
+		{ID: "a.two"},
+		{ID: "a.three"},
+	}
+	counts := blockedCounts(assets)
+	if counts["a.two"] != 1 {
+		t.Errorf("required asset should be blocked-by 1, got %d", counts["a.two"])
+	}
+	if counts["a.three"] != 0 {
+		t.Errorf("suggested asset must never count as blocking, got %d", counts["a.three"])
+	}
+}
+
+func TestDanglingCatalogIDIsSurfaced(t *testing.T) {
+	assets := []Asset{{ID: "a.one", Domain: "a", Priority: "P0"}}
+	impls := []Implementation{{Name: "Ghost", Root: "components", CatalogID: "a.missing"}}
+	rep := Compute(assets, impls)
+	var found bool
+	for _, row := range rep.Rows {
+		if row.Implementation == "Ghost" && row.Domain == "(dangling catalogId)" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("an implementation pointing at a nonexistent catalog id must be surfaced, not silently supplemental")
+	}
+}

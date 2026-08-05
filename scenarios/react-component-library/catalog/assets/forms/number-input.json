@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.number-input",
+    "name": "NumberInput",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The locale-aware numeric field handling parsing, formatting, constraints, stepping, precision, and the intermediate states that are invalid as numbers but valid as in-progress input.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.input",
+        "reason": "Presentation and validation treatment are shared."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "Decimal and grouping separators are locale-specific."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation"
+  ],
+  "requiredStates": [
+    "default",
+    "validation-error"
+  ],
+  "rationale": "The intermediate-state problem is the whole difficulty: a field that rejects a lone minus sign or a trailing decimal point is unusable, and naive implementations do exactly that."
+}

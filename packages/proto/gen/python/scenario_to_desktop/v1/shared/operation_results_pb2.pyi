@@ -109,16 +109,18 @@ class BuildStatusResponse(_message.Message):
     def __init__(self, build_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., status: _Optional[_Union[_common_pb2.BuildStatus, str]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., requested_platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., platform_results: _Optional[_Mapping[str, PlatformBuildResult]] = ..., output_path: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error_log: _Optional[_Iterable[str]] = ..., build_log: _Optional[_Iterable[str]] = ..., artifacts: _Optional[_Mapping[str, str]] = ..., metadata: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class ScreenRecordingSummary(_message.Message):
-    __slots__ = ("recorded", "duration_ms", "file_size_bytes", "error")
+    __slots__ = ("recorded", "duration_ms", "file_size_bytes", "error", "capture_id")
     RECORDED_FIELD_NUMBER: _ClassVar[int]
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     FILE_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_ID_FIELD_NUMBER: _ClassVar[int]
     recorded: bool
     duration_ms: int
     file_size_bytes: int
     error: str
-    def __init__(self, recorded: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., file_size_bytes: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
+    capture_id: str
+    def __init__(self, recorded: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., file_size_bytes: _Optional[int] = ..., error: _Optional[str] = ..., capture_id: _Optional[str] = ...) -> None: ...
 
 class SmokeTestStatusResponse(_message.Message):
     __slots__ = ("smoke_test_id", "scenario_name", "platform", "status", "artifact_path", "started_at", "completed_at", "logs", "error", "telemetry_uploaded", "telemetry_upload_error", "screen_recording")

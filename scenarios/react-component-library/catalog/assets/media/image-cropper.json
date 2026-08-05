@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "media.image-cropper",
+    "name": "ImageCropper",
+    "kind": "component",
+    "domain": "media",
+    "description": "The lazily loaded image editing surface with aspect constraints, zoom, rotation, safe bounds, keyboard operation, live preview, and output metadata describing the applied transform.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "manipulation.canvas-viewport",
+        "reason": "Pan, zoom, and coordinate conversion are shared."
+      },
+      {
+        "asset": "manipulation.resizable",
+        "reason": "Crop-region handles compose the shared resize primitive."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "content-reflow",
+    "contrast-floor",
+    "gesture-alternative",
+    "entrance-restraint",
+    "responsive-transformation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error"
+  ],
+  "qualityGates": [
+    "performance"
+  ]
+}

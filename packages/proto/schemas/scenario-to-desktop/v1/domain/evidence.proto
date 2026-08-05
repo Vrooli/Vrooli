@@ -124,6 +124,8 @@ message EvidenceCapture {
   optional int32 height = 8;
   optional int64 duration_ms = 9;
   google.protobuf.Timestamp created_at = 10;
+  // SHA-256 checksum of the producer-held capture bytes.
+  string checksum = 11;
 }
 
 message CaptureScreenshotResponse {
@@ -136,6 +138,16 @@ message ListEvidenceCapturesRequest {
 
 message ListEvidenceCapturesResponse {
   repeated EvidenceCapture captures = 1;
+}
+
+message GetEvidenceCaptureRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string capture_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetEvidenceCaptureResponse {
+  EvidenceCapture capture = 1;
+  bytes content = 2;
 }
 
 message EvidenceCapturesSummary {
@@ -169,6 +181,7 @@ service EvidenceService {
   rpc ControlDesktop(DesktopControlRequest) returns (DesktopControlResponse);
   rpc StopDesktopSession(DesktopSessionRef) returns (DesktopSession);
   rpc ListEvidenceCaptures(ListEvidenceCapturesRequest) returns (ListEvidenceCapturesResponse);
+  rpc GetEvidenceCapture(GetEvidenceCaptureRequest) returns (GetEvidenceCaptureResponse);
   rpc GetEvidenceCapturesSummary(ListEvidenceCapturesRequest) returns (EvidenceCapturesSummary);
   rpc DeleteEvidenceCapture(EvidenceCaptureRef) returns (google.protobuf.Empty);
   rpc DeleteAllEvidenceCaptures(ListEvidenceCapturesRequest) returns (google.protobuf.Empty);

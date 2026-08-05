@@ -1,0 +1,64 @@
+{
+  "metadata": {
+    "name": "component-harness-experience",
+    "description": "Opens the standalone Button component harness and proves the real story renders at the top-level preview route.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "component-harness",
+      "spec_entry_id": "component-harness",
+      "requirements_json": "[\"PR-001\"]"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "open-button-harness",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library:Button/harness.html?story=primary&version=2.0.0",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open Button@2.0.0 standalone harness" }
+      }
+    },
+    {
+      "id": "wait-button-render",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/components.harness.root button",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": { "label": "Wait for the real Button story" }
+      }
+    },
+    {
+      "id": "assert-button-name",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/components.harness.root button",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "The standalone component harness did not render the real Button story."
+        },
+        "metadata": { "label": "Button story is visible" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "edge-open-wait", "source": "open-button-harness", "target": "wait-button-render", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "edge-wait-assert", "source": "wait-button-render", "target": "assert-button-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

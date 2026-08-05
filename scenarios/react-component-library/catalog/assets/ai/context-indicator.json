@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.context-indicator",
+    "name": "ContextIndicator",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The compact explanation of which files, records, memories, tools, and scopes are currently available to the agent, with inspection and removal for each.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.chip",
+        "reason": "Context entries are removable chips."
+      },
+      {
+        "asset": "primitives.cluster",
+        "reason": "Entries wrap without resizing the surrounding surface."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.hover-card",
+        "reason": "Inspecting an entry in place suits dense contexts; a list view may prefer navigation."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "permission-explained"
+  ],
+  "requiredStates": [
+    "default",
+    "empty",
+    "partial",
+    "permission-denied"
+  ],
+  "rationale": "Directly addresses the most common source of user confusion with agents: not knowing what the agent can actually see. Making context legible and removable turns an opaque system into a controllable one."
+}

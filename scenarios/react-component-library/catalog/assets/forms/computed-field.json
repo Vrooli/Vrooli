@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.computed-field",
+    "name": "ComputedField",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The read-only or overridable field whose value derives from other values through the dependency graph, recalculating only the affected nodes rather than the whole form.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.form-store",
+        "reason": "Values, validation, dirtiness, and submission live in the field-granular store rather than component state."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "error-association",
+    "accessible-naming"
+  ],
+  "requiredStates": [
+    "default"
+  ]
+}

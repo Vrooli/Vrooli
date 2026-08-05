@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.array-field",
+    "name": "ArrayField",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The repeating-field controller for ordered arrays with add, remove, duplicate, reorder, length constraints, nested validation, and optional virtualization for large collections.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.form-store",
+        "reason": "Values, validation, dirtiness, and submission live in the field-granular store rather than component state."
+      },
+      {
+        "asset": "forms.form-field",
+        "reason": "Each item composes the shared field relationships."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "manipulation.sortable",
+        "reason": "Drag reordering is valuable for user-ordered arrays and unnecessary for append-only ones."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "virtualization-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "error-association",
+    "keyboard-operable",
+    "focus-order",
+    "status-announced",
+    "input-preservation"
+  ],
+  "requiredStates": [
+    "default",
+    "empty",
+    "validation-error"
+  ],
+  "qualityGates": [
+    "performance"
+  ]
+}

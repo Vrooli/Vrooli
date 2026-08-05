@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.textarea",
+    "name": "Textarea",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The multi-line field with automatic resizing, character counting, minimum and maximum rows, validation treatment, and scroll-aware growth that never traps the page scroll.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, and radius resolve to declared ramps rather than literals."
+      },
+      {
+        "asset": "foundations.visual-recipes",
+        "reason": "Variant styling is declared as an enumerable recipe so the implementation is checkable against the catalog."
+      },
+      {
+        "asset": "hooks.use-controllable-state",
+        "reason": "Controlled and uncontrolled operation share one contract and one event shape."
+      },
+      {
+        "asset": "hooks.use-element-rect",
+        "reason": "Auto-resize measures without forcing layout on every keystroke."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "content-reflow"
+  ],
+  "requiredStates": [
+    "default",
+    "validation-error"
+  ]
+}

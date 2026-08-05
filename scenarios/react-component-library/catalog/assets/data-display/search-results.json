@@ -1,0 +1,64 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.search-results",
+    "name": "SearchResults",
+    "kind": "component",
+    "domain": "data-display",
+    "description": "The complete result collection with query context, match highlighting, grouping, ranking metadata, filters, and every generic state including no-matches versus nothing-indexed.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "data-display.list",
+        "reason": "Result rows use the shared collection semantics."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Generic state presentation is delegated."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TResult"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "empty-state-craft",
+    "status-announced",
+    "freshness-disclosure"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "offline"
+  ]
+}

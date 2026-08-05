@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-optimistic-action",
+    "name": "useOptimisticAction",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "An optimistic state controller that applies a predicted change immediately and deterministically commits or rolls it back once the operation settles.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-async-action",
+        "reason": "Optimism is a policy layered on the shared async contract, not a separate lifecycle."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "optimistic-rollback"
+  ]
+}

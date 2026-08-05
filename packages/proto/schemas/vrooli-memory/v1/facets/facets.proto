@@ -9,6 +9,7 @@ service FacetsService {
   rpc ListPinProposals(ListPinProposalsRequest) returns (ListPinProposalsResponse);
   rpc ResolvePinProposal(ResolvePinProposalRequest) returns (ResolvePinProposalResponse);
   rpc MarkSuperseded(MarkSupersededRequest) returns (MarkSupersededResponse);
+  rpc ResolveThread(ResolveThreadRequest) returns (ResolveThreadResponse);
 }
 message Facet {
   string id = 1;
@@ -48,3 +49,5 @@ message MarkSupersededRequest {
   string replacement_entry_id = 2;
 }
 message MarkSupersededResponse {}
+message ResolveThreadRequest { string entry_id = 1; }
+message ResolveThreadResponse {}

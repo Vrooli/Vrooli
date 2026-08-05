@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "services.telemetry-bus",
+    "name": "Telemetry Bus",
+    "kind": "runtime-service",
+    "domain": "services",
+    "description": "The provider-backed event bus forwarding normalized UI events to an injected telemetry adapter and behaving as a no-op when telemetry is unavailable or disabled.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "service",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.telemetry-contracts",
+        "reason": "Only declared event shapes may cross the bus."
+      }
+    ]
+  },
+  "satisfies": [
+    "telemetry-adapter"
+  ]
+}

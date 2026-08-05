@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "controls.command-button",
+    "name": "CommandButton",
+    "kind": "component",
+    "domain": "controls",
+    "description": "The async-aware action progressing through idle, pending, progress, success, failure, retry, and cancellation without the consumer writing any glue, while holding stable dimensions throughout.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.button",
+        "reason": "Visual treatment and variants are inherited rather than duplicated."
+      },
+      {
+        "asset": "hooks.use-async-action",
+        "reason": "Pending, success, failure, cancellation, and stale-result handling use the one shared async contract."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "tap-target-size",
+    "contrast-floor",
+    "hover-contrast",
+    "cursor-discipline",
+    "ramp-conformance",
+    "dark-parity",
+    "text-scale-resilience",
+    "activation-acknowledged",
+    "status-announced",
+    "recovery-path",
+    "reduced-motion"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "request-error",
+    "retry"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "The button acknowledges on the same frame it is pressed and holds its exact width through pending, success, and settle, so a toolbar never reflows while work is running."
+    }
+  }
+}

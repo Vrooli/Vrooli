@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "generators.test-matrix-generator",
+    "name": "TestMatrixGenerator",
+    "kind": "generator",
+    "domain": "generators",
+    "description": "Produces the required test cases and visual fixtures from an asset's declared states, variants, capabilities, capture axes, viewports, themes, and directions.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    }
+  },
+  "rationale": "Derives the matrix from the catalog and capability registry rather than from hand-written test lists, which is what keeps declared intent and executed coverage from drifting apart."
+}

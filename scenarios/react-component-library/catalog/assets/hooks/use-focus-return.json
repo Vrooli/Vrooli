@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-focus-return",
+    "name": "useFocusReturn",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A focus-restoration primitive returning focus to the originating trigger, or to a deterministic fallback when that trigger no longer exists.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "requiredCapabilities": [
+    "focus-restoration"
+  ]
+}

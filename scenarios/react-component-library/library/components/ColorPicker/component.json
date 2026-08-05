@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:ColorPicker",
+  "catalogId": "forms.color-picker",
   "displayName": "ColorPicker",
   "description": "Accessible palette, recent-color, gradient, and native custom-color picker.",
   "tags": [

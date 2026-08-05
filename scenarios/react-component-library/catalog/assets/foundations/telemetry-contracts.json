@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "foundations.telemetry-contracts",
+    "name": "Telemetry Contracts",
+    "kind": "foundation",
+    "domain": "foundations",
+    "description": "The opt-in event vocabulary describing meaningful UI outcomes, carrying no user-supplied values, so components can report friction without coupling to an analytics provider or leaking application data.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "lib-util",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Event shapes are declared in the shared type layer."
+      }
+    ]
+  }
+}

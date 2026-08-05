@@ -1,0 +1,127 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.authentication-page",
+    "name": "AuthenticationPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The shared surface for sign-in, registration, password recovery, verification, and account challenges, with strong error, loading, autofill, and accessibility behavior.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "patterns.async-form-flow",
+        "reason": "Submission, validation, and recovery are the shared workflow."
+      },
+      {
+        "asset": "forms.password-input",
+        "reason": "Credential entry, reveal, and caps-lock warning are shared."
+      },
+      {
+        "asset": "forms.pin-input",
+        "reason": "Verification codes use the shared single-field code entry."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "i18n-adapter"
+    },
+    {
+      "capability": "validation-adapter",
+      "typeArguments": [
+        "TCredentials"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "error-association",
+    "input-preservation",
+    "error-message-usefulness"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry",
+    "submitting",
+    "success",
+    "validation-error"
+  ],
+  "regions": [
+    {
+      "id": "form",
+      "purpose": "Credential or challenge entry.",
+      "required": true,
+      "lifecycle": "async",
+      "accepts": "forms"
+    },
+    {
+      "id": "alternatives",
+      "purpose": "Other sign-in methods and account recovery.",
+      "required": false,
+      "lifecycle": "static"
+    },
+    {
+      "id": "branding",
+      "purpose": "Product identity and supporting context.",
+      "required": false,
+      "lifecycle": "static"
+    }
+  ],
+  "rationale": "Error messages here have a security constraint the rest of the catalog does not: they must be useful to the account holder without confirming to an attacker whether an address exists."
+}

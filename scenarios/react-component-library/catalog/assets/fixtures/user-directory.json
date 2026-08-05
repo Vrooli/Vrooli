@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "fixtures.user-directory",
+    "name": "UserDirectoryFixture",
+    "kind": "fixture",
+    "domain": "fixtures",
+    "description": "Adversarial people records with names, avatars, roles, presence, and ownership, for any surface that lists or attributes work to humans and agents.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "fixture",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    }
+  },
+  "fixture": {
+    "dataShapes": [
+      "empty",
+      "typical",
+      "overflow",
+      "volume",
+      "failure"
+    ],
+    "satisfies": {
+      "capability": "data-source",
+      "typeArguments": [
+        "UserRecord"
+      ]
+    },
+    "recordCount": {
+      "typical": 15,
+      "volume": 2000
+    }
+  },
+  "rationale": "Overflow includes a 90-character display name, an entry with no avatar and no role, an Arabic name among Latin ones, and a deactivated account, because every one of those breaks a naive avatar-plus-name row."
+}

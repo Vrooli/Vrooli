@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.progressive-image",
+    "name": "ProgressiveImage",
+    "kind": "component",
+    "domain": "primitives",
+    "description": "The image component reserving layout ahead of load, resolving responsive sources, degrading legibly on error, and avoiding visual popping on arrival.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.aspect-ratio",
+        "reason": "Layout must be reserved before the image resolves or the page shifts."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "hooks.use-intersection-observer",
+        "reason": "Lazy loading is worthwhile below the fold and wasteful above it."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "content-reflow",
+    "entrance-restraint"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error"
+  ]
+}

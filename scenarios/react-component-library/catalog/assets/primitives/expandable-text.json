@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.expandable-text",
+    "name": "ExpandableText",
+    "kind": "component",
+    "domain": "primitives",
+    "description": "The clamped-text component revealing and collapsing overflow without losing scroll position, announcing the change, and keeping the control reachable.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.truncate",
+        "reason": "Clamping behavior is shared rather than reimplemented."
+      },
+      {
+        "asset": "hooks.use-disclosure",
+        "reason": "Expansion is a disclosure and must use the shared controlled contract."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "status-announced",
+    "keyboard-operable",
+    "focus-visible-indicator"
+  ]
+}

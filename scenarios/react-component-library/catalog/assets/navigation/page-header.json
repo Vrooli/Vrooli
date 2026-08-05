@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.page-header",
+    "name": "PageHeader",
+    "kind": "component",
+    "domain": "navigation",
+    "description": "The responsive title region carrying breadcrumbs, description, metadata, primary and overflow actions, optional tabs, and compact behavior as the page scrolls.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.heading",
+        "reason": "Title level is semantic and independent of visual scale."
+      },
+      {
+        "asset": "controls.button-group",
+        "reason": "Actions collapse into overflow through the shared group."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "navigation.breadcrumbs",
+        "reason": "Hierarchical surfaces need a path; a top-level page does not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "heading-hierarchy",
+    "semantic-structure",
+    "responsive-transformation",
+    "chrome-pinned",
+    "accessible-naming",
+    "content-reflow"
+  ]
+}

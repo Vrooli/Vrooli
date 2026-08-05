@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.page",
+    "name": "Page",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The standardized route-content boundary with metadata, responsive gutters, loading and error boundaries, scroll restoration, focus placement after navigation, and optional transition semantics.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.container",
+        "reason": "Width, gutters, and safe areas are shared."
+      },
+      {
+        "asset": "navigation.scroll-restoration",
+        "reason": "Scroll position is restored or reset per navigation intent."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "focus-order",
+    "entrance-restraint",
+    "semantic-structure",
+    "heading-hierarchy",
+    "error-honesty",
+    "recovery-path"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error",
+    "permission-denied",
+    "offline"
+  ]
+}

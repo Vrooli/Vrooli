@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.floating-toolbar",
+    "name": "FloatingToolbar",
+    "kind": "component",
+    "domain": "overlays",
+    "description": "The contextual action bar positioned around a selection or object, with collision handling, keyboard access, overflow, and movement that settles rather than jitters.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.popover",
+        "reason": "Anchoring and collision handling are shared."
+      },
+      {
+        "asset": "controls.toolbar",
+        "reason": "Action grouping, roving focus, and overflow are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-order",
+    "pointer-independence"
+  ]
+}

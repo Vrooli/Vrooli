@@ -4,8 +4,8 @@
     "description": "Opens the catalog, selects Hooks, enters the first hook asset, and proves its shared fixture-preview workspace still exposes Files and Details alongside the story-driven preview.",
     "requirement": "OT-P0-002",
     "version": "1",
-    "labels": { "reset": "none", "surface": "hook-workspace", "requirements_json": "[\"OT-P0-002\"]" },
-    "execution_mode": "observer"
+    "labels": { "reset": "none", "surface": "hook-workspace", "routed_isolation": "true", "requirements_json": "[\"OT-P0-002\"]" },
+    "execution_mode": "mutating"
   },
   "settings": { "viewport_width": 1280, "viewport_height": 900 },
   "nodes": [

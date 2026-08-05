@@ -72,7 +72,7 @@ func scenarioSurface(root, id string, kind factsv1.SurfaceKind) *factsv1.Surface
 }
 
 func unsupportedIfNoParseUnit(root string) factsv1.SurfaceStatus {
-	for _, name := range []string{"go.mod", "tsconfig.json"} {
+	for _, name := range []string{"go.mod", "tsconfig.json", "package.json", "pnpm-lock.yaml", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "bun.lock", "bun.lockb", "requirements.txt", "Pipfile.lock", "poetry.lock", "pyproject.toml", "Cargo.lock", "Cargo.toml"} {
 		if fileExists(filepath.Join(root, name)) {
 			return factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN
 		}
@@ -149,6 +149,11 @@ func discoverParseUnits(target *factsv1.TargetContext) []*factsv1.ParseUnit {
 		units = append(units, nodePackageUnit(root))
 	}
 	if len(units) == 0 {
+		if manifest, language := dependencyManifest(root); manifest != "" {
+			units = append(units, dependencyParseUnit(root, manifest, language))
+		}
+	}
+	if len(units) == 0 {
 		units = append(units, unknownUnit(root))
 	}
 
@@ -205,6 +210,22 @@ func discoverNestedParseUnits(root string) []*factsv1.ParseUnit {
 			if !fileExists(filepath.Join(dir, "tsconfig.json")) && hasScriptSource(dir) {
 				units = append(units, nodePackageUnit(dir))
 			}
+		case "pnpm-lock.yaml", "package-lock.json", "npm-shrinkwrap.json":
+			dir := filepath.Dir(path)
+			manifestDirs[dir] = true
+			units = append(units, dependencyParseUnit(dir, path, "node"))
+		case "yarn.lock", "bun.lock", "bun.lockb":
+			dir := filepath.Dir(path)
+			manifestDirs[dir] = true
+			units = append(units, dependencyParseUnit(dir, path, "node"))
+		case "requirements.txt", "Pipfile.lock", "poetry.lock", "pyproject.toml":
+			dir := filepath.Dir(path)
+			manifestDirs[dir] = true
+			units = append(units, dependencyParseUnit(dir, path, "python"))
+		case "Cargo.lock", "Cargo.toml":
+			dir := filepath.Dir(path)
+			manifestDirs[dir] = true
+			units = append(units, dependencyParseUnit(dir, path, "rust"))
 		}
 		switch strings.ToLower(filepath.Ext(path)) {
 		case ".sh", ".bats":
@@ -279,6 +300,36 @@ func nodePackageUnit(root string) *factsv1.ParseUnit {
 		ConfigPath: packagePath,
 		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
 		Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "Node package has no tsconfig.json, so it cannot route to a supported analyzer.", packagePath)},
+	}
+}
+
+func dependencyManifest(root string) (string, string) {
+	manifests := []struct {
+		name     string
+		language string
+	}{
+		{"pnpm-lock.yaml", "node"}, {"package-lock.json", "node"}, {"npm-shrinkwrap.json", "node"},
+		{"yarn.lock", "node"}, {"bun.lock", "node"}, {"bun.lockb", "node"},
+		{"requirements.txt", "python"}, {"Pipfile.lock", "python"}, {"poetry.lock", "python"}, {"pyproject.toml", "python"},
+		{"Cargo.lock", "rust"}, {"Cargo.toml", "rust"},
+	}
+	for _, manifest := range manifests {
+		path := filepath.Join(root, manifest.name)
+		if fileExists(path) {
+			return path, manifest.language
+		}
+	}
+	return "", ""
+}
+
+func dependencyParseUnit(root, manifest, language string) *factsv1.ParseUnit {
+	return &factsv1.ParseUnit{
+		Id:         language + ":dependency:" + filepath.ToSlash(root),
+		Language:   language,
+		RootPath:   root,
+		ConfigPath: manifest,
+		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
+		Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "Dependency manifest discovered for downstream typed ecosystem adapters; Code Facts does not parse package vulnerability state.", manifest)},
 	}
 }
 

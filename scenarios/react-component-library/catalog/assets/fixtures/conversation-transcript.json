@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "fixtures.conversation-transcript",
+    "name": "ConversationTranscriptFixture",
+    "kind": "fixture",
+    "domain": "fixtures",
+    "description": "Adversarial conversation data with streaming partials, tool calls, approvals, citations, attachments, branches, and failed generations, for every agent surface.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "fixture",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified"
+    }
+  },
+  "fixture": {
+    "dataShapes": [
+      "empty",
+      "typical",
+      "overflow",
+      "volume",
+      "failure"
+    ],
+    "satisfies": {
+      "capability": "data-source",
+      "typeArguments": [
+        "Message"
+      ]
+    },
+    "recordCount": {
+      "typical": 24,
+      "volume": 5000
+    }
+  },
+  "rationale": "The most valuable fixture in the set and the hardest to fake convincingly. Overflow includes a half-arrived code fence, a tool call awaiting approval, an interrupted generation, and a message with twelve citations, which are the states agent surfaces are least likely to have been designed for."
+}

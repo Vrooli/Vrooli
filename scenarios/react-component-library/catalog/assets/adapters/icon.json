@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "adapters.icon",
+    "name": "IconAdapter",
+    "kind": "adapter",
+    "domain": "adapters",
+    "description": "Binds the icon registry to a concrete icon set through individual imports and normalized geometry metadata, so the set is swappable without touching any component.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "adapter",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Boundary types come from the shared framework-light vocabulary rather than being redeclared per adapter."
+      }
+    ]
+  },
+  "satisfies": [
+    "icon-registry"
+  ],
+  "rationale": "A second satisfier for the icon port alongside the template-seeded registry: the foundation defines the contract and default, this binds a specific set. Individual imports are mandatory \u2014 a broad icon-package import is one of the largest avoidable bundle costs."
+}

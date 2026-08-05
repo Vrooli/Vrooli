@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "hooks.use-focus-trap",
+    "name": "useFocusTrap",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "A focus-containment primitive for modal contexts supporting nested scopes, sentinels, initial focus placement, and dynamically mounted content.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "reusable-behavior",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "expects": [
+    {
+      "capability": "layer-manager"
+    }
+  ],
+  "requiredCapabilities": [
+    "focus-containment"
+  ],
+  "rationale": "Already implemented in the catalog at 1.0.0. Nested scopes are the case that breaks in practice and the case nothing currently checks."
+}

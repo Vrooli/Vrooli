@@ -1,0 +1,64 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.streaming-text",
+    "name": "StreamingText",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The incremental text renderer batching updates to a stable cadence, avoiding excessive reflow, preserving user selection, handling partial markup boundaries, and supporting interruption mid-stream.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.text",
+        "reason": "Copy uses the shared text styles rather than local typography."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Announcements go through the one shared live region so nothing talks over anything else."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "transition-non-blocking",
+    "entrance-restraint",
+    "reduced-motion"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "request-error",
+    "retry"
+  ],
+  "qualityGates": [
+    "performance",
+    "stress"
+  ],
+  "beauty": {
+    "signatureMoment": {
+      "description": "Text arrives at a readable, even pace rather than in visible bursts, and selecting part of it mid-stream keeps the selection intact as more arrives."
+    }
+  },
+  "rationale": "Two failures define this asset. Announcing every token makes a screen reader unusable, so announcement is bound to settled boundaries rather than to each update. And re-rendering per token at speed destroys both selection and frame rate, so updates are batched to a cadence rather than driven by arrival."
+}

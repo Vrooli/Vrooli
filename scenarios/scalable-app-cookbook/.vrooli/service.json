@@ -133,11 +133,6 @@
           "description": "Build React UI"
         },
         {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize database with architectural patterns"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o scalable-app-cookbook-api .",
           "description": "Build Go API binary"

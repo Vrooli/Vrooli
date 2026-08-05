@@ -1,0 +1,115 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.onboarding-page",
+    "name": "OnboardingPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The full-page onboarding surface with resumable steps, progress, contextual help, validation, personalization, an honest skip path, and a completion state.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "patterns.onboarding-flow",
+        "reason": "Step orchestration, guidance, and resumability are the shared workflow."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "input-preservation",
+    "celebration-budget"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry",
+    "submitting",
+    "success"
+  ],
+  "regions": [
+    {
+      "id": "progress",
+      "purpose": "Where the user is in the sequence.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "step",
+      "purpose": "The current step's content.",
+      "required": true,
+      "lifecycle": "async",
+      "accepts": "forms"
+    },
+    {
+      "id": "guidance",
+      "purpose": "Contextual help for the current step.",
+      "required": false,
+      "lifecycle": "static"
+    }
+  ]
+}

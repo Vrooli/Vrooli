@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.token-input",
+    "name": "TokenInput",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The structured-value field for tags, recipients, filters, and references, with parsing, validation per token, suggestions, inline editing, reordering, and clipboard support.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.combobox",
+        "reason": "Suggestion and keyboard behavior are shared."
+      },
+      {
+        "asset": "primitives.chip",
+        "reason": "Tokens render as editable removable chips."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "status-announced",
+    "content-reflow"
+  ],
+  "requiredStates": [
+    "default",
+    "validation-error"
+  ]
+}

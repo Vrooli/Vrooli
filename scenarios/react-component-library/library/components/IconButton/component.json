@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:IconButton",
+  "catalogId": "controls.icon-button",
   "displayName": "IconButton",
   "description": "Accessible icon-only action control.",
   "tags": [
@@ -7,9 +8,19 @@
     "icon",
     "accessibility"
   ],
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native"
+    }
+  ],
   "entry": "IconButton.tsx",
   "latest": "2.0.0",
-  "dependencies": [{ "libraryId": "react-component-library:ControlBase", "version": "1.0.0" }],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ControlBase",
+      "version": "1.0.0"
+    }
+  ],
   "deprecatedVersions": []
 }

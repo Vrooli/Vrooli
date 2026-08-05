@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "navigation.resizable-sidebar",
+    "name": "ResizableSidebar",
+    "kind": "navigation",
+    "domain": "navigation",
+    "description": "The sidebar with pointer and keyboard resizing, minimum and maximum constraints, double-click reset, persisted width, collapse thresholds, and content that stays usable at every width.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "layout-shell",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.sidebar",
+        "reason": "Content, sections, and active state are shared."
+      },
+      {
+        "asset": "manipulation.resizable",
+        "reason": "Resize handles, constraints, and keyboard resizing are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "content-reflow",
+    "density-adaptive-layout",
+    "pointer-independence"
+  ],
+  "rationale": "Keyboard resizing is the part invariably skipped, and it is the difference between a resizable panel and a mouse-only one. DESIGN.md requires that opening a panel never make the workspace unusable, which is a minimum-content-width constraint rather than a sidebar maximum."
+}

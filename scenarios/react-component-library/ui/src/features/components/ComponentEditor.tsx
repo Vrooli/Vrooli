@@ -2,7 +2,7 @@ import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useS
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Editor, { type Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
-import { ArrowLeft, ChevronDown, ChevronUp, Eye, FileCode2, Info, Menu, Minus, PanelsLeftRight, Plus, RotateCcw, Save, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Eye, FileCode2, Info, Maximize2, Menu, Minimize2, Minus, PanelsLeftRight, Plus, RotateCcw, Save, X } from "lucide-react";
 import { Group, Panel, Separator, type PanelImperativeHandle } from "react-resizable-panels";
 
 import { Button } from "../../components/ui/button";
@@ -172,6 +172,7 @@ export function ComponentEditor({
   const desktopLayout = useMediaQuery("(min-width: 1024px)");
   const { resolved: appResolvedTheme } = useTheme();
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const previewStageRef = useRef<HTMLDivElement | null>(null);
   const previewToolsPanelRef = useRef<PanelImperativeHandle | null>(null);
   const previewFramesRef = useRef(new Set<HTMLIFrameElement>());
   const specimenFramesRef = useRef(new Map<SpecimenIdentity, HTMLIFrameElement>());
@@ -225,6 +226,7 @@ export function ComponentEditor({
   const [activeSpecimen, setActiveSpecimen] = useState<SpecimenIdentity | null>(null);
   const [mobileTool, setMobileTool] = useState<"props" | "inspector" | null>(null);
   const [previewToolsCollapsed, setPreviewToolsCollapsed] = useState(false);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [specimenOverrides, setSpecimenOverrides] = useState<Record<string, Record<string, unknown>>>({});
   const [overrideStatus, setOverrideStatus] = useState<Record<string, "idle" | "applying" | "applied" | "error">>({});
   const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
@@ -258,6 +260,14 @@ export function ComponentEditor({
   const resolvedPreviewTheme = filters.colorScheme === "system"
     ? appResolvedTheme
     : filters.colorScheme;
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setPreviewFullscreen(document.fullscreenElement === previewStageRef.current);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
 
   const postToPreviewFrames = useCallback((message: unknown) => {
     for (const frame of previewFramesRef.current) {
@@ -387,7 +397,11 @@ export function ComponentEditor({
   const expectedReadyCount = comparedSpecimens.size === 2 ? 2 : 1;
 
   useEffect(() => {
-    if (activeSpecimen || examples.length === 0) return;
+    // A transient loading/fallback specimen can outlive the story query when
+    // the editor is entered through client-side catalog navigation. Reconcile
+    // by identity against the settled contract instead of treating any
+    // non-null value as a valid selection.
+    if (examples.length === 0 || (activeSpecimen && examples.some((example) => specimenIdentity(example) === activeSpecimen))) return;
     const restored = selectedStory ? examples.find((example) => example.storyId === selectedStory) : undefined;
     activateSpecimen(specimenIdentity(restored ?? examples[0]));
   }, [activeSpecimen, activateSpecimen, examples, selectedStory]);
@@ -400,10 +414,25 @@ export function ComponentEditor({
   }, [expectedReadyCount, previewState, readyExamples, specimenErrors]);
 
   useEffect(() => {
+    if (previewState !== "waiting") return;
+    if (contentQuery.isError) {
+      setPreviewMessage(errorMessage(contentQuery.error, t));
+      setPreviewState("error");
+      return;
+    }
+    if (storiesQuery.isError) {
+      setPreviewMessage(errorMessage(storiesQuery.error, t));
+      setPreviewState("error");
+      return;
+    }
+  }, [contentQuery.error, contentQuery.isError, previewState, storiesQuery.error, storiesQuery.isError, t]);
+
+  useEffect(() => {
     if (!contentQuery.data || previewState !== "waiting") return undefined;
     if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
     previewTimeoutRef.current = setTimeout(() => {
       setPreviewMessage(t(strings.components.editor.previewTimeout));
+      setPreviewState("error");
     }, PREVIEW_LOAD_TIMEOUT_MS);
     return () => {
       if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
@@ -530,7 +559,16 @@ export function ComponentEditor({
     );
   };
 
-  const specimens: Array<PreviewSpecimen | undefined> = examples.length > 0 ? examples : [undefined];
+  // Do not mount a fabricated fallback while the indexed story contract is
+  // still loading. That transient iframe is aborted when the real story
+  // arrives and can leave the host waiting forever for a readiness message on
+  // a frame that no longer exists. A fallback is valid only after a settled,
+  // genuinely empty contract has been observed.
+  const specimens: Array<PreviewSpecimen | undefined> = storiesQuery.isLoading
+    ? []
+    : examples.length > 0
+    ? examples
+    : [undefined];
   const comparisonActive = comparedSpecimens.size === 2;
   const visibleSpecimens = comparisonActive
     ? specimens.filter((example) => comparedSpecimens.has(specimenIdentity(example)))
@@ -582,13 +620,32 @@ export function ComponentEditor({
     });
   };
 
+  const togglePreviewFullscreen = async () => {
+    const stage = previewStageRef.current;
+    if (!stage) return;
+    if (previewFullscreen) {
+      if (document.fullscreenElement === stage && typeof document.exitFullscreen === "function") await document.exitFullscreen();
+      setPreviewFullscreen(false);
+      return;
+    }
+    try {
+      if (typeof stage.requestFullscreen === "function") {
+        await stage.requestFullscreen();
+      }
+    } catch {
+      // A browser or embedded host may deny native fullscreen. The fixed
+      // fallback still gives the operator a useful, viewport-sized preview.
+    }
+    setPreviewFullscreen(true);
+  };
+
   return (
     <AssetWorkspace testId={selectors.components.editor.panel} label={t(strings.components.editor.title, { libraryId })}>
       <WorkspaceHeader
         title={<span data-testid={selectors.components.editor.title}>{libraryId}</span>}
         description={t(strings.components.editor.subtitle)}
         leading={shellNavigation.sidebarCollapsed ? <button type="button" onClick={shellNavigation.openSidebar} aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })} data-testid="workspace-header-open-sidebar" className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><Menu aria-hidden className="h-5 w-5" /></button> : undefined}
-        actions={<div className="flex items-center gap-1.5">{dirty && <StatusBadge data-testid={selectors.components.editor.dirtyBadge} tone="warning">{t(strings.components.editor.dirty)}</StatusBadge>}{previewReady && (desktopLayout || currentPane === "preview") && <StatusBadge data-testid={selectors.components.editor.previewBadge} tone="success">{t(strings.components.editor.previewReady)}</StatusBadge>}{availablePanes.length > 1 && <IconButton data-testid="components-editor-split-view-toggle" aria-label={t("components.editor.splitView", { defaultValue: "Split view" })} aria-pressed={splitView} onClick={toggleSplitView} className={`hidden h-8 min-h-8 min-w-8 lg:inline-flex ${splitView ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}><PanelsLeftRight aria-hidden className="h-3.5 w-3.5" /></IconButton>}{renderable && <IconButton data-testid={selectors.components.editor.closeButton} aria-label={t(strings.components.editor.close)} onClick={onClose} className="h-8 min-h-8 min-w-8 border border-app-border bg-app-surface"><ArrowLeft aria-hidden className="h-3.5 w-3.5" /></IconButton>}</div>}
+        actions={<div className="flex items-center gap-1.5">{dirty && <StatusBadge data-testid={selectors.components.editor.dirtyBadge} tone="warning">{t(strings.components.editor.dirty)}</StatusBadge>}{previewReady && (desktopLayout || currentPane === "preview") && <StatusBadge data-testid={selectors.components.editor.previewBadge} tone="success">{t(strings.components.editor.previewReady)}</StatusBadge>}{availablePanes.length > 1 && <IconButton data-testid="components-editor-split-view-toggle" aria-label={t("components.editor.splitView", { defaultValue: "Split view" })} aria-pressed={splitView} onClick={toggleSplitView} className={`hidden h-8 min-h-8 min-w-8 lg:inline-flex ${splitView ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}><PanelsLeftRight aria-hidden className="h-3.5 w-3.5" /></IconButton>}{renderable && <IconButton data-testid={selectors.components.editor.closeButton} aria-label={t(strings.components.editor.close)} onClick={onClose} className="h-11 min-h-11 min-w-11 border border-app-border bg-app-surface"><ArrowLeft aria-hidden className="h-3.5 w-3.5" /></IconButton>}</div>}
       />
 
       {navigationSlot && <div className="shrink-0 border-b border-app-border bg-app-surface px-4">{navigationSlot}</div>}
@@ -698,6 +755,12 @@ export function ComponentEditor({
                     </div>
                   )}
                   {pane === "preview" && (
+                    <div
+                      ref={previewStageRef}
+                      data-testid={selectors.components.editor.previewStage}
+                      data-preview-fullscreen={previewFullscreen ? "true" : "false"}
+                      className={previewFullscreen ? "fixed inset-0 z-50 h-full w-full bg-app-background" : "h-full min-h-0"}
+                    >
                     <ExperienceSurface
                       surfaceId="component-preview"
                       state={previewExperienceState}
@@ -708,12 +771,22 @@ export function ComponentEditor({
                     >
                       {splitView && paneHeader("preview", index, paneLabels.preview, <Eye aria-hidden className="h-3.5 w-3.5" />)}
                       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-app-border bg-app-surface px-2 py-1.5">
-                        <nav className="flex max-w-full gap-1 overflow-x-auto" aria-label={t(strings.components.editor.storiesLabel)}>
-                          {specimens.map((example) => { const identity = specimenIdentity(example); const selected = identity === activeSpecimen; return <Button key={identity} data-testid={selectors.components.editor.storyPickerItem} type="button" variant={selected ? "primary" : "secondary"} className="h-8 shrink-0 px-2 text-xs" aria-current={selected ? "true" : undefined} title={example?.description} onClick={() => activateSpecimen(identity)}>{example?.displayName || example?.name || "Default"}</Button>; })}
+                        <nav className="order-last flex min-w-0 max-w-full basis-full flex-wrap gap-1 sm:order-none sm:basis-auto sm:flex-1" aria-label={t(strings.components.editor.storiesLabel)}>
+                          {specimens.map((example) => { const identity = specimenIdentity(example); const selected = identity === activeSpecimen; return <Button key={identity} data-testid={selectors.components.editor.storyPickerItem} type="button" variant={selected ? "primary" : "secondary"} className="h-8 min-w-11 shrink-0 px-2 text-xs" aria-current={selected ? "true" : undefined} title={example?.description} onClick={() => activateSpecimen(identity)}>{example?.displayName || example?.name || "Default"}</Button>; })}
                         </nav>
+                        <IconButton
+                          data-testid={selectors.components.editor.previewStageFullscreen}
+                          type="button"
+                          aria-label={previewFullscreen ? t("components.editor.exitFullscreen", { defaultValue: "Exit full screen" }) : t("components.editor.enterFullscreen", { defaultValue: "View preview full screen" })}
+                          aria-pressed={previewFullscreen}
+                          onClick={() => { void togglePreviewFullscreen(); }}
+                          className="h-11 min-h-11 min-w-11 border border-app-border bg-app-surface"
+                        >
+                          {previewFullscreen ? <Minimize2 aria-hidden className="h-3.5 w-3.5" /> : <Maximize2 aria-hidden className="h-3.5 w-3.5" />}
+                        </IconButton>
                         <ThemeSwitcher postToFrames={postToPreviewFrames} previewReady={previewReady} colorScheme={filters.colorScheme} setColorScheme={filters.setColorScheme} filters={filters} />
                         <EmulatorToolbar emulator={emulator} />
-                        {activeSpecimen && <IconButton data-testid={selectors.components.editor.previewToolsToggle} aria-label={previewToolsCollapsed ? t("components.editor.showTools", { defaultValue: "Show controls" }) : t("components.editor.hideTools", { defaultValue: "Hide controls" })} className="ml-auto h-8 min-h-8 min-w-8 border border-app-border bg-app-surface" aria-expanded={!previewToolsCollapsed} aria-controls="component-preview-tools" onClick={togglePreviewTools}>{previewToolsCollapsed ? <ChevronUp aria-hidden className="h-3.5 w-3.5" /> : <ChevronDown aria-hidden className="h-3.5 w-3.5" />}</IconButton>}
+                        {activeSpecimen && <IconButton data-testid={selectors.components.editor.previewToolsToggle} aria-label={previewToolsCollapsed ? t("components.editor.showTools", { defaultValue: "Show controls" }) : t("components.editor.hideTools", { defaultValue: "Hide controls" })} className="ml-auto h-11 min-h-11 min-w-11 border border-app-border bg-app-surface" aria-expanded={!previewToolsCollapsed} aria-controls="component-preview-tools" onClick={togglePreviewTools}>{previewToolsCollapsed ? <ChevronUp aria-hidden className="h-3.5 w-3.5" /> : <ChevronDown aria-hidden className="h-3.5 w-3.5" />}</IconButton>}
                       </div>
                       <Group id="component-preview-workbench" orientation="vertical" defaultLayout={{ specimen: 1, tools: 280 }} className="min-h-0 flex-1">
                       <Panel id="specimen" minSize={220} className="min-h-0">
@@ -793,6 +866,7 @@ export function ComponentEditor({
                         {mobileTool === "inspector" ? <InspectorPanel inspector={inspector} specimenLabel={activeSpecimenLabel} /> : null}
                       </Dialog>
                     </ExperienceSurface>
+                    </div>
                   )}
                   {pane === "details" && (
                     <aside data-testid={selectors.components.editor.workspacePane} data-pane="details" className="flex h-full min-h-0 flex-col overflow-hidden bg-app-surface">

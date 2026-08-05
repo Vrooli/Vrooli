@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.not-found-state",
+    "name": "NotFoundState",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The missing-resource composition distinguishing an invalid route, a deleted object, revoked access, and a stale link, and offering navigation that is actually useful in each case.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "feedback.error-state",
+        "reason": "Structure, recovery affordances, and disclosure policy are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "recovery-path",
+    "contrast-floor",
+    "content-reflow",
+    "text-scale-resilience",
+    "empty-state-craft",
+    "responsive-transformation",
+    "error-message-usefulness"
+  ],
+  "requiredStates": [
+    "request-error"
+  ]
+}

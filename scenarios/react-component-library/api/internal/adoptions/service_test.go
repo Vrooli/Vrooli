@@ -455,8 +455,8 @@ func TestService_ApplyCopiesVersionExperienceContractIntoScenario(t *testing.T) 
 	files := &fakeFiles{bytes: map[string][]byte{}}
 	result, err := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now())).Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/components/Button.tsx"})
 	require.NoError(t, err)
-	require.Equal(t, "experience/components/Button.json", result.ExperiencePath)
-	require.JSONEq(t, `{"contract":{"kind":"rcl-component-experience-contract"},"component":{"id":"button"},"claims":[]}`, string(files.bytes["target::experience/components/Button.json"]))
+	require.Equal(t, "experience/components/button.json", result.ExperiencePath)
+	require.JSONEq(t, `{"contract":{"kind":"rcl-component-experience-contract"},"component":{"id":"button"},"claims":[]}`, string(files.bytes["target::experience/components/button.json"]))
 }
 
 func TestService_ApplyVendorsEveryFileInAUnit(t *testing.T) {

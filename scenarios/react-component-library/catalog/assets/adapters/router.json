@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "adapters.router",
+    "name": "RouterAdapter",
+    "kind": "adapter",
+    "domain": "adapters",
+    "description": "Connects links, navigation, route state, navigation blocking, scroll restoration, prefetch policy, and transition direction to the consuming scenario's router.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "adapter",
+    "delivery": "template-seeded",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Boundary types come from the shared framework-light vocabulary rather than being redeclared per adapter."
+      }
+    ]
+  },
+  "satisfies": [
+    "router-adapter"
+  ],
+  "rationale": "Template-seeded because every scenario has exactly one router and every page template depends on this port. Expressing route behavior as a port is also what keeps templates valid for the native targets, where no web router exists."
+}

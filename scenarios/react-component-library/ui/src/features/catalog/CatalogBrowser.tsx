@@ -56,7 +56,7 @@ function AssetRow({ asset, presentation, selected, onNavigate, currentTab }: { a
       data-testid={selectors.catalog.asset}
       data-selected={selected || undefined}
       className={[
-        presentation === "cards" ? "flex min-h-24 flex-col justify-between rounded-panel border p-3" : "flex items-center justify-between gap-2 rounded-control px-2 py-2",
+        presentation === "cards" ? "flex min-h-24 flex-col justify-between rounded-panel border p-3" : "touch-target flex items-center justify-between gap-2 rounded-control px-2 py-2",
         selected ? "border-app-primary bg-app-surface-muted text-app-foreground" : "border-app-border text-app-foreground hover:bg-app-surface-muted",
       ].join(" ")}
     >
@@ -139,7 +139,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
     <section data-testid={selectors.catalog.browser} className={compact ? "flex min-h-0 flex-1 flex-col gap-2" : "flex max-w-5xl flex-col gap-4"}>
       {!compact && <CatalogActions />}
       <div className="flex items-center gap-1" role="tablist" aria-label={t("catalog.kindTabs", { defaultValue: "Asset kind" })}>
-        {(["components", "hooks"] as const).map((kind) => <button key={kind} type="button" role="tab" aria-selected={tab === kind} data-testid={kind === "components" ? selectors.catalog.componentsTab : selectors.catalog.hooksTab} onClick={() => setTab(kind)} className={tab === kind ? "rounded-control bg-app-surface-muted px-3 py-1.5 text-sm font-medium" : "rounded-control px-3 py-1.5 text-sm text-app-muted-foreground hover:bg-app-surface-muted"}>{kind === "components" ? t("catalog.components", { defaultValue: "Components" }) : t("catalog.hooks", { defaultValue: "Hooks" })}</button>)}
+        {(["components", "hooks"] as const).map((kind) => <button key={kind} type="button" role="tab" aria-selected={tab === kind} data-testid={kind === "components" ? selectors.catalog.componentsTab : selectors.catalog.hooksTab} onClick={() => setTab(kind)} className={tab === kind ? "touch-target rounded-control bg-app-surface-muted px-3 py-1.5 text-sm font-medium" : "touch-target rounded-control px-3 py-1.5 text-sm text-app-muted-foreground hover:bg-app-surface-muted"}>{kind === "components" ? t("catalog.components", { defaultValue: "Components" }) : t("catalog.hooks", { defaultValue: "Hooks" })}</button>)}
       </div>
       <label className="relative block"><span className="sr-only">{t("catalog.search", { defaultValue: "Search catalog" })}</span><Search aria-hidden className="absolute start-2 top-2.5 h-4 w-4 text-app-muted-foreground" /><Input data-testid={selectors.catalog.search} value={match} onChange={(event) => setMatch(event.target.value)} className="ps-8" placeholder={t("catalog.searchPlaceholder", { defaultValue: "Search assets" })} /></label>
       <div className="flex items-center gap-1" aria-label={t("catalog.presentation", { defaultValue: "Catalog presentation" })}>

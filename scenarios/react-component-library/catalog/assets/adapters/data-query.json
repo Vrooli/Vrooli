@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "adapters.data-query",
+    "name": "DataQueryAdapter",
+    "kind": "adapter",
+    "domain": "adapters",
+    "description": "Connects typed data-source ports to a query and cache layer, direct fetchers, subscriptions, or offline storage, without any component learning how data arrives.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "adapter",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.contracts",
+        "reason": "Boundary types come from the shared framework-light vocabulary rather than being redeclared per adapter."
+      }
+    ]
+  },
+  "satisfies": [
+    "data-source"
+  ],
+  "rationale": "The seam that keeps the library out of the data-fetching business. Components accept data, actions, and conditions; where those come from is entirely the scenario's concern."
+}

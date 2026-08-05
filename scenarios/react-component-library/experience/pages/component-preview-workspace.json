@@ -18,7 +18,7 @@
     }
   ],
   "states": [
-    {"id": "default", "description": "A component detail workspace is open."},
+    {"id": "default", "description": "A component detail workspace is open.", "setup": {"route": "/assets/react-component-library%3AButton", "query": {"tab": "preview"}}},
     {"id": "preview-loading", "description": "The selected component preview is waiting for its harness specimens."},
     {"id": "preview-ready", "description": "All rendered preview specimens have announced readiness.", "setup": {"route": "/assets/react-component-library%3AButton", "query": {"tab": "preview"}}},
     {"id": "preview-partial", "description": "At least one specimen failed while another usable preview remains available."}
@@ -39,7 +39,7 @@
   ],
   "bindings": {
     "regions": {
-      "component-preview": {"selector": "[data-testid=\"component-detail-page\"][data-preview-state=\"ready\"]"}
+      "component-preview": {"selector": "[data-experience-surface=\"component-preview\"]"}
     }
   }
 }

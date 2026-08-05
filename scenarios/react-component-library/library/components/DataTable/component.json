@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:DataTable",
+  "catalogId": "data-display.data-table",
   "displayName": "Data Table",
   "description": "Sortable, searchable, filterable token-bound table for dense operational data.",
   "tags": [

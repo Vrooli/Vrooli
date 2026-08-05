@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.dirty-state-guard",
+    "name": "DirtyStateGuard",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The navigation and dismissal guard detecting meaningful unsaved changes and offering save, discard, continue editing, or background preservation before the work is lost.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "services.form-store",
+        "reason": "Values, validation, dirtiness, and submission live in the field-granular store rather than component state."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "overlays.alert-dialog",
+        "reason": "The prompt needs a confirmation surface unless the host prefers to autosave silently."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "input-preservation",
+    "recovery-path",
+    "keyboard-operable"
+  ],
+  "rationale": "Meaningful is the operative word: a guard that fires because a field was focused and blurred trains users to dismiss it, which is worse than having no guard."
+}

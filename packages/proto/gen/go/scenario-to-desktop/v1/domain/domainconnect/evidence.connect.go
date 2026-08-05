@@ -64,6 +64,9 @@ const (
 	// EvidenceServiceListEvidenceCapturesProcedure is the fully-qualified name of the EvidenceService's
 	// ListEvidenceCaptures RPC.
 	EvidenceServiceListEvidenceCapturesProcedure = "/vrooli.scenario_to_desktop.v1.domain.EvidenceService/ListEvidenceCaptures"
+	// EvidenceServiceGetEvidenceCaptureProcedure is the fully-qualified name of the EvidenceService's
+	// GetEvidenceCapture RPC.
+	EvidenceServiceGetEvidenceCaptureProcedure = "/vrooli.scenario_to_desktop.v1.domain.EvidenceService/GetEvidenceCapture"
 	// EvidenceServiceGetEvidenceCapturesSummaryProcedure is the fully-qualified name of the
 	// EvidenceService's GetEvidenceCapturesSummary RPC.
 	EvidenceServiceGetEvidenceCapturesSummaryProcedure = "/vrooli.scenario_to_desktop.v1.domain.EvidenceService/GetEvidenceCapturesSummary"
@@ -88,6 +91,7 @@ type EvidenceServiceClient interface {
 	ControlDesktop(context.Context, *connect.Request[domain.DesktopControlRequest]) (*connect.Response[domain.DesktopControlResponse], error)
 	StopDesktopSession(context.Context, *connect.Request[domain.DesktopSessionRef]) (*connect.Response[domain.DesktopSession], error)
 	ListEvidenceCaptures(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[domain.ListEvidenceCapturesResponse], error)
+	GetEvidenceCapture(context.Context, *connect.Request[domain.GetEvidenceCaptureRequest]) (*connect.Response[domain.GetEvidenceCaptureResponse], error)
 	GetEvidenceCapturesSummary(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[domain.EvidenceCapturesSummary], error)
 	DeleteEvidenceCapture(context.Context, *connect.Request[domain.EvidenceCaptureRef]) (*connect.Response[emptypb.Empty], error)
 	DeleteAllEvidenceCaptures(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[emptypb.Empty], error)
@@ -165,6 +169,12 @@ func NewEvidenceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(evidenceServiceMethods.ByName("ListEvidenceCaptures")),
 			connect.WithClientOptions(opts...),
 		),
+		getEvidenceCapture: connect.NewClient[domain.GetEvidenceCaptureRequest, domain.GetEvidenceCaptureResponse](
+			httpClient,
+			baseURL+EvidenceServiceGetEvidenceCaptureProcedure,
+			connect.WithSchema(evidenceServiceMethods.ByName("GetEvidenceCapture")),
+			connect.WithClientOptions(opts...),
+		),
 		getEvidenceCapturesSummary: connect.NewClient[domain.ListEvidenceCapturesRequest, domain.EvidenceCapturesSummary](
 			httpClient,
 			baseURL+EvidenceServiceGetEvidenceCapturesSummaryProcedure,
@@ -198,6 +208,7 @@ type evidenceServiceClient struct {
 	controlDesktop             *connect.Client[domain.DesktopControlRequest, domain.DesktopControlResponse]
 	stopDesktopSession         *connect.Client[domain.DesktopSessionRef, domain.DesktopSession]
 	listEvidenceCaptures       *connect.Client[domain.ListEvidenceCapturesRequest, domain.ListEvidenceCapturesResponse]
+	getEvidenceCapture         *connect.Client[domain.GetEvidenceCaptureRequest, domain.GetEvidenceCaptureResponse]
 	getEvidenceCapturesSummary *connect.Client[domain.ListEvidenceCapturesRequest, domain.EvidenceCapturesSummary]
 	deleteEvidenceCapture      *connect.Client[domain.EvidenceCaptureRef, emptypb.Empty]
 	deleteAllEvidenceCaptures  *connect.Client[domain.ListEvidenceCapturesRequest, emptypb.Empty]
@@ -259,6 +270,11 @@ func (c *evidenceServiceClient) ListEvidenceCaptures(ctx context.Context, req *c
 	return c.listEvidenceCaptures.CallUnary(ctx, req)
 }
 
+// GetEvidenceCapture calls vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetEvidenceCapture.
+func (c *evidenceServiceClient) GetEvidenceCapture(ctx context.Context, req *connect.Request[domain.GetEvidenceCaptureRequest]) (*connect.Response[domain.GetEvidenceCaptureResponse], error) {
+	return c.getEvidenceCapture.CallUnary(ctx, req)
+}
+
 // GetEvidenceCapturesSummary calls
 // vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetEvidenceCapturesSummary.
 func (c *evidenceServiceClient) GetEvidenceCapturesSummary(ctx context.Context, req *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[domain.EvidenceCapturesSummary], error) {
@@ -290,6 +306,7 @@ type EvidenceServiceHandler interface {
 	ControlDesktop(context.Context, *connect.Request[domain.DesktopControlRequest]) (*connect.Response[domain.DesktopControlResponse], error)
 	StopDesktopSession(context.Context, *connect.Request[domain.DesktopSessionRef]) (*connect.Response[domain.DesktopSession], error)
 	ListEvidenceCaptures(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[domain.ListEvidenceCapturesResponse], error)
+	GetEvidenceCapture(context.Context, *connect.Request[domain.GetEvidenceCaptureRequest]) (*connect.Response[domain.GetEvidenceCaptureResponse], error)
 	GetEvidenceCapturesSummary(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[domain.EvidenceCapturesSummary], error)
 	DeleteEvidenceCapture(context.Context, *connect.Request[domain.EvidenceCaptureRef]) (*connect.Response[emptypb.Empty], error)
 	DeleteAllEvidenceCaptures(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[emptypb.Empty], error)
@@ -362,6 +379,12 @@ func NewEvidenceServiceHandler(svc EvidenceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(evidenceServiceMethods.ByName("ListEvidenceCaptures")),
 		connect.WithHandlerOptions(opts...),
 	)
+	evidenceServiceGetEvidenceCaptureHandler := connect.NewUnaryHandler(
+		EvidenceServiceGetEvidenceCaptureProcedure,
+		svc.GetEvidenceCapture,
+		connect.WithSchema(evidenceServiceMethods.ByName("GetEvidenceCapture")),
+		connect.WithHandlerOptions(opts...),
+	)
 	evidenceServiceGetEvidenceCapturesSummaryHandler := connect.NewUnaryHandler(
 		EvidenceServiceGetEvidenceCapturesSummaryProcedure,
 		svc.GetEvidenceCapturesSummary,
@@ -402,6 +425,8 @@ func NewEvidenceServiceHandler(svc EvidenceServiceHandler, opts ...connect.Handl
 			evidenceServiceStopDesktopSessionHandler.ServeHTTP(w, r)
 		case EvidenceServiceListEvidenceCapturesProcedure:
 			evidenceServiceListEvidenceCapturesHandler.ServeHTTP(w, r)
+		case EvidenceServiceGetEvidenceCaptureProcedure:
+			evidenceServiceGetEvidenceCaptureHandler.ServeHTTP(w, r)
 		case EvidenceServiceGetEvidenceCapturesSummaryProcedure:
 			evidenceServiceGetEvidenceCapturesSummaryHandler.ServeHTTP(w, r)
 		case EvidenceServiceDeleteEvidenceCaptureProcedure:
@@ -455,6 +480,10 @@ func (UnimplementedEvidenceServiceHandler) StopDesktopSession(context.Context, *
 
 func (UnimplementedEvidenceServiceHandler) ListEvidenceCaptures(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[domain.ListEvidenceCapturesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_to_desktop.v1.domain.EvidenceService.ListEvidenceCaptures is not implemented"))
+}
+
+func (UnimplementedEvidenceServiceHandler) GetEvidenceCapture(context.Context, *connect.Request[domain.GetEvidenceCaptureRequest]) (*connect.Response[domain.GetEvidenceCaptureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_to_desktop.v1.domain.EvidenceService.GetEvidenceCapture is not implemented"))
 }
 
 func (UnimplementedEvidenceServiceHandler) GetEvidenceCapturesSummary(context.Context, *connect.Request[domain.ListEvidenceCapturesRequest]) (*connect.Response[domain.EvidenceCapturesSummary], error) {

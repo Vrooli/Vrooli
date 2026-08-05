@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "ai.message-brancher",
+    "name": "MessageBrancher",
+    "kind": "component",
+    "domain": "ai",
+    "description": "The conversation-branch navigator preserving branch ancestry, edit history, alternative counts, timestamps, and stable scroll position when moving between branches.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P2",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "controls.segmented-control",
+        "reason": "Branch selection uses the shared mutually exclusive control."
+      },
+      {
+        "asset": "primitives.relative-time",
+        "reason": "Timestamps render and update through the shared component."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-order",
+    "contrast-floor",
+    "text-scale-resilience",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "status-announced",
+    "recovery-path"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "request-error"
+  ]
+}

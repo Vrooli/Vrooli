@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.inline-status",
+    "name": "InlineStatus",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The compact status region placed beside the control or content it concerns, covering loading, success, warning, failure, and retry without pulling the user's attention away from their work.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency treatment is shared rather than reinvented per surface."
+      },
+      {
+        "asset": "primitives.text",
+        "reason": "Copy uses the shared text styles rather than local typography."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Messages are announced through the one shared live region."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "status-announced",
+    "non-color-status",
+    "contrast-floor",
+    "text-scale-resilience",
+    "forced-colors-legibility",
+    "content-reflow",
+    "recovery-path"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "request-error",
+    "retry"
+  ],
+  "rationale": "DESIGN.md's rule that inline feedback belongs near the action when the user must keep working. This is the asset that keeps routine outcomes out of the toast queue."
+}

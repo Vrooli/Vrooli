@@ -224,7 +224,7 @@ export function ComponentDetailPage() {
   const selectedAdoption = adoptions.find((adoption) => adoption.id === selectedAdoptionID) ?? adoptions[0];
 
   return (
-    <div data-testid="component-detail-page" data-preview-state={previewExperienceState} className="flex min-h-0 flex-1 flex-col">
+    <div data-testid="component-detail-page" data-preview-state={previewExperienceState} className="flex min-h-0 min-w-0 w-full flex-1 flex-col">
       <ComponentEditor
         id={component.id}
         libraryId={component.libraryId || component.id}

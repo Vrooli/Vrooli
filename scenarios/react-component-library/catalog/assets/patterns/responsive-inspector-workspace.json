@@ -1,0 +1,68 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.responsive-inspector-workspace",
+    "name": "ResponsiveInspectorWorkspace",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The workspace composition pairing primary content with an inspector that is resizable and persistent on desktop and an above-page drawer on mobile, preserving selection and width across the transition.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.responsive-panel",
+        "reason": "The desktop-to-drawer transformation is the shared panel."
+      },
+      {
+        "asset": "overlays.inspector-panel",
+        "reason": "Tabs, history, and pinning are the shared inspector."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary rather than reimplemented per workflow."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "content-reflow",
+    "density-adaptive-layout",
+    "entrance-restraint",
+    "recovery-path"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error",
+    "permission-denied"
+  ],
+  "beauty": {
+    "avoid": [
+      "modal-for-routine-inspection"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.separator",
+    "name": "Separator",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The semantic divider supporting orientation, inset, and both decorative and grouping roles, so structure can be expressed without adding containers.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "contrast-floor",
+    "forced-colors-legibility"
+  ],
+  "rationale": "Load-bearing for the card-restraint discipline: most surfaces that reach for a container actually want a separator and alignment."
+}

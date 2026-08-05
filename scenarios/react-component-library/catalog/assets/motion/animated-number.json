@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "motion.animated-number",
+    "name": "AnimatedNumber",
+    "kind": "component",
+    "domain": "motion",
+    "description": "The locale-aware numeric transition interpolating values while preserving formatting, handling large jumps sensibly, and announcing only the settled value.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "hooks.use-reduced-motion",
+        "reason": "Motion policy is resolved through the shared hook so the preference can be overridden and tested."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "Formatting, grouping, and decimal separators are locale-specific."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "transition-class-conformance",
+    "reduced-motion",
+    "no-layout-animation",
+    "motion-duration-conformance",
+    "status-announced"
+  ],
+  "rationale": "Announcing every intermediate frame is the defect here: a counter that speaks each interpolated value makes a screen reader unusable, so announcement is bound to the settled value only."
+}

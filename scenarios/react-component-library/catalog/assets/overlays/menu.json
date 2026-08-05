@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.menu",
+    "name": "Menu",
+    "kind": "component",
+    "domain": "overlays",
+    "description": "The menu family covering dropdowns and submenus with roving focus, typeahead, check and radio items, safe pointer corridors, shortcut hints, and async item actions.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.popover",
+        "reason": "Anchoring and dismissal are shared."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Composite surfaces expose one tab stop with arrow-key movement."
+      },
+      {
+        "asset": "hooks.use-typeahead",
+        "reason": "Type-to-jump uses normalized localized labels."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "services.command-registry",
+        "reason": "Menus that surface application commands should read one registry; a local action menu need not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "focus-order",
+    "semantic-structure"
+  ],
+  "api": {
+    "levels": [
+      "compound",
+      "convenience"
+    ],
+    "parts": [
+      "trigger",
+      "content",
+      "item",
+      "checkbox-item",
+      "radio-item",
+      "submenu",
+      "separator",
+      "label"
+    ]
+  }
+}

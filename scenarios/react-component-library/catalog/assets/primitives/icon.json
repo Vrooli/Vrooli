@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.icon",
+    "name": "Icon",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The normalized icon renderer applying optical sizing, stroke policy, direction-aware flipping, and accessibility treatment for decorative versus meaningful icons.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      },
+      {
+        "asset": "foundations.icon-registry",
+        "reason": "Geometry, optical size, and direction metadata come from the registry rather than per-call values."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "icon-weight-consistency",
+    "accessible-naming",
+    "forced-colors-legibility"
+  ],
+  "beauty": {
+    "avoid": [
+      "icon-without-accessible-name"
+    ]
+  }
+}

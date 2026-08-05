@@ -47,6 +47,12 @@ enum Ecosystem {
   ECOSYSTEM_UNSPECIFIED = 0;
   ECOSYSTEM_GO = 1;
   ECOSYSTEM_NPM = 2;
+  ECOSYSTEM_YARN = 3;
+  ECOSYSTEM_BUN = 4;
+  ECOSYSTEM_PYTHON = 5;
+  ECOSYSTEM_RUST = 6;
+  ECOSYSTEM_C = 7;
+  ECOSYSTEM_CPP = 8;
 }
 
 // Scanner/source that produced vulnerability evidence.

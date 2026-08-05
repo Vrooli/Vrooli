@@ -1,0 +1,169 @@
+{
+  "$schema": "../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "axis-registry",
+  "schemaVersion": "1.0.0",
+  "axes": [
+    {
+      "id": "viewport",
+      "title": "Viewport",
+      "description": "The rendered viewport size. The only axis the reconciler drives today, and only for two of its four values.",
+      "values": [
+        { "id": "mobile", "description": "Phone portrait.", "params": { "width": 390, "height": 844 } },
+        { "id": "tablet", "description": "Tablet portrait.", "params": { "width": 834, "height": 1112 } },
+        { "id": "desktop", "description": "Laptop / standard desktop window.", "params": { "width": 1280, "height": 720 } },
+        { "id": "wide", "description": "Large desktop, wall display, or kiosk.", "params": { "width": 1920, "height": 1080 } }
+      ],
+      "default": "desktop",
+      "mechanism": { "kind": "bas-browser-profile", "detail": "FingerprintSettings.viewport_width / viewport_height", "engineWorkRequired": false },
+      "notes": "reconcile.DefaultCaptureProfiles currently hardcodes desktop 1280x720 and mobile 390x844. Tablet and wide are declared but never captured."
+    },
+    {
+      "id": "color-scheme",
+      "title": "Color scheme",
+      "description": "Light or dark presentation. DESIGN.md makes dark mode first-class, and every kit is required to support both.",
+      "values": [
+        { "id": "light", "description": "Light surfaces with optional dark shell chrome." },
+        { "id": "dark", "description": "Deep slate operational presentation." }
+      ],
+      "default": "light",
+      "mechanism": { "kind": "bas-browser-profile", "detail": "FingerprintSettings.color_scheme", "engineWorkRequired": false },
+      "notes": "Available in the engine and already exercised by ui/scripts/preview-e2e.mjs, which captures every example frame in both schemes. The experience reconciler simply never asks — the cheapest axis to wire."
+    },
+    {
+      "id": "locale",
+      "title": "Locale",
+      "description": "Language and writing direction. Chosen values cover the three failure modes that break layouts: direction reversal, CJK line breaking, and text expansion.",
+      "values": [
+        { "id": "en", "description": "Baseline left-to-right.", "params": { "tag": "en-US", "direction": "ltr" } },
+        { "id": "ar", "description": "Right-to-left; flips horizontal reading-order expectations.", "params": { "tag": "ar", "direction": "rtl" } },
+        { "id": "ja", "description": "CJK line breaking and character width.", "params": { "tag": "ja", "direction": "ltr" } },
+        { "id": "de", "description": "Text expansion; typically 20-35% longer than English.", "params": { "tag": "de", "direction": "ltr" } }
+      ],
+      "default": "en",
+      "mechanism": { "kind": "bas-browser-profile", "detail": "FingerprintSettings.locale", "engineWorkRequired": false },
+      "notes": "scenario-experience-spec Claim already carries a `locales` scoping field, and its reading-order claim type is documented as direction-aware. The contract anticipated this axis; only the runner is missing."
+    },
+    {
+      "id": "interaction-state",
+      "title": "Interaction state",
+      "description": "The pointer and focus condition of an element at capture time. Without this axis no claim about hover, focus, or press appearance can ever be machine-tier.",
+      "values": [
+        { "id": "rest", "description": "No pointer or keyboard interaction." },
+        { "id": "hover", "description": "Pointer is over the element." },
+        { "id": "focus-visible", "description": "Element holds keyboard focus and the focus ring is shown." },
+        { "id": "pressed", "description": "Element is actively being activated." },
+        { "id": "disabled", "description": "Element is present but not operable." }
+      ],
+      "default": "rest",
+      "mechanism": { "kind": "bas-action", "detail": "ACTION_TYPE_HOVER, ACTION_TYPE_FOCUS, then capture", "engineWorkRequired": false },
+      "notes": "Hover and focus are directly available. `pressed` has no press-and-hold action today and may need one. `disabled` is reached through the specimen's own args rather than through an action."
+    },
+    {
+      "id": "orientation",
+      "title": "Orientation",
+      "description": "Device rotation. Distinct from viewport because rotation changes safe-area insets and virtual-keyboard behavior, not only dimensions.",
+      "values": [
+        { "id": "portrait", "description": "Taller than wide." },
+        { "id": "landscape", "description": "Wider than tall." }
+      ],
+      "default": "portrait",
+      "mechanism": { "kind": "bas-action", "detail": "ACTION_TYPE_ROTATE", "engineWorkRequired": false }
+    },
+    {
+      "id": "connectivity",
+      "title": "Connectivity",
+      "description": "Network availability. Required to capture the offline state, which DESIGN.md lists in its state contract and which no scenario currently proves.",
+      "values": [
+        { "id": "online", "description": "Normal connectivity." },
+        { "id": "offline", "description": "No connectivity; queued or degraded behavior applies." },
+        { "id": "degraded", "description": "Slow or intermittent connectivity; loading states persist visibly." }
+      ],
+      "default": "online",
+      "mechanism": { "kind": "bas-action", "detail": "ACTION_TYPE_NETWORK_MOCK", "engineWorkRequired": false }
+    },
+    {
+      "id": "data-shape",
+      "title": "Data shape",
+      "description": "The character of the content a surface is rendered with. Orthogonal to state — a `default` state can hold typical or overflowing data, and so can `partial`. This is the axis that catches components which look correct on curated demo data and fall apart on real records.",
+      "values": [
+        { "id": "empty", "description": "No records." },
+        { "id": "typical", "description": "Representative content of ordinary length and completeness." },
+        { "id": "overflow", "description": "Long strings, missing optional fields, and values that stress the layout." },
+        { "id": "volume", "description": "Enough records to exercise virtualization and scroll behavior." },
+        { "id": "failure", "description": "A collection containing failed or degraded records among successful ones." }
+      ],
+      "default": "typical",
+      "mechanism": { "kind": "fixture-selection", "detail": "catalog fixture asset selected per capture target", "engineWorkRequired": true },
+      "notes": "Promotes the generalized dimensions axis parked in the 2026-07-04 DECISIONS entry on x-display-mode, which named a third orthogonal-dimension case as its revisit trigger. Depends on the fixture asset kind, which does not exist yet."
+    },
+    {
+      "id": "density",
+      "title": "Density",
+      "description": "Comfortable or compact presentation. An application preference rather than a browser condition, so it is set through the harness rather than the engine.",
+      "values": [
+        { "id": "comfortable", "description": "Default spacing." },
+        { "id": "compact", "description": "Reduced spacing for dense operational panels." }
+      ],
+      "default": "comfortable",
+      "mechanism": { "kind": "harness-preference", "detail": "UIProvider density preference", "engineWorkRequired": true }
+    },
+    {
+      "id": "motion-preference",
+      "title": "Motion preference",
+      "description": "Whether the user has asked for reduced motion. Every transition class in a kit motion table declares reduced-motion behavior, and none of it can be verified without this axis.",
+      "values": [
+        { "id": "no-preference", "description": "Full motion." },
+        { "id": "reduce", "description": "Reduced motion; durations collapse and only opacity transitions remain." }
+      ],
+      "default": "no-preference",
+      "mechanism": { "kind": "cdp-emulation", "detail": "Emulation.setEmulatedMedia prefers-reduced-motion", "engineWorkRequired": true }
+    },
+    {
+      "id": "forced-colors",
+      "title": "Forced colors",
+      "description": "Operating-system high-contrast mode, which replaces the palette entirely and exposes components that encode meaning in color alone.",
+      "values": [
+        { "id": "none", "description": "Application palette applies." },
+        { "id": "active", "description": "System palette overrides; only structure and text survive." }
+      ],
+      "default": "none",
+      "mechanism": { "kind": "cdp-emulation", "detail": "Emulation.setEmulatedMedia forced-colors", "engineWorkRequired": true }
+    },
+    {
+      "id": "text-scale",
+      "title": "Text scale",
+      "description": "User font-size scaling. WCAG 1.4.4 requires content to remain usable at 200%, which DESIGN.md echoes in its support for user font-size scaling.",
+      "values": [
+        { "id": "base", "description": "Default text size." },
+        { "id": "double", "description": "200% text scaling.", "params": { "percent": 200 } }
+      ],
+      "default": "base",
+      "mechanism": { "kind": "cdp-emulation", "detail": "root font-size override or Emulation page scale", "engineWorkRequired": true }
+    },
+    {
+      "id": "pointer",
+      "title": "Pointer capability",
+      "description": "Pointer precision and hover availability. Determines whether hover-only affordances are reachable at all, which DESIGN.md explicitly forbids relying on.",
+      "values": [
+        { "id": "fine-hover", "description": "Mouse or trackpad with hover." },
+        { "id": "coarse-no-hover", "description": "Touch input with no hover state." }
+      ],
+      "default": "fine-hover",
+      "mechanism": { "kind": "cdp-emulation", "detail": "Emulation.setTouchEmulationEnabled plus pointer/hover media features", "engineWorkRequired": true },
+      "notes": "The user-agent half is available through FingerprintSettings.user_agent_preset, but the pointer and hover media features that CSS actually keys off are not."
+    },
+    {
+      "id": "permission",
+      "title": "Permission grant state",
+      "description": "Whether a browser permission the asset depends on has been granted, denied, or not yet decided. The asset declares which permission it needs; this axis varies the grant state.",
+      "values": [
+        { "id": "granted", "description": "Permission granted." },
+        { "id": "denied", "description": "Permission refused; the asset must degrade legibly." },
+        { "id": "prompt", "description": "Not yet decided; the asset must explain why it is asking." }
+      ],
+      "default": "granted",
+      "mechanism": { "kind": "cdp-emulation", "detail": "Browser.grantPermissions / resetPermissions", "engineWorkRequired": true },
+      "notes": "Which permission is under test comes from the asset (a microphone component tests microphone), so this axis carries grant state only. VoiceInputButton is the first asset in the catalog that needs it."
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.time-picker",
+    "name": "TimePicker",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The localized time field with direct entry, selectable increments, optional seconds, timezone context, constraints, and keyboard-friendly adjustment.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.input",
+        "reason": "Direct entry shares field presentation."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "Twelve- or twenty-four-hour presentation is locale-specific."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "date-time-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation"
+  ],
+  "requiredStates": [
+    "default",
+    "validation-error"
+  ]
+}

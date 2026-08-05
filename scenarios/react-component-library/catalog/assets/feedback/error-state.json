@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "feedback.error-state",
+    "name": "ErrorState",
+    "kind": "component",
+    "domain": "feedback",
+    "description": "The recoverable failure composition with a plain-language explanation, a diagnostic-detail policy, retry, alternative actions, and support context that leaks nothing sensitive.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "primitives.text",
+        "reason": "Copy uses the shared text styles rather than local typography."
+      },
+      {
+        "asset": "primitives.stack",
+        "reason": "Layout uses the shared spacing ramp."
+      },
+      {
+        "asset": "controls.button",
+        "reason": "Actions are shared buttons so affordances look and behave the same everywhere."
+      },
+      {
+        "asset": "primitives.status-indicator",
+        "reason": "Certainty and urgency treatment is shared rather than reinvented per surface."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "recovery-path",
+    "contrast-floor",
+    "content-reflow",
+    "text-scale-resilience",
+    "empty-state-craft",
+    "responsive-transformation",
+    "error-message-usefulness",
+    "error-honesty",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "request-error",
+    "retry"
+  ]
+}

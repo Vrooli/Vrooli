@@ -24,7 +24,7 @@ func ResolveCapturesRoot(log *logrus.Logger) string {
 		return value
 	}
 
-	if resolved := resolveScenarioStoragePath("captures", ""); resolved != "" {
+	if resolved := resolveScenarioStoragePath("captures"); resolved != "" {
 		return resolved
 	}
 

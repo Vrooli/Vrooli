@@ -1,0 +1,62 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "forms.dropzone",
+    "name": "Dropzone",
+    "kind": "component",
+    "domain": "forms",
+    "description": "The drag-and-drop upload surface handling nested drag depth, validation, previews, per-file progress, cancellation, retry, keyboard-accessible selection, and a directory policy.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.file-input",
+        "reason": "Selection, validation, and adapter integration are shared."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Drag state and per-file outcomes are announced."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "upload-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "gesture-alternative",
+    "status-announced",
+    "recovery-path",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "success",
+    "validation-error",
+    "request-error",
+    "offline",
+    "retry"
+  ]
+}

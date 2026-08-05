@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Pane(_message.Message):
-    __slots__ = ("session_id", "name", "header_color", "theme_id", "font_size", "sort_order", "group_id", "supports_messages_view", "created_at", "updated_at")
+    __slots__ = ("session_id", "name", "header_color", "theme_id", "font_size", "sort_order", "group_id", "supports_messages_view", "manually_unread", "created_at", "updated_at")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     HEADER_COLOR_FIELD_NUMBER: _ClassVar[int]
@@ -16,6 +16,7 @@ class Pane(_message.Message):
     SORT_ORDER_FIELD_NUMBER: _ClassVar[int]
     GROUP_ID_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_MESSAGES_VIEW_FIELD_NUMBER: _ClassVar[int]
+    MANUALLY_UNREAD_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     session_id: str
@@ -26,9 +27,10 @@ class Pane(_message.Message):
     sort_order: int
     group_id: str
     supports_messages_view: bool
+    manually_unread: bool
     created_at: str
     updated_at: str
-    def __init__(self, session_id: _Optional[str] = ..., name: _Optional[str] = ..., header_color: _Optional[str] = ..., theme_id: _Optional[str] = ..., font_size: _Optional[int] = ..., sort_order: _Optional[int] = ..., group_id: _Optional[str] = ..., supports_messages_view: _Optional[bool] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+    def __init__(self, session_id: _Optional[str] = ..., name: _Optional[str] = ..., header_color: _Optional[str] = ..., theme_id: _Optional[str] = ..., font_size: _Optional[int] = ..., sort_order: _Optional[int] = ..., group_id: _Optional[str] = ..., supports_messages_view: _Optional[bool] = ..., manually_unread: _Optional[bool] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
 class Group(_message.Message):
     __slots__ = ("id", "name", "color", "sort_order", "is_collapsed", "created_at", "updated_at")
@@ -75,7 +77,7 @@ class SaveLayoutResponse(_message.Message):
     def __init__(self) -> None: ...
 
 class UpdatePaneRequest(_message.Message):
-    __slots__ = ("session_id", "name", "has_name", "header_color", "has_header_color", "theme_id", "has_theme_id", "font_size", "has_font_size", "sort_order", "has_sort_order", "group_id", "has_group_id", "supports_messages_view", "has_supports_messages_view")
+    __slots__ = ("session_id", "name", "has_name", "header_color", "has_header_color", "theme_id", "has_theme_id", "font_size", "has_font_size", "sort_order", "has_sort_order", "group_id", "has_group_id", "supports_messages_view", "has_supports_messages_view", "manually_unread", "has_manually_unread")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     HAS_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -91,6 +93,8 @@ class UpdatePaneRequest(_message.Message):
     HAS_GROUP_ID_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_MESSAGES_VIEW_FIELD_NUMBER: _ClassVar[int]
     HAS_SUPPORTS_MESSAGES_VIEW_FIELD_NUMBER: _ClassVar[int]
+    MANUALLY_UNREAD_FIELD_NUMBER: _ClassVar[int]
+    HAS_MANUALLY_UNREAD_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     name: str
     has_name: bool
@@ -106,7 +110,9 @@ class UpdatePaneRequest(_message.Message):
     has_group_id: bool
     supports_messages_view: bool
     has_supports_messages_view: bool
-    def __init__(self, session_id: _Optional[str] = ..., name: _Optional[str] = ..., has_name: _Optional[bool] = ..., header_color: _Optional[str] = ..., has_header_color: _Optional[bool] = ..., theme_id: _Optional[str] = ..., has_theme_id: _Optional[bool] = ..., font_size: _Optional[int] = ..., has_font_size: _Optional[bool] = ..., sort_order: _Optional[int] = ..., has_sort_order: _Optional[bool] = ..., group_id: _Optional[str] = ..., has_group_id: _Optional[bool] = ..., supports_messages_view: _Optional[bool] = ..., has_supports_messages_view: _Optional[bool] = ...) -> None: ...
+    manually_unread: bool
+    has_manually_unread: bool
+    def __init__(self, session_id: _Optional[str] = ..., name: _Optional[str] = ..., has_name: _Optional[bool] = ..., header_color: _Optional[str] = ..., has_header_color: _Optional[bool] = ..., theme_id: _Optional[str] = ..., has_theme_id: _Optional[bool] = ..., font_size: _Optional[int] = ..., has_font_size: _Optional[bool] = ..., sort_order: _Optional[int] = ..., has_sort_order: _Optional[bool] = ..., group_id: _Optional[str] = ..., has_group_id: _Optional[bool] = ..., supports_messages_view: _Optional[bool] = ..., has_supports_messages_view: _Optional[bool] = ..., manually_unread: _Optional[bool] = ..., has_manually_unread: _Optional[bool] = ...) -> None: ...
 
 class UpdatePaneResponse(_message.Message):
     __slots__ = ("pane",)

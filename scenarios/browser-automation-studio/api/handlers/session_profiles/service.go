@@ -157,7 +157,16 @@ func hasActualStorage(storageState []byte) bool {
 }
 
 func browserProfileToStruct(bp *sessionprofilepersistence.BrowserProfile) (*structpb.Struct, error) {
-	raw, err := json.Marshal(bp)
+	// Browser profile settings are useful operator metadata, but proxy
+	// credentials are protected session material and must not cross the API.
+	copy := *bp
+	if bp.Proxy != nil {
+		proxy := *bp.Proxy
+		proxy.Username = ""
+		proxy.Password = ""
+		copy.Proxy = &proxy
+	}
+	raw, err := json.Marshal(&copy)
 	if err != nil {
 		return nil, err
 	}

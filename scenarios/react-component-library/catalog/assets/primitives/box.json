@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.box",
+    "name": "Box",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "The token-aware polymorphic layout primitive for the narrow set of cases where no semantic higher-level primitive fits, deliberately unopinionated about everything except which values are legal.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "ramp-conformance"
+  ],
+  "rationale": "Included reluctantly. A Box is an escape hatch, and its presence should stay rare enough that its usage count is a meaningful signal about missing primitives."
+}

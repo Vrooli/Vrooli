@@ -1,8 +1,8 @@
 /**
  * App tests — composition smoke + route resolution.
  *
- * Asserts: (1) the operational shell mounts around the dashboard,
- * (2) dashboard, catalog, asset detail, and settings routes resolve,
+ * Asserts: (1) the operational shell mounts around the unified catalog,
+ * (2) catalog, asset detail, and settings routes resolve,
  * (3) navigating between routes does not remount the shell.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -45,12 +45,12 @@ describe("App composition", () => {
     emitShortcutIntentMock.mockClear();
   });
 
-  it("mounts the shell on /", async () => {
+  it("mounts the shell and unified catalog on /", async () => {
     renderWithProviders(<App />, { routerEntries: ["/"] });
     await waitFor(() => {
       expect(screen.getByTestId("app-shell")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("dashboard-page")).toBeInTheDocument();
+    expect(screen.getAllByTestId("catalog-browser")).toHaveLength(2);
   });
 
   it("renders the catalog workspace at /catalog", async () => {

@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.multi-step-form-flow",
+    "name": "MultiStepFormFlow",
+    "kind": "pattern",
+    "domain": "patterns",
+    "description": "The resumable multi-step workflow with conditional steps, per-step validation boundaries, progress, back navigation, draft persistence, URL synchronization, and final confirmation.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.form-wizard",
+        "reason": "Step orchestration and validation boundaries are shared."
+      },
+      {
+        "asset": "navigation.step-navigation",
+        "reason": "Step state presentation is shared."
+      },
+      {
+        "asset": "patterns.unsaved-changes-flow",
+        "reason": "Leaving mid-flow is guarded once."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "recovery-path",
+    "input-preservation",
+    "status-announced",
+    "error-honesty",
+    "error-message-usefulness",
+    "keyboard-operable",
+    "focus-order",
+    "responsive-transformation",
+    "offline-behavior",
+    "partial-degradation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "submitting",
+    "success",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ]
+}
