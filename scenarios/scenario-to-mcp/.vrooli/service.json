@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "scenario-to-mcp",
     "displayName": "Scenario to MCP",
@@ -136,11 +139,6 @@
           "description": "Build React dashboard"
         },
         {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o scenario-to-mcp-api .",
           "description": "Build Go API binary"
@@ -211,13 +209,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store MCP registry, endpoint metadata, and usage analytics",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
+        "purpose": "Store MCP registry, endpoint metadata, and usage analytics"
       },
       "redis": {
         "type": "redis",

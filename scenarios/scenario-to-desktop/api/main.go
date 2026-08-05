@@ -232,7 +232,11 @@ func NewServer(port int) *Server {
 	shellFn := procmetrics.ShellFunc(func(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
 		cmd := exec.CommandContext(ctx, name, args...)
 		if len(env) > 0 {
-			cmd.Env = env
+			// Preserve PATH, XAUTHORITY, and the rest of the managed service
+			// environment while overriding display-scoped values. Supplying only
+			// DISPLAY makes xdotool unreliable on headless displays because it
+			// drops the environment needed by the X client stack.
+			cmd.Env = append(os.Environ(), env...)
 		}
 		return cmd.Output()
 	})
@@ -248,6 +252,7 @@ func NewServer(port int) *Server {
 	capturesService, capturesHandler := initCapturesDomain(storePaths, logger)
 	if capturesService != nil {
 		smokeTestService.WithCaptures(capturesService)
+		smokeTestService.WithEvidenceManifestWriter(evidence.NewManifestWriter(capturesService))
 	}
 	if deploymentManagerURL := os.Getenv("DEPLOYMENT_MANAGER_URL"); deploymentManagerURL != "" {
 		smokeTestService.WithEvidenceReporter(evidence.NewConnectReporterFromURL(deploymentManagerURL, nil))

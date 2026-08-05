@@ -92,10 +92,11 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 		}
 	}
 
-	s.finalizeRecording(ctx, smokeTestID, rec.captureID)
+	recordingErr := s.finalizeRecording(ctx, smokeTestID, rec.captureID)
 	if journey != nil {
 		s.reportJourneyEvidence(ctx, smokeTestID, platform, journey)
 	}
+	manifestErr := s.writeEvidenceManifest(ctx, smokeTestID, artifactPath, platform, journey)
 
 	// Process results
 	outputLen := 0
@@ -105,6 +106,12 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 	s.transitionTo(smokeTestID, StateParsingOutput, fmt.Sprintf("%d bytes of output", outputLen))
 	if execErr == nil && evidenceErr != nil {
 		execErr = evidenceErr
+	}
+	if execErr == nil && recordingErr != nil {
+		execErr = recordingErr
+	}
+	if execErr == nil && manifestErr != nil {
+		execErr = manifestErr
 	}
 	s.processResults(smokeTestID, scenarioName, platform, artifactPath, displayCommand, execResult, execErr)
 }
@@ -199,9 +206,9 @@ func (s *DefaultService) resolveTestCommand(smokeTestID, platform, artifactPath,
 }
 
 // finalizeRecording stops the screen recording and stores the result.
-func (s *DefaultService) finalizeRecording(ctx context.Context, smokeTestID, captureID string) {
+func (s *DefaultService) finalizeRecording(ctx context.Context, smokeTestID, captureID string) error {
 	if captureID == "" {
-		return
+		return nil
 	}
 
 	captureResult, err := s.recorder.StopCapture(ctx, captureID)
@@ -210,7 +217,15 @@ func (s *DefaultService) finalizeRecording(ctx context.Context, smokeTestID, cap
 		s.store.Update(smokeTestID, func(status *Status) {
 			status.ScreenRecording = &RecordingStatus{Recorded: false, Error: fmt.Sprintf("capture stop failed: %v", err)}
 		})
-		return
+		return fmt.Errorf("capture finalization failed: %w", err)
+	}
+	inspection, err := screenrecording.InspectVideo(ctx, captureResult.VideoPath)
+	if err != nil {
+		s.logger.Warn("screen_recording_integrity_failed", "smoke_test_id", smokeTestID, "error", err.Error())
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ScreenRecording = &RecordingStatus{Recorded: false, Error: fmt.Sprintf("capture integrity failed: %v", err)}
+		})
+		return fmt.Errorf("capture integrity failed: %w", err)
 	}
 
 	status, ok := s.store.Get(smokeTestID)
@@ -218,24 +233,21 @@ func (s *DefaultService) finalizeRecording(ctx context.Context, smokeTestID, cap
 		s.store.Update(smokeTestID, func(status *Status) {
 			status.ScreenRecording = &RecordingStatus{Error: "screen recording completed but capture storage is unavailable"}
 		})
-		return
+		return fmt.Errorf("capture persistence unavailable")
 	}
-	width, height := 0, 0
-	if status.RecordingConfig != nil {
-		width, height = status.RecordingConfig.DisplayWidth, status.RecordingConfig.DisplayHeight
-	}
-	capture, err := s.captures.SaveCapture(status.ScenarioName, captures.CaptureRecording, "smoke-test:"+smokeTestID, captureResult.VideoPath, width, height, captureResult.DurationMs)
+	capture, err := s.captures.SaveCapture(status.ScenarioName, captures.CaptureRecording, "smoke-test:"+smokeTestID, captureResult.VideoPath, inspection.Width, inspection.Height, inspection.DurationMs)
 	if err != nil {
 		s.logger.Warn("screen_recording_persist_failed", "smoke_test_id", smokeTestID, "error", err.Error())
 		s.store.Update(smokeTestID, func(status *Status) {
 			status.ScreenRecording = &RecordingStatus{Error: fmt.Sprintf("persisting recording evidence: %v", err)}
 		})
-		return
+		return fmt.Errorf("persisting recording evidence: %w", err)
 	}
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.ScreenRecording = &RecordingStatus{Recorded: true, CaptureID: capture.ID, Checksum: capture.Checksum}
 		status.Logs = append(status.Logs, fmt.Sprintf("Screen recording saved as capture %s", capture.ID))
 	})
+	return nil
 }
 
 func (s *DefaultService) validatePreconditions(ctx context.Context, smokeTestID, artifactPath, platform string) bool {
@@ -513,6 +525,43 @@ func (s *DefaultService) recordEvidenceReportFailure(smokeTestID string, err err
 		status.EvidenceReportError = err.Error()
 		status.Logs = append(status.Logs, "Evidence report failed: "+err.Error())
 	})
+}
+
+func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID, artifactPath, platform string, journey *JourneyResult) error {
+	if s.manifestWriter == nil || journey == nil || s.captures == nil {
+		return nil
+	}
+	status, ok := s.store.Get(smokeTestID)
+	if !ok {
+		return fmt.Errorf("read smoke test status for evidence manifest")
+	}
+	items, err := s.captures.Store().List(status.ScenarioName)
+	if err != nil {
+		return fmt.Errorf("list captures for evidence manifest: %w", err)
+	}
+	profile := strings.TrimSpace(os.Getenv("S2D_EVIDENCE_PROFILE"))
+	if profile == "" {
+		profile = "visual"
+	}
+	governanceReported := status.EvidenceReportDisposition == "reported"
+	err = s.manifestWriter.WriteManifest(ctx, EvidenceManifestInput{
+		RunID: smokeTestID, ScenarioName: status.ScenarioName, Platform: platform,
+		ArtifactPath: artifactPath, Profile: profile, StartedAt: status.StartedAt,
+		CompletedAt: time.Now().UTC(), Journey: journey, Captures: items,
+		GovernanceReported: governanceReported,
+	})
+	if err != nil {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.EvidenceReportDisposition = "manifest_failed"
+			status.EvidenceReportError = err.Error()
+			status.Logs = append(status.Logs, "Evidence manifest failed: "+err.Error())
+		})
+		return fmt.Errorf("write evidence manifest: %w", err)
+	}
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.Logs = append(status.Logs, "Evidence manifest persisted")
+	})
+	return nil
 }
 
 // StripSmokeTestFlag removes "--smoke-test" from args so the app launches

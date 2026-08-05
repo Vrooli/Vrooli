@@ -293,7 +293,7 @@ scenario-to-extension/
 │   ├── vanilla/           # Base templates
 │   └── advanced/          # Specialized variants
 ├── prompts/               # AI generation prompts
-├── initialization/        # N8n workflows
+├── api/internal/<domain>/        # N8n workflows
 └── test/                  # Test suites
 ```
 

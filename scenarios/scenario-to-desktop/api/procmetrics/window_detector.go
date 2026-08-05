@@ -128,6 +128,19 @@ func (d *XdotoolDetector) KeyPress(ctx context.Context, display, key string) err
 	return d.run(ctx, display, "key", key)
 }
 
+// Type enters literal text through the active X11 window. It is used by
+// fixture journeys for deterministic semantic input, not as a substitute for
+// application-level assertions.
+func (d *XdotoolDetector) Type(ctx context.Context, display, value string) error {
+	if value == "" {
+		return fmt.Errorf("text is required")
+	}
+	if !d.isXdotoolAvailable(ctx) {
+		return fmt.Errorf("xdotool is not available")
+	}
+	return d.run(ctx, display, "type", "--delay", "20", value)
+}
+
 // WindowGeometry returns the geometry of the largest visible window.
 func (d *XdotoolDetector) WindowGeometry(ctx context.Context, pid int, display string) (*WindowGeometry, error) {
 	id, err := d.primaryWindowID(ctx, pid, display)
@@ -188,7 +201,10 @@ func (d *XdotoolDetector) findVisibleWindowIDs(ctx context.Context, pid int, dis
 	}
 
 	// Fallback: any visible window on the display (handles Electron child processes).
-	stdout, err = d.shell(ctx, env, "xdotool", "search", "--onlyvisible", "--name", "")
+	// xdotool treats an empty --name pattern inconsistently across versions;
+	// use an explicit match-all expression. Geometry and identity checks below
+	// still exclude desktop surfaces.
+	stdout, err = d.shell(ctx, env, "xdotool", "search", "--onlyvisible", "--name", ".*")
 	if err != nil {
 		return nil
 	}
@@ -277,21 +293,18 @@ func (d *XdotoolDetector) usableApplicationWindow(ctx context.Context, display, 
 func (d *XdotoolDetector) windowHasUsableApplicationIdentity(ctx context.Context, display, id string) bool {
 	env := []string{fmt.Sprintf("DISPLAY=%s", display)}
 	nameOutput, nameErr := d.shell(ctx, env, "xdotool", "getwindowname", id)
-	classOutput, classErr := d.shell(ctx, env, "xdotool", "getwindowclassname", id)
-	if nameErr != nil || classErr != nil {
+	if nameErr != nil {
 		return false
 	}
 
 	name := strings.TrimSpace(string(nameOutput))
-	className := strings.TrimSpace(string(classOutput))
-	if name == "" && className == "" {
+	if name == "" {
 		return false
 	}
 	// Openbox/Xvfb desktop surfaces can be reported as visible windows. They
 	// are not evidence of an application launch, even when they cover the
 	// entire display.
-	if strings.EqualFold(name, "desktop") || strings.EqualFold(className, "desktop") ||
-		strings.EqualFold(name, "openbox") || strings.EqualFold(className, "openbox") {
+	if strings.EqualFold(name, "desktop") || strings.EqualFold(name, "openbox") {
 		return false
 	}
 	return true

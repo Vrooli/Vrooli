@@ -225,10 +225,17 @@ $EXECUTABLE --smoke-test
 
 When recording is enabled, capture starts before the demo process starts. After
 the smoke-test process passes, the service keeps the normal app open and runs a
-bounded journey: wait for a visible window, activate it, maximize it, click,
-send Return, resize, move, and close it. Every interaction has a screenshot
-before and after; window actions also persist geometry. The ordered step list
-is stored as a `journey` capture beside the recording and screenshots.
+bounded journey: wait for a usable application window (not the generated
+400x300 splash), activate it, maximize it, run the fixture's semantic action,
+click, send Return, resize, move, and close it. Every interaction has a
+screenshot before and after; window actions also persist geometry. The ordered
+step list is stored as a `journey` capture beside the recording and screenshots.
+
+Hello Desktop is the canonical deterministic fixture. Its journey types a
+run-specific name, activates `Say Hello`, and verifies the test bridge observed
+the exact `Hello, <name>!` state. The semantic step records an assertion ID,
+expected state, and observed state. Generic pointer and keyboard actions remain
+structural diagnostics and cannot replace this application-level assertion.
 
 The journey is `pass` only when Linux, xdotool, a started titlebar-capable
 window manager, a usable application window, successful interactions, and a
@@ -252,6 +259,23 @@ requires a passing journey. A successful `--smoke-test` protocol alone is not
 enough to approve a video: an absent application window, failed journey, or
 missing journey is a smoke-test failure. The recording and journey captures
 are retained so the failed evidence can be diagnosed.
+
+### Capture integrity and manifest
+
+After the recorder stops, the producer runs `ffprobe` and decodes sampled
+frames with FFmpeg. A recording must be a non-empty MP4 with a video stream,
+positive dimensions and duration, and at least one bright application frame
+across the recording; the uniform dark Xvfb desktop and cursor do not satisfy
+that gate. The producer persists a versioned manifest beside the MP4 at
+`<recording>.manifest.json`. It contains the artifact digest, target and
+runner identity, capture checksums and absolute paths, media dimensions and
+duration, journey assertion, and each required gate disposition.
+
+The default local profile is `visual`. `release_visual` additionally requires
+successful reference-only reporting to deployment-manager; unavailable
+governance is never converted into a release pass. Windows and macOS remain
+compile/package results until a native or remote runner executes this same
+visual contract.
 
 ## Success Criteria
 

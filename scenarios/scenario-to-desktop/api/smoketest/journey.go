@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"scenario-to-desktop-api/captures"
@@ -22,6 +25,9 @@ type JourneyStep struct {
 	BeforeCaptureID string                      `json:"before_capture_id,omitempty"`
 	AfterCaptureID  string                      `json:"after_capture_id,omitempty"`
 	Geometry        *procmetrics.WindowGeometry `json:"geometry,omitempty"`
+	AssertionID     string                      `json:"assertion_id,omitempty"`
+	ExpectedState   string                      `json:"expected_state,omitempty"`
+	ObservedState   string                      `json:"observed_state,omitempty"`
 	Error           string                      `json:"error,omitempty"`
 	DegradedReason  string                      `json:"degraded_reason,omitempty"`
 	StartedAt       time.Time                   `json:"started_at"`
@@ -45,14 +51,19 @@ type JourneyResult struct {
 }
 
 const (
-	journeyPass           = "pass"
-	journeyDegraded       = "degraded"
-	journeyFailed         = "failed"
-	journeyStepPass       = "passed"
-	journeyStepFail       = "failed"
-	journeyStepDegraded   = "degraded"
-	journeyStepTimeout    = 10 * time.Second
-	journeyCaptureTimeout = 5 * time.Second
+	journeyPass         = "pass"
+	journeyDegraded     = "degraded"
+	journeyFailed       = "failed"
+	journeyStepPass     = "passed"
+	journeyStepFail     = "failed"
+	journeyStepDegraded = "degraded"
+	// The generated Electron splash is intentionally small (400x300). A
+	// visual journey must wait for the usable application window, otherwise
+	// generic actions can be applied to the splash and falsely look successful.
+	journeyMainWindowMinWidth  = 600
+	journeyMainWindowMinHeight = 400
+	journeyStepTimeout         = 10 * time.Second
+	journeyCaptureTimeout      = 5 * time.Second
 )
 
 func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState) JourneyResult {
@@ -90,8 +101,8 @@ func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, sce
 	visibleCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
 	defer cancel()
 	for {
-		visible, _ := s.windowDetector.HasVisibleWindow(visibleCtx, 0, rec.displayID)
-		if visible {
+		window, _ := s.windowDetector.LargestVisibleWindow(visibleCtx, 0, rec.displayID)
+		if window != nil && window.Width >= journeyMainWindowMinWidth && window.Height >= journeyMainWindowMinHeight {
 			break
 		}
 		select {
@@ -161,6 +172,45 @@ func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, sce
 		journey.Disposition = journeyFailed
 		journey.DegradedReason = "maximize_below_ninety_percent"
 	}
+	if scenarioName == "hello-desktop" {
+		observedState := ""
+		semanticName := "Vrooli-" + strings.ReplaceAll(smokeTestID, "-", "")
+		if len(semanticName) > 24 {
+			semanticName = semanticName[:24]
+		}
+		addInteraction("semantic_greet", "semantic_state_change", func(stepCtx context.Context) error {
+			if err := detector.KeyPress(stepCtx, rec.displayID, "Tab"); err != nil {
+				return err
+			}
+			if err := detector.KeyPress(stepCtx, rec.displayID, "ctrl+a"); err != nil {
+				return err
+			}
+			if err := detector.Type(stepCtx, rec.displayID, semanticName); err != nil {
+				return err
+			}
+			if err := detector.KeyPress(stepCtx, rec.displayID, "Tab"); err != nil {
+				return err
+			}
+			if err := detector.KeyPress(stepCtx, rec.displayID, "Return"); err != nil {
+				return err
+			}
+			observed, err := helloDesktopGreeting(stepCtx, semanticName)
+			observedState = observed
+			if err != nil {
+				return err
+			}
+			select {
+			case <-time.After(500 * time.Millisecond):
+				return nil
+			case <-stepCtx.Done():
+				return stepCtx.Err()
+			}
+		}, false)
+		step := &journey.Steps[len(journey.Steps)-1]
+		step.AssertionID = "hello-desktop.greeting"
+		step.ExpectedState = "Hello, " + semanticName + "!"
+		step.ObservedState = observedState
+	}
 	addInteraction("pointer_click", "pointer_click", func(stepCtx context.Context) error {
 		return detector.Click(stepCtx, rec.displayID, rec.displayWidth/2, rec.displayHeight/2, 1)
 	}, false)
@@ -180,6 +230,45 @@ func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, sce
 		journey.DegradedReason = "interaction_screenshot_pair_missing"
 	}
 	return journey
+}
+
+func helloDesktopGreeting(ctx context.Context, expectedName string) (string, error) {
+	baseURL := strings.TrimRight(os.Getenv("HELLO_DESKTOP_API_URL"), "/")
+	if baseURL == "" {
+		baseURL = "http://127.0.0.1:23100"
+	}
+	parsedBase, err := url.Parse(baseURL)
+	if err != nil || parsedBase.Scheme != "http" || parsedBase.Hostname() != "127.0.0.1" {
+		return "", fmt.Errorf("semantic bridge URL must target loopback HTTP")
+	}
+	parsedBase.Path = "/api/test/last-greeting"
+	query := parsedBase.Query()
+	query.Set("name", expectedName)
+	parsedBase.RawQuery = query.Encode()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedBase.String(), nil) // #nosec G704 -- URL is restricted to the local fixture bridge above.
+	if err != nil {
+		return "", err
+	}
+	response, err := (&http.Client{Timeout: 3 * time.Second}).Do(request) // #nosec G704 -- request target is validated loopback-only.
+	if err != nil {
+		return "", fmt.Errorf("semantic bridge request: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("semantic bridge returned HTTP %d", response.StatusCode)
+	}
+	var payload struct {
+		Name    string `json:"name"`
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		return "", fmt.Errorf("decode semantic bridge response: %w", err)
+	}
+	expectedMessage := "Hello, " + expectedName + "!"
+	if payload.Name != expectedName || payload.Message != expectedMessage {
+		return payload.Message, fmt.Errorf("semantic assertion mismatch: got %q, want %q", payload.Message, expectedMessage)
+	}
+	return payload.Message, nil
 }
 
 func journeyHasScreenshotPairs(steps []JourneyStep) bool {

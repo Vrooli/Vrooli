@@ -77,7 +77,7 @@ func formatAppClassName(appName string) string {
 // ExpandTemplate copies and expands the iOS template
 func (te *TemplateExpander) ExpandTemplate(outputDir string) error {
 	// Get template source directory
-	templateDir := filepath.Join(te.templateRoot(), "initialization", "templates", "ios")
+	templateDir := filepath.Join(te.templateRoot(), "templates", "ios")
 
 	// Verify template exists
 	if _, err := os.Stat(templateDir); os.IsNotExist(err) {
@@ -203,13 +203,13 @@ func getProjectRoot() string {
 		if filepath.Base(wd) == "api" {
 			return filepath.Dir(wd)
 		}
-		// Check if initialization/templates exists in current directory
-		templatePath := filepath.Join(wd, "initialization", "templates", "ios")
+		// Check if the scenario template exists in the current directory
+		templatePath := filepath.Join(wd, "templates", "ios")
 		if _, err := os.Stat(templatePath); err == nil {
 			return wd
 		}
 		// Try parent directory
-		parentPath := filepath.Join(filepath.Dir(wd), "initialization", "templates", "ios")
+		parentPath := filepath.Join(filepath.Dir(wd), "templates", "ios")
 		if _, err := os.Stat(parentPath); err == nil {
 			return filepath.Dir(wd)
 		}

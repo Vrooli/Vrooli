@@ -13,5 +13,4 @@ ui.backup/
 test/artifacts/
 logs/*.lifecycle.log
 data/
-initialization/
 .vrooli/service.json.backup*

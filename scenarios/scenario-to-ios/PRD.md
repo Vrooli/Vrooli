@@ -572,14 +572,14 @@ structure:
     - api/go.mod
     - cli/scenario-to-ios
     - cli/install.sh
-    - initialization/templates/ios/
+    - api/internal/<domain>/templates/ios/
     - scenario-test.yaml
     
   required_dirs:
     - api
     - cli
     - initialization
-    - initialization/templates
+    - api/internal/<domain>/templates
     - templates/ios
 
 resources:
@@ -1038,13 +1038,13 @@ curl -X POST http://localhost:18570/api/v1/ios/build \
 **Validation Evidence**:
 ```bash
 # JSBridge.swift contains fully implemented P1 features:
-grep -A 15 "authenticateWithBiometrics" initialization/templates/ios/project/JSBridge.swift
+grep -A 15 "authenticateWithBiometrics" api/internal/<domain>/templates/ios/project/JSBridge.swift
 # Result: Full LAContext implementation with biometric policy evaluation ✅
 
-grep -A 20 "saveToKeychain" initialization/templates/ios/project/JSBridge.swift
+grep -A 20 "saveToKeychain" api/internal/<domain>/templates/ios/project/JSBridge.swift
 # Result: Complete SecItem API usage for secure storage ✅
 
-grep -A 10 "requestNotificationPermission" initialization/templates/ios/project/JSBridge.swift
+grep -A 10 "requestNotificationPermission" api/internal/<domain>/templates/ios/project/JSBridge.swift
 # Result: UNUserNotificationCenter with APNs registration ✅
 
 # All tests still passing:

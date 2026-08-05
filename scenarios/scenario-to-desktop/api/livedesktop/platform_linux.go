@@ -338,7 +338,7 @@ func waitForLoopbackListener(port int, timeout time.Duration) error {
 func shellExec(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	if len(env) > 0 {
-		cmd.Env = env
+		cmd.Env = append(os.Environ(), env...)
 	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

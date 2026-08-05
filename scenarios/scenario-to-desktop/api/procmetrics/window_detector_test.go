@@ -196,6 +196,38 @@ func TestXdotoolDetector_RejectsFullScreenDesktopBackgroundAsApplication(t *test
 	}
 }
 
+func TestXdotoolDetector_AcceptsWindowWhenClassLookupIsUnsupported(t *testing.T) {
+	shell := func(_ context.Context, _ []string, name string, args ...string) ([]byte, error) {
+		if name == "which" {
+			return []byte("/usr/bin/xdotool"), nil
+		}
+		if name != "xdotool" || len(args) == 0 {
+			return nil, fmt.Errorf("unexpected call: %s %v", name, args)
+		}
+		switch args[0] {
+		case "search":
+			return []byte("111\n"), nil
+		case "getwindowgeometry":
+			return []byte("WINDOW=111\nX=0\nY=0\nWIDTH=1200\nHEIGHT=800\n"), nil
+		case "getwindowname":
+			return []byte("Hello Desktop"), nil
+		case "getwindowclassname":
+			return nil, fmt.Errorf("xdotool: Unknown command: getwindowclassname")
+		default:
+			return nil, fmt.Errorf("unexpected xdotool command: %v", args)
+		}
+	}
+
+	d := NewXdotoolDetector(shell, testLogger())
+	visible, err := d.HasVisibleWindow(context.Background(), 1234, ":99")
+	if err != nil {
+		t.Fatalf("HasVisibleWindow returned error: %v", err)
+	}
+	if !visible {
+		t.Fatal("supported window title should be sufficient when class lookup is unavailable")
+	}
+}
+
 func TestXdotoolDetector_LargestVisibleWindow(t *testing.T) {
 	tests := []struct {
 		name       string

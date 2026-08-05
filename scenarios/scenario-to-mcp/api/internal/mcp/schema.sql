@@ -91,15 +91,15 @@ CREATE TABLE IF NOT EXISTS mcp.templates (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_endpoints_scenario_name ON mcp.endpoints(scenario_name);
-CREATE INDEX idx_endpoints_status ON mcp.endpoints(status);
-CREATE INDEX idx_endpoints_mcp_port ON mcp.endpoints(mcp_port);
-CREATE INDEX idx_tool_usage_endpoint_id ON mcp.tool_usage(endpoint_id);
-CREATE INDEX idx_tool_usage_tool_name ON mcp.tool_usage(tool_name);
-CREATE INDEX idx_tools_endpoint_id ON mcp.tools(endpoint_id);
-CREATE INDEX idx_agent_sessions_scenario ON mcp.agent_sessions(scenario_name);
-CREATE INDEX idx_agent_sessions_status ON mcp.agent_sessions(status);
-CREATE INDEX idx_registry_events_created_at ON mcp.registry_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_endpoints_scenario_name ON mcp.endpoints(scenario_name);
+CREATE INDEX IF NOT EXISTS idx_endpoints_status ON mcp.endpoints(status);
+CREATE INDEX IF NOT EXISTS idx_endpoints_mcp_port ON mcp.endpoints(mcp_port);
+CREATE INDEX IF NOT EXISTS idx_tool_usage_endpoint_id ON mcp.tool_usage(endpoint_id);
+CREATE INDEX IF NOT EXISTS idx_tool_usage_tool_name ON mcp.tool_usage(tool_name);
+CREATE INDEX IF NOT EXISTS idx_tools_endpoint_id ON mcp.tools(endpoint_id);
+CREATE INDEX IF NOT EXISTS idx_agent_sessions_scenario ON mcp.agent_sessions(scenario_name);
+CREATE INDEX IF NOT EXISTS idx_agent_sessions_status ON mcp.agent_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_registry_events_created_at ON mcp.registry_events(created_at DESC);
 
 -- Update timestamp trigger
 CREATE OR REPLACE FUNCTION mcp.update_updated_at_column()
@@ -111,12 +111,15 @@ END;
 $$ language 'plpgsql';
 
 -- Apply update trigger to tables with updated_at
+DROP TRIGGER IF EXISTS update_endpoints_updated_at ON mcp.endpoints;
 CREATE TRIGGER update_endpoints_updated_at BEFORE UPDATE ON mcp.endpoints
     FOR EACH ROW EXECUTE FUNCTION mcp.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_tool_usage_updated_at ON mcp.tool_usage;
 CREATE TRIGGER update_tool_usage_updated_at BEFORE UPDATE ON mcp.tool_usage
     FOR EACH ROW EXECUTE FUNCTION mcp.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_templates_updated_at ON mcp.templates;
 CREATE TRIGGER update_templates_updated_at BEFORE UPDATE ON mcp.templates
     FOR EACH ROW EXECUTE FUNCTION mcp.update_updated_at_column();
 

@@ -135,7 +135,7 @@ scenarios/<target-scenario>/
 
 ## 📊 Database Schema
 
-The PostgreSQL schema (`initialization/storage/postgres/schema.sql`) includes:
+The PostgreSQL schema (`api/internal/<domain>/storage/postgres/schema.sql`) includes:
 - `mcp.endpoints` - Tracks all MCP-enabled scenarios
 - `mcp.tools` - Cached tool definitions from manifests
 - `mcp.tool_usage` - Analytics on tool invocations

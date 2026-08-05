@@ -23,10 +23,12 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	repocontract "github.com/vrooli/repo-contract-go"
+	mcpSchema "scenario-to-mcp/internal/mcp"
 )
 
 type Config struct {
@@ -152,7 +154,12 @@ func (s *Server) Initialize() error {
 		return fmt.Errorf("database connection failed: %w", err)
 	}
 
-	// Set up routes
+	if err := database.EnsureSchemas(context.Background(), s.db, database.SchemaProviderFunc(mcpSchema.Schema)); err != nil {
+		_ = s.db.Close()
+		return fmt.Errorf("database schema initialization failed: %w", err)
+	}
+
+	// Set up routes	// Set up routes
 	s.setupRoutes()
 
 	return nil

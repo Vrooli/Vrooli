@@ -42,6 +42,7 @@ type DefaultService struct {
 	monitorFactory   procmetrics.MonitorFactory
 	windowDetector   *procmetrics.XdotoolDetector
 	evidenceReporter EvidenceReporter
+	manifestWriter   EvidenceManifestWriter
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -141,6 +142,25 @@ type EvidenceReporter interface {
 	ReportJourney(context.Context, EvidenceReportInput) error
 }
 
+// EvidenceManifestWriter persists the producer-owned, reviewable manifest
+// after capture and governance reporting have settled.
+type EvidenceManifestWriter interface {
+	WriteManifest(context.Context, EvidenceManifestInput) error
+}
+
+type EvidenceManifestInput struct {
+	RunID              string
+	ScenarioName       string
+	Platform           string
+	ArtifactPath       string
+	Profile            string
+	StartedAt          time.Time
+	CompletedAt        time.Time
+	Journey            *JourneyResult
+	Captures           []captures.Capture
+	GovernanceReported bool
+}
+
 type EvidenceReportInput struct {
 	ProfileID       string
 	GitCommit       string
@@ -156,6 +176,10 @@ type EvidenceReportInput struct {
 
 func (s *DefaultService) WithEvidenceReporter(reporter EvidenceReporter) {
 	s.evidenceReporter = reporter
+}
+
+func (s *DefaultService) WithEvidenceManifestWriter(writer EvidenceManifestWriter) {
+	s.manifestWriter = writer
 }
 
 // CurrentPlatform returns the current platform identifier.

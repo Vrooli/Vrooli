@@ -99,7 +99,7 @@ scenario-to-ios/
 ├── cli/                      # Command-line interface
 │   ├── scenario-to-ios       # Main CLI executable
 │   └── install.sh            # Installation script
-├── initialization/
+├── api/internal/<domain>/
 │   ├── prompts/              # AI prompts for app generation
 │   │   ├── ios-app-creator.md
 │   │   └── ios-app-debugger.md

@@ -63,7 +63,7 @@
         "runtime_only": true,
         "runtime_only_rationale": "Scenario-to-desktop requests bundled-runtime manifests from Deployment Manager through its external CLI/service boundary; it does not import Deployment Manager code.",
         "version": "1.0.0",
-        "versionRange": "\u003e=1.0.0"
+        "versionRange": ">=1.0.0"
       }
     }
   },
@@ -168,7 +168,7 @@
           },
           "description": "Start Go API server in background",
           "name": "start-api",
-          "run": "cd api \u0026\u0026 ./scenario-to-desktop-api"
+          "run": "cd api && ./scenario-to-desktop-api"
         },
         {
           "background": true,
@@ -177,7 +177,7 @@
           },
           "description": "Start UI server in background (serves ui/dist production bundle)",
           "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js"
+          "run": "cd ui && node server.js"
         }
       ]
     },
@@ -244,7 +244,7 @@
         {
           "description": "Build Go API binary",
           "name": "build-api",
-          "run": "cd api \u0026\u0026 go build -o scenario-to-desktop-api ."
+          "run": "cd api && go build -o scenario-to-desktop-api ."
         },
         {
           "condition": {
@@ -252,7 +252,7 @@
           },
           "description": "Install UI dependencies",
           "name": "install-ui-deps",
-          "run": "cd ui \u0026\u0026 pnpm install --ignore-workspace"
+          "run": "cd ui && pnpm install --ignore-workspace"
         },
         {
           "condition": {
@@ -260,7 +260,7 @@
           },
           "description": "Build production UI with Vite",
           "name": "build-ui",
-          "run": "cd ui \u0026\u0026 pnpm run build"
+          "run": "cd ui && pnpm run build"
         }
       ]
     },
@@ -270,12 +270,12 @@
         {
           "description": "Stop API process",
           "name": "stop-api",
-          "run": "pkill -f \"scenario-to-desktop-api\" || true; sleep 1; pkill -9 -f \"scenario-to-desktop-api\" 2\u003e/dev/null || true"
+          "run": "pkill -f \"scenario-to-desktop-api\" || true; sleep 1; pkill -9 -f \"scenario-to-desktop-api\" 2>/dev/null || true"
         },
         {
           "description": "Stop UI server process",
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/scenario-to-desktop/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop/ui/server.js\" 2\u003e/dev/null || true"
+          "run": "pkill -f \"scenarios/scenario-to-desktop/ui/server.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop/ui/server.js\" 2>/dev/null || true"
         }
       ]
     },
@@ -335,5 +335,32 @@
     "version": "1.0.0"
   },
   "version": "1.0.0",
-  "storage": {"entries":{"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."},"runtime":{"rung":"owned","path":"runtime","kind":"dir","class":"state","regenerable":true,"rationale":"Scenario runtime artifacts observed in the canonical runtime directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."}
+  "storage": {
+    "entries": {
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      },
+      "runtime": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": true,
+        "rationale": "Scenario runtime artifacts observed in the canonical runtime directory.",
+        "subpath": "",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  }
 }
