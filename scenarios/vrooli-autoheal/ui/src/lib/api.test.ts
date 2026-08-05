@@ -1,6 +1,14 @@
 // API client error handling tests
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { APIError, sortChecksForDisplay, type HealthResult } from './api';
+import * as api from './api';
+
+const response = {
+  ok: true,
+  status: 200,
+  json: async () => ({}),
+  blob: async () => new Blob(["{}"], { type: "application/json" }),
+};
 
 describe('[REQ:FAIL-SAFE-001] APIError', () => {
   describe('constructor', () => {
@@ -138,5 +146,83 @@ describe('sortChecksForDisplay', () => {
       'scenario-zeta',
       'ok-a',
     ]);
+  });
+});
+
+describe("API client endpoint wrappers", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+  });
+
+  it("constructs every read and mutation request", async () => {
+    await api.fetchHealth();
+    await api.fetchStatus();
+    await api.fetchPlatform();
+    await api.fetchChecks();
+    await api.runTick();
+    await api.runTick(true);
+    await api.fetchCheckHistory("check/one");
+    await api.fetchTimeline();
+    await api.fetchSystemEvents();
+    await api.fetchSystemEvents({ limit: 3, correlate: true });
+    await api.refreshSystemEvents();
+    await api.fetchUptimeStats();
+    await api.fetchUptimeHistory(2, 3);
+    await api.fetchCheckTrends(2);
+    await api.fetchTransitions(2, 3);
+    await api.fetchIncidents({ status: "open", severity: "critical", type: "manual", limit: 2 });
+    await api.fetchIncident("inc/one");
+    await api.fetchIncidentObservations("inc/one");
+    await api.updateIncidentStatus("inc/one", "resolve", "done");
+    await api.fetchWatchdogStatus(true);
+    await api.fetchWatchdogTemplate();
+    await api.installWatchdog({ useSystemService: true, enableLingering: true });
+    await api.uninstallWatchdog();
+    await api.enableLingering();
+    await api.fetchInstallStatus();
+    await api.fetchCheckActions("resource-postgres");
+    await api.executeAction("resource-postgres", "restart");
+    await api.fetchActionHistory();
+    await api.fetchActionHistory("resource-postgres");
+    await api.fetchConfig();
+    await api.updateConfig({} as Parameters<typeof api.updateConfig>[0]);
+    await api.validateConfig({} as Parameters<typeof api.validateConfig>[0]);
+    await api.fetchConfigSchema();
+    await api.exportConfig();
+    await api.importConfig("{}");
+    await api.fetchDefaults();
+    await api.fetchGlobalConfig();
+    await api.fetchUIConfig();
+    await api.fetchCheckConfig("infra-dns");
+    await api.setCheckEnabled("infra-dns", true);
+    await api.setCheckAutoHeal("infra-dns", false);
+    await api.bulkUpdateChecks("enableAll");
+    await api.fetchMonitoring();
+    await api.updateMonitoring({ scenarios: {}, resources: [] });
+    await api.addScenario("demo", true);
+    await api.removeScenario("demo");
+    await api.setScenarioCritical("demo", false);
+    await api.addResource("redis");
+    await api.removeResource("redis");
+
+    expect(fetch).toHaveBeenCalled();
+  });
+
+  it("classifies status values and check groups", () => {
+    expect(api.isHealthStatus("ok")).toBe(true);
+    expect(api.isHealthStatus("unexpected")).toBe(false);
+    expect(api.normalizeHealthStatus("warning")).toBe("warning");
+    expect(api.normalizeHealthStatus("unexpected", "critical")).toBe("critical");
+    const checks = [
+      { checkId: "a", status: "ok", message: "", timestamp: "", duration: 0 },
+      { checkId: "b", status: "warning", message: "", timestamp: "", duration: 0 },
+      { checkId: "c", status: "critical", message: "", timestamp: "", duration: 0 },
+    ] as HealthResult[];
+    expect(Object.keys(api.groupChecksByStatus(checks))).toHaveLength(3);
+    expect(api.sortChecksBySeverity(checks)[0]?.status).toBe("critical");
+    expect(api.overallStatusFromSummary({ total: 1, ok: 0, warning: 1, critical: 0 })).toBe("warning");
+    expect(api.overallStatusFromSummary({ total: 1, ok: 1, warning: 0, critical: 0 })).toBe("ok");
+    expect(api.statusToEmoji("ok")).toBe("✓");
+    expect(api.statusToEmoji("critical")).toBe("✗");
   });
 });

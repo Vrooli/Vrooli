@@ -234,16 +234,7 @@ func openBenchDB(b *testing.B) *sql.DB {
 	b.Cleanup(func() { _ = db.Close() })
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
-	wd, err := os.Getwd()
-	if err != nil {
-		b.Fatalf("getwd: %v", err)
-	}
-	schemaPath := filepath.Join(wd, "..", "..", "..", "initialization", "sqlite", "schema.sql")
-	schemaBytes, err := os.ReadFile(schemaPath)
-	if err != nil {
-		b.Fatalf("read schema: %v", err)
-	}
-	if _, err := db.Exec(string(schemaBytes)); err != nil {
+	if _, err := db.Exec(Schema()); err != nil {
 		b.Fatalf("apply schema: %v", err)
 	}
 	return db

@@ -3,8 +3,6 @@ package persistence
 import (
 	"context"
 	"database/sql"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -17,18 +15,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// productionSchemaPath returns the path to the canonical SQLite schema file.
-// Tests load the same schema the runtime uses so that index-defeating query
-// regressions are caught here instead of at deploy time.
-func productionSchemaPath(t *testing.T) string {
+// productionSchema returns the same embedded SQLite schema used by runtime.
+func productionSchema(t *testing.T) string {
 	t.Helper()
-	// store_sqlite_test.go lives at scenarios/vrooli-autoheal/api/internal/persistence/
-	// schema lives at  scenarios/vrooli-autoheal/initialization/sqlite/schema.sql
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("os.Getwd() error = %v", err)
-	}
-	return filepath.Join(wd, "..", "..", "..", "initialization", "sqlite", "schema.sql")
+	return Schema()
 }
 
 func TestSQLiteStore_SaveAndReadHealthResults(t *testing.T) {
@@ -621,11 +611,7 @@ func openSQLiteTestDB(t *testing.T) *sql.DB {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	schemaBytes, err := os.ReadFile(productionSchemaPath(t))
-	if err != nil {
-		t.Fatalf("read production schema error = %v", err)
-	}
-	if _, err := db.Exec(string(schemaBytes)); err != nil {
+	if _, err := db.Exec(productionSchema(t)); err != nil {
 		t.Fatalf("apply production schema error = %v", err)
 	}
 

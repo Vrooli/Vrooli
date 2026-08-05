@@ -1,10 +1,10 @@
 // CheckTrendGrid component tests
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { CheckTrendGrid } from "./CheckTrendGrid";
 import type { CheckTrend, TimelineEvent } from "../../../lib/api";
-import { createCheckTrend, createTimelineEvent } from "../../../test-utils";
+import { createCheckTrend, createTimelineEvent, renderWithProviders } from "../../../test-utils";
 
 vi.mock("../../../shared/contexts/CheckMetadataContext", async () => {
   const { useMockCheckMetadata } = await import(
@@ -36,7 +36,7 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
     ];
 
     it("renders check trends", () => {
-      render(<CheckTrendGrid trends={mockTrends} />);
+      renderWithProviders(<CheckTrendGrid trends={mockTrends} />);
 
       expect(screen.getByTestId("autoheal-trends-check-grid")).toBeInTheDocument();
       expect(screen.getByText("check-1")).toBeInTheDocument();
@@ -44,21 +44,21 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
     });
 
     it("displays total check counts", () => {
-      render(<CheckTrendGrid trends={mockTrends} />);
+      renderWithProviders(<CheckTrendGrid trends={mockTrends} />);
 
       expect(screen.getByText("100")).toBeInTheDocument();
       expect(screen.getByText("50")).toBeInTheDocument();
     });
 
     it("displays uptime percentages", () => {
-      render(<CheckTrendGrid trends={mockTrends} />);
+      renderWithProviders(<CheckTrendGrid trends={mockTrends} />);
 
       expect(screen.getByText("95%")).toBeInTheDocument();
       expect(screen.getByText("50%")).toBeInTheDocument();
     });
 
     it("applies correct color classes for uptime", () => {
-      render(<CheckTrendGrid trends={mockTrends} />);
+      renderWithProviders(<CheckTrendGrid trends={mockTrends} />);
 
       // Default sort is uptime ascending, so 50% appears before 95%.
       const uptimeElements = screen.getAllByText(/\d+%/);
@@ -68,7 +68,7 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
 
     it("calls onCheckClick when row is clicked", () => {
       const onCheckClick = vi.fn();
-      render(<CheckTrendGrid trends={mockTrends} onCheckClick={onCheckClick} />);
+      renderWithProviders(<CheckTrendGrid trends={mockTrends} onCheckClick={onCheckClick} />);
 
       fireEvent.click(screen.getByText("check-1"));
       expect(onCheckClick).toHaveBeenCalledWith("check-1");
@@ -76,7 +76,7 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
 
     it("adds cursor-pointer class when onCheckClick provided", () => {
       const onCheckClick = vi.fn();
-      render(<CheckTrendGrid trends={mockTrends} onCheckClick={onCheckClick} />);
+      renderWithProviders(<CheckTrendGrid trends={mockTrends} onCheckClick={onCheckClick} />);
 
       const row = screen.getByTitle("check-1").closest("tr");
       expect(row).toBeTruthy();
@@ -85,7 +85,7 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
 
     it("handles keyboard navigation", () => {
       const onCheckClick = vi.fn();
-      render(<CheckTrendGrid trends={mockTrends} onCheckClick={onCheckClick} />);
+      renderWithProviders(<CheckTrendGrid trends={mockTrends} onCheckClick={onCheckClick} />);
 
       const row = screen.getByTitle("check-1").closest("tr");
       expect(row).toBeDefined();
@@ -120,14 +120,14 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
     ];
 
     it("computes trends from events when no backend trends", () => {
-      render(<CheckTrendGrid events={mockEvents} />);
+      renderWithProviders(<CheckTrendGrid events={mockEvents} />);
 
       expect(screen.getByText("event-check")).toBeInTheDocument();
       expect(screen.getByText("3")).toBeInTheDocument();
     });
 
     it("calculates correct uptime from events", () => {
-      render(<CheckTrendGrid events={mockEvents} />);
+      renderWithProviders(<CheckTrendGrid events={mockEvents} />);
 
       // 2 ok out of 3 = 67%
       expect(screen.getByText("67%")).toBeInTheDocument();
@@ -136,13 +136,13 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
 
   describe("empty state", () => {
     it("shows empty message when no data", () => {
-      render(<CheckTrendGrid trends={[]} events={[]} />);
+      renderWithProviders(<CheckTrendGrid trends={[]} events={[]} />);
 
       expect(screen.getByText(/no check data available/i)).toBeInTheDocument();
     });
 
     it("shows instruction to run tick", () => {
-      render(<CheckTrendGrid />);
+      renderWithProviders(<CheckTrendGrid />);
 
       expect(screen.getByText(/run a health check tick/i)).toBeInTheDocument();
     });
@@ -168,7 +168,7 @@ describe("[REQ:UI-EVENTS-001] CheckTrendGrid", () => {
         }),
       ];
 
-      render(<CheckTrendGrid trends={trends} events={events} />);
+      renderWithProviders(<CheckTrendGrid trends={trends} events={events} />);
 
       // Should show backend check, not event check
       expect(screen.getByText("backend-check")).toBeInTheDocument();

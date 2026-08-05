@@ -86,7 +86,7 @@ func TestDetectCapabilities(t *testing.T) {
 
 // TestDetectCached verifies caching works correctly
 // [REQ:PLAT-DETECT-003]
-func TestDetectCached(t *testing.T) {
+func TestDetectCollectsFreshViews(t *testing.T) {
 	// Note: Because of sync.Once, we can only test that Detect returns non-nil
 	// and returns the same value on repeated calls
 	caps1 := Detect()
@@ -96,8 +96,11 @@ func TestDetectCached(t *testing.T) {
 		t.Fatal("Detect() returned nil")
 	}
 
-	if caps1 != caps2 {
-		t.Error("Detect() should return cached value on subsequent calls")
+	if caps2 == nil {
+		t.Fatal("second Detect() returned nil")
+	}
+	if caps1 == caps2 {
+		t.Error("Detect() should return a fresh view on subsequent calls")
 	}
 }
 

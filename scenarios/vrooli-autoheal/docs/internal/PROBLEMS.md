@@ -122,3 +122,9 @@ _None at initialization_
 React stability pass completed with runtime status normalization and defensive rendering guards. Remaining gap: eslint import cycle rule (import/no-cycle) is not enabled because eslint-plugin-import and eslint-import-resolver-typescript are not present in scenario UI dependencies, and dependency installation was not performed in this pass.
 
 ---
+## Work ladder
+
+- Rung: W0
+- Evidence: no swarm-manager goal named or describing `vrooli-autoheal` was found by the required named-mention search; contract comparison is unverifiable.
+- Blocker: no approved goal to compare against `PRD.md`.
+- Measured: 2026-08-05

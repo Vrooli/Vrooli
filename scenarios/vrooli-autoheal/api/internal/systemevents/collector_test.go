@@ -208,7 +208,10 @@ func TestCollectHistoricalBootNotMarkedOnFailure(t *testing.T) {
 	cursors := NewMemoryCursorStore()
 	c, mock := newKernelCollector(t, cursors)
 	hist := journal.BootRecord{Index: -2, BootID: "flaky"}
-	mock.Responses[cmdKey(kernelGrepArgs("flaky", "", false, currentBootRescanTail))] = checks.MockResponse{Error: errors.New("exit status 1")}
+	// journalctl exits 1 for a successful no-match query. A non-empty output
+	// makes this mock represent an actual command failure, which is the case
+	// this test is intended to protect.
+	mock.Responses[cmdKey(kernelGrepArgs("flaky", "", false, currentBootRescanTail))] = checks.MockResponse{Output: []byte("partial output"), Error: errors.New("permission denied")}
 
 	c.collectHistoricalBootKernelSignals(context.Background(), hist)
 	if scanned, _ := cursors.IsBootScanned(context.Background(), kernelSignalSourceKey, "flaky"); scanned {

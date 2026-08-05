@@ -98,23 +98,18 @@ func TestRegisterDefaultChecks_DifferentPlatforms(t *testing.T) {
 	}
 }
 
-func TestDefaultConstants(t *testing.T) {
-	// Verify default values are sensible
-	if DefaultNetworkTarget == "" {
-		t.Error("DefaultNetworkTarget should not be empty")
-	}
+func TestConfiguredInfrastructureTargets(t *testing.T) {
+	t.Setenv(NetworkTargetEnv, "resolver.test:53")
+	t.Setenv(DNSDomainEnv, "resolver.test")
 
-	if DefaultDNSDomain == "" {
-		t.Error("DefaultDNSDomain should not be empty")
+	networkTarget := configuredInfrastructureValue(NetworkTargetEnv)
+	dnsDomain := configuredInfrastructureValue(DNSDomainEnv)
+	if networkTarget == "" || dnsDomain == "" {
+		t.Fatal("configured infrastructure targets must be non-empty")
 	}
-
-	// Verify network target is a valid host:port format
-	if !containsColon(DefaultNetworkTarget) {
-		t.Errorf("DefaultNetworkTarget %q should be in host:port format", DefaultNetworkTarget)
+	if !containsColon(networkTarget) {
+		t.Errorf("network target %q should be in host:port format", networkTarget)
 	}
-
-	t.Logf("DefaultNetworkTarget: %s", DefaultNetworkTarget)
-	t.Logf("DefaultDNSDomain: %s", DefaultDNSDomain)
 }
 
 func containsColon(s string) bool {

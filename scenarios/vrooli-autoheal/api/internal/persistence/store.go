@@ -15,11 +15,24 @@ import (
 
 // Store handles database operations for health check data.
 type Store struct {
-	db *sql.DB
+	db storeDB
+}
+
+// storeDB is the small database surface used by the persistence layer. Both
+// *sql.DB (isolated unit tests) and api-core's RoutedDB (runtime/test-genie
+// routing) satisfy it.
+type storeDB interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	PrepareContext(context.Context, string) (*sql.Stmt, error)
+	PingContext(context.Context) error
+	Close() error
 }
 
 // NewStore creates a new SQLite-backed persistence store.
-func NewStore(db *sql.DB) *Store {
+func NewStore(db storeDB) *Store {
 	store := &Store{db: db}
 	_ = store.ensureIncidentContractColumns(context.Background())
 	return store

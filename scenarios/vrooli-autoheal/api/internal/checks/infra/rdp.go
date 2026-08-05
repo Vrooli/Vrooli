@@ -15,69 +15,12 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
-// RDPType identifies which RDP implementation is in use
-type RDPType string
-
-const (
-	RDPTypeXrdp        RDPType = "xrdp"
-	RDPTypeGnome       RDPType = "gnome-remote-desktop"
-	RDPTypeTermService RDPType = "TermService"
-	RDPTypeUnknown     RDPType = "unknown"
-)
-
-// RDPServiceInfo describes which RDP service to check on a given platform
-type RDPServiceInfo struct {
-	ServiceName string
-	Type        RDPType
-	Checkable   bool
-	// IsUserSession indicates if the RDP runs as a user session daemon (not systemd)
-	IsUserSession bool
-}
-
-// SelectRDPService is a static helper that determines which RDP service to check
-// based on platform capabilities WITHOUT runtime detection.
-// This is used for tests and static analysis. For actual runtime detection
-// (which checks for running processes), use RDPCheck.detectRDPService().
-//
-// Decision logic:
-//   - Linux with systemd → xrdp service (static fallback)
-//   - Linux without systemd → not checkable
-//   - Windows → TermService (built-in RDP)
-//   - Other platforms → not checkable
-func SelectRDPService(caps *platform.Capabilities) RDPServiceInfo {
-	switch caps.Platform {
-	case platform.Linux:
-		if caps.SupportsSystemd {
-			// Note: Runtime detection in detectRDPService prefers GNOME RDP if running
-			return RDPServiceInfo{
-				ServiceName:   "xrdp",
-				Type:          RDPTypeXrdp,
-				Checkable:     true,
-				IsUserSession: false,
-			}
-		}
-		return RDPServiceInfo{
-			ServiceName: "xrdp",
-			Type:        RDPTypeXrdp,
-			Checkable:   false,
-		}
-	case platform.Windows:
-		return RDPServiceInfo{
-			ServiceName:   "TermService",
-			Type:          RDPTypeTermService,
-			Checkable:     true,
-			IsUserSession: false,
-		}
-	default:
-		return RDPServiceInfo{Checkable: false}
-	}
-}
-
 // RDPCheck verifies RDP service (xrdp, GNOME Remote Desktop, or Windows TermService).
 // Platform capabilities are injected to avoid hidden dependencies and enable testing.
 type RDPCheck struct {
-	caps     *platform.Capabilities
-	executor checks.CommandExecutor
+	caps                 *platform.Capabilities
+	executor             checks.CommandExecutor
+	desiredStateProvider RemoteDesktopIntentProvider
 	// autoLoginUserProvider is the auto-login discovery seam. It reads host
 	// configuration outside the command executor, so it needs its own seam.
 	autoLoginUserProvider func() string
@@ -104,6 +47,15 @@ func WithRDPAutoLoginUserProvider(provider func() string) RDPCheckOption {
 	}
 }
 
+// WithRDPDesiredStateProvider supplies the read-only resolved host contract.
+// Tests inject a fake requirement; production wiring uses the control-plane
+// resolver without giving this check any mutation authority.
+func WithRDPDesiredStateProvider(provider RemoteDesktopIntentProvider) RDPCheckOption {
+	return func(c *RDPCheck) {
+		c.desiredStateProvider = provider
+	}
+}
+
 // NewRDPCheck creates an RDP health check with injected platform capabilities.
 func NewRDPCheck(caps *platform.Capabilities, opts ...RDPCheckOption) *RDPCheck {
 	c := &RDPCheck{
@@ -115,215 +67,6 @@ func NewRDPCheck(caps *platform.Capabilities, opts ...RDPCheckOption) *RDPCheck 
 		opt(c)
 	}
 	return c
-}
-
-// detectRDPService determines which RDP implementation is available on this system.
-// Detection order on Linux:
-//  1. Check if GNOME Remote Desktop is CONFIGURED (via grdctl) - catches crashed daemons
-//  2. Check for running gnome-remote-desktop-daemon process (GNOME 42+ native RDP)
-//  3. Check for xrdp systemd service
-//  4. Fall back to unknown if neither is found
-func (c *RDPCheck) detectRDPService(ctx context.Context) RDPServiceInfo {
-	switch c.caps.Platform {
-	case platform.Linux:
-		// First check if GNOME Remote Desktop is CONFIGURED (not just running)
-		// This catches the case where RDP is enabled but daemon has crashed
-		if c.isGnomeRDPConfigured(ctx) {
-			return RDPServiceInfo{
-				ServiceName:   "gnome-remote-desktop",
-				Type:          RDPTypeGnome,
-				Checkable:     true,
-				IsUserSession: true,
-			}
-		}
-
-		// Then check for xrdp (traditional systemd service)
-		if c.caps.SupportsSystemd {
-			// Check if xrdp is installed/available
-			output, err := c.executor.Output(ctx, "systemctl", "list-unit-files", "xrdp.service")
-			if err == nil && strings.Contains(string(output), "xrdp.service") {
-				return RDPServiceInfo{
-					ServiceName:   "xrdp",
-					Type:          RDPTypeXrdp,
-					Checkable:     true,
-					IsUserSession: false,
-				}
-			}
-		}
-
-		// No RDP service detected - this is OK, not all systems need RDP
-		return RDPServiceInfo{
-			Type:      RDPTypeUnknown,
-			Checkable: false,
-		}
-
-	case platform.Windows:
-		return RDPServiceInfo{
-			ServiceName:   "TermService",
-			Type:          RDPTypeTermService,
-			Checkable:     true,
-			IsUserSession: false,
-		}
-
-	default:
-		return RDPServiceInfo{Checkable: false}
-	}
-}
-
-// CredentialState classifies whether GNOME Remote Desktop holds RDP credentials
-// that a remote client can authenticate against.
-//
-// The three states are deliberately distinct. A daemon that is running and
-// listening still denies every client when its credentials are empty, and the
-// probe itself can fail in a way that looks like success if the credential
-// lines are simply absent from the output. Absence is never read as presence.
-type CredentialState string
-
-const (
-	// CredentialStatePresent means both a username and a password are set.
-	CredentialStatePresent CredentialState = "present"
-	// CredentialStateEmpty means the daemon holds no usable credentials and
-	// will deny every client that reaches authentication.
-	CredentialStateEmpty CredentialState = "empty"
-	// CredentialStateUnreadable means the credential state could not be
-	// determined from the calling context. This never reports OK.
-	CredentialStateUnreadable CredentialState = "unreadable"
-)
-
-// credentialProbeTimeout bounds the grdctl probe. A prior incident on a Vrooli
-// host recorded a command whose pipe was held open by a supervisor and never
-// returned, so every probe in this check carries an explicit deadline.
-const credentialProbeTimeout = 10 * time.Second
-
-// readGnomeRDPCredentialState determines whether GNOME Remote Desktop can
-// authenticate a remote client.
-//
-// grdctl prints the credential lines only when it can reach the session user's
-// D-Bus bus. Without that environment it still prints "Status: enabled" while
-// omitting the credential lines entirely, so a naive grep for "(empty)" yields
-// a false negative from the daemon's own context. The probe therefore runs with
-// an explicit session-bus environment and treats missing lines as unreadable.
-//
-// This never passes --show-credentials and never records a credential value.
-// Only the classified state is returned.
-func (c *RDPCheck) readGnomeRDPCredentialState(ctx context.Context) CredentialState {
-	ctx, cancel := context.WithTimeout(ctx, credentialProbeTimeout)
-	defer cancel()
-
-	env := sessionBusEnv(ctx, c.executor)
-	if len(env) == 0 {
-		// Without a resolvable session bus the credential state is unknowable
-		// from here. Report that honestly rather than guessing.
-		return CredentialStateUnreadable
-	}
-
-	args := append(append([]string{}, env...), "grdctl", "status")
-	output, err := c.executor.CombinedOutput(ctx, "env", args...)
-	if err != nil && len(output) == 0 {
-		return CredentialStateUnreadable
-	}
-
-	return classifyCredentialOutput(string(output))
-}
-
-// classifyCredentialOutput maps grdctl status output onto a CredentialState.
-// It is split out from the probe so the classification is directly testable.
-func classifyCredentialOutput(output string) CredentialState {
-	if strings.Contains(output, "Failed to read credentials") {
-		return CredentialStateUnreadable
-	}
-
-	username, hasUsername := credentialFieldValue(output, "Username:")
-	password, hasPassword := credentialFieldValue(output, "Password:")
-
-	// Missing lines mean the probe could not see the credential store. Never
-	// read absence as presence.
-	if !hasUsername || !hasPassword {
-		return CredentialStateUnreadable
-	}
-
-	if isEmptyCredentialValue(username) || isEmptyCredentialValue(password) {
-		return CredentialStateEmpty
-	}
-
-	return CredentialStatePresent
-}
-
-// credentialFieldValue extracts the value of a `Field: value` line. It reports
-// whether the line was present at all, which is the distinction between the
-// empty and unreadable states.
-func credentialFieldValue(output, field string) (string, bool) {
-	for _, line := range strings.Split(output, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if !strings.HasPrefix(trimmed, field) {
-			continue
-		}
-		return strings.TrimSpace(strings.TrimPrefix(trimmed, field)), true
-	}
-	return "", false
-}
-
-// isEmptyCredentialValue reports whether grdctl signalled an unset credential.
-func isEmptyCredentialValue(value string) bool {
-	return value == "" || value == "(empty)" || value == "(null)"
-}
-
-// denialWindowMinutes is the fixed lookback for the client-denial signal.
-const denialWindowMinutes = 15
-
-// denialProbeTimeout bounds the journal read. A prior incident on a Vrooli host
-// recorded a CombinedOutput call that never returned while a supervisor held
-// the pipe, so this probe carries an explicit deadline.
-const denialProbeTimeout = 15 * time.Second
-
-// credentialDenialMarker is the daemon's message when it refuses a client for
-// want of credentials.
-const credentialDenialMarker = "Credentials are not set, denying client"
-
-// denialCounts reports how many clients the daemon turned away recently.
-type denialCounts struct {
-	// CredentialDenials counts the specific "credentials are not set" refusal.
-	CredentialDenials int
-	// TotalDenials counts every refusal, as a broader secondary signal that
-	// survives a change to the specific message text.
-	TotalDenials int
-	// Readable reports whether the journal could be read at all. A failed read
-	// is not evidence of health.
-	Readable bool
-}
-
-// recentRDPDenials counts clients the GNOME Remote Desktop daemon denied within
-// the lookback window.
-//
-// A zero count is never evidence of health: it usually means nobody attempted a
-// connection. Callers must only use a positive count to raise severity, never a
-// zero count to lower it.
-func (c *RDPCheck) recentRDPDenials(ctx context.Context) denialCounts {
-	ctx, cancel := context.WithTimeout(ctx, denialProbeTimeout)
-	defer cancel()
-
-	entries, err := journal.NewReader(c.executor).QueryLogs(ctx, journal.QueryOpts{
-		UserUnit: []string{"gnome-remote-desktop"},
-		Since:    fmt.Sprintf("%d minutes ago", denialWindowMinutes),
-	})
-	if err != nil {
-		return denialCounts{Readable: false}
-	}
-
-	counts := denialCounts{Readable: true}
-	for _, entry := range entries {
-		message := entry.Message
-		if message == "" {
-			message = entry.Raw
-		}
-		if strings.Contains(message, credentialDenialMarker) {
-			counts.CredentialDenials++
-		}
-		if strings.Contains(message, "denying client") {
-			counts.TotalDenials++
-		}
-	}
-	return counts
 }
 
 // keyringFormatMarker is gnome-keyring-daemon's message when it refuses a
@@ -385,7 +128,7 @@ func (c *RDPCheck) keyringFileLoadable(ctx context.Context, path string) (bool, 
 	ctx, cancel := context.WithTimeout(ctx, keyringJournalTimeout)
 	defer cancel()
 
-	output, err := c.executor.Output(ctx, "vrooli", "credentials", "keyring", "inspect", "--path", path, "--format", "json")
+	output, err := keyringInspectOutput(ctx, path)
 	if err != nil {
 		return false, false
 	}
@@ -448,133 +191,6 @@ func (c *RDPCheck) readKeyringLoadState(ctx context.Context) keyringLoadState {
 	return state
 }
 
-// keyringPathFromMessage extracts the file gnome-keyring named. The operator
-// needs the path to repair the right file on a host with several keyrings.
-func keyringPathFromMessage(message string) string {
-	_, after, found := strings.Cut(message, keyringFormatMarker)
-	if !found {
-		return ""
-	}
-	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(after), ":"))
-}
-
-// corruptKeyringRemedies is the operator path out of an unloadable keyring.
-//
-// Every step is user-scoped. That is the substantive difference from
-// keyringModelRemedies: those two remedies both require root and one of them
-// destroys the operator's session, which is a heavy price for a check to
-// recommend on evidence that turned out to be circumstantial.
-func corruptKeyringRemedies(path string) []string {
-	target := "the keyring file"
-	if path != "" {
-		target = path
-	}
-	return []string{
-		"Run `vrooli credentials keyring inspect` to see which entries gnome-keyring rejected in " + target + ".",
-		"Run `vrooli credentials keyring repair` to rewrite the malformed Vrooli-owned entries. It backs the file up first, declines entries other applications own, and needs no elevated privileges.",
-		"Log out and back in, or reboot, so gnome-keyring-daemon reloads the repaired file.",
-		"Confirm the RDP password survived with `grdctl status`; if it reads (empty), set it again with `grdctl rdp set-credentials <username> <password>`.",
-	}
-}
-
-// repairPendingRemedies is the path for a host whose keyring file is already
-// valid again. Re-running the repair here would be a no-op that reads like
-// progress, so it is deliberately absent from this list.
-func repairPendingRemedies(path string) []string {
-	target := "the keyring file"
-	if path != "" {
-		target = path
-	}
-	return []string{
-		"No further repair is needed: " + target + " parses correctly again.",
-		"Log out and back in, or reboot, so gnome-keyring-daemon reloads it. Until then the running daemon still holds the file in its rejected state, and credential writes will hang on an unlock prompt nobody can answer.",
-		"After logging back in, check `grdctl status`; if the RDP password reads (empty), set it again with `grdctl rdp set-credentials <username> <password>`.",
-	}
-}
-
-// CredentialModel identifies where GNOME Remote Desktop keeps its RDP
-// credentials, which determines whether automated repair is safe at all.
-type CredentialModel string
-
-const (
-	// CredentialModelSystem means credentials live in the root-owned store of
-	// the system gnome-remote-desktop.service. The failure has a deterministic,
-	// non-interactive remedy and a real systemd unit to act on.
-	CredentialModelSystem CredentialModel = "system"
-	// CredentialModelUserSession means credentials live in the user's GNOME
-	// login keyring. Autoheal cannot repair this: unlocking the keyring needs a
-	// secret it must not hold, and writing a fresh password would mean autoheal
-	// minting remote-access credentials on its own initiative.
-	CredentialModelUserSession CredentialModel = "user-session"
-)
-
-// modelProbeTimeout bounds the credential-model probe.
-const modelProbeTimeout = 10 * time.Second
-
-// gnomeRDPCredentialModel reports which credential-storage model this host uses.
-func (c *RDPCheck) gnomeRDPCredentialModel(ctx context.Context) CredentialModel {
-	ctx, cancel := context.WithTimeout(ctx, modelProbeTimeout)
-	defer cancel()
-
-	output, err := c.executor.Output(ctx, "systemctl", "is-enabled", "gnome-remote-desktop.service")
-	if err != nil {
-		return CredentialModelUserSession
-	}
-
-	status := strings.TrimSpace(string(output))
-	if status != "enabled" && status != "static" {
-		return CredentialModelUserSession
-	}
-
-	// The unit exists and is enabled, but that alone does not prove the daemon
-	// runs as a system service. Confirm it is active at the system level.
-	active, err := c.executor.Output(ctx, "systemctl", "is-active", "gnome-remote-desktop.service")
-	if err != nil || strings.TrimSpace(string(active)) != "active" {
-		return CredentialModelUserSession
-	}
-
-	return CredentialModelSystem
-}
-
-// keyringModelRemedies returns the operator remedies for a host whose RDP
-// credentials are locked in an unopened login keyring. Autoheal deliberately
-// does not perform either of these.
-func keyringModelRemedies() []string {
-	return []string{
-		"Disable GDM autologin in /etc/gdm3/custom.conf and log in interactively once, so pam_gnome_keyring unlocks the login keyring with the account password.",
-		"Or migrate this host to the system-level gnome-remote-desktop.service credential store, where credentials do not depend on a user keyring and autoheal can repair the fault automatically.",
-	}
-}
-
-// getAutoLoginUser returns the configured GDM auto-login user through the seam.
-func (c *RDPCheck) getAutoLoginUser() string {
-	if c.autoLoginUserProvider != nil {
-		return c.autoLoginUserProvider()
-	}
-	return autoLoginUser()
-}
-
-// isGnomeRDPRunning checks if gnome-remote-desktop-daemon is running
-func (c *RDPCheck) isGnomeRDPRunning(ctx context.Context) bool {
-	// Check for the process using pgrep
-	output, err := c.executor.Output(ctx, "pgrep", "-f", "gnome-remote-desktop-daemon")
-	if err == nil && len(strings.TrimSpace(string(output))) > 0 {
-		return true
-	}
-	return false
-}
-
-// isGnomeRDPConfigured checks if GNOME Remote Desktop is enabled in settings
-// using grdctl status. This detects configuration even when the daemon isn't running.
-func (c *RDPCheck) isGnomeRDPConfigured(ctx context.Context) bool {
-	output, err := c.executor.Output(ctx, "grdctl", "status")
-	if err != nil {
-		return false
-	}
-	// grdctl status shows "Status: enabled" when RDP is configured
-	return strings.Contains(string(output), "Status: enabled")
-}
-
 func (c *RDPCheck) ID() string    { return "infra-rdp" }
 func (c *RDPCheck) Title() string { return "Remote Desktop" }
 func (c *RDPCheck) Description() string {
@@ -601,6 +217,39 @@ func (c *RDPCheck) Run(ctx context.Context) checks.Result {
 	result.Details["service"] = serviceInfo.ServiceName
 	result.Details["type"] = string(serviceInfo.Type)
 	result.Details["isUserSession"] = serviceInfo.IsUserSession
+
+	if c.desiredStateProvider != nil {
+		intent, err := c.desiredStateProvider(ctx)
+		if err != nil {
+			result.Status = checks.StatusOK
+			result.Message = "Remote desktop is unmanaged because declared intent could not be resolved"
+			result.Details["desiredVerdict"] = RemoteDesktopVerdictUnmanaged
+			result.Details["desiredStateError"] = err.Error()
+			result.Details["note"] = "No recovery action is available until the host requirement resolution is readable"
+			return result
+		}
+		result.Details["desiredExperience"] = intent.Experience
+		result.Details["desiredProvider"] = intent.Provider
+		verdict := remoteDesktopIntentVerdict(intent, serviceInfo)
+		result.Details["desiredVerdict"] = verdict
+		if verdict == RemoteDesktopVerdictUnmanaged {
+			result.Status = checks.StatusOK
+			result.Message = fmt.Sprintf("Remote desktop is unmanaged (observed %s); no recovery action will be taken", observedRemoteDesktopExperience(serviceInfo))
+			return result
+		}
+		if intent.Experience == "observe-only" {
+			result.Status = checks.StatusOK
+			result.Message = fmt.Sprintf("Remote desktop is observe-only (observed %s)", observedRemoteDesktopExperience(serviceInfo))
+			return result
+		}
+		result.Details["observedExperience"] = observedRemoteDesktopExperience(serviceInfo)
+		result.Details["observedProvider"] = observedRemoteDesktopProvider(serviceInfo)
+		if verdict == RemoteDesktopVerdictDrifted && serviceInfo.Checkable {
+			result.Status = checks.StatusWarning
+			result.Message = fmt.Sprintf("Remote desktop drifted: declared %s via %s, observed %s via %s", intent.Experience, intent.Provider, observedRemoteDesktopExperience(serviceInfo), observedRemoteDesktopProvider(serviceInfo))
+			return result
+		}
+	}
 
 	if !serviceInfo.Checkable {
 		// No RDP service detected - this is informational, not a failure
@@ -724,7 +373,7 @@ func (c *RDPCheck) checkGnomeRDP(ctx context.Context, result checks.Result) chec
 		result.Details["recommendations"] = remedies
 		result.Details["safeActions"] = []string{safe}
 		result.Details["postChecks"] = []string{
-			"vrooli credentials keyring inspect",
+			"secrets-manager keyring inspect",
 			"vrooli-autoheal check get infra-rdp",
 		}
 	case credentialFault && credentialModel == CredentialModelUserSession:
@@ -829,6 +478,9 @@ func (c *RDPCheck) checkWindowsTermService(ctx context.Context, result checks.Re
 // RecoveryActions returns available recovery actions for RDP service issues
 // [REQ:HEAL-ACTION-001]
 func (c *RDPCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
+	if !c.desiredStateAllowsRecovery(lastResult) {
+		return nil
+	}
 	// Use cached service info if available, otherwise detect
 	var serviceInfo RDPServiceInfo
 	if c.cachedServiceInfo != nil {
@@ -1208,11 +860,6 @@ func (c *RDPCheck) executeGnomeRDPAction(ctx context.Context, result checks.Acti
 	return result
 }
 
-// findGraphicalSessionUser finds the user who owns the active graphical session
-func (c *RDPCheck) findGraphicalSessionUser(ctx context.Context) string {
-	return seat0SessionUser(ctx, c.executor)
-}
-
 // repairActionTimeout bounds the credential repair action.
 const repairActionTimeout = 60 * time.Second
 
@@ -1276,7 +923,7 @@ func (c *RDPCheck) executeRepairKeyring(ctx context.Context, result checks.Actio
 	ctx, cancel := context.WithTimeout(ctx, repairActionTimeout)
 	defer cancel()
 
-	output, err := c.executor.CombinedOutput(ctx, "vrooli", "credentials", "keyring", "repair")
+	output, err := keyringRepairOutput(ctx, "")
 	result.Output = strings.TrimSpace(string(output))
 	result.Duration = time.Since(start)
 	if err != nil {

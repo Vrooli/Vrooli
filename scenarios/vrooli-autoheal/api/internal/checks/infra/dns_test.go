@@ -362,12 +362,12 @@ func TestDNSCheckExecuteAction_TestExternal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockExec := checks.NewMockExecutor()
-			mockExec.Responses["nslookup google.com 8.8.8.8"] = checks.MockResponse{
+			mockExec.Responses["nslookup google.com resolver.test"] = checks.MockResponse{
 				Output: []byte(tt.cmdOutput),
 				Error:  tt.cmdError,
 			}
 
-			check := NewDNSCheck("google.com", testCaps(), WithDNSExecutor(mockExec))
+			check := NewDNSCheck("google.com", testCaps(), WithDNSExecutor(mockExec), WithExternalDNSServer("resolver.test"))
 			result := check.ExecuteAction(context.Background(), "test-external")
 
 			if result.Success != tt.expectSuccess {

@@ -9,6 +9,8 @@ package bootstrap
 import (
 	"context"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
@@ -16,12 +18,18 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
 
-// Default targets for infrastructure checks - defined here in bootstrap
-// so check implementations stay pure and don't embed operational defaults.
 const (
-	DefaultNetworkTarget = "8.8.8.8:53" // Google DNS for connectivity check
-	DefaultDNSDomain     = "google.com" // Reliable domain for DNS resolution check
+	NetworkTargetEnv     = "AUTOHEAL_NETWORK_TARGET"
+	DNSDomainEnv         = "AUTOHEAL_DNS_DOMAIN"
+	ExternalDNSServerEnv = "AUTOHEAL_EXTERNAL_DNS_SERVER"
 )
+
+// Infrastructure targets belong to lifecycle configuration. Keeping them out
+// of the binary allows deployments to choose a reachable resolver without
+// rebuilding the health supervisor.
+func configuredInfrastructureValue(key string) string {
+	return strings.TrimSpace(os.Getenv(key))
+}
 
 // RegisterDefaultChecks adds all standard health checks to the registry.
 // This centralizes check registration, keeping main.go focused on server setup.

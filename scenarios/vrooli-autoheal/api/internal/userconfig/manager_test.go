@@ -34,8 +34,8 @@ func TestDefaultConfig(t *testing.T) {
 	if !cfg.Monitoring.IsScenarioCritical("vrooli-events") {
 		t.Fatalf("vrooli-events should be monitored as a mandatory critical core scenario")
 	}
-	if _, monitored := cfg.Monitoring.Scenarios["swarm-manager"]; monitored {
-		t.Fatal("swarm-manager must not be monitored by default after retirement")
+	if !cfg.Monitoring.IsScenarioCritical("swarm-manager") {
+		t.Fatal("swarm-manager should be monitored as a mandatory core scenario")
 	}
 }
 

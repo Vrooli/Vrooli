@@ -4,8 +4,10 @@ package checks
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
+	mathrand "math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -325,12 +327,9 @@ func (r *Registry) SetAutoHealPolicy(policy AutoHealPolicy) error {
 // interval window. Checks already seeded from persisted results are left
 // untouched so restart behavior is unchanged.
 //
-// rng may be nil, in which case a time-seeded source is used. Passing a
-// deterministic source makes the spread assertable in tests.
-func (r *Registry) SeedStartupJitter(now time.Time, rng *rand.Rand) {
-	if rng == nil {
-		rng = rand.New(rand.NewSource(time.Now().UnixNano()))
-	}
+// rng may be nil, in which case the operating system entropy source is used.
+// Passing a deterministic source makes the spread assertable in tests.
+func (r *Registry) SeedStartupJitter(now time.Time, rng *mathrand.Rand) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for id, check := range r.checks {
@@ -341,9 +340,30 @@ func (r *Registry) SeedStartupJitter(now time.Time, rng *rand.Rand) {
 		if interval <= 0 {
 			continue
 		}
-		offset := time.Duration(rng.Int63n(int64(interval)))
+		var offset time.Duration
+		if rng != nil {
+			offset = time.Duration(rng.Int63n(int64(interval)))
+		} else {
+			offset = secureJitterOffset(interval)
+		}
 		r.lastRun[id] = now.Add(-offset)
 	}
+}
+
+// secureJitterOffset supplies startup spreading without using a
+// cryptographically-weak PRNG in the production default. Tests can still pass
+// math/rand.Rand to make the schedule deterministic.
+func secureJitterOffset(interval time.Duration) time.Duration {
+	if interval <= 0 {
+		return 0
+	}
+	n, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(interval)))
+	if err != nil {
+		// Jitter is an optimization, not a correctness condition. A stable
+		// midpoint keeps startup safe if the OS entropy source is unavailable.
+		return interval / 2
+	}
+	return time.Duration(n.Int64())
 }
 
 // SetClock sets the time source for cooldown calculations (used by tests).

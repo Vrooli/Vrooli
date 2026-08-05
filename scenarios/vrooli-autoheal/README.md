@@ -104,7 +104,7 @@ make test
 vrooli scenario test vrooli-autoheal
 
 # Quick developer loop
-test-genie execute vrooli-autoheal --preset quick
+vrooli scenario test vrooli-autoheal
 ```
 
 ## Documentation

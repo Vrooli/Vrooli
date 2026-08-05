@@ -2,7 +2,7 @@
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:HEAL-ACTION-001]
 import { Clock, AlertTriangle, CheckCircle2, XCircle, Info } from "lucide-react";
 import { memo, useCallback } from "react";
-import type { KeyboardEvent, MouseEvent } from "react";
+import type { MouseEvent } from "react";
 import { ActionButtons, StatusIcon } from "../../../shared/components";
 import { Card } from "../../../shared/ui/primitives";
 import { Notice } from "../../../shared/ui/composites";
@@ -42,37 +42,20 @@ function CheckCardImpl({ check, onInfoClick, mobileListItem = false }: CheckCard
   // Use title if available, fall back to checkId
   const displayTitle = check.title || check.checkId;
 
-  const handleCardClick = useCallback(() => {
-    if (onInfoClick) {
-      onInfoClick(check.checkId);
-    }
-  }, [check.checkId, onInfoClick]);
-
   const handleInfoClick = useCallback((e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     onInfoClick?.(check.checkId);
   }, [check.checkId, onInfoClick]);
 
-  const handleCardKeyDown = useCallback((e: KeyboardEvent<HTMLElement>) => {
-    if (onInfoClick && (e.key === "Enter" || e.key === " ")) {
-      e.preventDefault();
-      onInfoClick(check.checkId);
-    }
-  }, [check.checkId, onInfoClick]);
-
   return (
     <Card
-      variant={onInfoClick ? "interactive" : "default"}
-      className={`min-w-0 w-full p-4 ${onInfoClick ? "cursor-pointer hover:bg-surface-overlay/60" : ""} ${
+      variant="default"
+      className={`min-w-0 w-full p-4 ${onInfoClick ? "hover:bg-surface-overlay/60" : ""} ${
         mobileListItem
           ? "rounded-none border-x-0 border-t-0 bg-transparent shadow-none first:rounded-t-lg first:border-t last:rounded-b-lg last:border-b sm:rounded-lg sm:border sm:border-border-default/70 sm:bg-surface-elevated/70 sm:shadow-panel"
           : ""
       }`}
       data-testid={selectors.checkCard}
-      onClick={handleCardClick}
-      role={onInfoClick ? "button" : undefined}
-      tabIndex={onInfoClick ? 0 : undefined}
-      onKeyDown={handleCardKeyDown}
     >
       <div className="flex min-w-0 items-start gap-3">
         <StatusIcon status={check.status} />

@@ -36,6 +36,51 @@ func TestBuildVrooliCmd_InjectsNoStaleCheck(t *testing.T) {
 	_ = runtime.GOOS
 }
 
+func TestValidateLocalEndpoint(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want bool
+	}{
+		{name: "localhost", url: "http://localhost:8080/api", want: true},
+		{name: "ipv4 loopback", url: "http://127.0.0.1:8080/api", want: true},
+		{name: "ipv6 loopback", url: "http://[::1]:8080/api", want: true},
+		{name: "remote host", url: "https://example.com/api", want: false},
+		{name: "userinfo", url: "http://user@127.0.0.1:8080/api", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := validateLocalEndpoint(tt.url) == nil; got != tt.want {
+				t.Fatalf("validateLocalEndpoint(%q) accepted = %v, want %v", tt.url, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLocalHealthEndpointValidatesPort(t *testing.T) {
+	for _, test := range []struct {
+		port string
+		want string
+		ok   bool
+	}{
+		{port: "43123", want: "http://localhost:43123/health", ok: true},
+		{port: "0", ok: false},
+		{port: "65536", ok: false},
+		{port: "not-a-port", ok: false},
+	} {
+		got, err := localHealthEndpoint(test.port)
+		if test.ok {
+			if err != nil || got != test.want {
+				t.Fatalf("localHealthEndpoint(%q) = %q, %v; want %q", test.port, got, err, test.want)
+			}
+			continue
+		}
+		if err == nil {
+			t.Fatalf("localHealthEndpoint(%q) unexpectedly accepted %q", test.port, got)
+		}
+	}
+}
+
 func indexOf(s []string, want string) int {
 	for i, v := range s {
 		if v == want {

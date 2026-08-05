@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/bootstrap"
@@ -21,12 +22,16 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	apiHandlers "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/middleware"
 	_ "modernc.org/sqlite"
 )
 
@@ -44,6 +49,12 @@ func main() {
 }
 
 func run() error {
+	primaryFileRoots, err := scenarioStorageRoots()
+	if err != nil {
+		return fmt.Errorf("resolve file storage roots: %w", err)
+	}
+	fileRoots := filerouting.New(primaryFileRoots)
+
 	// Initialize user configuration manager
 	// Config path: ~/.vrooli-autoheal/config.json or VROOLI_AUTOHEAL_CONFIG env var
 	configPath := os.Getenv("VROOLI_AUTOHEAL_CONFIG")
@@ -63,13 +74,16 @@ func run() error {
 	}
 	log.Printf("user config loaded from %s", configMgr.GetConfigPath())
 
-	db, err := connectPersistenceDB(context.Background())
+	db, err := connectPersistenceDB(context.Background(), fileRoots)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	log.Printf("persistence backend selected: sqlite")
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		return initializeSchema(pool)
+	})
 
-	// Initialize database schema (idempotent - uses CREATE TABLE IF NOT EXISTS)
+	// Initialize database schema through the scenario-owned embedded provider.
 	if err := initializeSchema(db); err != nil {
 		log.Printf("warning: schema initialization failed: %v (tables may already exist)", err)
 	}
@@ -136,12 +150,16 @@ func run() error {
 	h.SetSystemEventService(systemEventService)
 	h.SetHistoryRetentionHoursProvider(func() int { return configMgr.GetGlobal().HistoryRetentionHours })
 	configHandlers := apiHandlers.NewConfigHandlers(configMgr, registry)
-	router := setupRouter(h, configHandlers, db)
+	apiRouter := setupRouter(h, configHandlers)
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+	rootMux.Handle("/", apiRouter)
+	handler := middleware.NewSecurityHeadersMiddleware()(apihttp.TestModeMiddleware(rootMux))
 
 	// Retention is declared in .vrooli/service.json and enforced by the
 	// framework. This is the entire integration: no selection rule, no
 	// scheduler, and no cleanup loop lives in this scenario.
-	retentionManager, retentionDB, err := startRetention(context.Background())
+	retentionManager, retentionDB, err := startRetention(context.Background(), fileRoots)
 	if err != nil {
 		return fmt.Errorf("start retention: %w", err)
 	}
@@ -150,7 +168,7 @@ func run() error {
 
 	// Start server with graceful shutdown
 	return server.Run(server.Config{
-		Handler:      handlers.RecoveryHandler()(router),
+		Handler:      handlers.RecoveryHandler()(handler),
 		WriteTimeout: 6 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			// Retention stops first and Stop waits for the in-flight cycle, so
@@ -193,8 +211,8 @@ func run() error {
 // producing events faster than the declared 30-day horizon allows — which is
 // exactly the condition that let this database reach 453 GB while its retention
 // policy ran correctly and deleted nothing.
-func startRetention(ctx context.Context) (*retention.Manager, *sql.DB, error) {
-	retentionDB, err := connectPersistenceDB(ctx)
+func startRetention(ctx context.Context, fileRoots *filerouting.RoutedRoots) (*retention.Manager, *database.RoutedDB, error) {
+	retentionDB, err := connectPersistenceDB(ctx, fileRoots)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open retention database handle: %w", err)
 	}
@@ -238,7 +256,7 @@ func manifestPath() string {
 }
 
 // setupRouter configures HTTP routes
-func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers, db *sql.DB) *mux.Router {
+func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.Router {
 	router := mux.NewRouter()
 	router.Use(loggingMiddleware)
 
@@ -332,30 +350,13 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// initializeSchema runs the database schema initialization script.
-// Uses CREATE TABLE IF NOT EXISTS, making it safe to run on every startup.
-func initializeSchema(db *sql.DB) error {
-	schemaPaths := []string{
-		filepath.Join(filepath.Dir(os.Args[0]), "..", "initialization", "sqlite", "schema.sql"),
-		filepath.Join("initialization", "sqlite", "schema.sql"),
-		filepath.Join("..", "initialization", "sqlite", "schema.sql"),
-	}
-
-	var schemaSQL []byte
-	var err error
-	for _, path := range schemaPaths {
-		schemaSQL, err = os.ReadFile(path)
-		if err == nil {
-			log.Printf("initializing database schema from %s", path)
-			break
-		}
-	}
-	if err != nil {
-		return fmt.Errorf("schema.sql not found in expected locations: %v", schemaPaths)
-	}
-
-	_, err = db.Exec(string(schemaSQL))
-	if err != nil {
+// initializeSchema applies the scenario-owned embedded schema. The provider is
+// shared with tests so runtime and isolated test databases cannot drift.
+func initializeSchema(db interface {
+	database.SchemaExecer
+	database.SchemaQuerier
+}) error {
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(persistence.Schema)); err != nil {
 		return fmt.Errorf("failed to execute schema: %w", err)
 	}
 
@@ -370,8 +371,11 @@ func initializeSchema(db *sql.DB) error {
 // migrateActionLogsAddTimedOut adds the timed_out column to action_logs for
 // databases created before the column existed. Idempotent: a duplicate-column
 // error is treated as success.
-func migrateActionLogsAddTimedOut(db *sql.DB) error {
-	rows, err := db.Query(`PRAGMA table_info(action_logs)`)
+func migrateActionLogsAddTimedOut(db interface {
+	database.SchemaExecer
+	database.SchemaQuerier
+}) error {
+	rows, err := db.QueryContext(context.Background(), `PRAGMA table_info(action_logs)`)
 	if err != nil {
 		return err
 	}
@@ -397,16 +401,16 @@ func migrateActionLogsAddTimedOut(db *sql.DB) error {
 		return nil
 	}
 
-	_, err = db.Exec(`ALTER TABLE action_logs ADD COLUMN timed_out INTEGER NOT NULL DEFAULT 0`)
+	_, err = db.ExecContext(context.Background(), `ALTER TABLE action_logs ADD COLUMN timed_out INTEGER NOT NULL DEFAULT 0`)
 	return err
 }
 
-func connectPersistenceDB(ctx context.Context) (*sql.DB, error) {
-	dsn, err := resolveSQLiteDSN()
+func connectPersistenceDB(ctx context.Context, fileRoots *filerouting.RoutedRoots) (*database.RoutedDB, error) {
+	dsn, err := resolveSQLiteDSN(ctx, fileRoots)
 	if err != nil {
 		return nil, err
 	}
-	db, err := database.Connect(ctx, database.Config{
+	db, err := database.Open(ctx, database.Config{
 		Driver:       "sqlite",
 		DSN:          dsn,
 		MaxOpenConns: 1,
@@ -433,37 +437,59 @@ func connectPersistenceDB(ctx context.Context) (*sql.DB, error) {
 	return db, nil
 }
 
-func resolveSQLiteDSN() (string, error) {
-	if dsn := os.Getenv("SQLITE_PATH"); dsn != "" {
-		return dsn, nil
-	}
-	if dsn := os.Getenv("SQLITE_DB"); dsn != "" {
-		return dsn, nil
-	}
-
+func scenarioStorageRoots() (storage.Paths, error) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		AppID:   "vrooli",
 		Profile: storage.ProfileAuto,
 	})
 	if err != nil {
-		return "", fmt.Errorf("create storage resolver: %w", err)
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
 	}
-	// The variant-aware namespace, not the bare slug: hardcoding the scenario
-	// name here would make a shadow variant read and write live's database, and
-	// would put the retention engine (which resolves through the same helper)
-	// on a different file than the store.
 	scenarioID, err := storage.ScenarioNamespace("vrooli-autoheal")
 	if err != nil {
-		return "", fmt.Errorf("resolve storage namespace: %w", err)
+		return storage.Paths{}, fmt.Errorf("resolve storage namespace: %w", err)
 	}
-	paths, err := storage.EnsureAllDirs(resolver, storage.Options{
-		ScenarioID: scenarioID,
-	}, 0)
+	return storage.EnsureAllDirs(resolver, storage.Options{ScenarioID: scenarioID}, 0)
+}
+
+func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
+	root, err := roots.Pick(ctx, class)
 	if err != nil {
-		return "", fmt.Errorf("ensure storage directories: %w", err)
+		return "", err
+	}
+	return filepath.Join(root, rel), nil
+}
+
+func resolveSQLiteDSN(ctx context.Context, fileRoots *filerouting.RoutedRoots) (string, error) {
+	if dsn := os.Getenv("SQLITE_PATH"); dsn != "" {
+		return ensureSQLiteParent(dsn)
+	}
+	if dsn := os.Getenv("SQLITE_DB"); dsn != "" {
+		return ensureSQLiteParent(dsn)
 	}
 
-	return filepath.Join(paths.DataDir, "autoheal.sqlite"), nil
+	path, err := fileRootPath(ctx, fileRoots, storage.ClassData, "autoheal.sqlite")
+	if err != nil {
+		return "", fmt.Errorf("resolve sqlite data path: %w", err)
+	}
+	return path, nil
+}
+
+// ensureSQLiteParent makes an explicit lifecycle-provided SQLite path usable
+// on a fresh scenario checkout. The lifecycle injects SQLITE_PATH under
+// SCENARIO_DATA_DIR, but that directory is not necessarily materialized until
+// the API starts. Only the resolved parent is created; the database file
+// itself remains owned by the SQLite driver.
+func ensureSQLiteParent(dsn string) (string, error) {
+	path := filepath.Clean(strings.TrimSpace(dsn))
+	if path == "." || path == "" {
+		return "", fmt.Errorf("sqlite path is empty")
+	}
+	parent := filepath.Dir(path)
+	if err := os.MkdirAll(parent, 0o750); err != nil {
+		return "", fmt.Errorf("create sqlite parent directory %q: %w", parent, err)
+	}
+	return path, nil
 }
 
 func applyAutoHealPolicyFromConfig(registry *checks.Registry, global userconfig.GlobalConfig) error {

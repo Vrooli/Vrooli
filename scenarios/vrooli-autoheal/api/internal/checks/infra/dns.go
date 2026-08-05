@@ -16,11 +16,12 @@ import (
 // DNSCheck verifies DNS resolution.
 // Domain is required - operational defaults should be set by the bootstrap layer.
 type DNSCheck struct {
-	domain   string
-	timeout  time.Duration
-	caps     *platform.Capabilities
-	resolver checks.DNSResolver
-	executor checks.CommandExecutor
+	domain            string
+	externalDNSServer string
+	timeout           time.Duration
+	caps              *platform.Capabilities
+	resolver          checks.DNSResolver
+	executor          checks.CommandExecutor
 }
 
 // DNSCheckOption configures a DNSCheck.
@@ -49,6 +50,14 @@ func WithDNSTimeout(timeout time.Duration) DNSCheckOption {
 	}
 }
 
+// WithExternalDNSServer configures the explicit external resolver action.
+// Empty configuration intentionally uses the host resolver path.
+func WithExternalDNSServer(server string) DNSCheckOption {
+	return func(c *DNSCheck) {
+		c.externalDNSServer = server
+	}
+}
+
 // realDNSResolver wraps net.LookupHost for production use.
 type realDNSResolver struct{}
 
@@ -65,7 +74,7 @@ func (r *realDNSResolver) LookupHost(host string) ([]string, error) {
 }
 
 // NewDNSCheck creates a DNS resolution check.
-// The domain parameter is required (e.g., "google.com").
+// The domain parameter is required and supplied by lifecycle configuration.
 // Platform capabilities are optional (for recovery actions).
 // Default timeout is 5 seconds.
 func NewDNSCheck(domain string, caps *platform.Capabilities, opts ...DNSCheckOption) *DNSCheck {
@@ -168,7 +177,7 @@ func (c *DNSCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryA
 		{
 			ID:          "test-external",
 			Name:        "Test External DNS",
-			Description: "Test DNS resolution using Google's public DNS (8.8.8.8)",
+			Description: "Test DNS resolution using the configured external resolver",
 			Dangerous:   false,
 			Available:   true,
 		},
@@ -220,8 +229,13 @@ func (c *DNSCheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 		return result
 
 	case "test-external":
-		// Test DNS resolution using external DNS server
-		output, err := c.executor.CombinedOutput(ctx, "nslookup", c.domain, "8.8.8.8")
+		// Test DNS resolution using the configured external DNS server. When no
+		// server is configured, nslookup uses the host resolver configuration.
+		args := []string{"nslookup", c.domain}
+		if c.externalDNSServer != "" {
+			args = append(args, c.externalDNSServer)
+		}
+		output, err := c.executor.CombinedOutput(ctx, args[0], args[1:]...)
 		result.Duration = time.Since(start)
 		result.Output = string(output)
 

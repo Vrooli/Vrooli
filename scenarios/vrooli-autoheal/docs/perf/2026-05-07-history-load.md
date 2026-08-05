@@ -6,7 +6,7 @@ Operators reported the autoheal dashboard's history endpoints (`/checks/{id}/his
 ## Root cause
 Two compounding issues in `internal/persistence/store_sqlite.go`:
 
-1. **Index-defeating `datetime(...)` wrappers.** Every SQLite read query wrapped `created_at` in `datetime(...)`, which is opaque to the planner. The two indexes defined in `initialization/sqlite/schema.sql` (`idx_health_results_check_id_created`, `idx_health_results_created_at`) could not be used; SQLite did a full table scan + sort on every dashboard call.
+1. **Index-defeating `datetime(...)` wrappers.** Every SQLite read query wrapped `created_at` in `datetime(...)`, which is opaque to the planner. The two indexes defined in `api/internal/<domain>/schema.sql` (`idx_health_results_check_id_created`, `idx_health_results_created_at`) could not be used; SQLite did a full table scan + sort on every dashboard call.
 2. **N+1 in `getUptimeHistorySQLite`.** The function selected all distinct `check_id`s in the window, then issued `bucketCount × N` prepared-statement round-trips — one `LIMIT 1` lookup per (bucket, checkID) pair. With `MaxOpenConns: 1`, those ran strictly sequentially. Each query was a full-table scan because of (1).
 
 `created_at` is stored as `time.RFC3339Nano` UTC, which is lexicographically sortable, so the wrappers were unnecessary in the first place.
@@ -14,7 +14,7 @@ Two compounding issues in `internal/persistence/store_sqlite.go`:
 ## Fix
 - All read queries and the retention sweep compare `created_at` as a string against Go-computed RFC3339Nano cutoffs. EXPLAIN QUERY PLAN now reports `SEARCH … USING INDEX idx_health_results_*` for every read.
 - `getUptimeHistorySQLite` is now a single GROUP BY over `(bucket, status)`, computed via `strftime('%s', created_at)`. Empty buckets are pre-filled in Go, so the response shape is unchanged.
-- `openSQLiteTestDB` now loads `initialization/sqlite/schema.sql` directly so test fixtures match production (with indexes). The previous bare schema masked the planner regression.
+- `openSQLiteTestDB` now loads `api/internal/<domain>/schema.sql` directly so test fixtures match production (with indexes). The previous bare schema masked the planner regression.
 - New regression tests in `store_sqlite_planner_test.go` assert index use via `EXPLAIN QUERY PLAN`, and a source-text scan rejects future re-introduction of `datetime(created_at)`.
 
 ## Semantics note

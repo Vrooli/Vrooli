@@ -196,8 +196,8 @@ Key decision points are extracted into named, testable functions:
 - `CLIStatusToCheckStatus(cliStatus, isCritical)` → Maps CLI status to health check status
 - Stopped indicators checked first (handles "not running" containing "running")
 
-### RDP Service Selection (`infra/rdp.go`)
-- `SelectRDPService(caps)` → Decides which RDP service to check based on platform
+### RDP Service Detection (`infra/rdp_service.go`)
+- `detectRDPService(ctx)` → Detects the configured RDP provider using the shared executor seam
 - Linux with systemd → xrdp service
 - Windows → TermService
 - Other → not checkable

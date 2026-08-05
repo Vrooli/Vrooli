@@ -30,6 +30,10 @@ initSpatialNav();
 // navigation. This guard reloads once (rate-limited) instead.
 installChunkReloadGuard();
 
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  void navigator.serviceWorker.register("./sw.js", { scope: "./" });
+}
+
 if (!rootElement) {
   throw new Error("Root element not found");
 }

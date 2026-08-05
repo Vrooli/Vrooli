@@ -171,7 +171,7 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface-base text-text-primary">
+      <div className="flex min-h-full items-center justify-center bg-surface-base text-text-primary">
         <div className="text-center">
           <RefreshCw className="mx-auto mb-4 animate-spin" size={32} />
           <p className="text-text-muted">Loading health status...</p>
@@ -182,7 +182,7 @@ export default function App() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface-base p-6 text-text-primary">
+      <div className="flex min-h-full items-center justify-center bg-surface-base p-6 text-text-primary">
         <Card className="max-w-md p-8">
           <ErrorDisplay
             error={error}

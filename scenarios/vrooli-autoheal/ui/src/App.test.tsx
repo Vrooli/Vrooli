@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import * as api from './lib/api';
 import { selectors } from './consts/selectors';
@@ -11,6 +11,7 @@ import {
   createStatusResponse,
   createTimelineResponse,
   createUptimeStatsResponse,
+  expectNoA11yViolations,
 } from './test-utils';
 
 vi.mock("./shared/contexts/CheckMetadataContext", async () => {
@@ -21,6 +22,11 @@ vi.mock("./shared/contexts/CheckMetadataContext", async () => {
     useCheckMetadata: useMockCheckMetadata,
   };
 });
+
+vi.mock("./surfaces/trends", () => ({ TrendsSurface: () => <div>Trends surface loaded</div> }));
+vi.mock("./surfaces/timeline", () => ({ TimelineSurface: () => <div>Timeline surface loaded</div> }));
+vi.mock("./surfaces/incidents", () => ({ IncidentsSurface: () => <div>Incidents surface loaded</div> }));
+vi.mock("./surfaces/docs", () => ({ DocsSurface: () => <div>Docs surface loaded</div> }));
 
 // Mock API calls used by App while preserving the rest of the module exports.
 vi.mock('./lib/api', async (importOriginal) => {
@@ -123,6 +129,7 @@ describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default mocks for all API calls - can be overridden in specific tests
+    vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
     vi.mocked(api.fetchChecks).mockResolvedValue(mockChecksMetadata);
     vi.mocked(api.fetchTimeline).mockResolvedValue(mockTimelineResponse);
     vi.mocked(api.fetchUptimeStats).mockResolvedValue(mockUptimeStatsResponse);
@@ -134,6 +141,12 @@ describe('App', () => {
       results: [createHealthResult()],
       timestamp: new Date().toISOString(),
     });
+  });
+
+  it('has no axe-core violations in the default dashboard state', async () => {
+    const { container } = renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByRole('main')).toBeInTheDocument());
+    await expectNoA11yViolations(container);
   });
 
   it('[REQ:UI-HEALTH-001] renders loading state initially', () => {
@@ -246,6 +259,36 @@ describe('App', () => {
     });
   });
 
+  it('shows success feedback after a completed tick', async () => {
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByTestId(selectors.runTickButton)).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId(selectors.runTickButton));
+    await waitFor(() => expect(screen.getByText(/health check completed/i)).toBeInTheDocument());
+  });
+
+  it('explains gateway, API, and unexpected tick failures', async () => {
+    const cases = [
+      {
+        error: new api.APIError("gateway", "BAD_GATEWAY", 502, "req-502", { action: "retry", retryable: true }),
+        message: /upstream gateway error/i,
+      },
+      {
+        error: new api.APIError("bad request", "BAD_REQUEST", 400, "req-400", { action: "report", retryable: false }),
+        message: /something went wrong/i,
+      },
+      { error: new Error("unexpected failure"), message: /failed to run health check cycle/i },
+    ] as const;
+
+    for (const { error, message } of cases) {
+      vi.mocked(api.runTick).mockRejectedValueOnce(error);
+      renderWithProviders(<App />);
+      await waitFor(() => expect(screen.getByTestId(selectors.runTickButton)).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId(selectors.runTickButton));
+      await waitFor(() => expect(screen.getByText(message)).toBeInTheDocument());
+      cleanup();
+    }
+  });
+
   // Platform info display
   it('displays platform information', async () => {
     vi.mocked(api.fetchStatus).mockResolvedValue(mockStatusResponse);
@@ -276,6 +319,7 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
   });
 
   it('[REQ:UI-RESPONSIVE-001] renders shell and summary content in a mobile-safe layout contract', async () => {
@@ -292,7 +336,7 @@ describe('App', () => {
     const content = screen.getByTestId(selectors.shell.content);
     const summaryGrid = screen.getByTestId(selectors.summary.grid);
 
-    expect(container).toHaveClass('min-h-screen', 'overflow-x-hidden');
+    expect(container).toHaveClass('min-h-full', 'overflow-x-hidden');
     expect(header).toHaveClass('sticky', 'top-0');
     expect(content).toHaveClass('min-w-0');
     expect(summaryGrid).toHaveClass('grid-cols-2', 'md:grid-cols-4');
@@ -349,5 +393,25 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByText('All')).toBeInTheDocument();
     }, { timeout: 2000 });
+  });
+
+  it('switches through every lazy tab surface', async () => {
+    renderWithProviders(<App />);
+    await waitFor(() => expect(screen.getByTestId(selectors.tabs.trends)).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId(selectors.settingsButton));
+    expect(screen.getByTestId("settings-dialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("settings-close"));
+    fireEvent.click(screen.getByTestId(selectors.uptimeStats));
+    await waitFor(() => expect(screen.getByText("Trends surface loaded")).toBeInTheDocument());
+    for (const [selector, text] of [
+      [selectors.tabs.trends, 'Trends surface loaded'],
+      [selectors.tabs.timeline, 'Timeline surface loaded'],
+      [selectors.tabs.incidents, 'Incidents surface loaded'],
+      [selectors.tabs.docs, 'Docs surface loaded'],
+      [selectors.tabs.dashboard, 'Vrooli Autoheal'],
+    ] as const) {
+      fireEvent.click(screen.getByTestId(selector));
+      await waitFor(() => expect(screen.getByText(text)).toBeInTheDocument());
+    }
   });
 });

@@ -258,3 +258,4 @@ SELECT
         ELSE 'ok'
     END AS overall_status
 FROM latest_health_results;
+

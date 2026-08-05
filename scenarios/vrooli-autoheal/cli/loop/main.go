@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -118,6 +119,9 @@ func main() {
 
 	// Set up API endpoints
 	if *apiURL != "" {
+		if err := validateLocalEndpoint(*apiURL); err != nil {
+			log.Fatalf("invalid --api-url: %v", err)
+		}
 		config.HealthEndpoint = *apiURL + "/health"
 		config.TickEndpoint = *apiURL + "/api/v1/tick"
 	} else {
@@ -562,9 +566,18 @@ func apiPortFromMap(ports map[string]int) string {
 
 // isPortHealthy checks if the API is responding on the given port
 func isPortHealthy(port string) bool {
-	url := fmt.Sprintf("http://localhost:%s/health", port)
+	healthURL, err := localHealthEndpoint(port)
+	if err != nil {
+		return false
+	}
 	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get(url)
+	req, err := http.NewRequest(http.MethodGet, healthURL, nil) //nolint:gosec // validated loopback-only health probe
+	if err != nil {
+		return false
+	}
+	// The port is range-validated and the URL is restricted to loopback by
+	// localHealthEndpoint before it reaches the HTTP client.
+	resp, err := client.Do(req) //nolint:gosec // validated loopback-only health probe
 	if err != nil {
 		return false
 	}
@@ -589,12 +602,19 @@ func apiIsAlive(port string) bool {
 	if port == "" {
 		return false
 	}
-	url := fmt.Sprintf("http://localhost:%s/health", port)
+	healthURL, err := localHealthEndpoint(port)
+	if err != nil {
+		return false
+	}
 	// Generous relative to the health handler's own budget: the point is to
 	// find out whether anything is listening and answering, not whether it is
 	// answering quickly.
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(url)
+	req, err := http.NewRequest(http.MethodGet, healthURL, nil) //nolint:gosec // validated loopback-only health probe
+	if err != nil {
+		return false
+	}
+	resp, err := client.Do(req) //nolint:gosec // validated loopback-only health probe
 	if err != nil {
 		return false
 	}
@@ -758,6 +778,9 @@ func runTick(config *Config) (*TickResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid tick endpoint URL: %w", err)
 	}
+	if err := validateLocalEndpoint(requestURL.String()); err != nil {
+		return nil, err
+	}
 	query := requestURL.Query()
 	query.Set("compact", "true")
 	requestURL.RawQuery = query.Encode()
@@ -789,4 +812,45 @@ func runTick(config *Config) (*TickResponse, error) {
 	}
 
 	return &result, nil
+}
+
+// validateLocalEndpoint keeps the watchdog's outbound HTTP surface bound to
+// the local autoheal API. The endpoint is configurable for tests and local
+// proxies, but a remote or user-info-bearing URL must never become a server-
+// side request target.
+func validateLocalEndpoint(raw string) error {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid endpoint URL: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("endpoint scheme must be http or https")
+	}
+	if parsed.Hostname() == "" {
+		return fmt.Errorf("endpoint host is required")
+	}
+	if parsed.User != nil {
+		return fmt.Errorf("endpoint user-info is not allowed")
+	}
+	host := strings.ToLower(strings.TrimSuffix(parsed.Hostname(), "."))
+	if host == "localhost" {
+		return nil
+	}
+	ip := net.ParseIP(host)
+	if ip == nil || !ip.IsLoopback() {
+		return fmt.Errorf("endpoint host %q is not local", parsed.Hostname())
+	}
+	return nil
+}
+
+func localHealthEndpoint(rawPort string) (string, error) {
+	port, err := strconv.Atoi(strings.TrimSpace(rawPort))
+	if err != nil || port < 1 || port > 65535 {
+		return "", fmt.Errorf("invalid local API port %q", rawPort)
+	}
+	endpoint := "http://localhost:" + strconv.Itoa(port) + "/health"
+	if err := validateLocalEndpoint(endpoint); err != nil {
+		return "", err
+	}
+	return endpoint, nil
 }

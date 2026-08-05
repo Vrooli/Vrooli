@@ -3,6 +3,7 @@
 package bootstrap
 
 import (
+	"context"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
@@ -36,6 +37,7 @@ type CheckFactory interface {
 type DefaultCheckFactory struct {
 	networkTarget          string
 	dnsDomain              string
+	externalDNSServer      string
 	cloudflaredExternalURL string
 	criticalScenarios      []string
 	nonCriticalScenarios   []string
@@ -59,8 +61,9 @@ func NewDefaultCheckFactory() *DefaultCheckFactory {
 // This allows the factory to be configured dynamically from user settings.
 func NewCheckFactoryFromMonitoring(monitoring userconfig.MonitoringConfig) *DefaultCheckFactory {
 	return &DefaultCheckFactory{
-		networkTarget:          DefaultNetworkTarget,
-		dnsDomain:              DefaultDNSDomain,
+		networkTarget:          configuredInfrastructureValue(NetworkTargetEnv),
+		dnsDomain:              configuredInfrastructureValue(DNSDomainEnv),
+		externalDNSServer:      configuredInfrastructureValue(ExternalDNSServerEnv),
 		cloudflaredExternalURL: "",
 		criticalScenarios:      monitoring.GetCriticalScenarios(),
 		nonCriticalScenarios:   monitoring.GetNonCriticalScenarios(),
@@ -136,14 +139,17 @@ func (f *DefaultCheckFactory) CreateInfrastructureChecks(caps *platform.Capabili
 	cloudflaredCheck := infra.NewCloudflaredCheck(caps, infra.WithExternalURL(f.cloudflaredExternalURL))
 	return []checks.Check{
 		infra.NewNetworkCheck(f.networkTarget),
-		infra.NewDNSCheck(f.dnsDomain, caps),
+		infra.NewDNSCheck(f.dnsDomain, caps, infra.WithExternalDNSServer(f.externalDNSServer)),
 		infra.NewDockerCheck(caps),
 		cloudflaredCheck,
-		infra.NewRDPCheck(caps),
+		infra.NewRDPCheck(caps, infra.WithRDPDesiredStateProvider(func(ctx context.Context) (infra.RemoteDesktopIntent, error) {
+			return infra.ResolveRemoteDesktopIntent(ctx, caps)
+		})),
 		infra.NewNTPCheck(caps),
 		infra.NewResolvedCheck(caps),
 		infra.NewCertificateCheck(),
 		infra.NewDisplayManagerCheck(caps),
+		infra.NewCredentialRecoveryCheck(),
 	}
 }
 

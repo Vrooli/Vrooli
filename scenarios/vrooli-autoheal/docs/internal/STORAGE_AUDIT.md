@@ -20,7 +20,7 @@
   - file: `autoheal.sqlite` under scenario `data` class
 
 ## Schema Layout
-- Active schema file: `initialization/sqlite/schema.sql`
+- Active schema file: `api/internal/persistence/schema.sql`
 - API startup initializes SQLite schema idempotently on boot.
 
 ## Notes

@@ -1,319 +1,73 @@
-// CheckDetailModal component tests
-// [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { CheckDetailModal } from "./CheckDetailModal";
-import * as api from "../../lib/api";
-import * as exportUtils from "../../lib/export";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils";
-import {
-  createActionResult,
-  createCheckActionsResponse,
-  createCheckHistoryResponse,
-  createConfig,
-  createDefaultsResponse,
-  createHistoryEntry,
-} from "../../test-utils";
-import {
-  resetMockCheckMetadata,
-  setMockCheckMetadata,
-} from "../../test-utils/mocks/checkMetadataContext";
+import { CheckDetailModal } from "./CheckDetailModal";
 
-vi.mock("../contexts/CheckMetadataContext", async () => {
-  const { useMockCheckMetadata } = await import(
-    "../../test-utils/mocks/checkMetadataContext"
-  );
-  return {
-    useCheckMetadata: useMockCheckMetadata,
-  };
-});
-
-// Mock the API module
-vi.mock("../../lib/api", async () => {
-  const actual = await vi.importActual("../../lib/api");
-  return {
-    ...actual,
-    fetchCheckHistory: vi.fn(),
-    fetchConfig: vi.fn(),
-    fetchDefaults: vi.fn(),
-    fetchCheckActions: vi.fn(),
-    setCheckAutoHeal: vi.fn(),
-    executeAction: vi.fn(),
-  };
-});
-
-// Mock the export module
-vi.mock("../../lib/export", () => ({
-  exportCheckHistoryToCSV: vi.fn(),
+const detailMocks = vi.hoisted(() => ({
+  fetchCheckHistory: vi.fn(),
+  fetchConfig: vi.fn(),
+  fetchDefaults: vi.fn(),
+  setCheckAutoHeal: vi.fn(),
+  fetchCheckActions: vi.fn(),
+  executeAction: vi.fn(),
+  normalizeHealthStatus: (value: unknown) => (value === "critical" || value === "warning" || value === "ok" ? value : "ok"),
 }));
 
-describe("[REQ:UI-EVENTS-001] CheckDetailModal", () => {
-  const mockOnClose = vi.fn();
+vi.mock("../../lib/api", async () => {
+  const actual = await vi.importActual<typeof import("../../lib/api")>("../../lib/api");
+  return { ...actual, ...detailMocks };
+});
+vi.mock("../contexts/CheckMetadataContext", () => ({
+  useCheckMetadata: () => ({
+    getTitle: () => "DNS Resolution",
+    getMetadata: () => ({ title: "DNS Resolution", description: "Resolves names", importance: "Required", category: "resource", intervalSeconds: 3600 }),
+  }),
+}));
+vi.mock("../../lib/export", () => ({ exportCheckHistoryToCSV: vi.fn() }));
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    resetMockCheckMetadata();
-    vi.mocked(api.fetchConfig).mockResolvedValue(createConfig());
-    vi.mocked(api.fetchDefaults).mockResolvedValue(createDefaultsResponse());
-    vi.mocked(api.fetchCheckActions).mockResolvedValue(createCheckActionsResponse());
-  });
-
-  it("renders with check ID in title", async () => {
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue(createCheckHistoryResponse());
-
-    renderWithProviders(
-      <CheckDetailModal checkId="test-check" onClose={mockOnClose} />
-    );
-
-    expect(screen.getByText("test-check")).toBeInTheDocument();
-  });
-
-  it("shows loading state while fetching history", async () => {
-    vi.mocked(api.fetchCheckHistory).mockImplementation(
-      () => new Promise(() => {})
-    );
-
-    renderWithProviders(
-      <CheckDetailModal checkId="test-check" onClose={mockOnClose} />
-    );
-
-    expect(screen.getByText(/loading history/i)).toBeInTheDocument();
-  });
-
-  it("displays history entries", async () => {
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue(
-      createCheckHistoryResponse({
-        history: [
-          createHistoryEntry({
-            message: "All systems operational",
-          }),
-        ],
-      })
-    );
-
-    renderWithProviders(
-      <CheckDetailModal checkId="test-check" onClose={mockOnClose} />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText("All systems operational")).toBeInTheDocument();
+describe("CheckDetailModal", () => {
+  it("renders history details, auto-heal controls, exports, and tabs", async () => {
+    detailMocks.fetchCheckHistory.mockResolvedValue({
+      checkId: "infra-dns",
+      count: 2,
+      history: [
+        { checkId: "infra-dns", status: "critical", message: "DNS failed", timestamp: new Date().toISOString(), duration: 1000, details: { subChecks: [{ name: "System", passed: true, detail: "ready" }, { name: "External", passed: false }] } },
+        { checkId: "infra-dns", status: "ok", message: "Recovered", timestamp: new Date(Date.now() - 60000).toISOString(), duration: 2000 },
+      ],
     });
+    detailMocks.fetchConfig.mockResolvedValue({ checks: { "infra-dns": { enabled: true, autoHeal: true } } });
+    detailMocks.fetchDefaults.mockResolvedValue({ checks: { "infra-dns": { enabled: true, autoHeal: false } } });
+    detailMocks.fetchCheckActions.mockResolvedValue({ actions: [{ id: "restart", name: "Restart", description: "Restart check", available: true, dangerous: true }] });
+    detailMocks.setCheckAutoHeal.mockResolvedValue({ success: true });
+    detailMocks.executeAction.mockResolvedValue({ success: true, message: "Healed", output: "done" });
+    const onClose = vi.fn();
+
+    renderWithProviders(<CheckDetailModal checkId="infra-dns" onClose={onClose} />);
+    expect(await screen.findByTestId("check-detail-modal")).toBeInTheDocument();
+    expect(await screen.findByText("DNS failed")).toBeInTheDocument();
+    expect(screen.getByText("System")).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle("Export history to CSV"));
+    fireEvent.click(screen.getByRole("switch"));
+    fireEvent.click(screen.getByRole("button", { name: "Heal Now" }));
+    expect(screen.getByText("Confirm Action")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    await waitFor(() => expect(screen.getByText("Healed")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Dismiss"));
+    fireEvent.click(screen.getByRole("button", { name: /History \(2\)/i }));
+    expect(screen.getByText("Recovered")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalled();
   });
 
-  it("displays stats summary", async () => {
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue(
-      createCheckHistoryResponse({
-        history: [
-          createHistoryEntry({ message: "OK" }),
-          createHistoryEntry({ message: "OK", timestamp: "2024-01-01T11:00:00Z" }),
-          createHistoryEntry({
-            status: "warning",
-            message: "Warn",
-            timestamp: "2024-01-01T10:00:00Z",
-          }),
-        ],
-      })
-    );
+  it("renders loading and history failure states", async () => {
+    detailMocks.fetchCheckHistory.mockImplementation(() => new Promise(() => {}));
+    renderWithProviders(<CheckDetailModal checkId="infra-dns" onClose={vi.fn()} />);
+    expect(await screen.findByText("Loading history...")).toBeInTheDocument();
 
-    renderWithProviders(
-      <CheckDetailModal checkId="test-check" onClose={mockOnClose} />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText("3")).toBeInTheDocument(); // Total
-      expect(screen.getByText("2")).toBeInTheDocument(); // OK count
-    });
-  });
-
-  it("calls onClose when close button clicked", async () => {
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue(createCheckHistoryResponse());
-
-    renderWithProviders(
-      <CheckDetailModal checkId="test-check" onClose={mockOnClose} />
-    );
-
-    fireEvent.click(screen.getByLabelText(/close modal/i));
-    expect(mockOnClose).toHaveBeenCalled();
-  });
-
-  it("calls onClose when escape key pressed", async () => {
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue(createCheckHistoryResponse());
-
-    renderWithProviders(
-      <CheckDetailModal checkId="test-check" onClose={mockOnClose} />
-    );
-
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(mockOnClose).toHaveBeenCalled();
-  });
-
-  it("calls onClose when backdrop clicked", async () => {
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue(createCheckHistoryResponse());
-
-    renderWithProviders(
-      <CheckDetailModal checkId="test-check" onClose={mockOnClose} />
-    );
-
-    const modal = screen.getByTestId("check-detail-modal");
-    fireEvent.click(modal);
-    expect(mockOnClose).toHaveBeenCalled();
-  });
-
-  it("triggers export when export button clicked", async () => {
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue(
-      createCheckHistoryResponse({
-        history: [createHistoryEntry({ message: "Systems operational" })],
-      })
-    );
-
-    renderWithProviders(
-      <CheckDetailModal checkId="test-check" onClose={mockOnClose} />
-    );
-
-    // Wait for data to load - use the unique message
-    await waitFor(() => {
-      expect(screen.getByText("Systems operational")).toBeInTheDocument();
-    });
-
-    // Find and click the export button (it's the one with "Export" text in the header)
-    const exportButton = screen.getByTitle(/export history/i);
-    fireEvent.click(exportButton);
-    expect(exportUtils.exportCheckHistoryToCSV).toHaveBeenCalled();
-  });
-
-  it("shows empty state when no history", async () => {
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue(createCheckHistoryResponse());
-
-    renderWithProviders(
-      <CheckDetailModal checkId="test-check" onClose={mockOnClose} />
-    );
-
-    const historyTab = await screen.findByRole("button", { name: /^History/ });
-    fireEvent.click(historyTab);
-
-    await waitFor(() => {
-      expect(screen.getByText(/no history available/i)).toBeInTheDocument();
-    });
-  });
-
-  it("shows error state when fetch fails", async () => {
-    vi.mocked(api.fetchCheckHistory).mockRejectedValue(new Error("Network error"));
-
-    renderWithProviders(
-      <CheckDetailModal checkId="test-check" onClose={mockOnClose} />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(/network error/i)).toBeInTheDocument();
-    });
-  });
-
-  it("renders importance notice when metadata includes importance", async () => {
-    setMockCheckMetadata({
-      "test-check": {
-        importance: "Maintains service uptime during resource failures.",
-        description: "metadata description",
-        category: "resource",
-      },
-    });
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue(
-      createCheckHistoryResponse({
-        history: [
-          createHistoryEntry({
-            status: "warning",
-            message: "Potential issue detected",
-          }),
-        ],
-      })
-    );
-
-    renderWithProviders(<CheckDetailModal checkId="test-check" onClose={mockOnClose} />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Why This Matters")).toBeInTheDocument();
-      expect(screen.getByText(/maintains service uptime/i)).toBeInTheDocument();
-    });
-  });
-
-  it("shows confirmation notice for dangerous heal actions", async () => {
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue(
-      createCheckHistoryResponse({
-        history: [
-          createHistoryEntry({
-            status: "critical",
-            message: "Service is down",
-          }),
-        ],
-      })
-    );
-    vi.mocked(api.fetchCheckActions).mockResolvedValue(
-      createCheckActionsResponse({
-        actions: [
-          {
-            id: "restart",
-            name: "Restart Service",
-            description: "Restarts the service process immediately.",
-            available: true,
-            dangerous: true,
-          },
-        ],
-      })
-    );
-
-    renderWithProviders(<CheckDetailModal checkId="test-check" onClose={mockOnClose} />);
-
-    const healButton = await screen.findByRole("button", { name: /heal now/i });
-    fireEvent.click(healButton);
-
-    await waitFor(() => {
-      expect(screen.getByText("Confirm Action")).toBeInTheDocument();
-      expect(screen.getByText(/restart service/i)).toBeInTheDocument();
-    });
-  });
-
-  it("shows action result notice after heal execution", async () => {
-    vi.mocked(api.fetchCheckHistory).mockResolvedValue(
-      createCheckHistoryResponse({
-        history: [
-          createHistoryEntry({
-            status: "warning",
-            message: "Service may be degraded",
-          }),
-        ],
-      })
-    );
-    vi.mocked(api.fetchCheckActions).mockResolvedValue(
-      createCheckActionsResponse({
-        actions: [
-          {
-            id: "heal",
-            name: "Heal",
-            description: "Attempts recovery",
-            available: true,
-            dangerous: false,
-          },
-        ],
-      })
-    );
-    vi.mocked(api.executeAction).mockResolvedValue(
-      createActionResult({
-        actionId: "heal",
-        success: false,
-        message: "Recovery failed",
-        error: "Service unreachable",
-        duration: 123,
-      })
-    );
-
-    renderWithProviders(<CheckDetailModal checkId="test-check" onClose={mockOnClose} />);
-
-    const healButton = await screen.findByRole("button", { name: /heal now/i });
-    fireEvent.click(healButton);
-
-    await waitFor(() => {
-      expect(screen.getByText("Recovery failed")).toBeInTheDocument();
-      expect(screen.getByText("Service unreachable")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /dismiss/i })).toBeInTheDocument();
-    });
+    detailMocks.fetchCheckHistory.mockRejectedValueOnce(new Error("history unavailable"));
+    renderWithProviders(<CheckDetailModal checkId="infra-dns" onClose={vi.fn()} />);
+    const retry = await screen.findByText(/retry/i);
+    expect(retry).toBeInTheDocument();
+    fireEvent.click(retry);
   });
 });

@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help setup start stop restart status logs test open orient run dev endpoints clean build fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
 
 .DEFAULT_GOAL := help
 
@@ -29,6 +29,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make status                     Show scenario runtime status\n"
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
+	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
 	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
@@ -53,7 +54,7 @@ status: ## Show scenario runtime status
 	@vrooli scenario status "$(SCENARIO_NAME)"
 
 logs: ## Show scenario logs
-	@vrooli scenario logs "$(SCENARIO_NAME)" --tail 50
+	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
@@ -64,8 +65,11 @@ open: ## Open the scenario in a browser
 orient: ## Show generated-scenario orientation progress
 	@template-manager orient "$(SCENARIO_NAME)"
 
-endpoints: ## Regenerate .vrooli/endpoints.json from API modules
-	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json --seed cmd/gen-endpoints/cli_commands_seed.json
+endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
+	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
+
+temporal-models: ## Verify formal flow artifacts via the flow-verifier scenario CLI
+	@flow-verifier verify check --root "$(CURDIR)"
 
 run: start
 
@@ -77,7 +81,7 @@ clean: ## Clean build artifacts
 
 build: ## Build the scenario
 	@if [ -f api/go.mod ]; then \
-		cd api && go build -o "$(SCENARIO_NAME)-api" .; \
+		cd api && GOWORK=off go build -o "$(SCENARIO_NAME)-api" .; \
 	fi
 	@if [ -f ui/package.json ]; then \
 		cd ui && pnpm run build; \
@@ -93,22 +97,40 @@ fmt-go: ## Format Go code
 			cd api && gofmt -w .; \
 		fi; \
 	fi
+	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
+		if command -v gofumpt >/dev/null 2>&1; then \
+			cd cli && gofumpt -w .; \
+		elif command -v gofmt >/dev/null 2>&1; then \
+			cd cli && gofmt -w .; \
+		fi; \
+	fi
 
 fmt-ui: ## Format UI code
-	@true
+	@if [ -f ui/package.json ]; then \
+		cd ui && pnpm run lint:fix && pnpm run strings:check; \
+	fi
 
 lint: lint-go lint-ui ## Lint all code
 
 lint-go: ## Lint Go code
 	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
 		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run ./...; \
+			cd api && GOWORK=off golangci-lint run ./...; \
 		elif command -v go >/dev/null 2>&1; then \
-			cd api && go vet ./... && go fmt ./...; \
+			cd api && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
+		fi; \
+	fi
+	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd cli && GOWORK=off golangci-lint run ./...; \
+		elif command -v go >/dev/null 2>&1; then \
+			cd cli && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
 		fi; \
 	fi
 
 lint-ui: ## Lint UI code
-	@true
+	@if [ -f ui/package.json ]; then \
+		cd ui && pnpm run lint && pnpm run type-check; \
+	fi
 
 check: fmt lint test ## Run full quality gates

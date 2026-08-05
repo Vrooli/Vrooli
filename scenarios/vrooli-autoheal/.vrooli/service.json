@@ -1,7 +1,23 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "mode": "development",
+  "storage": {
+    "entries": {
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "vrooli-autoheal",
@@ -117,7 +133,7 @@
         {
           "name": "build-loop",
           "run": "cd cli/loop && go build -o ../vrooli-autoheal-loop.new . && sync -f ../vrooli-autoheal-loop.new && mv -f ../vrooli-autoheal-loop.new ../vrooli-autoheal-loop && sync -f ../vrooli-autoheal-loop",
-          "description": "Compile cross-platform Go loop binary for watchdog. Atomic install (write .new, sync, rename, sync) mirrors root Makefile atomic_install \u2014 prevents zero-byte stub on crash mid-write."
+          "description": "Compile cross-platform Go loop binary for watchdog. Atomic install (write .new, sync, rename, sync) mirrors root Makefile atomic_install — prevents zero-byte stub on crash mid-write."
         },
         {
           "name": "install-ui-deps",
@@ -235,6 +251,12 @@
     "source_build": {
       "kind": "go_module"
     }
+  },
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/autoheal.sqlite",
+    "AUTOHEAL_NETWORK_TARGET": "dns.google:53",
+    "AUTOHEAL_DNS_DOMAIN": "example.com",
+    "AUTOHEAL_EXTERNAL_DNS_SERVER": "dns.google"
   },
   "retention": {
     "budgets": {

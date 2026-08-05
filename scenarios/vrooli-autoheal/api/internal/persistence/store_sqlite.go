@@ -731,6 +731,7 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
+	defer rows.Close()
 
 	var trends []CheckTrend
 	for rows.Next() {
@@ -801,6 +802,7 @@ func (s *Store) getCheckTrendsSQLite(ctx context.Context, windowHours int) (*Che
 		if err != nil {
 			return nil, fmt.Errorf("recent statuses query failed: %w", err)
 		}
+		defer recentRows.Close()
 		for recentRows.Next() {
 			var status string
 			if err := recentRows.Scan(&status); err != nil {

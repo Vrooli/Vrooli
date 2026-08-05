@@ -1,10 +1,10 @@
 // UptimeTrendChart component tests
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, waitFor } from "@testing-library/react";
 import { UptimeTrendChart } from "./UptimeTrendChart";
 import * as api from "../../../lib/api";
+import { renderWithProviders } from "../../../test-utils";
 
 // Mock the API module
 vi.mock("../../../lib/api", async () => {
@@ -14,23 +14,6 @@ vi.mock("../../../lib/api", async () => {
     fetchUptimeHistory: vi.fn(),
   };
 });
-
-const createTestQueryClient = () =>
-  new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        gcTime: 0,
-      },
-    },
-  });
-
-const renderWithProviders = (ui: React.ReactElement) => {
-  const queryClient = createTestQueryClient();
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-  );
-};
 
 describe("[REQ:UI-EVENTS-001] UptimeTrendChart", () => {
   beforeEach(() => {

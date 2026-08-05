@@ -38,7 +38,7 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div
-      className="min-h-screen overflow-x-hidden bg-surface-base text-text-primary"
+      className="min-h-full overflow-x-hidden bg-surface-base text-text-primary"
       data-testid={selectors.dashboard}
     >
       <header

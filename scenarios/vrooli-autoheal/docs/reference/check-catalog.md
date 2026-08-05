@@ -169,8 +169,8 @@ graphical-session layer and makes no statement about RDP.
 **Troubleshooting:**
 - `vrooli-autoheal check get infra-rdp --json`
 - GNOME: run `grdctl status` with `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` set
-- Keyring rejected as malformed (`keyringCorrupt=true`): `vrooli credentials keyring inspect`,
-  then `vrooli credentials keyring repair` — no root required, then log out and back in
+- Keyring rejected as malformed (`keyringCorrupt=true`): `secrets-manager keyring inspect`,
+  then `secrets-manager keyring repair` — no root required, then log out and back in
 - Linux xrdp: `systemctl status xrdp`
 - Windows: `Get-Service TermService`
 

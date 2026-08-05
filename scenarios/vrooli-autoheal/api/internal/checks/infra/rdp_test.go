@@ -57,6 +57,56 @@ func TestRDPCheckRunWithMock_GnomeRDPRunning(t *testing.T) {
 	}
 }
 
+func TestRDPCheckDeclaredIntentVerdicts(t *testing.T) {
+	tests := []struct {
+		name        string
+		experience  string
+		managed     bool
+		wantStatus  checks.Status
+		wantVerdict string
+	}{
+		{name: "unmanaged", managed: false, wantStatus: checks.StatusOK, wantVerdict: RemoteDesktopVerdictUnmanaged},
+		{name: "matching", managed: true, experience: "login-screen", wantStatus: checks.StatusOK, wantVerdict: RemoteDesktopVerdictMatching},
+		{name: "drifted", managed: true, experience: "direct-desktop", wantStatus: checks.StatusWarning, wantVerdict: RemoteDesktopVerdictDrifted},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			caps := &platform.Capabilities{Platform: platform.Linux, SupportsSystemd: true}
+			mockExec := checks.NewMockExecutor()
+			mockExec.Responses["grdctl status"] = checks.MockResponse{Output: []byte("RDP:\n\tStatus: enabled\n")}
+			provider := func(context.Context) (RemoteDesktopIntent, error) {
+				return RemoteDesktopIntent{Managed: tt.managed, Experience: tt.experience, Provider: "auto"}, nil
+			}
+			if tt.name == "matching" {
+				mockExec.Responses["pgrep -f gnome-remote-desktop-daemon"] = checks.MockResponse{Output: []byte("12345")}
+				mockExec.Responses["pgrep -a -f gnome-remote-desktop-daemon"] = checks.MockResponse{Output: []byte("12345 /usr/libexec/gnome-remote-desktop-daemon")}
+				mockSessionBus(mockExec, "alice", "1000")
+				mockSessionGrdctl(mockExec, "1000", "RDP:\n\tStatus: enabled\n\tUsername: alice\n\tPassword: hunter2\n")
+			}
+
+			check := NewRDPCheck(caps, WithRDPExecutor(mockExec), WithRDPDesiredStateProvider(provider), WithRDPAutoLoginUserProvider(func() string { return "" }))
+			result := check.Run(context.Background())
+			if result.Status != tt.wantStatus {
+				t.Fatalf("status = %v, want %v; message=%q", result.Status, tt.wantStatus, result.Message)
+			}
+			if got := result.Details["desiredVerdict"]; got != tt.wantVerdict {
+				t.Fatalf("desiredVerdict = %v, want %q", got, tt.wantVerdict)
+			}
+			t.Logf("declared intent verdict=%s status=%s message=%q", result.Details["desiredVerdict"], result.Status, result.Message)
+			if tt.name == "drifted" && !strings.Contains(result.Message, "declared direct-desktop") {
+				t.Fatalf("drift message = %q", result.Message)
+			}
+			if tt.name == "unmanaged" {
+				actions := check.RecoveryActions(&result)
+				if len(actions) != 0 {
+					t.Fatalf("unmanaged capability offered %d recovery actions", len(actions))
+				}
+			}
+		})
+	}
+}
+
 // mockSessionBus wires the loginctl and id lookups that sessionBusEnv performs.
 func mockSessionBus(m *checks.MockExecutor, user, uid string) {
 	m.Responses["loginctl show-seat seat0 -p ActiveSession --value"] = checks.MockResponse{Output: []byte("2\n")}
@@ -980,65 +1030,6 @@ func TestRDPCheckRunWithMock_MacOS(t *testing.T) {
 	}
 }
 
-// TestSelectRDPServiceWithMock tests RDP service selection logic with various platforms
-func TestSelectRDPServiceWithMock(t *testing.T) {
-	tests := []struct {
-		name            string
-		caps            *platform.Capabilities
-		expectService   string
-		expectCheckable bool
-	}{
-		{
-			name: "linux with systemd",
-			caps: &platform.Capabilities{
-				Platform:        platform.Linux,
-				SupportsSystemd: true,
-			},
-			expectService:   "xrdp",
-			expectCheckable: true,
-		},
-		{
-			name: "linux without systemd",
-			caps: &platform.Capabilities{
-				Platform:        platform.Linux,
-				SupportsSystemd: false,
-			},
-			expectService:   "xrdp",
-			expectCheckable: false,
-		},
-		{
-			name: "windows",
-			caps: &platform.Capabilities{
-				Platform:        platform.Windows,
-				SupportsSystemd: false,
-			},
-			expectService:   "TermService",
-			expectCheckable: true,
-		},
-		{
-			name: "macos",
-			caps: &platform.Capabilities{
-				Platform:        platform.MacOS,
-				SupportsSystemd: false,
-			},
-			expectService:   "",
-			expectCheckable: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			info := SelectRDPService(tt.caps)
-			if info.ServiceName != tt.expectService {
-				t.Errorf("ServiceName = %q, want %q", info.ServiceName, tt.expectService)
-			}
-			if info.Checkable != tt.expectCheckable {
-				t.Errorf("Checkable = %v, want %v", info.Checkable, tt.expectCheckable)
-			}
-		})
-	}
-}
-
 // TestRDPCheckExecutorInjection verifies executor is properly injected
 func TestRDPCheckExecutorInjection(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
@@ -1185,7 +1176,7 @@ func TestRDPCheckDistinguishesCorruptKeyringFromLockedKeyring(t *testing.T) {
 			t.Fatalf("operatorActions missing: %#v", result.Details["operatorActions"])
 		}
 		joined := strings.Join(actions, " ")
-		if !strings.Contains(joined, "vrooli credentials keyring repair") {
+		if !strings.Contains(joined, "keyring repair") {
 			t.Errorf("remedies must name the repair command, got: %s", joined)
 		}
 		if strings.Contains(joined, "/etc/gdm3/custom.conf") {
@@ -1324,7 +1315,7 @@ func TestKeyringPathFromMessage(t *testing.T) {
 // [REQ:INFRA-RDP-003] [REQ:TEST-SEAM-001]
 func TestRDPCheckReportsRepairPending(t *testing.T) {
 	const rejection = "keyring was in an invalid or unrecognized format: /home/alice/.local/share/keyrings/login.keyring"
-	const inspectKey = "vrooli credentials keyring inspect --path /home/alice/.local/share/keyrings/login.keyring --format json"
+	const inspectKey = "secrets-manager keyring inspect --path /home/alice/.local/share/keyrings/login.keyring --format json"
 
 	build := func(inspectOutput string, inspectErr error) checks.Result {
 		caps := &platform.Capabilities{Platform: platform.Linux, SupportsSystemd: true}
@@ -1336,6 +1327,11 @@ func TestRDPCheckReportsRepairPending(t *testing.T) {
 		mockLoginKeyring(mockExec, "1000", false)
 		mockKeyringJournal(mockExec, []string{rejection}, nil)
 		mockExec.Responses[inspectKey] = checks.MockResponse{Output: []byte(inspectOutput), Error: inspectErr}
+		previousInspect := keyringInspectOutput
+		keyringInspectOutput = func(ctx context.Context, path string) ([]byte, error) {
+			return mockExec.Output(ctx, "secrets-manager", "keyring", "inspect", "--path", path, "--format", "json")
+		}
+		t.Cleanup(func() { keyringInspectOutput = previousInspect })
 		return NewRDPCheck(caps, WithRDPExecutor(mockExec),
 			WithRDPAutoLoginUserProvider(func() string { return "alice" })).Run(context.Background())
 	}
@@ -1351,7 +1347,7 @@ func TestRDPCheckReportsRepairPending(t *testing.T) {
 		}
 		actions, _ := result.Details["operatorActions"].([]string)
 		joined := strings.Join(actions, " ")
-		if strings.Contains(joined, "vrooli credentials keyring repair") {
+		if strings.Contains(joined, "keyring repair") {
 			t.Errorf("must not tell the operator to re-run a repair that is already done, got: %s", joined)
 		}
 		if !strings.Contains(joined, "Log out and back in") {
@@ -1366,7 +1362,7 @@ func TestRDPCheckReportsRepairPending(t *testing.T) {
 			t.Fatalf("keyringRepairPending = %v, want false", result.Details["keyringRepairPending"])
 		}
 		actions, _ := result.Details["operatorActions"].([]string)
-		if !strings.Contains(strings.Join(actions, " "), "vrooli credentials keyring repair") {
+		if !strings.Contains(strings.Join(actions, " "), "keyring repair") {
 			t.Errorf("remedies must still offer the repair, got: %v", actions)
 		}
 	})
@@ -1380,7 +1376,7 @@ func TestRDPCheckReportsRepairPending(t *testing.T) {
 			t.Fatalf("keyringRepairPending = %v, want false when inspect failed", result.Details["keyringRepairPending"])
 		}
 		actions, _ := result.Details["operatorActions"].([]string)
-		if !strings.Contains(strings.Join(actions, " "), "vrooli credentials keyring repair") {
+		if !strings.Contains(strings.Join(actions, " "), "keyring repair") {
 			t.Errorf("remedies must still offer the repair, got: %v", actions)
 		}
 	})

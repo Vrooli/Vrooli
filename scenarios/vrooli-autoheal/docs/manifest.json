@@ -1,8 +1,31 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "Vrooli Autoheal Documentation",
   "description": "Health monitoring, auto-recovery, and watchdog documentation",
   "defaultDocument": "QUICKSTART.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": [
+      "missing",
+      "stub",
+      "draft",
+      "active",
+      "not-applicable",
+      "deferred",
+      "retired"
+    ],
+    "stages": [
+      "generated",
+      "oriented",
+      "implemented",
+      "validated",
+      "deployable",
+      "monetizable"
+    ],
+    "extensionRule": "Every durable scenario document should be registered here."
+  },
   "sections": [
     {
       "id": "getting-started",
@@ -11,9 +34,18 @@
       "documents": [
         {
           "path": "QUICKSTART.md",
+          "docType": "quickstart",
           "title": "Quick Start",
           "description": "Get vrooli-autoheal running in minutes",
-          "audience": ["users", "developers"]
+          "audience": [
+            "users",
+            "developers"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -24,23 +56,47 @@
       "documents": [
         {
           "path": "concepts/architecture.md",
+          "docType": "architecture",
           "title": "Architecture",
-          "description": "High-level system design and component overview"
+          "description": "High-level system design and component overview",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "concepts/health-check-flow.md",
+          "docType": "health-check-flow",
           "title": "Health Check Flow",
-          "description": "How checks execute from request to result"
+          "description": "How checks execute from request to result",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "concepts/watchdog-design.md",
+          "docType": "watchdog-design",
           "title": "Watchdog Design",
-          "description": "OS-level boot recovery and self-protection"
+          "description": "OS-level boot recovery and self-protection",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "concepts/GLOSSARY.md",
+          "docType": "glossary",
           "title": "Glossary",
-          "description": "Domain vocabulary and key terms"
+          "description": "Domain vocabulary and key terms",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -52,23 +108,47 @@
       "documents": [
         {
           "path": "checks/overview.md",
+          "docType": "overview",
           "title": "Overview",
-          "description": "Introduction to the health check system"
+          "description": "Introduction to the health check system",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "checks/infrastructure.md",
+          "docType": "infrastructure",
           "title": "Infrastructure Checks",
-          "description": "Network, DNS, NTP, Docker, Cloudflared, and RDP checks"
+          "description": "Network, DNS, NTP, Docker, Cloudflared, and RDP checks",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "checks/system.md",
+          "docType": "system",
           "title": "System Checks",
-          "description": "Disk, swap, zombies, ports, and inodes checks"
+          "description": "Disk, swap, zombies, ports, and inodes checks",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "checks/resources.md",
+          "docType": "resources",
           "title": "Resource Checks",
-          "description": "Postgres, Redis, Ollama, Qdrant, and other resource monitoring"
+          "description": "Postgres, Redis, Ollama, Qdrant, and other resource monitoring",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -80,8 +160,14 @@
       "documents": [
         {
           "path": "recovery/actions.md",
+          "docType": "actions",
           "title": "Recovery Actions",
-          "description": "Available recovery actions and how to use them"
+          "description": "Available recovery actions and how to use them",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -92,23 +178,47 @@
       "documents": [
         {
           "path": "guides/adding-checks.md",
+          "docType": "adding-checks",
           "title": "Adding Checks",
-          "description": "How to implement a new health check"
+          "description": "How to implement a new health check",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "guides/dashboard-guide.md",
+          "docType": "dashboard-guide",
           "title": "Dashboard Guide",
-          "description": "Using the web dashboard"
+          "description": "Using the web dashboard",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "guides/troubleshooting.md",
+          "docType": "troubleshooting",
           "title": "Troubleshooting",
-          "description": "Common issues and how to resolve them"
+          "description": "Common issues and how to resolve them",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "guides/watchdog-installation.md",
+          "docType": "watchdog-installation",
           "title": "Watchdog Installation",
-          "description": "Setting up the OS-level watchdog service"
+          "description": "Setting up the OS-level watchdog service",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -119,18 +229,36 @@
       "documents": [
         {
           "path": "reference/api-endpoints.md",
+          "docType": "api-endpoints",
           "title": "API Reference",
-          "description": "Complete REST API documentation"
+          "description": "Complete REST API documentation",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "reference/check-catalog.md",
+          "docType": "check-catalog",
           "title": "Check Catalog",
-          "description": "Detailed reference for every health check"
+          "description": "Detailed reference for every health check",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "reference/cli-commands.md",
+          "docType": "cli-commands",
           "title": "CLI Commands",
-          "description": "Command-line interface reference"
+          "description": "Command-line interface reference",
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -142,9 +270,15 @@
       "documents": [
         {
           "path": "perf/2026-05-03-list-resize-poll-audit.md",
+          "docType": "2026-05-03-list-resize-poll-audit",
           "title": "List, Resize, and Poll Audit",
           "description": "Profile-mode browser performance audit of autoheal list, resize, and polling surfaces",
-          "internal": true
+          "internal": true,
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         }
       ]
     },
@@ -156,33 +290,67 @@
       "documents": [
         {
           "path": "internal/SEAMS.md",
+          "docType": "seams",
           "title": "Seams & Boundaries",
           "description": "Integration boundaries and testability zones",
-          "internal": true
+          "internal": true,
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "internal/PROBLEMS.md",
+          "docType": "problems",
           "title": "Known Issues",
           "description": "Tech debt, risks, and deferred work",
-          "internal": true
+          "internal": true,
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "internal/PROGRESS.md",
+          "docType": "progress",
           "title": "Progress Log",
           "description": "Development history and completed milestones",
-          "internal": true
+          "internal": true,
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         },
         {
           "path": "internal/RESEARCH.md",
+          "docType": "research",
           "title": "Research",
           "description": "Background research and related work",
-          "internal": true
+          "internal": true,
+          "maturity": "active",
+          "requiredBy": [
+            "generated"
+          ],
+          "completion": "required"
         }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "concepts", "checks", "recovery", "guides", "reference"],
-    "secondary": ["perf", "internal"]
+    "primary": [
+      "getting-started",
+      "concepts",
+      "checks",
+      "recovery",
+      "guides",
+      "reference"
+    ],
+    "secondary": [
+      "perf",
+      "internal"
+    ]
   }
 }

@@ -18,16 +18,18 @@ import (
 
 // TestNewDefaultCheckFactory verifies factory initialization
 func TestNewDefaultCheckFactory(t *testing.T) {
+	t.Setenv(NetworkTargetEnv, "resolver.test:53")
+	t.Setenv(DNSDomainEnv, "resolver.test")
 	factory := NewDefaultCheckFactory()
 
 	if factory == nil {
 		t.Fatal("NewDefaultCheckFactory() returned nil")
 	}
-	if factory.networkTarget != DefaultNetworkTarget {
-		t.Errorf("networkTarget = %q, want %q", factory.networkTarget, DefaultNetworkTarget)
+	if factory.networkTarget != "resolver.test:53" {
+		t.Errorf("networkTarget = %q, want resolver.test:53", factory.networkTarget)
 	}
-	if factory.dnsDomain != DefaultDNSDomain {
-		t.Errorf("dnsDomain = %q, want %q", factory.dnsDomain, DefaultDNSDomain)
+	if factory.dnsDomain != "resolver.test" {
+		t.Errorf("dnsDomain = %q, want resolver.test", factory.dnsDomain)
 	}
 	if len(factory.criticalScenarios) == 0 {
 		t.Error("criticalScenarios should not be empty")

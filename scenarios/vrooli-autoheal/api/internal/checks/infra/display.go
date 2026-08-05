@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/journal"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
@@ -68,14 +69,7 @@ func (c *DisplayManagerCheck) IntervalSeconds() int       { return 300 } // Chec
 func (c *DisplayManagerCheck) Platforms() []platform.Type { return []platform.Type{platform.Linux} }
 
 // supportedDisplayManagers lists the display managers we can check
-var supportedDisplayManagers = []string{
-	"gdm",     // GNOME Display Manager
-	"gdm3",    // GNOME Display Manager (Debian/Ubuntu)
-	"lightdm", // Light Display Manager
-	"sddm",    // Simple Desktop Display Manager (KDE)
-	"lxdm",    // LXDE Display Manager
-	"xdm",     // X Display Manager
-}
+var supportedDisplayManagers = hostinventory.DisplayManagerNames
 
 func (c *DisplayManagerCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{

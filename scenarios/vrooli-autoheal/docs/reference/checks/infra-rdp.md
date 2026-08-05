@@ -230,6 +230,23 @@ or `unreadable`.
 Hosts with no RDP service installed report OK. The credential probe runs only
 after RDP detection succeeds, so headless hosts are never alarmed by it.
 
+## Declared desired state
+
+When the root host contract declares `remote_desktop_access`, `infra-rdp` reads
+its resolved configuration without changing it. An opted-in requirement is
+compared with the observed provider and experience:
+
+| Verdict | Meaning | Recovery behavior |
+|---|---|---|
+| `unmanaged` | The operator has not opted into the safeguard, or its declaration cannot be read safely. | Informational; no recovery action. |
+| `matching` | The observed remote-desktop experience satisfies the declared experience and provider. | Existing health and credential checks continue. |
+| `drifted` | The observed experience/provider differs from the declared intent. | Warning only; autoheal does not override the operator's display policy. |
+
+`observe-only` is an explicit no-op declaration and reports the observed state
+without requesting recovery. This comparison does not authorize autoheal to
+mint, read, or repair user-session credentials. A host with no RDP service
+remains informational, preserving the check's optional-capability behavior.
+
 ## Recovery actions
 
 | Action | Available when | Dangerous |
@@ -271,11 +288,11 @@ All of these are user-scoped; none needs root.
 
 ```bash
 # Which entries did gnome-keyring reject?
-vrooli credentials keyring inspect
+secrets-manager keyring inspect
 
 # Rewrite the malformed Vrooli-owned entries (backs up first, declines
 # entries other applications own, and sweeps abandoned *.keyring.temp-* files)
-vrooli credentials keyring repair
+secrets-manager keyring repair
 ```
 
 Then log out and back in, or reboot, so `gnome-keyring-daemon` reloads the file.
@@ -296,7 +313,7 @@ grdctl rdp set-credentials <username> <password>       # then set it again
 These apply only when `keyringCorrupt` is false. Autoheal reports them rather
 than performing them:
 
-1. Disable GDM autologin in `/etc/gdm3/custom.conf` and log in interactively
+1. Disable GDM autologin in the system GDM configuration (`$GDM_CONFIG`, commonly `gdm3/custom.conf`) and log in interactively
    once, so `pam_gnome_keyring` unlocks the login keyring with the account
    password.
 2. Or migrate the host to the system-level `gnome-remote-desktop.service`

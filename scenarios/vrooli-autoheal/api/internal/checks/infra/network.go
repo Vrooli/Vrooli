@@ -56,7 +56,8 @@ func WithNetworkPlatformCaps(caps *platform.Capabilities) NetworkCheckOption {
 }
 
 // NewNetworkCheck creates a network connectivity check.
-// The target parameter is required and must be a valid host:port (e.g., "8.8.8.8:53").
+// The target parameter is required and must be a valid host:port supplied by
+// lifecycle configuration.
 func NewNetworkCheck(target string, opts ...NetworkCheckOption) *NetworkCheck {
 	c := &NetworkCheck{
 		target:   target,
@@ -73,7 +74,7 @@ func NewNetworkCheck(target string, opts ...NetworkCheckOption) *NetworkCheck {
 func (c *NetworkCheck) ID() string    { return "infra-network" }
 func (c *NetworkCheck) Title() string { return "Internet Connection" }
 func (c *NetworkCheck) Description() string {
-	return "Tests TCP connectivity to Google DNS (8.8.8.8:53)"
+	return "Tests TCP connectivity to the configured network target"
 }
 
 func (c *NetworkCheck) Importance() string {
