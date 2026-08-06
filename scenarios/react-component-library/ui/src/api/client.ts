@@ -1,8 +1,4 @@
-import {
-  create,
-  fromJson,
-  type JsonValue,
-} from "@bufbuild/protobuf";
+import { create, fromJson, type JsonValue } from "@bufbuild/protobuf";
 import { resolveApiBase, buildApiUrl, createScenarioConnectTransport } from "@vrooli/api-base";
 import {
   ErrorEnvelopeSchema,

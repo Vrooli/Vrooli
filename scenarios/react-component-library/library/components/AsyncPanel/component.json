@@ -6,7 +6,7 @@
   "tags": ["experience", "lifecycle", "loading", "empty", "error", "retry"],
   "slot": "ui-pattern",
   "category": "feedback",
-  "designStyles": [{"styleId": "vrooli-default", "affinity": "native"}],
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
   "latest": "1.0.0",
   "draft": "",
   "deprecatedVersions": []

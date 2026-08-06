@@ -11,7 +11,12 @@
  * run "react-component-library adoptions refresh" to inspect drift.
  */
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { ControlBase, type ControlDensity, type ControlSize, type ControlVariant } from "./ControlBase";
+import {
+  ControlBase,
+  type ControlDensity,
+  type ControlSize,
+  type ControlVariant,
+} from "./ControlBase";
 
 export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "color"> {
   "aria-label": string;
@@ -21,7 +26,16 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   variant?: ControlVariant;
 }
 
-export function IconButton({ "aria-label": ariaLabel, children, density = "comfortable", size = "icon", title, type = "button", variant = "ghost", ...props }: IconButtonProps) {
+export function IconButton({
+  "aria-label": ariaLabel,
+  children,
+  density = "comfortable",
+  size = "icon",
+  title,
+  type = "button",
+  variant = "ghost",
+  ...props
+}: IconButtonProps) {
   return (
     <ControlBase
       {...props}

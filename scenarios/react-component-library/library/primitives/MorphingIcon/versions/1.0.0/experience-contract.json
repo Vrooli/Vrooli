@@ -1,0 +1,52 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:MorphingIcon@1.0.0"
+  },
+  "component": {
+    "id": "motion.morphing-icon",
+    "title": "MorphingIcon",
+    "purpose": "MorphingIcon changes an icon's meaning in place while preserving geometry, accessibility, and reduced-motion policy."
+  },
+  "states": [
+    {
+      "id": "compatible",
+      "example": "compatible-morph",
+      "description": "Compatible geometry uses a true path morph."
+    },
+    {
+      "id": "fallback",
+      "example": "automatic-fallback",
+      "description": "Incompatible geometry chooses a graceful fallback."
+    },
+    {
+      "id": "interactive",
+      "example": "toggle",
+      "description": "A real control demonstrates an interruptible state change."
+    }
+  ],
+  "claims": [
+    {
+      "id": "accessible-label",
+      "type": "custom",
+      "statement": "Meaningful icon states expose an accessible image name.",
+      "tier": "manual",
+      "states": ["compatible", "fallback", "interactive"]
+    },
+    {
+      "id": "reduced-motion",
+      "type": "custom",
+      "statement": "Reduced motion resolves immediately without losing the semantic state change.",
+      "tier": "manual",
+      "states": ["compatible", "fallback", "interactive"]
+    },
+    {
+      "id": "strategy-fallback",
+      "type": "custom",
+      "statement": "The requested morph strategy falls back safely when registry geometry is incompatible.",
+      "tier": "manual",
+      "states": ["fallback"]
+    }
+  ]
+}

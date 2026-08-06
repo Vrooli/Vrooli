@@ -109,27 +109,39 @@ export const validateFormalArtifactFresh = (
 ): string[] => {
   const errors: string[] = [];
   if (artifact.schemaVersion !== formalArtifactSchemaVersion) {
-    errors.push(`formal artifact schemaVersion=${artifact.schemaVersion}, want ${formalArtifactSchemaVersion}`);
+    errors.push(
+      `formal artifact schemaVersion=${artifact.schemaVersion}, want ${formalArtifactSchemaVersion}`,
+    );
   }
   if (artifact.flowId.trim() === "") {
     errors.push("formal artifact flowId is required");
   }
   if (artifact.source.contractPath !== expected.contractPath) {
-    errors.push(`formal artifact contractPath=${artifact.source.contractPath}, want ${expected.contractPath}`);
+    errors.push(
+      `formal artifact contractPath=${artifact.source.contractPath}, want ${expected.contractPath}`,
+    );
   }
   requireSha256(errors, "contractSha256", artifact.source.contractSha256);
   if (expected.contractSha256 && artifact.source.contractSha256 !== expected.contractSha256) {
-    errors.push(`formal artifact contractSha256=${artifact.source.contractSha256}, want ${expected.contractSha256}`);
+    errors.push(
+      `formal artifact contractSha256=${artifact.source.contractSha256}, want ${expected.contractSha256}`,
+    );
   }
   if (artifact.source.modelPath !== expected.modelPath) {
-    errors.push(`formal artifact modelPath=${artifact.source.modelPath}, want ${expected.modelPath}`);
+    errors.push(
+      `formal artifact modelPath=${artifact.source.modelPath}, want ${expected.modelPath}`,
+    );
   }
   if (expected.generatorPath && artifact.source.generatorPath !== expected.generatorPath) {
-    errors.push(`formal artifact generatorPath=${artifact.source.generatorPath}, want ${expected.generatorPath}`);
+    errors.push(
+      `formal artifact generatorPath=${artifact.source.generatorPath}, want ${expected.generatorPath}`,
+    );
   }
   requireSha256(errors, "generatorSha256", artifact.source.generatorSha256);
   if (expected.generatorSha256 && artifact.source.generatorSha256 !== expected.generatorSha256) {
-    errors.push(`formal artifact generatorSha256=${artifact.source.generatorSha256}, want ${expected.generatorSha256}`);
+    errors.push(
+      `formal artifact generatorSha256=${artifact.source.generatorSha256}, want ${expected.generatorSha256}`,
+    );
   }
   if (!Number.isInteger(artifact.source.generatorVersion) || artifact.source.generatorVersion < 1) {
     errors.push("formal artifact generatorVersion is required");
@@ -142,7 +154,9 @@ export const validateFormalArtifactFresh = (
   }
   requireSha256(errors, "modelSha256", artifact.source.modelSha256);
   if (expected.modelSha256 && artifact.source.modelSha256 !== expected.modelSha256) {
-    errors.push(`formal artifact modelSha256=${artifact.source.modelSha256}, want ${expected.modelSha256}`);
+    errors.push(
+      `formal artifact modelSha256=${artifact.source.modelSha256}, want ${expected.modelSha256}`,
+    );
   }
   if (!artifact.checks.typechecked) {
     errors.push("formal artifact was not typechecked");
@@ -218,7 +232,10 @@ export const assertFormalArtifactFresh = (
   }
 };
 
-export const validateFormalTransitionsReplay = <State extends PropertyKey, Event extends PropertyKey>(
+export const validateFormalTransitionsReplay = <
+  State extends PropertyKey,
+  Event extends PropertyKey,
+>(
   artifact: FormalArtifact,
   states: readonly State[],
   events: readonly Event[],
@@ -249,7 +266,11 @@ export const validateFormalTracesReplay = <State extends PropertyKey, Event exte
   events: readonly Event[],
   transition: WorkflowTransition<State, Event>,
 ): string[] => {
-  const { traces, errors } = formalTraces([...artifact.namedTraces, ...artifact.generatedTraces], states, events);
+  const { traces, errors } = formalTraces(
+    [...artifact.namedTraces, ...artifact.generatedTraces],
+    states,
+    events,
+  );
   if (errors.length > 0) {
     return errors;
   }
@@ -349,4 +370,5 @@ const formalTraces = <State extends PropertyKey, Event extends PropertyKey>(
 const valuesByString = <Value extends PropertyKey>(values: readonly Value[]): Map<string, Value> =>
   new Map(values.map((value) => [String(value), value]));
 
-const formatErrors = (errors: readonly string[]): string => errors.map((error) => `  - ${error}`).join("\n");
+const formatErrors = (errors: readonly string[]): string =>
+  errors.map((error) => `  - ${error}`).join("\n");

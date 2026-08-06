@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:StatusIndicator","catalogId":"primitives.status-indicator","displayName":"StatusIndicator","description":"A compact live status signal with explicit semantic states and accessible status output.","assetKind":"component","tags":["primitive","feedback","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:StatusIndicator",
+  "catalogId": "primitives.status-indicator",
+  "displayName": "StatusIndicator",
+  "description": "A compact live status signal with explicit semantic states and accessible status output.",
+  "assetKind": "component",
+  "tags": ["primitive", "feedback", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

@@ -1,0 +1,29 @@
+{
+  "libraryId": "react-component-library:Popover",
+  "catalogId": "overlays.popover",
+  "displayName": "Popover",
+  "description": "A collision-aware anchored surface with native focus, layered dismissal, responsive fallback, and a pointer-safe interaction boundary.",
+  "assetKind": "component",
+  "tags": ["overlay", "anchored", "accessible", "responsive", "token-bound"],
+  "slot": "ui-pattern",
+  "category": "overlays",
+  "dependencies": [
+    { "libraryId": "react-component-library:Surface", "version": "1.0.0" },
+    { "libraryId": "react-component-library:Presence", "version": "1.0.0" },
+    { "libraryId": "react-component-library:useOutsideInteraction", "version": "1.0.0" },
+    { "libraryId": "react-component-library:useEscapeKey", "version": "1.0.0" },
+    { "libraryId": "react-component-library:useControllableState", "version": "1.0.0" }
+  ],
+  "api": {
+    "levels": ["compound", "convenience"],
+    "modes": ["controlled", "uncontrolled"],
+    "parts": ["trigger", "content", "arrow"]
+  },
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" }
+  ],
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

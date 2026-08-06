@@ -1,1 +1,33 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:TopBar@1.0.0"},"component":{"id":"navigation.top-bar","title":"TopBar","purpose":"TopBar preserves responsive navigation semantics and token ownership."},"states":[{"id":"default","example":"default","description":"The navigation surface is available."},{"id":"long-content","example":"long-content","description":"Long labels remain operable."}],"claims":[{"id":"contract-present","type":"custom","statement":"TopBar preserves responsive navigation semantics and token ownership.","tier":"manual","states":["default","long-content"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:TopBar@1.0.0"
+  },
+  "component": {
+    "id": "navigation.top-bar",
+    "title": "TopBar",
+    "purpose": "TopBar preserves responsive navigation semantics and token ownership."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The navigation surface is available."
+    },
+    {
+      "id": "long-content",
+      "example": "long-content",
+      "description": "Long labels remain operable."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "TopBar preserves responsive navigation semantics and token ownership.",
+      "tier": "manual",
+      "states": ["default", "long-content"]
+    }
+  ]
+}

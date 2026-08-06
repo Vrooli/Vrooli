@@ -1,35 +1,46 @@
-/**
- * @libraryId react-component-library:IconButton
- * @displayName IconButton
- * @description Accessible icon-only action control backed by ControlBase.
- * @version 2.0.0
- * @status released
- * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
- */
+/** @vrooliComponentSource controls.icon-button */
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { ControlBase, type ControlDensity, type ControlSize, type ControlVariant } from "../../../ControlBase/versions/1.0.0/ControlBase";
+import {
+  type ControlDensity,
+  type ControlSize,
+  type ControlVariant,
+} from "../../../ControlBase/versions/1.0.0/ControlBase";
+import { Pressable } from "../../../Pressable/versions/1.0.0/Pressable";
 
-export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "color"> {
+export interface IconButtonProps
+  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "color"> {
   "aria-label": string;
   children: ReactNode;
   size?: ControlSize;
   density?: ControlDensity;
   variant?: ControlVariant;
+  pending?: boolean;
 }
 
-export function IconButton({ "aria-label": ariaLabel, children, density = "comfortable", size = "icon", title, type = "button", variant = "ghost", ...props }: IconButtonProps) {
+export function IconButton({
+  "aria-label": ariaLabel,
+  children,
+  density = "comfortable",
+  size = "icon",
+  title,
+  pending,
+  type = "button",
+  variant = "ghost",
+  ...props
+}: IconButtonProps) {
   return (
-    <ControlBase
+    <Pressable
       {...props}
       aria-label={ariaLabel}
       type={type}
       title={title ?? ariaLabel}
-      variant={variant}
       size={size}
       density={density}
       shape="square"
+      pending={pending}
+      tone={variant}
     >
       {children}
-    </ControlBase>
+    </Pressable>
   );
 }

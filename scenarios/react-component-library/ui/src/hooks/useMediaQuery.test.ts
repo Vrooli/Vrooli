@@ -27,19 +27,14 @@ function installMatchMedia(initial: Record<string, boolean>) {
         removeEventListener: (_type, l) => listeners.delete(l),
         trigger(next: boolean) {
           this.matches = next;
-          listeners.forEach((l) =>
-            l({ matches: next, media: query } as MediaQueryListEvent),
-          );
+          listeners.forEach((l) => l({ matches: next, media: query } as MediaQueryListEvent));
         },
       };
       lists.set(query, mql);
     }
     return mql;
   }
-  vi.stubGlobal(
-    "matchMedia",
-    (query: string) => ensure(query) as unknown as MediaQueryList,
-  );
+  vi.stubGlobal("matchMedia", (query: string) => ensure(query) as unknown as MediaQueryList);
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     writable: true,

@@ -10,13 +10,41 @@
     "purpose": "Provide a token-bound action control whose accessible name and variant intent survive reuse across scenario UIs."
   },
   "states": [
-    {"id": "primary", "example": "primary", "description": "Primary call-to-action example with an accessible label."},
-    {"id": "destructive", "example": "destructive", "description": "Danger variant for irreversible actions."},
-    {"id": "disabled", "example": "disabled-long-label", "description": "Disabled action that retains its visible label."},
-    {"id": "icon-start", "example": "icon-start", "description": "Icon-leading action that still exposes text."}
+    {
+      "id": "primary",
+      "example": "primary",
+      "description": "Primary call-to-action example with an accessible label."
+    },
+    {
+      "id": "destructive",
+      "example": "destructive",
+      "description": "Danger variant for irreversible actions."
+    },
+    {
+      "id": "disabled",
+      "example": "disabled-long-label",
+      "description": "Disabled action that retains its visible label."
+    },
+    {
+      "id": "icon-start",
+      "example": "icon-start",
+      "description": "Icon-leading action that still exposes text."
+    }
   ],
   "claims": [
-    {"id": "primary-action-present", "type": "element-present", "statement": "The primary example renders a named button action.", "tier": "machine", "states": ["primary"]},
-    {"id": "disabled-state-reflected", "type": "custom", "statement": "The disabled example prevents activation while retaining its visible action label.", "tier": "manual", "states": ["disabled"]}
+    {
+      "id": "primary-action-present",
+      "type": "element-present",
+      "statement": "The primary example renders a named button action.",
+      "tier": "machine",
+      "states": ["primary"]
+    },
+    {
+      "id": "disabled-state-reflected",
+      "type": "custom",
+      "statement": "The disabled example prevents activation while retaining its visible action label.",
+      "tier": "manual",
+      "states": ["disabled"]
+    }
   ]
 }

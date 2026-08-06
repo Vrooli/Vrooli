@@ -3,11 +3,7 @@
   "catalogId": "navigation.sidebar",
   "displayName": "Sidebar Shell",
   "description": "Responsive sidebar parent with desktop resizing and mobile full-width safe-area drawer behavior.",
-  "tags": [
-    "layout",
-    "navigation",
-    "responsive"
-  ],
+  "tags": ["layout", "navigation", "responsive"],
   "slot": "layout-nav",
   "category": "navigation",
   "designStyles": [

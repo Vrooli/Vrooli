@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:useOutsideInteraction",
+  "catalogId": "hooks.use-outside-interaction",
+  "displayName": "useOutsideInteraction",
+  "description": "Dismissal behavior for pointer, focus, and keyboard interactions outside a layered surface.",
+  "assetKind": "hook",
+  "tags": ["runtime", "overlay", "accessibility", "layering"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

@@ -6,6 +6,6 @@
   "assetKind": "foundation",
   "tags": ["contracts", "types", "runtime"],
   "latest": "1.0.0",
-  "designStyles": [{"styleId":"vrooli-default","affinity":"native"}],
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
   "dependencies": []
 }

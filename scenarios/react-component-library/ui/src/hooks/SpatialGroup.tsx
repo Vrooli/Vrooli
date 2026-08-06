@@ -1,5 +1,9 @@
-import { useEffect, useRef, type ReactNode } from 'react';
-import type { SpatialNavController, FocusGroupMode, FocusGroupOptions } from '@vrooli/iframe-bridge/spatial';
+import { useEffect, useRef, type ReactNode } from "react";
+import type {
+  SpatialNavController,
+  FocusGroupMode,
+  FocusGroupOptions,
+} from "@vrooli/iframe-bridge/spatial";
 
 interface SpatialGroupProps {
   /** Navigation mode for this focus group. */
@@ -48,16 +52,18 @@ export function SpatialGroup({
     const ctrl = controllerRef.current;
     if (!el || !ctrl) return;
 
-    if (mode === 'modal') {
+    if (mode === "modal") {
       ctrl.pushScope(el);
-      return () => { ctrl.popScope(); };
+      return () => {
+        ctrl.popScope();
+      };
     }
 
     return ctrl.registerGroup(el, mode, options);
   }, [mode, controllerRef, options]);
 
   return (
-    <div ref={ref} style={{ display: 'contents' }} className={className}>
+    <div ref={ref} style={{ display: "contents" }} className={className}>
       {children}
     </div>
   );

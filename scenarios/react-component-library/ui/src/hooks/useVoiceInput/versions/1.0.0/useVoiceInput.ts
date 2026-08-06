@@ -13,8 +13,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type VoiceInputMode = "always-on" | "timeout";
-export type VoiceInputState = "idle" | "preparing" | "recording" | "recovering" | "unavailable" | "error";
-export type VoiceInputTerminalReason = "explicit-stop" | "timeout" | "permission-denied" | "device-ended" | "adapter-failed" | "cancelled";
+export type VoiceInputState =
+  | "idle"
+  | "preparing"
+  | "recording"
+  | "recovering"
+  | "unavailable"
+  | "error";
+export type VoiceInputTerminalReason =
+  | "explicit-stop"
+  | "timeout"
+  | "permission-denied"
+  | "device-ended"
+  | "adapter-failed"
+  | "cancelled";
 
 export interface VoiceInputSegment {
   readonly id: string;
@@ -71,7 +83,10 @@ export interface VoiceInputSnapshot {
   readonly rejectionReason?: string;
 }
 
-const systemClock: VoiceInputClock = { setTimeout: window.setTimeout.bind(window), clearTimeout: window.clearTimeout.bind(window) };
+const systemClock: VoiceInputClock = {
+  setTimeout: window.setTimeout.bind(window),
+  clearTimeout: window.clearTimeout.bind(window),
+};
 const noCues: VoiceInputCues = { play: () => undefined };
 
 /** A deterministic, single-owner lifecycle used by the React hook and test fakes. */
@@ -84,18 +99,33 @@ export class VoiceInputController {
   private stoppedCue = false;
   private snapshotValue: VoiceInputSnapshot;
 
-  constructor(private readonly options: VoiceInputOptions, private readonly notify: (snapshot: VoiceInputSnapshot) => void = () => undefined) {
+  constructor(
+    private readonly options: VoiceInputOptions,
+    private readonly notify: (snapshot: VoiceInputSnapshot) => void = () => undefined,
+  ) {
     this.snapshotValue = { state: "idle", mode: options.mode ?? "always-on", settledSegments: [] };
   }
 
-  get snapshot(): VoiceInputSnapshot { return this.snapshotValue; }
+  get snapshot(): VoiceInputSnapshot {
+    return this.snapshotValue;
+  }
 
   async start(): Promise<void> {
-    if (this.snapshotValue.state === "preparing" || this.snapshotValue.state === "recording" || this.snapshotValue.state === "recovering") return;
+    if (
+      this.snapshotValue.state === "preparing" ||
+      this.snapshotValue.state === "recording" ||
+      this.snapshotValue.state === "recovering"
+    )
+      return;
     this.stopped = false;
     this.startedCue = false;
     this.stoppedCue = false;
-    this.publish({ state: "preparing", terminalReason: undefined, rejectionReason: undefined, settledSegments: [] });
+    this.publish({
+      state: "preparing",
+      terminalReason: undefined,
+      rejectionReason: undefined,
+      settledSegments: [],
+    });
     try {
       this.capture = await this.options.media.acquire();
       if (this.isStopped()) return;
@@ -106,14 +136,22 @@ export class VoiceInputController {
       await this.playOnce("start");
       if (this.snapshotValue.mode === "timeout") {
         const timeoutMs = this.options.timeoutMs ?? 30_000;
-        this.timeout = (this.options.clock ?? systemClock).setTimeout(() => void this.end("timeout"), timeoutMs);
+        this.timeout = (this.options.clock ?? systemClock).setTimeout(
+          () => void this.end("timeout"),
+          timeoutMs,
+        );
       }
     } catch (error) {
-      await this.end(this.capture === undefined ? "permission-denied" : "adapter-failed", error instanceof Error ? error : new Error(String(error)));
+      await this.end(
+        this.capture === undefined ? "permission-denied" : "adapter-failed",
+        error instanceof Error ? error : new Error(String(error)),
+      );
     }
   }
 
-  async stop(): Promise<void> { await this.end("explicit-stop"); }
+  async stop(): Promise<void> {
+    await this.end("explicit-stop");
+  }
 
   async retry(): Promise<void> {
     if (this.options.adapter.retry) await this.options.adapter.retry();
@@ -123,7 +161,8 @@ export class VoiceInputController {
   private handleEvent(event: VoiceInputEvent): void {
     if (this.stopped) return;
     if (event.type === "segment") {
-      if (this.snapshotValue.settledSegments.some((segment) => segment.id === event.segment.id)) return;
+      if (this.snapshotValue.settledSegments.some((segment) => segment.id === event.segment.id))
+        return;
       const settledSegments = [...this.snapshotValue.settledSegments, event.segment];
       this.publish({ settledSegments });
       this.options.onSettledSegment?.(event.segment);
@@ -147,15 +186,32 @@ export class VoiceInputController {
     this.removeEndedListener = undefined;
     this.capture?.stop();
     this.capture = undefined;
-    try { await this.options.adapter.stop(reason); } catch { /* cleanup must continue after transport failure */ }
+    try {
+      await this.options.adapter.stop(reason);
+    } catch {
+      /* cleanup must continue after transport failure */
+    }
     if (this.startedCue) await this.playOnce("stop");
-    this.publish({ state: reason === "permission-denied" ? "unavailable" : reason === "adapter-failed" ? "error" : "idle", terminalReason: reason });
+    this.publish({
+      state:
+        reason === "permission-denied"
+          ? "unavailable"
+          : reason === "adapter-failed"
+            ? "error"
+            : "idle",
+      terminalReason: reason,
+    });
   }
 
   private async playOnce(kind: "start" | "stop"): Promise<void> {
     if ((kind === "start" && this.startedCue) || (kind === "stop" && this.stoppedCue)) return;
-    if (kind === "start") this.startedCue = true; else this.stoppedCue = true;
-    try { await (this.options.cues ?? noCues).play(kind); } catch { /* audible feedback is never a lifecycle dependency */ }
+    if (kind === "start") this.startedCue = true;
+    else this.stoppedCue = true;
+    try {
+      await (this.options.cues ?? noCues).play(kind);
+    } catch {
+      /* audible feedback is never a lifecycle dependency */
+    }
   }
 
   private publish(next: Partial<VoiceInputSnapshot>): void {
@@ -163,13 +219,29 @@ export class VoiceInputController {
     this.notify(this.snapshotValue);
   }
 
-  private isStopped(): boolean { return this.stopped; }
+  private isStopped(): boolean {
+    return this.stopped;
+  }
 }
 
 export function useVoiceInput(options: VoiceInputOptions) {
-  const [snapshot, setSnapshot] = useState<VoiceInputSnapshot>({ state: "idle", mode: options.mode ?? "always-on", settledSegments: [] });
+  const [snapshot, setSnapshot] = useState<VoiceInputSnapshot>({
+    state: "idle",
+    mode: options.mode ?? "always-on",
+    settledSegments: [],
+  });
   const controller = useRef<VoiceInputController>();
   if (!controller.current) controller.current = new VoiceInputController(options, setSnapshot);
-  useEffect(() => () => { void controller.current?.stop(); }, []);
-  return { ...snapshot, start: useCallback(() => controller.current?.start() ?? Promise.resolve(), []), stop: useCallback(() => controller.current?.stop() ?? Promise.resolve(), []), retry: useCallback(() => controller.current?.retry() ?? Promise.resolve(), []) };
+  useEffect(
+    () => () => {
+      void controller.current?.stop();
+    },
+    [],
+  );
+  return {
+    ...snapshot,
+    start: useCallback(() => controller.current?.start() ?? Promise.resolve(), []),
+    stop: useCallback(() => controller.current?.stop() ?? Promise.resolve(), []),
+    retry: useCallback(() => controller.current?.retry() ?? Promise.resolve(), []),
+  };
 }

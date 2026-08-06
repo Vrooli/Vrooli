@@ -1,2 +1,60 @@
-/** @vrooliComponentSource materialized.statusindicator */
-export type StatusCertainty = "scheduled" | "estimated" | "predicted" | "observed" | "confirmed"; export type StatusUrgency = "ambient" | "informational" | "actionable" | "critical"; export function StatusIndicator({ status = "idle", label, certainty = "observed", urgency = "ambient" }: { status?: "idle" | "pending" | "success" | "error" | "offline"; label?: string; certainty?: StatusCertainty; urgency?: StatusUrgency }) { const tone = status === "success" ? "var(--color-success, #16a34a)" : status === "error" ? "var(--color-danger, #dc2626)" : status === "pending" ? "var(--color-warning, #d97706)" : "var(--color-muted-foreground, #64748b)"; return <span role="status" data-status={status} data-certainty={certainty} data-urgency={urgency} style={{ display: "inline-flex", alignItems: "center", gap: 8, border: "1px solid " + tone, borderRadius: "var(--radius-pill, 9999px)", color: tone, padding: "6px 10px", fontSize: 13, fontWeight: 700 }}><span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: tone }} />{label ?? status}</span>; }
+/** @vrooliComponentSource feedback.status-indicator */
+import type { CSSProperties } from "react";
+export type StatusCertainty =
+  | "scheduled"
+  | "estimated"
+  | "predicted"
+  | "observed"
+  | "confirmed";
+export type StatusUrgency =
+  | "ambient"
+  | "informational"
+  | "actionable"
+  | "critical";
+export function StatusIndicator({
+  status = "idle",
+  label,
+  certainty = "observed",
+  urgency = "ambient",
+}: {
+  status?: "idle" | "pending" | "success" | "error" | "offline";
+  label?: string;
+  certainty?: StatusCertainty;
+  urgency?: StatusUrgency;
+}) {
+  const tone =
+    status === "success"
+      ? "var(--color-success)"
+      : status === "error"
+        ? "var(--color-danger)"
+        : status === "pending"
+          ? "var(--color-warning)"
+          : "var(--color-muted-foreground)";
+  return (
+    <>
+      <style
+        data-rcl-status-indicator-styles
+        dangerouslySetInnerHTML={{
+          __html: `
+        [data-rcl-status-indicator] { display: inline-flex; align-items: center; gap: var(--space-2xs); border: var(--border-hairline) solid var(--rcl-status-tone); border-radius: var(--radius-pill); color: var(--rcl-status-tone); padding: var(--space-3xs) var(--space-xs); font-size: var(--text-body-sm-size); line-height: var(--text-body-sm-line); font-weight: 650; }
+        [data-rcl-status-dot] { width: var(--space-2xs); height: var(--space-2xs); flex: 0 0 auto; border-radius: 50%; background: var(--rcl-status-tone); }
+        [data-rcl-status-indicator][data-status="pending"] [data-rcl-status-dot] { animation: rcl-status-pulse var(--dur-deliberate) var(--ease-standard) infinite; }
+        @keyframes rcl-status-pulse { 0%, 100% { opacity: .55; transform: scale(.84); } 50% { opacity: 1; transform: scale(1); } }
+        @media (prefers-reduced-motion: reduce) { [data-rcl-status-indicator] [data-rcl-status-dot] { animation: none; } }
+      `,
+        }}
+      />
+      <span
+        role="status"
+        data-rcl-status-indicator="true"
+        data-status={status}
+        data-certainty={certainty}
+        data-urgency={urgency}
+        style={{ "--rcl-status-tone": tone } as CSSProperties}
+      >
+        <span aria-hidden data-rcl-status-dot="true" />
+        {label ?? status}
+      </span>
+    </>
+  );
+}

@@ -4,11 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "../../components/Button";
-import {
-  DataTable,
-  type DataTableColumn,
-  type DataTableFilter,
-} from "../../components/DataTable";
+import { DataTable, type DataTableColumn, type DataTableFilter } from "../../components/DataTable";
 import { EmptyState } from "../../components/EmptyState";
 import { Input } from "../../components/Input";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -56,7 +52,10 @@ function statusKey(s: LibraryVersionStatus): string {
   return STATUS_KEY[s] ?? "unspecified";
 }
 
-function localStatusLabelFor(status: LocalStatus, t: ReturnType<typeof useTranslation>["t"]): string {
+function localStatusLabelFor(
+  status: LocalStatus,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
   switch (status) {
     case LocalStatus.MODIFIED:
       return t(strings.adoptions.status.modified);
@@ -129,7 +128,13 @@ function refreshedAtLabel(adoption: Adoption, t: ReturnType<typeof useTranslatio
  * library component → target scenario mapping plus its drift status.
  * Surface for req 08 (AD-001..AD-003).
  */
-export function AdoptionsCard({ componentId, suggestionsOnly = false }: { componentId?: string; suggestionsOnly?: boolean }) {
+export function AdoptionsCard({
+  componentId,
+  suggestionsOnly = false,
+}: {
+  componentId?: string;
+  suggestionsOnly?: boolean;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [scenario, setScenario] = useState("");
@@ -281,7 +286,63 @@ export function AdoptionsCard({ componentId, suggestionsOnly = false }: { compon
 
   if (suggestionsOnly) {
     const suggestions = suggestionsQuery.data?.suggestions ?? [];
-    return <section data-testid="adoption-suggestions" className="rounded-panel border border-app-border bg-app-surface p-space-sm"><h3 className="text-sm font-semibold text-app-foreground">{t(strings.adoptions.suggestions.title)}</h3><p className="mt-space-3xs text-xs text-app-muted-foreground">{t(strings.adoptions.suggestions.subtitle)}</p><div className="mt-space-xs space-y-space-2xs">{suggestions.map((item) => <article key={`${item.scenario}-${item.componentId}`} className="flex items-start justify-between gap-space-xs rounded-control border border-app-border p-space-xs text-xs"><div><div className="font-medium text-app-foreground">{item.displayName} <span className="text-app-muted-foreground">→ {item.scenario}</span></div><StatusBadge tone="neutral">{item.classification === 1 ? t("adoptions.suggestions.heuristic", { defaultValue: "Heuristic candidate — review before adopting" }) : t("adoptions.suggestions.unavailable", { defaultValue: "Unavailable candidate" })}</StatusBadge><ul className="mt-space-3xs list-disc space-y-0.5 ps-space-sm text-app-muted-foreground">{item.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></div><Button size="sm" onClick={() => void navigate(`/?action=adopt&assetId=${encodeURIComponent(item.componentId)}&targetScenario=${encodeURIComponent(item.scenario)}`)}>{t(strings.adoptions.suggestions.adoptAction)}</Button></article>)}{!suggestionsQuery.isLoading && suggestions.length === 0 && <p className="text-xs text-app-muted-foreground">{t(strings.adoptions.suggestions.empty)}</p>}</div></section>;
+    return (
+      <section
+        data-testid="adoption-suggestions"
+        className="rounded-panel border border-app-border bg-app-surface p-space-sm"
+      >
+        <h3 className="text-sm font-semibold text-app-foreground">
+          {t(strings.adoptions.suggestions.title)}
+        </h3>
+        <p className="mt-space-3xs text-xs text-app-muted-foreground">
+          {t(strings.adoptions.suggestions.subtitle)}
+        </p>
+        <div className="mt-space-xs space-y-space-2xs">
+          {suggestions.map((item) => (
+            <article
+              key={`${item.scenario}-${item.componentId}`}
+              className="flex items-start justify-between gap-space-xs rounded-control border border-app-border p-space-xs text-xs"
+            >
+              <div>
+                <div className="font-medium text-app-foreground">
+                  {item.displayName}{" "}
+                  <span className="text-app-muted-foreground">→ {item.scenario}</span>
+                </div>
+                <StatusBadge tone="neutral">
+                  {item.classification === 1
+                    ? t("adoptions.suggestions.heuristic", {
+                        defaultValue: "Heuristic candidate — review before adopting",
+                      })
+                    : t("adoptions.suggestions.unavailable", {
+                        defaultValue: "Unavailable candidate",
+                      })}
+                </StatusBadge>
+                <ul className="mt-space-3xs list-disc space-y-0.5 ps-space-sm text-app-muted-foreground">
+                  {item.reasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+              <Button
+                size="sm"
+                onClick={() =>
+                  void navigate(
+                    `/?action=adopt&assetId=${encodeURIComponent(item.componentId)}&targetScenario=${encodeURIComponent(item.scenario)}`,
+                  )
+                }
+              >
+                {t(strings.adoptions.suggestions.adoptAction)}
+              </Button>
+            </article>
+          ))}
+          {!suggestionsQuery.isLoading && suggestions.length === 0 && (
+            <p className="text-xs text-app-muted-foreground">
+              {t(strings.adoptions.suggestions.empty)}
+            </p>
+          )}
+        </div>
+      </section>
+    );
   }
 
   const filters: Array<DataTableFilter<Adoption>> = [
@@ -314,7 +375,9 @@ export function AdoptionsCard({ componentId, suggestionsOnly = false }: { compon
       className="mt-space-sm rounded-xl border border-app-border bg-app-surface p-space-sm backdrop-blur-sm"
     >
       <div className="flex items-center justify-between gap-space-xs">
-        <h2 className="text-sm font-medium text-app-muted-foreground">{t(strings.adoptions.title)}</h2>
+        <h2 className="text-sm font-medium text-app-muted-foreground">
+          {t(strings.adoptions.title)}
+        </h2>
         <div className="flex items-center gap-space-2xs">
           <Button
             data-testid={selectors.adoptions.createButton}
@@ -373,7 +436,7 @@ export function AdoptionsCard({ componentId, suggestionsOnly = false }: { compon
         <div data-testid={selectors.adoptions.empty} className="mt-space-xs">
           <EmptyState
             title={t(strings.adoptions.empty)}
-            action={(
+            action={
               <div className="flex flex-wrap gap-space-2xs">
                 <Button variant="secondary" onClick={() => void navigate("/?action=adopt")}>
                   {t(strings.adoptions.createAction)}
@@ -387,14 +450,17 @@ export function AdoptionsCard({ componentId, suggestionsOnly = false }: { compon
                     : t(strings.adoptions.refreshAction)}
                 </Button>
               </div>
-            )}
+            }
           />
         </div>
       )}
 
       {adoptions.length > 0 && (
         <>
-          <p data-testid={selectors.adoptions.summary} className="mt-space-xs text-xs text-app-muted-foreground">
+          <p
+            data-testid={selectors.adoptions.summary}
+            className="mt-space-xs text-xs text-app-muted-foreground"
+          >
             {t(strings.adoptions.summary, {
               count: adoptions.length,
               current: summary.current,
@@ -419,26 +485,72 @@ export function AdoptionsCard({ componentId, suggestionsOnly = false }: { compon
       )}
 
       <section className="rounded-panel border border-app-border bg-app-surface p-space-sm">
-        <h2 className="text-sm font-semibold text-app-foreground">{t(strings.adoptions.suggestions.title)}</h2>
-        <p className="mt-space-3xs text-xs text-app-muted-foreground">{t(strings.adoptions.suggestions.subtitle)}</p>
+        <h2 className="text-sm font-semibold text-app-foreground">
+          {t(strings.adoptions.suggestions.title)}
+        </h2>
+        <p className="mt-space-3xs text-xs text-app-muted-foreground">
+          {t(strings.adoptions.suggestions.subtitle)}
+        </p>
         <div className="mt-space-xs space-y-space-2xs">
           {(suggestionsQuery.data?.suggestions ?? []).map((item) => (
-            <div key={`${item.scenario}-${item.componentId}`} className="flex items-start justify-between gap-space-xs rounded-control border border-app-border p-space-xs text-xs">
+            <div
+              key={`${item.scenario}-${item.componentId}`}
+              className="flex items-start justify-between gap-space-xs rounded-control border border-app-border p-space-xs text-xs"
+            >
               <div>
-                <div className="font-medium text-app-foreground">{item.displayName} <span className="text-app-muted-foreground">→ {item.scenario}</span></div>
-                <p className="mt-space-3xs text-app-muted-foreground">{item.classification === 1 ? t("adoptions.suggestions.heuristic", { defaultValue: "Heuristic candidate — review before adopting" }) : t("adoptions.suggestions.unavailable", { defaultValue: "Unavailable candidate" })}</p>
-                <ul className="mt-space-3xs list-disc space-y-0.5 ps-space-sm text-app-muted-foreground">{item.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                <div className="font-medium text-app-foreground">
+                  {item.displayName}{" "}
+                  <span className="text-app-muted-foreground">→ {item.scenario}</span>
+                </div>
+                <p className="mt-space-3xs text-app-muted-foreground">
+                  {item.classification === 1
+                    ? t("adoptions.suggestions.heuristic", {
+                        defaultValue: "Heuristic candidate — review before adopting",
+                      })
+                    : t("adoptions.suggestions.unavailable", {
+                        defaultValue: "Unavailable candidate",
+                      })}
+                </p>
+                <ul className="mt-space-3xs list-disc space-y-0.5 ps-space-sm text-app-muted-foreground">
+                  {item.reasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ul>
               </div>
-              <Button size="sm" onClick={() => void navigate(`/?action=adopt&assetId=${encodeURIComponent(item.componentId)}&targetScenario=${encodeURIComponent(item.scenario)}`)}>{t(strings.adoptions.suggestions.adoptAction)}</Button>
+              <Button
+                size="sm"
+                onClick={() =>
+                  void navigate(
+                    `/?action=adopt&assetId=${encodeURIComponent(item.componentId)}&targetScenario=${encodeURIComponent(item.scenario)}`,
+                  )
+                }
+              >
+                {t(strings.adoptions.suggestions.adoptAction)}
+              </Button>
             </div>
           ))}
-          {!suggestionsQuery.isLoading && (suggestionsQuery.data?.suggestions.length ?? 0) === 0 && <p className="text-xs text-app-muted-foreground">{t(strings.adoptions.suggestions.empty)}</p>}
+          {!suggestionsQuery.isLoading &&
+            (suggestionsQuery.data?.suggestions.length ?? 0) === 0 && (
+              <p className="text-xs text-app-muted-foreground">
+                {t(strings.adoptions.suggestions.empty)}
+              </p>
+            )}
         </div>
       </section>
       <details className="mt-space-xs text-xs text-app-muted-foreground">
         <summary className="cursor-pointer">Advanced local re-link</summary>
-        <p className="mt-space-2xs">Use this only to record an existing local copy; normal adoption starts the guided adopt-assist workflow.</p>
-        <Button variant="secondary" size="sm" className="mt-space-2xs" onClick={() => setCreateOpen(true)}>Open local re-link</Button>
+        <p className="mt-space-2xs">
+          Use this only to record an existing local copy; normal adoption starts the guided
+          adopt-assist workflow.
+        </p>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="mt-space-2xs"
+          onClick={() => setCreateOpen(true)}
+        >
+          Open local re-link
+        </Button>
       </details>
       <CreateAdoptionDialog open={createOpen} initial={null} onClose={() => setCreateOpen(false)} />
     </section>

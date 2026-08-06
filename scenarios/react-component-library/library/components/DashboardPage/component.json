@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:DashboardPage","catalogId":"templates.dashboard-page","displayName":"DashboardPage","description":"A metric-first page template with data-source-owned regions and honest asynchronous states.","assetKind":"component","tags":["template","page","data-source","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:DashboardPage",
+  "catalogId": "templates.dashboard-page",
+  "displayName": "DashboardPage",
+  "description": "A metric-first page template with data-source-owned regions and honest asynchronous states.",
+  "assetKind": "component",
+  "tags": ["template", "page", "data-source", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

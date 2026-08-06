@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Toast",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Confirmation toast", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "Changes saved" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "interactive", "name": "Interactive notification", "harness": "Interactive", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Show confirmation" }], "interactions": [{ "kind": "settle" }] }
+  ]
+}

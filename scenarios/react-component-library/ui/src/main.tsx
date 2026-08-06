@@ -76,7 +76,7 @@ async function bootstrap() {
           </ErrorBoundary>
         </ThemeProvider>
       </QueryClientProvider>
-    </React.StrictMode>
+    </React.StrictMode>,
   );
 }
 

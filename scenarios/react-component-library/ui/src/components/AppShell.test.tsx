@@ -69,7 +69,9 @@ describe("AppShell", () => {
     const user = userEvent.setup();
     renderWithProviders(
       <Routes>
-        <Route element={<AppShell />}><Route path="/" element={<div>page</div>} /></Route>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>page</div>} />
+        </Route>
       </Routes>,
       { routerEntries: ["/"] },
     );
@@ -140,7 +142,14 @@ describe("AppShell", () => {
 
   it("opens the shared main-actions menu and exposes all three guided actions", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<Routes><Route element={<AppShell />}><Route path="/" element={<div>page</div>} /></Route></Routes>, { routerEntries: ["/"] });
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>page</div>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/"] },
+    );
     await user.click(screen.getByRole("button", { name: "launcher.open" }));
     expect(screen.getByRole("menu")).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "launcher.extract" })).toBeInTheDocument();
@@ -149,29 +158,64 @@ describe("AppShell", () => {
   });
 
   it("opens the requested action from a PWA deep link", () => {
-    renderWithProviders(<Routes><Route element={<AppShell />}><Route path="/" element={<div>page</div>} /></Route></Routes>, { routerEntries: ["/?action=adopt&assetId=cmp-1&targetScenario=demo"] });
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>page</div>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/?action=adopt&assetId=cmp-1&targetScenario=demo"] },
+    );
     expect(screen.getByRole("dialog", { name: "launcher.adopt" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("cmp-1")).toBeInTheDocument();
     expect(screen.getByDisplayValue("demo")).toBeInTheDocument();
   });
 
   it("routes the coverage operator view through the shared workspace header", () => {
-    renderWithProviders(<Routes><Route element={<AppShell />}><Route path="/coverage" element={<div>coverage</div>} /></Route></Routes>, { routerEntries: ["/coverage"] });
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/coverage" element={<div>coverage</div>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/coverage"] },
+    );
     expect(screen.getByRole("heading", { name: "Catalog coverage" })).toBeInTheDocument();
     expect(screen.getByText("Maturity distribution and ranked next work")).toBeInTheDocument();
   });
 
   it("routes the capabilities operator view through the shared workspace header", () => {
     cleanup();
-    renderWithProviders(<Routes><Route element={<AppShell />}><Route path="/capabilities" element={<div>capabilities</div>} /></Route></Routes>, { routerEntries: ["/capabilities"] });
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/capabilities" element={<div>capabilities</div>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/capabilities"] },
+    );
     expect(screen.getByRole("heading", { name: "Capability readiness" })).toBeInTheDocument();
     expect(screen.getByText("Integration readiness and recovery guidance")).toBeInTheDocument();
   });
 
   it("submits catalog search and opens create from the workspace header", async () => {
     const user = userEvent.setup();
-    vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() }));
-    renderWithProviders(<Routes><Route element={<AppShell />}><Route path="/" element={<div>page</div>} /><Route path="/catalog" element={<div>catalog</div>} /></Route></Routes>, { routerEntries: ["/"] });
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<div>page</div>} />
+          <Route path="/catalog" element={<div>catalog</div>} />
+        </Route>
+      </Routes>,
+      { routerEntries: ["/"] },
+    );
     const search = document.querySelector("form input") as HTMLInputElement;
     expect(search).toBeInTheDocument();
     await user.type(search, "buttons");

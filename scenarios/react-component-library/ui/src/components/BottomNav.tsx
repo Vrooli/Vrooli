@@ -29,7 +29,10 @@ export interface BottomNavProps {
   items: BottomNavItem[];
   label: string;
   testId?: string;
-  onItemSelect?: (item: BottomNavItem, event: MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => void;
+  onItemSelect?: (
+    item: BottomNavItem,
+    event: MouseEvent<HTMLAnchorElement | HTMLButtonElement>,
+  ) => void;
   className?: string;
   itemClassName?: string;
   activeItemClassName?: string;
@@ -56,7 +59,9 @@ export function BottomNav({
 }: BottomNavProps) {
   const renderItemContent = (item: BottomNavItem) => (
     <>
-      <span aria-hidden className="flex h-5 w-5 items-center justify-center">{item.icon}</span>
+      <span aria-hidden className="flex h-5 w-5 items-center justify-center">
+        {item.icon}
+      </span>
       <span className="max-w-full truncate whitespace-nowrap">{item.label}</span>
     </>
   );
@@ -73,7 +78,9 @@ export function BottomNav({
       {items.map((item) => {
         const classNames = cn(
           baseItemClass,
-          item.active ? activeItemClassName ?? activeClass : inactiveItemClassName ?? inactiveClass,
+          item.active
+            ? (activeItemClassName ?? activeClass)
+            : (inactiveItemClassName ?? inactiveClass),
           item.disabled && disabledClass,
           itemClassName,
         );

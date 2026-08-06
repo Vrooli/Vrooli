@@ -3,11 +3,7 @@
   "catalogId": "data-display.data-table",
   "displayName": "Data Table",
   "description": "Sortable, searchable, filterable token-bound table for dense operational data.",
-  "tags": [
-    "data",
-    "table",
-    "interactive"
-  ],
+  "tags": ["data", "table", "interactive"],
   "slot": "ui-pattern",
   "category": "data-display",
   "designStyles": [

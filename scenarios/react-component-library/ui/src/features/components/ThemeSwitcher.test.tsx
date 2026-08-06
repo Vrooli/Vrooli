@@ -52,7 +52,10 @@ describe("ThemeSwitcher", () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness setKit={setKit} />);
     await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
-    await user.selectOptions(screen.getByTestId(selectors.components.themeSwitcher.kitSelect), "vrooli-command-display");
+    await user.selectOptions(
+      screen.getByTestId(selectors.components.themeSwitcher.kitSelect),
+      "vrooli-command-display",
+    );
     expect(setKit).toHaveBeenCalledWith("vrooli-command-display");
   });
 

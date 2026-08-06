@@ -70,19 +70,19 @@ export function DrawerShell({
   avoidKeyboard = false,
   children,
 }: DrawerShellProps) {
-	const closeButtonRef = useRef<HTMLButtonElement>(null);
-	const panelRef = useRef<HTMLDivElement>(null);
-	const titleId = useId();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
-	useEscapeKey(open, onClose);
-	useFocusTrap(open, panelRef);
+  useEscapeKey(open, onClose);
+  useFocusTrap(open, panelRef);
 
-	useEffect(() => {
-		if (!open) return;
-		const previousFocus = document.activeElement as HTMLElement | null;
-		closeButtonRef.current?.focus();
-		return () => previousFocus?.focus();
-	}, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+    return () => previousFocus?.focus();
+  }, [open]);
 
   if (!open) return null;
 
@@ -93,7 +93,12 @@ export function DrawerShell({
 
   return (
     <div className="fixed inset-0 z-wc-drawer">
-      <button type="button" className="absolute inset-0 bg-wc-backdrop" aria-label="Dismiss drawer backdrop" onClick={onClose} />
+      <button
+        type="button"
+        className="absolute inset-0 bg-wc-backdrop"
+        aria-label="Dismiss drawer backdrop"
+        onClick={onClose}
+      />
       <div
         ref={panelRef}
         role="dialog"
@@ -108,7 +113,12 @@ export function DrawerShell({
       >
         <div className="shrink-0 border-b border-wc-default px-4 py-3">
           <div className="flex items-center gap-3">
-            <h2 id={titleId} className="min-w-0 flex-1 truncate text-sm font-semibold text-wc-text-primary">{title}</h2>
+            <h2
+              id={titleId}
+              className="min-w-0 flex-1 truncate text-sm font-semibold text-wc-text-primary"
+            >
+              {title}
+            </h2>
             {headerActions}
             <button
               ref={closeButtonRef}

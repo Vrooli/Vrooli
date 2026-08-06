@@ -1,1 +1,28 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:useElementRect@1.0.0"},"component":{"id":"use-element-rect","title":"Element rect","purpose":"Tracks an element's measured bounds with resize cleanup."},"states":[{"id":"default","example":"default","description":"The default contract."}],"claims":[{"id":"contract-present","type":"custom","statement":"The hook exposes its documented public behavior through a stable versioned entrypoint.","tier":"manual","states":["default"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:useElementRect@1.0.0"
+  },
+  "component": {
+    "id": "use-element-rect",
+    "title": "Element rect",
+    "purpose": "Tracks an element's measured bounds with resize cleanup."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The default contract."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "The hook exposes its documented public behavior through a stable versioned entrypoint.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

@@ -1,1 +1,38 @@
-{"schemaVersion":1,"kind":"component","title":"ButtonGroup","args":{"fields":[{"path":"label","kind":"text","default":"Actions"}]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default actions","args":{"label":"Actions"},"expect":[{"kind":"role","role":"group","name":"Actions"}],"interactions":[{"kind":"settle"}]}]}
+{
+  "schemaVersion": 2,
+  "kind": "component",
+  "title": "ButtonGroup",
+  "args": {
+    "fields": [
+      { "path": "label", "kind": "text", "default": "Actions" },
+      {
+        "path": "children",
+        "kind": "structured",
+        "default": [
+          { "$node": "button", "props": { "type": "button" }, "children": [{ "$text": "Save" }] },
+          { "$node": "button", "props": { "type": "button" }, "children": [{ "$text": "Share" }] }
+        ]
+      }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default actions",
+      "harness": "ButtonGroupStory",
+      "args": {
+        "label": "Actions",
+        "children": [
+          { "$node": "button", "props": { "type": "button" }, "children": [{ "$text": "Save" }] },
+          { "$node": "button", "props": { "type": "button" }, "children": [{ "$text": "Share" }] }
+        ]
+      },
+      "expect": [
+        { "kind": "role", "role": "group", "name": "Actions" },
+        { "kind": "text", "value": "Save" }
+      ],
+      "interactions": [{ "kind": "settle" }]
+    }
+  ]
+}

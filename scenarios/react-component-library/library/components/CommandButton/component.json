@@ -1,0 +1,24 @@
+{
+  "libraryId": "react-component-library:CommandButton",
+  "catalogId": "controls.command-button",
+  "displayName": "CommandButton",
+  "description": "An async-aware action button with stable dimensions, acknowledged progress, recovery, and retry.",
+  "assetKind": "component",
+  "tags": ["control", "async", "recovery", "token-bound"],
+  "slot": "ui-primitive",
+  "category": "actions",
+  "dependencies": [
+    { "libraryId": "react-component-library:Button", "version": "2.0.0" },
+    {
+      "libraryId": "react-component-library:useAsyncAction",
+      "version": "1.0.0"
+    }
+  ],
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" }
+  ],
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

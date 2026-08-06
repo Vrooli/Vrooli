@@ -3,11 +3,7 @@
   "catalogId": "controls.icon-button",
   "displayName": "IconButton",
   "description": "Accessible icon-only action control.",
-  "tags": [
-    "button",
-    "icon",
-    "accessibility"
-  ],
+  "tags": ["button", "icon", "accessibility"],
   "designStyles": [
     {
       "styleId": "vrooli-default",
@@ -18,7 +14,7 @@
   "latest": "2.0.0",
   "dependencies": [
     {
-      "libraryId": "react-component-library:ControlBase",
+      "libraryId": "react-component-library:Pressable",
       "version": "1.0.0"
     }
   ],

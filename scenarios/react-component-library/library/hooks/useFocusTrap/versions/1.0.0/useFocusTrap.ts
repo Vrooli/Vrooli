@@ -6,14 +6,19 @@ const focusableSelector =
 // useFocusTrap keeps keyboard focus within an active overlay. It is a
 // standalone catalog hook so each consuming component pins this version rather
 // than carrying a duplicated companion copy.
-export function useFocusTrap(active: boolean, containerRef: RefObject<HTMLElement | null>): void {
+export function useFocusTrap(
+  active: boolean,
+  containerRef: RefObject<HTMLElement | null>,
+): void {
   useEffect(() => {
     if (!active) return;
     const panel = containerRef.current;
     if (!panel) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
-      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector));
+      const focusable = Array.from(
+        panel.querySelectorAll<HTMLElement>(focusableSelector),
+      );
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (!first || !last) return;

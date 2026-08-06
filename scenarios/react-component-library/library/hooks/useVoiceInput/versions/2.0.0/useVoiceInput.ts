@@ -4,7 +4,10 @@
  * @status released
  * @deps {"react":"^18","@vrooli/audio-capture-browser":"*"}
  */
-import { useVoiceCore, type UseVoiceCoreOptions } from "@vrooli/audio-capture-browser";
+import {
+  useVoiceCore,
+  type UseVoiceCoreOptions,
+} from "@vrooli/audio-capture-browser";
 
 export type { VoiceCapabilityProbe } from "@vrooli/audio-capture-browser";
 

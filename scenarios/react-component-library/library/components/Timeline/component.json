@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:Timeline","catalogId":"data-display.timeline","displayName":"Timeline","description":"A chronological surface that preserves event order and readable detail in dense histories.","assetKind":"component","tags":["data-display","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:Timeline",
+  "catalogId": "data-display.timeline",
+  "displayName": "Timeline",
+  "description": "A chronological surface that preserves event order and readable detail in dense histories.",
+  "assetKind": "component",
+  "tags": ["data-display", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

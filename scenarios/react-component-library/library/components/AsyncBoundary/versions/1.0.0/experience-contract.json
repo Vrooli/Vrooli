@@ -1,1 +1,38 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:AsyncBoundary@1.0.0"},"component":{"id":"feedback.async-boundary","title":"AsyncBoundary","purpose":"Stable async state composition."},"states":[{"id":"pending","example":"pending","description":"Work is pending."},{"id":"error","example":"error","description":"Work failed and can retry."},{"id":"success","example":"success","description":"Content is available."}],"claims":[{"id":"contract-present","type":"custom","statement":"AsyncBoundary preserves a stable region through async states.","tier":"manual","states":["pending","error","success"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:AsyncBoundary@1.0.0"
+  },
+  "component": {
+    "id": "feedback.async-boundary",
+    "title": "AsyncBoundary",
+    "purpose": "Stable async state composition."
+  },
+  "states": [
+    {
+      "id": "pending",
+      "example": "pending",
+      "description": "Work is pending."
+    },
+    {
+      "id": "error",
+      "example": "error",
+      "description": "Work failed and can retry."
+    },
+    {
+      "id": "success",
+      "example": "success",
+      "description": "Content is available."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "AsyncBoundary preserves a stable region through async states.",
+      "tier": "manual",
+      "states": ["pending", "error", "success"]
+    }
+  ]
+}

@@ -1,2 +1,30 @@
-/** @vrooliComponentSource materialized.navlink */
-export function NavLink({ label = "Home", current = false }: { label?: string; current?: boolean }) { return <a href="/" aria-current={current ? "page" : undefined} style={{ display: "flex", alignItems: "center", minHeight: 44, borderRadius: 8, background: current ? "var(--color-primary, #2563eb)" : "transparent", color: current ? "var(--color-primary-foreground, #fff)" : "var(--color-foreground, #0f172a)", paddingInline: 12, textDecoration: "none", fontWeight: 650 }}>{label}</a>; }
+/** @vrooliComponentSource react-component-library:NavLink */
+export function NavLink({
+  label = "Home",
+  current = false,
+}: {
+  label?: string;
+  current?: boolean;
+}) {
+  return (
+    <a
+      href="/"
+      aria-current={current ? "page" : undefined}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        minHeight: 44,
+        borderRadius: 8,
+        background: current ? "var(--color-primary, #2563eb)" : "transparent",
+        color: current
+          ? "var(--color-primary-foreground, #fff)"
+          : "var(--color-foreground, #0f172a)",
+        paddingInline: 12,
+        textDecoration: "none",
+        fontWeight: 650,
+      }}
+    >
+      {label}
+    </a>
+  );
+}

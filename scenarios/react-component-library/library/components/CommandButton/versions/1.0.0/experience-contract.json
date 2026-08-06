@@ -1,0 +1,55 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:CommandButton@1.0.0"
+  },
+  "component": {
+    "id": "controls.command-button",
+    "title": "CommandButton",
+    "purpose": "Async commands acknowledge input, preserve layout, and provide recovery."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The command is ready to run."
+    },
+    {
+      "id": "loading",
+      "example": "default",
+      "description": "The command communicates progress without changing dimensions."
+    },
+    {
+      "id": "success",
+      "example": "success",
+      "description": "Completion is acknowledged in place."
+    },
+    {
+      "id": "request-error",
+      "example": "failure-recovery",
+      "description": "The failed request leaves a clear retry path."
+    },
+    {
+      "id": "retry",
+      "example": "failure-recovery",
+      "description": "The same control can retry the failed operation."
+    }
+  ],
+  "claims": [
+    {
+      "id": "stable-action-geometry",
+      "type": "custom",
+      "statement": "All command states share one intrinsic label grid so the action does not reflow while work runs.",
+      "tier": "manual",
+      "states": ["default", "loading", "success", "request-error", "retry"]
+    },
+    {
+      "id": "native-action-semantics",
+      "type": "custom",
+      "statement": "The action uses a native button with busy, disabled, live-status, keyboard, and focus-visible semantics.",
+      "tier": "automated",
+      "states": ["default", "loading", "success", "request-error"]
+    }
+  ]
+}

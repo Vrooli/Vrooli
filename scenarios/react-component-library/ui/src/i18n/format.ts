@@ -33,15 +33,13 @@ export const formatDate = (
   value: Date | number,
   options?: Intl.DateTimeFormatOptions,
   localeOverride?: string,
-): string =>
-  new Intl.DateTimeFormat(resolveIntlLocale(localeOverride), options).format(value);
+): string => new Intl.DateTimeFormat(resolveIntlLocale(localeOverride), options).format(value);
 
 export const formatNumber = (
   value: number,
   options?: Intl.NumberFormatOptions,
   localeOverride?: string,
-): string =>
-  new Intl.NumberFormat(resolveIntlLocale(localeOverride), options).format(value);
+): string => new Intl.NumberFormat(resolveIntlLocale(localeOverride), options).format(value);
 
 export const formatCurrency = (
   value: number,
@@ -71,5 +69,4 @@ export const formatList = (
   items: readonly string[],
   options?: Intl.ListFormatOptions,
   localeOverride?: string,
-): string =>
-  new Intl.ListFormat(resolveIntlLocale(localeOverride), options).format(items);
+): string => new Intl.ListFormat(resolveIntlLocale(localeOverride), options).format(items);

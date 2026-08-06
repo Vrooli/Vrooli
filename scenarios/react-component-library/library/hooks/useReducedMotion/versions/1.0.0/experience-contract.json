@@ -1,1 +1,28 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:useReducedMotion@1.0.0"},"component":{"id":"use-reduced-motion","title":"Reduced motion","purpose":"Reflects the user's reduced-motion preference."},"states":[{"id":"default","example":"default","description":"The default contract."}],"claims":[{"id":"contract-present","type":"custom","statement":"The hook exposes its documented public behavior through a stable versioned entrypoint.","tier":"manual","states":["default"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:useReducedMotion@1.0.0"
+  },
+  "component": {
+    "id": "use-reduced-motion",
+    "title": "Reduced motion",
+    "purpose": "Reflects the user's reduced-motion preference."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The default contract."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "The hook exposes its documented public behavior through a stable versioned entrypoint.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

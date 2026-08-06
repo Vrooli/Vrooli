@@ -7,5 +7,9 @@ export function Default({ args, log }: StoryHarnessProps<{ label: string }>) {
     setPressed(true);
     log("pressed", args.label);
   });
-  return <button type="button" {...press} aria-pressed={pressed}>{args.label}</button>;
+  return (
+    <button type="button" {...press} aria-pressed={pressed}>
+      {args.label}
+    </button>
+  );
 }

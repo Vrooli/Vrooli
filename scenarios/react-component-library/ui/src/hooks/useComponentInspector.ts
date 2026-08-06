@@ -67,7 +67,11 @@ const initial: InspectState = {
 };
 
 const isLastReason = (value: unknown): value is InspectState["lastReason"] =>
-  value === "start" || value === "stop" || value === "cancel" || value === "complete" || value === null;
+  value === "start" ||
+  value === "stop" ||
+  value === "cancel" ||
+  value === "complete" ||
+  value === null;
 
 const isInspectPayload = (value: unknown): value is InspectPayload => {
   if (!value || typeof value !== "object") return false;

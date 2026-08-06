@@ -21,11 +21,14 @@ func (e ErrStoryCoverageRequired) Error() string {
 }
 
 func releaseStoryCoverage(root string, c Component, version string) error {
-	kindRoot := "components"
-	if c.AssetKind == AssetKindHook {
-		kindRoot = "hooks"
+	manifestDir := filepath.Dir(c.ManifestPath)
+	if manifestDir == "." || manifestDir == "" {
+		manifestDir = "components"
+		if c.AssetKind == AssetKindHook {
+			manifestDir = "hooks"
+		}
 	}
-	path := filepath.Join(root, kindRoot, c.Slug, "versions", version, "story.json")
+	path := filepath.Join(root, manifestDir, "versions", version, "story.json")
 	raw, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return nil

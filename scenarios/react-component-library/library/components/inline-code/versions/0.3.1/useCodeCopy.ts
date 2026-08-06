@@ -11,7 +11,7 @@ export function useCodeCopy(resetAfterMs = 1500) {
 
   const copy = useCallback(async (value: string) => {
     try {
-		await navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText(value);
       setCopied(true);
       return true;
     } catch {

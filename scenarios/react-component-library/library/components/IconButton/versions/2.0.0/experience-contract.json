@@ -9,8 +9,29 @@
     "title": "IconButton",
     "purpose": "Provide an icon-only action with an explicit accessible name and the shared control size contract."
   },
-  "states": [{ "id": "default", "example": "default", "description": "Named icon-only action." }],
-  "elements": [{ "id": "control", "role": "button", "description": "The native icon button." }],
-  "claims": [{ "id": "named-action", "type": "element-present", "statement": "The icon button exposes a named action.", "tier": "machine", "elements": ["control"], "states": ["default"] }],
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Named icon-only action."
+    }
+  ],
+  "elements": [
+    {
+      "id": "control",
+      "role": "button",
+      "description": "The native icon button."
+    }
+  ],
+  "claims": [
+    {
+      "id": "named-action",
+      "type": "element-present",
+      "statement": "The icon button exposes a named action.",
+      "tier": "machine",
+      "elements": ["control"],
+      "states": ["default"]
+    }
+  ],
   "bindings": { "elements": { "control": { "selector": "button" } } }
 }

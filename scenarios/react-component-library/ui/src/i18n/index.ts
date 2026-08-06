@@ -105,7 +105,6 @@ export const getLocaleConfig = (lng: Locale): LocaleConfig => LOCALE_CONFIG[lng]
  * fallback — all of which are typed as `string`. Use this helper anywhere the
  * caller needs to compare against `SUPPORTED_LOCALES` or index `LOCALE_CONFIG`.
  */
-export const getCurrentLocale = (): Locale =>
-  isSupported(i18n.language) ? i18n.language : "en";
+export const getCurrentLocale = (): Locale => (isSupported(i18n.language) ? i18n.language : "en");
 
 export { i18n, useTranslation };

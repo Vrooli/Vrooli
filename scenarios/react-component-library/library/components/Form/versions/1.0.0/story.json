@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Form",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Default form", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "form", "name": "Workspace settings" }, { "kind": "role", "role": "status" }] },
+    { "id": "error", "name": "Validation recovery", "harness": "Error", "args": {}, "expect": [{ "kind": "role", "role": "form", "name": "Workspace settings" }, { "kind": "role", "role": "textbox", "name": "Workspace name" }] },
+    { "id": "offline", "name": "Offline status", "harness": "Offline", "args": {}, "expect": [{ "kind": "role", "role": "form", "name": "Offline workspace settings" }, { "kind": "text", "value": "Your work is safe" }] }
+  ]
+}

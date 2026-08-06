@@ -10,14 +10,19 @@ const FOCUSABLE_SELECTOR =
  * overlay components free of scattered `addEventListener('keydown')` calls,
  * which fight host-frame spatial navigation.
  */
-export function useFocusTrap(active: boolean, containerRef: RefObject<HTMLElement | null>): void {
+export function useFocusTrap(
+  active: boolean,
+  containerRef: RefObject<HTMLElement | null>,
+): void {
   useEffect(() => {
     if (!active) return;
     const panel = containerRef.current;
     if (!panel) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
-      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+      const focusable = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ).filter(
         (el) => el.offsetParent !== null || el === document.activeElement,
       );
       const first = focusable[0];
@@ -25,11 +30,19 @@ export function useFocusTrap(active: boolean, containerRef: RefObject<HTMLElemen
       if (!first || !last) return;
       const activeEl = document.activeElement as HTMLElement | null;
       if (e.shiftKey) {
-        if (activeEl === first || activeEl === null || !panel.contains(activeEl)) {
+        if (
+          activeEl === first ||
+          activeEl === null ||
+          !panel.contains(activeEl)
+        ) {
           e.preventDefault();
           last.focus();
         }
-      } else if (activeEl === last || activeEl === null || !panel.contains(activeEl)) {
+      } else if (
+        activeEl === last ||
+        activeEl === null ||
+        !panel.contains(activeEl)
+      ) {
         e.preventDefault();
         first.focus();
       }

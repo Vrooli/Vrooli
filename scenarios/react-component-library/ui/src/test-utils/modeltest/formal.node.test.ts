@@ -5,9 +5,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  validateFormalArtifactFreshFromFiles,
-} from "./formal.node";
+import { validateFormalArtifactFreshFromFiles } from "./formal.node";
 import type { FormalArtifact } from "./formal";
 
 const contractPath = "ui/src/features/example/model.flow.json";
@@ -24,11 +22,17 @@ describe("Node formal modeltest helpers", () => {
         generatorSha256: treeSHA256(path.join(root, generatorPath)),
       });
 
-      expect(validateFormalArtifactFreshFromFiles(artifact, {
-        contractPath,
-        modelPath,
-        generatorPath,
-      }, { scenarioRoot: root })).toEqual([]);
+      expect(
+        validateFormalArtifactFreshFromFiles(
+          artifact,
+          {
+            contractPath,
+            modelPath,
+            generatorPath,
+          },
+          { scenarioRoot: root },
+        ),
+      ).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -43,11 +47,15 @@ describe("Node formal modeltest helpers", () => {
         generatorSha256: "c".repeat(64),
       });
 
-      const errors = validateFormalArtifactFreshFromFiles(artifact, {
-        contractPath,
-        modelPath,
-        generatorPath,
-      }, { scenarioRoot: root });
+      const errors = validateFormalArtifactFreshFromFiles(
+        artifact,
+        {
+          contractPath,
+          modelPath,
+          generatorPath,
+        },
+        { scenarioRoot: root },
+      );
 
       expect(errors.join("\n")).toContain("contractSha256=");
       expect(errors.join("\n")).toContain("modelSha256=");
@@ -59,7 +67,7 @@ describe("Node formal modeltest helpers", () => {
 
 const makeScenarioTree = (): string => {
   const root = mkdtempSync(path.join(os.tmpdir(), "formal-node-"));
-  write(root, contractPath, "{\"schemaVersion\":3}\n");
+  write(root, contractPath, '{"schemaVersion":3}\n');
   write(root, modelPath, "module Example\n");
   write(root, path.join(generatorPath, "go.mod"), "module example\n");
   write(root, path.join(generatorPath, "main.go"), "package main\n");

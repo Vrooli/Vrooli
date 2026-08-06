@@ -20,15 +20,60 @@ export interface MermaidDiagramProps {
   copyLabel?: string;
 }
 
-export function MermaidDiagram({ code, onMermaidOpen, sourceLabel = "Source", diagramLabel = "Diagram", openLabel = "Open", copyLabel = "Copy" }: MermaidDiagramProps) {
+export function MermaidDiagram({
+  code,
+  onMermaidOpen,
+  sourceLabel = "Source",
+  diagramLabel = "Diagram",
+  openLabel = "Open",
+  copyLabel = "Copy",
+}: MermaidDiagramProps) {
   const [showSource, setShowSource] = useState(false);
   const { svg, error, loading } = useMermaidSvg(code);
   const { copied, copy } = useCodeCopy();
-  return <section className="my-space-xs overflow-x-auto rounded border border-[var(--markdown-border)] bg-[var(--markdown-code-surface)]">
-    <header className="flex items-center justify-between gap-space-2xs border-b border-[var(--markdown-border)] px-space-xs py-space-2xs text-xs text-[var(--markdown-muted)]">
-      <div className="flex gap-space-2xs"><button type="button" aria-pressed={!showSource} onClick={() => setShowSource(false)}>{diagramLabel}</button><button type="button" aria-pressed={showSource} onClick={() => setShowSource(true)}>{sourceLabel}</button></div>
-      <div className="flex gap-space-2xs"><button type="button" onClick={() => void copy(code)}>{copied ? "Copied" : copyLabel}</button>{onMermaidOpen && <button type="button" onClick={() => onMermaidOpen(code)} className="text-[var(--markdown-link)]">{openLabel}</button>}</div>
-    </header>
-    {showSource ? <pre className="p-space-xs text-xs text-[var(--markdown-code-text)]">{code}</pre> : error ? <><p role="alert" className="p-space-xs text-xs text-[var(--markdown-error)]">{error}</p><pre className="p-space-xs text-xs text-[var(--markdown-code-text)]">{code}</pre></> : loading ? <p className="p-space-xs text-xs text-[var(--markdown-muted)]">Rendering diagram…</p> : <div className="p-space-xs [&>svg]:max-w-full" dangerouslySetInnerHTML={{ __html: svg ?? "" }} />}
-  </section>;
+  return (
+    <section className="my-space-xs overflow-x-auto rounded border border-[var(--markdown-border)] bg-[var(--markdown-code-surface)]">
+      <header className="flex items-center justify-between gap-space-2xs border-b border-[var(--markdown-border)] px-space-xs py-space-2xs text-xs text-[var(--markdown-muted)]">
+        <div className="flex gap-space-2xs">
+          <button type="button" aria-pressed={!showSource} onClick={() => setShowSource(false)}>
+            {diagramLabel}
+          </button>
+          <button type="button" aria-pressed={showSource} onClick={() => setShowSource(true)}>
+            {sourceLabel}
+          </button>
+        </div>
+        <div className="flex gap-space-2xs">
+          <button type="button" onClick={() => void copy(code)}>
+            {copied ? "Copied" : copyLabel}
+          </button>
+          {onMermaidOpen && (
+            <button
+              type="button"
+              onClick={() => onMermaidOpen(code)}
+              className="text-[var(--markdown-link)]"
+            >
+              {openLabel}
+            </button>
+          )}
+        </div>
+      </header>
+      {showSource ? (
+        <pre className="p-space-xs text-xs text-[var(--markdown-code-text)]">{code}</pre>
+      ) : error ? (
+        <>
+          <p role="alert" className="p-space-xs text-xs text-[var(--markdown-error)]">
+            {error}
+          </p>
+          <pre className="p-space-xs text-xs text-[var(--markdown-code-text)]">{code}</pre>
+        </>
+      ) : loading ? (
+        <p className="p-space-xs text-xs text-[var(--markdown-muted)]">Rendering diagram…</p>
+      ) : (
+        <div
+          className="p-space-xs [&>svg]:max-w-full"
+          dangerouslySetInnerHTML={{ __html: svg ?? "" }}
+        />
+      )}
+    </section>
+  );
 }

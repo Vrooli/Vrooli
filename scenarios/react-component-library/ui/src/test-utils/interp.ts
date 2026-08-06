@@ -7,16 +7,11 @@
  * — cimode-default tests assert on the raw key path via `strings.x.y`
  * and never need this helper.
  */
-export const interp = (
-  template: string,
-  vars: Record<string, string | number>,
-): string =>
+export const interp = (template: string, vars: Record<string, string | number>): string =>
   template.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => {
     const value = vars[name];
     if (value === undefined) {
-      throw new Error(
-        `interp(): template expects '{{${name}}}' but no value was provided`,
-      );
+      throw new Error(`interp(): template expects '{{${name}}}' but no value was provided`);
     }
     return String(value);
   });

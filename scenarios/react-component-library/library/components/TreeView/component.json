@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:TreeView","catalogId":"data-display.tree-view","displayName":"TreeView","description":"An accessible hierarchical surface with honest tree semantics and bounded nesting.","assetKind":"component","tags":["data-display","accessibility","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:TreeView",
+  "catalogId": "data-display.tree-view",
+  "displayName": "TreeView",
+  "description": "An accessible hierarchical surface with honest tree semantics and bounded nesting.",
+  "assetKind": "component",
+  "tags": ["data-display", "accessibility", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

@@ -13,7 +13,8 @@
 //
 // types.go owns the domain entity and typed sentinels. repository.go
 // owns the persistence seam. service.go owns application policy.
-// indexer.go walks library/components/*/component.json and validates
+// indexer.go walks library/components/*/component.json, library/primitives/*/component.json,
+// and library/hooks/*/component.json and validates
 // the source-local version headers.
 package components
 

@@ -1,0 +1,35 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:useOutsideInteraction@1.0.0"
+  },
+  "component": {
+    "id": "hooks.use-outside-interaction",
+    "title": "useOutsideInteraction",
+    "purpose": "Dismisses layered surfaces from outside pointer, focus, and Escape interactions while respecting nested and portaled content."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "pointer",
+      "description": "The surface remains open for inside interactions and dismisses outside interactions."
+    }
+  ],
+  "claims": [
+    {
+      "id": "outside-pointer",
+      "type": "custom",
+      "statement": "A pointer interaction outside the surface invokes the outside callback.",
+      "tier": "automated",
+      "states": ["default"]
+    },
+    {
+      "id": "escape",
+      "type": "custom",
+      "statement": "Escape invokes the dismissal callback without requiring consumer listener glue.",
+      "tier": "automated",
+      "states": ["default"]
+    }
+  ]
+}

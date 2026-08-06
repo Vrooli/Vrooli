@@ -57,11 +57,7 @@ describe("renderWithProviders default QueryClient", () => {
     const Probe = () => {
       const m = useMutation({ mutationFn: () => Promise.reject(new Error("boom")) });
       return (
-        <button
-          data-testid="probe-button"
-          type="button"
-          onClick={() => m.mutate()}
-        >
+        <button data-testid="probe-button" type="button" onClick={() => m.mutate()}>
           {m.status}
         </button>
       );

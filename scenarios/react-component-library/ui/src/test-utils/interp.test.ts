@@ -22,9 +22,7 @@ describe("interp", () => {
   });
 
   it("substitutes multiple placeholders in a single template", () => {
-    expect(
-      interp("{{count}} of {{total}}", { count: 3, total: 10 }),
-    ).toBe("3 of 10");
+    expect(interp("{{count}} of {{total}}", { count: 3, total: 10 })).toBe("3 of 10");
   });
 
   it("coerces numeric values via String()", () => {

@@ -1,1 +1,32 @@
-{"schemaVersion":1,"kind":"component","title":"FilterBar","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"query":"alpha"},"expect":[{"kind":"role","role":"search"}]},{"id":"empty","name":"Empty","args":{"query":"alpha"}}]}
+{
+  "schemaVersion": 2,
+  "kind": "component",
+  "title": "FilterBar",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "search", "name": "Filter results" },
+        { "kind": "role", "role": "button", "name": "Apply filters" },
+        { "kind": "role", "role": "button", "name": "Ready · 24" }
+      ]
+    },
+    {
+      "id": "interactive",
+      "name": "Interactive",
+      "harness": "Interactive",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "search", "name": "Filter results" },
+        { "kind": "role", "role": "button", "name": "Reset" },
+        { "kind": "role", "role": "status" },
+        { "kind": "text", "value": "Last applied: No filters applied yet" }
+      ]
+    }
+  ]
+}

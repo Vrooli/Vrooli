@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:Page","catalogId":"navigation.page","displayName":"Page","description":"The route content boundary that owns navigation, focus placement, and generic route state composition.","assetKind":"component","tags":["navigation","layout","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:Page",
+  "catalogId": "navigation.page",
+  "displayName": "Page",
+  "description": "The route content boundary that owns navigation, focus placement, and generic route state composition.",
+  "assetKind": "component",
+  "tags": ["navigation", "layout", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

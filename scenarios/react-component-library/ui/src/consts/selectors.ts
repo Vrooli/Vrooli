@@ -34,8 +34,8 @@ type ParamSchema = Readonly<Record<string, ParamDefinition>>;
 type ParamValueType<T extends ParamDefinition> = T extends { type: "number" }
   ? number
   : T extends { type: "enum"; values: readonly (infer V)[] }
-  ? V
-  : string;
+    ? V
+    : string;
 
 type ParamValues<P extends ParamSchema | undefined> = P extends ParamSchema
   ? { [K in keyof P]: ParamValueType<P[K]> }
@@ -63,16 +63,13 @@ type DynamicSelectorFn<P extends ParamSchema | undefined> = keyof ParamValues<P>
 
 type DynamicBranchResult<D extends DynamicSelectorTree> = {
   [K in keyof D]: D[K] extends DynamicSelectorDefinition<infer P>
-  ? DynamicSelectorFn<P>
-  : D[K] extends DynamicSelectorTree
-  ? DynamicBranchResult<D[K]>
-  : never;
+    ? DynamicSelectorFn<P>
+    : D[K] extends DynamicSelectorTree
+      ? DynamicBranchResult<D[K]>
+      : never;
 };
 
-type SelectorTreeResult<
-  L extends LiteralSelectorTree,
-  D extends DynamicSelectorTree,
-> = {
+type SelectorTreeResult<L extends LiteralSelectorTree, D extends DynamicSelectorTree> = {
   [K in keyof L]: L[K] extends string
     ? string
     : SelectorTreeResult<
@@ -83,7 +80,11 @@ type SelectorTreeResult<
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
-const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
+const formatTemplate = (
+  template: string,
+  values: Record<string, string | number>,
+  keyPath: string,
+) =>
   template.replace(TEMPLATE_TOKEN, (_match: string, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
@@ -97,9 +98,7 @@ const isDynamicDefinition = (
   value: unknown,
 ): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
   Boolean(
-    value &&
-      typeof value === "object" &&
-      (value as { kind?: unknown }).kind === "dynamic-selector",
+    value && typeof value === "object" && (value as { kind?: unknown }).kind === "dynamic-selector",
   );
 
 const normalizeParams = (
@@ -169,12 +168,15 @@ const flattenLiteralSelectors = (
 const flattenDynamicSelectors = (
   tree: DynamicSelectorTree,
   prefix: string[] = [],
-  target: Record<string, {
-    description: string;
-    selectorPattern: string;
-    testIdPattern?: string;
-    params: Array<{ name: string; type: ParamType; values?: readonly (string | number)[] }>;
-  }> = {},
+  target: Record<
+    string,
+    {
+      description: string;
+      selectorPattern: string;
+      testIdPattern?: string;
+      params: Array<{ name: string; type: ParamType; values?: readonly (string | number)[] }>;
+    }
+  > = {},
 ) => {
   for (const [key, value] of Object.entries(tree)) {
     const nextPath = [...prefix, key];
@@ -184,7 +186,8 @@ const flattenDynamicSelectors = (
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
-          value.selectorPattern ?? (value.testIdPattern ? toDataTestIdSelector(value.testIdPattern) : ""),
+          value.selectorPattern ??
+          (value.testIdPattern ? toDataTestIdSelector(value.testIdPattern) : ""),
         testIdPattern: value.testIdPattern,
         params: paramEntries.map(([name, config]) => ({
           name,
@@ -205,10 +208,7 @@ const mergeLiteralAndDynamicNodes = (
   path: string[] = [],
 ): Record<string, unknown> => {
   const merged: Record<string, unknown> = {};
-  const keys = new Set([
-    ...Object.keys(literalNode ?? {}),
-    ...Object.keys(dynamicNode ?? {}),
-  ]);
+  const keys = new Set([...Object.keys(literalNode ?? {}), ...Object.keys(dynamicNode ?? {})]);
 
   keys.forEach((key) => {
     const literalValue: LiteralNode | undefined = literalNode?.[key];
@@ -276,8 +276,14 @@ export const defineDynamicSelector = <P extends ParamSchema | undefined>(
 export const createSelectorRegistry = <
   L extends LiteralSelectorTree,
   D extends DynamicSelectorTree,
->(literalTree: L, dynamicTree: D) => {
-  const selectors = mergeLiteralAndDynamicNodes(literalTree, dynamicTree) as SelectorTreeResult<L, D>;
+>(
+  literalTree: L,
+  dynamicTree: D,
+) => {
+  const selectors = mergeLiteralAndDynamicNodes(literalTree, dynamicTree) as SelectorTreeResult<
+    L,
+    D
+  >;
   const manifest = {
     selectors: flattenLiteralSelectors(literalTree),
     dynamicSelectors: flattenDynamicSelectors(dynamicTree),

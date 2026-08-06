@@ -114,7 +114,9 @@ export function DataTable<Row>({
         return true;
       }
       return columns.some((column) => {
-        const value = column.searchValue ? column.searchValue(row) : searchableText(column.accessor(row));
+        const value = column.searchValue
+          ? column.searchValue(row)
+          : searchableText(column.accessor(row));
         return value.toLowerCase().includes(normalizedQuery);
       });
     });
@@ -145,7 +147,10 @@ export function DataTable<Row>({
       <div className="flex flex-col gap-3 border-b border-app-border p-3 md:flex-row md:items-center md:justify-between">
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">{searchLabel}</span>
-          <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted-foreground" />
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-app-muted-foreground"
+          />
           <input
             type="search"
             value={query}
@@ -155,7 +160,11 @@ export function DataTable<Row>({
           />
         </label>
         {filters.length > 0 && (
-          <div className="flex flex-wrap gap-2" role="group" aria-label={filterGroupLabel ?? filterLabel}>
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label={filterGroupLabel ?? filterLabel}
+          >
             {filters.map((filter) => (
               <button
                 key={filter.id}
@@ -175,15 +184,28 @@ export function DataTable<Row>({
         )}
       </div>
       <div className="max-w-full overflow-x-auto">
-        <table data-testid={tableTestId} className="w-full table-fixed border-collapse text-left text-sm">
+        <table
+          data-testid={tableTestId}
+          className="w-full table-fixed border-collapse text-left text-sm"
+        >
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-app-surface-muted text-xs uppercase text-app-muted-foreground">
             <tr>
               {columns.map((column) => {
                 const active = sortColumn === column.id;
-                const SortIcon = !column.sortValue ? null : active ? (sortDirection === "asc" ? ArrowUp : ArrowDown) : ChevronsUpDown;
+                const SortIcon = !column.sortValue
+                  ? null
+                  : active
+                    ? sortDirection === "asc"
+                      ? ArrowUp
+                      : ArrowDown
+                    : ChevronsUpDown;
                 return (
-                  <th key={column.id} scope="col" className={cn("px-3 py-3 font-semibold", column.className)}>
+                  <th
+                    key={column.id}
+                    scope="col"
+                    className={cn("px-3 py-3 font-semibold", column.className)}
+                  >
                     {column.sortValue ? (
                       <button
                         type="button"
@@ -205,7 +227,10 @@ export function DataTable<Row>({
           <tbody>
             {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-3 py-6 text-center text-app-muted-foreground">
+                <td
+                  colSpan={columns.length}
+                  className="px-3 py-6 text-center text-app-muted-foreground"
+                >
                   {emptyMessage}
                 </td>
               </tr>
@@ -213,7 +238,13 @@ export function DataTable<Row>({
               filteredRows.map((row, index) => (
                 <tr key={getRowKey(row, index)} className="border-t border-app-border">
                   {columns.map((column) => (
-                    <td key={column.id} className={cn("break-words px-3 py-3 align-middle text-app-foreground", column.className)}>
+                    <td
+                      key={column.id}
+                      className={cn(
+                        "break-words px-3 py-3 align-middle text-app-foreground",
+                        column.className,
+                      )}
+                    >
                       {column.accessor(row)}
                     </td>
                   ))}

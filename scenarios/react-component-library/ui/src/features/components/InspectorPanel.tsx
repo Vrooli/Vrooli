@@ -40,7 +40,9 @@ export function InspectorPanel({ inspector, specimenLabel }: InspectorPanelProps
           <h3 className="text-xs font-medium text-app-muted-foreground">
             {t(strings.components.inspector.title)}
           </h3>
-          {specimenLabel && <p className="truncate text-xs text-app-muted-foreground">{specimenLabel}</p>}
+          {specimenLabel && (
+            <p className="truncate text-xs text-app-muted-foreground">{specimenLabel}</p>
+          )}
         </div>
         <div className="flex items-center gap-space-2xs">
           <StatusBadge
@@ -74,7 +76,10 @@ export function InspectorPanel({ inspector, specimenLabel }: InspectorPanelProps
       {selected && (
         <div className="mt-space-2xs space-y-space-2xs text-xs text-app-foreground">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span data-testid={selectors.components.inspector.selectedTag} className="font-mono text-app-foreground">
+            <span
+              data-testid={selectors.components.inspector.selectedTag}
+              className="font-mono text-app-foreground"
+            >
               &lt;{selected.meta.tag}&gt;
             </span>
             <span

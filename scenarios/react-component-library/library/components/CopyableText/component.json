@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:CopyableText","catalogId":"primitives.copyable-text","displayName":"CopyableText","description":"A compact text value with a clear copy affordance and stable feedback state.","assetKind":"component","tags":["primitive","feedback","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:CopyableText",
+  "catalogId": "primitives.copyable-text",
+  "displayName": "CopyableText",
+  "description": "A compact text value with a clear copy affordance and stable feedback state.",
+  "assetKind": "component",
+  "tags": ["primitive", "feedback", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

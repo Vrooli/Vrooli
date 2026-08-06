@@ -17,9 +17,7 @@ import {
 export type { DiffCell, DiffRow, DiffVersionsResponse, ListVersionsResponse, Version };
 export { DiffOp };
 
-export const makeVersion = (
-  overrides: MessageInitShape<typeof VersionSchema> = {},
-): Version =>
+export const makeVersion = (overrides: MessageInitShape<typeof VersionSchema> = {}): Version =>
   create(VersionSchema, {
     id: "ver-1",
     componentId: "cmp-btn",
@@ -38,9 +36,8 @@ export const makeListVersionsResponse = (
     ...overrides,
   });
 
-export const makeDiffCell = (
-  overrides: MessageInitShape<typeof DiffCellSchema> = {},
-): DiffCell => create(DiffCellSchema, { lineNumber: 0, text: "", op: DiffOp.EMPTY, ...overrides });
+export const makeDiffCell = (overrides: MessageInitShape<typeof DiffCellSchema> = {}): DiffCell =>
+  create(DiffCellSchema, { lineNumber: 0, text: "", op: DiffOp.EMPTY, ...overrides });
 
 export const makeDiffRow = (
   left: MessageInitShape<typeof DiffCellSchema>,

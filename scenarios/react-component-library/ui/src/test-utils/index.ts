@@ -60,22 +60,10 @@ export { expectNoA11yViolations } from "./a11y";
 // folder takes them along.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";
-export {
-  assertTransitionMatrix,
-  validateTransitionMatrix,
-} from "./modeltest/matrix";
-export type {
-  MatrixRow,
-  WorkflowTransition,
-} from "./modeltest/matrix";
-export {
-  replayTraces,
-  validateTraces,
-} from "./modeltest/traces";
-export type {
-  Trace,
-  TraceStep,
-} from "./modeltest/traces";
+export { assertTransitionMatrix, validateTransitionMatrix } from "./modeltest/matrix";
+export type { MatrixRow, WorkflowTransition } from "./modeltest/matrix";
+export { replayTraces, validateTraces } from "./modeltest/traces";
+export type { Trace, TraceStep } from "./modeltest/traces";
 export {
   assertFormalArtifactFresh,
   assertFormalTransitionsReplay,
@@ -103,10 +91,7 @@ export {
   makeMockGamepadInputManager,
   makeMockSpatialNavController,
 } from "./mocks/spatial";
-export type {
-  MockGamepadInputManager,
-  MockSpatialNavController,
-} from "./mocks/spatial";
+export type { MockGamepadInputManager, MockSpatialNavController } from "./mocks/spatial";
 
 // Internal-seam mock builders for cross-domain HTTP wrappers (the
 // generic `api/health` health/error path). Domain-specific mocks

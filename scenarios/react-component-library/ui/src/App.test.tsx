@@ -17,9 +17,11 @@ vi.mock("@vrooli/iframe-bridge", () => ({
 }));
 
 vi.mock("./api/health", () => ({
-  fetchHealth: vi
-    .fn()
-    .mockResolvedValue({ status: "ok", service: "react-component-library", timestamp: new Date().toISOString() }),
+  fetchHealth: vi.fn().mockResolvedValue({
+    status: "ok",
+    service: "react-component-library",
+    timestamp: new Date().toISOString(),
+  }),
 }));
 
 vi.mock("./api/components", async (importOriginal) => {

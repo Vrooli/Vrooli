@@ -31,15 +31,21 @@ export const validateTraces = <State extends PropertyKey, Event extends Property
           errors.push(`${traceName}/${stepName}: expected error, got success`);
         }
         if (got !== step.want) {
-          errors.push(`${traceName}/${stepName}: got state ${String(got)}, want ${String(step.want)}`);
+          errors.push(
+            `${traceName}/${stepName}: got state ${String(got)}, want ${String(step.want)}`,
+          );
         }
         state = got;
       } catch (error) {
         if (!step.wantError) {
-          errors.push(`${traceName}/${stepName}: unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+          errors.push(
+            `${traceName}/${stepName}: unexpected error: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
         if (state !== step.want) {
-          errors.push(`${traceName}/${stepName}: got state ${String(state)}, want ${String(step.want)}`);
+          errors.push(
+            `${traceName}/${stepName}: got state ${String(state)}, want ${String(step.want)}`,
+          );
         }
       }
     });

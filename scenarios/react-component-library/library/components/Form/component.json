@@ -1,0 +1,15 @@
+{
+  "libraryId": "react-component-library:Form",
+  "catalogId": "forms.form",
+  "displayName": "Form",
+  "description": "A token-bound form shell that coordinates validation, submission, save state, and accessible status announcements.",
+  "assetKind": "component",
+  "tags": ["form", "state", "accessibility", "compound"],
+  "slot": "ui-primitive",
+  "category": "forms",
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

@@ -3,10 +3,7 @@
   "catalogId": "primitives.code",
   "displayName": "Inline Code",
   "description": "Inline code token renderer with copy affordance.",
-  "tags": [
-    "markdown",
-    "code"
-  ],
+  "tags": ["markdown", "code"],
   "entry": "InlineCode.tsx",
   "latest": "0.3.1",
   "deprecatedVersions": [],

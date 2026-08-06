@@ -57,7 +57,9 @@ export function ComponentsCard() {
   const [affinity, setAffinity] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const location = useLocation();
-  const currentTab = location.pathname.startsWith("/assets/") ? assetInfoTab(new URLSearchParams(location.search)) : undefined;
+  const currentTab = location.pathname.startsWith("/assets/")
+    ? assetInfoTab(new URLSearchParams(location.search))
+    : undefined;
 
   const tags = tagsRaw
     .split(",")
@@ -100,7 +102,9 @@ export function ComponentsCard() {
             {component.libraryId}
           </div>
           {component.description && (
-            <div className="mt-space-3xs text-xs text-app-muted-foreground">{component.description}</div>
+            <div className="mt-space-3xs text-xs text-app-muted-foreground">
+              {component.description}
+            </div>
           )}
         </div>
       ),
@@ -204,7 +208,9 @@ export function ComponentsCard() {
       className="mt-space-sm rounded-xl border border-app-border bg-app-surface p-space-sm"
     >
       <div className="flex items-center justify-between gap-space-xs">
-        <h2 className="text-sm font-medium text-app-muted-foreground">{t(strings.components.title)}</h2>
+        <h2 className="text-sm font-medium text-app-muted-foreground">
+          {t(strings.components.title)}
+        </h2>
         <div className="flex items-center gap-space-2xs">
           <Button
             data-testid={selectors.components.create.button}
@@ -322,7 +328,7 @@ export function ComponentsCard() {
         <div data-testid={selectors.components.empty} className="mt-space-xs">
           <EmptyState
             title={t(strings.components.empty)}
-            action={(
+            action={
               <div className="flex flex-wrap gap-space-2xs">
                 <Button onClick={() => setShowCreate(true)}>
                   {t(strings.components.create.action)}
@@ -335,14 +341,17 @@ export function ComponentsCard() {
                   {t(strings.components.indexAction)}
                 </Button>
               </div>
-            )}
+            }
           />
         </div>
       )}
 
       {components.length > 0 && (
         <>
-          <p data-testid={selectors.components.summary} className="mt-space-xs text-xs text-app-muted-foreground">
+          <p
+            data-testid={selectors.components.summary}
+            className="mt-space-xs text-xs text-app-muted-foreground"
+          >
             {t(strings.components.summary, { count: components.length })}
           </p>
           <div data-testid={selectors.components.list} className="mt-space-2xs">

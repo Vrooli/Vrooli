@@ -1,1 +1,28 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:Text@1.0.0"},"component":{"id":"primitives.text","title":"Text","purpose":"Text is a token-bound structural primitive with a bounded public API."},"states":[{"id":"default","example":"style-display","description":"The default primitive state."}],"claims":[{"id":"contract-present","type":"custom","statement":"Text exposes a bounded public contract backed by shared tokens.","tier":"manual","states":["default"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Text@1.0.0"
+  },
+  "component": {
+    "id": "primitives.text",
+    "title": "Text",
+    "purpose": "Text is a token-bound structural primitive with a bounded public API."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "style-display",
+      "description": "The default primitive state."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "Text exposes a bounded public contract backed by shared tokens.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

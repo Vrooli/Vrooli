@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "kind": "hook",
+  "title": "useOutsideInteraction",
+  "args": { "fields": [{ "path": "active", "label": "Active", "kind": "boolean", "default": true }] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "pointer", "name": "Outside pointer", "harness": "Default", "args": { "active": true }, "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Outside action" } }, { "kind": "settle" }], "expect": [{ "kind": "role", "role": "status", "name": "Dismissed from outside pointer interaction" }] },
+    { "id": "escape", "name": "Escape dismissal", "harness": "Default", "args": { "active": true }, "interactions": [{ "kind": "key", "text": "Escape" }, { "kind": "settle" }], "expect": [{ "kind": "role", "role": "status", "name": "Dismissed with Escape" }] }
+  ]
+}

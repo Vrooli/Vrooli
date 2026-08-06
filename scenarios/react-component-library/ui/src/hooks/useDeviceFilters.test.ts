@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 
-import {
-  DEVICE_FILTERS_STORAGE_KEY,
-  filterCSS,
-  useDeviceFilters,
-} from "./useDeviceFilters";
+import { DEVICE_FILTERS_STORAGE_KEY, filterCSS, useDeviceFilters } from "./useDeviceFilters";
 
 describe("useDeviceFilters", () => {
   beforeEach(() => window.localStorage.clear());

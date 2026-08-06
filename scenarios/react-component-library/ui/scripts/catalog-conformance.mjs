@@ -73,12 +73,12 @@ function validateVersionLocalImports(filePath) {
   for (const match of source.matchAll(relativeImports)) {
     const specifier = match[1];
     const resolved = path.resolve(path.dirname(filePath), specifier);
-    const isPublishedComponent = path.relative(scenarioDir, filePath).startsWith(`library${path.sep}components${path.sep}`);
+    const isPublishedAsset = path.relative(scenarioDir, filePath).startsWith(`library${path.sep}`);
     const reachesSharedRuntime = path.relative(scenarioDir, resolved).split(path.sep).includes("shared");
-    if (isPublishedComponent && reachesSharedRuntime) {
+    if (isPublishedAsset && reachesSharedRuntime) {
       throw new Error(
         `${filePath} imports ${specifier} outside its version directory; `
-        + "released component source must not depend on shared runtime shells",
+        + "released asset source must not depend on shared runtime shells",
       );
     }
   }

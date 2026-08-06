@@ -1,1 +1,28 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:PermissionState@1.0.0"},"component":{"id":"feedback.permission-state","title":"PermissionState","purpose":"Permission-aware feedback."},"states":[{"id":"restricted","example":"restricted","description":"Access is unavailable."}],"claims":[{"id":"contract-present","type":"custom","statement":"PermissionState explains the next allowed action.","tier":"manual","states":["restricted"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:PermissionState@1.0.0"
+  },
+  "component": {
+    "id": "feedback.permission-state",
+    "title": "PermissionState",
+    "purpose": "Permission-aware feedback."
+  },
+  "states": [
+    {
+      "id": "restricted",
+      "example": "restricted",
+      "description": "Access is unavailable."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "PermissionState explains the next allowed action.",
+      "tier": "manual",
+      "states": ["restricted"]
+    }
+  ]
+}

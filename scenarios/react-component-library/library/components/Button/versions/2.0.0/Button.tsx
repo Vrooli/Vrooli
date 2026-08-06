@@ -1,13 +1,18 @@
-/**
- * @libraryId react-component-library:Button
- * @version 2.0.0
- * @status released
- * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
- * @category controls
- */
-import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { ControlBase, type ControlDensity, type ControlShape, type ControlSize, type ControlVariant } from "../../../ControlBase/versions/1.0.0/ControlBase";
-export const BUTTON_VARIANTS = ["primary", "secondary", "ghost", "danger"] as const;
+/** @vrooliComponentSource controls.button */
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import {
+  type ControlDensity,
+  type ControlShape,
+  type ControlSize,
+  type ControlVariant,
+} from "../../../ControlBase/versions/1.0.0/ControlBase";
+import { Pressable } from "../../../Pressable/versions/1.0.0/Pressable";
+export const BUTTON_VARIANTS = [
+  "primary",
+  "secondary",
+  "ghost",
+  "danger",
+] as const;
 export const BUTTON_SIZES = ["xs", "sm", "md", "lg", "xl", "icon"] as const;
 export const BUTTON_DENSITIES = ["comfortable", "compact"] as const;
 export const BUTTON_SHAPES = ["square", "pill"] as const;
@@ -15,21 +20,55 @@ export const BUTTON_SHAPES = ["square", "pill"] as const;
 export type ButtonVariant = ControlVariant;
 export type ButtonSize = ControlSize;
 
-export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "color"> {
+export interface ButtonProps
+  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "color"> {
   children: ReactNode;
   variant?: ButtonVariant;
   size?: ButtonSize;
   density?: ControlDensity;
   shape?: ControlShape;
   icon?: ReactNode;
+  pending?: boolean;
+  pendingLabel?: ReactNode;
 }
 
-export function Button({ children, icon, ...props }: ButtonProps) {
-  const testId = (props as ButtonHTMLAttributes<HTMLButtonElement> & { "data-testid"?: string })["data-testid"];
-  return (
-    <ControlBase {...props} data-testid={testId ?? "button-action"}>
-      {icon && <span data-testid="button-icon" data-control-slot="icon" role="img" className="shrink-0">{icon}</span>}
-      <span data-testid="button-label" data-control-slot="label" className="min-w-0">{children}</span>
-    </ControlBase>
-  );
-}
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button(
+    { children, icon, pending, pendingLabel, variant = "primary", ...props },
+    ref,
+  ) {
+    const testId = (
+      props as ButtonHTMLAttributes<HTMLButtonElement> & {
+        "data-testid"?: string;
+      }
+    )["data-testid"];
+    return (
+      <Pressable
+        {...props}
+        ref={ref}
+        data-testid={testId ?? "button-action"}
+        tone={variant}
+        pending={pending}
+        pendingLabel={pendingLabel}
+      >
+        {icon && (
+          <span
+            data-testid="button-icon"
+            data-control-slot="icon"
+            role="img"
+            style={{ flex: "0 0 auto" }}
+          >
+            {icon}
+          </span>
+        )}
+        <span
+          data-testid="button-label"
+          data-control-slot="label"
+          style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}
+        >
+          {children}
+        </span>
+      </Pressable>
+    );
+  },
+);

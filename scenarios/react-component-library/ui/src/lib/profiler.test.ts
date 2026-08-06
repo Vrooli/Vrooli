@@ -6,7 +6,9 @@ describe("onProfilerRender", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("emits a user_timing measure aligned to the commit window", () => {
-    const measure = vi.spyOn(performance, "measure").mockImplementation(() => ({}) as PerformanceMeasure);
+    const measure = vi
+      .spyOn(performance, "measure")
+      .mockImplementation(() => ({}) as PerformanceMeasure);
     vi.spyOn(performance, "now").mockReturnValue(1000);
 
     // Signature: (id, phase, actualDuration, baseDuration, startTime, commitTime).

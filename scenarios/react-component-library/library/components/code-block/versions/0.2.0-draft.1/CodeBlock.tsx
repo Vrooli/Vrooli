@@ -29,38 +29,93 @@ function useHighlightedCode(code: string, language: string) {
   const [html, setHtml] = useState(() => highlightCache.get(key));
 
   useEffect(() => {
-    if (highlightCache.has(key)) { setHtml(highlightCache.get(key)); return; }
+    if (highlightCache.has(key)) {
+      setHtml(highlightCache.get(key));
+      return;
+    }
     let cancelled = false;
-    highlighter ??= import("shiki").then((shiki) => shiki.createHighlighter({
-      themes: ["github-dark"],
-      langs: ["typescript", "javascript", "python", "go", "json", "bash", "sql", "html", "css", "yaml", "markdown", "tsx", "jsx"],
-    }));
-    void highlighter.then((instance) => instance.codeToHtml(code, {
-      lang: instance.getLoadedLanguages().includes(normalizedLanguage) ? normalizedLanguage : "text",
-      theme: "github-dark",
-    })).then((result) => {
-      if (highlightCache.size >= HIGHLIGHT_CACHE_LIMIT) {
-        const oldest = highlightCache.keys().next().value;
-        if (oldest) highlightCache.delete(oldest);
-      }
-      highlightCache.set(key, result);
-      if (!cancelled) setHtml(result);
-    }).catch(() => { if (!cancelled) setHtml(undefined); });
-    return () => { cancelled = true; };
+    highlighter ??= import("shiki").then((shiki) =>
+      shiki.createHighlighter({
+        themes: ["github-dark"],
+        langs: [
+          "typescript",
+          "javascript",
+          "python",
+          "go",
+          "json",
+          "bash",
+          "sql",
+          "html",
+          "css",
+          "yaml",
+          "markdown",
+          "tsx",
+          "jsx",
+        ],
+      }),
+    );
+    void highlighter
+      .then((instance) =>
+        instance.codeToHtml(code, {
+          lang: instance.getLoadedLanguages().includes(normalizedLanguage)
+            ? normalizedLanguage
+            : "text",
+          theme: "github-dark",
+        }),
+      )
+      .then((result) => {
+        if (highlightCache.size >= HIGHLIGHT_CACHE_LIMIT) {
+          const oldest = highlightCache.keys().next().value;
+          if (oldest) highlightCache.delete(oldest);
+        }
+        highlightCache.set(key, result);
+        if (!cancelled) setHtml(result);
+      })
+      .catch(() => {
+        if (!cancelled) setHtml(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [code, key, normalizedLanguage]);
 
   return html;
 }
 
 /** @libraryId react-component-library:code-block @version 0.2.0 */
-export function CodeBlock({ code, language, className, copyLabel = "Copy", copiedLabel = "Copied" }: CodeBlockProps) {
+export function CodeBlock({
+  code,
+  language,
+  className,
+  copyLabel = "Copy",
+  copiedLabel = "Copied",
+}: CodeBlockProps) {
   const html = useHighlightedCode(code, language ?? "text");
   const { copied, copy } = useCodeCopy();
-  return <section className={`my-3 overflow-hidden rounded border border-slate-700 bg-slate-950 ${className ?? ""}`}>
-    <header className="flex items-center justify-between border-b border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-400">
-      <span>{languageLabel(language)}</span>
-      <button type="button" onClick={() => void copy(code)} className="rounded px-1 text-cyan-300 hover:bg-slate-800">{copied ? copiedLabel : copyLabel}</button>
-    </header>
-    {html ? <div className="overflow-x-auto p-3 text-sm [&>pre]:m-0 [&>pre]:bg-transparent [&>pre]:p-0" dangerouslySetInnerHTML={{ __html: html }} /> : <pre className="overflow-x-auto p-3 text-sm text-slate-100"><code>{code}</code></pre>}
-  </section>;
+  return (
+    <section
+      className={`my-3 overflow-hidden rounded border border-slate-700 bg-slate-950 ${className ?? ""}`}
+    >
+      <header className="flex items-center justify-between border-b border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-400">
+        <span>{languageLabel(language)}</span>
+        <button
+          type="button"
+          onClick={() => void copy(code)}
+          className="rounded px-1 text-cyan-300 hover:bg-slate-800"
+        >
+          {copied ? copiedLabel : copyLabel}
+        </button>
+      </header>
+      {html ? (
+        <div
+          className="overflow-x-auto p-3 text-sm [&>pre]:m-0 [&>pre]:bg-transparent [&>pre]:p-0"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      ) : (
+        <pre className="overflow-x-auto p-3 text-sm text-slate-100">
+          <code>{code}</code>
+        </pre>
+      )}
+    </section>
+  );
 }

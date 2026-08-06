@@ -86,9 +86,9 @@ fmt-go: ## Format Go code
 		fi; \
 	fi
 
-fmt-ui: ## Format UI code
+fmt-ui: ## Format UI and published library source
 	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm run lint:fix && pnpm run strings:check; \
+		cd ui && pnpm run format && pnpm run lint:fix && pnpm run strings:check; \
 	fi
 
 lint: lint-go lint-ui ## Lint all code

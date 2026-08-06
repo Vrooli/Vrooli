@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:Tabs","catalogId":"navigation.tabs","displayName":"Tabs","description":"A keyboard-operable tab navigation surface with stable active state and responsive overflow.","assetKind":"component","tags":["navigation","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:Tabs",
+  "catalogId": "navigation.tabs",
+  "displayName": "Tabs",
+  "description": "A keyboard-operable tab navigation surface with stable active state and responsive overflow.",
+  "assetKind": "component",
+  "tags": ["navigation", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

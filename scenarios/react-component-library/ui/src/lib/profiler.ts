@@ -36,11 +36,7 @@
 
 import type { ProfilerOnRenderCallback } from "react";
 
-export const onProfilerRender: ProfilerOnRenderCallback = (
-  id,
-  phase,
-  actualDuration,
-) => {
+export const onProfilerRender: ProfilerOnRenderCallback = (id, phase, actualDuration) => {
   // performance.measure with explicit start/duration lands as a user_timing
   // entry exactly aligned to React's commit window. The "⚛" prefix groups
   // these together in the DevTools Performance panel timeline.

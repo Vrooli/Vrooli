@@ -148,6 +148,25 @@ func TestIndexer_RunIndexesHookAsNonRenderableAsset(t *testing.T) {
 	}, component.Dependencies)
 }
 
+func TestIndexer_RunIndexesPrimitiveAsRenderableComponent(t *testing.T) {
+	fs := fstest.MapFS{
+		"primitives/Presence/component.json": {Data: []byte(`{"libraryId":"react-component-library:Presence","catalogId":"motion.presence","displayName":"Presence","assetKind":"primitive","latest":"1.0.0","dependencies":[]}`)},
+		"primitives/Presence/versions/1.0.0/Presence.tsx": {Data: []byte(`/** @vrooliComponentSource react-component-library:Presence */
+export const Presence = () => null;`)},
+	}
+	repo := mocks.NewFakeRepository()
+	res, err := components.NewIndexer(repo, ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Scanned)
+	require.Equal(t, 1, res.Indexed)
+
+	got, err := repo.GetByLibraryID(context.Background(), "react-component-library:Presence")
+	require.NoError(t, err)
+	require.Equal(t, components.AssetKindComponent, got.AssetKind)
+	require.Equal(t, "primitives/Presence/component.json", got.ManifestPath)
+	require.Equal(t, "primitives/Presence/versions/1.0.0/Presence.tsx", got.SourcePath)
+}
+
 func TestIndexer_RunRejectsNestedCompanionFixture(t *testing.T) {
 	fs := fstest.MapFS{
 		"components/FocusTrap/component.json": {Data: []byte(`{"libraryId":"react-component-library:FocusTrap","displayName":"Focus Trap","slot":"ui-pattern","entry":"FocusTrap.tsx","latest":"1.0.0","deprecatedVersions":[]}`)},

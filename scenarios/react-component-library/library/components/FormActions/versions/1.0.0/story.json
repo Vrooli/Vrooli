@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "FormActions",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Default actions", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }, { "kind": "role", "role": "button", "name": "Reset" }] },
+    { "id": "pending", "name": "Pending actions", "harness": "Pending", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Saving…" }, { "kind": "attribute", "selector": "[data-rcl-form-action=submit]", "attribute": "disabled", "value": "" }] },
+    { "id": "compact", "name": "Compact actions", "harness": "Compact", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Continue" }, { "kind": "role", "role": "button", "name": "Back" }] }
+  ]
+}

@@ -3,15 +3,12 @@
   "catalogId": "controls.button",
   "displayName": "Button",
   "description": "Token-bound accessible action button with variant and size styling.",
-  "tags": [
-    "form",
-    "interactive"
-  ],
+  "tags": ["form", "interactive"],
   "slot": "ui-primitive",
   "category": "actions",
   "dependencies": [
     {
-      "libraryId": "react-component-library:ControlBase",
+      "libraryId": "react-component-library:Pressable",
       "version": "1.0.0"
     }
   ],

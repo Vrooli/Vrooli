@@ -1,0 +1,29 @@
+{
+  "libraryId": "react-component-library:Transition",
+  "catalogId": "motion.transition",
+  "displayName": "Transition",
+  "description": "A compact tokenized transition family composed from Presence and MotionPrimitive.",
+  "assetKind": "primitive",
+  "tags": ["primitive", "motion", "reduced-motion", "token-bound"],
+  "slot": "ui-primitive",
+  "category": "motion",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:MotionPrimitive",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:Presence", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:useReducedMotion",
+      "version": "1.0.0"
+    }
+  ],
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

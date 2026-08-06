@@ -1,0 +1,5 @@
+dist
+coverage
+node_modules
+src/consts/strings.generated.ts
+../library/**/versions/*/story.json

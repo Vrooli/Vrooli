@@ -95,7 +95,12 @@ export function DrawerShell({
 
   return (
     <div className="fixed inset-0 z-50">
-      <button type="button" className="absolute inset-0 cursor-default bg-app-background/70" aria-label="Close drawer" onClick={onClose} />
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default bg-app-background/70"
+        aria-label="Close drawer"
+        onClick={onClose}
+      />
       <div
         role="dialog"
         aria-modal="true"
@@ -104,12 +109,19 @@ export function DrawerShell({
         className={
           "absolute inset-x-0 top-4 flex flex-col overflow-hidden rounded-t-panel border-t border-app-border bg-app-surface shadow-2xl " +
           desktopSizeClasses +
-          (avoidKeyboard ? " bottom-[var(--rcl-keyboard-offset,0px)]" : " bottom-0")
+          (avoidKeyboard
+            ? " bottom-[var(--rcl-keyboard-offset,0px)]"
+            : " bottom-0")
         }
       >
         <div className="shrink-0 border-b border-app-border px-4 py-3">
           <div className="flex items-center gap-3">
-            <h2 id={titleId} className="min-w-0 flex-1 truncate text-sm font-semibold text-app-foreground">{title}</h2>
+            <h2
+              id={titleId}
+              className="min-w-0 flex-1 truncate text-sm font-semibold text-app-foreground"
+            >
+              {title}
+            </h2>
             {headerActions}
             <button
               ref={closeButtonRef}

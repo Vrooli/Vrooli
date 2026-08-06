@@ -1,1 +1,33 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:SearchFilterResults@1.0.0"},"component":{"id":"patterns.search-filter-results","title":"SearchFilterResults","purpose":"SearchFilterResults preserves data-source ownership and honest state composition."},"states":[{"id":"default","example":"default","description":"SearchFilterResults renders its default state."},{"id":"empty","example":"empty","description":"SearchFilterResults renders its empty state."}],"claims":[{"id":"contract-present","type":"custom","statement":"SearchFilterResults preserves data-source ownership and honest state composition.","tier":"manual","states":["default","empty"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:SearchFilterResults@1.0.0"
+  },
+  "component": {
+    "id": "patterns.search-filter-results",
+    "title": "SearchFilterResults",
+    "purpose": "SearchFilterResults preserves data-source ownership and honest state composition."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "SearchFilterResults renders its default state."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "SearchFilterResults renders its empty state."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "SearchFilterResults preserves data-source ownership and honest state composition.",
+      "tier": "manual",
+      "states": ["default", "empty"]
+    }
+  ]
+}

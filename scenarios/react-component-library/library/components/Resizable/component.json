@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:Resizable","catalogId":"manipulation.resizable","displayName":"Resizable","description":"A bounded resizable region that preserves usable minimum geometry while the user adjusts a layout.","assetKind":"component","tags":["layout","interaction","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:Resizable",
+  "catalogId": "manipulation.resizable",
+  "displayName": "Resizable",
+  "description": "A bounded resizable region that preserves usable minimum geometry while the user adjusts a layout.",
+  "assetKind": "component",
+  "tags": ["layout", "interaction", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

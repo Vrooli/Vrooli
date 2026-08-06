@@ -13,7 +13,13 @@ describe("BottomNav", () => {
       <BottomNav
         label="Primary"
         items={[
-          { id: "dashboard", href: "/", label: "Dashboard", icon: <span aria-hidden>1</span>, testId: "dash" },
+          {
+            id: "dashboard",
+            href: "/",
+            label: "Dashboard",
+            icon: <span aria-hidden>1</span>,
+            testId: "dash",
+          },
           {
             id: "components",
             href: "/components",

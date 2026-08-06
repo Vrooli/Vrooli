@@ -7,17 +7,9 @@
  * `style={{ width: size }}` on the target for initial render and after-drag
  * reconciliation.
  */
-import {
-  type PointerEvent,
-  type RefObject,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type PointerEvent, type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 function loadPersistedSize(
   storageKey: string | undefined,
@@ -112,9 +104,7 @@ export function useResizablePanel({
         Math.min(maxSize, bounds.width - adjacentMinSize - handleWidth),
       );
       const raw =
-        resizeEdge === "left"
-          ? bounds.right - event.clientX
-          : event.clientX - bounds.left;
+        resizeEdge === "left" ? bounds.right - event.clientX : event.clientX - bounds.left;
       const next = clamp(raw, minSize, effectiveMax);
       liveSizeRef.current = next;
       const t = targetRef.current;

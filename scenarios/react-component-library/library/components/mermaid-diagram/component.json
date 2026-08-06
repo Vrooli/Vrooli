@@ -3,10 +3,7 @@
   "x-supplementalJustification": "Pre-catalog diagram renderer retained as a supplemental content integration seam.",
   "displayName": "Mermaid Diagram",
   "description": "Mermaid diagram source preview with an expand seam.",
-  "tags": [
-    "markdown",
-    "mermaid"
-  ],
+  "tags": ["markdown", "mermaid"],
   "entry": "MermaidDiagram.tsx",
   "latest": "0.3.1",
   "deprecatedVersions": [],
@@ -18,5 +15,11 @@
       "reason": "token-native operational-console baseline"
     }
   ],
-  "requiredTokens": ["--color-surface-muted", "--color-border", "--color-foreground", "--color-muted-foreground", "--color-accent"]
+  "requiredTokens": [
+    "--color-surface-muted",
+    "--color-border",
+    "--color-foreground",
+    "--color-muted-foreground",
+    "--color-accent"
+  ]
 }

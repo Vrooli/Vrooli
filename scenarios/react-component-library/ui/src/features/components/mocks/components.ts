@@ -19,7 +19,7 @@ export interface ComponentsMocks {
     listComponentVersions: ReturnType<typeof vi.fn>;
     updateComponentContent: ReturnType<typeof vi.fn>;
   };
-	listComponentStories: ReturnType<typeof vi.fn>;
+  listComponentStories: ReturnType<typeof vi.fn>;
 }
 
 export const makeComponentsMocks = (): ComponentsMocks => ({
@@ -30,8 +30,10 @@ export const makeComponentsMocks = (): ComponentsMocks => ({
     indexComponents: vi.fn().mockResolvedValue(makeIndexComponentsResponse()),
     getComponentContent: vi.fn().mockResolvedValue(makeGetComponentContentResponse()),
     getComponentVersionContent: vi.fn().mockResolvedValue(makeGetComponentVersionContentResponse()),
-    listComponentVersions: vi.fn().mockResolvedValue({ versions: [{ version: "1.0.0", files: [] }] }),
+    listComponentVersions: vi
+      .fn()
+      .mockResolvedValue({ versions: [{ version: "1.0.0", files: [] }] }),
     updateComponentContent: vi.fn().mockResolvedValue(makeUpdateComponentContentResponse()),
   },
-	listComponentStories: vi.fn().mockResolvedValue({ stories: [] }),
+  listComponentStories: vi.fn().mockResolvedValue({ stories: [] }),
 });

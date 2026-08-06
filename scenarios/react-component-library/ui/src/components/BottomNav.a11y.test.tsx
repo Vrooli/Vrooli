@@ -13,8 +13,19 @@ describe("BottomNav accessibility", () => {
       <BottomNav
         label="Primary"
         items={[
-          { id: "dashboard", href: "/", label: "Dashboard", icon: <span aria-hidden>1</span>, active: true },
-          { id: "components", href: "/components", label: "Components", icon: <span aria-hidden>2</span> },
+          {
+            id: "dashboard",
+            href: "/",
+            label: "Dashboard",
+            icon: <span aria-hidden>1</span>,
+            active: true,
+          },
+          {
+            id: "components",
+            href: "/components",
+            label: "Components",
+            icon: <span aria-hidden>2</span>,
+          },
         ]}
       />,
     );

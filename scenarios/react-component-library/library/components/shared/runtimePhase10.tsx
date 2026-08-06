@@ -1,44 +1,567 @@
-import { forwardRef, useEffect, useState, type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useState,
+  type ButtonHTMLAttributes,
+  type CSSProperties,
+  type HTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from "react";
 
-const colors = { surface: "var(--color-surface, #ffffff)", muted: "var(--color-surface-muted, #f1f5f9)", foreground: "var(--color-foreground, #0f172a)", quiet: "var(--color-muted-foreground, #64748b)", border: "var(--color-border, #cbd5e1)", primary: "var(--color-primary, #2563eb)", primaryText: "var(--color-primary-foreground, #ffffff)" };
-const panel = (extra: CSSProperties = {}): CSSProperties => ({ border: `1px solid ${colors.border}`, borderRadius: "var(--radius-panel, 0.75rem)", background: colors.surface, color: colors.foreground, boxShadow: "var(--elev-raised, 0 1px 3px rgb(15 23 42 / 0.08))", ...extra });
-const control = (tone: "primary" | "secondary" | "ghost" | "danger" = "primary", pending = false): CSSProperties => ({ minHeight: "var(--tap-target-min, 44px)", minWidth: "var(--tap-target-min, 44px)", border: `1px solid ${tone === "ghost" ? "transparent" : tone === "danger" ? "var(--color-danger, #dc2626)" : tone === "primary" ? colors.primary : colors.border}`, borderRadius: "var(--radius-control, 0.5rem)", background: tone === "primary" ? colors.primary : tone === "danger" ? "var(--color-danger, #dc2626)" : tone === "secondary" ? colors.surface : "transparent", color: tone === "ghost" || tone === "secondary" ? colors.foreground : colors.primaryText, paddingInline: "var(--space-sm, 16px)", font: "inherit", fontWeight: 650, cursor: pending ? "wait" : "pointer", opacity: pending ? 0.72 : 1, transition: "background var(--dur-quick, 180ms) ease, transform var(--dur-quick, 180ms) ease" });
-
-export const Pressable = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { pending?: boolean; tone?: "primary" | "secondary" | "ghost" | "danger" }>(function Pressable({ pending = false, tone = "primary", style, children, disabled, type = "button", ...props }, ref) {
-  return <button ref={ref} type={type} disabled={disabled || pending} aria-busy={pending || undefined} style={{ ...control(tone, pending), ...style }} {...props}>{pending ? "Working…" : children}</button>;
+const colors = {
+  surface: "var(--color-surface, #ffffff)",
+  muted: "var(--color-surface-muted, #f1f5f9)",
+  foreground: "var(--color-foreground, #0f172a)",
+  quiet: "var(--color-muted-foreground, #64748b)",
+  border: "var(--color-border, #cbd5e1)",
+  primary: "var(--color-primary, #2563eb)",
+  primaryText: "var(--color-primary-foreground, #ffffff)",
+};
+const panel = (extra: CSSProperties = {}): CSSProperties => ({
+  border: `1px solid ${colors.border}`,
+  borderRadius: "var(--radius-panel, 0.75rem)",
+  background: colors.surface,
+  color: colors.foreground,
+  boxShadow: "var(--elev-raised, 0 1px 3px rgb(15 23 42 / 0.08))",
+  ...extra,
+});
+const control = (
+  tone: "primary" | "secondary" | "ghost" | "danger" = "primary",
+  pending = false,
+): CSSProperties => ({
+  minHeight: "var(--tap-target-min, 44px)",
+  minWidth: "var(--tap-target-min, 44px)",
+  border: `1px solid ${tone === "ghost" ? "transparent" : tone === "danger" ? "var(--color-danger, #dc2626)" : tone === "primary" ? colors.primary : colors.border}`,
+  borderRadius: "var(--radius-control, 0.5rem)",
+  background:
+    tone === "primary"
+      ? colors.primary
+      : tone === "danger"
+        ? "var(--color-danger, #dc2626)"
+        : tone === "secondary"
+          ? colors.surface
+          : "transparent",
+  color:
+    tone === "ghost" || tone === "secondary"
+      ? colors.foreground
+      : colors.primaryText,
+  paddingInline: "var(--space-sm, 16px)",
+  font: "inherit",
+  fontWeight: 650,
+  cursor: pending ? "wait" : "pointer",
+  opacity: pending ? 0.72 : 1,
+  transition:
+    "background var(--dur-quick, 180ms) ease, transform var(--dur-quick, 180ms) ease",
 });
 
-export function ButtonGroup({ children, label = "Actions", ...props }: HTMLAttributes<HTMLDivElement> & { label?: string }) { return <div role="group" aria-label={label} style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2xs, 8px)", flexWrap: "wrap" }} {...props}>{children}</div>; }
-
-export const SearchInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function SearchInput({ placeholder = "Search", style, ...props }, ref) {
-  return <label style={{ display: "grid", gap: 6, width: "min(100%, 360px)" }}><span style={{ color: colors.quiet, fontSize: "var(--text-label-size, 12px)", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>Search</span><input ref={ref} type="search" placeholder={placeholder} style={{ minHeight: "var(--tap-target-min, 44px)", boxSizing: "border-box", width: "100%", border: `1px solid ${colors.border}`, borderRadius: "var(--radius-control, 0.5rem)", background: colors.surface, color: colors.foreground, paddingInline: "var(--space-sm, 16px)", font: "inherit", outlineColor: colors.primary, ...style }} {...props} /></label>;
+export const Pressable = forwardRef<
+  HTMLButtonElement,
+  ButtonHTMLAttributes<HTMLButtonElement> & {
+    pending?: boolean;
+    tone?: "primary" | "secondary" | "ghost" | "danger";
+  }
+>(function Pressable(
+  {
+    pending = false,
+    tone = "primary",
+    style,
+    children,
+    disabled,
+    type = "button",
+    ...props
+  },
+  ref,
+) {
+  return (
+    <button
+      ref={ref}
+      type={type}
+      disabled={disabled || pending}
+      aria-busy={pending || undefined}
+      style={{ ...control(tone, pending), ...style }}
+      {...props}
+    >
+      {pending ? "Working…" : children}
+    </button>
+  );
 });
 
-export function Chip({ children, selected = false, onClick }: { children: ReactNode; selected?: boolean; onClick?: () => void }) { return <button type="button" aria-pressed={selected} onClick={onClick} style={{ ...control(selected ? "primary" : "secondary"), minHeight: 36, minWidth: 0, borderRadius: "var(--radius-pill, 9999px)", paddingInline: "var(--space-sm, 16px)" }}>{children}</button>; }
-
-export function StatusIndicator({ status = "idle", label, certainty = "observed", urgency = "ambient" }: { status?: "idle" | "pending" | "success" | "error" | "offline"; label?: string; certainty?: "scheduled" | "estimated" | "predicted" | "observed" | "confirmed"; urgency?: "ambient" | "informational" | "actionable" | "critical" }) {
-  const tone = status === "success" ? "var(--color-success, #16a34a)" : status === "error" ? "var(--color-danger, #dc2626)" : status === "pending" ? "var(--color-warning, #d97706)" : colors.quiet;
-  return <span role="status" data-status={status} data-certainty={certainty} data-urgency={urgency} style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-2xs, 8px)", border: `1px solid ${tone}`, borderRadius: "var(--radius-pill, 9999px)", background: `color-mix(in srgb, ${tone} 10%, transparent)`, color: tone, padding: "6px 10px", fontSize: "var(--text-body-sm-size, 13px)", fontWeight: 700 }}><span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: tone }} />{label ?? status}</span>;
+export function ButtonGroup({
+  children,
+  label = "Actions",
+  ...props
+}: HTMLAttributes<HTMLDivElement> & { label?: string }) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "var(--space-2xs, 8px)",
+        flexWrap: "wrap",
+      }}
+      {...props}
+    >
+      {children}
+    </div>
+  );
 }
 
-export function CopyableText({ value }: { value: string }) { const [copied, setCopied] = useState(false); return <button type="button" onClick={() => { setCopied(true); void navigator.clipboard?.writeText(value); }} aria-label="Copy text" style={control("secondary")}>{copied ? "Copied" : value}</button>; }
-export function RelativeTime({ value = "just now" }: { value?: string }) { return <time dateTime={value} style={{ color: colors.quiet, fontSize: "var(--text-body-sm-size, 13px)" }}>{value}</time>; }
+export const SearchInput = forwardRef<
+  HTMLInputElement,
+  InputHTMLAttributes<HTMLInputElement>
+>(function SearchInput({ placeholder = "Search", style, ...props }, ref) {
+  return (
+    <label style={{ display: "grid", gap: 6, width: "min(100%, 360px)" }}>
+      <span
+        style={{
+          color: colors.quiet,
+          fontSize: "var(--text-label-size, 12px)",
+          fontWeight: 700,
+          letterSpacing: "0.05em",
+          textTransform: "uppercase",
+        }}
+      >
+        Search
+      </span>
+      <input
+        ref={ref}
+        type="search"
+        placeholder={placeholder}
+        style={{
+          minHeight: "var(--tap-target-min, 44px)",
+          boxSizing: "border-box",
+          width: "100%",
+          border: `1px solid ${colors.border}`,
+          borderRadius: "var(--radius-control, 0.5rem)",
+          background: colors.surface,
+          color: colors.foreground,
+          paddingInline: "var(--space-sm, 16px)",
+          font: "inherit",
+          outlineColor: colors.primary,
+          ...style,
+        }}
+        {...props}
+      />
+    </label>
+  );
+});
 
-export function AsyncBoundary({ status = "idle", children, pending = "Loading…", error = "Something went wrong", retry }: { status?: "idle" | "pending" | "success" | "error"; children?: ReactNode; pending?: ReactNode; error?: ReactNode; retry?: () => void }) {
-  if (status === "pending") return <div role="status" aria-live="polite" style={panel({ minHeight: 120, display: "grid", placeItems: "center", padding: "var(--space-md, 24px)" })}>{pending}</div>;
-  if (status === "error") return <div role="alert" style={panel({ display: "grid", gap: "var(--space-xs, 12px)", padding: "var(--space-md, 24px)" })}>{error}{retry && <Pressable tone="secondary" onClick={retry}>Retry</Pressable>}</div>;
+export function Chip({
+  children,
+  selected = false,
+  onClick,
+}: {
+  children: ReactNode;
+  selected?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      style={{
+        ...control(selected ? "primary" : "secondary"),
+        minHeight: 36,
+        minWidth: 0,
+        borderRadius: "var(--radius-pill, 9999px)",
+        paddingInline: "var(--space-sm, 16px)",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function StatusIndicator({
+  status = "idle",
+  label,
+  certainty = "observed",
+  urgency = "ambient",
+}: {
+  status?: "idle" | "pending" | "success" | "error" | "offline";
+  label?: string;
+  certainty?:
+    | "scheduled"
+    | "estimated"
+    | "predicted"
+    | "observed"
+    | "confirmed";
+  urgency?: "ambient" | "informational" | "actionable" | "critical";
+}) {
+  const tone =
+    status === "success"
+      ? "var(--color-success, #16a34a)"
+      : status === "error"
+        ? "var(--color-danger, #dc2626)"
+        : status === "pending"
+          ? "var(--color-warning, #d97706)"
+          : colors.quiet;
+  return (
+    <span
+      role="status"
+      data-status={status}
+      data-certainty={certainty}
+      data-urgency={urgency}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "var(--space-2xs, 8px)",
+        border: `1px solid ${tone}`,
+        borderRadius: "var(--radius-pill, 9999px)",
+        background: `color-mix(in srgb, ${tone} 10%, transparent)`,
+        color: tone,
+        padding: "6px 10px",
+        fontSize: "var(--text-body-sm-size, 13px)",
+        fontWeight: 700,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{ width: 7, height: 7, borderRadius: "50%", background: tone }}
+      />
+      {label ?? status}
+    </span>
+  );
+}
+
+export function CopyableText({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setCopied(true);
+        void navigator.clipboard?.writeText(value);
+      }}
+      aria-label="Copy text"
+      style={control("secondary")}
+    >
+      {copied ? "Copied" : value}
+    </button>
+  );
+}
+export function RelativeTime({ value = "just now" }: { value?: string }) {
+  return (
+    <time
+      dateTime={value}
+      style={{
+        color: colors.quiet,
+        fontSize: "var(--text-body-sm-size, 13px)",
+      }}
+    >
+      {value}
+    </time>
+  );
+}
+
+export function AsyncBoundary({
+  status = "idle",
+  children,
+  pending = "Loading…",
+  error = "Something went wrong",
+  retry,
+}: {
+  status?: "idle" | "pending" | "success" | "error";
+  children?: ReactNode;
+  pending?: ReactNode;
+  error?: ReactNode;
+  retry?: () => void;
+}) {
+  if (status === "pending")
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        style={panel({
+          minHeight: 120,
+          display: "grid",
+          placeItems: "center",
+          padding: "var(--space-md, 24px)",
+        })}
+      >
+        {pending}
+      </div>
+    );
+  if (status === "error")
+    return (
+      <div
+        role="alert"
+        style={panel({
+          display: "grid",
+          gap: "var(--space-xs, 12px)",
+          padding: "var(--space-md, 24px)",
+        })}
+      >
+        {error}
+        {retry && (
+          <Pressable tone="secondary" onClick={retry}>
+            Retry
+          </Pressable>
+        )}
+      </div>
+    );
   return <>{children}</>;
 }
-export function ErrorState({ title = "Something went wrong", onRetry }: { title?: string; onRetry?: () => void }) { return <div role="alert" style={panel({ display: "grid", gap: "var(--space-xs, 12px)", borderColor: "var(--color-danger, #dc2626)", padding: "var(--space-md, 24px)" })}><strong>{title}</strong><span style={{ color: colors.quiet }}>The operation could not be completed.</span>{onRetry && <Pressable tone="secondary" onClick={onRetry}>Try again</Pressable>}</div>; }
-export function LoadingState({ label = "Loading…" }: { label?: string }) { return <div role="status" aria-live="polite" style={panel({ minHeight: 120, display: "grid", placeItems: "center", color: colors.quiet, padding: "var(--space-md, 24px)" })}><span>{label}</span></div>; }
-export function OfflineState({ onRetry }: { onRetry?: () => void }) { return <div role="status" style={panel({ display: "grid", gap: "var(--space-xs, 12px)", padding: "var(--space-md, 24px)" })}><strong>Offline</strong><span style={{ color: colors.quiet }}>Some actions may be unavailable until your connection returns.</span>{onRetry && <Pressable tone="secondary" onClick={onRetry}>Try again</Pressable>}</div>; }
-export function PermissionState({ action }: { action?: () => void }) { return <div role="status" style={panel({ display: "grid", gap: "var(--space-xs, 12px)", padding: "var(--space-md, 24px)" })}><strong>Permission required</strong><span style={{ color: colors.quiet }}>Request access to continue.</span>{action && <Pressable onClick={action}>Request access</Pressable>}</div>; }
+export function ErrorState({
+  title = "Something went wrong",
+  onRetry,
+}: {
+  title?: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      style={panel({
+        display: "grid",
+        gap: "var(--space-xs, 12px)",
+        borderColor: "var(--color-danger, #dc2626)",
+        padding: "var(--space-md, 24px)",
+      })}
+    >
+      <strong>{title}</strong>
+      <span style={{ color: colors.quiet }}>
+        The operation could not be completed.
+      </span>
+      {onRetry && (
+        <Pressable tone="secondary" onClick={onRetry}>
+          Try again
+        </Pressable>
+      )}
+    </div>
+  );
+}
+export function LoadingState({ label = "Loading…" }: { label?: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={panel({
+        minHeight: 120,
+        display: "grid",
+        placeItems: "center",
+        color: colors.quiet,
+        padding: "var(--space-md, 24px)",
+      })}
+    >
+      <span>{label}</span>
+    </div>
+  );
+}
+export function OfflineState({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <div
+      role="status"
+      style={panel({
+        display: "grid",
+        gap: "var(--space-xs, 12px)",
+        padding: "var(--space-md, 24px)",
+      })}
+    >
+      <strong>Offline</strong>
+      <span style={{ color: colors.quiet }}>
+        Some actions may be unavailable until your connection returns.
+      </span>
+      {onRetry && (
+        <Pressable tone="secondary" onClick={onRetry}>
+          Try again
+        </Pressable>
+      )}
+    </div>
+  );
+}
+export function PermissionState({ action }: { action?: () => void }) {
+  return (
+    <div
+      role="status"
+      style={panel({
+        display: "grid",
+        gap: "var(--space-xs, 12px)",
+        padding: "var(--space-md, 24px)",
+      })}
+    >
+      <strong>Permission required</strong>
+      <span style={{ color: colors.quiet }}>Request access to continue.</span>
+      {action && <Pressable onClick={action}>Request access</Pressable>}
+    </div>
+  );
+}
 
-function ManagedLayer({ children, open, label }: { children: ReactNode; open: boolean; label: string }) { useEffect(() => undefined, [open]); return open ? <div role="dialog" aria-label={label} style={panel({ display: "grid", gap: "var(--space-sm, 16px)", position: "relative", zIndex: "var(--layer-overlay, 300)", padding: "var(--space-md, 24px)" })}>{children}</div> : null; }
-export function CommandPalette({ open = false, onClose }: { open?: boolean; onClose?: () => void }) { return <ManagedLayer open={open} label="Command palette"><div role="searchbox" tabIndex={0} style={{ ...panel({ background: colors.muted, boxShadow: "none", padding: "var(--space-sm, 16px)" }) }}>Search commands</div><Pressable tone="ghost" onClick={onClose}>Close</Pressable></ManagedLayer>; }
-export function Drawer({ open = false, onClose, children, side = "right", presentation = "modal" }: { open?: boolean; onClose?: () => void; children?: ReactNode; side?: "left" | "right" | "top" | "bottom"; presentation?: "modal" | "non-modal" }) { return <div data-side={side} data-presentation={presentation}><ManagedLayer open={open} label="Drawer"><div>{children ?? "Drawer content"}</div><Pressable tone="ghost" onClick={onClose}>Close</Pressable></ManagedLayer></div>; }
-export function InspectorPanel({ open = false, onClose, children }: { open?: boolean; onClose?: () => void; children?: ReactNode }) { return <ManagedLayer open={open} label="Inspector"><div>{children ?? "Inspector details"}</div><Pressable tone="ghost" onClick={onClose}>Close</Pressable></ManagedLayer>; }
-export function ResponsivePanel({ open = false, onClose, children }: { open?: boolean; onClose?: () => void; children?: ReactNode }) { return <div data-responsive-panel data-open={open}><ManagedLayer open={open} label="Responsive panel"><div>{children ?? "Panel content"}</div><Pressable tone="ghost" onClick={onClose}>Close</Pressable></ManagedLayer></div>; }
-export function Resizable({ children, orientation = "horizontal" }: { children?: ReactNode; orientation?: "horizontal" | "vertical" }) { return <div data-orientation={orientation} style={{ display: "flex", flexDirection: orientation === "horizontal" ? "row" : "column", minInlineSize: "var(--space-xl, 240px)", minBlockSize: "var(--space-xl, 160px)", gap: "var(--space-xs, 12px)" }}>{children}</div>; }
-export function SplitPane({ primary, secondary }: { primary?: ReactNode; secondary?: ReactNode }) { return <Resizable><section style={{ flex: 1, minInlineSize: 0 }}>{primary}</section><section style={{ flex: 1, minInlineSize: 0 }}>{secondary}</section></Resizable>; }
-export function CollapsibleRegion({ open = true, children }: { open?: boolean; children?: ReactNode }) { return <div data-collapsible-region data-open={open} aria-hidden={!open || undefined} style={{ overflow: "hidden", transition: "opacity var(--dur-moderate, 280ms) ease", opacity: open ? 1 : 0 }}>{open ? children : null}</div>; }
+function ManagedLayer({
+  children,
+  open,
+  label,
+}: {
+  children: ReactNode;
+  open: boolean;
+  label: string;
+}) {
+  useEffect(() => undefined, [open]);
+  return open ? (
+    <div
+      role="dialog"
+      aria-label={label}
+      style={panel({
+        display: "grid",
+        gap: "var(--space-sm, 16px)",
+        position: "relative",
+        zIndex: "var(--layer-overlay, 300)",
+        padding: "var(--space-md, 24px)",
+      })}
+    >
+      {children}
+    </div>
+  ) : null;
+}
+export function CommandPalette({
+  open = false,
+  onClose,
+}: {
+  open?: boolean;
+  onClose?: () => void;
+}) {
+  return (
+    <ManagedLayer open={open} label="Command palette">
+      <div
+        role="searchbox"
+        tabIndex={0}
+        style={{
+          ...panel({
+            background: colors.muted,
+            boxShadow: "none",
+            padding: "var(--space-sm, 16px)",
+          }),
+        }}
+      >
+        Search commands
+      </div>
+      <Pressable tone="ghost" onClick={onClose}>
+        Close
+      </Pressable>
+    </ManagedLayer>
+  );
+}
+export function Drawer({
+  open = false,
+  onClose,
+  children,
+  side = "right",
+  presentation = "modal",
+}: {
+  open?: boolean;
+  onClose?: () => void;
+  children?: ReactNode;
+  side?: "left" | "right" | "top" | "bottom";
+  presentation?: "modal" | "non-modal";
+}) {
+  return (
+    <div data-side={side} data-presentation={presentation}>
+      <ManagedLayer open={open} label="Drawer">
+        <div>{children ?? "Drawer content"}</div>
+        <Pressable tone="ghost" onClick={onClose}>
+          Close
+        </Pressable>
+      </ManagedLayer>
+    </div>
+  );
+}
+export function InspectorPanel({
+  open = false,
+  onClose,
+  children,
+}: {
+  open?: boolean;
+  onClose?: () => void;
+  children?: ReactNode;
+}) {
+  return (
+    <ManagedLayer open={open} label="Inspector">
+      <div>{children ?? "Inspector details"}</div>
+      <Pressable tone="ghost" onClick={onClose}>
+        Close
+      </Pressable>
+    </ManagedLayer>
+  );
+}
+export function ResponsivePanel({
+  open = false,
+  onClose,
+  children,
+}: {
+  open?: boolean;
+  onClose?: () => void;
+  children?: ReactNode;
+}) {
+  return (
+    <div data-responsive-panel data-open={open}>
+      <ManagedLayer open={open} label="Responsive panel">
+        <div>{children ?? "Panel content"}</div>
+        <Pressable tone="ghost" onClick={onClose}>
+          Close
+        </Pressable>
+      </ManagedLayer>
+    </div>
+  );
+}
+export function Resizable({
+  children,
+  orientation = "horizontal",
+}: {
+  children?: ReactNode;
+  orientation?: "horizontal" | "vertical";
+}) {
+  return (
+    <div
+      data-orientation={orientation}
+      style={{
+        display: "flex",
+        flexDirection: orientation === "horizontal" ? "row" : "column",
+        minInlineSize: "var(--space-xl, 240px)",
+        minBlockSize: "var(--space-xl, 160px)",
+        gap: "var(--space-xs, 12px)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+export function SplitPane({
+  primary,
+  secondary,
+}: {
+  primary?: ReactNode;
+  secondary?: ReactNode;
+}) {
+  return (
+    <Resizable>
+      <section style={{ flex: 1, minInlineSize: 0 }}>{primary}</section>
+      <section style={{ flex: 1, minInlineSize: 0 }}>{secondary}</section>
+    </Resizable>
+  );
+}
+export function CollapsibleRegion({
+  open = true,
+  children,
+}: {
+  open?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <div
+      data-collapsible-region
+      data-open={open}
+      aria-hidden={!open || undefined}
+      style={{
+        overflow: "hidden",
+        transition: "opacity var(--dur-moderate, 280ms) ease",
+        opacity: open ? 1 : 0,
+      }}
+    >
+      {open ? children : null}
+    </div>
+  );
+}

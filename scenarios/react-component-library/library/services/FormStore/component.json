@@ -1,0 +1,16 @@
+{
+  "libraryId": "react-component-library:FormStore",
+  "catalogId": "services.form-store",
+  "displayName": "Form Store",
+  "description": "Field-granular form state with validation, submission, autosave, and conflict coordination.",
+  "assetKind": "service",
+  "tags": ["runtime", "form", "state", "accessibility"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:createScopedStore",
+      "version": "1.0.0"
+    }
+  ]
+}

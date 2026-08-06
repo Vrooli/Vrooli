@@ -23,10 +23,16 @@ vi.mock("../../api/workflows", () => ({ workflowsClient: { getPromotionReadiness
 import { IngestComponentForm } from "./IngestComponentForm";
 import { componentsClient } from "../../api/components";
 
-const fillAndSubmit = async (user: ReturnType<typeof userEvent.setup>, opts: { acceptLoss?: boolean } = {}) => {
+const fillAndSubmit = async (
+  user: ReturnType<typeof userEvent.setup>,
+  opts: { acceptLoss?: boolean } = {},
+) => {
   await user.click(screen.getByTestId(selectors.components.ingest.details));
   await user.type(screen.getByTestId(selectors.components.ingest.scenario), "web-console");
-  await user.type(screen.getByTestId(selectors.components.ingest.sourceFile), "ui/src/components/DrawerShell.tsx");
+  await user.type(
+    screen.getByTestId(selectors.components.ingest.sourceFile),
+    "ui/src/components/DrawerShell.tsx",
+  );
   await user.type(screen.getByTestId(selectors.components.ingest.slug), "DrawerShell");
   await user.type(screen.getByTestId(selectors.components.ingest.tags), " overlay , shell ,");
   if (opts.acceptLoss) {
@@ -93,9 +99,20 @@ describe("IngestComponentForm", () => {
 
   it("shows read-only promotion blockers after a successful ingest", async () => {
     vi.mocked(componentsClient.ingestComponent).mockResolvedValueOnce({
-      component: { id: "drawer-shell" }, draftVersion: "1.0.0", findings: [], parityReport: { acknowledged: false, findings: [] },
+      component: { id: "drawer-shell" },
+      draftVersion: "1.0.0",
+      findings: [],
+      parityReport: { acknowledged: false, findings: [] },
     } as never);
-    getPromotionReadiness.mockResolvedValueOnce({ readiness: { ready: false, availableExampleCount: 0, requiredExampleCount: 1, blockers: ["origin replacement drift is not clean"], nextValidationCommand: "vrooli scenario test react-component-library" } });
+    getPromotionReadiness.mockResolvedValueOnce({
+      readiness: {
+        ready: false,
+        availableExampleCount: 0,
+        requiredExampleCount: 1,
+        blockers: ["origin replacement drift is not clean"],
+        nextValidationCommand: "vrooli scenario test react-component-library",
+      },
+    });
 
     const user = userEvent.setup();
     renderWithProviders(<IngestComponentForm />);
@@ -104,7 +121,11 @@ describe("IngestComponentForm", () => {
     expect(await screen.findByText("Promotion evidence is incomplete.")).toBeInTheDocument();
     expect(screen.getByText("origin replacement drift is not clean")).toBeInTheDocument();
     expect(screen.getByText("vrooli scenario test react-component-library")).toBeInTheDocument();
-    expect(getPromotionReadiness).toHaveBeenCalledWith({ assetId: "drawer-shell", originScenario: "web-console", version: "1.0.0" });
+    expect(getPromotionReadiness).toHaveBeenCalledWith({
+      assetId: "drawer-shell",
+      originScenario: "web-console",
+      version: "1.0.0",
+    });
   });
 
   it("skips the accepted-losses notice when the response has no parity report", async () => {
@@ -125,7 +146,9 @@ describe("IngestComponentForm", () => {
   });
 
   it("renders the error message when ingest fails", async () => {
-    vi.mocked(componentsClient.ingestComponent).mockRejectedValueOnce(new Error("source file not found"));
+    vi.mocked(componentsClient.ingestComponent).mockRejectedValueOnce(
+      new Error("source file not found"),
+    );
 
     const user = userEvent.setup();
     renderWithProviders(<IngestComponentForm />);

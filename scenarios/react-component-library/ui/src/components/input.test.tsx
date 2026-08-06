@@ -64,14 +64,7 @@ describe("Input", () => {
   });
 
   it("passes through arbitrary input attributes (type, placeholder, disabled)", () => {
-    renderWithProviders(
-      <Input
-        data-testid="i"
-        type="email"
-        placeholder="email-ph"
-        disabled
-      />,
-    );
+    renderWithProviders(<Input data-testid="i" type="email" placeholder="email-ph" disabled />);
     const el = screen.getByTestId<HTMLInputElement>("i");
     expect(el.type).toBe("email");
     expect(el.placeholder).toBe("email-ph");

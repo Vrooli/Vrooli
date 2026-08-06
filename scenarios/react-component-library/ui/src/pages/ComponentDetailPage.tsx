@@ -15,7 +15,12 @@ import { adoptionsClient } from "../api/adoptions";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
-import { componentsClient, getCatalogAsset, getComponentExperience, type CatalogAsset } from "../api/components";
+import {
+  componentsClient,
+  getCatalogAsset,
+  getComponentExperience,
+  type CatalogAsset,
+} from "../api/components";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { ComponentEditor, type ComparisonSession } from "../features/components/ComponentEditor";
@@ -24,29 +29,95 @@ import { ComponentExperiencePanel } from "../features/components/ComponentExperi
 import { ComponentTestPanel } from "../features/components/ComponentTestPanel";
 import { VersionsCard } from "../features/versions/VersionsCard";
 import { useTranslation } from "../i18n";
-import { assetInfoTab, assetPath, assetSearchForTab, assetStory, type AssetInfoTab } from "../routes";
+import {
+  assetInfoTab,
+  assetPath,
+  assetSearchForTab,
+  assetStory,
+  type AssetInfoTab,
+} from "../routes";
 
 const assetNavigationStorageKey = (assetID: string) => `rcl.asset-navigation.${assetID}`;
 type StoredAssetNavigation = { tab?: InfoTab; story?: string };
 
 type InfoTab = AssetInfoTab;
 
-function DetailTabs({ active, onChange, versionCount, adoptionCount, renderable = true }: { active: InfoTab; onChange: (tab: InfoTab) => void; versionCount: number; adoptionCount: number; renderable?: boolean }) {
+function DetailTabs({
+  active,
+  onChange,
+  versionCount,
+  adoptionCount,
+  renderable = true,
+}: {
+  active: InfoTab;
+  onChange: (tab: InfoTab) => void;
+  versionCount: number;
+  adoptionCount: number;
+  renderable?: boolean;
+}) {
   const { t } = useTranslation();
   const tabs: Array<{ id: InfoTab; label: string; count?: number }> = [
-    ...(renderable ? [{ id: "preview" as const, label: t("components.editor.previewMode", { defaultValue: "Preview" }) }] : []),
+    ...(renderable
+      ? [
+          {
+            id: "preview" as const,
+            label: t("components.editor.previewMode", { defaultValue: "Preview" }),
+          },
+        ]
+      : []),
     { id: "overview", label: t("componentDetail.info.overview", { defaultValue: "Overview" }) },
     { id: "files", label: t("components.editor.files", { defaultValue: "Files" }) },
     { id: "tests", label: t("componentDetail.info.tests", { defaultValue: "Tests" }) },
-    { id: "versions", label: t("componentDetail.info.versions", { defaultValue: "Versions" }), count: versionCount },
-    { id: "adoptions", label: t("componentDetail.info.adoptions", { defaultValue: "Adoptions" }), count: adoptionCount },
+    {
+      id: "versions",
+      label: t("componentDetail.info.versions", { defaultValue: "Versions" }),
+      count: versionCount,
+    },
+    {
+      id: "adoptions",
+      label: t("componentDetail.info.adoptions", { defaultValue: "Adoptions" }),
+      count: adoptionCount,
+    },
   ];
 
-  return <div role="tablist" aria-label={t("componentDetail.info.tabs", { defaultValue: "Asset information" })} className="flex border-b border-app-border">
-    {tabs.map((tab) => <Button key={tab.id} data-testid={tab.id === "overview" ? selectors.assets.hookOverviewTab : tab.id === "files" ? selectors.assets.hookFilesTab : tab.id === "preview" ? selectors.assets.componentPreviewTab : undefined} type="button" role="tab" variant="secondary" aria-selected={active === tab.id} onClick={() => onChange(tab.id)} className={`min-h-0 rounded-none border-0 px-space-2xs py-space-2xs text-xs font-medium ${active === tab.id ? "border-b-2 border-app-primary text-app-foreground" : "text-app-muted-foreground"}`}>
-      {tab.label}{tab.count !== undefined && <span aria-hidden="true" className="ml-1.5 inline-flex min-w-4 items-center justify-center rounded-pill bg-app-surface-muted px-space-3xs py-space-3xs text-[10px] leading-none text-app-muted-foreground">{tab.count}</span>}
-    </Button>)}
-  </div>;
+  return (
+    <div
+      role="tablist"
+      aria-label={t("componentDetail.info.tabs", { defaultValue: "Asset information" })}
+      className="flex border-b border-app-border"
+    >
+      {tabs.map((tab) => (
+        <Button
+          key={tab.id}
+          data-testid={
+            tab.id === "overview"
+              ? selectors.assets.hookOverviewTab
+              : tab.id === "files"
+                ? selectors.assets.hookFilesTab
+                : tab.id === "preview"
+                  ? selectors.assets.componentPreviewTab
+                  : undefined
+          }
+          type="button"
+          role="tab"
+          variant="secondary"
+          aria-selected={active === tab.id}
+          onClick={() => onChange(tab.id)}
+          className={`min-h-0 rounded-none border-0 px-space-2xs py-space-2xs text-xs font-medium ${active === tab.id ? "border-b-2 border-app-primary text-app-foreground" : "text-app-muted-foreground"}`}
+        >
+          {tab.label}
+          {tab.count !== undefined && (
+            <span
+              aria-hidden="true"
+              className="ml-1.5 inline-flex min-w-4 items-center justify-center rounded-pill bg-app-surface-muted px-space-3xs py-space-3xs text-[10px] leading-none text-app-muted-foreground"
+            >
+              {tab.count}
+            </span>
+          )}
+        </Button>
+      ))}
+    </div>
+  );
 }
 
 function paneForTab(tab: InfoTab): "details" | "files" | "preview" {
@@ -61,7 +132,10 @@ function tabForPane(pane: "details" | "files" | "preview", current: InfoTab): In
   return current === "files" || current === "preview" ? "overview" : current;
 }
 
-function statusTone(library: number, local: number): "success" | "warning" | "danger" | "info" | "neutral" {
+function statusTone(
+  library: number,
+  local: number,
+): "success" | "warning" | "danger" | "info" | "neutral" {
   if (local === 2 || library === 2 || library === 3) return "warning";
   if (local === 3 || library === 4) return "danger";
   if (local === 4 || library === 5) return "info";
@@ -69,7 +143,8 @@ function statusTone(library: number, local: number): "success" | "warning" | "da
 }
 
 function statusLabel(library: number, local: number) {
-  const libraryLabel = ["Unspecified", "Current", "Behind", "Deprecated", "Missing", "Unknown"][library] ?? "Unknown";
+  const libraryLabel =
+    ["Unspecified", "Current", "Behind", "Deprecated", "Missing", "Unknown"][library] ?? "Unknown";
   const localLabel = ["Unspecified", "Clean", "Modified", "Missing", "Unknown"][local] ?? "Unknown";
   return `${libraryLabel} / ${localLabel}`;
 }
@@ -78,10 +153,136 @@ function isHook(asset: CatalogAsset) {
   return (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
 }
 
-function HookWorkspace({ asset, onClose, tab, onTabChange, selectedStory, onSelectedStoryChange }: { asset: CatalogAsset; onClose: () => void; tab: InfoTab; onTabChange: (tab: InfoTab) => void; selectedStory?: string; onSelectedStoryChange: (story: string) => void }) {
+function HookWorkspace({
+  asset,
+  onClose,
+  tab,
+  onTabChange,
+  selectedStory,
+  onSelectedStoryChange,
+}: {
+  asset: CatalogAsset;
+  onClose: () => void;
+  tab: InfoTab;
+  onTabChange: (tab: InfoTab) => void;
+  selectedStory?: string;
+  onSelectedStoryChange: (story: string) => void;
+}) {
   const { t } = useTranslation();
-  const effective = useQuery({ queryKey: ["adoptions", "effective", asset.id], queryFn: () => adoptionsClient.listEffectiveAdoptions({ componentId: asset.id, limit: 100 }) });
-  return <div data-testid="hook-detail-page" className="flex min-h-0 flex-1 flex-col"><ComponentEditor id={asset.id} libraryId={asset.libraryId || asset.id} onClose={onClose} renderable={false} activePane={paneForTab(tab)} onActivePaneChange={(pane) => onTabChange(tabForPane(pane, tab))} selectedStory={selectedStory} onSelectedStoryChange={onSelectedStoryChange} navigationSlot={<DetailTabs active={tab} onChange={onTabChange} versionCount={asset.metrics?.versionCount ?? 0} adoptionCount={asset.metrics?.effectiveAdoptionCount ?? 0} renderable={false} />} metadataSlot={<aside data-testid="hook-workspace-details" className="space-y-space-xs"><StatusBadge tone="info">{t("catalog.hookFixturePreview", { defaultValue: "Live fixture preview — declared inputs and adapters only." })}</StatusBadge><div className="flex flex-wrap gap-space-2xs text-xs"><StatusBadge tone="neutral">{t("catalog.directAdoptions", { defaultValue: "{{count}} direct", count: asset.metrics?.directAdoptionCount ?? 0 })}</StatusBadge><StatusBadge tone="neutral">{t("catalog.effectiveAdoptions", { defaultValue: "{{count}} effective", count: asset.metrics?.effectiveAdoptionCount ?? 0 })}</StatusBadge></div>{tab === "overview" && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs"><dt className="text-app-muted-foreground">{t("catalog.kind", { defaultValue: "Kind" })}</dt><dd>{t("catalog.hook", { defaultValue: "Hook" })}</dd><dt className="text-app-muted-foreground">{t("catalog.source", { defaultValue: "Source" })}</dt><dd className="break-all font-mono">{asset.sourcePath || "—"}</dd></dl>}{tab === "tests" && <ComponentTestPanel componentId={asset.id} version={asset.latestVersion || asset.version} />}{tab === "versions" && <VersionsCard componentId={asset.id} onSelectVersion={() => undefined} onCompare={() => undefined} />}{tab === "adoptions" && <div data-testid="hook-effective-adoptions" className="space-y-space-2xs text-xs">{effective.isLoading ? <p className="text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : (effective.data?.adoptions ?? []).length === 0 ? <EmptyState className="p-space-2xs text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No recorded usage." })} /> : <ul className="space-y-space-2xs">{(effective.data?.adoptions ?? []).map((entry) => <li key={`${entry.sourceAssetId}:${entry.parentAdoption?.id}`} className="rounded-control border border-app-border p-space-2xs"><p className="font-medium">{entry.mediated ? t("catalog.indirectUsage", { defaultValue: "Indirect usage" }) : t("catalog.directUsage", { defaultValue: "Direct usage" })}</p><p className="mt-space-3xs">{entry.parentAdoption?.scenario} · {entry.parentAdoption?.adoptedVersion}</p><p className="mt-space-3xs font-mono text-app-muted-foreground">{entry.parentAdoption?.id}</p></li>)}</ul>}</div>}</aside>} /></div>;
+  const effective = useQuery({
+    queryKey: ["adoptions", "effective", asset.id],
+    queryFn: () => adoptionsClient.listEffectiveAdoptions({ componentId: asset.id, limit: 100 }),
+  });
+  return (
+    <div data-testid="hook-detail-page" className="flex min-h-0 flex-1 flex-col">
+      <ComponentEditor
+        id={asset.id}
+        libraryId={asset.libraryId || asset.id}
+        onClose={onClose}
+        renderable={false}
+        activePane={paneForTab(tab)}
+        onActivePaneChange={(pane) => onTabChange(tabForPane(pane, tab))}
+        selectedStory={selectedStory}
+        onSelectedStoryChange={onSelectedStoryChange}
+        navigationSlot={
+          <DetailTabs
+            active={tab}
+            onChange={onTabChange}
+            versionCount={asset.metrics?.versionCount ?? 0}
+            adoptionCount={asset.metrics?.effectiveAdoptionCount ?? 0}
+            renderable={false}
+          />
+        }
+        metadataSlot={
+          <aside data-testid="hook-workspace-details" className="space-y-space-xs">
+            <StatusBadge tone="info">
+              {t("catalog.hookFixturePreview", {
+                defaultValue: "Live fixture preview — declared inputs and adapters only.",
+              })}
+            </StatusBadge>
+            <div className="flex flex-wrap gap-space-2xs text-xs">
+              <StatusBadge tone="neutral">
+                {t("catalog.directAdoptions", {
+                  defaultValue: "{{count}} direct",
+                  count: asset.metrics?.directAdoptionCount ?? 0,
+                })}
+              </StatusBadge>
+              <StatusBadge tone="neutral">
+                {t("catalog.effectiveAdoptions", {
+                  defaultValue: "{{count}} effective",
+                  count: asset.metrics?.effectiveAdoptionCount ?? 0,
+                })}
+              </StatusBadge>
+            </div>
+            {tab === "overview" && (
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs">
+                <dt className="text-app-muted-foreground">
+                  {t("catalog.kind", { defaultValue: "Kind" })}
+                </dt>
+                <dd>{t("catalog.hook", { defaultValue: "Hook" })}</dd>
+                <dt className="text-app-muted-foreground">
+                  {t("catalog.source", { defaultValue: "Source" })}
+                </dt>
+                <dd className="break-all font-mono">{asset.sourcePath || "—"}</dd>
+              </dl>
+            )}
+            {tab === "tests" && (
+              <ComponentTestPanel
+                componentId={asset.id}
+                version={asset.latestVersion || asset.version}
+              />
+            )}
+            {tab === "versions" && (
+              <VersionsCard
+                componentId={asset.id}
+                onSelectVersion={() => undefined}
+                onCompare={() => undefined}
+              />
+            )}
+            {tab === "adoptions" && (
+              <div data-testid="hook-effective-adoptions" className="space-y-space-2xs text-xs">
+                {effective.isLoading ? (
+                  <p className="text-app-muted-foreground">
+                    {t("componentDetail.info.adoptionsLoading", {
+                      defaultValue: "Loading adoptions…",
+                    })}
+                  </p>
+                ) : (effective.data?.adoptions ?? []).length === 0 ? (
+                  <EmptyState
+                    className="p-space-2xs text-xs"
+                    title={t("componentDetail.info.noAdoptions", {
+                      defaultValue: "No recorded usage.",
+                    })}
+                  />
+                ) : (
+                  <ul className="space-y-space-2xs">
+                    {(effective.data?.adoptions ?? []).map((entry) => (
+                      <li
+                        key={`${entry.sourceAssetId}:${entry.parentAdoption?.id}`}
+                        className="rounded-control border border-app-border p-space-2xs"
+                      >
+                        <p className="font-medium">
+                          {entry.mediated
+                            ? t("catalog.indirectUsage", { defaultValue: "Indirect usage" })
+                            : t("catalog.directUsage", { defaultValue: "Direct usage" })}
+                        </p>
+                        <p className="mt-space-3xs">
+                          {entry.parentAdoption?.scenario} · {entry.parentAdoption?.adoptedVersion}
+                        </p>
+                        <p className="mt-space-3xs font-mono text-app-muted-foreground">
+                          {entry.parentAdoption?.id}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </aside>
+        }
+      />
+    </div>
+  );
 }
 
 export function ComponentDetailPage() {
@@ -94,16 +295,22 @@ export function ComponentDetailPage() {
   const [comparison, setComparison] = useState<ComparisonSession | null>(null);
   const infoTab = assetInfoTab(search);
   const selectedStory = assetStory(search);
-  const setInfoTab = (tab: InfoTab) => setSearch(assetSearchForTab(tab, undefined, selectedStory), { replace: true });
+  const setInfoTab = (tab: InfoTab) =>
+    setSearch(assetSearchForTab(tab, undefined, selectedStory), { replace: true });
   const [selectedAdoptionID, setSelectedAdoptionID] = useState("");
-  const [previewExperienceState, setPreviewExperienceState] = useState<"loading" | "partial" | "ready" | "error">("loading");
+  const [previewExperienceState, setPreviewExperienceState] = useState<
+    "loading" | "partial" | "ready" | "error"
+  >("loading");
 
   useEffect(() => {
     if (!id || search.has("tab") || search.has("story")) return;
     try {
       const saved = window.localStorage.getItem(assetNavigationStorageKey(id));
-      const navigation = saved ? JSON.parse(saved) as StoredAssetNavigation : undefined;
-      if (navigation?.tab || navigation?.story) setSearch(assetSearchForTab(navigation.tab ?? "preview", undefined, navigation.story), { replace: true });
+      const navigation = saved ? (JSON.parse(saved) as StoredAssetNavigation) : undefined;
+      if (navigation?.tab || navigation?.story)
+        setSearch(assetSearchForTab(navigation.tab ?? "preview", undefined, navigation.story), {
+          replace: true,
+        });
     } catch {
       // Storage may be unavailable in private browsing; URL/default remain authoritative.
     }
@@ -112,7 +319,10 @@ export function ComponentDetailPage() {
   useEffect(() => {
     if (!id) return;
     try {
-      window.localStorage.setItem(assetNavigationStorageKey(id), JSON.stringify({ tab: infoTab, story: selectedStory }));
+      window.localStorage.setItem(
+        assetNavigationStorageKey(id),
+        JSON.stringify({ tab: infoTab, story: selectedStory }),
+      );
     } catch {
       // Navigation continuity degrades safely to the URL when storage is unavailable.
     }
@@ -173,7 +383,8 @@ export function ComponentDetailPage() {
   });
   const refreshMutation = useMutation({
     mutationFn: () => adoptionsClient.refreshAdoptions({ componentId: id ?? "" }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["adoptions", "component", id] }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: ["adoptions", "component", id] }),
   });
 
   const loadedAsset = catalogAsset.data?.component ?? data?.component;
@@ -213,23 +424,44 @@ export function ComponentDetailPage() {
     // effect above repairs stale URLs and saved preferences; this fallback
     // keeps the first render useful while it does so.
     const hookTab = infoTab === "preview" ? "overview" : infoTab;
-    return <HookWorkspace asset={component} onClose={() => { void navigate("/"); }} tab={hookTab} onTabChange={setInfoTab} selectedStory={selectedStory} onSelectedStoryChange={(story) => setSearch(assetSearchForTab(hookTab, undefined, story), { replace: true })} />;
+    return (
+      <HookWorkspace
+        asset={component}
+        onClose={() => {
+          void navigate("/");
+        }}
+        tab={hookTab}
+        onTabChange={setInfoTab}
+        selectedStory={selectedStory}
+        onSelectedStoryChange={(story) =>
+          setSearch(assetSearchForTab(hookTab, undefined, story), { replace: true })
+        }
+      />
+    );
   }
   // Proto clients provide empty collections, while test and older persisted
   // projections can omit these optional-shaped values entirely.
   const headers = (component.headers as Record<string, string> | undefined) ?? {};
   const tags = (component.tags as string[] | undefined) ?? [];
   const designStyles = (component.designStyles as typeof component.designStyles | undefined) ?? [];
-  const dependencies = (component.dependencies as Array<{ libraryId: string; version: string }> | undefined) ?? [];
+  const dependencies =
+    (component.dependencies as Array<{ libraryId: string; version: string }> | undefined) ?? [];
   const adoptions = adoptionsQuery.data?.adoptions ?? [];
-  const selectedAdoption = adoptions.find((adoption) => adoption.id === selectedAdoptionID) ?? adoptions[0];
+  const selectedAdoption =
+    adoptions.find((adoption) => adoption.id === selectedAdoptionID) ?? adoptions[0];
 
   return (
-    <div data-testid="component-detail-page" data-preview-state={previewExperienceState} className="flex min-h-0 min-w-0 w-full flex-1 flex-col">
+    <div
+      data-testid="component-detail-page"
+      data-preview-state={previewExperienceState}
+      className="flex min-h-0 min-w-0 w-full flex-1 flex-col"
+    >
       <ComponentEditor
         id={component.id}
         libraryId={component.libraryId || component.id}
-        stageMode={/navigation|pattern|sidebar|shell|pageframe|page-template|bottomnav/i.test(component.libraryId || component.id)}
+        stageMode={/navigation|pattern|sidebar|shell|pageframe|page-template|bottomnav/i.test(
+          component.libraryId || component.id,
+        )}
         onClose={() => {
           void navigate("/");
         }}
@@ -237,44 +469,195 @@ export function ComponentDetailPage() {
         activePane={paneForTab(infoTab)}
         onActivePaneChange={(pane) => setInfoTab(tabForPane(pane, infoTab))}
         selectedStory={selectedStory}
-        onSelectedStoryChange={(story) => setSearch(assetSearchForTab(infoTab, undefined, story), { replace: true })}
+        onSelectedStoryChange={(story) =>
+          setSearch(assetSearchForTab(infoTab, undefined, story), { replace: true })
+        }
         onPreviewExperienceStateChange={setPreviewExperienceState}
-        navigationSlot={<DetailTabs active={infoTab} onChange={setInfoTab} versionCount={component.metrics?.versionCount ?? 0} adoptionCount={component.metrics?.directAdoptionCount ?? adoptions.length} />}
+        navigationSlot={
+          <DetailTabs
+            active={infoTab}
+            onChange={setInfoTab}
+            versionCount={component.metrics?.versionCount ?? 0}
+            adoptionCount={component.metrics?.directAdoptionCount ?? adoptions.length}
+          />
+        }
         comparison={comparison}
         onCloseComparison={() => setComparison(null)}
-        metadataSlot={(
+        metadataSlot={
           <div className="space-y-space-sm">
-            {infoTab === "overview" && <>
-              <ComponentExperiencePanel experience={experienceQuery.data} isLoading={experienceQuery.isLoading} isError={experienceQuery.isError} />
-              <section className="rounded-lg border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-foreground">
-                <h3 className="font-medium">{t("componentDetail.info.identity", { defaultValue: "Identity" })}</h3>
-                <dl className="mt-space-2xs grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-                  <dt className="text-app-muted-foreground">{t(strings.components.editor.libraryIdLabel)}</dt><dd className="break-all font-mono">{component.libraryId}</dd>
-                  <dt className="text-app-muted-foreground">{t(strings.components.editor.slotLabel)}</dt><dd>{component.slot || "—"}</dd>
-                  <dt className="text-app-muted-foreground">{t(strings.components.editor.categoryLabel)}</dt><dd>{component.category || headers.category || "—"}</dd>
-                  <dt className="text-app-muted-foreground">{t(strings.components.editor.tagsLabel)}</dt><dd>{tags.join(", ") || "—"}</dd>
-                  <dt className="text-app-muted-foreground">{t("componentDetail.info.sourceHash", { defaultValue: "Source hash" })}</dt><dd className="break-all font-mono">{sourceContentQuery.data?.sha256 || "—"}</dd>
-                </dl>
+            {infoTab === "overview" && (
+              <>
+                <ComponentExperiencePanel
+                  experience={experienceQuery.data}
+                  isLoading={experienceQuery.isLoading}
+                  isError={experienceQuery.isError}
+                />
+                <section className="rounded-lg border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-foreground">
+                  <h3 className="font-medium">
+                    {t("componentDetail.info.identity", { defaultValue: "Identity" })}
+                  </h3>
+                  <dl className="mt-space-2xs grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                    <dt className="text-app-muted-foreground">
+                      {t(strings.components.editor.libraryIdLabel)}
+                    </dt>
+                    <dd className="break-all font-mono">{component.libraryId}</dd>
+                    <dt className="text-app-muted-foreground">
+                      {t(strings.components.editor.slotLabel)}
+                    </dt>
+                    <dd>{component.slot || "—"}</dd>
+                    <dt className="text-app-muted-foreground">
+                      {t(strings.components.editor.categoryLabel)}
+                    </dt>
+                    <dd>{component.category || headers.category || "—"}</dd>
+                    <dt className="text-app-muted-foreground">
+                      {t(strings.components.editor.tagsLabel)}
+                    </dt>
+                    <dd>{tags.join(", ") || "—"}</dd>
+                    <dt className="text-app-muted-foreground">
+                      {t("componentDetail.info.sourceHash", { defaultValue: "Source hash" })}
+                    </dt>
+                    <dd className="break-all font-mono">
+                      {sourceContentQuery.data?.sha256 || "—"}
+                    </dd>
+                  </dl>
+                </section>
+                <section className="rounded-lg border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-foreground">
+                  <h3 className="font-medium">
+                    {t("componentDetail.info.affinities", { defaultValue: "Design affinities" })}
+                  </h3>
+                  {designStyles.length === 0 ? (
+                    <p className="mt-space-2xs text-xs text-app-muted-foreground">
+                      {t("componentDetail.info.noAffinities", {
+                        defaultValue: "No design affinities declared.",
+                      })}
+                    </p>
+                  ) : (
+                    <ul className="mt-space-2xs space-y-space-3xs text-xs">
+                      {designStyles.map((affinity) => (
+                        <li key={affinity.styleId}>
+                          {affinity.styleId}: {affinity.reason || affinity.affinity}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+                <section className="rounded-lg border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-foreground">
+                  <h3 className="font-medium">
+                    {t("componentDetail.info.dependencies", { defaultValue: "Shared assets" })}
+                  </h3>
+                  {dependencies.length === 0 ? (
+                    <p className="mt-space-2xs text-xs text-app-muted-foreground">
+                      {t("componentDetail.info.noDependencies", {
+                        defaultValue: "No shared assets declared.",
+                      })}
+                    </p>
+                  ) : (
+                    <ul className="mt-space-2xs space-y-space-3xs text-xs">
+                      {dependencies.map((dependency) => (
+                        <li key={`${dependency.libraryId}@${dependency.version}`}>
+                          <Link
+                            to={assetPath(dependency.libraryId, { tab: infoTab })}
+                            className="font-mono text-app-primary underline-offset-2 hover:underline"
+                          >
+                            {dependency.libraryId}
+                          </Link>
+                          <span className="text-app-muted-foreground"> · {dependency.version}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              </>
+            )}
+            {infoTab === "tests" && (
+              <ComponentTestPanel
+                componentId={component.id}
+                version={selectedVersion ?? component.latestVersion ?? component.version}
+              />
+            )}
+            {infoTab === "versions" && (
+              <VersionsCard
+                componentId={component.id}
+                selectedVersion={selectedVersion}
+                onSelectVersion={setSelectedVersion}
+                onCompare={setComparison}
+              />
+            )}
+            {infoTab === "adoptions" && (
+              <section
+                data-testid="component-detail-adoptions"
+                className="space-y-space-xs text-sm text-app-foreground"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">
+                    {t("componentDetail.info.adoptions", { defaultValue: "Adoptions" })}
+                  </h3>
+                  <Button
+                    size="sm"
+                    onClick={() => refreshMutation.mutate()}
+                    disabled={refreshMutation.isPending}
+                  >
+                    {refreshMutation.isPending
+                      ? t(strings.adoptions.refreshing)
+                      : t(strings.adoptions.refreshAction)}
+                  </Button>
+                </div>
+                {adoptionsQuery.isLoading ? (
+                  <p className="text-xs text-app-muted-foreground">
+                    {t("componentDetail.info.adoptionsLoading", {
+                      defaultValue: "Loading adoptions…",
+                    })}
+                  </p>
+                ) : adoptions.length === 0 ? (
+                  <EmptyState
+                    className="p-space-2xs text-xs"
+                    title={t("componentDetail.info.noAdoptions", {
+                      defaultValue: "No scenarios have adopted this component yet.",
+                    })}
+                  />
+                ) : (
+                  <div className="space-y-space-2xs">
+                    {adoptions.map((adoption) => (
+                      <Button
+                        key={adoption.id}
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setSelectedAdoptionID(adoption.id)}
+                        className={`h-auto w-full rounded-control border p-space-2xs text-left ${selectedAdoption?.id === adoption.id ? "border-app-primary" : "border-app-border"}`}
+                      >
+                        <div className="flex items-center justify-between gap-space-2xs">
+                          <span className="font-medium">{adoption.scenario}</span>
+                          <StatusBadge
+                            tone={statusTone(adoption.libraryVersionStatus, adoption.localStatus)}
+                          >
+                            {statusLabel(adoption.libraryVersionStatus, adoption.localStatus)}
+                          </StatusBadge>
+                        </div>
+                        <p className="mt-space-3xs font-mono text-xs text-app-muted-foreground">
+                          {adoption.adoptedVersion} · {adoption.adoptedPath}
+                        </p>
+                      </Button>
+                    ))}
+                  </div>
+                )}
+                {selectedAdoption && (
+                  <ul
+                    data-testid="component-detail-adoption-file-tree"
+                    className="space-y-space-3xs rounded-control bg-app-background p-space-2xs font-mono text-xs text-app-muted-foreground"
+                  >
+                    {(selectedAdoption.files.length > 0
+                      ? selectedAdoption.files.map((file) => file.adoptedPath)
+                      : [selectedAdoption.adoptedPath]
+                    ).map((path) => (
+                      <li key={path}>{path}</li>
+                    ))}
+                  </ul>
+                )}
+                <AdoptionsCard componentId={component.id} suggestionsOnly />
               </section>
-              <section className="rounded-lg border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-foreground">
-                <h3 className="font-medium">{t("componentDetail.info.affinities", { defaultValue: "Design affinities" })}</h3>
-                {designStyles.length === 0 ? <p className="mt-space-2xs text-xs text-app-muted-foreground">{t("componentDetail.info.noAffinities", { defaultValue: "No design affinities declared." })}</p> : <ul className="mt-space-2xs space-y-space-3xs text-xs">{designStyles.map((affinity) => <li key={affinity.styleId}>{affinity.styleId}: {affinity.reason || affinity.affinity}</li>)}</ul>}
-              </section>
-              <section className="rounded-lg border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-foreground">
-                <h3 className="font-medium">{t("componentDetail.info.dependencies", { defaultValue: "Shared assets" })}</h3>
-                {dependencies.length === 0 ? <p className="mt-space-2xs text-xs text-app-muted-foreground">{t("componentDetail.info.noDependencies", { defaultValue: "No shared assets declared." })}</p> : <ul className="mt-space-2xs space-y-space-3xs text-xs">{dependencies.map((dependency) => <li key={`${dependency.libraryId}@${dependency.version}`}><Link to={assetPath(dependency.libraryId, { tab: infoTab })} className="font-mono text-app-primary underline-offset-2 hover:underline">{dependency.libraryId}</Link><span className="text-app-muted-foreground"> · {dependency.version}</span></li>)}</ul>}
-              </section>
-            </>}
-            {infoTab === "tests" && <ComponentTestPanel componentId={component.id} version={selectedVersion ?? component.latestVersion ?? component.version} />}
-            {infoTab === "versions" && <VersionsCard componentId={component.id} selectedVersion={selectedVersion} onSelectVersion={setSelectedVersion} onCompare={setComparison} />}
-            {infoTab === "adoptions" && <section data-testid="component-detail-adoptions" className="space-y-space-xs text-sm text-app-foreground">
-              <div className="flex items-center justify-between"><h3 className="font-medium">{t("componentDetail.info.adoptions", { defaultValue: "Adoptions" })}</h3><Button size="sm" onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>{refreshMutation.isPending ? t(strings.adoptions.refreshing) : t(strings.adoptions.refreshAction)}</Button></div>
-              {adoptionsQuery.isLoading ? <p className="text-xs text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : adoptions.length === 0 ? <EmptyState className="p-space-2xs text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No scenarios have adopted this component yet." })} /> : <div className="space-y-space-2xs">{adoptions.map((adoption) => <Button key={adoption.id} type="button" variant="secondary" onClick={() => setSelectedAdoptionID(adoption.id)} className={`h-auto w-full rounded-control border p-space-2xs text-left ${selectedAdoption?.id === adoption.id ? "border-app-primary" : "border-app-border"}`}><div className="flex items-center justify-between gap-space-2xs"><span className="font-medium">{adoption.scenario}</span><StatusBadge tone={statusTone(adoption.libraryVersionStatus, adoption.localStatus)}>{statusLabel(adoption.libraryVersionStatus, adoption.localStatus)}</StatusBadge></div><p className="mt-space-3xs font-mono text-xs text-app-muted-foreground">{adoption.adoptedVersion} · {adoption.adoptedPath}</p></Button>)}</div>}
-              {selectedAdoption && <ul data-testid="component-detail-adoption-file-tree" className="space-y-space-3xs rounded-control bg-app-background p-space-2xs font-mono text-xs text-app-muted-foreground">{(selectedAdoption.files.length > 0 ? selectedAdoption.files.map((file) => file.adoptedPath) : [selectedAdoption.adoptedPath]).map((path) => <li key={path}>{path}</li>)}</ul>}
-              <AdoptionsCard componentId={component.id} suggestionsOnly />
-            </section>}
+            )}
           </div>
-        )}
+        }
       />
     </div>
   );

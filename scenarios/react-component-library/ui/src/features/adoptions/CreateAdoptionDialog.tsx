@@ -206,7 +206,10 @@ export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
     !componentId.trim() ||
     !scenario.trim() ||
     !adoptedPath.trim() ||
-    ((kind === VerdictKind.BLOCK || kind === VerdictKind.WARN || styleKind === StyleFitVerdictKind.WARN) && !ack);
+    ((kind === VerdictKind.BLOCK ||
+      kind === VerdictKind.WARN ||
+      styleKind === StyleFitVerdictKind.WARN) &&
+      !ack);
 
   const verdictKindString = useMemo(() => {
     switch (kind) {
@@ -314,8 +317,12 @@ export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
               onChange={(event) => setReplaceExisting(event.target.checked)}
             />
             <span>
-              <span className="block font-medium">{t(strings.adoptions.create.replaceExistingLabel)}</span>
-              <span className="text-app-muted-foreground">{t(strings.adoptions.create.replaceExistingHelp)}</span>
+              <span className="block font-medium">
+                {t(strings.adoptions.create.replaceExistingLabel)}
+              </span>
+              <span className="text-app-muted-foreground">
+                {t(strings.adoptions.create.replaceExistingHelp)}
+              </span>
             </span>
           </label>
         </div>
@@ -343,7 +350,6 @@ export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
               : errorMessage(createMutation.error, t)}
           </p>
         )}
-
       </div>
     </Dialog>
   );
@@ -420,10 +426,7 @@ function VerdictBlock({
       data-verdict-kind={verdictKindString}
       className={"mt-space-xs rounded-lg border p-space-xs text-xs " + tone}
     >
-      <div
-        data-testid={selectors.adoptions.createVerdictKind}
-        className="font-medium"
-      >
+      <div data-testid={selectors.adoptions.createVerdictKind} className="font-medium">
         {headline}
       </div>
       {verdict.issues.length > 0 && (
@@ -478,10 +481,7 @@ function StyleFitBlock({ validating, verdict }: StyleFitBlockProps) {
       data-verdict-kind={kindString}
       className={"mt-space-2xs rounded-lg border p-space-xs text-xs " + tone}
     >
-      <div
-        data-testid={selectors.adoptions.createStyleVerdictKind}
-        className="font-medium"
-      >
+      <div data-testid={selectors.adoptions.createStyleVerdictKind} className="font-medium">
         {t(strings.adoptions.create.styleVerdict, {
           kind: kindString,
           style: verdict.scenarioStyle || t(strings.adoptions.create.styleUnknown),
@@ -489,10 +489,7 @@ function StyleFitBlock({ validating, verdict }: StyleFitBlockProps) {
         })}
       </div>
       {verdict.detail && (
-        <p
-          data-testid={selectors.adoptions.createStyleVerdictDetail}
-          className="mt-space-3xs"
-        >
+        <p data-testid={selectors.adoptions.createStyleVerdictDetail} className="mt-space-3xs">
           {verdict.detail}
         </p>
       )}
@@ -554,17 +551,17 @@ function PathSourceBadge({ resolving, source, warnings }: PathSourceBadgeProps) 
       <span
         data-testid={selectors.adoptions.createPathSource}
         data-path-source={slug}
-        className={"mt-space-3xs inline-block rounded-md border px-space-2xs py-space-3xs text-[11px] " + tone}
+        className={
+          "mt-space-3xs inline-block rounded-md border px-space-2xs py-space-3xs text-[11px] " +
+          tone
+        }
       >
         {label}
       </span>
       {warnings.length > 0 && (
         <ul className="mt-space-3xs space-y-0.5 text-[11px] text-app-warning">
           {warnings.map((w, idx) => (
-            <li
-              key={idx}
-              data-testid={selectors.adoptions.createPathWarning}
-            >
+            <li key={idx} data-testid={selectors.adoptions.createPathWarning}>
               {w}
             </li>
           ))}
@@ -608,10 +605,7 @@ function pathSourceMeta(
   }
 }
 
-function formatIssue(
-  issue: DepIssue,
-  t: ReturnType<typeof useTranslation>["t"],
-): string {
+function formatIssue(issue: DepIssue, t: ReturnType<typeof useTranslation>["t"]): string {
   const vars = {
     name: issue.depName,
     declared: issue.declaredRange,

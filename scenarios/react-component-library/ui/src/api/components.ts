@@ -113,7 +113,10 @@ export interface ComponentExperience {
 }
 
 export async function getComponentExperience(componentId: string): Promise<ComponentExperience> {
-  const response = await baseComponentsClient.getComponent({ id: componentId, includeExperience: true });
+  const response = await baseComponentsClient.getComponent({
+    id: componentId,
+    includeExperience: true,
+  });
   if (!response.experience) throw new Error("component experience was not returned");
   return response.experience as ComponentExperience;
 }
@@ -122,7 +125,9 @@ export async function listComponentStories(
   input: ListComponentStoriesRequest,
 ): Promise<ListComponentStoriesResponse> {
   const client = baseComponentsClient as unknown as {
-    listComponentStories(request: ListComponentStoriesRequest): Promise<ListComponentStoriesResponse>;
+    listComponentStories(
+      request: ListComponentStoriesRequest,
+    ): Promise<ListComponentStoriesResponse>;
   };
   return client.listComponentStories(input);
 }
@@ -133,7 +138,11 @@ export type { Component, ListComponentsResponse };
 // alias makes the asset terminology explicit without a raw JSON fallback.
 export type CatalogAsset = Component;
 
-export async function listCatalogAssets(input: { limit?: number; match?: string; assetKind: 1 | 2 }): Promise<ListComponentsResponse> {
+export async function listCatalogAssets(input: {
+  limit?: number;
+  match?: string;
+  assetKind: 1 | 2;
+}): Promise<ListComponentsResponse> {
   return baseComponentsClient.listComponents(input);
 }
 

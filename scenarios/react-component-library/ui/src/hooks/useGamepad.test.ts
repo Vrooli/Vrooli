@@ -27,8 +27,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 
 const mockState = await vi.hoisted(async () => {
-  const { makeMockGamepadInputManager, makeGamepadInputManagerCtor } =
-    await import("../test-utils");
+  const { makeMockGamepadInputManager, makeGamepadInputManagerCtor } = await import(
+    "../test-utils"
+  );
   const instance = makeMockGamepadInputManager();
   const Ctor = makeGamepadInputManagerCtor(instance);
   return { instance, Ctor };

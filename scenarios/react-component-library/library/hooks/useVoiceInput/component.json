@@ -5,7 +5,13 @@
   "description": "Shared browser PCM voice capture lifecycle bound to a scenario transport.",
   "assetKind": "hook",
   "tags": ["voice", "microphone", "accessibility", "lifecycle"],
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native", "reason": "The hook has no visual surface and is intentionally token-agnostic." }],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "The hook has no visual surface and is intentionally token-agnostic."
+    }
+  ],
   "latest": "3.0.0",
   "dependencies": []
 }

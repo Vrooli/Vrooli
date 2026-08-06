@@ -11,13 +11,21 @@ import { EmulatorChrome } from "./EmulatorChrome";
 
 function Harness() {
   const emulator = useDeviceEmulation();
-  return <EmulatorChrome emulator={emulator}><div data-testid="emulator-child">child</div></EmulatorChrome>;
+  return (
+    <EmulatorChrome emulator={emulator}>
+      <div data-testid="emulator-child">child</div>
+    </EmulatorChrome>
+  );
 }
 
 function FiltersHarness() {
   const emulator = useDeviceEmulation();
   const filters = useDeviceFilters();
-  return <EmulatorChrome emulator={emulator} filters={filters}><div data-testid="emulator-child">child</div></EmulatorChrome>;
+  return (
+    <EmulatorChrome emulator={emulator} filters={filters}>
+      <div data-testid="emulator-child">child</div>
+    </EmulatorChrome>
+  );
 }
 
 async function openViewport(user: ReturnType<typeof userEvent.setup>) {
@@ -49,11 +57,14 @@ describe("EmulatorChrome", () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness />);
     await openViewport(user);
-    const responsive = screen.getAllByTestId(selectors.components.emulator.presetOption)
+    const responsive = screen
+      .getAllByTestId(selectors.components.emulator.presetOption)
       .find((button) => button.getAttribute("data-preset") === "responsive");
     expect(responsive).toBeDefined();
     await user.click(responsive!);
-    const inputs = screen.getByTestId(selectors.components.emulator.dimensions).querySelectorAll("input");
+    const inputs = screen
+      .getByTestId(selectors.components.emulator.dimensions)
+      .querySelectorAll("input");
     fireEvent.change(inputs[0]!, { target: { value: "369" } });
     fireEvent.change(inputs[1]!, { target: { value: "652" } });
     expect(inputs[0]?.value).toBe("369");
@@ -67,7 +78,9 @@ describe("EmulatorChrome", () => {
     const zoom = screen.getByTestId<HTMLSelectElement>(selectors.components.emulator.zoomValue);
     await user.selectOptions(zoom, "0.9");
     expect(window.localStorage.getItem(DEVICE_EMULATION_STORAGE_KEY)).toContain("0.9");
-    expect(screen.getByTestId(selectors.components.emulator.viewport).style.transform).toContain("scale(0.9)");
+    expect(screen.getByTestId(selectors.components.emulator.viewport).style.transform).toContain(
+      "scale(0.9)",
+    );
   });
 
   it("fits the declared viewport to the available emulator frame", async () => {
@@ -78,7 +91,9 @@ describe("EmulatorChrome", () => {
     Object.defineProperty(frame, "clientHeight", { configurable: true, value: 500 });
     await openViewport(user);
     await user.click(screen.getByTestId("components-emulator-fit"));
-    expect(screen.getByTestId(selectors.components.emulator.viewport).style.transform).toContain("scale(0.37)");
+    expect(screen.getByTestId(selectors.components.emulator.viewport).style.transform).toContain(
+      "scale(0.37)",
+    );
   });
 
   it("returns focus to Viewport after Escape", async () => {

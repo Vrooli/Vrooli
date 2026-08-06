@@ -3,10 +3,7 @@
   "catalogId": "forms.select",
   "displayName": "Select",
   "description": "Native select wrapper styled with Vrooli tokens and mobile-safe control sizing.",
-  "tags": [
-    "form",
-    "interactive"
-  ],
+  "tags": ["form", "interactive"],
   "slot": "ui-primitive",
   "category": "forms",
   "designStyles": [

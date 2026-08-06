@@ -1,1 +1,28 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:Resizable@1.0.0"},"component":{"id":"manipulation.resizable","title":"Resizable","purpose":"Bounded layout resizing."},"states":[{"id":"default","example":"default","description":"The region is usable at its minimum geometry."}],"claims":[{"id":"contract-present","type":"custom","statement":"Resizable preserves minimum usable geometry.","tier":"manual","states":["default"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Resizable@1.0.0"
+  },
+  "component": {
+    "id": "manipulation.resizable",
+    "title": "Resizable",
+    "purpose": "Bounded layout resizing."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The region is usable at its minimum geometry."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "Resizable preserves minimum usable geometry.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

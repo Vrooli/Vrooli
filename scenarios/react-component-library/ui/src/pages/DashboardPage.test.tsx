@@ -26,8 +26,19 @@ describe("DashboardPage", () => {
   });
 
   it("summarizes assets, attention, scenario adoption health, and next moves", async () => {
-    listCatalogAssets.mockResolvedValue({ components: [{ id: "asset-1", displayName: "Banner", version: "1.2.0", metrics: { directAdoptionCount: 2 } }] });
-    listAdoptions.mockResolvedValue({ adoptions: [{ id: "adoption-1", scenario: "demo", libraryVersionStatus: 1, localStatus: 1 }] });
+    listCatalogAssets.mockResolvedValue({
+      components: [
+        {
+          id: "asset-1",
+          displayName: "Banner",
+          version: "1.2.0",
+          metrics: { directAdoptionCount: 2 },
+        },
+      ],
+    });
+    listAdoptions.mockResolvedValue({
+      adoptions: [{ id: "adoption-1", scenario: "demo", libraryVersionStatus: 1, localStatus: 1 }],
+    });
     renderWithProviders(<DashboardPage />);
 
     expect(await screen.findByText("Banner")).toBeInTheDocument();

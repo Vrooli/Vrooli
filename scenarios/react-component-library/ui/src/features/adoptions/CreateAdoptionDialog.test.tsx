@@ -184,7 +184,9 @@ describe("CreateAdoptionDialog", () => {
     });
     const confirm = screen.getByTestId(selectors.adoptions.createConfirm);
     expect(confirm).toBeDisabled();
-    expect(screen.getByTestId(selectors.adoptions.createVerdictIssue).textContent).toContain("react");
+    expect(screen.getByTestId(selectors.adoptions.createVerdictIssue).textContent).toContain(
+      "react",
+    );
     await user.click(screen.getByTestId(selectors.adoptions.createVerdictAck));
     expect(confirm).not.toBeDisabled();
     await user.click(confirm);
@@ -234,7 +236,9 @@ describe("CreateAdoptionDialog", () => {
 
   it("style WARN verdict also requires ack before enabling confirm", async () => {
     const { depsClient } = await import("../../api/deps");
-    const { componentsClient, DesignAffinity, StyleFitVerdictKind } = await import("../../api/components");
+    const { componentsClient, DesignAffinity, StyleFitVerdictKind } = await import(
+      "../../api/components"
+    );
     vi.mocked(depsClient.validateAdoption).mockResolvedValue(
       create(ValidateAdoptionResponseSchema, { kind: VerdictKind.OK, issues: [] }),
     );
@@ -254,7 +258,9 @@ describe("CreateAdoptionDialog", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByTestId(selectors.adoptions.createStyleVerdict).getAttribute("data-verdict-kind"),
+        screen
+          .getByTestId(selectors.adoptions.createStyleVerdict)
+          .getAttribute("data-verdict-kind"),
       ).toBe("warn");
     });
     const confirm = screen.getByTestId(selectors.adoptions.createConfirm);

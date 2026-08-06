@@ -45,4 +45,3 @@ export function StatusBadge({ children, className, tone = "neutral", ...props }:
     </span>
   );
 }
-

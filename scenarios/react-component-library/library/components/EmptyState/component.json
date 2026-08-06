@@ -3,10 +3,7 @@
   "catalogId": "feedback.empty-state",
   "displayName": "Empty State",
   "description": "Compact empty-state panel with icon, copy, and optional action slots.",
-  "tags": [
-    "feedback",
-    "surface"
-  ],
+  "tags": ["feedback", "surface"],
   "slot": "ui-pattern",
   "category": "feedback",
   "designStyles": [

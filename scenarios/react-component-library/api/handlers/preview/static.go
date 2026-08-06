@@ -228,7 +228,60 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSyste
 	sb.WriteString(designSystemCSS)
 	sb.WriteString(`
   html, body { margin: 0; padding: 0; min-height: 100vh; background: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans, ui-sans-serif), system-ui, sans-serif; }
-  #root { min-height: 100vh; box-sizing: border-box; padding: 24px; background: var(--color-background); }
+  #root { min-height: 100vh; box-sizing: border-box; background: var(--color-background); }
+  .rcl-preview-specimen {
+    min-height: 100vh;
+    box-sizing: border-box;
+    display: grid;
+    place-items: center;
+    padding: clamp(24px, 6vw, 80px);
+    background:
+      radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 42%),
+      linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 54%, transparent), transparent 58%),
+      var(--color-background);
+  }
+  .rcl-preview-well {
+    width: min(100%, 760px);
+    box-sizing: border-box;
+    padding: clamp(24px, 5vw, 56px);
+    border: var(--border-hairline) solid color-mix(in srgb, var(--color-border) 72%, transparent);
+    border-radius: var(--radius-sheet);
+    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+    box-shadow: var(--elev-overlay);
+    backdrop-filter: blur(18px);
+  }
+  .rcl-preview-well__meta {
+    margin: 0 0 var(--space-md);
+    color: var(--color-muted-foreground);
+    font-size: var(--text-label-size);
+    font-weight: 700;
+    letter-spacing: .08em;
+    line-height: var(--text-label-line);
+    text-transform: uppercase;
+  }
+  .rcl-preview-well__content { display: grid; place-items: center; min-height: 96px; }
+  .rcl-preview-well__content > * { max-width: 100%; }
+  .rcl-preview-fixture {
+    display: grid;
+    gap: var(--space-sm);
+    min-height: 260px;
+    box-sizing: border-box;
+    padding: var(--space-lg);
+    border: var(--border-hairline) solid var(--color-border);
+    border-radius: var(--radius-panel);
+    background: var(--color-surface-raised);
+    color: var(--color-foreground);
+  }
+  .rcl-preview-fixture__heading { color: var(--color-muted-foreground); font-size: var(--text-label-size); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .rcl-preview-fixture__rows { display: grid; align-content: start; gap: var(--space-2xs); }
+  .rcl-preview-fixture__row { block-size: var(--space-sm); border-radius: var(--radius-control); background: var(--color-surface-muted); }
+  .rcl-preview-fixture__row:nth-child(1) { inline-size: 88%; }
+  .rcl-preview-fixture__row:nth-child(2) { inline-size: 66%; }
+  .rcl-preview-fixture__row:nth-child(3) { inline-size: 76%; }
+  [data-frame-asset="navigation.page"] { min-height: 100vh; }
+  @media (max-width: 520px) {
+    .rcl-preview-specimen { padding: 24px 16px; }
+  }
   #preview-importmap-diagnostics,
   #preview-error { padding: 16px; font-family: ui-monospace, SFMono-Regular, monospace; color: #ff8c8c; white-space: pre-wrap; }
 </style>
@@ -475,9 +528,16 @@ const showPreviewError = (message) => {
   } catch (e) {}
 };
 const normalizeText = (value) => String(value || "").replace(/\s+/g, " ").trim();
+const readableText = (node) => {
+  if (!node) return "";
+  if (node.nodeType === Node.TEXT_NODE) return node.nodeValue || "";
+  if (node.nodeType === Node.ELEMENT_NODE && node.getAttribute("aria-hidden") === "true") return "";
+  return Array.from(node.childNodes || []).map(readableText).join(" ");
+};
 const implicitRole = (el) => {
-  const tag = (el && el.tagName ? el.tagName.toLowerCase() : "");
+const tag = (el && el.tagName ? el.tagName.toLowerCase() : "");
   if (tag === "button") return "button";
+  if (tag === "img") return "img";
   if (tag === "select") return "combobox";
   if (tag === "textarea") return "textbox";
   if (tag === "input") {
@@ -487,17 +547,25 @@ const implicitRole = (el) => {
   }
   if (tag === "a" && el.hasAttribute("href")) return "link";
   if (tag === "main") return "main";
+  if (tag === "form") return "form";
   if (tag === "table") return "table";
   if (/^h[1-6]$/.test(tag)) return "heading";
   return "";
 };
-const accessibleName = (el) => normalizeText(
-  el.getAttribute("aria-label") ||
-  el.getAttribute("title") ||
-  el.value ||
-  el.textContent ||
-  ""
-);
+const accessibleName = (el) => {
+  const associatedLabel = el.id
+    ? Array.from(document.querySelectorAll("label")).find((candidate) => candidate.htmlFor === el.id)
+    : null;
+  return normalizeText(
+    el.getAttribute("aria-label") ||
+    el.getAttribute("aria-labelledby")?.split(/\s+/).map((id) => readableText(document.getElementById(id))).join(" ") ||
+    el.getAttribute("title") ||
+    readableText(associatedLabel) ||
+    el.value ||
+    readableText(el) ||
+    ""
+  );
+};
 const elementsByRole = (role) => Array.from(document.querySelectorAll("body *"))
   .filter((el) => (el.getAttribute("role") || implicitRole(el)) === role);
 const assertPreviewExpectations = () => {
@@ -697,6 +765,18 @@ try {
       }
       return failures;
     };
+    const wrapStandalone = (subject) => previewStory.kind === "component"
+      ? React.createElement(
+        "div",
+        { className: "rcl-preview-specimen", "data-preview-stage": "specimen" },
+        React.createElement(
+          "section",
+          { className: "rcl-preview-well", "aria-label": "Component specimen" },
+          React.createElement("p", { className: "rcl-preview-well__meta", "aria-hidden": "true" }, "Interactive specimen"),
+          React.createElement("div", { className: "rcl-preview-well__content" }, subject),
+        ),
+      )
+      : subject;
     const renderPreview = (override, environment = previewStory.environment) => {
       const safeOverride = override && typeof override === "object" && !Array.isArray(override) ? override : {};
       const props = resolveProps(mergeStoryProps(previewStory.props, safeOverride));
@@ -704,18 +784,35 @@ try {
         ? React.createElement(HarnessMod[previewStory.harness], { args: props, log: postPreviewEvent })
         : previewStory.kind === "hook" ? React.createElement(hookFixture(props, environment)) : React.createElement(Cmp, props);
       if (previewStory.frame && Frame) {
-        const fixtureRegion = React.createElement("section", { "data-frame-region": "fixture", "data-fixture-asset": previewStory.fixture?.asset || "" }, React.createElement("span", { className: "sr-only" }, previewStory.fixture?.asset || ""));
+        const fixtureRegion = React.createElement(
+          "section",
+          { "data-frame-region": "fixture", "data-fixture-asset": previewStory.fixture?.asset || "", className: "rcl-preview-fixture", "aria-label": "Data source fixture" },
+          React.createElement("span", { className: "rcl-preview-fixture__heading" }, "Live data surface"),
+          React.createElement("strong", null, previewStory.fixture?.asset || "Fixture data"),
+          React.createElement("div", { className: "rcl-preview-fixture__rows", "aria-hidden": "true" },
+            React.createElement("span", { className: "rcl-preview-fixture__row" }),
+            React.createElement("span", { className: "rcl-preview-fixture__row" }),
+            React.createElement("span", { className: "rcl-preview-fixture__row" }),
+          ),
+        );
         const regions = { [previewStory.frame.region]: subject, content: fixtureRegion };
-        root.render(React.createElement(Frame, { regions, fixture: previewStory.fixture, children: subject, "data-frame-subject": previewStory.frame.asset }));
+        // Catalog frames receive both the named regions and the original
+        // region map. Named props keep simple frames such as Page ergonomic;
+        // regions preserves the richer contract for frames that need to
+        // inspect or iterate over all declared regions.
+        root.render(React.createElement(Frame, { ...regions, regions, fixture: previewStory.fixture, children: subject, "data-frame-subject": previewStory.frame.asset }));
         return;
       }
       if (previewStory.harness) {
         const Harness = HarnessMod[previewStory.harness];
         if (typeof Harness !== "function") throw new Error("preview: harness export " + previewStory.harness + " was not found");
-        root.render(React.createElement(Harness, { args: props, log: postPreviewEvent }));
+        root.render(wrapStandalone(React.createElement(Harness, { args: props, log: postPreviewEvent })));
         return;
       }
-      root.render(previewStory.kind === "hook" ? React.createElement(hookFixture(props, environment)) : React.createElement(Cmp, props));
+      const standaloneSubject = previewStory.kind === "hook"
+        ? React.createElement(hookFixture(props, environment))
+        : React.createElement(Cmp, props);
+      root.render(wrapStandalone(standaloneSubject));
     };
     const locate = (target) => {
       if (!target || typeof target !== "object") return null;
@@ -724,8 +821,11 @@ try {
       const candidates = Array.from(document.querySelectorAll("body *")).filter((candidate) => (candidate.getAttribute("role") || implicitRole(candidate)) === target.role);
       const accessibleName = (candidate) => {
         const labelledBy = candidate.getAttribute("aria-labelledby");
-        if (labelledBy) return labelledBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent || "").join(" ").trim();
-        return (candidate.getAttribute("aria-label") || candidate.getAttribute("title") || candidate.value || candidate.textContent || "").trim();
+        if (labelledBy) return labelledBy.split(/\s+/).map((id) => readableText(document.getElementById(id))).join(" ").trim();
+        const associatedLabel = candidate.id
+          ? Array.from(document.querySelectorAll("label")).find((label) => label.htmlFor === candidate.id)
+          : null;
+        return (candidate.getAttribute("aria-label") || candidate.getAttribute("title") || readableText(associatedLabel) || candidate.value || readableText(candidate) || "").trim();
       };
       return Array.from(candidates).find((candidate) => typeof target.name !== "string" || accessibleName(candidate) === target.name) || null;
     };

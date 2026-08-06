@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:Chip","catalogId":"primitives.chip","displayName":"Chip","description":"A compact selectable token that preserves a full touch target while remaining visually quiet in dense collections.","assetKind":"component","tags":["primitive","control","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:Chip",
+  "catalogId": "primitives.chip",
+  "displayName": "Chip",
+  "description": "A compact selectable token that preserves a full touch target while remaining visually quiet in dense collections.",
+  "assetKind": "component",
+  "tags": ["primitive", "control", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

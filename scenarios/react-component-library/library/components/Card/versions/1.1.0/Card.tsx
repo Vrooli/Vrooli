@@ -21,7 +21,8 @@ export interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {
   children: ReactNode;
 }
 
-export interface CardDescriptionProps extends HTMLAttributes<HTMLParagraphElement> {
+export interface CardDescriptionProps
+  extends HTMLAttributes<HTMLParagraphElement> {
   children: ReactNode;
 }
 
@@ -34,7 +35,10 @@ const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 export function Card({ children, className, ...props }: CardProps) {
   return (
     <div
-      className={cn("rounded-panel border border-app-border bg-app-surface text-app-foreground", className)}
+      className={cn(
+        "rounded-panel border border-app-border bg-app-surface text-app-foreground",
+        className,
+      )}
       {...props}
     >
       {children}
@@ -44,7 +48,13 @@ export function Card({ children, className, ...props }: CardProps) {
 
 export function CardHeader({ children, className, ...props }: CardHeaderProps) {
   return (
-    <div className={cn("flex min-w-0 flex-col gap-1 border-b border-app-border px-4 py-3", className)} {...props}>
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-1 border-b border-app-border px-4 py-3",
+        className,
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -52,21 +62,38 @@ export function CardHeader({ children, className, ...props }: CardHeaderProps) {
 
 export function CardTitle({ children, className, ...props }: CardTitleProps) {
   return (
-    <h3 className={cn("text-base font-semibold leading-tight text-app-foreground", className)} {...props}>
+    <h3
+      className={cn(
+        "text-base font-semibold leading-tight text-app-foreground",
+        className,
+      )}
+      {...props}
+    >
       {children}
     </h3>
   );
 }
 
-export function CardDescription({ children, className, ...props }: CardDescriptionProps) {
+export function CardDescription({
+  children,
+  className,
+  ...props
+}: CardDescriptionProps) {
   return (
-    <p className={cn("text-sm text-app-muted-foreground", className)} {...props}>
+    <p
+      className={cn("text-sm text-app-muted-foreground", className)}
+      {...props}
+    >
       {children}
     </p>
   );
 }
 
-export function CardContent({ children, className, ...props }: CardContentProps) {
+export function CardContent({
+  children,
+  className,
+  ...props
+}: CardContentProps) {
   return (
     <div className={cn("min-w-0 px-4 py-4", className)} {...props}>
       {children}

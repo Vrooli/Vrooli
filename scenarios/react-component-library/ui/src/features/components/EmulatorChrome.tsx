@@ -37,7 +37,10 @@ const deviceGroup = (id: DevicePresetId): "phone" | "tablet" | "desktop" | "resp
   return "desktop";
 };
 
-const deviceGroupLabel = (group: "phone" | "tablet" | "desktop", t: ReturnType<typeof useTranslation>["t"]) => {
+const deviceGroupLabel = (
+  group: "phone" | "tablet" | "desktop",
+  t: ReturnType<typeof useTranslation>["t"],
+) => {
   if (group === "phone") return t(strings.components.emulator.deviceGroups.phone);
   if (group === "tablet") return t(strings.components.emulator.deviceGroups.tablet);
   return t(strings.components.emulator.deviceGroups.desktop);
@@ -100,7 +103,9 @@ export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
                       onClick={() => emulator.setPreset(preset.id)}
                     >
                       <span>{preset.label}</span>
-                      <span className="font-mono text-[11px] opacity-80">{preset.width}×{preset.height}</span>
+                      <span className="font-mono text-[11px] opacity-80">
+                        {preset.width}×{preset.height}
+                      </span>
                     </Button>
                   );
                 })}
@@ -113,7 +118,9 @@ export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
           <h3 className="text-sm font-semibold text-app-foreground">
             {t(strings.components.emulator.responsiveLabel)}
           </h3>
-          <p className="mt-space-3xs text-xs text-app-muted-foreground">{t(strings.components.emulator.responsiveDescription)}</p>
+          <p className="mt-space-3xs text-xs text-app-muted-foreground">
+            {t(strings.components.emulator.responsiveDescription)}
+          </p>
           <Button
             type="button"
             data-testid={selectors.components.emulator.presetOption}
@@ -126,7 +133,10 @@ export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
             {t(strings.components.emulator.responsiveLabel)}
           </Button>
           {emulator.isResponsive && (
-            <div data-testid={selectors.components.emulator.dimensions} className="mt-space-2xs grid grid-cols-2 gap-space-2xs">
+            <div
+              data-testid={selectors.components.emulator.dimensions}
+              className="mt-space-2xs grid grid-cols-2 gap-space-2xs"
+            >
               <label className="text-xs text-app-muted-foreground" htmlFor={widthInputId}>
                 {t(strings.components.emulator.widthLabel)}
                 <Input
@@ -157,7 +167,10 @@ export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
 
         <section className="pt-space-xs">
           <label className="text-xs text-app-muted-foreground" htmlFor={zoomId}>
-            <span className="flex items-center gap-space-2xs"><ZoomIn aria-hidden className="h-3.5 w-3.5" />{t(strings.components.emulator.zoomLabel)}</span>
+            <span className="flex items-center gap-space-2xs">
+              <ZoomIn aria-hidden className="h-3.5 w-3.5" />
+              {t(strings.components.emulator.zoomLabel)}
+            </span>
             <Select
               id={zoomId}
               data-testid={selectors.components.emulator.zoomValue}
@@ -166,7 +179,9 @@ export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
               className="mt-space-3xs h-9 min-h-9 text-xs"
               options={emulator.zoomLevels.map((level) => ({
                 value: String(level),
-                label: t(strings.components.emulator.zoomValue, { percent: Math.round(level * 100) }),
+                label: t(strings.components.emulator.zoomValue, {
+                  percent: Math.round(level * 100),
+                }),
               }))}
             />
           </label>
@@ -210,9 +225,17 @@ export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
 
 export function EmulatorViewport({ emulator, filters, children }: EmulatorViewportProps) {
   return (
-    <div data-testid={selectors.components.emulator.viewportFrame} data-emulator-viewport-frame className="h-full w-full overflow-auto bg-app-background">
+    <div
+      data-testid={selectors.components.emulator.viewportFrame}
+      data-emulator-viewport-frame
+      className="h-full w-full overflow-auto bg-app-background"
+    >
       {filters && <DeviceVisionFilterDefs />}
-      <div data-testid={selectors.components.emulator.viewportCanvas} style={{ width: emulator.scaledWidth, height: emulator.scaledHeight }} className="relative">
+      <div
+        data-testid={selectors.components.emulator.viewportCanvas}
+        style={{ width: emulator.scaledWidth, height: emulator.scaledHeight }}
+        className="relative"
+      >
         <div
           data-testid={selectors.components.emulator.viewport}
           style={{
@@ -237,7 +260,9 @@ export function EmulatorChrome({ emulator, filters, children }: EmulatorChromePr
       <div className="border-b border-app-border bg-app-surface px-space-xs py-space-2xs">
         <EmulatorToolbar emulator={emulator} />
       </div>
-      <EmulatorViewport emulator={emulator} filters={filters}>{children}</EmulatorViewport>
+      <EmulatorViewport emulator={emulator} filters={filters}>
+        {children}
+      </EmulatorViewport>
     </div>
   );
 }

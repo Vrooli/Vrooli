@@ -150,7 +150,8 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	if err != nil {
 		return "", err
 	}
-	sourcePath := filepath.ToSlash(filepath.Join("components", c.Slug, "versions", version, fileName))
+	assetRoot := componentAssetRoot(c)
+	sourcePath := filepath.ToSlash(filepath.Join(assetRoot, c.Slug, "versions", version, fileName))
 	sourceAbs, err := s.resolveCreatable(sourcePath)
 	if err != nil {
 		return "", err
@@ -162,7 +163,7 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	}
 	if len(in.Files) == 0 && strings.TrimSpace(in.Source) == "" {
 		from := firstNonEmpty(in.FromVersion, c.DraftVersion, c.LatestVersion, c.Version)
-		fromDir := filepath.Join(s.root, "components", c.Slug, "versions", from)
+		fromDir := filepath.Join(s.root, assetRoot, c.Slug, "versions", from)
 		if entries, err := os.ReadDir(fromDir); err == nil {
 			files = files[:0]
 			for _, entry := range entries {
@@ -235,6 +236,20 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 		return "", err
 	}
 	return sourcePath, nil
+}
+
+// componentAssetRoot keeps source authoring aligned with the manifest that
+// was indexed. New components still default to components/, while existing
+// primitives (and any future renderable root) retain their real location.
+func componentAssetRoot(c Component) string {
+	manifest := filepath.ToSlash(strings.TrimSpace(c.ManifestPath))
+	if manifest != "" {
+		root := filepath.ToSlash(filepath.Dir(filepath.Dir(manifest)))
+		if root != "." && root != "" {
+			return root
+		}
+	}
+	return "components"
 }
 
 const scaffoldStoryJSON = `{

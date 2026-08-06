@@ -1,0 +1,17 @@
+{
+  "libraryId": "react-component-library:Progress",
+  "catalogId": "primitives.progress",
+  "displayName": "Progress",
+  "description": "A token-backed progress family for determinate, buffered, segmented, and indeterminate work.",
+  "assetKind": "primitive",
+  "tags": ["primitive", "status", "motion", "accessibility"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:useReducedMotion", "version": "1.0.0" }
+  ]
+}

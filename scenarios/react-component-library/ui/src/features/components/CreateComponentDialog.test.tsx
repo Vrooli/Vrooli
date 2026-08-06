@@ -30,7 +30,9 @@ function makeInitializeResponse(componentId?: string): InitializeComponentRespon
 describe("CreateComponentDialog", () => {
   beforeEach(async () => {
     await setLocale("en");
-    vi.mocked(componentsClient.initializeComponent).mockResolvedValue(makeInitializeResponse("cmp-1"));
+    vi.mocked(componentsClient.initializeComponent).mockResolvedValue(
+      makeInitializeResponse("cmp-1"),
+    );
   });
 
   afterEach(() => {
@@ -47,8 +49,14 @@ describe("CreateComponentDialog", () => {
     await user.type(screen.getByTestId(selectors.components.create.libraryId), "ui:Notice");
     await user.type(screen.getByTestId(selectors.components.create.displayName), "Notice");
     await user.type(screen.getByTestId(selectors.components.create.tags), " status, feedback , ");
-    await user.type(screen.getByTestId(selectors.components.create.description), "An inline notice.");
-    await user.type(screen.getByTestId(selectors.components.create.initialSource), "export const Notice = () => null;");
+    await user.type(
+      screen.getByTestId(selectors.components.create.description),
+      "An inline notice.",
+    );
+    await user.type(
+      screen.getByTestId(selectors.components.create.initialSource),
+      "export const Notice = () => null;",
+    );
     await user.click(screen.getByTestId(selectors.components.create.submit));
 
     await waitFor(() => {
@@ -68,14 +76,18 @@ describe("CreateComponentDialog", () => {
 
   it("keeps the dialog open and explains an initialization failure", async () => {
     const onClose = vi.fn();
-    vi.mocked(componentsClient.initializeComponent).mockRejectedValueOnce(new Error("catalog unavailable"));
+    vi.mocked(componentsClient.initializeComponent).mockRejectedValueOnce(
+      new Error("catalog unavailable"),
+    );
     const user = userEvent.setup();
     renderWithProviders(<CreateComponentDialog onClose={onClose} />);
 
     await user.type(screen.getByTestId(selectors.components.create.slug), "notice");
     await user.click(screen.getByTestId(selectors.components.create.submit));
 
-    expect(await screen.findByTestId(selectors.components.create.error)).toHaveTextContent("catalog unavailable");
+    expect(await screen.findByTestId(selectors.components.create.error)).toHaveTextContent(
+      "catalog unavailable",
+    );
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -94,7 +106,10 @@ describe("CreateComponentDialog", () => {
   it("prevents a duplicate submission while initialization is pending", async () => {
     let resolveInitialization: (value: InitializeComponentResponse) => void = () => {};
     vi.mocked(componentsClient.initializeComponent).mockImplementationOnce(
-      () => new Promise((resolve) => { resolveInitialization = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          resolveInitialization = resolve;
+        }),
     );
     const user = userEvent.setup();
     renderWithProviders(<CreateComponentDialog onClose={vi.fn()} />);

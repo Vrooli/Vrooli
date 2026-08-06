@@ -18,7 +18,13 @@ describe("ColorPicker", () => {
         onChange={onChange}
         onRecordRecent={onRecordRecent}
         allowGradient
-        labels={{ heading: "Theme colors", primary: "Primary", secondary: "Secondary", custom: "Custom", transparent: "None" }}
+        labels={{
+          heading: "Theme colors",
+          primary: "Primary",
+          secondary: "Secondary",
+          custom: "Custom",
+          transparent: "None",
+        }}
       />,
     );
 
@@ -47,7 +53,10 @@ describe("ColorPicker", () => {
   });
 
   it("normalizes color utility inputs and supports short and light hex values", () => {
-    expect(parseColorValue(" #abc | #000000 | invalid ")).toEqual({ colors: ["#abc", "#000000"], transparent: false });
+    expect(parseColorValue(" #abc | #000000 | invalid ")).toEqual({
+      colors: ["#abc", "#000000"],
+      transparent: false,
+    });
     expect(parseColorValue(undefined)).toEqual({ colors: [], transparent: true });
     expect(serializeColorValue(["#abc", "invalid", "#ffffff"])).toBe("#abc|#ffffff");
     expect(serializeColorValue([])).toBe("transparent");
@@ -66,17 +75,23 @@ describe("ColorPicker", () => {
     expect(onChange).toHaveBeenCalledWith("transparent");
 
     cleanup();
-    renderWithProviders(<ColorPicker palette={["#ffffff"]} value="transparent" onChange={onChange} allowGradient />);
+    renderWithProviders(
+      <ColorPicker palette={["#ffffff"]} value="transparent" onChange={onChange} allowGradient />,
+    );
     fireEvent.click(screen.getByTestId("color-picker-add-gradient"));
     fireEvent.click(screen.getByTestId("color-picker-palette-#ffffff"));
 
     cleanup();
-    renderWithProviders(<ColorPicker palette={["#ffffff"]} value="#abc|#000000" onChange={onChange} allowGradient />);
+    renderWithProviders(
+      <ColorPicker palette={["#ffffff"]} value="#abc|#000000" onChange={onChange} allowGradient />,
+    );
     expect(screen.getByTestId("color-picker-slot-1")).toHaveAttribute("aria-label", "Color picker");
     expect(screen.getByTestId("color-picker-custom")).toHaveAttribute("title", "Custom color");
     fireEvent.click(screen.getByTestId("color-picker-slot-1"));
     fireEvent.click(screen.getByTestId("color-picker-palette-#ffffff"));
-    fireEvent.change(screen.getByTestId("color-picker-custom-input"), { target: { value: "#123456" } });
+    fireEvent.change(screen.getByTestId("color-picker-custom-input"), {
+      target: { value: "#123456" },
+    });
     fireEvent.blur(screen.getByTestId("color-picker-custom-input"));
     fireEvent.click(screen.getByTestId("color-picker-remove-gradient"));
     expect(onChange).toHaveBeenCalledWith("#abc");

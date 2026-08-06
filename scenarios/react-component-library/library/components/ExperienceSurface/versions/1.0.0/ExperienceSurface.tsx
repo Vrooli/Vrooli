@@ -6,7 +6,13 @@
  */
 import type { HTMLAttributes, ReactNode } from "react";
 
-export type ExperienceSurfaceState = "loading" | "ready" | "empty" | "partial" | "error" | "static";
+export type ExperienceSurfaceState =
+  | "loading"
+  | "ready"
+  | "empty"
+  | "partial"
+  | "error"
+  | "static";
 
 export interface ExperienceSurfaceProps extends HTMLAttributes<HTMLElement> {
   /** Stable authored region identity, never a CSS selector. */
@@ -37,7 +43,16 @@ export function ExperienceSurface({
       aria-busy={state === "loading" || undefined}
       {...props}
     >
-      {live && statusMessage ? <p role="status" aria-live="polite" aria-label={statusMessage} className="sr-only">{statusMessage}</p> : null}
+      {live && statusMessage ? (
+        <p
+          role="status"
+          aria-live="polite"
+          aria-label={statusMessage}
+          className="sr-only"
+        >
+          {statusMessage}
+        </p>
+      ) : null}
       {children}
     </Tag>
   );

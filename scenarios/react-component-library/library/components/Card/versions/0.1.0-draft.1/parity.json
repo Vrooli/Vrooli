@@ -1,10 +1,6 @@
 {
-  "originFiles": [
-    "Card.tsx"
-  ],
-  "harvestedFiles": [
-    "Card.tsx"
-  ],
+  "originFiles": ["Card.tsx"],
+  "harvestedFiles": ["Card.tsx"],
   "findings": null,
   "acknowledged": false
 }

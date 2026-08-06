@@ -1,5 +1,64 @@
-/** @vrooliComponentSource materialized.list */
+/** @vrooliComponentSource react-component-library:List */
 import type { ReactNode } from "react";
-const panel = { border: "1px solid var(--color-border, #cbd5e1)", borderRadius: "var(--radius-panel, .75rem)", background: "var(--color-surface, #fff)", color: "var(--color-foreground, #0f172a)", padding: "var(--space-md, 24px)", boxShadow: "var(--elev-raised, 0 1px 3px rgb(15 23 42 / .08))" };
+const panel = {
+  border: "1px solid var(--color-border, #cbd5e1)",
+  borderRadius: "var(--radius-panel, .75rem)",
+  background: "var(--color-surface, #fff)",
+  color: "var(--color-foreground, #0f172a)",
+  padding: "var(--space-md, 24px)",
+  boxShadow: "var(--elev-raised, 0 1px 3px rgb(15 23 42 / .08))",
+};
 const muted = { color: "var(--color-muted-foreground, #64748b)" };
-export function List({ items = [], empty = "Nothing here" }: { items?: string[]; empty?: ReactNode }) { return <ul aria-label="List" style={{ display: "grid", gap: 8, listStyle: "none", margin: 0, padding: 0 }}>{items.length ? items.map((item, index) => <li key={item + String(index)} style={{ ...panel, display: "flex", alignItems: "center", gap: 12, minHeight: 52, padding: "0 16px" }}><span aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--color-primary, #2563eb)" }} />{item}</li>) : <li style={{ ...panel, ...muted, boxShadow: "none", textAlign: "center" }}>{empty}</li>}</ul>; }
+export function List({
+  items = [],
+  empty = "Nothing here",
+}: {
+  items?: string[];
+  empty?: ReactNode;
+}) {
+  return (
+    <ul
+      aria-label="List"
+      style={{
+        display: "grid",
+        gap: 8,
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+      }}
+    >
+      {items.length ? (
+        items.map((item, index) => (
+          <li
+            key={item + String(index)}
+            style={{
+              ...panel,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              minHeight: 52,
+              padding: "0 16px",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "var(--color-primary, #2563eb)",
+              }}
+            />
+            {item}
+          </li>
+        ))
+      ) : (
+        <li
+          style={{ ...panel, ...muted, boxShadow: "none", textAlign: "center" }}
+        >
+          {empty}
+        </li>
+      )}
+    </ul>
+  );
+}

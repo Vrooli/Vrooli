@@ -1,0 +1,45 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:FormStore@1.0.0"
+  },
+  "component": {
+    "id": "services.form-store",
+    "title": "Form Store",
+    "purpose": "Owns field-granular form state so validation and submission remain coherent across consumers."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A fresh form store with stable defaults."
+    },
+    {
+      "id": "validating",
+      "example": "default",
+      "description": "Field validation is in flight."
+    },
+    {
+      "id": "error",
+      "example": "default",
+      "description": "Validation or submission failure preserves input values."
+    }
+  ],
+  "claims": [
+    {
+      "id": "field-granularity",
+      "type": "custom",
+      "statement": "A field subscriber rerenders from its own field state rather than requiring whole-form consumer glue.",
+      "tier": "automated",
+      "states": ["default", "validating", "error"]
+    },
+    {
+      "id": "input-preservation",
+      "type": "custom",
+      "statement": "Validation and submission errors preserve current field values and expose field-level errors.",
+      "tier": "automated",
+      "states": ["error"]
+    }
+  ]
+}

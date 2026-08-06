@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:CollapsibleRegion","catalogId":"motion.collapsible-region","displayName":"CollapsibleRegion","description":"A disclosure region that preserves accessible semantics while content enters and exits without clipping artifacts.","assetKind":"component","tags":["motion","layout","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:CollapsibleRegion",
+  "catalogId": "motion.collapsible-region",
+  "displayName": "CollapsibleRegion",
+  "description": "A disclosure region that preserves accessible semantics while content enters and exits without clipping artifacts.",
+  "assetKind": "component",
+  "tags": ["motion", "layout", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

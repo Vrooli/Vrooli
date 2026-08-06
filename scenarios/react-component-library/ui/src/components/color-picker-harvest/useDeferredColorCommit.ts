@@ -9,5 +9,10 @@ export function useDeferredColorCommit(onCommit?: (color: string) => void) {
     if (color) onCommit?.(color);
   }, [onCommit]);
   useEffect(() => flush, [flush]);
-  return { park: (color: string) => { pending.current = color; }, flush };
+  return {
+    park: (color: string) => {
+      pending.current = color;
+    },
+    flush,
+  };
 }

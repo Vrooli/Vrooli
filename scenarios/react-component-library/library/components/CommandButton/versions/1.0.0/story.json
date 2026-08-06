@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "CommandButton",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default async command",
+      "harness": "Default",
+      "args": {},
+      "expect": [{ "kind": "role", "role": "button", "name": "Publish changes" }],
+      "interactions": [{ "kind": "settle" }]
+    },
+    {
+      "id": "failure-recovery",
+      "name": "Failure with retry",
+      "harness": "FailureRecovery",
+      "args": {},
+      "expect": [{ "kind": "role", "role": "button", "name": "Sync workspace" }],
+      "interactions": [{ "kind": "settle" }]
+    },
+    {
+      "id": "success",
+      "name": "Success acknowledgement",
+      "harness": "Success",
+      "args": {},
+      "expect": [{ "kind": "role", "role": "button", "name": "Save preferences" }],
+      "interactions": [{ "kind": "settle" }]
+    }
+  ]
+}

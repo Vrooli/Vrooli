@@ -3,10 +3,7 @@
   "catalogId": "data-display.code-block",
   "displayName": "Code Block",
   "description": "Code block with language label and copy feedback.",
-  "tags": [
-    "markdown",
-    "code"
-  ],
+  "tags": ["markdown", "code"],
   "entry": "CodeBlock.tsx",
   "latest": "0.3.1",
   "deprecatedVersions": [],

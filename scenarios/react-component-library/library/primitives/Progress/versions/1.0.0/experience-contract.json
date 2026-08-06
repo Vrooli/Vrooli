@@ -1,0 +1,57 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Progress@1.0.0"
+  },
+  "component": {
+    "id": "primitives.progress",
+    "title": "Progress",
+    "purpose": "Communicates determinate and indeterminate work without layout shift or color-only status."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "determinate",
+      "description": "A task with measurable completion."
+    },
+    {
+      "id": "loading",
+      "example": "indeterminate",
+      "description": "A task whose completion time is unknown."
+    },
+    {
+      "id": "success",
+      "example": "success",
+      "description": "A task completed successfully."
+    },
+    {
+      "id": "request-error",
+      "example": "error",
+      "description": "A task paused with recoverable progress."
+    }
+  ],
+  "claims": [
+    {
+      "id": "accessible-value",
+      "type": "custom",
+      "statement": "Determinate progress exposes an accessible numeric value and a stable label.",
+      "tier": "automated",
+      "states": ["default", "success", "request-error"]
+    },
+    {
+      "id": "motion-policy",
+      "type": "custom",
+      "statement": "Indeterminate motion respects reduced-motion preference.",
+      "tier": "automated",
+      "states": ["loading"]
+    },
+    {
+      "id": "stable-geometry",
+      "type": "custom",
+      "statement": "Changing progress state preserves the progress track dimensions.",
+      "tier": "manual",
+      "states": ["default", "loading", "success", "request-error"]
+    }
+  ]
+}

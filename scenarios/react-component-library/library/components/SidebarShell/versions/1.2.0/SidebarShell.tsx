@@ -106,7 +106,10 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
             data-testid="sidebar-shell-backdrop"
             aria-label={closeLabel}
             className={cn(backdropClasses, backdropClassName)}
-            style={{ background: "color-mix(in srgb, var(--color-shell) 60%, transparent)" }}
+            style={{
+              background:
+                "color-mix(in srgb, var(--color-shell) 60%, transparent)",
+            }}
             onClick={onMobileClose}
           />
         )}
@@ -116,7 +119,9 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
           data-mode={mode}
           role={isDialogOpen ? "dialog" : "complementary"}
           aria-modal={isDialogOpen ? "true" : undefined}
-          aria-label={isDialogOpen ? mobileLabel : desktopLabel ?? mobileLabel}
+          aria-label={
+            isDialogOpen ? mobileLabel : (desktopLabel ?? mobileLabel)
+          }
           style={style}
           className={cn(
             panelClasses,

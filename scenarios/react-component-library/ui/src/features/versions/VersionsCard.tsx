@@ -29,7 +29,12 @@ const EMPTY_VERSIONS: Version[] = [];
  *
  * Surface for req 11 (VR-001..003).
  */
-export function VersionsCard({ componentId, selectedVersion, onSelectVersion, onCompare }: VersionsCardProps) {
+export function VersionsCard({
+  componentId,
+  selectedVersion,
+  onSelectVersion,
+  onCompare,
+}: VersionsCardProps) {
   const { t } = useTranslation();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -96,54 +101,57 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
           >
             {t(strings.versions.currentSource)}
           </Button>
-          <ul data-testid={selectors.versions.list} className="mt-space-xs space-y-space-2xs text-sm text-app-foreground">
-          {versions.map((v) => (
-            <li
-              key={v.id}
-              data-testid={selectors.versions.item}
-              className="rounded-lg border border-app-border p-space-xs"
-            >
-              <div className="flex items-baseline justify-between gap-space-xs">
-                <span data-testid={selectors.versions.itemVersion} className="font-medium">
-                  {v.version
-                    ? t(strings.versions.versionLabel, { version: v.version })
-                    : "(no @version)"}
-                </span>
-                <span
-                  data-testid={selectors.versions.itemSha}
-                  className="font-mono text-xs text-app-muted-foreground"
-                >
-                  {t(strings.versions.shaLabel, { sha: v.contentSha256.slice(0, 12) })}
-                </span>
-              </div>
-              <div className="mt-space-3xs flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-app-muted-foreground">
-                <span data-testid={selectors.versions.itemRecordedAt}>
-                  {t(strings.versions.recordedAt, {
-                    when: v.recordedAt?.seconds
-                      ? new Date(Number(v.recordedAt.seconds) * 1000).toLocaleString()
-                      : "",
-                  })}
-                </span>
-                {v.changelogMd && (
-                  <span data-testid={selectors.versions.itemChangelog}>{v.changelogMd}</span>
-                )}
-              </div>
-              <span data-testid={selectors.versions.itemId} className="sr-only">
-                {v.id}
-              </span>
-              <Button
-                type="button"
-                variant={selectedVersion === v.version ? "primary" : "secondary"}
-                className="mt-space-2xs h-7 px-space-2xs text-xs"
-                onClick={() => onSelectVersion?.(v.version)}
+          <ul
+            data-testid={selectors.versions.list}
+            className="mt-space-xs space-y-space-2xs text-sm text-app-foreground"
+          >
+            {versions.map((v) => (
+              <li
+                key={v.id}
+                data-testid={selectors.versions.item}
+                className="rounded-lg border border-app-border p-space-xs"
               >
-                {selectedVersion === v.version
-                  ? t(strings.versions.viewingVersion)
-                  : t(strings.versions.viewVersion)}
-              </Button>
-            </li>
-          ))}
-        </ul>
+                <div className="flex items-baseline justify-between gap-space-xs">
+                  <span data-testid={selectors.versions.itemVersion} className="font-medium">
+                    {v.version
+                      ? t(strings.versions.versionLabel, { version: v.version })
+                      : "(no @version)"}
+                  </span>
+                  <span
+                    data-testid={selectors.versions.itemSha}
+                    className="font-mono text-xs text-app-muted-foreground"
+                  >
+                    {t(strings.versions.shaLabel, { sha: v.contentSha256.slice(0, 12) })}
+                  </span>
+                </div>
+                <div className="mt-space-3xs flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-app-muted-foreground">
+                  <span data-testid={selectors.versions.itemRecordedAt}>
+                    {t(strings.versions.recordedAt, {
+                      when: v.recordedAt?.seconds
+                        ? new Date(Number(v.recordedAt.seconds) * 1000).toLocaleString()
+                        : "",
+                    })}
+                  </span>
+                  {v.changelogMd && (
+                    <span data-testid={selectors.versions.itemChangelog}>{v.changelogMd}</span>
+                  )}
+                </div>
+                <span data-testid={selectors.versions.itemId} className="sr-only">
+                  {v.id}
+                </span>
+                <Button
+                  type="button"
+                  variant={selectedVersion === v.version ? "primary" : "secondary"}
+                  className="mt-space-2xs h-7 px-space-2xs text-xs"
+                  onClick={() => onSelectVersion?.(v.version)}
+                >
+                  {selectedVersion === v.version
+                    ? t(strings.versions.viewingVersion)
+                    : t(strings.versions.viewVersion)}
+                </Button>
+              </li>
+            ))}
+          </ul>
         </>
       )}
 
@@ -151,7 +159,9 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
         data-testid={selectors.versions.diff.card}
         className="mt-space-sm rounded-lg border border-app-border bg-app-surface-muted p-space-xs"
       >
-        <h3 className="text-xs font-medium text-app-muted-foreground">{t(strings.versions.diff.title)}</h3>
+        <h3 className="text-xs font-medium text-app-muted-foreground">
+          {t(strings.versions.diff.title)}
+        </h3>
         <div className="mt-space-2xs flex flex-wrap items-center gap-space-2xs text-xs text-app-muted-foreground">
           <label className="flex items-center gap-space-2xs">
             <span>{t(strings.versions.diff.fromLabel)}</span>
@@ -188,13 +198,19 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
         </div>
 
         {diffMutation.error && (
-          <p data-testid={selectors.versions.diff.error} className="mt-space-2xs text-xs text-app-danger">
+          <p
+            data-testid={selectors.versions.diff.error}
+            className="mt-space-2xs text-xs text-app-danger"
+          >
             {errorMessage(diffMutation.error, t)}
           </p>
         )}
 
         {!diff && !diffMutation.isPending && !diffMutation.error && (
-          <p data-testid={selectors.versions.diff.empty} className="mt-space-2xs text-xs text-app-muted-foreground">
+          <p
+            data-testid={selectors.versions.diff.empty}
+            className="mt-space-2xs text-xs text-app-muted-foreground"
+          >
             {t(strings.versions.diff.empty)}
           </p>
         )}

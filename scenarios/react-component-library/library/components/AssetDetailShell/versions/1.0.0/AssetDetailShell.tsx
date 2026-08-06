@@ -41,17 +41,52 @@ export function AssetDetailShell({
   actions,
   className,
 }: AssetDetailShellProps) {
-  return <main className={["mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_20rem]", className].filter(Boolean).join(" ")}>
-    <section className="min-w-0 space-y-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-app-foreground">{title}</h1>
-        {actions ? <div aria-label={`${title} actions`} className="flex flex-wrap gap-2">{actions}</div> : null}
-      </header>
-      <section aria-label={`${title} preview`} className="overflow-hidden rounded-control border border-app-border bg-app-surface">{preview}</section>
-      <AsyncPanel surfaceId={activitySurfaceId} state={activityState} loading={activityLoading} empty={activityEmpty} partial={activityPartial} error={activityError} onRetry={onRetryActivity} className="rounded-control border border-app-border bg-app-surface p-4">
-        {activity}
-      </AsyncPanel>
-    </section>
-    <aside aria-label={`${title} metadata`} className="rounded-control border border-app-border bg-app-surface p-4">{metadata}</aside>
-  </main>;
+  return (
+    <main
+      className={[
+        "mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_20rem]",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <section className="min-w-0 space-y-4">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold text-app-foreground">{title}</h1>
+          {actions ? (
+            <div
+              aria-label={`${title} actions`}
+              className="flex flex-wrap gap-2"
+            >
+              {actions}
+            </div>
+          ) : null}
+        </header>
+        <section
+          aria-label={`${title} preview`}
+          className="overflow-hidden rounded-control border border-app-border bg-app-surface"
+        >
+          {preview}
+        </section>
+        <AsyncPanel
+          surfaceId={activitySurfaceId}
+          state={activityState}
+          loading={activityLoading}
+          empty={activityEmpty}
+          partial={activityPartial}
+          error={activityError}
+          onRetry={onRetryActivity}
+          className="rounded-control border border-app-border bg-app-surface p-4"
+        >
+          {activity}
+        </AsyncPanel>
+      </section>
+      <aside
+        aria-label={`${title} metadata`}
+        className="rounded-control border border-app-border bg-app-surface p-4"
+      >
+        {metadata}
+      </aside>
+    </main>
+  );
 }

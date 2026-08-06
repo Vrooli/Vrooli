@@ -7,7 +7,14 @@
  * @deps {"react":"^18","react-markdown":"^10.1.0","remark-gfm":"^4.0.1","shiki":"^4.3.1","mermaid":"^11.4.0"}
  */
 
-import { Component, type CSSProperties, type ErrorInfo, type MouseEvent, type ReactNode, useMemo } from "react";
+import {
+  Component,
+  type CSSProperties,
+  type ErrorInfo,
+  type MouseEvent,
+  type ReactNode,
+  useMemo,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "./CodeBlock";
@@ -34,11 +41,24 @@ export interface MarkdownRendererProps {
   onMermaidOpen?: (code: string) => void;
 }
 
-class MarkdownErrorBoundary extends Component<{ content: string; children: ReactNode }, { failed: boolean }> {
+class MarkdownErrorBoundary extends Component<
+  { content: string; children: ReactNode },
+  { failed: boolean }
+> {
   state = { failed: false };
-  static getDerivedStateFromError() { return { failed: true }; }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
   componentDidCatch(_error: Error, _info: ErrorInfo) {}
-  render() { return this.state.failed ? <pre className="whitespace-pre-wrap font-mono text-sm text-[var(--markdown-code-text)]">{this.props.content}</pre> : this.props.children; }
+  render() {
+    return this.state.failed ? (
+      <pre className="whitespace-pre-wrap font-mono text-sm text-[var(--markdown-code-text)]">
+        {this.props.content}
+      </pre>
+    ) : (
+      this.props.children
+    );
+  }
 }
 
 const markdownTokens: CSSProperties & Record<`--${string}`, string> = {
@@ -50,24 +70,80 @@ const markdownTokens: CSSProperties & Record<`--${string}`, string> = {
   "--markdown-error": "var(--color-danger, currentColor)",
 };
 
-export function MarkdownRenderer({ content, className, inline = false, resolveInlineToken, looksLikeFileReference, onLinkClick, onFileReferenceClick, onMermaidOpen }: MarkdownRendererProps) {
-  const components = useMemo(() => ({
-    code: ({ children, className: codeClass }: { children?: ReactNode; className?: string }) => {
-      const text = (typeof children === "string" || typeof children === "number" ? String(children) : "").replace(/\n$/, "");
-      const language = codeClass?.replace(/^language-/, "");
-      if (language === "mermaid") return <MermaidDiagram code={text} onMermaidOpen={onMermaidOpen} />;
-      if (language) return <CodeBlock code={text} language={language} />;
-      return <InlineCode resolveInlineToken={resolveInlineToken} looksLikeFileReference={looksLikeFileReference} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick}>{text}</InlineCode>;
-    },
-    a: ({ href = "", children }: { href?: string; children?: ReactNode }) => <a href={href} onClick={(event) => onLinkClick?.(href, event)} className="text-[var(--markdown-link)] underline underline-offset-2">{children}</a>,
-    blockquote: ({ children }: { children?: ReactNode }) => <blockquote className="my-space-xs border-l-2 border-[var(--markdown-link)] pl-3 italic text-[var(--markdown-muted)]">{children}</blockquote>,
-    table: ({ children }: { children?: ReactNode }) => <div className="my-space-xs overflow-x-auto"><table className="border-collapse text-sm">{children}</table></div>,
-    th: ({ children }: { children?: ReactNode }) => <th className="border border-[var(--markdown-border)] px-space-2xs py-space-3xs text-left">{children}</th>,
-    td: ({ children }: { children?: ReactNode }) => <td className="border border-[var(--markdown-border)] px-space-2xs py-space-3xs">{children}</td>,
-  }), [looksLikeFileReference, onFileReferenceClick, onLinkClick, onMermaidOpen, resolveInlineToken]);
+export function MarkdownRenderer({
+  content,
+  className,
+  inline = false,
+  resolveInlineToken,
+  looksLikeFileReference,
+  onLinkClick,
+  onFileReferenceClick,
+  onMermaidOpen,
+}: MarkdownRendererProps) {
+  const components = useMemo(
+    () => ({
+      code: ({ children, className: codeClass }: { children?: ReactNode; className?: string }) => {
+        const text = (
+          typeof children === "string" || typeof children === "number" ? String(children) : ""
+        ).replace(/\n$/, "");
+        const language = codeClass?.replace(/^language-/, "");
+        if (language === "mermaid")
+          return <MermaidDiagram code={text} onMermaidOpen={onMermaidOpen} />;
+        if (language) return <CodeBlock code={text} language={language} />;
+        return (
+          <InlineCode
+            resolveInlineToken={resolveInlineToken}
+            looksLikeFileReference={looksLikeFileReference}
+            onLinkClick={onLinkClick}
+            onFileReferenceClick={onFileReferenceClick}
+          >
+            {text}
+          </InlineCode>
+        );
+      },
+      a: ({ href = "", children }: { href?: string; children?: ReactNode }) => (
+        <a
+          href={href}
+          onClick={(event) => onLinkClick?.(href, event)}
+          className="text-[var(--markdown-link)] underline underline-offset-2"
+        >
+          {children}
+        </a>
+      ),
+      blockquote: ({ children }: { children?: ReactNode }) => (
+        <blockquote className="my-space-xs border-l-2 border-[var(--markdown-link)] pl-3 italic text-[var(--markdown-muted)]">
+          {children}
+        </blockquote>
+      ),
+      table: ({ children }: { children?: ReactNode }) => (
+        <div className="my-space-xs overflow-x-auto">
+          <table className="border-collapse text-sm">{children}</table>
+        </div>
+      ),
+      th: ({ children }: { children?: ReactNode }) => (
+        <th className="border border-[var(--markdown-border)] px-space-2xs py-space-3xs text-left">
+          {children}
+        </th>
+      ),
+      td: ({ children }: { children?: ReactNode }) => (
+        <td className="border border-[var(--markdown-border)] px-space-2xs py-space-3xs">
+          {children}
+        </td>
+      ),
+    }),
+    [looksLikeFileReference, onFileReferenceClick, onLinkClick, onMermaidOpen, resolveInlineToken],
+  );
   if (!content) return null;
   const Wrapper = inline ? "span" : "div";
-  return <MarkdownErrorBoundary content={content}><Wrapper className={className} style={markdownTokens}><ReactMarkdown remarkPlugins={[remarkGfm, remarkProsePaths]} components={components}>{content}</ReactMarkdown></Wrapper></MarkdownErrorBoundary>;
+  return (
+    <MarkdownErrorBoundary content={content}>
+      <Wrapper className={className} style={markdownTokens}>
+        <ReactMarkdown remarkPlugins={[remarkGfm, remarkProsePaths]} components={components}>
+          {content}
+        </ReactMarkdown>
+      </Wrapper>
+    </MarkdownErrorBoundary>
+  );
 }
 
 export default MarkdownRenderer;

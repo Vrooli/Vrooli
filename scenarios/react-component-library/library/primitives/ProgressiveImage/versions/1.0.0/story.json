@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "ProgressiveImage",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Loaded image", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "img", "name": "Abstract blue-green Aurora workspace landscape" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "responsive-sources", "name": "Responsive sources", "harness": "ResponsiveSources", "args": {}, "expect": [{ "kind": "role", "role": "img", "name": "Abstract responsive art-directed landscape" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "error", "name": "Legible error", "harness": "ErrorState", "args": {}, "expect": [{ "kind": "role", "role": "img", "name": "Unavailable workspace preview" }, { "kind": "role", "role": "alert" }], "interactions": [{ "kind": "settle" }] }
+  ]
+}

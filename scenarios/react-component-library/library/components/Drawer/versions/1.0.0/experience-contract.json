@@ -1,1 +1,24 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:Drawer@1.0.0"},"component":{"id":"overlays.drawer","title":"Drawer","purpose":"Layered side surface."},"states":[{"id":"open","example":"open","description":"The drawer is open."}],"claims":[{"id":"contract-present","type":"custom","statement":"Drawer uses the shared layer coordinator and bounded dismissal.","tier":"manual","states":["open"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Drawer@1.0.0"
+  },
+  "component": {
+    "id": "overlays.drawer",
+    "title": "Drawer",
+    "purpose": "Layered side surface."
+  },
+  "states": [
+    { "id": "open", "example": "open", "description": "The drawer is open." }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "Drawer uses the shared layer coordinator and bounded dismissal.",
+      "tier": "manual",
+      "states": ["open"]
+    }
+  ]
+}

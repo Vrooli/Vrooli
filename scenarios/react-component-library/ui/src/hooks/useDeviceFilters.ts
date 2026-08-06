@@ -56,9 +56,7 @@ const sanitize = (raw: unknown): FiltersState => {
     r.colorScheme === "light" || r.colorScheme === "dark" || r.colorScheme === "system"
       ? r.colorScheme
       : "system";
-  const vf: VisionFilter = (VISION_FILTERS as readonly string[]).includes(
-    r.visionFilter as string,
-  )
+  const vf: VisionFilter = (VISION_FILTERS as readonly string[]).includes(r.visionFilter as string)
     ? (r.visionFilter as VisionFilter)
     : "none";
   return {

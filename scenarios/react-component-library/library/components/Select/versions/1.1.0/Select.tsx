@@ -34,7 +34,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((option) => (
-          <option key={option.value} value={option.value} disabled={option.disabled}>
+          <option
+            key={option.value}
+            value={option.value}
+            disabled={option.disabled}
+          >
             {option.label}
           </option>
         ))}
@@ -42,4 +46,3 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     );
   },
 );
-

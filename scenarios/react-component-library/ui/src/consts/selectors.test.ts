@@ -13,16 +13,11 @@ describe("selectors registry — literal selectors", () => {
       },
       {},
     );
-    expect(selectors.dashboard.newProjectButton).toBe(
-      "dashboard-new-project-button",
-    );
+    expect(selectors.dashboard.newProjectButton).toBe("dashboard-new-project-button");
   });
 
   it("emits manifest entries with both testId and wrapped selector", () => {
-    const { manifest } = createSelectorRegistry(
-      { foo: { bar: "foo-bar" } },
-      {},
-    );
+    const { manifest } = createSelectorRegistry({ foo: { bar: "foo-bar" } }, {});
     expect(manifest.selectors["foo.bar"]).toEqual({
       testId: "foo-bar",
       selector: '[data-testid="foo-bar"]',
@@ -30,10 +25,7 @@ describe("selectors registry — literal selectors", () => {
   });
 
   it("supports nested literal trees with dotted manifest keys", () => {
-    const { manifest } = createSelectorRegistry(
-      { a: { b: { c: "a-b-c" } } },
-      {},
-    );
+    const { manifest } = createSelectorRegistry({ a: { b: { c: "a-b-c" } } }, {});
     expect(manifest.selectors["a.b.c"]).toEqual({
       testId: "a-b-c",
       selector: '[data-testid="a-b-c"]',
@@ -46,8 +38,7 @@ describe("selectors registry — dynamic selectors", () => {
     user: {
       cardByName: defineDynamicSelector({
         description: "User card filtered by name",
-        selectorPattern:
-          '[data-testid="user-card"][data-name="${name}"]',
+        selectorPattern: '[data-testid="user-card"][data-name="${name}"]',
         params: { name: { type: "string" as const } },
       }),
       itemAt: defineDynamicSelector({
@@ -88,9 +79,9 @@ describe("selectors registry — dynamic selectors", () => {
 
   it("throws when a required parameter is missing", () => {
     const { selectors } = createSelectorRegistry({}, dynamicTree);
-    expect(() =>
-      selectors.user.cardByName({} as { name: string }),
-    ).toThrow(/missing parameter 'name'/i);
+    expect(() => selectors.user.cardByName({} as { name: string })).toThrow(
+      /missing parameter 'name'/i,
+    );
   });
 
   it("throws when an unknown parameter is provided", () => {

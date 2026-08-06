@@ -6,13 +6,7 @@
  * the design-tokens.css selectors flip in lockstep. System mode listens to
  * `prefers-color-scheme` so OS-level toggles flow through without a reload.
  */
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { ThemeContext, type ResolvedTheme, type Theme } from "./theme-context";
 
@@ -72,10 +66,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const value = useMemo(
-    () => ({ theme, resolved, setTheme }),
-    [theme, resolved, setTheme],
-  );
+  const value = useMemo(() => ({ theme, resolved, setTheme }), [theme, resolved, setTheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

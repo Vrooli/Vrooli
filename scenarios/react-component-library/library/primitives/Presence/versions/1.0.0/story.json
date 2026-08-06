@@ -1,1 +1,41 @@
-{"schemaVersion":1,"kind":"component","title":"Presence","args":{"fields":[{"path":"present","label":"Present","kind":"boolean","default":false}]},"environment":{"fixtures":[]},"stories":[{"id":"present-false","name":"present false","args":{"present":false}},{"id":"present-true","name":"present true","args":{"present":true}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Presence",
+  "args": {
+    "fields": [
+      { "path": "present", "label": "Present", "kind": "boolean", "default": true },
+      { "path": "children", "label": "Content", "kind": "text", "default": "Ready to continue" },
+      { "path": "initial", "label": "Animate initial mount", "kind": "boolean", "default": true },
+      { "path": "keepMounted", "label": "Keep exit boundary mounted", "kind": "boolean", "default": false }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "present",
+      "name": "Entering and entered",
+      "args": { "present": true, "children": "Ready to continue", "initial": true },
+      "expect": [{ "kind": "text", "value": "Ready to continue" }],
+      "interactions": [{ "kind": "settle" }]
+    },
+    {
+      "id": "absent",
+      "name": "Unmounted after exit",
+      "args": { "present": false, "children": "Ready to continue", "initial": true, "keepMounted": true },
+      "expect": [{ "kind": "attribute", "selector": "[data-rcl-presence]", "attribute": "data-presence-hidden", "value": "true" }],
+      "interactions": [{ "kind": "settle" }]
+    },
+    {
+      "id": "toggle",
+      "name": "Interruptible toggle",
+      "harness": "TogglePresence",
+      "args": { "present": true, "children": "Ready to continue" },
+      "expect": [{ "kind": "attribute", "selector": "[data-rcl-presence]", "attribute": "data-presence-hidden", "value": "true" }],
+      "interactions": [
+        { "kind": "click", "target": { "role": "button", "name": "Toggle presence" } },
+        { "kind": "waitFor", "text": "160" }
+      ]
+    }
+  ]
+}

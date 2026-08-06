@@ -16,7 +16,9 @@ describe("useCodeCopy", () => {
   });
 
   it("leaves copied false when the clipboard rejects", async () => {
-    vi.stubGlobal("navigator", { clipboard: { writeText: vi.fn().mockRejectedValue(new Error("denied")) } });
+    vi.stubGlobal("navigator", {
+      clipboard: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
+    });
     const { result } = renderHook(() => useCodeCopy());
     await expect(result.current.copy("story source")).resolves.toBe(false);
     expect(result.current.copied).toBe(false);

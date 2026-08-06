@@ -1,11 +1,20 @@
 {
   "libraryId": "react-component-library:Presence",
-  "catalogId": "primitives.presence",
+  "catalogId": "motion.presence",
   "displayName": "Presence",
-  "description": "Presence provides a predictable conditional mount boundary.",
+  "description": "Presence owns interruptible enter and exit lifecycles with token-backed motion and reduced-motion support.",
   "assetKind": "primitive",
-  "tags": ["primitive", "token-bound"],
+  "tags": ["primitive", "motion", "accessibility", "token-bound"],
   "latest": "1.0.0",
-  "designStyles": [{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-command-display","affinity":"compatible"},{"styleId":"vrooli-conversion-landing","affinity":"compatible"}],
-  "dependencies": []
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:useReducedMotion",
+      "version": "1.0.0"
+    }
+  ]
 }

@@ -21,7 +21,10 @@ export interface BottomNavProps {
   items: BottomNavItem[];
   label: string;
   testId?: string;
-  onItemSelect?: (item: BottomNavItem, event: MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => void;
+  onItemSelect?: (
+    item: BottomNavItem,
+    event: MouseEvent<HTMLAnchorElement | HTMLButtonElement>,
+  ) => void;
   className?: string;
   itemClassName?: string;
   activeItemClassName?: string;
@@ -35,7 +38,8 @@ const baseItemClass =
   "touch-target flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-xs transition";
 const activeClass = "text-app-primary";
 const inactiveClass = "text-app-muted-foreground hover:text-app-foreground";
-const disabledClass = "cursor-not-allowed opacity-50 hover:text-app-muted-foreground";
+const disabledClass =
+  "cursor-not-allowed opacity-50 hover:text-app-muted-foreground";
 
 export function BottomNav({
   items,
@@ -49,8 +53,12 @@ export function BottomNav({
 }: BottomNavProps) {
   const renderItemContent = (item: BottomNavItem) => (
     <>
-      <span aria-hidden className="flex h-5 w-5 items-center justify-center">{item.icon}</span>
-      <span className="max-w-full truncate whitespace-nowrap">{item.label}</span>
+      <span aria-hidden className="flex h-5 w-5 items-center justify-center">
+        {item.icon}
+      </span>
+      <span className="max-w-full truncate whitespace-nowrap">
+        {item.label}
+      </span>
     </>
   );
 
@@ -66,11 +74,15 @@ export function BottomNav({
       {items.map((item) => {
         const classNames = joinClasses(
           baseItemClass,
-          item.active ? activeItemClassName ?? activeClass : inactiveItemClassName ?? inactiveClass,
+          item.active
+            ? (activeItemClassName ?? activeClass)
+            : (inactiveItemClassName ?? inactiveClass),
           item.disabled && disabledClass,
           itemClassName,
         );
-        const handleClick = (event: MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
+        const handleClick = (
+          event: MouseEvent<HTMLAnchorElement | HTMLButtonElement>,
+        ) => {
           if (item.disabled) {
             event.preventDefault();
             return;

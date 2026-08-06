@@ -179,12 +179,7 @@ describe("DataTable", () => {
     // Exercises the default-parameter branches: no filters group, default
     // filterLabel/filterGroupLabel/sortLabel, and no tableTestId.
     renderWithProviders(
-      <DataTable
-        rows={rows}
-        columns={columns}
-        getRowKey={(row) => row.id}
-        caption="Defaults"
-      />,
+      <DataTable rows={rows} columns={columns} getRowKey={(row) => row.id} caption="Defaults" />,
     );
     // No filters passed → the filter button group is absent.
     expect(screen.queryByRole("group")).toBeNull();
@@ -201,7 +196,13 @@ describe("DataTable", () => {
       { id: "icon", header: "Icon", accessor: () => <br /> },
     ];
     renderWithProviders(
-      <DataTable rows={rows} columns={emptyEl} getRowKey={(row) => row.id} caption="Icons" tableTestId="people-table" />,
+      <DataTable
+        rows={rows}
+        columns={emptyEl}
+        getRowKey={(row) => row.id}
+        caption="Icons"
+        tableTestId="people-table"
+      />,
     );
     // Searching for a name still works (the childless element contributes no
     // searchable text, and does not break the search over other columns).

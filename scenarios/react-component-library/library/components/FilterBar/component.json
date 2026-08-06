@@ -1,1 +1,15 @@
-{"libraryId":"react-component-library:FilterBar","catalogId":"data-display.filter-bar","displayName":"FilterBar","description":"A responsive query surface that keeps filtering controls grouped and keyboard operable.","assetKind":"component","tags":["data-display","form","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:FilterBar",
+  "catalogId": "data-display.filter-bar",
+  "displayName": "FilterBar",
+  "description": "A responsive query surface with search, active-filter chips, reset, and explicit apply semantics.",
+  "assetKind": "component",
+  "tags": ["data-display", "form", "token-bound", "responsive", "keyboard"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": [
+    { "libraryId": "react-component-library:SearchInput", "version": "1.0.0" },
+    { "libraryId": "react-component-library:Chip", "version": "1.0.0" },
+    { "libraryId": "react-component-library:Cluster", "version": "1.0.0" }
+  ]
+}

@@ -45,7 +45,12 @@ describe("useComponentInspector", () => {
     const { ref } = makeRef();
     const { result } = renderHook(() => useComponentInspector(ref));
     act(() => {
-      postFromHarness(ref.current!.contentWindow!, { v: 1, t: "INSPECT_STATE", active: true, reason: "start" });
+      postFromHarness(ref.current!.contentWindow!, {
+        v: 1,
+        t: "INSPECT_STATE",
+        active: true,
+        reason: "start",
+      });
     });
     expect(result.current.active).toBe(true);
     expect(result.current.lastReason).toBe("start");
@@ -117,7 +122,10 @@ describe("useComponentInspector", () => {
     const { ref } = makeRef();
     const { result } = renderHook(() => useComponentInspector(ref));
     act(() => {
-      postFromHarness(ref.current!.contentWindow!, { t: "INSPECT_HOVER", payload: { meta: { tag: "x" } } });
+      postFromHarness(ref.current!.contentWindow!, {
+        t: "INSPECT_HOVER",
+        payload: { meta: { tag: "x" } },
+      });
       postFromHarness(ref.current!.contentWindow!, { v: 1, t: "RANDOM" });
     });
     expect(result.current.hover).toBeNull();

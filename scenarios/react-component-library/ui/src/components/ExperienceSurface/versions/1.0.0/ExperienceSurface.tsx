@@ -43,7 +43,11 @@ export function ExperienceSurface({
       aria-busy={state === "loading" || undefined}
       {...props}
     >
-      {live && statusMessage ? <p role="status" aria-live="polite" aria-label={statusMessage} className="sr-only">{statusMessage}</p> : null}
+      {live && statusMessage ? (
+        <p role="status" aria-live="polite" aria-label={statusMessage} className="sr-only">
+          {statusMessage}
+        </p>
+      ) : null}
       {children}
     </Tag>
   );

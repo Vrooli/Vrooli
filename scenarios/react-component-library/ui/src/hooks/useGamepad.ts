@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 import {
   GamepadInputManager,
   type GamepadAction,
   type GamepadInputOptions,
-} from '@vrooli/iframe-bridge/spatial';
+} from "@vrooli/iframe-bridge/spatial";
 
 /**
  * Thin hook for raw gamepad input — fires `onAction` for every detected
@@ -14,7 +14,7 @@ import {
  */
 export function useGamepad(
   onAction: (action: GamepadAction) => void,
-  options?: Omit<GamepadInputOptions, 'onAction'>,
+  options?: Omit<GamepadInputOptions, "onAction">,
 ): React.RefObject<GamepadInputManager | null> {
   const managerRef = useRef<GamepadInputManager | null>(null);
   const callbackRef = useRef(onAction);

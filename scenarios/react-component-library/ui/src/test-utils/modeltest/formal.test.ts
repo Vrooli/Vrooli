@@ -32,16 +32,18 @@ const generatorSha256 = "c".repeat(64);
 
 describe("formal modeltest helpers", () => {
   it("accepts a fresh artifact", () => {
-    expect(validateFormalArtifactFresh(validArtifact(), {
-      contractPath,
-      contractSha256,
-      modelPath,
-      modelSha256,
-      generatorPath,
-      generatorSha256,
-      invariants: ["TypeOK", "TerminalClosure"],
-      generatedChecks: ["transitionTable"],
-    })).toEqual([]);
+    expect(
+      validateFormalArtifactFresh(validArtifact(), {
+        contractPath,
+        contractSha256,
+        modelPath,
+        modelSha256,
+        generatorPath,
+        generatorSha256,
+        invariants: ["TypeOK", "TerminalClosure"],
+        generatedChecks: ["transitionTable"],
+      }),
+    ).toEqual([]);
   });
 
   it("rejects stale hashes and missing checks", () => {
@@ -101,7 +103,12 @@ describe("formal modeltest helpers", () => {
       return transitionRow;
     });
 
-    const errors = validateFormalTransitionsReplay({ ...artifact, transitions }, statuses, events, transition);
+    const errors = validateFormalTransitionsReplay(
+      { ...artifact, transitions },
+      statuses,
+      events,
+      transition,
+    );
     expect(errors.join("\n")).toContain("unknown event ghost");
   });
 
@@ -123,7 +130,12 @@ describe("formal modeltest helpers", () => {
       },
     ];
 
-    const errors = validateFormalTracesReplay({ ...artifact, namedTraces: traces }, statuses, events, transition);
+    const errors = validateFormalTracesReplay(
+      { ...artifact, namedTraces: traces },
+      statuses,
+      events,
+      transition,
+    );
     expect(errors.join("\n")).toContain("unknown event ghost");
   });
 });
@@ -172,9 +184,7 @@ const validArtifact = (): FormalArtifact => ({
     {
       name: "generated_model_001",
       initial: "idle",
-      steps: [
-        { event: "start", want: "busy", wantError: false },
-      ],
+      steps: [{ event: "start", want: "busy", wantError: false }],
     },
   ],
   invariants: ["TypeOK", "TerminalClosure"],

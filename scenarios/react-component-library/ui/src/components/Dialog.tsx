@@ -15,7 +15,17 @@ import { twMerge } from "tailwind-merge";
 import { X } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
 export const DIALOG_MODES = ["controlled", "uncontrolled"] as const;
-export const DIALOG_PARTS = ["trigger", "overlay", "content", "header", "title", "description", "body", "footer", "close"] as const;
+export const DIALOG_PARTS = [
+  "trigger",
+  "overlay",
+  "content",
+  "header",
+  "title",
+  "description",
+  "body",
+  "footer",
+  "close",
+] as const;
 
 export interface DialogProps {
   open: boolean;
@@ -57,7 +67,12 @@ export function Dialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-app-shell/60 p-3 pt-safe pb-safe md:items-center">
-      <button type="button" aria-label={closeLabel} className="absolute inset-0 cursor-default" onClick={onClose} />
+      <button
+        type="button"
+        aria-label={closeLabel}
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
       <section
         role="dialog"
         aria-modal="true"
@@ -70,7 +85,9 @@ export function Dialog({
       >
         <header className="flex items-start justify-between gap-3 border-b border-app-border px-4 py-3">
           <div className="min-w-0">
-            <h2 id="dialog-title" className="text-base font-semibold">{title}</h2>
+            <h2 id="dialog-title" className="text-base font-semibold">
+              {title}
+            </h2>
             {description && (
               <p id="dialog-description" className="mt-1 text-sm text-app-muted-foreground">
                 {description}

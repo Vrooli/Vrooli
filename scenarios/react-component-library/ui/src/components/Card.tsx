@@ -40,7 +40,10 @@ const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 export function Card({ children, className, ...props }: CardProps) {
   return (
     <div
-      className={cn("rounded-panel border border-app-border bg-app-surface text-app-foreground", className)}
+      className={cn(
+        "rounded-panel border border-app-border bg-app-surface text-app-foreground",
+        className,
+      )}
       {...props}
     >
       {children}
@@ -50,7 +53,10 @@ export function Card({ children, className, ...props }: CardProps) {
 
 export function CardHeader({ children, className, ...props }: CardHeaderProps) {
   return (
-    <div className={cn("flex min-w-0 flex-col gap-1 border-b border-app-border px-4 py-3", className)} {...props}>
+    <div
+      className={cn("flex min-w-0 flex-col gap-1 border-b border-app-border px-4 py-3", className)}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -58,7 +64,10 @@ export function CardHeader({ children, className, ...props }: CardHeaderProps) {
 
 export function CardTitle({ children, className, ...props }: CardTitleProps) {
   return (
-    <h3 className={cn("text-base font-semibold leading-tight text-app-foreground", className)} {...props}>
+    <h3
+      className={cn("text-base font-semibold leading-tight text-app-foreground", className)}
+      {...props}
+    >
       {children}
     </h3>
   );

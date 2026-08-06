@@ -55,7 +55,9 @@ export function AnchoredMenu({
     window.addEventListener("keydown", onKeyDown);
     const frame = window.requestAnimationFrame(() => {
       panelRef.current
-        ?.querySelector<HTMLElement>("button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])")
+        ?.querySelector<HTMLElement>(
+          "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])",
+        )
         ?.focus();
     });
     return () => {
@@ -79,8 +81,13 @@ export function AnchoredMenu({
       >
         {icon}
         <span className="truncate">{label}</span>
-        {summary && <span className="max-w-28 break-words text-app-muted-foreground">{summary}</span>}
-        <ChevronDown aria-hidden className={cn("h-3.5 w-3.5 shrink-0 transition-transform", open && "rotate-180")} />
+        {summary && (
+          <span className="max-w-28 break-words text-app-muted-foreground">{summary}</span>
+        )}
+        <ChevronDown
+          aria-hidden
+          className={cn("h-3.5 w-3.5 shrink-0 transition-transform", open && "rotate-180")}
+        />
       </button>
       {open && (
         <div

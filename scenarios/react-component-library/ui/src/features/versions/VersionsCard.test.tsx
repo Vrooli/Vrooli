@@ -89,10 +89,11 @@ describe("VersionsCard", () => {
             { lineNumber: 2, text: "beta", op: DiffOp.REMOVE },
             makeDiffCell({ op: DiffOp.EMPTY }),
           ),
-          makeDiffRow(
-            makeDiffCell({ op: DiffOp.EMPTY }),
-            { lineNumber: 2, text: "BETA", op: DiffOp.ADD },
-          ),
+          makeDiffRow(makeDiffCell({ op: DiffOp.EMPTY }), {
+            lineNumber: 2,
+            text: "BETA",
+            op: DiffOp.ADD,
+          }),
         ],
       }),
     );
@@ -104,14 +105,8 @@ describe("VersionsCard", () => {
     await waitFor(() => {
       expect(screen.getAllByTestId(selectors.versions.item)).toHaveLength(2);
     });
-    await user.selectOptions(
-      screen.getByTestId(selectors.versions.diff.fromSelect),
-      "1.0.0",
-    );
-    await user.selectOptions(
-      screen.getByTestId(selectors.versions.diff.toSelect),
-      "1.0.1",
-    );
+    await user.selectOptions(screen.getByTestId(selectors.versions.diff.fromSelect), "1.0.0");
+    await user.selectOptions(screen.getByTestId(selectors.versions.diff.toSelect), "1.0.1");
     await user.click(screen.getByTestId(selectors.versions.diff.runButton));
 
     await waitFor(() => {

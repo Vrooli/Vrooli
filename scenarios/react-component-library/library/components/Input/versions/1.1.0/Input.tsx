@@ -2,10 +2,8 @@
  * @libraryId react-component-library:Input
  * @version 1.1.0
  * @status released
- * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
+ * @deps {"react":"^18"}
  */
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import { forwardRef, type InputHTMLAttributes } from "react";
 export const INPUT_MODES = ["controlled", "uncontrolled"] as const;
 export const INPUT_SIZES = ["sm", "md", "lg"] as const;
@@ -14,20 +12,43 @@ export const INPUT_PARTS = ["prefix", "control", "suffix"] as const;
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
-const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+const styleSheet = `
+[data-rcl-input] {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--tap-target-min);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  padding-inline: var(--space-sm);
+  font: inherit;
+  transition: border-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), background var(--dur-quick) var(--ease-standard);
+}
+[data-rcl-input]::placeholder { color: var(--color-muted-foreground); opacity: var(--opacity-muted); }
+[data-rcl-input]:hover:not(:disabled) { border-color: var(--color-primary); }
+[data-rcl-input]:focus-visible { border-color: var(--color-focus); outline: var(--border-strong) solid color-mix(in srgb, var(--color-focus) 30%, transparent); outline-offset: var(--space-3xs); }
+[data-rcl-input]:disabled { cursor: not-allowed; opacity: var(--opacity-disabled); }
+@media (prefers-reduced-motion: reduce) { [data-rcl-input] { transition: none; } }
+`;
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  function Input({ className, type, ...props }, ref) {
-    return (
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  { className, type, ...props },
+  ref,
+) {
+  return (
+    <>
+      <style
+        data-rcl-input-styles
+        dangerouslySetInnerHTML={{ __html: styleSheet }}
+      />
       <input
         ref={ref}
         type={type}
-        className={cn(
-          "flex min-h-11 w-full rounded-control border border-app-border bg-app-surface px-3 py-2 text-base text-app-foreground placeholder:text-app-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:cursor-not-allowed disabled:opacity-60 md:text-sm",
-          className,
-        )}
+        data-rcl-input="true"
+        className={className}
         {...props}
       />
-    );
-  },
-);
+    </>
+  );
+});

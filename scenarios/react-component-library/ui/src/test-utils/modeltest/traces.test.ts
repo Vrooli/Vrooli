@@ -30,9 +30,7 @@ describe("modeltest trace replay", () => {
       {
         name: "reject_finish_before_start",
         initial: "idle",
-        steps: [
-          { name: "finish", event: "finish", want: "idle", wantError: true },
-        ],
+        steps: [{ name: "finish", event: "finish", want: "idle", wantError: true }],
       },
     ] as const satisfies readonly Trace<State, Event>[];
 

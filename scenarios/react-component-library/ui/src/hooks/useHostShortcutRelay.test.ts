@@ -15,7 +15,9 @@ describe("useHostShortcutRelay", () => {
     expect(emitShortcutIntent).not.toHaveBeenCalled();
 
     fireEvent.keyDown(window, { key: "ArrowUp", ctrlKey: true, shiftKey: true });
-    expect(emitShortcutIntent).toHaveBeenCalledWith(expect.objectContaining({ chord: "ctrl+shift+ArrowUp" }));
+    expect(emitShortcutIntent).toHaveBeenCalledWith(
+      expect.objectContaining({ chord: "ctrl+shift+ArrowUp" }),
+    );
   });
 
   it("does not relay events already handled or targeted at editable controls", () => {

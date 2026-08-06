@@ -3,11 +3,7 @@
   "catalogId": "forms.color-picker",
   "displayName": "ColorPicker",
   "description": "Accessible palette, recent-color, gradient, and native custom-color picker.",
-  "tags": [
-    "form",
-    "color",
-    "appearance"
-  ],
+  "tags": ["form", "color", "appearance"],
   "slot": "ui-primitive",
   "category": "uncategorized",
   "entry": "ColorPicker.tsx",

@@ -1,0 +1,14 @@
+{
+  "libraryId": "react-component-library:FormField",
+  "catalogId": "forms.form-field",
+  "displayName": "FormField",
+  "description": "A complete accessible field composition with stable label, description, control, and error relationships.",
+  "assetKind": "component",
+  "tags": ["form", "accessibility", "token-bound", "compound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": [
+    { "libraryId": "react-component-library:Stack", "version": "1.0.0" },
+    { "libraryId": "react-component-library:Text", "version": "1.0.0" }
+  ]
+}

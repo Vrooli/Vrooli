@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:RelativeTime","catalogId":"primitives.relative-time","displayName":"RelativeTime","description":"A semantic time value that presents a concise relative label while preserving machine-readable date context.","assetKind":"component","tags":["primitive","data-display","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:RelativeTime",
+  "catalogId": "primitives.relative-time",
+  "displayName": "RelativeTime",
+  "description": "A semantic time value that presents a concise relative label while preserving machine-readable date context.",
+  "assetKind": "component",
+  "tags": ["primitive", "data-display", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

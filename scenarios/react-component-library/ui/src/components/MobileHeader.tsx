@@ -25,7 +25,11 @@ export function MobileHeader({ onOpenDrawer }: Props) {
       >
         <Menu aria-hidden className="h-5 w-5" />
       </button>
-      <Link to="/" data-testid="mobile-header-brand" className="flex items-center gap-space-2xs text-app-foreground">
+      <Link
+        to="/"
+        data-testid="mobile-header-brand"
+        className="flex items-center gap-space-2xs text-app-foreground"
+      >
         <BrandMark className="h-7 w-7 shrink-0 text-app-primary" />
         <span className="text-sm font-semibold tracking-tight">
           {t("app.brand", { defaultValue: "Component Library" })}

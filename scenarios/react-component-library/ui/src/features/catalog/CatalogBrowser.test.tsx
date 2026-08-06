@@ -58,21 +58,31 @@ describe("CatalogBrowser", () => {
     const user = userEvent.setup();
     renderWithProviders(<CatalogBrowser />);
 
-    expect(await screen.findByTestId(selectors.catalog.asset)).toHaveTextContent(component.displayName);
+    expect(await screen.findByTestId(selectors.catalog.asset)).toHaveTextContent(
+      component.displayName,
+    );
     expect(screen.getByText(strings.catalog.adoptions)).toBeInTheDocument();
     expect(screen.queryByText(/effective/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: strings.catalog.hooks }));
 
-    await waitFor(() => expect(screen.getByTestId(selectors.catalog.asset)).toHaveTextContent(hook.displayName));
+    await waitFor(() =>
+      expect(screen.getByTestId(selectors.catalog.asset)).toHaveTextContent(hook.displayName),
+    );
     expect(screen.getByText(strings.catalog.adoptions)).toBeInTheDocument();
     expect(screen.getByText(/effective/i)).toBeInTheDocument();
-    await waitFor(() => expect(listCatalogAssets).toHaveBeenLastCalledWith(expect.objectContaining({ assetKind: 2 })));
+    await waitFor(() =>
+      expect(listCatalogAssets).toHaveBeenLastCalledWith(expect.objectContaining({ assetKind: 2 })),
+    );
   });
 
   it("reports the primary catalog lifecycle without instrumenting the sidebar variant", async () => {
     let resolveCatalog!: (value: { components: CatalogAsset[] }) => void;
-    listCatalogAssets.mockReturnValueOnce(new Promise((resolve) => { resolveCatalog = resolve; }));
+    listCatalogAssets.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveCatalog = resolve;
+      }),
+    );
     renderWithProviders(<CatalogBrowser surfaceId="catalog-results" />);
 
     const surface = document.querySelector('[data-experience-surface="catalog-results"]');
@@ -103,11 +113,13 @@ describe("CatalogBrowser", () => {
     await user.type(screen.getByLabelText(strings.catalog.sourcePath), "ui/src/Panel.tsx");
     await user.click(screen.getByRole("button", { name: strings.catalog.assistedStart }));
 
-    await waitFor(() => expect(startWorkflow).toHaveBeenCalledWith({
-      kind: 1,
-      sourceScenario: "demo-scenario",
-      sourcePath: "ui/src/Panel.tsx",
-      idempotencyKey: "catalog-extract:demo-scenario:ui/src/Panel.tsx",
-    }));
+    await waitFor(() =>
+      expect(startWorkflow).toHaveBeenCalledWith({
+        kind: 1,
+        sourceScenario: "demo-scenario",
+        sourcePath: "ui/src/Panel.tsx",
+        idempotencyKey: "catalog-extract:demo-scenario:ui/src/Panel.tsx",
+      }),
+    );
   });
 });

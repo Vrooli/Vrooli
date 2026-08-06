@@ -1,0 +1,31 @@
+{
+  "libraryId": "react-component-library:MotionPrimitive",
+  "catalogId": "motion.motion-primitive",
+  "displayName": "MotionPrimitive",
+  "description": "A tokenized animated element with reduced-motion policy and direct motion-value binding without frame-by-frame React renders.",
+  "assetKind": "primitive",
+  "tags": [
+    "primitive",
+    "motion",
+    "reduced-motion",
+    "token-bound",
+    "no-layout-animation"
+  ],
+  "slot": "ui-primitive",
+  "category": "motion",
+  "dependencies": [
+    { "libraryId": "react-component-library:Presence", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:useReducedMotion",
+      "version": "1.0.0"
+    }
+  ],
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

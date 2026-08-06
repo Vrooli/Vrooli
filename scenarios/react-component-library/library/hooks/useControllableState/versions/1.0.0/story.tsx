@@ -1,2 +1,12 @@
 import { useControllableState } from "./useControllableState";
-export function Default({ log }: StoryHarnessProps) { const [value, setValue] = useControllableState({ defaultValue: "ready", onChange: () => log("changed") }); return <button type="button" onClick={() => setValue("changed")}>{value}</button>; }
+export function Default({ log }: StoryHarnessProps) {
+  const [value, setValue] = useControllableState({
+    defaultValue: "ready",
+    onChange: () => log("changed"),
+  });
+  return (
+    <button type="button" onClick={() => setValue("changed")}>
+      {value}
+    </button>
+  );
+}

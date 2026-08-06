@@ -1,1 +1,28 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:LayerManager@1.0.0"},"component":{"id":"services.layer-manager","title":"Layer Manager","purpose":"Global overlay ordering and top-layer dismissal coordination."},"states":[{"id":"default","example":"default","description":"The default service contract."}],"claims":[{"id":"contract-present","type":"custom","statement":"The service exposes a stable versioned contract with explicit ownership.","tier":"manual","states":["default"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:LayerManager@1.0.0"
+  },
+  "component": {
+    "id": "services.layer-manager",
+    "title": "Layer Manager",
+    "purpose": "Global overlay ordering and top-layer dismissal coordination."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The default service contract."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "The service exposes a stable versioned contract with explicit ownership.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

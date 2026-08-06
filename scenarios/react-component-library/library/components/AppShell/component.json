@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:AppShell","catalogId":"navigation.app-shell","displayName":"AppShell","description":"The responsive application frame that composes navigation and routed content without fixture coupling.","assetKind":"component","tags":["navigation","layout","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:AppShell",
+  "catalogId": "navigation.app-shell",
+  "displayName": "AppShell",
+  "description": "The responsive application frame that composes navigation and routed content without fixture coupling.",
+  "assetKind": "component",
+  "tags": ["navigation", "layout", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

@@ -24,10 +24,7 @@ describe("SettingsPage", () => {
     renderWithProviders(<SettingsPage />);
     await user.click(screen.getByTestId("settings-theme-dark"));
     await waitFor(() =>
-      expect(screen.getByTestId("settings-theme-dark")).toHaveAttribute(
-        "aria-checked",
-        "true",
-      ),
+      expect(screen.getByTestId("settings-theme-dark")).toHaveAttribute("aria-checked", "true"),
     );
   });
 });

@@ -1,12 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { i18n } from "./index";
-import {
-  formatCurrency,
-  formatDate,
-  formatList,
-  formatNumber,
-  formatRelativeTime,
-} from "./format";
+import { formatCurrency, formatDate, formatList, formatNumber, formatRelativeTime } from "./format";
 
 describe("locale-aware Intl formatters", () => {
   afterEach(async () => {
@@ -42,9 +36,9 @@ describe("locale-aware Intl formatters", () => {
     });
 
     it("forwards Intl.NumberFormatOptions to the constructor", () => {
-      expect(
-        formatNumber(0.42, { style: "percent", maximumFractionDigits: 0 }, "en-US"),
-      ).toBe("42%");
+      expect(formatNumber(0.42, { style: "percent", maximumFractionDigits: 0 }, "en-US")).toBe(
+        "42%",
+      );
     });
   });
 

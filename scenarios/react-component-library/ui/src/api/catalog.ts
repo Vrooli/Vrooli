@@ -47,7 +47,10 @@ export interface CapabilityDescription {
 }
 
 export async function describeCapabilities(): Promise<CapabilityDescription> {
-  const response = await fetch(buildApiUrl("/api/v1/capabilities/describe", { baseUrl: API_BASE }), { cache: "no-store" });
+  const response = await fetch(
+    buildApiUrl("/api/v1/capabilities/describe", { baseUrl: API_BASE }),
+    { cache: "no-store" },
+  );
   if (!response.ok) throw new Error(`capability registry returned ${response.status}`);
   return (await response.json()) as CapabilityDescription;
 }

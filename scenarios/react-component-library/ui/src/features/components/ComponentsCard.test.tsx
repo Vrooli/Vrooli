@@ -12,10 +12,7 @@ import { makeComponentsMocks } from "./mocks/components";
 
 vi.mock("@monaco-editor/react", () => ({
   __esModule: true,
-  default: (props: {
-    value?: string;
-    onChange?: (v: string | undefined) => void;
-  }) => (
+  default: (props: { value?: string; onChange?: (v: string | undefined) => void }) => (
     <textarea
       data-testid="monaco-stub"
       value={props.value ?? ""}
@@ -112,20 +109,21 @@ describe("ComponentsCard", () => {
     });
 
     const ids = screen.getAllByTestId(selectors.components.itemLibraryId).map((n) => n.textContent);
-    expect(ids).toEqual([
-      "react-component-library:Button",
-      "react-component-library:Card",
-    ]);
+    expect(ids).toEqual(["react-component-library:Button", "react-component-library:Card"]);
 
     expect(screen.getByTestId(selectors.components.summary).textContent).toContain("2");
-    const versions = screen.getAllByTestId(selectors.components.itemVersion).map((n) => n.textContent);
+    const versions = screen
+      .getAllByTestId(selectors.components.itemVersion)
+      .map((n) => n.textContent);
     expect(versions[0]).toContain("1.2.3");
     expect(versions[1]).toContain("0.4.0");
 
     const slots = screen.getAllByTestId(selectors.components.itemSlot).map((n) => n.textContent);
     expect(slots).toEqual(["Slot: ui-primitive", "Slot: ui-pattern"]);
 
-    const styles = screen.getAllByTestId(selectors.components.itemDesignStyles).map((n) => n.textContent);
+    const styles = screen
+      .getAllByTestId(selectors.components.itemDesignStyles)
+      .map((n) => n.textContent);
     expect(styles[0]).toContain("vrooli-default:native");
     expect(styles[0]).toContain("vrooli-conversion-landing:discouraged");
 

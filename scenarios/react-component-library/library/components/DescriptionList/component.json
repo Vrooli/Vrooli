@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:DescriptionList","catalogId":"data-display.description-list","displayName":"DescriptionList","description":"A semantic key-value surface for readable resource metadata across narrow and wide layouts.","assetKind":"component","tags":["data-display","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:DescriptionList",
+  "catalogId": "data-display.description-list",
+  "displayName": "DescriptionList",
+  "description": "A semantic key-value surface for readable resource metadata across narrow and wide layouts.",
+  "assetKind": "component",
+  "tags": ["data-display", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

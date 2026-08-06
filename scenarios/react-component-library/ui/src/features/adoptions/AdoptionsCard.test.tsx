@@ -49,10 +49,31 @@ describe("AdoptionsCard", () => {
     vi.mocked(adoptionsClient.listAdoptions).mockResolvedValueOnce(
       makeListAdoptionsResponse({
         adoptions: [
-          makeAdoption({ id: "a", scenario: "swarm-manager", libraryVersionStatus: LibraryVersionStatus.CURRENT, localStatus: LocalStatus.CLEAN }),
-          makeAdoption({ id: "b", scenario: "flow-verifier", libraryVersionStatus: LibraryVersionStatus.BEHIND, localStatus: LocalStatus.CLEAN, statusDetail: "library at 1.1.0" }),
-          makeAdoption({ id: "c", scenario: "system-monitor", libraryVersionStatus: LibraryVersionStatus.CURRENT, localStatus: LocalStatus.MODIFIED }),
-          makeAdoption({ id: "d", scenario: "drift-smoke", libraryVersionStatus: LibraryVersionStatus.UNKNOWN, localStatus: LocalStatus.UNKNOWN }),
+          makeAdoption({
+            id: "a",
+            scenario: "swarm-manager",
+            libraryVersionStatus: LibraryVersionStatus.CURRENT,
+            localStatus: LocalStatus.CLEAN,
+          }),
+          makeAdoption({
+            id: "b",
+            scenario: "flow-verifier",
+            libraryVersionStatus: LibraryVersionStatus.BEHIND,
+            localStatus: LocalStatus.CLEAN,
+            statusDetail: "library at 1.1.0",
+          }),
+          makeAdoption({
+            id: "c",
+            scenario: "system-monitor",
+            libraryVersionStatus: LibraryVersionStatus.CURRENT,
+            localStatus: LocalStatus.MODIFIED,
+          }),
+          makeAdoption({
+            id: "d",
+            scenario: "drift-smoke",
+            libraryVersionStatus: LibraryVersionStatus.UNKNOWN,
+            localStatus: LocalStatus.UNKNOWN,
+          }),
         ],
       }),
     );
@@ -62,7 +83,9 @@ describe("AdoptionsCard", () => {
       expect(screen.getByTestId(selectors.adoptions.list)).toBeInTheDocument();
     });
 
-    const statuses = screen.getAllByTestId(selectors.adoptions.itemStatus).map((n) => n.textContent);
+    const statuses = screen
+      .getAllByTestId(selectors.adoptions.itemStatus)
+      .map((n) => n.textContent);
     expect(statuses).toHaveLength(4);
     expect(statuses).toEqual(
       expect.arrayContaining([
@@ -73,7 +96,9 @@ describe("AdoptionsCard", () => {
       ]),
     );
     expect(screen.getByTestId(selectors.adoptions.summary).textContent).toContain("current: 2");
-    expect(screen.getByTestId(selectors.adoptions.itemStatusDetail)).toHaveTextContent("library at 1.1.0");
+    expect(screen.getByTestId(selectors.adoptions.itemStatusDetail)).toHaveTextContent(
+      "library at 1.1.0",
+    );
   });
 
   it("forwards the scenario filter to listAdoptions", async () => {
@@ -135,33 +160,61 @@ describe("AdoptionsCard", () => {
     const { adoptionsClient } = await import("../../api/adoptions");
     vi.mocked(adoptionsClient.suggestAdoptions).mockResolvedValueOnce(
       makeSuggestAdoptionsResponse({
-        suggestions: [{
-          componentId: "hook-focus-trap",
-          displayName: "useFocusTrap",
-          scenario: "web-console",
-          reasons: ["matching import inventory"],
-          classification: 1,
-        }],
+        suggestions: [
+          {
+            componentId: "hook-focus-trap",
+            displayName: "useFocusTrap",
+            scenario: "web-console",
+            reasons: ["matching import inventory"],
+            classification: 1,
+          },
+        ],
       }),
     );
 
     renderWithProviders(<AdoptionsCard />);
 
-    expect(await screen.findByText("Heuristic candidate — review before adopting")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Heuristic candidate — review before adopting"),
+    ).toBeInTheDocument();
     expect(screen.getByText("matching import inventory")).toBeInTheDocument();
   });
 
   it("routes suggestion adoption through the prefilled guided launcher flow", async () => {
     const { adoptionsClient } = await import("../../api/adoptions");
-    vi.mocked(adoptionsClient.suggestAdoptions).mockResolvedValueOnce(makeSuggestAdoptionsResponse({
-      suggestions: [{ componentId: "asset-1", displayName: "Button", scenario: "demo", reasons: [], classification: 1 }],
-    }));
+    vi.mocked(adoptionsClient.suggestAdoptions).mockResolvedValueOnce(
+      makeSuggestAdoptionsResponse({
+        suggestions: [
+          {
+            componentId: "asset-1",
+            displayName: "Button",
+            scenario: "demo",
+            reasons: [],
+            classification: 1,
+          },
+        ],
+      }),
+    );
     const LocationProbe = () => <output data-testid="location">{useLocation().search}</output>;
     const user = userEvent.setup();
 
-    renderWithProviders(<Routes><Route path="/" element={<><AdoptionsCard suggestionsOnly /><LocationProbe /></>} /></Routes>);
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <>
+              <AdoptionsCard suggestionsOnly />
+              <LocationProbe />
+            </>
+          }
+        />
+      </Routes>,
+    );
     await user.click(await screen.findByRole("button", { name: "Adopt" }));
-    expect(screen.getByTestId("location")).toHaveTextContent("?action=adopt&assetId=asset-1&targetScenario=demo");
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "?action=adopt&assetId=asset-1&targetScenario=demo",
+    );
   });
 
   it("routes standard adoption entry points through the guided launcher and keeps local re-link explicit", async () => {
@@ -169,7 +222,19 @@ describe("AdoptionsCard", () => {
     vi.mocked(adoptionsClient.listAdoptions).mockResolvedValue(makeListAdoptionsResponse());
     const LocationProbe = () => <output data-testid="location">{useLocation().search}</output>;
     const user = userEvent.setup();
-    renderWithProviders(<Routes><Route path="/" element={<><AdoptionsCard /><LocationProbe /></>} /></Routes>);
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <>
+              <AdoptionsCard />
+              <LocationProbe />
+            </>
+          }
+        />
+      </Routes>,
+    );
 
     await user.click(await screen.findByTestId(selectors.adoptions.createButton));
     expect(screen.getByTestId("location")).toHaveTextContent("?action=adopt");
@@ -180,11 +245,30 @@ describe("AdoptionsCard", () => {
 
   it("filters the adoption table by current, behind, and modified status", async () => {
     const { adoptionsClient } = await import("../../api/adoptions");
-    vi.mocked(adoptionsClient.listAdoptions).mockResolvedValue(makeListAdoptionsResponse({ adoptions: [
-      makeAdoption({ id: "current", scenario: "current", libraryVersionStatus: LibraryVersionStatus.CURRENT, localStatus: LocalStatus.CLEAN }),
-      makeAdoption({ id: "behind", scenario: "behind", libraryVersionStatus: LibraryVersionStatus.BEHIND, localStatus: LocalStatus.CLEAN }),
-      makeAdoption({ id: "modified", scenario: "modified", libraryVersionStatus: LibraryVersionStatus.CURRENT, localStatus: LocalStatus.MODIFIED }),
-    ] }));
+    vi.mocked(adoptionsClient.listAdoptions).mockResolvedValue(
+      makeListAdoptionsResponse({
+        adoptions: [
+          makeAdoption({
+            id: "current",
+            scenario: "current",
+            libraryVersionStatus: LibraryVersionStatus.CURRENT,
+            localStatus: LocalStatus.CLEAN,
+          }),
+          makeAdoption({
+            id: "behind",
+            scenario: "behind",
+            libraryVersionStatus: LibraryVersionStatus.BEHIND,
+            localStatus: LocalStatus.CLEAN,
+          }),
+          makeAdoption({
+            id: "modified",
+            scenario: "modified",
+            libraryVersionStatus: LibraryVersionStatus.CURRENT,
+            localStatus: LocalStatus.MODIFIED,
+          }),
+        ],
+      }),
+    );
     const user = userEvent.setup();
     renderWithProviders(<AdoptionsCard />);
     await screen.findByTestId(selectors.adoptions.list);

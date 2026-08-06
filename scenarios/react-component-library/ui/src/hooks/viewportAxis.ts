@@ -17,14 +17,16 @@ function isViewportAxis(value: unknown): value is ViewportAxis {
   return candidate.values.every((entry) => {
     if (!entry || typeof entry !== "object") return false;
     const viewport = entry as { id?: unknown; params?: unknown };
-    if (typeof viewport.id !== "string" || !viewport.params || typeof viewport.params !== "object") return false;
+    if (typeof viewport.id !== "string" || !viewport.params || typeof viewport.params !== "object")
+      return false;
     const params = viewport.params as { width?: unknown; height?: unknown };
     return typeof params.width === "number" && typeof params.height === "number";
   });
 }
 
 const rawAxes: unknown = axes;
-const registryAxes = rawAxes && typeof rawAxes === "object" && "axes" in rawAxes ? rawAxes.axes : [];
+const registryAxes =
+  rawAxes && typeof rawAxes === "object" && "axes" in rawAxes ? rawAxes.axes : [];
 const viewportAxis = Array.isArray(registryAxes)
   ? registryAxes.find((value: unknown): value is ViewportAxis => isViewportAxis(value))
   : undefined;

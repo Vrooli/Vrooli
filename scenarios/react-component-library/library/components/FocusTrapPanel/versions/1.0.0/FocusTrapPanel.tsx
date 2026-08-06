@@ -11,5 +11,9 @@ export function FocusTrapPanel({ open = true, children }: FocusTrapPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   useFocusTrap(open, panelRef);
   if (!open) return null;
-  return <div ref={panelRef} role="dialog" aria-modal="true">{children}</div>;
+  return (
+    <div ref={panelRef} role="dialog" aria-modal="true">
+      {children}
+    </div>
+  );
 }

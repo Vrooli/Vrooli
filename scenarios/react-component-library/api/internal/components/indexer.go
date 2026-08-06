@@ -18,7 +18,9 @@ import (
 // components/*/component.json and hooks/*/component.json and upserts the
 // manifest plus its version folders into the Repository. Catalog foundations,
 // primitives, and services are intentionally owned by catalog coverage rather
-// than this component registry, so they are skipped during indexing. A final DeleteMissing call
+// than this component registry, so they are skipped during indexing. Renderable
+// primitives are part of the registry even though they live in their own
+// authored root; a final DeleteMissing call
 // removes rows whose manifests no longer exist, so deleted components
 // leave the registry without manual intervention.
 //
@@ -158,7 +160,9 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 
 func registryAssetPath(path string) bool {
 	clean := filepath.ToSlash(path)
-	return strings.HasPrefix(clean, "components/") || strings.HasPrefix(clean, "hooks/")
+	return strings.HasPrefix(clean, "components/") ||
+		strings.HasPrefix(clean, "primitives/") ||
+		strings.HasPrefix(clean, "hooks/")
 }
 
 func registryOrphanFinding(o OrphanVersion) IndexFinding {
@@ -606,15 +610,26 @@ func assetKindForManifestPath(path, declared string) (AssetKind, error) {
 	switch {
 	case strings.HasPrefix(clean, "components/"):
 		inferred = AssetKindComponent
+	case strings.HasPrefix(clean, "primitives/"):
+		// Primitives are renderable React assets. They use the component
+		// contract and wire shape while retaining their authored root so
+		// source files and previews resolve to the real materialized file.
+		inferred = AssetKindComponent
 	case strings.HasPrefix(clean, "hooks/"):
 		inferred = AssetKindHook
 	default:
-		return "", ErrInvalidHeader{SourcePath: path, Field: "asset root", Reason: "manifest must be under components/ or hooks/"}
+		return "", ErrInvalidHeader{SourcePath: path, Field: "asset root", Reason: "manifest must be under components/, primitives/, or hooks/"}
 	}
 	if declared == "" {
 		return inferred, nil
 	}
 	kind := AssetKind(strings.ToLower(strings.TrimSpace(declared)))
+	// "primitive" is the authored vocabulary for a renderable asset in the
+	// primitives root; the registry intentionally normalizes it to the stable
+	// component kind used by the API and dependency resolver.
+	if kind == "primitive" && inferred == AssetKindComponent && strings.HasPrefix(clean, "primitives/") {
+		return inferred, nil
+	}
 	if !kind.Valid() || kind != inferred {
 		return "", ErrInvalidHeader{SourcePath: path, Field: "assetKind", Reason: "must match authored asset root " + string(inferred)}
 	}

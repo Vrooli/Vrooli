@@ -110,7 +110,10 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
             data-testid="sidebar-shell-backdrop"
             aria-label={closeLabel}
             className={joinClasses(backdropClasses, backdropClassName)}
-            style={{ background: "color-mix(in srgb, var(--color-shell) 60%, transparent)" }}
+            style={{
+              background:
+                "color-mix(in srgb, var(--color-shell) 60%, transparent)",
+            }}
             onClick={onMobileClose}
           />
         )}
@@ -120,7 +123,9 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
           data-mode={mode}
           role={isDialogOpen ? "dialog" : "complementary"}
           aria-modal={isDialogOpen ? "true" : undefined}
-          aria-label={isDialogOpen ? mobileLabel : desktopLabel ?? mobileLabel}
+          aria-label={
+            isDialogOpen ? mobileLabel : (desktopLabel ?? mobileLabel)
+          }
           style={style}
           className={joinClasses(
             panelClasses,
@@ -144,14 +149,22 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
               </button>
             </div>
           )}
-          <div className={joinClasses("min-h-0 flex-1 overflow-auto", contentClassName)}>
+          <div
+            className={joinClasses(
+              "min-h-0 flex-1 overflow-auto",
+              contentClassName,
+            )}
+          >
             {children}
           </div>
           {resizeHandleProps && (
             <div
               data-testid="sidebar-shell-resize-handle"
               {...resizeHandleProps}
-              className={joinClasses(resizeHandleClasses, resizeHandleProps.className)}
+              className={joinClasses(
+                resizeHandleClasses,
+                resizeHandleProps.className,
+              )}
             />
           )}
         </div>

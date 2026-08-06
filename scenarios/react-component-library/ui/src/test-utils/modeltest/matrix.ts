@@ -11,7 +11,8 @@ export interface MatrixRow<State extends PropertyKey, Event extends PropertyKey>
   readonly wantError?: boolean;
 }
 
-const pairKey = (state: PropertyKey, event: PropertyKey) => `${String(state)}\u0000${String(event)}`;
+const pairKey = (state: PropertyKey, event: PropertyKey) =>
+  `${String(state)}\u0000${String(event)}`;
 
 export const validateTransitionMatrix = <State extends PropertyKey, Event extends PropertyKey>(
   states: readonly State[],
@@ -61,7 +62,9 @@ export const validateTransitionMatrix = <State extends PropertyKey, Event extend
     const key = pairKey(row.from, row.event);
     const first = seen.get(key);
     if (first) {
-      errors.push(`${label}: duplicate pair ${String(row.from)}/${String(row.event)} already covered by ${first}`);
+      errors.push(
+        `${label}: duplicate pair ${String(row.from)}/${String(row.event)} already covered by ${first}`,
+      );
       return;
     }
     seen.set(key, label);
@@ -91,10 +94,14 @@ export const validateTransitionMatrix = <State extends PropertyKey, Event extend
       }
     } catch (error) {
       if (!row.wantError) {
-        errors.push(`${label}: unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+        errors.push(
+          `${label}: unexpected error: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
       if (row.from !== row.to) {
-        errors.push(`${label}: error rows must keep state unchanged; got ${String(row.from)}, want ${String(row.to)}`);
+        errors.push(
+          `${label}: error rows must keep state unchanged; got ${String(row.from)}, want ${String(row.to)}`,
+        );
       }
     }
   });

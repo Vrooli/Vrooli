@@ -1,6 +1,10 @@
 import { vi } from "vitest";
 
-import { makeListAdoptionsResponse, makeRefreshAdoptionsResponse, makeSuggestAdoptionsResponse } from "./factories";
+import {
+  makeListAdoptionsResponse,
+  makeRefreshAdoptionsResponse,
+  makeSuggestAdoptionsResponse,
+} from "./factories";
 
 export interface AdoptionsMocks {
   adoptionsClient: {

@@ -1,1 +1,72 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:DetailPage@1.0.0"},"component":{"id":"templates.detail-page","title":"DetailPage","purpose":"DetailPage preserves data-source ownership and honest state composition."},"states":[{"id":"ready","example":"ready","description":"DetailPage renders its ready state."},{"id":"loading","example":"loading","description":"DetailPage renders its loading state."},{"id":"refreshing","example":"refreshing","description":"DetailPage renders its refreshing state."},{"id":"stale","example":"stale","description":"DetailPage renders its stale state."},{"id":"empty","example":"empty","description":"DetailPage renders its empty state."},{"id":"partial-error","example":"partial-error","description":"DetailPage renders its partial-error state."},{"id":"fatal-error","example":"fatal-error","description":"DetailPage renders its fatal-error state."},{"id":"offline","example":"offline","description":"DetailPage renders its offline state."}],"claims":[{"id":"contract-present","type":"custom","statement":"DetailPage preserves data-source ownership and honest state composition.","tier":"manual","states":["ready","loading","refreshing","stale","empty","partial-error","fatal-error","offline"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:DetailPage@1.0.0"
+  },
+  "component": {
+    "id": "templates.detail-page",
+    "title": "DetailPage",
+    "purpose": "DetailPage preserves data-source ownership and honest state composition."
+  },
+  "states": [
+    {
+      "id": "ready",
+      "example": "ready",
+      "description": "DetailPage renders its ready state."
+    },
+    {
+      "id": "loading",
+      "example": "loading",
+      "description": "DetailPage renders its loading state."
+    },
+    {
+      "id": "refreshing",
+      "example": "refreshing",
+      "description": "DetailPage renders its refreshing state."
+    },
+    {
+      "id": "stale",
+      "example": "stale",
+      "description": "DetailPage renders its stale state."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "DetailPage renders its empty state."
+    },
+    {
+      "id": "partial-error",
+      "example": "partial-error",
+      "description": "DetailPage renders its partial-error state."
+    },
+    {
+      "id": "fatal-error",
+      "example": "fatal-error",
+      "description": "DetailPage renders its fatal-error state."
+    },
+    {
+      "id": "offline",
+      "example": "offline",
+      "description": "DetailPage renders its offline state."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "DetailPage preserves data-source ownership and honest state composition.",
+      "tier": "manual",
+      "states": [
+        "ready",
+        "loading",
+        "refreshing",
+        "stale",
+        "empty",
+        "partial-error",
+        "fatal-error",
+        "offline"
+      ]
+    }
+  ]
+}

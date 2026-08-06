@@ -34,8 +34,7 @@ function installMatchMedia(dark: boolean) {
       ({
         matches: dark,
         media: q,
-        addEventListener: (_t: string, l: (e: MediaQueryListEvent) => void) =>
-          listeners.add(l),
+        addEventListener: (_t: string, l: (e: MediaQueryListEvent) => void) => listeners.add(l),
         removeEventListener: (_t: string, l: (e: MediaQueryListEvent) => void) =>
           listeners.delete(l),
         dispatchEvent: () => true,
@@ -43,9 +42,7 @@ function installMatchMedia(dark: boolean) {
   });
   return {
     flip(next: boolean) {
-      listeners.forEach((l) =>
-        l({ matches: next, media: "" } as MediaQueryListEvent),
-      );
+      listeners.forEach((l) => l({ matches: next, media: "" } as MediaQueryListEvent));
     },
   };
 }
@@ -109,5 +106,4 @@ describe("ThemeProvider", () => {
     await user.click(screen.getByTestId("to-dark"));
     expect(window.localStorage.getItem("react-component-library.theme.v1")).toBe("dark");
   });
-
 });

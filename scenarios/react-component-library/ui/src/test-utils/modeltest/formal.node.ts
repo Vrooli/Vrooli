@@ -20,8 +20,12 @@ export const validateFormalArtifactFreshFromFiles = (
 ): string[] => {
   const errors = validateFormalArtifactFresh(artifact, expected);
   const root = resolveScenarioRoot(options.scenarioRoot);
-  compareHash(errors, "contractSha256", artifact.source.contractSha256, () => fileSHA256(path.join(root, artifact.source.contractPath)));
-  compareHash(errors, "modelSha256", artifact.source.modelSha256, () => fileSHA256(path.join(root, artifact.source.modelPath)));
+  compareHash(errors, "contractSha256", artifact.source.contractSha256, () =>
+    fileSHA256(path.join(root, artifact.source.contractPath)),
+  );
+  compareHash(errors, "modelSha256", artifact.source.modelSha256, () =>
+    fileSHA256(path.join(root, artifact.source.modelPath)),
+  );
   // generatorSha256 is owned by the flow-verifier scenario, which is
   // external to the consumer scenario. `flow-verifier verify check` is
   // authoritative for generator freshness; this consumer-side helper
@@ -59,7 +63,12 @@ const resolveScenarioRoot = (root?: string | URL): string => {
 
 const fileSHA256 = (filePath: string): string => sha256(readFileSync(filePath));
 
-const compareHash = (errors: string[], label: string, artifactHash: string, recompute: () => string): void => {
+const compareHash = (
+  errors: string[],
+  label: string,
+  artifactHash: string,
+  recompute: () => string,
+): void => {
   let freshHash: string;
   try {
     freshHash = recompute();
@@ -74,4 +83,5 @@ const compareHash = (errors: string[], label: string, artifactHash: string, reco
 
 const sha256 = (data: string | Buffer): string => createHash("sha256").update(data).digest("hex");
 
-const formatErrors = (errors: readonly string[]): string => errors.map((error) => `  - ${error}`).join("\n");
+const formatErrors = (errors: readonly string[]): string =>
+  errors.map((error) => `  - ${error}`).join("\n");

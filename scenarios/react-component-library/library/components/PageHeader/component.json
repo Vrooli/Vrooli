@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:PageHeader","catalogId":"navigation.page-header","displayName":"PageHeader","description":"A route-level hierarchy header with title, description, and action regions.","assetKind":"component","tags":["navigation","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:PageHeader",
+  "catalogId": "navigation.page-header",
+  "displayName": "PageHeader",
+  "description": "A route-level hierarchy header with title, description, and action regions.",
+  "assetKind": "component",
+  "tags": ["navigation", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

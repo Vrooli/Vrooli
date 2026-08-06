@@ -30,13 +30,7 @@ describe("useDeviceEmulation", () => {
     const { result } = renderHook(() => useDeviceEmulation());
     const ids = result.current.presets.map((p) => p.id);
     expect(ids).toEqual(
-      expect.arrayContaining([
-        "mobile",
-        "tablet",
-        "desktop",
-        "wide",
-        "responsive",
-      ]),
+      expect.arrayContaining(["mobile", "tablet", "desktop", "wide", "responsive"]),
     );
   });
 

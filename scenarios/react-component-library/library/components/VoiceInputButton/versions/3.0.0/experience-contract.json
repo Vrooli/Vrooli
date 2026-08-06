@@ -10,17 +10,57 @@
     "purpose": "Expose a microphone control whose state, input level, timeout, and recovery actions remain perceivable and size-consistent."
   },
   "states": [
-    { "id": "idle", "example": "idle", "description": "Ready to start voice input." },
-    { "id": "recording", "example": "recording", "description": "Capturing microphone input." },
-    { "id": "error", "example": "error", "description": "Connection error with recovery affordance." }
+    {
+      "id": "idle",
+      "example": "idle",
+      "description": "Ready to start voice input."
+    },
+    {
+      "id": "recording",
+      "example": "recording",
+      "description": "Capturing microphone input."
+    },
+    {
+      "id": "error",
+      "example": "error",
+      "description": "Connection error with recovery affordance."
+    }
   ],
   "elements": [
-    { "id": "voice-control", "role": "button", "description": "The microphone control." },
-    { "id": "dismiss", "role": "button", "description": "The error dismissal control." }
+    {
+      "id": "voice-control",
+      "role": "button",
+      "description": "The microphone control."
+    },
+    {
+      "id": "dismiss",
+      "role": "button",
+      "description": "The error dismissal control."
+    }
   ],
   "claims": [
-    { "id": "voice-input-action", "type": "element-present", "statement": "The idle specimen exposes a named action to start voice input.", "tier": "machine", "elements": ["voice-control"], "states": ["idle"] },
-    { "id": "error-dismiss-size-parity", "type": "size-parity", "statement": "The error dismissal control remains aligned to the declared recovery-control height.", "tier": "machine", "elements": ["voice-control", "dismiss"], "states": ["error"], "params": { "tolerance": 2 } }
+    {
+      "id": "voice-input-action",
+      "type": "element-present",
+      "statement": "The idle specimen exposes a named action to start voice input.",
+      "tier": "machine",
+      "elements": ["voice-control"],
+      "states": ["idle"]
+    },
+    {
+      "id": "error-dismiss-size-parity",
+      "type": "size-parity",
+      "statement": "The error dismissal control remains aligned to the declared recovery-control height.",
+      "tier": "machine",
+      "elements": ["voice-control", "dismiss"],
+      "states": ["error"],
+      "params": { "tolerance": 2 }
+    }
   ],
-  "bindings": { "elements": { "voice-control": { "testid": "voice-input-control" }, "dismiss": { "testid": "voice-input-error-dismiss" } } }
+  "bindings": {
+    "elements": {
+      "voice-control": { "testid": "voice-input-control" },
+      "dismiss": { "testid": "voice-input-error-dismiss" }
+    }
+  }
 }

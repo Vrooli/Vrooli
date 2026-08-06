@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:ToastManager",
+  "catalogId": "services.toast-manager",
+  "displayName": "Toast Manager",
+  "description": "A scoped transient-feedback service for queueing, deduping, updating, dismissing, and announcing toasts.",
+  "assetKind": "service",
+  "tags": ["runtime", "feedback", "accessibility"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

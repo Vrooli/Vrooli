@@ -3,13 +3,43 @@
   "title": "IconButton",
   "purpose": "Provide an icon-only action without losing its accessible name.",
   "states": [
-    { "id": "default", "exampleName": "Default", "description": "A named icon-only action is available." },
-    { "id": "disabled", "exampleName": "Disabled", "description": "The action communicates that it is unavailable." },
-    { "id": "toggled", "exampleName": "Toggled", "description": "A persistent icon action communicates its selected state." }
+    {
+      "id": "default",
+      "exampleName": "Default",
+      "description": "A named icon-only action is available."
+    },
+    {
+      "id": "disabled",
+      "exampleName": "Disabled",
+      "description": "The action communicates that it is unavailable."
+    },
+    {
+      "id": "toggled",
+      "exampleName": "Toggled",
+      "description": "A persistent icon action communicates its selected state."
+    }
   ],
   "claims": [
-    { "id": "named-action", "type": "element-present", "statement": "Every icon button has a programmatic accessible name.", "tier": "machine", "states": ["default", "disabled"] },
-    { "id": "disabled-state", "type": "state", "statement": "Disabled actions expose the native disabled state.", "tier": "machine", "states": ["disabled"] },
-    { "id": "pressed-state", "type": "state", "statement": "Toggled actions expose aria-pressed.", "tier": "machine", "states": ["toggled"] }
+    {
+      "id": "named-action",
+      "type": "element-present",
+      "statement": "Every icon button has a programmatic accessible name.",
+      "tier": "machine",
+      "states": ["default", "disabled"]
+    },
+    {
+      "id": "disabled-state",
+      "type": "state",
+      "statement": "Disabled actions expose the native disabled state.",
+      "tier": "machine",
+      "states": ["disabled"]
+    },
+    {
+      "id": "pressed-state",
+      "type": "state",
+      "statement": "Toggled actions expose aria-pressed.",
+      "tier": "machine",
+      "states": ["toggled"]
+    }
   ]
 }

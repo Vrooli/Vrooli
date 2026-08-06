@@ -64,7 +64,9 @@ const Harness = (props: {
 describe("SpatialGroup", () => {
   it("registers a spatial focus group on mount and runs the cleanup on unmount", () => {
     const ctrl = makeMockSpatialNavController();
-    const { unmount } = renderWithProviders(<Harness controller={ctrl} mode="spatial" options={{ wrap: true }} />);
+    const { unmount } = renderWithProviders(
+      <Harness controller={ctrl} mode="spatial" options={{ wrap: true }} />,
+    );
 
     expect(ctrl.registerGroup).toHaveBeenCalledTimes(1);
     const [el, mode, opts] = ctrl.registerGroup.mock.calls[0] as [HTMLElement, string, unknown];

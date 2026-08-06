@@ -1,0 +1,15 @@
+{
+  "libraryId": "react-component-library:ValidationSummary",
+  "catalogId": "forms.validation-summary",
+  "displayName": "ValidationSummary",
+  "description": "An accessible, keyboard-addressable summary of field validation errors.",
+  "assetKind": "component",
+  "tags": ["form", "validation", "accessibility", "recovery"],
+  "slot": "ui-primitive",
+  "category": "forms",
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

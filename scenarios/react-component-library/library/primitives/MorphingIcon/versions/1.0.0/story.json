@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "MorphingIcon",
+  "args": {
+    "fields": [
+      { "path": "icon", "label": "Current icon", "kind": "enum", "default": "check", "options": ["check", "close", "send", "arrowEnd"] },
+      { "path": "from", "label": "Starting icon", "kind": "enum", "default": "send", "options": ["check", "close", "send", "arrowEnd"] },
+      { "path": "strategy", "label": "Transition strategy", "kind": "enum", "default": "auto", "options": ["auto", "morph", "transform", "crossfade"] },
+      { "path": "label", "label": "Accessible label", "kind": "text", "default": "Sent" }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "compatible-morph", "name": "Compatible geometry", "harness": "MorphingIconShowcase", "args": { "icon": "send", "from": "arrowEnd", "strategy": "auto", "label": "Send" }, "expect": [{ "kind": "role", "role": "img", "name": "Send" }] },
+    { "id": "automatic-fallback", "name": "Automatic fallback", "harness": "MorphingIconShowcase", "args": { "icon": "check", "from": "close", "strategy": "auto", "label": "Complete" }, "expect": [{ "kind": "role", "role": "img", "name": "Complete" }] },
+    { "id": "explicit-crossfade", "name": "Explicit crossfade", "harness": "MorphingIconShowcase", "args": { "icon": "check", "from": "close", "strategy": "crossfade", "label": "Complete" }, "expect": [{ "kind": "role", "role": "img", "name": "Complete" }] },
+    { "id": "toggle", "name": "Interactive state change", "harness": "ToggleMorphingIcon", "args": { "icon": "send", "from": "send", "label": "Send" }, "expect": [{ "kind": "role", "role": "img", "name": "Sent" }], "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Send message" } }, { "kind": "waitFor", "text": "280" }] }
+  ]
+}

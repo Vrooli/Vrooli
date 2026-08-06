@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:StatCard","catalogId":"data-display.stat-card","displayName":"StatCard","description":"A metric card that composes hierarchy, trend context, and token-backed surface treatment.","assetKind":"component","tags":["data-display","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:StatCard",
+  "catalogId": "data-display.stat-card",
+  "displayName": "StatCard",
+  "description": "A metric card that composes hierarchy, trend context, and token-backed surface treatment.",
+  "assetKind": "component",
+  "tags": ["data-display", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

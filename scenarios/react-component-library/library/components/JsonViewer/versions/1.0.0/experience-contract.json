@@ -1,1 +1,33 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:JsonViewer@1.0.0"},"component":{"id":"data-display.json-viewer","title":"JsonViewer","purpose":"JsonViewer preserves semantic structure and token ownership."},"states":[{"id":"default","example":"default","description":"Default content is available."},{"id":"empty","example":"empty","description":"The quiet state remains understandable."}],"claims":[{"id":"contract-present","type":"custom","statement":"JsonViewer preserves semantic structure and token ownership.","tier":"manual","states":["default","empty"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:JsonViewer@1.0.0"
+  },
+  "component": {
+    "id": "data-display.json-viewer",
+    "title": "JsonViewer",
+    "purpose": "JsonViewer preserves semantic structure and token ownership."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Default content is available."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "The quiet state remains understandable."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "JsonViewer preserves semantic structure and token ownership.",
+      "tier": "manual",
+      "states": ["default", "empty"]
+    }
+  ]
+}

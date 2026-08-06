@@ -33,13 +33,14 @@
       "name": "Notes",
       "args": {
         "placeholder": "Write release notes",
-        "defaultValue": "Improves preview coverage."
+        "defaultValue": "Improves preview coverage.",
+        "aria-label": "Release notes"
       },
       "expect": [
         {
           "kind": "role",
           "role": "textbox",
-          "name": "Improves preview coverage."
+          "name": "Release notes"
         },
         {
           "kind": "attribute",
@@ -53,7 +54,8 @@
       "id": "empty",
       "name": "Empty",
       "args": {
-        "placeholder": "Describe the component"
+        "placeholder": "Describe the component",
+        "aria-label": "Component description"
       },
       "expect": [
         {

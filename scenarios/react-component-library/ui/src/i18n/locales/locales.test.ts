@@ -36,10 +36,9 @@ import { LOCALE_CODES } from "../locales";
 // `import.meta.glob` returns `{ "./en.json": {...}, "./ja.json": {...} }`
 // at build time when `eager: true`. Vitest reads the same Vite config that
 // production does, so this works in tests without an extra plugin.
-const catalogModules = import.meta.glob<{ default: Record<string, unknown> }>(
-  "./*.json",
-  { eager: true },
-);
+const catalogModules = import.meta.glob<{ default: Record<string, unknown> }>("./*.json", {
+  eager: true,
+});
 
 const catalogs: Record<string, Record<string, unknown>> = {};
 for (const [path, mod] of Object.entries(catalogModules)) {
@@ -55,10 +54,7 @@ const stripPluralSuffix = (key: string) => key.replace(PLURAL_SUFFIX, "");
 
 const isSentinelKey = (key: string) => key.startsWith("_");
 
-const flatten = (
-  obj: Record<string, unknown>,
-  prefix = "",
-): Record<string, string> => {
+const flatten = (obj: Record<string, unknown>, prefix = ""): Record<string, string> => {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(obj)) {
     if (isSentinelKey(k)) continue;
@@ -157,9 +153,7 @@ describe("locale catalogs", () => {
     for (const [locale, catalog] of Object.entries(catalogs)) {
       const flat = flatten(catalog);
       for (const [key, value] of Object.entries(flat)) {
-        expect(typeof value, `${locale}.json key '${key}' is not a string`).toBe(
-          "string",
-        );
+        expect(typeof value, `${locale}.json key '${key}' is not a string`).toBe("string");
       }
     }
   });

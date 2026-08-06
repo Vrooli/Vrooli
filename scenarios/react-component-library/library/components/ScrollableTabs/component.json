@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:ScrollableTabs","catalogId":"navigation.scrollable-tabs","displayName":"ScrollableTabs","description":"A tab surface that keeps navigation usable when labels exceed the available inline space.","assetKind":"component","tags":["navigation","responsive","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:ScrollableTabs",
+  "catalogId": "navigation.scrollable-tabs",
+  "displayName": "ScrollableTabs",
+  "description": "A tab surface that keeps navigation usable when labels exceed the available inline space.",
+  "assetKind": "component",
+  "tags": ["navigation", "responsive", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

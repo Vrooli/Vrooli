@@ -1,0 +1,40 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Transition@1.0.0"
+  },
+  "component": {
+    "id": "motion.transition",
+    "title": "Transition",
+    "purpose": "Expose a small declarative motion vocabulary without allowing consumers to fork lifecycle or reduced-motion behavior."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A settled shared transition is visible."
+    },
+    {
+      "id": "interactive",
+      "example": "interactive",
+      "description": "The same transition reverses through the shared Presence lifecycle."
+    }
+  ],
+  "claims": [
+    {
+      "id": "shared-motion-family",
+      "type": "custom",
+      "statement": "Convenience kinds resolve to MotionPrimitive variants and Presence owns mounting, exit, interruption, and reduced-motion collapse.",
+      "tier": "automated",
+      "states": ["default", "interactive"]
+    },
+    {
+      "id": "no-layout-animation",
+      "type": "custom",
+      "statement": "Transitions animate opacity, transform, and filter only, preserving layout geometry while content enters or exits.",
+      "tier": "automated",
+      "states": ["default", "interactive"]
+    }
+  ]
+}

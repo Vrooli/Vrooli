@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 import {
   initSpatialNav,
   type SpatialNavController,
   type SpatialNavBridgeOptions,
-} from '@vrooli/iframe-bridge/spatial';
+} from "@vrooli/iframe-bridge/spatial";
 
 /**
  * Initialises gamepad-driven spatial navigation on mount and disposes on

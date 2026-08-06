@@ -103,7 +103,7 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
-- Rung: W0 (goal/problem contract comparison)
-- Evidence: The indexed goal `design-language-foundation` is adjacent context, not the user-supplied audio-tools reliability plan. RCL scope is limited to the VoiceInputButton/useVoiceInput adoption and focused component-library validation.
-- Constraint: No goal-side requirement was invented from the adjacent design-system goal.
-- Measured: 2026-08-03.
+- Rung: W0 (goal/problem contract comparison — unverifiable for the current direct-user objective)
+- Evidence: The deterministic swarm-goal search finds `design-language-foundation`, whose description incorporates react-component-library only as an implementation arm; it does not state the user-approved `react-component-library-world-class-assets-full-fidelity` closure or MorphingIcon objective. The scenario PRD does state registry, real React preview, and full-catalog preview targets at P0, but there is no swarm goal to compare against them.
+- Constraint: Treat the direct user objective and rendered plan as the active contract; do not infer additional goal-side requirements from the adjacent design-language initiative.
+- Measured: 2026-08-06.

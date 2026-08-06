@@ -15,7 +15,11 @@ afterEach(cleanup);
 
 describe("MarkdownRenderer", () => {
   it("renders GFM tables and blockquotes", () => {
-    render(<MarkdownRenderer content={"| Name | Value |\n| --- | --- |\n| state | ready |\n\n> Operator guidance"} />);
+    render(
+      <MarkdownRenderer
+        content={"| Name | Value |\n| --- | --- |\n| state | ready |\n\n> Operator guidance"}
+      />,
+    );
     expect(screen.getByRole("table")).toBeInTheDocument();
     expect(screen.getByText("Operator guidance")).toBeInTheDocument();
   });
@@ -23,7 +27,20 @@ describe("MarkdownRenderer", () => {
   it("delegates entity and file inline-code seams", () => {
     const onLinkClick = vi.fn();
     const onFileReferenceClick = vi.fn();
-    render(<MarkdownRenderer content={"`initiative:ship` `docs/plan.md`"} resolveInlineToken={(text) => text === "initiative:ship" ? { href: "/initiatives/ship", kind: "entity" } : null} looksLikeFileReference={(text) => text.endsWith(".md")} onLinkClick={(href, event) => { event.preventDefault(); onLinkClick(href, event); }} onFileReferenceClick={onFileReferenceClick} />);
+    render(
+      <MarkdownRenderer
+        content={"`initiative:ship` `docs/plan.md`"}
+        resolveInlineToken={(text) =>
+          text === "initiative:ship" ? { href: "/initiatives/ship", kind: "entity" } : null
+        }
+        looksLikeFileReference={(text) => text.endsWith(".md")}
+        onLinkClick={(href, event) => {
+          event.preventDefault();
+          onLinkClick(href, event);
+        }}
+        onFileReferenceClick={onFileReferenceClick}
+      />,
+    );
     const entity = screen.getByRole("link", { name: "initiative:ship" });
     expect(entity).toHaveAttribute("data-entity-ref", "true");
     fireEvent.click(entity);
@@ -39,7 +56,14 @@ describe("MarkdownRenderer", () => {
 
   it("supports inline rendering and ordinary markdown links", () => {
     const onLinkClick = vi.fn((_: string, event: MouseEvent) => event.preventDefault());
-    const { container } = render(<MarkdownRenderer inline className="inline-copy" content="[Guide](/docs/guide)" onLinkClick={onLinkClick} />);
+    const { container } = render(
+      <MarkdownRenderer
+        inline
+        className="inline-copy"
+        content="[Guide](/docs/guide)"
+        onLinkClick={onLinkClick}
+      />,
+    );
     expect(container.firstElementChild?.tagName).toBe("SPAN");
     expect(container.firstElementChild).toHaveClass("inline-copy");
     fireEvent.click(screen.getByRole("link", { name: "Guide" }));
@@ -52,7 +76,11 @@ describe("MarkdownRenderer", () => {
   });
 
   it("renders fenced code and Mermaid blocks through their specialized surfaces", async () => {
-    render(<MarkdownRenderer content={"```ts\nconst story = true\n```\n\n```mermaid\ngraph TD; A-->B\n```"} />);
+    render(
+      <MarkdownRenderer
+        content={"```ts\nconst story = true\n```\n\n```mermaid\ngraph TD; A-->B\n```"}
+      />,
+    );
     expect(await screen.findByText("TYPESCRIPT")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Source" })).toBeInTheDocument();
   });
@@ -65,12 +93,18 @@ describe("MarkdownRenderer", () => {
   it("keeps inline-code content bounded to text and numeric children", () => {
     const { rerender, container } = render(<InlineCode>{42}</InlineCode>);
     expect(screen.getByText("42")).toBeInTheDocument();
-    rerender(<InlineCode><span>nested</span></InlineCode>);
+    rerender(
+      <InlineCode>
+        <span>nested</span>
+      </InlineCode>,
+    );
     expect(container.querySelector("code")).toHaveTextContent("");
   });
 
   it("renders resolved and file-reference inline tokens without optional callbacks", () => {
-    const { rerender } = render(<InlineCode resolveInlineToken={() => ({ href: "/asset" })}>asset:Button</InlineCode>);
+    const { rerender } = render(
+      <InlineCode resolveInlineToken={() => ({ href: "/asset" })}>asset:Button</InlineCode>,
+    );
     expect(screen.getByRole("link", { name: "asset:Button" })).toHaveAttribute("href", "/asset");
     rerender(<InlineCode looksLikeFileReference={() => true}>docs/story.md</InlineCode>);
     expect(screen.getByRole("button", { name: "docs/story.md" })).toBeInTheDocument();

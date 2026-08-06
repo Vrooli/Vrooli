@@ -1,1 +1,28 @@
-{"contract":{"kind":"rcl-component-experience-contract","schema":"scenario-experience-spec/v1","provenance":"react-component-library:RelativeTime@1.0.0"},"component":{"id":"primitives.relative-time","title":"RelativeTime","purpose":"Semantic time display."},"states":[{"id":"default","example":"default","description":"A concise relative time is shown."}],"claims":[{"id":"contract-present","type":"custom","statement":"RelativeTime preserves machine-readable time context.","tier":"manual","states":["default"]}]}
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:RelativeTime@1.0.0"
+  },
+  "component": {
+    "id": "primitives.relative-time",
+    "title": "RelativeTime",
+    "purpose": "Semantic time display."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A concise relative time is shown."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "RelativeTime preserves machine-readable time context.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

@@ -3,10 +3,7 @@
   "catalogId": "primitives.card",
   "displayName": "Card",
   "description": "Compact token-bound card primitives for repeated records, focused tools, and modal content.",
-  "tags": [
-    "surface",
-    "layout"
-  ],
+  "tags": ["surface", "layout"],
   "slot": "ui-primitive",
   "category": "surfaces",
   "designStyles": [

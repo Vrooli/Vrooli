@@ -1,0 +1,33 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:AspectRatio@1.0.0"
+  },
+  "component": {
+    "id": "primitives.aspect-ratio",
+    "title": "AspectRatio",
+    "purpose": "Reserve media geometry before content resolves."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A standard media ratio reserves its layout space."
+    },
+    {
+      "id": "wide",
+      "example": "wide",
+      "description": "A wide ratio remains deliberate and responsive."
+    }
+  ],
+  "claims": [
+    {
+      "id": "layout-reserved",
+      "type": "custom",
+      "statement": "The frame establishes aspect ratio before its child content resolves, preventing layout shift.",
+      "tier": "automated",
+      "states": ["default", "wide"]
+    }
+  ]
+}

@@ -1,2 +1,7 @@
 /** @vrooliComponentSource hooks.use-locale */
-export { useLocale } from '../../../shared/runtimeHooks';
+
+export function useLocale() {
+  return typeof document !== "undefined"
+    ? document.documentElement.lang || "en"
+    : "en";
+}

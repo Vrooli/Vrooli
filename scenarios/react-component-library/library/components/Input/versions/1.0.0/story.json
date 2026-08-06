@@ -40,13 +40,14 @@
       "args": {
         "type": "text",
         "placeholder": "Component name",
-        "defaultValue": "Button"
+        "defaultValue": "Button",
+        "aria-label": "Component name"
       },
       "expect": [
         {
           "kind": "role",
           "role": "textbox",
-          "name": "Button"
+          "name": "Component name"
         },
         {
           "kind": "attribute",
@@ -62,13 +63,14 @@
       "args": {
         "type": "search",
         "placeholder": "Filter components",
-        "defaultValue": "status"
+        "defaultValue": "status",
+        "aria-label": "Filter components"
       },
       "expect": [
         {
           "kind": "role",
           "role": "textbox",
-          "name": "status"
+          "name": "Filter components"
         }
       ]
     },

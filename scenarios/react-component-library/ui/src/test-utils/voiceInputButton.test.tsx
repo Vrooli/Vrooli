@@ -6,8 +6,19 @@ import { renderWithProviders } from "./renderWithProviders";
 describe("VoiceInputButton", () => {
   it("exposes stateful labels and a keyboard-operable rejection override", () => {
     const onTranscribeAnyway = vi.fn();
-    renderWithProviders(<VoiceInputButton state="recording" mode="timeout" timeoutProgress={0.5} rejectionReason="not verified" onTranscribeAnyway={onTranscribeAnyway} />);
-    expect(screen.getByRole("button", { name: "Stop voice input" })).toHaveAttribute("aria-pressed", "true");
+    renderWithProviders(
+      <VoiceInputButton
+        state="recording"
+        mode="timeout"
+        timeoutProgress={0.5}
+        rejectionReason="not verified"
+        onTranscribeAnyway={onTranscribeAnyway}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Stop voice input" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     fireEvent.click(screen.getByRole("button", { name: "Transcribe anyway" }));
     expect(onTranscribeAnyway).toHaveBeenCalledOnce();
   });
@@ -20,7 +31,9 @@ describe("VoiceInputButton", () => {
   it("keeps web-console mic presentation and pointer semantics without scenario coupling", () => {
     const onStart = vi.fn();
     const onStop = vi.fn();
-    const { rerender } = renderWithProviders(<VoiceInputButton state="idle" onStart={onStart} onStop={onStop} />);
+    const { rerender } = renderWithProviders(
+      <VoiceInputButton state="idle" onStart={onStart} onStop={onStop} />,
+    );
     const idle = screen.getByRole("button", { name: "Start voice input" });
     expect(idle.className).toContain("rounded border px-1.5 py-1");
     fireEvent.pointerDown(idle);
@@ -28,7 +41,15 @@ describe("VoiceInputButton", () => {
     expect(onStart).toHaveBeenCalledOnce();
     expect(onStop).not.toHaveBeenCalled();
 
-    rerender(<VoiceInputButton state="recording" mode="timeout" level={0.5} timeoutProgress={0.5} onStop={onStop} />);
+    rerender(
+      <VoiceInputButton
+        state="recording"
+        mode="timeout"
+        level={0.5}
+        timeoutProgress={0.5}
+        onStop={onStop}
+      />,
+    );
     const recording = screen.getByRole("button", { name: "Stop voice input" });
     expect(recording.className).toContain("border-app-danger");
     expect(recording.querySelector("svg")).toBeTruthy();
@@ -38,7 +59,9 @@ describe("VoiceInputButton", () => {
   });
 
   it("uses the web-console cyan listening treatment for always-on audio level", () => {
-    const { container } = renderWithProviders(<VoiceInputButton state="recording" mode="always-on" level={0.8} />);
+    const { container } = renderWithProviders(
+      <VoiceInputButton state="recording" mode="always-on" level={0.8} />,
+    );
     const button = screen.getByRole("button", { name: "Stop voice input" });
     expect(button.className).toContain("border-app-info");
     expect(button.className).not.toContain("border-app-danger");
@@ -49,12 +72,21 @@ describe("VoiceInputButton", () => {
   it("dismisses errors and forwards pointer cancellation", () => {
     const onDismissError = vi.fn();
     const onPointerCancel = vi.fn();
-    renderWithProviders(<VoiceInputButton state="error" error="Microphone denied" onDismissError={onDismissError} onPointerCancel={onPointerCancel} />);
+    renderWithProviders(
+      <VoiceInputButton
+        state="error"
+        error="Microphone denied"
+        onDismissError={onDismissError}
+        onPointerCancel={onPointerCancel}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Dismiss voice input error" }));
     expect(onDismissError).toHaveBeenCalledOnce();
 
     cleanup();
-    const { rerender } = renderWithProviders(<VoiceInputButton state="idle" onPointerCancel={onPointerCancel} />);
+    const { rerender } = renderWithProviders(
+      <VoiceInputButton state="idle" onPointerCancel={onPointerCancel} />,
+    );
     const button = screen.getByRole("button", { name: "Start voice input" });
     fireEvent.pointerCancel(button);
     expect(onPointerCancel).toHaveBeenCalledOnce();

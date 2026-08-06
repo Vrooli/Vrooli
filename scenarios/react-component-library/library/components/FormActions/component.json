@@ -1,0 +1,15 @@
+{
+  "libraryId": "react-component-library:FormActions",
+  "catalogId": "forms.form-actions",
+  "displayName": "FormActions",
+  "description": "A responsive action row for form submission, reset, cancel, and pending states.",
+  "assetKind": "component",
+  "tags": ["form", "actions", "responsive", "token-bound"],
+  "slot": "ui-primitive",
+  "category": "forms",
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": [],
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

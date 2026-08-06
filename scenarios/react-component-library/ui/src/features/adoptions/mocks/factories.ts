@@ -16,9 +16,7 @@ import {
 export type { Adoption, ListAdoptionsResponse, RefreshAdoptionsResponse, SuggestAdoptionsResponse };
 export { LibraryVersionStatus, LocalStatus };
 
-export const makeAdoption = (
-  overrides: MessageInitShape<typeof AdoptionSchema> = {},
-): Adoption =>
+export const makeAdoption = (overrides: MessageInitShape<typeof AdoptionSchema> = {}): Adoption =>
   create(AdoptionSchema, {
     id: "ad-1",
     componentId: "cmp-btn",

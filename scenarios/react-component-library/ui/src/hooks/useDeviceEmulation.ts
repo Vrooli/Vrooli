@@ -23,7 +23,12 @@ export const DEVICE_PRESETS = [
   { ...axisPreset("tablet"), label: "Tablet" },
   { ...axisPreset("desktop"), label: "Desktop" },
   { ...axisPreset("wide"), label: "Wide" },
-  { id: "responsive", label: "Responsive", width: axisPreset("desktop").width, height: axisPreset("desktop").height },
+  {
+    id: "responsive",
+    label: "Responsive",
+    width: axisPreset("desktop").width,
+    height: axisPreset("desktop").height,
+  },
 ] as const;
 
 export type DevicePresetId = (typeof DEVICE_PRESETS)[number]["id"];
@@ -31,7 +36,9 @@ export type DevicePresetId = (typeof DEVICE_PRESETS)[number]["id"];
 export const ZOOM_MIN = 0.1;
 export const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.1;
-export const DEVICE_ZOOM_LEVELS = [0.1, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2] as const;
+export const DEVICE_ZOOM_LEVELS = [
+  0.1, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2,
+] as const;
 
 const DEFAULT_PRESET_ID: DevicePresetId = "desktop";
 const DEFAULT_CUSTOM_WIDTH = 1280;
@@ -187,7 +194,11 @@ export function useDeviceEmulation(): DeviceEmulationValue {
       return;
     }
     const horizontalPadding = 24;
-    const nextZoom = Math.min(1, (availableWidth - horizontalPadding) / displayWidth, (availableHeight - horizontalPadding) / displayHeight);
+    const nextZoom = Math.min(
+      1,
+      (availableWidth - horizontalPadding) / displayWidth,
+      (availableHeight - horizontalPadding) / displayHeight,
+    );
     setState((prev) => ({ ...prev, zoom: clampZoom(nextZoom) }));
   }, [displayHeight, displayWidth]);
 

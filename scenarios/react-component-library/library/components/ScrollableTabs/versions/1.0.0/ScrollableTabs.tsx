@@ -1,2 +1,10 @@
-/** @vrooliComponentSource materialized.scrollabletabs */
-export function ScrollableTabs({ items = [], active = "", onChange }: { items?: string[]; active?: string; onChange?: (item: string) => void }) { return <div aria-label="Tabs" role="tablist" style={{ display: "flex", gap: 4, overflowInline: "auto", borderBottom: "1px solid var(--color-border, #cbd5e1)" }}>{items.map((item) => <button type="button" role="tab" aria-selected={item === active} key={item} onClick={() => onChange?.(item)} style={{ minHeight: 44, border: 0, borderBottom: "3px solid " + (item === active ? "var(--color-primary, #2563eb)" : "transparent"), background: "transparent", color: item === active ? "var(--color-primary, #2563eb)" : "var(--color-muted-foreground, #64748b)", paddingInline: 12, font: "inherit", fontWeight: 700 }}>{item}</button>)}</div>; }
+/** @vrooliComponentSource navigation.scrollable-tabs */
+import { Tabs, type TabsProps } from "../../../Tabs/versions/1.0.0/Tabs";
+
+export function ScrollableTabs(props: TabsProps) {
+  return (
+    <div data-scrollable-tabs style={{ maxWidth: "100%", overflow: "hidden" }}>
+      <Tabs {...props} />
+    </div>
+  );
+}

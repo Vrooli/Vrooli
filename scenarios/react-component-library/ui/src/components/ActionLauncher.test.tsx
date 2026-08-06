@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const { startWorkflow, listScenarios, listCatalogAssets } = vi.hoisted(() => ({ startWorkflow: vi.fn(), listScenarios: vi.fn(), listCatalogAssets: vi.fn() }));
+const { startWorkflow, listScenarios, listCatalogAssets } = vi.hoisted(() => ({
+  startWorkflow: vi.fn(),
+  listScenarios: vi.fn(),
+  listCatalogAssets: vi.fn(),
+}));
 
 vi.mock("../api/workflows", () => ({ workflowsClient: { startWorkflow } }));
 vi.mock("../api/adoptions", () => ({ adoptionsClient: { listScenarios } }));
@@ -12,16 +16,25 @@ import { ActionLauncher } from "./ActionLauncher";
 import { renderWithProviders } from "../test-utils/renderWithProviders";
 
 function renderLauncher(action: "menu" | "extract" | "adopt" = "menu") {
-  return renderWithProviders(<ActionLauncher action={action} onActionChange={() => undefined} onCreate={() => undefined} />);
+  return renderWithProviders(
+    <ActionLauncher action={action} onActionChange={() => undefined} onCreate={() => undefined} />,
+  );
 }
 
 describe("ActionLauncher", () => {
   beforeEach(() => {
     startWorkflow.mockResolvedValue({ workflow: { id: "workflow-1" } });
-    listScenarios.mockResolvedValue({ scenarios: ["demo", "demo-a", "demo-b"].map((name) => ({ name, displayName: name })) });
-    listCatalogAssets.mockResolvedValue({ components: [{ id: "cmp-1", libraryId: "rcl:Button", displayName: "Button" }] });
+    listScenarios.mockResolvedValue({
+      scenarios: ["demo", "demo-a", "demo-b"].map((name) => ({ name, displayName: name })),
+    });
+    listCatalogAssets.mockResolvedValue({
+      components: [{ id: "cmp-1", libraryId: "rcl:Button", displayName: "Button" }],
+    });
   });
-  afterEach(() => { cleanup(); vi.clearAllMocks(); });
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
 
   it("starts extract-assist through the workflow dispatcher", async () => {
     const user = userEvent.setup();
@@ -30,7 +43,15 @@ describe("ActionLauncher", () => {
     await user.selectOptions(screen.getByLabelText("catalog.sourceScenario"), "demo");
     await user.type(screen.getByLabelText("catalog.sourcePath"), "ui/src/Panel.tsx");
     await user.click(screen.getByRole("button", { name: "launcher.startExtract" }));
-    await waitFor(() => expect(startWorkflow).toHaveBeenCalledWith(expect.objectContaining({ kind: 1, sourceScenario: "demo", sourcePath: "ui/src/Panel.tsx" })));
+    await waitFor(() =>
+      expect(startWorkflow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: 1,
+          sourceScenario: "demo",
+          sourcePath: "ui/src/Panel.tsx",
+        }),
+      ),
+    );
   });
 
   it("starts one adopt-assist workflow for each target", async () => {
@@ -41,8 +62,12 @@ describe("ActionLauncher", () => {
     await user.selectOptions(screen.getByLabelText("launcher.targets"), ["demo-a", "demo-b"]);
     await user.click(screen.getByRole("button", { name: "launcher.startAdopt" }));
     await waitFor(() => expect(startWorkflow.mock.calls).toHaveLength(2));
-    expect(startWorkflow).toHaveBeenCalledWith(expect.objectContaining({ assetId: "cmp-1", targetScenario: "demo-a" }));
-    expect(startWorkflow).toHaveBeenCalledWith(expect.objectContaining({ assetId: "cmp-1", targetScenario: "demo-b" }));
+    expect(startWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ assetId: "cmp-1", targetScenario: "demo-a" }),
+    );
+    expect(startWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ assetId: "cmp-1", targetScenario: "demo-b" }),
+    );
   });
 
   it("filters typed picker options before selection", async () => {
@@ -58,7 +83,9 @@ describe("ActionLauncher", () => {
     const user = userEvent.setup();
     const onActionChange = vi.fn();
     const onCreate = vi.fn();
-    renderWithProviders(<ActionLauncher action="menu" onActionChange={onActionChange} onCreate={onCreate} />);
+    renderWithProviders(
+      <ActionLauncher action="menu" onActionChange={onActionChange} onCreate={onCreate} />,
+    );
 
     await user.click(screen.getByTestId("launcher-extract"));
     await user.click(screen.getByTestId("launcher-adopt"));

@@ -6,7 +6,10 @@ describe("AsyncPanel", () => {
   it("preserves semantic lifecycle telemetry for partial content", () => {
     render(<AsyncPanel surfaceId="history" state="partial" />);
     expect(screen.getByRole("status")).toHaveAccessibleName("Some information is unavailable.");
-    expect(document.querySelector('[data-experience-surface="history"]')).toHaveAttribute("data-experience-state", "partial");
+    expect(document.querySelector('[data-experience-surface="history"]')).toHaveAttribute(
+      "data-experience-state",
+      "partial",
+    );
   });
 
   it("provides a retry affordance for its fallback error state", () => {

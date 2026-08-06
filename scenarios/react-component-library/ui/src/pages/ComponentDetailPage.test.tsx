@@ -32,8 +32,29 @@ vi.mock("../api/components", async (importOriginal) => {
       evidenceStatus: "available",
       evidenceMessage: "",
       states: [{ id: "primary", exampleName: "primary", description: "Primary action." }],
-      claims: [{ id: "action-present", type: "element-present", statement: "A named action is present.", tier: "machine", states: ["primary"] }],
-      evidence: [{ claimId: "action-present", verdict: "passed", stateId: "primary", exampleName: "primary", captureRef: "https://example.test/capture", checkedAt: "2026-07-15T12:00:00Z", message: "claim proven", viewport: "desktop", viewportWidth: 1280, viewportHeight: 720 }],
+      claims: [
+        {
+          id: "action-present",
+          type: "element-present",
+          statement: "A named action is present.",
+          tier: "machine",
+          states: ["primary"],
+        },
+      ],
+      evidence: [
+        {
+          claimId: "action-present",
+          verdict: "passed",
+          stateId: "primary",
+          exampleName: "primary",
+          captureRef: "https://example.test/capture",
+          checkedAt: "2026-07-15T12:00:00Z",
+          message: "claim proven",
+          viewport: "desktop",
+          viewportWidth: 1280,
+          viewportHeight: 720,
+        },
+      ],
     }),
     componentsClient: {
       listComponents: vi.fn(),
@@ -82,9 +103,9 @@ describe("ComponentDetailPage", () => {
     vi.mocked(componentsClient.getComponentByLibraryId).mockResolvedValue(
       {} as Awaited<ReturnType<typeof componentsClient.getComponentByLibraryId>>,
     );
-    vi.mocked(componentsClient.listComponents).mockResolvedValue(
-      { components: [] } as unknown as Awaited<ReturnType<typeof componentsClient.listComponents>>,
-    );
+    vi.mocked(componentsClient.listComponents).mockResolvedValue({
+      components: [],
+    } as unknown as Awaited<ReturnType<typeof componentsClient.listComponents>>);
     vi.mocked(getCatalogAsset).mockResolvedValue({
       component: {
         id: "cmp-42",
@@ -116,15 +137,28 @@ describe("ComponentDetailPage", () => {
 
   it("shows declared behavior, evidence tier, verdict, and capture link", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<Routes><Route path="/components/:id" element={<ComponentDetailPage />} /></Routes>, { routerEntries: ["/components/cmp-42"] });
+    renderWithProviders(
+      <Routes>
+        <Route path="/components/:id" element={<ComponentDetailPage />} />
+      </Routes>,
+      { routerEntries: ["/components/cmp-42"] },
+    );
 
     await user.click(await screen.findByRole("tab", { name: "componentDetail.info.overview" }));
-    expect(await screen.findByTestId("component-experience-panel")).toHaveTextContent("A named action is present.");
+    expect(await screen.findByTestId("component-experience-panel")).toHaveTextContent(
+      "A named action is present.",
+    );
     expect(screen.getByTestId("component-experience-panel")).toHaveTextContent("machine");
     expect(screen.getByTestId("component-experience-panel")).toHaveTextContent("passed");
-    expect(screen.getByTestId("component-experience-panel")).toHaveTextContent("componentDetail.experience.identity");
-    expect(screen.getByTestId("component-experience-panel")).toHaveTextContent("componentDetail.experience.stale");
-    expect(screen.getByRole("link", { name: "componentDetail.experience.openCapture" })).toHaveAttribute("href", "https://example.test/capture");
+    expect(screen.getByTestId("component-experience-panel")).toHaveTextContent(
+      "componentDetail.experience.identity",
+    );
+    expect(screen.getByTestId("component-experience-panel")).toHaveTextContent(
+      "componentDetail.experience.stale",
+    );
+    expect(
+      screen.getByRole("link", { name: "componentDetail.experience.openCapture" }),
+    ).toHaveAttribute("href", "https://example.test/capture");
     expect(getComponentExperience).toHaveBeenCalledWith("cmp-42");
   });
 
@@ -149,7 +183,10 @@ describe("ComponentDetailPage", () => {
     );
 
     await screen.findByRole("tab", { name: "componentDetail.info.adoptions" });
-    expect(screen.getByRole("tab", { name: "components.editor.previewMode" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "components.editor.previewMode" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.adoptions" }));
     expect(screen.getByTestId("component-detail-adoptions")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.versions" }));
@@ -167,12 +204,18 @@ describe("ComponentDetailPage", () => {
     } as Awaited<ReturnType<typeof getCatalogAsset>>);
 
     renderWithProviders(
-      <Routes><Route path="/components/:id" element={<ComponentDetailPage />} /></Routes>,
+      <Routes>
+        <Route path="/components/:id" element={<ComponentDetailPage />} />
+      </Routes>,
       { routerEntries: ["/components/cmp-42"] },
     );
 
-    expect(await screen.findByRole("tab", { name: "componentDetail.info.versions" })).toHaveTextContent("3");
-    expect(screen.getByRole("tab", { name: "componentDetail.info.adoptions" })).toHaveTextContent("2");
+    expect(
+      await screen.findByRole("tab", { name: "componentDetail.info.versions" }),
+    ).toHaveTextContent("3");
+    expect(screen.getByRole("tab", { name: "componentDetail.info.adoptions" })).toHaveTextContent(
+      "2",
+    );
   });
 
   it("links a component's shared hook dependencies from its overview", async () => {
@@ -185,16 +228,33 @@ describe("ComponentDetailPage", () => {
     );
 
     await user.click(await screen.findByRole("tab", { name: "componentDetail.info.overview" }));
-    expect(await screen.findByRole("link", { name: "react-component-library:useFocusTrap" })).toHaveAttribute("href", "/assets/react-component-library%3AuseFocusTrap?tab=overview");
-    expect(screen.getByRole("link", { name: "react-component-library:useEscapeKey" })).toHaveAttribute("href", "/assets/react-component-library%3AuseEscapeKey?tab=overview");
+    expect(
+      await screen.findByRole("link", { name: "react-component-library:useFocusTrap" }),
+    ).toHaveAttribute("href", "/assets/react-component-library%3AuseFocusTrap?tab=overview");
+    expect(
+      screen.getByRole("link", { name: "react-component-library:useEscapeKey" }),
+    ).toHaveAttribute("href", "/assets/react-component-library%3AuseEscapeKey?tab=overview");
   });
 
   it("restores an asset's saved tab and story when the URL has neither", async () => {
-    window.localStorage.setItem("rcl.asset-navigation.cmp-42", JSON.stringify({ tab: "files", story: "disabled" }));
+    window.localStorage.setItem(
+      "rcl.asset-navigation.cmp-42",
+      JSON.stringify({ tab: "files", story: "disabled" }),
+    );
     try {
-      renderWithProviders(<Routes><Route path="/components/:id" element={<ComponentDetailPage />} /></Routes>, { routerEntries: ["/components/cmp-42"] });
-      expect(await screen.findByRole("tab", { name: "components.editor.files" })).toHaveAttribute("aria-selected", "true");
-      await waitFor(() => expect(window.localStorage.getItem("rcl.asset-navigation.cmp-42")).toContain("disabled"));
+      renderWithProviders(
+        <Routes>
+          <Route path="/components/:id" element={<ComponentDetailPage />} />
+        </Routes>,
+        { routerEntries: ["/components/cmp-42"] },
+      );
+      expect(await screen.findByRole("tab", { name: "components.editor.files" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      await waitFor(() =>
+        expect(window.localStorage.getItem("rcl.asset-navigation.cmp-42")).toContain("disabled"),
+      );
     } finally {
       window.localStorage.removeItem("rcl.asset-navigation.cmp-42");
     }
@@ -216,11 +276,20 @@ describe("ComponentDetailPage", () => {
       component: { id: "hook-42", libraryId: "react-component-library:useFocusTrap" },
     } as Awaited<ReturnType<typeof componentsClient.getComponent>>);
 
-    renderWithProviders(<Routes><Route path="/assets/:id" element={<ComponentDetailPage />} /></Routes>, { routerEntries: ["/assets/hook-42"] });
+    renderWithProviders(
+      <Routes>
+        <Route path="/assets/:id" element={<ComponentDetailPage />} />
+      </Routes>,
+      { routerEntries: ["/assets/hook-42"] },
+    );
 
     await screen.findByTestId("hook-detail-page");
-    expect(await screen.findByRole("tab", { name: "componentDetail.info.overview" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByRole("tab", { name: "components.editor.preview" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("tab", { name: "componentDetail.info.overview" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.queryByRole("tab", { name: "components.editor.preview" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("hook-workspace-details")).toBeInTheDocument();
     await user.click(await screen.findByRole("tab", { name: "components.editor.files" }));
     expect(await screen.findByTestId("monaco-stub")).toBeInTheDocument();
@@ -244,10 +313,12 @@ describe("ComponentDetailPage", () => {
 
   it("resolves a bare slug through the catalog when direct lookups miss", async () => {
     vi.mocked(componentsClient.getComponent).mockRejectedValueOnce(new Error("id is not a uuid"));
-    vi.mocked(componentsClient.getComponentByLibraryId).mockRejectedValueOnce(new Error("unknown library id"));
-    vi.mocked(componentsClient.listComponents).mockResolvedValueOnce(
-      { components: [{ id: "cmp-42", slug: "Button" }] } as unknown as Awaited<ReturnType<typeof componentsClient.listComponents>>,
+    vi.mocked(componentsClient.getComponentByLibraryId).mockRejectedValueOnce(
+      new Error("unknown library id"),
     );
+    vi.mocked(componentsClient.listComponents).mockResolvedValueOnce({
+      components: [{ id: "cmp-42", slug: "Button" }],
+    } as unknown as Awaited<ReturnType<typeof componentsClient.listComponents>>);
 
     renderWithProviders(
       <Routes>

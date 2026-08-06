@@ -17,7 +17,14 @@ export const appRoutes = {
 export type AssetInfoTab = "preview" | "overview" | "files" | "tests" | "versions" | "adoptions";
 export type AssetRouteState = { tab?: AssetInfoTab; story?: string; testReport?: string };
 
-const assetTabs = new Set<AssetInfoTab>(["overview", "preview", "files", "tests", "versions", "adoptions"]);
+const assetTabs = new Set<AssetInfoTab>([
+  "overview",
+  "preview",
+  "files",
+  "tests",
+  "versions",
+  "adoptions",
+]);
 
 export function assetPath(assetID: string, state: AssetRouteState = {}): string {
   const search = new URLSearchParams();
@@ -30,7 +37,7 @@ export function assetPath(assetID: string, state: AssetRouteState = {}): string 
 
 export function assetInfoTab(search: URLSearchParams): AssetInfoTab {
   const tab = search.get("tab");
-  return tab !== null && assetTabs.has(tab as AssetInfoTab) ? tab as AssetInfoTab : "preview";
+  return tab !== null && assetTabs.has(tab as AssetInfoTab) ? (tab as AssetInfoTab) : "preview";
 }
 
 export function assetStory(search: URLSearchParams): string | undefined {

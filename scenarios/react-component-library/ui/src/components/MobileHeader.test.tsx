@@ -13,10 +13,7 @@ describe("MobileHeader", () => {
     expect(screen.getByTestId("mobile-header")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-header-brand")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-header-drawer")).toBeInTheDocument();
-    expect(screen.getByTestId("mobile-header-settings")).toHaveAttribute(
-      "href",
-      "/settings",
-    );
+    expect(screen.getByTestId("mobile-header-settings")).toHaveAttribute("href", "/settings");
   });
 
   it("invokes onOpenDrawer when the drawer button is clicked", async () => {

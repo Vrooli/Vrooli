@@ -86,62 +86,142 @@ export function AppShell({ children }: Props) {
 
   const isComponentDetail = /^\/assets\/[^/]+/.test(location.pathname);
   const isCatalog = location.pathname === "/" || location.pathname === "/catalog";
-  const pageTitle = isComponentDetail ? t("catalog.title", { defaultValue: "Component Library" }) : location.pathname === "/settings" ? t("settings.title", { defaultValue: "Settings" }) : location.pathname === "/coverage" ? "Catalog coverage" : location.pathname === "/capabilities" ? "Capability readiness" : isCatalog ? t("catalog.title", { defaultValue: "Library workspace" }) : t("app.brand", { defaultValue: "Component Library" });
-  const pageDescription = isComponentDetail ? t("components.editor.subtitle", { defaultValue: "Source, preview, and viewport controls" }) : location.pathname === "/settings" ? t("settings.subtitle", { defaultValue: "Theme and locale preferences persist locally in your browser." }) : location.pathname === "/coverage" ? "Maturity distribution and ranked next work" : location.pathname === "/capabilities" ? "Integration readiness and recovery guidance" : isCatalog ? t("catalog.subtitle", { defaultValue: "Find reusable components and non-renderable hooks." }) : t("app.brand", { defaultValue: "Component Library" });
+  const pageTitle = isComponentDetail
+    ? t("catalog.title", { defaultValue: "Component Library" })
+    : location.pathname === "/settings"
+      ? t("settings.title", { defaultValue: "Settings" })
+      : location.pathname === "/coverage"
+        ? "Catalog coverage"
+        : location.pathname === "/capabilities"
+          ? "Capability readiness"
+          : isCatalog
+            ? t("catalog.title", { defaultValue: "Library workspace" })
+            : t("app.brand", { defaultValue: "Component Library" });
+  const pageDescription = isComponentDetail
+    ? t("components.editor.subtitle", { defaultValue: "Source, preview, and viewport controls" })
+    : location.pathname === "/settings"
+      ? t("settings.subtitle", {
+          defaultValue: "Theme and locale preferences persist locally in your browser.",
+        })
+      : location.pathname === "/coverage"
+        ? "Maturity distribution and ranked next work"
+        : location.pathname === "/capabilities"
+          ? "Integration readiness and recovery guidance"
+          : isCatalog
+            ? t("catalog.subtitle", {
+                defaultValue: "Find reusable components and non-renderable hooks.",
+              })
+            : t("app.brand", { defaultValue: "Component Library" });
 
   return (
     <ShellNavigationContext.Provider value={{ sidebarCollapsed, openSidebar }}>
-    <div
-      ref={shellRef}
-      data-testid="app-shell"
-      className="flex h-dvh min-h-0 w-full overflow-hidden bg-app-background text-app-foreground"
-    >
-      <SidebarShell
-        ref={sidebarRef}
-        mobileOpen={drawerOpen}
-        desktopCollapsed={desktopSidebarCollapsed}
-        onMobileClose={closeDrawer}
-        mobileLabel={t("nav.drawerLabel", { defaultValue: "Navigation drawer" })}
-        desktopLabel={t("nav.label", { defaultValue: "Primary navigation" })}
-        closeLabel={t("nav.closeDrawer", { defaultValue: "Close navigation" })}
-        mobileHeader={
-          <span className="truncate text-sm font-semibold text-app-foreground">
-            {t("app.brand", { defaultValue: "Component Library" })}
-          </span>
-        }
-        width={isMobile ? undefined : sidebarWidth}
-        resizeHandleProps={isMobile ? undefined : resizeHandleProps}
-        contentClassName="flex"
+      <div
+        ref={shellRef}
+        data-testid="app-shell"
+        className="flex h-dvh min-h-0 w-full overflow-hidden bg-app-background text-app-foreground"
       >
-        <SidebarContent
-          onNavigate={closeDrawer}
-          onCollapse={() => setDesktopSidebarCollapsed(true)}
-          headerSlot={<Link to="/settings" aria-label={t("nav.settings", { defaultValue: "Settings" })} className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><SettingsIcon aria-hidden className="h-4 w-4" /></Link>}
-          inventorySlot={<CatalogBrowser compact onNavigate={closeDrawer} />}
-        />
-      </SidebarShell>
-
-      <div className="flex min-w-0 w-0 flex-1 flex-col">
-        {!isComponentDetail && <WorkspaceHeader
-          title={pageTitle}
-          description={pageDescription}
-          leading={sidebarCollapsed ? <button type="button" onClick={openSidebar} aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })} data-testid="workspace-header-open-sidebar" className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><Menu aria-hidden className="h-5 w-5" /></button> : undefined}
-          actions={location.pathname !== "/settings" ? <><form onSubmit={(event) => { event.preventDefault(); navigate(`/catalog${search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ""}`); }} className="hidden sm:block"><Input aria-label={t("catalog.search", { defaultValue: "Search catalog" })} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("catalog.search", { defaultValue: "Search" })} className="h-9 w-44" /></form><span className="hidden text-xs text-app-muted-foreground md:inline">{t("dashboard.synced", { defaultValue: "Synced" })}</span><Button size="sm" onClick={() => setShowCreate(true)}>{t("dashboard.create", { defaultValue: "Create" })}</Button></> : undefined}
-        />}
-        <main
-          data-testid="app-main"
-          className={
-            isComponentDetail
-              ? "pb-safe flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-auto p-0 pb-20 md:pb-0"
-              : "pb-safe min-w-0 w-0 max-w-full flex-1 overflow-auto px-space-sm py-space-sm pb-20 md:px-space-lg md:py-space-md md:pb-space-lg"
+        <SidebarShell
+          ref={sidebarRef}
+          mobileOpen={drawerOpen}
+          desktopCollapsed={desktopSidebarCollapsed}
+          onMobileClose={closeDrawer}
+          mobileLabel={t("nav.drawerLabel", { defaultValue: "Navigation drawer" })}
+          desktopLabel={t("nav.label", { defaultValue: "Primary navigation" })}
+          closeLabel={t("nav.closeDrawer", { defaultValue: "Close navigation" })}
+          mobileHeader={
+            <span className="truncate text-sm font-semibold text-app-foreground">
+              {t("app.brand", { defaultValue: "Component Library" })}
+            </span>
           }
+          width={isMobile ? undefined : sidebarWidth}
+          resizeHandleProps={isMobile ? undefined : resizeHandleProps}
+          contentClassName="flex"
         >
-          {children ?? <Outlet />}
-        </main>
+          <SidebarContent
+            onNavigate={closeDrawer}
+            onCollapse={() => setDesktopSidebarCollapsed(true)}
+            headerSlot={
+              <Link
+                to="/settings"
+                aria-label={t("nav.settings", { defaultValue: "Settings" })}
+                className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
+              >
+                <SettingsIcon aria-hidden className="h-4 w-4" />
+              </Link>
+            }
+            inventorySlot={<CatalogBrowser compact onNavigate={closeDrawer} />}
+          />
+        </SidebarShell>
+
+        <div className="flex min-w-0 w-0 flex-1 flex-col">
+          {!isComponentDetail && (
+            <WorkspaceHeader
+              title={pageTitle}
+              description={pageDescription}
+              leading={
+                sidebarCollapsed ? (
+                  <button
+                    type="button"
+                    onClick={openSidebar}
+                    aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })}
+                    data-testid="workspace-header-open-sidebar"
+                    className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
+                  >
+                    <Menu aria-hidden className="h-5 w-5" />
+                  </button>
+                ) : undefined
+              }
+              actions={
+                location.pathname !== "/settings" ? (
+                  <>
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        navigate(
+                          `/catalog${search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ""}`,
+                        );
+                      }}
+                      className="hidden sm:block"
+                    >
+                      <Input
+                        aria-label={t("catalog.search", { defaultValue: "Search catalog" })}
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder={t("catalog.search", { defaultValue: "Search" })}
+                        className="h-9 w-44"
+                      />
+                    </form>
+                    <span className="hidden text-xs text-app-muted-foreground md:inline">
+                      {t("dashboard.synced", { defaultValue: "Synced" })}
+                    </span>
+                    <Button size="sm" onClick={() => setShowCreate(true)}>
+                      {t("dashboard.create", { defaultValue: "Create" })}
+                    </Button>
+                  </>
+                ) : undefined
+              }
+            />
+          )}
+          <main
+            data-testid="app-main"
+            className={
+              isComponentDetail
+                ? "pb-safe flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-auto p-0 pb-20 md:pb-0"
+                : "pb-safe min-w-0 w-0 max-w-full flex-1 overflow-auto px-space-sm py-space-sm pb-20 md:px-space-lg md:py-space-md md:pb-space-lg"
+            }
+          >
+            {children ?? <Outlet />}
+          </main>
+        </div>
+        {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
+        <ActionLauncher
+          action={launcherAction}
+          onActionChange={setLauncherAction}
+          onCreate={() => setShowCreate(true)}
+          initialAssetID={launcherAssetID}
+          initialTarget={launcherTarget}
+        />
       </div>
-      {showCreate && <CreateComponentDialog onClose={() => setShowCreate(false)} />}
-      <ActionLauncher action={launcherAction} onActionChange={setLauncherAction} onCreate={() => setShowCreate(true)} initialAssetID={launcherAssetID} initialTarget={launcherTarget} />
-    </div>
     </ShellNavigationContext.Provider>
   );
 }

@@ -1,1 +1,11 @@
-{"libraryId":"react-component-library:Stat","catalogId":"data-display.stat","displayName":"Stat","description":"A hierarchy-aware metric primitive that keeps labels, values, and supporting context distinct.","assetKind":"component","tags":["data-display","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}
+{
+  "libraryId": "react-component-library:Stat",
+  "catalogId": "data-display.stat",
+  "displayName": "Stat",
+  "description": "A hierarchy-aware metric primitive that keeps labels, values, and supporting context distinct.",
+  "assetKind": "component",
+  "tags": ["data-display", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}
