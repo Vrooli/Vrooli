@@ -8,6 +8,7 @@ service HarnessService {
   rpc RefreshProjection(RefreshProjectionRequest) returns (RefreshProjectionResponse);
   rpc InstallPromptBlock(InstallPromptBlockRequest) returns (InstallPromptBlockResponse);
   rpc CaptureWrite(CaptureWriteRequest) returns (CaptureWriteResponse);
+  rpc GetMaintenanceStatus(GetMaintenanceStatusRequest) returns (GetMaintenanceStatusResponse);
 }
 message RuntimeRequest {
   string runtime = 1;
@@ -21,6 +22,7 @@ message RunImportResponse {
   ImportRun run = 2;
   bool joined_existing_run = 3;
   bool dry_run = 4;
+  string observation = 5;
 }
 message GetImportStatusRequest {
   string run_id = 1;
@@ -69,4 +71,23 @@ message CaptureWriteRequest {
 }
 message CaptureWriteResponse {
   string entry_id = 1;
+}
+message GetMaintenanceStatusRequest {}
+message GetMaintenanceStatusResponse {
+  MaintenanceRun run = 1;
+}
+message MaintenanceRun {
+  string id = 1;
+  string started_at = 2;
+  string completed_at = 3;
+  repeated MaintenanceOutcome outcomes = 4;
+}
+message MaintenanceOutcome {
+  string runtime = 1;
+  string import_status = 2;
+  string import_error = 3;
+  string projection_status = 4;
+  string projection_error = 5;
+  string started_at = 6;
+  string completed_at = 7;
 }

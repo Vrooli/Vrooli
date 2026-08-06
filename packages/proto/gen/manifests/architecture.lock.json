@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "architecture",
-  "input_digest": "sha256:737a7674897ddd9ddcb66e56331ca741edc4bfbb458811e428b5a1c96cdc22cf",
+  "input_digest": "sha256:dfed2de6319912cf12b01ac2f44bcffc1fe015061137d3e91be0f20ef4d47c28",
   "input_files": [
     "schemas/architecture/v1/findings.proto",
     "schemas/common/v1/validation_target.proto"

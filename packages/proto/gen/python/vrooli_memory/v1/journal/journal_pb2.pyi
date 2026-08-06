@@ -74,7 +74,7 @@ class Entry(_message.Message):
     def __init__(self, id: _Optional[str] = ..., body: _Optional[str] = ..., facet_id: _Optional[str] = ..., attribution: _Optional[_Union[Attribution, _Mapping]] = ..., correlation: _Optional[_Union[Correlation, _Mapping]] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., facet_texts: _Optional[_Iterable[_Union[FacetText, _Mapping]]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., superseded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., kind: _Optional[str] = ...) -> None: ...
 
 class AppendEntryRequest(_message.Message):
-    __slots__ = ("body", "facet_id", "kind", "attribution", "correlation", "import_provenance", "trigger", "approach", "evidence", "outcome")
+    __slots__ = ("body", "facet_id", "kind", "attribution", "correlation", "import_provenance", "trigger", "approach", "evidence", "outcome", "scope")
     BODY_FIELD_NUMBER: _ClassVar[int]
     FACET_ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -85,6 +85,7 @@ class AppendEntryRequest(_message.Message):
     APPROACH_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     body: str
     facet_id: str
     kind: str
@@ -95,7 +96,8 @@ class AppendEntryRequest(_message.Message):
     approach: str
     evidence: str
     outcome: str
-    def __init__(self, body: _Optional[str] = ..., facet_id: _Optional[str] = ..., kind: _Optional[str] = ..., attribution: _Optional[_Union[Attribution, _Mapping]] = ..., correlation: _Optional[_Union[Correlation, _Mapping]] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., trigger: _Optional[str] = ..., approach: _Optional[str] = ..., evidence: _Optional[str] = ..., outcome: _Optional[str] = ...) -> None: ...
+    scope: str
+    def __init__(self, body: _Optional[str] = ..., facet_id: _Optional[str] = ..., kind: _Optional[str] = ..., attribution: _Optional[_Union[Attribution, _Mapping]] = ..., correlation: _Optional[_Union[Correlation, _Mapping]] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., trigger: _Optional[str] = ..., approach: _Optional[str] = ..., evidence: _Optional[str] = ..., outcome: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class AppendEntryResponse(_message.Message):
     __slots__ = ("entry",)
@@ -104,10 +106,12 @@ class AppendEntryResponse(_message.Message):
     def __init__(self, entry: _Optional[_Union[Entry, _Mapping]] = ...) -> None: ...
 
 class GetEntryRequest(_message.Message):
-    __slots__ = ("id",)
+    __slots__ = ("id", "scope")
     ID_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     id: str
-    def __init__(self, id: _Optional[str] = ...) -> None: ...
+    scope: str
+    def __init__(self, id: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class GetEntryResponse(_message.Message):
     __slots__ = ("entry",)
@@ -116,14 +120,16 @@ class GetEntryResponse(_message.Message):
     def __init__(self, entry: _Optional[_Union[Entry, _Mapping]] = ...) -> None: ...
 
 class ListEntriesRequest(_message.Message):
-    __slots__ = ("facet_id", "limit", "cursor")
+    __slots__ = ("facet_id", "limit", "cursor", "scope")
     FACET_ID_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     CURSOR_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     facet_id: str
     limit: int
     cursor: str
-    def __init__(self, facet_id: _Optional[str] = ..., limit: _Optional[int] = ..., cursor: _Optional[str] = ...) -> None: ...
+    scope: str
+    def __init__(self, facet_id: _Optional[str] = ..., limit: _Optional[int] = ..., cursor: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class ListEntriesResponse(_message.Message):
     __slots__ = ("entries", "next_cursor")
@@ -134,10 +140,12 @@ class ListEntriesResponse(_message.Message):
     def __init__(self, entries: _Optional[_Iterable[_Union[Entry, _Mapping]]] = ..., next_cursor: _Optional[str] = ...) -> None: ...
 
 class ProcessClassificationRetriesRequest(_message.Message):
-    __slots__ = ("limit",)
+    __slots__ = ("limit", "scope")
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     limit: int
-    def __init__(self, limit: _Optional[int] = ...) -> None: ...
+    scope: str
+    def __init__(self, limit: _Optional[int] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class ProcessClassificationRetriesResponse(_message.Message):
     __slots__ = ("processed", "deferred", "already_resolved")
@@ -150,10 +158,12 @@ class ProcessClassificationRetriesResponse(_message.Message):
     def __init__(self, processed: _Optional[int] = ..., deferred: _Optional[int] = ..., already_resolved: _Optional[int] = ...) -> None: ...
 
 class ProcessEmbeddingRetriesRequest(_message.Message):
-    __slots__ = ("limit",)
+    __slots__ = ("limit", "scope")
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     limit: int
-    def __init__(self, limit: _Optional[int] = ...) -> None: ...
+    scope: str
+    def __init__(self, limit: _Optional[int] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class ProcessEmbeddingRetriesResponse(_message.Message):
     __slots__ = ("processed", "deferred", "already_resolved")

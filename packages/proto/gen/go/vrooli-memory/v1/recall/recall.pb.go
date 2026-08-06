@@ -125,6 +125,7 @@ type RecallRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
 	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Scope         string                 `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -171,6 +172,13 @@ func (x *RecallRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *RecallRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
 }
 
 type RecallResponse struct {
@@ -220,6 +228,7 @@ func (x *RecallResponse) GetHits() []*RecallHit {
 type WakeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TokenBudget   int32                  `protobuf:"varint,1,opt,name=token_budget,json=tokenBudget,proto3" json:"token_budget,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -259,6 +268,13 @@ func (x *WakeRequest) GetTokenBudget() int32 {
 		return x.TokenBudget
 	}
 	return 0
+}
+
+func (x *WakeRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
 }
 
 type WakeResponse struct {
@@ -316,6 +332,7 @@ func (x *WakeResponse) GetOverflow() bool {
 type ZoomRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -353,6 +370,13 @@ func (*ZoomRequest) Descriptor() ([]byte, []int) {
 func (x *ZoomRequest) GetNodeId() string {
 	if x != nil {
 		return x.NodeId
+	}
+	return ""
+}
+
+func (x *ZoomRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
 	}
 	return ""
 }
@@ -404,6 +428,7 @@ func (x *ZoomResponse) GetConstituents() []*RecallHit {
 type ListSiblingEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EntryId       string                 `protobuf:"bytes,1,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -441,6 +466,13 @@ func (*ListSiblingEventsRequest) Descriptor() ([]byte, []int) {
 func (x *ListSiblingEventsRequest) GetEntryId() string {
 	if x != nil {
 		return x.EntryId
+	}
+	return ""
+}
+
+func (x *ListSiblingEventsRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
 	}
 	return ""
 }
@@ -502,23 +534,27 @@ const file_vrooli_memory_v1_recall_recall_proto_rawDesc = "" +
 	"\x05depth\x18\x05 \x01(\x05R\x05depth\x12\x17\n" +
 	"\anode_id\x18\x06 \x01(\tR\x06nodeId\x12\x18\n" +
 	"\asummary\x18\a \x01(\bR\asummary\x12\x12\n" +
-	"\x04span\x18\b \x01(\x05R\x04span\";\n" +
+	"\x04span\x18\b \x01(\x05R\x04span\"Q\n" +
 	"\rRecallRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\"O\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x14\n" +
+	"\x05scope\x18\x03 \x01(\tR\x05scope\"O\n" +
 	"\x0eRecallResponse\x12=\n" +
-	"\x04hits\x18\x01 \x03(\v2).vrooli.vrooli_memory.v1.recall.RecallHitR\x04hits\"0\n" +
+	"\x04hits\x18\x01 \x03(\v2).vrooli.vrooli_memory.v1.recall.RecallHitR\x04hits\"F\n" +
 	"\vWakeRequest\x12!\n" +
-	"\ftoken_budget\x18\x01 \x01(\x05R\vtokenBudget\"i\n" +
+	"\ftoken_budget\x18\x01 \x01(\x05R\vtokenBudget\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"i\n" +
 	"\fWakeResponse\x12=\n" +
 	"\x04hits\x18\x01 \x03(\v2).vrooli.vrooli_memory.v1.recall.RecallHitR\x04hits\x12\x1a\n" +
-	"\boverflow\x18\x02 \x01(\bR\boverflow\"&\n" +
+	"\boverflow\x18\x02 \x01(\bR\boverflow\"<\n" +
 	"\vZoomRequest\x12\x17\n" +
-	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"]\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"]\n" +
 	"\fZoomResponse\x12M\n" +
-	"\fconstituents\x18\x01 \x03(\v2).vrooli.vrooli_memory.v1.recall.RecallHitR\fconstituents\"5\n" +
+	"\fconstituents\x18\x01 \x03(\v2).vrooli.vrooli_memory.v1.recall.RecallHitR\fconstituents\"K\n" +
 	"\x18ListSiblingEventsRequest\x12\x19\n" +
-	"\bentry_id\x18\x01 \x01(\tR\aentryId\"`\n" +
+	"\bentry_id\x18\x01 \x01(\tR\aentryId\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"`\n" +
 	"\x19ListSiblingEventsResponse\x12C\n" +
 	"\aentries\x18\x01 \x03(\v2).vrooli.vrooli_memory.v1.recall.RecallHitR\aentries2\xc9\x03\n" +
 	"\rRecallService\x12g\n" +

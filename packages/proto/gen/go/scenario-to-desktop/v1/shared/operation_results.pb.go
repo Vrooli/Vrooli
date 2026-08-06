@@ -732,6 +732,142 @@ func (x *EvidenceReview) GetSafeRouteClass() string {
 	return ""
 }
 
+type PerformancePhase struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Available     bool                   `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
+	DurationMs    int64                  `protobuf:"varint,3,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Reason        *string                `protobuf:"bytes,4,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PerformancePhase) Reset() {
+	*x = PerformancePhase{}
+	mi := &file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PerformancePhase) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PerformancePhase) ProtoMessage() {}
+
+func (x *PerformancePhase) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PerformancePhase.ProtoReflect.Descriptor instead.
+func (*PerformancePhase) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_shared_operation_results_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PerformancePhase) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PerformancePhase) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *PerformancePhase) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *PerformancePhase) GetReason() string {
+	if x != nil && x.Reason != nil {
+		return *x.Reason
+	}
+	return ""
+}
+
+type SmokeTestPerformance struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Status         string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Reason         *string                `protobuf:"bytes,2,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
+	ProtocolPhases []*PerformancePhase    `protobuf:"bytes,3,rep,name=protocol_phases,json=protocolPhases,proto3" json:"protocol_phases,omitempty"`
+	DemoPhases     []*PerformancePhase    `protobuf:"bytes,4,rep,name=demo_phases,json=demoPhases,proto3" json:"demo_phases,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SmokeTestPerformance) Reset() {
+	*x = SmokeTestPerformance{}
+	mi := &file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SmokeTestPerformance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SmokeTestPerformance) ProtoMessage() {}
+
+func (x *SmokeTestPerformance) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SmokeTestPerformance.ProtoReflect.Descriptor instead.
+func (*SmokeTestPerformance) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_shared_operation_results_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SmokeTestPerformance) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *SmokeTestPerformance) GetReason() string {
+	if x != nil && x.Reason != nil {
+		return *x.Reason
+	}
+	return ""
+}
+
+func (x *SmokeTestPerformance) GetProtocolPhases() []*PerformancePhase {
+	if x != nil {
+		return x.ProtocolPhases
+	}
+	return nil
+}
+
+func (x *SmokeTestPerformance) GetDemoPhases() []*PerformancePhase {
+	if x != nil {
+		return x.DemoPhases
+	}
+	return nil
+}
+
 type SmokeTestStatusResponse struct {
 	state                protoimpl.MessageState  `protogen:"open.v1"`
 	SmokeTestId          string                  `protobuf:"bytes,1,opt,name=smoke_test_id,json=smokeTestId,proto3" json:"smoke_test_id,omitempty"`
@@ -747,13 +883,14 @@ type SmokeTestStatusResponse struct {
 	TelemetryUploadError *string                 `protobuf:"bytes,11,opt,name=telemetry_upload_error,json=telemetryUploadError,proto3,oneof" json:"telemetry_upload_error,omitempty"`
 	ScreenRecording      *ScreenRecordingSummary `protobuf:"bytes,12,opt,name=screen_recording,json=screenRecording,proto3,oneof" json:"screen_recording,omitempty"`
 	EvidenceReview       *EvidenceReview         `protobuf:"bytes,13,opt,name=evidence_review,json=evidenceReview,proto3,oneof" json:"evidence_review,omitempty"`
+	Performance          *SmokeTestPerformance   `protobuf:"bytes,14,opt,name=performance,proto3,oneof" json:"performance,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
 
 func (x *SmokeTestStatusResponse) Reset() {
 	*x = SmokeTestStatusResponse{}
-	mi := &file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[5]
+	mi := &file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -765,7 +902,7 @@ func (x *SmokeTestStatusResponse) String() string {
 func (*SmokeTestStatusResponse) ProtoMessage() {}
 
 func (x *SmokeTestStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[5]
+	mi := &file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -778,7 +915,7 @@ func (x *SmokeTestStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SmokeTestStatusResponse.ProtoReflect.Descriptor instead.
 func (*SmokeTestStatusResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_shared_operation_results_proto_rawDescGZIP(), []int{5}
+	return file_scenario_to_desktop_v1_shared_operation_results_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SmokeTestStatusResponse) GetSmokeTestId() string {
@@ -868,6 +1005,13 @@ func (x *SmokeTestStatusResponse) GetScreenRecording() *ScreenRecordingSummary {
 func (x *SmokeTestStatusResponse) GetEvidenceReview() *EvidenceReview {
 	if x != nil {
 		return x.EvidenceReview
+	}
+	return nil
+}
+
+func (x *SmokeTestStatusResponse) GetPerformance() *SmokeTestPerformance {
+	if x != nil {
+		return x.Performance
 	}
 	return nil
 }
@@ -979,7 +1123,21 @@ const file_scenario_to_desktop_v1_shared_operation_results_proto_rawDesc = "" +
 	"\n" +
 	"_readinessB\x14\n" +
 	"\x12_fallback_decisionB\x13\n" +
-	"\x11_safe_route_class\"\x82\a\n" +
+	"\x11_safe_route_class\"\x8d\x01\n" +
+	"\x10PerformancePhase\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1c\n" +
+	"\tavailable\x18\x02 \x01(\bR\tavailable\x12\x1f\n" +
+	"\vduration_ms\x18\x03 \x01(\x03R\n" +
+	"durationMs\x12\x1b\n" +
+	"\x06reason\x18\x04 \x01(\tH\x00R\x06reason\x88\x01\x01B\t\n" +
+	"\a_reason\"\x90\x02\n" +
+	"\x14SmokeTestPerformance\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1b\n" +
+	"\x06reason\x18\x02 \x01(\tH\x00R\x06reason\x88\x01\x01\x12_\n" +
+	"\x0fprotocol_phases\x18\x03 \x03(\v26.vrooli.scenario_to_desktop.v1.shared.PerformancePhaseR\x0eprotocolPhases\x12W\n" +
+	"\vdemo_phases\x18\x04 \x03(\v26.vrooli.scenario_to_desktop.v1.shared.PerformancePhaseR\n" +
+	"demoPhasesB\t\n" +
+	"\a_reason\"\xf5\a\n" +
 	"\x17SmokeTestStatusResponse\x12\"\n" +
 	"\rsmoke_test_id\x18\x01 \x01(\tR\vsmokeTestId\x12#\n" +
 	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12J\n" +
@@ -995,13 +1153,15 @@ const file_scenario_to_desktop_v1_shared_operation_results_proto_rawDesc = "" +
 	" \x01(\bR\x11telemetryUploaded\x129\n" +
 	"\x16telemetry_upload_error\x18\v \x01(\tH\x03R\x14telemetryUploadError\x88\x01\x01\x12l\n" +
 	"\x10screen_recording\x18\f \x01(\v2<.vrooli.scenario_to_desktop.v1.shared.ScreenRecordingSummaryH\x04R\x0fscreenRecording\x88\x01\x01\x12b\n" +
-	"\x0fevidence_review\x18\r \x01(\v24.vrooli.scenario_to_desktop.v1.shared.EvidenceReviewH\x05R\x0eevidenceReview\x88\x01\x01B\x10\n" +
+	"\x0fevidence_review\x18\r \x01(\v24.vrooli.scenario_to_desktop.v1.shared.EvidenceReviewH\x05R\x0eevidenceReview\x88\x01\x01\x12a\n" +
+	"\vperformance\x18\x0e \x01(\v2:.vrooli.scenario_to_desktop.v1.shared.SmokeTestPerformanceH\x06R\vperformance\x88\x01\x01B\x10\n" +
 	"\x0e_artifact_pathB\x0f\n" +
 	"\r_completed_atB\b\n" +
 	"\x06_errorB\x19\n" +
 	"\x17_telemetry_upload_errorB\x13\n" +
 	"\x11_screen_recordingB\x12\n" +
-	"\x10_evidence_review*\xc6\x01\n" +
+	"\x10_evidence_reviewB\x0e\n" +
+	"\f_performance*\xc6\x01\n" +
 	"\x13PlatformBuildStatus\x12%\n" +
 	"!PLATFORM_BUILD_STATUS_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1ePLATFORM_BUILD_STATUS_BUILDING\x10\x01\x12\x1f\n" +
@@ -1027,7 +1187,7 @@ func file_scenario_to_desktop_v1_shared_operation_results_proto_rawDescGZIP() []
 }
 
 var file_scenario_to_desktop_v1_shared_operation_results_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_scenario_to_desktop_v1_shared_operation_results_proto_goTypes = []any{
 	(PlatformBuildStatus)(0),        // 0: vrooli.scenario_to_desktop.v1.shared.PlatformBuildStatus
 	(SmokeTestStatus)(0),            // 1: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatus
@@ -1036,43 +1196,48 @@ var file_scenario_to_desktop_v1_shared_operation_results_proto_goTypes = []any{
 	(*ScreenRecordingSummary)(nil),  // 4: vrooli.scenario_to_desktop.v1.shared.ScreenRecordingSummary
 	(*EvidenceChapter)(nil),         // 5: vrooli.scenario_to_desktop.v1.shared.EvidenceChapter
 	(*EvidenceReview)(nil),          // 6: vrooli.scenario_to_desktop.v1.shared.EvidenceReview
-	(*SmokeTestStatusResponse)(nil), // 7: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
-	nil,                             // 8: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry
-	nil,                             // 9: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.ArtifactsEntry
-	nil,                             // 10: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.MetadataEntry
-	(Platform)(0),                   // 11: vrooli.scenario_to_desktop.v1.shared.Platform
-	(*timestamppb.Timestamp)(nil),   // 12: google.protobuf.Timestamp
-	(BuildStatus)(0),                // 13: vrooli.scenario_to_desktop.v1.shared.BuildStatus
-	(Framework)(0),                  // 14: vrooli.scenario_to_desktop.v1.shared.Framework
-	(TemplateType)(0),               // 15: vrooli.scenario_to_desktop.v1.shared.TemplateType
+	(*PerformancePhase)(nil),        // 7: vrooli.scenario_to_desktop.v1.shared.PerformancePhase
+	(*SmokeTestPerformance)(nil),    // 8: vrooli.scenario_to_desktop.v1.shared.SmokeTestPerformance
+	(*SmokeTestStatusResponse)(nil), // 9: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
+	nil,                             // 10: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry
+	nil,                             // 11: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.ArtifactsEntry
+	nil,                             // 12: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.MetadataEntry
+	(Platform)(0),                   // 13: vrooli.scenario_to_desktop.v1.shared.Platform
+	(*timestamppb.Timestamp)(nil),   // 14: google.protobuf.Timestamp
+	(BuildStatus)(0),                // 15: vrooli.scenario_to_desktop.v1.shared.BuildStatus
+	(Framework)(0),                  // 16: vrooli.scenario_to_desktop.v1.shared.Framework
+	(TemplateType)(0),               // 17: vrooli.scenario_to_desktop.v1.shared.TemplateType
 }
 var file_scenario_to_desktop_v1_shared_operation_results_proto_depIdxs = []int32{
-	11, // 0: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	13, // 0: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
 	0,  // 1: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.status:type_name -> vrooli.scenario_to_desktop.v1.shared.PlatformBuildStatus
-	12, // 2: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.started_at:type_name -> google.protobuf.Timestamp
-	12, // 3: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.completed_at:type_name -> google.protobuf.Timestamp
-	13, // 4: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.status:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatus
-	14, // 5: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
-	15, // 6: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
-	11, // 7: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.requested_platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
-	8,  // 8: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.platform_results:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry
-	12, // 9: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.created_at:type_name -> google.protobuf.Timestamp
-	12, // 10: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
-	9,  // 11: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.artifacts:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.ArtifactsEntry
-	10, // 12: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.MetadataEntry
+	14, // 2: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.started_at:type_name -> google.protobuf.Timestamp
+	14, // 3: vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult.completed_at:type_name -> google.protobuf.Timestamp
+	15, // 4: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.status:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatus
+	16, // 5: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
+	17, // 6: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
+	13, // 7: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.requested_platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	10, // 8: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.platform_results:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry
+	14, // 9: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.created_at:type_name -> google.protobuf.Timestamp
+	14, // 10: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
+	11, // 11: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.artifacts:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.ArtifactsEntry
+	12, // 12: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.MetadataEntry
 	5,  // 13: vrooli.scenario_to_desktop.v1.shared.EvidenceReview.chapters:type_name -> vrooli.scenario_to_desktop.v1.shared.EvidenceChapter
-	11, // 14: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
-	1,  // 15: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.status:type_name -> vrooli.scenario_to_desktop.v1.shared.SmokeTestStatus
-	12, // 16: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	12, // 17: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
-	4,  // 18: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.screen_recording:type_name -> vrooli.scenario_to_desktop.v1.shared.ScreenRecordingSummary
-	6,  // 19: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.evidence_review:type_name -> vrooli.scenario_to_desktop.v1.shared.EvidenceReview
-	2,  // 20: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry.value:type_name -> vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	7,  // 14: vrooli.scenario_to_desktop.v1.shared.SmokeTestPerformance.protocol_phases:type_name -> vrooli.scenario_to_desktop.v1.shared.PerformancePhase
+	7,  // 15: vrooli.scenario_to_desktop.v1.shared.SmokeTestPerformance.demo_phases:type_name -> vrooli.scenario_to_desktop.v1.shared.PerformancePhase
+	13, // 16: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	1,  // 17: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.status:type_name -> vrooli.scenario_to_desktop.v1.shared.SmokeTestStatus
+	14, // 18: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	14, // 19: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
+	4,  // 20: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.screen_recording:type_name -> vrooli.scenario_to_desktop.v1.shared.ScreenRecordingSummary
+	6,  // 21: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.evidence_review:type_name -> vrooli.scenario_to_desktop.v1.shared.EvidenceReview
+	8,  // 22: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse.performance:type_name -> vrooli.scenario_to_desktop.v1.shared.SmokeTestPerformance
+	2,  // 23: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse.PlatformResultsEntry.value:type_name -> vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult
+	24, // [24:24] is the sub-list for method output_type
+	24, // [24:24] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_shared_operation_results_proto_init() }
@@ -1087,13 +1252,15 @@ func file_scenario_to_desktop_v1_shared_operation_results_proto_init() {
 	file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[3].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[4].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[5].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[6].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_shared_operation_results_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_shared_operation_results_proto_rawDesc), len(file_scenario_to_desktop_v1_shared_operation_results_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

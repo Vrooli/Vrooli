@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "business-health",
-  "input_digest": "sha256:3ae37531cdaec85c241f3075cfbb92ea33cf7106079e546c1ae2ad15663bcbec",
+  "input_digest": "sha256:9b4eb1b7f874c06b34ee8efdf46485acb6d95899740c991c02ea6757c8843eb1",
   "input_files": [
     "schemas/business-health/v1/contract/contract.proto",
     "schemas/business-health/v1/fleet/fleet.proto",

@@ -14,22 +14,22 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Gateway request contract | Expose a stable request contract for chat, generation, summarization, classification, structured extraction, and embeddings that accepts role/profile/constraints rather than concrete model slugs.
+- [x] OT-P0-001 | Gateway request contract | Expose a stable request contract for chat, generation, summarization, classification, structured extraction, and embeddings that accepts role/profile/constraints rather than concrete model slugs.
 - [ ] OT-P0-002 | Resource-backed provider execution | Route every provider call through approved resource gateway commands such as `resource-ollama gateway ...` and `resource-openrouter ...`, with no direct provider HTTP clients, localhost assumptions, or provider secret handling in this scenario.
-- [ ] OT-P0-003 | Role and profile inventory | Discover, normalize, and display provider roles, policies, available models, constraints, and smoke-test status for Ollama and OpenRouter without making AI Gateway the source of truth for provider model catalogs.
-- [ ] OT-P0-004 | Route preview and evidence | Explain why a request would use a provider/model/role path before execution and record auditable route evidence after execution.
-- [ ] OT-P0-005 | AI conformance validation provider | Provide a test-genie phase that reports AI integration violations across scenarios, including direct provider access, invalid provider env vars, concrete model coupling, embedding metadata risks, and missing gateway adoption at higher maturities.
+- [x] OT-P0-003 | Role and profile inventory | Discover, normalize, and display provider roles, policies, available models, constraints, and smoke-test status for Ollama and OpenRouter without making AI Gateway the source of truth for provider model catalogs.
+- [x] OT-P0-004 | Route preview and evidence | Explain why a request would use a provider/model/role path before execution and record auditable route evidence after execution.
+- [x] OT-P0-005 | AI conformance validation provider | Provide a test-genie phase that reports AI integration violations across scenarios, including direct provider access, invalid provider env vars, concrete model coupling, embedding metadata risks, and missing gateway adoption at higher maturities.
 - [ ] OT-P0-006 | Professional operator surface | Replace the generated placeholder UI with a dense, accessible operator experience for provider status, route preview, request traces, conformance findings, and profile management.
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Embedding governance and retarget planning | Help scenarios declare embedding role, dimensions, content hash/version metadata, vector-store schema expectations, and migration/retarget risk when embedding models change.
+- [x] OT-P1-001 | Embedding governance and retarget planning | Help scenarios declare embedding role, dimensions, content hash/version metadata, vector-store schema expectations, and migration/retarget risk when embedding models change.
 - [ ] OT-P1-002 | Cross-resource role alignment | Add policy-management workflows that surface gaps between Ollama and OpenRouter roles, including `extract.structured` on Ollama and an investigated `embedding.default` path on OpenRouter if the provider contract supports it.
 - [x] OT-P1-003 | Migration assistance | Produce scenario-by-scenario adoption reports and fix guidance for moving from direct Ollama/OpenRouter/resource calls to AI Gateway profiles.
-- [ ] OT-P1-004 | Budget, privacy, and locality constraints | Enforce operator-controlled routing policies such as local-only, local-first, remote-only, quality-first, cheap-first, privacy-sensitive, and max-cost ceilings.
-- [ ] OT-P1-005 | SDK and caller ergonomics | Provide small typed client helpers for common scenario callers while keeping the wire/API contract provider-neutral.
-- [ ] OT-P1-006 | Provider failure isolation | Persist provider-health state and open a circuit breaker with cooldown and half-open recovery so repeated provider/role failures stop suppressing healthy fallbacks; preview and execution both respect breaker state.
-- [ ] OT-P1-007 | Route analytics and measures | Record structured outcome codes on route evidence and expose descriptor-backed route measures (success/fallback/failure/latency/breaker/capacity) over route_events without hidden scoring.
-- [ ] OT-P1-008 | Capacity-aware local routing | Consult the platform capacity broker before selecting local AI routes and record a structured capacity verdict, with policy-respecting remote fallback and fail-closed local-only/privacy-sensitive behavior.
+- [x] OT-P1-004 | Budget, privacy, and locality constraints | Enforce operator-controlled routing policies such as local-only, local-first, remote-only, quality-first, cheap-first, privacy-sensitive, and max-cost ceilings.
+- [x] OT-P1-005 | SDK and caller ergonomics | Provide small typed client helpers for common scenario callers while keeping the wire/API contract provider-neutral.
+- [x] OT-P1-006 | Provider failure isolation | Persist provider-health state and open a circuit breaker with cooldown and half-open recovery so repeated provider/role failures stop suppressing healthy fallbacks; preview and execution both respect breaker state.
+- [x] OT-P1-007 | Route analytics and measures | Record structured outcome codes on route evidence and expose descriptor-backed route measures (success/fallback/failure/latency/breaker/capacity) over route_events without hidden scoring.
+- [x] OT-P1-008 | Capacity-aware local routing | Consult the platform capacity broker before selecting local AI routes and record a structured capacity verdict, with policy-respecting remote fallback and fail-closed local-only/privacy-sensitive behavior.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Adaptive routing intelligence | Learn from quality, latency, cost, failure, and operator feedback to improve routing decisions without hiding policy reasons. Planned: blocked on validated descriptor-backed route measures; conservative deterministic routing ships today.

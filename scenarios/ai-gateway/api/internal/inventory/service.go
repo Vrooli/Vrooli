@@ -15,8 +15,24 @@ type ProviderAdapter interface {
 }
 
 type Service struct {
-	adapters map[string]ProviderAdapter
-	order    []string
+	adapters     map[string]ProviderAdapter
+	order        []string
+	logicalRoles []providers.Role
+}
+
+func (s *Service) SetLogicalRoles(roles []string) {
+	if s == nil {
+		return
+	}
+	s.logicalRoles = make([]providers.Role, 0, len(roles))
+	for _, role := range roles {
+		role = strings.TrimSpace(role)
+		if role == "" {
+			continue
+		}
+		s.logicalRoles = append(s.logicalRoles, providers.Role{Provider: "ai-gateway", Role: role, Capabilities: []string{"typed-inference"}, Locality: "gateway", Status: "declared", PolicySchemaVersion: "catalog-v1"})
+	}
+	sort.Slice(s.logicalRoles, func(i, j int) bool { return s.logicalRoles[i].Role < s.logicalRoles[j].Role })
 }
 
 func NewService(adapters []providers.Adapter) *Service {
@@ -44,6 +60,13 @@ func NewServiceWithAdapters(adapters []ProviderAdapter) *Service {
 func (s *Service) ListProviderRoles(ctx context.Context, provider string) ([]providers.Role, []string) {
 	var roles []providers.Role
 	var warnings []string
+	normalizedProvider := strings.ToLower(strings.TrimSpace(provider))
+	if normalizedProvider == "ai-gateway" {
+		return append([]providers.Role(nil), s.logicalRoles...), nil
+	}
+	if normalizedProvider == "" || normalizedProvider == "all" {
+		roles = append(roles, s.logicalRoles...)
+	}
 	selected := s.selectedProviders(provider)
 	if len(selected) == 0 && strings.TrimSpace(provider) != "" {
 		return nil, []string{fmt.Sprintf("%s: provider is not configured", strings.TrimSpace(provider))}

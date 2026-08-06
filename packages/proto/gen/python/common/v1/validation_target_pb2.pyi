@@ -16,6 +16,7 @@ class ValidationTargetKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VALIDATION_TARGET_KIND_PACKAGE: _ClassVar[ValidationTargetKind]
     VALIDATION_TARGET_KIND_CONTROL_PLANE: _ClassVar[ValidationTargetKind]
     VALIDATION_TARGET_KIND_DOCS: _ClassVar[ValidationTargetKind]
+    VALIDATION_TARGET_KIND_PROJECT: _ClassVar[ValidationTargetKind]
 VALIDATION_TARGET_KIND_UNSPECIFIED: ValidationTargetKind
 VALIDATION_TARGET_KIND_SCENARIO: ValidationTargetKind
 VALIDATION_TARGET_KIND_RESOURCE: ValidationTargetKind
@@ -25,6 +26,7 @@ VALIDATION_TARGET_KIND_TEAM: ValidationTargetKind
 VALIDATION_TARGET_KIND_PACKAGE: ValidationTargetKind
 VALIDATION_TARGET_KIND_CONTROL_PLANE: ValidationTargetKind
 VALIDATION_TARGET_KIND_DOCS: ValidationTargetKind
+VALIDATION_TARGET_KIND_PROJECT: ValidationTargetKind
 
 class ValidationTarget(_message.Message):
     __slots__ = ("kind", "id", "root")

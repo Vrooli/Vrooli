@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/host_inventory.proto.
  */
 export const file_cli_v1_host_inventory: GenFile = /*@__PURE__*/
-  fileDesc("ChtjbGkvdjEvaG9zdF9pbnZlbnRvcnkucHJvdG8SDXZyb29saS5jbGkudjEizgEKFUhvc3RJbnZlbnRvcnlSZXNwb25zZRIpCgZtZW1vcnkYASABKAsyGS52cm9vbGkuY2xpLnYxLkhvc3RNZW1vcnkSJQoEc3dhcBgCIAEoCzIXLnZyb29saS5jbGkudjEuSG9zdFN3YXASCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIjCgNjcHUYBSABKAsyFi52cm9vbGkuY2xpLnYxLkhvc3RDUFUSJAoEZ3B1cxgGIAMoCzIWLnZyb29saS5jbGkudjEuSG9zdEdQVSJnCgpIb3N0TWVtb3J5EhMKC3RvdGFsX2J5dGVzGAEgASgEEhcKD2F2YWlsYWJsZV9ieXRlcxgCIAEoBBIVCg1idWZmZXJzX2J5dGVzGAMgASgEEhQKDGNhY2hlZF9ieXRlcxgEIAEoBCIfCghIb3N0U3dhcBITCgt0b3RhbF9ieXRlcxgBIAEoBCIYCgdIb3N0Q1BVEg0KBWNvcmVzGAEgASgFImMKB0hvc3RHUFUSDQoFaW5kZXgYASABKAUSDAoEbmFtZRgCIAEoCRISCgp2cmFtX2J5dGVzGAMgASgEEhcKD3ZyYW1fdXNlZF9ieXRlcxgEIAEoBBIOCgZzb3VyY2UYBSABKAlCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw");
+  fileDesc("ChtjbGkvdjEvaG9zdF9pbnZlbnRvcnkucHJvdG8SDXZyb29saS5jbGkudjEi6wEKFUhvc3RJbnZlbnRvcnlSZXNwb25zZRIpCgZtZW1vcnkYASABKAsyGS52cm9vbGkuY2xpLnYxLkhvc3RNZW1vcnkSJQoEc3dhcBgCIAEoCzIXLnZyb29saS5jbGkudjEuSG9zdFN3YXASCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIjCgNjcHUYBSABKAsyFi52cm9vbGkuY2xpLnYxLkhvc3RDUFUSJAoEZ3B1cxgGIAMoCzIWLnZyb29saS5jbGkudjEuSG9zdEdQVRIbChNudmlkaWFfZGV2aWNlX25vZGVzGAcgAygJImcKCkhvc3RNZW1vcnkSEwoLdG90YWxfYnl0ZXMYASABKAQSFwoPYXZhaWxhYmxlX2J5dGVzGAIgASgEEhUKDWJ1ZmZlcnNfYnl0ZXMYAyABKAQSFAoMY2FjaGVkX2J5dGVzGAQgASgEIh8KCEhvc3RTd2FwEhMKC3RvdGFsX2J5dGVzGAEgASgEIhgKB0hvc3RDUFUSDQoFY29yZXMYASABKAUiYwoHSG9zdEdQVRINCgVpbmRleBgBIAEoBRIMCgRuYW1lGAIgASgJEhIKCnZyYW1fYnl0ZXMYAyABKAQSFwoPdnJhbV91c2VkX2J5dGVzGAQgASgEEg4KBnNvdXJjZRgFIAEoCUI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z");
 
 /**
  * HostInventoryResponse is the typed subset of `vrooli host inventory --json`.
@@ -61,6 +61,15 @@ export type HostInventoryResponse = Message<"vrooli.cli.v1.HostInventoryResponse
    * @generated from field: repeated vrooli.cli.v1.HostGPU gpus = 6;
    */
   gpus: HostGPU[];
+
+  /**
+   * NVIDIA character-device nodes observed on the host. Consumers that need
+   * explicit container device bindings must derive them from this inventory,
+   * never from a hard-coded node list.
+   *
+   * @generated from field: repeated string nvidia_device_nodes = 7;
+   */
+  nvidiaDeviceNodes: string[];
 };
 
 /**

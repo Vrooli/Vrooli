@@ -21,12 +21,14 @@ message RecallHit {
 message RecallRequest {
   string query = 1;
   int32 limit = 2;
+  string scope = 3;
 }
 message RecallResponse {
   repeated RecallHit hits = 1;
 }
 message WakeRequest {
   int32 token_budget = 1;
+  string scope = 2;
 }
 message WakeResponse {
   repeated RecallHit hits = 1;
@@ -34,12 +36,14 @@ message WakeResponse {
 }
 message ZoomRequest {
   string node_id = 1;
+  string scope = 2;
 }
 message ZoomResponse {
   repeated RecallHit constituents = 1;
 }
 message ListSiblingEventsRequest {
   string entry_id = 1;
+  string scope = 2;
 }
 message ListSiblingEventsResponse {
   repeated RecallHit entries = 1;

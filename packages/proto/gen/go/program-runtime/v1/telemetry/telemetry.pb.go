@@ -30,6 +30,7 @@ const (
 	EventKind_PROGRAM_FAILED         EventKind = 3
 	EventKind_BINDING_REFUSED        EventKind = 4
 	EventKind_SESSION_RECLAIMED      EventKind = 5
+	EventKind_BINDING_INVOKED        EventKind = 6
 )
 
 // Enum value maps for EventKind.
@@ -41,6 +42,7 @@ var (
 		3: "PROGRAM_FAILED",
 		4: "BINDING_REFUSED",
 		5: "SESSION_RECLAIMED",
+		6: "BINDING_INVOKED",
 	}
 	EventKind_value = map[string]int32{
 		"EVENT_KIND_UNSPECIFIED": 0,
@@ -49,6 +51,7 @@ var (
 		"PROGRAM_FAILED":         3,
 		"BINDING_REFUSED":        4,
 		"SESSION_RECLAIMED":      5,
+		"BINDING_INVOKED":        6,
 	}
 )
 
@@ -80,20 +83,21 @@ func (EventKind) EnumDescriptor() ([]byte, []int) {
 }
 
 type ProgramEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	OccurredAt    string                 `protobuf:"bytes,2,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
-	Kind          EventKind              `protobuf:"varint,3,opt,name=kind,proto3,enum=vrooli.program_runtime.v1.telemetry.EventKind" json:"kind,omitempty"`
-	ProgramId     string                 `protobuf:"bytes,4,opt,name=program_id,json=programId,proto3" json:"program_id,omitempty"`
-	SessionId     string                 `protobuf:"bytes,5,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	BindingId     string                 `protobuf:"bytes,6,opt,name=binding_id,json=bindingId,proto3" json:"binding_id,omitempty"`
-	Effect        string                 `protobuf:"bytes,7,opt,name=effect,proto3" json:"effect,omitempty"`
-	Provenance    string                 `protobuf:"bytes,8,opt,name=provenance,proto3" json:"provenance,omitempty"`
-	FailureShape  string                 `protobuf:"bytes,9,opt,name=failure_shape,json=failureShape,proto3" json:"failure_shape,omitempty"`
-	ContextBytes  int64                  `protobuf:"varint,10,opt,name=context_bytes,json=contextBytes,proto3" json:"context_bytes,omitempty"`
-	Reason        string                 `protobuf:"bytes,11,opt,name=reason,proto3" json:"reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	EventId         string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	OccurredAt      string                 `protobuf:"bytes,2,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	Kind            EventKind              `protobuf:"varint,3,opt,name=kind,proto3,enum=vrooli.program_runtime.v1.telemetry.EventKind" json:"kind,omitempty"`
+	ProgramId       string                 `protobuf:"bytes,4,opt,name=program_id,json=programId,proto3" json:"program_id,omitempty"`
+	SessionId       string                 `protobuf:"bytes,5,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	BindingId       string                 `protobuf:"bytes,6,opt,name=binding_id,json=bindingId,proto3" json:"binding_id,omitempty"`
+	Effect          string                 `protobuf:"bytes,7,opt,name=effect,proto3" json:"effect,omitempty"`
+	Provenance      string                 `protobuf:"bytes,8,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	FailureShape    string                 `protobuf:"bytes,9,opt,name=failure_shape,json=failureShape,proto3" json:"failure_shape,omitempty"`
+	ContextBytes    int64                  `protobuf:"varint,10,opt,name=context_bytes,json=contextBytes,proto3" json:"context_bytes,omitempty"`
+	Reason          string                 `protobuf:"bytes,11,opt,name=reason,proto3" json:"reason,omitempty"`
+	FailureLocation string                 `protobuf:"bytes,12,opt,name=failure_location,json=failureLocation,proto3" json:"failure_location,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ProgramEvent) Reset() {
@@ -203,6 +207,13 @@ func (x *ProgramEvent) GetReason() string {
 	return ""
 }
 
+func (x *ProgramEvent) GetFailureLocation() string {
+	if x != nil {
+		return x.FailureLocation
+	}
+	return ""
+}
+
 type ListEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -303,7 +314,7 @@ var File_program_runtime_v1_telemetry_telemetry_proto protoreflect.FileDescripto
 
 const file_program_runtime_v1_telemetry_telemetry_proto_rawDesc = "" +
 	"\n" +
-	",program-runtime/v1/telemetry/telemetry.proto\x12#vrooli.program_runtime.v1.telemetry\"\x85\x03\n" +
+	",program-runtime/v1/telemetry/telemetry.proto\x12#vrooli.program_runtime.v1.telemetry\"\xb0\x03\n" +
 	"\fProgramEvent\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1f\n" +
 	"\voccurred_at\x18\x02 \x01(\tR\n" +
@@ -322,20 +333,22 @@ const file_program_runtime_v1_telemetry_telemetry_proto_rawDesc = "" +
 	"\rfailure_shape\x18\t \x01(\tR\ffailureShape\x12#\n" +
 	"\rcontext_bytes\x18\n" +
 	" \x01(\x03R\fcontextBytes\x12\x16\n" +
-	"\x06reason\x18\v \x01(\tR\x06reason\"v\n" +
+	"\x06reason\x18\v \x01(\tR\x06reason\x12)\n" +
+	"\x10failure_location\x18\f \x01(\tR\x0ffailureLocation\"v\n" +
 	"\x11ListEventsRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12B\n" +
 	"\x04kind\x18\x02 \x01(\x0e2..vrooli.program_runtime.v1.telemetry.EventKindR\x04kind\"_\n" +
 	"\x12ListEventsResponse\x12I\n" +
-	"\x06events\x18\x01 \x03(\v21.vrooli.program_runtime.v1.telemetry.ProgramEventR\x06events*\x95\x01\n" +
+	"\x06events\x18\x01 \x03(\v21.vrooli.program_runtime.v1.telemetry.ProgramEventR\x06events*\xaa\x01\n" +
 	"\tEventKind\x12\x1a\n" +
 	"\x16EVENT_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11PROGRAM_SUBMITTED\x10\x01\x12\x15\n" +
 	"\x11PROGRAM_SUCCEEDED\x10\x02\x12\x12\n" +
 	"\x0ePROGRAM_FAILED\x10\x03\x12\x13\n" +
 	"\x0fBINDING_REFUSED\x10\x04\x12\x15\n" +
-	"\x11SESSION_RECLAIMED\x10\x052\x91\x01\n" +
+	"\x11SESSION_RECLAIMED\x10\x05\x12\x13\n" +
+	"\x0fBINDING_INVOKED\x10\x062\x91\x01\n" +
 	"\x10TelemetryService\x12}\n" +
 	"\n" +
 	"ListEvents\x126.vrooli.program_runtime.v1.telemetry.ListEventsRequest\x1a7.vrooli.program_runtime.v1.telemetry.ListEventsResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry;telemetry_v1b\x06proto3"

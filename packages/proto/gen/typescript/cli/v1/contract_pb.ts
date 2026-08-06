@@ -83,7 +83,7 @@ export const ContractValidationCheckSchema: GenMessage<ContractValidationCheck> 
   messageDesc(file_cli_v1_contract, 1);
 
 /**
- * ContractCheckReport is the repo-contract check report (internal/repocontractcheck).
+ * ContractCheckReport is the structure-health project validation report.
  *
  * @generated from message vrooli.cli.v1.ContractCheckReport
  */

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-memory/v1/facets/facets.proto.
  */
 export const file_vrooli_memory_v1_facets_facets: GenFile = /*@__PURE__*/
-  fileDesc("CiR2cm9vbGktbWVtb3J5L3YxL2ZhY2V0cy9mYWNldHMucHJvdG8SHnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cyI8CgVGYWNldBIKCgJpZBgBIAEoCRINCgVsYWJlbBgCIAEoCRIYChByZXRlbnRpb25fcG9saWN5GAMgASgJIj8KC1BpblByb3Bvc2FsEgoKAmlkGAEgASgJEhEKCWVudHJ5X2lkcxgCIAMoCRIRCglyYXRpb25hbGUYAyABKAkiEwoRTGlzdEZhY2V0c1JlcXVlc3QiSwoSTGlzdEZhY2V0c1Jlc3BvbnNlEjUKBmZhY2V0cxgBIAMoCzIlLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5GYWNldCI4ChJBc3NpZ25GYWNldFJlcXVlc3QSEAoIZW50cnlfaWQYASABKAkSEAoIZmFjZXRfaWQYAiABKAkiFQoTQXNzaWduRmFjZXRSZXNwb25zZSIxCg1TZXRQaW5SZXF1ZXN0EhAKCGVudHJ5X2lkGAEgASgJEg4KBnBpbm5lZBgCIAEoCCIQCg5TZXRQaW5SZXNwb25zZSIZChdMaXN0UGluUHJvcG9zYWxzUmVxdWVzdCJaChhMaXN0UGluUHJvcG9zYWxzUmVzcG9uc2USPgoJcHJvcG9zYWxzGAEgAygLMisudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLlBpblByb3Bvc2FsIkAKGVJlc29sdmVQaW5Qcm9wb3NhbFJlcXVlc3QSEwoLcHJvcG9zYWxfaWQYASABKAkSDgoGYWNjZXB0GAIgASgIIhwKGlJlc29sdmVQaW5Qcm9wb3NhbFJlc3BvbnNlIkcKFU1hcmtTdXBlcnNlZGVkUmVxdWVzdBIQCghlbnRyeV9pZBgBIAEoCRIcChRyZXBsYWNlbWVudF9lbnRyeV9pZBgCIAEoCSIYChZNYXJrU3VwZXJzZWRlZFJlc3BvbnNlIigKFFJlc29sdmVUaHJlYWRSZXF1ZXN0EhAKCGVudHJ5X2lkGAEgASgJIhcKFVJlc29sdmVUaHJlYWRSZXNwb25zZTL6BgoNRmFjZXRzU2VydmljZRJzCgpMaXN0RmFjZXRzEjEudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLkxpc3RGYWNldHNSZXF1ZXN0GjIudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLkxpc3RGYWNldHNSZXNwb25zZRJ2CgtBc3NpZ25GYWNldBIyLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5Bc3NpZ25GYWNldFJlcXVlc3QaMy52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mYWNldHMuQXNzaWduRmFjZXRSZXNwb25zZRJnCgZTZXRQaW4SLS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mYWNldHMuU2V0UGluUmVxdWVzdBouLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5TZXRQaW5SZXNwb25zZRKFAQoQTGlzdFBpblByb3Bvc2FscxI3LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5MaXN0UGluUHJvcG9zYWxzUmVxdWVzdBo4LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5MaXN0UGluUHJvcG9zYWxzUmVzcG9uc2USiwEKElJlc29sdmVQaW5Qcm9wb3NhbBI5LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5SZXNvbHZlUGluUHJvcG9zYWxSZXF1ZXN0GjoudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLlJlc29sdmVQaW5Qcm9wb3NhbFJlc3BvbnNlEn8KDk1hcmtTdXBlcnNlZGVkEjUudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLk1hcmtTdXBlcnNlZGVkUmVxdWVzdBo2LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5NYXJrU3VwZXJzZWRlZFJlc3BvbnNlEnwKDVJlc29sdmVUaHJlYWQSNC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mYWNldHMuUmVzb2x2ZVRocmVhZFJlcXVlc3QaNS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mYWNldHMuUmVzb2x2ZVRocmVhZFJlc3BvbnNlQlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLW1lbW9yeS92MS9mYWNldHM7ZmFjZXRzX3YxYgZwcm90bzM");
+  fileDesc("CiR2cm9vbGktbWVtb3J5L3YxL2ZhY2V0cy9mYWNldHMucHJvdG8SHnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cyI8CgVGYWNldBIKCgJpZBgBIAEoCRINCgVsYWJlbBgCIAEoCRIYChByZXRlbnRpb25fcG9saWN5GAMgASgJIj8KC1BpblByb3Bvc2FsEgoKAmlkGAEgASgJEhEKCWVudHJ5X2lkcxgCIAMoCRIRCglyYXRpb25hbGUYAyABKAkiIgoRTGlzdEZhY2V0c1JlcXVlc3QSDQoFc2NvcGUYASABKAkiSwoSTGlzdEZhY2V0c1Jlc3BvbnNlEjUKBmZhY2V0cxgBIAMoCzIlLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5GYWNldCJHChJBc3NpZ25GYWNldFJlcXVlc3QSEAoIZW50cnlfaWQYASABKAkSEAoIZmFjZXRfaWQYAiABKAkSDQoFc2NvcGUYAyABKAkiFQoTQXNzaWduRmFjZXRSZXNwb25zZSJACg1TZXRQaW5SZXF1ZXN0EhAKCGVudHJ5X2lkGAEgASgJEg4KBnBpbm5lZBgCIAEoCBINCgVzY29wZRgDIAEoCSIQCg5TZXRQaW5SZXNwb25zZSIoChdMaXN0UGluUHJvcG9zYWxzUmVxdWVzdBINCgVzY29wZRgBIAEoCSJaChhMaXN0UGluUHJvcG9zYWxzUmVzcG9uc2USPgoJcHJvcG9zYWxzGAEgAygLMisudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLlBpblByb3Bvc2FsInIKDFBpbkNhbmRpZGF0ZRIQCghlbnRyeV9pZBgBIAEoCRIMCgRib2R5GAIgASgJEhQKDHJlY2FsbF9jb3VudBgDIAEoBRISCgpjcmVhdGVkX2F0GAQgASgJEhgKEGxhc3RfcmVjYWxsZWRfYXQYBSABKAkiOAoYTGlzdFBpbkNhbmRpZGF0ZXNSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg0KBXNjb3BlGAIgASgJIl0KGUxpc3RQaW5DYW5kaWRhdGVzUmVzcG9uc2USQAoKY2FuZGlkYXRlcxgBIAMoCzIsLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5QaW5DYW5kaWRhdGUiTwoZUmVzb2x2ZVBpblByb3Bvc2FsUmVxdWVzdBITCgtwcm9wb3NhbF9pZBgBIAEoCRIOCgZhY2NlcHQYAiABKAgSDQoFc2NvcGUYAyABKAkiHAoaUmVzb2x2ZVBpblByb3Bvc2FsUmVzcG9uc2UiVgoVTWFya1N1cGVyc2VkZWRSZXF1ZXN0EhAKCGVudHJ5X2lkGAEgASgJEhwKFHJlcGxhY2VtZW50X2VudHJ5X2lkGAIgASgJEg0KBXNjb3BlGAMgASgJIhgKFk1hcmtTdXBlcnNlZGVkUmVzcG9uc2UiNwoUUmVzb2x2ZVRocmVhZFJlcXVlc3QSEAoIZW50cnlfaWQYASABKAkSDQoFc2NvcGUYAiABKAkiFwoVUmVzb2x2ZVRocmVhZFJlc3BvbnNlMoUICg1GYWNldHNTZXJ2aWNlEnMKCkxpc3RGYWNldHMSMS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mYWNldHMuTGlzdEZhY2V0c1JlcXVlc3QaMi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mYWNldHMuTGlzdEZhY2V0c1Jlc3BvbnNlEnYKC0Fzc2lnbkZhY2V0EjIudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLkFzc2lnbkZhY2V0UmVxdWVzdBozLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5Bc3NpZ25GYWNldFJlc3BvbnNlEmcKBlNldFBpbhItLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5TZXRQaW5SZXF1ZXN0Gi4udnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLlNldFBpblJlc3BvbnNlEoUBChBMaXN0UGluUHJvcG9zYWxzEjcudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLkxpc3RQaW5Qcm9wb3NhbHNSZXF1ZXN0GjgudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLkxpc3RQaW5Qcm9wb3NhbHNSZXNwb25zZRKIAQoRTGlzdFBpbkNhbmRpZGF0ZXMSOC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mYWNldHMuTGlzdFBpbkNhbmRpZGF0ZXNSZXF1ZXN0GjkudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLkxpc3RQaW5DYW5kaWRhdGVzUmVzcG9uc2USiwEKElJlc29sdmVQaW5Qcm9wb3NhbBI5LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5SZXNvbHZlUGluUHJvcG9zYWxSZXF1ZXN0GjoudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLlJlc29sdmVQaW5Qcm9wb3NhbFJlc3BvbnNlEn8KDk1hcmtTdXBlcnNlZGVkEjUudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZmFjZXRzLk1hcmtTdXBlcnNlZGVkUmVxdWVzdBo2LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZhY2V0cy5NYXJrU3VwZXJzZWRlZFJlc3BvbnNlEnwKDVJlc29sdmVUaHJlYWQSNC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mYWNldHMuUmVzb2x2ZVRocmVhZFJlcXVlc3QaNS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mYWNldHMuUmVzb2x2ZVRocmVhZFJlc3BvbnNlQlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLW1lbW9yeS92MS9mYWNldHM7ZmFjZXRzX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.facets.Facet
@@ -70,6 +70,10 @@ export const PinProposalSchema: GenMessage<PinProposal> = /*@__PURE__*/
  * @generated from message vrooli.vrooli_memory.v1.facets.ListFacetsRequest
  */
 export type ListFacetsRequest = Message<"vrooli.vrooli_memory.v1.facets.ListFacetsRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
 };
 
 /**
@@ -109,6 +113,11 @@ export type AssignFacetRequest = Message<"vrooli.vrooli_memory.v1.facets.AssignF
    * @generated from field: string facet_id = 2;
    */
   facetId: string;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
 };
 
 /**
@@ -144,6 +153,11 @@ export type SetPinRequest = Message<"vrooli.vrooli_memory.v1.facets.SetPinReques
    * @generated from field: bool pinned = 2;
    */
   pinned: boolean;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
 };
 
 /**
@@ -170,6 +184,10 @@ export const SetPinResponseSchema: GenMessage<SetPinResponse> = /*@__PURE__*/
  * @generated from message vrooli.vrooli_memory.v1.facets.ListPinProposalsRequest
  */
 export type ListPinProposalsRequest = Message<"vrooli.vrooli_memory.v1.facets.ListPinProposalsRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
 };
 
 /**
@@ -197,6 +215,82 @@ export const ListPinProposalsResponseSchema: GenMessage<ListPinProposalsResponse
   messageDesc(file_vrooli_memory_v1_facets_facets, 9);
 
 /**
+ * @generated from message vrooli.vrooli_memory.v1.facets.PinCandidate
+ */
+export type PinCandidate = Message<"vrooli.vrooli_memory.v1.facets.PinCandidate"> & {
+  /**
+   * @generated from field: string entry_id = 1;
+   */
+  entryId: string;
+
+  /**
+   * @generated from field: string body = 2;
+   */
+  body: string;
+
+  /**
+   * @generated from field: int32 recall_count = 3;
+   */
+  recallCount: number;
+
+  /**
+   * @generated from field: string created_at = 4;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string last_recalled_at = 5;
+   */
+  lastRecalledAt: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.facets.PinCandidate.
+ * Use `create(PinCandidateSchema)` to create a new message.
+ */
+export const PinCandidateSchema: GenMessage<PinCandidate> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_facets_facets, 10);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.facets.ListPinCandidatesRequest
+ */
+export type ListPinCandidatesRequest = Message<"vrooli.vrooli_memory.v1.facets.ListPinCandidatesRequest"> & {
+  /**
+   * @generated from field: int32 limit = 1;
+   */
+  limit: number;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.facets.ListPinCandidatesRequest.
+ * Use `create(ListPinCandidatesRequestSchema)` to create a new message.
+ */
+export const ListPinCandidatesRequestSchema: GenMessage<ListPinCandidatesRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_facets_facets, 11);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.facets.ListPinCandidatesResponse
+ */
+export type ListPinCandidatesResponse = Message<"vrooli.vrooli_memory.v1.facets.ListPinCandidatesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.vrooli_memory.v1.facets.PinCandidate candidates = 1;
+   */
+  candidates: PinCandidate[];
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.facets.ListPinCandidatesResponse.
+ * Use `create(ListPinCandidatesResponseSchema)` to create a new message.
+ */
+export const ListPinCandidatesResponseSchema: GenMessage<ListPinCandidatesResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_facets_facets, 12);
+
+/**
  * @generated from message vrooli.vrooli_memory.v1.facets.ResolvePinProposalRequest
  */
 export type ResolvePinProposalRequest = Message<"vrooli.vrooli_memory.v1.facets.ResolvePinProposalRequest"> & {
@@ -209,6 +303,11 @@ export type ResolvePinProposalRequest = Message<"vrooli.vrooli_memory.v1.facets.
    * @generated from field: bool accept = 2;
    */
   accept: boolean;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
 };
 
 /**
@@ -216,7 +315,7 @@ export type ResolvePinProposalRequest = Message<"vrooli.vrooli_memory.v1.facets.
  * Use `create(ResolvePinProposalRequestSchema)` to create a new message.
  */
 export const ResolvePinProposalRequestSchema: GenMessage<ResolvePinProposalRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_memory_v1_facets_facets, 10);
+  messageDesc(file_vrooli_memory_v1_facets_facets, 13);
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.facets.ResolvePinProposalResponse
@@ -229,7 +328,7 @@ export type ResolvePinProposalResponse = Message<"vrooli.vrooli_memory.v1.facets
  * Use `create(ResolvePinProposalResponseSchema)` to create a new message.
  */
 export const ResolvePinProposalResponseSchema: GenMessage<ResolvePinProposalResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_memory_v1_facets_facets, 11);
+  messageDesc(file_vrooli_memory_v1_facets_facets, 14);
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.facets.MarkSupersededRequest
@@ -244,6 +343,11 @@ export type MarkSupersededRequest = Message<"vrooli.vrooli_memory.v1.facets.Mark
    * @generated from field: string replacement_entry_id = 2;
    */
   replacementEntryId: string;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
 };
 
 /**
@@ -251,7 +355,7 @@ export type MarkSupersededRequest = Message<"vrooli.vrooli_memory.v1.facets.Mark
  * Use `create(MarkSupersededRequestSchema)` to create a new message.
  */
 export const MarkSupersededRequestSchema: GenMessage<MarkSupersededRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_memory_v1_facets_facets, 12);
+  messageDesc(file_vrooli_memory_v1_facets_facets, 15);
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.facets.MarkSupersededResponse
@@ -264,7 +368,7 @@ export type MarkSupersededResponse = Message<"vrooli.vrooli_memory.v1.facets.Mar
  * Use `create(MarkSupersededResponseSchema)` to create a new message.
  */
 export const MarkSupersededResponseSchema: GenMessage<MarkSupersededResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_memory_v1_facets_facets, 13);
+  messageDesc(file_vrooli_memory_v1_facets_facets, 16);
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.facets.ResolveThreadRequest
@@ -274,6 +378,11 @@ export type ResolveThreadRequest = Message<"vrooli.vrooli_memory.v1.facets.Resol
    * @generated from field: string entry_id = 1;
    */
   entryId: string;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
 };
 
 /**
@@ -281,7 +390,7 @@ export type ResolveThreadRequest = Message<"vrooli.vrooli_memory.v1.facets.Resol
  * Use `create(ResolveThreadRequestSchema)` to create a new message.
  */
 export const ResolveThreadRequestSchema: GenMessage<ResolveThreadRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_memory_v1_facets_facets, 14);
+  messageDesc(file_vrooli_memory_v1_facets_facets, 17);
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.facets.ResolveThreadResponse
@@ -294,7 +403,7 @@ export type ResolveThreadResponse = Message<"vrooli.vrooli_memory.v1.facets.Reso
  * Use `create(ResolveThreadResponseSchema)` to create a new message.
  */
 export const ResolveThreadResponseSchema: GenMessage<ResolveThreadResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_memory_v1_facets_facets, 15);
+  messageDesc(file_vrooli_memory_v1_facets_facets, 18);
 
 /**
  * @generated from service vrooli.vrooli_memory.v1.facets.FacetsService
@@ -331,6 +440,14 @@ export const FacetsService: GenService<{
     methodKind: "unary";
     input: typeof ListPinProposalsRequestSchema;
     output: typeof ListPinProposalsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_memory.v1.facets.FacetsService.ListPinCandidates
+   */
+  listPinCandidates: {
+    methodKind: "unary";
+    input: typeof ListPinCandidatesRequestSchema;
+    output: typeof ListPinCandidatesResponseSchema;
   },
   /**
    * @generated from rpc vrooli.vrooli_memory.v1.facets.FacetsService.ResolvePinProposal

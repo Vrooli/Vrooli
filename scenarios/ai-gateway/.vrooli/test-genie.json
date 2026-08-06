@@ -1,4 +1,5 @@
 {
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
   "schemaVersion": "1.0.0",
   "scenario": "ai-gateway",
   "phase": "ai-conformance",
@@ -14,6 +15,9 @@
   "applicability": {
     "default": "not_applicable",
     "any": [
+      {
+        "targetKind": "project"
+      },
       {
         "serviceCapability": "ai"
       },
@@ -232,6 +236,36 @@
       }
     ],
     "findings": {
+      "AI_OLLAMA_GATEWAY_ONLY": {
+        "capability_id": "gateway_adoption",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "operational-targets",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Ollama calls must remain behind the resource gateway boundary."
+      },
+      "AI_OLLAMA_POLICY_FACTS": {
+        "capability_id": "model_policy",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Ollama model and embedding facts belong to resource policy."
+      },
+      "AI_OPENROUTER_POLICY_FACTS": {
+        "capability_id": "model_policy",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "OpenRouter model selection belongs to role policy."
+      },
       "ai.direct_ollama_http": {
         "capability_id": "resource_boundary",
         "local_level_impact": "L1",

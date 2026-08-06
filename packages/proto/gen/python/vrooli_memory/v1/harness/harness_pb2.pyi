@@ -1,6 +1,7 @@
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from collections.abc import Mapping as _Mapping
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
@@ -20,16 +21,18 @@ class RunImportRequest(_message.Message):
     def __init__(self, runtime: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class RunImportResponse(_message.Message):
-    __slots__ = ("imported_count", "run", "joined_existing_run", "dry_run")
+    __slots__ = ("imported_count", "run", "joined_existing_run", "dry_run", "observation")
     IMPORTED_COUNT_FIELD_NUMBER: _ClassVar[int]
     RUN_FIELD_NUMBER: _ClassVar[int]
     JOINED_EXISTING_RUN_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATION_FIELD_NUMBER: _ClassVar[int]
     imported_count: int
     run: ImportRun
     joined_existing_run: bool
     dry_run: bool
-    def __init__(self, imported_count: _Optional[int] = ..., run: _Optional[_Union[ImportRun, _Mapping]] = ..., joined_existing_run: _Optional[bool] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+    observation: str
+    def __init__(self, imported_count: _Optional[int] = ..., run: _Optional[_Union[ImportRun, _Mapping]] = ..., joined_existing_run: _Optional[bool] = ..., dry_run: _Optional[bool] = ..., observation: _Optional[str] = ...) -> None: ...
 
 class GetImportStatusRequest(_message.Message):
     __slots__ = ("run_id", "runtime")
@@ -126,3 +129,43 @@ class CaptureWriteResponse(_message.Message):
     ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
     entry_id: str
     def __init__(self, entry_id: _Optional[str] = ...) -> None: ...
+
+class GetMaintenanceStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetMaintenanceStatusResponse(_message.Message):
+    __slots__ = ("run",)
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    run: MaintenanceRun
+    def __init__(self, run: _Optional[_Union[MaintenanceRun, _Mapping]] = ...) -> None: ...
+
+class MaintenanceRun(_message.Message):
+    __slots__ = ("id", "started_at", "completed_at", "outcomes")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    OUTCOMES_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    started_at: str
+    completed_at: str
+    outcomes: _containers.RepeatedCompositeFieldContainer[MaintenanceOutcome]
+    def __init__(self, id: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., outcomes: _Optional[_Iterable[_Union[MaintenanceOutcome, _Mapping]]] = ...) -> None: ...
+
+class MaintenanceOutcome(_message.Message):
+    __slots__ = ("runtime", "import_status", "import_error", "projection_status", "projection_error", "started_at", "completed_at")
+    RUNTIME_FIELD_NUMBER: _ClassVar[int]
+    IMPORT_STATUS_FIELD_NUMBER: _ClassVar[int]
+    IMPORT_ERROR_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_ERROR_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    runtime: str
+    import_status: str
+    import_error: str
+    projection_status: str
+    projection_error: str
+    started_at: str
+    completed_at: str
+    def __init__(self, runtime: _Optional[str] = ..., import_status: _Optional[str] = ..., import_error: _Optional[str] = ..., projection_status: _Optional[str] = ..., projection_error: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ...) -> None: ...

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-04T18:52:04-04:00"
+    "last_validated_at": "2026-08-06T12:59:19-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P2-001",
       "title": "Atomic Runs and Durable Workflow Executions",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-001",
       "category": "core",
       "description": "Keep each Run atomic while exposing a separate durable, explainable RunResult and a consumer-neutral WorkflowExecution that reconciles scenario-owned definitions; requires provider-aware final-output abstention, one schema-validated structured-result mechanism, explicit fresh-run or named-continuation identity per agent node with enforced node-local turn and timeout limits, deterministic size-bounded append-only journal context including explicit child-workflow outputs, a closed node vocabulary, positive traversal caps on every cycle-forming edge, visit-scoped fresh identities for parallel cycles, finite execution budgets, restart-safe dispatch idempotency, and distinct succeeded, blocked, abstained, budget-exhausted, failed, and cancelled terminals without consumer-domain mutations",
@@ -35,7 +35,7 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Confirm phase integrity"
         },
         {

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$vrooli-memory/v1/recall/recall.proto\x12\x1evrooli.vrooli_memory.v1.recall\"\xc8\x01\n\tRecallHit\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x02 \x01(\tR\x07\x66\x61\x63\x65tId\x12\x12\n\x04text\x18\x03 \x01(\tR\x04text\x12\x14\n\x05score\x18\x04 \x01(\x01R\x05score\x12\x14\n\x05\x64\x65pth\x18\x05 \x01(\x05R\x05\x64\x65pth\x12\x17\n\x07node_id\x18\x06 \x01(\tR\x06nodeId\x12\x18\n\x07summary\x18\x07 \x01(\x08R\x07summary\x12\x12\n\x04span\x18\x08 \x01(\x05R\x04span\";\n\rRecallRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\"O\n\x0eRecallResponse\x12=\n\x04hits\x18\x01 \x03(\x0b\x32).vrooli.vrooli_memory.v1.recall.RecallHitR\x04hits\"0\n\x0bWakeRequest\x12!\n\x0ctoken_budget\x18\x01 \x01(\x05R\x0btokenBudget\"i\n\x0cWakeResponse\x12=\n\x04hits\x18\x01 \x03(\x0b\x32).vrooli.vrooli_memory.v1.recall.RecallHitR\x04hits\x12\x1a\n\x08overflow\x18\x02 \x01(\x08R\x08overflow\"&\n\x0bZoomRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\"]\n\x0cZoomResponse\x12M\n\x0c\x63onstituents\x18\x01 \x03(\x0b\x32).vrooli.vrooli_memory.v1.recall.RecallHitR\x0c\x63onstituents\"5\n\x18ListSiblingEventsRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\"`\n\x19ListSiblingEventsResponse\x12\x43\n\x07\x65ntries\x18\x01 \x03(\x0b\x32).vrooli.vrooli_memory.v1.recall.RecallHitR\x07\x65ntries2\xc9\x03\n\rRecallService\x12g\n\x06Recall\x12-.vrooli.vrooli_memory.v1.recall.RecallRequest\x1a..vrooli.vrooli_memory.v1.recall.RecallResponse\x12\x61\n\x04Wake\x12+.vrooli.vrooli_memory.v1.recall.WakeRequest\x1a,.vrooli.vrooli_memory.v1.recall.WakeResponse\x12\x61\n\x04Zoom\x12+.vrooli.vrooli_memory.v1.recall.ZoomRequest\x1a,.vrooli.vrooli_memory.v1.recall.ZoomResponse\x12\x88\x01\n\x11ListSiblingEvents\x12\x38.vrooli.vrooli_memory.v1.recall.ListSiblingEventsRequest\x1a\x39.vrooli.vrooli_memory.v1.recall.ListSiblingEventsResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall;recall_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$vrooli-memory/v1/recall/recall.proto\x12\x1evrooli.vrooli_memory.v1.recall\"\xc8\x01\n\tRecallHit\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x02 \x01(\tR\x07\x66\x61\x63\x65tId\x12\x12\n\x04text\x18\x03 \x01(\tR\x04text\x12\x14\n\x05score\x18\x04 \x01(\x01R\x05score\x12\x14\n\x05\x64\x65pth\x18\x05 \x01(\x05R\x05\x64\x65pth\x12\x17\n\x07node_id\x18\x06 \x01(\tR\x06nodeId\x12\x18\n\x07summary\x18\x07 \x01(\x08R\x07summary\x12\x12\n\x04span\x18\x08 \x01(\x05R\x04span\"Q\n\rRecallRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x14\n\x05scope\x18\x03 \x01(\tR\x05scope\"O\n\x0eRecallResponse\x12=\n\x04hits\x18\x01 \x03(\x0b\x32).vrooli.vrooli_memory.v1.recall.RecallHitR\x04hits\"F\n\x0bWakeRequest\x12!\n\x0ctoken_budget\x18\x01 \x01(\x05R\x0btokenBudget\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"i\n\x0cWakeResponse\x12=\n\x04hits\x18\x01 \x03(\x0b\x32).vrooli.vrooli_memory.v1.recall.RecallHitR\x04hits\x12\x1a\n\x08overflow\x18\x02 \x01(\x08R\x08overflow\"<\n\x0bZoomRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"]\n\x0cZoomResponse\x12M\n\x0c\x63onstituents\x18\x01 \x03(\x0b\x32).vrooli.vrooli_memory.v1.recall.RecallHitR\x0c\x63onstituents\"K\n\x18ListSiblingEventsRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"`\n\x19ListSiblingEventsResponse\x12\x43\n\x07\x65ntries\x18\x01 \x03(\x0b\x32).vrooli.vrooli_memory.v1.recall.RecallHitR\x07\x65ntries2\xc9\x03\n\rRecallService\x12g\n\x06Recall\x12-.vrooli.vrooli_memory.v1.recall.RecallRequest\x1a..vrooli.vrooli_memory.v1.recall.RecallResponse\x12\x61\n\x04Wake\x12+.vrooli.vrooli_memory.v1.recall.WakeRequest\x1a,.vrooli.vrooli_memory.v1.recall.WakeResponse\x12\x61\n\x04Zoom\x12+.vrooli.vrooli_memory.v1.recall.ZoomRequest\x1a,.vrooli.vrooli_memory.v1.recall.ZoomResponse\x12\x88\x01\n\x11ListSiblingEvents\x12\x38.vrooli.vrooli_memory.v1.recall.ListSiblingEventsRequest\x1a\x39.vrooli.vrooli_memory.v1.recall.ListSiblingEventsResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall;recall_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,21 +35,21 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_RECALLHIT']._serialized_start=73
   _globals['_RECALLHIT']._serialized_end=273
   _globals['_RECALLREQUEST']._serialized_start=275
-  _globals['_RECALLREQUEST']._serialized_end=334
-  _globals['_RECALLRESPONSE']._serialized_start=336
-  _globals['_RECALLRESPONSE']._serialized_end=415
-  _globals['_WAKEREQUEST']._serialized_start=417
-  _globals['_WAKEREQUEST']._serialized_end=465
-  _globals['_WAKERESPONSE']._serialized_start=467
-  _globals['_WAKERESPONSE']._serialized_end=572
-  _globals['_ZOOMREQUEST']._serialized_start=574
-  _globals['_ZOOMREQUEST']._serialized_end=612
-  _globals['_ZOOMRESPONSE']._serialized_start=614
-  _globals['_ZOOMRESPONSE']._serialized_end=707
-  _globals['_LISTSIBLINGEVENTSREQUEST']._serialized_start=709
-  _globals['_LISTSIBLINGEVENTSREQUEST']._serialized_end=762
-  _globals['_LISTSIBLINGEVENTSRESPONSE']._serialized_start=764
-  _globals['_LISTSIBLINGEVENTSRESPONSE']._serialized_end=860
-  _globals['_RECALLSERVICE']._serialized_start=863
-  _globals['_RECALLSERVICE']._serialized_end=1320
+  _globals['_RECALLREQUEST']._serialized_end=356
+  _globals['_RECALLRESPONSE']._serialized_start=358
+  _globals['_RECALLRESPONSE']._serialized_end=437
+  _globals['_WAKEREQUEST']._serialized_start=439
+  _globals['_WAKEREQUEST']._serialized_end=509
+  _globals['_WAKERESPONSE']._serialized_start=511
+  _globals['_WAKERESPONSE']._serialized_end=616
+  _globals['_ZOOMREQUEST']._serialized_start=618
+  _globals['_ZOOMREQUEST']._serialized_end=678
+  _globals['_ZOOMRESPONSE']._serialized_start=680
+  _globals['_ZOOMRESPONSE']._serialized_end=773
+  _globals['_LISTSIBLINGEVENTSREQUEST']._serialized_start=775
+  _globals['_LISTSIBLINGEVENTSREQUEST']._serialized_end=850
+  _globals['_LISTSIBLINGEVENTSRESPONSE']._serialized_start=852
+  _globals['_LISTSIBLINGEVENTSRESPONSE']._serialized_end=948
+  _globals['_RECALLSERVICE']._serialized_start=951
+  _globals['_RECALLSERVICE']._serialized_end=1408
 # @@protoc_insertion_point(module_scope)

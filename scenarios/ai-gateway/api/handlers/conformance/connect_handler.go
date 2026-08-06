@@ -79,6 +79,45 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	target := req.Msg.GetTarget()
+	if target == nil || target.GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target is required"))
+	}
+	path := req.Msg.GetPath()
+	if path == "" {
+		path = target.GetRoot()
+	}
+	if target.GetKind().String() != "VALIDATION_TARGET_KIND_PROJECT" {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai-gateway target validation is only defined for project targets"))
+	}
+	collector := metrics.Start()
+	report, err := h.scanner.ScanProject(ctx, path)
+	if err != nil {
+		collector.Stop()
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if h.maturitySpec() == nil {
+		collector.Stop()
+		return nil, connect.NewError(connect.CodeInternal, errors.New("maturity spec is required"))
+	}
+	maturity, err := internalconformance.BuildMaturityAssessment(report, *h.maturitySpec())
+	if err != nil {
+		collector.Stop()
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build target maturity assessment: %w", err))
+	}
+	native, err := nativeDetail(report)
+	if err != nil {
+		collector.Stop()
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	shared, err := assessment.BuildValidationResponse(report.Scenario, maturity, native, collector.Stop())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build target validation response: %w", err))
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{Target: target, Status: shared.GetStatus(), Assessment: shared.GetAssessment(), NativeDetail: shared.GetNativeDetail(), Metrics: shared.GetMetrics()}), nil
+}
+
 func (h *connectHandler) PreviewFix(_ context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
 	return connect.NewResponse(&scenariovalidationv1.FixResponse{
 		Scenario: req.Msg.GetScenario(),

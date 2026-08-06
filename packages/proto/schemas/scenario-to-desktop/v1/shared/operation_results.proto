@@ -108,6 +108,20 @@ message EvidenceReview {
   optional string safe_route_class = 14;
 }
 
+message PerformancePhase {
+  string name = 1;
+  bool available = 2;
+  int64 duration_ms = 3;
+  optional string reason = 4;
+}
+
+message SmokeTestPerformance {
+  string status = 1;
+  optional string reason = 2;
+  repeated PerformancePhase protocol_phases = 3;
+  repeated PerformancePhase demo_phases = 4;
+}
+
 message SmokeTestStatusResponse {
   string smoke_test_id = 1;
   string scenario_name = 2;
@@ -122,4 +136,5 @@ message SmokeTestStatusResponse {
   optional string telemetry_upload_error = 11;
   optional ScreenRecordingSummary screen_recording = 12;
   optional EvidenceReview evidence_review = 13;
+  optional SmokeTestPerformance performance = 14;
 }

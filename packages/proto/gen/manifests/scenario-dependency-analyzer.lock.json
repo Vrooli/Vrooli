@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-dependency-analyzer",
-  "input_digest": "sha256:62bfa6eae0a66a0fa968b4856c7c1dc124cd99582c35dbbb374135719b7547f3",
+  "input_digest": "sha256:ca6ec4ae80473662e9fc29e0fc99f8a6aae30767c6e11b6be441c95302f315ee",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/validation_target.proto",

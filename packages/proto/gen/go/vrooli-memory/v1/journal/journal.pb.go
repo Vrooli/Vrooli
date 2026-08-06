@@ -390,6 +390,7 @@ type AppendEntryRequest struct {
 	Approach         string                 `protobuf:"bytes,8,opt,name=approach,proto3" json:"approach,omitempty"`
 	Evidence         string                 `protobuf:"bytes,9,opt,name=evidence,proto3" json:"evidence,omitempty"`
 	Outcome          string                 `protobuf:"bytes,10,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	Scope            string                 `protobuf:"bytes,11,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -494,6 +495,13 @@ func (x *AppendEntryRequest) GetOutcome() string {
 	return ""
 }
 
+func (x *AppendEntryRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
 type AppendEntryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entry         *Entry                 `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
@@ -541,6 +549,7 @@ func (x *AppendEntryResponse) GetEntry() *Entry {
 type GetEntryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -578,6 +587,13 @@ func (*GetEntryRequest) Descriptor() ([]byte, []int) {
 func (x *GetEntryRequest) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *GetEntryRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
 	}
 	return ""
 }
@@ -631,6 +647,7 @@ type ListEntriesRequest struct {
 	FacetId       string                 `protobuf:"bytes,1,opt,name=facet_id,json=facetId,proto3" json:"facet_id,omitempty"`
 	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
 	Cursor        string                 `protobuf:"bytes,3,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Scope         string                 `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -682,6 +699,13 @@ func (x *ListEntriesRequest) GetLimit() int32 {
 func (x *ListEntriesRequest) GetCursor() string {
 	if x != nil {
 		return x.Cursor
+	}
+	return ""
+}
+
+func (x *ListEntriesRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
 	}
 	return ""
 }
@@ -741,6 +765,7 @@ func (x *ListEntriesResponse) GetNextCursor() string {
 type ProcessClassificationRetriesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -780,6 +805,13 @@ func (x *ProcessClassificationRetriesRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ProcessClassificationRetriesRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
 }
 
 type ProcessClassificationRetriesResponse struct {
@@ -845,6 +877,7 @@ func (x *ProcessClassificationRetriesResponse) GetAlreadyResolved() int32 {
 type ProcessEmbeddingRetriesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -884,6 +917,13 @@ func (x *ProcessEmbeddingRetriesRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ProcessEmbeddingRetriesRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
 }
 
 type ProcessEmbeddingRetriesResponse struct {
@@ -982,7 +1022,7 @@ const file_vrooli_memory_v1_journal_journal_proto_rawDesc = "" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12?\n" +
 	"\rsuperseded_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\fsupersededAt\x12\x12\n" +
 	"\x04kind\x18\n" +
-	" \x01(\tR\x04kind\"\xc3\x03\n" +
+	" \x01(\tR\x04kind\"\xd9\x03\n" +
 	"\x12AppendEntryRequest\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04body\x12\x19\n" +
 	"\bfacet_id\x18\x02 \x01(\tR\afacetId\x12\x12\n" +
@@ -994,29 +1034,34 @@ const file_vrooli_memory_v1_journal_journal_proto_rawDesc = "" +
 	"\bapproach\x18\b \x01(\tR\bapproach\x12\x1a\n" +
 	"\bevidence\x18\t \x01(\tR\bevidence\x12\x18\n" +
 	"\aoutcome\x18\n" +
-	" \x01(\tR\aoutcome\"S\n" +
+	" \x01(\tR\aoutcome\x12\x14\n" +
+	"\x05scope\x18\v \x01(\tR\x05scope\"S\n" +
 	"\x13AppendEntryResponse\x12<\n" +
-	"\x05entry\x18\x01 \x01(\v2&.vrooli.vrooli_memory.v1.journal.EntryR\x05entry\"!\n" +
+	"\x05entry\x18\x01 \x01(\v2&.vrooli.vrooli_memory.v1.journal.EntryR\x05entry\"7\n" +
 	"\x0fGetEntryRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"P\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"P\n" +
 	"\x10GetEntryResponse\x12<\n" +
-	"\x05entry\x18\x01 \x01(\v2&.vrooli.vrooli_memory.v1.journal.EntryR\x05entry\"]\n" +
+	"\x05entry\x18\x01 \x01(\v2&.vrooli.vrooli_memory.v1.journal.EntryR\x05entry\"s\n" +
 	"\x12ListEntriesRequest\x12\x19\n" +
 	"\bfacet_id\x18\x01 \x01(\tR\afacetId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06cursor\x18\x03 \x01(\tR\x06cursor\"x\n" +
+	"\x06cursor\x18\x03 \x01(\tR\x06cursor\x12\x14\n" +
+	"\x05scope\x18\x04 \x01(\tR\x05scope\"x\n" +
 	"\x13ListEntriesResponse\x12@\n" +
 	"\aentries\x18\x01 \x03(\v2&.vrooli.vrooli_memory.v1.journal.EntryR\aentries\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor\";\n" +
+	"nextCursor\"Q\n" +
 	"#ProcessClassificationRetriesRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\x05R\x05limit\"\x8b\x01\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"\x8b\x01\n" +
 	"$ProcessClassificationRetriesResponse\x12\x1c\n" +
 	"\tprocessed\x18\x01 \x01(\x05R\tprocessed\x12\x1a\n" +
 	"\bdeferred\x18\x02 \x01(\x05R\bdeferred\x12)\n" +
-	"\x10already_resolved\x18\x03 \x01(\x05R\x0falreadyResolved\"6\n" +
+	"\x10already_resolved\x18\x03 \x01(\x05R\x0falreadyResolved\"L\n" +
 	"\x1eProcessEmbeddingRetriesRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\x05R\x05limit\"\x86\x01\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"\x86\x01\n" +
 	"\x1fProcessEmbeddingRetriesResponse\x12\x1c\n" +
 	"\tprocessed\x18\x01 \x01(\x05R\tprocessed\x12\x1a\n" +
 	"\bdeferred\x18\x02 \x01(\x05R\bdeferred\x12)\n" +

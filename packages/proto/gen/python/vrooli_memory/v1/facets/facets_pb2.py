@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$vrooli-memory/v1/facets/facets.proto\x12\x1evrooli.vrooli_memory.v1.facets\"X\n\x05\x46\x61\x63\x65t\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12)\n\x10retention_policy\x18\x03 \x01(\tR\x0fretentionPolicy\"X\n\x0bPinProposal\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n\tentry_ids\x18\x02 \x03(\tR\x08\x65ntryIds\x12\x1c\n\trationale\x18\x03 \x01(\tR\trationale\"\x13\n\x11ListFacetsRequest\"S\n\x12ListFacetsResponse\x12=\n\x06\x66\x61\x63\x65ts\x18\x01 \x03(\x0b\x32%.vrooli.vrooli_memory.v1.facets.FacetR\x06\x66\x61\x63\x65ts\"J\n\x12\x41ssignFacetRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x02 \x01(\tR\x07\x66\x61\x63\x65tId\"\x15\n\x13\x41ssignFacetResponse\"B\n\rSetPinRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x16\n\x06pinned\x18\x02 \x01(\x08R\x06pinned\"\x10\n\x0eSetPinResponse\"\x19\n\x17ListPinProposalsRequest\"e\n\x18ListPinProposalsResponse\x12I\n\tproposals\x18\x01 \x03(\x0b\x32+.vrooli.vrooli_memory.v1.facets.PinProposalR\tproposals\"T\n\x19ResolvePinProposalRequest\x12\x1f\n\x0bproposal_id\x18\x01 \x01(\tR\nproposalId\x12\x16\n\x06\x61\x63\x63\x65pt\x18\x02 \x01(\x08R\x06\x61\x63\x63\x65pt\"\x1c\n\x1aResolvePinProposalResponse\"d\n\x15MarkSupersededRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x30\n\x14replacement_entry_id\x18\x02 \x01(\tR\x12replacementEntryId\"\x18\n\x16MarkSupersededResponse\"1\n\x14ResolveThreadRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\"\x17\n\x15ResolveThreadResponse2\xfa\x06\n\rFacetsService\x12s\n\nListFacets\x12\x31.vrooli.vrooli_memory.v1.facets.ListFacetsRequest\x1a\x32.vrooli.vrooli_memory.v1.facets.ListFacetsResponse\x12v\n\x0b\x41ssignFacet\x12\x32.vrooli.vrooli_memory.v1.facets.AssignFacetRequest\x1a\x33.vrooli.vrooli_memory.v1.facets.AssignFacetResponse\x12g\n\x06SetPin\x12-.vrooli.vrooli_memory.v1.facets.SetPinRequest\x1a..vrooli.vrooli_memory.v1.facets.SetPinResponse\x12\x85\x01\n\x10ListPinProposals\x12\x37.vrooli.vrooli_memory.v1.facets.ListPinProposalsRequest\x1a\x38.vrooli.vrooli_memory.v1.facets.ListPinProposalsResponse\x12\x8b\x01\n\x12ResolvePinProposal\x12\x39.vrooli.vrooli_memory.v1.facets.ResolvePinProposalRequest\x1a:.vrooli.vrooli_memory.v1.facets.ResolvePinProposalResponse\x12\x7f\n\x0eMarkSuperseded\x12\x35.vrooli.vrooli_memory.v1.facets.MarkSupersededRequest\x1a\x36.vrooli.vrooli_memory.v1.facets.MarkSupersededResponse\x12|\n\rResolveThread\x12\x34.vrooli.vrooli_memory.v1.facets.ResolveThreadRequest\x1a\x35.vrooli.vrooli_memory.v1.facets.ResolveThreadResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/facets;facets_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$vrooli-memory/v1/facets/facets.proto\x12\x1evrooli.vrooli_memory.v1.facets\"X\n\x05\x46\x61\x63\x65t\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12)\n\x10retention_policy\x18\x03 \x01(\tR\x0fretentionPolicy\"X\n\x0bPinProposal\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n\tentry_ids\x18\x02 \x03(\tR\x08\x65ntryIds\x12\x1c\n\trationale\x18\x03 \x01(\tR\trationale\")\n\x11ListFacetsRequest\x12\x14\n\x05scope\x18\x01 \x01(\tR\x05scope\"S\n\x12ListFacetsResponse\x12=\n\x06\x66\x61\x63\x65ts\x18\x01 \x03(\x0b\x32%.vrooli.vrooli_memory.v1.facets.FacetR\x06\x66\x61\x63\x65ts\"`\n\x12\x41ssignFacetRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x02 \x01(\tR\x07\x66\x61\x63\x65tId\x12\x14\n\x05scope\x18\x03 \x01(\tR\x05scope\"\x15\n\x13\x41ssignFacetResponse\"X\n\rSetPinRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x16\n\x06pinned\x18\x02 \x01(\x08R\x06pinned\x12\x14\n\x05scope\x18\x03 \x01(\tR\x05scope\"\x10\n\x0eSetPinResponse\"/\n\x17ListPinProposalsRequest\x12\x14\n\x05scope\x18\x01 \x01(\tR\x05scope\"e\n\x18ListPinProposalsResponse\x12I\n\tproposals\x18\x01 \x03(\x0b\x32+.vrooli.vrooli_memory.v1.facets.PinProposalR\tproposals\"\xa9\x01\n\x0cPinCandidate\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x12\n\x04\x62ody\x18\x02 \x01(\tR\x04\x62ody\x12!\n\x0crecall_count\x18\x03 \x01(\x05R\x0brecallCount\x12\x1d\n\ncreated_at\x18\x04 \x01(\tR\tcreatedAt\x12(\n\x10last_recalled_at\x18\x05 \x01(\tR\x0elastRecalledAt\"F\n\x18ListPinCandidatesRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"i\n\x19ListPinCandidatesResponse\x12L\n\ncandidates\x18\x01 \x03(\x0b\x32,.vrooli.vrooli_memory.v1.facets.PinCandidateR\ncandidates\"j\n\x19ResolvePinProposalRequest\x12\x1f\n\x0bproposal_id\x18\x01 \x01(\tR\nproposalId\x12\x16\n\x06\x61\x63\x63\x65pt\x18\x02 \x01(\x08R\x06\x61\x63\x63\x65pt\x12\x14\n\x05scope\x18\x03 \x01(\tR\x05scope\"\x1c\n\x1aResolvePinProposalResponse\"z\n\x15MarkSupersededRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x30\n\x14replacement_entry_id\x18\x02 \x01(\tR\x12replacementEntryId\x12\x14\n\x05scope\x18\x03 \x01(\tR\x05scope\"\x18\n\x16MarkSupersededResponse\"G\n\x14ResolveThreadRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"\x17\n\x15ResolveThreadResponse2\x85\x08\n\rFacetsService\x12s\n\nListFacets\x12\x31.vrooli.vrooli_memory.v1.facets.ListFacetsRequest\x1a\x32.vrooli.vrooli_memory.v1.facets.ListFacetsResponse\x12v\n\x0b\x41ssignFacet\x12\x32.vrooli.vrooli_memory.v1.facets.AssignFacetRequest\x1a\x33.vrooli.vrooli_memory.v1.facets.AssignFacetResponse\x12g\n\x06SetPin\x12-.vrooli.vrooli_memory.v1.facets.SetPinRequest\x1a..vrooli.vrooli_memory.v1.facets.SetPinResponse\x12\x85\x01\n\x10ListPinProposals\x12\x37.vrooli.vrooli_memory.v1.facets.ListPinProposalsRequest\x1a\x38.vrooli.vrooli_memory.v1.facets.ListPinProposalsResponse\x12\x88\x01\n\x11ListPinCandidates\x12\x38.vrooli.vrooli_memory.v1.facets.ListPinCandidatesRequest\x1a\x39.vrooli.vrooli_memory.v1.facets.ListPinCandidatesResponse\x12\x8b\x01\n\x12ResolvePinProposal\x12\x39.vrooli.vrooli_memory.v1.facets.ResolvePinProposalRequest\x1a:.vrooli.vrooli_memory.v1.facets.ResolvePinProposalResponse\x12\x7f\n\x0eMarkSuperseded\x12\x35.vrooli.vrooli_memory.v1.facets.MarkSupersededRequest\x1a\x36.vrooli.vrooli_memory.v1.facets.MarkSupersededResponse\x12|\n\rResolveThread\x12\x34.vrooli.vrooli_memory.v1.facets.ResolveThreadRequest\x1a\x35.vrooli.vrooli_memory.v1.facets.ResolveThreadResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/facets;facets_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,33 +37,39 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_PINPROPOSAL']._serialized_start=162
   _globals['_PINPROPOSAL']._serialized_end=250
   _globals['_LISTFACETSREQUEST']._serialized_start=252
-  _globals['_LISTFACETSREQUEST']._serialized_end=271
-  _globals['_LISTFACETSRESPONSE']._serialized_start=273
-  _globals['_LISTFACETSRESPONSE']._serialized_end=356
-  _globals['_ASSIGNFACETREQUEST']._serialized_start=358
-  _globals['_ASSIGNFACETREQUEST']._serialized_end=432
-  _globals['_ASSIGNFACETRESPONSE']._serialized_start=434
-  _globals['_ASSIGNFACETRESPONSE']._serialized_end=455
-  _globals['_SETPINREQUEST']._serialized_start=457
-  _globals['_SETPINREQUEST']._serialized_end=523
-  _globals['_SETPINRESPONSE']._serialized_start=525
-  _globals['_SETPINRESPONSE']._serialized_end=541
-  _globals['_LISTPINPROPOSALSREQUEST']._serialized_start=543
-  _globals['_LISTPINPROPOSALSREQUEST']._serialized_end=568
-  _globals['_LISTPINPROPOSALSRESPONSE']._serialized_start=570
-  _globals['_LISTPINPROPOSALSRESPONSE']._serialized_end=671
-  _globals['_RESOLVEPINPROPOSALREQUEST']._serialized_start=673
-  _globals['_RESOLVEPINPROPOSALREQUEST']._serialized_end=757
-  _globals['_RESOLVEPINPROPOSALRESPONSE']._serialized_start=759
-  _globals['_RESOLVEPINPROPOSALRESPONSE']._serialized_end=787
-  _globals['_MARKSUPERSEDEDREQUEST']._serialized_start=789
-  _globals['_MARKSUPERSEDEDREQUEST']._serialized_end=889
-  _globals['_MARKSUPERSEDEDRESPONSE']._serialized_start=891
-  _globals['_MARKSUPERSEDEDRESPONSE']._serialized_end=915
-  _globals['_RESOLVETHREADREQUEST']._serialized_start=917
-  _globals['_RESOLVETHREADREQUEST']._serialized_end=966
-  _globals['_RESOLVETHREADRESPONSE']._serialized_start=968
-  _globals['_RESOLVETHREADRESPONSE']._serialized_end=991
-  _globals['_FACETSSERVICE']._serialized_start=994
-  _globals['_FACETSSERVICE']._serialized_end=1884
+  _globals['_LISTFACETSREQUEST']._serialized_end=293
+  _globals['_LISTFACETSRESPONSE']._serialized_start=295
+  _globals['_LISTFACETSRESPONSE']._serialized_end=378
+  _globals['_ASSIGNFACETREQUEST']._serialized_start=380
+  _globals['_ASSIGNFACETREQUEST']._serialized_end=476
+  _globals['_ASSIGNFACETRESPONSE']._serialized_start=478
+  _globals['_ASSIGNFACETRESPONSE']._serialized_end=499
+  _globals['_SETPINREQUEST']._serialized_start=501
+  _globals['_SETPINREQUEST']._serialized_end=589
+  _globals['_SETPINRESPONSE']._serialized_start=591
+  _globals['_SETPINRESPONSE']._serialized_end=607
+  _globals['_LISTPINPROPOSALSREQUEST']._serialized_start=609
+  _globals['_LISTPINPROPOSALSREQUEST']._serialized_end=656
+  _globals['_LISTPINPROPOSALSRESPONSE']._serialized_start=658
+  _globals['_LISTPINPROPOSALSRESPONSE']._serialized_end=759
+  _globals['_PINCANDIDATE']._serialized_start=762
+  _globals['_PINCANDIDATE']._serialized_end=931
+  _globals['_LISTPINCANDIDATESREQUEST']._serialized_start=933
+  _globals['_LISTPINCANDIDATESREQUEST']._serialized_end=1003
+  _globals['_LISTPINCANDIDATESRESPONSE']._serialized_start=1005
+  _globals['_LISTPINCANDIDATESRESPONSE']._serialized_end=1110
+  _globals['_RESOLVEPINPROPOSALREQUEST']._serialized_start=1112
+  _globals['_RESOLVEPINPROPOSALREQUEST']._serialized_end=1218
+  _globals['_RESOLVEPINPROPOSALRESPONSE']._serialized_start=1220
+  _globals['_RESOLVEPINPROPOSALRESPONSE']._serialized_end=1248
+  _globals['_MARKSUPERSEDEDREQUEST']._serialized_start=1250
+  _globals['_MARKSUPERSEDEDREQUEST']._serialized_end=1372
+  _globals['_MARKSUPERSEDEDRESPONSE']._serialized_start=1374
+  _globals['_MARKSUPERSEDEDRESPONSE']._serialized_end=1398
+  _globals['_RESOLVETHREADREQUEST']._serialized_start=1400
+  _globals['_RESOLVETHREADREQUEST']._serialized_end=1471
+  _globals['_RESOLVETHREADRESPONSE']._serialized_start=1473
+  _globals['_RESOLVETHREADRESPONSE']._serialized_end=1496
+  _globals['_FACETSSERVICE']._serialized_start=1499
+  _globals['_FACETSSERVICE']._serialized_end=2528
 # @@protoc_insertion_point(module_scope)

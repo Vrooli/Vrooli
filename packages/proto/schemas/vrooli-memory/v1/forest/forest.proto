@@ -14,22 +14,29 @@ message Node {
   string facet_id = 3;
   int32 depth = 4;
   repeated string child_ids = 5;
+  double compaction_score = 6;
 }
-message RunCompactionPassRequest {}
+message RunCompactionPassRequest { string scope = 1; }
 message RunCompactionPassResponse {
   int32 compacted_count = 1;
 }
-message GetFrontierRequest {}
+message GetFrontierRequest {
+  int32 limit = 1;
+  string scope = 2;
+}
 message GetFrontierResponse {
   repeated Node nodes = 1;
+  int32 eligible_count = 2;
+  int32 target = 3;
 }
 message GetNodeRequest {
   string id = 1;
+  string scope = 2;
 }
 message GetNodeResponse {
   Node node = 1;
 }
-message RebuildForestRequest {}
+message RebuildForestRequest { string scope = 1; }
 message RebuildForestResponse {
   int32 node_count = 1;
 }

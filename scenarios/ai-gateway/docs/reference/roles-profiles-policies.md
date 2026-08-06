@@ -14,6 +14,7 @@ AI Gateway separates concepts that are currently easy to blur:
 | Provider model catalog | Resource | `llama3.2`, hosted provider slugs, context windows, embedding dimensions. | `resource-ollama`, `resource-openrouter` policy/model commands. |
 | Role mapping | Resource | `chat.default`, `summarize.default`, `embedding.default`. | Resource `model-policy.json` and resource policy CLI. |
 | Routing profile | AI Gateway | `local-first`, `privacy-sensitive`, `cheap-first`. | AI Gateway routing policy. |
+| Typed inference role | AI Gateway | `classify.fast`, `extract.structured`, schema subset, provider fallback order. | `config/inference-role-catalog.json`; candidates resolve through resource policy CLIs. |
 | Caller request | Scenario caller | "summarize this", "extract JSON", "embed these chunks". | Gateway API/CLI contract. |
 
 AI Gateway should display resource role policies and route through them,
@@ -40,6 +41,15 @@ provider does not support every role yet:
 
 Status should be read from resource policies at runtime. This table is
 a planning baseline, not an executable model catalog.
+
+Typed inference is the narrower execution contract layered on top of those
+provider roles. Its gateway-owned catalog selects `classify.fast` and
+`extract.structured`, orders local and hosted candidates, and records the
+resolved provider/model in every response. The catalog does not edit resource
+policy or treat schema descriptions as caller instructions. The current local
+structured-extraction candidate deliberately uses Ollama's existing
+`chat.default` policy role until the resource exposes a dedicated extraction
+role; the gateway still enforces the JSON Schema subset locally.
 
 ## Recommended Gateway Profiles
 
@@ -89,8 +99,9 @@ measure) but are policy filters only — never hidden route scoring.
 
 ## Resource Alignment Recommendations
 
-1. Add Ollama `extract.structured` as a resource role if it can be
-   backed by a local model that reliably emits JSON.
+1. Add Ollama `extract.structured` as a resource role if it can be backed by
+   a local model that reliably emits JSON; until then the gateway catalog uses
+   the existing `chat.default` role as its local extraction candidate.
 2. Investigate OpenRouter embeddings in `resource-openrouter` before
    adding `embedding.default`; confirm endpoint support, response shape,
    dimensions, pricing, and policy command behavior.
@@ -118,8 +129,10 @@ exits, malformed JSON, timeouts, and empty role inventories.
 
 Current resource alignment observed for this phase:
 
-- Ollama has `embedding.default`; `extract.structured` is still a
-  resource-policy follow-up.
+- Ollama has `embedding.default`; it does not yet expose a dedicated
+  `extract.structured` resource role. Gateway typed inference therefore uses
+  `chat.default` for its local extraction candidate and keeps the role name
+  provider-neutral.
 - OpenRouter has `extract.structured`; `embedding.default` is still a
   resource-policy investigation before gateway routing can use it.
 

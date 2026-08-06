@@ -36,6 +36,7 @@ const (
 	ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE       ValidationTargetKind = 6
 	ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE ValidationTargetKind = 7
 	ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS          ValidationTargetKind = 8
+	ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT       ValidationTargetKind = 9
 )
 
 // Enum value maps for ValidationTargetKind.
@@ -50,6 +51,7 @@ var (
 		6: "VALIDATION_TARGET_KIND_PACKAGE",
 		7: "VALIDATION_TARGET_KIND_CONTROL_PLANE",
 		8: "VALIDATION_TARGET_KIND_DOCS",
+		9: "VALIDATION_TARGET_KIND_PROJECT",
 	}
 	ValidationTargetKind_value = map[string]int32{
 		"VALIDATION_TARGET_KIND_UNSPECIFIED":   0,
@@ -61,6 +63,7 @@ var (
 		"VALIDATION_TARGET_KIND_PACKAGE":       6,
 		"VALIDATION_TARGET_KIND_CONTROL_PLANE": 7,
 		"VALIDATION_TARGET_KIND_DOCS":          8,
+		"VALIDATION_TARGET_KIND_PROJECT":       9,
 	}
 )
 
@@ -163,7 +166,7 @@ const file_common_v1_validation_target_proto_rawDesc = "" +
 	"\x10ValidationTarget\x123\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1f.common.v1.ValidationTargetKindR\x04kind\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
-	"\x04root\x18\x03 \x01(\tR\x04root*\xdf\x02\n" +
+	"\x04root\x18\x03 \x01(\tR\x04root*\x83\x03\n" +
 	"\x14ValidationTargetKind\x12&\n" +
 	"\"VALIDATION_TARGET_KIND_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fVALIDATION_TARGET_KIND_SCENARIO\x10\x01\x12#\n" +
@@ -173,7 +176,8 @@ const file_common_v1_validation_target_proto_rawDesc = "" +
 	"\x1bVALIDATION_TARGET_KIND_TEAM\x10\x05\x12\"\n" +
 	"\x1eVALIDATION_TARGET_KIND_PACKAGE\x10\x06\x12(\n" +
 	"$VALIDATION_TARGET_KIND_CONTROL_PLANE\x10\a\x12\x1f\n" +
-	"\x1bVALIDATION_TARGET_KIND_DOCS\x10\bBCZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3"
+	"\x1bVALIDATION_TARGET_KIND_DOCS\x10\b\x12\"\n" +
+	"\x1eVALIDATION_TARGET_KIND_PROJECT\x10\tBCZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3"
 
 var (
 	file_common_v1_validation_target_proto_rawDescOnce sync.Once

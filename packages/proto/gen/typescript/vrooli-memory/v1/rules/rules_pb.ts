@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-memory/v1/rules/rules.proto.
  */
 export const file_vrooli_memory_v1_rules_rules: GenFile = /*@__PURE__*/
-  fileDesc("CiJ2cm9vbGktbWVtb3J5L3YxL3J1bGVzL3J1bGVzLnByb3RvEh12cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcyKsAQoEUnVsZRIKCgJpZBgBIAEoCRINCgVzY29wZRgCIAEoCRIQCghwcmlvcml0eRgDIAEoBRIQCghmYWNldF9pZBgEIAEoCRIWCg5zb3VyY2VfcnVudGltZRgFIAEoCRIMCgRraW5kGAYgASgJEhgKEHNvdXJjZV9wYXRoX2dsb2IYByABKAkSFAoMYm9keV9wYXR0ZXJuGAggASgJEg8KB2VuYWJsZWQYCSABKAgiIQoQTGlzdFJ1bGVzUmVxdWVzdBINCgVzY29wZRgBIAEoCSJHChFMaXN0UnVsZXNSZXNwb25zZRIyCgVydWxlcxgBIAMoCzIjLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLlJ1bGUiRgoRQ3JlYXRlUnVsZVJlcXVlc3QSMQoEcnVsZRgBIAEoCzIjLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLlJ1bGUiRwoSQ3JlYXRlUnVsZVJlc3BvbnNlEjEKBHJ1bGUYASABKAsyIy52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5SdWxlIiQKEURyeVJ1blJ1bGVSZXF1ZXN0Eg8KB3J1bGVfaWQYASABKAkiZwoSRHJ5UnVuUnVsZVJlc3BvbnNlEg8KB3J1bGVfaWQYASABKAkSGgoSY29ycHVzX2ZpbmdlcnByaW50GAIgASgJEhMKC21hdGNoX2NvdW50GAMgASgFEg8KB3NhbXBsZXMYBCADKAkiJAoRRW5hYmxlUnVsZVJlcXVlc3QSDwoHcnVsZV9pZBgBIAEoCSIUChJFbmFibGVSdWxlUmVzcG9uc2UiJAoRUmV2ZXJ0UnVsZVJlcXVlc3QSDwoHcnVsZV9pZBgBIAEoCSIsChJSZXZlcnRSdWxlUmVzcG9uc2USFgoOcmVzdG9yZWRfY291bnQYASABKAUiJQoUUmVmYWNldENvcnB1c1JlcXVlc3QSDQoFc2NvcGUYASABKAkicwoVUmVmYWNldENvcnB1c1Jlc3BvbnNlEg0KBXRvdGFsGAEgASgFEhAKCGFzc2lnbmVkGAIgASgFEhUKDXJ1bGVfYXNzaWduZWQYAyABKAUSEgoKY2xhc3NpZmllZBgEIAEoBRIOCgZmYWlsZWQYBSABKAUy1AUKGkNsYXNzaWZpY2F0aW9uUnVsZXNTZXJ2aWNlEm4KCUxpc3RSdWxlcxIvLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLkxpc3RSdWxlc1JlcXVlc3QaMC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5MaXN0UnVsZXNSZXNwb25zZRJxCgpDcmVhdGVSdWxlEjAudnJvb2xpLnZyb29saV9tZW1vcnkudjEucnVsZXMuQ3JlYXRlUnVsZVJlcXVlc3QaMS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5DcmVhdGVSdWxlUmVzcG9uc2UScQoKRHJ5UnVuUnVsZRIwLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLkRyeVJ1blJ1bGVSZXF1ZXN0GjEudnJvb2xpLnZyb29saV9tZW1vcnkudjEucnVsZXMuRHJ5UnVuUnVsZVJlc3BvbnNlEnEKCkVuYWJsZVJ1bGUSMC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5FbmFibGVSdWxlUmVxdWVzdBoxLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLkVuYWJsZVJ1bGVSZXNwb25zZRJxCgpSZXZlcnRSdWxlEjAudnJvb2xpLnZyb29saV9tZW1vcnkudjEucnVsZXMuUmV2ZXJ0UnVsZVJlcXVlc3QaMS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5SZXZlcnRSdWxlUmVzcG9uc2USegoNUmVmYWNldENvcnB1cxIzLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLlJlZmFjZXRDb3JwdXNSZXF1ZXN0GjQudnJvb2xpLnZyb29saV9tZW1vcnkudjEucnVsZXMuUmVmYWNldENvcnB1c1Jlc3BvbnNlQlBaTmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLW1lbW9yeS92MS9ydWxlcztydWxlc192MWIGcHJvdG8z");
+  fileDesc("CiJ2cm9vbGktbWVtb3J5L3YxL3J1bGVzL3J1bGVzLnByb3RvEh12cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcyKsAQoEUnVsZRIKCgJpZBgBIAEoCRINCgVzY29wZRgCIAEoCRIQCghwcmlvcml0eRgDIAEoBRIQCghmYWNldF9pZBgEIAEoCRIWCg5zb3VyY2VfcnVudGltZRgFIAEoCRIMCgRraW5kGAYgASgJEhgKEHNvdXJjZV9wYXRoX2dsb2IYByABKAkSFAoMYm9keV9wYXR0ZXJuGAggASgJEg8KB2VuYWJsZWQYCSABKAgiIQoQTGlzdFJ1bGVzUmVxdWVzdBINCgVzY29wZRgBIAEoCSJHChFMaXN0UnVsZXNSZXNwb25zZRIyCgVydWxlcxgBIAMoCzIjLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLlJ1bGUiRgoRQ3JlYXRlUnVsZVJlcXVlc3QSMQoEcnVsZRgBIAEoCzIjLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLlJ1bGUiRwoSQ3JlYXRlUnVsZVJlc3BvbnNlEjEKBHJ1bGUYASABKAsyIy52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5SdWxlIjMKEURyeVJ1blJ1bGVSZXF1ZXN0Eg8KB3J1bGVfaWQYASABKAkSDQoFc2NvcGUYAiABKAkiZwoSRHJ5UnVuUnVsZVJlc3BvbnNlEg8KB3J1bGVfaWQYASABKAkSGgoSY29ycHVzX2ZpbmdlcnByaW50GAIgASgJEhMKC21hdGNoX2NvdW50GAMgASgFEg8KB3NhbXBsZXMYBCADKAkiMwoRRW5hYmxlUnVsZVJlcXVlc3QSDwoHcnVsZV9pZBgBIAEoCRINCgVzY29wZRgCIAEoCSIUChJFbmFibGVSdWxlUmVzcG9uc2UiMwoRUmV2ZXJ0UnVsZVJlcXVlc3QSDwoHcnVsZV9pZBgBIAEoCRINCgVzY29wZRgCIAEoCSIsChJSZXZlcnRSdWxlUmVzcG9uc2USFgoOcmVzdG9yZWRfY291bnQYASABKAUiTAoUUmVmYWNldENvcnB1c1JlcXVlc3QSDQoFc2NvcGUYASABKAkSFgoOYWZ0ZXJfZW50cnlfaWQYAiABKAkSDQoFbGltaXQYAyABKAUinAEKFVJlZmFjZXRDb3JwdXNSZXNwb25zZRINCgV0b3RhbBgBIAEoBRIQCghhc3NpZ25lZBgCIAEoBRIVCg1ydWxlX2Fzc2lnbmVkGAMgASgFEhIKCmNsYXNzaWZpZWQYBCABKAUSDgoGZmFpbGVkGAUgASgFEhUKDW5leHRfZW50cnlfaWQYBiABKAkSEAoIY29tcGxldGUYByABKAgiKwoaTWVhc3VyZURpc3RyaWJ1dGlvblJlcXVlc3QSDQoFc2NvcGUYASABKAkingQKG01lYXN1cmVEaXN0cmlidXRpb25SZXNwb25zZRINCgVzY29wZRgBIAEoCRINCgV0b3RhbBgCIAEoBRIUCgxydWxlX21hdGNoZWQYAyABKAUSFwoPY2xhc3NpZmllcl90YWlsGAQgASgFEmMKDXJ1bGVfY292ZXJhZ2UYBSADKAsyTC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5NZWFzdXJlRGlzdHJpYnV0aW9uUmVzcG9uc2UuUnVsZUNvdmVyYWdlRW50cnkSdwoYY2xhc3NpZmllcl90YWlsX2J5X2ZhY2V0GAYgAygLMlUudnJvb2xpLnZyb29saV9tZW1vcnkudjEucnVsZXMuTWVhc3VyZURpc3RyaWJ1dGlvblJlc3BvbnNlLkNsYXNzaWZpZXJUYWlsQnlGYWNldEVudHJ5EhcKD2NlaWxpbmdfcGVyY2VudBgHIAEoARIWCg5tYXhfdGFpbF9mYWNldBgIIAEoCRIYChBtYXhfdGFpbF9wZXJjZW50GAkgASgBEhYKDndpdGhpbl9jZWlsaW5nGAogASgIGjMKEVJ1bGVDb3ZlcmFnZUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoBToCOAEaPAoaQ2xhc3NpZmllclRhaWxCeUZhY2V0RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgFOgI4ATLjBgoaQ2xhc3NpZmljYXRpb25SdWxlc1NlcnZpY2USbgoJTGlzdFJ1bGVzEi8udnJvb2xpLnZyb29saV9tZW1vcnkudjEucnVsZXMuTGlzdFJ1bGVzUmVxdWVzdBowLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLkxpc3RSdWxlc1Jlc3BvbnNlEnEKCkNyZWF0ZVJ1bGUSMC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5DcmVhdGVSdWxlUmVxdWVzdBoxLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLkNyZWF0ZVJ1bGVSZXNwb25zZRJxCgpEcnlSdW5SdWxlEjAudnJvb2xpLnZyb29saV9tZW1vcnkudjEucnVsZXMuRHJ5UnVuUnVsZVJlcXVlc3QaMS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5EcnlSdW5SdWxlUmVzcG9uc2UScQoKRW5hYmxlUnVsZRIwLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLkVuYWJsZVJ1bGVSZXF1ZXN0GjEudnJvb2xpLnZyb29saV9tZW1vcnkudjEucnVsZXMuRW5hYmxlUnVsZVJlc3BvbnNlEnEKClJldmVydFJ1bGUSMC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5SZXZlcnRSdWxlUmVxdWVzdBoxLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLlJldmVydFJ1bGVSZXNwb25zZRJ6Cg1SZWZhY2V0Q29ycHVzEjMudnJvb2xpLnZyb29saV9tZW1vcnkudjEucnVsZXMuUmVmYWNldENvcnB1c1JlcXVlc3QaNC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5SZWZhY2V0Q29ycHVzUmVzcG9uc2USjAEKE01lYXN1cmVEaXN0cmlidXRpb24SOS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5ydWxlcy5NZWFzdXJlRGlzdHJpYnV0aW9uUmVxdWVzdBo6LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJ1bGVzLk1lYXN1cmVEaXN0cmlidXRpb25SZXNwb25zZUJQWk5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1tZW1vcnkvdjEvcnVsZXM7cnVsZXNfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.rules.Rule
@@ -145,6 +145,11 @@ export type DryRunRuleRequest = Message<"vrooli.vrooli_memory.v1.rules.DryRunRul
    * @generated from field: string rule_id = 1;
    */
   ruleId: string;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
 };
 
 /**
@@ -194,6 +199,11 @@ export type EnableRuleRequest = Message<"vrooli.vrooli_memory.v1.rules.EnableRul
    * @generated from field: string rule_id = 1;
    */
   ruleId: string;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
 };
 
 /**
@@ -224,6 +234,11 @@ export type RevertRuleRequest = Message<"vrooli.vrooli_memory.v1.rules.RevertRul
    * @generated from field: string rule_id = 1;
    */
   ruleId: string;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
 };
 
 /**
@@ -258,6 +273,16 @@ export type RefacetCorpusRequest = Message<"vrooli.vrooli_memory.v1.rules.Reface
    * @generated from field: string scope = 1;
    */
   scope: string;
+
+  /**
+   * @generated from field: string after_entry_id = 2;
+   */
+  afterEntryId: string;
+
+  /**
+   * @generated from field: int32 limit = 3;
+   */
+  limit: number;
 };
 
 /**
@@ -295,6 +320,16 @@ export type RefacetCorpusResponse = Message<"vrooli.vrooli_memory.v1.rules.Refac
    * @generated from field: int32 failed = 5;
    */
   failed: number;
+
+  /**
+   * @generated from field: string next_entry_id = 6;
+   */
+  nextEntryId: string;
+
+  /**
+   * @generated from field: bool complete = 7;
+   */
+  complete: boolean;
 };
 
 /**
@@ -303,6 +338,85 @@ export type RefacetCorpusResponse = Message<"vrooli.vrooli_memory.v1.rules.Refac
  */
 export const RefacetCorpusResponseSchema: GenMessage<RefacetCorpusResponse> = /*@__PURE__*/
   messageDesc(file_vrooli_memory_v1_rules_rules, 12);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.rules.MeasureDistributionRequest
+ */
+export type MeasureDistributionRequest = Message<"vrooli.vrooli_memory.v1.rules.MeasureDistributionRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.rules.MeasureDistributionRequest.
+ * Use `create(MeasureDistributionRequestSchema)` to create a new message.
+ */
+export const MeasureDistributionRequestSchema: GenMessage<MeasureDistributionRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_rules_rules, 13);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse
+ */
+export type MeasureDistributionResponse = Message<"vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: int32 total = 2;
+   */
+  total: number;
+
+  /**
+   * @generated from field: int32 rule_matched = 3;
+   */
+  ruleMatched: number;
+
+  /**
+   * @generated from field: int32 classifier_tail = 4;
+   */
+  classifierTail: number;
+
+  /**
+   * @generated from field: map<string, int32> rule_coverage = 5;
+   */
+  ruleCoverage: { [key: string]: number };
+
+  /**
+   * @generated from field: map<string, int32> classifier_tail_by_facet = 6;
+   */
+  classifierTailByFacet: { [key: string]: number };
+
+  /**
+   * @generated from field: double ceiling_percent = 7;
+   */
+  ceilingPercent: number;
+
+  /**
+   * @generated from field: string max_tail_facet = 8;
+   */
+  maxTailFacet: string;
+
+  /**
+   * @generated from field: double max_tail_percent = 9;
+   */
+  maxTailPercent: number;
+
+  /**
+   * @generated from field: bool within_ceiling = 10;
+   */
+  withinCeiling: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse.
+ * Use `create(MeasureDistributionResponseSchema)` to create a new message.
+ */
+export const MeasureDistributionResponseSchema: GenMessage<MeasureDistributionResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_rules_rules, 14);
 
 /**
  * @generated from service vrooli.vrooli_memory.v1.rules.ClassificationRulesService
@@ -355,6 +469,14 @@ export const ClassificationRulesService: GenService<{
     methodKind: "unary";
     input: typeof RefacetCorpusRequestSchema;
     output: typeof RefacetCorpusResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_memory.v1.rules.ClassificationRulesService.MeasureDistribution
+   */
+  measureDistribution: {
+    methodKind: "unary";
+    input: typeof MeasureDistributionRequestSchema;
+    output: typeof MeasureDistributionResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_memory_v1_rules_rules, 0);

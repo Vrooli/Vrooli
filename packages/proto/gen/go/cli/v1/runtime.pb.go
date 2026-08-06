@@ -470,6 +470,10 @@ type CliHostSnapshot struct {
 	Seat              string                `protobuf:"bytes,21,opt,name=seat,proto3" json:"seat,omitempty"`
 	ActiveSessionUser string                `protobuf:"bytes,22,opt,name=active_session_user,json=activeSessionUser,proto3" json:"active_session_user,omitempty"`
 	AutoLoginUser     string                `protobuf:"bytes,23,opt,name=auto_login_user,json=autoLoginUser,proto3" json:"auto_login_user,omitempty"`
+	// NVIDIA character-device nodes observed on the host. Consumers that need
+	// explicit container device bindings must derive them from this inventory,
+	// never from a hard-coded node list.
+	NvidiaDeviceNodes []string `protobuf:"bytes,24,rep,name=nvidia_device_nodes,json=nvidiaDeviceNodes,proto3" json:"nvidia_device_nodes,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -663,6 +667,13 @@ func (x *CliHostSnapshot) GetAutoLoginUser() string {
 		return x.AutoLoginUser
 	}
 	return ""
+}
+
+func (x *CliHostSnapshot) GetNvidiaDeviceNodes() []string {
+	if x != nil {
+		return x.NvidiaDeviceNodes
+	}
+	return nil
 }
 
 // CliHostRemoteDesktop mirrors hostinventory.RemoteDesktopCapability.
@@ -1813,7 +1824,7 @@ const file_cli_v1_runtime_proto_rawDesc = "" +
 	"\tunit_name\x18\x01 \x01(\tR\bunitName\x12\x1b\n" +
 	"\tunit_path\x18\x02 \x01(\tR\bunitPath\x12\x14\n" +
 	"\x05scope\x18\x03 \x01(\tR\x05scope\x12\x16\n" +
-	"\x06active\x18\x04 \x01(\bR\x06active\"\x8c\v\n" +
+	"\x06active\x18\x04 \x01(\bR\x06active\"\xbc\v\n" +
 	"\x0fCliHostSnapshot\x12\x0e\n" +
 	"\x02os\x18\x01 \x01(\tR\x02os\x12\x12\n" +
 	"\x04arch\x18\x02 \x01(\tR\x04arch\x12+\n" +
@@ -1839,7 +1850,8 @@ const file_cli_v1_runtime_proto_rawDesc = "" +
 	"\fsession_type\x18\x14 \x01(\tR\vsessionType\x12\x12\n" +
 	"\x04seat\x18\x15 \x01(\tR\x04seat\x12.\n" +
 	"\x13active_session_user\x18\x16 \x01(\tR\x11activeSessionUser\x12&\n" +
-	"\x0fauto_login_user\x18\x17 \x01(\tR\rautoLoginUser\x1a[\n" +
+	"\x0fauto_login_user\x18\x17 \x01(\tR\rautoLoginUser\x12.\n" +
+	"\x13nvidia_device_nodes\x18\x18 \x03(\tR\x11nvidiaDeviceNodes\x1a[\n" +
 	"\x11RuntimeToolsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
 	"\x05value\x18\x02 \x01(\v2\x1a.vrooli.cli.v1.CliHostToolR\x05value:\x028\x01\x1a@\n" +

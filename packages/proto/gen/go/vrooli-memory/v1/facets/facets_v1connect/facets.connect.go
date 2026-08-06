@@ -44,6 +44,9 @@ const (
 	// FacetsServiceListPinProposalsProcedure is the fully-qualified name of the FacetsService's
 	// ListPinProposals RPC.
 	FacetsServiceListPinProposalsProcedure = "/vrooli.vrooli_memory.v1.facets.FacetsService/ListPinProposals"
+	// FacetsServiceListPinCandidatesProcedure is the fully-qualified name of the FacetsService's
+	// ListPinCandidates RPC.
+	FacetsServiceListPinCandidatesProcedure = "/vrooli.vrooli_memory.v1.facets.FacetsService/ListPinCandidates"
 	// FacetsServiceResolvePinProposalProcedure is the fully-qualified name of the FacetsService's
 	// ResolvePinProposal RPC.
 	FacetsServiceResolvePinProposalProcedure = "/vrooli.vrooli_memory.v1.facets.FacetsService/ResolvePinProposal"
@@ -61,6 +64,7 @@ type FacetsServiceClient interface {
 	AssignFacet(context.Context, *connect.Request[facets.AssignFacetRequest]) (*connect.Response[facets.AssignFacetResponse], error)
 	SetPin(context.Context, *connect.Request[facets.SetPinRequest]) (*connect.Response[facets.SetPinResponse], error)
 	ListPinProposals(context.Context, *connect.Request[facets.ListPinProposalsRequest]) (*connect.Response[facets.ListPinProposalsResponse], error)
+	ListPinCandidates(context.Context, *connect.Request[facets.ListPinCandidatesRequest]) (*connect.Response[facets.ListPinCandidatesResponse], error)
 	ResolvePinProposal(context.Context, *connect.Request[facets.ResolvePinProposalRequest]) (*connect.Response[facets.ResolvePinProposalResponse], error)
 	MarkSuperseded(context.Context, *connect.Request[facets.MarkSupersededRequest]) (*connect.Response[facets.MarkSupersededResponse], error)
 	ResolveThread(context.Context, *connect.Request[facets.ResolveThreadRequest]) (*connect.Response[facets.ResolveThreadResponse], error)
@@ -101,6 +105,12 @@ func NewFacetsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(facetsServiceMethods.ByName("ListPinProposals")),
 			connect.WithClientOptions(opts...),
 		),
+		listPinCandidates: connect.NewClient[facets.ListPinCandidatesRequest, facets.ListPinCandidatesResponse](
+			httpClient,
+			baseURL+FacetsServiceListPinCandidatesProcedure,
+			connect.WithSchema(facetsServiceMethods.ByName("ListPinCandidates")),
+			connect.WithClientOptions(opts...),
+		),
 		resolvePinProposal: connect.NewClient[facets.ResolvePinProposalRequest, facets.ResolvePinProposalResponse](
 			httpClient,
 			baseURL+FacetsServiceResolvePinProposalProcedure,
@@ -128,6 +138,7 @@ type facetsServiceClient struct {
 	assignFacet        *connect.Client[facets.AssignFacetRequest, facets.AssignFacetResponse]
 	setPin             *connect.Client[facets.SetPinRequest, facets.SetPinResponse]
 	listPinProposals   *connect.Client[facets.ListPinProposalsRequest, facets.ListPinProposalsResponse]
+	listPinCandidates  *connect.Client[facets.ListPinCandidatesRequest, facets.ListPinCandidatesResponse]
 	resolvePinProposal *connect.Client[facets.ResolvePinProposalRequest, facets.ResolvePinProposalResponse]
 	markSuperseded     *connect.Client[facets.MarkSupersededRequest, facets.MarkSupersededResponse]
 	resolveThread      *connect.Client[facets.ResolveThreadRequest, facets.ResolveThreadResponse]
@@ -153,6 +164,11 @@ func (c *facetsServiceClient) ListPinProposals(ctx context.Context, req *connect
 	return c.listPinProposals.CallUnary(ctx, req)
 }
 
+// ListPinCandidates calls vrooli.vrooli_memory.v1.facets.FacetsService.ListPinCandidates.
+func (c *facetsServiceClient) ListPinCandidates(ctx context.Context, req *connect.Request[facets.ListPinCandidatesRequest]) (*connect.Response[facets.ListPinCandidatesResponse], error) {
+	return c.listPinCandidates.CallUnary(ctx, req)
+}
+
 // ResolvePinProposal calls vrooli.vrooli_memory.v1.facets.FacetsService.ResolvePinProposal.
 func (c *facetsServiceClient) ResolvePinProposal(ctx context.Context, req *connect.Request[facets.ResolvePinProposalRequest]) (*connect.Response[facets.ResolvePinProposalResponse], error) {
 	return c.resolvePinProposal.CallUnary(ctx, req)
@@ -175,6 +191,7 @@ type FacetsServiceHandler interface {
 	AssignFacet(context.Context, *connect.Request[facets.AssignFacetRequest]) (*connect.Response[facets.AssignFacetResponse], error)
 	SetPin(context.Context, *connect.Request[facets.SetPinRequest]) (*connect.Response[facets.SetPinResponse], error)
 	ListPinProposals(context.Context, *connect.Request[facets.ListPinProposalsRequest]) (*connect.Response[facets.ListPinProposalsResponse], error)
+	ListPinCandidates(context.Context, *connect.Request[facets.ListPinCandidatesRequest]) (*connect.Response[facets.ListPinCandidatesResponse], error)
 	ResolvePinProposal(context.Context, *connect.Request[facets.ResolvePinProposalRequest]) (*connect.Response[facets.ResolvePinProposalResponse], error)
 	MarkSuperseded(context.Context, *connect.Request[facets.MarkSupersededRequest]) (*connect.Response[facets.MarkSupersededResponse], error)
 	ResolveThread(context.Context, *connect.Request[facets.ResolveThreadRequest]) (*connect.Response[facets.ResolveThreadResponse], error)
@@ -211,6 +228,12 @@ func NewFacetsServiceHandler(svc FacetsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(facetsServiceMethods.ByName("ListPinProposals")),
 		connect.WithHandlerOptions(opts...),
 	)
+	facetsServiceListPinCandidatesHandler := connect.NewUnaryHandler(
+		FacetsServiceListPinCandidatesProcedure,
+		svc.ListPinCandidates,
+		connect.WithSchema(facetsServiceMethods.ByName("ListPinCandidates")),
+		connect.WithHandlerOptions(opts...),
+	)
 	facetsServiceResolvePinProposalHandler := connect.NewUnaryHandler(
 		FacetsServiceResolvePinProposalProcedure,
 		svc.ResolvePinProposal,
@@ -239,6 +262,8 @@ func NewFacetsServiceHandler(svc FacetsServiceHandler, opts ...connect.HandlerOp
 			facetsServiceSetPinHandler.ServeHTTP(w, r)
 		case FacetsServiceListPinProposalsProcedure:
 			facetsServiceListPinProposalsHandler.ServeHTTP(w, r)
+		case FacetsServiceListPinCandidatesProcedure:
+			facetsServiceListPinCandidatesHandler.ServeHTTP(w, r)
 		case FacetsServiceResolvePinProposalProcedure:
 			facetsServiceResolvePinProposalHandler.ServeHTTP(w, r)
 		case FacetsServiceMarkSupersededProcedure:
@@ -268,6 +293,10 @@ func (UnimplementedFacetsServiceHandler) SetPin(context.Context, *connect.Reques
 
 func (UnimplementedFacetsServiceHandler) ListPinProposals(context.Context, *connect.Request[facets.ListPinProposalsRequest]) (*connect.Response[facets.ListPinProposalsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.facets.FacetsService.ListPinProposals is not implemented"))
+}
+
+func (UnimplementedFacetsServiceHandler) ListPinCandidates(context.Context, *connect.Request[facets.ListPinCandidatesRequest]) (*connect.Response[facets.ListPinCandidatesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.facets.FacetsService.ListPinCandidates is not implemented"))
 }
 
 func (UnimplementedFacetsServiceHandler) ResolvePinProposal(context.Context, *connect.Request[facets.ResolvePinProposalRequest]) (*connect.Response[facets.ResolvePinProposalResponse], error) {

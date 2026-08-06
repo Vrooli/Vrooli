@@ -64,6 +64,27 @@ message DesktopSessionMetrics {
   optional double current_rss_mb = 6;
   optional double peak_rss_mb = 7;
   int32 sample_count = 8;
+  optional string performance_status = 9;
+  optional string performance_reason = 10;
+  optional int64 protocol_startup_duration_ms = 11;
+  optional int64 demo_startup_duration_ms = 12;
+  optional string protocol_trace_ref = 13;
+  optional string demo_trace_ref = 14;
+  repeated DesktopProcessRoleMetric process_roles = 15;
+}
+
+message DesktopProcessRoleMetric {
+  string role = 1;
+  bool available = 2;
+  bool unsupported = 3;
+  int32 process_count = 4;
+  double cpu_percent = 5;
+  double peak_cpu_percent = 6;
+  int64 rss_bytes = 7;
+  int64 peak_rss_bytes = 8;
+  int32 threads = 9;
+  int64 duration_ms = 10;
+  int32 sample_count = 11;
 }
 
 message DesktopSession {

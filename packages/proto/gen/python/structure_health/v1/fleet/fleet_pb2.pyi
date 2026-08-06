@@ -7,13 +7,25 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ScanFleetRequest(_message.Message):
-    __slots__ = ("scenarios",)
+    __slots__ = ("scenarios", "targets")
     SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    TARGETS_FIELD_NUMBER: _ClassVar[int]
     scenarios: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, scenarios: _Optional[_Iterable[str]] = ...) -> None: ...
+    targets: _containers.RepeatedCompositeFieldContainer[FleetTarget]
+    def __init__(self, scenarios: _Optional[_Iterable[str]] = ..., targets: _Optional[_Iterable[_Union[FleetTarget, _Mapping]]] = ...) -> None: ...
+
+class FleetTarget(_message.Message):
+    __slots__ = ("kind", "id", "path")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    id: str
+    path: str
+    def __init__(self, kind: _Optional[str] = ..., id: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
 
 class ScanFleetResponse(_message.Message):
-    __slots__ = ("entries", "rule_conformance", "profile_distribution", "scenario_count", "passing_count", "missing_freshness_count", "autofixable_total", "errors")
+    __slots__ = ("entries", "rule_conformance", "profile_distribution", "scenario_count", "passing_count", "missing_freshness_count", "autofixable_total", "errors", "target_count", "passing_target_count")
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     RULE_CONFORMANCE_FIELD_NUMBER: _ClassVar[int]
     PROFILE_DISTRIBUTION_FIELD_NUMBER: _ClassVar[int]
@@ -22,6 +34,8 @@ class ScanFleetResponse(_message.Message):
     MISSING_FRESHNESS_COUNT_FIELD_NUMBER: _ClassVar[int]
     AUTOFIXABLE_TOTAL_FIELD_NUMBER: _ClassVar[int]
     ERRORS_FIELD_NUMBER: _ClassVar[int]
+    TARGET_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PASSING_TARGET_COUNT_FIELD_NUMBER: _ClassVar[int]
     entries: _containers.RepeatedCompositeFieldContainer[FleetScenarioEntry]
     rule_conformance: _containers.RepeatedCompositeFieldContainer[RuleConformance]
     profile_distribution: _containers.RepeatedCompositeFieldContainer[ProfileDistribution]
@@ -30,10 +44,12 @@ class ScanFleetResponse(_message.Message):
     missing_freshness_count: int
     autofixable_total: int
     errors: _containers.RepeatedCompositeFieldContainer[FleetScanError]
-    def __init__(self, entries: _Optional[_Iterable[_Union[FleetScenarioEntry, _Mapping]]] = ..., rule_conformance: _Optional[_Iterable[_Union[RuleConformance, _Mapping]]] = ..., profile_distribution: _Optional[_Iterable[_Union[ProfileDistribution, _Mapping]]] = ..., scenario_count: _Optional[int] = ..., passing_count: _Optional[int] = ..., missing_freshness_count: _Optional[int] = ..., autofixable_total: _Optional[int] = ..., errors: _Optional[_Iterable[_Union[FleetScanError, _Mapping]]] = ...) -> None: ...
+    target_count: int
+    passing_target_count: int
+    def __init__(self, entries: _Optional[_Iterable[_Union[FleetScenarioEntry, _Mapping]]] = ..., rule_conformance: _Optional[_Iterable[_Union[RuleConformance, _Mapping]]] = ..., profile_distribution: _Optional[_Iterable[_Union[ProfileDistribution, _Mapping]]] = ..., scenario_count: _Optional[int] = ..., passing_count: _Optional[int] = ..., missing_freshness_count: _Optional[int] = ..., autofixable_total: _Optional[int] = ..., errors: _Optional[_Iterable[_Union[FleetScanError, _Mapping]]] = ..., target_count: _Optional[int] = ..., passing_target_count: _Optional[int] = ...) -> None: ...
 
 class FleetScenarioEntry(_message.Message):
-    __slots__ = ("scenario", "passed", "profile_id", "profile_recognized", "error_count", "warning_count", "total_findings", "autofixable_count", "missing_freshness_check", "surfaces", "degraded_reason")
+    __slots__ = ("scenario", "passed", "profile_id", "profile_recognized", "error_count", "warning_count", "total_findings", "autofixable_count", "missing_freshness_check", "surfaces", "degraded_reason", "target_kind", "target_id", "target_path")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PASSED_FIELD_NUMBER: _ClassVar[int]
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -45,6 +61,9 @@ class FleetScenarioEntry(_message.Message):
     MISSING_FRESHNESS_CHECK_FIELD_NUMBER: _ClassVar[int]
     SURFACES_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_REASON_FIELD_NUMBER: _ClassVar[int]
+    TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_PATH_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     passed: bool
     profile_id: str
@@ -56,7 +75,10 @@ class FleetScenarioEntry(_message.Message):
     missing_freshness_check: bool
     surfaces: _containers.RepeatedScalarFieldContainer[str]
     degraded_reason: str
-    def __init__(self, scenario: _Optional[str] = ..., passed: _Optional[bool] = ..., profile_id: _Optional[str] = ..., profile_recognized: _Optional[bool] = ..., error_count: _Optional[int] = ..., warning_count: _Optional[int] = ..., total_findings: _Optional[int] = ..., autofixable_count: _Optional[int] = ..., missing_freshness_check: _Optional[bool] = ..., surfaces: _Optional[_Iterable[str]] = ..., degraded_reason: _Optional[str] = ...) -> None: ...
+    target_kind: str
+    target_id: str
+    target_path: str
+    def __init__(self, scenario: _Optional[str] = ..., passed: _Optional[bool] = ..., profile_id: _Optional[str] = ..., profile_recognized: _Optional[bool] = ..., error_count: _Optional[int] = ..., warning_count: _Optional[int] = ..., total_findings: _Optional[int] = ..., autofixable_count: _Optional[int] = ..., missing_freshness_check: _Optional[bool] = ..., surfaces: _Optional[_Iterable[str]] = ..., degraded_reason: _Optional[str] = ..., target_kind: _Optional[str] = ..., target_id: _Optional[str] = ..., target_path: _Optional[str] = ...) -> None: ...
 
 class RuleConformance(_message.Message):
     __slots__ = ("code", "offending_scenarios", "total_findings", "autofixable", "worst_severity")

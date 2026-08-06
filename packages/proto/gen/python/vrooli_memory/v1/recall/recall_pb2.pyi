@@ -27,12 +27,14 @@ class RecallHit(_message.Message):
     def __init__(self, entry_id: _Optional[str] = ..., facet_id: _Optional[str] = ..., text: _Optional[str] = ..., score: _Optional[float] = ..., depth: _Optional[int] = ..., node_id: _Optional[str] = ..., summary: _Optional[bool] = ..., span: _Optional[int] = ...) -> None: ...
 
 class RecallRequest(_message.Message):
-    __slots__ = ("query", "limit")
+    __slots__ = ("query", "limit", "scope")
     QUERY_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     query: str
     limit: int
-    def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+    scope: str
+    def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class RecallResponse(_message.Message):
     __slots__ = ("hits",)
@@ -41,10 +43,12 @@ class RecallResponse(_message.Message):
     def __init__(self, hits: _Optional[_Iterable[_Union[RecallHit, _Mapping]]] = ...) -> None: ...
 
 class WakeRequest(_message.Message):
-    __slots__ = ("token_budget",)
+    __slots__ = ("token_budget", "scope")
     TOKEN_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     token_budget: int
-    def __init__(self, token_budget: _Optional[int] = ...) -> None: ...
+    scope: str
+    def __init__(self, token_budget: _Optional[int] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class WakeResponse(_message.Message):
     __slots__ = ("hits", "overflow")
@@ -55,10 +59,12 @@ class WakeResponse(_message.Message):
     def __init__(self, hits: _Optional[_Iterable[_Union[RecallHit, _Mapping]]] = ..., overflow: _Optional[bool] = ...) -> None: ...
 
 class ZoomRequest(_message.Message):
-    __slots__ = ("node_id",)
+    __slots__ = ("node_id", "scope")
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     node_id: str
-    def __init__(self, node_id: _Optional[str] = ...) -> None: ...
+    scope: str
+    def __init__(self, node_id: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class ZoomResponse(_message.Message):
     __slots__ = ("constituents",)
@@ -67,10 +73,12 @@ class ZoomResponse(_message.Message):
     def __init__(self, constituents: _Optional[_Iterable[_Union[RecallHit, _Mapping]]] = ...) -> None: ...
 
 class ListSiblingEventsRequest(_message.Message):
-    __slots__ = ("entry_id",)
+    __slots__ = ("entry_id", "scope")
     ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     entry_id: str
-    def __init__(self, entry_id: _Optional[str] = ...) -> None: ...
+    scope: str
+    def __init__(self, entry_id: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class ListSiblingEventsResponse(_message.Message):
     __slots__ = ("entries",)

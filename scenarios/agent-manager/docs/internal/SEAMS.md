@@ -202,7 +202,7 @@ without trusting provider formatting or creating a second classifier model.
   constrained extraction → local revalidate ladder.
 - `Extractor` accepts only bounded source/schema plus a portable role and
   returns an untrusted candidate with provider/policy provenance.
-- Production wires `RunnerExtractor`, which resolves `extract.structured`
+- Production wires `GatewayExtractor`, which sends `extract.structured`
   through the active role-policy catalog and existing runner registry. It runs
   a one-turn extraction request and returns only a deterministic JSON candidate;
   `Resolver` still owns authoritative local validation.

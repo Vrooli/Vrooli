@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "experience-manager",
-  "input_digest": "sha256:3ff9eb436864010071e103642029de1f3356c74d3b0c979c0ae8faa02964ab7e",
+  "input_digest": "sha256:97ee5175ce445f965e4f98b660c125f9985ab2f5496a6b011fbab6c68c09a241",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/validation_target.proto",

@@ -82,17 +82,6 @@
         {"runner": "codex", "resourceRole": "write.default"},
         {"runner": "grok", "resourceRole": "write.default"}
       ]
-    },
-    "extract.structured": {
-      "description": "Bounded constrained extraction of one schema-shaped value.",
-      "intent": "structured data extraction",
-      "orderingReason": "Codex is preferred for bounded extraction, with the same fast-role fallback chain retained across runners.",
-      "candidates": [
-        {"runner": "codex", "resourceRole": "code.fast"},
-        {"runner": "claude-code", "resourceRole": "code.fast"},
-        {"runner": "opencode", "resourceRole": "code.fast"},
-        {"runner": "grok", "resourceRole": "code.fast"}
-      ]
     }
   }
 }

@@ -22,14 +22,15 @@ const (
 )
 
 type Node struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	EntryId       string                 `protobuf:"bytes,2,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
-	FacetId       string                 `protobuf:"bytes,3,opt,name=facet_id,json=facetId,proto3" json:"facet_id,omitempty"`
-	Depth         int32                  `protobuf:"varint,4,opt,name=depth,proto3" json:"depth,omitempty"`
-	ChildIds      []string               `protobuf:"bytes,5,rep,name=child_ids,json=childIds,proto3" json:"child_ids,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	EntryId         string                 `protobuf:"bytes,2,opt,name=entry_id,json=entryId,proto3" json:"entry_id,omitempty"`
+	FacetId         string                 `protobuf:"bytes,3,opt,name=facet_id,json=facetId,proto3" json:"facet_id,omitempty"`
+	Depth           int32                  `protobuf:"varint,4,opt,name=depth,proto3" json:"depth,omitempty"`
+	ChildIds        []string               `protobuf:"bytes,5,rep,name=child_ids,json=childIds,proto3" json:"child_ids,omitempty"`
+	CompactionScore float64                `protobuf:"fixed64,6,opt,name=compaction_score,json=compactionScore,proto3" json:"compaction_score,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Node) Reset() {
@@ -97,8 +98,16 @@ func (x *Node) GetChildIds() []string {
 	return nil
 }
 
+func (x *Node) GetCompactionScore() float64 {
+	if x != nil {
+		return x.CompactionScore
+	}
+	return 0
+}
+
 type RunCompactionPassRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -131,6 +140,13 @@ func (x *RunCompactionPassRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RunCompactionPassRequest.ProtoReflect.Descriptor instead.
 func (*RunCompactionPassRequest) Descriptor() ([]byte, []int) {
 	return file_vrooli_memory_v1_forest_forest_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RunCompactionPassRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
 }
 
 type RunCompactionPassResponse struct {
@@ -179,6 +195,8 @@ func (x *RunCompactionPassResponse) GetCompactedCount() int32 {
 
 type GetFrontierRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -213,9 +231,25 @@ func (*GetFrontierRequest) Descriptor() ([]byte, []int) {
 	return file_vrooli_memory_v1_forest_forest_proto_rawDescGZIP(), []int{3}
 }
 
+func (x *GetFrontierRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetFrontierRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
 type GetFrontierResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Nodes         []*Node                `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	EligibleCount int32                  `protobuf:"varint,2,opt,name=eligible_count,json=eligibleCount,proto3" json:"eligible_count,omitempty"`
+	Target        int32                  `protobuf:"varint,3,opt,name=target,proto3" json:"target,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -257,9 +291,24 @@ func (x *GetFrontierResponse) GetNodes() []*Node {
 	return nil
 }
 
+func (x *GetFrontierResponse) GetEligibleCount() int32 {
+	if x != nil {
+		return x.EligibleCount
+	}
+	return 0
+}
+
+func (x *GetFrontierResponse) GetTarget() int32 {
+	if x != nil {
+		return x.Target
+	}
+	return 0
+}
+
 type GetNodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -297,6 +346,13 @@ func (*GetNodeRequest) Descriptor() ([]byte, []int) {
 func (x *GetNodeRequest) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *GetNodeRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
 	}
 	return ""
 }
@@ -347,6 +403,7 @@ func (x *GetNodeResponse) GetNode() *Node {
 
 type RebuildForestRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -379,6 +436,13 @@ func (x *RebuildForestRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RebuildForestRequest.ProtoReflect.Descriptor instead.
 func (*RebuildForestRequest) Descriptor() ([]byte, []int) {
 	return file_vrooli_memory_v1_forest_forest_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RebuildForestRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
 }
 
 type RebuildForestResponse struct {
@@ -429,24 +493,32 @@ var File_vrooli_memory_v1_forest_forest_proto protoreflect.FileDescriptor
 
 const file_vrooli_memory_v1_forest_forest_proto_rawDesc = "" +
 	"\n" +
-	"$vrooli-memory/v1/forest/forest.proto\x12\x1evrooli.vrooli_memory.v1.forest\"\x7f\n" +
+	"$vrooli-memory/v1/forest/forest.proto\x12\x1evrooli.vrooli_memory.v1.forest\"\xaa\x01\n" +
 	"\x04Node\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bentry_id\x18\x02 \x01(\tR\aentryId\x12\x19\n" +
 	"\bfacet_id\x18\x03 \x01(\tR\afacetId\x12\x14\n" +
 	"\x05depth\x18\x04 \x01(\x05R\x05depth\x12\x1b\n" +
-	"\tchild_ids\x18\x05 \x03(\tR\bchildIds\"\x1a\n" +
-	"\x18RunCompactionPassRequest\"D\n" +
+	"\tchild_ids\x18\x05 \x03(\tR\bchildIds\x12)\n" +
+	"\x10compaction_score\x18\x06 \x01(\x01R\x0fcompactionScore\"0\n" +
+	"\x18RunCompactionPassRequest\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\"D\n" +
 	"\x19RunCompactionPassResponse\x12'\n" +
-	"\x0fcompacted_count\x18\x01 \x01(\x05R\x0ecompactedCount\"\x14\n" +
-	"\x12GetFrontierRequest\"Q\n" +
+	"\x0fcompacted_count\x18\x01 \x01(\x05R\x0ecompactedCount\"@\n" +
+	"\x12GetFrontierRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"\x90\x01\n" +
 	"\x13GetFrontierResponse\x12:\n" +
-	"\x05nodes\x18\x01 \x03(\v2$.vrooli.vrooli_memory.v1.forest.NodeR\x05nodes\" \n" +
+	"\x05nodes\x18\x01 \x03(\v2$.vrooli.vrooli_memory.v1.forest.NodeR\x05nodes\x12%\n" +
+	"\x0eeligible_count\x18\x02 \x01(\x05R\religibleCount\x12\x16\n" +
+	"\x06target\x18\x03 \x01(\x05R\x06target\"6\n" +
 	"\x0eGetNodeRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"K\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"K\n" +
 	"\x0fGetNodeResponse\x128\n" +
-	"\x04node\x18\x01 \x01(\v2$.vrooli.vrooli_memory.v1.forest.NodeR\x04node\"\x16\n" +
-	"\x14RebuildForestRequest\"6\n" +
+	"\x04node\x18\x01 \x01(\v2$.vrooli.vrooli_memory.v1.forest.NodeR\x04node\",\n" +
+	"\x14RebuildForestRequest\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\"6\n" +
 	"\x15RebuildForestResponse\x12\x1d\n" +
 	"\n" +
 	"node_count\x18\x01 \x01(\x05R\tnodeCount2\xfc\x03\n" +

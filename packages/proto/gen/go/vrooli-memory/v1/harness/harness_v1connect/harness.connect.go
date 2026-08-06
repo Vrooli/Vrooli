@@ -48,6 +48,9 @@ const (
 	// HarnessServiceCaptureWriteProcedure is the fully-qualified name of the HarnessService's
 	// CaptureWrite RPC.
 	HarnessServiceCaptureWriteProcedure = "/vrooli.vrooli_memory.v1.harness.HarnessService/CaptureWrite"
+	// HarnessServiceGetMaintenanceStatusProcedure is the fully-qualified name of the HarnessService's
+	// GetMaintenanceStatus RPC.
+	HarnessServiceGetMaintenanceStatusProcedure = "/vrooli.vrooli_memory.v1.harness.HarnessService/GetMaintenanceStatus"
 )
 
 // HarnessServiceClient is a client for the vrooli.vrooli_memory.v1.harness.HarnessService service.
@@ -57,6 +60,7 @@ type HarnessServiceClient interface {
 	RefreshProjection(context.Context, *connect.Request[harness.RefreshProjectionRequest]) (*connect.Response[harness.RefreshProjectionResponse], error)
 	InstallPromptBlock(context.Context, *connect.Request[harness.InstallPromptBlockRequest]) (*connect.Response[harness.InstallPromptBlockResponse], error)
 	CaptureWrite(context.Context, *connect.Request[harness.CaptureWriteRequest]) (*connect.Response[harness.CaptureWriteResponse], error)
+	GetMaintenanceStatus(context.Context, *connect.Request[harness.GetMaintenanceStatusRequest]) (*connect.Response[harness.GetMaintenanceStatusResponse], error)
 }
 
 // NewHarnessServiceClient constructs a client for the
@@ -101,16 +105,23 @@ func NewHarnessServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(harnessServiceMethods.ByName("CaptureWrite")),
 			connect.WithClientOptions(opts...),
 		),
+		getMaintenanceStatus: connect.NewClient[harness.GetMaintenanceStatusRequest, harness.GetMaintenanceStatusResponse](
+			httpClient,
+			baseURL+HarnessServiceGetMaintenanceStatusProcedure,
+			connect.WithSchema(harnessServiceMethods.ByName("GetMaintenanceStatus")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // harnessServiceClient implements HarnessServiceClient.
 type harnessServiceClient struct {
-	runImport          *connect.Client[harness.RunImportRequest, harness.RunImportResponse]
-	getImportStatus    *connect.Client[harness.GetImportStatusRequest, harness.GetImportStatusResponse]
-	refreshProjection  *connect.Client[harness.RefreshProjectionRequest, harness.RefreshProjectionResponse]
-	installPromptBlock *connect.Client[harness.InstallPromptBlockRequest, harness.InstallPromptBlockResponse]
-	captureWrite       *connect.Client[harness.CaptureWriteRequest, harness.CaptureWriteResponse]
+	runImport            *connect.Client[harness.RunImportRequest, harness.RunImportResponse]
+	getImportStatus      *connect.Client[harness.GetImportStatusRequest, harness.GetImportStatusResponse]
+	refreshProjection    *connect.Client[harness.RefreshProjectionRequest, harness.RefreshProjectionResponse]
+	installPromptBlock   *connect.Client[harness.InstallPromptBlockRequest, harness.InstallPromptBlockResponse]
+	captureWrite         *connect.Client[harness.CaptureWriteRequest, harness.CaptureWriteResponse]
+	getMaintenanceStatus *connect.Client[harness.GetMaintenanceStatusRequest, harness.GetMaintenanceStatusResponse]
 }
 
 // RunImport calls vrooli.vrooli_memory.v1.harness.HarnessService.RunImport.
@@ -138,6 +149,11 @@ func (c *harnessServiceClient) CaptureWrite(ctx context.Context, req *connect.Re
 	return c.captureWrite.CallUnary(ctx, req)
 }
 
+// GetMaintenanceStatus calls vrooli.vrooli_memory.v1.harness.HarnessService.GetMaintenanceStatus.
+func (c *harnessServiceClient) GetMaintenanceStatus(ctx context.Context, req *connect.Request[harness.GetMaintenanceStatusRequest]) (*connect.Response[harness.GetMaintenanceStatusResponse], error) {
+	return c.getMaintenanceStatus.CallUnary(ctx, req)
+}
+
 // HarnessServiceHandler is an implementation of the vrooli.vrooli_memory.v1.harness.HarnessService
 // service.
 type HarnessServiceHandler interface {
@@ -146,6 +162,7 @@ type HarnessServiceHandler interface {
 	RefreshProjection(context.Context, *connect.Request[harness.RefreshProjectionRequest]) (*connect.Response[harness.RefreshProjectionResponse], error)
 	InstallPromptBlock(context.Context, *connect.Request[harness.InstallPromptBlockRequest]) (*connect.Response[harness.InstallPromptBlockResponse], error)
 	CaptureWrite(context.Context, *connect.Request[harness.CaptureWriteRequest]) (*connect.Response[harness.CaptureWriteResponse], error)
+	GetMaintenanceStatus(context.Context, *connect.Request[harness.GetMaintenanceStatusRequest]) (*connect.Response[harness.GetMaintenanceStatusResponse], error)
 }
 
 // NewHarnessServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -185,6 +202,12 @@ func NewHarnessServiceHandler(svc HarnessServiceHandler, opts ...connect.Handler
 		connect.WithSchema(harnessServiceMethods.ByName("CaptureWrite")),
 		connect.WithHandlerOptions(opts...),
 	)
+	harnessServiceGetMaintenanceStatusHandler := connect.NewUnaryHandler(
+		HarnessServiceGetMaintenanceStatusProcedure,
+		svc.GetMaintenanceStatus,
+		connect.WithSchema(harnessServiceMethods.ByName("GetMaintenanceStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_memory.v1.harness.HarnessService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case HarnessServiceRunImportProcedure:
@@ -197,6 +220,8 @@ func NewHarnessServiceHandler(svc HarnessServiceHandler, opts ...connect.Handler
 			harnessServiceInstallPromptBlockHandler.ServeHTTP(w, r)
 		case HarnessServiceCaptureWriteProcedure:
 			harnessServiceCaptureWriteHandler.ServeHTTP(w, r)
+		case HarnessServiceGetMaintenanceStatusProcedure:
+			harnessServiceGetMaintenanceStatusHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -224,4 +249,8 @@ func (UnimplementedHarnessServiceHandler) InstallPromptBlock(context.Context, *c
 
 func (UnimplementedHarnessServiceHandler) CaptureWrite(context.Context, *connect.Request[harness.CaptureWriteRequest]) (*connect.Response[harness.CaptureWriteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.harness.HarnessService.CaptureWrite is not implemented"))
+}
+
+func (UnimplementedHarnessServiceHandler) GetMaintenanceStatus(context.Context, *connect.Request[harness.GetMaintenanceStatusRequest]) (*connect.Response[harness.GetMaintenanceStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.harness.HarnessService.GetMaintenanceStatus is not implemented"))
 }

@@ -52,17 +52,11 @@ func TestRepositoryCatalogIsStrictAndModelFree(t *testing.T) {
 		t.Fatalf("Load repository role catalog: %v", err)
 	}
 	catalog := revision.Catalog()
-	if catalog.DefaultRole != "code.default" || len(catalog.Roles) != 8 {
+	if catalog.DefaultRole != "code.default" || len(catalog.Roles) != 7 {
 		t.Fatalf("catalog = %#v", catalog)
 	}
-	extraction, ok := catalog.Roles["extract.structured"]
-	if !ok || len(extraction.Candidates) != 4 {
-		t.Fatalf("portable extraction role = %#v", extraction)
-	}
-	for _, candidate := range extraction.Candidates {
-		if candidate.ResourceRole == "" {
-			t.Fatalf("extraction candidate bypasses resource role resolution: %#v", candidate)
-		}
+	if _, exists := catalog.Roles["extract.structured"]; exists {
+		t.Fatal("agent-manager still owns the typed inference role extract.structured")
 	}
 }
 

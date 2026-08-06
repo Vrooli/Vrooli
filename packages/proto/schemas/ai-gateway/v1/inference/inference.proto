@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package vrooli.ai_gateway.v1.inference;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1";
+
+// Usage is the provider-reported accounting for one inference operation.
+// cost_micros is expressed in USD micro-units; local providers report zero
+// when no monetary cost is incurred.
+message Usage {
+  int64 input_tokens = 1;
+  int64 output_tokens = 2;
+  int64 cost_micros = 3;
+}
+
+enum InferenceErrorCode {
+  INFERENCE_ERROR_CODE_UNSPECIFIED = 0;
+  INFERENCE_ERROR_CODE_UNAVAILABLE = 1;
+  INFERENCE_ERROR_CODE_INVALID_REQUEST = 2;
+  INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA = 3;
+  INFERENCE_ERROR_CODE_VALIDATION_FAILED = 4;
+  INFERENCE_ERROR_CODE_PROVIDER_FAILED = 5;
+}
+
+// InferenceError is a typed failure returned inside a response. It is kept
+// distinct from an empty value so callers can choose whether to abstain or
+// raise while transport-level failures remain reserved for malformed RPCs.
+message InferenceError {
+  InferenceErrorCode code = 1;
+  string message = 2;
+  // construct is the unsupported schema keyword or construct when code is
+  // INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA.
+  string construct = 3;
+}
+
+message RunRequest {
+  string source = 1;
+  string schema_json = 2;
+  string instruction = 3;
+  string role = 4;
+}
+
+message RunResponse {
+  string value_json = 1;
+  string provider = 2;
+  string model = 3;
+  bool validated = 4;
+  Usage usage = 5;
+  InferenceError error = 6;
+}
+
+message RunBatchItem {
+  string source = 1;
+}
+
+message RunBatchRequest {
+  repeated RunBatchItem items = 1;
+  string schema_json = 2;
+  string instruction = 3;
+  string role = 4;
+}
+
+message RunBatchResponse {
+  // Results preserve the exact order of the request items, including failed
+  // items. Each result has its own provider/model and usage accounting.
+  repeated RunResponse results = 1;
+  Usage usage = 2;
+}
+
+service InferenceService {
+  rpc Run(RunRequest) returns (RunResponse);
+  rpc RunBatch(RunBatchRequest) returns (RunBatchResponse);
+}

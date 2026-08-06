@@ -16,8 +16,9 @@ type connectHandler struct {
 }
 
 type Deps struct {
-	Service *domain.Service
-	Runner  providers.CommandRunner
+	Service        *domain.Service
+	Runner         providers.CommandRunner
+	InferenceRoles []string
 }
 
 func NewConnectHandler(deps Deps) *connectHandler {
@@ -25,6 +26,7 @@ func NewConnectHandler(deps Deps) *connectHandler {
 	if service == nil {
 		service = domain.NewService(providers.NewDefaultAdapters(deps.Runner))
 	}
+	service.SetLogicalRoles(deps.InferenceRoles)
 	return &connectHandler{service: service}
 }
 

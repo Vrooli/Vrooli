@@ -37,9 +37,13 @@ type HostInventoryResponse struct {
 	// Detected GPUs; empty when none are present or the probe degraded. A
 	// consumer that needs VRAM-fit selection must treat an empty list (or a GPU
 	// with vram_bytes == 0) as "unknown headroom" and fall back conservatively.
-	Gpus          []*HostGPU `protobuf:"bytes,6,rep,name=gpus,proto3" json:"gpus,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Gpus []*HostGPU `protobuf:"bytes,6,rep,name=gpus,proto3" json:"gpus,omitempty"`
+	// NVIDIA character-device nodes observed on the host. Consumers that need
+	// explicit container device bindings must derive them from this inventory,
+	// never from a hard-coded node list.
+	NvidiaDeviceNodes []string `protobuf:"bytes,7,rep,name=nvidia_device_nodes,json=nvidiaDeviceNodes,proto3" json:"nvidia_device_nodes,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *HostInventoryResponse) Reset() {
@@ -110,6 +114,13 @@ func (x *HostInventoryResponse) GetCpu() *HostCPU {
 func (x *HostInventoryResponse) GetGpus() []*HostGPU {
 	if x != nil {
 		return x.Gpus
+	}
+	return nil
+}
+
+func (x *HostInventoryResponse) GetNvidiaDeviceNodes() []string {
+	if x != nil {
+		return x.NvidiaDeviceNodes
 	}
 	return nil
 }
@@ -368,14 +379,15 @@ var File_cli_v1_host_inventory_proto protoreflect.FileDescriptor
 
 const file_cli_v1_host_inventory_proto_rawDesc = "" +
 	"\n" +
-	"\x1bcli/v1/host_inventory.proto\x12\rvrooli.cli.v1\"\xf1\x01\n" +
+	"\x1bcli/v1/host_inventory.proto\x12\rvrooli.cli.v1\"\xa1\x02\n" +
 	"\x15HostInventoryResponse\x121\n" +
 	"\x06memory\x18\x01 \x01(\v2\x19.vrooli.cli.v1.HostMemoryR\x06memory\x12+\n" +
 	"\x04swap\x18\x02 \x01(\v2\x17.vrooli.cli.v1.HostSwapR\x04swap\x12\x0e\n" +
 	"\x02os\x18\x03 \x01(\tR\x02os\x12\x12\n" +
 	"\x04arch\x18\x04 \x01(\tR\x04arch\x12(\n" +
 	"\x03cpu\x18\x05 \x01(\v2\x16.vrooli.cli.v1.HostCPUR\x03cpu\x12*\n" +
-	"\x04gpus\x18\x06 \x03(\v2\x16.vrooli.cli.v1.HostGPUR\x04gpus\"\x9e\x01\n" +
+	"\x04gpus\x18\x06 \x03(\v2\x16.vrooli.cli.v1.HostGPUR\x04gpus\x12.\n" +
+	"\x13nvidia_device_nodes\x18\a \x03(\tR\x11nvidiaDeviceNodes\"\x9e\x01\n" +
 	"\n" +
 	"HostMemory\x12\x1f\n" +
 	"\vtotal_bytes\x18\x01 \x01(\x04R\n" +

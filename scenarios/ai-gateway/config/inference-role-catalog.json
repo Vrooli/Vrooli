@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "roles": {
+    "classify.fast": {
+      "description": "Low-cost enum classification with a grammar-friendly local first candidate.",
+      "timeout_ms": 45000,
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "classify.routing",
+          "model": "qwen3.5:4b",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Small local classification role; the enum grammar carries most of the constraint."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "classify.routing",
+          "model": "policy-resolved",
+          "reason": "Hosted classification fallback when the local resource is unavailable."
+        }
+      ]
+    },
+    "extract.structured": {
+      "description": "Schema-constrained extraction with a mid-size local first candidate.",
+      "timeout_ms": 120000,
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "chat.default",
+          "model": "qwen3.5:9b",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Mid-size local generation role; the gateway validates every returned value locally."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Hosted structured-output fallback for schemas the local resource cannot reliably produce."
+        }
+      ]
+    }
+  }
+}

@@ -25,6 +25,7 @@ import (
 	conformanceH "ai-gateway/handlers/conformance"
 	gatewayH "ai-gateway/handlers/gateway"
 	healthH "ai-gateway/handlers/health"
+	inferenceH "ai-gateway/handlers/inference"
 	inventoryH "ai-gateway/handlers/inventory"
 	measuresH "ai-gateway/handlers/measures"
 	routingH "ai-gateway/handlers/routing"
@@ -32,6 +33,7 @@ import (
 
 	conformancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/conformance"
 	gatewayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/gateway"
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inventory"
 	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/measures"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
@@ -47,6 +49,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, conformanceH.Endpoints...)
 	out = append(out, gatewayH.Endpoints...)
+	out = append(out, inferenceH.Endpoints...)
 	out = append(out, inventoryH.Endpoints...)
 	out = append(out, measuresH.Endpoints...)
 	out = append(out, routingH.Endpoints...)
@@ -82,6 +85,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "conformance", File: conformancev1.File_ai_gateway_v1_conformance_conformance_proto},
 		{Module: "conformance", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto, Services: []protoreflect.Name{"ScenarioValidationService"}},
 		{Module: "gateway", File: gatewayv1.File_ai_gateway_v1_gateway_gateway_proto},
+		{Module: "inference", File: inferencev1.File_ai_gateway_v1_inference_inference_proto},
 		{Module: "inventory", File: inventoryv1.File_ai_gateway_v1_inventory_inventory_proto},
 		{Module: "measures", File: measuresv1.File_ai_gateway_v1_measures_measures_proto},
 		{Module: "routing", File: routingv1.File_ai_gateway_v1_routing_routing_proto},
@@ -101,6 +105,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(conformanceH.Schema),
 		apidb.SchemaProviderFunc(gatewayH.Schema),
+		apidb.SchemaProviderFunc(inferenceH.Schema),
 		apidb.SchemaProviderFunc(inventoryH.Schema),
 		apidb.SchemaProviderFunc(routingH.Schema),
 	}

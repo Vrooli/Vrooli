@@ -7,20 +7,22 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class HostInventoryResponse(_message.Message):
-    __slots__ = ("memory", "swap", "os", "arch", "cpu", "gpus")
+    __slots__ = ("memory", "swap", "os", "arch", "cpu", "gpus", "nvidia_device_nodes")
     MEMORY_FIELD_NUMBER: _ClassVar[int]
     SWAP_FIELD_NUMBER: _ClassVar[int]
     OS_FIELD_NUMBER: _ClassVar[int]
     ARCH_FIELD_NUMBER: _ClassVar[int]
     CPU_FIELD_NUMBER: _ClassVar[int]
     GPUS_FIELD_NUMBER: _ClassVar[int]
+    NVIDIA_DEVICE_NODES_FIELD_NUMBER: _ClassVar[int]
     memory: HostMemory
     swap: HostSwap
     os: str
     arch: str
     cpu: HostCPU
     gpus: _containers.RepeatedCompositeFieldContainer[HostGPU]
-    def __init__(self, memory: _Optional[_Union[HostMemory, _Mapping]] = ..., swap: _Optional[_Union[HostSwap, _Mapping]] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., cpu: _Optional[_Union[HostCPU, _Mapping]] = ..., gpus: _Optional[_Iterable[_Union[HostGPU, _Mapping]]] = ...) -> None: ...
+    nvidia_device_nodes: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, memory: _Optional[_Union[HostMemory, _Mapping]] = ..., swap: _Optional[_Union[HostSwap, _Mapping]] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., cpu: _Optional[_Union[HostCPU, _Mapping]] = ..., gpus: _Optional[_Iterable[_Union[HostGPU, _Mapping]]] = ..., nvidia_device_nodes: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class HostMemory(_message.Message):
     __slots__ = ("total_bytes", "available_bytes", "buffers_bytes", "cached_bytes")

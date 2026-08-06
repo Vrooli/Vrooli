@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%structure-health/v1/fleet/fleet.proto\x12 vrooli.structure_health.v1.fleet\"0\n\x10ScanFleetRequest\x12\x1c\n\tscenarios\x18\x01 \x03(\tR\tscenarios\"\xa6\x04\n\x11ScanFleetResponse\x12N\n\x07\x65ntries\x18\x01 \x03(\x0b\x32\x34.vrooli.structure_health.v1.fleet.FleetScenarioEntryR\x07\x65ntries\x12\\\n\x10rule_conformance\x18\x02 \x03(\x0b\x32\x31.vrooli.structure_health.v1.fleet.RuleConformanceR\x0fruleConformance\x12h\n\x14profile_distribution\x18\x03 \x03(\x0b\x32\x35.vrooli.structure_health.v1.fleet.ProfileDistributionR\x13profileDistribution\x12%\n\x0escenario_count\x18\x04 \x01(\x05R\rscenarioCount\x12#\n\rpassing_count\x18\x05 \x01(\x05R\x0cpassingCount\x12\x36\n\x17missing_freshness_count\x18\x06 \x01(\x05R\x15missingFreshnessCount\x12+\n\x11\x61utofixable_total\x18\x07 \x01(\x05R\x10\x61utofixableTotal\x12H\n\x06\x65rrors\x18\x08 \x03(\x0b\x32\x30.vrooli.structure_health.v1.fleet.FleetScanErrorR\x06\x65rrors\"\xad\x03\n\x12\x46leetScenarioEntry\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x16\n\x06passed\x18\x02 \x01(\x08R\x06passed\x12\x1d\n\nprofile_id\x18\x03 \x01(\tR\tprofileId\x12-\n\x12profile_recognized\x18\x04 \x01(\x08R\x11profileRecognized\x12\x1f\n\x0b\x65rror_count\x18\x05 \x01(\x05R\nerrorCount\x12#\n\rwarning_count\x18\x06 \x01(\x05R\x0cwarningCount\x12%\n\x0etotal_findings\x18\x07 \x01(\x05R\rtotalFindings\x12+\n\x11\x61utofixable_count\x18\x08 \x01(\x05R\x10\x61utofixableCount\x12\x36\n\x17missing_freshness_check\x18\t \x01(\x08R\x15missingFreshnessCheck\x12\x1a\n\x08surfaces\x18\n \x03(\tR\x08surfaces\x12\'\n\x0f\x64\x65graded_reason\x18\x0b \x01(\tR\x0e\x64\x65gradedReason\"\xc6\x01\n\x0fRuleConformance\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12/\n\x13offending_scenarios\x18\x02 \x01(\x05R\x12offendingScenarios\x12%\n\x0etotal_findings\x18\x03 \x01(\x05R\rtotalFindings\x12 \n\x0b\x61utofixable\x18\x04 \x01(\x05R\x0b\x61utofixable\x12%\n\x0eworst_severity\x18\x05 \x01(\tR\rworstSeverity\"{\n\x13ProfileDistribution\x12\x1d\n\nprofile_id\x18\x01 \x01(\tR\tprofileId\x12%\n\x0escenario_count\x18\x02 \x01(\x05R\rscenarioCount\x12\x1e\n\nrecognized\x18\x03 \x01(\x08R\nrecognized\"D\n\x0e\x46leetScanError\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reason2\x84\x01\n\x0c\x46leetService\x12t\n\tScanFleet\x12\x32.vrooli.structure_health.v1.fleet.ScanFleetRequest\x1a\x33.vrooli.structure_health.v1.fleet.ScanFleetResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/fleet;fleet_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%structure-health/v1/fleet/fleet.proto\x12 vrooli.structure_health.v1.fleet\"y\n\x10ScanFleetRequest\x12\x1c\n\tscenarios\x18\x01 \x03(\tR\tscenarios\x12G\n\x07targets\x18\x02 \x03(\x0b\x32-.vrooli.structure_health.v1.fleet.FleetTargetR\x07targets\"E\n\x0b\x46leetTarget\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n\x04path\x18\x03 \x01(\tR\x04path\"\xfb\x04\n\x11ScanFleetResponse\x12N\n\x07\x65ntries\x18\x01 \x03(\x0b\x32\x34.vrooli.structure_health.v1.fleet.FleetScenarioEntryR\x07\x65ntries\x12\\\n\x10rule_conformance\x18\x02 \x03(\x0b\x32\x31.vrooli.structure_health.v1.fleet.RuleConformanceR\x0fruleConformance\x12h\n\x14profile_distribution\x18\x03 \x03(\x0b\x32\x35.vrooli.structure_health.v1.fleet.ProfileDistributionR\x13profileDistribution\x12%\n\x0escenario_count\x18\x04 \x01(\x05R\rscenarioCount\x12#\n\rpassing_count\x18\x05 \x01(\x05R\x0cpassingCount\x12\x36\n\x17missing_freshness_count\x18\x06 \x01(\x05R\x15missingFreshnessCount\x12+\n\x11\x61utofixable_total\x18\x07 \x01(\x05R\x10\x61utofixableTotal\x12H\n\x06\x65rrors\x18\x08 \x03(\x0b\x32\x30.vrooli.structure_health.v1.fleet.FleetScanErrorR\x06\x65rrors\x12!\n\x0ctarget_count\x18\t \x01(\x05R\x0btargetCount\x12\x30\n\x14passing_target_count\x18\n \x01(\x05R\x12passingTargetCount\"\x8c\x04\n\x12\x46leetScenarioEntry\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x16\n\x06passed\x18\x02 \x01(\x08R\x06passed\x12\x1d\n\nprofile_id\x18\x03 \x01(\tR\tprofileId\x12-\n\x12profile_recognized\x18\x04 \x01(\x08R\x11profileRecognized\x12\x1f\n\x0b\x65rror_count\x18\x05 \x01(\x05R\nerrorCount\x12#\n\rwarning_count\x18\x06 \x01(\x05R\x0cwarningCount\x12%\n\x0etotal_findings\x18\x07 \x01(\x05R\rtotalFindings\x12+\n\x11\x61utofixable_count\x18\x08 \x01(\x05R\x10\x61utofixableCount\x12\x36\n\x17missing_freshness_check\x18\t \x01(\x08R\x15missingFreshnessCheck\x12\x1a\n\x08surfaces\x18\n \x03(\tR\x08surfaces\x12\'\n\x0f\x64\x65graded_reason\x18\x0b \x01(\tR\x0e\x64\x65gradedReason\x12\x1f\n\x0btarget_kind\x18\x0c \x01(\tR\ntargetKind\x12\x1b\n\ttarget_id\x18\r \x01(\tR\x08targetId\x12\x1f\n\x0btarget_path\x18\x0e \x01(\tR\ntargetPath\"\xc6\x01\n\x0fRuleConformance\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12/\n\x13offending_scenarios\x18\x02 \x01(\x05R\x12offendingScenarios\x12%\n\x0etotal_findings\x18\x03 \x01(\x05R\rtotalFindings\x12 \n\x0b\x61utofixable\x18\x04 \x01(\x05R\x0b\x61utofixable\x12%\n\x0eworst_severity\x18\x05 \x01(\tR\rworstSeverity\"{\n\x13ProfileDistribution\x12\x1d\n\nprofile_id\x18\x01 \x01(\tR\tprofileId\x12%\n\x0escenario_count\x18\x02 \x01(\x05R\rscenarioCount\x12\x1e\n\nrecognized\x18\x03 \x01(\x08R\nrecognized\"D\n\x0e\x46leetScanError\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reason2\x84\x01\n\x0c\x46leetService\x12t\n\tScanFleet\x12\x32.vrooli.structure_health.v1.fleet.ScanFleetRequest\x1a\x33.vrooli.structure_health.v1.fleet.ScanFleetResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/fleet;fleet_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,17 +33,19 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZQgithub.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/fleet;fleet_v1'
   _globals['_SCANFLEETREQUEST']._serialized_start=75
-  _globals['_SCANFLEETREQUEST']._serialized_end=123
-  _globals['_SCANFLEETRESPONSE']._serialized_start=126
-  _globals['_SCANFLEETRESPONSE']._serialized_end=676
-  _globals['_FLEETSCENARIOENTRY']._serialized_start=679
-  _globals['_FLEETSCENARIOENTRY']._serialized_end=1108
-  _globals['_RULECONFORMANCE']._serialized_start=1111
-  _globals['_RULECONFORMANCE']._serialized_end=1309
-  _globals['_PROFILEDISTRIBUTION']._serialized_start=1311
-  _globals['_PROFILEDISTRIBUTION']._serialized_end=1434
-  _globals['_FLEETSCANERROR']._serialized_start=1436
-  _globals['_FLEETSCANERROR']._serialized_end=1504
-  _globals['_FLEETSERVICE']._serialized_start=1507
-  _globals['_FLEETSERVICE']._serialized_end=1639
+  _globals['_SCANFLEETREQUEST']._serialized_end=196
+  _globals['_FLEETTARGET']._serialized_start=198
+  _globals['_FLEETTARGET']._serialized_end=267
+  _globals['_SCANFLEETRESPONSE']._serialized_start=270
+  _globals['_SCANFLEETRESPONSE']._serialized_end=905
+  _globals['_FLEETSCENARIOENTRY']._serialized_start=908
+  _globals['_FLEETSCENARIOENTRY']._serialized_end=1432
+  _globals['_RULECONFORMANCE']._serialized_start=1435
+  _globals['_RULECONFORMANCE']._serialized_end=1633
+  _globals['_PROFILEDISTRIBUTION']._serialized_start=1635
+  _globals['_PROFILEDISTRIBUTION']._serialized_end=1758
+  _globals['_FLEETSCANERROR']._serialized_start=1760
+  _globals['_FLEETSCANERROR']._serialized_end=1828
+  _globals['_FLEETSERVICE']._serialized_start=1831
+  _globals['_FLEETSERVICE']._serialized_end=1963
 # @@protoc_insertion_point(module_scope)

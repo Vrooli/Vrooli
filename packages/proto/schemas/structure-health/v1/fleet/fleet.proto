@@ -35,6 +35,14 @@ message ScanFleetRequest {
   // Restrict the scan to these scenario slugs; empty means every discovered
   // scenario (a directory under scenarios/ carrying .vrooli/service.json).
   repeated string scenarios = 1;
+  // Optional typed target selection. When present, this supersedes scenarios.
+  repeated FleetTarget targets = 2;
+}
+
+message FleetTarget {
+  string kind = 1;
+  string id = 2;
+  string path = 3;
 }
 
 message ScanFleetResponse {
@@ -56,6 +64,9 @@ message ScanFleetResponse {
   // Scenarios that could not be graded (enumerated but failed to validate),
   // with a short reason each.
   repeated FleetScanError errors = 8;
+  // Total typed targets scanned, including non-scenario kinds.
+  int32 target_count = 9;
+  int32 passing_target_count = 10;
 }
 
 // FleetScenarioEntry is one scenario's structure rollup.
@@ -79,6 +90,9 @@ message FleetScenarioEntry {
   repeated string surfaces = 10;
   // Non-empty when the scenario was graded in a degraded mode.
   string degraded_reason = 11;
+  string target_kind = 12;
+  string target_id = 13;
+  string target_path = 14;
 }
 
 // RuleConformance rolls one finding code up across the fleet.

@@ -49,6 +49,11 @@ message HostInventoryResponse {
   // consumer that needs VRAM-fit selection must treat an empty list (or a GPU
   // with vram_bytes == 0) as "unknown headroom" and fall back conservatively.
   repeated HostGPU gpus = 6;
+
+  // NVIDIA character-device nodes observed on the host. Consumers that need
+  // explicit container device bindings must derive them from this inventory,
+  // never from a hard-coded node list.
+  repeated string nvidia_device_nodes = 7;
 }
 
 // HostMemory holds system memory counters, in bytes.

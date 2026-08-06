@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-memory/v1/harness/harness.proto.
  */
 export const file_vrooli_memory_v1_harness_harness: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktbWVtb3J5L3YxL2hhcm5lc3MvaGFybmVzcy5wcm90bxIfdnJvb2xpLnZyb29saV9tZW1vcnkudjEuaGFybmVzcyIhCg5SdW50aW1lUmVxdWVzdBIPCgdydW50aW1lGAEgASgJIjQKEFJ1bkltcG9ydFJlcXVlc3QSDwoHcnVudGltZRgBIAEoCRIPCgdkcnlfcnVuGAIgASgIIpIBChFSdW5JbXBvcnRSZXNwb25zZRIWCg5pbXBvcnRlZF9jb3VudBgBIAEoBRI3CgNydW4YAiABKAsyKi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLkltcG9ydFJ1bhIbChNqb2luZWRfZXhpc3RpbmdfcnVuGAMgASgIEg8KB2RyeV9ydW4YBCABKAgiOQoWR2V0SW1wb3J0U3RhdHVzUmVxdWVzdBIOCgZydW5faWQYASABKAkSDwoHcnVudGltZRgCIAEoCSJSChdHZXRJbXBvcnRTdGF0dXNSZXNwb25zZRI3CgNydW4YASABKAsyKi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLkltcG9ydFJ1biKwAgoJSW1wb3J0UnVuEgoKAmlkGAEgASgJEg8KB3J1bnRpbWUYAiABKAkSEwoLc291cmNlX3Jvb3QYAyABKAkSDgoGc3RhdHVzGAQgASgJEhUKDXRvdGFsX3NvdXJjZXMYBSABKAUSGQoRcHJvY2Vzc2VkX3NvdXJjZXMYBiABKAUSFgoOaW1wb3J0ZWRfY291bnQYByABKAUSFgoOZXhpc3RpbmdfY291bnQYCCABKAUSFAoMZmFpbGVkX2NvdW50GAkgASgFEhQKDGN1cnJlbnRfcGF0aBgKIAEoCRIVCg1lcnJvcl9tZXNzYWdlGAsgASgJEhIKCnN0YXJ0ZWRfYXQYDCABKAkSFAoMY29tcGxldGVkX2F0GA0gASgJEhIKCnVwZGF0ZWRfYXQYDiABKAkiPAoYUmVmcmVzaFByb2plY3Rpb25SZXF1ZXN0Eg8KB3J1bnRpbWUYASABKAkSDwoHZHJ5X3J1bhgCIAEoCCJ6ChlSZWZyZXNoUHJvamVjdGlvblJlc3BvbnNlEgwKBHBhdGgYASABKAkSEgoKc2l6ZV9ieXRlcxgCIAEoAxIQCghvdmVyZmxvdxgDIAEoCBIPCgdkcnlfcnVuGAQgASgIEhgKEHJlbmRlcmVkX2NvbnRlbnQYBSABKAkiLAoZSW5zdGFsbFByb21wdEJsb2NrUmVxdWVzdBIPCgdydW50aW1lGAEgASgJIi8KGkluc3RhbGxQcm9tcHRCbG9ja1Jlc3BvbnNlEhEKCWluc3RhbGxlZBgBIAEoCCJMChNDYXB0dXJlV3JpdGVSZXF1ZXN0Eg8KB3J1bnRpbWUYASABKAkSDwoHY29udGVudBgCIAEoCRITCgtzb3VyY2VfcGF0aBgDIAEoCSIoChRDYXB0dXJlV3JpdGVSZXNwb25zZRIQCghlbnRyeV9pZBgBIAEoCTKlBQoOSGFybmVzc1NlcnZpY2UScgoJUnVuSW1wb3J0EjEudnJvb2xpLnZyb29saV9tZW1vcnkudjEuaGFybmVzcy5SdW5JbXBvcnRSZXF1ZXN0GjIudnJvb2xpLnZyb29saV9tZW1vcnkudjEuaGFybmVzcy5SdW5JbXBvcnRSZXNwb25zZRKEAQoPR2V0SW1wb3J0U3RhdHVzEjcudnJvb2xpLnZyb29saV9tZW1vcnkudjEuaGFybmVzcy5HZXRJbXBvcnRTdGF0dXNSZXF1ZXN0GjgudnJvb2xpLnZyb29saV9tZW1vcnkudjEuaGFybmVzcy5HZXRJbXBvcnRTdGF0dXNSZXNwb25zZRKKAQoRUmVmcmVzaFByb2plY3Rpb24SOS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLlJlZnJlc2hQcm9qZWN0aW9uUmVxdWVzdBo6LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmhhcm5lc3MuUmVmcmVzaFByb2plY3Rpb25SZXNwb25zZRKNAQoSSW5zdGFsbFByb21wdEJsb2NrEjoudnJvb2xpLnZyb29saV9tZW1vcnkudjEuaGFybmVzcy5JbnN0YWxsUHJvbXB0QmxvY2tSZXF1ZXN0GjsudnJvb2xpLnZyb29saV9tZW1vcnkudjEuaGFybmVzcy5JbnN0YWxsUHJvbXB0QmxvY2tSZXNwb25zZRJ7CgxDYXB0dXJlV3JpdGUSNC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLkNhcHR1cmVXcml0ZVJlcXVlc3QaNS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLkNhcHR1cmVXcml0ZVJlc3BvbnNlQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLW1lbW9yeS92MS9oYXJuZXNzO2hhcm5lc3NfdjFiBnByb3RvMw");
+  fileDesc("CiZ2cm9vbGktbWVtb3J5L3YxL2hhcm5lc3MvaGFybmVzcy5wcm90bxIfdnJvb2xpLnZyb29saV9tZW1vcnkudjEuaGFybmVzcyIhCg5SdW50aW1lUmVxdWVzdBIPCgdydW50aW1lGAEgASgJIjQKEFJ1bkltcG9ydFJlcXVlc3QSDwoHcnVudGltZRgBIAEoCRIPCgdkcnlfcnVuGAIgASgIIqcBChFSdW5JbXBvcnRSZXNwb25zZRIWCg5pbXBvcnRlZF9jb3VudBgBIAEoBRI3CgNydW4YAiABKAsyKi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLkltcG9ydFJ1bhIbChNqb2luZWRfZXhpc3RpbmdfcnVuGAMgASgIEg8KB2RyeV9ydW4YBCABKAgSEwoLb2JzZXJ2YXRpb24YBSABKAkiOQoWR2V0SW1wb3J0U3RhdHVzUmVxdWVzdBIOCgZydW5faWQYASABKAkSDwoHcnVudGltZRgCIAEoCSJSChdHZXRJbXBvcnRTdGF0dXNSZXNwb25zZRI3CgNydW4YASABKAsyKi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLkltcG9ydFJ1biKwAgoJSW1wb3J0UnVuEgoKAmlkGAEgASgJEg8KB3J1bnRpbWUYAiABKAkSEwoLc291cmNlX3Jvb3QYAyABKAkSDgoGc3RhdHVzGAQgASgJEhUKDXRvdGFsX3NvdXJjZXMYBSABKAUSGQoRcHJvY2Vzc2VkX3NvdXJjZXMYBiABKAUSFgoOaW1wb3J0ZWRfY291bnQYByABKAUSFgoOZXhpc3RpbmdfY291bnQYCCABKAUSFAoMZmFpbGVkX2NvdW50GAkgASgFEhQKDGN1cnJlbnRfcGF0aBgKIAEoCRIVCg1lcnJvcl9tZXNzYWdlGAsgASgJEhIKCnN0YXJ0ZWRfYXQYDCABKAkSFAoMY29tcGxldGVkX2F0GA0gASgJEhIKCnVwZGF0ZWRfYXQYDiABKAkiPAoYUmVmcmVzaFByb2plY3Rpb25SZXF1ZXN0Eg8KB3J1bnRpbWUYASABKAkSDwoHZHJ5X3J1bhgCIAEoCCJ6ChlSZWZyZXNoUHJvamVjdGlvblJlc3BvbnNlEgwKBHBhdGgYASABKAkSEgoKc2l6ZV9ieXRlcxgCIAEoAxIQCghvdmVyZmxvdxgDIAEoCBIPCgdkcnlfcnVuGAQgASgIEhgKEHJlbmRlcmVkX2NvbnRlbnQYBSABKAkiLAoZSW5zdGFsbFByb21wdEJsb2NrUmVxdWVzdBIPCgdydW50aW1lGAEgASgJIi8KGkluc3RhbGxQcm9tcHRCbG9ja1Jlc3BvbnNlEhEKCWluc3RhbGxlZBgBIAEoCCJMChNDYXB0dXJlV3JpdGVSZXF1ZXN0Eg8KB3J1bnRpbWUYASABKAkSDwoHY29udGVudBgCIAEoCRITCgtzb3VyY2VfcGF0aBgDIAEoCSIoChRDYXB0dXJlV3JpdGVSZXNwb25zZRIQCghlbnRyeV9pZBgBIAEoCSIdChtHZXRNYWludGVuYW5jZVN0YXR1c1JlcXVlc3QiXAocR2V0TWFpbnRlbmFuY2VTdGF0dXNSZXNwb25zZRI8CgNydW4YASABKAsyLy52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLk1haW50ZW5hbmNlUnVuIo0BCg5NYWludGVuYW5jZVJ1bhIKCgJpZBgBIAEoCRISCgpzdGFydGVkX2F0GAIgASgJEhQKDGNvbXBsZXRlZF9hdBgDIAEoCRJFCghvdXRjb21lcxgEIAMoCzIzLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmhhcm5lc3MuTWFpbnRlbmFuY2VPdXRjb21lIrEBChJNYWludGVuYW5jZU91dGNvbWUSDwoHcnVudGltZRgBIAEoCRIVCg1pbXBvcnRfc3RhdHVzGAIgASgJEhQKDGltcG9ydF9lcnJvchgDIAEoCRIZChFwcm9qZWN0aW9uX3N0YXR1cxgEIAEoCRIYChBwcm9qZWN0aW9uX2Vycm9yGAUgASgJEhIKCnN0YXJ0ZWRfYXQYBiABKAkSFAoMY29tcGxldGVkX2F0GAcgASgJMrsGCg5IYXJuZXNzU2VydmljZRJyCglSdW5JbXBvcnQSMS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLlJ1bkltcG9ydFJlcXVlc3QaMi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLlJ1bkltcG9ydFJlc3BvbnNlEoQBCg9HZXRJbXBvcnRTdGF0dXMSNy52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLkdldEltcG9ydFN0YXR1c1JlcXVlc3QaOC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLkdldEltcG9ydFN0YXR1c1Jlc3BvbnNlEooBChFSZWZyZXNoUHJvamVjdGlvbhI5LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmhhcm5lc3MuUmVmcmVzaFByb2plY3Rpb25SZXF1ZXN0GjoudnJvb2xpLnZyb29saV9tZW1vcnkudjEuaGFybmVzcy5SZWZyZXNoUHJvamVjdGlvblJlc3BvbnNlEo0BChJJbnN0YWxsUHJvbXB0QmxvY2sSOi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLkluc3RhbGxQcm9tcHRCbG9ja1JlcXVlc3QaOy52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLkluc3RhbGxQcm9tcHRCbG9ja1Jlc3BvbnNlEnsKDENhcHR1cmVXcml0ZRI0LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmhhcm5lc3MuQ2FwdHVyZVdyaXRlUmVxdWVzdBo1LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmhhcm5lc3MuQ2FwdHVyZVdyaXRlUmVzcG9uc2USkwEKFEdldE1haW50ZW5hbmNlU3RhdHVzEjwudnJvb2xpLnZyb29saV9tZW1vcnkudjEuaGFybmVzcy5HZXRNYWludGVuYW5jZVN0YXR1c1JlcXVlc3QaPS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5oYXJuZXNzLkdldE1haW50ZW5hbmNlU3RhdHVzUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktbWVtb3J5L3YxL2hhcm5lc3M7aGFybmVzc192MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.harness.RuntimeRequest
@@ -74,6 +74,11 @@ export type RunImportResponse = Message<"vrooli.vrooli_memory.v1.harness.RunImpo
    * @generated from field: bool dry_run = 4;
    */
   dryRun: boolean;
+
+  /**
+   * @generated from field: string observation = 5;
+   */
+  observation: string;
 };
 
 /**
@@ -342,6 +347,115 @@ export const CaptureWriteResponseSchema: GenMessage<CaptureWriteResponse> = /*@_
   messageDesc(file_vrooli_memory_v1_harness_harness, 11);
 
 /**
+ * @generated from message vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusRequest
+ */
+export type GetMaintenanceStatusRequest = Message<"vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusRequest.
+ * Use `create(GetMaintenanceStatusRequestSchema)` to create a new message.
+ */
+export const GetMaintenanceStatusRequestSchema: GenMessage<GetMaintenanceStatusRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_harness_harness, 12);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusResponse
+ */
+export type GetMaintenanceStatusResponse = Message<"vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusResponse"> & {
+  /**
+   * @generated from field: vrooli.vrooli_memory.v1.harness.MaintenanceRun run = 1;
+   */
+  run?: MaintenanceRun | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusResponse.
+ * Use `create(GetMaintenanceStatusResponseSchema)` to create a new message.
+ */
+export const GetMaintenanceStatusResponseSchema: GenMessage<GetMaintenanceStatusResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_harness_harness, 13);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.harness.MaintenanceRun
+ */
+export type MaintenanceRun = Message<"vrooli.vrooli_memory.v1.harness.MaintenanceRun"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string started_at = 2;
+   */
+  startedAt: string;
+
+  /**
+   * @generated from field: string completed_at = 3;
+   */
+  completedAt: string;
+
+  /**
+   * @generated from field: repeated vrooli.vrooli_memory.v1.harness.MaintenanceOutcome outcomes = 4;
+   */
+  outcomes: MaintenanceOutcome[];
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.harness.MaintenanceRun.
+ * Use `create(MaintenanceRunSchema)` to create a new message.
+ */
+export const MaintenanceRunSchema: GenMessage<MaintenanceRun> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_harness_harness, 14);
+
+/**
+ * @generated from message vrooli.vrooli_memory.v1.harness.MaintenanceOutcome
+ */
+export type MaintenanceOutcome = Message<"vrooli.vrooli_memory.v1.harness.MaintenanceOutcome"> & {
+  /**
+   * @generated from field: string runtime = 1;
+   */
+  runtime: string;
+
+  /**
+   * @generated from field: string import_status = 2;
+   */
+  importStatus: string;
+
+  /**
+   * @generated from field: string import_error = 3;
+   */
+  importError: string;
+
+  /**
+   * @generated from field: string projection_status = 4;
+   */
+  projectionStatus: string;
+
+  /**
+   * @generated from field: string projection_error = 5;
+   */
+  projectionError: string;
+
+  /**
+   * @generated from field: string started_at = 6;
+   */
+  startedAt: string;
+
+  /**
+   * @generated from field: string completed_at = 7;
+   */
+  completedAt: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_memory.v1.harness.MaintenanceOutcome.
+ * Use `create(MaintenanceOutcomeSchema)` to create a new message.
+ */
+export const MaintenanceOutcomeSchema: GenMessage<MaintenanceOutcome> = /*@__PURE__*/
+  messageDesc(file_vrooli_memory_v1_harness_harness, 15);
+
+/**
  * @generated from service vrooli.vrooli_memory.v1.harness.HarnessService
  */
 export const HarnessService: GenService<{
@@ -384,6 +498,14 @@ export const HarnessService: GenService<{
     methodKind: "unary";
     input: typeof CaptureWriteRequestSchema;
     output: typeof CaptureWriteResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_memory.v1.harness.HarnessService.GetMaintenanceStatus
+   */
+  getMaintenanceStatus: {
+    methodKind: "unary";
+    input: typeof GetMaintenanceStatusRequestSchema;
+    output: typeof GetMaintenanceStatusResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_memory_v1_harness_harness, 0);

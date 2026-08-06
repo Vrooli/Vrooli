@@ -52,6 +52,9 @@ const (
 	// ClassificationRulesServiceRefacetCorpusProcedure is the fully-qualified name of the
 	// ClassificationRulesService's RefacetCorpus RPC.
 	ClassificationRulesServiceRefacetCorpusProcedure = "/vrooli.vrooli_memory.v1.rules.ClassificationRulesService/RefacetCorpus"
+	// ClassificationRulesServiceMeasureDistributionProcedure is the fully-qualified name of the
+	// ClassificationRulesService's MeasureDistribution RPC.
+	ClassificationRulesServiceMeasureDistributionProcedure = "/vrooli.vrooli_memory.v1.rules.ClassificationRulesService/MeasureDistribution"
 )
 
 // ClassificationRulesServiceClient is a client for the
@@ -63,6 +66,7 @@ type ClassificationRulesServiceClient interface {
 	EnableRule(context.Context, *connect.Request[rules.EnableRuleRequest]) (*connect.Response[rules.EnableRuleResponse], error)
 	RevertRule(context.Context, *connect.Request[rules.RevertRuleRequest]) (*connect.Response[rules.RevertRuleResponse], error)
 	RefacetCorpus(context.Context, *connect.Request[rules.RefacetCorpusRequest]) (*connect.Response[rules.RefacetCorpusResponse], error)
+	MeasureDistribution(context.Context, *connect.Request[rules.MeasureDistributionRequest]) (*connect.Response[rules.MeasureDistributionResponse], error)
 }
 
 // NewClassificationRulesServiceClient constructs a client for the
@@ -113,17 +117,24 @@ func NewClassificationRulesServiceClient(httpClient connect.HTTPClient, baseURL 
 			connect.WithSchema(classificationRulesServiceMethods.ByName("RefacetCorpus")),
 			connect.WithClientOptions(opts...),
 		),
+		measureDistribution: connect.NewClient[rules.MeasureDistributionRequest, rules.MeasureDistributionResponse](
+			httpClient,
+			baseURL+ClassificationRulesServiceMeasureDistributionProcedure,
+			connect.WithSchema(classificationRulesServiceMethods.ByName("MeasureDistribution")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // classificationRulesServiceClient implements ClassificationRulesServiceClient.
 type classificationRulesServiceClient struct {
-	listRules     *connect.Client[rules.ListRulesRequest, rules.ListRulesResponse]
-	createRule    *connect.Client[rules.CreateRuleRequest, rules.CreateRuleResponse]
-	dryRunRule    *connect.Client[rules.DryRunRuleRequest, rules.DryRunRuleResponse]
-	enableRule    *connect.Client[rules.EnableRuleRequest, rules.EnableRuleResponse]
-	revertRule    *connect.Client[rules.RevertRuleRequest, rules.RevertRuleResponse]
-	refacetCorpus *connect.Client[rules.RefacetCorpusRequest, rules.RefacetCorpusResponse]
+	listRules           *connect.Client[rules.ListRulesRequest, rules.ListRulesResponse]
+	createRule          *connect.Client[rules.CreateRuleRequest, rules.CreateRuleResponse]
+	dryRunRule          *connect.Client[rules.DryRunRuleRequest, rules.DryRunRuleResponse]
+	enableRule          *connect.Client[rules.EnableRuleRequest, rules.EnableRuleResponse]
+	revertRule          *connect.Client[rules.RevertRuleRequest, rules.RevertRuleResponse]
+	refacetCorpus       *connect.Client[rules.RefacetCorpusRequest, rules.RefacetCorpusResponse]
+	measureDistribution *connect.Client[rules.MeasureDistributionRequest, rules.MeasureDistributionResponse]
 }
 
 // ListRules calls vrooli.vrooli_memory.v1.rules.ClassificationRulesService.ListRules.
@@ -156,6 +167,12 @@ func (c *classificationRulesServiceClient) RefacetCorpus(ctx context.Context, re
 	return c.refacetCorpus.CallUnary(ctx, req)
 }
 
+// MeasureDistribution calls
+// vrooli.vrooli_memory.v1.rules.ClassificationRulesService.MeasureDistribution.
+func (c *classificationRulesServiceClient) MeasureDistribution(ctx context.Context, req *connect.Request[rules.MeasureDistributionRequest]) (*connect.Response[rules.MeasureDistributionResponse], error) {
+	return c.measureDistribution.CallUnary(ctx, req)
+}
+
 // ClassificationRulesServiceHandler is an implementation of the
 // vrooli.vrooli_memory.v1.rules.ClassificationRulesService service.
 type ClassificationRulesServiceHandler interface {
@@ -165,6 +182,7 @@ type ClassificationRulesServiceHandler interface {
 	EnableRule(context.Context, *connect.Request[rules.EnableRuleRequest]) (*connect.Response[rules.EnableRuleResponse], error)
 	RevertRule(context.Context, *connect.Request[rules.RevertRuleRequest]) (*connect.Response[rules.RevertRuleResponse], error)
 	RefacetCorpus(context.Context, *connect.Request[rules.RefacetCorpusRequest]) (*connect.Response[rules.RefacetCorpusResponse], error)
+	MeasureDistribution(context.Context, *connect.Request[rules.MeasureDistributionRequest]) (*connect.Response[rules.MeasureDistributionResponse], error)
 }
 
 // NewClassificationRulesServiceHandler builds an HTTP handler from the service implementation. It
@@ -210,6 +228,12 @@ func NewClassificationRulesServiceHandler(svc ClassificationRulesServiceHandler,
 		connect.WithSchema(classificationRulesServiceMethods.ByName("RefacetCorpus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	classificationRulesServiceMeasureDistributionHandler := connect.NewUnaryHandler(
+		ClassificationRulesServiceMeasureDistributionProcedure,
+		svc.MeasureDistribution,
+		connect.WithSchema(classificationRulesServiceMethods.ByName("MeasureDistribution")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_memory.v1.rules.ClassificationRulesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClassificationRulesServiceListRulesProcedure:
@@ -224,6 +248,8 @@ func NewClassificationRulesServiceHandler(svc ClassificationRulesServiceHandler,
 			classificationRulesServiceRevertRuleHandler.ServeHTTP(w, r)
 		case ClassificationRulesServiceRefacetCorpusProcedure:
 			classificationRulesServiceRefacetCorpusHandler.ServeHTTP(w, r)
+		case ClassificationRulesServiceMeasureDistributionProcedure:
+			classificationRulesServiceMeasureDistributionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -255,4 +281,8 @@ func (UnimplementedClassificationRulesServiceHandler) RevertRule(context.Context
 
 func (UnimplementedClassificationRulesServiceHandler) RefacetCorpus(context.Context, *connect.Request[rules.RefacetCorpusRequest]) (*connect.Response[rules.RefacetCorpusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.rules.ClassificationRulesService.RefacetCorpus is not implemented"))
+}
+
+func (UnimplementedClassificationRulesServiceHandler) MeasureDistribution(context.Context, *connect.Request[rules.MeasureDistributionRequest]) (*connect.Response[rules.MeasureDistributionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.rules.ClassificationRulesService.MeasureDistribution is not implemented"))
 }

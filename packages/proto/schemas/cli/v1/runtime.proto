@@ -190,7 +190,12 @@ message CliHostSnapshot {
   string session_type = 20;
   string seat = 21;
   string active_session_user = 22;
-  string auto_login_user = 23;
+	string auto_login_user = 23;
+
+	// NVIDIA character-device nodes observed on the host. Consumers that need
+	// explicit container device bindings must derive them from this inventory,
+	// never from a hard-coded node list.
+	repeated string nvidia_device_nodes = 24;
 }
 
 // CliHostRemoteDesktop mirrors hostinventory.RemoteDesktopCapability.

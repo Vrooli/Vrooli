@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,11 +54,24 @@ type ExecutionRequest struct {
 	InputText       string
 	MaxOutputTokens int32
 	Timeout         time.Duration
+	// Temperature requests a specific sampling temperature. It is a pointer so
+	// that an explicit 0 (deterministic) is distinguishable from "unset, use
+	// the resource default". Only providers whose CLI exposes the control
+	// honour it; see Adapter.SupportsTemperature.
+	Temperature *float64
 }
 
 type ExecutionResult struct {
 	OutputText string
 	ExitCode   int
+}
+
+type ResolvedRole struct {
+	Provider       string
+	Role           string
+	Model          string
+	CanonicalModel string
+	Capabilities   []string
 }
 
 type rolePolicyReport struct {
@@ -125,6 +139,32 @@ func (a Adapter) ListRoles(ctx context.Context) (Inventory, error) {
 		return inventory.Roles[i].Role < inventory.Roles[j].Role
 	})
 	return inventory, nil
+}
+
+// ResolveRole asks the resource for the concrete model selected by its
+// policy. AI Gateway never reads provider model catalogs or credentials.
+func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, error) {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		return ResolvedRole{}, &CommandError{Code: "invalid_request", Command: a.Provider, ExitCode: -1, Err: errors.New("role is required")}
+	}
+	result, err := a.runner().Run(ctx, Command{Name: a.CommandName, Args: []string{"policy", "resolve", "--role", role, "--json"}, Timeout: DefaultCommandTimeout})
+	if err != nil {
+		return ResolvedRole{}, mapCommandError(a.Provider, err)
+	}
+	var response struct {
+		Role         string   `json:"role"`
+		Model        string   `json:"model"`
+		Canonical    string   `json:"canonical_model"`
+		Capabilities []string `json:"capabilities"`
+	}
+	if err := json.Unmarshal([]byte(result.Stdout), &response); err != nil {
+		return ResolvedRole{}, &CommandError{Code: "malformed_json", Command: a.command().String(), ExitCode: result.ExitCode, Stderr: result.Stderr, Err: err}
+	}
+	if strings.TrimSpace(response.Role) != role || strings.TrimSpace(response.Model) == "" {
+		return ResolvedRole{}, &CommandError{Code: "invalid_role_resolution", Command: a.command().String(), ExitCode: result.ExitCode, Err: fmt.Errorf("resource returned role %q and model %q for requested role %q", response.Role, response.Model, role)}
+	}
+	return ResolvedRole{Provider: a.Provider, Role: role, Model: response.Model, CanonicalModel: response.Canonical, Capabilities: sortedUnique(response.Capabilities)}, nil
 }
 
 func (a Adapter) Smoke(ctx context.Context) SmokeResult {
@@ -217,6 +257,9 @@ func (a Adapter) ollamaExecutionCommand(req ExecutionRequest, role string, input
 		args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
 		if req.MaxOutputTokens > 0 {
 			args = append(args, "--max-tokens", fmt.Sprintf("%d", req.MaxOutputTokens))
+		}
+		if req.Temperature != nil {
+			args = append(args, "--temperature", strconv.FormatFloat(*req.Temperature, 'g', -1, 64))
 		}
 		return Command{Name: a.CommandName, Args: args, Stdin: input, Timeout: timeout}, nil
 	default:

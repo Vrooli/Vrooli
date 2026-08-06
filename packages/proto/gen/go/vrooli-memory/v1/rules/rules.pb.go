@@ -308,6 +308,7 @@ func (x *CreateRuleResponse) GetRule() *Rule {
 type DryRunRuleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RuleId        string                 `protobuf:"bytes,1,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -345,6 +346,13 @@ func (*DryRunRuleRequest) Descriptor() ([]byte, []int) {
 func (x *DryRunRuleRequest) GetRuleId() string {
 	if x != nil {
 		return x.RuleId
+	}
+	return ""
+}
+
+func (x *DryRunRuleRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
 	}
 	return ""
 }
@@ -420,6 +428,7 @@ func (x *DryRunRuleResponse) GetSamples() []string {
 type EnableRuleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RuleId        string                 `protobuf:"bytes,1,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -457,6 +466,13 @@ func (*EnableRuleRequest) Descriptor() ([]byte, []int) {
 func (x *EnableRuleRequest) GetRuleId() string {
 	if x != nil {
 		return x.RuleId
+	}
+	return ""
+}
+
+func (x *EnableRuleRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
 	}
 	return ""
 }
@@ -500,6 +516,7 @@ func (*EnableRuleResponse) Descriptor() ([]byte, []int) {
 type RevertRuleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RuleId        string                 `protobuf:"bytes,1,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -537,6 +554,13 @@ func (*RevertRuleRequest) Descriptor() ([]byte, []int) {
 func (x *RevertRuleRequest) GetRuleId() string {
 	if x != nil {
 		return x.RuleId
+	}
+	return ""
+}
+
+func (x *RevertRuleRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
 	}
 	return ""
 }
@@ -588,6 +612,8 @@ func (x *RevertRuleResponse) GetRestoredCount() int32 {
 type RefacetCorpusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	AfterEntryId  string                 `protobuf:"bytes,2,opt,name=after_entry_id,json=afterEntryId,proto3" json:"after_entry_id,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -629,6 +655,20 @@ func (x *RefacetCorpusRequest) GetScope() string {
 	return ""
 }
 
+func (x *RefacetCorpusRequest) GetAfterEntryId() string {
+	if x != nil {
+		return x.AfterEntryId
+	}
+	return ""
+}
+
+func (x *RefacetCorpusRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
 type RefacetCorpusResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Total         int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
@@ -636,6 +676,8 @@ type RefacetCorpusResponse struct {
 	RuleAssigned  int32                  `protobuf:"varint,3,opt,name=rule_assigned,json=ruleAssigned,proto3" json:"rule_assigned,omitempty"`
 	Classified    int32                  `protobuf:"varint,4,opt,name=classified,proto3" json:"classified,omitempty"`
 	Failed        int32                  `protobuf:"varint,5,opt,name=failed,proto3" json:"failed,omitempty"`
+	NextEntryId   string                 `protobuf:"bytes,6,opt,name=next_entry_id,json=nextEntryId,proto3" json:"next_entry_id,omitempty"`
+	Complete      bool                   `protobuf:"varint,7,opt,name=complete,proto3" json:"complete,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -705,6 +747,180 @@ func (x *RefacetCorpusResponse) GetFailed() int32 {
 	return 0
 }
 
+func (x *RefacetCorpusResponse) GetNextEntryId() string {
+	if x != nil {
+		return x.NextEntryId
+	}
+	return ""
+}
+
+func (x *RefacetCorpusResponse) GetComplete() bool {
+	if x != nil {
+		return x.Complete
+	}
+	return false
+}
+
+type MeasureDistributionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MeasureDistributionRequest) Reset() {
+	*x = MeasureDistributionRequest{}
+	mi := &file_vrooli_memory_v1_rules_rules_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MeasureDistributionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MeasureDistributionRequest) ProtoMessage() {}
+
+func (x *MeasureDistributionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_memory_v1_rules_rules_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MeasureDistributionRequest.ProtoReflect.Descriptor instead.
+func (*MeasureDistributionRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_rules_rules_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *MeasureDistributionRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+type MeasureDistributionResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Scope                 string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Total                 int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	RuleMatched           int32                  `protobuf:"varint,3,opt,name=rule_matched,json=ruleMatched,proto3" json:"rule_matched,omitempty"`
+	ClassifierTail        int32                  `protobuf:"varint,4,opt,name=classifier_tail,json=classifierTail,proto3" json:"classifier_tail,omitempty"`
+	RuleCoverage          map[string]int32       `protobuf:"bytes,5,rep,name=rule_coverage,json=ruleCoverage,proto3" json:"rule_coverage,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	ClassifierTailByFacet map[string]int32       `protobuf:"bytes,6,rep,name=classifier_tail_by_facet,json=classifierTailByFacet,proto3" json:"classifier_tail_by_facet,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	CeilingPercent        float64                `protobuf:"fixed64,7,opt,name=ceiling_percent,json=ceilingPercent,proto3" json:"ceiling_percent,omitempty"`
+	MaxTailFacet          string                 `protobuf:"bytes,8,opt,name=max_tail_facet,json=maxTailFacet,proto3" json:"max_tail_facet,omitempty"`
+	MaxTailPercent        float64                `protobuf:"fixed64,9,opt,name=max_tail_percent,json=maxTailPercent,proto3" json:"max_tail_percent,omitempty"`
+	WithinCeiling         bool                   `protobuf:"varint,10,opt,name=within_ceiling,json=withinCeiling,proto3" json:"within_ceiling,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *MeasureDistributionResponse) Reset() {
+	*x = MeasureDistributionResponse{}
+	mi := &file_vrooli_memory_v1_rules_rules_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MeasureDistributionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MeasureDistributionResponse) ProtoMessage() {}
+
+func (x *MeasureDistributionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_memory_v1_rules_rules_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MeasureDistributionResponse.ProtoReflect.Descriptor instead.
+func (*MeasureDistributionResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_memory_v1_rules_rules_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *MeasureDistributionResponse) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *MeasureDistributionResponse) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *MeasureDistributionResponse) GetRuleMatched() int32 {
+	if x != nil {
+		return x.RuleMatched
+	}
+	return 0
+}
+
+func (x *MeasureDistributionResponse) GetClassifierTail() int32 {
+	if x != nil {
+		return x.ClassifierTail
+	}
+	return 0
+}
+
+func (x *MeasureDistributionResponse) GetRuleCoverage() map[string]int32 {
+	if x != nil {
+		return x.RuleCoverage
+	}
+	return nil
+}
+
+func (x *MeasureDistributionResponse) GetClassifierTailByFacet() map[string]int32 {
+	if x != nil {
+		return x.ClassifierTailByFacet
+	}
+	return nil
+}
+
+func (x *MeasureDistributionResponse) GetCeilingPercent() float64 {
+	if x != nil {
+		return x.CeilingPercent
+	}
+	return 0
+}
+
+func (x *MeasureDistributionResponse) GetMaxTailFacet() string {
+	if x != nil {
+		return x.MaxTailFacet
+	}
+	return ""
+}
+
+func (x *MeasureDistributionResponse) GetMaxTailPercent() float64 {
+	if x != nil {
+		return x.MaxTailPercent
+	}
+	return 0
+}
+
+func (x *MeasureDistributionResponse) GetWithinCeiling() bool {
+	if x != nil {
+		return x.WithinCeiling
+	}
+	return false
+}
+
 var File_vrooli_memory_v1_rules_rules_proto protoreflect.FileDescriptor
 
 const file_vrooli_memory_v1_rules_rules_proto_rawDesc = "" +
@@ -727,24 +943,29 @@ const file_vrooli_memory_v1_rules_rules_proto_rawDesc = "" +
 	"\x11CreateRuleRequest\x127\n" +
 	"\x04rule\x18\x01 \x01(\v2#.vrooli.vrooli_memory.v1.rules.RuleR\x04rule\"M\n" +
 	"\x12CreateRuleResponse\x127\n" +
-	"\x04rule\x18\x01 \x01(\v2#.vrooli.vrooli_memory.v1.rules.RuleR\x04rule\",\n" +
+	"\x04rule\x18\x01 \x01(\v2#.vrooli.vrooli_memory.v1.rules.RuleR\x04rule\"B\n" +
 	"\x11DryRunRuleRequest\x12\x17\n" +
-	"\arule_id\x18\x01 \x01(\tR\x06ruleId\"\x97\x01\n" +
+	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"\x97\x01\n" +
 	"\x12DryRunRuleResponse\x12\x17\n" +
 	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12-\n" +
 	"\x12corpus_fingerprint\x18\x02 \x01(\tR\x11corpusFingerprint\x12\x1f\n" +
 	"\vmatch_count\x18\x03 \x01(\x05R\n" +
 	"matchCount\x12\x18\n" +
-	"\asamples\x18\x04 \x03(\tR\asamples\",\n" +
+	"\asamples\x18\x04 \x03(\tR\asamples\"B\n" +
 	"\x11EnableRuleRequest\x12\x17\n" +
-	"\arule_id\x18\x01 \x01(\tR\x06ruleId\"\x14\n" +
-	"\x12EnableRuleResponse\",\n" +
+	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"\x14\n" +
+	"\x12EnableRuleResponse\"B\n" +
 	"\x11RevertRuleRequest\x12\x17\n" +
-	"\arule_id\x18\x01 \x01(\tR\x06ruleId\";\n" +
+	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\";\n" +
 	"\x12RevertRuleResponse\x12%\n" +
-	"\x0erestored_count\x18\x01 \x01(\x05R\rrestoredCount\",\n" +
+	"\x0erestored_count\x18\x01 \x01(\x05R\rrestoredCount\"h\n" +
 	"\x14RefacetCorpusRequest\x12\x14\n" +
-	"\x05scope\x18\x01 \x01(\tR\x05scope\"\xa6\x01\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12$\n" +
+	"\x0eafter_entry_id\x18\x02 \x01(\tR\fafterEntryId\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\xe6\x01\n" +
 	"\x15RefacetCorpusResponse\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x1a\n" +
 	"\bassigned\x18\x02 \x01(\x05R\bassigned\x12#\n" +
@@ -752,7 +973,29 @@ const file_vrooli_memory_v1_rules_rules_proto_rawDesc = "" +
 	"\n" +
 	"classified\x18\x04 \x01(\x05R\n" +
 	"classified\x12\x16\n" +
-	"\x06failed\x18\x05 \x01(\x05R\x06failed2\xd4\x05\n" +
+	"\x06failed\x18\x05 \x01(\x05R\x06failed\x12\"\n" +
+	"\rnext_entry_id\x18\x06 \x01(\tR\vnextEntryId\x12\x1a\n" +
+	"\bcomplete\x18\a \x01(\bR\bcomplete\"2\n" +
+	"\x1aMeasureDistributionRequest\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\"\xc4\x05\n" +
+	"\x1bMeasureDistributionResponse\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\x12!\n" +
+	"\frule_matched\x18\x03 \x01(\x05R\vruleMatched\x12'\n" +
+	"\x0fclassifier_tail\x18\x04 \x01(\x05R\x0eclassifierTail\x12q\n" +
+	"\rrule_coverage\x18\x05 \x03(\v2L.vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse.RuleCoverageEntryR\fruleCoverage\x12\x8e\x01\n" +
+	"\x18classifier_tail_by_facet\x18\x06 \x03(\v2U.vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse.ClassifierTailByFacetEntryR\x15classifierTailByFacet\x12'\n" +
+	"\x0fceiling_percent\x18\a \x01(\x01R\x0eceilingPercent\x12$\n" +
+	"\x0emax_tail_facet\x18\b \x01(\tR\fmaxTailFacet\x12(\n" +
+	"\x10max_tail_percent\x18\t \x01(\x01R\x0emaxTailPercent\x12%\n" +
+	"\x0ewithin_ceiling\x18\n" +
+	" \x01(\bR\rwithinCeiling\x1a?\n" +
+	"\x11RuleCoverageEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aH\n" +
+	"\x1aClassifierTailByFacetEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x012\xe3\x06\n" +
 	"\x1aClassificationRulesService\x12n\n" +
 	"\tListRules\x12/.vrooli.vrooli_memory.v1.rules.ListRulesRequest\x1a0.vrooli.vrooli_memory.v1.rules.ListRulesResponse\x12q\n" +
 	"\n" +
@@ -763,7 +1006,8 @@ const file_vrooli_memory_v1_rules_rules_proto_rawDesc = "" +
 	"EnableRule\x120.vrooli.vrooli_memory.v1.rules.EnableRuleRequest\x1a1.vrooli.vrooli_memory.v1.rules.EnableRuleResponse\x12q\n" +
 	"\n" +
 	"RevertRule\x120.vrooli.vrooli_memory.v1.rules.RevertRuleRequest\x1a1.vrooli.vrooli_memory.v1.rules.RevertRuleResponse\x12z\n" +
-	"\rRefacetCorpus\x123.vrooli.vrooli_memory.v1.rules.RefacetCorpusRequest\x1a4.vrooli.vrooli_memory.v1.rules.RefacetCorpusResponseBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/rules;rules_v1b\x06proto3"
+	"\rRefacetCorpus\x123.vrooli.vrooli_memory.v1.rules.RefacetCorpusRequest\x1a4.vrooli.vrooli_memory.v1.rules.RefacetCorpusResponse\x12\x8c\x01\n" +
+	"\x13MeasureDistribution\x129.vrooli.vrooli_memory.v1.rules.MeasureDistributionRequest\x1a:.vrooli.vrooli_memory.v1.rules.MeasureDistributionResponseBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/rules;rules_v1b\x06proto3"
 
 var (
 	file_vrooli_memory_v1_rules_rules_proto_rawDescOnce sync.Once
@@ -777,43 +1021,51 @@ func file_vrooli_memory_v1_rules_rules_proto_rawDescGZIP() []byte {
 	return file_vrooli_memory_v1_rules_rules_proto_rawDescData
 }
 
-var file_vrooli_memory_v1_rules_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_vrooli_memory_v1_rules_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_vrooli_memory_v1_rules_rules_proto_goTypes = []any{
-	(*Rule)(nil),                  // 0: vrooli.vrooli_memory.v1.rules.Rule
-	(*ListRulesRequest)(nil),      // 1: vrooli.vrooli_memory.v1.rules.ListRulesRequest
-	(*ListRulesResponse)(nil),     // 2: vrooli.vrooli_memory.v1.rules.ListRulesResponse
-	(*CreateRuleRequest)(nil),     // 3: vrooli.vrooli_memory.v1.rules.CreateRuleRequest
-	(*CreateRuleResponse)(nil),    // 4: vrooli.vrooli_memory.v1.rules.CreateRuleResponse
-	(*DryRunRuleRequest)(nil),     // 5: vrooli.vrooli_memory.v1.rules.DryRunRuleRequest
-	(*DryRunRuleResponse)(nil),    // 6: vrooli.vrooli_memory.v1.rules.DryRunRuleResponse
-	(*EnableRuleRequest)(nil),     // 7: vrooli.vrooli_memory.v1.rules.EnableRuleRequest
-	(*EnableRuleResponse)(nil),    // 8: vrooli.vrooli_memory.v1.rules.EnableRuleResponse
-	(*RevertRuleRequest)(nil),     // 9: vrooli.vrooli_memory.v1.rules.RevertRuleRequest
-	(*RevertRuleResponse)(nil),    // 10: vrooli.vrooli_memory.v1.rules.RevertRuleResponse
-	(*RefacetCorpusRequest)(nil),  // 11: vrooli.vrooli_memory.v1.rules.RefacetCorpusRequest
-	(*RefacetCorpusResponse)(nil), // 12: vrooli.vrooli_memory.v1.rules.RefacetCorpusResponse
+	(*Rule)(nil),                        // 0: vrooli.vrooli_memory.v1.rules.Rule
+	(*ListRulesRequest)(nil),            // 1: vrooli.vrooli_memory.v1.rules.ListRulesRequest
+	(*ListRulesResponse)(nil),           // 2: vrooli.vrooli_memory.v1.rules.ListRulesResponse
+	(*CreateRuleRequest)(nil),           // 3: vrooli.vrooli_memory.v1.rules.CreateRuleRequest
+	(*CreateRuleResponse)(nil),          // 4: vrooli.vrooli_memory.v1.rules.CreateRuleResponse
+	(*DryRunRuleRequest)(nil),           // 5: vrooli.vrooli_memory.v1.rules.DryRunRuleRequest
+	(*DryRunRuleResponse)(nil),          // 6: vrooli.vrooli_memory.v1.rules.DryRunRuleResponse
+	(*EnableRuleRequest)(nil),           // 7: vrooli.vrooli_memory.v1.rules.EnableRuleRequest
+	(*EnableRuleResponse)(nil),          // 8: vrooli.vrooli_memory.v1.rules.EnableRuleResponse
+	(*RevertRuleRequest)(nil),           // 9: vrooli.vrooli_memory.v1.rules.RevertRuleRequest
+	(*RevertRuleResponse)(nil),          // 10: vrooli.vrooli_memory.v1.rules.RevertRuleResponse
+	(*RefacetCorpusRequest)(nil),        // 11: vrooli.vrooli_memory.v1.rules.RefacetCorpusRequest
+	(*RefacetCorpusResponse)(nil),       // 12: vrooli.vrooli_memory.v1.rules.RefacetCorpusResponse
+	(*MeasureDistributionRequest)(nil),  // 13: vrooli.vrooli_memory.v1.rules.MeasureDistributionRequest
+	(*MeasureDistributionResponse)(nil), // 14: vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse
+	nil,                                 // 15: vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse.RuleCoverageEntry
+	nil,                                 // 16: vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse.ClassifierTailByFacetEntry
 }
 var file_vrooli_memory_v1_rules_rules_proto_depIdxs = []int32{
 	0,  // 0: vrooli.vrooli_memory.v1.rules.ListRulesResponse.rules:type_name -> vrooli.vrooli_memory.v1.rules.Rule
 	0,  // 1: vrooli.vrooli_memory.v1.rules.CreateRuleRequest.rule:type_name -> vrooli.vrooli_memory.v1.rules.Rule
 	0,  // 2: vrooli.vrooli_memory.v1.rules.CreateRuleResponse.rule:type_name -> vrooli.vrooli_memory.v1.rules.Rule
-	1,  // 3: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.ListRules:input_type -> vrooli.vrooli_memory.v1.rules.ListRulesRequest
-	3,  // 4: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.CreateRule:input_type -> vrooli.vrooli_memory.v1.rules.CreateRuleRequest
-	5,  // 5: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.DryRunRule:input_type -> vrooli.vrooli_memory.v1.rules.DryRunRuleRequest
-	7,  // 6: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.EnableRule:input_type -> vrooli.vrooli_memory.v1.rules.EnableRuleRequest
-	9,  // 7: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.RevertRule:input_type -> vrooli.vrooli_memory.v1.rules.RevertRuleRequest
-	11, // 8: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.RefacetCorpus:input_type -> vrooli.vrooli_memory.v1.rules.RefacetCorpusRequest
-	2,  // 9: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.ListRules:output_type -> vrooli.vrooli_memory.v1.rules.ListRulesResponse
-	4,  // 10: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.CreateRule:output_type -> vrooli.vrooli_memory.v1.rules.CreateRuleResponse
-	6,  // 11: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.DryRunRule:output_type -> vrooli.vrooli_memory.v1.rules.DryRunRuleResponse
-	8,  // 12: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.EnableRule:output_type -> vrooli.vrooli_memory.v1.rules.EnableRuleResponse
-	10, // 13: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.RevertRule:output_type -> vrooli.vrooli_memory.v1.rules.RevertRuleResponse
-	12, // 14: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.RefacetCorpus:output_type -> vrooli.vrooli_memory.v1.rules.RefacetCorpusResponse
-	9,  // [9:15] is the sub-list for method output_type
-	3,  // [3:9] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	15, // 3: vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse.rule_coverage:type_name -> vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse.RuleCoverageEntry
+	16, // 4: vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse.classifier_tail_by_facet:type_name -> vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse.ClassifierTailByFacetEntry
+	1,  // 5: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.ListRules:input_type -> vrooli.vrooli_memory.v1.rules.ListRulesRequest
+	3,  // 6: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.CreateRule:input_type -> vrooli.vrooli_memory.v1.rules.CreateRuleRequest
+	5,  // 7: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.DryRunRule:input_type -> vrooli.vrooli_memory.v1.rules.DryRunRuleRequest
+	7,  // 8: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.EnableRule:input_type -> vrooli.vrooli_memory.v1.rules.EnableRuleRequest
+	9,  // 9: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.RevertRule:input_type -> vrooli.vrooli_memory.v1.rules.RevertRuleRequest
+	11, // 10: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.RefacetCorpus:input_type -> vrooli.vrooli_memory.v1.rules.RefacetCorpusRequest
+	13, // 11: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.MeasureDistribution:input_type -> vrooli.vrooli_memory.v1.rules.MeasureDistributionRequest
+	2,  // 12: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.ListRules:output_type -> vrooli.vrooli_memory.v1.rules.ListRulesResponse
+	4,  // 13: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.CreateRule:output_type -> vrooli.vrooli_memory.v1.rules.CreateRuleResponse
+	6,  // 14: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.DryRunRule:output_type -> vrooli.vrooli_memory.v1.rules.DryRunRuleResponse
+	8,  // 15: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.EnableRule:output_type -> vrooli.vrooli_memory.v1.rules.EnableRuleResponse
+	10, // 16: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.RevertRule:output_type -> vrooli.vrooli_memory.v1.rules.RevertRuleResponse
+	12, // 17: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.RefacetCorpus:output_type -> vrooli.vrooli_memory.v1.rules.RefacetCorpusResponse
+	14, // 18: vrooli.vrooli_memory.v1.rules.ClassificationRulesService.MeasureDistribution:output_type -> vrooli.vrooli_memory.v1.rules.MeasureDistributionResponse
+	12, // [12:19] is the sub-list for method output_type
+	5,  // [5:12] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_memory_v1_rules_rules_proto_init() }
@@ -827,7 +1079,7 @@ func file_vrooli_memory_v1_rules_rules_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_memory_v1_rules_rules_proto_rawDesc), len(file_vrooli_memory_v1_rules_rules_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

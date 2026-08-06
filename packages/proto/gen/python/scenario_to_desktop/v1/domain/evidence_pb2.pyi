@@ -81,7 +81,7 @@ class DesktopSessionRef(_message.Message):
     def __init__(self, session_id: _Optional[str] = ...) -> None: ...
 
 class DesktopSessionMetrics(_message.Message):
-    __slots__ = ("splash_duration_ms", "splash_detected", "ready_duration_ms", "ready_detected", "current_cpu_percent", "current_rss_mb", "peak_rss_mb", "sample_count")
+    __slots__ = ("splash_duration_ms", "splash_detected", "ready_duration_ms", "ready_detected", "current_cpu_percent", "current_rss_mb", "peak_rss_mb", "sample_count", "performance_status", "performance_reason", "protocol_startup_duration_ms", "demo_startup_duration_ms", "protocol_trace_ref", "demo_trace_ref", "process_roles")
     SPLASH_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     SPLASH_DETECTED_FIELD_NUMBER: _ClassVar[int]
     READY_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
@@ -90,6 +90,13 @@ class DesktopSessionMetrics(_message.Message):
     CURRENT_RSS_MB_FIELD_NUMBER: _ClassVar[int]
     PEAK_RSS_MB_FIELD_NUMBER: _ClassVar[int]
     SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PERFORMANCE_STATUS_FIELD_NUMBER: _ClassVar[int]
+    PERFORMANCE_REASON_FIELD_NUMBER: _ClassVar[int]
+    PROTOCOL_STARTUP_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    DEMO_STARTUP_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    PROTOCOL_TRACE_REF_FIELD_NUMBER: _ClassVar[int]
+    DEMO_TRACE_REF_FIELD_NUMBER: _ClassVar[int]
+    PROCESS_ROLES_FIELD_NUMBER: _ClassVar[int]
     splash_duration_ms: int
     splash_detected: bool
     ready_duration_ms: int
@@ -98,7 +105,40 @@ class DesktopSessionMetrics(_message.Message):
     current_rss_mb: float
     peak_rss_mb: float
     sample_count: int
-    def __init__(self, splash_duration_ms: _Optional[int] = ..., splash_detected: _Optional[bool] = ..., ready_duration_ms: _Optional[int] = ..., ready_detected: _Optional[bool] = ..., current_cpu_percent: _Optional[float] = ..., current_rss_mb: _Optional[float] = ..., peak_rss_mb: _Optional[float] = ..., sample_count: _Optional[int] = ...) -> None: ...
+    performance_status: str
+    performance_reason: str
+    protocol_startup_duration_ms: int
+    demo_startup_duration_ms: int
+    protocol_trace_ref: str
+    demo_trace_ref: str
+    process_roles: _containers.RepeatedCompositeFieldContainer[DesktopProcessRoleMetric]
+    def __init__(self, splash_duration_ms: _Optional[int] = ..., splash_detected: _Optional[bool] = ..., ready_duration_ms: _Optional[int] = ..., ready_detected: _Optional[bool] = ..., current_cpu_percent: _Optional[float] = ..., current_rss_mb: _Optional[float] = ..., peak_rss_mb: _Optional[float] = ..., sample_count: _Optional[int] = ..., performance_status: _Optional[str] = ..., performance_reason: _Optional[str] = ..., protocol_startup_duration_ms: _Optional[int] = ..., demo_startup_duration_ms: _Optional[int] = ..., protocol_trace_ref: _Optional[str] = ..., demo_trace_ref: _Optional[str] = ..., process_roles: _Optional[_Iterable[_Union[DesktopProcessRoleMetric, _Mapping]]] = ...) -> None: ...
+
+class DesktopProcessRoleMetric(_message.Message):
+    __slots__ = ("role", "available", "unsupported", "process_count", "cpu_percent", "peak_cpu_percent", "rss_bytes", "peak_rss_bytes", "threads", "duration_ms", "sample_count")
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    UNSUPPORTED_FIELD_NUMBER: _ClassVar[int]
+    PROCESS_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CPU_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    PEAK_CPU_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    RSS_BYTES_FIELD_NUMBER: _ClassVar[int]
+    PEAK_RSS_BYTES_FIELD_NUMBER: _ClassVar[int]
+    THREADS_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    role: str
+    available: bool
+    unsupported: bool
+    process_count: int
+    cpu_percent: float
+    peak_cpu_percent: float
+    rss_bytes: int
+    peak_rss_bytes: int
+    threads: int
+    duration_ms: int
+    sample_count: int
+    def __init__(self, role: _Optional[str] = ..., available: _Optional[bool] = ..., unsupported: _Optional[bool] = ..., process_count: _Optional[int] = ..., cpu_percent: _Optional[float] = ..., peak_cpu_percent: _Optional[float] = ..., rss_bytes: _Optional[int] = ..., peak_rss_bytes: _Optional[int] = ..., threads: _Optional[int] = ..., duration_ms: _Optional[int] = ..., sample_count: _Optional[int] = ...) -> None: ...
 
 class DesktopSession(_message.Message):
     __slots__ = ("session_id", "scenario_name", "platform", "state", "width", "height", "created_at", "last_heartbeat_at", "error", "app_running", "target", "vnc_port", "websocket_port", "recording", "network_mode", "bandwidth_kbps", "dark_mode", "locale", "metrics")

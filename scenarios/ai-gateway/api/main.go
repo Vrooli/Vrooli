@@ -10,7 +10,9 @@ import (
 	"strings"
 
 	"ai-gateway/internal/clock"
+	inference "ai-gateway/internal/inference"
 	"ai-gateway/internal/modules"
+	"ai-gateway/internal/providers"
 	"ai-gateway/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -24,6 +26,7 @@ import (
 	conformanceH "ai-gateway/handlers/conformance"
 	gatewayH "ai-gateway/handlers/gateway"
 	healthH "ai-gateway/handlers/health"
+	inferenceH "ai-gateway/handlers/inference"
 	inventoryH "ai-gateway/handlers/inventory"
 	measuresH "ai-gateway/handlers/measures"
 	routingH "ai-gateway/handlers/routing"
@@ -142,12 +145,32 @@ func main() {
 		log.Fatalf("measures module init failed: %v", err)
 	}
 
+	// A malformed inference catalog degrades typed inference to a stated
+	// reason; it does not take down routing, measures, or conformance. Those
+	// domains have no dependency on the inference role catalog, and failing
+	// them closed would turn one bad config edit into a full gateway outage.
+	catalogPath := filepath.Join(repoRoot(), "scenarios", "ai-gateway", "config", "inference-role-catalog.json")
+	var inferenceRepository inference.Repository
+	roleCatalog, err := inference.LoadCatalog(catalogPath)
+	if err != nil {
+		log.Printf("typed inference disabled: %v", err)
+		inferenceRepository = inference.UnavailableRepository{Reason: err.Error()}
+		roleCatalog = inference.RoleCatalog{}
+	} else if resourceRepository, repositoryErr := inference.NewResourceRepository(roleCatalog, providers.NewDefaultAdapters(nil)); repositoryErr != nil {
+		log.Printf("typed inference disabled: %v", repositoryErr)
+		inferenceRepository = inference.UnavailableRepository{Reason: repositoryErr.Error()}
+		roleCatalog = inference.RoleCatalog{}
+	} else {
+		inferenceRepository = resourceRepository
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "ai-gateway-api", "1.0.0"),
 		conformanceH.Module(log.Default(), repoRoot()),
 		gatewayH.Module(),
-		inventoryH.Module(inventoryH.Deps{}),
+		inferenceH.Module(inferenceH.Deps{Service: inference.NewService(inferenceRepository)}),
+		inventoryH.Module(inventoryH.Deps{InferenceRoles: roleCatalog.RoleNames()}),
 		measuresModule,
 		routingH.Module(routingH.Deps{DB: db.Primary()}),
 	)

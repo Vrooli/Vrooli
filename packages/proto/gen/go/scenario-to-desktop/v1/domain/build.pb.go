@@ -293,7 +293,10 @@ type SmokeTestStartRequest struct {
 	Platform *shared.Platform `protobuf:"varint,2,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform,oneof" json:"platform,omitempty"`
 	// Built desktop artifact to execute. This is explicit so evidence always
 	// identifies the exact package that was tested.
-	ArtifactPath  string `protobuf:"bytes,3,opt,name=artifact_path,json=artifactPath,proto3" json:"artifact_path,omitempty"`
+	ArtifactPath string `protobuf:"bytes,3,opt,name=artifact_path,json=artifactPath,proto3" json:"artifact_path,omitempty"`
+	// When enabled, the server owns an Xvfb demo recording and runs the
+	// user-visible journey after protocol validation.
+	RecordDesktop *bool `protobuf:"varint,4,opt,name=record_desktop,json=recordDesktop,proto3,oneof" json:"record_desktop,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -347,6 +350,13 @@ func (x *SmokeTestStartRequest) GetArtifactPath() string {
 		return x.ArtifactPath
 	}
 	return ""
+}
+
+func (x *SmokeTestStartRequest) GetRecordDesktop() bool {
+	if x != nil && x.RecordDesktop != nil {
+		return *x.RecordDesktop
+	}
+	return false
 }
 
 // SmokeTestStartResponse is returned when a smoke test is started.
@@ -610,12 +620,14 @@ const file_scenario_to_desktop_v1_domain_build_proto_rawDesc = "" +
 	"\n" +
 	"status_url\x18\x03 \x01(\tR\tstatusUrl\"8\n" +
 	"\x12BuildStatusRequest\x12\"\n" +
-	"\bbuild_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\abuildId\"\xc8\x01\n" +
+	"\bbuild_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\abuildId\"\x87\x02\n" +
 	"\x15SmokeTestStartRequest\x12#\n" +
 	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12O\n" +
 	"\bplatform\x18\x02 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformH\x00R\bplatform\x88\x01\x01\x12,\n" +
-	"\rartifact_path\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fartifactPathB\v\n" +
-	"\t_platform\"\x87\x03\n" +
+	"\rartifact_path\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fartifactPath\x12*\n" +
+	"\x0erecord_desktop\x18\x04 \x01(\bH\x01R\rrecordDesktop\x88\x01\x01B\v\n" +
+	"\t_platformB\x11\n" +
+	"\x0f_record_desktop\"\x87\x03\n" +
 	"\x16SmokeTestStartResponse\x12\"\n" +
 	"\rsmoke_test_id\x18\x01 \x01(\tR\vsmokeTestId\x12#\n" +
 	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12J\n" +

@@ -149,7 +149,7 @@ func (x *ContractValidationCheck) GetMessage() string {
 	return ""
 }
 
-// ContractCheckReport is the repo-contract check report (internal/repocontractcheck).
+// ContractCheckReport is the structure-health project validation report.
 type ContractCheckReport struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Repo root the checks ran against.

@@ -827,10 +827,101 @@
           }
         }
       ]
+    },
+    {
+      "name": "inference",
+      "description": "Run schema-constrained typed inference",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run one typed inference request and return its locally validated value and usage",
+          "flags": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "Source text to classify or extract",
+              "bind": { "field": "source" }
+            },
+            {
+              "name": "schema",
+              "required": true,
+              "description": "Path to a JSON Schema file in the enforceable inference subset",
+              "bind": { "field": "schema_json", "kind": "json_file" }
+            },
+            {
+              "name": "instruction",
+              "description": "Explicit task intent; schema descriptions are not used as instructions",
+              "bind": { "field": "instruction" }
+            },
+            {
+              "name": "role",
+              "required": true,
+              "description": "Inference role, such as classify.fast or extract.structured",
+              "bind": { "field": "role" }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InferenceService",
+            "method": "Run"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "run-batch",
+          "description": "Run an ordered batch of typed inference requests",
+          "flags": [
+            {
+              "name": "items",
+              "required": true,
+              "description": "Path to a JSON array of objects containing source fields",
+              "bind": { "field": "items", "kind": "json_file" }
+            },
+            {
+              "name": "schema",
+              "required": true,
+              "description": "Path to a JSON Schema file in the enforceable inference subset",
+              "bind": { "field": "schema_json", "kind": "json_file" }
+            },
+            {
+              "name": "instruction",
+              "description": "Explicit task intent; schema descriptions are not used as instructions",
+              "bind": { "field": "instruction" }
+            },
+            {
+              "name": "role",
+              "required": true,
+              "description": "Inference role, such as classify.fast or extract.structured",
+              "bind": { "field": "role" }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InferenceService",
+            "method": "RunBatch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:external"]
+          }
+        }
+      ]
     }
   ],
   "measures": {
-    "omitted": [],
+    "omitted": [
+      {
+        "domain": "inference",
+        "reason": "Typed inference returns response-scoped value and usage accounting; it intentionally creates no durable inference table or measure substrate."
+      }
+    ],
     "domains": [
       {
         "domain": "gateway",
@@ -859,5 +950,11 @@
       }
     ]
   },
-  "omitted": []
+  "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateTarget",
+      "reason": "Shared validation-provider internals are exercised through ValidateScenario; this target-specific RPC is not an operator command."
+    }
+  ]
 }

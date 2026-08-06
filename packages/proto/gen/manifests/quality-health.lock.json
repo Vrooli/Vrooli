@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "quality-health",
-  "input_digest": "sha256:bfffb6e85b6a053798e03cd19095f98c1d371406def793382f738120f81cddea",
+  "input_digest": "sha256:6d712a691130e73d163846d7524315ea81fe9170f2182a2751555eeba59afb59",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/validation_target.proto",

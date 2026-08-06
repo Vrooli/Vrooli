@@ -30,6 +30,20 @@ func TestListProviderRoles_ReturnsResourceInventory(t *testing.T) { // [REQ:AIGW
 	}
 }
 
+func TestListProviderRoles_IncludesGatewayInferenceRoles(t *testing.T) {
+	h := NewConnectHandler(Deps{InferenceRoles: []string{"classify.fast", "extract.structured"}})
+	resp, err := h.ListProviderRoles(context.Background(), connect.NewRequest(&inventoryv1.ListProviderRolesRequest{Provider: "ai-gateway"}))
+	if err != nil {
+		t.Fatalf("ListProviderRoles() error = %v", err)
+	}
+	if len(resp.Msg.GetRoles()) != 2 {
+		t.Fatalf("roles = %+v, want two gateway roles", resp.Msg.GetRoles())
+	}
+	if resp.Msg.GetRoles()[0].GetRole() != "classify.fast" || resp.Msg.GetRoles()[1].GetRole() != "extract.structured" {
+		t.Fatalf("roles = %+v, want sorted inference roles", resp.Msg.GetRoles())
+	}
+}
+
 func TestSmokeProvider_ReturnsTypedFailure(t *testing.T) { // [REQ:AIGW-INVENTORY-SMOKE]
 	runner := &providermocks.FakeRunner{}
 	handler := NewConnectHandler(Deps{Runner: runner})

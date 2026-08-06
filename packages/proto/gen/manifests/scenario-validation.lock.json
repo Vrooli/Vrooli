@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-validation",
-  "input_digest": "sha256:13b9a95fe052a6c2bc1b02e7f383cd4518a818d8e10d663d64afa4eb880cf73b",
+  "input_digest": "sha256:1ff8ac03e101c115a8d2113cbff20805cae38165b5d208547ceb3b57524206f6",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/metrics.proto",

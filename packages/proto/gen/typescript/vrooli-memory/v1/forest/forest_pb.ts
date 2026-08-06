@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-memory/v1/forest/forest.proto.
  */
 export const file_vrooli_memory_v1_forest_forest: GenFile = /*@__PURE__*/
-  fileDesc("CiR2cm9vbGktbWVtb3J5L3YxL2ZvcmVzdC9mb3Jlc3QucHJvdG8SHnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZvcmVzdCJYCgROb2RlEgoKAmlkGAEgASgJEhAKCGVudHJ5X2lkGAIgASgJEhAKCGZhY2V0X2lkGAMgASgJEg0KBWRlcHRoGAQgASgFEhEKCWNoaWxkX2lkcxgFIAMoCSIaChhSdW5Db21wYWN0aW9uUGFzc1JlcXVlc3QiNAoZUnVuQ29tcGFjdGlvblBhc3NSZXNwb25zZRIXCg9jb21wYWN0ZWRfY291bnQYASABKAUiFAoSR2V0RnJvbnRpZXJSZXF1ZXN0IkoKE0dldEZyb250aWVyUmVzcG9uc2USMwoFbm9kZXMYASADKAsyJC52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mb3Jlc3QuTm9kZSIcCg5HZXROb2RlUmVxdWVzdBIKCgJpZBgBIAEoCSJFCg9HZXROb2RlUmVzcG9uc2USMgoEbm9kZRgBIAEoCzIkLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZvcmVzdC5Ob2RlIhYKFFJlYnVpbGRGb3Jlc3RSZXF1ZXN0IisKFVJlYnVpbGRGb3Jlc3RSZXNwb25zZRISCgpub2RlX2NvdW50GAEgASgFMvwDCg1Gb3Jlc3RTZXJ2aWNlEogBChFSdW5Db21wYWN0aW9uUGFzcxI4LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZvcmVzdC5SdW5Db21wYWN0aW9uUGFzc1JlcXVlc3QaOS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mb3Jlc3QuUnVuQ29tcGFjdGlvblBhc3NSZXNwb25zZRJ2CgtHZXRGcm9udGllchIyLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZvcmVzdC5HZXRGcm9udGllclJlcXVlc3QaMy52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mb3Jlc3QuR2V0RnJvbnRpZXJSZXNwb25zZRJqCgdHZXROb2RlEi4udnJvb2xpLnZyb29saV9tZW1vcnkudjEuZm9yZXN0LkdldE5vZGVSZXF1ZXN0Gi8udnJvb2xpLnZyb29saV9tZW1vcnkudjEuZm9yZXN0LkdldE5vZGVSZXNwb25zZRJ8Cg1SZWJ1aWxkRm9yZXN0EjQudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZm9yZXN0LlJlYnVpbGRGb3Jlc3RSZXF1ZXN0GjUudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZm9yZXN0LlJlYnVpbGRGb3Jlc3RSZXNwb25zZUJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1tZW1vcnkvdjEvZm9yZXN0O2ZvcmVzdF92MWIGcHJvdG8z");
+  fileDesc("CiR2cm9vbGktbWVtb3J5L3YxL2ZvcmVzdC9mb3Jlc3QucHJvdG8SHnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZvcmVzdCJyCgROb2RlEgoKAmlkGAEgASgJEhAKCGVudHJ5X2lkGAIgASgJEhAKCGZhY2V0X2lkGAMgASgJEg0KBWRlcHRoGAQgASgFEhEKCWNoaWxkX2lkcxgFIAMoCRIYChBjb21wYWN0aW9uX3Njb3JlGAYgASgBIikKGFJ1bkNvbXBhY3Rpb25QYXNzUmVxdWVzdBINCgVzY29wZRgBIAEoCSI0ChlSdW5Db21wYWN0aW9uUGFzc1Jlc3BvbnNlEhcKD2NvbXBhY3RlZF9jb3VudBgBIAEoBSIyChJHZXRGcm9udGllclJlcXVlc3QSDQoFbGltaXQYASABKAUSDQoFc2NvcGUYAiABKAkicgoTR2V0RnJvbnRpZXJSZXNwb25zZRIzCgVub2RlcxgBIAMoCzIkLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZvcmVzdC5Ob2RlEhYKDmVsaWdpYmxlX2NvdW50GAIgASgFEg4KBnRhcmdldBgDIAEoBSIrCg5HZXROb2RlUmVxdWVzdBIKCgJpZBgBIAEoCRINCgVzY29wZRgCIAEoCSJFCg9HZXROb2RlUmVzcG9uc2USMgoEbm9kZRgBIAEoCzIkLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZvcmVzdC5Ob2RlIiUKFFJlYnVpbGRGb3Jlc3RSZXF1ZXN0Eg0KBXNjb3BlGAEgASgJIisKFVJlYnVpbGRGb3Jlc3RSZXNwb25zZRISCgpub2RlX2NvdW50GAEgASgFMvwDCg1Gb3Jlc3RTZXJ2aWNlEogBChFSdW5Db21wYWN0aW9uUGFzcxI4LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZvcmVzdC5SdW5Db21wYWN0aW9uUGFzc1JlcXVlc3QaOS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mb3Jlc3QuUnVuQ29tcGFjdGlvblBhc3NSZXNwb25zZRJ2CgtHZXRGcm9udGllchIyLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLmZvcmVzdC5HZXRGcm9udGllclJlcXVlc3QaMy52cm9vbGkudnJvb2xpX21lbW9yeS52MS5mb3Jlc3QuR2V0RnJvbnRpZXJSZXNwb25zZRJqCgdHZXROb2RlEi4udnJvb2xpLnZyb29saV9tZW1vcnkudjEuZm9yZXN0LkdldE5vZGVSZXF1ZXN0Gi8udnJvb2xpLnZyb29saV9tZW1vcnkudjEuZm9yZXN0LkdldE5vZGVSZXNwb25zZRJ8Cg1SZWJ1aWxkRm9yZXN0EjQudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZm9yZXN0LlJlYnVpbGRGb3Jlc3RSZXF1ZXN0GjUudnJvb2xpLnZyb29saV9tZW1vcnkudjEuZm9yZXN0LlJlYnVpbGRGb3Jlc3RSZXNwb25zZUJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1tZW1vcnkvdjEvZm9yZXN0O2ZvcmVzdF92MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.forest.Node
@@ -40,6 +40,11 @@ export type Node = Message<"vrooli.vrooli_memory.v1.forest.Node"> & {
    * @generated from field: repeated string child_ids = 5;
    */
   childIds: string[];
+
+  /**
+   * @generated from field: double compaction_score = 6;
+   */
+  compactionScore: number;
 };
 
 /**
@@ -53,6 +58,10 @@ export const NodeSchema: GenMessage<Node> = /*@__PURE__*/
  * @generated from message vrooli.vrooli_memory.v1.forest.RunCompactionPassRequest
  */
 export type RunCompactionPassRequest = Message<"vrooli.vrooli_memory.v1.forest.RunCompactionPassRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
 };
 
 /**
@@ -83,6 +92,15 @@ export const RunCompactionPassResponseSchema: GenMessage<RunCompactionPassRespon
  * @generated from message vrooli.vrooli_memory.v1.forest.GetFrontierRequest
  */
 export type GetFrontierRequest = Message<"vrooli.vrooli_memory.v1.forest.GetFrontierRequest"> & {
+  /**
+   * @generated from field: int32 limit = 1;
+   */
+  limit: number;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
 };
 
 /**
@@ -100,6 +118,16 @@ export type GetFrontierResponse = Message<"vrooli.vrooli_memory.v1.forest.GetFro
    * @generated from field: repeated vrooli.vrooli_memory.v1.forest.Node nodes = 1;
    */
   nodes: Node[];
+
+  /**
+   * @generated from field: int32 eligible_count = 2;
+   */
+  eligibleCount: number;
+
+  /**
+   * @generated from field: int32 target = 3;
+   */
+  target: number;
 };
 
 /**
@@ -117,6 +145,11 @@ export type GetNodeRequest = Message<"vrooli.vrooli_memory.v1.forest.GetNodeRequ
    * @generated from field: string id = 1;
    */
   id: string;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
 };
 
 /**
@@ -147,6 +180,10 @@ export const GetNodeResponseSchema: GenMessage<GetNodeResponse> = /*@__PURE__*/
  * @generated from message vrooli.vrooli_memory.v1.forest.RebuildForestRequest
  */
 export type RebuildForestRequest = Message<"vrooli.vrooli_memory.v1.forest.RebuildForestRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
 };
 
 /**

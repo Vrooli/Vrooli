@@ -17,6 +17,7 @@ enum ValidationTargetKind {
   VALIDATION_TARGET_KIND_PACKAGE = 6;
   VALIDATION_TARGET_KIND_CONTROL_PLANE = 7;
   VALIDATION_TARGET_KIND_DOCS = 8;
+  VALIDATION_TARGET_KIND_PROJECT = 9;
 }
 
 // ValidationTarget identifies the governed thing a validation result is

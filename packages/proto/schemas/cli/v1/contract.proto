@@ -43,7 +43,7 @@ message ContractValidationCheck {
   string message = 2;
 }
 
-// ContractCheckReport is the repo-contract check report (internal/repocontractcheck).
+// ContractCheckReport is the structure-health project validation report.
 message ContractCheckReport {
   // Repo root the checks ran against.
   string root = 1;

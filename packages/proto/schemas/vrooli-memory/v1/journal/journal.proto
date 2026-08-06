@@ -55,12 +55,14 @@ message AppendEntryRequest {
   string approach = 8;
   string evidence = 9;
   string outcome = 10;
+  string scope = 11;
 }
 message AppendEntryResponse {
   Entry entry = 1;
 }
 message GetEntryRequest {
   string id = 1;
+  string scope = 2;
 }
 message GetEntryResponse {
   Entry entry = 1;
@@ -69,6 +71,7 @@ message ListEntriesRequest {
   string facet_id = 1;
   int32 limit = 2;
   string cursor = 3;
+  string scope = 4;
 }
 message ListEntriesResponse {
   repeated Entry entries = 1;
@@ -76,6 +79,7 @@ message ListEntriesResponse {
 }
 message ProcessClassificationRetriesRequest {
   int32 limit = 1;
+  string scope = 2;
 }
 message ProcessClassificationRetriesResponse {
   int32 processed = 1;
@@ -84,6 +88,7 @@ message ProcessClassificationRetriesResponse {
 }
 message ProcessEmbeddingRetriesRequest {
   int32 limit = 1;
+  string scope = 2;
 }
 message ProcessEmbeddingRetriesResponse {
   int32 processed = 1;

@@ -45,6 +45,14 @@
       }
     },
     {
+      "id": "validation_validate_target",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateTarget",
+      "method": "POST",
+      "summary": "Validate a first-class repository target",
+      "description": "",
+      "category": "validation"
+    },
+    {
       "id": "conformance_scan_scenario",
       "path": "/vrooli.ai_gateway.v1.conformance.ConformanceService/ScanScenario",
       "method": "POST",
@@ -204,6 +212,72 @@
         {
           "name": "Validate gateway request",
           "curl": "curl http://localhost:${API_PORT}/vrooli.ai_gateway.v1.gateway.GatewayService/ValidateGatewayRequest -H 'Content-Type: application/json' -d '{\"request\":{\"kind\":\"REQUEST_KIND_TEXT_GENERATION\",\"role\":\"chat.default\",\"profile\":\"PROFILE_LOCAL_FIRST\",\"privacyClass\":\"PRIVACY_CLASS_INTERNAL\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "inference_run",
+      "path": "/vrooli.ai_gateway.v1.inference.InferenceService/Run",
+      "method": "POST",
+      "summary": "Run schema-constrained typed inference",
+      "description": "Executes one provider-neutral inference request and locally validates the returned JSON before marking it successful.",
+      "category": "inference",
+      "request": {
+        "type": "RunRequest",
+        "properties": {
+          "instruction": "string",
+          "role": "string",
+          "schema_json": "string",
+          "source": "string"
+        }
+      },
+      "response": {
+        "type": "RunResponse",
+        "properties": {
+          "error": "InferenceError",
+          "model": "string",
+          "provider": "string",
+          "usage": "Usage",
+          "validated": "bool",
+          "value_json": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The source, role, or schema is invalid"
+        }
+      ]
+    },
+    {
+      "id": "inference_run_batch",
+      "path": "/vrooli.ai_gateway.v1.inference.InferenceService/RunBatch",
+      "method": "POST",
+      "summary": "Run ordered schema-constrained typed inference batch",
+      "description": "Runs up to 256 sources against one schema and returns ordered results with aggregate usage.",
+      "category": "inference",
+      "request": {
+        "type": "RunBatchRequest",
+        "properties": {
+          "instruction": "string",
+          "items": "RunBatchItem[]",
+          "role": "string",
+          "schema_json": "string"
+        }
+      },
+      "response": {
+        "type": "RunBatchResponse",
+        "properties": {
+          "results": "RunResponse[]",
+          "usage": "Usage"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The batch size or schema is invalid"
         }
       ]
     },

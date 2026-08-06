@@ -15,15 +15,17 @@ class EventKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PROGRAM_FAILED: _ClassVar[EventKind]
     BINDING_REFUSED: _ClassVar[EventKind]
     SESSION_RECLAIMED: _ClassVar[EventKind]
+    BINDING_INVOKED: _ClassVar[EventKind]
 EVENT_KIND_UNSPECIFIED: EventKind
 PROGRAM_SUBMITTED: EventKind
 PROGRAM_SUCCEEDED: EventKind
 PROGRAM_FAILED: EventKind
 BINDING_REFUSED: EventKind
 SESSION_RECLAIMED: EventKind
+BINDING_INVOKED: EventKind
 
 class ProgramEvent(_message.Message):
-    __slots__ = ("event_id", "occurred_at", "kind", "program_id", "session_id", "binding_id", "effect", "provenance", "failure_shape", "context_bytes", "reason")
+    __slots__ = ("event_id", "occurred_at", "kind", "program_id", "session_id", "binding_id", "effect", "provenance", "failure_shape", "context_bytes", "reason", "failure_location")
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     OCCURRED_AT_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -35,6 +37,7 @@ class ProgramEvent(_message.Message):
     FAILURE_SHAPE_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_BYTES_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_LOCATION_FIELD_NUMBER: _ClassVar[int]
     event_id: str
     occurred_at: str
     kind: EventKind
@@ -46,7 +49,8 @@ class ProgramEvent(_message.Message):
     failure_shape: str
     context_bytes: int
     reason: str
-    def __init__(self, event_id: _Optional[str] = ..., occurred_at: _Optional[str] = ..., kind: _Optional[_Union[EventKind, str]] = ..., program_id: _Optional[str] = ..., session_id: _Optional[str] = ..., binding_id: _Optional[str] = ..., effect: _Optional[str] = ..., provenance: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+    failure_location: str
+    def __init__(self, event_id: _Optional[str] = ..., occurred_at: _Optional[str] = ..., kind: _Optional[_Union[EventKind, str]] = ..., program_id: _Optional[str] = ..., session_id: _Optional[str] = ..., binding_id: _Optional[str] = ..., effect: _Optional[str] = ..., provenance: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., reason: _Optional[str] = ..., failure_location: _Optional[str] = ...) -> None: ...
 
 class ListEventsRequest(_message.Message):
     __slots__ = ("session_id", "kind")

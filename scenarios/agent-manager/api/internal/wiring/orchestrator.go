@@ -190,7 +190,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	if len(fileRoots) > 0 && fileRoots[0] != nil {
 		artifactCollector = artifact.NewSQLiteCollector(db, fileRoots[0])
 	}
-	extractor := &structuredresult.RunnerExtractor{Roles: roleState, Resolver: roleResolver, Runners: registry, WorkingDir: database.DataDir(), Timeout: 2 * time.Minute}
+	extractor := structuredresult.NewGatewayExtractor(nil)
 	receiptsBaseURL, _ := os.LookupEnv("VROOLI_EVENTS_API_BASE")
 	if receiptsBaseURL == "" {
 		receiptsBaseURL, _ = discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events")

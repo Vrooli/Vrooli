@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-memory/v1/recall/recall.proto.
  */
 export const file_vrooli_memory_v1_recall_recall: GenFile = /*@__PURE__*/
-  fileDesc("CiR2cm9vbGktbWVtb3J5L3YxL3JlY2FsbC9yZWNhbGwucHJvdG8SHnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbCKLAQoJUmVjYWxsSGl0EhAKCGVudHJ5X2lkGAEgASgJEhAKCGZhY2V0X2lkGAIgASgJEgwKBHRleHQYAyABKAkSDQoFc2NvcmUYBCABKAESDQoFZGVwdGgYBSABKAUSDwoHbm9kZV9pZBgGIAEoCRIPCgdzdW1tYXJ5GAcgASgIEgwKBHNwYW4YCCABKAUiLQoNUmVjYWxsUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBSJJCg5SZWNhbGxSZXNwb25zZRI3CgRoaXRzGAEgAygLMikudnJvb2xpLnZyb29saV9tZW1vcnkudjEucmVjYWxsLlJlY2FsbEhpdCIjCgtXYWtlUmVxdWVzdBIUCgx0b2tlbl9idWRnZXQYASABKAUiWQoMV2FrZVJlc3BvbnNlEjcKBGhpdHMYASADKAsyKS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5yZWNhbGwuUmVjYWxsSGl0EhAKCG92ZXJmbG93GAIgASgIIh4KC1pvb21SZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkiTwoMWm9vbVJlc3BvbnNlEj8KDGNvbnN0aXR1ZW50cxgBIAMoCzIpLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5SZWNhbGxIaXQiLAoYTGlzdFNpYmxpbmdFdmVudHNSZXF1ZXN0EhAKCGVudHJ5X2lkGAEgASgJIlcKGUxpc3RTaWJsaW5nRXZlbnRzUmVzcG9uc2USOgoHZW50cmllcxgBIAMoCzIpLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5SZWNhbGxIaXQyyQMKDVJlY2FsbFNlcnZpY2USZwoGUmVjYWxsEi0udnJvb2xpLnZyb29saV9tZW1vcnkudjEucmVjYWxsLlJlY2FsbFJlcXVlc3QaLi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5yZWNhbGwuUmVjYWxsUmVzcG9uc2USYQoEV2FrZRIrLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5XYWtlUmVxdWVzdBosLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5XYWtlUmVzcG9uc2USYQoEWm9vbRIrLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5ab29tUmVxdWVzdBosLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5ab29tUmVzcG9uc2USiAEKEUxpc3RTaWJsaW5nRXZlbnRzEjgudnJvb2xpLnZyb29saV9tZW1vcnkudjEucmVjYWxsLkxpc3RTaWJsaW5nRXZlbnRzUmVxdWVzdBo5LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5MaXN0U2libGluZ0V2ZW50c1Jlc3BvbnNlQlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLW1lbW9yeS92MS9yZWNhbGw7cmVjYWxsX3YxYgZwcm90bzM");
+  fileDesc("CiR2cm9vbGktbWVtb3J5L3YxL3JlY2FsbC9yZWNhbGwucHJvdG8SHnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbCKLAQoJUmVjYWxsSGl0EhAKCGVudHJ5X2lkGAEgASgJEhAKCGZhY2V0X2lkGAIgASgJEgwKBHRleHQYAyABKAkSDQoFc2NvcmUYBCABKAESDQoFZGVwdGgYBSABKAUSDwoHbm9kZV9pZBgGIAEoCRIPCgdzdW1tYXJ5GAcgASgIEgwKBHNwYW4YCCABKAUiPAoNUmVjYWxsUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBRINCgVzY29wZRgDIAEoCSJJCg5SZWNhbGxSZXNwb25zZRI3CgRoaXRzGAEgAygLMikudnJvb2xpLnZyb29saV9tZW1vcnkudjEucmVjYWxsLlJlY2FsbEhpdCIyCgtXYWtlUmVxdWVzdBIUCgx0b2tlbl9idWRnZXQYASABKAUSDQoFc2NvcGUYAiABKAkiWQoMV2FrZVJlc3BvbnNlEjcKBGhpdHMYASADKAsyKS52cm9vbGkudnJvb2xpX21lbW9yeS52MS5yZWNhbGwuUmVjYWxsSGl0EhAKCG92ZXJmbG93GAIgASgIIi0KC1pvb21SZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSDQoFc2NvcGUYAiABKAkiTwoMWm9vbVJlc3BvbnNlEj8KDGNvbnN0aXR1ZW50cxgBIAMoCzIpLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5SZWNhbGxIaXQiOwoYTGlzdFNpYmxpbmdFdmVudHNSZXF1ZXN0EhAKCGVudHJ5X2lkGAEgASgJEg0KBXNjb3BlGAIgASgJIlcKGUxpc3RTaWJsaW5nRXZlbnRzUmVzcG9uc2USOgoHZW50cmllcxgBIAMoCzIpLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5SZWNhbGxIaXQyyQMKDVJlY2FsbFNlcnZpY2USZwoGUmVjYWxsEi0udnJvb2xpLnZyb29saV9tZW1vcnkudjEucmVjYWxsLlJlY2FsbFJlcXVlc3QaLi52cm9vbGkudnJvb2xpX21lbW9yeS52MS5yZWNhbGwuUmVjYWxsUmVzcG9uc2USYQoEV2FrZRIrLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5XYWtlUmVxdWVzdBosLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5XYWtlUmVzcG9uc2USYQoEWm9vbRIrLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5ab29tUmVxdWVzdBosLnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5ab29tUmVzcG9uc2USiAEKEUxpc3RTaWJsaW5nRXZlbnRzEjgudnJvb2xpLnZyb29saV9tZW1vcnkudjEucmVjYWxsLkxpc3RTaWJsaW5nRXZlbnRzUmVxdWVzdBo5LnZyb29saS52cm9vbGlfbWVtb3J5LnYxLnJlY2FsbC5MaXN0U2libGluZ0V2ZW50c1Jlc3BvbnNlQlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLW1lbW9yeS92MS9yZWNhbGw7cmVjYWxsX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.vrooli_memory.v1.recall.RecallHit
@@ -77,6 +77,11 @@ export type RecallRequest = Message<"vrooli.vrooli_memory.v1.recall.RecallReques
    * @generated from field: int32 limit = 2;
    */
   limit: number;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
 };
 
 /**
@@ -111,6 +116,11 @@ export type WakeRequest = Message<"vrooli.vrooli_memory.v1.recall.WakeRequest"> 
    * @generated from field: int32 token_budget = 1;
    */
   tokenBudget: number;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
 };
 
 /**
@@ -150,6 +160,11 @@ export type ZoomRequest = Message<"vrooli.vrooli_memory.v1.recall.ZoomRequest"> 
    * @generated from field: string node_id = 1;
    */
   nodeId: string;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
 };
 
 /**
@@ -184,6 +199,11 @@ export type ListSiblingEventsRequest = Message<"vrooli.vrooli_memory.v1.recall.L
    * @generated from field: string entry_id = 1;
    */
   entryId: string;
+
+  /**
+   * @generated from field: string scope = 2;
+   */
+  scope: string;
 };
 
 /**

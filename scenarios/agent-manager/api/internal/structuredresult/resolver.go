@@ -35,6 +35,10 @@ type ExtractRequest struct {
 	Source  string
 	Schema  json.RawMessage
 	RoleRef string
+	// Instruction states caller intent. It is deliberately separate from the
+	// schema: ai-gateway treats schema descriptions as metadata only and never
+	// as instruction, so intent must travel in its own field.
+	Instruction string
 }
 
 // ExtractResponse contains an untrusted candidate and provenance. Candidate is

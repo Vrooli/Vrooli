@@ -25,7 +25,9 @@ type ScanFleetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Restrict the scan to these scenario slugs; empty means every discovered
 	// scenario (a directory under scenarios/ carrying .vrooli/service.json).
-	Scenarios     []string `protobuf:"bytes,1,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
+	Scenarios []string `protobuf:"bytes,1,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
+	// Optional typed target selection. When present, this supersedes scenarios.
+	Targets       []*FleetTarget `protobuf:"bytes,2,rep,name=targets,proto3" json:"targets,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -67,6 +69,73 @@ func (x *ScanFleetRequest) GetScenarios() []string {
 	return nil
 }
 
+func (x *ScanFleetRequest) GetTargets() []*FleetTarget {
+	if x != nil {
+		return x.Targets
+	}
+	return nil
+}
+
+type FleetTarget struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FleetTarget) Reset() {
+	*x = FleetTarget{}
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FleetTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FleetTarget) ProtoMessage() {}
+
+func (x *FleetTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FleetTarget.ProtoReflect.Descriptor instead.
+func (*FleetTarget) Descriptor() ([]byte, []int) {
+	return file_structure_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *FleetTarget) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *FleetTarget) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *FleetTarget) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
 type ScanFleetResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// One rollup per scanned scenario, sorted alphabetically by scenario.
@@ -86,14 +155,17 @@ type ScanFleetResponse struct {
 	AutofixableTotal int32 `protobuf:"varint,7,opt,name=autofixable_total,json=autofixableTotal,proto3" json:"autofixable_total,omitempty"`
 	// Scenarios that could not be graded (enumerated but failed to validate),
 	// with a short reason each.
-	Errors        []*FleetScanError `protobuf:"bytes,8,rep,name=errors,proto3" json:"errors,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Errors []*FleetScanError `protobuf:"bytes,8,rep,name=errors,proto3" json:"errors,omitempty"`
+	// Total typed targets scanned, including non-scenario kinds.
+	TargetCount        int32 `protobuf:"varint,9,opt,name=target_count,json=targetCount,proto3" json:"target_count,omitempty"`
+	PassingTargetCount int32 `protobuf:"varint,10,opt,name=passing_target_count,json=passingTargetCount,proto3" json:"passing_target_count,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ScanFleetResponse) Reset() {
 	*x = ScanFleetResponse{}
-	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[1]
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -105,7 +177,7 @@ func (x *ScanFleetResponse) String() string {
 func (*ScanFleetResponse) ProtoMessage() {}
 
 func (x *ScanFleetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[1]
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -118,7 +190,7 @@ func (x *ScanFleetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScanFleetResponse.ProtoReflect.Descriptor instead.
 func (*ScanFleetResponse) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{1}
+	return file_structure_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ScanFleetResponse) GetEntries() []*FleetScenarioEntry {
@@ -177,6 +249,20 @@ func (x *ScanFleetResponse) GetErrors() []*FleetScanError {
 	return nil
 }
 
+func (x *ScanFleetResponse) GetTargetCount() int32 {
+	if x != nil {
+		return x.TargetCount
+	}
+	return 0
+}
+
+func (x *ScanFleetResponse) GetPassingTargetCount() int32 {
+	if x != nil {
+		return x.PassingTargetCount
+	}
+	return 0
+}
+
 // FleetScenarioEntry is one scenario's structure rollup.
 type FleetScenarioEntry struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
@@ -199,13 +285,16 @@ type FleetScenarioEntry struct {
 	Surfaces []string `protobuf:"bytes,10,rep,name=surfaces,proto3" json:"surfaces,omitempty"`
 	// Non-empty when the scenario was graded in a degraded mode.
 	DegradedReason string `protobuf:"bytes,11,opt,name=degraded_reason,json=degradedReason,proto3" json:"degraded_reason,omitempty"`
+	TargetKind     string `protobuf:"bytes,12,opt,name=target_kind,json=targetKind,proto3" json:"target_kind,omitempty"`
+	TargetId       string `protobuf:"bytes,13,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	TargetPath     string `protobuf:"bytes,14,opt,name=target_path,json=targetPath,proto3" json:"target_path,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *FleetScenarioEntry) Reset() {
 	*x = FleetScenarioEntry{}
-	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[2]
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -217,7 +306,7 @@ func (x *FleetScenarioEntry) String() string {
 func (*FleetScenarioEntry) ProtoMessage() {}
 
 func (x *FleetScenarioEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[2]
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -230,7 +319,7 @@ func (x *FleetScenarioEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FleetScenarioEntry.ProtoReflect.Descriptor instead.
 func (*FleetScenarioEntry) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{2}
+	return file_structure_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *FleetScenarioEntry) GetScenario() string {
@@ -310,6 +399,27 @@ func (x *FleetScenarioEntry) GetDegradedReason() string {
 	return ""
 }
 
+func (x *FleetScenarioEntry) GetTargetKind() string {
+	if x != nil {
+		return x.TargetKind
+	}
+	return ""
+}
+
+func (x *FleetScenarioEntry) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *FleetScenarioEntry) GetTargetPath() string {
+	if x != nil {
+		return x.TargetPath
+	}
+	return ""
+}
+
 // RuleConformance rolls one finding code up across the fleet.
 type RuleConformance struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -329,7 +439,7 @@ type RuleConformance struct {
 
 func (x *RuleConformance) Reset() {
 	*x = RuleConformance{}
-	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[3]
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -341,7 +451,7 @@ func (x *RuleConformance) String() string {
 func (*RuleConformance) ProtoMessage() {}
 
 func (x *RuleConformance) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[3]
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -354,7 +464,7 @@ func (x *RuleConformance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuleConformance.ProtoReflect.Descriptor instead.
 func (*RuleConformance) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{3}
+	return file_structure_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RuleConformance) GetCode() string {
@@ -405,7 +515,7 @@ type ProfileDistribution struct {
 
 func (x *ProfileDistribution) Reset() {
 	*x = ProfileDistribution{}
-	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[4]
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -417,7 +527,7 @@ func (x *ProfileDistribution) String() string {
 func (*ProfileDistribution) ProtoMessage() {}
 
 func (x *ProfileDistribution) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[4]
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -430,7 +540,7 @@ func (x *ProfileDistribution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileDistribution.ProtoReflect.Descriptor instead.
 func (*ProfileDistribution) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{4}
+	return file_structure_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ProfileDistribution) GetProfileId() string {
@@ -465,7 +575,7 @@ type FleetScanError struct {
 
 func (x *FleetScanError) Reset() {
 	*x = FleetScanError{}
-	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[5]
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -477,7 +587,7 @@ func (x *FleetScanError) String() string {
 func (*FleetScanError) ProtoMessage() {}
 
 func (x *FleetScanError) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[5]
+	mi := &file_structure_health_v1_fleet_fleet_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -490,7 +600,7 @@ func (x *FleetScanError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FleetScanError.ProtoReflect.Descriptor instead.
 func (*FleetScanError) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{5}
+	return file_structure_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FleetScanError) GetScenario() string {
@@ -511,9 +621,14 @@ var File_structure_health_v1_fleet_fleet_proto protoreflect.FileDescriptor
 
 const file_structure_health_v1_fleet_fleet_proto_rawDesc = "" +
 	"\n" +
-	"%structure-health/v1/fleet/fleet.proto\x12 vrooli.structure_health.v1.fleet\"0\n" +
+	"%structure-health/v1/fleet/fleet.proto\x12 vrooli.structure_health.v1.fleet\"y\n" +
 	"\x10ScanFleetRequest\x12\x1c\n" +
-	"\tscenarios\x18\x01 \x03(\tR\tscenarios\"\xa6\x04\n" +
+	"\tscenarios\x18\x01 \x03(\tR\tscenarios\x12G\n" +
+	"\atargets\x18\x02 \x03(\v2-.vrooli.structure_health.v1.fleet.FleetTargetR\atargets\"E\n" +
+	"\vFleetTarget\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\"\xfb\x04\n" +
 	"\x11ScanFleetResponse\x12N\n" +
 	"\aentries\x18\x01 \x03(\v24.vrooli.structure_health.v1.fleet.FleetScenarioEntryR\aentries\x12\\\n" +
 	"\x10rule_conformance\x18\x02 \x03(\v21.vrooli.structure_health.v1.fleet.RuleConformanceR\x0fruleConformance\x12h\n" +
@@ -522,7 +637,10 @@ const file_structure_health_v1_fleet_fleet_proto_rawDesc = "" +
 	"\rpassing_count\x18\x05 \x01(\x05R\fpassingCount\x126\n" +
 	"\x17missing_freshness_count\x18\x06 \x01(\x05R\x15missingFreshnessCount\x12+\n" +
 	"\x11autofixable_total\x18\a \x01(\x05R\x10autofixableTotal\x12H\n" +
-	"\x06errors\x18\b \x03(\v20.vrooli.structure_health.v1.fleet.FleetScanErrorR\x06errors\"\xad\x03\n" +
+	"\x06errors\x18\b \x03(\v20.vrooli.structure_health.v1.fleet.FleetScanErrorR\x06errors\x12!\n" +
+	"\ftarget_count\x18\t \x01(\x05R\vtargetCount\x120\n" +
+	"\x14passing_target_count\x18\n" +
+	" \x01(\x05R\x12passingTargetCount\"\x8c\x04\n" +
 	"\x12FleetScenarioEntry\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12\x1d\n" +
@@ -537,7 +655,12 @@ const file_structure_health_v1_fleet_fleet_proto_rawDesc = "" +
 	"\x17missing_freshness_check\x18\t \x01(\bR\x15missingFreshnessCheck\x12\x1a\n" +
 	"\bsurfaces\x18\n" +
 	" \x03(\tR\bsurfaces\x12'\n" +
-	"\x0fdegraded_reason\x18\v \x01(\tR\x0edegradedReason\"\xc6\x01\n" +
+	"\x0fdegraded_reason\x18\v \x01(\tR\x0edegradedReason\x12\x1f\n" +
+	"\vtarget_kind\x18\f \x01(\tR\n" +
+	"targetKind\x12\x1b\n" +
+	"\ttarget_id\x18\r \x01(\tR\btargetId\x12\x1f\n" +
+	"\vtarget_path\x18\x0e \x01(\tR\n" +
+	"targetPath\"\xc6\x01\n" +
 	"\x0fRuleConformance\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12/\n" +
 	"\x13offending_scenarios\x18\x02 \x01(\x05R\x12offendingScenarios\x12%\n" +
@@ -569,27 +692,29 @@ func file_structure_health_v1_fleet_fleet_proto_rawDescGZIP() []byte {
 	return file_structure_health_v1_fleet_fleet_proto_rawDescData
 }
 
-var file_structure_health_v1_fleet_fleet_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_structure_health_v1_fleet_fleet_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_structure_health_v1_fleet_fleet_proto_goTypes = []any{
 	(*ScanFleetRequest)(nil),    // 0: vrooli.structure_health.v1.fleet.ScanFleetRequest
-	(*ScanFleetResponse)(nil),   // 1: vrooli.structure_health.v1.fleet.ScanFleetResponse
-	(*FleetScenarioEntry)(nil),  // 2: vrooli.structure_health.v1.fleet.FleetScenarioEntry
-	(*RuleConformance)(nil),     // 3: vrooli.structure_health.v1.fleet.RuleConformance
-	(*ProfileDistribution)(nil), // 4: vrooli.structure_health.v1.fleet.ProfileDistribution
-	(*FleetScanError)(nil),      // 5: vrooli.structure_health.v1.fleet.FleetScanError
+	(*FleetTarget)(nil),         // 1: vrooli.structure_health.v1.fleet.FleetTarget
+	(*ScanFleetResponse)(nil),   // 2: vrooli.structure_health.v1.fleet.ScanFleetResponse
+	(*FleetScenarioEntry)(nil),  // 3: vrooli.structure_health.v1.fleet.FleetScenarioEntry
+	(*RuleConformance)(nil),     // 4: vrooli.structure_health.v1.fleet.RuleConformance
+	(*ProfileDistribution)(nil), // 5: vrooli.structure_health.v1.fleet.ProfileDistribution
+	(*FleetScanError)(nil),      // 6: vrooli.structure_health.v1.fleet.FleetScanError
 }
 var file_structure_health_v1_fleet_fleet_proto_depIdxs = []int32{
-	2, // 0: vrooli.structure_health.v1.fleet.ScanFleetResponse.entries:type_name -> vrooli.structure_health.v1.fleet.FleetScenarioEntry
-	3, // 1: vrooli.structure_health.v1.fleet.ScanFleetResponse.rule_conformance:type_name -> vrooli.structure_health.v1.fleet.RuleConformance
-	4, // 2: vrooli.structure_health.v1.fleet.ScanFleetResponse.profile_distribution:type_name -> vrooli.structure_health.v1.fleet.ProfileDistribution
-	5, // 3: vrooli.structure_health.v1.fleet.ScanFleetResponse.errors:type_name -> vrooli.structure_health.v1.fleet.FleetScanError
-	0, // 4: vrooli.structure_health.v1.fleet.FleetService.ScanFleet:input_type -> vrooli.structure_health.v1.fleet.ScanFleetRequest
-	1, // 5: vrooli.structure_health.v1.fleet.FleetService.ScanFleet:output_type -> vrooli.structure_health.v1.fleet.ScanFleetResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1, // 0: vrooli.structure_health.v1.fleet.ScanFleetRequest.targets:type_name -> vrooli.structure_health.v1.fleet.FleetTarget
+	3, // 1: vrooli.structure_health.v1.fleet.ScanFleetResponse.entries:type_name -> vrooli.structure_health.v1.fleet.FleetScenarioEntry
+	4, // 2: vrooli.structure_health.v1.fleet.ScanFleetResponse.rule_conformance:type_name -> vrooli.structure_health.v1.fleet.RuleConformance
+	5, // 3: vrooli.structure_health.v1.fleet.ScanFleetResponse.profile_distribution:type_name -> vrooli.structure_health.v1.fleet.ProfileDistribution
+	6, // 4: vrooli.structure_health.v1.fleet.ScanFleetResponse.errors:type_name -> vrooli.structure_health.v1.fleet.FleetScanError
+	0, // 5: vrooli.structure_health.v1.fleet.FleetService.ScanFleet:input_type -> vrooli.structure_health.v1.fleet.ScanFleetRequest
+	2, // 6: vrooli.structure_health.v1.fleet.FleetService.ScanFleet:output_type -> vrooli.structure_health.v1.fleet.ScanFleetResponse
+	6, // [6:7] is the sub-list for method output_type
+	5, // [5:6] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_structure_health_v1_fleet_fleet_proto_init() }
@@ -603,7 +728,7 @@ func file_structure_health_v1_fleet_fleet_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_structure_health_v1_fleet_fleet_proto_rawDesc), len(file_structure_health_v1_fleet_fleet_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

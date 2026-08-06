@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "test-genie",
-  "input_digest": "sha256:7ec93e9d0211de89e81ae7b62e77391a2bdd3d6783210771c0fa5f778bceb3e7",
+  "input_digest": "sha256:59f768d9d4a657236bf787227b07939c8069f5916edabf794ea16e35d5d2c2a5",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/operations.proto",

@@ -53,14 +53,16 @@ class BuildStatusRequest(_message.Message):
     def __init__(self, build_id: _Optional[str] = ...) -> None: ...
 
 class SmokeTestStartRequest(_message.Message):
-    __slots__ = ("scenario_name", "platform", "artifact_path")
+    __slots__ = ("scenario_name", "platform", "artifact_path", "record_desktop")
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
     PLATFORM_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_PATH_FIELD_NUMBER: _ClassVar[int]
+    RECORD_DESKTOP_FIELD_NUMBER: _ClassVar[int]
     scenario_name: str
     platform: _common_pb2.Platform
     artifact_path: str
-    def __init__(self, scenario_name: _Optional[str] = ..., platform: _Optional[_Union[_common_pb2.Platform, str]] = ..., artifact_path: _Optional[str] = ...) -> None: ...
+    record_desktop: bool
+    def __init__(self, scenario_name: _Optional[str] = ..., platform: _Optional[_Union[_common_pb2.Platform, str]] = ..., artifact_path: _Optional[str] = ..., record_desktop: _Optional[bool] = ...) -> None: ...
 
 class SmokeTestStartResponse(_message.Message):
     __slots__ = ("smoke_test_id", "scenario_name", "platform", "status", "artifact_path", "started_at", "logs")

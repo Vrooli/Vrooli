@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "knowledge-observatory",
-  "input_digest": "sha256:07476996dcae153f42c8af8b849c76c31ceecfcace0b030aaa13deefe98e822b",
+  "input_digest": "sha256:07872bce4f695f5b271cdf64500b56052819400a98d0fda0591507b4f47a7c08",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/validation_target.proto",
