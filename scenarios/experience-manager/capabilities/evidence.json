@@ -22,6 +22,9 @@
       "title": "Computed style",
       "description": "Resolved CSS values for a bound element: colors, dimensions, typography, border, shadow, and transition properties.",
       "producer": { "kind": "bas-capture", "detail": "computed style read alongside the accessibility snapshot", "engineWorkRequired": true },
+      "x-shape": {
+        "properties": ["color", "background-color", "border-color", "font-size", "line-height", "font-weight", "letter-spacing", "margin", "padding", "width", "height", "gap", "border-radius", "box-shadow", "opacity", "transition-duration", "transition-timing-function"]
+      },
       "notes": "The single highest-leverage gap in the system. Its absence is why contrast, spacing conformance, typography, ramp checking, and motion duration verification are all unprovable today, and why `hover-state-contrast` reports unverifiable rather than passing or failing."
     },
     {

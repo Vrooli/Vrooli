@@ -84,7 +84,6 @@ func usesApprovedUILauncher(run string) bool {
 
 func requiresLifecycleProtection(run string) bool {
 	lifecycleSensitiveMarkers := []string{
-		"scripts/lib/ui-guard.sh",
 		"vrooli-ui-run",
 		"vite",
 		"vite preview",
@@ -148,10 +147,6 @@ func CheckUISharedLifecycleLaunch(content []byte, scenarioPath string, scenario 
 		for _, scriptName := range []string{"start", "dev", "debug", "start:daemon"} {
 			run := strings.TrimSpace(manifest.Scripts[scriptName])
 			if run == "" {
-				continue
-			}
-			if strings.Contains(run, "scripts/lib/ui-guard.sh") {
-				violations = append(violations, newUIViolation(rel, fmt.Sprintf("Legacy UI guard helper is not allowed in %s; use vrooli lifecycle protect instead", scriptName), "high"))
 				continue
 			}
 			if !requiresLifecycleProtection(run) {

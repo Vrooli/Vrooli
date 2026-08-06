@@ -285,13 +285,14 @@ describe('AccessibilitySnapshotter', () => {
 
   it('captures, normalizes, and writes accessibility.json', async () => {
     const domSnapshot: DOMSnapshotResult = {
-      strings: ['BODY', 'BUTTON', 'data-testid', 'submit-btn'],
+      strings: ['BODY', 'BUTTON', 'data-testid', 'submit-btn', 'rgb(15, 23, 42)', 'rgb(255, 255, 255)', '14px'],
       documents: [
         {
           nodes: {
             backendNodeId: [10, 30],
             nodeName: [0, 1],
             attributes: [[], [2, 3]],
+            computedStyles: [[], [4, 5, 6]],
           },
           layout: {
             nodeIndex: [0, 1],
@@ -319,6 +320,11 @@ describe('AccessibilitySnapshotter', () => {
     const button = parsed.root.children.find((c) => c.role === 'button');
     expect(button?.dom?.testid).toBe('submit-btn');
     expect(button?.bounds).toEqual({ x: 20, y: 40, width: 100, height: 32 });
+    expect(button?.computedStyle).toEqual({
+      color: 'rgb(15, 23, 42)',
+      'background-color': 'rgb(255, 255, 255)',
+      'border-color': '14px',
+    });
     expect(cdp.sends).toContain('Accessibility.getFullAXTree');
     expect(cdp.sends).toContain('DOMSnapshot.captureSnapshot');
     expect(cdp.detached).toBe(true);

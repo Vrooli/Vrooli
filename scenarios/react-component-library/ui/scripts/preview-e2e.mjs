@@ -82,6 +82,19 @@ function safeArtifactPart(value) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, "-");
 }
 
+function previewViewports() {
+  const requested = process.env.RCL_PREVIEW_VIEWPORTS;
+  if (!requested) return [{ name: "desktop", width: 1254, height: 720 }];
+  return requested.split(",").map((entry) => {
+    const [name, dimensions] = entry.trim().split(":");
+    const [width, height] = (dimensions || "").split("x").map(Number);
+    if (!name || !Number.isFinite(width) || !Number.isFinite(height) || width < 320 || height < 160) {
+      throw new Error(`invalid RCL_PREVIEW_VIEWPORTS entry ${entry}; expected name:WIDTHxHEIGHT`);
+    }
+    return { name, width, height };
+  });
+}
+
 async function selectResolvedTheme(page, theme) {
   const mode = page.locator(`[data-testid="components-theme-switcher-mode-${theme}"]`);
   if (!await mode.isVisible()) {
@@ -101,50 +114,60 @@ async function captureThemeTier(page, frameElements, componentID) {
   // artifact look like a component plus the editor's tool panels. Reopen the
   // exact harness URL in an isolated page so the artifact is ground truth for
   // the component document itself.
-  const captureContext = await page.context().browser().newContext({ viewport: { width: 1254, height: 720 } });
-  const capturePage = await captureContext.newPage();
+  const captureContexts = [];
+  const viewports = previewViewports();
 
   try {
-    for (const theme of ["light", "dark"]) {
-      await selectResolvedTheme(page, theme);
-      await page.waitForTimeout(100);
-      captures[theme] = [];
-      const count = await frameElements.count();
-      for (let index = 0; index < count; index += 1) {
-        const iframe = frameElements.nth(index);
-        const source = await iframe.getAttribute("src");
-        if (!source) throw new Error(`preview iframe ${index} had no source for ${theme}`);
-        await capturePage.goto(source, { waitUntil: "domcontentloaded" });
-        await capturePage.evaluate((resolvedTheme) => {
-          window.postMessage({ type: "rcl-resolved-theme", theme: resolvedTheme }, "*");
-        }, theme);
-        await capturePage.locator("#root > *").first().waitFor({ state: "attached", timeout: 10_000 });
-        await capturePage.waitForFunction((expected) => document.documentElement.dataset.resolvedTheme === expected, theme, { timeout: 5_000 });
-        const visual = await capturePage.locator("#root").evaluate((element) => {
-          const style = getComputedStyle(element);
-          const rect = element.getBoundingClientRect();
-          return {
-            background: style.backgroundColor,
-            width: rect.width,
-            height: rect.height,
-            interactiveCount: element.querySelectorAll("button, input, select, textarea, a[href]").length,
-          };
-        });
-        if (!visual.background || visual.background === "rgba(0, 0, 0, 0)" || visual.background === "transparent") {
-          throw new Error(`preview iframe ${index} has a blank ${theme} background`);
+    const count = await frameElements.count();
+    for (const viewport of viewports) {
+      const captureContext = await page.context().browser().newContext({ viewport: { width: viewport.width, height: viewport.height } });
+      captureContexts.push(captureContext);
+      const capturePage = await captureContext.newPage();
+      for (const theme of ["light", "dark"]) {
+        await selectResolvedTheme(page, theme);
+        await page.waitForTimeout(100);
+        captures[theme] ||= [];
+        for (let index = 0; index < count; index += 1) {
+          const iframe = frameElements.nth(index);
+          const source = await iframe.getAttribute("src");
+          if (!source) throw new Error(`preview iframe ${index} had no source for ${theme}`);
+          await capturePage.goto(source, { waitUntil: "domcontentloaded" });
+          await capturePage.evaluate((resolvedTheme) => {
+            window.postMessage({ type: "rcl-resolved-theme", theme: resolvedTheme }, "*");
+          }, theme);
+          await capturePage.locator("#root > *").first().waitFor({ state: "attached", timeout: 10_000 });
+          await capturePage.waitForFunction((expected) => document.documentElement.dataset.resolvedTheme === expected, theme, { timeout: 5_000 });
+          const visual = await capturePage.locator("#root").evaluate((element) => {
+            const style = getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return {
+              background: style.backgroundColor,
+              width: rect.width,
+              height: rect.height,
+              interactiveCount: element.querySelectorAll("button, input, select, textarea, a[href]").length,
+              scrollWidth: document.documentElement.scrollWidth,
+              viewportWidth: window.innerWidth,
+            };
+          });
+          if (!visual.background || visual.background === "rgba(0, 0, 0, 0)" || visual.background === "transparent") {
+            throw new Error(`preview iframe ${index} has a blank ${theme} background at ${viewport.name}`);
+          }
+          if (visual.width < 320 || visual.height < 160) throw new Error(`preview iframe ${index} ${theme} visual surface is unexpectedly small at ${viewport.name}`);
+          if (process.env.RCL_PREVIEW_STRICT_LAYOUT === "1" && visual.scrollWidth > visual.viewportWidth + 1) {
+            throw new Error(`preview iframe ${index} overflows ${viewport.name}: scrollWidth=${visual.scrollWidth}, viewportWidth=${visual.viewportWidth}`);
+          }
+          const bytes = await capturePage.locator("#root").screenshot({ animations: "disabled" });
+          if (bytes.length < 256) throw new Error(`preview iframe ${index} ${theme} screenshot is unexpectedly small at ${viewport.name}`);
+          const hash = screenshotHash(bytes);
+          const story = new URL(source).searchParams.get("story") || "default";
+          const artifact = `${safeArtifactPart(componentID)}--${safeArtifactPart(story)}--${index}--${safeArtifactPart(viewport.name)}--${theme}.png`;
+          if (outputDir) await writeFile(path.join(outputDir, artifact), bytes);
+          captures[theme].push({ story, viewport: viewport.name, viewportWidth: visual.viewportWidth, scrollWidth: visual.scrollWidth, background: visual.background, bytes: bytes.length, hash, width: visual.width, height: visual.height, interactiveCount: visual.interactiveCount, artifact: outputDir ? artifact : undefined });
         }
-        if (visual.width < 320 || visual.height < 160) throw new Error(`preview iframe ${index} ${theme} visual surface is unexpectedly small`);
-        const bytes = await capturePage.locator("#root").screenshot({ animations: "disabled" });
-        if (bytes.length < 256) throw new Error(`preview iframe ${index} ${theme} screenshot is unexpectedly small`);
-        const hash = screenshotHash(bytes);
-        const story = new URL(source).searchParams.get("story") || "default";
-        const artifact = `${safeArtifactPart(componentID)}--${safeArtifactPart(story)}--${index}--${theme}.png`;
-        if (outputDir) await writeFile(path.join(outputDir, artifact), bytes);
-        captures[theme].push({ story, background: visual.background, bytes: bytes.length, hash, width: visual.width, height: visual.height, interactiveCount: visual.interactiveCount, artifact: outputDir ? artifact : undefined });
       }
     }
   } finally {
-    await captureContext.close();
+    await Promise.all(captureContexts.map((context) => context.close()));
   }
 
   if (captures.light.length !== captures.dark.length) throw new Error("theme screenshot frame count changed");

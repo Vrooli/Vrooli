@@ -63,6 +63,7 @@ func DefaultSpec() *maturity.Spec {
 			},
 		},
 		Findings: map[string]maturity.FindingMapping{
+			spec.CodeRegistryInvalid:     requiredManual("spec_contract", "L0", spec.SeverityError, "The capability registry is invalid or references undeclared vocabulary."),
 			spec.CodeSchemaInvalid:       requiredManual("spec_contract", "L1", spec.SeverityError, "Schema repair needs source-level contract edits."),
 			spec.CodeIndexParity:         requiredManual("spec_contract", "L1", spec.SeverityError, "Index parity repair needs source-level contract edits."),
 			spec.CodeRefUnresolved:       requiredManual("spec_contract", "L2", spec.SeverityError, "Choosing the correct referenced page, state, or element requires author intent."),

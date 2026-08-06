@@ -15,9 +15,12 @@ import (
 	localassessment "experience-manager/internal/assessment"
 	"experience-manager/internal/attestation"
 	localautofix "experience-manager/internal/autofix"
+	"experience-manager/internal/capstatus"
 	"experience-manager/internal/checks"
 	"experience-manager/internal/envx"
 	"experience-manager/internal/fleet"
+	"experience-manager/internal/reconcile"
+	"experience-manager/internal/registryvalidate"
 	"experience-manager/internal/spec"
 
 	maturity "github.com/vrooli/maturity-go/assessment"
@@ -167,6 +170,18 @@ func (h *connectHandler) validate(ctx context.Context, scenario, path string) (s
 	if err != nil {
 		return report, nil, nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if scenario == "experience-manager" {
+		registryFindings, registryErr := registryvalidate.New(h.deps.RepoRoot).Validate()
+		if registryErr != nil {
+			return report, nil, nil, connect.NewError(connect.CodeInternal, fmt.Errorf("validate capability registry: %w", registryErr))
+		}
+		for _, finding := range registryFindings {
+			report.Findings = append(report.Findings, spec.Finding{
+				Code: spec.CodeRegistryInvalid, Severity: "SEVERITY_ERROR", Message: finding.Message,
+				Locations: []string{finding.Location}, Suggestion: "repair the capability registry declaration and rerun the experience phase",
+			})
+		}
+	}
 	builder := h.deps.Builder
 	if builder == nil {
 		var buildErr error
@@ -179,7 +194,46 @@ func (h *connectHandler) validate(ctx context.Context, scenario, path string) (s
 	if err != nil {
 		return report, nil, nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
+	if scenario == "experience-manager" {
+		if capabilityReport, statusErr := h.capabilityReport(); statusErr != nil {
+			return report, nil, nil, connect.NewError(connect.CodeInternal, statusErr)
+		} else if assessment.GetPresentation() != nil {
+			blocker := "none"
+			if blockers := capstatus.BlockerCounts(capabilityReport); len(blockers) > 0 {
+				blocker = blockers[0].Blocker
+			}
+			nextAction := fmt.Sprintf("Capability status: %d/%d promise capabilities provable; top blocker %s.", capabilityReport.ProvableTotal, capabilityReport.PromiseTotal, blocker)
+			// The phase presentation is a canonical projection of the assessment.
+			// Update its semantic source first, then regenerate the projection so
+			// delegated responses continue to satisfy the shared provider contract.
+			if focus := assessment.GetHighestPriorityCapability(); focus != nil {
+				for _, capability := range assessment.GetCapabilities() {
+					if capability.GetId() == focus.GetCapabilityId() {
+						capability.NextUnlock = nextAction
+						break
+					}
+				}
+			}
+			assessment.Presentation = maturity.BuildPhasePresentation(assessment)
+		}
+	}
 	return report, assessment, collector.Stop(), nil
+}
+
+func (h *connectHandler) capabilityReport() (capstatus.Report, error) {
+	reg, err := capstatus.Load(filepath.Join(h.deps.RepoRoot, "scenarios", "experience-manager", "capabilities"))
+	if err != nil {
+		return capstatus.Report{}, fmt.Errorf("load capability status registry: %w", err)
+	}
+	axes := map[string][]string{}
+	profiles := reconcile.DefaultCaptureProfiles
+	if loaded, loadErr := reconcile.CaptureProfilesFromAxes(filepath.Join(h.deps.RepoRoot, "scenarios", "experience-manager", "capabilities", "axes.json"), 12); loadErr == nil {
+		profiles = loaded
+	}
+	for _, support := range reconcile.WiredAxesFromProfiles(profiles) {
+		axes[support.Axis] = support.Values
+	}
+	return capstatus.Derive(reg, capstatus.Support{Axes: axes, Evidence: reconcile.AvailableEvidence(), ClaimTypes: reconcile.ImplementedClaimTypes()}), nil
 }
 
 // ValidateScenario implements the shared ScenarioValidationService mount.

@@ -516,6 +516,28 @@ func TestPreviewWorkspaceScrollNodesDoNotBecomePageOverflowFindings(t *testing.T
 	}
 }
 
+func TestChromeVocabularyIsFleetWideAndExcludesGenericHeaders(t *testing.T) {
+	tests := []struct {
+		name string
+		node *AXNode
+		want bool
+	}{
+		{name: "banner role", node: &AXNode{Role: "banner"}, want: true},
+		{name: "navigation role", node: &AXNode{Role: "navigation"}, want: true},
+		{name: "semantic nav", node: &AXNode{DOM: DOMNode{Tag: "nav"}}, want: true},
+		{name: "application chrome marker", node: &AXNode{DOM: DOMNode{TestID: "workspace-header"}}, want: true},
+		{name: "generic header", node: &AXNode{DOM: DOMNode{Tag: "header"}}, want: false},
+		{name: "unmarked section header", node: &AXNode{Role: "sectionheader"}, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isChromeNode(tt.node); got != tt.want {
+				t.Fatalf("isChromeNode() = %v, want %v for %+v", got, tt.want, tt.node)
+			}
+		})
+	}
+}
+
 func TestSelectorMatchesAriaLabelBinding(t *testing.T) {
 	node := &AXNode{Role: "button", Name: "Dismiss voice input error"}
 	if !selectorMatches(node, `[aria-label='Dismiss voice input error']`) {
@@ -867,7 +889,17 @@ func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
 		var req struct {
 			URL                 string `json:"url"`
 			InlineAccessibility bool   `json:"inlineAccessibility"`
-			Dimensions          struct {
+			InlineComputedStyle bool   `json:"inlineComputedStyle"`
+			InteractionState    string `json:"interactionState"`
+			BrowserProfile      struct {
+				Fingerprint struct {
+					Locale      string `json:"locale"`
+					ColorScheme string `json:"colorScheme"`
+				} `json:"fingerprint"`
+				MotionPreference string `json:"motionPreference"`
+				InteractionState string `json:"interactionState"`
+			} `json:"browserProfile"`
+			Dimensions struct {
 				Width  int `json:"width"`
 				Height int `json:"height"`
 			} `json:"dimensions"`
@@ -884,6 +916,12 @@ func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
 		}
 		if !req.InlineAccessibility {
 			t.Fatal("inlineAccessibility = false, want true")
+		}
+		if !req.InlineComputedStyle {
+			t.Fatal("inlineComputedStyle = false, want true")
+		}
+		if req.InteractionState != "hover" || req.BrowserProfile.InteractionState != "hover" || req.BrowserProfile.MotionPreference != "reduce" || req.BrowserProfile.Fingerprint.Locale != "ar" || req.BrowserProfile.Fingerprint.ColorScheme != "dark" {
+			t.Fatalf("capture axes were not transmitted: %+v", req)
 		}
 		if req.Dimensions.Width != 390 || req.Dimensions.Height != 844 {
 			t.Fatalf("dimensions = %dx%d, want 390x844", req.Dimensions.Width, req.Dimensions.Height)
@@ -931,13 +969,17 @@ func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
 		HTTPClient: server.Client(),
 	}
 	snapshot, err := capturer.CaptureAccessibility(context.Background(), CaptureTarget{
-		Scenario:       "web-console",
-		Route:          "/",
-		PageID:         "workspace",
-		ViewportID:     "mobile",
-		ViewportWidth:  390,
-		ViewportHeight: 844,
-		SettleMs:       defaultSettleMs,
+		Scenario:         "web-console",
+		Route:            "/",
+		PageID:           "workspace",
+		ViewportID:       "mobile",
+		ViewportWidth:    390,
+		ViewportHeight:   844,
+		SettleMs:         defaultSettleMs,
+		ColorScheme:      "dark",
+		Locale:           "ar",
+		MotionPreference: "reduce",
+		InteractionState: "hover",
 	})
 	if err != nil {
 		t.Fatalf("CaptureAccessibility: %v", err)

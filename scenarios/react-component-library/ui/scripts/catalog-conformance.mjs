@@ -57,6 +57,7 @@ function versionPaths(manifestPath) {
       if (scenarioRelative.startsWith("..") || path.isAbsolute(scenarioRelative)) {
         throw new Error(`${filePath} escapes the scenario conformance boundary`);
       }
+      validateVersionLocalImports(filePath);
       const relative = path.relative(uiDir, filePath);
       return {
         scenarioRelative: scenarioRelative.split(path.sep).join("/"),
@@ -64,6 +65,23 @@ function versionPaths(manifestPath) {
       };
     });
   });
+}
+
+function validateVersionLocalImports(filePath) {
+  const source = readFileSync(filePath, "utf8");
+  const relativeImports = /\b(?:from\s*|import\s*\()\s*["'](\.{1,2}\/[^"']+)["']/g;
+  for (const match of source.matchAll(relativeImports)) {
+    const specifier = match[1];
+    const resolved = path.resolve(path.dirname(filePath), specifier);
+    const isPublishedComponent = path.relative(scenarioDir, filePath).startsWith(`library${path.sep}components${path.sep}`);
+    const reachesSharedRuntime = path.relative(scenarioDir, resolved).split(path.sep).includes("shared");
+    if (isPublishedComponent && reachesSharedRuntime) {
+      throw new Error(
+        `${filePath} imports ${specifier} outside its version directory; `
+        + "released component source must not depend on shared runtime shells",
+      );
+    }
+  }
 }
 
 function catalogFiles() {

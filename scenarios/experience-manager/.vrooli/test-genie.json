@@ -6,7 +6,7 @@
   "description": "Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager.",
   "source": "validation-provider",
   "orderHint": 14,
-  "timeout": "120s",
+  "timeout": "10m",
   "findingSource": "ui",
   "dimensions": ["ui"],
   "validation": {
@@ -165,6 +165,17 @@
       }
     ],
     "findings": {
+      "experience.registry_invalid": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["experience-spec-authoring"],
+        "fix_class": "manual",
+        "reason": "The capability registry is invalid or references undeclared vocabulary."
+      },
       "experience.schema_invalid": {
         "capability_id": "spec_contract",
         "local_level_impact": "L1",

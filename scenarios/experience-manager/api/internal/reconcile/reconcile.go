@@ -34,16 +34,23 @@ const (
 
 // CaptureProfile names one viewport in the reconciliation matrix.
 type CaptureProfile struct {
-	ID      string
-	Width   int
-	Height  int
-	Aliases []string
+	ID               string
+	MatrixID         string
+	Width            int
+	Height           int
+	Aliases          []string
+	ColorScheme      string
+	Locale           string
+	MotionPreference string
+	InteractionState string
 }
 
-// DefaultCaptureProfiles is the minimum viewport matrix for machine evidence.
+// DefaultCaptureProfiles is retained for callers that construct a Check
+// without a scenario path. Normal runs load the bounded baseline matrix from
+// capabilities/axes.json via captureProfiles.
 var DefaultCaptureProfiles = []CaptureProfile{
-	{ID: "desktop", Width: 1280, Height: 720, Aliases: []string{"wide"}},
-	{ID: "mobile", Width: 390, Height: 844},
+	{ID: "desktop", MatrixID: "desktop-light-en-rest", Aliases: []string{"wide"}, Width: 1280, Height: 720, ColorScheme: "light", Locale: "en", MotionPreference: "no-preference", InteractionState: "rest"},
+	{ID: "mobile", MatrixID: "mobile-dark-en-reduce", Width: 390, Height: 844, ColorScheme: "dark", Locale: "en", MotionPreference: "reduce", InteractionState: "rest"},
 }
 
 // ErrCaptureUnavailable means the capture mechanism could not provide an AX
@@ -99,7 +106,7 @@ func (c Check) captureAll(ctx context.Context, capturer Capturer, targets []Capt
 }
 
 func captureTargetKey(target CaptureTarget) string {
-	return strings.Join([]string{target.DocumentKind, target.PageID, target.ComponentID, target.Route, target.ExampleName, target.StateID, target.ViewportID}, "\x00")
+	return strings.Join([]string{target.DocumentKind, target.PageID, target.ComponentID, target.Route, target.ExampleName, target.StateID, target.ViewportID, target.ColorScheme, target.Locale, target.MotionPreference, target.InteractionState}, "\x00")
 }
 
 func (c Check) captureMatrix(ctx context.Context, capturer Capturer, targets []CaptureTarget) map[string]captureResult {
@@ -159,6 +166,10 @@ type CaptureTarget struct {
 	ViewportAliases   []string
 	ViewportWidth     int
 	ViewportHeight    int
+	ColorScheme       string
+	Locale            string
+	MotionPreference  string
+	InteractionState  string
 	SettleMs          int
 }
 
@@ -175,7 +186,7 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 	if capturer == nil {
 		capturer = BASCapturer{}
 	}
-	profiles := c.captureProfiles()
+	profiles := c.captureProfiles(report.TargetPath)
 	statusByPage := pageStatuses(report.Spec.Index.Pages)
 	for pageID, page := range report.Spec.Pages {
 		status := statusByPage[pageID]
@@ -192,12 +203,12 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		var matrixTargets []CaptureTarget
 		for _, profile := range profiles {
 			targets := captureTargetsForProfile(report.Scenario, page, profile)
-			targetsByProfile[profile.ID] = targets
+			targetsByProfile[profileKey(profile)] = targets
 			matrixTargets = append(matrixTargets, targets...)
 		}
 		captures := c.captureMatrix(ctx, capturer, matrixTargets)
 		for _, profile := range profiles {
-			targets := targetsByProfile[profile.ID]
+			targets := targetsByProfile[profileKey(profile)]
 			snapshots := map[string]Snapshot{}
 			fingerprints := map[string]string{}
 			for _, target := range targets {
@@ -247,12 +258,12 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		var matrixTargets []CaptureTarget
 		for _, profile := range profiles {
 			targets := captureTargetsForComponentProfile(report.Scenario, component, profile)
-			targetsByProfile[profile.ID] = targets
+			targetsByProfile[profileKey(profile)] = targets
 			matrixTargets = append(matrixTargets, targets...)
 		}
 		captures := c.captureMatrix(ctx, capturer, matrixTargets)
 		for _, profile := range profiles {
-			targets := targetsByProfile[profile.ID]
+			targets := targetsByProfile[profileKey(profile)]
 			snapshots := map[string]Snapshot{}
 			fingerprints := map[string]string{}
 			for _, target := range targets {
@@ -289,11 +300,23 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 	return findings
 }
 
-func (c Check) captureProfiles() []CaptureProfile {
+func (c Check) captureProfiles(scenarioDir string) []CaptureProfile {
 	if len(c.CaptureProfiles) > 0 {
 		return c.CaptureProfiles
 	}
+	if strings.TrimSpace(scenarioDir) != "" {
+		if profiles, err := CaptureProfilesFromAxes(filepath.Join(scenarioDir, "capabilities", "axes.json"), defaultCaptureBudget); err == nil && len(profiles) > 0 {
+			return profiles
+		}
+	}
 	return DefaultCaptureProfiles
+}
+
+func profileKey(profile CaptureProfile) string {
+	if strings.TrimSpace(profile.MatrixID) != "" {
+		return profile.MatrixID
+	}
+	return profile.ID + "-" + profile.ColorScheme + "-" + profile.Locale + "-" + profile.MotionPreference + "-" + profile.InteractionState
 }
 
 func captureTargetsForProfile(scenario string, page spec.PageDocument, profile CaptureProfile) []CaptureTarget {
@@ -310,7 +333,8 @@ func captureTargetsForProfile(scenario string, page spec.PageDocument, profile C
 			ViewportAliases: append([]string(nil), profile.Aliases...),
 			ViewportWidth:   profile.Width,
 			ViewportHeight:  profile.Height,
-			SettleMs:        settleMsForState(state),
+			ColorScheme:     profile.ColorScheme, Locale: profile.Locale, MotionPreference: profile.MotionPreference, InteractionState: profile.InteractionState,
+			SettleMs: settleMsForState(state),
 		}
 		if !pageHasMachineClaimForTarget(page, target) {
 			continue
@@ -341,7 +365,8 @@ func captureTargetsForComponentProfile(scenario string, component spec.Component
 			ViewportAliases: append([]string(nil), profile.Aliases...),
 			ViewportWidth:   profile.Width,
 			ViewportHeight:  profile.Height,
-			SettleMs:        defaultSettleMs,
+			ColorScheme:     profile.ColorScheme, Locale: profile.Locale, MotionPreference: profile.MotionPreference, InteractionState: profile.InteractionState,
+			SettleMs: defaultSettleMs,
 		}
 		if !pageHasMachineClaimForTarget(page, target) {
 			continue
@@ -685,28 +710,72 @@ type claimEvaluatorFunc func(spec.PageDocument, spec.Claim, CaptureTarget, []*AX
 // exposes its keys so the capability registry can derive checker coverage
 // instead of asserting it.
 var claimEvaluators = map[string]claimEvaluatorFunc{
-		"no-document-horizontal-overflow": evaluateNoDocumentHorizontalOverflowClaim,
-		"viewport-fill":                   evaluateViewportFillClaim,
-		"chrome-pinned":                   evaluateChromePinnedClaim,
-		"safe-area-tap-targets":           evaluateSafeAreaTapTargetsClaim,
-		"single-line-chrome":              evaluateSingleLineChromeClaim,
-		"tap-target-size":                 evaluateTapTargetSizeClaim,
-		"state-covered":                   evaluateStateCoveredClaim,
-		"state-distinct":                  evaluateStateDistinctClaim,
-		"element-present":                 evaluateElementPresenceClaim,
-		"single-dominant-action":          evaluateElementPresenceClaim,
-		"keyboard-reachable":              evaluateElementPresenceClaim,
-		"accessible-name":                 evaluateAccessibleNameClaim,
-		"affordance-present":              evaluateAffordancePresentClaim,
-		"spacing":                         evaluateSpacingClaim,
-		"state-contrast":                  evaluateStateContrastClaim,
-		"size-parity":                     evaluateSizeParityClaim,
-		"visible-without-scroll":          evaluateVisibleWithoutScrollClaim,
-		"reading-order":                   evaluateReadingOrderClaim,
-	}
+	"no-document-horizontal-overflow": evaluateNoDocumentHorizontalOverflowClaim,
+	"viewport-fill":                   evaluateViewportFillClaim,
+	"chrome-pinned":                   evaluateChromePinnedClaim,
+	"safe-area-tap-targets":           evaluateSafeAreaTapTargetsClaim,
+	"single-line-chrome":              evaluateSingleLineChromeClaim,
+	"tap-target-size":                 evaluateTapTargetSizeClaim,
+	"state-covered":                   evaluateStateCoveredClaim,
+	"state-distinct":                  evaluateStateDistinctClaim,
+	"element-present":                 evaluateElementPresenceClaim,
+	"element-absent":                  evaluateElementAbsentClaim,
+	"single-dominant-action":          evaluateSingleDominantActionClaim,
+	"keyboard-reachable":              evaluateElementPresenceClaim,
+	"accessible-name":                 evaluateAccessibleNameClaim,
+	"affordance-present":              evaluateAffordancePresentClaim,
+	"announced":                       evaluateAnnouncedClaim,
+	"error-association":               evaluateErrorAssociationClaim,
+	"focus-contained":                 evaluateFocusContainedClaim,
+	"focus-restored":                  evaluateFocusRestoredClaim,
+	"heading-hierarchy":               evaluateHeadingHierarchyClaim,
+	"layered-dismissal":               evaluateLayeredDismissalClaim,
+	"spacing":                         evaluateSpacingClaim,
+	"state-contrast":                  evaluateStateContrastClaim,
+	"size-parity":                     evaluateSizeParityClaim,
+	"visible-without-scroll":          evaluateVisibleWithoutScrollClaim,
+	"reading-order":                   evaluateReadingOrderClaim,
+}
 
 func claimEvaluator(claimType string) claimEvaluatorFunc {
 	return claimEvaluators[claimType]
+}
+
+func evaluateElementAbsentClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) != 1 {
+		return claimEvaluation{Unverifiable: "element-absent requires exactly one declared element"}
+	}
+	node := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	if node == nil {
+		return claimEvaluation{Pass: true}
+	}
+	return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: fmt.Sprintf("declared absent element %q is present", claim.Elements[0])}
+}
+
+func evaluateSingleDominantActionClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) == 0 {
+		return claimEvaluation{Unverifiable: "single-dominant-action requires declared action elements"}
+	}
+	minimum, ok := numericParam(claim.Params, "minimumAreaRatio", "minAreaRatio")
+	if !ok || minimum < 1 {
+		minimum = 1.1
+	}
+	target := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	if target == nil || target.Bounds == nil || strings.TrimSpace(computedStyleValue(target, "font-size")) == "" {
+		return claimEvaluation{Unverifiable: "single-dominant-action requires bounds and computed font-size evidence"}
+	}
+	targetArea := target.Bounds.Width * target.Bounds.Height
+	for _, element := range claim.Elements[1:] {
+		other := findBoundNode(nodes, page.Bindings.Elements[element], elementRole(page, element))
+		if other == nil || other.Bounds == nil {
+			return claimEvaluation{Unverifiable: "single-dominant-action requires bounds for every declared action"}
+		}
+		otherArea := other.Bounds.Width * other.Bounds.Height
+		if targetArea+0.01 < otherArea*minimum {
+			return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(target), Failure: fmt.Sprintf("action %q is not dominant over %q at %.2fx area", claim.Elements[0], element, targetArea/otherArea)}
+		}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(target)}
 }
 
 func evaluateSpacingClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
@@ -719,15 +788,22 @@ func evaluateSpacingClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTar
 	}
 	first := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
 	second := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[1]], elementRole(page, claim.Elements[1]))
-	if first == nil || second == nil || first.Bounds == nil || second.Bounds == nil {
-		return claimEvaluation{Unverifiable: "spacing requires bounds for both declared elements"}
+	if first == nil || second == nil {
+		return claimEvaluation{Unverifiable: "spacing requires both declared elements"}
 	}
 	axis := strings.ToLower(strings.TrimSpace(claimParamString(claim.Params, "axis")))
 	if axis == "" {
 		axis = "inline"
 	}
-	horizontal := intervalGap(first.Bounds.X, first.Bounds.X+first.Bounds.Width, second.Bounds.X, second.Bounds.X+second.Bounds.Width)
-	vertical := intervalGap(first.Bounds.Y, first.Bounds.Y+first.Bounds.Height, second.Bounds.Y, second.Bounds.Y+second.Bounds.Height)
+	horizontal, vertical := 0.0, 0.0
+	if first.Bounds != nil && second.Bounds != nil {
+		horizontal = intervalGap(first.Bounds.X, first.Bounds.X+first.Bounds.Width, second.Bounds.X, second.Bounds.X+second.Bounds.Width)
+		vertical = intervalGap(first.Bounds.Y, first.Bounds.Y+first.Bounds.Height, second.Bounds.Y, second.Bounds.Y+second.Bounds.Height)
+	} else if gap, ok := cssPixels(computedStyleValue(first, "gap")); ok {
+		horizontal, vertical = gap, gap
+	} else {
+		return claimEvaluation{Unverifiable: "spacing requires bounds or computed gap evidence for both declared elements"}
+	}
 	gap := horizontal
 	if axis == "block" || (axis == "any" && vertical > horizontal) {
 		gap = vertical
@@ -754,16 +830,16 @@ func evaluateStateContrastClaim(page spec.PageDocument, claim spec.Claim, target
 		return claimEvaluation{Unverifiable: "state-contrast requires params.minContrastRatio"}
 	}
 	control := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
-	if control == nil || control.Appearance == nil {
+	if control == nil {
 		return claimEvaluation{Unverifiable: "state-contrast requires computed appearance evidence for the control"}
 	}
-	foreground, background := control.Appearance.Foreground, control.Appearance.Background
-	if appearance, exists := control.Appearance.States[strings.ToLower(state)]; exists {
-		foreground, background = appearance.Foreground, appearance.Background
+	foreground, background := computedStyleValue(control, "color"), computedStyleValue(control, "background-color")
+	if appearance, exists := appearanceState(control, state); exists {
+		foreground, background = firstNonEmpty(appearance.Foreground, foreground), firstNonEmpty(appearance.Background, background)
 	}
 	backgroundRef := claimParamString(claim.Params, "background", "backgroundElement")
-	if backgroundNode := findBoundNode(nodes, page.Bindings.Elements[backgroundRef], elementRole(page, backgroundRef)); backgroundNode != nil && backgroundNode.Appearance != nil {
-		background = backgroundNode.Appearance.Background
+	if backgroundNode := findBoundNode(nodes, page.Bindings.Elements[backgroundRef], elementRole(page, backgroundRef)); backgroundNode != nil {
+		background = firstNonEmpty(computedStyleValue(backgroundNode, "background-color"), background)
 	}
 	if strings.TrimSpace(foreground) == "" || strings.TrimSpace(background) == "" {
 		return claimEvaluation{Unverifiable: fmt.Sprintf("computed appearance evidence for state %q is incomplete", state)}
@@ -784,18 +860,169 @@ func evaluateSizeParityClaim(page spec.PageDocument, claim spec.Claim, _ Capture
 	}
 	first := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
 	second := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[1]], elementRole(page, claim.Elements[1]))
-	if first == nil || second == nil || first.Bounds == nil || second.Bounds == nil {
-		return claimEvaluation{Unverifiable: "size-parity requires bounds for both declared elements"}
+	if first == nil || second == nil {
+		return claimEvaluation{Unverifiable: "size-parity requires both declared elements"}
 	}
 	tolerance := 1.0
 	if value, exists := numericParam(claim.Params, "tolerance"); exists {
 		tolerance = value
 	}
-	delta := math.Abs(first.Bounds.Height - second.Bounds.Height)
+	firstHeight, firstOK := nodeHeight(first)
+	secondHeight, secondOK := nodeHeight(second)
+	if !firstOK || !secondOK {
+		return claimEvaluation{Unverifiable: "size-parity requires bounds or computed height evidence for both declared elements"}
+	}
+	delta := math.Abs(firstHeight - secondHeight)
 	if delta > tolerance+0.01 {
 		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(second), Failure: fmt.Sprintf("declared elements %q and %q differ by %.1fpx in height, above %.1fpx tolerance", claim.Elements[0], claim.Elements[1], delta, tolerance)}
 	}
 	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(second)}
+}
+
+func evaluateAnnouncedClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) != 1 {
+		return claimEvaluation{Unverifiable: "announced requires exactly one live-region element"}
+	}
+	node := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	if node == nil {
+		return claimEvaluation{Unverifiable: "announced requires a bound live-region element"}
+	}
+	if node.Role != "status" && node.Role != "alert" && !hasStatePrefix(node, "live=") {
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: "announced element is not a status, alert, or live region"}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(node)}
+}
+
+func evaluateErrorAssociationClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) != 2 {
+		return claimEvaluation{Unverifiable: "error-association requires a control and error element"}
+	}
+	control := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	errorNode := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[1]], elementRole(page, claim.Elements[1]))
+	if control == nil || errorNode == nil {
+		return claimEvaluation{Unverifiable: "error-association requires both bound elements"}
+	}
+	if !hasStatePrefix(control, "invalid=") && !hasState(control, "invalid") {
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(control), Failure: "control does not expose an invalid state"}
+	}
+	if errorNode.Role != "alert" && errorNode.Role != "status" && strings.TrimSpace(errorNode.Name) == "" && strings.TrimSpace(errorNode.Description) == "" {
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(errorNode), Failure: "associated error has no accessible message"}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(errorNode)}
+}
+
+func evaluateFocusContainedClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) != 1 {
+		return claimEvaluation{Unverifiable: "focus-contained requires exactly one focus scope"}
+	}
+	scope := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	if scope == nil || scope.Bounds == nil {
+		return claimEvaluation{Unverifiable: "focus-contained requires bounds for the focus scope"}
+	}
+	focused := 0
+	for _, node := range nodes {
+		if !hasState(node, "focused") {
+			continue
+		}
+		focused++
+		if node.Bounds == nil || !containsBounds(scope.Bounds, node.Bounds) {
+			return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: "focused node escapes the declared focus scope"}
+		}
+	}
+	if focused == 0 {
+		return claimEvaluation{Unverifiable: "focus-contained requires a captured focused node"}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(scope)}
+}
+
+func evaluateFocusRestoredClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) != 1 {
+		return claimEvaluation{Unverifiable: "focus-restored requires the restoring control"}
+	}
+	control := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	if control == nil {
+		return claimEvaluation{Unverifiable: "focus-restored requires a bound restoring control"}
+	}
+	if target.InteractionState != "rest" && target.InteractionState != "focus-visible" {
+		return claimEvaluation{Unverifiable: "focus-restored requires the post-dismissal capture state"}
+	}
+	if !hasState(control, "focused") && target.InteractionState != "focus-visible" {
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(control), Failure: "focus was not restored to the declared control"}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(control)}
+}
+
+func evaluateHeadingHierarchyClaim(_ spec.PageDocument, _ spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	previous := 0
+	var first *AXNode
+	for _, node := range nodes {
+		if node.Role != "heading" {
+			continue
+		}
+		level, ok := stateInt(node, "level=")
+		if !ok {
+			return claimEvaluation{Unverifiable: "heading-hierarchy requires heading levels in the accessibility tree"}
+		}
+		if first == nil {
+			first = node
+		}
+		if previous > 0 && level > previous+1 {
+			return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: fmt.Sprintf("heading level jumps from %d to %d", previous, level)}
+		}
+		previous = level
+	}
+	if first == nil {
+		return claimEvaluation{Unverifiable: "heading-hierarchy requires at least one heading"}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(first)}
+}
+
+func evaluateLayeredDismissalClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) < 1 {
+		return claimEvaluation{Unverifiable: "layered-dismissal requires one or more dismissible layers"}
+	}
+	visibleDialogs := 0
+	for _, node := range nodes {
+		if node.Role == "dialog" && node.Bounds != nil {
+			visibleDialogs++
+		}
+	}
+	if visibleDialogs == 0 {
+		return claimEvaluation{Unverifiable: "layered-dismissal requires a captured dialog layer"}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0])))}
+}
+
+func hasState(node *AXNode, wanted string) bool {
+	for _, state := range node.States {
+		if state == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func hasStatePrefix(node *AXNode, prefix string) bool {
+	for _, state := range node.States {
+		if strings.HasPrefix(state, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func stateInt(node *AXNode, prefix string) (int, bool) {
+	for _, state := range node.States {
+		if strings.HasPrefix(state, prefix) {
+			value, err := strconv.Atoi(strings.TrimPrefix(state, prefix))
+			return value, err == nil
+		}
+	}
+	return 0, false
+}
+
+func containsBounds(container, child *Bounds) bool {
+	return child.X >= container.X && child.Y >= container.Y && child.X+child.Width <= container.X+container.Width+0.01 && child.Y+child.Height <= container.Y+container.Height+0.01
 }
 
 func intervalGap(firstStart, firstEnd, secondStart, secondEnd float64) float64 {
@@ -806,6 +1033,66 @@ func intervalGap(firstStart, firstEnd, secondStart, secondEnd float64) float64 {
 		return firstStart - secondEnd
 	}
 	return 0
+}
+
+func computedStyleValue(node *AXNode, property string) string {
+	if node == nil {
+		return ""
+	}
+	if node.ComputedStyle != nil {
+		if value := strings.TrimSpace(node.ComputedStyle[property]); value != "" {
+			return value
+		}
+	}
+	if node.Appearance == nil {
+		return ""
+	}
+	switch property {
+	case "color":
+		return node.Appearance.Foreground
+	case "background-color":
+		return node.Appearance.Background
+	case "font-size":
+		return node.Appearance.FontSize
+	case "line-height":
+		return node.Appearance.LineHeight
+	case "margin":
+		return node.Appearance.Margin
+	case "padding":
+		return node.Appearance.Padding
+	case "font-weight":
+		return node.Appearance.FontWeight
+	default:
+		return ""
+	}
+}
+
+func appearanceState(node *AXNode, state string) (AppearanceState, bool) {
+	if node == nil || node.Appearance == nil {
+		return AppearanceState{}, false
+	}
+	appearance, ok := node.Appearance.States[strings.ToLower(strings.TrimSpace(state))]
+	return appearance, ok
+}
+
+func cssPixels(value string) (float64, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" || value == "normal" {
+		return 0, false
+	}
+	value = strings.TrimSuffix(value, "px")
+	number, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	return number, err == nil
+}
+
+func nodeHeight(node *AXNode) (float64, bool) {
+	if node == nil {
+		return 0, false
+	}
+	if node.Bounds != nil {
+		return node.Bounds.Height, true
+	}
+	return cssPixels(computedStyleValue(node, "height"))
 }
 
 func numericParam(params map[string]any, keys ...string) (float64, bool) {
@@ -1493,10 +1780,6 @@ func (c Check) persistEvidence(ctx context.Context, scenario, loc string, page s
 	return nil
 }
 
-func defaultStateID(claim spec.Claim) string {
-	return "default"
-}
-
 func encodeAXNode(node *AXNode) string {
 	if node == nil {
 		return "{}"
@@ -1574,21 +1857,42 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 		Width  int `json:"width,omitempty"`
 		Height int `json:"height,omitempty"`
 	}
+	type fingerprintPayload struct {
+		Locale      string `json:"locale,omitempty"`
+		ColorScheme string `json:"colorScheme,omitempty"`
+	}
+	type browserProfilePayload struct {
+		Fingerprint      *fingerprintPayload `json:"fingerprint,omitempty"`
+		MotionPreference string              `json:"motionPreference,omitempty"`
+		InteractionState string              `json:"interactionState,omitempty"`
+	}
 	type captureRequestPayload struct {
 		URL string `json:"url"`
 		// CaptureService is a Connect endpoint, whose canonical JSON field name
 		// is lowerCamelCase. The response has always accepted both shapes, but a
 		// snake_case request silently loses this optional capture flag.
-		InlineAccessibility bool              `json:"inlineAccessibility"`
-		Label               string            `json:"label"`
-		Dimensions          dimensionsPayload `json:"dimensions,omitempty"`
-		WaitFor             *waitForPayload   `json:"wait_for,omitempty"`
-		InteractionFlowJSON string            `json:"interaction_flow_json,omitempty"`
+		InlineAccessibility bool                   `json:"inlineAccessibility"`
+		Label               string                 `json:"label"`
+		Dimensions          dimensionsPayload      `json:"dimensions,omitempty"`
+		WaitFor             *waitForPayload        `json:"wait_for,omitempty"`
+		InteractionFlowJSON string                 `json:"interaction_flow_json,omitempty"`
+		InlineComputedStyle bool                   `json:"inlineComputedStyle,omitempty"`
+		BrowserProfile      *browserProfilePayload `json:"browserProfile,omitempty"`
+		InteractionState    string                 `json:"interactionState,omitempty"`
 	}
 	payload := captureRequestPayload{
 		URL:                 targetURL,
 		InlineAccessibility: true,
+		InlineComputedStyle: true,
 		Label:               "experience-manager structure reconciliation",
+	}
+	if target.ColorScheme != "" || target.Locale != "" || target.MotionPreference != "" || target.InteractionState != "" {
+		payload.BrowserProfile = &browserProfilePayload{
+			Fingerprint:      &fingerprintPayload{Locale: target.Locale, ColorScheme: target.ColorScheme},
+			MotionPreference: target.MotionPreference,
+			InteractionState: target.InteractionState,
+		}
+		payload.InteractionState = target.InteractionState
 	}
 	if target.ViewportWidth > 0 && target.ViewportHeight > 0 {
 		payload.Dimensions = dimensionsPayload{Width: target.ViewportWidth, Height: target.ViewportHeight}
@@ -1765,47 +2069,6 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
-func settleInteractionFlow(durationMs int) string {
-	if durationMs <= 0 {
-		return ""
-	}
-	type waitParams struct {
-		DurationMs int `json:"duration_ms"`
-	}
-	type action struct {
-		Type     string     `json:"type"`
-		Wait     waitParams `json:"wait"`
-		Metadata struct {
-			Label string `json:"label"`
-		} `json:"metadata"`
-	}
-	type node struct {
-		ID     string `json:"id"`
-		Action action `json:"action"`
-	}
-	payload := struct {
-		Nodes []node `json:"nodes"`
-		Edges []any  `json:"edges"`
-	}{
-		Nodes: []node{{
-			ID: "experience-manager-settle",
-			Action: action{
-				Type: "ACTION_TYPE_WAIT",
-				Wait: waitParams{DurationMs: durationMs},
-				Metadata: struct {
-					Label string `json:"label"`
-				}{Label: "Settle before accessibility capture"},
-			},
-		}},
-		Edges: []any{},
-	}
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return ""
-	}
-	return string(data)
-}
-
 func (c BASCapturer) resolve(ctx context.Context) (string, error) {
 	if c.Resolve != nil {
 		return c.Resolve(ctx)
@@ -1813,23 +2076,15 @@ func (c BASCapturer) resolve(ctx context.Context) (string, error) {
 	return discovery.ResolveScenarioURLDefault(ctx, basScenarioID)
 }
 
-func (c BASCapturer) resolveTarget(ctx context.Context, target CaptureTarget) (string, error) {
-	if c.ResolveTarget != nil {
-		return c.ResolveTarget(ctx, target)
-	}
-	resolver := discovery.NewResolver(discovery.ResolverConfig{})
-	port, err := resolver.ResolveScenarioPort(ctx, target.Scenario, "UI_PORT")
-	if err != nil || port <= 0 {
-		return "", ErrCaptureUnavailable
-	}
-	return fmt.Sprintf("http://localhost:%d%s", port, firstRoute([]string{target.Route})), nil
-}
-
 func (c BASCapturer) httpClient() *http.Client {
 	if c.HTTPClient != nil {
 		return c.HTTPClient
 	}
-	return &http.Client{Timeout: 120 * time.Second}
+	// Full-fidelity capture evaluates the declared viewport/state matrix and
+	// may drive several isolated browser sessions. Keep the default long
+	// enough for that matrix to finish; callers can still inject a tighter
+	// client for bounded operations and tests.
+	return &http.Client{Timeout: 10 * time.Minute}
 }
 
 func hasMachineClaim(page spec.PageDocument) bool {

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"experience-manager/internal/spec"
+	"experience-manager/internal/statevocab"
 )
 
 // StateCoverageCheck compares page states with an explicit DESIGN.md UX-state
@@ -53,11 +54,15 @@ func (StateCoverageCheck) Run(_ context.Context, report spec.Report) []spec.Find
 }
 
 func requiredDesignStates(scenarioDir string) []string {
-	data, err := os.ReadFile(filepath.Join(scenarioDir, "DESIGN.md"))
-	if err != nil {
+	repoRoot := filepath.Dir(filepath.Dir(scenarioDir))
+	allowed := statevocab.View(repoRoot, "design-required")
+	if len(allowed) == 0 {
 		return nil
 	}
-	allowed := []string{"loading", "error", "empty", "stale", "partial", "retry", "disabled"}
+	data, err := os.ReadFile(filepath.Join(scenarioDir, "DESIGN.md"))
+	if err != nil {
+		return allowed
+	}
 	seen := map[string]bool{}
 	inSection := false
 	for _, raw := range strings.Split(string(data), "\n") {

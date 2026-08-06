@@ -55,6 +55,7 @@ func init() {
 }
 
 var kitPrivateTokenPatterns = map[string]*regexp.Regexp{
+	"vrooli-default":            regexp.MustCompile(`(?:^|[^A-Za-z0-9_-])(?:w-sidebar|sidebar|font-sans|sans)(?:$|[^A-Za-z0-9_-])`),
 	"vrooli-command-display":    regexp.MustCompile(`(?:^|[^A-Za-z0-9_-])(?:display-[A-Za-z0-9_-]+|--display-[A-Za-z0-9_-]+)`),
 	"vrooli-conversion-landing": regexp.MustCompile(`(?:^|[^A-Za-z0-9_-])(?:landing-[A-Za-z0-9_-]+|--(?:color-accent-tertiary|section-spacing|container-max-width|radius-card|radius-panel|shadow-card|shadow-panel))`),
 }

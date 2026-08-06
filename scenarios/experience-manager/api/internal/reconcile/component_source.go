@@ -16,9 +16,11 @@ import (
 // live BAS reconciliation. A source check never claims that a browser render
 // passed; it only prevents a known contract from becoming ungrounded when the
 // capture producer omits computed styles.
-var relativeImportRE = regexp.MustCompile(`(?:from\s+|import\s*)["'](\.[^"']+)["']`)
-var comfortableGapUtilityRE = regexp.MustCompile(`(?s)comfortable\s*:\s*["'][^"']*gap-(?:[1-9][0-9]*(?:\.[0-9]+)?|\[[^]]+\])[^"]*["']`)
-var positiveGapDeclarationRE = regexp.MustCompile(`(?i)gap\s*:\s*(?:[1-9][0-9]*(?:\.[0-9]+)?|0?\.[0-9]+|\[[^]]+\])`)
+var (
+	relativeImportRE         = regexp.MustCompile(`(?:from\s+|import\s*)["'](\.[^"']+)["']`)
+	comfortableGapUtilityRE  = regexp.MustCompile(`(?s)comfortable\s*:\s*["'][^"']*gap-(?:[1-9][0-9]*(?:\.[0-9]+)?|\[[^]]+\])[^"]*["']`)
+	positiveGapDeclarationRE = regexp.MustCompile(`(?i)gap\s*:\s*(?:[1-9][0-9]*(?:\.[0-9]+)?|0?\.[0-9]+|\[[^]]+\])`)
+)
 
 func componentSourceFindings(report spec.Report, loc string, component spec.ComponentDocument) []spec.Finding {
 	claims := make([]spec.Claim, 0)

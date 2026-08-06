@@ -10,9 +10,12 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"experience-manager/internal/statevocab"
 )
 
 const (
+	CodeRegistryInvalid     = "experience.registry_invalid"
 	CodeSchemaInvalid       = "experience.schema_invalid"
 	CodeIndexParity         = "experience.index_parity"
 	CodeRefUnresolved       = "experience.ref_unresolved"
@@ -59,6 +62,7 @@ var (
 // AllFindingCodes is the frozen experience finding vocabulary from
 // docs/reference/experience-alignment.md.
 var AllFindingCodes = []string{
+	CodeRegistryInvalid,
 	CodeSchemaInvalid,
 	CodeIndexParity,
 	CodeRefUnresolved,
@@ -756,7 +760,7 @@ func checkPageReferences(report *Report, loc string, page PageDocument, componen
 		}
 	}
 	for _, region := range page.Regions {
-		checkRegionShape(report, loc, region)
+		checkRegionShape(report, loc, region, filepath.Dir(filepath.Dir(report.TargetPath)))
 		if region.Component.Local != "" && region.Component.Library != nil {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("region %q must reference exactly one local or library component", region.ID), loc, "Use either component.local or component.library.")
 		}
@@ -799,7 +803,7 @@ func checkPageReferences(report *Report, loc string, page PageDocument, componen
 	}
 }
 
-func checkRegionShape(report *Report, loc string, region ExperienceRegion) {
+func checkRegionShape(report *Report, loc string, region ExperienceRegion, repoRoot string) {
 	if !idPattern.MatchString(region.ID) || len(strings.TrimSpace(region.Purpose)) < 10 {
 		report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("region %q must include a kebab-case id and meaningful purpose", region.ID), loc, "Declare a stable region id and purpose.")
 	}
@@ -808,7 +812,7 @@ func checkRegionShape(report *Report, loc string, region ExperienceRegion) {
 		report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("region %q lifecycle must declare unique states", region.ID), loc, "Declare one or more lifecycle states.")
 	}
 	for state := range stateSet {
-		if !validRegionLifecycleState(state) {
+		if !validRegionLifecycleState(repoRoot, state, region.Lifecycle.Kind) {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("region %q has unsupported lifecycle state %q", region.ID, state), loc, "Use loading, ready, empty, partial, error, or static.")
 		}
 	}
@@ -826,13 +830,11 @@ func checkRegionShape(report *Report, loc string, region ExperienceRegion) {
 	}
 }
 
-func validRegionLifecycleState(state string) bool {
-	switch state {
-	case "loading", "ready", "empty", "partial", "error", "static":
+func validRegionLifecycleState(repoRoot, state, kind string) bool {
+	if kind == "static" && state == "static" {
 		return true
-	default:
-		return false
 	}
+	return statevocab.RegionState(repoRoot, state)
 }
 
 func checkClaimShape(report *Report, loc string, claim Claim) {

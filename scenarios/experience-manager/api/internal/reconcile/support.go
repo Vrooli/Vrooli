@@ -30,28 +30,58 @@ type AxisSupport struct {
 // orientation, connectivity, and the browser half of pointer) are already
 // available in the underlying engine and are unwired here, which is a plumbing
 // gap rather than an engineering one.
-func WiredAxes() []AxisSupport {
-	out := make([]AxisSupport, 0, 1)
-	values := make([]string, 0, len(DefaultCaptureProfiles))
-	for _, profile := range DefaultCaptureProfiles {
-		values = append(values, profile.ID)
+func WiredAxes() []AxisSupport { return WiredAxesFromProfiles(DefaultCaptureProfiles) }
+
+// WiredAxesFromProfiles derives support only from values that the capture
+// request can transmit. Empty fields are deliberately omitted: adding a
+// field to CaptureTarget without putting it in the BAS request must not make
+// capability status claim that axis is wired.
+func WiredAxesFromProfiles(profiles []CaptureProfile) []AxisSupport {
+	values := map[string]map[string]struct{}{}
+	for _, profile := range profiles {
+		addAxisValue(values, "viewport", profile.ID)
+		addAxisValue(values, "color-scheme", profile.ColorScheme)
+		addAxisValue(values, "locale", profile.Locale)
+		addAxisValue(values, "motion-preference", profile.MotionPreference)
+		addAxisValue(values, "interaction-state", profile.InteractionState)
 	}
-	sort.Strings(values)
-	out = append(out, AxisSupport{Axis: "viewport", Values: values})
+	var out []AxisSupport
+	for axis, set := range values {
+		if len(set) == 0 {
+			continue
+		}
+		axisValues := make([]string, 0, len(set))
+		for value := range set {
+			axisValues = append(axisValues, value)
+		}
+		sort.Strings(axisValues)
+		out = append(out, AxisSupport{Axis: axis, Values: axisValues})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Axis < out[j].Axis })
 	return out
 }
 
 // AvailableEvidence returns the evidence kinds a capture actually yields.
 //
-// ax-tree and layout-box both come from the accessibility snapshot; layout-box is
-// listed because bounds are populated often enough to be usable, though not
-// universally — the live spacing and size-parity claims report unverifiable for
-// exactly that reason. computed-style does not exist at all, which is why every
-// contrast, typography, ramp, and motion-duration capability is blocked. The
+// ax-tree, layout-box, and computed-style all come from the BAS accessibility
+// snapshot. The latter is a declared property map, so evaluators can distinguish
+// absent CSS evidence from a failed arithmetic check. The screenshot, runtime-log,
+// and timing channels exist elsewhere in the fleet but are not joined to
+// experience evidence, so they are deliberately absent here. The
 // screenshot, runtime-log, and timing channels exist elsewhere in the fleet but
 // are not joined to experience evidence, so they are deliberately absent here.
 func AvailableEvidence() []string {
-	return []string{"ax-tree", "layout-box"}
+	return []string{"ax-tree", "computed-style", "layout-box"}
+}
+
+func addAxisValue(values map[string]map[string]struct{}, axis, value string) {
+	if value == "" {
+		return
+	}
+	if values[axis] == nil {
+		values[axis] = map[string]struct{}{}
+	}
+	values[axis][value] = struct{}{}
 }
 
 // ImplementedClaimTypes returns the claim types that have a deterministic

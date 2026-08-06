@@ -810,6 +810,19 @@
         }
       ]
     }
+    ,
+    {
+      "name": "capabilities",
+      "description": "Read derived provability for the fleet capability registry",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Report capability facets, provability, and blocking evidence",
+          "binding": { "kind": "connect-rpc", "service": "CapabilityStatusService", "method": "GetStatus" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        }
+      ]
+    }
   ],
   "omitted": [
     {

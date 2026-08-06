@@ -850,7 +850,7 @@ func findPortsJSONLine(content string, tokens ...string) int {
 	return 1
 }
 
-// Reserved port ranges that scenarios must NOT use (from port_registry.sh)
+// Reserved port ranges that scenarios must NOT use (the manifest-era port policy).
 var reservedRanges = map[string][2]int{
 	"vrooli_core": {3000, 4100},
 	"databases":   {5432, 5499},

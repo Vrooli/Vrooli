@@ -34,7 +34,10 @@ type AXNode struct {
 	// intentionally carried structure, not CSS. Newer capture producers may
 	// attach computed colors for deterministic interaction-state claims.
 	Appearance *Appearance `json:"appearance,omitempty"`
-	Children   []AXNode    `json:"children"`
+	// ComputedStyle is the normalized CSS evidence captured for this DOM node.
+	// Keys use the CSS property names requested by the BAS capture producer.
+	ComputedStyle map[string]string `json:"computedStyle,omitempty"`
+	Children      []AXNode          `json:"children"`
 }
 
 type Bounds struct {
@@ -53,9 +56,15 @@ type DOMNode struct {
 // claims. The evaluator treats missing fields as unverifiable rather than
 // inventing colors from class names.
 type Appearance struct {
-	Foreground string                     `json:"foreground,omitempty"`
-	Background string                     `json:"background,omitempty"`
-	States     map[string]AppearanceState `json:"states,omitempty"`
+	Foreground  string                     `json:"foreground,omitempty"`
+	Background  string                     `json:"background,omitempty"`
+	FontSize    string                     `json:"fontSize,omitempty"`
+	LineHeight  string                     `json:"lineHeight,omitempty"`
+	Margin      string                     `json:"margin,omitempty"`
+	Padding     string                     `json:"padding,omitempty"`
+	BorderWidth string                     `json:"borderWidth,omitempty"`
+	FontWeight  string                     `json:"fontWeight,omitempty"`
+	States      map[string]AppearanceState `json:"states,omitempty"`
 }
 
 type AppearanceState struct {

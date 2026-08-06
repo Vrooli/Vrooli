@@ -1,6 +1,7 @@
 package reconcile
 
 import (
+	"path/filepath"
 	"slices"
 	"testing"
 )
@@ -23,13 +24,9 @@ func TestImplementedClaimTypesMatchesEvaluatorMap(t *testing.T) {
 	}
 }
 
-// TestElementAbsentHasNoEvaluator documents a known defect rather than asserting
-// desired behaviour. `element-absent` is accepted by spec.knownClaimType and has
-// no evaluator, so a machine-tier claim using it can never pass. When an evaluator
-// is added this test should be deleted, not amended.
-func TestElementAbsentHasNoEvaluator(t *testing.T) {
-	if claimEvaluator("element-absent") != nil {
-		t.Fatal("element-absent now has an evaluator; delete this test and drop the known-defect note in support.go")
+func TestElementAbsentHasEvaluator(t *testing.T) {
+	if claimEvaluator("element-absent") == nil {
+		t.Fatal("element-absent must have a deterministic evaluator")
 	}
 }
 
@@ -39,24 +36,78 @@ func TestElementAbsentHasNoEvaluator(t *testing.T) {
 // under-report; if WiredAxes grows without the field, it would over-report.
 func TestWiredAxesReflectsCaptureTarget(t *testing.T) {
 	axes := WiredAxes()
-	if len(axes) != 1 || axes[0].Axis != "viewport" {
-		t.Fatalf("expected viewport to be the only wired axis, got %+v", axes)
+	if len(axes) != 5 {
+		t.Fatalf("expected viewport plus four capture axes, got %+v", axes)
 	}
-	if len(axes[0].Values) != len(DefaultCaptureProfiles) {
-		t.Fatalf("wired viewport values (%d) must match DefaultCaptureProfiles (%d)",
-			len(axes[0].Values), len(DefaultCaptureProfiles))
+	var viewport AxisSupport
+	for _, axis := range axes {
+		if axis.Axis == "viewport" {
+			viewport = axis
+			break
+		}
+	}
+	uniqueViewports := map[string]bool{}
+	for _, profile := range DefaultCaptureProfiles {
+		uniqueViewports[profile.ID] = true
+	}
+	if len(viewport.Values) != len(uniqueViewports) {
+		t.Fatalf("wired viewport values (%d) must match unique default viewports (%d)",
+			len(viewport.Values), len(uniqueViewports))
 	}
 	for _, profile := range DefaultCaptureProfiles {
-		if !slices.Contains(axes[0].Values, profile.ID) {
+		if !slices.Contains(viewport.Values, profile.ID) {
 			t.Errorf("capture profile %q missing from wired viewport values", profile.ID)
+		}
+	}
+	for _, wanted := range []string{"color-scheme", "interaction-state", "locale", "motion-preference", "viewport"} {
+		found := false
+		for _, axis := range axes {
+			if axis.Axis == wanted {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("missing wired axis %q", wanted)
 		}
 	}
 }
 
-func TestAvailableEvidenceExcludesComputedStyle(t *testing.T) {
+func TestWiredAxesOnlyReportsTransmittedCaptureFields(t *testing.T) {
+	axes := WiredAxesFromProfiles([]CaptureProfile{{ID: "desktop", Width: 1280, Height: 720}})
+	if len(axes) != 1 || axes[0].Axis != "viewport" || !slices.Contains(axes[0].Values, "desktop") {
+		t.Fatalf("axes = %+v, want only the transmitted viewport axis", axes)
+	}
+}
+
+func TestCaptureProfilesFromAxesIncludesDesktopDarkWithinBudget(t *testing.T) {
+	profiles, err := CaptureProfilesFromAxes(filepath.Join(repoRootForSupportTest(t), "scenarios", "experience-manager", "capabilities", "axes.json"), 12)
+	if err != nil {
+		t.Fatalf("CaptureProfilesFromAxes: %v", err)
+	}
+	if len(profiles) > 12 {
+		t.Fatalf("profiles = %d, exceeds capture budget", len(profiles))
+	}
+	foundDesktopDark := false
+	for _, profile := range profiles {
+		if profile.ID == "desktop" && profile.ColorScheme == "dark" {
+			foundDesktopDark = true
+		}
+	}
+	if !foundDesktopDark {
+		t.Fatalf("profiles = %+v, want a desktop-dark capture", profiles)
+	}
+}
+
+func repoRootForSupportTest(t *testing.T) string {
+	t.Helper()
+	return filepath.Clean(filepath.Join("..", "..", "..", "..", ".."))
+}
+
+func TestAvailableEvidenceIncludesComputedStyle(t *testing.T) {
 	evidence := AvailableEvidence()
-	if slices.Contains(evidence, "computed-style") {
-		t.Fatal("computed-style is reported as available; if the channel now exists, update support.go's doc comment too")
+	if !slices.Contains(evidence, "computed-style") {
+		t.Fatal("computed-style must be reported once BAS captures the declared property map")
 	}
 	if !slices.Contains(evidence, "ax-tree") {
 		t.Fatal("ax-tree must be available; it is the load-bearing evidence channel")

@@ -3,6 +3,7 @@ package domains
 import (
 	"github.com/vrooli/cli-core/cliapp"
 
+	"experience-manager/cli/domains/capabilities"
 	"experience-manager/cli/domains/contract"
 	"experience-manager/cli/domains/fix"
 	"experience-manager/cli/domains/provider"
@@ -60,5 +61,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, studioGroup)
+	capabilityGroup, err := capabilities.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, capabilityGroup)
 	return groups, nil
 }

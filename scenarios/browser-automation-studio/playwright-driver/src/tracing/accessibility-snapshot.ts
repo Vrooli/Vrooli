@@ -45,6 +45,27 @@ export const ACCESSIBILITY_CONTRACT = 'bas-accessibility-snapshot/v1';
  */
 export const ACCESSIBILITY_MAX_NODES = 20000;
 
+/** CSS properties included in the computed-style evidence contract. */
+export const COMPUTED_STYLE_PROPERTIES = [
+  'color',
+  'background-color',
+  'border-color',
+  'font-size',
+  'line-height',
+  'font-weight',
+  'letter-spacing',
+  'margin',
+  'padding',
+  'width',
+  'height',
+  'gap',
+  'border-radius',
+  'box-shadow',
+  'opacity',
+  'transition-duration',
+  'transition-timing-function',
+] as const;
+
 // --- CDP payload shapes (minimal, only the fields we read) ------------------
 
 /** An AXValue as returned by CDP Accessibility.getFullAXTree. */
@@ -82,6 +103,7 @@ export interface DomNodeInfo {
   tag?: string;
   testid?: string;
   bounds?: { x: number; y: number; width: number; height: number };
+  computedStyle?: Record<string, string>;
 }
 
 // --- Minimal CDP command surface (declared for the test seam) ---------------
@@ -110,6 +132,7 @@ export interface DOMSnapshotResult {
       backendNodeId?: number[];
       nodeName?: number[];
       attributes?: number[][];
+      computedStyles?: number[][];
     };
     layout?: {
       nodeIndex?: number[];
@@ -130,6 +153,7 @@ export interface NormalizedAXNode {
   states?: string[];
   bounds?: { x: number; y: number; width: number; height: number };
   dom?: { testid?: string; tag?: string };
+  computedStyle?: Record<string, string>;
   children: NormalizedAXNode[];
 }
 
@@ -315,6 +339,12 @@ export function normalizeAccessibilityTree(
     if (dom) {
       out.dom = dom;
     }
+    if (node.backendDOMNodeId != null) {
+      const computedStyle = domInfo.get(node.backendDOMNodeId)?.computedStyle;
+      if (computedStyle && Object.keys(computedStyle).length > 0) {
+        out.computedStyle = computedStyle;
+      }
+    }
     return [out];
   };
 
@@ -425,7 +455,22 @@ export function parseDomSnapshot(snapshot: DOMSnapshotResult): Map<number, DomNo
         info.bounds = { x: b[0] ?? 0, y: b[1] ?? 0, width: b[2] ?? 0, height: b[3] ?? 0 };
       }
 
-      if (info.tag || info.testid || info.bounds) {
+      const styleValues = nodes.computedStyles?.[i] ?? [];
+      if (styleValues.length > 0) {
+        const computedStyle: Record<string, string> = {};
+        for (let propertyIndex = 0; propertyIndex < COMPUTED_STYLE_PROPERTIES.length; propertyIndex += 1) {
+          const value = str(styleValues[propertyIndex]);
+          const property = COMPUTED_STYLE_PROPERTIES[propertyIndex];
+          if (value != null && property != null) {
+            computedStyle[property] = value;
+          }
+        }
+        if (Object.keys(computedStyle).length > 0) {
+          info.computedStyle = computedStyle;
+        }
+      }
+
+      if (info.tag || info.testid || info.bounds || info.computedStyle) {
         out.set(backendId, info);
       }
     }
@@ -470,7 +515,9 @@ export class AccessibilitySnapshotter {
       // still yields a role/name/state tree, just without bounds/dom.
       let domInfo = new Map<number, DomNodeInfo>();
       try {
-        const snap = await axcdp.send('DOMSnapshot.captureSnapshot', { computedStyles: [] });
+        const snap = await axcdp.send('DOMSnapshot.captureSnapshot', {
+          computedStyles: [...COMPUTED_STYLE_PROPERTIES],
+        });
         domInfo = parseDomSnapshot(snap);
       } catch (error) {
         logger.warn(scopedLog(LogContext.TELEMETRY, 'accessibility DOM join failed'), {

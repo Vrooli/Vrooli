@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	capabilitiesH "experience-manager/handlers/capabilities"
 	healthH "experience-manager/handlers/health"
 	studioH "experience-manager/handlers/studio"
 	validationH "experience-manager/handlers/validation"
@@ -140,6 +141,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "experience-manager-api", "1.0.0"),
+		capabilitiesH.Module(repoRoot()),
 		studioH.Module(log.Default(), repoRoot(), studioH.WithDatabase(db)),
 		validationH.Module(log.Default(), repoRoot(), nil, validationH.WithDatabase(db)),
 	)
@@ -158,8 +160,10 @@ func main() {
 	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler:      handler,
-		WriteTimeout: 3 * time.Minute,
+		Handler: handler,
+		// Full-fidelity validation can capture the complete declared state
+		// matrix before returning its evidence envelope.
+		WriteTimeout: 10 * time.Minute,
 		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)

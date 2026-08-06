@@ -31,9 +31,13 @@ func registryDir(t *testing.T) string {
 	return ""
 }
 
-func liveSupport() Support {
+func liveSupport(t *testing.T) Support {
+	profiles, err := reconcile.CaptureProfilesFromAxes(filepath.Join(registryDir(t), "axes.json"), 12)
+	if err != nil {
+		t.Fatalf("load capture profiles: %v", err)
+	}
 	axes := map[string][]string{}
-	for _, a := range reconcile.WiredAxes() {
+	for _, a := range reconcile.WiredAxesFromProfiles(profiles) {
 		axes[a.Axis] = a.Values
 	}
 	return Support{
@@ -75,7 +79,7 @@ func TestDeriveAgainstLiveReconciler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	rep := Derive(reg, liveSupport())
+	rep := Derive(reg, liveSupport(t))
 
 	if rep.PromiseTotal == 0 {
 		t.Fatal("no promise capabilities derived")
@@ -90,18 +94,16 @@ func TestDeriveAgainstLiveReconciler(t *testing.T) {
 	if got := byID["tap-target-size"].Status; got != StatusProvable {
 		t.Errorf("tap-target-size: want provable, got %s (%v)", got, byID["tap-target-size"].Blockers)
 	}
-	// hover-contrast is blocked twice over: the interaction-state axis is not
-	// driven and computed-style does not exist. Axis outranks evidence.
+	// hover-contrast is now provable because the baseline matrix transmits the
+	// interaction-state axis and BAS produces computed-style evidence.
 	hover := byID["hover-contrast"]
-	if hover.Status != StatusAxisUnavailable {
-		t.Errorf("hover-contrast: want axis-unavailable, got %s", hover.Status)
+	if hover.Status != StatusProvable {
+		t.Errorf("hover-contrast: want provable, got %s (%v)", hover.Status, hover.Blockers)
 	}
-	if len(hover.Blockers) < 2 {
-		t.Errorf("hover-contrast should report both its axis and evidence blockers, got %v", hover.Blockers)
-	}
-	// contrast-floor has no axis requirement, so its only blocker is evidence.
-	if got := byID["contrast-floor"].Status; got != StatusEvidenceMissing {
-		t.Errorf("contrast-floor: want evidence-missing, got %s (%v)", got, byID["contrast-floor"].Blockers)
+	// contrast-floor has no axis requirement and now has its computed-style
+	// evidence channel.
+	if got := byID["contrast-floor"].Status; got != StatusProvable {
+		t.Errorf("contrast-floor: want provable, got %s (%v)", got, byID["contrast-floor"].Blockers)
 	}
 	// ramp-conformance names a claim type nobody has implemented.
 	ramp := byID["ramp-conformance"]
@@ -152,7 +154,7 @@ func TestBlockerCountsOrderWorkByLeverage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	counts := BlockerCounts(Derive(reg, liveSupport()))
+	counts := BlockerCounts(Derive(reg, liveSupport(t)))
 	if len(counts) == 0 {
 		t.Fatal("expected blockers against the live reconciler")
 	}

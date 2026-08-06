@@ -169,7 +169,7 @@ func (s *service) Capture(
 	// inline_accessibility independently drives the AX capture (mirrors how
 	// inline_dom injects its own read regardless of the captures list), so a
 	// caller can request the inline snapshot without also listing ACCESSIBILITY.
-	if msg.GetInlineAccessibility() {
+	if msg.GetInlineAccessibility() || msg.GetInlineComputedStyle() {
 		opts.RequiresAccessibility = true
 	}
 
@@ -226,7 +226,7 @@ func (s *service) Capture(
 	// snapshot the driver produced is written by ExportToFolder as
 	// accessibility.json in the execution out dir, so we read it back here.
 	accessibilityJSON := ""
-	if msg.GetInlineAccessibility() {
+	if msg.GetInlineAccessibility() || msg.GetInlineComputedStyle() {
 		accessibilityJSON, err = s.deps.InlineAccessibility.readInlineAccessibility(executionOutDir)
 		if err != nil && s.deps.Logger != nil {
 			s.deps.Logger.WithError(err).Warn("capture: inline accessibility read failed")
@@ -600,6 +600,7 @@ func buildAdhocRequest(
 			StartUrl:       &startURL,
 			ViewportWidth:  &w,
 			ViewportHeight: &h,
+			BrowserProfile: msg.GetBrowserProfile(),
 		},
 		WaitForCompletion: true,
 	}, domNodeID, nil

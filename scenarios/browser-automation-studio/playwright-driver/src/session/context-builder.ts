@@ -192,6 +192,7 @@ export async function buildContext(
     locale: spec.locale || fingerprint.locale || undefined,
     timezoneId: spec.timezone || fingerprint.timezone_id || undefined,
     colorScheme: fingerprint.color_scheme || undefined,
+    reducedMotion: spec.browser_profile?.motion_preference === 'reduce' ? 'reduce' : undefined,
     extraHTTPHeaders: Object.keys(finalHeaders).length > 0 ? finalHeaders : undefined,
   };
 
