@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.programs;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs;programs_v1";
+
+enum Provenance { PROVENANCE_UNSPECIFIED = 0; PROVENANCE_AGENT = 1; PROVENANCE_OPERATOR = 2; }
+
+message Program {
+  string id = 1;
+  string session_id = 2;
+  string source = 3;
+  Provenance provenance = 4;
+  string status = 5;
+  string stdout = 6;
+  string failure_detail = 7;
+  string failure_shape = 8;
+  int64 context_bytes = 9;
+  string created_at = 10;
+}
+
+message SubmitProgramRequest {
+  string session_id = 1;
+  string source = 2;
+  Provenance provenance = 3;
+  bool include_materialized = 4;
+}
+message SubmitProgramResponse { Program program = 1; }
+message GetProgramRequest { string id = 1; }
+message GetProgramResponse { Program program = 1; }
+message ListProgramsRequest { string session_id = 1; bool include_operator = 2; }
+message ListProgramsResponse { repeated Program programs = 1; }
+message MineFailuresRequest { bool include_operator = 1; }
+message FailureShape { string shape = 1; int64 count = 2; }
+message MineFailuresResponse { repeated FailureShape shapes = 1; int64 count = 2; }
+
+service ProgramService {
+  rpc SubmitProgram(SubmitProgramRequest) returns (SubmitProgramResponse);
+  rpc GetProgram(GetProgramRequest) returns (GetProgramResponse);
+  rpc ListPrograms(ListProgramsRequest) returns (ListProgramsResponse);
+  rpc MineFailures(MineFailuresRequest) returns (MineFailuresResponse);
+}

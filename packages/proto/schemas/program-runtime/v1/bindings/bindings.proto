@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.bindings;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings;bindings_v1";
+
+// BindingRegistryService projects the repository's typed Connect-RPC surface
+// from scenario CLI manifests. Governance is copied from the manifest; this
+// contract intentionally does not introduce another policy vocabulary.
+service BindingRegistryService {
+  rpc ListBindings(ListBindingsRequest) returns (ListBindingsResponse);
+  rpc ListUnbound(ListUnboundRequest) returns (ListUnboundResponse);
+  rpc ResolveActCells(ResolveActCellsRequest) returns (ResolveActCellsResponse);
+}
+
+enum UnboundReason {
+  UNBOUND_REASON_UNSPECIFIED = 0;
+  UNBOUND_REASON_NO_MANIFEST = 1;
+  UNBOUND_REASON_LOCAL_BINDING = 2;
+  UNBOUND_REASON_OMITTED_RPC = 3;
+  UNBOUND_REASON_EXTERNAL_TOOL_ONLY = 4;
+}
+
+message Binding {
+  string id = 1;
+  string scenario = 2;
+  string group = 3;
+  string command = 4;
+  string service = 5;
+  string method = 6;
+  string request_type = 7;
+  string response_type = 8;
+  string effect = 9;
+  bool run_eligible = 10;
+  bool requires_confirmation = 11;
+  repeated string permissions = 12;
+  string description = 13;
+  string signature = 14;
+}
+
+message UnboundCapability {
+  string scenario = 1;
+  string group = 2;
+  string command = 3;
+  string service = 4;
+  string method = 5;
+  UnboundReason reason = 6;
+  string detail = 7;
+}
+
+message ListBindingsRequest {
+  string scenario = 1;
+  string group = 2;
+}
+
+message ListBindingsResponse {
+  repeated Binding bindings = 1;
+}
+
+message ListUnboundRequest {
+  string scenario = 1;
+}
+
+message ListUnboundResponse {
+  repeated UnboundCapability capabilities = 1;
+}
+
+message ActCell {
+  string id = 1;
+  repeated string operations = 2;
+  string authored_status = 3;
+}
+
+enum ActVerdict {
+  ACT_VERDICT_UNSPECIFIED = 0;
+  ACT_VERDICT_NOW = 1;
+  ACT_VERDICT_IN_REACH = 2;
+  ACT_VERDICT_AUTHORED = 3;
+}
+
+message ActCellVerdict {
+  string id = 1;
+  ActVerdict verdict = 2;
+  repeated string resolved_operations = 3;
+  repeated string unresolved_operations = 4;
+  repeated string reasons = 5;
+  string authored_status = 6;
+  bool audited = 7;
+}
+
+message ResolveActCellsRequest {
+  repeated ActCell cells = 1;
+}
+
+message ResolveActCellsResponse {
+  repeated ActCellVerdict cells = 1;
+  int32 audited_cells = 2;
+  int32 total_cells = 3;
+  string denominator_confidence = 4;
+}

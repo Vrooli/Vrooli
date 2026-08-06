@@ -74,6 +74,40 @@ message ScreenRecordingSummary {
   optional string capture_id = 5;
 }
 
+// EvidenceChapter is a reviewer-facing projection of one versioned journey
+// step. It contains references and derived values only; credential material and
+// host-local paths are never part of the status contract.
+message EvidenceChapter {
+  string id = 1;
+  string purpose = 2;
+  string action = 3;
+  string disposition = 4;
+  optional string assertion_id = 5;
+  optional string expected = 6;
+  optional string observed = 7;
+  optional string error = 8;
+  optional int64 video_start_offset_ms = 9;
+  optional int64 video_end_offset_ms = 10;
+  repeated string evidence_ids = 11;
+}
+
+message EvidenceReview {
+  string schema_version = 1;
+  string capability = 2;
+  string plan_id = 3;
+  string profile = 4;
+  string disposition = 5;
+  optional string reason = 6;
+  repeated EvidenceChapter chapters = 7;
+  int32 event_count = 8;
+  optional string deployment_mode = 9;
+  optional string provider_tier = 10;
+  optional string service_identity = 11;
+  optional string readiness = 12;
+  optional string fallback_decision = 13;
+  optional string safe_route_class = 14;
+}
+
 message SmokeTestStatusResponse {
   string smoke_test_id = 1;
   string scenario_name = 2;
@@ -87,4 +121,5 @@ message SmokeTestStatusResponse {
   bool telemetry_uploaded = 10;
   optional string telemetry_upload_error = 11;
   optional ScreenRecordingSummary screen_recording = 12;
+  optional EvidenceReview evidence_review = 13;
 }

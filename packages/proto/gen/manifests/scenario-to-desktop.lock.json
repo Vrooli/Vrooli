@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-to-desktop",
-  "input_digest": "sha256:76cbc7c76891f2bd1efdea41dde2adbb33e36959177b66ddaa427089f3980e7a",
+  "input_digest": "sha256:9bec0e5707fb81b7c2a41f7fc02a6013deb52dbc0c5cbeb7f32a42dac2e21530",
   "input_files": [
     "schemas/scenario-to-desktop/v1/domain/build.proto",
     "schemas/scenario-to-desktop/v1/domain/config.proto",
@@ -64,7 +64,7 @@
     "gen/go/scenario-to-desktop/v1/shared/common.pb.go": "sha256:7541e675511b9f9d38ef308be8869700e5c9ee94f5a282108d535d91811b27a3",
     "gen/go/scenario-to-desktop/v1/shared/health.pb.go": "sha256:699f7bea4a56258b402f7b43bc775f0cb1027facac1a289a1d19907d5ffd0222",
     "gen/go/scenario-to-desktop/v1/shared/metadata.pb.go": "sha256:a15ba7167d8c3f47de774e64d33bf7a3f6351cb1c58dfde0d1f40d51a57845b0",
-    "gen/go/scenario-to-desktop/v1/shared/operation_results.pb.go": "sha256:03882318caae5e18eddc1211d29a6c8aa0def19f52465266c283bae699d24770",
+    "gen/go/scenario-to-desktop/v1/shared/operation_results.pb.go": "sha256:ed49c4dcc2204d59989e10f7059f83e7c4fe77d161796e66c904b478f933082a",
     "gen/go/scenario-to-desktop/v1/shared/preflight_results.pb.go": "sha256:7ed4dfe11b54526e54587b49038b71e75d054c34bd175c0166be7a376f6ca341",
     "gen/go/scenario-to-desktop/v1/shared/sharedconnect/health.connect.go": "sha256:2b2d9c8e86947a34cc540889080d302eb716f9e65fc91cfda4544cf4f0be8576",
     "gen/go/scenario-to-desktop/v1/shared/update_config.pb.go": "sha256:c555c5ebe97cf058757b1e15bd7e1403df3d7fa31fd7eb52af497635330b6192",
@@ -104,8 +104,8 @@
     "gen/python/scenario_to_desktop/v1/shared/health_pb2.pyi": "sha256:f8c2353b97635ce5c1796e688abab234df977735ba675ea29242c38c4e649ef9",
     "gen/python/scenario_to_desktop/v1/shared/metadata_pb2.py": "sha256:0826a138e1dea1a0df6ee71161629bb5227ea2a12b373c961945ac2087840d15",
     "gen/python/scenario_to_desktop/v1/shared/metadata_pb2.pyi": "sha256:e58eff7e8081476aca7ad956b10e476306b395d90e8e502777a33318788de5fe",
-    "gen/python/scenario_to_desktop/v1/shared/operation_results_pb2.py": "sha256:dcfcb7ae6fc7e3c1b1bb354908876c8e7ff7fb3ec1b0907d3c5050acdac9aef6",
-    "gen/python/scenario_to_desktop/v1/shared/operation_results_pb2.pyi": "sha256:aea22765f01d2da4016fea6f38613256e136c00a604d775dcfddda0ea274b64b",
+    "gen/python/scenario_to_desktop/v1/shared/operation_results_pb2.py": "sha256:54d72762fd69809027fe75105a23d9dfe73093eade6d9a08a86425961b5227d4",
+    "gen/python/scenario_to_desktop/v1/shared/operation_results_pb2.pyi": "sha256:f8bf87ad11597a3d0d38877f9ffec4975931483de2447e4fe9914dd470ffcfa1",
     "gen/python/scenario_to_desktop/v1/shared/preflight_results_pb2.py": "sha256:b440301a4d1221afa24d9ebd03bf701cbab34d5b93f836b5150d6a467c742001",
     "gen/python/scenario_to_desktop/v1/shared/preflight_results_pb2.pyi": "sha256:400c4ceb27806eced9139c127e7980ec278b36474525bfe39159224119d38b16",
     "gen/python/scenario_to_desktop/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -127,7 +127,7 @@
     "gen/typescript/js/scenario-to-desktop/v1/shared/common_pb.js": "sha256:19657ef97821e8f3508907d0e4fd182fc8b91a5995eee83b97d90979df502d18",
     "gen/typescript/js/scenario-to-desktop/v1/shared/health_pb.js": "sha256:a25b65c26818c8d96acb19c378a2c29fae679cd4215457f38366f58312d22a4f",
     "gen/typescript/js/scenario-to-desktop/v1/shared/metadata_pb.js": "sha256:36efbace04479b56c583f7ac10a80645ab9a710d4d069863b4ec70e3687ca4de",
-    "gen/typescript/js/scenario-to-desktop/v1/shared/operation_results_pb.js": "sha256:aefae82786f947eac15dd082972fb0dce6c64bfbcf156866ec7c7b859e6b155c",
+    "gen/typescript/js/scenario-to-desktop/v1/shared/operation_results_pb.js": "sha256:952ce136322531bb43c063622f579a8535179665a321f9493b3dbbf19a5eb3e1",
     "gen/typescript/js/scenario-to-desktop/v1/shared/preflight_results_pb.js": "sha256:01e58174ede0c6c2c979f95937fb402705bfd0b5a650481573d732824054daea",
     "gen/typescript/js/scenario-to-desktop/v1/shared/update_config_pb.js": "sha256:6d21a4ac64bfb5e24ee74513c03a992c33fe7aadf37b690d2b8cf893febcbc24",
     "gen/typescript/scenario-to-desktop/v1/domain/build_pb.ts": "sha256:bc74219487ecc5e3f1bd5e43e2b3f8b84f4e8522a3c948aa66d004d31e1b5bf0",
@@ -146,7 +146,7 @@
     "gen/typescript/scenario-to-desktop/v1/shared/common_pb.ts": "sha256:fd64e3651edcb708d93386cbe133331fe7fba27979b9fba09e8dede41c369b68",
     "gen/typescript/scenario-to-desktop/v1/shared/health_pb.ts": "sha256:05ebc4795f1feed80823ce4c7a22892dcb3cd4a9ab53c3facd2bd0f501f5aa50",
     "gen/typescript/scenario-to-desktop/v1/shared/metadata_pb.ts": "sha256:fb77dc8172078977c75726fb8c3c31a07f066c93b18823246d637e1b05d1b12b",
-    "gen/typescript/scenario-to-desktop/v1/shared/operation_results_pb.ts": "sha256:49b7ccb0f75d4ace8174cfa5f97168428dd142fafb46658793bba2c0c350f15d",
+    "gen/typescript/scenario-to-desktop/v1/shared/operation_results_pb.ts": "sha256:ef3d9d8099ea8985b0f16e7ccc272e574683007694c4aba00d5ed9bd48a23411",
     "gen/typescript/scenario-to-desktop/v1/shared/preflight_results_pb.ts": "sha256:d6893dabcb775d0e1331bf73ddb0e2a56434d7bfcacc69bbe944996bc599e8ce",
     "gen/typescript/scenario-to-desktop/v1/shared/update_config_pb.ts": "sha256:e580a8545a49b7a46dc334d5d1f0dd2aa28744d1abe306abf2393b1e5532efc2"
   }

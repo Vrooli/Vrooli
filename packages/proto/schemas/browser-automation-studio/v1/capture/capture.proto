@@ -3,6 +3,7 @@ syntax = "proto3";
 package browser_automation_studio.v1.capture;
 
 import "buf/validate/validate.proto";
+import "browser-automation-studio/v1/base/browser_profile.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture;capture";
 
@@ -144,6 +145,18 @@ message CaptureRequest {
   // also list CAPTURE_TYPE_ACCESSIBILITY), and the server caps the inline
   // payload (currently 2 MiB) and truncates beyond it.
   bool inline_accessibility = 9;
+
+  // When true, the accessibility snapshot also includes the resolved CSS
+  // properties requested by the capture producer for every joined DOM node.
+  bool inline_computed_style = 10;
+
+  // Browser context preferences for this capture matrix point. These are
+  // forwarded to the execution session and are independent of viewport size.
+  browser_automation_studio.v1.BrowserProfile browser_profile = 11;
+
+  // Interaction state requested by the capture matrix. The service preserves
+  // this value while constructing the stateful capture flow.
+  string interaction_state = 12;
 }
 
 message CaptureArtifact {

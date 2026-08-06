@@ -33,7 +33,7 @@ message GetResolverStatusResponse {
 message ConfigureAdGuardHomeRequest {
   string base_url = 1;
   string username = 2;
-  string token_ref = 3;
+  string credential_ref = 3;
   bool dry_run = 4;
 }
 

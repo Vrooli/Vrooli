@@ -1,0 +1,95 @@
+from google.protobuf.internal import containers as _containers
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
+
+DESCRIPTOR: _descriptor.FileDescriptor
+
+class Session(_message.Message):
+    __slots__ = ("id", "state", "created_at", "last_activity_at", "grants", "sandbox_workspace", "reclaimed_reason", "name")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_ACTIVITY_AT_FIELD_NUMBER: _ClassVar[int]
+    GRANTS_FIELD_NUMBER: _ClassVar[int]
+    SANDBOX_WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    RECLAIMED_REASON_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    state: str
+    created_at: str
+    last_activity_at: str
+    grants: _containers.RepeatedScalarFieldContainer[str]
+    sandbox_workspace: str
+    reclaimed_reason: str
+    name: str
+    def __init__(self, id: _Optional[str] = ..., state: _Optional[str] = ..., created_at: _Optional[str] = ..., last_activity_at: _Optional[str] = ..., grants: _Optional[_Iterable[str]] = ..., sandbox_workspace: _Optional[str] = ..., reclaimed_reason: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
+
+class CreateSessionRequest(_message.Message):
+    __slots__ = ("grants", "sandbox_workspace", "name")
+    GRANTS_FIELD_NUMBER: _ClassVar[int]
+    SANDBOX_WORKSPACE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    grants: _containers.RepeatedScalarFieldContainer[str]
+    sandbox_workspace: str
+    name: str
+    def __init__(self, grants: _Optional[_Iterable[str]] = ..., sandbox_workspace: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
+
+class CreateSessionResponse(_message.Message):
+    __slots__ = ("session",)
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    session: Session
+    def __init__(self, session: _Optional[_Union[Session, _Mapping]] = ...) -> None: ...
+
+class GetSessionRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class GetSessionResponse(_message.Message):
+    __slots__ = ("session",)
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    session: Session
+    def __init__(self, session: _Optional[_Union[Session, _Mapping]] = ...) -> None: ...
+
+class ListSessionsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListSessionsResponse(_message.Message):
+    __slots__ = ("sessions", "count")
+    SESSIONS_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    sessions: _containers.RepeatedCompositeFieldContainer[Session]
+    count: int
+    def __init__(self, sessions: _Optional[_Iterable[_Union[Session, _Mapping]]] = ..., count: _Optional[int] = ...) -> None: ...
+
+class DeleteSessionRequest(_message.Message):
+    __slots__ = ("id", "reason")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    reason: str
+    def __init__(self, id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class DeleteSessionResponse(_message.Message):
+    __slots__ = ("session",)
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    session: Session
+    def __init__(self, session: _Optional[_Union[Session, _Mapping]] = ...) -> None: ...
+
+class GrantSessionRequest(_message.Message):
+    __slots__ = ("id", "grants")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    GRANTS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    grants: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., grants: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class GrantSessionResponse(_message.Message):
+    __slots__ = ("session",)
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    session: Session
+    def __init__(self, session: _Optional[_Union[Session, _Mapping]] = ...) -> None: ...

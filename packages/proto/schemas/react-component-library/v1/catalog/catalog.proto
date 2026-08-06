@@ -64,4 +64,5 @@ message GateFinding {
 message RunGateResponse {
   string gate = 1;
   repeated GateFinding findings = 2;
+  int32 inspected_files = 3;
 }

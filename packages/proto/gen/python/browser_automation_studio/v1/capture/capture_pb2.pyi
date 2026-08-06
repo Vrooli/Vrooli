@@ -1,4 +1,5 @@
 from buf.validate import validate_pb2 as _validate_pb2
+from browser_automation_studio.v1.base import browser_profile_pb2 as _browser_profile_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -61,7 +62,7 @@ class WaitFor(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., networkidle: _Optional[bool] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class CaptureRequest(_message.Message):
-    __slots__ = ("url", "captures", "dimensions", "wait_for", "out_dir", "label", "inline_dom", "interaction_flow_json", "inline_accessibility")
+    __slots__ = ("url", "captures", "dimensions", "wait_for", "out_dir", "label", "inline_dom", "interaction_flow_json", "inline_accessibility", "inline_computed_style", "browser_profile", "interaction_state")
     URL_FIELD_NUMBER: _ClassVar[int]
     CAPTURES_FIELD_NUMBER: _ClassVar[int]
     DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
@@ -71,6 +72,9 @@ class CaptureRequest(_message.Message):
     INLINE_DOM_FIELD_NUMBER: _ClassVar[int]
     INTERACTION_FLOW_JSON_FIELD_NUMBER: _ClassVar[int]
     INLINE_ACCESSIBILITY_FIELD_NUMBER: _ClassVar[int]
+    INLINE_COMPUTED_STYLE_FIELD_NUMBER: _ClassVar[int]
+    BROWSER_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    INTERACTION_STATE_FIELD_NUMBER: _ClassVar[int]
     url: str
     captures: _containers.RepeatedScalarFieldContainer[CaptureType]
     dimensions: Dimensions
@@ -80,7 +84,10 @@ class CaptureRequest(_message.Message):
     inline_dom: bool
     interaction_flow_json: str
     inline_accessibility: bool
-    def __init__(self, url: _Optional[str] = ..., captures: _Optional[_Iterable[_Union[CaptureType, str]]] = ..., dimensions: _Optional[_Union[Dimensions, _Mapping]] = ..., wait_for: _Optional[_Union[WaitFor, _Mapping]] = ..., out_dir: _Optional[str] = ..., label: _Optional[str] = ..., inline_dom: _Optional[bool] = ..., interaction_flow_json: _Optional[str] = ..., inline_accessibility: _Optional[bool] = ...) -> None: ...
+    inline_computed_style: bool
+    browser_profile: _browser_profile_pb2.BrowserProfile
+    interaction_state: str
+    def __init__(self, url: _Optional[str] = ..., captures: _Optional[_Iterable[_Union[CaptureType, str]]] = ..., dimensions: _Optional[_Union[Dimensions, _Mapping]] = ..., wait_for: _Optional[_Union[WaitFor, _Mapping]] = ..., out_dir: _Optional[str] = ..., label: _Optional[str] = ..., inline_dom: _Optional[bool] = ..., interaction_flow_json: _Optional[str] = ..., inline_accessibility: _Optional[bool] = ..., inline_computed_style: _Optional[bool] = ..., browser_profile: _Optional[_Union[_browser_profile_pb2.BrowserProfile, _Mapping]] = ..., interaction_state: _Optional[str] = ...) -> None: ...
 
 class CaptureArtifact(_message.Message):
     __slots__ = ("type", "path", "size_bytes", "metadata", "primary", "reference")

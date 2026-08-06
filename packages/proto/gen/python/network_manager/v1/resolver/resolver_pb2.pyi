@@ -37,16 +37,16 @@ class GetResolverStatusResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[ResolverStatus, _Mapping]] = ...) -> None: ...
 
 class ConfigureAdGuardHomeRequest(_message.Message):
-    __slots__ = ("base_url", "username", "token_ref", "dry_run")
+    __slots__ = ("base_url", "username", "credential_ref", "dry_run")
     BASE_URL_FIELD_NUMBER: _ClassVar[int]
     USERNAME_FIELD_NUMBER: _ClassVar[int]
-    TOKEN_REF_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_REF_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     base_url: str
     username: str
-    token_ref: str
+    credential_ref: str
     dry_run: bool
-    def __init__(self, base_url: _Optional[str] = ..., username: _Optional[str] = ..., token_ref: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+    def __init__(self, base_url: _Optional[str] = ..., username: _Optional[str] = ..., credential_ref: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class ConfigureAdGuardHomeResponse(_message.Message):
     __slots__ = ("status", "next_steps")

@@ -21,12 +21,13 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Projection is one of the three readiness projections. Software engineering by
-// a (local) agent is understand -> change -> verify; each projection is owned by
-// the scenario holding its ground truth. The change itself (code synthesis) is
-// the model's own job and is NOT a projection — it is proven empirically by the
-// trials domain. UNSPECIFIED is used for gaps that are not projection-scoped
-// (e.g. convergence or cross-cutting/global gaps).
+// Projection is one of the readiness projections. Software engineering by a
+// (local) agent is understand -> change -> verify, and every change lands as an
+// effect on the system; each projection is owned by the scenario holding its
+// ground truth. The change itself (code synthesis) is the model's own job and is
+// NOT a projection — it is proven empirically by the trials domain. UNSPECIFIED
+// is used for gaps that are not projection-scoped (e.g. convergence or
+// cross-cutting/global gaps).
 type Projection int32
 
 const (
@@ -34,6 +35,7 @@ const (
 	Projection_PROJECTION_ANSWER      Projection = 1 // search-hub — can the project be understood?
 	Projection_PROJECTION_VALIDATE    Projection = 2 // test-genie — can a change be verified + auto-fixed?
 	Projection_PROJECTION_GUIDE       Projection = 3 // prompt-manager — is there a skill per SWE task?
+	Projection_PROJECTION_ACT         Projection = 4 // program-runtime — is each operation programmatically invocable?
 )
 
 // Enum value maps for Projection.
@@ -43,12 +45,14 @@ var (
 		1: "PROJECTION_ANSWER",
 		2: "PROJECTION_VALIDATE",
 		3: "PROJECTION_GUIDE",
+		4: "PROJECTION_ACT",
 	}
 	Projection_value = map[string]int32{
 		"PROJECTION_UNSPECIFIED": 0,
 		"PROJECTION_ANSWER":      1,
 		"PROJECTION_VALIDATE":    2,
 		"PROJECTION_GUIDE":       3,
+		"PROJECTION_ACT":         4,
 	}
 )
 
@@ -77,6 +81,57 @@ func (x Projection) Number() protoreflect.EnumNumber {
 // Deprecated: Use Projection.Descriptor instead.
 func (Projection) EnumDescriptor() ([]byte, []int) {
 	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{0}
+}
+
+// GapAxis distinguishes enumerable declared coverage from observed empirical
+// evidence, which has recurrence and traceability rather than a denominator.
+type GapAxis int32
+
+const (
+	GapAxis_GAP_AXIS_UNSPECIFIED GapAxis = 0
+	GapAxis_GAP_AXIS_COVERAGE    GapAxis = 1
+	GapAxis_GAP_AXIS_EMPIRICAL   GapAxis = 2
+)
+
+// Enum value maps for GapAxis.
+var (
+	GapAxis_name = map[int32]string{
+		0: "GAP_AXIS_UNSPECIFIED",
+		1: "GAP_AXIS_COVERAGE",
+		2: "GAP_AXIS_EMPIRICAL",
+	}
+	GapAxis_value = map[string]int32{
+		"GAP_AXIS_UNSPECIFIED": 0,
+		"GAP_AXIS_COVERAGE":    1,
+		"GAP_AXIS_EMPIRICAL":   2,
+	}
+)
+
+func (x GapAxis) Enum() *GapAxis {
+	p := new(GapAxis)
+	*p = x
+	return p
+}
+
+func (x GapAxis) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (GapAxis) Descriptor() protoreflect.EnumDescriptor {
+	return file_meta_optimization_manager_v1_shared_model_proto_enumTypes[1].Descriptor()
+}
+
+func (GapAxis) Type() protoreflect.EnumType {
+	return &file_meta_optimization_manager_v1_shared_model_proto_enumTypes[1]
+}
+
+func (x GapAxis) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use GapAxis.Descriptor instead.
+func (GapAxis) EnumDescriptor() ([]byte, []int) {
+	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{1}
 }
 
 // DenominatorConfidence is how complete we believe a denominator (a space doc)
@@ -119,11 +174,11 @@ func (x DenominatorConfidence) String() string {
 }
 
 func (DenominatorConfidence) Descriptor() protoreflect.EnumDescriptor {
-	return file_meta_optimization_manager_v1_shared_model_proto_enumTypes[1].Descriptor()
+	return file_meta_optimization_manager_v1_shared_model_proto_enumTypes[2].Descriptor()
 }
 
 func (DenominatorConfidence) Type() protoreflect.EnumType {
-	return &file_meta_optimization_manager_v1_shared_model_proto_enumTypes[1]
+	return &file_meta_optimization_manager_v1_shared_model_proto_enumTypes[2]
 }
 
 func (x DenominatorConfidence) Number() protoreflect.EnumNumber {
@@ -132,7 +187,7 @@ func (x DenominatorConfidence) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use DenominatorConfidence.Descriptor instead.
 func (DenominatorConfidence) EnumDescriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{1}
+	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{2}
 }
 
 // CellStatus is the live status of a single denominator cell.
@@ -172,11 +227,11 @@ func (x CellStatus) String() string {
 }
 
 func (CellStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_meta_optimization_manager_v1_shared_model_proto_enumTypes[2].Descriptor()
+	return file_meta_optimization_manager_v1_shared_model_proto_enumTypes[3].Descriptor()
 }
 
 func (CellStatus) Type() protoreflect.EnumType {
-	return &file_meta_optimization_manager_v1_shared_model_proto_enumTypes[2]
+	return &file_meta_optimization_manager_v1_shared_model_proto_enumTypes[3]
 }
 
 func (x CellStatus) Number() protoreflect.EnumNumber {
@@ -185,7 +240,7 @@ func (x CellStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CellStatus.Descriptor instead.
 func (CellStatus) EnumDescriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{2}
+	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{3}
 }
 
 // Severity grades a base-document-integrity issue.
@@ -225,11 +280,11 @@ func (x Severity) String() string {
 }
 
 func (Severity) Descriptor() protoreflect.EnumDescriptor {
-	return file_meta_optimization_manager_v1_shared_model_proto_enumTypes[3].Descriptor()
+	return file_meta_optimization_manager_v1_shared_model_proto_enumTypes[4].Descriptor()
 }
 
 func (Severity) Type() protoreflect.EnumType {
-	return &file_meta_optimization_manager_v1_shared_model_proto_enumTypes[3]
+	return &file_meta_optimization_manager_v1_shared_model_proto_enumTypes[4]
 }
 
 func (x Severity) Number() protoreflect.EnumNumber {
@@ -238,20 +293,25 @@ func (x Severity) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Severity.Descriptor instead.
 func (Severity) EnumDescriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{3}
+	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{4}
 }
 
 var File_meta_optimization_manager_v1_shared_model_proto protoreflect.FileDescriptor
 
 const file_meta_optimization_manager_v1_shared_model_proto_rawDesc = "" +
 	"\n" +
-	"/meta-optimization-manager/v1/shared/model.proto\x12*vrooli.meta_optimization_manager.v1.shared*n\n" +
+	"/meta-optimization-manager/v1/shared/model.proto\x12*vrooli.meta_optimization_manager.v1.shared*\x82\x01\n" +
 	"\n" +
 	"Projection\x12\x1a\n" +
 	"\x16PROJECTION_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11PROJECTION_ANSWER\x10\x01\x12\x17\n" +
 	"\x13PROJECTION_VALIDATE\x10\x02\x12\x14\n" +
-	"\x10PROJECTION_GUIDE\x10\x03*\xb0\x01\n" +
+	"\x10PROJECTION_GUIDE\x10\x03\x12\x12\n" +
+	"\x0ePROJECTION_ACT\x10\x04*R\n" +
+	"\aGapAxis\x12\x18\n" +
+	"\x14GAP_AXIS_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11GAP_AXIS_COVERAGE\x10\x01\x12\x16\n" +
+	"\x12GAP_AXIS_EMPIRICAL\x10\x02*\xb0\x01\n" +
 	"\x15DenominatorConfidence\x12&\n" +
 	"\"DENOMINATOR_CONFIDENCE_UNSPECIFIED\x10\x00\x12(\n" +
 	"$DENOMINATOR_CONFIDENCE_AUTHORITATIVE\x10\x01\x12\"\n" +
@@ -281,12 +341,13 @@ func file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP() []byte {
 	return file_meta_optimization_manager_v1_shared_model_proto_rawDescData
 }
 
-var file_meta_optimization_manager_v1_shared_model_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_meta_optimization_manager_v1_shared_model_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
 var file_meta_optimization_manager_v1_shared_model_proto_goTypes = []any{
 	(Projection)(0),            // 0: vrooli.meta_optimization_manager.v1.shared.Projection
-	(DenominatorConfidence)(0), // 1: vrooli.meta_optimization_manager.v1.shared.DenominatorConfidence
-	(CellStatus)(0),            // 2: vrooli.meta_optimization_manager.v1.shared.CellStatus
-	(Severity)(0),              // 3: vrooli.meta_optimization_manager.v1.shared.Severity
+	(GapAxis)(0),               // 1: vrooli.meta_optimization_manager.v1.shared.GapAxis
+	(DenominatorConfidence)(0), // 2: vrooli.meta_optimization_manager.v1.shared.DenominatorConfidence
+	(CellStatus)(0),            // 3: vrooli.meta_optimization_manager.v1.shared.CellStatus
+	(Severity)(0),              // 4: vrooli.meta_optimization_manager.v1.shared.Severity
 }
 var file_meta_optimization_manager_v1_shared_model_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -306,7 +367,7 @@ func file_meta_optimization_manager_v1_shared_model_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_meta_optimization_manager_v1_shared_model_proto_rawDesc), len(file_meta_optimization_manager_v1_shared_model_proto_rawDesc)),
-			NumEnums:      4,
+			NumEnums:      5,
 			NumMessages:   0,
 			NumExtensions: 0,
 			NumServices:   0,

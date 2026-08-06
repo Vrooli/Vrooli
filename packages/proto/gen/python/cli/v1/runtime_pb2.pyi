@@ -79,7 +79,7 @@ class CliSupervisorServiceResult(_message.Message):
     def __init__(self, unit_name: _Optional[str] = ..., unit_path: _Optional[str] = ..., scope: _Optional[str] = ..., active: _Optional[bool] = ...) -> None: ...
 
 class CliHostSnapshot(_message.Message):
-    __slots__ = ("os", "arch", "cpu", "load", "memory", "swap", "gpus", "gpu_processes", "runtime_tools", "docker_gpu", "warnings", "probe_statuses", "field_provenance")
+    __slots__ = ("os", "arch", "cpu", "load", "memory", "swap", "gpus", "gpu_processes", "runtime_tools", "docker_gpu", "warnings", "probe_statuses", "field_provenance", "display_attached", "remote_desktop", "display_server", "wayland_attainable", "wayland_reason", "display_manager", "session_type", "seat", "active_session_user", "auto_login_user")
     class RuntimeToolsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -114,6 +114,16 @@ class CliHostSnapshot(_message.Message):
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
     PROBE_STATUSES_FIELD_NUMBER: _ClassVar[int]
     FIELD_PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_ATTACHED_FIELD_NUMBER: _ClassVar[int]
+    REMOTE_DESKTOP_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_SERVER_FIELD_NUMBER: _ClassVar[int]
+    WAYLAND_ATTAINABLE_FIELD_NUMBER: _ClassVar[int]
+    WAYLAND_REASON_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_MANAGER_FIELD_NUMBER: _ClassVar[int]
+    SESSION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    SEAT_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_SESSION_USER_FIELD_NUMBER: _ClassVar[int]
+    AUTO_LOGIN_USER_FIELD_NUMBER: _ClassVar[int]
     os: str
     arch: str
     cpu: CliHostCPU
@@ -127,7 +137,65 @@ class CliHostSnapshot(_message.Message):
     warnings: _containers.RepeatedScalarFieldContainer[str]
     probe_statuses: _containers.ScalarMap[str, str]
     field_provenance: _containers.MessageMap[str, CliHostProvenance]
-    def __init__(self, os: _Optional[str] = ..., arch: _Optional[str] = ..., cpu: _Optional[_Union[CliHostCPU, _Mapping]] = ..., load: _Optional[_Union[CliHostLoad, _Mapping]] = ..., memory: _Optional[_Union[CliHostMemory, _Mapping]] = ..., swap: _Optional[_Union[CliHostSwap, _Mapping]] = ..., gpus: _Optional[_Iterable[_Union[CliHostGPU, _Mapping]]] = ..., gpu_processes: _Optional[_Iterable[_Union[CliHostGPUProcess, _Mapping]]] = ..., runtime_tools: _Optional[_Mapping[str, CliHostTool]] = ..., docker_gpu: _Optional[_Union[CliHostDockerGPU, _Mapping]] = ..., warnings: _Optional[_Iterable[str]] = ..., probe_statuses: _Optional[_Mapping[str, str]] = ..., field_provenance: _Optional[_Mapping[str, CliHostProvenance]] = ...) -> None: ...
+    display_attached: bool
+    remote_desktop: CliHostRemoteDesktop
+    display_server: str
+    wayland_attainable: bool
+    wayland_reason: str
+    display_manager: str
+    session_type: str
+    seat: str
+    active_session_user: str
+    auto_login_user: str
+    def __init__(self, os: _Optional[str] = ..., arch: _Optional[str] = ..., cpu: _Optional[_Union[CliHostCPU, _Mapping]] = ..., load: _Optional[_Union[CliHostLoad, _Mapping]] = ..., memory: _Optional[_Union[CliHostMemory, _Mapping]] = ..., swap: _Optional[_Union[CliHostSwap, _Mapping]] = ..., gpus: _Optional[_Iterable[_Union[CliHostGPU, _Mapping]]] = ..., gpu_processes: _Optional[_Iterable[_Union[CliHostGPUProcess, _Mapping]]] = ..., runtime_tools: _Optional[_Mapping[str, CliHostTool]] = ..., docker_gpu: _Optional[_Union[CliHostDockerGPU, _Mapping]] = ..., warnings: _Optional[_Iterable[str]] = ..., probe_statuses: _Optional[_Mapping[str, str]] = ..., field_provenance: _Optional[_Mapping[str, CliHostProvenance]] = ..., display_attached: _Optional[bool] = ..., remote_desktop: _Optional[_Union[CliHostRemoteDesktop, _Mapping]] = ..., display_server: _Optional[str] = ..., wayland_attainable: _Optional[bool] = ..., wayland_reason: _Optional[str] = ..., display_manager: _Optional[str] = ..., session_type: _Optional[str] = ..., seat: _Optional[str] = ..., active_session_user: _Optional[str] = ..., auto_login_user: _Optional[str] = ...) -> None: ...
+
+class CliHostRemoteDesktop(_message.Message):
+    __slots__ = ("supported", "observed", "mode", "active", "listening_port", "selected_provider", "providers", "credential_store")
+    SUPPORTED_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_FIELD_NUMBER: _ClassVar[int]
+    LISTENING_PORT_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    PROVIDERS_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_STORE_FIELD_NUMBER: _ClassVar[int]
+    supported: bool
+    observed: bool
+    mode: str
+    active: bool
+    listening_port: int
+    selected_provider: str
+    providers: _containers.RepeatedCompositeFieldContainer[CliHostRemoteDesktopProvider]
+    credential_store: CliHostCredentialStore
+    def __init__(self, supported: _Optional[bool] = ..., observed: _Optional[bool] = ..., mode: _Optional[str] = ..., active: _Optional[bool] = ..., listening_port: _Optional[int] = ..., selected_provider: _Optional[str] = ..., providers: _Optional[_Iterable[_Union[CliHostRemoteDesktopProvider, _Mapping]]] = ..., credential_store: _Optional[_Union[CliHostCredentialStore, _Mapping]] = ...) -> None: ...
+
+class CliHostRemoteDesktopProvider(_message.Message):
+    __slots__ = ("name", "present", "active", "probe_succeeded", "user_session")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    PRESENT_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_FIELD_NUMBER: _ClassVar[int]
+    PROBE_SUCCEEDED_FIELD_NUMBER: _ClassVar[int]
+    USER_SESSION_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    present: bool
+    active: bool
+    probe_succeeded: bool
+    user_session: bool
+    def __init__(self, name: _Optional[str] = ..., present: _Optional[bool] = ..., active: _Optional[bool] = ..., probe_succeeded: _Optional[bool] = ..., user_session: _Optional[bool] = ...) -> None: ...
+
+class CliHostCredentialStore(_message.Message):
+    __slots__ = ("supported", "observed", "state", "probe_succeeded", "reason")
+    SUPPORTED_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    PROBE_SUCCEEDED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    supported: bool
+    observed: bool
+    state: str
+    probe_succeeded: bool
+    reason: str
+    def __init__(self, supported: _Optional[bool] = ..., observed: _Optional[bool] = ..., state: _Optional[str] = ..., probe_succeeded: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class CliHostCPU(_message.Message):
     __slots__ = ("cores",)

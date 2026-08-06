@@ -16,17 +16,27 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimiz
 // encoding of that model. Keep them in lockstep with that document.
 // =============================================================================
 
-// Projection is one of the three readiness projections. Software engineering by
-// a (local) agent is understand -> change -> verify; each projection is owned by
-// the scenario holding its ground truth. The change itself (code synthesis) is
-// the model's own job and is NOT a projection — it is proven empirically by the
-// trials domain. UNSPECIFIED is used for gaps that are not projection-scoped
-// (e.g. convergence or cross-cutting/global gaps).
+// Projection is one of the readiness projections. Software engineering by a
+// (local) agent is understand -> change -> verify, and every change lands as an
+// effect on the system; each projection is owned by the scenario holding its
+// ground truth. The change itself (code synthesis) is the model's own job and is
+// NOT a projection — it is proven empirically by the trials domain. UNSPECIFIED
+// is used for gaps that are not projection-scoped (e.g. convergence or
+// cross-cutting/global gaps).
 enum Projection {
   PROJECTION_UNSPECIFIED = 0;
   PROJECTION_ANSWER = 1; // search-hub — can the project be understood?
   PROJECTION_VALIDATE = 2; // test-genie — can a change be verified + auto-fixed?
   PROJECTION_GUIDE = 3; // prompt-manager — is there a skill per SWE task?
+  PROJECTION_ACT = 4; // program-runtime — is each operation programmatically invocable?
+}
+
+// GapAxis distinguishes enumerable declared coverage from observed empirical
+// evidence, which has recurrence and traceability rather than a denominator.
+enum GapAxis {
+  GAP_AXIS_UNSPECIFIED = 0;
+  GAP_AXIS_COVERAGE = 1;
+  GAP_AXIS_EMPIRICAL = 2;
 }
 
 // DenominatorConfidence is how complete we believe a denominator (a space doc)

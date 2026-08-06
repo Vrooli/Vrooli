@@ -24,8 +24,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-
 // surfacing two kinds of one-click suggestions:
 //
 //   - Target suggestions: well-known Vrooli runtime state worth protecting
-//     (~/.vrooli/{plans,state,config,secrets.json} and runtime.db). v1 scope is
-//     ~/.vrooli only; scenario stores are a deferred follow-up.
+//     (~/.vrooli/{plans,state,config,data,secrets.enc.json} and runtime.db).
+//     The legacy plaintext secrets.json is excluded. v1 scope is ~/.vrooli
+//     only; scenario stores are a deferred follow-up.
 //   - Destination suggestions: places to back up TO, discovered OS-agnostically
 //     from mounted volumes, ranking plugged-in removable/external drives first.
 //

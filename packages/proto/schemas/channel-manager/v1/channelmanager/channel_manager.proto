@@ -25,8 +25,9 @@ message Identity {
   string platform_id = 2;
   string purpose = 3;
   string environment_ref = 4;
-  // Intentionally never populated: Vault paths are operationally sensitive.
-  string vault_ref = 5 [deprecated = true];
+	// Opaque credential-authority identity/field reference. Values never cross
+	// the API boundary; the executor resolves them in its own authority scope.
+	string credential_ref = 5;
   string status = 6;
   repeated string lane_grants = 7;
   string handle = 8;

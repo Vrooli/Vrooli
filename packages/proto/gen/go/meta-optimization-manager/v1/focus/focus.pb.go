@@ -24,18 +24,23 @@ const (
 
 // Gap is one known gap with its qualitative context.
 type Gap struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Projection    shared.Projection      `protobuf:"varint,2,opt,name=projection,proto3,enum=vrooli.meta_optimization_manager.v1.shared.Projection" json:"projection,omitempty"` // UNSPECIFIED for convergence / cross-cutting gaps
-	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Status        shared.CellStatus      `protobuf:"varint,4,opt,name=status,proto3,enum=vrooli.meta_optimization_manager.v1.shared.CellStatus" json:"status,omitempty"` // the source cell's status (usually MISSING / IN_REACH)
-	SourceCellId  string                 `protobuf:"bytes,5,opt,name=source_cell_id,json=sourceCellId,proto3" json:"source_cell_id,omitempty"`                           // the denominator cell this gap came from, if any
-	Global        bool                   `protobuf:"varint,6,opt,name=global,proto3" json:"global,omitempty"`                                                            // a cross-cutting gap not tied to a single cell
-	Notes         []string               `protobuf:"bytes,7,rep,name=notes,proto3" json:"notes,omitempty"`                                                               // qualitative context
-	Approaches    []string               `protobuf:"bytes,8,rep,name=approaches,proto3" json:"approaches,omitempty"`                                                     // explored-but-unbuilt ideas (the "store our thinking")
-	FollowUps     []string               `protobuf:"bytes,9,rep,name=follow_ups,json=followUps,proto3" json:"follow_ups,omitempty"`                                      // suggested next reads / commands
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Projection         shared.Projection      `protobuf:"varint,2,opt,name=projection,proto3,enum=vrooli.meta_optimization_manager.v1.shared.Projection" json:"projection,omitempty"` // UNSPECIFIED for convergence / cross-cutting gaps
+	Title              string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Status             shared.CellStatus      `protobuf:"varint,4,opt,name=status,proto3,enum=vrooli.meta_optimization_manager.v1.shared.CellStatus" json:"status,omitempty"` // the source cell's status (usually MISSING / IN_REACH)
+	SourceCellId       string                 `protobuf:"bytes,5,opt,name=source_cell_id,json=sourceCellId,proto3" json:"source_cell_id,omitempty"`                           // the denominator cell this gap came from, if any
+	Global             bool                   `protobuf:"varint,6,opt,name=global,proto3" json:"global,omitempty"`                                                            // a cross-cutting gap not tied to a single cell
+	Notes              []string               `protobuf:"bytes,7,rep,name=notes,proto3" json:"notes,omitempty"`                                                               // qualitative context
+	Approaches         []string               `protobuf:"bytes,8,rep,name=approaches,proto3" json:"approaches,omitempty"`                                                     // explored-but-unbuilt ideas (the "store our thinking")
+	FollowUps          []string               `protobuf:"bytes,9,rep,name=follow_ups,json=followUps,proto3" json:"follow_ups,omitempty"`                                      // suggested next reads / commands
+	Axis               shared.GapAxis         `protobuf:"varint,10,opt,name=axis,proto3,enum=vrooli.meta_optimization_manager.v1.shared.GapAxis" json:"axis,omitempty"`       // coverage or empirical
+	Recurrence         int32                  `protobuf:"varint,11,opt,name=recurrence,proto3" json:"recurrence,omitempty"`                                                   // independent observations for empirical gaps
+	EvidenceSource     string                 `protobuf:"bytes,12,opt,name=evidence_source,json=evidenceSource,proto3" json:"evidence_source,omitempty"`                      // source scenario/domain that produced the evidence
+	EvidenceLocator    string                 `protobuf:"bytes,13,opt,name=evidence_locator,json=evidenceLocator,proto3" json:"evidence_locator,omitempty"`                   // run/task locator a reader can follow
+	AvailabilityReason string                 `protobuf:"bytes,14,opt,name=availability_reason,json=availabilityReason,proto3" json:"availability_reason,omitempty"`          // honest per-source degradation, when present
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Gap) Reset() {
@@ -129,6 +134,41 @@ func (x *Gap) GetFollowUps() []string {
 		return x.FollowUps
 	}
 	return nil
+}
+
+func (x *Gap) GetAxis() shared.GapAxis {
+	if x != nil {
+		return x.Axis
+	}
+	return shared.GapAxis(0)
+}
+
+func (x *Gap) GetRecurrence() int32 {
+	if x != nil {
+		return x.Recurrence
+	}
+	return 0
+}
+
+func (x *Gap) GetEvidenceSource() string {
+	if x != nil {
+		return x.EvidenceSource
+	}
+	return ""
+}
+
+func (x *Gap) GetEvidenceLocator() string {
+	if x != nil {
+		return x.EvidenceLocator
+	}
+	return ""
+}
+
+func (x *Gap) GetAvailabilityReason() string {
+	if x != nil {
+		return x.AvailabilityReason
+	}
+	return ""
 }
 
 // FocusItem is a ranked next-best gap.
@@ -596,7 +636,7 @@ var File_meta_optimization_manager_v1_focus_focus_proto protoreflect.FileDescrip
 
 const file_meta_optimization_manager_v1_focus_focus_proto_rawDesc = "" +
 	"\n" +
-	".meta-optimization-manager/v1/focus/focus.proto\x12)vrooli.meta_optimization_manager.v1.focus\x1a/meta-optimization-manager/v1/shared/model.proto\"\xe6\x02\n" +
+	".meta-optimization-manager/v1/focus/focus.proto\x12)vrooli.meta_optimization_manager.v1.focus\x1a/meta-optimization-manager/v1/shared/model.proto\"\xd4\x04\n" +
 	"\x03Gap\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12V\n" +
 	"\n" +
@@ -611,7 +651,15 @@ const file_meta_optimization_manager_v1_focus_focus_proto_rawDesc = "" +
 	"approaches\x18\b \x03(\tR\n" +
 	"approaches\x12\x1d\n" +
 	"\n" +
-	"follow_ups\x18\t \x03(\tR\tfollowUps\"\xca\x01\n" +
+	"follow_ups\x18\t \x03(\tR\tfollowUps\x12G\n" +
+	"\x04axis\x18\n" +
+	" \x01(\x0e23.vrooli.meta_optimization_manager.v1.shared.GapAxisR\x04axis\x12\x1e\n" +
+	"\n" +
+	"recurrence\x18\v \x01(\x05R\n" +
+	"recurrence\x12'\n" +
+	"\x0fevidence_source\x18\f \x01(\tR\x0eevidenceSource\x12)\n" +
+	"\x10evidence_locator\x18\r \x01(\tR\x0fevidenceLocator\x12/\n" +
+	"\x13availability_reason\x18\x0e \x01(\tR\x12availabilityReason\"\xca\x01\n" +
 	"\tFocusItem\x12@\n" +
 	"\x03gap\x18\x01 \x01(\v2..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap\x12\x16\n" +
 	"\x06impact\x18\x02 \x01(\x01R\x06impact\x12\x1e\n" +
@@ -677,31 +725,33 @@ var file_meta_optimization_manager_v1_focus_focus_proto_goTypes = []any{
 	(*AddGapNoteResponse)(nil), // 9: vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse
 	(shared.Projection)(0),     // 10: vrooli.meta_optimization_manager.v1.shared.Projection
 	(shared.CellStatus)(0),     // 11: vrooli.meta_optimization_manager.v1.shared.CellStatus
+	(shared.GapAxis)(0),        // 12: vrooli.meta_optimization_manager.v1.shared.GapAxis
 }
 var file_meta_optimization_manager_v1_focus_focus_proto_depIdxs = []int32{
 	10, // 0: vrooli.meta_optimization_manager.v1.focus.Gap.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
 	11, // 1: vrooli.meta_optimization_manager.v1.focus.Gap.status:type_name -> vrooli.meta_optimization_manager.v1.shared.CellStatus
-	0,  // 2: vrooli.meta_optimization_manager.v1.focus.FocusItem.gap:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
-	10, // 3: vrooli.meta_optimization_manager.v1.focus.GetFocusRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
-	1,  // 4: vrooli.meta_optimization_manager.v1.focus.GetFocusResponse.items:type_name -> vrooli.meta_optimization_manager.v1.focus.FocusItem
-	10, // 5: vrooli.meta_optimization_manager.v1.focus.ListGapsRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
-	11, // 6: vrooli.meta_optimization_manager.v1.focus.ListGapsRequest.status:type_name -> vrooli.meta_optimization_manager.v1.shared.CellStatus
-	0,  // 7: vrooli.meta_optimization_manager.v1.focus.ListGapsResponse.gaps:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
-	0,  // 8: vrooli.meta_optimization_manager.v1.focus.GetGapResponse.gap:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
-	0,  // 9: vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse.gap:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
-	2,  // 10: vrooli.meta_optimization_manager.v1.focus.FocusService.GetFocus:input_type -> vrooli.meta_optimization_manager.v1.focus.GetFocusRequest
-	4,  // 11: vrooli.meta_optimization_manager.v1.focus.FocusService.ListGaps:input_type -> vrooli.meta_optimization_manager.v1.focus.ListGapsRequest
-	6,  // 12: vrooli.meta_optimization_manager.v1.focus.FocusService.GetGap:input_type -> vrooli.meta_optimization_manager.v1.focus.GetGapRequest
-	8,  // 13: vrooli.meta_optimization_manager.v1.focus.FocusService.AddGapNote:input_type -> vrooli.meta_optimization_manager.v1.focus.AddGapNoteRequest
-	3,  // 14: vrooli.meta_optimization_manager.v1.focus.FocusService.GetFocus:output_type -> vrooli.meta_optimization_manager.v1.focus.GetFocusResponse
-	5,  // 15: vrooli.meta_optimization_manager.v1.focus.FocusService.ListGaps:output_type -> vrooli.meta_optimization_manager.v1.focus.ListGapsResponse
-	7,  // 16: vrooli.meta_optimization_manager.v1.focus.FocusService.GetGap:output_type -> vrooli.meta_optimization_manager.v1.focus.GetGapResponse
-	9,  // 17: vrooli.meta_optimization_manager.v1.focus.FocusService.AddGapNote:output_type -> vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse
-	14, // [14:18] is the sub-list for method output_type
-	10, // [10:14] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	12, // 2: vrooli.meta_optimization_manager.v1.focus.Gap.axis:type_name -> vrooli.meta_optimization_manager.v1.shared.GapAxis
+	0,  // 3: vrooli.meta_optimization_manager.v1.focus.FocusItem.gap:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
+	10, // 4: vrooli.meta_optimization_manager.v1.focus.GetFocusRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
+	1,  // 5: vrooli.meta_optimization_manager.v1.focus.GetFocusResponse.items:type_name -> vrooli.meta_optimization_manager.v1.focus.FocusItem
+	10, // 6: vrooli.meta_optimization_manager.v1.focus.ListGapsRequest.projection:type_name -> vrooli.meta_optimization_manager.v1.shared.Projection
+	11, // 7: vrooli.meta_optimization_manager.v1.focus.ListGapsRequest.status:type_name -> vrooli.meta_optimization_manager.v1.shared.CellStatus
+	0,  // 8: vrooli.meta_optimization_manager.v1.focus.ListGapsResponse.gaps:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
+	0,  // 9: vrooli.meta_optimization_manager.v1.focus.GetGapResponse.gap:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
+	0,  // 10: vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse.gap:type_name -> vrooli.meta_optimization_manager.v1.focus.Gap
+	2,  // 11: vrooli.meta_optimization_manager.v1.focus.FocusService.GetFocus:input_type -> vrooli.meta_optimization_manager.v1.focus.GetFocusRequest
+	4,  // 12: vrooli.meta_optimization_manager.v1.focus.FocusService.ListGaps:input_type -> vrooli.meta_optimization_manager.v1.focus.ListGapsRequest
+	6,  // 13: vrooli.meta_optimization_manager.v1.focus.FocusService.GetGap:input_type -> vrooli.meta_optimization_manager.v1.focus.GetGapRequest
+	8,  // 14: vrooli.meta_optimization_manager.v1.focus.FocusService.AddGapNote:input_type -> vrooli.meta_optimization_manager.v1.focus.AddGapNoteRequest
+	3,  // 15: vrooli.meta_optimization_manager.v1.focus.FocusService.GetFocus:output_type -> vrooli.meta_optimization_manager.v1.focus.GetFocusResponse
+	5,  // 16: vrooli.meta_optimization_manager.v1.focus.FocusService.ListGaps:output_type -> vrooli.meta_optimization_manager.v1.focus.ListGapsResponse
+	7,  // 17: vrooli.meta_optimization_manager.v1.focus.FocusService.GetGap:output_type -> vrooli.meta_optimization_manager.v1.focus.GetGapResponse
+	9,  // 18: vrooli.meta_optimization_manager.v1.focus.FocusService.AddGapNote:output_type -> vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse
+	15, // [15:19] is the sub-list for method output_type
+	11, // [11:15] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_meta_optimization_manager_v1_focus_focus_proto_init() }

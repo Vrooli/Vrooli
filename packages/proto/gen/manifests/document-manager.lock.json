@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "document-manager",
+  "input_digest": "sha256:e0623d61c3ae72a86506ef1f6049f5f0b418e0b0616cb81f90d797000510ec4f",
+  "input_files": [
+    "schemas/document-manager/v1/notes/attachments.proto",
+    "schemas/document-manager/v1/notes/notes.proto",
+    "schemas/document-manager/v1/shared/errors.proto",
+    "schemas/document-manager/v1/shared/health.proto",
+    "schemas/measures/v1/measures.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/document-manager/v1/notes/attachments.pb.go": "sha256:1e5a257ef1b70bf5debedb4a5f0a16b3c98d7ce79b6becc35526994ae70f8eef",
+    "gen/go/document-manager/v1/notes/notes.pb.go": "sha256:16c7e3eafe3f3c6a747c76b245573d836499f8ce74ed00b57b5576399069a9dd",
+    "gen/go/document-manager/v1/notes/notes_v1connect/notes.connect.go": "sha256:9da2450fdf524f9058afc290fe55dc9b69046ce60c1a810ed57c33cc7aa22977",
+    "gen/go/document-manager/v1/shared/errors.pb.go": "sha256:4709f532b2629baea79532fc3725f4b20d897acf1a3b67709a2d9d7ca9cd1008",
+    "gen/go/document-manager/v1/shared/health.pb.go": "sha256:7a633b99d874a8a3dc0491448cb803195ee815225b3877ca87903175c9855c23",
+    "gen/python/document_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/document_manager/v1/notes/attachments_pb2.py": "sha256:a7e5a40c2f4f4c9fa20f095c72994971a6467bc4f487cbeced8d0e6f85bde8f1",
+    "gen/python/document_manager/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/document_manager/v1/notes/notes_pb2.py": "sha256:4e3d559ba5fedfbea5b4a1ce238506785a288dac416aa3a5a58d48d1b7d7d8f9",
+    "gen/python/document_manager/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/document_manager/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/document_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/document_manager/v1/shared/errors_pb2.py": "sha256:46890da836d698680d8abb3e34ad503354848c4dffdf814f9f1198852689c3e6",
+    "gen/python/document_manager/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/document_manager/v1/shared/health_pb2.py": "sha256:6f7003ff660828b776dd72bf0ba42dfb077d3395ea050584e1a5351fd6236274",
+    "gen/python/document_manager/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/document_manager/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/document-manager/v1/notes/attachments_pb.ts": "sha256:8a6f4c15b961bba846f30e29be67d32157d984d88e53bcbcd6670b7a54177872",
+    "gen/typescript/document-manager/v1/notes/notes_pb.ts": "sha256:65df9dba0815b8e83f52e9423759db9cce9328aea0826b5eab326b1303879ec4",
+    "gen/typescript/document-manager/v1/shared/errors_pb.ts": "sha256:a7d52886ea8b92c6ecfc8fa4c934ed904453a390bebe248fdc52b141b55da6d9",
+    "gen/typescript/document-manager/v1/shared/health_pb.ts": "sha256:fdac4d66d9b933cf41f23a879377b590a3caa1fe6d7e66d802e6278d8e6e2a77",
+    "gen/typescript/js/document-manager/v1/notes/attachments_pb.js": "sha256:d879d628bd72bfb3fcf5642f0b579e66da77e000798e7633175d7e4109ca2986",
+    "gen/typescript/js/document-manager/v1/notes/notes_pb.js": "sha256:0358494da7502012ff632ff2b7c9b827e1da223607c8e8e37e997ed43128ba8c",
+    "gen/typescript/js/document-manager/v1/shared/errors_pb.js": "sha256:6126dd9715ec3d2c33e4073587d8cd8737e50d2dbe9dc5e5b651f00095c86654",
+    "gen/typescript/js/document-manager/v1/shared/health_pb.js": "sha256:202caafd4cc743b74a4fd5a24cad9f4072a691644a4df72cf28b6eed3c4456e7"
+  }
+}

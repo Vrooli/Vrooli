@@ -9,15 +9,16 @@ import { enumDesc, fileDesc } from "@bufbuild/protobuf/codegenv2";
  * Describes the file meta-optimization-manager/v1/shared/model.proto.
  */
 export const file_meta_optimization_manager_v1_shared_model: GenFile = /*@__PURE__*/
-  fileDesc("Ci9tZXRhLW9wdGltaXphdGlvbi1tYW5hZ2VyL3YxL3NoYXJlZC9tb2RlbC5wcm90bxIqdnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuc2hhcmVkKm4KClByb2plY3Rpb24SGgoWUFJPSkVDVElPTl9VTlNQRUNJRklFRBAAEhUKEVBST0pFQ1RJT05fQU5TV0VSEAESFwoTUFJPSkVDVElPTl9WQUxJREFURRACEhQKEFBST0pFQ1RJT05fR1VJREUQAyqwAQoVRGVub21pbmF0b3JDb25maWRlbmNlEiYKIkRFTk9NSU5BVE9SX0NPTkZJREVOQ0VfVU5TUEVDSUZJRUQQABIoCiRERU5PTUlOQVRPUl9DT05GSURFTkNFX0FVVEhPUklUQVRJVkUQARIiCh5ERU5PTUlOQVRPUl9DT05GSURFTkNFX1BBUlRJQUwQAhIhCh1ERU5PTUlOQVRPUl9DT05GSURFTkNFX1NLRVRDSBADKnEKCkNlbGxTdGF0dXMSGwoXQ0VMTF9TVEFUVVNfVU5TUEVDSUZJRUQQABITCg9DRUxMX1NUQVRVU19OT1cQARIYChRDRUxMX1NUQVRVU19JTl9SRUFDSBACEhcKE0NFTExfU1RBVFVTX01JU1NJTkcQAypeCghTZXZlcml0eRIYChRTRVZFUklUWV9VTlNQRUNJRklFRBAAEhEKDVNFVkVSSVRZX0lORk8QARIRCg1TRVZFUklUWV9XQVJOEAISEgoOU0VWRVJJVFlfRVJST1IQA0JeWlxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL21ldGEtb3B0aW1pemF0aW9uLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("Ci9tZXRhLW9wdGltaXphdGlvbi1tYW5hZ2VyL3YxL3NoYXJlZC9tb2RlbC5wcm90bxIqdnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuc2hhcmVkKoIBCgpQcm9qZWN0aW9uEhoKFlBST0pFQ1RJT05fVU5TUEVDSUZJRUQQABIVChFQUk9KRUNUSU9OX0FOU1dFUhABEhcKE1BST0pFQ1RJT05fVkFMSURBVEUQAhIUChBQUk9KRUNUSU9OX0dVSURFEAMSEgoOUFJPSkVDVElPTl9BQ1QQBCpSCgdHYXBBeGlzEhgKFEdBUF9BWElTX1VOU1BFQ0lGSUVEEAASFQoRR0FQX0FYSVNfQ09WRVJBR0UQARIWChJHQVBfQVhJU19FTVBJUklDQUwQAiqwAQoVRGVub21pbmF0b3JDb25maWRlbmNlEiYKIkRFTk9NSU5BVE9SX0NPTkZJREVOQ0VfVU5TUEVDSUZJRUQQABIoCiRERU5PTUlOQVRPUl9DT05GSURFTkNFX0FVVEhPUklUQVRJVkUQARIiCh5ERU5PTUlOQVRPUl9DT05GSURFTkNFX1BBUlRJQUwQAhIhCh1ERU5PTUlOQVRPUl9DT05GSURFTkNFX1NLRVRDSBADKnEKCkNlbGxTdGF0dXMSGwoXQ0VMTF9TVEFUVVNfVU5TUEVDSUZJRUQQABITCg9DRUxMX1NUQVRVU19OT1cQARIYChRDRUxMX1NUQVRVU19JTl9SRUFDSBACEhcKE0NFTExfU1RBVFVTX01JU1NJTkcQAypeCghTZXZlcml0eRIYChRTRVZFUklUWV9VTlNQRUNJRklFRBAAEhEKDVNFVkVSSVRZX0lORk8QARIRCg1TRVZFUklUWV9XQVJOEAISEgoOU0VWRVJJVFlfRVJST1IQA0JeWlxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL21ldGEtb3B0aW1pemF0aW9uLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
 
 /**
- * Projection is one of the three readiness projections. Software engineering by
- * a (local) agent is understand -> change -> verify; each projection is owned by
- * the scenario holding its ground truth. The change itself (code synthesis) is
- * the model's own job and is NOT a projection — it is proven empirically by the
- * trials domain. UNSPECIFIED is used for gaps that are not projection-scoped
- * (e.g. convergence or cross-cutting/global gaps).
+ * Projection is one of the readiness projections. Software engineering by a
+ * (local) agent is understand -> change -> verify, and every change lands as an
+ * effect on the system; each projection is owned by the scenario holding its
+ * ground truth. The change itself (code synthesis) is the model's own job and is
+ * NOT a projection — it is proven empirically by the trials domain. UNSPECIFIED
+ * is used for gaps that are not projection-scoped (e.g. convergence or
+ * cross-cutting/global gaps).
  *
  * @generated from enum vrooli.meta_optimization_manager.v1.shared.Projection
  */
@@ -47,6 +48,13 @@ export enum Projection {
    * @generated from enum value: PROJECTION_GUIDE = 3;
    */
   GUIDE = 3,
+
+  /**
+   * program-runtime — is each operation programmatically invocable?
+   *
+   * @generated from enum value: PROJECTION_ACT = 4;
+   */
+  ACT = 4,
 }
 
 /**
@@ -54,6 +62,35 @@ export enum Projection {
  */
 export const ProjectionSchema: GenEnum<Projection> = /*@__PURE__*/
   enumDesc(file_meta_optimization_manager_v1_shared_model, 0);
+
+/**
+ * GapAxis distinguishes enumerable declared coverage from observed empirical
+ * evidence, which has recurrence and traceability rather than a denominator.
+ *
+ * @generated from enum vrooli.meta_optimization_manager.v1.shared.GapAxis
+ */
+export enum GapAxis {
+  /**
+   * @generated from enum value: GAP_AXIS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: GAP_AXIS_COVERAGE = 1;
+   */
+  COVERAGE = 1,
+
+  /**
+   * @generated from enum value: GAP_AXIS_EMPIRICAL = 2;
+   */
+  EMPIRICAL = 2,
+}
+
+/**
+ * Describes the enum vrooli.meta_optimization_manager.v1.shared.GapAxis.
+ */
+export const GapAxisSchema: GenEnum<GapAxis> = /*@__PURE__*/
+  enumDesc(file_meta_optimization_manager_v1_shared_model, 1);
 
 /**
  * DenominatorConfidence is how complete we believe a denominator (a space doc)
@@ -95,7 +132,7 @@ export enum DenominatorConfidence {
  * Describes the enum vrooli.meta_optimization_manager.v1.shared.DenominatorConfidence.
  */
 export const DenominatorConfidenceSchema: GenEnum<DenominatorConfidence> = /*@__PURE__*/
-  enumDesc(file_meta_optimization_manager_v1_shared_model, 1);
+  enumDesc(file_meta_optimization_manager_v1_shared_model, 2);
 
 /**
  * CellStatus is the live status of a single denominator cell.
@@ -134,7 +171,7 @@ export enum CellStatus {
  * Describes the enum vrooli.meta_optimization_manager.v1.shared.CellStatus.
  */
 export const CellStatusSchema: GenEnum<CellStatus> = /*@__PURE__*/
-  enumDesc(file_meta_optimization_manager_v1_shared_model, 2);
+  enumDesc(file_meta_optimization_manager_v1_shared_model, 3);
 
 /**
  * Severity grades a base-document-integrity issue.
@@ -169,5 +206,5 @@ export enum Severity {
  * Describes the enum vrooli.meta_optimization_manager.v1.shared.Severity.
  */
 export const SeveritySchema: GenEnum<Severity> = /*@__PURE__*/
-  enumDesc(file_meta_optimization_manager_v1_shared_model, 3);
+  enumDesc(file_meta_optimization_manager_v1_shared_model, 4);
 

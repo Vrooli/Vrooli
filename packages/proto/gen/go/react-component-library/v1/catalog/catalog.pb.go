@@ -630,11 +630,12 @@ func (x *GateFinding) GetSeverity() string {
 }
 
 type RunGateResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Gate          string                 `protobuf:"bytes,1,opt,name=gate,proto3" json:"gate,omitempty"`
-	Findings      []*GateFinding         `protobuf:"bytes,2,rep,name=findings,proto3" json:"findings,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Gate           string                 `protobuf:"bytes,1,opt,name=gate,proto3" json:"gate,omitempty"`
+	Findings       []*GateFinding         `protobuf:"bytes,2,rep,name=findings,proto3" json:"findings,omitempty"`
+	InspectedFiles int32                  `protobuf:"varint,3,opt,name=inspected_files,json=inspectedFiles,proto3" json:"inspected_files,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RunGateResponse) Reset() {
@@ -679,6 +680,13 @@ func (x *RunGateResponse) GetFindings() []*GateFinding {
 		return x.Findings
 	}
 	return nil
+}
+
+func (x *RunGateResponse) GetInspectedFiles() int32 {
+	if x != nil {
+		return x.InspectedFiles
+	}
+	return 0
 }
 
 var File_react_component_library_v1_catalog_catalog_proto protoreflect.FileDescriptor
@@ -734,10 +742,11 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x19\n" +
 	"\basset_id\x18\x03 \x01(\tR\aassetId\x12\x1a\n" +
-	"\bseverity\x18\x04 \x01(\tR\bseverity\"y\n" +
+	"\bseverity\x18\x04 \x01(\tR\bseverity\"\xa2\x01\n" +
 	"\x0fRunGateResponse\x12\x12\n" +
 	"\x04gate\x18\x01 \x01(\tR\x04gate\x12R\n" +
-	"\bfindings\x18\x02 \x03(\v26.vrooli.react_component_library.v1.catalog.GateFindingR\bfindings2\xb4\x03\n" +
+	"\bfindings\x18\x02 \x03(\v26.vrooli.react_component_library.v1.catalog.GateFindingR\bfindings\x12'\n" +
+	"\x0finspected_files\x18\x03 \x01(\x05R\x0einspectedFiles2\xb4\x03\n" +
 	"\x0eCatalogService\x12\x8c\x01\n" +
 	"\vGetCoverage\x12=.vrooli.react_component_library.v1.catalog.GetCoverageRequest\x1a>.vrooli.react_component_library.v1.catalog.GetCoverageResponse\x12\x8f\x01\n" +
 	"\fListNextWork\x12>.vrooli.react_component_library.v1.catalog.ListNextWorkRequest\x1a?.vrooli.react_component_library.v1.catalog.ListNextWorkResponse\x12\x80\x01\n" +

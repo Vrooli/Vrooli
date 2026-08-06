@@ -176,6 +176,49 @@ message CliHostSnapshot {
   // Per-field provenance keyed by field name (Go field "FieldProvenance", no
   // json tag; normalized to snake_case here).
   map<string, CliHostProvenance> field_provenance = 13;
+
+  // Whether the host reports a connected DRM display.
+  bool display_attached = 14;
+
+  // Shared display and remote-desktop observations.
+  CliHostRemoteDesktop remote_desktop = 15;
+
+  string display_server = 16;
+  bool wayland_attainable = 17;
+  string wayland_reason = 18;
+  string display_manager = 19;
+  string session_type = 20;
+  string seat = 21;
+  string active_session_user = 22;
+  string auto_login_user = 23;
+}
+
+// CliHostRemoteDesktop mirrors hostinventory.RemoteDesktopCapability.
+message CliHostRemoteDesktop {
+  bool supported = 1;
+  bool observed = 2;
+  string mode = 3;
+  bool active = 4;
+  int32 listening_port = 5;
+  string selected_provider = 6;
+  repeated CliHostRemoteDesktopProvider providers = 7;
+  CliHostCredentialStore credential_store = 8;
+}
+
+message CliHostRemoteDesktopProvider {
+  string name = 1;
+  bool present = 2;
+  bool active = 3;
+  bool probe_succeeded = 4;
+  bool user_session = 5;
+}
+
+message CliHostCredentialStore {
+  bool supported = 1;
+  bool observed = 2;
+  string state = 3;
+  bool probe_succeeded = 4;
+  string reason = 5;
 }
 
 // CliHostCPU mirrors hostinventory.CPU.

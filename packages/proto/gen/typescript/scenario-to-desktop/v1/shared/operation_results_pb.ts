@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scenario-to-desktop/v1/shared/operation_results.proto.
  */
 export const file_scenario_to_desktop_v1_shared_operation_results: GenFile = /*@__PURE__*/
-  fileDesc("CjVzY2VuYXJpby10by1kZXNrdG9wL3YxL3NoYXJlZC9vcGVyYXRpb25fcmVzdWx0cy5wcm90bxIkdnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkIqEDChNQbGF0Zm9ybUJ1aWxkUmVzdWx0EkAKCHBsYXRmb3JtGAEgASgOMi4udnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLlBsYXRmb3JtEkkKBnN0YXR1cxgCIAEoDjI5LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5QbGF0Zm9ybUJ1aWxkU3RhdHVzEi4KCnN0YXJ0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjUKDGNvbXBsZXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARIRCgllcnJvcl9sb2cYBSADKAkSFQoIYXJ0aWZhY3QYBiABKAlIAYgBARIWCglmaWxlX3NpemUYByABKANIAogBARIYCgtza2lwX3JlYXNvbhgIIAEoCUgDiAEBQg8KDV9jb21wbGV0ZWRfYXRCCwoJX2FydGlmYWN0QgwKCl9maWxlX3NpemVCDgoMX3NraXBfcmVhc29uIp0IChNCdWlsZFN0YXR1c1Jlc3BvbnNlEhAKCGJ1aWxkX2lkGAEgASgJEhUKDXNjZW5hcmlvX25hbWUYAiABKAkSQQoGc3RhdHVzGAMgASgOMjEudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLkJ1aWxkU3RhdHVzEkIKCWZyYW1ld29yaxgEIAEoDjIvLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5GcmFtZXdvcmsSSQoNdGVtcGxhdGVfdHlwZRgFIAEoDjIyLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5UZW1wbGF0ZVR5cGUSSwoTcmVxdWVzdGVkX3BsYXRmb3JtcxgGIAMoDjIuLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5QbGF0Zm9ybRJoChBwbGF0Zm9ybV9yZXN1bHRzGAcgAygLMk4udnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLkJ1aWxkU3RhdHVzUmVzcG9uc2UuUGxhdGZvcm1SZXN1bHRzRW50cnkSGAoLb3V0cHV0X3BhdGgYCCABKAlIAIgBARIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI1Cgxjb21wbGV0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAGIAQESEQoJZXJyb3JfbG9nGAsgAygJEhEKCWJ1aWxkX2xvZxgMIAMoCRJbCglhcnRpZmFjdHMYDSADKAsySC52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5zaGFyZWQuQnVpbGRTdGF0dXNSZXNwb25zZS5BcnRpZmFjdHNFbnRyeRJZCghtZXRhZGF0YRgOIAMoCzJHLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5CdWlsZFN0YXR1c1Jlc3BvbnNlLk1ldGFkYXRhRW50cnkacQoUUGxhdGZvcm1SZXN1bHRzRW50cnkSCwoDa2V5GAEgASgJEkgKBXZhbHVlGAIgASgLMjkudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLlBsYXRmb3JtQnVpbGRSZXN1bHQ6AjgBGjAKDkFydGlmYWN0c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQg4KDF9vdXRwdXRfcGF0aEIPCg1fY29tcGxldGVkX2F0IswBChZTY3JlZW5SZWNvcmRpbmdTdW1tYXJ5EhAKCHJlY29yZGVkGAEgASgIEhgKC2R1cmF0aW9uX21zGAIgASgDSACIAQESHAoPZmlsZV9zaXplX2J5dGVzGAMgASgDSAGIAQESEgoFZXJyb3IYBCABKAlIAogBARIXCgpjYXB0dXJlX2lkGAUgASgJSAOIAQFCDgoMX2R1cmF0aW9uX21zQhIKEF9maWxlX3NpemVfYnl0ZXNCCAoGX2Vycm9yQg0KC19jYXB0dXJlX2lkIvAEChdTbW9rZVRlc3RTdGF0dXNSZXNwb25zZRIVCg1zbW9rZV90ZXN0X2lkGAEgASgJEhUKDXNjZW5hcmlvX25hbWUYAiABKAkSQAoIcGxhdGZvcm0YAyABKA4yLi52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5zaGFyZWQuUGxhdGZvcm0SRQoGc3RhdHVzGAQgASgOMjUudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLlNtb2tlVGVzdFN0YXR1cxIaCg1hcnRpZmFjdF9wYXRoGAUgASgJSACIAQESLgoKc3RhcnRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNQoMY29tcGxldGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgBiAEBEgwKBGxvZ3MYCCADKAkSEgoFZXJyb3IYCSABKAlIAogBARIaChJ0ZWxlbWV0cnlfdXBsb2FkZWQYCiABKAgSIwoWdGVsZW1ldHJ5X3VwbG9hZF9lcnJvchgLIAEoCUgDiAEBElsKEHNjcmVlbl9yZWNvcmRpbmcYDCABKAsyPC52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5zaGFyZWQuU2NyZWVuUmVjb3JkaW5nU3VtbWFyeUgEiAEBQhAKDl9hcnRpZmFjdF9wYXRoQg8KDV9jb21wbGV0ZWRfYXRCCAoGX2Vycm9yQhkKF190ZWxlbWV0cnlfdXBsb2FkX2Vycm9yQhMKEV9zY3JlZW5fcmVjb3JkaW5nKsYBChNQbGF0Zm9ybUJ1aWxkU3RhdHVzEiUKIVBMQVRGT1JNX0JVSUxEX1NUQVRVU19VTlNQRUNJRklFRBAAEiIKHlBMQVRGT1JNX0JVSUxEX1NUQVRVU19CVUlMRElORxABEh8KG1BMQVRGT1JNX0JVSUxEX1NUQVRVU19SRUFEWRACEiAKHFBMQVRGT1JNX0JVSUxEX1NUQVRVU19GQUlMRUQQAxIhCh1QTEFURk9STV9CVUlMRF9TVEFUVVNfU0tJUFBFRBAEKo8BCg9TbW9rZVRlc3RTdGF0dXMSIQodU01PS0VfVEVTVF9TVEFUVVNfVU5TUEVDSUZJRUQQABIdChlTTU9LRV9URVNUX1NUQVRVU19SVU5OSU5HEAESHAoYU01PS0VfVEVTVF9TVEFUVVNfUEFTU0VEEAISHAoYU01PS0VfVEVTVF9TVEFUVVNfRkFJTEVEEANCVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zY2VuYXJpby10by1kZXNrdG9wL3YxL3NoYXJlZDtzaGFyZWRiBnByb3RvMw", [file_google_protobuf_timestamp, file_scenario_to_desktop_v1_shared_common]);
+  fileDesc("CjVzY2VuYXJpby10by1kZXNrdG9wL3YxL3NoYXJlZC9vcGVyYXRpb25fcmVzdWx0cy5wcm90bxIkdnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkIqEDChNQbGF0Zm9ybUJ1aWxkUmVzdWx0EkAKCHBsYXRmb3JtGAEgASgOMi4udnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLlBsYXRmb3JtEkkKBnN0YXR1cxgCIAEoDjI5LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5QbGF0Zm9ybUJ1aWxkU3RhdHVzEi4KCnN0YXJ0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjUKDGNvbXBsZXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARIRCgllcnJvcl9sb2cYBSADKAkSFQoIYXJ0aWZhY3QYBiABKAlIAYgBARIWCglmaWxlX3NpemUYByABKANIAogBARIYCgtza2lwX3JlYXNvbhgIIAEoCUgDiAEBQg8KDV9jb21wbGV0ZWRfYXRCCwoJX2FydGlmYWN0QgwKCl9maWxlX3NpemVCDgoMX3NraXBfcmVhc29uIp0IChNCdWlsZFN0YXR1c1Jlc3BvbnNlEhAKCGJ1aWxkX2lkGAEgASgJEhUKDXNjZW5hcmlvX25hbWUYAiABKAkSQQoGc3RhdHVzGAMgASgOMjEudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLkJ1aWxkU3RhdHVzEkIKCWZyYW1ld29yaxgEIAEoDjIvLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5GcmFtZXdvcmsSSQoNdGVtcGxhdGVfdHlwZRgFIAEoDjIyLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5UZW1wbGF0ZVR5cGUSSwoTcmVxdWVzdGVkX3BsYXRmb3JtcxgGIAMoDjIuLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5QbGF0Zm9ybRJoChBwbGF0Zm9ybV9yZXN1bHRzGAcgAygLMk4udnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLkJ1aWxkU3RhdHVzUmVzcG9uc2UuUGxhdGZvcm1SZXN1bHRzRW50cnkSGAoLb3V0cHV0X3BhdGgYCCABKAlIAIgBARIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI1Cgxjb21wbGV0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAGIAQESEQoJZXJyb3JfbG9nGAsgAygJEhEKCWJ1aWxkX2xvZxgMIAMoCRJbCglhcnRpZmFjdHMYDSADKAsySC52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5zaGFyZWQuQnVpbGRTdGF0dXNSZXNwb25zZS5BcnRpZmFjdHNFbnRyeRJZCghtZXRhZGF0YRgOIAMoCzJHLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5CdWlsZFN0YXR1c1Jlc3BvbnNlLk1ldGFkYXRhRW50cnkacQoUUGxhdGZvcm1SZXN1bHRzRW50cnkSCwoDa2V5GAEgASgJEkgKBXZhbHVlGAIgASgLMjkudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLlBsYXRmb3JtQnVpbGRSZXN1bHQ6AjgBGjAKDkFydGlmYWN0c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQg4KDF9vdXRwdXRfcGF0aEIPCg1fY29tcGxldGVkX2F0IswBChZTY3JlZW5SZWNvcmRpbmdTdW1tYXJ5EhAKCHJlY29yZGVkGAEgASgIEhgKC2R1cmF0aW9uX21zGAIgASgDSACIAQESHAoPZmlsZV9zaXplX2J5dGVzGAMgASgDSAGIAQESEgoFZXJyb3IYBCABKAlIAogBARIXCgpjYXB0dXJlX2lkGAUgASgJSAOIAQFCDgoMX2R1cmF0aW9uX21zQhIKEF9maWxlX3NpemVfYnl0ZXNCCAoGX2Vycm9yQg0KC19jYXB0dXJlX2lkIvMCCg9FdmlkZW5jZUNoYXB0ZXISCgoCaWQYASABKAkSDwoHcHVycG9zZRgCIAEoCRIOCgZhY3Rpb24YAyABKAkSEwoLZGlzcG9zaXRpb24YBCABKAkSGQoMYXNzZXJ0aW9uX2lkGAUgASgJSACIAQESFQoIZXhwZWN0ZWQYBiABKAlIAYgBARIVCghvYnNlcnZlZBgHIAEoCUgCiAEBEhIKBWVycm9yGAggASgJSAOIAQESIgoVdmlkZW9fc3RhcnRfb2Zmc2V0X21zGAkgASgDSASIAQESIAoTdmlkZW9fZW5kX29mZnNldF9tcxgKIAEoA0gFiAEBEhQKDGV2aWRlbmNlX2lkcxgLIAMoCUIPCg1fYXNzZXJ0aW9uX2lkQgsKCV9leHBlY3RlZEILCglfb2JzZXJ2ZWRCCAoGX2Vycm9yQhgKFl92aWRlb19zdGFydF9vZmZzZXRfbXNCFgoUX3ZpZGVvX2VuZF9vZmZzZXRfbXMilQQKDkV2aWRlbmNlUmV2aWV3EhYKDnNjaGVtYV92ZXJzaW9uGAEgASgJEhIKCmNhcGFiaWxpdHkYAiABKAkSDwoHcGxhbl9pZBgDIAEoCRIPCgdwcm9maWxlGAQgASgJEhMKC2Rpc3Bvc2l0aW9uGAUgASgJEhMKBnJlYXNvbhgGIAEoCUgAiAEBEkcKCGNoYXB0ZXJzGAcgAygLMjUudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLkV2aWRlbmNlQ2hhcHRlchITCgtldmVudF9jb3VudBgIIAEoBRIcCg9kZXBsb3ltZW50X21vZGUYCSABKAlIAYgBARIaCg1wcm92aWRlcl90aWVyGAogASgJSAKIAQESHQoQc2VydmljZV9pZGVudGl0eRgLIAEoCUgDiAEBEhYKCXJlYWRpbmVzcxgMIAEoCUgEiAEBEh4KEWZhbGxiYWNrX2RlY2lzaW9uGA0gASgJSAWIAQESHQoQc2FmZV9yb3V0ZV9jbGFzcxgOIAEoCUgGiAEBQgkKB19yZWFzb25CEgoQX2RlcGxveW1lbnRfbW9kZUIQCg5fcHJvdmlkZXJfdGllckITChFfc2VydmljZV9pZGVudGl0eUIMCgpfcmVhZGluZXNzQhQKEl9mYWxsYmFja19kZWNpc2lvbkITChFfc2FmZV9yb3V0ZV9jbGFzcyLYBQoXU21va2VUZXN0U3RhdHVzUmVzcG9uc2USFQoNc21va2VfdGVzdF9pZBgBIAEoCRIVCg1zY2VuYXJpb19uYW1lGAIgASgJEkAKCHBsYXRmb3JtGAMgASgOMi4udnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLlBsYXRmb3JtEkUKBnN0YXR1cxgEIAEoDjI1LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5TbW9rZVRlc3RTdGF0dXMSGgoNYXJ0aWZhY3RfcGF0aBgFIAEoCUgAiAEBEi4KCnN0YXJ0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjUKDGNvbXBsZXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAYgBARIMCgRsb2dzGAggAygJEhIKBWVycm9yGAkgASgJSAKIAQESGgoSdGVsZW1ldHJ5X3VwbG9hZGVkGAogASgIEiMKFnRlbGVtZXRyeV91cGxvYWRfZXJyb3IYCyABKAlIA4gBARJbChBzY3JlZW5fcmVjb3JkaW5nGAwgASgLMjwudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLlNjcmVlblJlY29yZGluZ1N1bW1hcnlIBIgBARJSCg9ldmlkZW5jZV9yZXZpZXcYDSABKAsyNC52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5zaGFyZWQuRXZpZGVuY2VSZXZpZXdIBYgBAUIQCg5fYXJ0aWZhY3RfcGF0aEIPCg1fY29tcGxldGVkX2F0QggKBl9lcnJvckIZChdfdGVsZW1ldHJ5X3VwbG9hZF9lcnJvckITChFfc2NyZWVuX3JlY29yZGluZ0ISChBfZXZpZGVuY2VfcmV2aWV3KsYBChNQbGF0Zm9ybUJ1aWxkU3RhdHVzEiUKIVBMQVRGT1JNX0JVSUxEX1NUQVRVU19VTlNQRUNJRklFRBAAEiIKHlBMQVRGT1JNX0JVSUxEX1NUQVRVU19CVUlMRElORxABEh8KG1BMQVRGT1JNX0JVSUxEX1NUQVRVU19SRUFEWRACEiAKHFBMQVRGT1JNX0JVSUxEX1NUQVRVU19GQUlMRUQQAxIhCh1QTEFURk9STV9CVUlMRF9TVEFUVVNfU0tJUFBFRBAEKo8BCg9TbW9rZVRlc3RTdGF0dXMSIQodU01PS0VfVEVTVF9TVEFUVVNfVU5TUEVDSUZJRUQQABIdChlTTU9LRV9URVNUX1NUQVRVU19SVU5OSU5HEAESHAoYU01PS0VfVEVTVF9TVEFUVVNfUEFTU0VEEAISHAoYU01PS0VfVEVTVF9TVEFUVVNfRkFJTEVEEANCVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zY2VuYXJpby10by1kZXNrdG9wL3YxL3NoYXJlZDtzaGFyZWRiBnByb3RvMw", [file_google_protobuf_timestamp, file_scenario_to_desktop_v1_shared_common]);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.shared.PlatformBuildResult
@@ -194,6 +194,159 @@ export const ScreenRecordingSummarySchema: GenMessage<ScreenRecordingSummary> = 
   messageDesc(file_scenario_to_desktop_v1_shared_operation_results, 2);
 
 /**
+ * EvidenceChapter is a reviewer-facing projection of one versioned journey
+ * step. It contains references and derived values only; credential material and
+ * host-local paths are never part of the status contract.
+ *
+ * @generated from message vrooli.scenario_to_desktop.v1.shared.EvidenceChapter
+ */
+export type EvidenceChapter = Message<"vrooli.scenario_to_desktop.v1.shared.EvidenceChapter"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string purpose = 2;
+   */
+  purpose: string;
+
+  /**
+   * @generated from field: string action = 3;
+   */
+  action: string;
+
+  /**
+   * @generated from field: string disposition = 4;
+   */
+  disposition: string;
+
+  /**
+   * @generated from field: optional string assertion_id = 5;
+   */
+  assertionId?: string | undefined;
+
+  /**
+   * @generated from field: optional string expected = 6;
+   */
+  expected?: string | undefined;
+
+  /**
+   * @generated from field: optional string observed = 7;
+   */
+  observed?: string | undefined;
+
+  /**
+   * @generated from field: optional string error = 8;
+   */
+  error?: string | undefined;
+
+  /**
+   * @generated from field: optional int64 video_start_offset_ms = 9;
+   */
+  videoStartOffsetMs?: bigint | undefined;
+
+  /**
+   * @generated from field: optional int64 video_end_offset_ms = 10;
+   */
+  videoEndOffsetMs?: bigint | undefined;
+
+  /**
+   * @generated from field: repeated string evidence_ids = 11;
+   */
+  evidenceIds: string[];
+};
+
+/**
+ * Describes the message vrooli.scenario_to_desktop.v1.shared.EvidenceChapter.
+ * Use `create(EvidenceChapterSchema)` to create a new message.
+ */
+export const EvidenceChapterSchema: GenMessage<EvidenceChapter> = /*@__PURE__*/
+  messageDesc(file_scenario_to_desktop_v1_shared_operation_results, 3);
+
+/**
+ * @generated from message vrooli.scenario_to_desktop.v1.shared.EvidenceReview
+ */
+export type EvidenceReview = Message<"vrooli.scenario_to_desktop.v1.shared.EvidenceReview"> & {
+  /**
+   * @generated from field: string schema_version = 1;
+   */
+  schemaVersion: string;
+
+  /**
+   * @generated from field: string capability = 2;
+   */
+  capability: string;
+
+  /**
+   * @generated from field: string plan_id = 3;
+   */
+  planId: string;
+
+  /**
+   * @generated from field: string profile = 4;
+   */
+  profile: string;
+
+  /**
+   * @generated from field: string disposition = 5;
+   */
+  disposition: string;
+
+  /**
+   * @generated from field: optional string reason = 6;
+   */
+  reason?: string | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.scenario_to_desktop.v1.shared.EvidenceChapter chapters = 7;
+   */
+  chapters: EvidenceChapter[];
+
+  /**
+   * @generated from field: int32 event_count = 8;
+   */
+  eventCount: number;
+
+  /**
+   * @generated from field: optional string deployment_mode = 9;
+   */
+  deploymentMode?: string | undefined;
+
+  /**
+   * @generated from field: optional string provider_tier = 10;
+   */
+  providerTier?: string | undefined;
+
+  /**
+   * @generated from field: optional string service_identity = 11;
+   */
+  serviceIdentity?: string | undefined;
+
+  /**
+   * @generated from field: optional string readiness = 12;
+   */
+  readiness?: string | undefined;
+
+  /**
+   * @generated from field: optional string fallback_decision = 13;
+   */
+  fallbackDecision?: string | undefined;
+
+  /**
+   * @generated from field: optional string safe_route_class = 14;
+   */
+  safeRouteClass?: string | undefined;
+};
+
+/**
+ * Describes the message vrooli.scenario_to_desktop.v1.shared.EvidenceReview.
+ * Use `create(EvidenceReviewSchema)` to create a new message.
+ */
+export const EvidenceReviewSchema: GenMessage<EvidenceReview> = /*@__PURE__*/
+  messageDesc(file_scenario_to_desktop_v1_shared_operation_results, 4);
+
+/**
  * @generated from message vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
  */
 export type SmokeTestStatusResponse = Message<"vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse"> & {
@@ -256,6 +409,11 @@ export type SmokeTestStatusResponse = Message<"vrooli.scenario_to_desktop.v1.sha
    * @generated from field: optional vrooli.scenario_to_desktop.v1.shared.ScreenRecordingSummary screen_recording = 12;
    */
   screenRecording?: ScreenRecordingSummary | undefined;
+
+  /**
+   * @generated from field: optional vrooli.scenario_to_desktop.v1.shared.EvidenceReview evidence_review = 13;
+   */
+  evidenceReview?: EvidenceReview | undefined;
 };
 
 /**
@@ -263,7 +421,7 @@ export type SmokeTestStatusResponse = Message<"vrooli.scenario_to_desktop.v1.sha
  * Use `create(SmokeTestStatusResponseSchema)` to create a new message.
  */
 export const SmokeTestStatusResponseSchema: GenMessage<SmokeTestStatusResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_shared_operation_results, 3);
+  messageDesc(file_scenario_to_desktop_v1_shared_operation_results, 5);
 
 /**
  * @generated from enum vrooli.scenario_to_desktop.v1.shared.PlatformBuildStatus

@@ -45,6 +45,11 @@ message Gap {
   repeated string notes = 7; // qualitative context
   repeated string approaches = 8; // explored-but-unbuilt ideas (the "store our thinking")
   repeated string follow_ups = 9; // suggested next reads / commands
+  shared.GapAxis axis = 10; // coverage or empirical
+  int32 recurrence = 11; // independent observations for empirical gaps
+  string evidence_source = 12; // source scenario/domain that produced the evidence
+  string evidence_locator = 13; // run/task locator a reader can follow
+  string availability_reason = 14; // honest per-source degradation, when present
 }
 
 // FocusItem is a ranked next-best gap.

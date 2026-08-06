@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "data-backup-manager",
-  "input_digest": "sha256:2033421c409b0d52478b399086dda88d33225b49612b7a37ddb6281fbd6ef11b",
+  "input_digest": "sha256:41f97d3738ca7b6bff07e5abe7e5084ba407b1f1206f77c6d7f24bb359b909d5",
   "input_files": [
     "schemas/data-backup-manager/v1/audits/audits.proto",
     "schemas/data-backup-manager/v1/coverage/coverage.proto",

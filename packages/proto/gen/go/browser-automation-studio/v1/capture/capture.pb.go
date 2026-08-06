@@ -8,6 +8,7 @@ package capture
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	base "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -369,8 +370,17 @@ type CaptureRequest struct {
 	// also list CAPTURE_TYPE_ACCESSIBILITY), and the server caps the inline
 	// payload (currently 2 MiB) and truncates beyond it.
 	InlineAccessibility bool `protobuf:"varint,9,opt,name=inline_accessibility,json=inlineAccessibility,proto3" json:"inline_accessibility,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// When true, the accessibility snapshot also includes the resolved CSS
+	// properties requested by the capture producer for every joined DOM node.
+	InlineComputedStyle bool `protobuf:"varint,10,opt,name=inline_computed_style,json=inlineComputedStyle,proto3" json:"inline_computed_style,omitempty"`
+	// Browser context preferences for this capture matrix point. These are
+	// forwarded to the execution session and are independent of viewport size.
+	BrowserProfile *base.BrowserProfile `protobuf:"bytes,11,opt,name=browser_profile,json=browserProfile,proto3" json:"browser_profile,omitempty"`
+	// Interaction state requested by the capture matrix. The service preserves
+	// this value while constructing the stateful capture flow.
+	InteractionState string `protobuf:"bytes,12,opt,name=interaction_state,json=interactionState,proto3" json:"interaction_state,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CaptureRequest) Reset() {
@@ -464,6 +474,27 @@ func (x *CaptureRequest) GetInlineAccessibility() bool {
 		return x.InlineAccessibility
 	}
 	return false
+}
+
+func (x *CaptureRequest) GetInlineComputedStyle() bool {
+	if x != nil {
+		return x.InlineComputedStyle
+	}
+	return false
+}
+
+func (x *CaptureRequest) GetBrowserProfile() *base.BrowserProfile {
+	if x != nil {
+		return x.BrowserProfile
+	}
+	return nil
+}
+
+func (x *CaptureRequest) GetInteractionState() string {
+	if x != nil {
+		return x.InteractionState
+	}
+	return ""
 }
 
 type CaptureArtifact struct {
@@ -804,7 +835,7 @@ var File_browser_automation_studio_v1_capture_capture_proto protoreflect.FileDes
 
 const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\n" +
-	"2browser-automation-studio/v1/capture/capture.proto\x12$browser_automation_studio.v1.capture\x1a\x1bbuf/validate/validate.proto\"\xa7\x02\n" +
+	"2browser-automation-studio/v1/capture/capture.proto\x12$browser_automation_studio.v1.capture\x1a\x1bbuf/validate/validate.proto\x1a7browser-automation-studio/v1/base/browser_profile.proto\"\xa7\x02\n" +
 	"\n" +
 	"Dimensions\x12N\n" +
 	"\x06preset\x18\x01 \x01(\x0e26.browser_automation_studio.v1.capture.DimensionsPresetR\x06preset\x12%\n" +
@@ -821,7 +852,7 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\vnetworkidle\x18\x02 \x01(\bH\x00R\vnetworkidle\x12\x1f\n" +
 	"\n" +
 	"timeout_ms\x18\x03 \x01(\x05H\x00R\ttimeoutMsB\x06\n" +
-	"\x04spec\"\xcb\x03\n" +
+	"\x04spec\"\x83\x05\n" +
 	"\x0eCaptureRequest\x12\x19\n" +
 	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\x12M\n" +
 	"\bcaptures\x18\x02 \x03(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\bcaptures\x12P\n" +
@@ -834,7 +865,11 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\n" +
 	"inline_dom\x18\a \x01(\bR\tinlineDom\x122\n" +
 	"\x15interaction_flow_json\x18\b \x01(\tR\x13interactionFlowJson\x121\n" +
-	"\x14inline_accessibility\x18\t \x01(\bR\x13inlineAccessibility\"\xe1\x02\n" +
+	"\x14inline_accessibility\x18\t \x01(\bR\x13inlineAccessibility\x122\n" +
+	"\x15inline_computed_style\x18\n" +
+	" \x01(\bR\x13inlineComputedStyle\x12U\n" +
+	"\x0fbrowser_profile\x18\v \x01(\v2,.browser_automation_studio.v1.BrowserProfileR\x0ebrowserProfile\x12+\n" +
+	"\x11interaction_state\x18\f \x01(\tR\x10interactionState\"\xe1\x02\n" +
 	"\x0fCaptureArtifact\x12E\n" +
 	"\x04type\x18\x01 \x01(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\x04type\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1d\n" +
@@ -910,23 +945,25 @@ var file_browser_automation_studio_v1_capture_capture_proto_goTypes = []any{
 	(*CaptureResponse)(nil),             // 6: browser_automation_studio.v1.capture.CaptureResponse
 	(*CaptureReadinessDiagnostics)(nil), // 7: browser_automation_studio.v1.capture.CaptureReadinessDiagnostics
 	nil,                                 // 8: browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntry
+	(*base.BrowserProfile)(nil),         // 9: browser_automation_studio.v1.BrowserProfile
 }
 var file_browser_automation_studio_v1_capture_capture_proto_depIdxs = []int32{
-	1, // 0: browser_automation_studio.v1.capture.Dimensions.preset:type_name -> browser_automation_studio.v1.capture.DimensionsPreset
-	0, // 1: browser_automation_studio.v1.capture.CaptureRequest.captures:type_name -> browser_automation_studio.v1.capture.CaptureType
-	2, // 2: browser_automation_studio.v1.capture.CaptureRequest.dimensions:type_name -> browser_automation_studio.v1.capture.Dimensions
-	3, // 3: browser_automation_studio.v1.capture.CaptureRequest.wait_for:type_name -> browser_automation_studio.v1.capture.WaitFor
-	0, // 4: browser_automation_studio.v1.capture.CaptureArtifact.type:type_name -> browser_automation_studio.v1.capture.CaptureType
-	8, // 5: browser_automation_studio.v1.capture.CaptureArtifact.metadata:type_name -> browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntry
-	5, // 6: browser_automation_studio.v1.capture.CaptureResponse.artifacts:type_name -> browser_automation_studio.v1.capture.CaptureArtifact
-	7, // 7: browser_automation_studio.v1.capture.CaptureResponse.readiness:type_name -> browser_automation_studio.v1.capture.CaptureReadinessDiagnostics
-	4, // 8: browser_automation_studio.v1.capture.CaptureService.Capture:input_type -> browser_automation_studio.v1.capture.CaptureRequest
-	6, // 9: browser_automation_studio.v1.capture.CaptureService.Capture:output_type -> browser_automation_studio.v1.capture.CaptureResponse
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	1,  // 0: browser_automation_studio.v1.capture.Dimensions.preset:type_name -> browser_automation_studio.v1.capture.DimensionsPreset
+	0,  // 1: browser_automation_studio.v1.capture.CaptureRequest.captures:type_name -> browser_automation_studio.v1.capture.CaptureType
+	2,  // 2: browser_automation_studio.v1.capture.CaptureRequest.dimensions:type_name -> browser_automation_studio.v1.capture.Dimensions
+	3,  // 3: browser_automation_studio.v1.capture.CaptureRequest.wait_for:type_name -> browser_automation_studio.v1.capture.WaitFor
+	9,  // 4: browser_automation_studio.v1.capture.CaptureRequest.browser_profile:type_name -> browser_automation_studio.v1.BrowserProfile
+	0,  // 5: browser_automation_studio.v1.capture.CaptureArtifact.type:type_name -> browser_automation_studio.v1.capture.CaptureType
+	8,  // 6: browser_automation_studio.v1.capture.CaptureArtifact.metadata:type_name -> browser_automation_studio.v1.capture.CaptureArtifact.MetadataEntry
+	5,  // 7: browser_automation_studio.v1.capture.CaptureResponse.artifacts:type_name -> browser_automation_studio.v1.capture.CaptureArtifact
+	7,  // 8: browser_automation_studio.v1.capture.CaptureResponse.readiness:type_name -> browser_automation_studio.v1.capture.CaptureReadinessDiagnostics
+	4,  // 9: browser_automation_studio.v1.capture.CaptureService.Capture:input_type -> browser_automation_studio.v1.capture.CaptureRequest
+	6,  // 10: browser_automation_studio.v1.capture.CaptureService.Capture:output_type -> browser_automation_studio.v1.capture.CaptureResponse
+	10, // [10:11] is the sub-list for method output_type
+	9,  // [9:10] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_capture_capture_proto_init() }

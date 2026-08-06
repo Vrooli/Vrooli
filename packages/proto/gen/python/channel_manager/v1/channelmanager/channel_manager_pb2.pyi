@@ -11,12 +11,12 @@ class GetOverviewRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class Identity(_message.Message):
-    __slots__ = ("id", "platform_id", "purpose", "environment_ref", "vault_ref", "status", "lane_grants", "handle", "display_label", "lifecycle", "automation_mode")
+    __slots__ = ("id", "platform_id", "purpose", "environment_ref", "credential_ref", "status", "lane_grants", "handle", "display_label", "lifecycle", "automation_mode")
     ID_FIELD_NUMBER: _ClassVar[int]
     PLATFORM_ID_FIELD_NUMBER: _ClassVar[int]
     PURPOSE_FIELD_NUMBER: _ClassVar[int]
     ENVIRONMENT_REF_FIELD_NUMBER: _ClassVar[int]
-    VAULT_REF_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_REF_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     LANE_GRANTS_FIELD_NUMBER: _ClassVar[int]
     HANDLE_FIELD_NUMBER: _ClassVar[int]
@@ -27,14 +27,14 @@ class Identity(_message.Message):
     platform_id: str
     purpose: str
     environment_ref: str
-    vault_ref: str
+    credential_ref: str
     status: str
     lane_grants: _containers.RepeatedScalarFieldContainer[str]
     handle: str
     display_label: str
     lifecycle: str
     automation_mode: str
-    def __init__(self, id: _Optional[str] = ..., platform_id: _Optional[str] = ..., purpose: _Optional[str] = ..., environment_ref: _Optional[str] = ..., vault_ref: _Optional[str] = ..., status: _Optional[str] = ..., lane_grants: _Optional[_Iterable[str]] = ..., handle: _Optional[str] = ..., display_label: _Optional[str] = ..., lifecycle: _Optional[str] = ..., automation_mode: _Optional[str] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., platform_id: _Optional[str] = ..., purpose: _Optional[str] = ..., environment_ref: _Optional[str] = ..., credential_ref: _Optional[str] = ..., status: _Optional[str] = ..., lane_grants: _Optional[_Iterable[str]] = ..., handle: _Optional[str] = ..., display_label: _Optional[str] = ..., lifecycle: _Optional[str] = ..., automation_mode: _Optional[str] = ...) -> None: ...
 
 class Action(_message.Message):
     __slots__ = ("id", "identity_id", "kind", "window", "status", "rolled_count")

@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Gap(_message.Message):
-    __slots__ = ("id", "projection", "title", "status", "source_cell_id", "notes", "approaches", "follow_ups")
+    __slots__ = ("id", "projection", "title", "status", "source_cell_id", "notes", "approaches", "follow_ups", "axis", "recurrence", "evidence_source", "evidence_locator", "availability_reason")
     ID_FIELD_NUMBER: _ClassVar[int]
     PROJECTION_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -18,6 +18,11 @@ class Gap(_message.Message):
     NOTES_FIELD_NUMBER: _ClassVar[int]
     APPROACHES_FIELD_NUMBER: _ClassVar[int]
     FOLLOW_UPS_FIELD_NUMBER: _ClassVar[int]
+    AXIS_FIELD_NUMBER: _ClassVar[int]
+    RECURRENCE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_LOCATOR_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_REASON_FIELD_NUMBER: _ClassVar[int]
     id: str
     projection: _model_pb2.Projection
     title: str
@@ -26,7 +31,12 @@ class Gap(_message.Message):
     notes: _containers.RepeatedScalarFieldContainer[str]
     approaches: _containers.RepeatedScalarFieldContainer[str]
     follow_ups: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., title: _Optional[str] = ..., status: _Optional[_Union[_model_pb2.CellStatus, str]] = ..., source_cell_id: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., approaches: _Optional[_Iterable[str]] = ..., follow_ups: _Optional[_Iterable[str]] = ..., **kwargs) -> None: ...
+    axis: _model_pb2.GapAxis
+    recurrence: int
+    evidence_source: str
+    evidence_locator: str
+    availability_reason: str
+    def __init__(self, id: _Optional[str] = ..., projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., title: _Optional[str] = ..., status: _Optional[_Union[_model_pb2.CellStatus, str]] = ..., source_cell_id: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., approaches: _Optional[_Iterable[str]] = ..., follow_ups: _Optional[_Iterable[str]] = ..., axis: _Optional[_Union[_model_pb2.GapAxis, str]] = ..., recurrence: _Optional[int] = ..., evidence_source: _Optional[str] = ..., evidence_locator: _Optional[str] = ..., availability_reason: _Optional[str] = ..., **kwargs) -> None: ...
 
 class FocusItem(_message.Message):
     __slots__ = ("gap", "impact", "importance", "priority_score", "rationale")

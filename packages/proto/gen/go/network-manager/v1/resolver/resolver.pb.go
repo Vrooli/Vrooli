@@ -205,7 +205,7 @@ type ConfigureAdGuardHomeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BaseUrl       string                 `protobuf:"bytes,1,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
 	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
-	TokenRef      string                 `protobuf:"bytes,3,opt,name=token_ref,json=tokenRef,proto3" json:"token_ref,omitempty"`
+	CredentialRef string                 `protobuf:"bytes,3,opt,name=credential_ref,json=credentialRef,proto3" json:"credential_ref,omitempty"`
 	DryRun        bool                   `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -255,9 +255,9 @@ func (x *ConfigureAdGuardHomeRequest) GetUsername() string {
 	return ""
 }
 
-func (x *ConfigureAdGuardHomeRequest) GetTokenRef() string {
+func (x *ConfigureAdGuardHomeRequest) GetCredentialRef() string {
 	if x != nil {
-		return x.TokenRef
+		return x.CredentialRef
 	}
 	return ""
 }
@@ -785,11 +785,11 @@ const file_network_manager_v1_resolver_resolver_proto_rawDesc = "" +
 	"\x14enforcement_evidence\x18\b \x03(\tR\x13enforcementEvidence\"\x1a\n" +
 	"\x18GetResolverStatusRequest\"g\n" +
 	"\x19GetResolverStatusResponse\x12J\n" +
-	"\x06status\x18\x01 \x01(\v22.vrooli.network_manager.v1.resolver.ResolverStatusR\x06status\"\x8a\x01\n" +
+	"\x06status\x18\x01 \x01(\v22.vrooli.network_manager.v1.resolver.ResolverStatusR\x06status\"\x94\x01\n" +
 	"\x1bConfigureAdGuardHomeRequest\x12\x19\n" +
 	"\bbase_url\x18\x01 \x01(\tR\abaseUrl\x12\x1a\n" +
-	"\busername\x18\x02 \x01(\tR\busername\x12\x1b\n" +
-	"\ttoken_ref\x18\x03 \x01(\tR\btokenRef\x12\x17\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12%\n" +
+	"\x0ecredential_ref\x18\x03 \x01(\tR\rcredentialRef\x12\x17\n" +
 	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\x89\x01\n" +
 	"\x1cConfigureAdGuardHomeResponse\x12J\n" +
 	"\x06status\x18\x01 \x01(\v22.vrooli.network_manager.v1.resolver.ResolverStatusR\x06status\x12\x1d\n" +

@@ -458,8 +458,20 @@ type CliHostSnapshot struct {
 	// Per-field provenance keyed by field name (Go field "FieldProvenance", no
 	// json tag; normalized to snake_case here).
 	FieldProvenance map[string]*CliHostProvenance `protobuf:"bytes,13,rep,name=field_provenance,json=fieldProvenance,proto3" json:"field_provenance,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Whether the host reports a connected DRM display.
+	DisplayAttached bool `protobuf:"varint,14,opt,name=display_attached,json=displayAttached,proto3" json:"display_attached,omitempty"`
+	// Shared display and remote-desktop observations.
+	RemoteDesktop     *CliHostRemoteDesktop `protobuf:"bytes,15,opt,name=remote_desktop,json=remoteDesktop,proto3" json:"remote_desktop,omitempty"`
+	DisplayServer     string                `protobuf:"bytes,16,opt,name=display_server,json=displayServer,proto3" json:"display_server,omitempty"`
+	WaylandAttainable bool                  `protobuf:"varint,17,opt,name=wayland_attainable,json=waylandAttainable,proto3" json:"wayland_attainable,omitempty"`
+	WaylandReason     string                `protobuf:"bytes,18,opt,name=wayland_reason,json=waylandReason,proto3" json:"wayland_reason,omitempty"`
+	DisplayManager    string                `protobuf:"bytes,19,opt,name=display_manager,json=displayManager,proto3" json:"display_manager,omitempty"`
+	SessionType       string                `protobuf:"bytes,20,opt,name=session_type,json=sessionType,proto3" json:"session_type,omitempty"`
+	Seat              string                `protobuf:"bytes,21,opt,name=seat,proto3" json:"seat,omitempty"`
+	ActiveSessionUser string                `protobuf:"bytes,22,opt,name=active_session_user,json=activeSessionUser,proto3" json:"active_session_user,omitempty"`
+	AutoLoginUser     string                `protobuf:"bytes,23,opt,name=auto_login_user,json=autoLoginUser,proto3" json:"auto_login_user,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *CliHostSnapshot) Reset() {
@@ -583,6 +595,329 @@ func (x *CliHostSnapshot) GetFieldProvenance() map[string]*CliHostProvenance {
 	return nil
 }
 
+func (x *CliHostSnapshot) GetDisplayAttached() bool {
+	if x != nil {
+		return x.DisplayAttached
+	}
+	return false
+}
+
+func (x *CliHostSnapshot) GetRemoteDesktop() *CliHostRemoteDesktop {
+	if x != nil {
+		return x.RemoteDesktop
+	}
+	return nil
+}
+
+func (x *CliHostSnapshot) GetDisplayServer() string {
+	if x != nil {
+		return x.DisplayServer
+	}
+	return ""
+}
+
+func (x *CliHostSnapshot) GetWaylandAttainable() bool {
+	if x != nil {
+		return x.WaylandAttainable
+	}
+	return false
+}
+
+func (x *CliHostSnapshot) GetWaylandReason() string {
+	if x != nil {
+		return x.WaylandReason
+	}
+	return ""
+}
+
+func (x *CliHostSnapshot) GetDisplayManager() string {
+	if x != nil {
+		return x.DisplayManager
+	}
+	return ""
+}
+
+func (x *CliHostSnapshot) GetSessionType() string {
+	if x != nil {
+		return x.SessionType
+	}
+	return ""
+}
+
+func (x *CliHostSnapshot) GetSeat() string {
+	if x != nil {
+		return x.Seat
+	}
+	return ""
+}
+
+func (x *CliHostSnapshot) GetActiveSessionUser() string {
+	if x != nil {
+		return x.ActiveSessionUser
+	}
+	return ""
+}
+
+func (x *CliHostSnapshot) GetAutoLoginUser() string {
+	if x != nil {
+		return x.AutoLoginUser
+	}
+	return ""
+}
+
+// CliHostRemoteDesktop mirrors hostinventory.RemoteDesktopCapability.
+type CliHostRemoteDesktop struct {
+	state            protoimpl.MessageState          `protogen:"open.v1"`
+	Supported        bool                            `protobuf:"varint,1,opt,name=supported,proto3" json:"supported,omitempty"`
+	Observed         bool                            `protobuf:"varint,2,opt,name=observed,proto3" json:"observed,omitempty"`
+	Mode             string                          `protobuf:"bytes,3,opt,name=mode,proto3" json:"mode,omitempty"`
+	Active           bool                            `protobuf:"varint,4,opt,name=active,proto3" json:"active,omitempty"`
+	ListeningPort    int32                           `protobuf:"varint,5,opt,name=listening_port,json=listeningPort,proto3" json:"listening_port,omitempty"`
+	SelectedProvider string                          `protobuf:"bytes,6,opt,name=selected_provider,json=selectedProvider,proto3" json:"selected_provider,omitempty"`
+	Providers        []*CliHostRemoteDesktopProvider `protobuf:"bytes,7,rep,name=providers,proto3" json:"providers,omitempty"`
+	CredentialStore  *CliHostCredentialStore         `protobuf:"bytes,8,opt,name=credential_store,json=credentialStore,proto3" json:"credential_store,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CliHostRemoteDesktop) Reset() {
+	*x = CliHostRemoteDesktop{}
+	mi := &file_cli_v1_runtime_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CliHostRemoteDesktop) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CliHostRemoteDesktop) ProtoMessage() {}
+
+func (x *CliHostRemoteDesktop) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_runtime_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CliHostRemoteDesktop.ProtoReflect.Descriptor instead.
+func (*CliHostRemoteDesktop) Descriptor() ([]byte, []int) {
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CliHostRemoteDesktop) GetSupported() bool {
+	if x != nil {
+		return x.Supported
+	}
+	return false
+}
+
+func (x *CliHostRemoteDesktop) GetObserved() bool {
+	if x != nil {
+		return x.Observed
+	}
+	return false
+}
+
+func (x *CliHostRemoteDesktop) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *CliHostRemoteDesktop) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
+}
+
+func (x *CliHostRemoteDesktop) GetListeningPort() int32 {
+	if x != nil {
+		return x.ListeningPort
+	}
+	return 0
+}
+
+func (x *CliHostRemoteDesktop) GetSelectedProvider() string {
+	if x != nil {
+		return x.SelectedProvider
+	}
+	return ""
+}
+
+func (x *CliHostRemoteDesktop) GetProviders() []*CliHostRemoteDesktopProvider {
+	if x != nil {
+		return x.Providers
+	}
+	return nil
+}
+
+func (x *CliHostRemoteDesktop) GetCredentialStore() *CliHostCredentialStore {
+	if x != nil {
+		return x.CredentialStore
+	}
+	return nil
+}
+
+type CliHostRemoteDesktopProvider struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Present        bool                   `protobuf:"varint,2,opt,name=present,proto3" json:"present,omitempty"`
+	Active         bool                   `protobuf:"varint,3,opt,name=active,proto3" json:"active,omitempty"`
+	ProbeSucceeded bool                   `protobuf:"varint,4,opt,name=probe_succeeded,json=probeSucceeded,proto3" json:"probe_succeeded,omitempty"`
+	UserSession    bool                   `protobuf:"varint,5,opt,name=user_session,json=userSession,proto3" json:"user_session,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CliHostRemoteDesktopProvider) Reset() {
+	*x = CliHostRemoteDesktopProvider{}
+	mi := &file_cli_v1_runtime_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CliHostRemoteDesktopProvider) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CliHostRemoteDesktopProvider) ProtoMessage() {}
+
+func (x *CliHostRemoteDesktopProvider) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_runtime_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CliHostRemoteDesktopProvider.ProtoReflect.Descriptor instead.
+func (*CliHostRemoteDesktopProvider) Descriptor() ([]byte, []int) {
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CliHostRemoteDesktopProvider) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CliHostRemoteDesktopProvider) GetPresent() bool {
+	if x != nil {
+		return x.Present
+	}
+	return false
+}
+
+func (x *CliHostRemoteDesktopProvider) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
+}
+
+func (x *CliHostRemoteDesktopProvider) GetProbeSucceeded() bool {
+	if x != nil {
+		return x.ProbeSucceeded
+	}
+	return false
+}
+
+func (x *CliHostRemoteDesktopProvider) GetUserSession() bool {
+	if x != nil {
+		return x.UserSession
+	}
+	return false
+}
+
+type CliHostCredentialStore struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Supported      bool                   `protobuf:"varint,1,opt,name=supported,proto3" json:"supported,omitempty"`
+	Observed       bool                   `protobuf:"varint,2,opt,name=observed,proto3" json:"observed,omitempty"`
+	State          string                 `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	ProbeSucceeded bool                   `protobuf:"varint,4,opt,name=probe_succeeded,json=probeSucceeded,proto3" json:"probe_succeeded,omitempty"`
+	Reason         string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CliHostCredentialStore) Reset() {
+	*x = CliHostCredentialStore{}
+	mi := &file_cli_v1_runtime_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CliHostCredentialStore) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CliHostCredentialStore) ProtoMessage() {}
+
+func (x *CliHostCredentialStore) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_runtime_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CliHostCredentialStore.ProtoReflect.Descriptor instead.
+func (*CliHostCredentialStore) Descriptor() ([]byte, []int) {
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CliHostCredentialStore) GetSupported() bool {
+	if x != nil {
+		return x.Supported
+	}
+	return false
+}
+
+func (x *CliHostCredentialStore) GetObserved() bool {
+	if x != nil {
+		return x.Observed
+	}
+	return false
+}
+
+func (x *CliHostCredentialStore) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *CliHostCredentialStore) GetProbeSucceeded() bool {
+	if x != nil {
+		return x.ProbeSucceeded
+	}
+	return false
+}
+
+func (x *CliHostCredentialStore) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 // CliHostCPU mirrors hostinventory.CPU.
 type CliHostCPU struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -594,7 +929,7 @@ type CliHostCPU struct {
 
 func (x *CliHostCPU) Reset() {
 	*x = CliHostCPU{}
-	mi := &file_cli_v1_runtime_proto_msgTypes[5]
+	mi := &file_cli_v1_runtime_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -606,7 +941,7 @@ func (x *CliHostCPU) String() string {
 func (*CliHostCPU) ProtoMessage() {}
 
 func (x *CliHostCPU) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_runtime_proto_msgTypes[5]
+	mi := &file_cli_v1_runtime_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -619,7 +954,7 @@ func (x *CliHostCPU) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CliHostCPU.ProtoReflect.Descriptor instead.
 func (*CliHostCPU) Descriptor() ([]byte, []int) {
-	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{5}
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CliHostCPU) GetCores() int32 {
@@ -654,7 +989,7 @@ type CliHostLoad struct {
 
 func (x *CliHostLoad) Reset() {
 	*x = CliHostLoad{}
-	mi := &file_cli_v1_runtime_proto_msgTypes[6]
+	mi := &file_cli_v1_runtime_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -666,7 +1001,7 @@ func (x *CliHostLoad) String() string {
 func (*CliHostLoad) ProtoMessage() {}
 
 func (x *CliHostLoad) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_runtime_proto_msgTypes[6]
+	mi := &file_cli_v1_runtime_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -679,7 +1014,7 @@ func (x *CliHostLoad) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CliHostLoad.ProtoReflect.Descriptor instead.
 func (*CliHostLoad) Descriptor() ([]byte, []int) {
-	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{6}
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CliHostLoad) GetLoad1() float64 {
@@ -756,7 +1091,7 @@ type CliHostMemory struct {
 
 func (x *CliHostMemory) Reset() {
 	*x = CliHostMemory{}
-	mi := &file_cli_v1_runtime_proto_msgTypes[7]
+	mi := &file_cli_v1_runtime_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -768,7 +1103,7 @@ func (x *CliHostMemory) String() string {
 func (*CliHostMemory) ProtoMessage() {}
 
 func (x *CliHostMemory) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_runtime_proto_msgTypes[7]
+	mi := &file_cli_v1_runtime_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -781,7 +1116,7 @@ func (x *CliHostMemory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CliHostMemory.ProtoReflect.Descriptor instead.
 func (*CliHostMemory) Descriptor() ([]byte, []int) {
-	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{7}
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CliHostMemory) GetTotalBytes() int64 {
@@ -826,7 +1161,7 @@ type CliHostSwap struct {
 
 func (x *CliHostSwap) Reset() {
 	*x = CliHostSwap{}
-	mi := &file_cli_v1_runtime_proto_msgTypes[8]
+	mi := &file_cli_v1_runtime_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -838,7 +1173,7 @@ func (x *CliHostSwap) String() string {
 func (*CliHostSwap) ProtoMessage() {}
 
 func (x *CliHostSwap) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_runtime_proto_msgTypes[8]
+	mi := &file_cli_v1_runtime_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -851,7 +1186,7 @@ func (x *CliHostSwap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CliHostSwap.ProtoReflect.Descriptor instead.
 func (*CliHostSwap) Descriptor() ([]byte, []int) {
-	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{8}
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CliHostSwap) GetTotalBytes() int64 {
@@ -908,7 +1243,7 @@ type CliHostGPU struct {
 
 func (x *CliHostGPU) Reset() {
 	*x = CliHostGPU{}
-	mi := &file_cli_v1_runtime_proto_msgTypes[9]
+	mi := &file_cli_v1_runtime_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -920,7 +1255,7 @@ func (x *CliHostGPU) String() string {
 func (*CliHostGPU) ProtoMessage() {}
 
 func (x *CliHostGPU) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_runtime_proto_msgTypes[9]
+	mi := &file_cli_v1_runtime_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -933,7 +1268,7 @@ func (x *CliHostGPU) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CliHostGPU.ProtoReflect.Descriptor instead.
 func (*CliHostGPU) Descriptor() ([]byte, []int) {
-	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{9}
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CliHostGPU) GetIndex() int32 {
@@ -1060,7 +1395,7 @@ type CliHostGPUProcess struct {
 
 func (x *CliHostGPUProcess) Reset() {
 	*x = CliHostGPUProcess{}
-	mi := &file_cli_v1_runtime_proto_msgTypes[10]
+	mi := &file_cli_v1_runtime_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1072,7 +1407,7 @@ func (x *CliHostGPUProcess) String() string {
 func (*CliHostGPUProcess) ProtoMessage() {}
 
 func (x *CliHostGPUProcess) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_runtime_proto_msgTypes[10]
+	mi := &file_cli_v1_runtime_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1085,7 +1420,7 @@ func (x *CliHostGPUProcess) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CliHostGPUProcess.ProtoReflect.Descriptor instead.
 func (*CliHostGPUProcess) Descriptor() ([]byte, []int) {
-	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{10}
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CliHostGPUProcess) GetGpuIndex() int32 {
@@ -1134,7 +1469,7 @@ type CliHostDockerGPU struct {
 
 func (x *CliHostDockerGPU) Reset() {
 	*x = CliHostDockerGPU{}
-	mi := &file_cli_v1_runtime_proto_msgTypes[11]
+	mi := &file_cli_v1_runtime_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1146,7 +1481,7 @@ func (x *CliHostDockerGPU) String() string {
 func (*CliHostDockerGPU) ProtoMessage() {}
 
 func (x *CliHostDockerGPU) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_runtime_proto_msgTypes[11]
+	mi := &file_cli_v1_runtime_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1159,7 +1494,7 @@ func (x *CliHostDockerGPU) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CliHostDockerGPU.ProtoReflect.Descriptor instead.
 func (*CliHostDockerGPU) Descriptor() ([]byte, []int) {
-	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{11}
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CliHostDockerGPU) GetNvidiaRuntime() bool {
@@ -1182,7 +1517,7 @@ type CliHostTool struct {
 
 func (x *CliHostTool) Reset() {
 	*x = CliHostTool{}
-	mi := &file_cli_v1_runtime_proto_msgTypes[12]
+	mi := &file_cli_v1_runtime_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1194,7 +1529,7 @@ func (x *CliHostTool) String() string {
 func (*CliHostTool) ProtoMessage() {}
 
 func (x *CliHostTool) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_runtime_proto_msgTypes[12]
+	mi := &file_cli_v1_runtime_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1207,7 +1542,7 @@ func (x *CliHostTool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CliHostTool.ProtoReflect.Descriptor instead.
 func (*CliHostTool) Descriptor() ([]byte, []int) {
-	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{12}
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CliHostTool) GetPresent() bool {
@@ -1245,7 +1580,7 @@ type CliHostProvenance struct {
 
 func (x *CliHostProvenance) Reset() {
 	*x = CliHostProvenance{}
-	mi := &file_cli_v1_runtime_proto_msgTypes[13]
+	mi := &file_cli_v1_runtime_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1257,7 +1592,7 @@ func (x *CliHostProvenance) String() string {
 func (*CliHostProvenance) ProtoMessage() {}
 
 func (x *CliHostProvenance) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_runtime_proto_msgTypes[13]
+	mi := &file_cli_v1_runtime_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1270,7 +1605,7 @@ func (x *CliHostProvenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CliHostProvenance.ProtoReflect.Descriptor instead.
 func (*CliHostProvenance) Descriptor() ([]byte, []int) {
-	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{13}
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CliHostProvenance) GetSourceKind() string {
@@ -1345,7 +1680,7 @@ type CliHostInstallStatus struct {
 
 func (x *CliHostInstallStatus) Reset() {
 	*x = CliHostInstallStatus{}
-	mi := &file_cli_v1_runtime_proto_msgTypes[14]
+	mi := &file_cli_v1_runtime_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1357,7 +1692,7 @@ func (x *CliHostInstallStatus) String() string {
 func (*CliHostInstallStatus) ProtoMessage() {}
 
 func (x *CliHostInstallStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_runtime_proto_msgTypes[14]
+	mi := &file_cli_v1_runtime_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1370,7 +1705,7 @@ func (x *CliHostInstallStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CliHostInstallStatus.ProtoReflect.Descriptor instead.
 func (*CliHostInstallStatus) Descriptor() ([]byte, []int) {
-	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{14}
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CliHostInstallStatus) GetName() string {
@@ -1478,7 +1813,7 @@ const file_cli_v1_runtime_proto_rawDesc = "" +
 	"\tunit_name\x18\x01 \x01(\tR\bunitName\x12\x1b\n" +
 	"\tunit_path\x18\x02 \x01(\tR\bunitPath\x12\x14\n" +
 	"\x05scope\x18\x03 \x01(\tR\x05scope\x12\x16\n" +
-	"\x06active\x18\x04 \x01(\bR\x06active\"\xe0\a\n" +
+	"\x06active\x18\x04 \x01(\bR\x06active\"\x8c\v\n" +
 	"\x0fCliHostSnapshot\x12\x0e\n" +
 	"\x02os\x18\x01 \x01(\tR\x02os\x12\x12\n" +
 	"\x04arch\x18\x02 \x01(\tR\x04arch\x12+\n" +
@@ -1494,7 +1829,17 @@ const file_cli_v1_runtime_proto_rawDesc = "" +
 	" \x01(\v2\x1f.vrooli.cli.v1.CliHostDockerGPUR\tdockerGpu\x12\x1a\n" +
 	"\bwarnings\x18\v \x03(\tR\bwarnings\x12X\n" +
 	"\x0eprobe_statuses\x18\f \x03(\v21.vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntryR\rprobeStatuses\x12^\n" +
-	"\x10field_provenance\x18\r \x03(\v23.vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntryR\x0ffieldProvenance\x1a[\n" +
+	"\x10field_provenance\x18\r \x03(\v23.vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntryR\x0ffieldProvenance\x12)\n" +
+	"\x10display_attached\x18\x0e \x01(\bR\x0fdisplayAttached\x12J\n" +
+	"\x0eremote_desktop\x18\x0f \x01(\v2#.vrooli.cli.v1.CliHostRemoteDesktopR\rremoteDesktop\x12%\n" +
+	"\x0edisplay_server\x18\x10 \x01(\tR\rdisplayServer\x12-\n" +
+	"\x12wayland_attainable\x18\x11 \x01(\bR\x11waylandAttainable\x12%\n" +
+	"\x0ewayland_reason\x18\x12 \x01(\tR\rwaylandReason\x12'\n" +
+	"\x0fdisplay_manager\x18\x13 \x01(\tR\x0edisplayManager\x12!\n" +
+	"\fsession_type\x18\x14 \x01(\tR\vsessionType\x12\x12\n" +
+	"\x04seat\x18\x15 \x01(\tR\x04seat\x12.\n" +
+	"\x13active_session_user\x18\x16 \x01(\tR\x11activeSessionUser\x12&\n" +
+	"\x0fauto_login_user\x18\x17 \x01(\tR\rautoLoginUser\x1a[\n" +
 	"\x11RuntimeToolsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
 	"\x05value\x18\x02 \x01(\v2\x1a.vrooli.cli.v1.CliHostToolR\x05value:\x028\x01\x1a@\n" +
@@ -1503,7 +1848,28 @@ const file_cli_v1_runtime_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1ad\n" +
 	"\x14FieldProvenanceEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x126\n" +
-	"\x05value\x18\x02 \x01(\v2 .vrooli.cli.v1.CliHostProvenanceR\x05value:\x028\x01\"\"\n" +
+	"\x05value\x18\x02 \x01(\v2 .vrooli.cli.v1.CliHostProvenanceR\x05value:\x028\x01\"\xed\x02\n" +
+	"\x14CliHostRemoteDesktop\x12\x1c\n" +
+	"\tsupported\x18\x01 \x01(\bR\tsupported\x12\x1a\n" +
+	"\bobserved\x18\x02 \x01(\bR\bobserved\x12\x12\n" +
+	"\x04mode\x18\x03 \x01(\tR\x04mode\x12\x16\n" +
+	"\x06active\x18\x04 \x01(\bR\x06active\x12%\n" +
+	"\x0elistening_port\x18\x05 \x01(\x05R\rlisteningPort\x12+\n" +
+	"\x11selected_provider\x18\x06 \x01(\tR\x10selectedProvider\x12I\n" +
+	"\tproviders\x18\a \x03(\v2+.vrooli.cli.v1.CliHostRemoteDesktopProviderR\tproviders\x12P\n" +
+	"\x10credential_store\x18\b \x01(\v2%.vrooli.cli.v1.CliHostCredentialStoreR\x0fcredentialStore\"\xb0\x01\n" +
+	"\x1cCliHostRemoteDesktopProvider\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\apresent\x18\x02 \x01(\bR\apresent\x12\x16\n" +
+	"\x06active\x18\x03 \x01(\bR\x06active\x12'\n" +
+	"\x0fprobe_succeeded\x18\x04 \x01(\bR\x0eprobeSucceeded\x12!\n" +
+	"\fuser_session\x18\x05 \x01(\bR\vuserSession\"\xa9\x01\n" +
+	"\x16CliHostCredentialStore\x12\x1c\n" +
+	"\tsupported\x18\x01 \x01(\bR\tsupported\x12\x1a\n" +
+	"\bobserved\x18\x02 \x01(\bR\bobserved\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12'\n" +
+	"\x0fprobe_succeeded\x18\x04 \x01(\bR\x0eprobeSucceeded\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"\"\n" +
 	"\n" +
 	"CliHostCPU\x12\x14\n" +
 	"\x05cores\x18\x01 \x01(\x05R\x05cores\"\x88\x02\n" +
@@ -1595,46 +1961,52 @@ func file_cli_v1_runtime_proto_rawDescGZIP() []byte {
 	return file_cli_v1_runtime_proto_rawDescData
 }
 
-var file_cli_v1_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_cli_v1_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_cli_v1_runtime_proto_goTypes = []any{
-	(*CliVersion)(nil),                 // 0: vrooli.cli.v1.CliVersion
-	(*CliSupervisorStatus)(nil),        // 1: vrooli.cli.v1.CliSupervisorStatus
-	(*CliSupervisorTick)(nil),          // 2: vrooli.cli.v1.CliSupervisorTick
-	(*CliSupervisorServiceResult)(nil), // 3: vrooli.cli.v1.CliSupervisorServiceResult
-	(*CliHostSnapshot)(nil),            // 4: vrooli.cli.v1.CliHostSnapshot
-	(*CliHostCPU)(nil),                 // 5: vrooli.cli.v1.CliHostCPU
-	(*CliHostLoad)(nil),                // 6: vrooli.cli.v1.CliHostLoad
-	(*CliHostMemory)(nil),              // 7: vrooli.cli.v1.CliHostMemory
-	(*CliHostSwap)(nil),                // 8: vrooli.cli.v1.CliHostSwap
-	(*CliHostGPU)(nil),                 // 9: vrooli.cli.v1.CliHostGPU
-	(*CliHostGPUProcess)(nil),          // 10: vrooli.cli.v1.CliHostGPUProcess
-	(*CliHostDockerGPU)(nil),           // 11: vrooli.cli.v1.CliHostDockerGPU
-	(*CliHostTool)(nil),                // 12: vrooli.cli.v1.CliHostTool
-	(*CliHostProvenance)(nil),          // 13: vrooli.cli.v1.CliHostProvenance
-	(*CliHostInstallStatus)(nil),       // 14: vrooli.cli.v1.CliHostInstallStatus
-	nil,                                // 15: vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
-	nil,                                // 16: vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
-	nil,                                // 17: vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
+	(*CliVersion)(nil),                   // 0: vrooli.cli.v1.CliVersion
+	(*CliSupervisorStatus)(nil),          // 1: vrooli.cli.v1.CliSupervisorStatus
+	(*CliSupervisorTick)(nil),            // 2: vrooli.cli.v1.CliSupervisorTick
+	(*CliSupervisorServiceResult)(nil),   // 3: vrooli.cli.v1.CliSupervisorServiceResult
+	(*CliHostSnapshot)(nil),              // 4: vrooli.cli.v1.CliHostSnapshot
+	(*CliHostRemoteDesktop)(nil),         // 5: vrooli.cli.v1.CliHostRemoteDesktop
+	(*CliHostRemoteDesktopProvider)(nil), // 6: vrooli.cli.v1.CliHostRemoteDesktopProvider
+	(*CliHostCredentialStore)(nil),       // 7: vrooli.cli.v1.CliHostCredentialStore
+	(*CliHostCPU)(nil),                   // 8: vrooli.cli.v1.CliHostCPU
+	(*CliHostLoad)(nil),                  // 9: vrooli.cli.v1.CliHostLoad
+	(*CliHostMemory)(nil),                // 10: vrooli.cli.v1.CliHostMemory
+	(*CliHostSwap)(nil),                  // 11: vrooli.cli.v1.CliHostSwap
+	(*CliHostGPU)(nil),                   // 12: vrooli.cli.v1.CliHostGPU
+	(*CliHostGPUProcess)(nil),            // 13: vrooli.cli.v1.CliHostGPUProcess
+	(*CliHostDockerGPU)(nil),             // 14: vrooli.cli.v1.CliHostDockerGPU
+	(*CliHostTool)(nil),                  // 15: vrooli.cli.v1.CliHostTool
+	(*CliHostProvenance)(nil),            // 16: vrooli.cli.v1.CliHostProvenance
+	(*CliHostInstallStatus)(nil),         // 17: vrooli.cli.v1.CliHostInstallStatus
+	nil,                                  // 18: vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
+	nil,                                  // 19: vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
+	nil,                                  // 20: vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
 }
 var file_cli_v1_runtime_proto_depIdxs = []int32{
 	2,  // 0: vrooli.cli.v1.CliSupervisorStatus.last_tick:type_name -> vrooli.cli.v1.CliSupervisorTick
-	5,  // 1: vrooli.cli.v1.CliHostSnapshot.cpu:type_name -> vrooli.cli.v1.CliHostCPU
-	6,  // 2: vrooli.cli.v1.CliHostSnapshot.load:type_name -> vrooli.cli.v1.CliHostLoad
-	7,  // 3: vrooli.cli.v1.CliHostSnapshot.memory:type_name -> vrooli.cli.v1.CliHostMemory
-	8,  // 4: vrooli.cli.v1.CliHostSnapshot.swap:type_name -> vrooli.cli.v1.CliHostSwap
-	9,  // 5: vrooli.cli.v1.CliHostSnapshot.gpus:type_name -> vrooli.cli.v1.CliHostGPU
-	10, // 6: vrooli.cli.v1.CliHostSnapshot.gpu_processes:type_name -> vrooli.cli.v1.CliHostGPUProcess
-	15, // 7: vrooli.cli.v1.CliHostSnapshot.runtime_tools:type_name -> vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
-	11, // 8: vrooli.cli.v1.CliHostSnapshot.docker_gpu:type_name -> vrooli.cli.v1.CliHostDockerGPU
-	16, // 9: vrooli.cli.v1.CliHostSnapshot.probe_statuses:type_name -> vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
-	17, // 10: vrooli.cli.v1.CliHostSnapshot.field_provenance:type_name -> vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
-	12, // 11: vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry.value:type_name -> vrooli.cli.v1.CliHostTool
-	13, // 12: vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry.value:type_name -> vrooli.cli.v1.CliHostProvenance
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	8,  // 1: vrooli.cli.v1.CliHostSnapshot.cpu:type_name -> vrooli.cli.v1.CliHostCPU
+	9,  // 2: vrooli.cli.v1.CliHostSnapshot.load:type_name -> vrooli.cli.v1.CliHostLoad
+	10, // 3: vrooli.cli.v1.CliHostSnapshot.memory:type_name -> vrooli.cli.v1.CliHostMemory
+	11, // 4: vrooli.cli.v1.CliHostSnapshot.swap:type_name -> vrooli.cli.v1.CliHostSwap
+	12, // 5: vrooli.cli.v1.CliHostSnapshot.gpus:type_name -> vrooli.cli.v1.CliHostGPU
+	13, // 6: vrooli.cli.v1.CliHostSnapshot.gpu_processes:type_name -> vrooli.cli.v1.CliHostGPUProcess
+	18, // 7: vrooli.cli.v1.CliHostSnapshot.runtime_tools:type_name -> vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
+	14, // 8: vrooli.cli.v1.CliHostSnapshot.docker_gpu:type_name -> vrooli.cli.v1.CliHostDockerGPU
+	19, // 9: vrooli.cli.v1.CliHostSnapshot.probe_statuses:type_name -> vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
+	20, // 10: vrooli.cli.v1.CliHostSnapshot.field_provenance:type_name -> vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
+	5,  // 11: vrooli.cli.v1.CliHostSnapshot.remote_desktop:type_name -> vrooli.cli.v1.CliHostRemoteDesktop
+	6,  // 12: vrooli.cli.v1.CliHostRemoteDesktop.providers:type_name -> vrooli.cli.v1.CliHostRemoteDesktopProvider
+	7,  // 13: vrooli.cli.v1.CliHostRemoteDesktop.credential_store:type_name -> vrooli.cli.v1.CliHostCredentialStore
+	15, // 14: vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry.value:type_name -> vrooli.cli.v1.CliHostTool
+	16, // 15: vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry.value:type_name -> vrooli.cli.v1.CliHostProvenance
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_runtime_proto_init() }
@@ -1648,7 +2020,7 @@ func file_cli_v1_runtime_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_runtime_proto_rawDesc), len(file_cli_v1_runtime_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -10,6 +10,13 @@ class Projection(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PROJECTION_ANSWER: _ClassVar[Projection]
     PROJECTION_VALIDATE: _ClassVar[Projection]
     PROJECTION_GUIDE: _ClassVar[Projection]
+    PROJECTION_ACT: _ClassVar[Projection]
+
+class GapAxis(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    GAP_AXIS_UNSPECIFIED: _ClassVar[GapAxis]
+    GAP_AXIS_COVERAGE: _ClassVar[GapAxis]
+    GAP_AXIS_EMPIRICAL: _ClassVar[GapAxis]
 
 class DenominatorConfidence(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -35,6 +42,10 @@ PROJECTION_UNSPECIFIED: Projection
 PROJECTION_ANSWER: Projection
 PROJECTION_VALIDATE: Projection
 PROJECTION_GUIDE: Projection
+PROJECTION_ACT: Projection
+GAP_AXIS_UNSPECIFIED: GapAxis
+GAP_AXIS_COVERAGE: GapAxis
+GAP_AXIS_EMPIRICAL: GapAxis
 DENOMINATOR_CONFIDENCE_UNSPECIFIED: DenominatorConfidence
 DENOMINATOR_CONFIDENCE_AUTHORITATIVE: DenominatorConfidence
 DENOMINATOR_CONFIDENCE_PARTIAL: DenominatorConfidence

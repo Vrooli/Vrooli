@@ -123,9 +123,11 @@ class GateFinding(_message.Message):
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., asset_id: _Optional[str] = ..., severity: _Optional[str] = ...) -> None: ...
 
 class RunGateResponse(_message.Message):
-    __slots__ = ("gate", "findings")
+    __slots__ = ("gate", "findings", "inspected_files")
     GATE_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    INSPECTED_FILES_FIELD_NUMBER: _ClassVar[int]
     gate: str
     findings: _containers.RepeatedCompositeFieldContainer[GateFinding]
-    def __init__(self, gate: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ...) -> None: ...
+    inspected_files: int
+    def __init__(self, gate: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ..., inspected_files: _Optional[int] = ...) -> None: ...

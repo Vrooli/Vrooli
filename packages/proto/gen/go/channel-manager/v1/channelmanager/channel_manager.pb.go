@@ -63,10 +63,9 @@ type Identity struct {
 	PlatformId     string                 `protobuf:"bytes,2,opt,name=platform_id,json=platformId,proto3" json:"platform_id,omitempty"`
 	Purpose        string                 `protobuf:"bytes,3,opt,name=purpose,proto3" json:"purpose,omitempty"`
 	EnvironmentRef string                 `protobuf:"bytes,4,opt,name=environment_ref,json=environmentRef,proto3" json:"environment_ref,omitempty"`
-	// Intentionally never populated: Vault paths are operationally sensitive.
-	//
-	// Deprecated: Marked as deprecated in channel-manager/v1/channelmanager/channel_manager.proto.
-	VaultRef       string   `protobuf:"bytes,5,opt,name=vault_ref,json=vaultRef,proto3" json:"vault_ref,omitempty"`
+	// Opaque credential-authority identity/field reference. Values never cross
+	// the API boundary; the executor resolves them in its own authority scope.
+	CredentialRef  string   `protobuf:"bytes,5,opt,name=credential_ref,json=credentialRef,proto3" json:"credential_ref,omitempty"`
 	Status         string   `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
 	LaneGrants     []string `protobuf:"bytes,7,rep,name=lane_grants,json=laneGrants,proto3" json:"lane_grants,omitempty"`
 	Handle         string   `protobuf:"bytes,8,opt,name=handle,proto3" json:"handle,omitempty"`
@@ -135,10 +134,9 @@ func (x *Identity) GetEnvironmentRef() string {
 	return ""
 }
 
-// Deprecated: Marked as deprecated in channel-manager/v1/channelmanager/channel_manager.proto.
-func (x *Identity) GetVaultRef() string {
+func (x *Identity) GetCredentialRef() string {
 	if x != nil {
-		return x.VaultRef
+		return x.CredentialRef
 	}
 	return ""
 }
@@ -1156,14 +1154,14 @@ var File_channel_manager_v1_channelmanager_channel_manager_proto protoreflect.Fi
 const file_channel_manager_v1_channelmanager_channel_manager_proto_rawDesc = "" +
 	"\n" +
 	"7channel-manager/v1/channelmanager/channel_manager.proto\x12(vrooli.channel_manager.v1.channelmanager\"\x14\n" +
-	"\x12GetOverviewRequest\"\xdc\x02\n" +
+	"\x12GetOverviewRequest\"\xe2\x02\n" +
 	"\bIdentity\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vplatform_id\x18\x02 \x01(\tR\n" +
 	"platformId\x12\x18\n" +
 	"\apurpose\x18\x03 \x01(\tR\apurpose\x12'\n" +
-	"\x0fenvironment_ref\x18\x04 \x01(\tR\x0eenvironmentRef\x12\x1f\n" +
-	"\tvault_ref\x18\x05 \x01(\tB\x02\x18\x01R\bvaultRef\x12\x16\n" +
+	"\x0fenvironment_ref\x18\x04 \x01(\tR\x0eenvironmentRef\x12%\n" +
+	"\x0ecredential_ref\x18\x05 \x01(\tR\rcredentialRef\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1f\n" +
 	"\vlane_grants\x18\a \x03(\tR\n" +
 	"laneGrants\x12\x16\n" +
