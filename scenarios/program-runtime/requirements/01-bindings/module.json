@@ -1,0 +1,171 @@
+{
+  "_metadata": {
+    "description": "Project the callable surface from the proto descriptor and CLI manifests, validate arguments pre-flight, refuse ungoverned calls, and render the resolved registry.",
+    "last_validated_at": "2026-08-06T13:45:52-04:00",
+    "module": "bindings",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PRT-P0-001",
+      "title": "Runtime binding generation",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "bindings.registry",
+      "criticality": "P0",
+      "description": "The Program Runtime MUST generate callable bindings at session start from the proto descriptor image and the scenario CLI manifests, and MUST NOT require per-scenario integration code for a scenario that ships a manifest.",
+      "tags": [
+        "bindings",
+        "descriptor",
+        "manifest"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/bindings/registry_test.go::TestProjectsManifestBoundMethods` (tag the test [REQ:PRT-P0-001]). Given the generated descriptor image and a scenario CLI manifest, the registry yields one callable per manifest-bound Connect method."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/bindings/registry_test.go::TestNewManifestNeedsNoScenarioCode` (tag the test [REQ:PRT-P0-001]). A manifest added to the fixture set becomes callable without any registry edit, proving zero per-scenario integration."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `kernel/tests/test_handles.py::test_namespace_mirrors_manifest_groups` (tag the test [REQ:PRT-P0-001]). The kernel namespace path matches the manifest group/command shape agents already know from the CLI."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P0-002",
+      "title": "Pre-flight argument validation",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "bindings.validation",
+      "criticality": "P0",
+      "description": "When a program calls a binding with arguments that do not satisfy the bound proto method's field contract, the Program Runtime MUST reject the call before issuing any request and MUST name the offending field.",
+      "tags": [
+        "bindings",
+        "validation",
+        "typed-args"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/bindings/registry_test.go::TestRejectsUnknownFieldBeforeDispatch` (tag the test [REQ:PRT-P0-002]). An argument absent from the bound request message is refused with no outbound request issued."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/bindings/registry_test.go::TestErrorNamesOffendingField` (tag the test [REQ:PRT-P0-002]). The refusal names the offending field so a program can be repaired without reading proto source."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/bindings/registry_test.go::TestRejectsMistypedAndMissingRequiredFields` (tag the test [REQ:PRT-P0-002]). Wrong-typed and omitted required fields are refused pre-flight, not surfaced as a remote 400."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P0-005",
+      "title": "Governance enforced at the binding boundary",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "category": "bindings.governance",
+      "criticality": "P0",
+      "description": "The Program Runtime MUST NOT generate a binding for a command whose CLI manifest governance declares run_eligible false, and MUST refuse a binding whose declared effect is destructive unless the session holds an explicit matching grant.",
+      "tags": [
+        "governance",
+        "effect",
+        "grants"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/bindings/registry_test.go::TestRunIneligibleCommandGeneratesNoBinding` (tag the test [REQ:PRT-P0-005]). A manifest command declaring run_eligible false produces no callable at all, not a callable that fails at dispatch."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/bindings/governance_test.go::TestDestructiveEffectRequiresGrant` (tag the test [REQ:PRT-P0-005]). A destructive-effect binding refuses without a matching session grant and succeeds with one."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/bindings/governance_test.go::TestGovernanceIsReadNotRedefined` (tag the test [REQ:PRT-P0-005]). Effect and permission vocabulary is read from the manifest contract; the scenario declares no second policy vocabulary."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-001",
+      "title": "In-kernel capability discovery",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "bindings.discovery",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD expose capability discovery as an in-kernel call so a program resolves an operation by intent without the callable surface being preloaded into the submitting agent's context.",
+      "tags": [
+        "discovery",
+        "search-hub",
+        "context-cost"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/bindings/discovery_test.go::TestResolvesOperationByIntent` (tag the test [REQ:PRT-P1-001]). An intent string resolves to candidate bindings through search-hub without preloading the surface."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/bindings/discovery_test.go::TestDegradesWhenSearchHubUnavailable` (tag the test [REQ:PRT-P1-001]). An unreachable search-hub degrades to a stated reason; direct binding calls keep working."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-007",
+      "title": "Binding registry inspection surface",
+      "status": "complete",
+      "prd_ref": "OT-P1-007",
+      "category": "ui.bindings",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD provide an operator surface that browses the resolved callable namespace and, for every fleet capability that is unbound, states which of the declared unbound reasons applies.",
+      "tags": [
+        "ui",
+        "bindings",
+        "unbound",
+        "act"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/bindings/registry_test.go::TestEveryUnboundCapabilityCarriesAReason` (tag the test [REQ:PRT-P1-007]). No capability is reported unbound without one of the closed set of unbound reasons; an unclassifiable capability is reported as such rather than omitted."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "implemented",
+          "notes": "Target `ui/src/features/bindings/BindingRegistry.test.tsx::rendersBoundAndUnboundWithReasons` (tag the test [REQ:PRT-P1-007]). The surface renders with an empty program corpus, proving it carries information before any program has run."
+        }
+      ]
+    }
+  ]
+}

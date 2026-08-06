@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"testing"
 	"program-runtime/internal/module"
+	"testing"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"

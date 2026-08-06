@@ -2,8 +2,8 @@ package mocks
 
 import (
 	"context"
-	"sync/atomic"
 	"program-runtime/internal/database"
+	"sync/atomic"
 )
 
 // FakePinger satisfies database.Pinger for tests that don't want a real

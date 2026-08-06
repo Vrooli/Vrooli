@@ -8,10 +8,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"program-runtime/internal/bindings"
 	"program-runtime/internal/capabilities"
 	"program-runtime/internal/clock"
 	"program-runtime/internal/modules"
+	"program-runtime/internal/programs"
 	"program-runtime/internal/server"
+	"program-runtime/internal/sessions"
+	"program-runtime/internal/telemetry"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -20,11 +25,16 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 
+	bindingsH "program-runtime/handlers/bindings"
 	capsH "program-runtime/handlers/capabilities"
 	healthH "program-runtime/handlers/health"
-	notesH "program-runtime/handlers/notes" // EXAMPLE-DOMAIN:notes
+	measuresH "program-runtime/handlers/measures"
+	programsH "program-runtime/handlers/programs"
+	sessionsH "program-runtime/handlers/sessions"
+	telemetryH "program-runtime/handlers/telemetry"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -148,12 +158,38 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		log.Fatalf("repository root resolution failed: %v", err)
+	}
+	bindingRegistry, err := bindings.Load(repoRoot)
+	if err != nil {
+		log.Fatalf("binding registry initialization failed: %v", err)
+	}
+	sessionManager := sessions.NewManager(sessions.Options{})
+	telemetryStore := telemetry.NewStoreWithPublisher(telemetry.NewPublisher(os.Getenv("VROOLI_EVENTS_API_BASE")))
+	registryBindings := bindingRegistry.List("", "")
+	bindingSpecs := make([]programs.BindingSpec, 0, len(registryBindings))
+	for _, binding := range registryBindings {
+		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect()})
+	}
+	bridgeURL := ""
+	agentBridgeURL := ""
+	if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
+		bridgeURL = fmt.Sprintf("http://127.0.0.1:%s/internal/program-runtime/bindings/execute", port)
+		agentBridgeURL = fmt.Sprintf("http://127.0.0.1:%s/internal/program-runtime/agent/execute", port)
+	}
+	runner := programs.NewSubprocessRunnerWithBindings(filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "engine.py"), bindingSpecs, bridgeURL, agentBridgeURL)
+	programService := programs.NewService(programs.Options{Runner: runner, ValidateSession: func(id string) bool { _, err := sessionManager.Get(id); return err == nil }, Events: telemetryStore})
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "program-runtime-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+		bindingsH.Module(bindingRegistry),
+		programsH.Module(programService),
+		sessionsH.Module(sessionManager),
+		telemetryH.Module(telemetryStore),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -161,19 +197,20 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+	rootMux.Handle("/internal/program-runtime/bindings/execute", bindingsH.Bridge(bindingRegistry, sessionManager))
+	rootMux.Handle("/internal/program-runtime/agent/execute", bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
+	// /measures is the measures-go serve substrate consumed by measures-health.
+	// Declarations and execution stay typed and owned by this scenario.
+	runtimeMeasures, err := measuresH.Handler(clock.System{}, func() int {
+		return len(sessionManager.List())
+	}, func() int {
+		return len(programService.MineFailures(false))
+	})
 	if err != nil {
 		log.Fatalf("measures registry: %v", err)
 	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
+	rootMux.Handle("/measures/", http.StripPrefix("/measures", runtimeMeasures))
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -184,7 +221,10 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			_ = runner.Close()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

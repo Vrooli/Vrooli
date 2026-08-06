@@ -1,150 +1,55 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "program-runtime",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Governed program execution, persistent sessions, typed bindings, and bounded telemetry.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "bindings",
+      "description": "Inspect the typed and governed callable namespace.",
       "commands": [
-        {
-          "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
-        }
+        {"name":"list","description":"List manifest-bound Connect callables.","flags":[{"name":"scenario","description":"Filter by scenario."},{"name":"group","description":"Filter by binding group."}],"binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"unbound","description":"List capabilities with a closed-set unbound reason.","flags":[{"name":"scenario","description":"Filter by scenario."}],"binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListUnbound"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"act","description":"Resolve Act operation classes against the live registry.","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ResolveActCells"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}
+      ]
+    },
+    {
+      "name": "sessions",
+      "description": "Create and govern persistent program kernel sessions.",
+      "commands": [
+        {"name":"create","description":"Create a session with optional grants and sandbox workspace.","flags":[{"name":"name","description":"Optional human-readable session name."},{"name":"sandbox-workspace","description":"Optional workspace-sandbox workspace identifier."},{"name":"grants","description":"Comma-separated explicit grants."}],"binding":{"kind":"connect-rpc","service":"SessionService","method":"CreateSession"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}},
+        {"name":"get","description":"Read one session lease.","positionals":[{"name":"id","required":true,"description":"Session identifier."}],"binding":{"kind":"connect-rpc","service":"SessionService","method":"GetSession"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"list","description":"List live sessions.","binding":{"kind":"connect-rpc","service":"SessionService","method":"ListSessions"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"},"measure":{"intent":"How many program sessions are live.","questions":["how many program sessions are live","count live sessions"],"result":{"kind":"scalar","value_field":"count","unit":"sessions","summary_template":"{count} live sessions"}}},
+        {"name":"delete","description":"Reclaim a session with a stated reason.","positionals":[{"name":"id","required":true,"description":"Session identifier."}],"flags":[{"name":"reason","description":"Reason recorded for reclamation."}],"binding":{"kind":"connect-rpc","service":"SessionService","method":"DeleteSession"},"governance":{"effect":"destructive","run_eligible":true,"permissions":["admin"]},"architecture":{"primitive":"proto_mutation"}},
+        {"name":"grant","description":"Add an explicit grant to a session.","positionals":[{"name":"id","required":true,"description":"Session identifier."}],"flags":[{"name":"grants","required":true,"description":"Comma-separated grants."}],"binding":{"kind":"connect-rpc","service":"SessionService","method":"GrantSession"},"governance":{"effect":"write","run_eligible":true,"permissions":["admin"]},"architecture":{"primitive":"proto_mutation"}}
+      ]
+    },
+    {
+      "name": "programs",
+      "description": "Submit bounded programs and query their provenance-bearing corpus.",
+      "commands": [
+        {"name":"submit","description":"Execute a program in its session.","flags":[{"name":"session-id","required":true,"description":"Session identifier."},{"name":"source","required":true,"description":"Python program source."},{"name":"provenance","required":true,"description":"agent or operator provenance."},{"name":"include-materialized","bool":true,"description":"Permit explicitly materialized output in the response."}],"binding":{"kind":"connect-rpc","service":"ProgramService","method":"SubmitProgram"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}},
+        {"name":"get","description":"Read one program result and failure detail.","positionals":[{"name":"id","required":true,"description":"Program identifier."}],"binding":{"kind":"connect-rpc","service":"ProgramService","method":"GetProgram"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"list","description":"List submitted programs.","flags":[{"name":"session-id","description":"Filter by session."},{"name":"include-operator","bool":true,"description":"Include operator submissions."}],"binding":{"kind":"connect-rpc","service":"ProgramService","method":"ListPrograms"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"mine","description":"Summarize recurring failure shapes.","flags":[{"name":"include-operator","bool":true,"description":"Include operator submissions."}],"binding":{"kind":"connect-rpc","service":"ProgramService","method":"MineFailures"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"},"measure":{"intent":"How many recurring program failure shapes are recorded.","questions":["how many recurring program failure shapes","count recurring program failures"],"result":{"kind":"scalar","value_field":"count","unit":"failure_shapes","summary_template":"{count} recurring failure shapes"}}}
+      ]
+    },
+    {
+      "name": "telemetry",
+      "description": "Read typed program lifecycle events.",
+      "commands": [
+        {"name":"events","description":"List typed program-runtime events.","flags":[{"name":"session-id","description":"Filter by session."},{"name":"kind","description":"Optional event kind."}],"binding":{"kind":"connect-rpc","service":"TelemetryService","method":"ListEvents"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}
       ]
     }
   ],
   "measures": {
+    "omitted": [],
     "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
+      {"domain":"bindings","stateful":false,"reason":"The binding registry is a boot-time projection, not persisted state."},
+      {"domain":"sessions","stateful":true,"reason":"Live session leases are measured by sessions.list."},
+      {"domain":"programs","stateful":true,"reason":"The submitted program corpus is measured by programs.mine."},
+      {"domain":"telemetry","stateful":false,"reason":"Telemetry is a typed event projection owned by the runtime."}
     ]
   },
-  "exceptions": [
-    {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    }
-  ],
+  "exceptions": [{"command":"space","class":"external_delegation","reason":"Shared api-core coverage-space projection is registered outside manifest-bound RPC groups."}],
   "omitted": []
 }

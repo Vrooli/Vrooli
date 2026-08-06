@@ -1,8 +1,8 @@
 package modeltest_test
 
 import (
-	"testing"
 	"program-runtime/internal/testutil/modeltest"
+	"testing"
 
 	"github.com/stretchr/testify/require"
 )

@@ -1,0 +1,82 @@
+{
+  "_metadata": {
+    "description": "Cross-domain obligations that no single product domain owns: declared measure coverage, the broader operator console, and future kernel adapters.",
+    "last_validated_at": "2026-08-06T13:45:52-04:00",
+    "module": "platform",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PRT-P0-009",
+      "title": "Domain measure coverage",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "category": "measures.coverage",
+      "criticality": "P0",
+      "description": "Every stateful domain the Program Runtime owns MUST carry at least one declared measure in the CLI manifest, or a `measures.omitted` waiver naming the domain and its reason, so measures-health grades the scenario on a stated position rather than an absence.",
+      "tags": [
+        "measures",
+        "manifest",
+        "coverage"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/handlers/measures/module_test.go::TestDeclarationsCoverStatefulDomains` (tag the test [REQ:PRT-P0-009]). Each stateful domain has a declared owner measure, while explicitly stateless domains carry a reason in the manifest."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/handlers/measures/module_test.go::TestDeclarationsCoverStatefulDomains` (tag the test [REQ:PRT-P0-009]). The declarations are checked against the scenario manifest's stateful-domain contract, so an unknown waiver cannot silently replace a measure."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P2-001",
+      "title": "Operator inspection surface",
+      "status": "complete",
+      "prd_ref": "OT-P2-001",
+      "category": "ui.inspection",
+      "criticality": "P2",
+      "description": "The Program Runtime MAY provide an operator UI for browsing sessions, program history, and the resolved binding surface.",
+      "tags": [
+        "ui",
+        "operator"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `ui/src/features/sessions/SessionsCard.test.tsx::renders session and program history` (tag the test [REQ:PRT-P2-001]). Operator surface lists sessions, program history, and the resolved binding surface."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P2-004",
+      "title": "Alternate kernel adapters",
+      "status": "complete",
+      "prd_ref": "OT-P2-004",
+      "category": "kernel.adapters",
+      "criticality": "P2",
+      "description": "The Program Runtime MAY support kernel languages beyond Python where a measured capability argument justifies the added surface.",
+      "tags": [
+        "kernel",
+        "extensibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/sessions/adapter_test.go::TestKernelAdapterSeamIsLanguageNeutral` (tag the test [REQ:PRT-P2-004]). The kernel adapter seam admits a non-Python kernel without changes to bindings or governance."
+        }
+      ]
+    }
+  ]
+}

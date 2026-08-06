@@ -35,7 +35,7 @@ export function TopBar() {
             onChange={(e) => setTheme(e.target.value as ThemeChoice)}
             data-testid={selectors.theme.select}
             aria-label={t(strings.theme.switcherLabel)}
-            className="rounded-control border border-app-border bg-app-surface px-2 py-1 text-app-foreground"
+            className="min-h-11 rounded-control border border-app-border bg-app-surface px-2 py-2 text-app-foreground"
           >
             {THEME_CHOICES.map((c) => (
               <option key={c} value={c}>

@@ -49,7 +49,69 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-_None yet._
+### 2026-08-06 — Template Manager detemplate service unavailable
+
+**Symptom:** `template-manager detemplate program-runtime` cannot run because
+Template Manager fails lifecycle setup with `go: updates to go.mod needed`.
+
+**Root cause:** The unrelated Template Manager API module is out of sync with
+its dependency graph, so its server-owned detemplate endpoint never starts.
+
+**Workaround:** Real program-runtime API, CLI, routes, and measures no longer
+register the notes example. Isolated generated notes packages remain pending
+the official safety-checked cleanup.
+
+**Real fix:** Repair Template Manager through Scenario Dependency Analyzer,
+start it through lifecycle, run the official detemplate operation, and remove
+remaining example artifacts and marker-bearing docs.
+
+**Owner:** template-manager.
+
+**Refs:** `template-manager detemplate program-runtime`,
+`vrooli scenario logs template-manager`.
+
+### 2026-08-06 — Optional IPython adapter is not host-available
+
+**Symptom:** The current host Python installation has no IPython module.
+
+**Root cause:** IPython is not installed in the current profile and has no
+approved dependency entry yet.
+
+**Workaround:** The kernel uses a standard-library JSON-lines engine with the
+same session, namespace, and bounded-handle protocol, and reports spawn errors
+explicitly rather than selecting an ungoverned fallback.
+
+**Real fix:** Add the approved CPython/IPython host requirement through the
+dependency analyzer, then layer the IPython adapter behind the same protocol.
+
+**Owner:** program-runtime.
+
+**Refs:** `kernel/host/engine.py`, `requirements/03-sessions/module.json`.
+
+### 2026-08-06 — Agent-manager fleet workflow catalog has validation drift
+
+**Symptom:** A lifecycle-managed program delegation call reaches agent-manager,
+but the fleet `swarm-manager` workflow reconciliation fails because 15 workflow
+files still contain the removed `budgets.maxCostUsd` field. The catalog is empty
+for those workflows, so no successful delegated run can be demonstrated from
+that fixture set.
+
+**Root cause:** Agent-manager's current workflow schema uses
+`budgets.maxChargeMicroUsd`; the fleet declarations have not been migrated.
+
+**Workaround:** Delegation fails explicitly with the upstream workflow-not-found
+response. The program-runtime bridge and its start/wait/result protocol are
+covered by a deterministic integration test and the live failure path.
+
+**Real fix:** Migrate the affected scenario-owned workflow declarations through
+agent-manager's supported declaration workflow, then rerun the delegated-run
+acceptance test against an active single-node workflow.
+
+**Owner:** agent-manager / owning scenarios.
+
+**Refs:** `api/internal/programs/delegator.go`,
+`scenarios/agent-manager/docs/reference/scenario-declarations.md`,
+`POST /api/v1/declarations/reconcile-scenario`.
 
 ## Architecture Drift
 
@@ -68,3 +130,10 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Work ladder
+
+- Rung: W0
+- Evidence: `swarm-manager goals list --json` with the required named-mention filter returned no goal whose name, title, or description contains `program-runtime`; the plan-manager objective is a separate execution artifact and is not a swarm-manager goal.
+- Blocker: The contract cannot be compared against an approved named scenario goal, so W0 is unverifiable under the Scenario Work Ladder.
+- Measured: 2026-08-06

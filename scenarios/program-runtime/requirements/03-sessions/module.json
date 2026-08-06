@@ -1,0 +1,156 @@
+{
+  "_metadata": {
+    "description": "Own kernel session lifecycle: creation, grants, kernel state persistence across submissions, ceilings, reclamation, and optional sandbox binding.",
+    "last_validated_at": "2026-08-06T13:45:52-04:00",
+    "module": "sessions",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PRT-P0-004",
+      "title": "Session-persistent kernel state",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "sessions.state",
+      "criticality": "P0",
+      "description": "While a session is live, the Program Runtime MUST preserve kernel variable state across separate program submissions so a later program can reference an earlier program's handles.",
+      "tags": [
+        "sessions",
+        "persistence",
+        "kernel"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/sessions/manager_test.go::TestVariablesSurviveSubmissionBoundary` (tag the test [REQ:PRT-P0-004]). A handle bound in one submission is referenceable by name in a later submission on the same session."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/sessions/manager_test.go::TestSessionsAreIsolatedFromEachOther` (tag the test [REQ:PRT-P0-004]). State bound in one session is not reachable from another, so concurrent agents cannot observe each other."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-004",
+      "title": "Sandbox composition",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "sessions.sandbox",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD bind a session to a workspace-sandbox workspace so filesystem effects are isolated and reviewable.",
+      "tags": [
+        "workspace-sandbox",
+        "isolation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/sessions/manager_test.go::TestSessionBindsToSandboxWorkspace` (tag the test [REQ:PRT-P1-004]). A session bound to a workspace-sandbox workspace confines filesystem effects to that workspace."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-005",
+      "title": "Bounded session lifecycle",
+      "status": "complete",
+      "prd_ref": "OT-P1-005",
+      "category": "sessions.limits",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD enforce idle reclamation and wall-clock and memory ceilings per session, and SHOULD report the reason when it reclaims a session.",
+      "tags": [
+        "limits",
+        "reclamation",
+        "resources"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/sessions/manager_test.go::TestReclaimsIdleSessionWithStatedReason` (tag the test [REQ:PRT-P1-005]). An idle session past its ceiling is reclaimed and the reclamation reason is readable afterward."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/sessions/manager_test.go::TestEnforcesWallClockAndMemoryCeilings` (tag the test [REQ:PRT-P1-005]). Wall-clock and memory ceilings terminate a session deterministically rather than degrading the host."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-010",
+      "title": "Per-session inference spend ceiling",
+      "status": "planned",
+      "prd_ref": "OT-P1-010",
+      "category": "sessions.budgets.inference",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD enforce a configurable per-session ceiling over ai-gateway Usage.cost_micros, input tokens, and output tokens, and SHOULD report inference_spend_exceeded when the ceiling reclaims or refuses work.",
+      "tags": [
+        "budgets",
+        "inference",
+        "ai-gateway",
+        "cost"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "acceptance",
+          "status": "pending",
+          "notes": "Recorded waiver (2026-08-06): PRT-P1-010 was added to the repository after the rendered plan's 22-target scope and depends on the separately planned ai-gateway promotion. The rendered plan does not implement or validate Usage.cost_micros accounting."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-011",
+      "title": "Per-session delegated-run spend ceiling",
+      "status": "planned",
+      "prd_ref": "OT-P1-011",
+      "category": "sessions.budgets.delegated_runs",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD enforce a separate configurable per-session ceiling over agent-manager delegated-run spend, and SHOULD report delegated_run_spend_exceeded when that ceiling reclaims or refuses work.",
+      "tags": [
+        "budgets",
+        "delegation",
+        "agent-manager",
+        "cost"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "acceptance",
+          "status": "pending",
+          "notes": "Recorded waiver (2026-08-06): PRT-P1-011 was added to the repository after the rendered plan's 22-target scope and requires a separate delegated-run spend-accounting contract. The rendered plan implements delegation, but not spend metering."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P2-003",
+      "title": "Named durable workspaces",
+      "status": "complete",
+      "prd_ref": "OT-P2-003",
+      "category": "sessions.named",
+      "criticality": "P2",
+      "description": "The Program Runtime MAY support named sessions that survive across agent runs so a long investigation reuses accumulated state.",
+      "tags": [
+        "sessions",
+        "durability"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/sessions/manager_test.go::TestNamedSessionSurvivesAcrossAgentRuns` (tag the test [REQ:PRT-P2-003]). A named session is resumable by a later agent run with its accumulated state intact."
+        }
+      ]
+    }
+  ]
+}

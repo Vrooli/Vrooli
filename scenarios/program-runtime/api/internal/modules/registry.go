@@ -19,16 +19,21 @@ package modules
 import (
 	"program-runtime/internal/module"
 
+	bindingsH "program-runtime/handlers/bindings"
 	capsH "program-runtime/handlers/capabilities"
+	programsH "program-runtime/handlers/programs"
+	sessionsH "program-runtime/handlers/sessions"
+	telemetryH "program-runtime/handlers/telemetry"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
+	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions"
+	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 	healthH "program-runtime/handlers/health"
-	notesH "program-runtime/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "program-runtime/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +44,10 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, bindingsH.Endpoints...)
+	out = append(out, programsH.Endpoints...)
+	out = append(out, sessionsH.Endpoints...)
+	out = append(out, telemetryH.Endpoints...)
 	return out
 }
 
@@ -66,7 +74,10 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_program_runtime_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "bindings", File: bindingsv1.File_program_runtime_v1_bindings_bindings_proto},
+		{Module: "programs", File: programsv1.File_program_runtime_v1_programs_programs_proto},
+		{Module: "sessions", File: sessionsv1.File_program_runtime_v1_sessions_sessions_proto},
+		{Module: "telemetry", File: telemetryv1.File_program_runtime_v1_telemetry_telemetry_proto},
 	}
 }
 
@@ -81,6 +92,5 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
 	}
 }

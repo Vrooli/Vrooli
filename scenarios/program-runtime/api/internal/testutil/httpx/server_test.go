@@ -6,12 +6,12 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
-	"testing"
 	"program-runtime/handlers/health"
 	"program-runtime/internal/clock"
 	"program-runtime/internal/server"
 	"program-runtime/internal/testutil/mocks"
+	"strings"
+	"testing"
 )
 
 // TestNewLiveServer_RoutesRegistered confirms the harness wires the

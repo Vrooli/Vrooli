@@ -1,0 +1,72 @@
+package programs
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
+)
+
+type fakeRunner struct {
+	result Result
+	err    error
+}
+
+func (r fakeRunner) Execute(context.Context, string, string) (Result, error) { return r.result, r.err }
+
+func TestRetainsProgramSourceAndFailureDetail(t *testing.T) { // [REQ:PRT-P1-006]
+	s := NewService(Options{Runner: fakeRunner{err: errors.New("field title: invalid")}})
+	p, err := s.Submit(context.Background(), "s1", "raise ValueError()", programsv1.Provenance_PROVENANCE_AGENT, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get(p.Id)
+	if err != nil || got.Source != "raise ValueError()" || got.FailureDetail == "" {
+		t.Fatalf("program=%+v err=%v", got, err)
+	}
+}
+
+func TestRecurringFailureShapesAreDerivable(t *testing.T) { // [REQ:PRT-P1-006]
+	s := NewService(Options{Runner: fakeRunner{err: errors.New("field title: invalid")}})
+	for i := 0; i < 3; i++ {
+		if _, err := s.Submit(context.Background(), "s1", "x", programsv1.Provenance_PROVENANCE_AGENT, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	shapes := s.MineFailures(false)
+	if len(shapes) != 1 || shapes[0].Count != 3 {
+		t.Fatalf("shapes=%v", shapes)
+	}
+}
+
+func TestSubmissionRecordsProvenance(t *testing.T) { // [REQ:PRT-P1-008]
+	s := NewService(Options{})
+	p, err := s.Submit(context.Background(), "s1", "x=1", programsv1.Provenance_PROVENANCE_OPERATOR, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Provenance != programsv1.Provenance_PROVENANCE_OPERATOR {
+		t.Fatalf("provenance=%v", p.Provenance)
+	}
+}
+
+func TestMiningExcludesOperatorProgramsByDefault(t *testing.T) { // [REQ:PRT-P1-008]
+	s := NewService(Options{Runner: fakeRunner{err: errors.New("same")}})
+	_, _ = s.Submit(context.Background(), "s1", "x", programsv1.Provenance_PROVENANCE_OPERATOR, false)
+	_, _ = s.Submit(context.Background(), "s1", "x", programsv1.Provenance_PROVENANCE_AGENT, false)
+	shapes := s.MineFailures(false)
+	if len(shapes) != 1 || shapes[0].Count != 1 {
+		t.Fatalf("shapes=%v", shapes)
+	}
+}
+
+func TestContextBytesDoNotScaleWithResultSize(t *testing.T) { // [REQ:PRT-P0-003]
+	runner := fakeRunner{result: Result{Stdout: "bounded handle", ContextBytes: 128, MaterializedBytes: 1}}
+	s := NewService(Options{Runner: runner})
+	small, _ := s.Submit(context.Background(), "s1", "query(10)", programsv1.Provenance_PROVENANCE_AGENT, false)
+	large, _ := s.Submit(context.Background(), "s1", "query(100000)", programsv1.Provenance_PROVENANCE_AGENT, false)
+	if small.ContextBytes != large.ContextBytes || small.ContextBytes > 1024 {
+		t.Fatalf("context bytes scaled: small=%d large=%d", small.ContextBytes, large.ContextBytes)
+	}
+}

@@ -1,0 +1,180 @@
+{
+  "_metadata": {
+    "description": "Accept a program, execute it in its session, return only what it materializes, and retain the corpus. Owns handles, inference and delegation callables, and provenance.",
+    "last_validated_at": "2026-08-06T13:45:52-04:00",
+    "module": "programs",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PRT-P0-003",
+      "title": "Handle-based results",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "programs.handles",
+      "criticality": "P0",
+      "description": "The Program Runtime MUST return operation results as in-kernel handles whose default representation is bounded, and MUST require an explicit materialization call before result data enters the submitter's output.",
+      "tags": [
+        "handles",
+        "materialization",
+        "context-cost"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `kernel/tests/test_handles.py::test_default_repr_is_bounded` (tag the test [REQ:PRT-P0-003]). A handle's default representation is bounded regardless of underlying row count or payload size."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `kernel/tests/test_handles.py::test_materialization_is_explicit` (tag the test [REQ:PRT-P0-003]). Row data reaches program output only through an explicit materialization call, never via default repr."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `kernel/tests/test_handles.py::test_filter_and_aggregate_run_in_kernel` (tag the test [REQ:PRT-P0-003]). Filter, count, and group operations resolve in-kernel without materializing the source collection."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/programs/service_test.go::TestContextBytesDoNotScaleWithResultSize` (tag the test [REQ:PRT-P0-003]). The same query executed against result sets differing by four orders of magnitude returns context bytes within a constant band. This is the acceptance signal for the scenario's core value claim; an absolute byte budget would prove handle discipline but could not falsify the scaling claim the PRD makes."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-002",
+      "title": "Typed inference bindings",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "programs.inference",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD expose classify, extract, and judge operations resolved through ai-gateway, so a program performs bounded typed inference without spawning a delegated agent run.",
+      "tags": [
+        "ai-gateway",
+        "inference",
+        "typed"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `kernel/tests/test_deferred_surfaces.py::test_inference_reports_ai_gateway_promotion_blocker` (tagged [REQ:PRT-P1-002]). Each deferred callable fails closed and names the required ai-gateway promotion rather than silently disappearing."
+        },
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Recorded waiver: local schema validation cannot be exercised before the ai-gateway structured-extract promotion. This is the plan-approved blocker for PRT-P1-002; no direct provider path is permitted."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-003",
+      "title": "Delegated agent runs from a program",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "programs.delegation",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD let a program spawn an agent-manager run and collect its evidence, so unbounded agentic work stays distinguishable from bounded inference.",
+      "tags": [
+        "agent-manager",
+        "delegation",
+        "runs"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/programs/delegation_test.go::TestSpawnsAgentManagerRunAndCollectsEvidence` (tag the test [REQ:PRT-P1-003]). A program spawns a real run and collects its evidence, keeping unbounded agentic work distinct from bounded inference."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-006",
+      "title": "Queryable program corpus",
+      "status": "complete",
+      "prd_ref": "OT-P1-006",
+      "category": "programs.corpus",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD retain submitted program source and failure detail as a queryable corpus so recurring failure shapes are derivable mechanically.",
+      "tags": [
+        "corpus",
+        "history",
+        "friction"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/programs/service_test.go::TestRetainsProgramSourceAndFailureDetail` (tag the test [REQ:PRT-P1-006]). Submitted source and failure detail are retained and queryable after the session ends."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/programs/service_test.go::TestRecurringFailureShapesAreDerivable` (tag the test [REQ:PRT-P1-006]). Repeated failures sharing a shape are countable mechanically, without an inference call."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-008",
+      "title": "Program provenance",
+      "status": "complete",
+      "prd_ref": "OT-P1-008",
+      "category": "programs.provenance",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD record whether a program was submitted by an agent or by a human operator, and SHOULD exclude operator-submitted programs from corpus mining by default.",
+      "tags": [
+        "provenance",
+        "corpus",
+        "operator"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/programs/service_test.go::TestSubmissionRecordsProvenance` (tag the test [REQ:PRT-P1-008]). Every submission carries an agent or operator provenance; neither is inferred silently."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/programs/service_test.go::TestMiningExcludesOperatorProgramsByDefault` (tag the test [REQ:PRT-P1-008]). A corpus query for recurring shapes omits operator-submitted programs unless they are explicitly included."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P2-002",
+      "title": "Program corpus mining",
+      "status": "complete",
+      "prd_ref": "OT-P2-002",
+      "category": "programs.mining",
+      "criticality": "P2",
+      "description": "The Program Runtime MAY analyze recurring program shapes in the corpus and propose them as skill or action candidates with their call sites as evidence.",
+      "tags": [
+        "corpus",
+        "skills",
+        "meta-optimization"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target `api/internal/programs/mining_test.go::TestProposesRecurringShapeWithCallSites` (tag the test [REQ:PRT-P2-002]). A recurring program shape is proposed as a skill or action candidate with its call sites attached as evidence."
+        }
+      ]
+    }
+  ]
+}

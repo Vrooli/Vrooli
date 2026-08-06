@@ -10,7 +10,7 @@
     "bottomNavLabel": "モバイルナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
+      "bindings": "バインディング",
       "settings": "設定"
     }
   },
@@ -27,9 +27,6 @@
       "title": "ダッシュボード",
       "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
       "statPlaceholderLabel": "指標"
-    },
-    "notes": {
-      "title": "ノート"
     },
     "settings": {
       "title": "設定",
@@ -49,30 +46,6 @@
   },
   "notifications": {
     "summary": "{{count}} 件の通知"
-  },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "table": {
-      "title": "タイトル",
-      "created": "作成日",
-      "attachments": "添付",
-      "actions": "操作",
-      "search": "ノートを検索"
-    },
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

@@ -39,7 +39,7 @@ can span it. The loop:
 #    Use literal [data-testid=...] selectors — @selector tokens do NOT resolve
 #    on the capture path.
 # 2. Drive it inside a profile-mode perf trace:
-performance-health audit run <scenario> --workflow <slug>
+performance-health audit run "<scenario>" --workflow "<slug>"
 # 3. Analyze the returned trace, then optionally set a per-flow budget:
 performance-health analysis analyze --trace <key>
 performance-health budget set --flow <slug> --lcp-max-ms 2500 --ratchet

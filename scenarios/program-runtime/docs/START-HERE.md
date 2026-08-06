@@ -33,8 +33,8 @@ durable infrastructure below. In particular:
   mobile, desktop sidebar navigation, theme controls, and Settings-owned
   locale switching. Keep those floors unless your scenario has an explicit
   experience-spec opt-out.
-- The starter page content and the `notes` domain remain illustrative. Replace
-  them with scenario-specific surfaces once the real product shape is known.
+- The starter page content was illustrative. The runtime now uses
+  scenario-specific binding, session, program, telemetry, and measure surfaces.
 - Durable seams you should keep: i18n wiring (`SUPPORTED_LOCALES`,
   `useTranslation`, the locale switcher behavior), accessibility
   primitives (`role`, `aria-*`, `data-testid` selectors), the
@@ -456,6 +456,13 @@ and CLI manifest, then refreshes generated output (`make generate`,
 
 **Exit criteria:** future agents can reconstruct what happened, what is
 complete, and what remains.
+
+## Customize Safely
+
+Keep the generated lifecycle, accessibility, i18n, and storage boundaries when
+you add a new runtime surface. Add a new proto, API handler, CLI manifest entry,
+UI route, experience page, and owner tests together so the governed projections
+remain aligned.
 
 ## Architecture Rules
 

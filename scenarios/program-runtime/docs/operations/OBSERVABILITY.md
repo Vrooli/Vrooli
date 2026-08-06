@@ -19,6 +19,8 @@ Use this document to answer:
 | `/health` status | health | API | API and dependency reachability | healthy for local development |
 | UI health endpoint | health | UI server | UI bundle/server reachability | responds during lifecycle health check |
 | test-genie result | validation | `make test` | scenario correctness evidence | all required phases pass |
+| Typed inference usage | usage | ai-gateway `Usage` | enforce and explain per-session inference budgets | `cost_micros`, input tokens, and output tokens remain within configured ceilings |
+| Delegated-run spend | usage | agent-manager run receipts | enforce and explain the separate delegated-run budget | delegated usage remains within its configured ceiling |
 
 ## Logs
 
@@ -46,7 +48,7 @@ expectations are known.
 | Gap | Impact | Revisit Trigger |
 |---|---|---|
 | Product usage telemetry | Cannot validate monetization or adoption. | Add before public launch or monetization review. |
-| Cost telemetry | Cannot evaluate hosted/SaaS unit economics. | Add before managed deployment. |
+| Cost telemetry | Hosted inference and delegated-run usage need separate session budget ledgers. | Implement OT-P1-010 and OT-P1-011 before managed deployment. |
 
 ## Cross-References
 

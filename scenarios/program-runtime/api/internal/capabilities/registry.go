@@ -34,14 +34,27 @@ var Known = []Def{
 		OperatorCommand: "vrooli scenario start audio-tools --json",
 		Features:        []string{"voice-input", "voice-output"},
 	},
+	{
+		ID: "vrooli-events", Name: "Vrooli Events",
+		Description:    "Optional typed telemetry bus for governed program lifecycle events.",
+		DependencyKind: capabilityregistry.DependencyScenario, DependencySlug: "vrooli-events",
+		ActionKind: ActionKindScenarioStart, ActionLabel: "Start Vrooli Events",
+		OperatorCommand: "vrooli scenario start vrooli-events --json",
+		Features:        []string{"program-telemetry"},
+	},
 }
 
-type ScenarioChecker struct{}
+type ScenarioChecker struct{ Scenario string }
 
-func (ScenarioChecker) Check(context.Context) (capabilityregistry.Status, string) {
-	output, err := exec.Command("vrooli", "scenario", "status", "audio-tools", "--json").Output()
+
+func (c ScenarioChecker) Check(context.Context) (capabilityregistry.Status, string) {
+	scenario := c.Scenario
+	if scenario == "" {
+		scenario = "audio-tools"
+	}
+	output, err := exec.Command("vrooli", "scenario", "status", scenario, "--json").Output()
 	if err != nil {
-		return capabilityregistry.StatusUnavailable, "audio-tools is unavailable; start it with the operator action"
+		return capabilityregistry.StatusUnavailable, scenario + " is unavailable; start it with the operator action"
 	}
 	var payload struct {
 		Scenario struct {
@@ -52,13 +65,14 @@ func (ScenarioChecker) Check(context.Context) (capabilityregistry.Status, string
 		return capabilityregistry.StatusUnavailable, "audio-tools status was not valid JSON"
 	}
 	if strings.EqualFold(payload.Scenario.Status, "running") || strings.EqualFold(payload.Scenario.Status, "healthy") {
-		return capabilityregistry.StatusAvailable, "audio-tools is healthy"
+		return capabilityregistry.StatusAvailable, scenario + " is healthy"
 	}
-	return capabilityregistry.StatusUnavailable, "audio-tools is not running; start it with the operator action"
+	return capabilityregistry.StatusUnavailable, scenario + " is not running; start it with the operator action"
 }
 
 func NewRegistry() *Registry {
 	return capabilityregistry.New(Known, map[string]capabilityregistry.Checker{
-		"audio-tools": ScenarioChecker{},
+		"audio-tools":   ScenarioChecker{Scenario: "audio-tools"},
+		"vrooli-events": ScenarioChecker{Scenario: "vrooli-events"},
 	}, 5*time.Second)
 }

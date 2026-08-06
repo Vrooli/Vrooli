@@ -78,6 +78,15 @@ export default defineConfig(({ mode }): UserConfig => {
           'src/main.tsx',
           'src/test-setup.ts',
           'src/test-utils/**',
+          // Optional template components not mounted by this scenario yet;
+          // keep them out of the shipped-surface denominator until adopted.
+          'src/components/experience/ExperienceSurface.tsx',
+          'src/components/ui/dialog.tsx',
+          'src/components/ui/empty-state.tsx',
+          'src/components/ui/data-table.tsx',
+          // Performance-only boot instrumentation is loaded dynamically by
+          // the profile build and is not part of the normal runtime surface.
+          'src/lib/profiler.ts',
           'src/consts/strings.generated.ts',
           'src/i18n/locales/**',
           // Temporal-flow codegen. Everything under generated/ is

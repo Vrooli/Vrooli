@@ -27,6 +27,14 @@ open. Within a domain, follow the `ARCHITECTURE.md` extension order:
 proto, API, transport, CLI, then UI. Finish a domain before starting the
 next; do not build every API, then every CLI, then every UI.
 
+`requirements/` mirrors this map one folder per domain, ordered by the same
+read graph, so a domain's progress is readable in one place. Three
+obligations belong to no single domain — declared measure coverage
+(`PRT-P0-009`), the broader operator console (`PRT-P2-001`), and future
+kernel adapters (`PRT-P2-004`) — and live in `requirements/06-platform/`.
+Requirement IDs keep their `PRT-P<priority>-<n>` form because they are cited
+from outside this scenario; see `requirements/README.md`.
+
 ## Purpose Of This Document
 
 Use this document to answer:
@@ -118,7 +126,10 @@ upload exception. Copy its shape for your own domains, then remove it.
 - API: `api/internal/bindings/`.
 - Kernel: `kernel/bindings/` — the callable projection the program sees.
 - Storage: binding-resolution snapshots and refusal reasons only.
-- Requirements: `PRT-P0-001`, `PRT-P0-002`, `PRT-P0-005`, `PRT-P1-001`.
+- Requirements: `requirements/01-bindings/` — `PRT-P0-001`, `PRT-P0-002`,
+  `PRT-P0-005`, `PRT-P1-001`, `PRT-P1-007`. The registry inspection surface
+  (`PRT-P1-007`) belongs here rather than with the operator console: it
+  renders this domain's resolved state and nothing else.
 - Tests: registry projection, argument validation, governance refusal,
   discovery degradation.
 
@@ -138,7 +149,8 @@ upload exception. Copy its shape for your own domains, then remove it.
 - API: `api/internal/sessions/`.
 - Kernel: `kernel/host/` — the session loop inside the sidecar.
 - Storage: sessions, grants, reclamation reasons.
-- Requirements: `PRT-P0-004`, `PRT-P1-004`, `PRT-P1-005`, `PRT-P2-003`.
+- Requirements: `requirements/03-sessions/` — `PRT-P0-004`, `PRT-P1-004`,
+  `PRT-P1-005`, `PRT-P2-003`.
 - Tests: state survival across submissions, cross-session isolation,
   reclamation with a stated reason, ceiling enforcement.
 
@@ -159,8 +171,8 @@ upload exception. Copy its shape for your own domains, then remove it.
 - API: `api/internal/programs/`.
 - Kernel: `kernel/host/` — handle implementation and materialization.
 - Storage: submissions, results, failure detail.
-- Requirements: `PRT-P0-003`, `PRT-P1-002`, `PRT-P1-003`, `PRT-P1-006`,
-  `PRT-P2-002`.
+- Requirements: `requirements/04-programs/` — `PRT-P0-003`, `PRT-P1-002`,
+  `PRT-P1-003`, `PRT-P1-006`, `PRT-P1-008`, `PRT-P2-002`.
 - Tests: bounded repr, explicit materialization, in-kernel aggregation,
   the context-bytes-per-query budget, inference routing, delegation.
 
@@ -179,9 +191,13 @@ upload exception. Copy its shape for your own domains, then remove it.
   here would duplicate both.
 - API: `api/internal/telemetry/`.
 - Storage: an outbox only; events are not a durable local store.
-- Requirements: `PRT-P0-006`.
-- Tests: event emission per action class, failure locator presence, and
-  an architecture test asserting no local aggregation.
+- Requirements: `requirements/05-telemetry/` — `PRT-P0-006`.
+- Tests: event emission per action class, failure locator presence, an
+  architecture test asserting no local aggregation, and an integration
+  test proving delivery to the bus rather than emission alone.
+- External obligation: this domain can prove events are emitted and
+  delivered; it cannot make anything consume them. agent-manager must
+  subscribe. Tracked in `PRD.md` §External obligations.
 - Known gap: agent identity does not currently reach events raised for
   in-program inference. See `INTEGRATIONS.md` §Identity propagation.
 
@@ -201,10 +217,17 @@ upload exception. Copy its shape for your own domains, then remove it.
   `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`.
 - API: `api/internal/actspace/`.
 - Storage: none. The denominator is a document; the numerator is computed.
-- Requirements: `PRT-P0-007`, `PRT-P0-008`.
+- Requirements: `requirements/02-actspace/` — `PRT-P0-007`, `PRT-P0-008`,
+  `PRT-P1-009`.
 - Tests: denominator parse and spacedoc conformance, per-cell resolution,
   partially-bound cells reporting in-reach, unresolvable cells keeping
-  authored status.
+  authored status, and confidence derived from audit coverage.
+- Sequencing note: the numerator RPC (`PRT-P0-008`) is the instrument that
+  makes the denominator auditable (`PRT-P1-009`). The denominator was
+  authored before this scenario existed and 12 of its 28 cells are marked
+  unaudited, so it is served at `SKETCH` confidence until that audit runs.
+  This domain reads `bindings` only, so it can be built directly after it
+  and before any kernel exists.
 
 ## Shared Concepts
 

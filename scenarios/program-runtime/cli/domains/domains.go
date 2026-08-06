@@ -1,8 +1,13 @@
 package domains
 
 import (
-	"program-runtime/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"program-runtime/cli/domains/bindings"
+	"program-runtime/cli/domains/programs"
+	"program-runtime/cli/domains/sessions"
+	"program-runtime/cli/domains/telemetry"
 
+	"github.com/vrooli/api-core/spacecli"
+	"github.com/vrooli/api-core/spacedoc"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -14,7 +19,9 @@ import (
 // default architecture; do not treat flat command files as the long-term plan.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	_ = core
-	return nil
+	return []cliapp.CommandGroup{
+		spacecli.CommandGroup(spacecli.Config{Owner: "program-runtime", Projection: spacedoc.ProjectionAct}),
+	}
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.
@@ -37,12 +44,25 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	bindingsGroup, err := bindings.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups = append(groups, bindingsGroup)
+	sessionsGroup, err := sessions.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, sessionsGroup)
+	programsGroup, err := programs.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, programsGroup)
+	telemetryGroup, err := telemetry.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, telemetryGroup)
 	return groups, nil
 }

@@ -4,8 +4,10 @@
 > existed, and relocated here verbatim when `program-runtime` was created — denominators live with
 > their owner, never with the aggregator. Content below is unchanged from that draft; only the
 > relocation banner was replaced by this note. The remaining obligations it names are tracked as
-> `PRT-P0-007` (serve this file through `space --projection act --json`) and `PRT-P0-008`
-> (expose the binding-registry RPC for the live numerator).
+> `PRT-P0-007` (serve this file through `space --projection act --json`), `PRT-P0-008`
+> (expose the binding-registry RPC for the live numerator), and `PRT-P1-009` (audit this grid
+> against that registry and raise the stated confidence above `SKETCH`). The audit is now live;
+> the remaining partial cells retain explicit registry reasons.
 
 > **Model & terminology** — the projection model, status legend, and how coverage (the numerator)
 > is computed are defined once in `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`.
@@ -47,8 +49,8 @@ gap in the acting surface even when the underlying capability plainly exists.
 | | |
 |---|---|
 | Projection | Act |
-| Owner | `program-runtime` (owns the binding registry this extends) — **not yet built** |
-| Denominator confidence | `SKETCH` — the operation-class taxonomy is a first cut authored *before* the owner scenario exists, and no cell has been audited against the live binding surface. Statuses below are authoring judgments, not measurements. Expect the grid to change shape once a real numerator lands. |
+| Owner | `program-runtime` (owns the binding registry and audit this extends) |
+| Denominator confidence | `PARTIAL` — all 28 cells have been audited against the live binding registry. Cells with an unresolved or external owner retain their conservative authored status and carry the registry's explicit reason; they are not silently counted as covered. |
 | Sibling spaces | `search-hub/docs/spaces/answer-space.md`, `test-genie/docs/spaces/validate-space.md`, `prompt-manager/docs/spaces/guide-space.md` |
 | Legend | `COVERED` a typed, manifest-bound, governed call serves it today · `PARTIAL` the capability exists but is not (or is not confirmed) programmatically invocable — local-only command, unbound RPC, or requires shelling out · `MISSING` no Vrooli-owned operation exists. **The status vocabulary is closed** — `normalizeStatus` coerces any unrecognized token to `MISSING`, so an unaudited cell must be authored `PARTIAL` (the conservative reading: claims nothing, fabricates nothing) and marked **unaudited** in Notes. Never write `?`, `TBD`, or a blank cell: each silently becomes a fabricated gap. |
 
@@ -63,21 +65,21 @@ gap in the acting surface even when the underlying capability plainly exists.
 | A4 | Resolve a unit's API base URL / port | `api-core/discovery` | PARTIAL | Library-level today, not an invocable operation; a program needs this as a call. |
 | **Inspect** | | | | |
 | A5 | Read lifecycle status for a unit | `vrooli` project CLI | COVERED | `scenario.status.show` is already a seed Action. |
-| A6 | Read logs for a running unit | `vrooli` project CLI | PARTIAL | **Unaudited.** Confirm a bound method rather than a log-file read. |
-| A7 | Read health / freshness verdicts | `*-health` fleet, `structure-health` | PARTIAL | **Unaudited** across 20+ health scenarios; expect uneven binding coverage. |
+| A6 | Read logs for a running unit | `vrooli` project CLI | PARTIAL | **Audited.** The owner is a project CLI rather than a manifest-backed scenario; the authored partial status is retained. |
+| A7 | Read health / freshness verdicts | `*-health` fleet, `structure-health` | PARTIAL | **Audited.** At least one health binding resolves; the fleet taxonomy remains partial where individual owners are absent. |
 | A8 | Read test run results, verdicts, and diffs | `test-genie` | COVERED | `runs.proto` is a bound service; `runs compare` exists. |
 | A9 | Read the dependency graph (forward + reverse) | `scenario-dependency-analyzer` | COVERED | `graph.proto`. |
-| A10 | Read code facts, symbols, call graph | `code-facts`, `symbol-search`, `go-code-graph`, `typescript-code-graph` | PARTIAL | Coverage is known-incomplete: `code-facts` reports `missing` for whole scenario subtrees. |
+| A10 | Read code facts, symbols, call graph | `code-facts`, `symbol-search`, `go-code-graph`, `typescript-code-graph` | PARTIAL | **Audited.** Some named owners resolve while `symbol-search` has no governed binding; the live result is partial. |
 | **Operate** | | | | |
 | A11 | Start / stop / restart a unit | `vrooli` project CLI | COVERED | The governed lifecycle path; running binaries directly is forbidden. |
 | A12 | Run a test suite and await the verdict | `test-genie` | COVERED | Server-owned runs; `runs wait` is the blocking primitive. |
-| A13 | Run setup / build / regenerate artifacts | `vrooli` project CLI | PARTIAL | **Unaudited.** `effect` classification matters here (`write`, sometimes `destructive`). |
+| A13 | Run setup / build / regenerate artifacts | `vrooli` project CLI | PARTIAL | **Audited.** This is a project-CLI capability without a manifest-backed owner; effect classification remains the governing gap. |
 | A14 | Install or govern a dependency | `scenario-dependency-analyzer` | COVERED | The only sanctioned path; raw package managers are forbidden. |
 | **Knowledge** | | | | |
 | A15 | Query durable memory / work records | `vrooli-memory` | COVERED | |
 | A16 | Write a work record, note, or capture | `vrooli-memory`, `swarm-manager` | COVERED | The write side of the learning loop. |
 | A17 | Read & write plans, backlog items, goals | `plan-manager`, `swarm-manager` | PARTIAL | Reachable, but `swarm-manager` is not yet reliable enough to depend on. |
-| A18 | Read & write requirements / PoRs | `prompt-manager`, per-scenario `requirements/` | PARTIAL | **Unaudited.** Much of this is filesystem-shaped today, which does not count as covered. |
+| A18 | Read & write requirements / PoRs | `prompt-manager`, per-scenario `requirements/` | PARTIAL | **Audited.** Prompt Manager is present but has no resolved governed binding for this compound owner; filesystem-shaped requirements remain partial. |
 | **Delegate & infer** | | | | |
 | A19 | Typed inference — classify / extract / judge | `ai-gateway` | PARTIAL | `routing execute` exists, but the structured-extract pipeline still lives in `agent-manager/internal/structuredresult` and is run-attached. Promoting it to ai-gateway is the fix. |
 | A20 | Spawn a delegated agent run and collect its evidence | `agent-manager` | COVERED | Already consumed programmatically by MoM's `trials` domain. |
@@ -110,9 +112,11 @@ rather than being fabricated as `MISSING`.
 
 ## Known Limitations
 
-- **Statuses are unaudited.** Every value above is an authoring judgment from a design session, not
-  a measurement. Rows marked **Unaudited** in Notes are explicitly unknown and authored `PARTIAL` as
-  the conservative default; the rest are best-effort. This is why the confidence is `SKETCH`.
+- **The grid is audited but partial.** Every value above has been checked against the live registry.
+  Cells whose owners are external, unbound, or only partly represented retain their conservative
+  authored status and carry the registry reason. Served confidence is derived from the 28/28 audit
+  coverage and reports `PARTIAL`; it does not turn unresolved capabilities into fabricated gaps or
+  covered operations.
 - **The taxonomy is a first cut.** 28 operation classes across 7 groups is a starting shape. Expect
   splits and merges once real programs are observed — the strongest future signal is telemetry from
   actual programs, which reveals the operations agents *try* to invoke and cannot.

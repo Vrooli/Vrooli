@@ -22,54 +22,11 @@
       "status": "active"
     },
     {
-      "id": "programs",
-      "path": "pages/programs.json",
-      "title": "Programs",
-      "status": "active"
-    },
-    {
-      "id": "program",
-      "path": "pages/program.json",
-      "title": "Program",
-      "status": "active"
-    },
-    {
-      "id": "sessions",
-      "path": "pages/sessions.json",
-      "title": "Sessions",
-      "status": "active"
-    },
-    {
-      "id": "measures",
-      "path": "pages/measures.json",
-      "title": "Measures",
-      "status": "active"
-    },
-    {
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",
       "status": "active"
-    },
-    {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
-      "status": "active"
     }
   ],
-  "journeys": [
-    {
-      "id": "triage-a-failed-program",
-      "path": "journeys/triage-a-failed-program.json",
-      "title": "Understand why an agent's program failed, and correct it",
-      "status": "active"
-    },
-    {
-      "id": "find-what-cannot-be-called",
-      "path": "journeys/find-what-cannot-be-called.json",
-      "title": "Find what an agent cannot call, and why",
-      "status": "active"
-    }
-  ]
+  "journeys": []
 }

@@ -43,7 +43,7 @@ through **Scenario Dependency Analyzer**. No raw `pip`, `pnpm add`, or
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| `ai-gateway` | required (P1) | Typed inference (`classify`, `extract`, `judge`) inside programs. The single inference front door; this scenario never contacts a provider directly. | Connect RPC via `api-core/discovery`. Blocked on promoting the structured-extract pipeline out of `agent-manager/internal/structuredresult`, where it is currently run-attached. |
+| `ai-gateway` | required (P1) | Typed inference (`classify`, `extract`, `judge`) inside programs. The single inference front door; this scenario never contacts a provider directly. | Connect RPC via `api-core/discovery`; usage accounting feeds the separate inference budget target OT-P1-010. |
 | `agent-manager` | required (P1) | Delegated agent runs spawned from a program, and the consumer of this scenario's friction events. | Connect RPC. agent-manager must also **subscribe** to this scenario's events; it is currently the only event subscriber in the fleet. |
 | `vrooli-events` | required (P0) | Typed telemetry for submissions, invocations, and failures. | `packages/api-core/eventbus`. Emission is automatic for every scenario; subscription is opt-in by the reader. |
 | `search-hub` | required (P1) | In-kernel capability discovery so the callable surface is not preloaded into agent context. | Connect RPC; degrades to a stated reason. |
@@ -55,6 +55,22 @@ through **Scenario Dependency Analyzer**. No raw `pip`, `pnpm add`, or
 | Service | Status | Reason | Contract |
 |---|---|---|---|
 | None | deliberate | All outbound calls terminate at Vrooli-owned scenarios. Model providers are reached only through `ai-gateway`, which owns credentials and provider policy. | Revisit only if a capability cannot be expressed as a governed Vrooli operation. |
+
+## External Obligations
+
+Three pieces of required work sit outside this scenario's boundary. Each is
+listed with an owner because in every case this scenario can reach 100% green
+while the obligation stays unmet and the value stays unrealised. Mirrors
+`PRD.md` §External obligations; keep the two in step.
+
+| Obligation | Owner | Unblocks | If it stalls |
+|---|---|---|---|
+| Subscribe to program events | `agent-manager` | Friction analysis reading program evidence | `PRT-P0-006` is green, events reach the bus, nothing reads them |
+| Raise `cli/manifest.json` coverage past 58/128 | fleet-wide; surfaced by `cli-health`, ranked by `meta-optimization-manager` `focus next` | The ceiling on the whole Act surface | Act coverage caps near 45% of the fleet however complete this scenario is |
+
+None of the three blocks launch. The first two bound the realised value of
+work that is otherwise complete; the third bounds a number this scenario
+reports honestly rather than one it can raise.
 
 ## Identity Propagation — Known Gap
 

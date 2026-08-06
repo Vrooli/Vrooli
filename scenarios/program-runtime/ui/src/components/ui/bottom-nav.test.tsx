@@ -39,4 +39,23 @@ describe("BottomNav", () => {
     expect(onItemSelect).toHaveBeenCalledTimes(1);
     expect(onItemSelect.mock.calls[0]?.[0]).toMatchObject({ id: "home" });
   });
+
+  it("renders links and prevents disabled actions", async () => {
+    const user = userEvent.setup();
+    const onItemSelect = vi.fn();
+    renderWithProviders(
+      <BottomNav
+        label="Primary navigation"
+        items={[
+          { id: "settings", label: "Settings", icon: <Home aria-hidden />, href: "/settings", testId: "settings-tab" },
+          { id: "disabled", label: "Disabled", icon: <Home aria-hidden />, disabled: true, testId: "disabled-tab" },
+        ]}
+        onItemSelect={onItemSelect}
+      />,
+    );
+
+    expect(screen.getByTestId("settings-tab")).toHaveAttribute("href", "/settings");
+    await user.click(screen.getByTestId("disabled-tab"));
+    expect(onItemSelect).not.toHaveBeenCalled();
+  });
 });

@@ -19,6 +19,8 @@ Use this document to answer:
 | UI build | 5-10 minutes accepted for current Vite module graph | lifecycle/test-genie build logs | inherited |
 | API health | responsive under lifecycle health timeout | `/health` check | active |
 | UI health | responsive under lifecycle health timeout | `/health` check | active |
+| Per-session inference spend | configured cost and token ceilings from ai-gateway `Usage` | session budget ledger; `cost_micros`, input tokens, output tokens | planned (`OT-P1-010`) |
+| Per-session delegated-run spend | separate configured ceiling for agent-manager work | delegated-run usage ledger; reclamation/refusal reason | planned (`OT-P1-011`) |
 
 ## Current Measurements
 
@@ -32,6 +34,10 @@ Use this document to answer:
   several minutes.
 - Performance budgets for real product workflows must be defined after
   domains and UX flows are known.
+- Inference and delegated-run budgets are intentionally separate. A typed
+  inference call is bounded by ai-gateway usage, while a delegated run is an
+  agentic cost tier with different pricing and failure semantics. One shared
+  ceiling would make either budget unenforceable or unnecessarily restrictive.
 
 ## Regression Procedure
 

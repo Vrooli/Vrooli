@@ -194,7 +194,18 @@
       ]
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "scenarios": {
+      "vrooli-events": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional typed telemetry bus for program lifecycle events.",
+        "degraded_behavior": "Program execution remains available and local event persistence continues when vrooli-events is unavailable."
+      }
+    }
+  },
   "credentials": {},
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/program-runtime.db"
