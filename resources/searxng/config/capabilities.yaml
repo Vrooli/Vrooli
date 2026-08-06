@@ -2,61 +2,39 @@ apiVersion: vrooli.com/v1
 kind: ResourceCapability
 metadata:
   name: searxng
-  category: search
-  subcategory: metasearch
-  description: Privacy-respecting local metasearch over the SearXNG HTTP API.
-  maturity: stable
-  complexity: simple
+  category: resource
+  description: "Go-native lifecycle and health contract for searxng."
+  maturity: M4
 spec:
-  capabilities:
-    primary:
-      - metasearch-aggregation
-      - privacy-preserving-search
-      - json-api-output
-    secondary:
-      - html-search-ui
-      - engine-health-diagnostics
-      - typed-configuration-migration
+  commands:
+    - name: info
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: status
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: install
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: start
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: stop
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: restart
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: logs
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: uninstall
+      implementation: internal/resources/control
+      test: cli/main_test.go
   interfaces:
-    - name: search-api
-      endpoint: /search
-      method: [GET]
-      inputTypes: []
-      outputTypes: [application/json, text/html]
-      description: JSON and HTML search; consumers use format=json for structured results.
-    - name: runtime-health
-      endpoint: /stats
-      method: [GET]
-      inputTypes: []
-      outputTypes: [application/json]
-      description: Container health endpoint; engine-health supplements it with a canary query.
-  dependencies:
-    required: [docker, internet-connection]
-    optional: []
-    incompatible: []
-  scenarios:
-    primary: [web-search]
-    secondary: []
-  technical:
-    ports: [8280]
-    protocols: [http]
-    data_formats: [json, html]
-    resource_requirements:
-      database:
-        required: false
-        recommended: false
-        supported: []
+    - name: primary-health
+      endpoint: resource.json health_checks[0]
+      test: resource.json health_checks[0]
   testing:
-    test_file: resources/searxng/cli
-    test_coverage: [configuration-migration, json-api-contract, engine-health]
-    integration_tests: [manifest-docker-contract, web-search-consumer]
-  documentation:
-    readme: resources/searxng/README.md
-    api_reference: resources/searxng/docs/API.md
-    configuration: resources/searxng/docs/CONFIGURATION.md
-    operations: resources/searxng/docs/OPERATIONS.md
-labels:
-  resource.vrooli.com/category: search
-  resource.vrooli.com/type: metasearch
-  resource.vrooli.com/maturity: stable
-  resource.vrooli.com/privacy-focused: "true"
+    unit_test: cli/main_test.go
+    contract_test: internal/resources/fleet_contract_test.go

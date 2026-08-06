@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/capacity"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/capacitysync"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/config"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/gateway"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/models"
@@ -97,6 +99,25 @@ func main() {
 	}
 }
 
+// healthReady is stricter than Ollama's process-level /api/tags response: a
+// daemon with no installed model cannot serve the resource's primary
+// capability and must remain unready.
+func healthReady(_ []string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cfg := config.Default()
+	client := ensure.NewClient()
+	client.BaseURL = cfg.BaseURL
+	models, err := client.ListModels(ctx)
+	if err != nil {
+		return err
+	}
+	if cfg.RequireModel && len(models) == 0 {
+		return fmt.Errorf("no Ollama model is installed")
+	}
+	return nil
+}
+
 func newApp() (*cliapp.ResourceApp, error) {
 	env := cliapp.StandardResourceEnv(appName, cliapp.ResourceEnvOptions{})
 	app, err := cliapp.NewResourceApp(cliapp.ResourceOptions{
@@ -113,7 +134,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	app.SetCommandsWithSubgroups(
-		append(app.StandardLifecycleCommands(), ensure.CommandGroup(newAdmissionValidator()),
+		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Health", Commands: []cliapp.Command{{Name: "health-ready", Description: "Succeed only when at least one model is installed", Run: healthReady}}}, ensure.CommandGroup(newAdmissionValidator()),
 			cliapp.CommandGroup{Title: "Capacity", Commands: []cliapp.Command{capacitysync.Command(nil)}}),
 		[]cliapp.SubcommandGroup{gateway.Commands(nil), capacity.Commands(nil), policycmd.Commands(nil), models.Commands(nil)},
 	)

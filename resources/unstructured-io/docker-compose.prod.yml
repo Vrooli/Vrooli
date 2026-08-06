@@ -1,6 +1,6 @@
 services:
   unstructured-io:
-    image: downloads.unstructured.io/unstructured-io/unstructured-api:0.0.78
+    image: downloads.unstructured.io/unstructured-io/unstructured-api@sha256:40f62907ad7e3121cd1c34b9a3f4c45381c150395cb002b7fd652818c5980596
     container_name: vrooli-unstructured-io-prod
     ports:
       - "11450:8000"

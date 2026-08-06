@@ -1,5 +1,4 @@
 package install
 
-// Package install owns Antigravity bootstrap helpers when the declarative install
-// contract (lib/install.sh) is not sufficient on its own. Reserved for future
-// runner-integration work; intentionally empty today.
+// Package install owns Antigravity-specific installation policy. The shared
+// shell-free installer is wired at the resource CLI boundary.

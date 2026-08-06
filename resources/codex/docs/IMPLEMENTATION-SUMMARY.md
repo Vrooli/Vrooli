@@ -8,7 +8,7 @@ Successfully enhanced resource-codex to integrate with OpenAI's 2025 Codex CLI a
 
 ### 1. New Library: `lib/codex-cli.sh`
 - **Installation management**: Auto-install Codex CLI via npm
-- **Configuration**: Automatic API key setup from Vault
+- **Configuration**: Automatic API key setup through credential-authority process injection
 - **Execution wrapper**: Safe execution with workspace isolation
 - **Smart routing**: Automatically choose best backend (CLI → API → fallback)
 - **High-level tasks**: Fix code, generate tests, refactor, etc.

@@ -3,7 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${SPEAKER_VERIFICATION_IMAGE:-vrooli/speaker-verification:latest}
     container_name: ${SPEAKER_VERIFICATION_CONTAINER_NAME:-speaker-verification}
     hostname: speaker-verification
     restart: unless-stopped

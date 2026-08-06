@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"resource-claude-code/cli/internal/permissionscli"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/upstreamcheck"
 	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
+	agentinstall "github.com/vrooli/vrooli/packages/resource-agent-install"
 )
 
 const (
@@ -55,10 +57,11 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	app.SetCommandsWithSubgroups(
-		app.StandardLifecycleCommands(),
+		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{Binary: "claude", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".claude"), Version: upstreamPinnedVersion, NPM: "@anthropic-ai/claude-code"})}}),
 		[]cliapp.SubcommandGroup{
 			agentpolicy.ModelDiscoveryCommands(agentpolicy.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName)}),
-			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "hook_backed", Caveats: []string{"Claude native permission denials are backed by a PreToolUse Bash hook."}}}),
+			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Claude native permission denials remain active; verify the installed Claude version with a PreToolUse runner canary before treating the portable hook as enforced."}}}),
+			permissionscli.HookCommands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{
 				DisplayName:   appName,

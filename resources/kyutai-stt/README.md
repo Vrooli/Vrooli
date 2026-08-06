@@ -82,3 +82,6 @@ Environment exports for scenarios: `KYUTAI_STT_URL`, `KYUTAI_STT_BASE_URL`,
   anonymous download rate limits.
 - See [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/kyutai-stt/docs/OPERATIONS.md)
   for the architecture boundary, VRAM details, and troubleshooting.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

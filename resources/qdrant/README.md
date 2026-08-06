@@ -6,7 +6,7 @@ Managed Qdrant vector database runtime for embeddings and semantic search workfl
 
 - Resource ID: `qdrant`
 - Category: `storage`
-- Driver: `docker-service`
+- Driver: `managed-service`
 - Portability tier: `full`
 
 ## Use Cases
@@ -17,12 +17,15 @@ Managed Qdrant vector database runtime for embeddings and semantic search workfl
 
 ## Architecture
 
-This resource is being aligned to the updated `docker-service` structure.
+This resource uses the native, checksum-verified Qdrant artifact through the shared
+`managed-service` lifecycle. Docker is not required. The control plane defaults to
+`managed-shared` on the control plane and `managed-private` in desktop bundles.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Qdrant-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
+- Historical `lib/` shell behavior has been retired; lifecycle and configuration
+  behavior lives in the shared control plane and typed Go packages.
 
 The intended escalation path is:
 
@@ -54,9 +57,16 @@ Connection defaults:
 - REST: `http://localhost:6333`
 - gRPC: `grpc://localhost:6334`
 
+Readiness: `http://localhost:6333/readyz`.
+
 ## Notes
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for collection, embedding, or backup workflows.
 - Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
-- Existing shell-heavy workflows in `lib/` are transitional. New logic should land in Go under `cli/internal/...`.
+- Windows is supported at the managed-artifact and contract level; hardware-specific
+  acceptance remains partial until a Windows runtime is available in CI.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/qdrant/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+
+## Maturity
+
+M4 (2026-08-05): managed-service lifecycle, typed configuration, pinned native artifacts, readiness contract, and capability evidence are enforced by the fleet contract.

@@ -39,16 +39,16 @@ Credentials are sourced through the control-plane credential authority and
 injected only into the owning runtime process, never from config files or
 committed environment files:
 
-- repository passphrase → logical identity `vrooli/kopia`, field
+- repository passphrase → per-repository logical identity `vrooli/kopia/<name>`, field
   `repository-passphrase`
   (auto-generated 32+ chars on `repo create`; the resource fails closed if it
   is missing — it never uses a default/empty passphrase)
-- S3 credentials → logical identity `vrooli/kopia`, fields `s3-access-key-id`
+- S3 credentials → the same per-repository identity `vrooli/kopia/<name>`, fields `s3-access-key-id`
   and `s3-secret-access-key`
   (only for `--backend s3`)
 
-See [`resource.json`](resource.json) and
-[`resources/vault/docs/SECRETS-STANDARD.md`](../vault/docs/SECRETS-STANDARD.md).
+See [`resource.json`](resource.json) and the platform credential-authority
+documentation in `docs/configuration/secrets.md`.
 
 ## Disaster recovery
 
@@ -108,7 +108,7 @@ wrapping CLI is Go-native under `cli/internal/...` (no shell `lib/*.sh`):
 cli/internal/
   app/         CLI wiring (lifecycle + repo/snapshot/policy/maintenance groups)
   kexec/       the SINGLE seam that execs the kopia binary (+ test fake)
-  vault/       secret sourcing via resource-vault (+ test fake)
+  credentials/ credential-authority sourcing (+ test fake)
   repoctx/     resolve a repo name -> config + secret env
   registry/    name -> repository metadata (state root; no repo-local data/)
   repo/ snapshot/ policy/ maintenance/   command handlers (flag -> kopia argv)
@@ -118,3 +118,6 @@ cli/internal/
 
 Runtime state resolves to host-scoped storage-class paths
 (`<state|config|cache>/vrooli/resources/kopia/...`), never repo-local `data/`.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

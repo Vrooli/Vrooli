@@ -9,10 +9,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
+
 	"resource-gemini/cli/internal/auth"
 	"resource-gemini/cli/internal/config"
 	"resource-gemini/cli/internal/health"
-	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 
@@ -93,7 +94,6 @@ func runListModels(app *cliapp.ResourceApp, args []string, stdout io.Writer) err
 
 	runtime := resourceenv.Load()
 	resolver := auth.NewResolver()
-	resolver.CredentialsFilePath = runtime.CredentialsFile
 
 	creds, err := resolver.Resolve(context.Background())
 	if err != nil {
@@ -165,7 +165,6 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	}
 
 	resolver := auth.NewResolver()
-	resolver.CredentialsFilePath = runtime.CredentialsFile
 	creds, err := resolver.Resolve(context.Background())
 	if err != nil {
 		return err

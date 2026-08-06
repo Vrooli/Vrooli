@@ -93,10 +93,9 @@ repo-contract check).
 - To change a model, edit `model-policy.json` (the single update point) — never a
   consumer.
 
-Credentials can come from:
-
-- `OPENROUTER_API_KEY`
-- Vault secret ref: `secret/openrouter`
+The control plane resolves `vrooli/openrouter:api-key` and injects
+`OPENROUTER_API_KEY` only into the resource process. The resource does not
+invoke Vault, read user credential files, or manage secret storage.
 
 ## Notes
 
@@ -105,3 +104,6 @@ Credentials can come from:
 - Keep endpoint, credential, and health expectations declarative in `resource.json` whenever possible.
 - `generate`, `list-models`, and `content models` are now native Go commands, not retained shell wrappers.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/openrouter/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

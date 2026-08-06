@@ -22,7 +22,7 @@ the matching package under `cli/internal/` first and keep commands thin.
 - Keep runtime storage rooted in `${RESOURCE_CONFIG_DIR}`, `${RESOURCE_DATA_DIR}`, `${RESOURCE_CACHE_DIR}`, `${RESOURCE_LOGS_DIR}`, and `${RESOURCE_STATE_DIR}` rather than repo-local `data/`.
 - Back up `${RESOURCE_CONFIG_DIR}` and `${RESOURCE_DATA_DIR}` together. AdGuard configuration lives under `/opt/adguardhome/conf`; runtime work data lives under `/opt/adguardhome/work`.
 - Treat the manifest HTTP check as liveness only. Use `resource-adguard-home api-health --json` for authenticated control-plane readiness.
-- Use `resource-adguard-home bootstrap --base-url http://localhost:3000 --json` for first-run setup. It stores credentials through `resource-vault` and does not print the generated password.
+- Use `resource-adguard-home bootstrap --base-url http://localhost:3000 --json` for first-run setup. It stores credentials through the credential authority and does not print the generated password.
 - Use `resource-adguard-home config preview --json` to inspect upstream drift before Network Manager policy code applies any persistent resolver change.
 - Use `resource-adguard-home clients list --json` for client/device evidence without reading query-level DNS history.
 - Use `resource-adguard-home querylog privacy --json` to confirm query-log posture before reporting privacy compliance.
@@ -48,7 +48,7 @@ Before router-wide rollout:
 4. Verify authenticated health using the stored secret:
    `resource-adguard-home api-health --base-url http://localhost:3000 --username admin --password "$PASSWORD" --json`.
 5. Configure Network Manager with
-   `network-manager resolver configure-adguard --base-url http://localhost:3000 --username admin --token-ref secret/resources/adguard-home/admin --json`.
+   `network-manager resolver configure-adguard --base-url http://localhost:3000 --username admin --credential-ref vrooli/adguard-home --json`.
 6. Point router DHCP DNS and IPv6 RDNSS/DNS guidance to the same LAN address
    only after AdGuard is healthy.
 
@@ -62,11 +62,11 @@ blocking; clients will not use that high port unless explicitly configured.
 
 ## Credentials
 
-The manifest declares `secret/resources/adguard-home/admin` as the canonical
+The manifest declares `vrooli/adguard-home` as the canonical
 credential reference. The bootstrap command stores username/password there
 through the Vrooli secret flow. Resource diagnostics may also read
 `ADGUARD_HOME_USERNAME` and `ADGUARD_HOME_PASSWORD` for local smoke tests, but
-prefer one-shot shell variables sourced from `resource-vault content get` when
+prefer one-shot shell variables injected by the credential authority when
 performing live checks.
 
 Never pass the plain password into Network Manager. Network Manager should store

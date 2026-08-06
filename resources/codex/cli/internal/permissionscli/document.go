@@ -10,7 +10,7 @@ import (
 	"github.com/vrooli/cli-core/agentpolicy"
 )
 
-var codexPermissionPosture = agentpolicy.EnforcementPosture{Permissions: "intent_only", Caveats: []string{"Codex does not natively enforce per-command allow, ask, or deny patterns."}}
+var codexPermissionPosture = agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."}}
 
 func (h *Handlers) Plan(args []string) error {
 	fs, scopeRaw := h.flagSet("permissions plan")

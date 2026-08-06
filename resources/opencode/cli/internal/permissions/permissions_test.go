@@ -326,3 +326,19 @@ func TestStateRoundTrip(t *testing.T) {
 		t.Errorf("managed list not recorded in sidecar: %v", st.ManagedBash)
 	}
 }
+
+func TestSaveProjectsConfiguredToolBeforePlugin(t *testing.T) {
+	dir := t.TempDir()
+	a := &Adapter{SettingsPath: filepath.Join(dir, "opencode.json"), PluginPath: filepath.Join(dir, "plugins", "vrooli-policy.js")}
+	t.Setenv("VROOLI_AGENT_POLICY_RUNNER", "policy-runner")
+	if err := a.Save(Policy{BashDeny: []string{"pnpm add *"}}, "test"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(a.PluginPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "tool.execute.before") || !strings.Contains(string(raw), "policy-runner") {
+		t.Fatalf("unexpected plugin projection: %s", raw)
+	}
+}

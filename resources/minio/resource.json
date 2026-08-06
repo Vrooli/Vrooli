@@ -1,12 +1,41 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "minio",
-  "storage": {"entries": {
-    "data": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/minio", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/minio", "windows": "$USER_HOME/AppData/Local/vrooli/resources/minio"}, "kind": "dir", "class": "data", "regenerable": false, "rationale": "MinIO object data is bind-mounted to /data and must survive container replacement."},
-    "config": {"rung": "pinned", "path": {"linux": "$USER_HOME/.config/vrooli/resources/minio", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/minio", "windows": "$USER_HOME/AppData/Local/vrooli/resources/minio"}, "kind": "dir", "class": "config", "regenerable": false, "sensitive": true, "rationale": "MinIO credentials and server configuration are bind-mounted to /root/.minio."}
-  }},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/minio",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/minio",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/minio"
+        },
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "MinIO object data is bind-mounted to /data and must survive container replacement.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      },
+      "config": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.config/vrooli/resources/minio",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/minio",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/minio"
+        },
+        "kind": "dir",
+        "class": "config",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "MinIO credentials and server configuration are bind-mounted to /root/.minio."
+      }
+    }
+  },
   "display_name": "MinIO",
-  "description": "Managed MinIO object storage service with native docker lifecycle and shell-retained S3 administration commands.",
+  "description": "Managed MinIO object storage service supervised from a checksum-verified native binary.",
   "cli": {
     "enabled": true,
     "command": "resource-minio",
@@ -43,63 +72,53 @@
       "kind": "go_module"
     }
   },
-  "template": "docker-service",
-  "driver": "docker-service",
+  "template": "managed-service",
+  "driver": "managed-service",
   "deployment": {
     "profiles": {
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
           "limitations": [
-            "Docker images, storage, and networking remain host-managed."
+            "Native artifact availability is verified per target architecture."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "native-artifact-check"
           ]
         },
         "macos": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "Native artifact availability is verified per target architecture."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "native-artifact-check"
           ]
         },
         "windows": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
+            "amd64"
           ],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "Native artifact availability is verified per target architecture."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "native-artifact-check"
           ]
         }
       }
@@ -128,13 +147,14 @@
   "health_checks": [
     {
       "type": "http",
-      "target": "http://127.0.0.1:9000/minio/health/live",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:9000/minio/health/ready",
       "timeout_seconds": 10
     }
   ],
   "runtime": {
-    "image": "minio/minio:RELEASE.2025-07-23T15-54-02Z",
-    "container_name": "minio",
+    "image": "",
+    "container_name": "",
     "env": {
       "MINIO_ROOT_USER": "minioadmin",
       "MINIO_ROOT_PASSWORD": "minioadmin",
@@ -144,22 +164,37 @@
       "MINIO_API_REQUESTS_MAX": "8000",
       "MINIO_API_REQUESTS_DEADLINE": "10s"
     },
-    "volumes": [
-      {
-        "source": "${RESOURCE_DATA_DIR}",
-        "target": "/data"
+    "volumes": [],
+    "command": []
+  },
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {"control-plane": "managed-shared", "desktop-bundle": "managed-private"},
+      "allowed_modes": ["managed-private", "managed-shared", "attach-only", "remote-vrooli", "managed-discovered"],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": ["read-only", "read-write"]
+    },
+    "artifact": {
+      "path": "server/minio",
+      "version": "RELEASE.2025-07-23T15-54-02Z",
+      "sha256_by_platform": {
+        "linux-amd64": "eef6581f6509f43ece007a6f2eb4c5e3ce41498c8956e919a7ac7b4b170fa431",
+        "linux-arm64": "ec9f48fee97dee7e6ce8fe9f576471bcd52380c035091d8b075b64d606124c7e",
+        "macos-amd64": "314cc62269594d291eaca7807522a079d7c246ff15626964d7190fdd05b7ab04",
+        "macos-arm64": "0939ce5553ce9e6451b69e049fbf399794368276b61da8166f84cbd8c7f2d641",
+        "windows-amd64": "4c7c7b6e52638fbe25997a5e4dbb735c44537397ccc7c503c1cb0d02bb61b517"
       },
-      {
-        "source": "${RESOURCE_CONFIG_DIR}",
-        "target": "/root/.minio"
-      }
-    ],
-    "command": [
-      "server",
-      "/data",
-      "--console-address",
-      ":9001"
-    ]
+      "bundle_artifact": "minio_${os}_${arch}"
+    },
+    "attach_health_path": "/minio/health/ready",
+    "arguments": ["server", "--address", "127.0.0.1:${RESOURCE_PORT_API}", "${RESOURCE_DATA_DIR}", "--console-address", "127.0.0.1:${RESOURCE_PORT_CONSOLE}"],
+    "environment": {
+      "MINIO_ROOT_USER": "minioadmin",
+      "MINIO_ROOT_PASSWORD": "minioadmin",
+      "MINIO_BROWSER": "on",
+      "MINIO_REGION": "us-east-1"
+    }
   },
   "dependency_schema": {
     "type": "object",

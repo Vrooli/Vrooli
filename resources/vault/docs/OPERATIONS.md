@@ -19,7 +19,7 @@ Vault host with a signed server artifact and file storage:
 storage "file" { path = "${RESOURCE_DATA_DIR}" }
 ```
 
-Data, config, and logs use canonical resource storage directories. The listener is loopback-only; desktop bundles allocate a private port at launch, while the local control plane uses the declared resource port after proving it is not already occupied. The service artifact is checked before launch. This mode is durable across service restarts and is the expected mode for backup passphrases.
+Data, config, and logs use canonical resource storage directories. The listener is loopback-only; desktop bundles allocate a private port at launch, while the local control plane uses the declared resource port after proving it is not already occupied. The service artifact is checked before launch. This mode is durable across service restarts, but it is not the default storage path for backup passphrases or ordinary resource credentials.
 
 The user host initializes a fresh Vault once and stores its recovery material
 only in the operating-system credential store. It recovers an initialized
@@ -57,18 +57,18 @@ the resource provider policy. Neither capability grants lifecycle authority.
 ```bash
 resource-vault status
 vrooli resource status vault
-resource-vault content set --path secret/test/ops --key value --value ok
-resource-vault content get --path secret/test/ops --key value --format raw
-resource-vault content delete --path secret/test/ops
+resource-vault content set --path secret/capabilities/example/ops --key value --value ok
+resource-vault content get --path secret/capabilities/example/ops --key value --format raw
+resource-vault content delete --path secret/capabilities/example/ops
 ```
 
 For persistence:
 
 ```bash
-resource-vault content set --path secret/test/persistence --key value --value survives-restart
+resource-vault content set --path secret/capabilities/example/persistence --key value --value survives-restart
 vrooli resource restart vault
-resource-vault content get --path secret/test/persistence --key value --format raw
-resource-vault content delete --path secret/test/persistence
+resource-vault content get --path secret/capabilities/example/persistence --key value --format raw
+resource-vault content delete --path secret/capabilities/example/persistence
 ```
 
 ## Target-Host Smoke Evidence

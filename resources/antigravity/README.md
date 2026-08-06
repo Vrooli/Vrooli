@@ -33,7 +33,7 @@ lifecycle, an upstream update-check, and shared command-permission governance.
   `cli/internal/permissions` + `cli/internal/permissionscli` (the native
   `permissions` governance). The `install`/`version`/`discovery`/`env` packages
   are reserved stubs for future runner-integration work.
-- `lib/install.sh` queries the upstream per-platform manifest and downloads the
+- `resource-antigravity install-direct` queries the upstream per-platform manifest and downloads the
   artifact it points at directly (the opencode/grok pattern), landing the real
   `agy` binary at `~/.local/bin/agy` — sudo-free and without mutating the
   operator's shell rc.
@@ -55,10 +55,10 @@ vrooli resource install antigravity
 resource-antigravity status
 
 # Update to the current upstream version (idempotent reinstall; never automatic)
-bash resources/antigravity/lib/install.sh update
+resource-antigravity install-direct
 
 # Remove only the user-owned binary (leaves ~/.gemini durable state intact)
-bash resources/antigravity/lib/install.sh uninstall
+vrooli resource uninstall antigravity
 ```
 
 The install lands `~/.local/bin/agy` with **no sudo** and is fully re-runnable.
@@ -109,8 +109,14 @@ file.
 - Rules are written into the native `permissions` object in
   `~/.gemini/antigravity-cli/settings.json` (global/user scope). The adapter owns
   only the managed `deny`/`ask`/`allow` arrays and preserves every other settings
-  key. There is **no user-writable hook backstop** (Antigravity's hooks are
-  compiled-in), so this settings object is the single enforcement seam.
+  key. When `VROOLI_AGENT_HOOK_PATH` points at the active workspace's
+  `.agents/hooks.json`, the adapter also projects a `PreToolUse` command hook
+  to the local policy runner. Native settings remain the primary seam, and
+  hook firing is unverified until a live canary succeeds.
+- When `VROOLI_AGENT_HOOK_PATH` points at the active workspace's
+  `.agents/hooks.json`, the adapter also projects a `PreToolUse` command hook
+  to the local policy runner. Native settings remain the primary seam, and
+  hook firing is unverified until a live canary succeeds.
 - **Schema (confirmed 2026-06-29** against `antigravity.google/docs/cli-permissions`
   and the settings `agy 1.0.13` writes): the `permissions` object holds `allow`,
   `deny`, and `ask` string arrays, evaluated **Deny > Ask > Allow**. Each rule is
@@ -202,3 +208,6 @@ error. The same verb exists on the `codex`, `opencode`, and `grok` resources.
 ## References
 
 - [Antigravity CLI docs](https://antigravity.google/docs)
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

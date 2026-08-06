@@ -17,12 +17,13 @@ OpenAI Codex CLI for local code generation and agentic engineering workflows.
 
 ## Architecture
 
-This resource is being aligned to the updated `external-cli` structure.
+This resource uses the updated `external-cli` structure.
 
 - `resource.json` is the declarative authority for install, binary probing, version checks, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Codex-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
+- Historical shell behavior has been retired; lifecycle and configuration
+  behavior lives in the shared control plane and typed Go packages.
 
 The intended escalation path is:
 
@@ -82,9 +83,9 @@ resource-codex permissions doctor
 
 Mutating verbs (`deny`, `allow`, `ask`, `remove`, `reset`) refuse agent callers (detected via `cliutil.DetectCallerKind`) unless `--i-was-explicitly-authorized` is passed. Read verbs are always allowed.
 
-**Enforcement caveat.** Unlike Claude Code (`permissions.deny` + `PreToolUse` hook) or OpenCode (`permission.bash` map), Codex does **not** today honour per-command-pattern deny/ask/allow rules natively — its policy surface is `sandbox_mode` and `approval_policy`. The `[vrooli.permissions]` section records Vrooli's intent across all coding-agent resources uniformly; for hard live enforcement use Codex's sandbox/approval primitives.
+**Enforcement caveat.** Codex's native `sandbox_mode` and `approval_policy` remain the authoritative controls; the `[vrooli.permissions]` section is a uniform policy projection rather than a native pattern matcher. Vrooli also projects `~/.codex/hooks.json` with a `PreToolUse` command hook when deny rules exist. The CLI reports this as `hook_unverified` until a live canary proves the installed Codex version fires and honors the hook; do not treat hook-file presence as sandbox enforcement.
 
-For declarative automation, use `permissions plan --scope user|admin --document desired.json --json` and `permissions reconcile --scope user|admin --document desired.json --json`. The strict v1 document contains `schema_version`, matching `scope`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged TOML, and reports desired/live fingerprints, native paths, changes, and the explicitly `intent_only` enforcement posture.
+For declarative automation, use `permissions plan --scope user|admin --document desired.json --json` and `permissions reconcile --scope user|admin --document desired.json --json`. The strict v1 document contains `schema_version`, matching `scope`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged TOML, and reports desired/live fingerprints, native paths, changes, and the `hook_unverified` enforcement posture.
 
 Upstream docs: <https://developers.openai.com/codex/permissions>.
 
@@ -98,3 +99,6 @@ Upstream docs: <https://developers.openai.com/codex/permissions>.
 - Keep binary/version/install behavior declarative in `resource.json` whenever possible.
 - Keep `cli/main.go` thin; do not treat it as the implementation surface for Codex-specific behavior.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/codex/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

@@ -13,6 +13,8 @@ linters:
     - unused
 
 linters-settings:
+  gofumpt:
+    module-path: resource-opencode/cli
   revive:
     rules:
       - name: blank-imports

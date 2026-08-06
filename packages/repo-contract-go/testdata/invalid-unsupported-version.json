@@ -29,15 +29,13 @@
       "requirements": "requirements",
       "api": "api",
       "ui": "ui",
-      "cli": "cli",
-      "initialization": "initialization"
+      "cli": "cli"
     }
   },
   "resource": {
     "manifest": "resource.json",
     "well_known_paths": {
-      "docs": "docs",
-      "initialization": "initialization"
+      "docs": "docs"
     }
   },
   "globs": {

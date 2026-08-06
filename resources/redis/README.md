@@ -17,7 +17,7 @@ Managed Redis cache and event-bus runtime for local scenario workflows.
 
 ## Architecture
 
-This resource is being aligned to the updated `docker-service` structure.
+This resource uses the updated `docker-service` structure.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, health, exports, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
@@ -70,3 +70,6 @@ Connection defaults:
 - Resource-specific behavior belongs in `cli/internal/...`; runtime shape,
   ports, volumes, and health remain declarative in `resource.json`.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/redis/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

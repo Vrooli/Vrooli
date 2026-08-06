@@ -98,3 +98,6 @@ and [docs/USAGE_EXAMPLES.md](docs/USAGE_EXAMPLES.md) for worked examples.
   rather than repo-local mutable directories.
 - Use [docs/OPERATIONS.md](docs/OPERATIONS.md) as the architecture boundary for
   future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

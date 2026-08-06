@@ -1,10 +1,31 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "opencode",
-  "storage": {"entries": {
-    "config": {"rung": "owned", "path": "$USER_HOME/.config/opencode", "kind": "dir", "class": "config", "regenerable": false, "sensitive": true, "rationale": "OpenCode uses the XDG config directory for operator configuration and permissions."},
-    "storage": {"rung": "owned", "path": "$USER_HOME/.local/share/opencode/storage", "kind": "dir", "class": "data", "regenerable": false, "rationale": "OpenCode stores sessions and messages in its XDG data storage directory."}
-  }},
+  "storage": {
+    "entries": {
+      "config": {
+        "rung": "owned",
+        "path": "$USER_HOME/.config/opencode",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "OpenCode uses the XDG config directory for operator configuration and permissions."
+      },
+      "storage": {
+        "rung": "owned",
+        "path": "$USER_HOME/.local/share/opencode/storage",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "OpenCode stores sessions and messages in its XDG data storage directory.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    }
+  },
   "display_name": "OpenCode",
   "description": "OpenCode CLI resource: a thin Go entrypoint wiring lifecycle, governed permissions, and an upstream update-check; agent-manager invokes the raw opencode binary directly.",
   "cli": {
@@ -46,10 +67,39 @@
   },
   "credentials": {
     "descriptors": [
-      {"logical_id":"vrooli/openrouter","field":"api-key","env":"OPENROUTER_API_KEY","label":"OpenRouter API key","description":"Optional gateway credential shared with the OpenRouter resource.","required":false,"obtain_url":"https://openrouter.ai/keys"},
-      {"logical_id":"vrooli/opencode","field":"cloudflare-api-token","env":"CLOUDFLARE_API_TOKEN","label":"Cloudflare AI Gateway token","description":"Optional token for Cloudflare AI Gateway.","required":false},
-      {"logical_id":"vrooli/opencode","field":"cloudflare-account-id","env":"CLOUDFLARE_ACCOUNT_ID","label":"Cloudflare account ID","description":"Optional Cloudflare account identifier for an AI Gateway.","required":false},
-      {"logical_id":"vrooli/opencode","field":"cloudflare-gateway-slug","env":"CLOUDFLARE_AI_GATEWAY_SLUG","label":"Cloudflare AI Gateway slug","description":"Optional AI Gateway slug.","required":false}
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "env": "OPENROUTER_API_KEY",
+        "label": "OpenRouter API key",
+        "description": "Optional gateway credential shared with the OpenRouter resource.",
+        "required": false,
+        "obtain_url": "https://openrouter.ai/keys"
+      },
+      {
+        "logical_id": "vrooli/opencode",
+        "field": "cloudflare-api-token",
+        "env": "CLOUDFLARE_API_TOKEN",
+        "label": "Cloudflare AI Gateway token",
+        "description": "Optional token for Cloudflare AI Gateway.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/opencode",
+        "field": "cloudflare-account-id",
+        "env": "CLOUDFLARE_ACCOUNT_ID",
+        "label": "Cloudflare account ID",
+        "description": "Optional Cloudflare account identifier for an AI Gateway.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/opencode",
+        "field": "cloudflare-gateway-slug",
+        "env": "CLOUDFLARE_AI_GATEWAY_SLUG",
+        "label": "Cloudflare AI Gateway slug",
+        "description": "Optional AI Gateway slug.",
+        "required": false
+      }
     ]
   },
   "template": "external-cli",
@@ -128,6 +178,7 @@
   "health_checks": [
     {
       "type": "command",
+      "kind": "liveness",
       "command": [
         "opencode",
         "--version"
@@ -173,15 +224,13 @@
   },
   "install": {
     "platforms": {
-      "linux": [
-        "bash",
-        "-lc",
-        "source resources/opencode/lib/install.sh && opencode::install::execute"
+    "linux": [
+      "resource-opencode",
+      "install-direct"
       ],
-      "macos": [
-        "bash",
-        "-lc",
-        "source resources/opencode/lib/install.sh && opencode::install::execute"
+    "macos": [
+      "resource-opencode",
+      "install-direct"
       ]
     }
   },
@@ -203,8 +252,7 @@
     }
   },
   "capabilities": {
-    "supports_logs": false,
-    "supports_content_ops": true
+    "supports_logs": false
   },
   "upstream_cli": {
     "version_command": [

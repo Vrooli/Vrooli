@@ -6,17 +6,13 @@
 // entry tagged `"managedBy": "vrooli"`. Every other top-level key, and
 // every hook entry not tagged as Vrooli-managed, round-trips untouched.
 //
-// The PreToolUse hook is paired with every Bash deny rule as a defensive
-// backstop against the upstream `permissions.deny` enforcement bug
-// (anthropics/claude-code#18846, #29026). The hook script itself is
-// embedded into the resource binary and materialized into
-// ~/.claude/.vrooli-hooks/ on first Save so settings.json only contains a
-// path reference.
+// The PreToolUse hook is a portable policy-runner backstop paired with every
+// Bash deny rule. Native permission rules remain authoritative; the hook
+// receives JSON and never relies on Bash for enforcement.
 package permissions
 
 import (
 	"crypto/sha256"
-	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -24,6 +20,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 )
@@ -33,11 +30,9 @@ import (
 // omit this marker are preserved across Save calls.
 const ManagedByMarker = "vrooli"
 
-// HookScriptName is the file name materialized under HookScriptDir.
+// HookScriptName is retained for compatibility with older state paths. New
+// hook entries invoke the native policy runner directly and do not execute it.
 const HookScriptName = "pretooluse-bash-deny.sh"
-
-//go:embed pretooluse-bash-deny.sh
-var embeddedHookScript []byte
 
 // Policy is the canonical in-memory shape of the bash-pattern subset of
 // the Claude Code permissions file the adapter manages.
@@ -51,15 +46,223 @@ type Policy struct {
 	Hooks bool
 }
 
-// Adapter binds the on-disk settings.json plus the hook-script
-// materialization directory.
+// Adapter binds the on-disk settings.json plus the legacy hook path retained
+// for compatibility with existing callers. New saves do not materialize it.
 type Adapter struct {
 	// SettingsPath is the absolute path of settings.json (typically
 	// ~/.claude/settings.json).
 	SettingsPath string
-	// HookScriptDir is the directory the hook script is materialized
-	// into (typically ~/.claude/.vrooli-hooks). Save creates it.
+	// HookScriptDir is the legacy directory used to derive HookScriptPath.
 	HookScriptDir string
+}
+
+// HookResult is the stable result returned by the generic hook seam. Hook
+// identifiers are scoped to an event and settings file, preserving unrelated
+// user-owned hooks.
+type HookResult struct {
+	Status     string `json:"status"`
+	Code       string `json:"code"`
+	Reason     string `json:"reason"`
+	Event      string `json:"event"`
+	Identifier string `json:"identifier"`
+	Scope      string `json:"scope"`
+	Settings   string `json:"settingsPath"`
+}
+
+func (a *Adapter) ReconcileHook(event, identifier string, hook map[string]any) (HookResult, error) {
+	result := HookResult{Event: event, Identifier: identifier, Scope: "", Settings: a.SettingsPath}
+	if strings.TrimSpace(event) == "" || strings.TrimSpace(identifier) == "" || hook == nil {
+		result.Status, result.Code, result.Reason = "failed", "invalid_arguments", "event, identifier, and hook are required"
+		return result, errors.New(result.Reason)
+	}
+
+	doc, err := a.loadDocument()
+	if err != nil {
+		result.Status, result.Code, result.Reason = "failed", "settings_invalid_json", err.Error()
+		return result, err
+	}
+
+	desired := make(map[string]any, len(hook)+1)
+	for key, value := range hook {
+		desired[key] = value
+	}
+	desired["_id"] = identifier
+	desiredRaw, err := json.Marshal(desired)
+	if err != nil {
+		return result, fmt.Errorf("encode hook: %w", err)
+	}
+
+	groups := doc.Hooks[event]
+	for groupIndex, groupRaw := range groups {
+		var group map[string]json.RawMessage
+		if err := json.Unmarshal(groupRaw, &group); err != nil {
+			continue
+		}
+		var entries []json.RawMessage
+		if err := json.Unmarshal(group["hooks"], &entries); err != nil {
+			continue
+		}
+		for hookIndex, entryRaw := range entries {
+			var entry map[string]any
+			if err := json.Unmarshal(entryRaw, &entry); err != nil || fmt.Sprint(entry["_id"]) != identifier {
+				continue
+			}
+			if reflect.DeepEqual(entry, desired) {
+				result.Status, result.Code, result.Reason = "unchanged", "hook_unchanged", "Claude hook is already configured"
+				return result, nil
+			}
+			entries[hookIndex] = desiredRaw
+			updatedGroup, err := replaceGroupEntries(group, entries)
+			if err != nil {
+				return result, err
+			}
+			groups[groupIndex] = updatedGroup
+			doc.Hooks[event] = groups
+			if err := a.writeDocument(doc); err != nil {
+				return result, err
+			}
+			result.Status, result.Code, result.Reason = "applied", "hook_reconciled", "Claude hook was written to settings"
+			return result, nil
+		}
+	}
+
+	group, err := json.Marshal(map[string]any{"matcher": "*", "hooks": []json.RawMessage{desiredRaw}})
+	if err != nil {
+		return result, fmt.Errorf("encode hook group: %w", err)
+	}
+	doc.Hooks[event] = append(groups, group)
+	if err := a.writeDocument(doc); err != nil {
+		return result, err
+	}
+	result.Status, result.Code, result.Reason = "applied", "hook_reconciled", "Claude hook was written to settings"
+	return result, nil
+}
+
+// RemoveHook removes one hook idempotently while preserving other hooks in
+// the same matcher group and event.
+func (a *Adapter) RemoveHook(event, identifier string) (HookResult, error) {
+	result := HookResult{Event: event, Identifier: identifier, Settings: a.SettingsPath}
+	if strings.TrimSpace(event) == "" || strings.TrimSpace(identifier) == "" {
+		result.Status, result.Code, result.Reason = "failed", "invalid_arguments", "event and identifier are required"
+		return result, errors.New(result.Reason)
+	}
+	doc, err := a.loadDocument()
+	if err != nil {
+		result.Status, result.Code, result.Reason = "failed", "settings_invalid_json", err.Error()
+		return result, err
+	}
+	groups := doc.Hooks[event]
+	changed := false
+	updatedGroups := make([]json.RawMessage, 0, len(groups))
+	for _, groupRaw := range groups {
+		var group map[string]json.RawMessage
+		if err := json.Unmarshal(groupRaw, &group); err != nil {
+			updatedGroups = append(updatedGroups, groupRaw)
+			continue
+		}
+		var entries []json.RawMessage
+		if err := json.Unmarshal(group["hooks"], &entries); err != nil {
+			updatedGroups = append(updatedGroups, groupRaw)
+			continue
+		}
+		kept := make([]json.RawMessage, 0, len(entries))
+		for _, entryRaw := range entries {
+			var entry map[string]any
+			if err := json.Unmarshal(entryRaw, &entry); err == nil && fmt.Sprint(entry["_id"]) == identifier {
+				changed = true
+				continue
+			}
+			kept = append(kept, entryRaw)
+		}
+		if len(kept) == 0 && len(kept) != len(entries) {
+			continue
+		}
+		if len(kept) != len(entries) {
+			updatedGroup, err := replaceGroupEntries(group, kept)
+			if err != nil {
+				return result, err
+			}
+			updatedGroups = append(updatedGroups, updatedGroup)
+			continue
+		}
+		updatedGroups = append(updatedGroups, groupRaw)
+	}
+	if !changed {
+		result.Status, result.Code, result.Reason = "unchanged", "hook_absent", "Claude hook was already absent"
+		return result, nil
+	}
+	if len(updatedGroups) == 0 {
+		delete(doc.Hooks, event)
+	} else {
+		doc.Hooks[event] = updatedGroups
+	}
+	if err := a.writeDocument(doc); err != nil {
+		return result, err
+	}
+	result.Status, result.Code, result.Reason = "removed", "hook_removed", "Claude hook was removed from settings"
+	return result, nil
+}
+
+func (a *Adapter) loadDocument() (*parsedDoc, error) {
+	data, err := os.ReadFile(a.SettingsPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return &parsedDoc{TopLevel: map[string]json.RawMessage{}, Hooks: map[string][]json.RawMessage{}}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", a.SettingsPath, err)
+	}
+	if len(data) == 0 {
+		return &parsedDoc{TopLevel: map[string]json.RawMessage{}, Hooks: map[string][]json.RawMessage{}}, nil
+	}
+	return parseDoc(data)
+}
+
+func replaceGroupEntries(group map[string]json.RawMessage, entries []json.RawMessage) (json.RawMessage, error) {
+	encoded, err := json.Marshal(entries)
+	if err != nil {
+		return nil, err
+	}
+	group["hooks"] = encoded
+	return json.Marshal(group)
+}
+
+func (a *Adapter) writeDocument(doc *parsedDoc) error {
+	if len(doc.Hooks) == 0 {
+		delete(doc.TopLevel, "hooks")
+	} else {
+		hooksTop := map[string]json.RawMessage{}
+		for event, entries := range doc.Hooks {
+			encoded, err := json.Marshal(entries)
+			if err != nil {
+				return fmt.Errorf("encode hooks.%s: %w", event, err)
+			}
+			hooksTop[event] = encoded
+		}
+		encoded, err := marshalOrderedMap(hooksTop)
+		if err != nil {
+			return fmt.Errorf("encode hooks: %w", err)
+		}
+		doc.TopLevel["hooks"] = encoded
+	}
+	out, err := marshalOrderedMap(doc.TopLevel)
+	if err != nil {
+		return err
+	}
+	pretty, err := prettifyJSON(out)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(a.SettingsPath), 0o755); err != nil {
+		return err
+	}
+	tmp := a.SettingsPath + ".tmp"
+	if err := os.WriteFile(tmp, pretty, 0o644); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, a.SettingsPath); err != nil {
+		return err
+	}
+	return nil
 }
 
 // DefaultAdapter returns an Adapter rooted at $HOME/.claude.
@@ -74,7 +277,7 @@ func DefaultAdapter() (*Adapter, error) {
 	}, nil
 }
 
-// HookScriptPath is the absolute path of the materialized hook script.
+// HookScriptPath is the legacy shell-hook path; it is no longer executed.
 func (a *Adapter) HookScriptPath() string {
 	return filepath.Join(a.HookScriptDir, HookScriptName)
 }
@@ -171,8 +374,7 @@ func parseDoc(data []byte) (*parsedDoc, error) {
 }
 
 // Save writes the policy to disk. If Hooks is true and at least one
-// BashDeny entry is present, the hook script is materialized into
-// HookScriptDir and a Vrooli-managed PreToolUse entry is added (or
+// BashDeny entry is present, a Vrooli-managed PreToolUse entry is added (or
 // updated) in settings.json. Hand-written hook entries and unrelated
 // top-level keys are preserved verbatim.
 func (a *Adapter) Save(p Policy) error {
@@ -250,9 +452,6 @@ func (a *Adapter) Save(p Policy) error {
 		filtered = append(filtered, raw)
 	}
 	if p.Hooks && len(p.BashDeny) > 0 {
-		if err := a.materializeHookScript(); err != nil {
-			return err
-		}
 		entry := buildHookEntry(a.HookScriptPath(), p.BashDeny)
 		raw, err := json.Marshal(entry)
 		if err != nil {
@@ -302,30 +501,17 @@ func (a *Adapter) Save(p Policy) error {
 	return nil
 }
 
-func (a *Adapter) materializeHookScript() error {
-	if err := os.MkdirAll(a.HookScriptDir, 0o755); err != nil {
-		return fmt.Errorf("mkdir %s: %w", a.HookScriptDir, err)
-	}
-	path := a.HookScriptPath()
-	// Always overwrite so upgrades propagate.
-	if err := os.WriteFile(path, embeddedHookScript, 0o755); err != nil {
-		return fmt.Errorf("write hook script %s: %w", path, err)
-	}
-	return nil
-}
-
 // buildHookEntry constructs the canonical PreToolUse entry. The command
-// invokes the materialized script with the deny patterns as arguments;
-// the script does the actual glob match and exit-2 refusal.
+// invokes the standalone native policy runner; matching and enforcement stay
+// in Go and receive structured hook input from Claude.
 func buildHookEntry(scriptPath string, patterns []string) map[string]any {
-	args := make([]string, 0, len(patterns))
-	for _, p := range patterns {
-		args = append(args, shellQuote(p))
+	_ = scriptPath
+	_ = patterns
+	command := strings.TrimSpace(os.Getenv("VROOLI_AGENT_POLICY_RUNNER"))
+	if command == "" {
+		command = "vrooli-policy-runner"
 	}
-	command := scriptPath
-	if len(args) > 0 {
-		command = scriptPath + " " + strings.Join(args, " ")
-	}
+	command += " hook --runner claude-code"
 	return map[string]any{
 		"matcher":   "Bash",
 		"managedBy": ManagedByMarker,
@@ -416,14 +602,4 @@ func prettifyJSON(in json.RawMessage) ([]byte, error) {
 	}
 	out = append(out, '\n')
 	return out, nil
-}
-
-func shellQuote(s string) string {
-	if s == "" {
-		return "''"
-	}
-	if !strings.ContainsAny(s, " \t\n'\"\\$`*?[]&|;<>()") {
-		return s
-	}
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

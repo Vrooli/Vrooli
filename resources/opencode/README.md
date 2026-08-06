@@ -22,7 +22,7 @@ binary lacks — governed permissions and an upstream update-check.
   wiring surface. Its only specialised internal package is
   `cli/internal/permissions` (+ `permissionscli`), which manages the
   `permission.bash` map in `opencode.json`.
-- `lib/install.sh` downloads the pinned upstream release and lands the real
+- `resource-opencode install-direct` downloads the pinned upstream release and lands the real
   `opencode` binary at `~/.local/bin/opencode`, then writes the default
   config and syncs provider auth.
 
@@ -41,6 +41,8 @@ Raw `opencode` reads the default XDG locations, and every Vrooli surface
 writes there — there is exactly one config/auth location:
 
 - Config: `~/.config/opencode/opencode.json` (model + `permission.bash`)
+- Policy hook: `~/.config/opencode/plugins/vrooli-policy.js` (managed when deny
+  rules exist through OpenCode's `tool.execute.before` plugin seam)
 - Auth:   `~/.local/share/opencode/auth.json` (provider keys)
 
 `vrooli resource install opencode` writes a default model into
@@ -50,8 +52,8 @@ syncs the OpenRouter key into `auth.json`.
 ### Providers
 
 - **OpenRouter** is the wired cloud default
-  (`openrouter/x-ai/grok-code-fast-1`); the key is resolved from Vault and
-  written to `auth.json`.
+  (`openrouter/x-ai/grok-code-fast-1`); the key is injected by the credential
+  authority and written to `auth.json`.
 - **Ollama** is auto-configured as a keyless local provider
   (OpenAI-compatible, `http://localhost:11434/v1`) when a local daemon is
   reachable and no OpenRouter key is present. Target a local model
@@ -101,6 +103,12 @@ alphabetically-sorted keys, so `*` (a likely default wildcard) sorts before
 letters and specific patterns end up later in iteration order, winning the
 match. If you need different ordering, hand-edit and `drift-check` will
 surface it.
+
+The plugin sends normalized bash tool events to the local policy runner and
+refuses the call when the runner exits unsuccessfully. The CLI reports
+`hook_unverified` until an installed-version live canary proves that the
+plugin loads and the refusal path fires; a plugin file by itself is not
+evidence.
 
 Upstream docs: <https://opencode.ai/docs/permissions/>.
 
@@ -153,3 +161,6 @@ than misrouted. See `scenarios/web-console/docs/guides/CONVERSATION_TRACKING.md`
 ## References
 
 - [OpenCode](https://opencode.ai)
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

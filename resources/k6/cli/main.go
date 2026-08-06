@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/packages/resource-agent-install"
 )
 
 const (
@@ -45,6 +47,17 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
-	app.SetCommands(app.StandardLifecycleCommands())
+	install := agentinstall.DirectInstallCommand(agentinstall.Spec{
+		Binary:  "k6",
+		BinDir:  filepath.Join(os.Getenv("HOME"), ".local", "bin"),
+		Version: "0.49.0",
+		URLTemplates: map[string]string{
+			"linux":   "https://github.com/grafana/k6/releases/download/v${version}/k6-v${version}-linux-${arch}.tar.gz",
+			"darwin":  "https://github.com/grafana/k6/releases/download/v${version}/k6-v${version}-macos-${arch}.tar.gz",
+			"windows": "https://github.com/grafana/k6/releases/download/v${version}/k6-v${version}-windows-${arch}.zip",
+		},
+		ArchiveEntry: "k6",
+	})
+	app.SetCommands(append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{install}}))
 	return app, nil
 }

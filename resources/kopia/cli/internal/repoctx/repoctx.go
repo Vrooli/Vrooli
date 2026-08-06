@@ -1,7 +1,7 @@
 // Package repoctx resolves a Vrooli destination name into everything needed to
 // run a kopia command against that repository: the registry entry, the kopia
 // global args that address its config file/cache, and the secret env overlay
-// (KOPIA_PASSWORD + S3 creds) sourced from vault. It is shared by the repo,
+// (KOPIA_PASSWORD + S3 creds) sourced from the credential authority. It is shared by the repo,
 // snapshot, policy, and maintenance command groups so secret-injection and
 // repo-addressing logic lives in exactly one place.
 package repoctx
@@ -13,7 +13,6 @@ import (
 
 	"resource-kopia/cli/internal/credentials"
 	"resource-kopia/cli/internal/registry"
-	"resource-kopia/cli/internal/vault"
 
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
@@ -42,16 +41,15 @@ func (t Target) GlobalArgs() []string {
 	return []string{"--config-file", t.Entry.ConfigFile}
 }
 
-// Resolver loads registry entries and sources passphrases from the credential
-// authority and backend credentials from Vault.
+// Resolver loads registry entries and sources every repository credential from
+// the credential authority and has no provider-shaped dependency.
 type Resolver struct {
 	Registry    *registry.Registry
 	Credentials credentials.Store
-	Vault       vault.Vault
 }
 
 // Resolve returns the Target for a registered repository, failing closed if the
-// repo is unknown or its passphrase is absent from vault.
+// repo is unknown or its authority credentials are absent.
 func (r Resolver) Resolve(ctx context.Context, name string) (Target, error) {
 	entry, found, err := r.Registry.Get(name)
 	if err != nil {
@@ -82,12 +80,12 @@ func (r Resolver) targetFor(ctx context.Context, entry registry.Entry) (Target, 
 	env := map[string]string{EnvPassword: passphrase}
 
 	if entry.Backend == registry.BackendS3 {
-		creds, found, err := vault.S3CredentialsFor(ctx, r.Vault, entry.Name)
+		creds, found, err := credentials.S3CredentialsFor(r.Credentials, entry.Name)
 		if err != nil {
 			return Target{}, err
 		}
 		if !found || !creds.Valid() {
-			return Target{}, fmt.Errorf("S3 credentials for repository %q not found in vault", entry.Name)
+			return Target{}, fmt.Errorf("S3 credentials for repository %q are not configured in the credential authority", entry.Name)
 		}
 		env[EnvAWSAccessKey] = creds.AccessKeyID
 		env[EnvAWSSecretKey] = creds.SecretAccessKey

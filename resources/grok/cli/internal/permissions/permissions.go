@@ -1,10 +1,11 @@
 // Package permissions manages the Grok Build agent's permission config at
 // ~/.grok/config.toml (user scope) or ~/.grok/requirements.toml (admin
-// scope), plus a paired PreToolUse hard-deny hook under ~/.grok/hooks/.
+// scope), plus a paired native PreToolUse policy-runner hook definition under
+// ~/.grok/hooks/.
 //
 // Scope is narrow on purpose: the adapter owns only the three string
 // arrays `deny`, `ask`, `allow` inside the native `[permission]` table,
-// and the Vrooli-named hook files it materializes. Every other top-level
+// and the Vrooli-named hook definition it manages. Every other top-level
 // key/table (and every other key inside `[permission]`, e.g. `rules`)
 // round-trips untouched.
 //
@@ -12,14 +13,13 @@
 // Grok ENFORCES these rules natively: the decision flow evaluates
 // `deny > ask > allow` from the native `[permission]` section before
 // falling through to prompt policy (see ~/.grok/docs/user-guide/
-// 22-permissions-and-safety.md). The paired PreToolUse hook is a
-// belt-and-suspenders backstop that hard-denies matching Bash commands
-// before any other check and applies even under `--always-approve`.
+// 22-permissions-and-safety.md). The paired PreToolUse hook invokes the
+// portable policy runner while native permission rules remain active;
+// installed-version behavior is canary-gated.
 package permissions
 
 import (
 	"crypto/sha256"
-	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -47,11 +47,10 @@ const (
 // permissionSectionKey is the native TOML table Grok reads rules from.
 const permissionSectionKey = "permission"
 
-// HookScriptName is the shared backstop script materialized under HooksDir.
+// HookScriptName is retained for compatibility with older callers that derive
+// a hook path. New configurations write a native JSON hook definition and
+// never materialize or execute this shell script.
 const HookScriptName = "vrooli-bash-deny.sh"
-
-//go:embed pretooluse-bash-deny.sh
-var embeddedHookScript []byte
 
 // Policy is the canonical in-memory shape of the rule subset the adapter
 // manages. Patterns use the Claude/Grok rule-string vocabulary
@@ -62,19 +61,19 @@ type Policy struct {
 	BashDeny  []string
 	BashAsk   []string
 	BashAllow []string
-	// Hooks enables PreToolUse hook materialization paired with the
+	// Hooks enables the native PreToolUse hook definition paired with the
 	// BashDeny patterns. Defaults to true on Load; only set false in
 	// tests that exercise the no-hook path explicitly.
 	Hooks bool
 }
 
-// Adapter binds the on-disk config file plus the hook-materialization
-// directory.
+// Adapter binds the on-disk config file plus the legacy hook directory used
+// to derive compatibility paths. New saves do not materialize shell hooks.
 type Adapter struct {
 	// SettingsPath is the absolute path of the target config file
 	// (~/.grok/config.toml or ~/.grok/requirements.toml).
 	SettingsPath string
-	// HooksDir is the directory hook files are materialized into
+	// HooksDir is the directory native hook definitions are written to
 	// (~/.grok/hooks). Save creates it when needed.
 	HooksDir string
 	// Scope is the config scope this adapter targets.
@@ -102,8 +101,7 @@ func DefaultAdapter(scope Scope) (*Adapter, error) {
 	}, nil
 }
 
-// HookScriptPath is the absolute path of the materialized shared hook
-// script.
+// HookScriptPath is the legacy shell-hook path; it is no longer executed.
 func (a *Adapter) HookScriptPath() string {
 	return filepath.Join(a.HooksDir, HookScriptName)
 }
@@ -215,12 +213,12 @@ func (a *Adapter) Save(p Policy) error {
 	return a.syncHook(p)
 }
 
-// syncHook materializes (or removes) this scope's PreToolUse backstop.
+// syncHook materializes (or removes) this scope's PreToolUse backstop. The
+// hook invokes the standalone policy runner; no shell script is executed.
 func (a *Adapter) syncHook(p Policy) error {
 	globs := bashDenyGlobs(p.BashDeny)
 	if !p.Hooks || len(globs) == 0 {
-		// Remove this scope's hook JSON; leave the shared script (it is
-		// harmless and may be referenced by the other scope).
+		// Remove this scope's hook JSON.
 		if err := os.Remove(a.HookConfigPath()); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("remove hook %s: %w", a.HookConfigPath(), err)
 		}
@@ -228,10 +226,6 @@ func (a *Adapter) syncHook(p Policy) error {
 	}
 	if err := os.MkdirAll(a.HooksDir, 0o755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", a.HooksDir, err)
-	}
-	// Always (re)write the shared script so upgrades propagate.
-	if err := os.WriteFile(a.HookScriptPath(), embeddedHookScript, 0o755); err != nil {
-		return fmt.Errorf("write hook script %s: %w", a.HookScriptPath(), err)
 	}
 	entry, err := json.MarshalIndent(buildHookConfig(a.HookScriptPath(), globs), "", "  ")
 	if err != nil {
@@ -245,17 +239,16 @@ func (a *Adapter) syncHook(p Policy) error {
 }
 
 // buildHookConfig constructs the Grok-native PreToolUse hook JSON. The
-// command invokes the shared script with the deny globs as quoted args;
-// the script does the glob match and emits an explicit deny decision.
+// command invokes the standalone policy runner. The runner receives native
+// structured hook input; globs remain native permission metadata.
 func buildHookConfig(scriptPath string, globs []string) map[string]any {
-	quoted := make([]string, 0, len(globs))
-	for _, g := range globs {
-		quoted = append(quoted, shellQuote(g))
+	_ = scriptPath
+	_ = globs
+	command := strings.TrimSpace(os.Getenv("VROOLI_AGENT_POLICY_RUNNER"))
+	if command == "" {
+		command = "vrooli-policy-runner"
 	}
-	command := scriptPath
-	if len(quoted) > 0 {
-		command = scriptPath + " " + strings.Join(quoted, " ")
-	}
+	command += " hook --runner grok"
 	return map[string]any{
 		"hooks": map[string]any{
 			"PreToolUse": []any{
@@ -345,6 +338,7 @@ func atomicWrite(path string, data []byte, perm os.FileMode) error {
 	return nil
 }
 
+//nolint:unused // retained for policy-config serialization compatibility.
 func shellQuote(s string) string {
 	if s == "" {
 		return "''"

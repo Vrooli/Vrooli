@@ -1,9 +1,23 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "grok",
-  "storage": {"entries": {
-    "home": {"rung": "owned", "path": "$USER_HOME/.grok", "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "The managed Grok CLI sets GROK_DATA_DIR to ~/.grok for sessions, memory, configuration, and authentication."}
-  }},
+  "storage": {
+    "entries": {
+      "home": {
+        "rung": "owned",
+        "path": "$USER_HOME/.grok",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "The managed Grok CLI sets GROK_DATA_DIR to ~/.grok for sessions, memory, configuration, and authentication.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    }
+  },
   "display_name": "Grok Build CLI",
   "description": "xAI Grok Build coding CLI resource: a thin Go entrypoint wiring lifecycle and an upstream update-check; agent-manager (when later wired) invokes the raw grok binary directly.",
   "cli": {
@@ -119,6 +133,7 @@
   "health_checks": [
     {
       "type": "command",
+      "kind": "liveness",
       "command": [
         "grok",
         "--version"
@@ -141,15 +156,13 @@
   },
   "install": {
     "platforms": {
-      "linux": [
-        "bash",
-        "-lc",
-        "source resources/grok/lib/install.sh && grok::install::execute"
+    "linux": [
+      "resource-grok",
+      "install-direct"
       ],
-      "macos": [
-        "bash",
-        "-lc",
-        "source resources/grok/lib/install.sh && grok::install::execute"
+    "macos": [
+      "resource-grok",
+      "install-direct"
       ]
     }
   },

@@ -20,14 +20,15 @@ brew/winget install that ignored the exact version).
 
 ## Repositories (`repo`) — one repository == one Vrooli destination
 
-Encryption is always on; the passphrase is generated and stored in vault on
-first `create`. S3 credentials, when supplied, are also stored in vault.
+Encryption is always on; the passphrase is generated and stored in the
+credential authority on first `create`. S3 credentials, when supplied, are
+stored under the same per-repository authority identity.
 
 ```bash
 # Filesystem backend
 resource-kopia repo create --name nightly --backend filesystem --path /var/backups/nightly
 
-# S3 / MinIO backend (creds stored in vault; --disable-tls for local MinIO)
+# S3 / MinIO backend (creds stored in the credential authority; --disable-tls for local MinIO)
 resource-kopia repo create --name offsite --backend s3 \
   --bucket vrooli-backups --endpoint minio:9000 --disable-tls \
   --access-key "$MINIO_ACCESS_KEY" --secret-access-key "$MINIO_SECRET_KEY"
@@ -42,7 +43,8 @@ resource-kopia repo disconnect --name offsite              # detach (registry en
 
 `repo connect` can also re-register a pre-existing repository by re-supplying
 the backend flags (`--backend`/`--path` or `--backend s3 --bucket …`), useful
-when re-attaching on a new host. The passphrase must already exist in vault.
+when re-attaching on a new host. The passphrase must already exist in the
+credential authority.
 
 ## Snapshots (`snapshot`)
 
@@ -93,6 +95,7 @@ repo source tree.
 
 Passphrases and S3 keys travel to kopia only through the `KOPIA_PASSWORD`,
 `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` environment variables, sourced
-at call time from vault. They never appear as CLI flags (enforced by a unit
-test). If vault is unavailable or a passphrase is missing, the command fails
-closed — it never falls back to a default or empty passphrase.
+at call time from the credential authority. They never appear as CLI flags
+(enforced by a unit test). If the authority is unavailable or a passphrase is
+missing, the command fails closed — it never falls back to a default or empty
+passphrase.

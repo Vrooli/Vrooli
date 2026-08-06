@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"resource-openrouter/cli/internal/policytest"
 	"strings"
 	"testing"
+
+	"resource-openrouter/cli/internal/policytest"
 )
 
 func testHandlers(t *testing.T) (*Handlers, *bytes.Buffer) {

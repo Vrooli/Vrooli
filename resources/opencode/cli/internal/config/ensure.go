@@ -28,7 +28,7 @@ type Defaults struct {
 }
 
 // DefaultDefaults returns the built-in defaults, honoring the same env
-// overrides the bash defaults.sh recognized.
+// overrides as the legacy shell configuration.
 //
 // The OpenRouter cloud chat/completion model is intentionally left empty here:
 // it is resolved at write time from the CloudRole policy role via the

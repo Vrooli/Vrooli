@@ -73,8 +73,8 @@ var (
 	// the response carries media_type=image/svg+xml. A role wanting vector output
 	// declares the model's svg_output capability, never output_format=svg.
 	allowedOutputFormats = map[string]struct{}{"png": {}, "jpeg": {}, "webp": {}}
-	allowedBackgrounds     = map[string]struct{}{"auto": {}, "transparent": {}, "opaque": {}}
-	allowedQualities       = map[string]struct{}{"auto": {}, "low": {}, "medium": {}, "high": {}}
+	allowedBackgrounds   = map[string]struct{}{"auto": {}, "transparent": {}, "opaque": {}}
+	allowedQualities     = map[string]struct{}{"auto": {}, "low": {}, "medium": {}, "high": {}}
 )
 
 func (d *RequestDefaults) validate(path string, errs *[]error) {

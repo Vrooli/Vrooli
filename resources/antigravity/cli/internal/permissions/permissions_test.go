@@ -159,3 +159,19 @@ func TestDefaultAdapterRejectsNonUserScope(t *testing.T) {
 		t.Errorf("unexpected settings path: %s", a.SettingsPath)
 	}
 }
+
+func TestSaveProjectsConfiguredPreToolHook(t *testing.T) {
+	dir := t.TempDir()
+	a := &Adapter{SettingsPath: filepath.Join(dir, "settings.json"), Scope: ScopeUser, HookPath: filepath.Join(dir, ".agents", "hooks.json")}
+	t.Setenv("VROOLI_AGENT_POLICY_RUNNER", "policy-runner")
+	if err := a.Save(Policy{BashDeny: []string{"command(rm -rf)"}}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(a.HookPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "PreToolUse") || !strings.Contains(string(raw), "policy-runner hook --runner antigravity") {
+		t.Fatalf("unexpected hook projection: %s", raw)
+	}
+}

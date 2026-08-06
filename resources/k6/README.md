@@ -60,3 +60,6 @@ resource-k6 status
 - [k6 Documentation](https://k6.io/docs/)
 - [JavaScript API](https://k6.io/docs/javascript-api/)
 - [Grafana Cloud](https://grafana.com/products/cloud/)
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

@@ -1,10 +1,39 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "antigravity",
-  "storage": {"entries": {
-    "home": {"rung": "owned", "path": "$USER_HOME/.gemini", "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "The Antigravity CLI and desktop app share settings, authentication, conversations, and memory under the documented Gemini home."},
-    "cache": {"rung": "relocatable", "path": "$USER_CACHE_DIR/antigravity", "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "ANTIGRAVITY_STATE_DIR", "scope": "process-tree"}, "rationale": "Antigravity's local cache/state is rebuildable and may be redirected independently of durable account data."}
-  }},
+  "storage": {
+    "entries": {
+      "home": {
+        "rung": "owned",
+        "path": "$USER_HOME/.gemini",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "The Antigravity CLI and desktop app share settings, authentication, conversations, and memory under the documented Gemini home.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      },
+      "cache": {
+        "rung": "relocatable",
+        "path": "$USER_CACHE_DIR/antigravity",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "ANTIGRAVITY_STATE_DIR",
+          "scope": "process-tree"
+        },
+        "rationale": "Antigravity's local cache/state is rebuildable and may be redirected independently of durable account data.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      }
+    }
+  },
   "display_name": "Antigravity CLI",
   "description": "Google Antigravity coding CLI resource (binary `agy`): a thin Go entrypoint wiring lifecycle, an upstream update-check, and shared command-permission governance. Optional external-cli; sudo-free install; on-disk state backed up. NOT wired as an agent-manager runner (deferred follow-up).",
   "cli": {
@@ -119,6 +148,7 @@
   "health_checks": [
     {
       "type": "command",
+      "kind": "liveness",
       "command": [
         "agy",
         "--version"
@@ -141,15 +171,13 @@
   },
   "install": {
     "platforms": {
-      "linux": [
-        "bash",
-        "-lc",
-        "source resources/antigravity/lib/install.sh && antigravity::install::execute"
+    "linux": [
+      "resource-antigravity",
+      "install-direct"
       ],
-      "macos": [
-        "bash",
-        "-lc",
-        "source resources/antigravity/lib/install.sh && antigravity::install::execute"
+    "macos": [
+      "resource-antigravity",
+      "install-direct"
       ]
     }
   },

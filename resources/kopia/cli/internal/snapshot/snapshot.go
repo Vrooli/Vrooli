@@ -1,6 +1,6 @@
 // Package snapshot implements the snapshot lifecycle commands of resource-kopia:
 // create, list, restore, verify, delete. Each resolves a repository by --repo
-// (sourcing its passphrase + S3 creds from vault) and routes through the single
+// (sourcing its passphrase + S3 creds from the credential authority) and routes through the single
 // kexec seam. Secrets never appear in argv.
 package snapshot
 
@@ -12,12 +12,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"resource-kopia/cli/internal/cmdutil"
-	"resource-kopia/cli/internal/kexec"
-	"resource-kopia/cli/internal/repoctx"
 	"sort"
 	"strconv"
 	"strings"
+
+	"resource-kopia/cli/internal/cmdutil"
+	"resource-kopia/cli/internal/kexec"
+	"resource-kopia/cli/internal/repoctx"
 )
 
 // Service wires the dependencies the snapshot commands need.

@@ -146,10 +146,7 @@
     "startup_timeout_seconds": 10,
     "startup_time_estimate": "1-2s",
     "dependencies": [],
-    "optional_dependencies": [
-      "vault",
-      "redis"
-    ],
+    "optional_dependencies": [],
     "recovery_attempts": 3,
     "recovery_delay_seconds": 5,
     "priority": "medium"
@@ -164,6 +161,7 @@
   "health_checks": [
     {
       "type": "http",
+      "kind": "readiness",
       "target": "https://generativelanguage.googleapis.com/v1beta/models",
       "expected_status": [
         200,

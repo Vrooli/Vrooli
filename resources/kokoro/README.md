@@ -17,7 +17,7 @@ Managed Kokoro text-to-speech runtime for local speech-synthesis workflows.
 
 ## Architecture
 
-This resource is being aligned to the updated `compose-service` structure.
+This resource uses the updated `compose-service` structure.
 
 - `resource.json` is the declarative authority for lifecycle, compose orchestration, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
@@ -57,3 +57,6 @@ Default endpoint:
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for synthesis or voice workflows.
 - Keep runtime state rooted in `${RESOURCE_*_DIR}` paths and compose-managed mounts rather than repo-local mutable directories.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/kokoro/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 func TestNewAppConfiguresResourceApp(t *testing.T) {
@@ -143,8 +145,8 @@ func TestRunQueryLogPrivacyWarnsWhenEnabled(t *testing.T) {
 }
 
 func TestEnsureBootstrapCredentialsGeneratesAndStoresSecret(t *testing.T) {
-	vault := &fakeVault{values: map[string]string{}}
-	creds, generated, err := ensureBootstrapCredentials(context.Background(), vault, "secret://secret/resources/adguard-home/admin", "", "", false)
+	store := &fakeCredentialStore{values: map[string]string{}}
+	creds, generated, err := ensureBootstrapCredentials(context.Background(), store, "vrooli/adguard-home", "", "", false)
 	if err != nil {
 		t.Fatalf("ensureBootstrapCredentials() error = %v", err)
 	}
@@ -157,19 +159,19 @@ func TestEnsureBootstrapCredentialsGeneratesAndStoresSecret(t *testing.T) {
 	if len(creds.Password) < 32 {
 		t.Fatalf("password len = %d, want >= 32", len(creds.Password))
 	}
-	if got := vault.values["secret/resources/adguard-home/admin:password"]; got != creds.Password {
+	if got := store.values["vrooli/adguard-home:password"]; got != creds.Password {
 		t.Fatal("stored password does not match generated password")
 	}
-	if got := vault.values["secret/resources/adguard-home/admin:username"]; got != "admin" {
+	if got := store.values["vrooli/adguard-home:username"]; got != "admin" {
 		t.Fatalf("stored username = %q, want admin", got)
 	}
 }
 
 func TestEnsureBootstrapCredentialsReusesExistingSecret(t *testing.T) {
-	vault := &fakeVault{values: map[string]string{
-		"secret/resources/adguard-home/admin:password": "existing-password",
+	store := &fakeCredentialStore{values: map[string]string{
+		"vrooli/adguard-home:password": "existing-password",
 	}}
-	creds, generated, err := ensureBootstrapCredentials(context.Background(), vault, "secret/resources/adguard-home/admin", "operator", "", false)
+	creds, generated, err := ensureBootstrapCredentials(context.Background(), store, "vrooli/adguard-home", "operator", "", false)
 	if err != nil {
 		t.Fatalf("ensureBootstrapCredentials() error = %v", err)
 	}
@@ -179,7 +181,7 @@ func TestEnsureBootstrapCredentialsReusesExistingSecret(t *testing.T) {
 	if creds.Password != "existing-password" {
 		t.Fatalf("password = %q, want existing password", creds.Password)
 	}
-	if got := vault.values["secret/resources/adguard-home/admin:username"]; got != "operator" {
+	if got := store.values["vrooli/adguard-home:username"]; got != "operator" {
 		t.Fatalf("stored username = %q, want operator", got)
 	}
 }
@@ -189,12 +191,12 @@ func TestWriteBootstrapReportDoesNotPrintPassword(t *testing.T) {
 	report := bootstrapReport{
 		Status:             "configured",
 		BaseURL:            "http://localhost:3000",
-		CredentialRef:      "secret/resources/adguard-home/admin",
+		CredentialRef:      "vrooli/adguard-home",
 		Username:           "admin",
 		PasswordGenerated:  true,
 		CredentialsStored:  true,
 		QueryLogHardening:  "disabled",
-		NetworkManagerHint: "network-manager resolver configure-adguard --token-ref secret/resources/adguard-home/admin --json",
+		NetworkManagerHint: "network-manager resolver configure-adguard --credential-ref vrooli/adguard-home --json",
 	}
 	if err := writeBootstrapReport(&out, true, report, nil); err != nil {
 		t.Fatalf("writeBootstrapReport() error = %v", err)
@@ -211,20 +213,23 @@ func TestWriteBootstrapReportDoesNotPrintPassword(t *testing.T) {
 	}
 }
 
-type fakeVault struct {
+type fakeCredentialStore struct {
 	values map[string]string
 }
 
-func (v *fakeVault) GetSecret(_ context.Context, path, key string) (string, bool, error) {
-	value, ok := v.values[path+":"+key]
-	return value, ok, nil
+func (v *fakeCredentialStore) Resolve(identity credentialauthority.Identity, field string) (string, error) {
+	value, ok := v.values[string(identity)+":"+field]
+	if !ok {
+		return "", credentialauthority.ErrUnconfigured
+	}
+	return value, nil
 }
 
-func (v *fakeVault) PutSecret(_ context.Context, path, key, value string) error {
+func (v *fakeCredentialStore) Put(identity credentialauthority.Identity, key, value string) error {
 	if v.values == nil {
 		v.values = map[string]string{}
 	}
-	v.values[path+":"+key] = value
+	v.values[string(identity)+":"+key] = value
 	return nil
 }
 

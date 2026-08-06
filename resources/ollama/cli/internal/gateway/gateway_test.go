@@ -344,8 +344,8 @@ func TestSemaphoreSerializesConcurrentInvocations(t *testing.T) {
 				Sem:       sem,
 				GetEnv:    func(string) string { return "" },
 				Stdin:     strings.NewReader(""),
-				Stdout:    io.Discard.(io.Writer),
-				Stderr:    io.Discard.(io.Writer),
+				Stdout:    io.Discard,
+				Stderr:    io.Discard,
 			}
 			if err := h.Embed([]string{"--model", "m", "--input", fmt.Sprintf("p%d", i), "--json"}); err != nil {
 				t.Errorf("Embed: %v", err)

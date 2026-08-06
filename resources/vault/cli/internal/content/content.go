@@ -45,7 +45,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{
 				Name:        "get",
 				Description: "Read a secret field (raw) or the whole secret (json)",
-				Usage:       "resource-vault content get --path <kv-path> [--key <field>] [--format raw|json]",
+				Usage:       "resource-vault content get --path secret/capabilities/<capability>/... [--key <field>] [--format raw|json]",
 				Run:         h.Get,
 			},
 			{
@@ -96,7 +96,7 @@ func (h *Handlers) flagSet(name string) *flag.FlagSet {
 // the whole secret.
 func (h *Handlers) Get(args []string) error {
 	fs := h.flagSet("content get")
-	path := fs.String("path", "", "KV path (e.g. secret/resources/kopia/...)")
+	path := fs.String("path", "", "KV path (e.g. secret/capabilities/<capability>/...)")
 	key := fs.String("key", "", "Field within the secret (required for --format raw)")
 	format := fs.String("format", "raw", "Output format: raw|json")
 	if err := fs.Parse(args); err != nil {
@@ -138,7 +138,7 @@ func (h *Handlers) Get(args []string) error {
 // `kv put` when the secret does not yet exist.
 func (h *Handlers) Set(args []string) error {
 	fs := h.flagSet("content set")
-	path := fs.String("path", "", "KV path (e.g. secret/resources/kopia/...)")
+	path := fs.String("path", "", "KV path (e.g. secret/capabilities/<capability>/...)")
 	key := fs.String("key", "", "Field to write (defaults to \"value\")")
 	value := fs.String("value", "", "Value to store")
 	if err := fs.Parse(args); err != nil {

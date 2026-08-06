@@ -3,10 +3,11 @@ package policy_test
 import (
 	"os"
 	"path/filepath"
-	"resource-openrouter/cli/internal/policy"
-	"resource-openrouter/cli/internal/policytest"
 	"strings"
 	"testing"
+
+	"resource-openrouter/cli/internal/policy"
+	"resource-openrouter/cli/internal/policytest"
 )
 
 func writeFixture(t *testing.T, body string) string {

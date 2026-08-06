@@ -9,6 +9,7 @@ package install
 import (
 	"context"
 	"fmt"
+
 	"resource-kopia/cli/internal/discovery"
 	"resource-kopia/cli/internal/version"
 )

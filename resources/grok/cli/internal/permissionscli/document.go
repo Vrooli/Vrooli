@@ -11,7 +11,7 @@ import (
 	"github.com/vrooli/cli-core/agentpolicy"
 )
 
-var grokPermissionPosture = agentpolicy.EnforcementPosture{Permissions: "hook_backed", Caveats: []string{"Grok native permission rules are supplemented by a PreToolUse Bash hook."}}
+var grokPermissionPosture = agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Grok native permission rules remain active; the portable PreToolUse runner requires an installed-version canary before it is considered verified."}}
 
 func (h *Handlers) Plan(args []string) error {
 	fs, scopeRaw := h.flagSet("permissions plan")
@@ -81,10 +81,7 @@ func (h *Handlers) planDocument(path, scopeRaw string) (agentpolicy.PermissionPl
 	ask = grokBashPatterns(ask)
 	deny = grokBashPatterns(deny)
 	desired := permissions.Policy{BashAllow: allow, BashAsk: ask, BashDeny: deny, Hooks: true}
-	paths := []string{adapter.SettingsPath}
-	if len(live.BashDeny) > 0 || len(deny) > 0 {
-		paths = append(paths, adapter.HookConfigPath())
-	}
+	paths := []string{adapter.SettingsPath, "vrooli-policy-runner (PreToolUse command; installed-version canary required)"}
 	return agentpolicy.PlanPermissionProjection("grok", document, data,
 		agentpolicy.PermissionProjection{Allow: grokPortablePatterns(live.BashAllow), Ask: grokPortablePatterns(live.BashAsk), Deny: grokPortablePatterns(live.BashDeny)}, paths, grokPermissionPosture), desired, adapter, nil
 }

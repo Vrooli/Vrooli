@@ -9,14 +9,11 @@ import (
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
-func TestWritePortRegistryCreatesBothCompatibilityFiles(t *testing.T) {
+func TestWritePortRegistryCreatesFixtureFile(t *testing.T) {
 	root := t.TempDir()
 	WritePortRegistry(t, root, map[string]int{"redis": 6379})
 
-	for _, rel := range []string{
-		"scripts/resources/port_registry.sh",
-		"scripts/resources/port_registry.json",
-	} {
+	for _, rel := range []string{".vrooli/test-port-registry.json"} {
 		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err != nil {
 			t.Fatalf("expected %s: %v", rel, err)
 		}
@@ -30,7 +27,7 @@ func TestWritePortRegistryStatePersistsReservedRanges(t *testing.T) {
 		ReservedRanges: map[string]string{"db": "5432-5499"},
 	})
 
-	registry := testkitgo.ReadJSONFileInto[resourceenv.PortRegistry](t, filepath.Join(root, "scripts", "resources", "port_registry.json"))
+	registry := testkitgo.ReadJSONFileInto[resourceenv.PortRegistry](t, filepath.Join(root, ".vrooli", "test-port-registry.json"))
 	if got := registry.ResourcePorts["postgres"]; got != 5433 {
 		t.Fatalf("postgres port = %d, want 5433", got)
 	}

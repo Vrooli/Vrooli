@@ -8,13 +8,10 @@
 // section (including all Codex-native `[profiles.*]`, `sandbox_mode`,
 // `approval_policy`, etc.) round-trips untouched.
 //
-// IMPORTANT: Unlike Claude Code and OpenCode, Codex does NOT today
-// honour per-command-pattern deny/ask/allow rules natively — its policy
-// surface is sandbox modes and approval policies. The `[vrooli.permissions]`
-// section therefore records Vrooli's *intent* across all coding-agent
-// resources uniformly; agents that consume Codex (via Vrooli) can read
-// it. `permissions doctor` surfaces a clear warning about native
-// enforcement to set expectations.
+// Codex versions at and beyond the pinned resource version expose a
+// hooks.json PreToolUse command surface. The native sandbox/approval controls
+// remain separate; the adapter records both and reports hook firing as
+// unverified until a runtime canary proves the installed binary invokes it.
 //
 // Duplicated structurally from resources/claude-code and
 // resources/opencode permissions packages per the duplicate-before-extract
@@ -61,6 +58,7 @@ type Policy struct {
 // DefaultAdapter based on Scope.
 type Adapter struct {
 	SettingsPath string
+	HookPath     string
 	Scope        Scope
 }
 
@@ -80,6 +78,7 @@ func DefaultAdapter(scope Scope) (*Adapter, error) {
 	}
 	return &Adapter{
 		SettingsPath: filepath.Join(home, ".codex", file),
+		HookPath:     filepath.Join(home, ".codex", "hooks.json"),
 		Scope:        scope,
 	}, nil
 }
@@ -185,13 +184,58 @@ func (a *Adapter) Save(p Policy) error {
 	if err := os.Rename(tmp, a.SettingsPath); err != nil {
 		return fmt.Errorf("rename %s -> %s: %w", tmp, a.SettingsPath, err)
 	}
+	if a.HookPath != "" {
+		if err := a.savePreToolHook(p); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-// RenderHook is a no-op for Codex: there is no native equivalent to
-// Claude Code's PreToolUse hook. Returned for API symmetry; callers
-// should not depend on a non-nil value.
-func (a *Adapter) RenderHook(_ Policy) map[string]any {
+// RenderHook returns the native Codex PreToolUse projection. The command is
+// configurable because the policy runner is host-owned; no shell-specific
+// wrapper is assumed.
+func (a *Adapter) RenderHook(p Policy) map[string]any {
+	if len(p.BashDeny) == 0 {
+		return nil
+	}
+	command := os.Getenv("VROOLI_AGENT_POLICY_RUNNER")
+	if command == "" {
+		command = "vrooli-policy-runner"
+	}
+	return map[string]any{
+		"managedBy": "vrooli",
+		"hooks": map[string]any{
+			"PreToolUse": []any{map[string]any{
+				"matcher": "shell_command|exec_command|apply_patch|mcp",
+				"hooks":   []any{map[string]any{"type": "command", "command": command + " hook --runner codex"}},
+			}},
+		},
+	}
+}
+
+func (a *Adapter) savePreToolHook(p Policy) error {
+	hook := a.RenderHook(p)
+	if hook == nil {
+		if err := os.Remove(a.HookPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("remove codex hook: %w", err)
+		}
+		return nil
+	}
+	data, err := json.MarshalIndent(hook, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode codex hook: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(a.HookPath), 0o755); err != nil {
+		return fmt.Errorf("mkdir codex hook directory: %w", err)
+	}
+	tmp := a.HookPath + ".tmp"
+	if err := os.WriteFile(tmp, append(data, '\n'), 0o644); err != nil {
+		return fmt.Errorf("write codex hook: %w", err)
+	}
+	if err := os.Rename(tmp, a.HookPath); err != nil {
+		return fmt.Errorf("publish codex hook: %w", err)
+	}
 	return nil
 }
 

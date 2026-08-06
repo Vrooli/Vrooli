@@ -1,10 +1,47 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "whisper",
-  "storage": {"entries": {
-    "models": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/whisper/models", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/whisper/models", "windows": "$USER_HOME/AppData/Local/vrooli/resources/whisper/models"}, "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "WHISPER_MODELS_DIR", "scope": "container"}, "rationale": "Whisper model files are re-downloadable and bind-mounted into the service."},
-    "uploads": {"rung": "owned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/whisper/uploads", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/whisper/uploads", "windows": "$USER_HOME/AppData/Local/vrooli/resources/whisper/uploads"}, "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Uploaded audio is operator input and remains until explicitly removed by the resource workflow."}
-  }},
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/whisper/models",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/whisper/models",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/whisper/models"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "WHISPER_MODELS_DIR",
+          "scope": "container"
+        },
+        "rationale": "Whisper model files are re-downloadable and bind-mounted into the service.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      },
+      "uploads": {
+        "rung": "owned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/whisper/uploads",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/whisper/uploads",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/whisper/uploads"
+        },
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Uploaded audio is operator input and remains until explicitly removed by the resource workflow.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    }
+  },
   "display_name": "Whisper",
   "description": "Managed Whisper speech-to-text service with native compose-backed lifecycle and shell-retained transcription workflows.",
   "cli": {

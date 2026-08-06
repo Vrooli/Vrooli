@@ -29,17 +29,17 @@ import (
 
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 
-	vaultmocks "resource-kopia/cli/internal/vault/mocks"
+	credentialmocks "resource-kopia/cli/internal/credentials/mocks"
 )
 
 // rig is a fully-wired set of services backed by the real kopia binary plus an
-// in-memory vault and temp storage roots.
+// in-memory credential authority and temp storage roots.
 type rig struct {
 	repo  repo.Service
 	snap  snapshot.Service
 	pol   policy.Service
 	maint maintenance.Service
-	vault *vaultmocks.FakeVault
+	store *credentialmocks.FakeStore
 	env   env.Runtime
 	out   *bytes.Buffer
 }
@@ -69,16 +69,16 @@ func newRig(t *testing.T) *rig {
 		t.Fatal(err)
 	}
 	runner := kexec.NewBinaryRunner("kopia")
-	v := vaultmocks.NewFakeVault()
+	v := credentialmocks.NewFakeStore()
 	reg := registry.New(rt.RegistryFile)
-	resolver := repoctx.Resolver{Registry: reg, Credentials: v, Vault: v}
+	resolver := repoctx.Resolver{Registry: reg, Credentials: v}
 	out := &bytes.Buffer{}
 	return &rig{
-		repo:  repo.Service{Runner: runner, Credentials: v, Vault: v, Registry: reg, Resolver: resolver, Env: rt, Out: out},
+		repo:  repo.Service{Runner: runner, Credentials: v, Registry: reg, Resolver: resolver, Env: rt, Out: out},
 		snap:  snapshot.Service{Runner: runner, Resolver: resolver, Out: out},
 		pol:   policy.Service{Runner: runner, Resolver: resolver, Out: out},
 		maint: maintenance.Service{Runner: runner, Resolver: resolver, Out: out},
-		vault: v,
+		store: v,
 		env:   rt,
 		out:   out,
 	}
@@ -286,7 +286,7 @@ func TestIntegrationStandaloneDisasterRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	passphrase, err := r.vault.Resolve(identity, kopiaregistry.PassphraseField)
+	passphrase, err := r.store.Resolve(identity, kopiaregistry.PassphraseField)
 	if err != nil {
 		t.Fatalf("recover passphrase: %v", err)
 	}

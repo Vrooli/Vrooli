@@ -12,7 +12,7 @@ import (
 
 	kexecmocks "resource-kopia/cli/internal/kexec/mocks"
 
-	vaultmocks "resource-kopia/cli/internal/vault/mocks"
+	credentialmocks "resource-kopia/cli/internal/credentials/mocks"
 )
 
 const cfg = "/cfg/offsite/repository.config"
@@ -20,13 +20,13 @@ const cfg = "/cfg/offsite/repository.config"
 func newSvc(t *testing.T) (policy.Service, *kexecmocks.FakeRunner) {
 	t.Helper()
 	run := &kexecmocks.FakeRunner{}
-	v := vaultmocks.NewFakeVault()
+	v := credentialmocks.NewFakeStore()
 	v.SeedPassphrase("offsite", "passphrase-value-abcdefghijklmnop")
 	reg := registry.New(filepath.Join(t.TempDir(), "registry.json"))
 	if err := reg.Upsert(registry.Entry{Name: "offsite", Backend: registry.BackendFilesystem, ConfigFile: cfg, Path: "/p"}); err != nil {
 		t.Fatal(err)
 	}
-	return policy.Service{Runner: run, Resolver: repoctx.Resolver{Registry: reg, Credentials: v, Vault: v}}, run
+	return policy.Service{Runner: run, Resolver: repoctx.Resolver{Registry: reg, Credentials: v}}, run
 }
 
 func eq(a, b []string) bool {

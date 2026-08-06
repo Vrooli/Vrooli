@@ -1,12 +1,59 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "qdrant",
-  "storage": {"entries": {
-    "storage": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/qdrant", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/qdrant", "windows": "$USER_HOME/AppData/Local/vrooli/resources/qdrant"}, "kind": "dir", "class": "data", "regenerable": false, "rationale": "Qdrant collections and WAL data are bind-mounted to /qdrant/storage."},
-    "snapshots": {"rung": "pinned", "path": {"linux": "$USER_STATE_DIR/vrooli/resources/qdrant/snapshots", "macos": "$USER_STATE_DIR/vrooli/resources/qdrant/snapshots", "windows": "$USER_STATE_DIR/vrooli/resources/qdrant/snapshots"}, "kind": "dir", "class": "state", "regenerable": false, "rationale": "Qdrant snapshots are persisted separately from live collection storage."}
-  }},
+  "storage": {
+    "entries": {
+      "storage": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/qdrant",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/qdrant",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/qdrant"
+        },
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Qdrant collections and WAL data are bind-mounted to /qdrant/storage.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      },
+      "snapshots": {
+        "rung": "pinned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": false,
+        "rationale": "Qdrant snapshots are persisted separately from live collection storage.",
+        "subpath": "snapshots",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable state storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      },
+      "health_log": {
+        "rung": "relocatable",
+        "kind": "file",
+        "class": "state",
+        "subpath": "health.log",
+        "regenerable": true,
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Qdrant health diagnostics are regenerable and observed in the state root."
+        },
+        "relocation": {
+          "key": "QDRANT_HEALTH_LOG",
+          "scope": "process-tree"
+        },
+        "reclaim": {
+          "pruner": "builtin"
+        },
+        "rationale": "The resource health probe appends diagnostics outside the snapshot directory."
+      }
+    }
+  },
   "display_name": "Qdrant Vector Database",
-  "description": "Vector database for embeddings and semantic search workloads.",
+  "description": "Vector database for embeddings and semantic search workloads, supervised from a checksum-verified native binary.",
   "cli": {
     "enabled": true,
     "command": "resource-qdrant",
@@ -43,63 +90,53 @@
       "kind": "go_module"
     }
   },
-  "template": "docker-service",
-  "driver": "docker-service",
+  "template": "managed-service",
+  "driver": "managed-service",
   "deployment": {
     "profiles": {
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
           "limitations": [
-            "Docker images, storage, and networking remain host-managed."
+            "Native artifact availability is verified per target architecture."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "native-artifact-check"
           ]
         },
         "macos": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "Native artifact availability is verified per target architecture."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "native-artifact-check"
           ]
         },
         "windows": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
+            "amd64"
           ],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "Native artifact availability is verified per target architecture."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "native-artifact-check"
           ]
         }
       }
@@ -128,24 +165,49 @@
   "health_checks": [
     {
       "type": "http",
-      "target": "http://127.0.0.1:6333/",
+      "kind": "readiness",
+      "target": "http://127.0.0.1:6333/readyz",
       "interval_seconds": 10,
       "timeout_seconds": 5
     }
   ],
   "runtime": {
-    "image": "qdrant/qdrant:v1.15.3",
-    "container_name": "qdrant",
-    "volumes": [
-      {
-        "source": "${RESOURCE_DATA_DIR}",
-        "target": "/qdrant/storage"
+    "image": "",
+    "container_name": "",
+    "volumes": []
+  },
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {"control-plane": "managed-shared", "desktop-bundle": "managed-private"},
+      "allowed_modes": ["managed-private", "managed-shared", "attach-only", "remote-vrooli", "managed-discovered"],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": ["read-only", "read-write"]
+    },
+    "artifact": {
+      "path": "server/qdrant",
+      "version": "1.15.3",
+      "sha256_by_platform": {
+        "linux-amd64": "b718cd58cad3ce91fd7ec33f042d873fc3246b004ba90bb9471a7fee557afa1a",
+        "linux-arm64": "f8dc09f985d4614c3ebd606e7c533bb9fa4cd61a639f79f94c3fcbaeaf0aa94a",
+        "macos-amd64": "67c01e3148a9df8c36b17275d107b08ca28281dd354db1f9b604c6676834c6f8",
+        "macos-arm64": "5d56d468e642b9e09394695632e37fac3583d34c7f0ac969154ce4d79490f3ec",
+        "windows-amd64": "239b4d868973ff16fc8501be73cac1c6520c9b067abc60deb18d11b53d110925"
       },
-      {
-        "source": "${RESOURCE_STATE_DIR}/snapshots",
-        "target": "/qdrant/snapshots"
-      }
-    ]
+      "bundle_artifact": "qdrant_${os}_${arch}"
+    },
+    "attach_health_path": "/readyz",
+    "arguments": ["--config-path", "${RESOURCE_CONFIG_DIR}/config.yaml"],
+    "environment": {
+      "QDRANT__STORAGE__STORAGE_PATH": "${RESOURCE_DATA_DIR}",
+      "QDRANT__SERVICE__HTTP_PORT": "${RESOURCE_PORT_HTTP}",
+      "QDRANT__SERVICE__GRPC_PORT": "${RESOURCE_PORT_GRPC}",
+      "QDRANT__SERVICE__HOST": "127.0.0.1"
+    },
+    "config": {
+      "path": "config.yaml",
+      "content": "storage:\n  storage_path: ${RESOURCE_DATA_DIR}\nservice:\n  host: 127.0.0.1\n  http_port: ${RESOURCE_PORT_HTTP}\n  grpc_port: ${RESOURCE_PORT_GRPC}\n"
+    }
   },
   "dependency_schema": {
     "type": "object",

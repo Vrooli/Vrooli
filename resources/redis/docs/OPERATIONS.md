@@ -29,7 +29,7 @@ and remaining TTLs. Quiesce writers when a consistent snapshot is required.
 
 ## Shell Deletion Gate
 
-The legacy `lib/`, `config/defaults.sh`, `config/messages.sh`, and
+The retired `lib/`, `config/defaults.sh`, `config/messages.sh`, and
 `test/integration-test.sh` files were removed after an inventory confirmed
 that their `redis::` functions were only referenced inside the deleted tree.
 No supported command, scenario caller, or Go test imported `common.sh`. Port,

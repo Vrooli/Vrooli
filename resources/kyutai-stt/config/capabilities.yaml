@@ -2,147 +2,39 @@ apiVersion: vrooli.com/v1
 kind: ResourceCapability
 metadata:
   name: kyutai-stt
-  category: ai
-  subcategory: speech-recognition
-  description: "Kyutai streaming speech-to-text with low-latency partial and segment results over WebSocket"
-  maturity: beta
-  complexity: intermediate
-
+  category: resource
+  description: "Go-native lifecycle and health contract for kyutai-stt."
+  maturity: M4
 spec:
-  # Core capabilities this resource provides
-  capabilities:
-    primary:
-      - streaming-speech-to-text
-      - low-latency-transcription
-      - real-time-partial-hypotheses
-    secondary:
-      - segment-level-timestamps
-      - bilingual-recognition-en-fr
-    specialized:
-      - gpu-acceleration
-      - websocket-streaming
-      - canonical-pcm-16k-ingest
-
-  # API interfaces available
-  interfaces:
-    - name: health
-      endpoint: "/health"
-      method: [GET]
-      inputTypes: []
-      outputTypes: [json]
-      description: "Liveness + model-load + device status"
+  commands:
     - name: info
-      endpoint: "/v1/info"
-      method: [GET]
-      inputTypes: []
-      outputTypes: [json]
-      description: "Backend, model id, device, accepted sample rate, server version"
-    - name: stream
-      endpoint: "/v1/stream"
-      method: [WEBSOCKET]
-      inputTypes: [audio/pcm-s16le-16k-mono]
-      outputTypes: [json]
-      description: "Bidirectional streaming transcription. Accepts canonical PCM s16le 16kHz mono; emits partial/segment/done/error JSON frames."
-
-  # Resource dependencies and requirements
-  dependencies:
-    required:
-      - docker
-      - nvidia-gpu
-      - cuda-toolkit
-    optional: []
-    incompatible: []
-
-  # Scenario compatibility
-  scenarios:
-    primary:
-      - audio-tools
-    secondary:
-      - meeting-automation
-      - voice-driven-systems
-    optimal_combinations:
-      - [kyutai-stt, kokoro]            # full duplex voice (STT + TTS)
-      - [kyutai-stt, ollama]            # voice-driven assistant
-
-  # Technical specifications
-  technical:
-    ports: [8000]
-    protocols: [http, websocket]
-    data_formats: [json, pcm-s16le]
-    resource_requirements:
-      memory:
-        minimum: "4GB"
-        recommended: "8GB"
-        optimal: "16GB+"
-      cpu:
-        minimum: "2 cores"
-        recommended: "4 cores"
-      storage:
-        minimum: "4GB"
-        recommended: "8GB"
-        optimal: "16GB+"
-      gpu:
-        required: true
-        recommended: true
-        supported: ["NVIDIA CUDA"]
-        vram:
-          minimum: "3GB"
-          recommended: "4GB"
-          note: "1B en_fr model in bf16 is ~2-3GB weights; ~3-4GB resident with streaming buffers"
-    scaling:
-      horizontal: true
-      vertical: true
-      max_concurrent_streams: 1
-      execution_modes: [gpu, docker]
-
-  # Specialized features
-  features:
-    streaming:
-      enabled: true
-      description: "Frame-by-frame streaming decode with ~0.5s delay (1B model)"
-    timestamp_alignment:
-      enabled: true
-      description: "Segment-level start_ms/end_ms on committed utterances"
-    languages:
-      enabled: true
-      description: "English and French (1B en_fr model)"
-      languages: [en, fr]
-
-  # Models
-  integrations:
-    model_variants:
-      stt-1b-en_fr: "~1B params, ~0.5s delay, English + French, default"
-      stt-2.6b-en: "~2.6B params, ~2.5s delay, English only (heavier VRAM)"
-
-  # Testing and validation
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: status
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: install
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: start
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: stop
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: restart
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: logs
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: uninstall
+      implementation: internal/resources/control
+      test: cli/main_test.go
+  interfaces:
+    - name: primary-health
+      endpoint: resource.json health_checks[0]
+      test: resource.json health_checks[0]
   testing:
-    test_file: "cd resources/kyutai-stt/cli && RESOURCE_LIVE_TEST=1 go test ./... -run TestKyutaiLive"
-    test_coverage:
-      - service_health
-      - info_endpoint
-      - websocket_stream_contract
-      - container_status
-
-  # Documentation and examples
-  documentation:
-    readme: "resources/kyutai-stt/README.md"
-    api_reference: "resources/kyutai-stt/docs/API.md"
-    examples_dir: "resources/kyutai-stt/docs/USAGE_EXAMPLES.md"
-    operations: "resources/kyutai-stt/docs/OPERATIONS.md"
-
-  # Version and compatibility
-  version_info:
-    api_version: "v1"
-    compatibility_matrix:
-      python: ">=3.10"
-      cuda: ">=12.4"
-      docker: ">=20.10.0"
-      architecture: [amd64]
-
-# Metadata for resource discovery and automation
-labels:
-  resource.vrooli.com/category: "ai"
-  resource.vrooli.com/type: "speech-recognition"
-  resource.vrooli.com/maturity: "beta"
-  resource.vrooli.com/ai-friendly: "true"
-  resource.vrooli.com/gpu-enabled: "true"
+    unit_test: cli/main_test.go
+    contract_test: internal/resources/fleet_contract_test.go

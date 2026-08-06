@@ -2,209 +2,39 @@ apiVersion: vrooli.com/v1
 kind: ResourceCapability
 metadata:
   name: kokoro
-  category: ai
-  subcategory: speech-synthesis
-  description: "High-quality text-to-speech synthesis with multiple voices using the Kokoro 82M model"
-  maturity: stable
-  complexity: intermediate
-
+  category: resource
+  description: "Go-native lifecycle and health contract for kokoro."
+  maturity: M4
 spec:
-  # Core capabilities this resource provides
-  capabilities:
-    primary:
-      - text-to-speech
-      - audio-synthesis
-      - multi-voice-support
-      - openai-compatible-tts
-    secondary:
-      - batch-text-processing
-      - multiple-output-formats
-      - voice-selection
-      - streaming-audio
-    specialized:
-      - gpu-acceleration
-      - kokoro-82m-model
-      - low-latency-synthesis
-      - openai-api-compatibility
-
-  # API interfaces available
+  commands:
+    - name: info
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: status
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: install
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: start
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: stop
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: restart
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: logs
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: uninstall
+      implementation: internal/resources/control
+      test: cli/main_test.go
   interfaces:
-    - name: speech-synthesis
-      endpoint: "/v1/audio/speech"
-      method: [POST]
-      inputTypes: [application/json]
-      outputTypes: [audio/mp3, audio/wav, audio/opus, audio/flac]
-      description: "Synthesize speech from text input (OpenAI-compatible)"
-    - name: voice-listing
-      endpoint: "/v1/audio/voices"
-      method: [GET]
-      inputTypes: []
-      outputTypes: [application/json]
-      description: "List available voices for synthesis"
-
-  # Resource dependencies and requirements
-  dependencies:
-    required: []
-    optional:
-      - cuda-toolkit
-      - nvidia-gpu
-      - docker
-    incompatible: []
-
-  # Scenario compatibility
-  scenarios:
-    primary:
-      - voice-assistant-platform
-      - audio-content-generation
-      - accessibility-services
-    secondary:
-      - research-assistant
-      - content-creation
-      - notification-systems
-    optimal_combinations:
-      - [kokoro, whisper, postgres]           # Full voice pipeline (STT + TTS)
-      - [kokoro, ollama, redis]               # AI-powered voice assistant
-      - [kokoro, n8n, vault]                  # Automated audio generation workflows
-      - [kokoro, whisper, ollama, qdrant]     # Complete conversational AI
-
-  # Business intelligence
-  business:
-    revenue_range:
-      min: 5000
-      max: 35000
-      currency: USD
-    complexity_score: 5  # 1-10 scale
-    implementation_time: "1-3 days"
-    upwork_demand: high
-    target_industries:
-      - content-creation
-      - education-technology
-      - accessibility-services
-      - customer-service
-      - media-production
-      - gaming
-    common_project_types:
-      - "Voice assistant and chatbot applications"
-      - "Audiobook and podcast generation"
-      - "Accessibility text-to-speech solutions"
-      - "Automated notification and alert systems"
-      - "Interactive voice response (IVR) systems"
-
-  # Technical specifications
-  technical:
-    ports: [8880]
-    protocols: [http, rest]
-    data_formats: [json, mp3, wav, opus, flac]
-    resource_requirements:
-      memory:
-        minimum: "2GB"
-        recommended: "4GB"
-        optimal: "8GB+"
-      cpu:
-        minimum: "2 cores"
-        recommended: "4 cores"
-        optimal: "8+ cores"
-      storage:
-        minimum: "1GB"
-        recommended: "2GB"
-        optimal: "5GB+"
-      gpu:
-        required: false
-        recommended: true
-        supported: ["NVIDIA CUDA"]
-    scaling:
-      horizontal: true
-      vertical: true
-      max_concurrent_requests: 10
-      execution_modes: [cpu, gpu, docker]
-
-  # AI generation hints for automated scenario creation
-  ai_generation:
-    common_patterns:
-      - text-to-speech-pipelines
-      - voice-assistant-applications
-      - audio-content-generation
-      - accessibility-enhancement
-    integration_targets:
-      preferred: [whisper, ollama, postgres, redis]
-      compatible: [n8n, vault, qdrant, minio]
-      avoid: [image-only-processing]
-    workflow_templates:
-      synthesis: "Receive text → Select voice → Generate audio → Deliver output"
-      voice_assistant: "Receive audio → Transcribe with Whisper → Process with LLM → Synthesize with Kokoro"
-      batch_processing: "Queue text inputs → Batch synthesize → Store audio files → Notify completion"
-    complexity_indicators:
-      simple: ["single voice synthesis", "basic text input", "mp3 output"]
-      intermediate: ["multi-voice support", "streaming audio", "format selection"]
-      advanced: ["real-time voice pipeline", "voice cloning workflows", "enterprise TTS integration"]
-
-  # Specialized features
-  features:
-    multi_voice_support:
-      enabled: true
-      description: "Multiple built-in voices for different use cases"
-      default_voice: "af_heart"
-    gpu_acceleration:
-      enabled: true
-      description: "NVIDIA GPU acceleration for faster synthesis"
-      requires: cuda_toolkit
-    openai_compatibility:
-      enabled: true
-      description: "OpenAI-compatible API endpoints for drop-in replacement"
-      api_version: "v1"
-    output_formats:
-      enabled: true
-      description: "Multiple audio output formats supported"
-      formats: ["mp3", "wav", "opus", "flac"]
-
-  # Integration capabilities
-  integrations:
-    output_formats:
-      - mp3
-      - wav
-      - opus
-      - flac
-    api_compatibility:
-      - openai-tts-v1
-
-  # Testing and validation
+    - name: primary-health
+      endpoint: resource.json health_checks[0]
+      test: resource.json health_checks[0]
   testing:
-    test_file: "cd resources/kokoro/cli && RESOURCE_LIVE_TEST=1 go test ./... -run TestKokoroLive"
-    test_coverage:
-      - service_health
-      - synthesis_quality
-      - voice_listing
-      - format_compatibility
-      - gpu_acceleration
-    fixtures:
-      - sample_text_inputs
-      - voice_selection_tests
-      - performance_benchmarks
-    integration_tests:
-      - kokoro_whisper_pipeline
-      - kokoro_ollama_voice_assistant
-      - multi_format_synthesis
-
-  # Documentation and examples
-  documentation:
-    readme: "resources/kokoro/README.md"
-    api_reference: "resources/kokoro/docs/API.md"
-    examples_dir: "resources/kokoro/docs/USAGE_EXAMPLES.md"
-
-  # Version and compatibility
-  version_info:
-    min_version: "latest"
-    tested_version: "latest"
-    api_version: "v1"
-    compatibility_matrix:
-      docker: ">=20.10.0"
-      architecture: [amd64, arm64]
-
-# Metadata for resource discovery and automation
-labels:
-  resource.vrooli.com/category: "ai"
-  resource.vrooli.com/type: "speech-synthesis"
-  resource.vrooli.com/maturity: "stable"
-  resource.vrooli.com/business-value: "high"
-  resource.vrooli.com/ai-friendly: "true"
-  resource.vrooli.com/gpu-enabled: "true"
+    unit_test: cli/main_test.go
+    contract_test: internal/resources/fleet_contract_test.go

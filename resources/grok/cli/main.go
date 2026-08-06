@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"resource-grok/cli/internal/permissionscli"
 	"resource-grok/cli/internal/upstream"
@@ -10,6 +11,7 @@ import (
 	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
+	agentinstall "github.com/vrooli/vrooli/packages/resource-agent-install"
 )
 
 const (
@@ -54,10 +56,10 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	app.SetCommandsWithSubgroups(
-		app.StandardLifecycleCommands(),
+		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{Binary: "grok", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".grok"), Version: upstreamPinnedVersion, URLTemplate: "https://x.ai/cli/grok-${version}-${os}-${arch}"})}}),
 		[]cliapp.SubcommandGroup{
 			agentpolicy.ModelDiscoveryCommands(agentpolicy.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName)}),
-			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "hook_backed", Caveats: []string{"Grok native permission rules are supplemented by a PreToolUse Bash hook."}}}),
+			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Grok native permission rules remain active; verify the installed Grok version with a PreToolUse runner canary before treating the portable hook as enforced."}}}),
 			// Grok is not on npm/GitHub releases — its latest version is a bare
 			// text pointer at https://x.ai/cli/<channel>, so we override the
 			// upstream-check fetcher (see internal/upstream).

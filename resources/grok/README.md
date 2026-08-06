@@ -27,7 +27,7 @@ and an upstream update-check.
   release-channel version pointer for `upstream-check` (Grok is not on npm or
   GitHub releases). The `install`/`version`/`discovery`/`env` packages are
   reserved stubs for future runner-integration work.
-- `lib/install.sh` downloads the **pinned** upstream single-file binary directly
+- `resource-grok install-direct` downloads the **pinned** upstream single-file binary directly
   (the opencode pattern) and lands the real `grok` binary at `~/.local/bin/grok`
   — sudo-free, honoring `resource.json upstream_cli.version_pinned`, and without
   mutating the operator's shell rc.
@@ -48,10 +48,10 @@ vrooli resource install grok
 resource-grok status
 
 # Update to the pinned version (idempotent reinstall; never automatic)
-bash resources/grok/lib/install.sh update
+resource-grok install-direct
 
 # Remove only the user-owned binary (leaves ~/.grok durable state intact)
-bash resources/grok/lib/install.sh uninstall
+vrooli resource uninstall grok
 ```
 
 The install lands `~/.local/bin/grok` with **no sudo** and is fully re-runnable.
@@ -89,10 +89,10 @@ Unlike Codex (whose rules are intent-only), **Grok enforces these natively**:
 - Rules are written into Grok's native `[permission]` table in
   `~/.grok/config.toml` (user scope) or `~/.grok/requirements.toml` (`--scope
   admin`, higher precedence). Grok evaluates them `deny > ask > allow`.
-- Every `Bash(...)` deny rule is also paired with a **PreToolUse backstop hook**
-  under `~/.grok/hooks/` that hard-denies the matching command *before* any other
-  check and applies even under `grok --always-approve`. (Grok runs PreToolUse
-  hooks earliest and honours an explicit `{"decision":"deny"}`.)
+- Every `Bash(...)` deny rule is also projected into a **PreToolUse backstop
+  hook** under `~/.grok/hooks/` that invokes `vrooli-policy-runner`. Native
+  permission rules remain authoritative; hook ordering and refusal semantics
+  require the installed-version canary and are not inferred from file presence.
 
 ```bash
 # Block a dangerous pattern (note: flags come BEFORE the pattern).
@@ -107,7 +107,7 @@ resource-grok permissions doctor        # confirms version + enforcement wiring
 resource-grok permissions drift-check   # detects hand-edits since the last write
 ```
 
-For declarative automation, use `permissions plan --scope user|admin --document desired.json --json` and `permissions reconcile --scope user|admin --document desired.json --json`. The strict v1 document contains `schema_version`, matching `scope`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged TOML, and reports desired/live fingerprints, native paths, changes, and the `hook_backed` enforcement posture.
+For declarative automation, use `permissions plan --scope user|admin --document desired.json --json` and `permissions reconcile --scope user|admin --document desired.json --json`. The strict v1 document contains `schema_version`, matching `scope`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged TOML, and reports desired/live fingerprints, native paths, changes, and the `hook_unverified` enforcement posture. The PreToolUse entry invokes `vrooli-policy-runner`; run the installed-version canary before treating it as verified.
 
 Mutating verbs (`deny/allow/ask/remove/reset`) are gated by the shared
 `agentpolicy` substrate: a **detected coding-agent caller is refused** so an agent
@@ -180,3 +180,6 @@ thought chunks or tool arguments) and reads no auth material. See
 ## References
 
 - [Grok Build CLI](https://x.ai/cli)
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

@@ -2,7 +2,10 @@ module resource-antigravity/cli
 
 go 1.25.0
 
-require github.com/vrooli/cli-core v0.0.0
+require (
+	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/vrooli v0.0.0
+)
 
 require (
 	connectrpc.com/connect v1.19.2 // indirect

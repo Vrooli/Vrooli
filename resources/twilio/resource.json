@@ -1,9 +1,18 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "twilio",
-  "storage": {"entries": {
-    "config": {"rung": "owned", "path": "$USER_CONFIG_DIR/vrooli/resources/twilio", "kind": "dir", "class": "config", "regenerable": false, "sensitive": true, "rationale": "The resource documentation stores Twilio phone-number and credential configuration under the user config root."}
-  }},
+  "storage": {
+    "entries": {
+      "config": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "config",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "The resource documentation stores Twilio phone-number and credential configuration under the user config root."
+      }
+    }
+  },
   "display_name": "Twilio",
   "description": "Hosted Twilio API resource with typed Go credential and provider diagnostics.",
   "cli": {
@@ -101,8 +110,20 @@
   "endpoint": "https://api.twilio.com/2010-04-01/Accounts.json",
   "credentials": {
     "descriptors": [
-      { "logical_id": "vrooli/twilio", "field": "account-sid", "env": "TWILIO_ACCOUNT_SID", "label": "Twilio account SID", "required": true },
-      { "logical_id": "vrooli/twilio", "field": "auth-token", "env": "TWILIO_AUTH_TOKEN", "label": "Twilio auth token", "required": true }
+      {
+        "logical_id": "vrooli/twilio",
+        "field": "account-sid",
+        "env": "TWILIO_ACCOUNT_SID",
+        "label": "Twilio account SID",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/twilio",
+        "field": "auth-token",
+        "env": "TWILIO_AUTH_TOKEN",
+        "label": "Twilio auth token",
+        "required": true
+      }
     ]
   },
   "orchestration": {
@@ -123,6 +144,7 @@
   "health_checks": [
     {
       "type": "http",
+      "kind": "readiness",
       "target": "https://api.twilio.com/2010-04-01/Accounts.json",
       "expected_status": [
         200,

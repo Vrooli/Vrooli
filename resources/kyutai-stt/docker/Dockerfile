@@ -8,7 +8,7 @@
 #
 # Base image is pinned by digest-friendly tag. pytorch 2.5.1 + cuda 12.4 is
 # compatible with moshi 0.2.6 and the RTX 40-series (Ada / sm_89).
-FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+FROM pytorch/pytorch@sha256:c8268a92a69bd500f8be0e665b2630ee006dadaf7bfbc24249141b15ff622755
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

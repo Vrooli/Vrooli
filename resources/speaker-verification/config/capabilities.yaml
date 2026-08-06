@@ -2,168 +2,39 @@ apiVersion: vrooli.com/v1
 kind: ResourceCapability
 metadata:
   name: speaker-verification
-  category: ai
-  subcategory: speaker-recognition
-  description: "Speaker enrollment and verification via SpeechBrain ECAPA-TDNN 192-dim embeddings with cosine-similarity matching"
-  maturity: beta
-  complexity: intermediate
-
+  category: resource
+  description: "Go-native lifecycle and health contract for speaker-verification."
+  maturity: M4
 spec:
-  # Core capabilities this resource provides
-  capabilities:
-    primary:
-      - speaker-enrollment
-      - speaker-verification
-      - speaker-embedding
-    secondary:
-      - profile-management
-      - cosine-similarity-scoring
-    specialized:
-      - ecapa-tdnn-embeddings
-      - multi-clip-centroid-profiles
-      - voice-activity-trimmed-embedding
-      - target-speaker-extraction
-
-  # API interfaces available
-  interfaces:
-    - name: readiness
-      endpoint: "/ready"
-      method: [GET]
-      inputTypes: []
-      outputTypes: [application/json]
-      description: "Liveness/readiness probe (model_loaded, profile_store_ok, temp_dir_ok)"
+  commands:
     - name: info
-      endpoint: "/v1/info"
-      method: [GET]
-      inputTypes: []
-      outputTypes: [application/json]
-      description: "Backend, model id, device, sample rate, embedding dim"
-    - name: list-profiles
-      endpoint: "/v1/profiles"
-      method: [GET]
-      inputTypes: []
-      outputTypes: [application/json]
-      description: "List enrolled speaker profiles"
-    - name: enroll
-      endpoint: "/v1/profiles"
-      method: [POST]
-      inputTypes: [multipart/form-data]
-      outputTypes: [application/json]
-      description: "Enroll a speaker profile from an audio clip"
-    - name: verify
-      endpoint: "/v1/verify"
-      method: [POST]
-      inputTypes: [multipart/form-data]
-      outputTypes: [application/json]
-      description: "Verify a clip against an enrolled profile via cosine similarity"
-    - name: extract
-      endpoint: "/v1/extract"
-      method: [POST]
-      inputTypes: [multipart/form-data]
-      outputTypes: [application/json]
-      description: "Target-speaker extraction: isolate the enrolled speaker from a mixture (SepFormer + ECAPA), returns cleaned PCM"
-    - name: delete-profile
-      endpoint: "/v1/profiles/{profile_id}"
-      method: [DELETE]
-      inputTypes: []
-      outputTypes: [application/json]
-      description: "Delete an enrolled speaker profile"
-
-  # Resource dependencies and requirements
-  dependencies:
-    required: []
-    optional:
-      - nvidia-gpu
-      - docker
-    incompatible: []
-
-  # Scenario compatibility
-  scenarios:
-    primary:
-      - audio-tools
-      - voice-assistant-platform
-    secondary:
-      - access-control
-      - meeting-transcription
-    optimal_combinations:
-      - [speaker-verification, whisper]            # Speaker-gated transcription
-      - [speaker-verification, whisper, kokoro]    # Full voice pipeline with identity gating
-
-  # Technical specifications
-  technical:
-    ports: [11452]
-    protocols: [http, rest]
-    data_formats: [json, wav, webm, opus, pcm]
-    resource_requirements:
-      memory:
-        minimum: "2GB"
-        recommended: "4GB"
-        optimal: "8GB+"
-      cpu:
-        minimum: "2 cores"
-        recommended: "4 cores"
-        optimal: "8+ cores"
-      storage:
-        minimum: "1GB"
-        recommended: "2GB"
-        optimal: "5GB+"
-      gpu:
-        required: false
-        recommended: false
-        supported: ["NVIDIA CUDA"]
-    scaling:
-      horizontal: true
-      vertical: true
-      max_concurrent_requests: 8
-      execution_modes: [cpu, gpu, docker]
-
-  # Specialized features
-  features:
-    ecapa_tdnn:
-      enabled: true
-      description: "ECAPA-TDNN speaker-embedding model (192-dim, 16kHz, EER 0.8% on VoxCeleb)"
-      model: "speechbrain/spkrec-ecapa-voxceleb"
-      embedding_dim: 192
-      sample_rate: 16000
-    profile_store:
-      enabled: true
-      description: "Persisted voiceprint store keyed by profile_id (JSON per profile)"
-    target_speaker_extraction:
-      enabled: true
-      description: "Isolate the enrolled speaker's voice from a mixture (SepFormer separation + ECAPA target-selection against the profile centroid)"
-
-  # Testing and validation
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: status
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: install
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: start
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: stop
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: restart
+      implementation: cli-core-standard-lifecycle
+      test: cli/main_test.go
+    - name: logs
+      implementation: internal/resources/control
+      test: cli/main_test.go
+    - name: uninstall
+      implementation: internal/resources/control
+      test: cli/main_test.go
+  interfaces:
+    - name: primary-health
+      endpoint: resource.json health_checks[0]
+      test: resource.json health_checks[0]
   testing:
-    test_file: "cd resources/speaker-verification/cli && RESOURCE_LIVE_TEST=1 go test ./... -run TestSpeakerVerificationLive"
-    test_coverage:
-      - service_health
-      - info_endpoint
-      - profile_listing
-      - enrollment
-      - verification
-      - extraction
-    integration_tests:
-      - speaker_verification_enroll_verify
-
-  # Documentation and examples
-  documentation:
-    readme: "resources/speaker-verification/README.md"
-    api_reference: "resources/speaker-verification/docs/API.md"
-    examples_dir: "resources/speaker-verification/docs/USAGE_EXAMPLES.md"
-
-  # Version and compatibility
-  version_info:
-    min_version: "0.1.0"
-    tested_version: "0.1.0"
-    api_version: "v1"
-    compatibility_matrix:
-      docker: ">=20.10.0"
-      architecture: [amd64, arm64]
-
-# Metadata for resource discovery and automation
-labels:
-  resource.vrooli.com/category: "ai"
-  resource.vrooli.com/type: "speaker-recognition"
-  resource.vrooli.com/maturity: "beta"
-  resource.vrooli.com/ai-friendly: "true"
-  resource.vrooli.com/gpu-enabled: "optional"
+    unit_test: cli/main_test.go
+    contract_test: internal/resources/fleet_contract_test.go

@@ -65,7 +65,8 @@ ADGUARD_HOME_BASE_URL
 ADGUARD_HOME_CREDENTIAL_REF
 ```
 
-`ADGUARD_HOME_CREDENTIAL_REF` points at `secret/resources/adguard-home/admin`.
+`ADGUARD_HOME_CREDENTIAL_REF` points at the credential-authority identity
+`vrooli/adguard-home`.
 Network Manager should receive that reference only; it must not store or log the
 plain admin password.
 
@@ -83,7 +84,7 @@ resource-adguard-home querylog privacy --json
 Credentials default from `ADGUARD_HOME_USERNAME` and `ADGUARD_HOME_PASSWORD`.
 When `ADGUARD_HOME_PASSWORD` is omitted, diagnostics resolve
 `--credential-ref`, `ADGUARD_HOME_CREDENTIAL_REF`, or
-`secret/resources/adguard-home/admin` through `resource-vault` and read only
+`vrooli/adguard-home` through the credential authority and read only
 the `username` and `password` fields.
 The `api-health` command reports:
 
@@ -112,8 +113,8 @@ resource-adguard-home bootstrap --base-url http://localhost:3000 --json
 
 The command calls AdGuard Home's first-install control API, generates a
 high-entropy admin password when none is supplied, stores `username` and
-`password` under `secret/resources/adguard-home/admin` through
-`resource-vault content`, and prints only the credential reference. It also
+`password` under `vrooli/adguard-home` through the credential authority, and
+prints only the credential reference. It also
 hardens privacy by disabling query logging after setup when the AdGuard API
 accepts the current config shape.
 
@@ -123,7 +124,7 @@ After bootstrap, configure Network Manager with the secret reference only:
 network-manager resolver configure-adguard \
   --base-url http://localhost:3000 \
   --username admin \
-  --token-ref secret/resources/adguard-home/admin \
+  --credential-ref vrooli/adguard-home \
   --json
 ```
 
@@ -138,3 +139,6 @@ The AdGuard resource publishes DNS on `192.168.1.173:53` instead. If that LAN
 address or port is occupied, `vrooli resource start adguard-home` should fail
 clearly. Do not claim "ad blocking active" until AdGuard is running,
 authenticated, and serving DNS on the intended LAN listener.
+## Maturity
+
+M4 (2026-08-05): lifecycle, readiness, pinned runtime, and Go CLI tests are covered by the fleet contract.

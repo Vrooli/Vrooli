@@ -33,7 +33,7 @@
 
 ### Architecture
 - **Container**: Docker-based deployment with homeassistant/home-assistant:stable
-- **Port**: 8123 (registered in port_registry.sh)
+- **Port**: 8123 (declared in `resource.json`)
 - **API**: RESTful API with JSON responses
 - **Storage**: SQLite for recorder, JSON for configuration
 - **Authentication**: Long-lived access tokens or OAuth2
@@ -60,7 +60,8 @@ description: "Authentication tokens and API keys for integrations"
 secrets:
   api_keys:
     - name: "long_lived_token"
-      path: "secret/resources/home-assistant/api/token"
+      logical_id: "vrooli/home-assistant"
+      field: "api-token"
       description: "Long-lived access token for API access"
       required: false
       format: "string"

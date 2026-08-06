@@ -1,12 +1,46 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "vault",
-  "storage": {"entries": {
-    "data": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/vault", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/vault", "windows": "$USER_HOME/AppData/Local/vrooli/resources/vault"}, "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Managed Vault uses file storage under RESOURCE_DATA_DIR; this contains encrypted secret state and must be preserved."},
-    "config": {"rung": "owned", "path": {"linux": "$USER_HOME/.config/vrooli/resources/vault", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/vault", "windows": "$USER_HOME/AppData/Local/vrooli/resources/vault"}, "kind": "dir", "class": "config", "regenerable": true, "sensitive": true, "rationale": "The generated loopback-only vault.hcl lives under RESOURCE_CONFIG_DIR."}
-  }},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/vault",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/vault",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/vault"
+        },
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Managed Vault uses file storage under RESOURCE_DATA_DIR; this contains encrypted secret state and must be preserved.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      },
+      "config": {
+        "rung": "owned",
+        "path": {
+          "linux": "$USER_HOME/.config/vrooli/resources/vault",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/vault",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/vault"
+        },
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "sensitive": true,
+        "rationale": "The generated loopback-only vault.hcl lives under RESOURCE_CONFIG_DIR.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      }
+    }
+  },
   "display_name": "HashiCorp Vault",
-  "description": "Managed Vault service for local secret storage and resource secret validation.",
+  "description": "Optional managed Vault capability for explicitly Vault-backed workflows.",
   "credentials": {
     "descriptors": [
       {
@@ -194,6 +228,7 @@
   "health_checks": [
     {
       "type": "http",
+      "kind": "readiness",
       "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health",
       "expected_status": [
         200,

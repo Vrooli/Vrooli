@@ -5,9 +5,10 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"resource-grok/cli/internal/permissions"
 	"strings"
 	"testing"
+
+	"resource-grok/cli/internal/permissions"
 
 	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliutil"

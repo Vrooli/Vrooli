@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Vault provides local durable secret storage for Vrooli resources and scenarios. The immediate production-readiness target is reliable storage and retrieval of resource secrets such as Kopia repository passphrases through a single supported CLI surface.
+Vault provides an optional local KV and Transit capability for Vrooli resources and scenarios that explicitly require Vault semantics. It is not the ordinary credential authority; ordinary resource, integration, and backup credentials use the control-plane credential authority.
 
 ## Implemented
 
@@ -17,8 +17,7 @@ Vault provides local durable secret storage for Vrooli resources and scenarios. 
 - [x] Rejection of `@`-prefixed values to avoid implicit file reads.
 - [x] Vault capability lifecycle and scoped content commands.
 - [x] `secrets init` alias for non-interactive provisioning where existing resources call it.
-- [x] Kopia consumer integration through `resource-vault content get/set`.
-- [x] Kopia missing-secret handling distinguishes absence from Vault service failure.
+- [x] Explicit capability boundary: ordinary credentials are handled by the control-plane credential authority, while only declared Vault-backed capabilities use `resource-vault`.
 - [x] Broker-authorized shared use issues per-app, lease-bounded Vault child tokens with isolated KV v2 policy prefixes; management credentials are never persisted or returned to applications.
 - [x] Explicit attach-only endpoint health validation without lifecycle authority.
 
@@ -37,7 +36,7 @@ Vault provides local durable secret storage for Vrooli resources and scenarios. 
 
 ## CLI Contract
 
-Resources and scenarios must use `resource-vault`.
+Capabilities that explicitly require Vault semantics must use `resource-vault`.
 
 ```bash
 resource-vault content set --path <kv-path> [--key <field>] --value <value>
@@ -46,7 +45,7 @@ resource-vault content list --path <kv-prefix>
 resource-vault content delete --path <kv-path>
 ```
 
-Single-value secrets use field `value` by default. Kopia passphrases use field `passphrase`.
+Single-value Vault content uses field `value` by default. Capability-specific consumers define any other fields they require.
 
 Resource declarations:
 
@@ -56,7 +55,7 @@ vrooli credentials status --identity <logical-id> --field <field>
 
 ## Runtime Posture
 
-The local runtime is durable across native managed-service restarts. It is acceptable for local backup passphrase storage, assuming the operator protects the resource data directory. Normal lifecycle paths do not write, discover, or expose bootstrap material.
+The local runtime is durable across native managed-service restarts. It is not the default storage path for backup passphrases or ordinary resource credentials. Those values belong to the control-plane credential authority, assuming the operator protects the selected native key service or encrypted portable backend. Normal Vault lifecycle paths do not write, discover, or expose bootstrap material.
 
 This resource is not yet a fully managed external production Vault. External production use requires explicit work on TLS, unseal strategy, policy design, audit logging, storage backup, and HA.
 
@@ -68,7 +67,7 @@ normal lifecycle and diagnostics use Go-native managed-service paths, the
 release catalog pins a verified artifact for every declared desktop target, and
 normal operations do not require Docker or Bash. Focused runtime integration
 also proves lifecycle restart and app-scope isolation with a real Vault
-artifact; Kopia and Secrets Manager retain their supported CLI contracts.
+artifact; explicitly governed Vault consumers retain their supported CLI contracts.
 
 It must not be classified as M5 yet. Each macOS and Windows profile remains
 conditional until the target-host smoke test runs against that platform's
@@ -86,7 +85,7 @@ native-host evidence command.
 | Shared app isolation and consent | `TestVaultCredentialIssuerCreatesLeaseBoundScopedToken`, `TestProviderPolicyUsesTargetDefaultsWithoutOverridingExplicitChoice`, and the desktop runtime shared-broker tests |
 | Attach-only safety | `TestManagedServiceDriverRefusesAttachOnlyLifecycle` and `TestManagedServiceDriverValidatesExplicitAttachOnlyEndpointWithoutLifecycle` |
 | Remote scenario boundary | `TestNativeRunnerRejectsDirectRemoteVrooliAccess` and `TestStatusRejectsDirectRemoteVrooliAccess` |
-| Consumer compatibility | `go test ./...` in `resources/kopia/cli` and `scenarios/secrets-manager/api` |
+| Consumer compatibility | `go test ./...` in explicitly governed Vault consumers |
 
 Run the target-host smoke test for each conditional target before upgrading its
 support claim. The evidence table is a correspondence map, not a substitute
@@ -99,4 +98,3 @@ for native target execution.
 - `resource-vault status`
 - `resource-vault content set/get/delete` smoke test.
 - Restart persistence test.
-- `resource-kopia` repository create/status/snapshot/restore validation using a temporary filesystem repository.

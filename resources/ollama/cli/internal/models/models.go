@@ -237,8 +237,10 @@ func doctorRole(ctx context.Context, d Daemon, roleName string, role policy.Role
 	// 3. Required-capability subset (mapped policy vocab -> Ollama vocab).
 	if missing := missingCapabilities(role.RequiredCapabilities, show.Capabilities); len(missing) > 0 {
 		mr.Pass = false
-		mr.Checks = append(mr.Checks, DoctorCheck{Name: "capabilities", Status: StatusFail,
-			Detail: fmt.Sprintf("live model lacks required capability(ies): %s", strings.Join(missing, ", "))})
+		mr.Checks = append(mr.Checks, DoctorCheck{
+			Name: "capabilities", Status: StatusFail,
+			Detail: fmt.Sprintf("live model lacks required capability(ies): %s", strings.Join(missing, ", ")),
+		})
 		mr.Reasons = append(mr.Reasons, fmt.Sprintf("required capabilities %v not all satisfied by live capabilities %v", role.RequiredCapabilities, show.Capabilities))
 	} else {
 		mr.Checks = append(mr.Checks, DoctorCheck{Name: "capabilities", Status: StatusPass})
@@ -247,8 +249,10 @@ func doctorRole(ctx context.Context, d Daemon, roleName string, role policy.Role
 	// 4. Stub-template flag (ADVISORY — never the sole cause of failure).
 	mr.StubTemplate = isStubTemplate(show.Template)
 	if mr.StubTemplate {
-		mr.Checks = append(mr.Checks, DoctorCheck{Name: "template", Status: StatusWarn,
-			Detail: "model ships a stub prompt template (no message/system/tool rendering); relying on Ollama's native tool path"})
+		mr.Checks = append(mr.Checks, DoctorCheck{
+			Name: "template", Status: StatusWarn,
+			Detail: "model ships a stub prompt template (no message/system/tool rendering); relying on Ollama's native tool path",
+		})
 	} else {
 		mr.Checks = append(mr.Checks, DoctorCheck{Name: "template", Status: StatusPass})
 	}

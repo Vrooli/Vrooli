@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
@@ -313,25 +312,7 @@ func WritePortRegistryState(t *testing.T, root string, registry resourceenv.Port
 
 	ports := cloneIntMap(registry.ResourcePorts)
 	ranges := cloneStringMap(registry.ReservedRanges)
-	scriptPath := filepath.Join(root, "scripts", "resources", "port_registry.sh")
-	lines := []string{"#!/usr/bin/env bash"}
-	if len(ports) == 0 {
-		lines = append(lines, "declare -g -A RESOURCE_PORTS=()")
-	} else {
-		names := make([]string, 0, len(ports))
-		for name := range ports {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		lines = append(lines, "RESOURCE_PORTS=(")
-		for _, name := range names {
-			lines = append(lines, fmt.Sprintf("  [\"%s\"]=\"%d\"", name, ports[name]))
-		}
-		lines = append(lines, ")")
-	}
-	testkitgo.WriteFile(t, scriptPath, strings.Join(lines, "\n")+"\n")
-
-	testkitgo.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), resourceenv.PortRegistry{
+	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "test-port-registry.json"), resourceenv.PortRegistry{
 		ResourcePorts:  ports,
 		ReservedRanges: ranges,
 	})

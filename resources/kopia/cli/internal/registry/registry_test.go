@@ -2,9 +2,10 @@ package registry_test
 
 import (
 	"path/filepath"
-	"resource-kopia/cli/internal/registry"
 	"strings"
 	"testing"
+
+	"resource-kopia/cli/internal/registry"
 )
 
 func newRegistry(t *testing.T) *registry.Registry {

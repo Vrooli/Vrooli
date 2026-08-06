@@ -74,8 +74,8 @@ func TestManifestContract(t *testing.T) {
 	if m.CLI.Command != "resource-kopia" {
 		t.Errorf("cli.command = %q, want resource-kopia", m.CLI.Command)
 	}
-	if !contains(m.Orchestration.Dependencies, "vault") {
-		t.Errorf("orchestration.dependencies must include vault, got %v", m.Orchestration.Dependencies)
+	if contains(m.Orchestration.Dependencies, "vault") {
+		t.Errorf("orchestration.dependencies must not include vault, got %v", m.Orchestration.Dependencies)
 	}
 	var envNames []string
 	for _, e := range m.Credentials.Descriptors {

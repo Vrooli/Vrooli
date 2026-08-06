@@ -199,7 +199,7 @@ if (parseFloat(temperature.state) > 25) {
 All configuration and state data is stored in:
 - Config: `~/Vrooli/data/home-assistant/config/`
 - Automations: `~/Vrooli/data/home-assistant/config/automations/`
-- Scripts: `~/Vrooli/data/home-assistant/config/python_scripts/`
+- Python automation files: `~/Vrooli/data/home-assistant/config/python_scripts/`
 
 ## Troubleshooting
 

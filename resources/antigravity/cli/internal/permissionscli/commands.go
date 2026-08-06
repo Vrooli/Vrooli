@@ -5,9 +5,8 @@
 // Antigravity-specific notes:
 //   - The managed grants live in the native `permissions` object of
 //     ~/.gemini/antigravity-cli/settings.json (the global/user scope). Antigravity
-//     reads these directly — this is the native enforcement seam, not an
-//     intent-only file and not a hook backstop (Antigravity exposes no
-//     user-writable hook-dir contract).
+//     reads these directly — this is the native enforcement seam. A project
+//     hook projection is available when VROOLI_AGENT_HOOK_PATH is configured.
 //   - Rules use Antigravity's native `action(target)` vocabulary
 //     (`command(rm -rf)`, `read_file(*)`, `mcp(*)`), stored as the `permissions`
 //     object's `allow`/`deny`/`ask` string arrays (precedence Deny > Ask >
@@ -24,9 +23,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"resource-antigravity/cli/internal/permissions"
 	"sort"
 	"strings"
+
+	"resource-antigravity/cli/internal/permissions"
 
 	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliapp"
@@ -258,14 +258,13 @@ func (h *Handlers) Doctor(args []string) error {
 		}
 	}
 	// Enforcement model: Antigravity reads allow/deny/ask grants from the
-	// native `permissions` object in settings.json (no user-writable hook
-	// backstop exists). The exact JSON rule-encoding is confirmed against a
+	// native `permissions` object in settings.json. The exact JSON rule-encoding is confirmed against a
 	// live agy grant during post-sign-in validation — report that honestly.
 	fmt.Fprintln(h.Stdout, "enforcement: Antigravity reads allow/deny/ask grants from the native `permissions`")
 	fmt.Fprintln(h.Stdout, "             object in settings.json, evaluated Deny > Ask > Allow. Rules use the")
 	fmt.Fprintln(h.Stdout, "             action(target) vocabulary, e.g. command(rm -rf), read_file(*), mcp(*).")
-	fmt.Fprintln(h.Stdout, "             There is no user-writable hook backstop; this settings object is the")
-	fmt.Fprintln(h.Stdout, "             only seam. Schema confirmed 2026-06-29; run a denied command inside an")
+	fmt.Fprintln(h.Stdout, "             A project-scoped PreToolUse command hook is projected when VROOLI_AGENT_HOOK_PATH is set;")
+	fmt.Fprintln(h.Stdout, "             hook firing requires a live canary. Schema confirmed 2026-06-29; run a denied command inside an")
 	fmt.Fprintln(h.Stdout, "             agy session to confirm end-to-end enforcement (live canary).")
 	if info, err := os.Stat(a.SettingsPath); err == nil {
 		fmt.Fprintf(h.Stdout, "settings: present at %s (%d bytes)\n", a.SettingsPath, info.Size())

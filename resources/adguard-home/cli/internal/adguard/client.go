@@ -305,10 +305,6 @@ func postJSON[T any](ctx context.Context, c *Client, endpoint string, body any) 
 	return requestJSON[T](ctx, c, http.MethodPost, endpoint, body)
 }
 
-func putJSON[T any](ctx context.Context, c *Client, endpoint string, body any) (T, int, error) {
-	return requestJSON[T](ctx, c, http.MethodPut, endpoint, body)
-}
-
 func requestJSON[T any](ctx context.Context, c *Client, method, endpoint string, body any) (T, int, error) {
 	var zero T
 	resp, err := c.do(ctx, method, endpoint, body)

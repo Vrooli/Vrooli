@@ -1,9 +1,9 @@
 // Package app wires the resource-kopia CLI: standard resource lifecycle
 // commands plus the wrapped kopia command surface (repo / snapshot / policy /
 // maintenance) and an engine `version` command that reports the pinned kopia
-// version. Production dependencies (the kexec binary runner, the vault CLI, the
-// on-disk registry) are constructed here; unit tests build the same Service
-// values with fakes.
+// version. Production dependencies (the kexec binary runner, the credential
+// authority, and the on-disk registry) are constructed here; unit tests build
+// the same Service values with fakes.
 package app
 
 import (
@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"resource-kopia/cli/internal/credentials"
 	"resource-kopia/cli/internal/discovery"
@@ -23,9 +24,9 @@ import (
 	"resource-kopia/cli/internal/repo"
 	"resource-kopia/cli/internal/repoctx"
 	"resource-kopia/cli/internal/snapshot"
-	"resource-kopia/cli/internal/vault"
 
 	"github.com/vrooli/cli-core/cliapp"
+	agentinstall "github.com/vrooli/vrooli/packages/resource-agent-install"
 )
 
 const (
@@ -54,15 +55,14 @@ func New(buildFingerprint, buildTimestamp, buildSourceRoot string) (*cliapp.Reso
 
 	runtime := env.Load()
 	runner := kexec.NewBinaryRunner("kopia")
-	vlt := vault.NewCLIVault()
 	credentialStore, err := credentials.Default()
 	if err != nil {
 		return nil, fmt.Errorf("initialize credential authority: %w", err)
 	}
 	reg := registry.New(runtime.RegistryFile)
-	resolver := repoctx.Resolver{Registry: reg, Credentials: credentialStore, Vault: vlt}
+	resolver := repoctx.Resolver{Registry: reg, Credentials: credentialStore}
 
-	repoSvc := repo.Service{Runner: runner, Credentials: credentialStore, Vault: vlt, Registry: reg, Resolver: resolver, Env: runtime, Out: os.Stdout}
+	repoSvc := repo.Service{Runner: runner, Credentials: credentialStore, Registry: reg, Resolver: resolver, Env: runtime, Out: os.Stdout}
 	snapSvc := snapshot.Service{Runner: runner, Resolver: resolver, Out: os.Stdout}
 	policySvc := policy.Service{Runner: runner, Resolver: resolver, Out: os.Stdout}
 	maintSvc := maintenance.Service{Runner: runner, Resolver: resolver, Out: os.Stdout}
@@ -71,7 +71,18 @@ func New(buildFingerprint, buildTimestamp, buildSourceRoot string) (*cliapp.Reso
 	engine := engineGroup(app)
 	subgroups := subcommandGroups(app, repoSvc, snapSvc, policySvc, maintSvc)
 
-	app.SetCommandsWithSubgroups(append(lifecycle, engine), subgroups)
+	install := agentinstall.DirectInstallCommand(agentinstall.Spec{
+		Binary:  "kopia",
+		BinDir:  filepath.Join(os.Getenv("HOME"), ".vrooli", "bin"),
+		Version: "0.23.0",
+		URLTemplates: map[string]string{
+			"linux":   "https://github.com/kopia/kopia/releases/download/v${version}/kopia-${version}-linux-x64.tar.gz",
+			"darwin":  "https://github.com/kopia/kopia/releases/download/v${version}/kopia-${version}-macOS-x64.tar.gz",
+			"windows": "https://github.com/kopia/kopia/releases/download/v${version}/kopia-${version}-windows-x64.zip",
+		},
+		ArchiveEntry: "kopia",
+	})
+	app.SetCommandsWithSubgroups(append(lifecycle, engine, cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{install}}), subgroups)
 	return app, nil
 }
 
@@ -126,7 +137,7 @@ func subcommandGroups(app *cliapp.ResourceApp, repoSvc repo.Service, snapSvc sna
 				{Name: "stats", Description: "Show repository size/dedup statistics", Run: wrap(app, repoSvc.Stats)},
 				{Name: "list", Description: "List registered repositories", Run: wrap(app, repoSvc.List)},
 				{Name: "disconnect", Description: "Disconnect from a repository", Run: wrap(app, repoSvc.Disconnect)},
-				{Name: "delete", Description: "Delete local repository metadata and Vault secret refs", Run: wrap(app, repoSvc.Delete)},
+				{Name: "delete", Description: "Delete local repository metadata and credential-authority refs", Run: wrap(app, repoSvc.Delete)},
 				{Name: "validate", Description: "Validate repository connectivity/integrity", Run: wrap(app, repoSvc.Validate)},
 			},
 		},

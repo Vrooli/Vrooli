@@ -3,7 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${KYUTAI_STT_IMAGE:-vrooli/kyutai-stt:latest}
     container_name: ${KYUTAI_STT_CONTAINER_NAME:-kyutai-stt}
     hostname: kyutai-stt
     restart: unless-stopped

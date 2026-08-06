@@ -11,9 +11,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"resource-openrouter/cli/internal/policy"
 	"strconv"
 	"strings"
+
+	"resource-openrouter/cli/internal/policy"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

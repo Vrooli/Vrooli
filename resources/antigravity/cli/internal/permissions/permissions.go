@@ -11,9 +11,10 @@
 // every other key inside `permissions` round-trips untouched.
 //
 // Scope: this is the NATIVE enforcement seam (branch (a) of the plan) — unlike a
-// hook backstop, Antigravity reads these grants directly. Antigravity exposes no
-// user-writable PreToolUse hook-dir contract (its hooks are compiled-in), so the
-// settings.json `permissions` object is the single enforcement surface.
+// hook backstop, Antigravity reads these grants directly. When HookPath is
+// configured, the adapter also projects the documented project-scoped
+// `.agents/hooks.json` PreToolUse command hook; hook firing remains a live-canary
+// question and is never inferred from file presence.
 //
 // SCHEMA (confirmed 2026-06-29 against antigravity.google/docs/cli-permissions +
 // the on-disk antigravity-cli settings written by agy 1.0.13): the `permissions`
@@ -76,6 +77,10 @@ type Adapter struct {
 	SettingsPath string
 	// Scope is the config scope this adapter targets.
 	Scope Scope
+	// HookPath optionally points at a project-scoped .agents/hooks.json file.
+	// It is intentionally opt-in because Antigravity resolves project hooks
+	// relative to the active workspace, not the global settings directory.
+	HookPath string
 }
 
 // DefaultAdapter returns an Adapter rooted at $HOME/.gemini/antigravity-cli with
@@ -94,6 +99,7 @@ func DefaultAdapter(scope Scope) (*Adapter, error) {
 	return &Adapter{
 		SettingsPath: filepath.Join(home, ".gemini", "antigravity-cli", "settings.json"),
 		Scope:        scope,
+		HookPath:     strings.TrimSpace(os.Getenv("VROOLI_AGENT_HOOK_PATH")),
 	}, nil
 }
 
@@ -184,7 +190,55 @@ func (a *Adapter) Save(p Policy) error {
 		return fmt.Errorf("encode %s: %w", a.SettingsPath, err)
 	}
 	out = append(out, '\n')
-	return atomicWrite(a.SettingsPath, out, 0o644)
+	if err := atomicWrite(a.SettingsPath, out, 0o644); err != nil {
+		return err
+	}
+	return a.syncHook(p)
+}
+
+// RenderHook returns the Antigravity PreToolUse projection described by the
+// native .agents/hooks.json contract. The runner performs the actual policy
+// decision, so this projection remains independent of policy vocabulary.
+func (a *Adapter) RenderHook() map[string]any {
+	runner := strings.TrimSpace(os.Getenv("VROOLI_AGENT_POLICY_RUNNER"))
+	if runner == "" {
+		runner = "vrooli-policy-runner"
+	}
+	return map[string]any{
+		"hooks": map[string]any{
+			"PreToolUse": []any{
+				map[string]any{
+					"matcher": "run_command",
+					"hooks": []any{map[string]any{
+						"type":    "command",
+						"command": runner + " hook --runner antigravity",
+						"timeout": 10,
+					}},
+				},
+			},
+		},
+	}
+}
+
+func (a *Adapter) syncHook(p Policy) error {
+	if strings.TrimSpace(a.HookPath) == "" {
+		return nil
+	}
+	if len(p.BashDeny) == 0 {
+		if err := os.Remove(a.HookPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("remove Antigravity hook: %w", err)
+		}
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(a.HookPath), 0o755); err != nil {
+		return fmt.Errorf("create Antigravity hook directory: %w", err)
+	}
+	out, err := json.MarshalIndent(a.RenderHook(), "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode Antigravity hook: %w", err)
+	}
+	out = append(out, '\n')
+	return atomicWrite(a.HookPath, out, 0o644)
 }
 
 // Fingerprint returns the sha256 hex of the canonical Policy projection.

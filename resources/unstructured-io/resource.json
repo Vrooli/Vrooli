@@ -1,11 +1,70 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "unstructured-io",
-  "storage": {"entries": {
-    "cache": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.cache/vrooli/resources/unstructured-io", "macos": "$USER_HOME/Library/Caches/vrooli/resources/unstructured-io", "windows": "$USER_HOME/AppData/Local/vrooli/resources/unstructured-io"}, "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "RESOURCE_CACHE_DIR", "scope": "container"}, "rationale": "The service binds RESOURCE_CACHE_DIR to /app/cache for reusable extraction artifacts."},
-    "logs": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.local/state/logs/vrooli/resources/unstructured-io", "macos": "$USER_HOME/Library/Logs/vrooli/resources/unstructured-io", "windows": "$USER_HOME/AppData/Local/Logs/vrooli/resources/unstructured-io"}, "kind": "dir", "class": "logs", "regenerable": true, "relocation": {"key": "RESOURCE_LOGS_DIR", "scope": "container"}, "rationale": "The service binds RESOURCE_LOGS_DIR to /app/logs; logs are diagnostic and regenerable."},
-    "processing": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.local/state/vrooli/resources/unstructured-io/tmp", "macos": "$USER_HOME/Library/Application Support/State/vrooli/resources/unstructured-io/tmp", "windows": "$USER_HOME/AppData/Local/State/vrooli/resources/unstructured-io/tmp"}, "kind": "dir", "class": "state", "regenerable": true, "relocation": {"key": "RESOURCE_STATE_DIR", "scope": "container"}, "rationale": "The compose service binds this directory to /tmp/unstructured-processing for transient extraction work."}
-  }},
+  "storage": {
+    "entries": {
+      "cache": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.cache/vrooli/resources/unstructured-io",
+          "macos": "$USER_HOME/Library/Caches/vrooli/resources/unstructured-io",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/unstructured-io"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "RESOURCE_CACHE_DIR",
+          "scope": "container"
+        },
+        "rationale": "The service binds RESOURCE_CACHE_DIR to /app/cache for reusable extraction artifacts.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      },
+      "logs": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/state/logs/vrooli/resources/unstructured-io",
+          "macos": "$USER_HOME/Library/Logs/vrooli/resources/unstructured-io",
+          "windows": "$USER_HOME/AppData/Local/Logs/vrooli/resources/unstructured-io"
+        },
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "relocation": {
+          "key": "RESOURCE_LOGS_DIR",
+          "scope": "container"
+        },
+        "rationale": "The service binds RESOURCE_LOGS_DIR to /app/logs; logs are diagnostic and regenerable.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      },
+      "processing": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/state/vrooli/resources/unstructured-io/tmp",
+          "macos": "$USER_HOME/Library/Application Support/State/vrooli/resources/unstructured-io/tmp",
+          "windows": "$USER_HOME/AppData/Local/State/vrooli/resources/unstructured-io/tmp"
+        },
+        "kind": "dir",
+        "class": "state",
+        "regenerable": true,
+        "relocation": {
+          "key": "RESOURCE_STATE_DIR",
+          "scope": "container"
+        },
+        "rationale": "The compose service binds this directory to /tmp/unstructured-processing for transient extraction work.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      }
+    }
+  },
   "display_name": "Unstructured IO",
   "description": "Managed Unstructured API service for document partitioning and OCR-backed extraction.",
   "cli": {
@@ -123,6 +182,7 @@
   "health_checks": [
     {
       "type": "http",
+      "kind": "readiness",
       "target": "http://127.0.0.1:11450/healthcheck",
       "interval_seconds": 10,
       "timeout_seconds": 10

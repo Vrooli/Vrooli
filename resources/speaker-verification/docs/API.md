@@ -47,8 +47,8 @@ self-consistency to check; its score is reported as `-1.0` and the warning is
 http://localhost:11452
 ```
 
-The host port is `11452` (in the AI-services `11xxx` range, deconflicted against
-the [port registry](/home/matthalloran8/Vrooli/scripts/resources/port_registry.sh)).
+The host port is `11452` (in the AI-services `11xxx` range, declared in
+`resources/speaker-verification/resource.json`).
 The container listens on port `8000`. The base URL is exported to other
 scenarios as `SPEAKER_VERIFICATION_URL`.
 

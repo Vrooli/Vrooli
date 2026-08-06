@@ -1,9 +1,30 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "reranker",
-  "storage": {"entries": {
-    "model_cache": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/reranker/model-cache", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/reranker/model-cache", "windows": "$USER_HOME/AppData/Local/vrooli/resources/reranker/model-cache"}, "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "RESOURCE_DATA_DIR", "scope": "container"}, "rationale": "Text Embeddings Inference downloads the model into the bind-mounted /data cache; the model is re-downloadable."}
-  }},
+  "storage": {
+    "entries": {
+      "model_cache": {
+        "rung": "relocatable",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/reranker/model-cache",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/reranker/model-cache",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/reranker/model-cache"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "relocation": {
+          "key": "RESOURCE_DATA_DIR",
+          "scope": "container"
+        },
+        "rationale": "Text Embeddings Inference downloads the model into the bind-mounted /data cache; the model is re-downloadable.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      }
+    }
+  },
   "display_name": "Reranker",
   "description": "Managed cross-encoder reranking service (HuggingFace Text-Embeddings-Inference serving BAAI/bge-reranker-v2-m3) with a compose-backed lifecycle. Scores query/passage relevance for the second stage of hybrid retrieval; consumed by aisearch-go and search-hub.",
   "cli": {
@@ -161,6 +182,7 @@
   "health_checks": [
     {
       "type": "http",
+      "kind": "readiness",
       "target": "http://127.0.0.1:11453/health",
       "interval_seconds": 10,
       "timeout_seconds": 10

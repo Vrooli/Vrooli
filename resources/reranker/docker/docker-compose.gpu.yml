@@ -5,7 +5,7 @@ services:
     # nvidia runtime + device reservation. TEI falls back to CPU automatically if
     # no GPU is visible, but this overlay is only applied when the nvidia probe
     # passes (resource.json gpu.probe).
-    image: ${RERANKER_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:89-1.7}
+    image: ${RERANKER_IMAGE:-ghcr.io/huggingface/text-embeddings-inference@sha256:8350eef88360fd746de01cd951adef9584a35ad957a7d02fa3309c2b6e962323}
     container_name: ${RERANKER_CONTAINER_NAME:-reranker}
     hostname: reranker
     restart: unless-stopped

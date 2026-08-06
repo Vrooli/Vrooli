@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/vrooli v0.0.0
 )
 
 require (

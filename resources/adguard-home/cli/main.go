@@ -11,11 +11,11 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 
 	"resource-adguard-home/cli/internal/adguard"
 	resourceenv "resource-adguard-home/cli/internal/env"
@@ -72,7 +72,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 			},
 			{
 				Name:        "bootstrap",
-				Description: "Complete first-run setup and store admin credentials through resource-vault",
+				Description: "Complete first-run setup and store admin credentials through the credential authority",
 				Run: func(args []string) error {
 					return runBootstrap(args, os.Stdout)
 				},
@@ -130,7 +130,7 @@ func runAPIHealth(args []string, stdout io.Writer) error {
 	baseURL := fs.String("base-url", "", "Override AdGuard Home base URL (default: $ADGUARD_HOME_BASE_URL, $ADGUARD_HOME_URL, or http://localhost:3000)")
 	username := fs.String("username", os.Getenv("ADGUARD_HOME_USERNAME"), "AdGuard Home username (defaults to $ADGUARD_HOME_USERNAME)")
 	password := fs.String("password", os.Getenv("ADGUARD_HOME_PASSWORD"), "AdGuard Home password (defaults to $ADGUARD_HOME_PASSWORD)")
-	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "secret/resources/adguard-home/admin"), "Vault secret reference for admin credentials")
+	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "vrooli/adguard-home"), "Credential-authority identity for admin credentials")
 	timeout := fs.Duration("timeout", 10*time.Second, "Probe timeout")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -185,7 +185,7 @@ func runConfigPreview(args []string, stdout io.Writer) error {
 	baseURL := fs.String("base-url", "", "Override AdGuard Home base URL")
 	username := fs.String("username", os.Getenv("ADGUARD_HOME_USERNAME"), "AdGuard Home username")
 	password := fs.String("password", os.Getenv("ADGUARD_HOME_PASSWORD"), "AdGuard Home password")
-	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "secret/resources/adguard-home/admin"), "Vault secret reference for admin credentials")
+	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "vrooli/adguard-home"), "Credential-authority identity for admin credentials")
 	timeout := fs.Duration("timeout", 10*time.Second, "Probe timeout")
 	testUpstreams := fs.Bool("test-upstreams", false, "Ask AdGuard Home to test proposed upstream resolvers")
 	var upstreams multiFlag
@@ -226,7 +226,7 @@ func runClientsList(args []string, stdout io.Writer) error {
 	baseURL := fs.String("base-url", "", "Override AdGuard Home base URL")
 	username := fs.String("username", os.Getenv("ADGUARD_HOME_USERNAME"), "AdGuard Home username")
 	password := fs.String("password", os.Getenv("ADGUARD_HOME_PASSWORD"), "AdGuard Home password")
-	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "secret/resources/adguard-home/admin"), "Vault secret reference for admin credentials")
+	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "vrooli/adguard-home"), "Credential-authority identity for admin credentials")
 	timeout := fs.Duration("timeout", 10*time.Second, "Probe timeout")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -269,7 +269,7 @@ func runQueryLogPrivacy(args []string, stdout io.Writer) error {
 	baseURL := fs.String("base-url", "", "Override AdGuard Home base URL")
 	username := fs.String("username", os.Getenv("ADGUARD_HOME_USERNAME"), "AdGuard Home username")
 	password := fs.String("password", os.Getenv("ADGUARD_HOME_PASSWORD"), "AdGuard Home password")
-	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "secret/resources/adguard-home/admin"), "Vault secret reference for admin credentials")
+	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "vrooli/adguard-home"), "Credential-authority identity for admin credentials")
 	timeout := fs.Duration("timeout", 10*time.Second, "Probe timeout")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -325,7 +325,7 @@ func runBootstrap(args []string, stdout io.Writer) error {
 	baseURL := fs.String("base-url", "", "Override AdGuard Home base URL")
 	username := fs.String("username", fallback(os.Getenv("ADGUARD_HOME_USERNAME"), "admin"), "AdGuard Home admin username")
 	password := fs.String("password", os.Getenv("ADGUARD_HOME_PASSWORD"), "AdGuard Home admin password; generated when empty")
-	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "secret/resources/adguard-home/admin"), "Vault secret reference for admin credentials")
+	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "vrooli/adguard-home"), "Credential-authority identity for admin credentials")
 	webIP := fs.String("web-ip", "0.0.0.0", "AdGuard Home web listen IP inside the container")
 	webPort := fs.Int("web-port", 3000, "AdGuard Home web listen port inside the container")
 	dnsIP := fs.String("dns-ip", "0.0.0.0", "AdGuard Home DNS listen IP inside the container")
@@ -341,8 +341,11 @@ func runBootstrap(args []string, stdout io.Writer) error {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
-	vault := cliVault{Command: "resource-vault", LookPath: exec.LookPath, Run: runCommand}
-	creds, generated, err := ensureBootstrapCredentials(ctx, vault, *credentialRef, *username, *password, *overwriteSecret)
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return fmt.Errorf("initialize credential authority: %w", err)
+	}
+	creds, generated, err := ensureBootstrapCredentials(ctx, authority, *credentialRef, *username, *password, *overwriteSecret)
 	if err != nil {
 		return err
 	}
@@ -372,7 +375,7 @@ func runBootstrap(args []string, stdout io.Writer) error {
 		PasswordGenerated:  generated,
 		CredentialsStored:  true,
 		QueryLogHardening:  "not_requested",
-		NetworkManagerHint: "network-manager resolver configure-adguard --base-url " + client.BaseURL() + " --token-ref " + ref + " --json",
+		NetworkManagerHint: "network-manager resolver configure-adguard --base-url " + client.BaseURL() + " --credential-ref " + ref + " --json",
 	}
 
 	if !*skipConfigCheck {
@@ -447,14 +450,21 @@ func resolveDiagnosticCredentials(ctx context.Context, ref, username, password s
 		return adguard.Credentials{Username: username, Password: password}, nil
 	}
 	path := normalizeCredentialRef(ref)
-	vault := cliVault{Command: "resource-vault", LookPath: exec.LookPath, Run: runCommand}
-	if value, found, err := vault.GetSecret(ctx, path, "password"); err != nil {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return adguard.Credentials{}, fmt.Errorf("initialize credential authority: %w", err)
+	}
+	identity, err := credentialauthority.ParseIdentity(path)
+	if err != nil {
+		return adguard.Credentials{}, fmt.Errorf("invalid credential ref %q: %w", path, err)
+	}
+	if value, found, err := resolveAuthorityValue(authority, identity, "password"); err != nil {
 		return adguard.Credentials{}, fmt.Errorf("read AdGuard password secret: %w", err)
 	} else if found {
 		password = value
 	}
 	if username == "" {
-		if value, found, err := vault.GetSecret(ctx, path, "username"); err != nil {
+		if value, found, err := resolveAuthorityValue(authority, identity, "username"); err != nil {
 			return adguard.Credentials{}, fmt.Errorf("read AdGuard username secret: %w", err)
 		} else if found {
 			username = value
@@ -536,105 +546,37 @@ func writeBootstrapReport(stdout io.Writer, jsonOut bool, report bootstrapReport
 	return err
 }
 
-type secretVault interface {
-	GetSecret(ctx context.Context, path, key string) (string, bool, error)
-	PutSecret(ctx context.Context, path, key, value string) error
+type credentialStore interface {
+	Resolve(credentialauthority.Identity, string) (string, error)
+	Put(credentialauthority.Identity, string, string) error
 }
 
-type cliVault struct {
-	Command  string
-	Run      func(ctx context.Context, name string, args ...string) (string, error)
-	LookPath func(string) (string, error)
-}
-
-func (v cliVault) command() string {
-	if strings.TrimSpace(v.Command) == "" {
-		return "resource-vault"
+func resolveAuthorityValue(store credentialStore, identity credentialauthority.Identity, field string) (string, bool, error) {
+	value, err := store.Resolve(identity, field)
+	if errors.Is(err, credentialauthority.ErrUnconfigured) {
+		return "", false, nil
 	}
-	return v.Command
-}
-
-func (v cliVault) GetSecret(ctx context.Context, path, key string) (string, bool, error) {
-	if v.LookPath != nil {
-		if _, err := v.LookPath(v.command()); err != nil {
-			return "", false, fmt.Errorf("vault CLI %q unavailable: %w", v.command(), err)
-		}
-	}
-	run := v.Run
-	if run == nil {
-		run = runCommand
-	}
-	value, err := run(ctx, v.command(), "content", "get", "--path", path, "--key", key, "--format", "raw")
 	if err != nil {
-		if isMissingSecretError(err) {
-			return "", false, nil
-		}
 		return "", false, err
 	}
 	value = strings.TrimSpace(value)
-	if value == "" {
-		return "", false, nil
-	}
-	return value, true, nil
+	return value, value != "", nil
 }
 
-func (v cliVault) PutSecret(ctx context.Context, path, key, value string) error {
-	if v.LookPath != nil {
-		if _, err := v.LookPath(v.command()); err != nil {
-			return fmt.Errorf("vault CLI %q unavailable: %w", v.command(), err)
-		}
-	}
-	run := v.Run
-	if run == nil {
-		run = runCommand
-	}
-	if _, err := run(ctx, v.command(), "content", "set", "--path", path, "--key", key, "--value", value); err != nil {
-		return fmt.Errorf("vault content set %s/%s: %w", path, key, err)
-	}
-	return nil
-}
-
-type cliError struct {
-	Command string
-	Args    []string
-	Stderr  string
-	Err     error
-}
-
-func (e *cliError) Error() string {
-	if strings.TrimSpace(e.Stderr) == "" {
-		return fmt.Sprintf("%s %s: %v", e.Command, strings.Join(e.Args, " "), e.Err)
-	}
-	return fmt.Sprintf("%s %s: %v: %s", e.Command, strings.Join(e.Args, " "), e.Err, strings.TrimSpace(e.Stderr))
-}
-
-func (e *cliError) Unwrap() error {
-	return e.Err
-}
-
-func runCommand(ctx context.Context, name string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	out, err := cmd.Output()
-	if err != nil {
-		cliErr := &cliError{Command: name, Args: append([]string(nil), args...), Err: err}
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			cliErr.Stderr = string(exitErr.Stderr)
-		}
-		return "", cliErr
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-func ensureBootstrapCredentials(ctx context.Context, vault secretVault, ref, username, password string, overwrite bool) (adguard.Credentials, bool, error) {
+func ensureBootstrapCredentials(ctx context.Context, store credentialStore, ref, username, password string, overwrite bool) (adguard.Credentials, bool, error) {
+	_ = ctx
 	path := normalizeCredentialRef(ref)
+	identity, err := credentialauthority.ParseIdentity(path)
+	if err != nil {
+		return adguard.Credentials{}, false, fmt.Errorf("invalid credential ref %q: %w", path, err)
+	}
 	username = strings.TrimSpace(username)
 	if username == "" {
 		username = "admin"
 	}
 	password = strings.TrimSpace(password)
 
-	if existingPassword, found, err := vault.GetSecret(ctx, path, "password"); err != nil {
+	if existingPassword, found, err := resolveAuthorityValue(store, identity, "password"); err != nil {
 		return adguard.Credentials{}, false, fmt.Errorf("read existing AdGuard password secret: %w", err)
 	} else if found && !overwrite {
 		if password != "" && password != existingPassword {
@@ -652,11 +594,11 @@ func ensureBootstrapCredentials(ctx context.Context, vault secretVault, ref, use
 		}
 		generated = true
 	}
-	if err := vault.PutSecret(ctx, path, "username", username); err != nil {
-		return adguard.Credentials{}, generated, fmt.Errorf("store AdGuard username secret: %w", err)
+	if err := store.Put(identity, "username", username); err != nil {
+		return adguard.Credentials{}, generated, fmt.Errorf("store AdGuard username credential: %w", err)
 	}
-	if err := vault.PutSecret(ctx, path, "password", password); err != nil {
-		return adguard.Credentials{}, generated, fmt.Errorf("store AdGuard password secret: %w", err)
+	if err := store.Put(identity, "password", password); err != nil {
+		return adguard.Credentials{}, generated, fmt.Errorf("store AdGuard password credential: %w", err)
 	}
 	return adguard.Credentials{Username: username, Password: password}, generated, nil
 }
@@ -675,20 +617,8 @@ func generatePassword() (string, error) {
 
 func normalizeCredentialRef(ref string) string {
 	ref = strings.TrimSpace(ref)
-	ref = strings.TrimPrefix(ref, "secret://")
 	if ref == "" {
-		return "secret/resources/adguard-home/admin"
+		return "vrooli/adguard-home"
 	}
 	return ref
-}
-
-func isMissingSecretError(err error) bool {
-	var cliErr *cliError
-	if !errors.As(err, &cliErr) {
-		return false
-	}
-	msg := strings.ToLower(cliErr.Stderr)
-	return strings.Contains(msg, "no value found") ||
-		strings.Contains(msg, "no secret exists") ||
-		strings.Contains(msg, "not found")
 }

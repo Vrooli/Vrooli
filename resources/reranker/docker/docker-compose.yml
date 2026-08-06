@@ -4,7 +4,7 @@ services:
     # code. TEI auto-detects bge-reranker-v2-m3 as a cross-encoder and exposes
     # POST /rerank. This base compose runs the CPU image; the GPU overlay
     # (docker-compose.gpu.yml) swaps to the CUDA tag + adds the device request.
-    image: ${RERANKER_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.7}
+    image: ${RERANKER_IMAGE:-ghcr.io/huggingface/text-embeddings-inference@sha256:22eac176ead3eb7008c672123b05331347e1a86661a7f27f3f6550dbe31ff96c}
     container_name: ${RERANKER_CONTAINER_NAME:-reranker}
     hostname: reranker
     restart: unless-stopped

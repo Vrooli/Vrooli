@@ -38,8 +38,8 @@ func (c Credentials) RedactedAPIKey() string {
 }
 
 // Resolver accepts only the process-scoped credential injected by the control
-// plane. Vault, user files, and a caller's shell environment are not credential
-// authorities; runtime injection is the sole way a value reaches this CLI.
+// plane. Vault and user files are not credential authorities; runtime injection
+// is the sole way a value reaches this CLI.
 type Resolver struct {
 	LookupEnv func(string) (string, bool)
 }

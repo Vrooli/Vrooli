@@ -72,13 +72,8 @@ func TestSaveAddsDenyAndHookEntry(t *testing.T) {
 		t.Fatalf("matcher: %v", entry["matcher"])
 	}
 
-	// Hook script materialized + executable.
-	info, err := os.Stat(a.HookScriptPath())
-	if err != nil {
-		t.Fatalf("hook script missing: %v", err)
-	}
-	if info.Mode()&0o111 == 0 {
-		t.Fatalf("hook script not executable: %v", info.Mode())
+	if _, err := os.Stat(a.HookScriptPath()); !os.IsNotExist(err) {
+		t.Fatalf("legacy shell hook must not be materialized, stat err=%v", err)
 	}
 }
 
@@ -245,5 +240,60 @@ func TestStateRoundTrip(t *testing.T) {
 	}
 	if st.SchemaVersion != StateSchemaVersion {
 		t.Errorf("schema version: %d", st.SchemaVersion)
+	}
+}
+
+func TestReconcileHookPreservesAndUpdatesIdentifiedEntries(t *testing.T) {
+	a := newTestAdapter(t)
+	hook := map[string]any{"type": "command", "command": "echo one"}
+	result, err := a.ReconcileHook("Stop", "web-console-tts", hook)
+	if err != nil || result.Status != "applied" {
+		t.Fatalf("first reconcile: %+v, %v", result, err)
+	}
+	hook["command"] = "echo two"
+	result, err = a.ReconcileHook("Stop", "web-console-tts", hook)
+	if err != nil || result.Status != "applied" {
+		t.Fatalf("second reconcile: %+v, %v", result, err)
+	}
+
+	raw, err := os.ReadFile(a.SettingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	group := doc["hooks"].(map[string]any)["Stop"].([]any)[0].(map[string]any)
+	entries := group["hooks"].([]any)
+	if len(entries) != 1 || entries[0].(map[string]any)["command"] != "echo two" {
+		t.Fatalf("unexpected hook projection: %s", raw)
+	}
+}
+
+func TestRemoveHookIsIdempotentAndPreservesOtherHooks(t *testing.T) {
+	a := newTestAdapter(t)
+	first := map[string]any{"type": "command", "command": "echo one"}
+	second := map[string]any{"type": "command", "command": "echo two"}
+	if _, err := a.ReconcileHook("Stop", "first", first); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.ReconcileHook("Stop", "second", second); err != nil {
+		t.Fatal(err)
+	}
+	result, err := a.RemoveHook("Stop", "first")
+	if err != nil || result.Status != "removed" {
+		t.Fatalf("remove: %+v, %v", result, err)
+	}
+	result, err = a.RemoveHook("Stop", "first")
+	if err != nil || result.Status != "unchanged" {
+		t.Fatalf("repeat remove: %+v, %v", result, err)
+	}
+	raw, err := os.ReadFile(a.SettingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"_id": "second"`) || strings.Contains(string(raw), `"_id": "first"`) {
+		t.Fatalf("other hook was not preserved: %s", raw)
 	}
 }

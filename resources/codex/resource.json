@@ -1,9 +1,23 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "codex",
-  "storage": {"entries": {
-    "home": {"rung": "owned", "path": "$USER_HOME/.codex", "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Codex CLI state, sessions, configuration, memories, and authentication are rooted at CODEX_HOME, defaulting to ~/.codex."}
-  }},
+  "storage": {
+    "entries": {
+      "home": {
+        "rung": "owned",
+        "path": "$USER_HOME/.codex",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Codex CLI state, sessions, configuration, memories, and authentication are rooted at CODEX_HOME, defaulting to ~/.codex.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    }
+  },
   "display_name": "OpenAI Codex CLI",
   "description": "OpenAI Codex CLI for local code generation and agentic engineering workflows.",
   "cli": {
@@ -45,8 +59,23 @@
   },
   "credentials": {
     "descriptors": [
-      {"logical_id":"vrooli/openai","field":"api-key","env":"OPENAI_API_KEY","label":"OpenAI API key","description":"Optional API-key authentication for Codex workflows; a signed-in Codex CLI session is also supported.","required":false,"obtain_url":"https://platform.openai.com/api-keys"},
-      {"logical_id":"vrooli/openai","field":"organization-id","env":"OPENAI_ORG_ID","label":"OpenAI organization ID","description":"Optional organization identifier used with the OpenAI API.","required":false}
+      {
+        "logical_id": "vrooli/openai",
+        "field": "api-key",
+        "env": "OPENAI_API_KEY",
+        "label": "OpenAI API key",
+        "description": "Optional API-key authentication for Codex workflows; a signed-in Codex CLI session is also supported.",
+        "required": false,
+        "obtain_url": "https://platform.openai.com/api-keys"
+      },
+      {
+        "logical_id": "vrooli/openai",
+        "field": "organization-id",
+        "env": "OPENAI_ORG_ID",
+        "label": "OpenAI organization ID",
+        "description": "Optional organization identifier used with the OpenAI API.",
+        "required": false
+      }
     ]
   },
   "template": "external-cli",
@@ -144,6 +173,7 @@
   "health_checks": [
     {
       "type": "command",
+      "kind": "liveness",
       "command": [
         "codex",
         "--version"
@@ -193,15 +223,13 @@
   },
   "install": {
     "platforms": {
-      "linux": [
-        "bash",
-        "-lc",
-        "source resources/codex/lib/install.sh && codex::install::execute"
+    "linux": [
+      "resource-codex",
+      "install-direct"
       ],
-      "macos": [
-        "bash",
-        "-lc",
-        "source resources/codex/lib/install.sh && codex::install::execute"
+    "macos": [
+      "resource-codex",
+      "install-direct"
       ]
     }
   },

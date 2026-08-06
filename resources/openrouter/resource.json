@@ -142,6 +142,7 @@
   "health_checks": [
     {
       "type": "http",
+      "kind": "readiness",
       "target": "https://openrouter.ai/api/v1/models",
       "expected_status": [
         200,

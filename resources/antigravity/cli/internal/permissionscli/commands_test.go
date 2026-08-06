@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"context"
 	"path/filepath"
-	"resource-antigravity/cli/internal/permissions"
 	"strings"
 	"testing"
+
+	"resource-antigravity/cli/internal/permissions"
 
 	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliutil"

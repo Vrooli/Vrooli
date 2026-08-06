@@ -17,7 +17,7 @@ Hosted Twilio API integration for messaging and communications workflows.
 
 ## Architecture
 
-This resource is being aligned to the updated `cloud-api` structure.
+This resource uses the updated `cloud-api` structure.
 
 - `resource.json` is the declarative authority for endpoint, credentials, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
@@ -53,7 +53,7 @@ Credentials can come from:
 
 - `TWILIO_ACCOUNT_SID`
 - `TWILIO_AUTH_TOKEN`
-- Vault secret ref: `secret/resources/twilio`
+- Credential-authority refs: `vrooli/twilio:account-sid` and `vrooli/twilio:auth-token`
 
 ## Notes
 
@@ -61,3 +61,6 @@ Credentials can come from:
 - Keep `cli/main.go` thin. Do not move provider logic into CLI wiring.
 - Keep endpoint, credential, and health expectations declarative in `resource.json` whenever possible.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/twilio/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"resource-openrouter/cli/internal/auth"
-	"resource-openrouter/cli/internal/config"
 	"strings"
 	"time"
+
+	"resource-openrouter/cli/internal/auth"
+	"resource-openrouter/cli/internal/config"
 
 	resourceenv "resource-openrouter/cli/internal/env"
 )

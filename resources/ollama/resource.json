@@ -7,15 +7,58 @@
     "entries": {
       "models": {
         "rung": "pinned",
-        "path": "$USER_DATA_DIR/vrooli/resources/ollama/models",
         "kind": "dir",
         "regenerable": false,
         "budget": {
           "max_bytes": "90423MiB",
           "rationale": "Measured at 47407507702 bytes on 2026-08-03; ceiling is two times observed size."
         },
+        "relocation": {
+          "key": "OLLAMA_MODELS",
+          "scope": "process-tree"
+        },
+        "rationale": "Model weights are large, durable host state; the resource mounts this directory into the managed Ollama service.",
+        "class": "data",
+        "subpath": "models"
+      },
+      "cache": {
+        "rung": "relocatable",
+        "path": "$USER_DATA_DIR/vrooli/resources/ollama/cache",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Model recommendation metadata is regenerable and was observed under the resource data root."
+        },
         "relocation": { "key": "OLLAMA_MODELS", "scope": "process-tree" },
-        "rationale": "Model weights are large, durable host state; the resource mounts this directory into the managed Ollama service."
+        "rationale": "Ollama recommendation cache is not model state and may be reclaimed by age."
+      },
+      "credentials": {
+        "rung": "pinned",
+        "path": "$USER_DATA_DIR/vrooli/resources/ollama/id_ed25519",
+        "kind": "file",
+        "class": "config",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "The resource signing key is a small durable credential; the ceiling is intentionally bounded."
+        },
+        "rationale": "Ollama uses this host credential for model registry access."
+      },
+      "credentials_public": {
+        "rung": "pinned",
+        "path": "$USER_DATA_DIR/vrooli/resources/ollama/id_ed25519.pub",
+        "kind": "file",
+        "class": "config",
+        "regenerable": true,
+        "sensitive": false,
+        "budget": {
+          "max_age": "30d",
+          "rationale": "The public signing key is regenerable metadata with a bounded age."
+        },
+        "rationale": "Ollama stores the public half beside the signing credential."
       }
     }
   },
@@ -143,14 +186,15 @@
   ],
   "health_checks": [
     {
-      "type": "http",
-      "target": "http://127.0.0.1:11434/api/tags",
+      "type": "command",
+      "kind": "readiness",
+      "command": ["resource-ollama", "health-ready"],
       "interval_seconds": 10,
       "timeout_seconds": 10
     }
   ],
   "runtime": {
-    "image": "ollama/ollama:0.30.10",
+    "image": "ollama/ollama@sha256:bfc9c6d53cc6989aa5131a6fde6b162b2802d4d337657f3253b5f69579bddeee",
     "container_name": "ollama",
     "memory_limit": "12g",
     "env": {

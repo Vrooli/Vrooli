@@ -10,7 +10,7 @@ import (
 	"github.com/vrooli/cli-core/agentpolicy"
 )
 
-var openCodePermissionPosture = agentpolicy.EnforcementPosture{Permissions: "native"}
+var openCodePermissionPosture = agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"OpenCode native permission rules are projected alongside tool.execute.before; plugin firing and refusal require a live canary on the installed version."}}
 
 func (h *Handlers) Plan(args []string) error {
 	fs := h.flagSet("permissions plan")

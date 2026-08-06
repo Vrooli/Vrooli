@@ -7,8 +7,9 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"resource-kopia/cli/internal/version"
 	"strings"
+
+	"resource-kopia/cli/internal/version"
 )
 
 // Locator finds the kopia binary on the host.

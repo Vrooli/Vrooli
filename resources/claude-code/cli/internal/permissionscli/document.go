@@ -11,7 +11,7 @@ import (
 	"github.com/vrooli/cli-core/agentpolicy"
 )
 
-var claudePermissionPosture = agentpolicy.EnforcementPosture{Permissions: "hook_backed", Caveats: []string{"Claude native permission denials are backed by a PreToolUse Bash hook."}}
+var claudePermissionPosture = agentpolicy.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Claude native permission denials remain active; the portable PreToolUse runner requires an installed-version canary before it is considered verified."}}
 
 func (h *Handlers) Plan(args []string) error {
 	fs := h.flagSet("permissions plan")
@@ -76,10 +76,7 @@ func (h *Handlers) planDocument(path string) (agentpolicy.PermissionPlanResult, 
 	ask = claudeBashPatterns(ask)
 	deny = claudeBashPatterns(deny)
 	desired := permissions.Policy{BashAllow: allow, BashAsk: ask, BashDeny: deny, Hooks: true}
-	paths := []string{h.Adapter.SettingsPath}
-	if len(live.BashDeny) > 0 || len(deny) > 0 {
-		paths = append(paths, h.Adapter.HookScriptPath())
-	}
+	paths := []string{h.Adapter.SettingsPath, "vrooli-policy-runner (PreToolUse command; installed-version canary required)"}
 	return agentpolicy.PlanPermissionProjection("claude-code", document, data,
 		agentpolicy.PermissionProjection{Allow: claudePortablePatterns(live.BashAllow), Ask: claudePortablePatterns(live.BashAsk), Deny: claudePortablePatterns(live.BashDeny)}, paths, claudePermissionPosture), desired, nil
 }

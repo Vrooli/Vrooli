@@ -13,6 +13,8 @@ linters:
     - unused
 
 linters-settings:
+  gofumpt:
+    module-path: resource-openrouter/cli
   revive:
     rules:
       - name: blank-imports

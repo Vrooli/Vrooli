@@ -1,9 +1,25 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "kyutai-stt",
-  "storage": {"entries": {
-    "models": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/kyutai-stt/models", "macos": null, "windows": null}, "kind": "dir", "class": "data", "regenerable": true, "rationale": "The Linux compose service bind-mounts its Hugging Face model cache to /models; the resource is unsupported on macOS and Windows."}
-  }},
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "pinned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "The Linux compose service bind-mounts its Hugging Face model cache to /models; the resource is unsupported on macOS and Windows.",
+        "subpath": "models",
+        "platforms": [
+          "linux"
+        ],
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      }
+    }
+  },
   "display_name": "Kyutai STT",
   "description": "Managed Kyutai streaming speech-to-text service. Wraps the Kyutai delayed-streams-modeling model behind a stable FastAPI + WebSocket contract consumed by the audio-tools scenario.",
   "cli": {

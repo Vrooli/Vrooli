@@ -7,24 +7,24 @@ import (
 	"strings"
 	"testing"
 
+	"resource-kopia/cli/internal/credentials"
 	"resource-kopia/cli/internal/env"
 	"resource-kopia/cli/internal/invariant"
 	"resource-kopia/cli/internal/registry"
 	"resource-kopia/cli/internal/repo"
 	"resource-kopia/cli/internal/repoctx"
-	"resource-kopia/cli/internal/vault"
 
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 
 	kexecmocks "resource-kopia/cli/internal/kexec/mocks"
 
-	vaultmocks "resource-kopia/cli/internal/vault/mocks"
+	credentialmocks "resource-kopia/cli/internal/credentials/mocks"
 )
 
 type harness struct {
 	svc   repo.Service
 	run   *kexecmocks.FakeRunner
-	vault *vaultmocks.FakeVault
+	store *credentialmocks.FakeStore
 	reg   *registry.Registry
 	rt    env.Runtime
 }
@@ -41,18 +41,17 @@ func newHarness(t *testing.T) harness {
 		RegistryFile: filepath.Join(base, "state", "registry.json"),
 	}
 	run := &kexecmocks.FakeRunner{}
-	v := vaultmocks.NewFakeVault()
+	v := credentialmocks.NewFakeStore()
 	reg := registry.New(rt.RegistryFile)
 	svc := repo.Service{
 		Runner:      run,
 		Credentials: v,
-		Vault:       v,
 		Registry:    reg,
-		Resolver:    repoctx.Resolver{Registry: reg, Credentials: v, Vault: v},
+		Resolver:    repoctx.Resolver{Registry: reg, Credentials: v},
 		Env:         rt,
 		Out:         &strings.Builder{},
 	}
-	return harness{svc: svc, run: run, vault: v, reg: reg, rt: rt}
+	return harness{svc: svc, run: run, store: v, reg: reg, rt: rt}
 }
 
 func argsEqual(a, b []string) bool {
@@ -92,7 +91,7 @@ func TestCreateFilesystemArgv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.vault.Resolve(identity, kopiaregistry.PassphraseField); err != nil {
+	if _, err := h.store.Resolve(identity, kopiaregistry.PassphraseField); err != nil {
 		t.Fatalf("passphrase not stored in authority: %v", err)
 	}
 	if _, hasAWS := call.Env[repoctx.EnvAWSAccessKey]; hasAWS {
@@ -137,9 +136,9 @@ func TestCreateS3ArgvAndCredsInEnvNotArgv(t *testing.T) {
 	if tok, found := invariant.FindCredentialInArgs(h.run.AllArgs(), accessKey, secretKey); found {
 		t.Fatalf("S3 credential leaked into argv: %q", tok)
 	}
-	// Creds + passphrase stored in vault.
-	if got, _, _ := vault.S3CredentialsFor(context.Background(), h.vault, "offsite"); got.AccessKeyID != accessKey {
-		t.Fatal("S3 creds not stored in vault")
+	// Credentials and passphrase are stored in the authority.
+	if got, _, _ := credentials.S3CredentialsFor(h.store, "offsite"); got.AccessKeyID != accessKey {
+		t.Fatal("S3 creds not stored in credential authority")
 	}
 	if tok, found := invariant.FindEncryptionFlag(h.run.AllArgs()); found {
 		t.Fatalf("encryption flag leaked into argv: %q", tok)
@@ -164,7 +163,7 @@ func TestCreateRequiresName(t *testing.T) {
 func TestStatusAndStatsArgv(t *testing.T) {
 	h := newHarness(t)
 	// Seed a connected repo.
-	h.vault.SeedPassphrase("nightly", "passphrase-value-abcdefghijklmnop")
+	h.store.SeedPassphrase("nightly", "passphrase-value-abcdefghijklmnop")
 	if err := h.reg.Upsert(registry.Entry{Name: "nightly", Backend: registry.BackendFilesystem, ConfigFile: h.rt.RepoConfigFile("nightly"), Path: "/p"}); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +212,7 @@ func TestStatusUnknownRepoFailsClosed(t *testing.T) {
 	}
 }
 
-func TestDeleteRemovesRegistryLocalFilesAndVaultSecrets(t *testing.T) {
+func TestDeleteRemovesRegistryLocalFilesAndAuthoritySecrets(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()
 	cfg := h.rt.RepoConfigFile("nightly")
@@ -230,7 +229,7 @@ func TestDeleteRemovesRegistryLocalFilesAndVaultSecrets(t *testing.T) {
 	if err := h.reg.Upsert(registry.Entry{Name: "nightly", Backend: registry.BackendFilesystem, ConfigFile: cfg, CacheDir: cache, Path: "/p"}); err != nil {
 		t.Fatal(err)
 	}
-	h.vault.SeedPassphrase("nightly", "passphrase-value-abcdefghijklmnop")
+	h.store.SeedPassphrase("nightly", "passphrase-value-abcdefghijklmnop")
 
 	if err := h.svc.Delete(ctx, []string{"--name", "nightly"}); err != nil {
 		t.Fatalf("Delete: %v", err)
@@ -248,7 +247,7 @@ func TestDeleteRemovesRegistryLocalFilesAndVaultSecrets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.vault.Resolve(identity, kopiaregistry.PassphraseField); err == nil {
+	if _, err := h.store.Resolve(identity, kopiaregistry.PassphraseField); err == nil {
 		t.Fatal("passphrase credential still present")
 	}
 	if len(h.run.Calls) != 0 {

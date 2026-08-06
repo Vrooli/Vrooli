@@ -4,6 +4,8 @@ go 1.25.0
 
 require github.com/vrooli/cli-core v0.0.0
 
+require github.com/vrooli/vrooli v0.0.0
+
 require (
 	connectrpc.com/connect v1.19.2 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect

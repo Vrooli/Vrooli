@@ -7,19 +7,30 @@
     "entries": {
       "main_data": {
         "rung": "pinned",
-      "path": "$USER_DATA_DIR/vrooli/resources/postgres/instances/main/data",
         "kind": "dir",
         "regenerable": false,
-        "relocation": { "key": "RESOURCE_DATA_DIR", "scope": "container" },
-        "rationale": "The PostgreSQL container's bind-mounted data directory; relocation requires the resource to be stopped."
-      }
-      ,"config": {
+        "relocation": {
+          "key": "RESOURCE_DATA_DIR",
+          "scope": "container"
+        },
+        "rationale": "The PostgreSQL container's bind-mounted data directory; relocation requires the resource to be stopped.",
+        "class": "data",
+        "subpath": "instances/main/data",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      },
+      "config": {
         "rung": "owned",
-      "path": "$USER_CONFIG_DIR/vrooli/resources/postgres",
         "kind": "dir",
         "class": "config",
         "regenerable": true,
-        "rationale": "Instance configuration and connection metadata are generated under the resource config root."
+        "rationale": "Instance configuration and connection metadata are generated under the resource config root.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
       }
     }
   },
@@ -150,14 +161,16 @@
   ],
   "health_checks": [
     {
-      "type": "tcp",
-      "target": "127.0.0.1:5433",
+      "type": "command",
+      "kind": "readiness",
+      "command": ["docker", "exec", "vrooli-postgres-main", "pg_isready", "-U", "vrooli", "-h", "127.0.0.1"],
+      "target": "",
       "interval_seconds": 10,
       "timeout_seconds": 5
     }
   ],
   "runtime": {
-    "image": "postgres:16-alpine",
+    "image": "postgres@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777",
     "container_name": "vrooli-postgres-main",
     "env": {
       "POSTGRES_DB": "vrooli",

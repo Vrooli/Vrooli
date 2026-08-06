@@ -6,10 +6,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"resource-openrouter/cli/internal/policy"
-	"resource-openrouter/cli/internal/policytest"
 	"strings"
 	"testing"
+
+	"resource-openrouter/cli/internal/policy"
+	"resource-openrouter/cli/internal/policytest"
 )
 
 var errFake = errors.New("fake catalog error")

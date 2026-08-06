@@ -17,7 +17,7 @@ Managed Unstructured API runtime for document partitioning and extraction workfl
 
 ## Architecture
 
-This resource is being aligned to the updated `docker-service` structure.
+This resource uses the updated `docker-service` structure.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
@@ -64,3 +64,6 @@ Default endpoint:
 - Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
 - Resource-local shell workflows are retired. Use the typed CLI or the shared resource control plane.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/unstructured-io/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

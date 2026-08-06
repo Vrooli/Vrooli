@@ -1,7 +1,23 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "kdump-tools",
-  "storage": {"entries": {"crash_dumps": {"rung": "owned", "path": "/var/crash", "kind": "dir", "class": "data", "regenerable": false, "rationale": "Kernel crash dumps are forensic evidence written by kdump-tools after a panic."}}, "rationale": "kdump-tools owns the host crash-dump directory on Linux."},
+  "name": "kdump-tools",
+  "storage": {
+    "entries": {
+      "crash_dumps": {
+        "rung": "owned",
+        "path": "/var/crash",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Kernel crash dumps are forensic evidence written by kdump-tools after a panic.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    },
+    "rationale": "kdump-tools owns the host crash-dump directory on Linux."
+  },
   "description": "kdump capture-kernel framework — captures full kernel crash dumps on panic to /var/crash for forensic analysis",
   "commands": [
     "kdump-config"

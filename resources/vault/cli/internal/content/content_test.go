@@ -53,10 +53,10 @@ func equalArgs(a, b []string) bool {
 func TestGetRawTranslatesToFieldFlag(t *testing.T) {
 	r := &fakeRunner{stdout: []byte("the-passphrase\n")}
 	h, out := newHandlers(r)
-	if err := h.Get([]string{"--path", "secret/resources/kopia/repo/x/passphrase", "--key", "passphrase", "--format", "raw"}); err != nil {
+	if err := h.Get([]string{"--path", "secret/capabilities/example/repo/x/passphrase", "--key", "passphrase", "--format", "raw"}); err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	want := []string{"kv", "get", "-field=passphrase", "secret/resources/kopia/repo/x/passphrase"}
+	want := []string{"kv", "get", "-field=passphrase", "secret/capabilities/example/repo/x/passphrase"}
 	if !equalArgs(r.lastCall(), want) {
 		t.Fatalf("argv = %v, want %v", r.lastCall(), want)
 	}
@@ -103,7 +103,7 @@ func TestGetJSONOmitsField(t *testing.T) {
 
 func TestGetMissingTreatedAsErrorExit(t *testing.T) {
 	// A missing field makes `vault kv get -field` exit non-zero; Get must
-	// propagate the error so kopia's CLIVault can treat it as "not found".
+	// propagate the error so callers can distinguish absence from failure.
 	r := &fakeRunner{err: errors.New("exit status 2"), stderr: []byte("No value found")}
 	h, _ := newHandlers(r)
 	if err := h.Get([]string{"--path", "secret/x", "--key", "missing"}); err == nil {
@@ -174,10 +174,10 @@ func TestDeleteAndList(t *testing.T) {
 	if want := []string{"kv", "delete", "secret/x"}; !equalArgs(r.lastCall(), want) {
 		t.Fatalf("delete argv = %v, want %v", r.lastCall(), want)
 	}
-	if err := h.List([]string{"--path", "secret/resources/kopia"}); err != nil {
+	if err := h.List([]string{"--path", "secret/capabilities/example"}); err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if want := []string{"kv", "list", "secret/resources/kopia"}; !equalArgs(r.lastCall(), want) {
+	if want := []string{"kv", "list", "secret/capabilities/example"}; !equalArgs(r.lastCall(), want) {
 		t.Fatalf("list argv = %v, want %v", r.lastCall(), want)
 	}
 }

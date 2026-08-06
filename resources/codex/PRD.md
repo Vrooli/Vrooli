@@ -12,7 +12,7 @@
 - ✅ **Smart Routing**: Auto-selects best available backend
 - ✅ **Codex CLI Integration**: Ready for full agent capabilities
 - ✅ **v2.0 Contract Compliance**: Complete implementation
-- ✅ **Secrets Management**: Vault integration implemented
+- ✅ **Secrets Management**: Credential-authority integration implemented
 - ❌ **Responses API**: Not yet implemented (codex-mini-latest with tools)
 - ❌ **Function Calling Fallback**: GPT-5 function calling not integrated
 
@@ -20,7 +20,7 @@
 
 ### P0 Requirements (Must Have) - ✅ COMPLETED
 - [x] **Modern OpenAI Integration**: GPT-5 models implemented (Released August 2025)
-- [x] **Secrets Management**: Vault integration for API key management
+- [x] **Secrets Management**: Credential-authority reference and process injection for API key management
 - [x] **v2.0 Contract Compliance**: Full universal.yaml implementation
 - [x] **Code Generation API**: Text generation from natural language prompts
 - [x] **Multi-Language Support**: Python, JavaScript, Go, Bash, SQL, etc.
@@ -64,7 +64,7 @@ Codex Resource - Smart Routing Platform
 │   ├── o1 reasoning models
 │   └── Simple prompt → text response
 └── Integration Points
-    ├── Vault (secrets management)
+    ├── Credential authority (native OS key service or encrypted authority storage)
     ├── Smart routing logic
     ├── Workspace isolation
     └── Scenarios (consumers)
@@ -75,7 +75,7 @@ Codex Resource - Smart Routing Platform
 - OpenAI API access with GPT-5/GPT-4 models
 - jq for JSON processing  
 - curl for API requests
-- Vault for secure key storage
+- Credential authority for secure key storage and recovery bundles for portability
 
 #### Optional (Progressive Enhancement)
 - Node.js + npm (for Codex CLI installation)
@@ -103,7 +103,8 @@ description: "OpenAI API credentials for code generation"
 secrets:
   api_keys:
     - name: "openai_api_key"
-      path: "secret/resources/codex/api/openai"
+      logical_id: "vrooli/openai"
+      field: "api-key"
       description: "OpenAI API key for all tiers (text generation, function calling, CLI)"
       required: true
       format: "string"
@@ -185,7 +186,7 @@ secrets:
 ### ✅ **COMPLETED - Tier 3 & CLI Integration**
 1. **Phase 1**: Text Generation Platform ✅
    - GPT-5 API integration with smart model selection
-   - Vault secrets management
+   - Credential-authority secrets management
    - v2.0 contract compliance
    - Multi-language support
 
@@ -222,7 +223,7 @@ secrets:
 - **Cost Management**: Monitor token usage, implement limits
 
 ### Security Risks
-- **API Key Exposure**: Use Vault for production
+- **API Key Exposure**: Resolve through the credential authority and inject only into the process environment
 - **Code Injection**: Validate and sanitize all inputs
 - **Data Privacy**: Don't send sensitive code to API
 

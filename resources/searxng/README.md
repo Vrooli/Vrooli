@@ -29,3 +29,6 @@ convenience commands are deliberately unsupported.
 
 See [operations](docs/OPERATIONS.md) and [configuration](docs/CONFIGURATION.md)
 for the operator contract.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

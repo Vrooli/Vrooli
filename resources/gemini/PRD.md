@@ -66,18 +66,9 @@ Google Gemini provides state-of-the-art multimodal AI capabilities including adv
 
 ### Resource Dependencies
 ```yaml
-required:
-  - resource_name: vault
-    purpose: Secure storage of Gemini API keys
-    integration_pattern: Retrieve API key at runtime
-    access_method: CLI
-    
+required: []
+
 optional:
-  - resource_name: redis
-    purpose: Response caching for repeated queries
-    fallback: Direct API calls without caching
-    access_method: CLI
-    
   - resource_name: n8n
     purpose: Workflow integration for AI pipelines
     fallback: Direct API integration
@@ -92,7 +83,7 @@ standard_interfaces:
   management:
     - cli: cli.sh (using CLI framework)
     - actions: [help, install, uninstall, start, stop, status, test, list-models, generate, content]
-    - configuration: config/defaults.sh
+    - configuration: cli/internal/config/
     - documentation: README.md + docs/
     
   networking:
@@ -107,8 +98,7 @@ standard_interfaces:
     
   data_persistence:
     - volumes: [Not required - stateless API]
-    - api_keys: Stored in Vault or environment
-    - cache: Optional Redis integration
+    - api_keys: Injected into the process by the credential authority
 
 integration_patterns:
   scenarios_using_resource:
@@ -119,9 +109,7 @@ integration_patterns:
       usage_pattern: Image and text understanding for user queries
       
   resource_to_resource:
-    - vault → gemini: API key retrieval
     - gemini → n8n: Webhook triggers for AI workflows
-    - gemini → redis: Response caching
 ```
 
 ### Configuration Schema
@@ -253,7 +241,7 @@ resource_specific_actions:
 ```yaml
 implementation_requirements:
   - cli_location: cli.sh (uses CLI framework)
-  - configuration: config/defaults.sh
+  - configuration: cli/internal/config/
   - dependencies: lib/ directory with modular functions
   - error_handling: Exit codes (0=success, 1=error, 2=config error)
   - logging: Structured output with levels (INFO, WARN, ERROR)
@@ -286,7 +274,7 @@ networking:
     
 data_management:
   api_keys:
-    - storage: Vault or environment variables
+    - storage: Credential authority, injected as `GEMINI_API_KEY`
     - rotation: Supported through key regeneration
     
   caching:
@@ -335,7 +323,7 @@ monitoring_requirements:
 security_requirements:
   authentication:
     - method: API Key
-    - credential_storage: Vault (recommended) or environment
+    - credential_storage: Credential authority with process-scoped environment injection
     - rotation_policy: Regular key rotation supported
     
   authorization:
@@ -454,7 +442,7 @@ resource_discovery:
   metadata:
     description: Google Gemini AI API integration
     version: v1beta
-    dependencies: [vault (optional)]
+    dependencies: []
     enables: [document-processing, multimodal-analysis, code-generation]
 
 resource_framework_compliance:
@@ -472,7 +460,7 @@ deployment_integration:
   configuration_management:
     - Environment-based configuration
     - Template-based setup
-    - Secret management via Vault
+    - Secret management via the canonical credential authority
 ```
 
 ### Version Management
@@ -515,12 +503,12 @@ release_management:
 | Risk | Probability | Impact | Mitigation |
 |------|------------|--------|------------|
 | API rate limiting | Medium | Medium | Implement exponential backoff and caching |
-| API key exposure | Low | High | Use Vault for secure storage |
+| API key exposure | Low | High | Use the credential authority and process-scoped injection |
 | Service outages | Low | Medium | Implement fallback to other AI providers |
 | Cost overruns | Medium | Medium | Token usage monitoring and alerts |
 
 ### Operational Risks
-- **API Key Management**: Rotate keys regularly, use Vault
+- **API Key Management**: Rotate keys regularly through the credential authority
 - **Rate Limit Handling**: Implement proper retry logic
 - **Cost Control**: Monitor token usage, set alerts
 - **Model Deprecation**: Track model versions, plan migrations
@@ -557,10 +545,10 @@ release_management:
 - Decision driver: Simplicity and reduced maintenance
 - Trade-offs: No local caching without Redis
 
-**Vault Integration**: Optional but recommended for API key storage
-- Alternative considered: Environment variables only
-- Decision driver: Security best practices
-- Trade-offs: Additional dependency for secure deployments
+**Credential authority integration**: Canonical and required for managed operation
+- Alternative considered: Resource-owned Vault/file lookup
+- Decision driver: Portability and one recovery-bundle boundary for secrets
+- Trade-offs: The control plane must inject the process credential before launch
 
 ### Known Limitations
 - **No Local Models**: Requires internet connectivity
@@ -582,12 +570,10 @@ release_management:
 ### Documentation
 - README.md - Quick start and overview
 - docs/API.md - API integration details
-- config/defaults.sh - Configuration options
+- cli/internal/config/ - Typed configuration options
 - lib/core.sh - Core implementation
 
 ### Related Resources
-- vault - Secure API key storage
-- redis - Response caching
 - n8n - Workflow automation integration
 - ollama - Local model alternative
 
@@ -601,7 +587,7 @@ release_management:
 ## 📈 Progress History
 
 ### 2025-09-11: Major Improvements (80% → 95%)
-- ✅ Implemented proper Vault integration per secrets standard
+- ✅ Implemented managed credential injection per the credential-authority standard
 - ✅ Added comprehensive test suite (smoke/integration/unit)
 - ✅ Created v2.0 compliant configuration (schema.json, runtime.json)
 - ✅ Validated all P0 requirements working

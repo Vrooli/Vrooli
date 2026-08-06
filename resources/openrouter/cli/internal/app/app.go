@@ -9,14 +9,15 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
+	"time"
+
 	"resource-openrouter/cli/internal/auth"
 	"resource-openrouter/cli/internal/config"
 	"resource-openrouter/cli/internal/ensure"
 	"resource-openrouter/cli/internal/health"
 	"resource-openrouter/cli/internal/policy"
 	"resource-openrouter/cli/internal/policycmd"
-	"strings"
-	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"

@@ -28,7 +28,6 @@ import (
 	"resource-kopia/cli/internal/kexec"
 	"resource-kopia/cli/internal/registry"
 	"resource-kopia/cli/internal/repoctx"
-	"resource-kopia/cli/internal/vault"
 
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
@@ -37,7 +36,6 @@ import (
 type Service struct {
 	Runner      kexec.Runner
 	Credentials credentials.Store
-	Vault       vault.Vault
 	Registry    *registry.Registry
 	Resolver    repoctx.Resolver
 	Env         env.Runtime
@@ -65,8 +63,8 @@ func (s Service) Create(ctx context.Context, args []string) error {
 		prefix     = fs.String("prefix", "", "S3 backend: key prefix")
 		region     = fs.String("region", "", "S3 backend: region")
 		disableTLS = fs.Bool("disable-tls", false, "S3 backend: disable TLS (local MinIO)")
-		accessKey  = fs.String("access-key", "", "S3 backend: access key id (stored in vault; else read from vault)")
-		secretKey  = fs.String("secret-access-key", "", "S3 backend: secret access key (stored in vault)")
+		accessKey  = fs.String("access-key", "", "S3 backend: access key id (stored in the credential authority; else read from it)")
+		secretKey  = fs.String("secret-access-key", "", "S3 backend: secret access key (stored in the credential authority)")
 		jsonOut    = fs.Bool("json", false, "Emit kopia's native JSON")
 	)
 	if err := cmdutil.Parse(fs, args); err != nil {
@@ -170,8 +168,8 @@ func (s Service) Connect(ctx context.Context, args []string) error {
 		prefix     = fs.String("prefix", "", "S3 backend: key prefix")
 		region     = fs.String("region", "", "S3 backend: region")
 		disableTLS = fs.Bool("disable-tls", false, "S3 backend: disable TLS")
-		accessKey  = fs.String("access-key", "", "S3 backend: access key id (stored in vault)")
-		secretKey  = fs.String("secret-access-key", "", "S3 backend: secret access key (stored in vault)")
+		accessKey  = fs.String("access-key", "", "S3 backend: access key id (stored in the credential authority)")
+		secretKey  = fs.String("secret-access-key", "", "S3 backend: secret access key (stored in the credential authority)")
 		jsonOut    = fs.Bool("json", false, "Emit kopia's native JSON")
 	)
 	if err := cmdutil.Parse(fs, args); err != nil {
@@ -334,7 +332,7 @@ func (s Service) Delete(ctx context.Context, args []string) error {
 		return err
 	}
 	if entry.Backend == registry.BackendS3 {
-		if err := vault.DeleteS3Credentials(ctx, s.Vault, *name); err != nil {
+		if err := credentials.DeleteS3Credentials(s.Credentials, *name); err != nil {
 			return err
 		}
 	}
@@ -418,24 +416,25 @@ func (s Service) simpleRepoCommand(ctx context.Context, args []string, cmdName s
 }
 
 // resolveS3Creds returns the S3 credentials for a new repo: stores
-// flag-provided creds in vault, otherwise reads existing creds from vault.
-func (s Service) resolveS3Creds(ctx context.Context, name, accessKey, secretKey string) (vault.S3Credentials, error) {
+// flag-provided creds in the credential authority, otherwise reads existing
+// authority-backed creds.
+func (s Service) resolveS3Creds(ctx context.Context, name, accessKey, secretKey string) (credentials.S3Credentials, error) {
 	if strings.TrimSpace(accessKey) != "" || strings.TrimSpace(secretKey) != "" {
-		creds := vault.S3Credentials{AccessKeyID: accessKey, SecretAccessKey: secretKey}
+		creds := credentials.S3Credentials{AccessKeyID: accessKey, SecretAccessKey: secretKey}
 		if !creds.Valid() {
-			return vault.S3Credentials{}, fmt.Errorf("both --access-key and --secret-access-key are required together")
+			return credentials.S3Credentials{}, fmt.Errorf("both --access-key and --secret-access-key are required together")
 		}
-		if err := vault.PutS3Credentials(ctx, s.Vault, name, creds); err != nil {
-			return vault.S3Credentials{}, err
+		if err := credentials.PutS3Credentials(s.Credentials, name, creds); err != nil {
+			return credentials.S3Credentials{}, err
 		}
 		return creds, nil
 	}
-	creds, found, err := vault.S3CredentialsFor(ctx, s.Vault, name)
+	creds, found, err := credentials.S3CredentialsFor(s.Credentials, name)
 	if err != nil {
-		return vault.S3Credentials{}, err
+		return credentials.S3Credentials{}, err
 	}
 	if !found || !creds.Valid() {
-		return vault.S3Credentials{}, fmt.Errorf("no S3 credentials for repository %q; pass --access-key/--secret-access-key or store them in vault", name)
+		return credentials.S3Credentials{}, fmt.Errorf("no S3 credentials for repository %q; pass --access-key/--secret-access-key or provision them in the credential authority", name)
 	}
 	return creds, nil
 }

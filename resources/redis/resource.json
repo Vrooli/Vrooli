@@ -1,9 +1,26 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "redis",
-  "storage": {"entries": {
-    "data": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/redis", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/redis", "windows": "$USER_HOME/AppData/Local/vrooli/resources/redis"}, "kind": "dir", "class": "data", "regenerable": true, "rationale": "Redis is configured as a bounded cache/event bus; its append-only persistence directory is bind-mounted to /data."}
-  }},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/redis",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/redis",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/redis"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "Redis is configured as a bounded cache/event bus; its append-only persistence directory is bind-mounted to /data.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      }
+    }
+  },
   "display_name": "Redis Cache",
   "description": "Redis event bus and cache layer for project and scenario workflows.",
   "cli": {
@@ -122,13 +139,14 @@
   "health_checks": [
     {
       "type": "tcp",
+      "kind": "readiness",
       "target": "127.0.0.1:6380",
       "interval_seconds": 10,
       "timeout_seconds": 5
     }
   ],
   "runtime": {
-    "image": "redis:7-alpine",
+    "image": "redis@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2",
     "container_name": "vrooli-redis-resource",
     "command": [
       "redis-server",

@@ -14,12 +14,12 @@ The local runtime uses a signed Vault server with file storage in the resource d
 
 ```bash
 resource-vault content set \
-  --path secret/test/quickstart \
+  --path secret/capabilities/example/quickstart \
   --key value \
   --value "hello-vault"
 
 resource-vault content get \
-  --path secret/test/quickstart \
+  --path secret/capabilities/example/quickstart \
   --key value \
   --format raw
 ```
@@ -29,8 +29,8 @@ Machine consumers should use `--format raw` when they need exactly the field val
 ## List And Delete
 
 ```bash
-resource-vault content list --path secret/test/
-resource-vault content delete --path secret/test/quickstart
+resource-vault content list --path secret/capabilities/example/
+resource-vault content delete --path secret/capabilities/example/quickstart
 ```
 
 ## Resource Declarations
@@ -41,18 +41,19 @@ vrooli credentials status --identity vrooli/openrouter --field api-key
 
 `check` and `validate` report presence without values. `export` emits shell-safe `export KEY='value'` lines for present secrets declared with `default_env`.
 
-## Kopia Passphrase Path
+## Ordinary Credentials
 
-Kopia stores one generated passphrase per repository:
+Ordinary resource, integration, and backup credentials do not use Vault. They
+are provisioned through the control-plane credential authority:
 
 ```bash
-resource-vault content get \
-  --path secret/resources/kopia/repo/<repo>/passphrase \
-  --key passphrase \
-  --format raw
+vrooli credentials provision --identity vrooli/example --field api-key
+vrooli credentials status --identity vrooli/example --field api-key
 ```
 
-Do not store Kopia passphrases in config files, logs, command history, or scenario databases.
+The authority uses the operating system's native key service or encrypted
+portable storage. Use `resource-vault` only for a capability that explicitly
+requires Vault KV or Transit semantics.
 
 ## Current Limits
 

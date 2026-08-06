@@ -17,8 +17,10 @@
 // `x-vrooli-managed-permissions` key — that is the bug this design fixes;
 // it is now migrated into the sidecar on read and stripped on write.
 //
-// Unlike Claude Code there is no hook backstop — OpenCode honours the
-// config directly per upstream docs (last-match-wins). The adapter
+// OpenCode honours the config directly per upstream docs (last-match-wins),
+// and the adapter also projects a Vrooli plugin using the installed
+// tool.execute.before seam. The plugin's live firing still requires a canary;
+// configuration presence alone is not reported as verified enforcement. The adapter
 // writes alphabetically-sorted keys so output is deterministic; under
 // alphabetical order `*` (0x2A) sorts before letters, so specific
 // patterns end up later and win the last-match-wins evaluation. Users
@@ -59,6 +61,9 @@ type Adapter struct {
 	// SettingsPath is the absolute path of opencode.json (typically
 	// ~/.config/opencode/opencode.json).
 	SettingsPath string
+	// PluginPath is the OpenCode plugin projection path. An empty value keeps
+	// the adapter focused on settings only, which is useful for isolated tests.
+	PluginPath string
 }
 
 // DefaultAdapter returns an Adapter rooted at $HOME/.config/opencode.
@@ -69,6 +74,7 @@ func DefaultAdapter() (*Adapter, error) {
 	}
 	return &Adapter{
 		SettingsPath: filepath.Join(home, ".config", "opencode", "opencode.json"),
+		PluginPath:   filepath.Join(home, ".config", "opencode", "plugins", "vrooli-policy.js"),
 	}, nil
 }
 
@@ -292,7 +298,66 @@ func (a *Adapter) Save(p Policy, writtenByVersion string) error {
 	// The sidecar is the source of truth for the managed list; persist it
 	// (plus fingerprint/version) so the next Load/Save sees these entries as
 	// managed without an inline marker in opencode.json.
-	return a.WriteState(p, writtenByVersion)
+	if err := a.WriteState(p, writtenByVersion); err != nil {
+		return err
+	}
+	return a.syncPlugin(p)
+}
+
+// RenderPlugin returns the native OpenCode plugin projection. The hook sends
+// a normalized event to the local policy runner and refuses the tool call if
+// the runner returns a non-zero decision. No shell interpolation is used.
+func (a *Adapter) RenderPlugin() string {
+	runner := os.Getenv("VROOLI_AGENT_POLICY_RUNNER")
+	if strings.TrimSpace(runner) == "" {
+		runner = "vrooli-policy-runner"
+	}
+	return fmt.Sprintf(`// Managed by Vrooli. Do not edit; reconcile permissions to regenerate.
+export const VrooliPolicy = async () => ({
+  "tool.execute.before": async (input) => {
+    if (!input || input.tool !== "bash") return;
+    const event = {
+      contract_version: "agent-policy/v1",
+      runner: "opencode",
+      tool: input.tool,
+      arguments: input.args ? [JSON.stringify(input.args)] : [],
+      occurred_at: new Date().toISOString()
+    };
+    const result = Bun.spawnSync([%q, "hook", "--runner", "opencode"], {
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+      input: JSON.stringify(event)
+    });
+    if (result.exitCode !== 0) {
+      throw new Error("Vrooli policy runner denied or could not evaluate this tool call");
+    }
+  }
+});
+`, runner)
+}
+
+func (a *Adapter) syncPlugin(p Policy) error {
+	if strings.TrimSpace(a.PluginPath) == "" {
+		return nil
+	}
+	if len(p.BashDeny) == 0 {
+		if err := os.Remove(a.PluginPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("remove OpenCode policy plugin: %w", err)
+		}
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(a.PluginPath), 0o755); err != nil {
+		return fmt.Errorf("create OpenCode plugin directory: %w", err)
+	}
+	tmp := a.PluginPath + ".tmp"
+	if err := os.WriteFile(tmp, []byte(a.RenderPlugin()), 0o644); err != nil {
+		return fmt.Errorf("write OpenCode policy plugin: %w", err)
+	}
+	if err := os.Rename(tmp, a.PluginPath); err != nil {
+		return fmt.Errorf("publish OpenCode policy plugin: %w", err)
+	}
+	return nil
 }
 
 // Fingerprint returns the sha256 hex of the canonical Policy projection.

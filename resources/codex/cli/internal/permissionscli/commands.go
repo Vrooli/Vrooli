@@ -19,9 +19,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"resource-codex/cli/internal/permissions"
 	"sort"
 	"strings"
+
+	"resource-codex/cli/internal/permissions"
 
 	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliapp"

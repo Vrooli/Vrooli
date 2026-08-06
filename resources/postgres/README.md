@@ -17,12 +17,13 @@ Managed PostgreSQL runtime for local scenario storage and multi-instance databas
 
 ## Architecture
 
-This resource is being aligned to the updated `docker-service` structure.
+This resource uses the updated `docker-service` structure.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for PostgreSQL-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
+- Historical shell behavior has been retired; lifecycle and configuration
+  behavior lives in the shared control plane and typed Go packages.
 
 The intended escalation path is:
 
@@ -59,5 +60,9 @@ Connection defaults:
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for instance, migration, or backup workflows.
 - Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
-- Existing shell-heavy workflows in `lib/` are transitional. New logic should land in Go under `cli/internal/...`.
+- Historical shell-heavy workflows in `lib/` have been retired; new logic belongs in Go under `cli/internal/...`.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/postgres/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+
+## Maturity
+
+M4 (2026-08-05): Docker service lifecycle, query readiness, pinned image, typed configuration, and capability evidence are enforced by the fleet contract.

@@ -18,7 +18,7 @@ func TestLoadLiveContract(t *testing.T) {
 	if contract.Schema() != "schemas/repo-contract.schema.json" {
 		t.Fatalf("Schema() = %q", contract.Schema())
 	}
-	if contract.Version() != "1.1.0" {
+	if contract.Version() != "1.2.0" {
 		t.Fatalf("Version() = %q", contract.Version())
 	}
 	if got := contract.Layout().ScenarioDir; got != "scenarios" {

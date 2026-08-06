@@ -40,7 +40,7 @@ Current internal package boundaries:
 
 Concrete Go-owned responsibilities now include:
 
-- Vault, environment, and compatibility-file Gemini API key resolution
+- Process-scoped Gemini API key resolution from the canonical credential authority
 - derived runtime settings for endpoints, default models, cache flags, and storage paths
 - repo-external prompt/template/function storage for future explicit command wiring
 - safe Gemini probe and model-listing logic that does not belong in `cli/main.go`
@@ -61,10 +61,9 @@ resource-gemini list-models
 resource-gemini generate "Explain vector embeddings simply"
 ```
 
-Credentials can come from:
-
-- `GEMINI_API_KEY`
-- Vault secret ref: `secret/vrooli/gemini`
+The control plane resolves the `vrooli/gemini:api-key` credential-authority
+reference and injects `GEMINI_API_KEY` into the resource process. The resource
+does not invoke Vault, read credential files, or manage secret storage.
 
 ## Notes
 
@@ -74,3 +73,6 @@ Credentials can come from:
 - The old shell-era `generate/content/cache` helpers were intentionally retired instead of being treated as an implicit CLI contract. If Gemini needs those operator actions again, add them back explicitly on top of the Go packages under `cli/internal/...`.
 - `generate` and `list-models` are now explicit native commands. They are part of the Go CLI surface rather than leftover shell behavior.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/gemini/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

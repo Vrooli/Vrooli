@@ -1,9 +1,22 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "k6",
-  "storage": {"entries": {
-    "content": {"rung": "owned", "path": "$USER_HOME/.k6", "kind": "dir", "class": "data", "regenerable": false, "rationale": "The resource's K6_DATA_DIR contains operator-owned scripts, input data, configuration, and test results."}
-  }},
+  "storage": {
+    "entries": {
+      "content": {
+        "rung": "owned",
+        "path": "$USER_HOME/.k6",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "The resource's K6_DATA_DIR contains operator-owned scripts, input data, configuration, and test results.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    }
+  },
   "display_name": "k6",
   "description": "Grafana k6 CLI resource with a thin Go entrypoint and external-cli-specific logic organized under internal packages.",
   "cli": {
@@ -118,6 +131,7 @@
   "health_checks": [
     {
       "type": "command",
+      "kind": "liveness",
       "command": [
         "k6",
         "version"
@@ -136,21 +150,16 @@
   "install": {
     "platforms": {
       "linux": [
-        "bash",
-        "-lc",
-        "if command -v snap >/dev/null 2>&1; then sudo snap install k6; elif command -v apt-get >/dev/null 2>&1; then sudo gpg -k >/dev/null 2>&1 || true; sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69 2>/dev/null || wget -q -O - https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg; echo 'deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main' | sudo tee /etc/apt/sources.list.d/k6.list >/dev/null; sudo apt-get update; sudo apt-get install -y k6; else tmp_dir=$(mktemp -d); arch=$(uname -m); case \"$arch\" in x86_64) arch=amd64 ;; aarch64|arm64) arch=arm64 ;; *) echo \"Unsupported architecture: $arch\" >&2; exit 1 ;; esac; url=\"https://github.com/grafana/k6/releases/download/v0.49.0/k6-v0.49.0-linux-$arch.tar.gz\"; curl -fsSL \"$url\" -o \"$tmp_dir/k6.tar.gz\"; tar -xzf \"$tmp_dir/k6.tar.gz\" -C \"$tmp_dir\"; sudo mv \"$tmp_dir/k6-v0.49.0-linux-$arch/k6\" /usr/local/bin/k6; sudo chmod +x /usr/local/bin/k6; rm -rf \"$tmp_dir\"; fi"
+        "resource-k6",
+        "install-direct"
       ],
       "macos": [
-        "brew",
-        "install",
-        "k6"
+        "resource-k6",
+        "install-direct"
       ],
       "windows": [
-        "winget",
-        "install",
-        "--id",
-        "Grafana.k6",
-        "-e"
+        "resource-k6",
+        "install-direct"
       ]
     }
   },

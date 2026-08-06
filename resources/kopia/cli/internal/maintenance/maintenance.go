@@ -8,10 +8,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+
 	"resource-kopia/cli/internal/cmdutil"
 	"resource-kopia/cli/internal/kexec"
 	"resource-kopia/cli/internal/repoctx"
-	"strings"
 )
 
 // Service wires the dependencies the maintenance commands need.

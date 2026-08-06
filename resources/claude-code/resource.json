@@ -1,9 +1,23 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "claude-code",
-  "storage": {"entries": {
-    "home": {"rung": "owned", "path": "$USER_HOME/.claude", "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Claude Code documents ~/.claude as the cross-project user scope; this resource retains transcripts, settings, plans, and credentials there."}
-  }},
+  "storage": {
+    "entries": {
+      "home": {
+        "rung": "owned",
+        "path": "$USER_HOME/.claude",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Claude Code documents ~/.claude as the cross-project user scope; this resource retains transcripts, settings, plans, and credentials there.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    }
+  },
   "display_name": "Claude Code CLI",
   "description": "Anthropic's Claude Code CLI for interactive and scripted development workflows.",
   "cli": {
@@ -45,10 +59,42 @@
   },
   "credentials": {
     "descriptors": [
-      {"logical_id":"vrooli/openrouter","field":"api-key","env":"OPENROUTER_API_KEY","label":"OpenRouter API key","description":"Optional gateway credential shared with the OpenRouter resource.","required":false,"obtain_url":"https://openrouter.ai/keys"},
-      {"logical_id":"vrooli/claude-code","field":"anthropic-api-key","env":"ANTHROPIC_API_KEY","label":"Anthropic API key","description":"Optional credential for Claude models.","required":false,"obtain_url":"https://console.anthropic.com/settings/keys"},
-      {"logical_id":"vrooli/openai","field":"api-key","env":"OPENAI_API_KEY","label":"OpenAI API key","description":"Optional credential for OpenAI models.","required":false,"obtain_url":"https://platform.openai.com/api-keys"},
-      {"logical_id":"vrooli/gemini","field":"api-key","env":"GEMINI_API_KEY","label":"Gemini API key","description":"Optional credential shared with the Gemini resource.","required":false,"obtain_url":"https://aistudio.google.com/app/apikey"}
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "env": "OPENROUTER_API_KEY",
+        "label": "OpenRouter API key",
+        "description": "Optional gateway credential shared with the OpenRouter resource.",
+        "required": false,
+        "obtain_url": "https://openrouter.ai/keys"
+      },
+      {
+        "logical_id": "vrooli/claude-code",
+        "field": "anthropic-api-key",
+        "env": "ANTHROPIC_API_KEY",
+        "label": "Anthropic API key",
+        "description": "Optional credential for Claude models.",
+        "required": false,
+        "obtain_url": "https://console.anthropic.com/settings/keys"
+      },
+      {
+        "logical_id": "vrooli/openai",
+        "field": "api-key",
+        "env": "OPENAI_API_KEY",
+        "label": "OpenAI API key",
+        "description": "Optional credential for OpenAI models.",
+        "required": false,
+        "obtain_url": "https://platform.openai.com/api-keys"
+      },
+      {
+        "logical_id": "vrooli/gemini",
+        "field": "api-key",
+        "env": "GEMINI_API_KEY",
+        "label": "Gemini API key",
+        "description": "Optional credential shared with the Gemini resource.",
+        "required": false,
+        "obtain_url": "https://aistudio.google.com/app/apikey"
+      }
     ]
   },
   "template": "external-cli",
@@ -127,6 +173,7 @@
   "health_checks": [
     {
       "type": "command",
+      "kind": "liveness",
       "command": [
         "claude",
         "--version"
@@ -150,15 +197,13 @@
   },
   "install": {
     "platforms": {
-      "linux": [
-        "bash",
-        "-lc",
-        "source resources/claude-code/lib/install.sh && claude_code::install::execute"
+    "linux": [
+      "resource-claude-code",
+      "install-direct"
       ],
-      "macos": [
-        "bash",
-        "-lc",
-        "source resources/claude-code/lib/install.sh && claude_code::install::execute"
+    "macos": [
+      "resource-claude-code",
+      "install-direct"
       ]
     }
   },

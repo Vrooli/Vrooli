@@ -5,9 +5,9 @@
 // Grok-specific notes:
 //   - `--scope` (user|admin) selects ~/.grok/config.toml vs
 //     ~/.grok/requirements.toml (higher precedence in Grok's merge).
-//   - Unlike Codex, Grok ENFORCES the native `[permission]` rules, and
-//     the paired PreToolUse hook hard-denies matching Bash commands even
-//     under --always-approve. `permissions doctor` affirms this.
+//   - Unlike Codex, Grok enforces the native `[permission]` rules. The paired
+//     PreToolUse hook invokes the portable policy runner; its live refusal
+//     behavior is canary-gated.
 package permissionscli
 
 import (
@@ -19,9 +19,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"resource-grok/cli/internal/permissions"
 	"sort"
 	"strings"
+
+	"resource-grok/cli/internal/permissions"
 
 	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliapp"
@@ -258,21 +259,19 @@ func (h *Handlers) Doctor(args []string) error {
 			fmt.Fprintf(h.Stdout, "pinned %q matches installed\n", *pinned)
 		}
 	}
-	// Enforcement is REAL on Grok (unlike Codex): native [permission]
-	// rules plus the PreToolUse backstop hook.
+	// Native [permission] rules are authoritative. The portable PreToolUse
+	// command is reported as unverified until an installed-version canary passes.
 	fmt.Fprintln(h.Stdout, "enforcement: Grok natively honours [permission] deny/ask/allow (deny > ask > allow),")
-	fmt.Fprintln(h.Stdout, "             and the paired PreToolUse hook hard-denies matching Bash commands even")
-	fmt.Fprintln(h.Stdout, "             under --always-approve.")
+	fmt.Fprintln(h.Stdout, "             and a portable PreToolUse policy-runner command is configured when requested.")
 	if info, err := os.Stat(a.HookConfigPath()); err == nil {
 		fmt.Fprintf(h.Stdout, "deny-hook: installed at %s (%d bytes)\n", a.HookConfigPath(), info.Size())
 	} else {
 		fmt.Fprintf(h.Stdout, "deny-hook: not installed (no Bash deny patterns yet)\n")
 	}
-	denyLog := strings.TrimSuffix(a.HooksDir, "/") + "/.vrooli-deny-log"
-	if info, err := os.Stat(denyLog); err == nil {
-		fmt.Fprintf(h.Stdout, "hook log: %s (%d bytes)\n", denyLog, info.Size())
+	if runner := strings.TrimSpace(os.Getenv("VROOLI_AGENT_POLICY_RUNNER")); runner != "" {
+		fmt.Fprintf(h.Stdout, "policy runner: %s (run the installed-version canary before enforcement)\n", runner)
 	} else {
-		fmt.Fprintf(h.Stdout, "hook log: not yet written (run a denied bash command in Grok to confirm the hook fires)\n")
+		fmt.Fprintln(h.Stdout, "policy runner: vrooli-policy-runner (run the installed-version canary before enforcement)")
 	}
 	return nil
 }

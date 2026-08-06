@@ -91,18 +91,6 @@ func xdgConfigHome(getenv func(string) string) string {
 	return filepath.Join(home, ".config")
 }
 
-func xdgDataHome(getenv func(string) string) string {
-	if v := getenv("XDG_DATA_HOME"); v != "" {
-		return v
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "share")
-}
-
 func configPath(getenv func(string) string) string {
 	return filepath.Join(xdgConfigHome(getenv), "opencode", "opencode.json")
-}
-
-func authPath(getenv func(string) string) string {
-	return filepath.Join(xdgDataHome(getenv), "opencode", "auth.json")
 }

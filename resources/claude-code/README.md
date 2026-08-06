@@ -23,12 +23,14 @@ Anthropic Claude Code CLI for interactive and scripted development workflows.
 
 ## Architecture
 
-This resource is being aligned to the updated `external-cli` structure.
+This resource uses the `external-cli` structure with Go-owned lifecycle,
+configuration, installation, permissions, and hook reconciliation.
 
 - `resource.json` is the declarative authority for install, binary probing, version checks, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Claude Code-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
+- Historical `lib/` shell behavior has been retired. The only remaining shell
+  file is the explicitly allowed PreToolUse payload under `cli/internal/`.
 
 The intended escalation path is:
 
@@ -82,9 +84,14 @@ resource-claude-code permissions drift-check
 resource-claude-code permissions doctor
 ```
 
-Every `Bash(...)` deny rule is paired with a `PreToolUse` hook entry (script materialized in `~/.claude/.vrooli-hooks/`) as a defensive backstop for the upstream `permissions.deny` enforcement bug ([anthropics/claude-code#18846](https://github.com/anthropics/claude-code/issues/18846), [#29026](https://github.com/anthropics/claude-code/issues/29026)).
+Every `Bash(...)` deny rule is paired with a `PreToolUse` hook entry invoking the standalone `vrooli-policy-runner` as a defensive backstop for the upstream `permissions.deny` enforcement bug ([anthropics/claude-code#18846](https://github.com/anthropics/claude-code/issues/18846), [#29026](https://github.com/anthropics/claude-code/issues/29026)). The installed Claude version must pass the resource canary before this hook is considered verified.
 
-For declarative automation, use `permissions plan --document desired.json --json` and `permissions reconcile --document desired.json --json`. The strict v1 document contains `schema_version`, optional `scope: "user"`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged settings, and reports desired/live fingerprints, native paths, changes, and the `hook_backed` enforcement posture.
+For declarative automation, use `permissions plan --document desired.json --json` and `permissions reconcile --document desired.json --json`. The strict v1 document contains `schema_version`, optional `scope: "user"`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged settings, and reports desired/live fingerprints, native paths, changes, and the `hook_unverified` enforcement posture.
+
+Scenario-owned hooks use `resource-claude-code hooks reconcile` and
+`hooks remove`, which update only the identified hook entry while preserving
+unmanaged Claude settings. This is the Go replacement for the retired
+`lib/hooks.sh` seam used by web-console TTS.
 
 Pinned upstream docs: <https://code.claude.com/docs/en/permissions> (see `resource.json` → `upstream_cli`).
 
@@ -98,3 +105,6 @@ Pinned upstream docs: <https://code.claude.com/docs/en/permissions> (see `resour
 - Keep binary/version/install behavior declarative in `resource.json` whenever possible.
 - Keep `cli/main.go` thin; do not treat it as the implementation surface for Claude Code-specific behavior.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/claude-code/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

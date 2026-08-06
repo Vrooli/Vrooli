@@ -92,12 +92,12 @@ standard_interfaces:
   management:
     - cli: cli.sh (using CLI framework)
     - actions: [help, install, uninstall, start, stop, restart, status, validate, test, configure, list-models, test-model, content]
-    - configuration: config/defaults.sh
+    - configuration: cli/internal/config/
     - documentation: README.md + docs/
     
   networking:
     - docker_networks: [vrooli-network]
-    - port_registry: Not applicable (proxy service)
+    - ports: Not applicable (cloud API)
     - hostname: Not applicable (external API)
     
   monitoring:
@@ -255,7 +255,7 @@ resource_specific_actions:
 ```yaml
 implementation_requirements:
   - cli_location: cli.sh (uses CLI framework)
-  - configuration: config/defaults.sh
+  - configuration: cli/internal/config/
   - dependencies: lib/ directory with modular functions
   - error_handling: Exit codes (0=success, 1=error, 2=config error)
   - logging: Structured output with levels (INFO, WARN, ERROR)
@@ -632,7 +632,7 @@ release_management:
 - README.md - Quick start and overview
 - docs/models.md - Complete model list and capabilities
 - docs/integration.md - Integration patterns and examples
-- config/defaults.sh - Configuration options
+- cli/internal/config/ - Typed configuration options
 - lib/configure.sh - Configuration management
 
 ### Related Resources

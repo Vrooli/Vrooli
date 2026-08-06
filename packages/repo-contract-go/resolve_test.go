@@ -92,7 +92,7 @@ func TestLoadDefaultFromEnvOrCWD(t *testing.T) {
 	if gotRoot != root {
 		t.Fatalf("LoadDefaultFromEnvOrCWD() root = %q, want %q", gotRoot, root)
 	}
-	if contract.Version() != "1.1.0" {
+	if contract.Version() != "1.2.0" {
 		t.Fatalf("LoadDefaultFromEnvOrCWD() contract version = %q", contract.Version())
 	}
 }

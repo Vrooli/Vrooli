@@ -17,12 +17,13 @@ Managed Home Assistant runtime for local automation and device-integration workf
 
 ## Architecture
 
-This resource is being aligned to the updated `compose-service` structure.
+This resource uses the updated `compose-service` structure.
 
 - `resource.json` is the declarative authority for lifecycle, compose orchestration, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Home Assistant-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
+- Historical shell behavior has been retired; lifecycle and configuration
+  behavior lives in the shared control plane and typed Go packages.
 
 The intended escalation path is:
 
@@ -57,5 +58,9 @@ Default endpoint:
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for automation, backup, or voice workflows.
 - Keep runtime state rooted in `${RESOURCE_*_DIR}` paths and compose-managed mounts rather than repo-local mutable directories.
-- Existing shell-heavy workflows in `lib/` are transitional. New logic should land in Go under `cli/internal/...`.
+- Historical shell-heavy workflows in `lib/` have been retired; new logic belongs in Go under `cli/internal/...`.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/home-assistant/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+
+## Maturity
+
+M4 (2026-08-05): compose lifecycle, pinned image, readiness contract, typed configuration, and capability evidence are enforced by the fleet contract.

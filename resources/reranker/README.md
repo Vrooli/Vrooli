@@ -92,3 +92,6 @@ bash resources/reranker/test/integration-test.sh    # live smoke (needs the runn
 - `GET /health` — 200 once the model is loaded.
 - `GET /info` — model id, type, dtype, device.
 - `POST /rerank` — body `{"query": str, "texts": [str], "raw_scores": bool, "return_text": bool}`; returns `[{"index": int, "score": float}, ...]` sorted by score descending.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

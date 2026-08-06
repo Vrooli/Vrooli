@@ -12,9 +12,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"resource-claude-code/cli/internal/permissions"
 	"sort"
 	"strings"
+
+	"resource-claude-code/cli/internal/permissions"
 
 	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliapp"
@@ -213,12 +214,12 @@ func (h *Handlers) Doctor(args []string) error {
 			fmt.Fprintf(h.Stdout, "pinned %q matches installed\n", *pinned)
 		}
 	}
-	// Hook log sanity check.
-	hookLog := strings.TrimSuffix(h.Adapter.HookScriptDir, "/") + "/log"
-	if info, err := os.Stat(hookLog); err == nil {
-		fmt.Fprintf(h.Stdout, "hook log: %s (%d bytes)\n", hookLog, info.Size())
+	// The portable hook is an external runner command, so its health is
+	// established by an installed-version canary rather than a shell log.
+	if runner := strings.TrimSpace(os.Getenv("VROOLI_AGENT_POLICY_RUNNER")); runner != "" {
+		fmt.Fprintf(h.Stdout, "policy runner: %s (run the installed-version canary before enforcement)\n", runner)
 	} else {
-		fmt.Fprintf(h.Stdout, "hook log: not yet written (run a denied bash command in Claude to confirm the hook fires)\n")
+		fmt.Fprintln(h.Stdout, "policy runner: vrooli-policy-runner (run the installed-version canary before enforcement)")
 	}
 	return nil
 }

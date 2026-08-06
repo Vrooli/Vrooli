@@ -2,7 +2,7 @@
 // kopia binary. Every command handler routes through Runner; no other package
 // is permitted to exec kopia directly. This is the one place a fake is swapped
 // in for unit tests (mocks.FakeRunner), and the one place that injects the
-// secret environment (KOPIA_PASSWORD, AWS_*) sourced from vault.
+// secret environment (KOPIA_PASSWORD, AWS_*) sourced from the credential authority.
 package kexec
 
 import (

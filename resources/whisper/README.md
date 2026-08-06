@@ -17,7 +17,7 @@ Managed Whisper speech-to-text runtime for local transcription and translation w
 
 ## Architecture
 
-This resource is being aligned to the updated `compose-service` structure.
+This resource uses the updated `compose-service` structure.
 
 - `resource.json` is the declarative authority for lifecycle, compose orchestration, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
@@ -78,3 +78,6 @@ the status JSON reports `failed: true` with the terminal reason. A deliberate
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for transcription workflows.
 - Keep runtime state rooted in `${RESOURCE_*_DIR}` paths and compose-managed mounts rather than repo-local mutable directories.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/whisper/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

@@ -8,7 +8,7 @@ repositories*. The wrapper adds no proprietary metadata or encoding. With only
 3. (for S3 repos) the S3 **access/secret keys**,
 
 you can connect and restore **with Vrooli completely down** — no `resource-kopia`,
-no vault, no Vrooli control plane required.
+no credential service, no Vault, and no Vrooli control plane required.
 
 This property is load-bearing and is proven by an automated test
 (`TestIntegrationStandaloneDisasterRecovery`, plan §9.2 Test C), which performs
@@ -17,14 +17,15 @@ checksum match against the original tree.
 
 ## Step 0 — Recover the secrets
 
-Under normal operation the passphrase and S3 keys live in vault:
+Under normal operation the passphrase and S3 keys live in the credential
+authority:
 
-- passphrase: `secret/resources/kopia/repo/<name>/passphrase`
-- S3 access key: `secret/resources/kopia/s3/<name>/access_key`
-- S3 secret key: `secret/resources/kopia/s3/<name>/secret_key`
+- passphrase: identity `vrooli/kopia/<name>`, field `repository-passphrase`
+- S3 access key: identity `vrooli/kopia/<name>`, field `s3-access-key-id`
+- S3 secret key: identity `vrooli/kopia/<name>`, field `s3-secret-access-key`
 
-For true disaster recovery, retrieve these from wherever your vault data is
-backed up. **Keep an out-of-band copy of each repository passphrase** — without
+For true disaster recovery, retrieve these from the credential authority or an
+operator-controlled recovery bundle. **Keep an out-of-band copy of each repository passphrase** — without
 it the encrypted repository cannot be opened by anyone, including you.
 
 ## Step 1 — Install plain kopia

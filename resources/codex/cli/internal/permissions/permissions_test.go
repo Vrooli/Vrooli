@@ -175,3 +175,19 @@ func TestStateRoundTrip(t *testing.T) {
 		t.Errorf("scope not recorded: %v", st.Scope)
 	}
 }
+
+func TestSaveProjectsPreToolHookWhenConfigured(t *testing.T) {
+	a := newTestAdapter(t)
+	a.HookPath = filepath.Join(filepath.Dir(a.SettingsPath), "hooks.json")
+	t.Setenv("VROOLI_AGENT_POLICY_RUNNER", "policy-runner")
+	if err := a.Save(Policy{BashDeny: []string{"pnpm add *"}}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(a.HookPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "PreToolUse") || !strings.Contains(string(raw), "policy-runner hook --runner codex") {
+		t.Fatalf("unexpected hook projection: %s", raw)
+	}
+}

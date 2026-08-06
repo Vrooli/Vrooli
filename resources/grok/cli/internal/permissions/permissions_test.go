@@ -140,15 +140,8 @@ func TestHookMaterializedForBashDeny(t *testing.T) {
 	if err := a.Save(Policy{BashDeny: []string{"Bash(rm -rf *)"}, Hooks: true}); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	// Shared script exists and is executable.
-	info, err := os.Stat(a.HookScriptPath())
-	if err != nil {
-		t.Fatalf("hook script missing: %v", err)
-	}
-	if info.Mode().Perm()&0o100 == 0 {
-		t.Errorf("hook script not executable: %v", info.Mode())
-	}
-	// Hook JSON references the script and the inner glob (not the wrapper).
+	// Hook JSON invokes the portable runner; native permission rules remain
+	// authoritative and no shell-rendered pattern is passed to the hook.
 	data, err := os.ReadFile(a.HookConfigPath())
 	if err != nil {
 		t.Fatalf("hook json missing: %v", err)
@@ -171,11 +164,11 @@ func TestHookMaterializedForBashDeny(t *testing.T) {
 		t.Fatalf("unexpected hook shape: %s", data)
 	}
 	cmd := doc.Hooks.PreToolUse[0].Hooks[0].Command
-	if !strings.Contains(cmd, "vrooli-bash-deny.sh") {
-		t.Errorf("hook command missing script path: %s", cmd)
+	if !strings.Contains(cmd, "vrooli-policy-runner hook --runner grok") {
+		t.Errorf("hook command missing portable runner: %s", cmd)
 	}
-	if !strings.Contains(cmd, "rm -rf *") || strings.Contains(cmd, "Bash(") {
-		t.Errorf("hook should pass the inner glob, not the Bash() wrapper: %s", cmd)
+	if strings.Contains(cmd, "Bash(") || strings.Contains(cmd, "rm -rf") {
+		t.Errorf("hook must not render policy patterns into a command: %s", cmd)
 	}
 }
 

@@ -3,11 +3,14 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+
 	"resource-antigravity/cli/internal/permissionscli"
 	"resource-antigravity/cli/internal/upstream"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
+	agentinstall "github.com/vrooli/vrooli/packages/resource-agent-install"
 )
 
 const (
@@ -52,7 +55,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	app.SetCommandsWithSubgroups(
-		app.StandardLifecycleCommands(),
+		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{Binary: "agy", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".gemini"), Version: upstreamPinnedVersion, URLTemplate: "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/artifacts/${os}_${arch}.tar.gz", ArchiveEntry: "antigravity"})}}),
 		[]cliapp.SubcommandGroup{
 			// Antigravity is not on npm/GitHub releases — its latest version is
 			// served as a per-platform JSON manifest from the auto-updater

@@ -235,9 +235,16 @@ Keep `--model` only for explicit direct-model exceptions and tests.
 If `resource-ollama` is not on `$PATH` or the daemon is unhealthy, the gateway
 fails fast with a structured error. There is no HTTP fallback by design.
 
+The resource readiness probe is intentionally stricter than a process or
+`/api/tags` liveness check: `resource-ollama health-ready` remains unhealthy
+until the daemon has at least one installed model that can serve requests.
+
 ## Notes
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for model workflows.
 - Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
 - New logic lands in Go under `cli/internal/...`; the deployment/management axis stays in the Docker driver and `resource.json`.
 - Keep user-facing model and API guidance in the existing docs set, and use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/ollama/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
+
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.
