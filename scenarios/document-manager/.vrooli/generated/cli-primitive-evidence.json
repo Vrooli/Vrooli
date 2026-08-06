@@ -1,0 +1,49 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "document-manager",
+  "generator": "v1.0.0",
+  "manifest_hash": "a8e151b4ea9fa949ab98d5097405d8a38f811a11c430a8d6e767a43ba8b402cb",
+  "commands": [
+    {
+      "path": "notes attach",
+      "group": "notes",
+      "command": "attach",
+      "declared_exception": "upload",
+      "observed_primitive": "upload"
+    },
+    {
+      "path": "notes count",
+      "group": "notes",
+      "command": "count",
+      "binding": "NotesService.CountNotes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "notes create",
+      "group": "notes",
+      "command": "create",
+      "binding": "NotesService.CreateNote",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "notes get",
+      "group": "notes",
+      "command": "get",
+      "binding": "NotesService.GetNote",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "notes list",
+      "group": "notes",
+      "command": "list",
+      "binding": "NotesService.ListNotes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

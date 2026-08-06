@@ -1,0 +1,145 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "Archival and clinical-notes use cases beyond printed text",
+      "id": "DOC-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Handwriting and marginalia",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Translated derivations stored as versions rather than replacements",
+      "id": "DOC-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Multilingual and translation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Bridges audio-tools; a transcript is a document with time anchors instead of page anchors",
+      "id": "DOC-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Audio and video transcript intake",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The corpus rendered as a network, the surface that makes research work feel different",
+      "id": "DOC-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Citation graph UI",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "A configuration making remote routing structurally impossible for buyers who need that on paper",
+      "id": "DOC-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "planned",
+      "title": "Air-gapped deployment profile",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "HIPAA, GDPR and eDiscovery starting configurations as packaging over existing mechanism",
+      "id": "DOC-P2-006",
+      "prd_ref": "OT-P2-006",
+      "status": "planned",
+      "title": "Compliance presets",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Compare two derivation versions or two documents at the unit level",
+      "id": "DOC-P2-007",
+      "prd_ref": "OT-P2-007",
+      "status": "planned",
+      "title": "Document diff",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Reader corrections become labelled data for tier routing and classification accuracy",
+      "id": "DOC-P2-008",
+      "prd_ref": "OT-P2-008",
+      "status": "planned",
+      "title": "Corrections as training signal",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Multi-user annotation and discussion; deliberately last as it is a distinct product",
+      "id": "DOC-P2-009",
+      "prd_ref": "OT-P2-009",
+      "status": "planned",
+      "title": "Collaborative annotation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

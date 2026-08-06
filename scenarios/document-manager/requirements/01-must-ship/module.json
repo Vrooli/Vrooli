@@ -1,0 +1,340 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "Files keyed by content hash; identical bytes are never stored or derived twice",
+      "id": "DOC-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Content-addressed intake",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Real MIME sniffing plus a text-native vs scanned decision, recorded before any parse runs",
+      "id": "DOC-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Type and scan verdict",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "API/CLI upload and a watched directory, both idempotent under repeat submission",
+      "id": "DOC-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Two intake paths",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Text-native PDFs parsed locally with no AI call and no network egress",
+      "id": "DOC-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Tier-1 native parse",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "DOCX, HTML, EPUB, Markdown and plain text parsed through the structural resource",
+      "id": "DOC-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Tier-2 structural parse",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Every tier emits the same canonical model; consumers cannot tell which tier ran except by reading metadata",
+      "id": "DOC-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "One normalized document model",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Each derivation records tier, resource version and model role under a monotonic version; re-derivation never overwrites a prior version",
+      "id": "DOC-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "title": "Derivation versioning",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Every unit carries document hash, page and character range, plus bounding box where the tier supplies one",
+      "id": "DOC-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "planned",
+      "title": "Stable unit anchors",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "An anchor minted against v1 still resolves to the correct source region after v2 is produced",
+      "id": "DOC-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "planned",
+      "title": "Anchor resolution survives re-derivation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Zero direct provider calls; ai-conformance reports L2 on all four capabilities",
+      "id": "DOC-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "planned",
+      "title": "Gateway-only inference",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Role, model, dimension, content-version and retarget strategy stored alongside every vector from the first migration",
+      "id": "DOC-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "planned",
+      "title": "Embedding metadata recorded",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-011] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Every document carries a PrivacyClass, and that class selects the gateway routing profile rather than a user setting",
+      "id": "DOC-P0-012",
+      "prd_ref": "OT-P0-012",
+      "status": "planned",
+      "title": "Privacy class per document",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-012] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Confidential and secret documents never route remote; enforced in code, covered by a test asserting the failure, and visible in the UI",
+      "id": "DOC-P0-013",
+      "prd_ref": "OT-P0-013",
+      "status": "planned",
+      "title": "Fail-closed on sensitive documents",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-013] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Record of every derivation and inference step: tier, provider, locality, profile, privacy class and timestamps",
+      "id": "DOC-P0-014",
+      "prd_ref": "OT-P0-014",
+      "status": "planned",
+      "title": "Per-document processing receipt",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-014] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Append-only custody records; no verb rewrites or deletes one, and document deletion tombstones rather than erasing the trail",
+      "id": "DOC-P0-015",
+      "prd_ref": "OT-P0-015",
+      "status": "planned",
+      "title": "Immutable audit trail",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-015] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Bytes and derivations registered as storage-manager kinds with explicit retention and a regenerable flag per kind",
+      "id": "DOC-P0-016",
+      "prd_ref": "OT-P0-016",
+      "status": "planned",
+      "title": "Artifact store under declared budgets",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-016] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Whole corpus exports to an open documented format with no proprietary container and no lock-in",
+      "id": "DOC-P0-017",
+      "prd_ref": "OT-P0-017",
+      "status": "planned",
+      "title": "Full corpus export",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-017] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Units append into a declared vrooli-memory scope with provenance resolving back to anchors",
+      "id": "DOC-P0-018",
+      "prd_ref": "OT-P0-018",
+      "status": "planned",
+      "title": "Ledger handoff",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-018] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Re-running publish produces no duplicate entries, matching the ledger composite import key",
+      "id": "DOC-P0-019",
+      "prd_ref": "OT-P0-019",
+      "status": "planned",
+      "title": "Idempotent ledger handoff",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-019] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Every domain verb defined in proto; the CLI is a thin generated wrapper rather than a second implementation",
+      "id": "DOC-P0-020",
+      "prd_ref": "OT-P0-020",
+      "status": "planned",
+      "title": "Connect-RPC with CLI parity",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-020] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Side-by-side source page and derived units with bidirectional anchor highlighting and per-unit tier and confidence display",
+      "id": "DOC-P0-021",
+      "prd_ref": "OT-P0-021",
+      "status": "planned",
+      "title": "The Reader surface",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-021] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "setup/start/test/stop through the control plane with test-genie green including the ai-conformance phase",
+      "id": "DOC-P0-022",
+      "prd_ref": "OT-P0-022",
+      "status": "planned",
+      "title": "Lifecycle and test compliance",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-022] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

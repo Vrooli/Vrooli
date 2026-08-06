@@ -1,272 +1,32 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
   "service": {
+    "parent": "vrooli",
     "name": "document-manager",
     "displayName": "Document Manager",
-    "description": "AI-powered documentation management SaaS platform with comprehensive analysis, improvement suggestions, and automated quality maintenance",
-    "version": "2.0.0",
+    "description": "Local-first document ingestion and understanding: tiered parsing, citable anchors, sensitivity-aware routing, and a per-document custody receipt",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
     "tags": [
-      "business-application",
-      "productivity",
-      "documentation",
-      "ai",
-      "automation",
-      "maintenance",
-      "saas",
-      "quality-assurance",
-      "content-analysis",
-      "custom-ui",
-      "go-api",
-      "n8n-workflows",
-      "postgres-storage",
-      "redis-cache",
-      "qdrant-vectors",
-      "ollama-ai"
-    ],
-    "capabilities": [
-      "ai"
-    ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/document-manager"
-    },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+      "react-ui",
+      "go-api"
+    ]
   },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Document manager coordination API port",
-      "range": "15000-19999"
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
     },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "Document manager web interface port",
-      "range": "20000-24999"
-    }
-  },
-  "lifecycle": {
-    "version": "2.0.0",
-    "health": {
-      "description": "Document Manager health check configuration",
-      "endpoints": {
-        "api": "/health",
-        "ui": "/health"
-      },
-      "checks": [
-        {
-          "name": "api_endpoint",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
+    "generated_at": "2026-08-05T23:47:17Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
     },
-    "setup": {
-      "description": "Initialize Document Manager with all resources and integrations",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/document-manager-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "document-manager",
-            "targets": [
-              "document-manager"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
-          "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o document-manager-api .",
-          "description": "Build Go coordination API binary"
-        },
-        {
-          "name": "verify-models",
-          "run": "resource-ollama status",
-          "description": "Verify the Ollama resource is reachable; declared model roles are provisioned by resource-ollama ensure"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start document manager with coordination API and monitoring",
-      "steps": [
-        {
-          "name": "ensure-resources",
-          "run": "bash lib/ensure-resources.sh",
-          "description": "Ensure all required resources are running"
-        },
-        {
-          "name": "start-api",
-          "run": "cd api && POSTGRES_URL=\"postgresql://vrooli:lUq9qvemypKpuEeXCV6Vnxak1@localhost:5433/document_manager?sslmode=disable\" QDRANT_URL=\"http://localhost:6333\" REDIS_URL=\"redis://localhost:6379\" N8N_URL=\"http://localhost:5678\" ./document-manager-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/document-manager-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && UI_PORT=${UI_PORT} API_PORT=${API_PORT} API_BASE_URL=\"http://localhost:${API_PORT}\" NODE_ENV=production node server.js",
-          "description": "Start UI server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "configure-redis-notifications",
-          "run": "redis-cli -p ${RESOURCE_PORTS[redis]} CONFIG SET notify-keyspace-events Ex > /dev/null 2>&1 || echo 'Redis keyspace notifications configured'",
-          "description": "Configure Redis for pub/sub notifications"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for document-manager",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute document-manager --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"document-manager-api\" || true; sleep 1; pkill -9 -f \"document-manager-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/document-manager.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/document-manager.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
-    }
-  },
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "startup_policy": "must_start",
-        "purpose": "Store application metadata, agent configurations, improvement queue, and audit logs",
-        "database": "document_manager",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "startup_policy": "must_start",
-        "purpose": "Vector database for documentation embeddings, agent memory, and similarity pattern analysis",
-        "initialization": [
-          {
-            "file": "initialization/storage/qdrant/collections.json",
-            "type": "config"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "startup_policy": "must_start",
-        "purpose": "Real-time messaging, notification channels, and caching"
-      },
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": true,
-        "startup_policy": "must_start",
-        "model_roles": [
-          "embedding.default"
-        ]
-      },
-      "unstructured-io": {
-        "type": "unstructured-io",
-        "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
-        "purpose": "Advanced document parsing and content extraction"
-      }
-    }
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "7c6abefa15a33669b5aff750d0a01da11c8b4beac70d1bd069c45e012f4ab898"
   },
   "cli": {
     "enabled": true,
@@ -274,6 +34,13 @@
     "adapter": {
       "kind": "go_module",
       "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
     },
     "invoke": {
       "kind": "installed_command",
@@ -284,9 +51,155 @@
         "cli/**",
         ".vrooli/service.json"
       ]
-    },
-    "source_build": {
-      "kind": "go_module"
     }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/document-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "document-manager"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o document-manager-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api \u0026\u0026 ./document-manager-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/document-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui \u0026\u0026 node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "build": {},
+    "deploy": {},
+    "clean": {},
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "check-temporal-models",
+          "run": "flow-verifier verify check --root .",
+          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
+        },
+        {
+          "name": "run-tests",
+          "run": "test-genie execute document-manager --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "backup": {},
+    "restore": {},
+    "production": {},
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'document-manager-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {}
+  },
+  "credentials": {},
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/document-manager.db"
   }
 }
