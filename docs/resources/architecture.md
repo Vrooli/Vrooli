@@ -64,7 +64,7 @@ resources/
     resource.json
     README.md
     docs/
-    initialization/
+    api/internal/<domain>/
     cli/
       main.go
       internal/
@@ -84,22 +84,20 @@ resources/
 
 - `docs/`
   - deeper resource-local documentation
-- `initialization/`
-  - seeded config/assets/bootstrap content when the resource needs repo-owned initialization material
+- `api/internal/<domain>/`
+  - seeded config/assets/bootstrap content when the resource needs repo-owned bootstrap material
 - `internal/`
   - resource-specific Go code
 
-### Transitional only
+### Retired legacy shapes
 
-- `lib/`
-- `cli.sh`
-- shell-owned files such as `config/defaults.sh`, `config/messages.sh`, or
-  generated configuration mutated by shell scripts
+- `lib/`, `cli.sh`, and shell-owned configuration files are not valid resource
+  surfaces. Mature resources keep typed configuration under `cli/internal/`
+  and expose lifecycle through the Go control plane.
 
 A declarative `config/capabilities.yaml`, static schema, or repo-owned template
-asset may be part of a mature resource. Shell-owned configuration is not; it
-may remain only during migration and must have a named replacement/removal
-milestone.
+asset may be part of a mature resource when each entry has implementation and
+test evidence.
 
 ## Ownership Boundaries
 

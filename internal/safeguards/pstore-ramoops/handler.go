@@ -6,8 +6,8 @@
 // Risk profile: writing /etc/default/grub is unsafe by default — a typo
 // followed by update-grub can render the host unbootable. We mitigate by:
 //
-//  1. Requiring the operator to explicitly opt in via env vars
-//     (VROOLI_RAMOOPS_MEM_ADDRESS + VROOLI_RAMOOPS_MEM_SIZE). When unset, the
+//  1. Requiring the operator to explicitly opt in via typed parameters
+//     (mem_address + mem_size). When unset, the
 //     safeguard is SupportNotApplicable — silent and safe.
 //  2. Backing up /etc/default/grub before every write to a timestamped file.
 //  3. Validating the rendered config (`bash -n` plus optional grub-script-
@@ -30,17 +30,6 @@ import (
 )
 
 const (
-	// MemAddressEnvVar holds the physical address (e.g. "0x70000000") of the
-	// RAM region the operator has reserved for ramoops. Hex prefix is
-	// preserved into the kernel cmdline.
-	MemAddressEnvVar = "VROOLI_RAMOOPS_MEM_ADDRESS"
-	// MemSizeEnvVar holds the size of that region in bytes (e.g. "0x100000"
-	// for 1 MiB). Same passthrough semantics as MemAddressEnvVar.
-	MemSizeEnvVar = "VROOLI_RAMOOPS_MEM_SIZE"
-	// ECCEnvVar (optional) overrides the default 1-byte ECC. Leave unset
-	// for the default `ramoops.ecc=1`.
-	ECCEnvVar = "VROOLI_RAMOOPS_ECC"
-
 	// ProcCmdlinePath is where the kernel exposes the live cmdline. Used to
 	// distinguish "config-file applied" from "config-file applied and reboot
 	// happened". Tests override via ReadProcCmdlineFn.
@@ -54,9 +43,6 @@ const (
 	paramMemSize    = "ramoops.mem_size"
 	paramECC        = "ramoops.ecc"
 )
-
-// GetenvFn is the test seam for env-var reads.
-var GetenvFn = defaultGetenv
 
 // ReadProcCmdlineFn is the test seam for /proc/cmdline reads. Production
 // reads via hostreqkit.ReadFileFn; tests override.
@@ -97,21 +83,21 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	memAddress := strings.TrimSpace(GetenvFn(MemAddressEnvVar))
-	memSize := strings.TrimSpace(GetenvFn(MemSizeEnvVar))
+	memAddress := strings.TrimSpace(configString(requirement.Config, "mem_address"))
+	memSize := strings.TrimSpace(configString(requirement.Config, "mem_size"))
 	if memAddress == "" || memSize == "" {
 		status.SupportClass = hostreqkit.SupportNotApplicable
 		status.ExecutionState = hostreqkit.ExecutionNotApplicable
 		status.Notes = append(status.Notes, fmt.Sprintf(
-			"ramoops skipped: %s and %s must both be set. "+
+			"ramoops skipped: mem_address and mem_size parameters must both be set. "+
 				"Native pstore (pstore_native safeguard) handles panic capture on most modern UEFI systems; "+
-				"set these env vars only if pstore_native reports unavailable. "+
+				"set these parameters only if pstore_native reports unavailable. "+
 				"Pick a physical RAM region not used by the kernel.",
-			MemAddressEnvVar, MemSizeEnvVar))
+		))
 		return status
 	}
 
-	edits := buildEdits(memAddress, memSize, ecc())
+	edits := buildEdits(memAddress, memSize, configECC(requirement.Config))
 
 	// Two-stage check: file-applied vs cmdline-active. The kernel cmdline only
 	// reflects /etc/default/grub after the operator has run update-grub and
@@ -133,7 +119,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.Applied = true
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 		status.Notes = append(status.Notes,
-			fmt.Sprintf("ramoops active: mem_address=%s mem_size=%s ecc=%s", memAddress, memSize, ecc()))
+			fmt.Sprintf("ramoops active: mem_address=%s mem_size=%s ecc=%s", memAddress, memSize, configECC(requirement.Config)))
 		return status
 	case fileApplied && !cmdlineActive:
 		// Config written but not yet picked up by the kernel — operator hasn't
@@ -147,7 +133,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	default:
 		status.Notes = append(status.Notes,
 			fmt.Sprintf("ramoops pending: will add mem_address=%s mem_size=%s ecc=%s to GRUB_CMDLINE_LINUX",
-				memAddress, memSize, ecc()))
+				memAddress, memSize, configECC(requirement.Config)))
 		return status
 	}
 }
@@ -170,15 +156,15 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	memAddress := strings.TrimSpace(GetenvFn(MemAddressEnvVar))
-	memSize := strings.TrimSpace(GetenvFn(MemSizeEnvVar))
+	memAddress := strings.TrimSpace(configString(status.Config, "mem_address"))
+	memSize := strings.TrimSpace(configString(status.Config, "mem_size"))
 	if memAddress == "" || memSize == "" {
 		status.SupportClass = hostreqkit.SupportNotApplicable
 		status.ExecutionState = hostreqkit.ExecutionNotApplicable
 		return status, nil
 	}
 
-	edits := buildEdits(memAddress, memSize, ecc())
+	edits := buildEdits(memAddress, memSize, configECC(status.Config))
 
 	if opts.DryRun {
 		out, err := grub.AddCmdlineParams(grub.DefaultConfigPath, edits, opts.SudoMode, opts)
@@ -240,9 +226,16 @@ func buildEdits(memAddress, memSize, eccValue string) []grub.CmdlineEdit {
 
 // ecc returns the ramoops.ecc= value, defaulting to "1" (single-byte ECC,
 // the kernel's recommended baseline).
-func ecc() string {
-	if v := strings.TrimSpace(GetenvFn(ECCEnvVar)); v != "" {
-		return v
+func configString(config map[string]any, key string) string {
+	if value, ok := config[key].(string); ok {
+		return value
+	}
+	return ""
+}
+
+func configECC(config map[string]any) string {
+	if value := strings.TrimSpace(configString(config, "ecc")); value != "" {
+		return value
 	}
 	return "1"
 }

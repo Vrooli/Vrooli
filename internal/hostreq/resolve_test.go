@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -143,8 +144,8 @@ func TestResolveHonorsSelectorsAndFilters(t *testing.T) {
 	if findOptionalRequirement(resolution.Tools, "python") != nil {
 		t.Fatal("python should be filtered out for production")
 	}
-	if findOptionalRequirement(resolution.Tools, "openbox") != nil {
-		t.Fatal("openbox should be filtered out for macos")
+	if findOptionalRequirement(resolution.Tools, "openbox") == nil {
+		t.Fatal("openbox should remain visible for a macOS NotApplicable result")
 	}
 	if findOptionalRequirement(resolution.Tools, "ffmpeg") != nil {
 		t.Fatal("alpha scenario should not be included")
@@ -157,6 +158,64 @@ func TestResolveHonorsSelectorsAndFilters(t *testing.T) {
 	}
 	if findOptionalRequirement(resolution.Tools, "buf") == nil {
 		t.Fatal("beta scenario should be included")
+	}
+}
+
+func TestResolveNormalizesLegacyDarwinPlatformToken(t *testing.T) {
+	root := t.TempDir()
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "vrooli"},
+		HostSafeguards: []hostreqspec.Declaration{
+			{Name: "vrooli_launcher", Required: false, Reason: "legacy launcher", Platforms: []string{"darwin"}},
+			{Name: "not-on-macos", Required: false, Reason: "unknown platform", Platforms: []string{"windoze"}},
+		},
+	})
+
+	resolution, err := Resolve(root, t.TempDir(), ResolveOptions{Platform: " macOS "})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if findOptionalRequirement(resolution.Safeguards, "vrooli_launcher") == nil {
+		t.Fatal("legacy darwin declaration should resolve on macos")
+	}
+	if findOptionalRequirement(resolution.Safeguards, "not-on-macos") == nil {
+		t.Fatal("unknown platform declaration should remain visible for a NotApplicable result")
+	}
+}
+
+func TestSafeguardManifestOwnsPlatformGate(t *testing.T) {
+	state := resolverState{
+		platform: "macos",
+		catalog: requirementCatalog{safeguards: map[string]hostreqkit.SafeguardManifest{
+			"linux_only": {Name: "linux_only", Platforms: []string{"linux"}},
+			"macos_ok":   {Name: "macos_ok", Platforms: []string{"macos"}},
+		}},
+	}
+	if !state.matches(Declaration{Name: "linux_only"}, KindSafeguard) {
+		t.Fatal("linux-only safeguard should remain visible so runtime can report NotApplicable")
+	}
+	if !state.matches(Declaration{Name: "macos_ok"}, KindSafeguard) {
+		t.Fatal("macOS safeguard was rejected despite its manifest platform")
+	}
+}
+
+func TestResolvePreservesPlatformMismatchForNotApplicableReporting(t *testing.T) {
+	root := t.TempDir()
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service:        scenario.ServiceMetadata{Name: "vrooli"},
+		HostSafeguards: []hostreqspec.Declaration{{Name: "remote_session_protection", Required: false, Reason: "protect remote sessions"}},
+	})
+
+	resolution, err := Resolve(root, t.TempDir(), ResolveOptions{Platform: "macos", Resources: "none"})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	item := findOptionalRequirement(resolution.Safeguards, "remote_session_protection")
+	if item == nil {
+		t.Fatal("platform-mismatched safeguard disappeared from resolution")
+	}
+	if !containsPlatform(item.Platforms, "linux") {
+		t.Fatalf("Platforms = %v, want linux manifest platform", item.Platforms)
 	}
 }
 

@@ -1,6 +1,7 @@
 package vroolicli
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -159,6 +160,11 @@ func renderHostInstallText(w io.Writer, status hostreqkit.ItemStatus) {
 	}
 	for _, note := range status.Notes {
 		_, _ = fmt.Fprintf(w, "  - %s\n", note)
+	}
+	if len(status.Config) > 0 {
+		if data, err := json.Marshal(status.Config); err == nil {
+			_, _ = fmt.Fprintf(w, "  config: %s\n", data)
+		}
 	}
 }
 

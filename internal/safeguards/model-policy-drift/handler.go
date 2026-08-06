@@ -56,7 +56,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	measured := 0
 	for _, runner := range runners {
 		path := filepath.Join(root, "resources", runner, "model-policy.json")
-		findings, err := validateAgainstLive(context.Background(), runner, path)
+		findings, err := validateAgainstLive(context.Background(), runner, path, requirement.Config)
 		if err != nil {
 			status.Notes = append(status.Notes, fmt.Sprintf("not_measured runner=%s: %s", runner, err))
 			continue
@@ -85,7 +85,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 
 type finding struct{ Type, Role, Model, Message, Severity string }
 
-func validateAgainstLive(ctx context.Context, runner, path string) ([]finding, error) {
+func validateAgainstLive(ctx context.Context, runner, path string, config ...map[string]any) ([]finding, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func validateAgainstLive(ctx context.Context, runner, path string) ([]finding, e
 	if err := json.Unmarshal(data, &policy); err != nil {
 		return nil, err
 	}
-	live, err := discover(ctx, runner)
+	live, err := discover(ctx, runner, config...)
 	if err != nil {
 		return nil, err
 	}
@@ -144,15 +144,11 @@ func validateAgainstLive(ctx context.Context, runner, path string) ([]finding, e
 	return findings, nil
 }
 
-func discover(ctx context.Context, runner string) (map[string]bool, error) {
-	if inline := strings.TrimSpace(os.Getenv("VROOLI_" + strings.ToUpper(strings.ReplaceAll(runner, "-", "_")) + "_MODELS")); inline != "" {
-		models := make(map[string]bool)
-		for _, value := range strings.Split(inline, ",") {
-			if value = strings.TrimSpace(value); value != "" {
-				models[value] = true
-			}
+func discover(ctx context.Context, runner string, config ...map[string]any) (map[string]bool, error) {
+	if len(config) > 0 {
+		if models, ok := configuredModels(config[0], runner); ok {
+			return models, nil
 		}
-		return models, nil
 	}
 	var data []byte
 	var err error
@@ -213,6 +209,24 @@ func discover(ctx context.Context, runner string) (map[string]bool, error) {
 		return nil, fmt.Errorf("%s returned no models", runner)
 	}
 	return models, nil
+}
+
+func configuredModels(config map[string]any, runner string) (map[string]bool, bool) {
+	all, ok := config["models"].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	raw, ok := all[runner].([]any)
+	if !ok {
+		return nil, false
+	}
+	models := make(map[string]bool, len(raw))
+	for _, value := range raw {
+		if model, ok := value.(string); ok && strings.TrimSpace(model) != "" {
+			models[strings.TrimSpace(model)] = true
+		}
+	}
+	return models, true
 }
 
 func repoRoot() string {

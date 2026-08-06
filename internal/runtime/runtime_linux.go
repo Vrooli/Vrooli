@@ -5,13 +5,14 @@ package runtime
 import "github.com/vrooli/vrooli/internal/hostreqkit"
 
 func currentHost() Host {
+	facts := currentPlatformFacts()
 	return Host{
 		OS:              "linux",
 		PackageManager:  detectPackageManager(),
 		SupportsSetup:   true,
 		SupportsDevelop: true,
-		SupportsSysctl:  hostreqkit.CommandAvailable("sysctl"),
-		SupportsSystemd: hostreqkit.CommandAvailable("systemctl"),
+		SupportsSysctl:  facts.SupportsSysctl,
+		SupportsSystemd: facts.SupportsSystemd,
 	}
 }
 

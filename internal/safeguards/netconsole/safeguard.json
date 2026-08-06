@@ -10,5 +10,17 @@
   "risk": "high",
   "privilege": "elevated",
   "bundling": "prohibited",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["target"],
+    "properties": {
+      "target": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Kernel netconsole target in src-port@src-ip/dev,tgt-port@tgt-ip/tgt-mac format. There is no safe default because the collector is host-specific."
+      }
+    }
+  },
   "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

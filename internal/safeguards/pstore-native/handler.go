@@ -225,7 +225,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.Notes = append(status.Notes,
 			"no native pstore backend available on this host (no /sys/firmware/efi/efivars or ACPI ERST). "+
 				"To capture panic dumps via RAM-backed ramoops, configure pstore_ramoops with "+
-				"VROOLI_RAMOOPS_MEM_ADDRESS and VROOLI_RAMOOPS_MEM_SIZE.")
+				"the pstore_ramoops mem_address and mem_size parameters.")
 		return status
 	}
 

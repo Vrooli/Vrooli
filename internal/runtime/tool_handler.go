@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -33,9 +34,13 @@ var fetchDirFn = binaryfetch.FetchDir
 var userLocalBinDir = func() (string, error) {
 	home, err := hostreqkit.InvokingUserHomeDir()
 	if err != nil || strings.TrimSpace(home) == "" {
-		return "", fmt.Errorf("resolve user home for ~/.vrooli/bin: %w", err)
+		return "", fmt.Errorf("resolve user home for runtime bin: %w", err)
 	}
-	return filepath.Join(home, ".vrooli", "bin"), nil
+	root, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		return "", fmt.Errorf("resolve runtime home for tool bin: %w", err)
+	}
+	return filepath.Join(root, "bin"), nil
 }
 
 // userLocalOptDir returns the no-sudo install target ~/.vrooli/opt/<tool> for a
@@ -43,9 +48,13 @@ var userLocalBinDir = func() (string, error) {
 var userLocalOptDir = func(tool string) (string, error) {
 	home, err := hostreqkit.InvokingUserHomeDir()
 	if err != nil || strings.TrimSpace(home) == "" {
-		return "", fmt.Errorf("resolve user home for ~/.vrooli/opt: %w", err)
+		return "", fmt.Errorf("resolve user home for runtime opt: %w", err)
 	}
-	return filepath.Join(home, ".vrooli", "opt", tool), nil
+	root, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		return "", fmt.Errorf("resolve runtime home for tool opt: %w", err)
+	}
+	return filepath.Join(root, "opt", tool), nil
 }
 
 type toolHandler struct {
@@ -265,6 +274,9 @@ func (h toolHandler) applyPackage(host hostreqkit.Host, status hostreqkit.ItemSt
 		return status, nil
 	}
 	command, args, err := hostreqkit.InstallCommand(host, status.PackageName, opts.SudoMode)
+	if opts.DryRun {
+		command, args, err = hostreqkit.InstallCommandPreview(host, status.PackageName)
+	}
 	if err != nil {
 		status.Notes = append(status.Notes, err.Error())
 		if hostreqkit.IsSudoSkipped(err) {
@@ -331,6 +343,27 @@ func (h toolHandler) applyFetch(host hostreqkit.Host, status hostreqkit.ItemStat
 			status.Notes = append(status.Notes, fmt.Sprintf("dry-run: would fetch %s into %s", target.URL, binDir))
 		}
 		return status, nil
+	}
+
+	release, err := acquireToolInstallLock(h.manifest.Name)
+	if err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, err.Error())
+		return status, nil
+	}
+	defer release()
+
+	// Another lifecycle or setup process may have converged this tool while we
+	// waited for the lock. Reinspect under the lock before downloading again.
+	latest := h.Inspect(host, hostreqspec.ResolvedRequirement{
+		Name:     status.Name,
+		Kind:     status.Kind,
+		Required: status.Required,
+		Manual:   status.Manual,
+	})
+	if latest.Installed {
+		latest.ExecutionState = hostreqkit.ExecutionAlreadyPresent
+		return latest, nil
 	}
 
 	spec := binaryfetch.Target{
@@ -412,7 +445,7 @@ func writeLauncher(binDir, command, optDir, optBinPath string, runtimeEnv map[st
 		}
 		lines = append(lines, fmt.Sprintf("\"%s\" %%*", optBinPath))
 		script := strings.Join(lines, "\r\n") + "\r\n"
-		return os.WriteFile(path, []byte(script), 0o755) //nolint:gosec // launcher must be executable
+		return writeExecutableFileAtomic(path, []byte(script))
 	}
 	path := filepath.Join(binDir, command)
 	lines := []string{"#!/bin/sh", "DIR=" + shellSingleQuote(dir), "export LD_LIBRARY_PATH=\"$DIR:$LD_LIBRARY_PATH\""}
@@ -421,7 +454,39 @@ func writeLauncher(binDir, command, optDir, optBinPath string, runtimeEnv map[st
 	}
 	lines = append(lines, "exec "+shellSingleQuote(optBinPath)+" \"$@\"")
 	script := strings.Join(lines, "\n") + "\n"
-	return os.WriteFile(path, []byte(script), 0o755) //nolint:gosec // launcher must be executable
+	return writeExecutableFileAtomic(path, []byte(script))
+}
+
+func writeExecutableFileAtomic(path string, contents []byte) (err error) {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+	}()
+	if err := tmp.Chmod(0o755); err != nil {
+		return err
+	}
+	if _, err := tmp.Write(contents); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		// Windows cannot replace an existing file with Rename. The install lock
+		// makes this fallback safe from competing managed installers.
+		if runtime.GOOS != "windows" || os.Remove(path) != nil {
+			return err
+		}
+		if err := os.Rename(tmpPath, path); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func resolveLauncherRuntimeEnv(optDir string, runtimeEnv map[string]string) (map[string]string, error) {
@@ -532,12 +597,16 @@ func (h toolHandler) runtimeEnvironmentSatisfied(host hostreqkit.Host, status *h
 		return true
 	}
 	target, ok := h.manifest.Source.TargetFor(host.OS, runtimeArch())
-	if !ok || !target.IsDir() || len(target.RuntimeEnv) == 0 {
+	if !ok || !target.IsDir() {
 		return true
 	}
 	binDir, err := userLocalBinDir()
 	if err != nil {
-		return true
+		status.Installed = false
+		status.ExecutionState = hostreqkit.ExecutionPending
+		status.InstallSupported = true
+		status.Notes = append(status.Notes, err.Error())
+		return false
 	}
 	launcher, err := os.ReadFile(localFetchCommandPath(binDir, status.Command))
 	if err != nil {
@@ -551,7 +620,27 @@ func (h toolHandler) runtimeEnvironmentSatisfied(host hostreqkit.Host, status *h
 	}
 	optDir, err := userLocalOptDir(h.manifest.Name)
 	if err != nil {
-		return true
+		status.Installed = false
+		status.ExecutionState = hostreqkit.ExecutionPending
+		status.InstallSupported = true
+		status.Notes = append(status.Notes, err.Error())
+		return false
+	}
+	entryPath, err := managedToolEntryPath(optDir, target.BinPath)
+	if err != nil {
+		status.Installed = false
+		status.ExecutionState = hostreqkit.ExecutionPending
+		status.InstallSupported = true
+		status.Notes = append(status.Notes, err.Error())
+		return false
+	}
+	entryInfo, err := os.Stat(entryPath)
+	if err != nil || entryInfo.IsDir() || runtime.GOOS != "windows" && entryInfo.Mode()&0o111 == 0 {
+		status.Installed = false
+		status.ExecutionState = hostreqkit.ExecutionPending
+		status.InstallSupported = true
+		status.Notes = append(status.Notes, fmt.Sprintf("managed tool payload is missing or not executable: %s", entryPath))
+		return false
 	}
 	resolved, err := resolveLauncherRuntimeEnv(optDir, target.RuntimeEnv)
 	if err != nil {
@@ -562,6 +651,17 @@ func (h toolHandler) runtimeEnvironmentSatisfied(host hostreqkit.Host, status *h
 		return false
 	}
 	contents := string(launcher)
+	expectedEntry := shellSingleQuote(entryPath)
+	if runtime.GOOS == "windows" {
+		expectedEntry = fmt.Sprintf("\"%s\"", entryPath)
+	}
+	if !strings.Contains(contents, expectedEntry) {
+		status.Installed = false
+		status.ExecutionState = hostreqkit.ExecutionPending
+		status.InstallSupported = true
+		status.Notes = append(status.Notes, fmt.Sprintf("managed launcher does not execute expected payload: %s", entryPath))
+		return false
+	}
 	for _, key := range sortedEnvKeys(resolved) {
 		if !strings.Contains(contents, launcherEnvironmentAssignment(key, resolved[key])) {
 			status.Installed = false
@@ -572,6 +672,14 @@ func (h toolHandler) runtimeEnvironmentSatisfied(host hostreqkit.Host, status *h
 		}
 	}
 	return true
+}
+
+func managedToolEntryPath(optDir, binPath string) (string, error) {
+	clean := filepath.Clean(binPath)
+	if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("managed tool payload path must stay within the tool directory: %q", binPath)
+	}
+	return filepath.Join(optDir, clean), nil
 }
 
 func launcherEnvironmentAssignment(key, value string) string {

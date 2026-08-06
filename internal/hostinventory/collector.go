@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -51,8 +52,12 @@ func (osCommandRunner) Run(ctx context.Context, name string, args ...string) ([]
 }
 
 func (osFileReader) ReadFile(name string) ([]byte, error) { return os.ReadFile(name) }
-func (osEnvReader) Getenv(key string) string              { return os.Getenv(key) }
-func (systemClock) Now() time.Time                        { return time.Now() }
+func (osFileReader) Glob(pattern string) []string {
+	paths, _ := filepath.Glob(pattern)
+	return paths
+}
+func (osEnvReader) Getenv(key string) string { return os.Getenv(key) }
+func (systemClock) Now() time.Time           { return time.Now() }
 
 func SystemCollector() Collector {
 	return Collector{
@@ -90,6 +95,7 @@ func (c Collector) Collect(ctx context.Context) (Snapshot, error) {
 		}
 	}
 
+	c.collectPlatformFacts(ctx, &snap, now)
 	c.collectMemory(&snap, now)
 	c.collectLoad(&snap, now)
 	c.collectNvidiaGPUs(ctx, &snap, now)

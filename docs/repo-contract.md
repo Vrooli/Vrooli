@@ -160,8 +160,6 @@ These do not belong in the contract:
 - project-level `cli/`
 - `cli/commands/`
 - `cli/lib/`
-- `scripts/lib/`
-- `scripts/manage.sh`
 - `.git` as a repo-root marker
 - `pnpm-workspace.yaml` as a repo-root marker
 - `$HOME/Vrooli` fallback semantics

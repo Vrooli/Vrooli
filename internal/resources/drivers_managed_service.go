@@ -278,8 +278,15 @@ func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Con
 }
 
 func managedServiceLoopbackEndpoint(manifest ResourceManifest) (string, error) {
+	for _, preferred := range []string{"http", "api"} {
+		for _, port := range manifest.Ports {
+			if port.Name == preferred && port.Host > 0 {
+				return fmt.Sprintf("http://127.0.0.1:%d", port.Host), nil
+			}
+		}
+	}
 	for _, port := range manifest.Ports {
-		if port.Name == "http" && port.Host > 0 {
+		if port.Host > 0 {
 			return fmt.Sprintf("http://127.0.0.1:%d", port.Host), nil
 		}
 	}

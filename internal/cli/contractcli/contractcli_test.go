@@ -61,7 +61,7 @@ func TestRenderResolveScenarioHelpTextUsesGeneratedSchemaHelp(t *testing.T) {
 	got := RenderResolveScenarioHelpText()
 	for _, want := range []string{
 		"Usage:\n  vrooli contract resolve scenario <name> [options]",
-		"Known keys: service, orientation, docs, requirements, api, ui, cli, initialization",
+		"Known keys: service, orientation, docs, requirements, api, ui, cli",
 		"--file <key>",
 	} {
 		if !strings.Contains(got, want) {

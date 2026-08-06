@@ -17,7 +17,6 @@ import (
 	"os/user"
 	"slices"
 	"strconv"
-	"syscall"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -161,11 +160,11 @@ func grantableDevice() (device string, group string, found bool) {
 		if err != nil {
 			continue
 		}
-		stat, ok := info.Sys().(*syscall.Stat_t)
+		gid, ok := fileInfoGroupID(info)
 		if !ok || info.Mode().Perm()&0o060 == 0 {
 			continue
 		}
-		return candidate, groupLabel(int(stat.Gid)), true
+		return candidate, groupLabel(int(gid)), true
 	}
 	return "", "", false
 }

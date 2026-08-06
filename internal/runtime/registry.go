@@ -28,6 +28,7 @@ import (
 	pstorenative "github.com/vrooli/vrooli/internal/safeguards/pstore-native"
 	pstoreobservability "github.com/vrooli/vrooli/internal/safeguards/pstore-observability"
 	pstoreramoops "github.com/vrooli/vrooli/internal/safeguards/pstore-ramoops"
+	remotedesktopaccess "github.com/vrooli/vrooli/internal/safeguards/remote-desktop-access"
 	remotesessionprotection "github.com/vrooli/vrooli/internal/safeguards/remote-session-protection"
 	tcptuning "github.com/vrooli/vrooli/internal/safeguards/tcp-tuning"
 	tpmcredentialaccess "github.com/vrooli/vrooli/internal/safeguards/tpm-credential-access"
@@ -83,6 +84,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"nat_protection":                  natprotection.NewHandler,
 	"netconsole":                      netconsole.NewHandler,
 	"nvidia_driver":                   nvidiadriver.NewHandler,
+	"remote_desktop_access":           remotedesktopaccess.NewHandler,
 	"ollama_resource_controls":        ollamaresourcecontrols.NewHandler,
 	"pstore_observability":            pstoreobservability.NewHandler,
 	"pstore_native":                   pstorenative.NewHandler,

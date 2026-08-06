@@ -14,6 +14,7 @@ import (
 func TestInspectReportsMeasuredDriftAndNeverAppliesIt(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("PROJECT_ROOT", root)
+	models := map[string]any{}
 	for _, runner := range runners {
 		path := filepath.Join(root, "resources", runner, "model-policy.json")
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -23,9 +24,9 @@ func TestInspectReportsMeasuredDriftAndNeverAppliesIt(t *testing.T) {
 		if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		t.Setenv("VROOLI_"+strings.ToUpper(strings.ReplaceAll(runner, "-", "_"))+"_MODELS", "present")
+		models[runner] = []any{"present"}
 	}
-	status := NewHandler(hostreqkit.SafeguardManifest{Name: "model_policy_drift"}).Inspect(hostreqkit.Host{}, hostreqspec.ResolvedRequirement{Name: "model_policy_drift"})
+	status := NewHandler(hostreqkit.SafeguardManifest{Name: "model_policy_drift"}).Inspect(hostreqkit.Host{}, hostreqspec.ResolvedRequirement{Name: "model_policy_drift", Config: map[string]any{"models": models}})
 	if status.ExecutionState != hostreqkit.ExecutionPending || status.Applied {
 		t.Fatalf("status = %+v", status)
 	}
@@ -40,9 +41,6 @@ func TestInspectReportsMeasuredDriftAndNeverAppliesIt(t *testing.T) {
 
 func TestInspectDistinguishesNotMeasured(t *testing.T) {
 	t.Setenv("PROJECT_ROOT", t.TempDir())
-	for _, runner := range runners {
-		t.Setenv("VROOLI_"+strings.ToUpper(strings.ReplaceAll(runner, "-", "_"))+"_MODELS", "")
-	}
 	status := NewHandler(hostreqkit.SafeguardManifest{Name: "model_policy_drift"}).Inspect(hostreqkit.Host{}, hostreqspec.ResolvedRequirement{Name: "model_policy_drift"})
 	if status.ExecutionState != hostreqkit.ExecutionPending || !strings.Contains(strings.Join(status.Notes, "\n"), "not_measured") {
 		t.Fatalf("not measured status = %+v", status)
@@ -58,8 +56,7 @@ func TestValidateAgainstLiveReportsStaleAndUnadoptedModels(t *testing.T) {
 	if err := os.WriteFile(path, []byte(`{"staleness_budget_days":14,"provenance":{"observed_at":"2020-01-01"},"roles":{"code.default":{"model":"present"}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("VROOLI_CODEX_MODELS", "present,new-model")
-	findings, err := validateAgainstLive(context.Background(), "codex", path)
+	findings, err := validateAgainstLive(context.Background(), "codex", path, map[string]any{"models": map[string]any{"codex": []any{"present", "new-model"}}})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	portRegistryJSONPath = "scripts/resources/port_registry.json"
+	testPortRegistryPath = ".vrooli/test-port-registry.json"
 )
 
 var templatePattern = regexp.MustCompile(`\$\{([A-Z0-9_]+)\}`)
@@ -519,17 +519,45 @@ func loadHostPorts(root string, resourceManifest manifestpkg.ResourceManifest) (
 		}
 	}
 
-	registry, err := LoadPortRegistry(root)
-	if err == nil {
-		if port, exists := registry.ResourcePorts[resourceManifest.Name]; exists && len(hostPorts) == 0 {
-			hostPorts["default"] = port
-		}
-	}
 	return hostPorts, nil
 }
 
+// LoadResourcePorts reads the host port authority from resource manifests.
+// This lookup keeps resource.json as the single production source of truth.
+func LoadResourcePorts(root string) (map[string]int, error) {
+	resourcesRoot := filepath.Join(root, "resources")
+	entries, err := os.ReadDir(resourcesRoot)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return map[string]int{}, nil
+		}
+		return nil, fmt.Errorf("read resources directory: %w", err)
+	}
+	ports := map[string]int{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		manifest, err := manifestpkg.Load(filepath.Join(resourcesRoot, entry.Name(), "resource.json"))
+		if err != nil {
+			return nil, fmt.Errorf("load resource %s for port allocation: %w", entry.Name(), err)
+		}
+		for _, port := range manifest.Ports {
+			hostPort := port.Host
+			if hostPort <= 0 {
+				hostPort = port.Container
+			}
+			if hostPort > 0 {
+				ports[manifest.Name] = hostPort
+				break
+			}
+		}
+	}
+	return ports, nil
+}
+
 func LoadPortRegistry(root string) (PortRegistry, error) {
-	path := filepath.Join(root, filepath.FromSlash(portRegistryJSONPath))
+	path := filepath.Join(root, filepath.FromSlash(testPortRegistryPath))
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return PortRegistry{}, fmt.Errorf("read %s: %w", path, err)

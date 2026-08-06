@@ -124,33 +124,77 @@ func openMemSQLite(t *testing.T) *sql.DB {
 	return db
 }
 
-// TestEnsureSchemas_DriftDetectedOnExistingTable reproduces the search-hub bug:
-// a DB created before a column was added does NOT gain it from CREATE TABLE IF
-// NOT EXISTS, and EnsureSchemas must now fail loudly rather than silently.
-func TestEnsureSchemas_DriftDetectedOnExistingTable(t *testing.T) {
+// oldProvidersDDL / newProvidersDDL model the search-hub bug: a DB created
+// before control_token existed does not gain it from CREATE TABLE IF NOT
+// EXISTS, because that statement is a no-op once the table is there.
+const oldProvidersDDL = `CREATE TABLE IF NOT EXISTS providers (
+	provider_id TEXT PRIMARY KEY,
+	descriptor  TEXT NOT NULL
+);`
+
+const newProvidersDDL = `CREATE TABLE IF NOT EXISTS providers (
+	provider_id   TEXT PRIMARY KEY,
+	descriptor    TEXT NOT NULL,
+	control_token TEXT NOT NULL DEFAULT ''
+);`
+
+// TestEnsureSchemas_AdditiveDriftIsRepaired covers the headline behavior: a
+// declared column missing from a pre-existing table is added automatically, by
+// replaying the column's own definition, rather than failing boot.
+//
+// Declaring a column used to be only half the job — the other half was a
+// hand-written ALTER that had to run at exactly the right point in boot, and
+// getting that wrong took the whole API down. Adding a column is now a
+// one-place change again.
+func TestEnsureSchemas_AdditiveDriftIsRepaired(t *testing.T) {
 	db := openMemSQLite(t)
 	ctx := context.Background()
 
-	// Old DB: providers without control_token.
-	oldSchema := SchemaProviderFunc(func() string {
-		return `CREATE TABLE IF NOT EXISTS providers (
-			provider_id TEXT PRIMARY KEY,
-			descriptor  TEXT NOT NULL
-		);`
-	})
-	if err := EnsureSchemas(ctx, db, oldSchema); err != nil {
+	if err := EnsureSchemas(ctx, db, SchemaProviderFunc(func() string { return oldProvidersDDL })); err != nil {
+		t.Fatalf("initial apply: %v", err)
+	}
+	if _, err := db.ExecContext(ctx,
+		`INSERT INTO providers (provider_id, descriptor) VALUES ('p1', 'desc')`); err != nil {
+		t.Fatalf("seed row: %v", err)
+	}
+
+	if err := EnsureSchemas(ctx, db, SchemaProviderFunc(func() string { return newProvidersDDL })); err != nil {
+		t.Fatalf("additive drift must be repaired, not reported: %v", err)
+	}
+
+	// The column landed with its declared default, and the existing row survived.
+	var descriptor, token string
+	if err := db.QueryRowContext(ctx,
+		`SELECT descriptor, control_token FROM providers WHERE provider_id = 'p1'`,
+	).Scan(&descriptor, &token); err != nil {
+		t.Fatalf("read repaired row: %v", err)
+	}
+	if descriptor != "desc" {
+		t.Errorf("existing data lost: descriptor = %q", descriptor)
+	}
+	if token != "" {
+		t.Errorf("control_token = %q, want the declared default", token)
+	}
+
+	// Idempotent: the next boot has nothing left to do.
+	if err := EnsureSchemas(ctx, db, SchemaProviderFunc(func() string { return newProvidersDDL })); err != nil {
+		t.Fatalf("re-apply after repair: %v", err)
+	}
+}
+
+// TestVerifyDeclaredColumns_ReportsWithoutWriting keeps the read-only escape
+// hatch honest: it must still detect the drift AND leave the database alone,
+// for callers that require every schema change to be deliberate.
+func TestVerifyDeclaredColumns_ReportsWithoutWriting(t *testing.T) {
+	db := openMemSQLite(t)
+	ctx := context.Background()
+
+	if err := ApplySchemas(ctx, db, SchemaProviderFunc(func() string { return oldProvidersDDL })); err != nil {
 		t.Fatalf("initial apply: %v", err)
 	}
 
-	// New code adds control_token to the CREATE TABLE block.
-	newSchema := SchemaProviderFunc(func() string {
-		return `CREATE TABLE IF NOT EXISTS providers (
-			provider_id   TEXT PRIMARY KEY,
-			descriptor    TEXT NOT NULL,
-			control_token TEXT NOT NULL DEFAULT ''
-		);`
-	})
-	err := EnsureSchemas(ctx, db, newSchema)
+	newSchema := SchemaProviderFunc(func() string { return newProvidersDDL })
+	err := VerifyDeclaredColumns(ctx, db, newSchema)
 	if err == nil {
 		t.Fatal("expected drift error for missing control_token, got nil")
 	}
@@ -159,6 +203,68 @@ func TestEnsureSchemas_DriftDetectedOnExistingTable(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "migration") {
 		t.Fatalf("error should point at the migration fix; got: %v", err)
+	}
+
+	// Still absent — verification must not have repaired anything.
+	if _, err := db.ExecContext(ctx, `SELECT control_token FROM providers`); err == nil {
+		t.Fatal("VerifyDeclaredColumns wrote to the database; it must be read-only")
+	}
+}
+
+// TestReconcile_LeavesUnaddableColumnsToTheOperator pins the safety boundary.
+// SQLite cannot add these to an existing table, so the check must say so
+// precisely instead of issuing a statement it knows will fail.
+func TestReconcile_LeavesUnaddableColumnsToTheOperator(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		column string
+		reason string
+	}{
+		{"unique", "tag TEXT UNIQUE", "UNIQUE"},
+		{"not null without default", "tag TEXT NOT NULL", "NOT NULL"},
+		{"non-constant default", "seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP", "non-constant"},
+		{"foreign key", "owner_id TEXT NOT NULL DEFAULT '' REFERENCES providers(provider_id)", "foreign-key"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := openMemSQLite(t)
+			ctx := context.Background()
+			if err := EnsureSchemas(ctx, db, SchemaProviderFunc(func() string { return oldProvidersDDL })); err != nil {
+				t.Fatalf("initial apply: %v", err)
+			}
+			err := EnsureSchemas(ctx, db, SchemaProviderFunc(func() string {
+				return "CREATE TABLE IF NOT EXISTS providers (provider_id TEXT PRIMARY KEY, descriptor TEXT NOT NULL, " + tc.column + ");"
+			}))
+			if err == nil {
+				t.Fatal("expected a drift error; SQLite cannot add this column to an existing table")
+			}
+			if !strings.Contains(err.Error(), tc.reason) {
+				t.Fatalf("error should explain why (%q); got: %v", tc.reason, err)
+			}
+		})
+	}
+}
+
+// TestReconcile_DefaultValueCannotFakeAConstraint guards the keyword scan: a
+// default whose text contains SQL keywords must not be mistaken for one.
+func TestReconcile_DefaultValueCannotFakeAConstraint(t *testing.T) {
+	db := openMemSQLite(t)
+	ctx := context.Background()
+	if err := EnsureSchemas(ctx, db, SchemaProviderFunc(func() string { return oldProvidersDDL })); err != nil {
+		t.Fatalf("initial apply: %v", err)
+	}
+	if err := EnsureSchemas(ctx, db, SchemaProviderFunc(func() string {
+		return `CREATE TABLE IF NOT EXISTS providers (
+			provider_id TEXT PRIMARY KEY,
+			descriptor  TEXT NOT NULL,
+			note        TEXT NOT NULL DEFAULT 'PRIMARY KEY UNIQUE REFERENCES'
+		);`
+	})); err != nil {
+		t.Fatalf("a literal default must not read as a constraint: %v", err)
+	}
+	var note string
+	if err := db.QueryRowContext(ctx,
+		`SELECT note FROM providers WHERE 1=0 UNION ALL SELECT 'PRIMARY KEY UNIQUE REFERENCES'`).Scan(&note); err != nil {
+		t.Fatalf("column not added: %v", err)
 	}
 }
 

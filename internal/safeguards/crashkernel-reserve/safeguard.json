@@ -10,5 +10,17 @@
   "risk": "high",
   "privilege": "elevated",
   "bundling": "prohibited",
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "reservation": {
+        "type": "string",
+        "minLength": 1,
+        "default": "512M-:256M",
+        "description": "Kernel crashkernel reservation value, for example 512M-:256M."
+      }
+    }
+  },
   "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

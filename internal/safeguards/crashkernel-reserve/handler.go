@@ -5,7 +5,7 @@
 //
 // Default value: "512M-:256M" — for systems with ≥512 MiB of RAM, reserve
 // 256 MiB. This works on essentially every modern desktop/server. Operators
-// who need a different sizing can override via VROOLI_CRASHKERNEL.
+// who need a different sizing can override via the reservation parameter.
 //
 // Risk profile: same as pstore_ramoops. We never run update-grub; the
 // safeguard surfaces ExecutionRebootRequired and the operator runs
@@ -14,7 +14,6 @@ package crashkernelreserve
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -23,9 +22,6 @@ import (
 )
 
 const (
-	// CrashkernelEnvVar overrides the default crashkernel= value. The format
-	// is the kernel-cmdline form, e.g. "512M-:256M" or "256M".
-	CrashkernelEnvVar = "VROOLI_CRASHKERNEL"
 	// DefaultCrashkernel reserves 256 MiB on systems with ≥512 MiB of RAM —
 	// adequate for the capture kernel + initrd on Ubuntu's stock kdump-tools.
 	DefaultCrashkernel = "512M-:256M"
@@ -36,9 +32,6 @@ const (
 
 	paramName = "crashkernel"
 )
-
-// GetenvFn is the test seam for env var reads.
-var GetenvFn = os.Getenv
 
 // ReadProcCmdlineFn is the test seam for reading /proc/cmdline. Production
 // reads via hostreqkit.ReadFileFn.
@@ -79,7 +72,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	target := crashkernelValue()
+	target := crashkernelValue(requirement.Config)
 
 	fileApplied, fileErr := paramMatchesInGrubConfig(target)
 	if fileErr != nil {
@@ -126,7 +119,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	target := crashkernelValue()
+	target := crashkernelValue(status.Config)
 	edits := []grub.CmdlineEdit{{Param: paramName, Value: target}}
 
 	if opts.DryRun {
@@ -176,9 +169,11 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	return status, nil
 }
 
-func crashkernelValue() string {
-	if v := strings.TrimSpace(GetenvFn(CrashkernelEnvVar)); v != "" {
-		return v
+func crashkernelValue(config ...map[string]any) string {
+	if len(config) > 0 {
+		if value, ok := config[0]["reservation"].(string); ok && strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
 	}
 	return DefaultCrashkernel
 }

@@ -46,6 +46,7 @@ package hostreqkit
 import (
 	"errors"
 	"os"
+	"os/user"
 	"strconv"
 	"strings"
 )
@@ -139,6 +140,14 @@ var lookupHomeFromPasswdFn = func(user string) string {
 	return ""
 }
 
+var currentUserIDFn = func() string {
+	current, err := user.Current()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(current.Uid)
+}
+
 // RunAsInvokingUser runs a command as the invoking user. When the vrooli
 // process is running as root (typically because the operator invoked
 // `sudo vrooli setup`), this drops privileges back to $SUDO_USER for the
@@ -166,6 +175,32 @@ func RunAsInvokingUser(name string, args []string, opts EnsureOptions) error {
 	}
 	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)
 	return RunCommandFn("sudo", wrapped, opts)
+}
+
+// RunAsInvokingUserWithSession runs a per-user command with the standard
+// Linux user-session environment restored when the caller is root via sudo.
+// systemctl --user and Secret Service clients need both values; -H alone only
+// fixes HOME and commonly leaves them pointed at root's (or no) session bus.
+// On non-root hosts the current XDG_RUNTIME_DIR is preserved when available.
+func RunAsInvokingUserWithSession(name string, args []string, opts EnsureOptions) error {
+	runtimeDir := strings.TrimSpace(os.Getenv("XDG_RUNTIME_DIR"))
+	if uid, _, ok := InvokingUserIDs(); ok {
+		runtimeDir = "/run/user/" + strconv.Itoa(uid)
+	} else if !RunningAsRootFn() {
+		if uid := currentUserIDFn(); uid != "" {
+			runtimeDir = "/run/user/" + uid
+		}
+	}
+	if runtimeDir == "" {
+		return RunAsInvokingUser(name, args, opts)
+	}
+	envArgs := []string{
+		"XDG_RUNTIME_DIR=" + runtimeDir,
+		"DBUS_SESSION_BUS_ADDRESS=unix:path=" + runtimeDir + "/bus",
+		name,
+	}
+	envArgs = append(envArgs, args...)
+	return RunAsInvokingUser("env", envArgs, opts)
 }
 
 // RunAsInvokingUserWithInput is the secret-safe form of RunAsInvokingUser.

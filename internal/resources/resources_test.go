@@ -1012,9 +1012,9 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 	expected := map[string]string{
 		"postgres":        "docker-service",
 		"redis":           "docker-service",
-		"qdrant":          "docker-service",
+		"qdrant":          "managed-service",
 		"vault":           "managed-service",
-		"minio":           "docker-service",
+		"minio":           "managed-service",
 		"searxng":         "docker-service",
 		"home-assistant":  "compose-service",
 		"kokoro":          "compose-service",
@@ -1221,33 +1221,24 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 
 	testscenario.WriteProjectResourceConfig(t, root, "postgres", true)
 	testscenario.WriteProjectResourceConfig(t, root, "redis", true)
-	testscenario.WriteProjectResourceConfig(t, root, "qdrant", true)
 	testscenario.WriteProjectResourceConfig(t, root, "vault", true)
 
 	postgresPort := mustAllocatePort(t)
 	redisPort := mustAllocatePort(t)
-	qdrantPort := mustAllocatePort(t)
-	qdrantGRPCPort := mustAllocatePort(t)
 
 	copyManifestWithOverrides(t, projectRoot, root, "postgres", postgresPort, postgresPort, "tcp", "")
 	copyManifestWithOverrides(t, projectRoot, root, "redis", redisPort, redisPort, "tcp", "")
-	copyManifestWithOverrides(t, projectRoot, root, "qdrant", qdrantPort, qdrantGRPCPort, "http", "/")
 
 	postgresListener := mustListenTCP(t, "127.0.0.1:"+strconv.Itoa(postgresPort))
 	defer postgresListener.Close()
 	redisListener := mustListenTCP(t, "127.0.0.1:"+strconv.Itoa(redisPort))
 	defer redisListener.Close()
 
-	qdrantServer := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(qdrantPort), func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"title":"qdrant"}`))
-	})
-	defer qdrantServer.Shutdown(context.Background())
-
 	if err := os.WriteFile(stateFile, []byte("running\n"), 0o644); err != nil {
 		t.Fatalf("write fake docker state: %v", err)
 	}
 
-	for _, name := range []string{"postgres", "redis", "qdrant"} {
+	for _, name := range []string{"postgres", "redis"} {
 		status, err := controller.Status(name, true)
 		if err != nil {
 			t.Fatalf("Status(%s): %v", name, err)

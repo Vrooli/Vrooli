@@ -14,7 +14,7 @@ const (
 	CommonSchemaFilename     = "common.schema.json"
 	DocsPath                 = "docs/repo-contract.md"
 	MiniBundleProfile        = "mini_vrooli_bundle"
-	DefaultContractVersion   = "1.1.0"
+	DefaultContractVersion   = "1.2.0"
 )
 
 func ContractPath(root string) string {

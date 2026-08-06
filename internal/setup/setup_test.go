@@ -637,7 +637,8 @@ func TestRunSetupDryRunPrintsSingleGroupedResult(t *testing.T) {
 		"Already present (1): git",
 		"Needs operator input",
 		"tmux",
-		"Not applicable (1): remote_session_protection",
+		"Not applicable (1):",
+		"remote_session_protection",
 	} {
 		if !strings.Contains(output, expected) {
 			t.Fatalf("stdout missing %q:\n%s", expected, output)

@@ -1,11 +1,13 @@
 package hostreqkit
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -16,8 +18,21 @@ var (
 
 	ReadFileFn = os.ReadFile
 
+	// CombinedOutputContextFn is the context-aware command seam. Callers that
+	// already hold a lifecycle context should use it so cancellation propagates
+	// to the child process.
+	CombinedOutputContextFn = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return shell.CombinedOutput(shell.Spec{Context: ctx, Name: name, Args: args})
+	}
+
+	// CombinedOutputFn is retained for host helpers that predate context-aware
+	// seams. Its bounded root context prevents a wedged host service from
+	// stalling setup indefinitely; new probes should pass their caller context
+	// through CombinedOutputContextFn.
 	CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		return shell.CombinedOutput(shell.Spec{Name: name, Args: args})
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		return CombinedOutputContextFn(ctx, name, args...)
 	}
 
 	// CombinedOutputInputFn runs a command with the supplied string on stdin
@@ -97,6 +112,8 @@ func BaseStatus(requirement hostreqspec.ResolvedRequirement) ItemStatus {
 		Name:           requirement.Name,
 		Kind:           requirement.Kind,
 		Required:       requirement.Required,
+		OperatorChoice: requirement.OperatorChoice,
+		Config:         requirement.Config,
 		Manual:         requirement.Manual,
 		SupportClass:   SupportSupported,
 		ExecutionState: ExecutionPending,
@@ -110,6 +127,27 @@ func UnsupportedRequirementStatus(requirement hostreqspec.ResolvedRequirement, n
 	status := BaseStatus(requirement)
 	status.SupportClass = SupportUnsupported
 	status.ExecutionState = ExecutionUnsupported
+	if strings.TrimSpace(note) != "" {
+		status.Notes = append(status.Notes, note)
+	}
+	return status
+}
+
+func NotApplicableRequirementStatus(requirement hostreqspec.ResolvedRequirement, note string) ItemStatus {
+	status := BaseStatus(requirement)
+	status.SupportClass = SupportNotApplicable
+	status.ExecutionState = ExecutionNotApplicable
+	if strings.TrimSpace(note) != "" {
+		status.Notes = append(status.Notes, note)
+	}
+	return status
+}
+
+func InvalidConfigStatus(requirement hostreqspec.ResolvedRequirement, note string) ItemStatus {
+	status := BaseStatus(requirement)
+	status.SupportClass = SupportUnsupported
+	status.ExecutionState = ExecutionUnsupported
+	status.BlockingReason = BlockingInvalidParameter
 	if strings.TrimSpace(note) != "" {
 		status.Notes = append(status.Notes, note)
 	}

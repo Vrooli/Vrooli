@@ -3,6 +3,7 @@ package hostinventory
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -94,6 +95,116 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 	}
 	if got.FieldProvenance["memory.total_bytes"].ObservedAt != now {
 		t.Fatalf("memory provenance = %#v", got.FieldProvenance["memory.total_bytes"])
+	}
+}
+
+func TestCollectPlatformFactsWaylandPolicyUsesOneDistinguishingInputPerCase(t *testing.T) {
+	// Each case varies exactly one host input so independent policy signals
+	// cannot mask one another.
+	tests := []struct {
+		name              string
+		files             map[string][]byte
+		wantAttainable    bool
+		wantDisplayServer string
+	}{
+		{name: "run gdm3 disables wayland", files: map[string][]byte{"/run/gdm3/custom.conf": []byte("WaylandEnable=false\n")}, wantAttainable: false},
+		{name: "etc gdm3 disables wayland", files: map[string][]byte{"/etc/gdm3/custom.conf": []byte("WaylandEnable=false\n")}, wantAttainable: false},
+		{name: "nvidia marker does not disable wayland", files: map[string][]byte{"/run/udev/gdm-machine-has-vendor-nvidia-driver": []byte("1\n")}, wantAttainable: true},
+		{name: "run gdm3 prefers xorg", files: map[string][]byte{"/run/gdm3/custom.conf": []byte("PreferredDisplayServer=xorg\n")}, wantAttainable: true, wantDisplayServer: "xorg"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			files := platformFiles{"/proc/1/comm": []byte("systemd\n")}
+			for path, content := range tt.files {
+				files[path] = content
+			}
+			c := Collector{
+				Commands: fakeCommandRunner{
+					paths: map[string]string{"systemctl": "/usr/bin/systemctl", "loginctl": "/usr/bin/loginctl", "cloudflared": "/usr/bin/cloudflared"},
+					out: map[string][]byte{
+						"loginctl show-session self -p Type --value":           []byte("x11\n"),
+						"loginctl show-session self -p Seat --value":           []byte("seat0\n"),
+						"systemctl show display-manager.service -p Id --value": []byte("gdm3.service\n"),
+					},
+				},
+				Files: files, GOOS: "linux", Clock: fixedClock(time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
+			}
+			got, err := c.CollectPlatformFacts(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Wayland.Attainable != tt.wantAttainable {
+				t.Fatalf("Wayland.Attainable = %v, want %v (%#v)", got.Wayland.Attainable, tt.wantAttainable, got.Wayland)
+			}
+			if tt.wantDisplayServer != "" && got.DisplayServer != tt.wantDisplayServer {
+				t.Fatalf("DisplayServer = %q, want %q", got.DisplayServer, tt.wantDisplayServer)
+			}
+			if got.FieldProvenance["session_type"].Command == "" || got.FieldProvenance["wayland"].File == "" {
+				t.Fatalf("missing platform provenance: %#v", got.FieldProvenance)
+			}
+		})
+	}
+}
+
+func TestCollectPlatformFactsReadsAutoLoginFromDisplayPolicy(t *testing.T) {
+	c := Collector{
+		Commands: fakeCommandRunner{},
+		Files: platformFiles{
+			"/etc/gdm3/custom.conf": []byte("[daemon]\nAutomaticLoginEnable=true\nAutomaticLogin=alice\n"),
+		},
+		GOOS: "linux", GOARCH: "amd64", Clock: fixedClock(time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
+	}
+	got, err := c.CollectPlatformFacts(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.AutoLoginUser != "alice" {
+		t.Fatalf("AutoLoginUser = %q, want alice", got.AutoLoginUser)
+	}
+}
+
+type platformFiles map[string][]byte
+
+func (f platformFiles) ReadFile(path string) ([]byte, error) {
+	data, ok := f[path]
+	if !ok {
+		return nil, errors.New("not found")
+	}
+	return data, nil
+}
+
+func (f platformFiles) IsDir(path string) bool {
+	return path == "/etc/sysctl.d" || path == "/run/systemd/system"
+}
+
+func (f platformFiles) Glob(pattern string) []string {
+	const prefix = "/sys/class/drm/"
+	if pattern != prefix+"*/status" {
+		return nil
+	}
+	var paths []string
+	for path := range f {
+		if strings.HasPrefix(path, prefix) && strings.HasSuffix(path, "/status") {
+			paths = append(paths, path)
+		}
+	}
+	return paths
+}
+
+func TestCollectPlatformFactsReportsAttachedDisplay(t *testing.T) {
+	c := Collector{
+		Commands: fakeCommandRunner{},
+		Files: platformFiles{
+			"/sys/class/drm/card0-HDMI-A-1/status": []byte("connected\n"),
+		},
+		GOOS: "linux", GOARCH: "amd64", Clock: fixedClock(time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
+	}
+	got, err := c.CollectPlatformFacts(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.DisplayAttached {
+		t.Fatalf("DisplayAttached = false, want true: %#v", got)
 	}
 }
 

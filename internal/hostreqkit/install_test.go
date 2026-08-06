@@ -1,6 +1,7 @@
 package hostreqkit
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -94,7 +95,7 @@ func TestInstallCommandWindowsWinget(t *testing.T) {
 		return "", os.ErrNotExist
 	}
 
-	cmd, args, err := InstallCommand(Host{OS: "windows"}, "Git.Git", "ask")
+	cmd, args, err := InstallCommand(Host{OS: "windows", PackageManager: "winget"}, "Git.Git", "ask")
 	if err != nil {
 		t.Fatalf("InstallCommand: %v", err)
 	}
@@ -114,8 +115,31 @@ func TestInstallCommandWindowsNoWinget(t *testing.T) {
 	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
 
 	_, _, err := InstallCommand(Host{OS: "windows"}, "pkg", "ask")
-	if err == nil || !strings.Contains(err.Error(), "winget") {
-		t.Fatalf("expected winget error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "supported Windows package manager") {
+		t.Fatalf("expected package manager error, got %v", err)
+	}
+}
+
+func TestInstallCommandWindowsManagers(t *testing.T) {
+	tests := []struct {
+		manager string
+		command string
+		args    string
+	}{
+		{manager: "winget", command: "winget", args: "install --id pkg --accept-package-agreements --accept-source-agreements"},
+		{manager: "choco", command: "choco", args: "install pkg -y"},
+		{manager: "scoop", command: "scoop", args: "install pkg"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.manager, func(t *testing.T) {
+			cmd, args, err := InstallCommand(Host{OS: "windows", PackageManager: tt.manager}, "pkg", "ask")
+			if err != nil {
+				t.Fatalf("InstallCommand: %v", err)
+			}
+			if cmd != tt.command || strings.Join(args, " ") != tt.args {
+				t.Fatalf("got %s %v, want %s %s", cmd, args, tt.command, tt.args)
+			}
+		})
 	}
 }
 
@@ -261,58 +285,91 @@ func TestWithSudoInvalidMode(t *testing.T) {
 	}
 }
 
-func TestWithSudoUnavailableFallsThrough(t *testing.T) {
+func TestWithSudoUnavailableFailsClosed(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
 	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
 
-	cmd, args, err := WithSudo("ask", "apt-get", []string{"install", "-y", "jq"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cmd != "apt-get" {
-		t.Fatalf("command = %q, want apt-get (no sudo)", cmd)
-	}
-	if strings.Join(args, " ") != "install -y jq" {
-		t.Fatalf("args = %v", args)
+	_, _, err := WithSudo("ask", "apt-get", []string{"install", "-y", "jq"})
+	if !errors.Is(err, ErrElevationUnavailable) {
+		t.Fatalf("expected typed elevation error, got %v", err)
 	}
 }
 
-func TestWithSudoUnavailableErrorModeFallsThrough(t *testing.T) {
+func TestWithSudoUnavailableErrorModeFailsClosed(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
-	// When sudo is not available, all modes fall through to running without
-	// privilege escalation. This includes "error" mode — the error semantics
-	// only apply when sudo IS available (meaning: "don't use sudo even though
-	// it exists"). When sudo doesn't exist, there's nothing to refuse.
 	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
 
-	cmd, args, err := WithSudo("error", "apt-get", []string{"install", "-y", "jq"})
-	if err != nil {
-		t.Fatalf("expected no error when sudo unavailable, got %v", err)
-	}
-	if cmd != "apt-get" {
-		t.Fatalf("command = %q, want apt-get", cmd)
-	}
-	if strings.Join(args, " ") != "install -y jq" {
-		t.Fatalf("args = %v", args)
+	_, _, err := WithSudo("error", "apt-get", []string{"install", "-y", "jq"})
+	if !errors.Is(err, ErrElevationUnavailable) {
+		t.Fatalf("expected typed elevation error, got %v", err)
 	}
 }
 
-func TestWithSudoUnavailableSkipModeFallsThrough(t *testing.T) {
+func TestWithSudoUnavailableSkipModeFailsClosed(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
 	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
 
-	cmd, _, err := WithSudo("skip", "apt-get", []string{"install"})
-	if err != nil {
-		t.Fatalf("expected no error when sudo unavailable, got %v", err)
+	_, _, err := WithSudo("skip", "apt-get", []string{"install"})
+	if !errors.Is(err, ErrElevationUnavailable) {
+		t.Fatalf("expected typed elevation error, got %v", err)
 	}
-	if cmd != "apt-get" {
-		t.Fatalf("command = %q, want apt-get", cmd)
+}
+
+func TestWithSudoWindowsRequiresManualElevation(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+	ElevationFactsFn = func() ElevationFacts { return ElevationFacts{Platform: "windows", Mechanism: "windows-uac"} }
+	_, _, err := WithSudo("ask", "winget", []string{"install", "pkg"})
+	if !errors.Is(err, ErrElevationRequired) || !strings.Contains(err.Error(), "winget install pkg") {
+		t.Fatalf("expected exact manual elevation command, got %v", err)
+	}
+}
+
+func TestWithSudoElevationMatrixNeverFailsOpen(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	tests := []struct {
+		name       string
+		facts      ElevationFacts
+		mode       string
+		wantCmd    string
+		wantErr    error
+		wantPrefix string
+	}{
+		{name: "linux elevated skip", facts: ElevationFacts{Platform: "linux", Elevated: true, CanElevate: true}, mode: "skip", wantCmd: "apt-get"},
+		{name: "linux sudo ask", facts: ElevationFacts{Platform: "linux", CanElevate: true, Mechanism: "sudo"}, mode: "ask", wantCmd: "sudo", wantPrefix: "apt-get install"},
+		{name: "linux sudo skip", facts: ElevationFacts{Platform: "linux", CanElevate: true, Mechanism: "sudo"}, mode: "skip", wantErr: ErrSudoSkipped},
+		{name: "linux no elevation", facts: ElevationFacts{Platform: "linux", Mechanism: "none"}, mode: "ask", wantErr: ErrElevationUnavailable},
+		{name: "darwin no elevation", facts: ElevationFacts{Platform: "darwin", Mechanism: "none"}, mode: "ask", wantErr: ErrElevationUnavailable},
+		{name: "windows uac", facts: ElevationFacts{Platform: "windows", Mechanism: "windows-uac"}, mode: "ask", wantErr: ErrElevationRequired},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ElevationFactsFn = func() ElevationFacts { return tt.facts }
+			cmd, args, err := WithSudo(tt.mode, "apt-get", []string{"install", "pkg"})
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("error = %v, want %v", err, tt.wantErr)
+				}
+				if cmd != "" || args != nil {
+					t.Fatalf("failed command returned executable: %q %v", cmd, args)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cmd != tt.wantCmd || (tt.wantPrefix != "" && !strings.Contains(strings.Join(args, " "), tt.wantPrefix)) {
+				t.Fatalf("command = %q %v", cmd, args)
+			}
+		})
 	}
 }
 

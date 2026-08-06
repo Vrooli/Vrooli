@@ -247,7 +247,7 @@ func TestRunFailsWhenOperatorIdentityAppearsInPromptOrGeneratedState(t *testing.
 
 func TestRunAllowsIntentionalDetectorPaths(t *testing.T) {
 	fixture := newValidationFixtureRepo(t)
-	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/code-smell/initialization/rules/vrooli-specific.yaml", "pattern: /home/carol.dev/Vrooli\n")
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/code-smell/api/internal/rules/vrooli-specific.yaml", "pattern: /home/carol.dev/Vrooli\n")
 
 	report, err := Run(fixture.Root)
 	if err != nil {
@@ -411,7 +411,7 @@ func TestRunAllowsClearlyNamedFixtureOllamaVectorSize(t *testing.T) {
 
 func TestRunFailsWhenScenarioSQLDefinesPgvectorDimension(t *testing.T) {
 	fixture := newValidationFixtureRepo(t)
-	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/fresh-search/initialization/storage/postgres/schema.sql",
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/fresh-search/api/internal/database/system.sql",
 		"CREATE TABLE tasks (embedding VECTOR(768));\n")
 
 	report, err := Run(fixture.Root)
@@ -422,7 +422,7 @@ func TestRunFailsWhenScenarioSQLDefinesPgvectorDimension(t *testing.T) {
 		t.Fatalf("expected failure, got success: %+v", report.Checks)
 	}
 	message := failedCheckMessage(report, "ollama_policy_facts")
-	if !strings.Contains(message, "schema.sql") || !strings.Contains(message, "vector") {
+	if !strings.Contains(message, "system.sql") || !strings.Contains(message, "vector") {
 		t.Fatalf("expected message to mention SQL vector dimension, got %q", message)
 	}
 }
@@ -449,7 +449,7 @@ func TestRunDoesNotFlagNonOllamaModelNameSubstrings(t *testing.T) {
 	fixture := newValidationFixtureRepo(t)
 	writeValidationScenarioSource(t, fixture, "agent-inbox", "api/integrations/openrouter_types.go",
 		"package integrations\n\nconst engine = \"mistral/ocr\"\nconst task = \"pdf-text or mistral-ocr\"\n")
-	writeValidationScenarioSource(t, fixture, "data-tools", "initialization/configuration/app-config.json",
+	writeValidationScenarioSource(t, fixture, "data-tools", "api/internal/config/app-config.json",
 		`{"vision":["llama3.2-vision:11b"]}`)
 
 	report, err := Run(fixture.Root)
@@ -481,7 +481,7 @@ func TestRunFailsWhenScenarioNamesDecimalPhysicalOllamaModel(t *testing.T) {
 
 func TestRunFailsWhenMigratedInitializationStoresQdrantVectorSize(t *testing.T) {
 	fixture := newValidationFixtureRepo(t)
-	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/seo-optimizer/initialization/qdrant/collections.json",
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/seo-optimizer/api/internal/qdrant/collections.json",
 		`{"collections":[{"name":"seo_content","config":{"vectors":{"size":768,"distance":"Cosine"}}}]}`)
 
 	report, err := Run(fixture.Root)
@@ -492,8 +492,8 @@ func TestRunFailsWhenMigratedInitializationStoresQdrantVectorSize(t *testing.T) 
 		t.Fatalf("expected failure, got success: %+v", report.Checks)
 	}
 	message := failedCheckMessage(report, "ollama_policy_facts")
-	if !strings.Contains(message, "seo-optimizer/initialization/qdrant/collections.json") {
-		t.Fatalf("expected message to mention initialization payload, got %q", message)
+	if !strings.Contains(message, "seo-optimizer/api/internal/qdrant/collections.json") {
+		t.Fatalf("expected message to mention Qdrant payload, got %q", message)
 	}
 }
 
@@ -551,6 +551,46 @@ func TestRunFailsWhenLocalHostProbeAppearsOutsideHostInventory(t *testing.T) {
 	message := failedCheckMessage(report, "host_inventory_authority")
 	if !strings.Contains(message, "scenarios/example/api/internal/metrics/memory.go:6") || !strings.Contains(message, "proc_meminfo") {
 		t.Fatalf("expected message to identify proc_meminfo violation, got %q", message)
+	}
+}
+
+func TestRunFailsForEachNewHostInventoryAuthorityRule(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	source := strings.Join([]string{
+		"package platform",
+		"",
+		"var probes = []string{",
+		"\tcommandFn(\"grdctl\", \"status\")",
+		"\trun(\"loginctl\", \"show-session\", \"self\")",
+		"\trun(\"systemctl\", \"is-active\", \"gnome-remote-desktop.service\")",
+		"\trun(\"xrandr\", \"--query\")",
+		"\trun(\"sc.exe\", \"query\", \"TermService\")",
+		"\tos.ReadFile(\"/run/udev/gdm-machine-has-vendor-nvidia-driver\")",
+		"\tos.ReadFile(\"/etc/gdm3/custom.conf\")",
+		"}",
+	}, "\n")
+	writeValidationScenarioSource(t, fixture, "example", "api/internal/platform/probes.go", source)
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "host_inventory_authority")
+	for _, rule := range []string{
+		"grdctl_remote_desktop",
+		"loginctl_session",
+		"gnome_remote_desktop_service",
+		"xrandr_display",
+		"windows_termservice",
+		"gdm_udev_marker",
+		"gdm_custom_conf",
+	} {
+		if !strings.Contains(message, rule) {
+			t.Errorf("expected %s violation, got %q", rule, message)
+		}
 	}
 }
 

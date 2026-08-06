@@ -106,7 +106,13 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 			status.Notes = append(status.Notes, "dry-run: brew install "+brewPkg)
 			return status, nil
 		}
-		if err := hostreqkit.RunInstallCommand("brew", []string{"install", brewPkg}, opts); err != nil {
+		command, args, err := hostreqkit.InstallCommand(host, brewPkg, opts.SudoMode)
+		if err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, err.Error())
+			return status, nil
+		}
+		if err := hostreqkit.RunInstallCommand(command, args, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, err.Error())
 			return status, nil
@@ -118,7 +124,13 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 			status.Notes = append(status.Notes, "dry-run: winget install "+wingetPkg)
 			return status, nil
 		}
-		if err := hostreqkit.RunInstallCommand("winget", []string{"install", "--id", wingetPkg, "-e", "--accept-source-agreements", "--accept-package-agreements"}, opts); err != nil {
+		command, args, err := hostreqkit.InstallCommand(host, wingetPkg, opts.SudoMode)
+		if err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, err.Error())
+			return status, nil
+		}
+		if err := hostreqkit.RunInstallCommand(command, args, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, err.Error())
 			return status, nil

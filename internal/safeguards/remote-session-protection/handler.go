@@ -45,11 +45,9 @@ const (
 	dockerDaemonJSON  = dockerhost.DaemonConfigPath
 )
 
-// display managers and GUI processes checked for desktop detection
-var (
-	displayManagers = []string{"gdm3", "gdm", "lightdm", "sddm", "xdm", "xrdp"}
-	guiProcesses    = []string{"Xorg", "Xwayland", "gnome-shell", "kde", "xfce"}
-)
+// GUI processes checked for desktop detection. Display-manager names come
+// from hostinventory.DisplayManagerNames, the repository-wide vocabulary.
+var guiProcesses = []string{"Xorg", "Xwayland", "gnome-shell", "kde", "xfce"}
 
 // memoryAllocation holds computed thresholds derived from system RAM.
 type memoryAllocation struct {
@@ -240,7 +238,7 @@ func applyStaticFiles(host hostreqkit.Host, opts hostreqkit.EnsureOptions) error
 		if err := hostreqkit.InstallManagedContent(sysctlPath, sysctlContent, opts.SudoMode, opts); err != nil {
 			return fmt.Errorf("install sysctl config: %w", err)
 		}
-		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sysctl", []string{"-p", sysctlPath}, opts); err != nil {
+		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sysctl", []string{"--system"}, opts); err != nil {
 			return fmt.Errorf("apply sysctl: %w", err)
 		}
 	}
@@ -334,7 +332,7 @@ func isDesktopInstalled() bool {
 	out, err := hostreqkit.CombinedOutputFn("systemctl", "list-unit-files", "--no-pager", "--no-legend")
 	if err == nil {
 		units := string(out)
-		for _, dm := range displayManagers {
+		for _, dm := range hostinventory.DisplayManagerNames {
 			if strings.Contains(units, dm+".service") {
 				return true
 			}

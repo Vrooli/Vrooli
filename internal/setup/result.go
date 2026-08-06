@@ -103,6 +103,8 @@ func requirementRemediation(report runtime.Report) string {
 			return "A required operation needs a reboot. Reboot the host, then re-run setup."
 		case hostreqkit.BlockingNeedsEnv:
 			return "A required environment value is missing. Configure it, then re-run setup."
+		case hostreqkit.BlockingInvalidParameter:
+			return "A required safeguard parameter is invalid. Correct operator-state config, then re-run setup."
 		case hostreqkit.BlockingManual:
 			return "A required dependency needs the documented manual action. Complete it, then re-run setup."
 		}

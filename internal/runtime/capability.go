@@ -40,8 +40,12 @@ func defaultCapabilityFacts() hostreqspec.CapabilityFacts {
 // dependency-free CapabilityFacts the evaluator consumes.
 func capabilityFactsFromSnapshot(snap hostinventory.Snapshot) hostreqspec.CapabilityFacts {
 	facts := hostreqspec.CapabilityFacts{
-		Arch:  snap.Arch,
-		RAMGb: bytesToGiB(snap.Memory.TotalBytes),
+		Arch:              snap.Arch,
+		RAMGb:             bytesToGiB(snap.Memory.TotalBytes),
+		InitSystem:        snap.InitSystem,
+		SessionType:       snap.SessionType,
+		DisplayManager:    snap.DisplayManager,
+		WaylandAttainable: snap.Wayland.Attainable,
 	}
 	var maxVRAM uint64
 	for _, gpu := range snap.GPUs {

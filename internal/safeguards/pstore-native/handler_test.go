@@ -33,6 +33,8 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, files map[string]string, st
 	origModuleStat := modules.StatFn
 	origStat := StatFn
 	origPstore := PstoreActiveFn
+	origRoot := hostreqkit.RunningAsRootFn
+	hostreqkit.RunningAsRootFn = func() bool { return true }
 
 	captured := []capturedCommand{}
 	fileContents := map[string]string{}
@@ -94,6 +96,7 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, files map[string]string, st
 		hostreqkit.ReadFileFn = origRead
 		hostreqkit.RunCommandFn = origRun
 		hostreqkit.LookPathFn = origLookPath
+		hostreqkit.RunningAsRootFn = origRoot
 		hostreqkit.WriteTempFileFn = origWriteTemp
 		modules.StatFn = origModuleStat
 		StatFn = origStat

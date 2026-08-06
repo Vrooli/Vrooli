@@ -107,13 +107,13 @@ Filesystem runtime storage is only one part of scenario storage.
 Scenarios should also follow these rules:
 
 - resource-backed persistence is declared in `path:scenarios/<name>/.vrooli/service.json`
-- schema and seed assets live under `initialization/`
+- schema and seed assets live under `api/internal/<domain>/`
 - scenarios should prefer resource-injected environment variables instead of hard-coded connection details
 - scenario-private database/file layout details should be documented in scenario-local docs when they matter
 
 Typical examples:
 
-- PostgreSQL schema init in `initialization/storage/postgres/schema.sql`
+- PostgreSQL schema init in `api/internal/<domain>/storage/postgres/schema.sql`
 - scenario dependency declaration in `.vrooli/service.json`
 - SQLite database path resolved through `package:api-core/storage` rather than under the scenario folder
 
@@ -152,7 +152,7 @@ The repo contract defines canonical source-tree layout such as:
 - `path:scenarios/<name>/.vrooli/service.json`
 - `path:scenarios/<name>/api`
 - `path:scenarios/<name>/ui`
-- `path:scenarios/<name>/initialization`
+- `path:scenarios/<name>/api/internal/<domain>/schema.sql`
 
 It does **not** define scenario-private runtime data layout.
 
@@ -170,7 +170,7 @@ Those should be treated as migration targets, not architecture authority.
 When migrating a scenario:
 
 - move mutable filesystem state to `package:api-core/storage`
-- keep source-tree assets under `initialization/`, `docs/`, `requirements/`, or other canonical source paths
+- keep source-tree assets under `api/internal/<domain>/`, `docs/`, `requirements/`, or other canonical source paths
 - add or update `docs/internal/STORAGE_AUDIT.md` when storage behavior is important enough to audit explicitly
 
 ## Top-Level `data/`

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/process"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
@@ -325,7 +326,11 @@ func managedServiceArtifactPath(controller *Controller, manifest ResourceManifes
 		}
 		root := strings.TrimSpace(os.Getenv("VROOLI_RESOURCE_ARTIFACT_DIR"))
 		if root == "" {
-			root = filepath.Join(controller.Home, ".vrooli", "artifacts")
+			runtimeHome, err := repocontract.VrooliUserRoot(controller.Home)
+			if err != nil {
+				return "", fmt.Errorf("resolve runtime home: %w", err)
+			}
+			root = filepath.Join(runtimeHome, "artifacts")
 		}
 		if !filepath.IsAbs(root) {
 			return "", fmt.Errorf("managed-service artifact root must be absolute")

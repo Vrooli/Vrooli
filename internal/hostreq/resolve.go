@@ -29,14 +29,58 @@ type Resolution struct {
 	Safeguards []ResolvedRequirement `json:"safeguards"`
 }
 
+// ResolveSafeguard resolves one focused safeguard through the same manifest
+// and operator-state path as project setup. It keeps `vrooli host safeguard`
+// from bypassing typed config validation merely because it targets one item.
+func ResolveSafeguard(root, name, platform string) (ResolvedRequirement, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ResolvedRequirement{}, fmt.Errorf("safeguard name is required")
+	}
+	catalog, err := loadRequirementCatalog()
+	if err != nil {
+		return ResolvedRequirement{}, err
+	}
+	if _, ok := catalog.safeguards[name]; !ok {
+		return ResolvedRequirement{}, fmt.Errorf("unknown safeguard %q", name)
+	}
+	operatorState, err := LoadOperatorState(root)
+	if err != nil {
+		return ResolvedRequirement{}, err
+	}
+	platform = hostreqspec.NormalizePlatform(platform)
+	state := resolverState{
+		root:          root,
+		platform:      platform,
+		operatorState: operatorState,
+		catalog:       catalog,
+		tools:         make(map[string]*ResolvedRequirement),
+		safeguards:    make(map[string]*ResolvedRequirement),
+	}
+	declaration := Declaration{Name: name, Required: true, Reason: "focused host safeguard repair"}
+	if !state.matches(declaration, KindSafeguard) {
+		return ResolvedRequirement{}, fmt.Errorf("safeguard %q is not supported on platform %q", name, platform)
+	}
+	state.add(declaration, KindSafeguard, Provenance{Kind: "focused", Name: name, Source: "host safeguard command"})
+	resolved, ok := state.safeguards[name]
+	if !ok {
+		return ResolvedRequirement{}, fmt.Errorf("safeguard %q could not be resolved", name)
+	}
+	return *resolved, nil
+}
+
 func Resolve(root, home string, opts ResolveOptions) (Resolution, error) {
 	rootManifestPath := filepath.Join(root, ".vrooli", "service.json")
 	rootManifest, err := scenario.ReadService(rootManifestPath)
 	if err != nil {
 		return Resolution{}, fmt.Errorf("load root manifest: %w", err)
 	}
+	operatorState, err := LoadOperatorState(root)
+	if err != nil {
+		return Resolution{}, err
+	}
 
-	platform := strings.ToLower(strings.TrimSpace(opts.Platform))
+	platform := hostreqspec.NormalizePlatform(opts.Platform)
 	if platform == "" {
 		platform = CurrentPlatform()
 	}
@@ -46,13 +90,14 @@ func Resolve(root, home string, opts ResolveOptions) (Resolution, error) {
 		return Resolution{}, err
 	}
 	state := resolverState{
-		root:        root,
-		environment: NormalizeEnvironment(opts.Environment),
-		when:        strings.ToLower(strings.TrimSpace(opts.When)),
-		platform:    platform,
-		catalog:     catalog,
-		tools:       make(map[string]*ResolvedRequirement),
-		safeguards:  make(map[string]*ResolvedRequirement),
+		root:          root,
+		environment:   NormalizeEnvironment(opts.Environment),
+		when:          strings.ToLower(strings.TrimSpace(opts.When)),
+		platform:      platform,
+		operatorState: operatorState,
+		catalog:       catalog,
+		tools:         make(map[string]*ResolvedRequirement),
+		safeguards:    make(map[string]*ResolvedRequirement),
 	}
 
 	if !opts.ExcludeRoot {
@@ -84,6 +129,15 @@ func Resolve(root, home string, opts ResolveOptions) (Resolution, error) {
 		Tools:      sortedRequirements(state.tools),
 		Safeguards: sortedRequirements(state.safeguards),
 	}, nil
+}
+
+// ResolveHostRequirements is the read-only control-plane accessor for callers
+// that need the validated host contract without taking part in setup or
+// mutating operator state. Keeping this wrapper explicit gives scenario
+// consumers a stable boundary while Resolve remains the implementation used by
+// the setup and explain commands.
+func ResolveHostRequirements(root, home string, opts ResolveOptions) (Resolution, error) {
+	return Resolve(root, home, opts)
 }
 
 func (s resolverState) addScenarioPaths(paths []string) error {
@@ -130,13 +184,14 @@ func (s resolverState) addScenarioItems(items []scenario.Scenario) {
 }
 
 type resolverState struct {
-	root        string
-	environment string
-	when        string
-	platform    string
-	catalog     requirementCatalog
-	tools       map[string]*ResolvedRequirement
-	safeguards  map[string]*ResolvedRequirement
+	root          string
+	environment   string
+	when          string
+	platform      string
+	operatorState OperatorState
+	catalog       requirementCatalog
+	tools         map[string]*ResolvedRequirement
+	safeguards    map[string]*ResolvedRequirement
 }
 
 func (s resolverState) addResources(home, selector string) error {
@@ -244,24 +299,35 @@ func (s resolverState) addScenarios(selector string) error {
 
 func (s resolverState) addAll(declarations []Declaration, kind Kind, provenance Provenance) {
 	for _, declaration := range declarations {
-		if !s.matches(declaration) {
+		if !s.matches(declaration, kind) {
 			continue
 		}
 		s.add(declaration, kind, provenance)
 	}
 }
 
-func (s resolverState) matches(declaration Declaration) bool {
+func (s resolverState) matches(declaration Declaration, kind Kind) bool {
 	if len(declaration.Environments) > 0 && !containsFold(declaration.Environments, s.environment) {
 		return false
 	}
 	if s.when != "" && len(declaration.When) > 0 && !containsFold(declaration.When, s.when) {
 		return false
 	}
-	if len(declaration.Platforms) > 0 && !containsFold(declaration.Platforms, s.platform) {
-		return false
-	}
+	// Platform mismatches remain in the resolution so the runtime can report a
+	// durable NotApplicable result with the declared platform as its reason.
+	// Filtering them here made macOS/Linux reports look as if declarations had
+	// disappeared and encouraged callers to infer support from absence.
 	return true
+}
+
+func containsPlatform(values []string, target string) bool {
+	target = hostreqspec.NormalizePlatform(target)
+	for _, value := range values {
+		if hostreqspec.NormalizePlatform(value) == target {
+			return true
+		}
+	}
+	return false
 }
 
 func (s resolverState) add(declaration Declaration, kind Kind, provenance Provenance) {
@@ -283,27 +349,41 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 			bundling = hostreqspec.BundlingHostRequired
 		}
 	}
+	var config map[string]any
+	var configError string
+	platforms := append([]string(nil), declaration.Platforms...)
+	if kind == KindSafeguard {
+		manifest := s.catalog.safeguards[key]
+		platforms = mergeUnique(platforms, manifest.Platforms)
+		config, configError = resolveSafeguardConfig(key, manifest, s.operatorState.config(kind, key))
+	}
 	resolved, exists := target[key]
 	if !exists {
 		target[key] = &ResolvedRequirement{
-			Name:         key,
-			Kind:         kind,
-			Required:     declaration.Required,
-			Manual:       declaration.Manual,
-			Privilege:    privilege,
-			Bundling:     bundling,
-			Reasons:      uniqueStrings([]string{strings.TrimSpace(declaration.Reason)}),
-			When:         uniqueStrings(declaration.When),
-			Environments: uniqueStrings(declaration.Environments),
-			Platforms:    uniqueStrings(declaration.Platforms),
-			Notes:        uniqueStrings([]string{strings.TrimSpace(declaration.Notes)}),
-			Provenance:   []Provenance{provenance},
-			Requires:     declaration.Requires,
+			Name:           key,
+			Kind:           kind,
+			Required:       declaration.Required,
+			Manual:         declaration.Manual,
+			Privilege:      privilege,
+			Bundling:       bundling,
+			Reasons:        uniqueStrings([]string{strings.TrimSpace(declaration.Reason)}),
+			When:           uniqueStrings(declaration.When),
+			Environments:   uniqueStrings(declaration.Environments),
+			Platforms:      uniqueStrings(platforms),
+			Notes:          uniqueStrings([]string{strings.TrimSpace(declaration.Notes)}),
+			Provenance:     []Provenance{provenance},
+			Requires:       declaration.Requires,
+			OperatorChoice: s.operatorState.choice(kind, key),
+			Config:         config,
+			ConfigError:    configError,
 		}
 		return
 	}
 
 	resolved.Required = resolved.Required || declaration.Required
+	if resolved.OperatorChoice == hostreqspec.OperatorChoiceNotRecorded {
+		resolved.OperatorChoice = s.operatorState.choice(kind, key)
+	}
 	resolved.Manual = resolved.Manual || declaration.Manual
 	if resolved.Requires.IsZero() && !declaration.Requires.IsZero() {
 		// First non-zero capability gate across merged declarations wins; the

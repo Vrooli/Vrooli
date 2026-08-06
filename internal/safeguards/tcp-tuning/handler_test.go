@@ -270,13 +270,13 @@ func TestApplyRunsFullFlow(t *testing.T) {
 
 	foundSysctl := false
 	for _, call := range calls {
-		if strings.Contains(call, "sysctl") && strings.Contains(call, "-p") {
+		if strings.Contains(call, "sysctl") && strings.Contains(call, "--system") {
 			foundSysctl = true
 			break
 		}
 	}
 	if !foundSysctl {
-		t.Fatalf("expected sysctl -p call, got: %v", calls)
+		t.Fatalf("expected sysctl --system call, got: %v", calls)
 	}
 }
 

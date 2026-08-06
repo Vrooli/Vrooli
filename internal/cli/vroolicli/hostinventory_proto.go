@@ -36,8 +36,41 @@ func hostSnapshotResponse(s hostinventory.Snapshot) *cliv1.CliHostSnapshot {
 			TotalBytes: int64(s.Swap.TotalBytes),
 			FreeBytes:  int64(s.Swap.FreeBytes),
 		},
-		DockerGpu: &cliv1.CliHostDockerGPU{NvidiaRuntime: s.DockerGPU.NvidiaRuntime},
-		Warnings:  s.Warnings,
+		DockerGpu:         &cliv1.CliHostDockerGPU{NvidiaRuntime: s.DockerGPU.NvidiaRuntime},
+		Warnings:          s.Warnings,
+		DisplayAttached:   s.DisplayAttached,
+		DisplayServer:     s.DisplayServer,
+		WaylandAttainable: s.Wayland.Attainable,
+		WaylandReason:     s.Wayland.Reason,
+		DisplayManager:    s.DisplayManager,
+		SessionType:       s.SessionType,
+		Seat:              s.Seat,
+		ActiveSessionUser: s.ActiveSessionUser,
+		AutoLoginUser:     s.AutoLoginUser,
+		RemoteDesktop: &cliv1.CliHostRemoteDesktop{
+			Supported:        s.RemoteDesktop.Supported,
+			Observed:         s.RemoteDesktop.Observed,
+			Mode:             s.RemoteDesktop.Mode,
+			Active:           s.RemoteDesktop.Active,
+			ListeningPort:    int32(s.RemoteDesktop.ListeningPort),
+			SelectedProvider: s.RemoteDesktop.SelectedProvider,
+			CredentialStore: &cliv1.CliHostCredentialStore{
+				Supported:      s.RemoteDesktop.CredentialStore.Supported,
+				Observed:       s.RemoteDesktop.CredentialStore.Observed,
+				State:          s.RemoteDesktop.CredentialStore.State,
+				ProbeSucceeded: s.RemoteDesktop.CredentialStore.ProbeSucceeded,
+				Reason:         s.RemoteDesktop.CredentialStore.Reason,
+			},
+		},
+	}
+	for _, provider := range s.RemoteDesktop.Providers {
+		out.RemoteDesktop.Providers = append(out.RemoteDesktop.Providers, &cliv1.CliHostRemoteDesktopProvider{
+			Name:           provider.Name,
+			Present:        provider.Present,
+			Active:         provider.Active,
+			ProbeSucceeded: provider.ProbeSucceeded,
+			UserSession:    provider.UserSession,
+		})
 	}
 
 	for _, gpu := range s.GPUs {

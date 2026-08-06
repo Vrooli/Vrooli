@@ -241,7 +241,7 @@ func validateRepoRelativePaths(payload any) error {
 			return fmt.Errorf("scenario.required_files: %w", err)
 		}
 	}
-	for _, key := range []string{"service", "docs", "requirements", "api", "ui", "cli", "initialization"} {
+	for _, key := range []string{"service", "docs", "requirements", "api", "ui", "cli"} {
 		if err := validateRepoRelativePath(stringAt(doc, "scenario", "well_known_paths", key)); err != nil {
 			return fmt.Errorf("scenario.well_known_paths.%s: %w", key, err)
 		}
@@ -249,7 +249,7 @@ func validateRepoRelativePaths(payload any) error {
 	if err := validateRepoRelativePath(stringAt(doc, "resource", "manifest")); err != nil {
 		return fmt.Errorf("resource.manifest: %w", err)
 	}
-	for _, key := range []string{"docs", "initialization"} {
+	for _, key := range []string{"docs"} {
 		if err := validateRepoRelativePath(stringAt(doc, "resource", "well_known_paths", key)); err != nil {
 			return fmt.Errorf("resource.well_known_paths.%s: %w", key, err)
 		}

@@ -4,12 +4,10 @@
 // killed mid-write — the symptom of the unexplained hard resets that
 // motivated this safeguard.
 //
-// Target host configuration: the kernel's target string must be supplied via
-// the VROOLI_NETCONSOLE_TARGET env var because there is no sensible default —
-// each operator's box has a different log collector. When unset, the
-// safeguard reports SupportNotApplicable rather than loading the module with
-// no destination (which would burn kernel resources and the kernel would log
-// noisy unable-to-resolve errors).
+// Target host configuration is supplied through the declared `target`
+// parameter because there is no sensible default — each operator's box has a
+// different log collector. When unset, the safeguard reports NotApplicable
+// rather than loading the module with no destination.
 package netconsole
 
 import (
@@ -21,23 +19,9 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-// TargetEnvVar is the env var the operator sets with the kernel netconsole
-// target string. Format: src-port@src-ip/dev,tgt-port@tgt-ip/tgt-mac
-// (see Documentation/networking/netconsole.rst). Documented in safeguard.json
-// notes and surfaced in the Inspect/Apply notes when unset.
-const TargetEnvVar = "VROOLI_NETCONSOLE_TARGET"
-
 // ModuleName matches the kernel module's name; we pass it through to the
 // modules helper for both the at-boot config files and the live modprobe call.
 const ModuleName = "netconsole"
-
-// GetenvFn is the test seam for env-var reads. Tests replace it; production
-// uses os.Getenv.
-var GetenvFn = func(key string) string {
-	// Indirected so tests don't need to call os.Setenv (which leaks across
-	// parallel-test goroutines and is hostile to t.Parallel).
-	return defaultGetenv(key)
-}
 
 type handler struct {
 	manifest hostreqkit.SafeguardManifest
@@ -70,14 +54,15 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	target := strings.TrimSpace(GetenvFn(TargetEnvVar))
-	if target == "" {
+	target, configured := requirement.ConfigString("target")
+	target = strings.TrimSpace(target)
+	if !configured || target == "" {
 		status.SupportClass = hostreqkit.SupportNotApplicable
 		status.ExecutionState = hostreqkit.ExecutionNotApplicable
 		status.Notes = append(status.Notes, fmt.Sprintf(
-			"netconsole skipped: %s is not set. Set it to the kernel netconsole target string "+
+			"netconsole skipped: target is not set. Set it to the kernel netconsole target string "+
 				"(format: src-port@src-ip/dev,tgt-port@tgt-ip/tgt-mac) to enable.",
-			TargetEnvVar))
+		))
 		return status
 	}
 
@@ -126,14 +111,15 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	target := strings.TrimSpace(GetenvFn(TargetEnvVar))
-	if target == "" {
+	target, configured := configString(status.Config, "target")
+	target = strings.TrimSpace(target)
+	if !configured || target == "" {
 		// Belt-and-suspenders: Inspect should have caught this, but Apply may
 		// be called with a stale status whose env was set during Inspect and
 		// unset before Apply.
 		status.SupportClass = hostreqkit.SupportNotApplicable
 		status.ExecutionState = hostreqkit.ExecutionNotApplicable
-		status.Notes = append(status.Notes, fmt.Sprintf("apply skipped: %s unset", TargetEnvVar))
+		status.Notes = append(status.Notes, "apply skipped: target parameter is unset")
 		return status, nil
 	}
 
@@ -176,4 +162,9 @@ func expectedLoadContent() string {
 
 func expectedOptionsContent(target string) string {
 	return fmt.Sprintf("%s\noptions %s %s=%s\n", modules.ManagedHeader, ModuleName, ModuleName, target)
+}
+
+func configString(config map[string]any, key string) (string, bool) {
+	value, ok := config[key].(string)
+	return value, ok
 }

@@ -731,7 +731,6 @@ func validateDependencySchema(raw json.RawMessage) error {
 		"description":       {},
 		"degraded_behavior": {},
 		"startup_order":     {},
-		"initialization":    {},
 		"baseUrl":           {},
 		"apiKey":            {},
 		"healthCheck":       {},

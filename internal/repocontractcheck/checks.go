@@ -172,20 +172,18 @@ func checkCanonicalMarkersAndPaths(contract *repocontract.Contract, root string,
 	}
 
 	expectedScenarioPaths := map[string]string{
-		"service":        ".vrooli/service.json",
-		"orientation":    ".vrooli/orientation.json",
-		"docs":           "docs",
-		"docs_manifest":  "docs/manifest.json",
-		"requirements":   "requirements",
-		"api":            "api",
-		"ui":             "ui",
-		"cli":            "cli",
-		"cli_manifest":   "cli/manifest.json",
-		"initialization": "initialization",
+		"service":       ".vrooli/service.json",
+		"orientation":   ".vrooli/orientation.json",
+		"docs":          "docs",
+		"docs_manifest": "docs/manifest.json",
+		"requirements":  "requirements",
+		"api":           "api",
+		"ui":            "ui",
+		"cli":           "cli",
+		"cli_manifest":  "cli/manifest.json",
 	}
 	expectedResourcePaths := map[string]string{
-		"docs":           "docs",
-		"initialization": "initialization",
+		"docs": "docs",
 	}
 	switch {
 	case layout.ProjectConfigDir != ".vrooli":
@@ -275,7 +273,7 @@ func checkRuntimeHomeSection(contract *repocontract.Contract, root string, raw s
 		}
 		seenPaths[entry.Path] = key
 	}
-	if spec.Entries["secrets"].Sensitive != true || spec.Entries["secrets_enc"].Sensitive != true {
+	if !spec.Entries["secrets"].Sensitive || !spec.Entries["secrets_enc"].Sensitive {
 		return fmt.Errorf("runtime_home secrets entries must be marked sensitive")
 	}
 
@@ -457,6 +455,11 @@ func checkExcludedLegacyRulesAndPaths(contract *repocontract.Contract, root stri
 			return fmt.Errorf("repo contract unexpectedly contains legacy or deferred item %q", item)
 		}
 	}
+	for _, forbidden := range []string{"scripts/lib", "scripts/resources"} {
+		if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(forbidden))); err == nil && info.IsDir() {
+			return fmt.Errorf("forbidden retired path %q exists", forbidden)
+		}
+	}
 	for _, path := range collectContractPaths(contract) {
 		switch {
 		case strings.Contains(path, "\\"):
@@ -570,8 +573,6 @@ func checkBundleProfilePolicy(contract *repocontract.Contract, root string, raw 
 		".vrooli/secrets.json",
 		"**/.vrooli/secrets.json",
 		"cli/**",
-		"scripts/lib/**",
-		"scripts/manage.sh",
 	} {
 		if !contains(profile.Exclude, exclude) {
 			return fmt.Errorf("profile.exclude missing %q in %v", exclude, profile.Exclude)
@@ -854,7 +855,7 @@ func isScenarioOllamaSurface(rel string) bool {
 		return false
 	}
 	switch parts[2] {
-	case "api", "cli", "initialization":
+	case "api", "cli":
 		return true
 	default:
 		return false
@@ -1015,7 +1016,7 @@ func isOpenRouterScanFile(path string) bool {
 }
 
 // isScenarioOpenRouterSurface limits scenario scanning to runtime/config surfaces
-// (api, cli, ui, initialization, init) — the places that actually choose a model
+// (api, cli, ui) — the places that actually choose a model
 // for a call.
 func isScenarioOpenRouterSurface(rel string) bool {
 	parts := strings.Split(rel, "/")
@@ -1023,7 +1024,7 @@ func isScenarioOpenRouterSurface(rel string) bool {
 		return false
 	}
 	switch parts[2] {
-	case "api", "cli", "ui", "initialization", "init":
+	case "api", "cli", "ui":
 		return true
 	default:
 		return false
@@ -1170,10 +1171,6 @@ var (
 	operatorIdentityPattern = regexp.MustCompile(`(?i)\b(?:matthalloran8|matt(?:hew)?[[:space:]_-]*halloran)\b`)
 )
 
-func containsNonFixturePersonalHomePath(line string) bool {
-	return containsPersonalHomePath(line, true)
-}
-
 func containsPersonalHomePath(line string, allowFixtureUsers bool) bool {
 	for _, match := range personalHomePathPattern.FindAllStringSubmatch(line, -1) {
 		if len(match) < 3 {
@@ -1315,7 +1312,7 @@ func pathBase(rel string) string {
 
 func isPersonalPathAllowed(rel string) bool {
 	rel = filepath.ToSlash(rel)
-	if rel == "scenarios/code-smell/initialization/rules/vrooli-specific.yaml" {
+	if rel == "scenarios/code-smell/api/internal/rules/vrooli-specific.yaml" {
 		return true
 	}
 	if strings.HasPrefix(rel, "internal/repocontractcheck/") {
@@ -1453,10 +1450,45 @@ func scanHostInventoryViolations(root string) ([]string, error) {
 			Description: "Docker NVIDIA-runtime probing must come from internal/hostinventory",
 			Pattern:     regexp.MustCompile(`(?i)docker\s+info[^\n]*(nvidia|runtime)|nvidia[^\n]*docker\s+info`),
 		},
+		{
+			Name:        "grdctl_remote_desktop",
+			Description: "GNOME Remote Desktop state must come from internal/hostinventory",
+			Pattern:     regexp.MustCompile(`(?i)(?:Output|CombinedOutput|Run|LookPath|commandStatus|commandFn)\([^\n]*["']grdctl["']`),
+		},
+		{
+			Name:        "loginctl_session",
+			Description: "Linux session state from loginctl must come from internal/hostinventory",
+			Pattern:     regexp.MustCompile(`(?i)(?:Output|CombinedOutput|Run|LookPath|commandFn|run)\([^\n]*["']loginctl["'][^\n]*["']show-session["']`),
+		},
+		{
+			Name:        "gnome_remote_desktop_service",
+			Description: "GNOME Remote Desktop service state must come from internal/hostinventory",
+			Pattern:     regexp.MustCompile(`(?i)(?:Output|CombinedOutput|Run|LookPath|commandStatus)\([^\n]*(?:is-enabled|is-active|list-unit-files)[^\n]*gnome-remote-desktop\.service`),
+		},
+		{
+			Name:        "xrandr_display",
+			Description: "Linux display attachment and layout state must come from internal/hostinventory",
+			Pattern:     regexp.MustCompile(`(?i)(?:Output|CombinedOutput|Run|LookPath)\([^\n]*["']xrandr["']`),
+		},
+		{
+			Name:        "windows_termservice",
+			Description: "Windows TermService state must come from internal/hostinventory",
+			Pattern:     regexp.MustCompile(`(?i)(?:Output|CombinedOutput|Run|LookPath)\([^\n]*["']sc(?:\.exe)?["'][^\n]*["']query["'][^\n]*["']TermService["']`),
+		},
+		{
+			Name:        "gdm_udev_marker",
+			Description: "GDM display-policy udev markers must be interpreted by internal/hostinventory",
+			Pattern:     regexp.MustCompile(`(?:ReadFile|Open|Stat|Lstat)\([^\n]*/run/udev/gdm-machine-has-vendor-nvidia-driver`),
+		},
+		{
+			Name:        "gdm_custom_conf",
+			Description: "GDM display policy files must be interpreted by internal/hostinventory",
+			Pattern:     regexp.MustCompile(`(?:ReadFile|Open|Stat|Lstat)\([^\n]*/((etc|run)/gdm3?)/custom\.conf`),
+		},
 	}
 
 	var violations []string
-	for _, topLevel := range []string{"cmd", "internal", "packages", "resources", "scenarios", "scripts/lib"} {
+	for _, topLevel := range []string{"cmd", "internal", "packages", "resources", "scenarios"} {
 		base := filepath.Join(root, filepath.FromSlash(topLevel))
 		err := filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
 			if err != nil {

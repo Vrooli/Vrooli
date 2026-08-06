@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"regexp"
 	"sort"
 	"strings"
@@ -81,6 +82,24 @@ var (
 // anything it cannot confidently read is skipped, so the check never blocks
 // boot on a false positive.
 func EnsureSchemas(ctx context.Context, db SchemaExecer, providers ...SchemaProvider) error {
+	if err := ApplySchemas(ctx, db, providers...); err != nil {
+		return err
+	}
+	return ReconcileDeclaredColumns(ctx, db, providers...)
+}
+
+// ApplySchemas is EnsureSchemas without the drift check.
+//
+// Use it when the caller owns forward-only migrations, which have to run
+// BETWEEN the apply and the check: the schema declares the new column, the
+// CREATE TABLE IF NOT EXISTS is a no-op on an existing DB, and the migration
+// is what actually adds it. Running the check first would fail boot on the
+// very drift the migration exists to repair — the check would be reporting a
+// problem that the next few lines were about to fix.
+//
+// Pair it with VerifyDeclaredColumns once the migrations have run; a caller
+// with no migrations should keep using EnsureSchemas, which does both.
+func ApplySchemas(ctx context.Context, db SchemaExecer, providers ...SchemaProvider) error {
 	for i, p := range providers {
 		sqlText := p.Schema()
 		if sqlText == "" {
@@ -90,18 +109,49 @@ func EnsureSchemas(ctx context.Context, db SchemaExecer, providers ...SchemaProv
 			return fmt.Errorf("apply schema provider %d: %w", i+1, err)
 		}
 	}
-	if q, ok := db.(SchemaQuerier); ok {
-		return verifyDeclaredColumns(ctx, q, providers)
-	}
 	return nil
 }
 
-// verifyDeclaredColumns enforces the EnsureSchemas drift check. Returns nil
-// (skips) for any engine where PRAGMA table_info is unavailable.
-func verifyDeclaredColumns(ctx context.Context, q SchemaQuerier, providers []SchemaProvider) error {
-	declared := map[string][]string{}
+// ReconcileDeclaredColumns brings a live database up to the declared shape and
+// then verifies it, and is what EnsureSchemas uses.
+//
+// For every declared column missing from a pre-existing table it replays the
+// column's own definition through `ALTER TABLE ... ADD COLUMN`. That is the
+// exact repair the drift error used to ask an operator to perform by hand, and
+// it is why adding a column to a `CREATE TABLE IF NOT EXISTS` block now simply
+// works on a database that already has the table.
+//
+// Repair is strictly additive — it only ever ADDs a column the schema already
+// declares. Nothing is dropped, renamed, retyped, or reordered, so it cannot
+// destroy data. Columns SQLite refuses to add this way (see additiveAddRisk)
+// are not attempted, an attempt that fails is not retried or worked around,
+// and either case falls through to the same hard error as before with the
+// reason attached. Every repair is logged.
+//
+// Use VerifyDeclaredColumns instead when a caller must not have its database
+// written to.
+func ReconcileDeclaredColumns(ctx context.Context, db SchemaExecer, providers ...SchemaProvider) error {
+	return checkDeclaredColumns(ctx, db, providers, true)
+}
+
+// VerifyDeclaredColumns reports declared-column drift without touching the
+// database. Read-only counterpart to ReconcileDeclaredColumns.
+func VerifyDeclaredColumns(ctx context.Context, db SchemaExecer, providers ...SchemaProvider) error {
+	return checkDeclaredColumns(ctx, db, providers, false)
+}
+
+// checkDeclaredColumns implements both entry points. Returns nil (skips) for
+// any engine where PRAGMA table_xinfo is unavailable, and when db offers no
+// read surface at all.
+func checkDeclaredColumns(ctx context.Context, db SchemaExecer, providers []SchemaProvider, repair bool) error {
+	q, ok := db.(SchemaQuerier)
+	if !ok {
+		return nil
+	}
+
+	declared := map[string][]ColumnDecl{}
 	for _, p := range providers {
-		for tbl, cols := range DeclaredColumns(p.Schema()) {
+		for tbl, cols := range DeclaredColumnDefs(p.Schema()) {
 			declared[tbl] = append(declared[tbl], cols...)
 		}
 	}
@@ -109,11 +159,18 @@ func verifyDeclaredColumns(ctx context.Context, q SchemaQuerier, providers []Sch
 		return nil
 	}
 
+	// Deterministic order so repairs and error text are stable across runs.
+	tables := make([]string, 0, len(declared))
+	for tbl := range declared {
+		tables = append(tables, tbl)
+	}
+	sort.Strings(tables)
+
 	var drifts []string
-	for tbl, cols := range declared {
+	for _, tbl := range tables {
 		actual, err := sqliteTableColumns(ctx, q, tbl)
 		if err != nil {
-			// PRAGMA table_info unsupported (non-SQLite) or unreadable —
+			// PRAGMA table_xinfo unsupported (non-SQLite) or unreadable —
 			// the silent-no-op trap is SQLite-specific, so we cannot and
 			// need not verify here. Skip the whole check.
 			return nil
@@ -122,10 +179,24 @@ func verifyDeclaredColumns(ctx context.Context, q SchemaQuerier, providers []Sch
 			// Table absent (should not happen post-apply) — nothing to compare.
 			continue
 		}
-		for _, c := range cols {
-			if !actual[c] {
-				drifts = append(drifts, tbl+"."+c)
+		for _, col := range declared[tbl] {
+			if actual[col.Name] {
+				continue
 			}
+			if !repair {
+				drifts = append(drifts, tbl+"."+col.Name)
+				continue
+			}
+			if risk := additiveAddRisk(col.Definition); risk != "" {
+				drifts = append(drifts, fmt.Sprintf("%s.%s (not auto-addable: %s)", tbl, col.Name, risk))
+				continue
+			}
+			stmt := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %s", tbl, col.Definition)
+			if _, err := db.ExecContext(ctx, stmt); err != nil {
+				drifts = append(drifts, fmt.Sprintf("%s.%s (ADD COLUMN failed: %v)", tbl, col.Name, err))
+				continue
+			}
+			log.Printf("database: reconciled schema drift by adding %s.%s", tbl, col.Name)
 		}
 	}
 	if len(drifts) == 0 {
@@ -134,9 +205,73 @@ func verifyDeclaredColumns(ctx context.Context, q SchemaQuerier, providers []Sch
 	sort.Strings(drifts)
 	return fmt.Errorf("schema drift detected: pre-existing table(s) missing declared column(s) %v — "+
 		"under SQLite, adding a column to a CREATE TABLE IF NOT EXISTS block is a silent no-op on a DB that "+
-		"already has the table, so the column never lands. Apply a one-shot migration to bring the existing "+
-		"DB to the declared shape (storage-steer §5: write /tmp/<scenario>/migrate-*.sql with the ALTER TABLE "+
-		"... ADD COLUMN, run it with the scenario stopped, then delete it). Do not recreate the DB", drifts)
+		"already has the table, so the column never lands. Additive columns are repaired automatically; these "+
+		"could not be. Apply a one-shot migration to bring the existing DB to the declared shape "+
+		"(storage-steer §5: write /tmp/<scenario>/migrate-*.sql with the ALTER TABLE ... ADD COLUMN, run it "+
+		"with the scenario stopped, then delete it). Do not recreate the DB", drifts)
+}
+
+// additiveAddRisk returns a non-empty reason when SQLite will not accept a
+// column definition in ALTER TABLE ... ADD COLUMN, so the caller can report it
+// precisely instead of issuing a statement that is known to fail.
+//
+// The rules are SQLite's (see "ALTER TABLE ADD COLUMN" in its docs):
+// the column may not be PRIMARY KEY or UNIQUE; NOT NULL requires a default;
+// a REFERENCES clause requires a NULL default; STORED generated columns are
+// rejected (VIRTUAL ones are fine); and a non-constant default such as
+// CURRENT_TIMESTAMP is not allowed.
+//
+// This is a pre-screen for a better message, not the safety boundary — a
+// definition that slips through and is rejected by SQLite still lands in the
+// same drift error. String literals are blanked first so a default value like
+// 'PRIMARY KEY' cannot be mistaken for a constraint.
+func additiveAddRisk(def string) string {
+	upper := strings.ToUpper(blankStringLiterals(def))
+	hasDefault := strings.Contains(upper, "DEFAULT")
+	switch {
+	case strings.Contains(upper, "PRIMARY KEY"):
+		return "PRIMARY KEY columns cannot be added to an existing table"
+	case strings.Contains(upper, "UNIQUE"):
+		return "UNIQUE columns cannot be added to an existing table"
+	case strings.Contains(upper, "REFERENCES"):
+		return "foreign-key columns need a NULL default; add it by hand"
+	case strings.Contains(upper, "STORED"):
+		return "STORED generated columns cannot be added to an existing table"
+	case strings.Contains(upper, "NOT NULL") && !hasDefault:
+		return "NOT NULL without a DEFAULT leaves existing rows invalid"
+	case strings.Contains(upper, "CURRENT_TIME"), strings.Contains(upper, "CURRENT_DATE"),
+		strings.Contains(upper, "CURRENT_TIMESTAMP"):
+		return "a non-constant DEFAULT is not allowed when adding a column"
+	}
+	return ""
+}
+
+// blankStringLiterals replaces the contents of single-quoted literals with
+// spaces, preserving length and structure so keyword scanning cannot be fooled
+// by a default value that happens to contain SQL keywords.
+func blankStringLiterals(s string) string {
+	out := []byte(s)
+	inStr := false
+	for i := 0; i < len(out); i++ {
+		c := out[i]
+		if inStr {
+			if c == '\'' {
+				if i+1 < len(out) && out[i+1] == '\'' { // '' escape stays in string
+					out[i+1] = ' '
+					i++
+					continue
+				}
+				inStr = false
+				continue
+			}
+			out[i] = ' '
+			continue
+		}
+		if c == '\'' {
+			inStr = true
+		}
+	}
+	return string(out)
 }
 
 // sqliteTableColumns returns the set of column names on table via PRAGMA
@@ -206,8 +341,31 @@ var constraintKeywords = map[string]bool{
 // not columns and are excluded. Identifier quoting (", `, []) is stripped so
 // the names compare equal to PRAGMA table_info output.
 func DeclaredColumns(schema string) map[string][]string {
-	schema = stripSQLComments(schema)
 	out := map[string][]string{}
+	for tbl, decls := range DeclaredColumnDefs(schema) {
+		names := make([]string, 0, len(decls))
+		for _, d := range decls {
+			names = append(names, d.Name)
+		}
+		out[tbl] = names
+	}
+	return out
+}
+
+// ColumnDecl is one column as the schema declares it: the bare name (compared
+// against PRAGMA output) plus the definition text as written, which is what an
+// additive repair replays into ALTER TABLE ... ADD COLUMN.
+type ColumnDecl struct {
+	Name       string
+	Definition string
+}
+
+// DeclaredColumnDefs is DeclaredColumns with each column's definition text
+// retained. Same conservative parsing: anything it cannot confidently read is
+// skipped rather than guessed.
+func DeclaredColumnDefs(schema string) map[string][]ColumnDecl {
+	schema = stripSQLComments(schema)
+	out := map[string][]ColumnDecl{}
 	for _, loc := range tableHeaderRe.FindAllStringSubmatchIndex(schema, -1) {
 		name := unquoteIdent(schema[loc[2]:loc[3]])
 		open := loc[1] - 1 // the regex ends at the opening '('
@@ -215,7 +373,7 @@ func DeclaredColumns(schema string) map[string][]string {
 		if !ok {
 			continue
 		}
-		if cols := parseColumnNames(body); len(cols) > 0 {
+		if cols := parseColumnDecls(body); len(cols) > 0 {
 			out[name] = append(out[name], cols...)
 		}
 	}
@@ -255,11 +413,16 @@ func extractParenBody(s string, open int) (string, bool) {
 	return "", false
 }
 
-// parseColumnNames splits a CREATE TABLE body at top-level commas and returns
-// the leading identifier of each definition that is a column (not a
-// table-level constraint).
-func parseColumnNames(body string) []string {
-	var cols []string
+// parseColumnDecls splits a CREATE TABLE body at top-level commas and returns
+// one entry per definition that is a column (not a table-level constraint),
+// carrying both the bare name and the definition text exactly as written.
+//
+// The definition is kept because SQLite accepts the same column-definition
+// grammar in `ALTER TABLE ... ADD COLUMN` as in `CREATE TABLE`, so a declared
+// column that is missing from a live table can usually be added verbatim
+// rather than reported as unfixable drift. See reconcileDeclaredColumns.
+func parseColumnDecls(body string) []ColumnDecl {
+	var cols []ColumnDecl
 	for _, part := range splitTopLevel(body) {
 		part = strings.TrimSpace(part)
 		if part == "" {
@@ -269,7 +432,7 @@ func parseColumnNames(body string) []string {
 		if first == "" || constraintKeywords[strings.ToUpper(unquoteIdent(first))] {
 			continue
 		}
-		cols = append(cols, unquoteIdent(first))
+		cols = append(cols, ColumnDecl{Name: unquoteIdent(first), Definition: part})
 	}
 	return cols
 }

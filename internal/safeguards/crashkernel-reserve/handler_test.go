@@ -16,6 +16,10 @@ type capturedCommand struct {
 	Args []string
 }
 
+const CrashkernelEnvVar = "reservation"
+
+var testConfig map[string]string
+
 func stubAll(t *testing.T) (
 	cmds *[]capturedCommand,
 	files map[string]string,
@@ -24,7 +28,6 @@ func stubAll(t *testing.T) (
 	restore func(),
 ) {
 	t.Helper()
-	origGetenv := GetenvFn
 	origReadProc := ReadProcCmdlineFn
 	origRead := hostreqkit.ReadFileFn
 	origRun := hostreqkit.RunCommandFn
@@ -33,6 +36,8 @@ func stubAll(t *testing.T) (
 	origWriteTemp := hostreqkit.WriteTempFileFn
 	origNow := grub.NowFn
 	origValidate := grub.ValidateGrubConfigFn
+	origRoot := hostreqkit.RunningAsRootFn
+	hostreqkit.RunningAsRootFn = func() bool { return true }
 
 	captured := []capturedCommand{}
 	fileContents := map[string]string{}
@@ -40,7 +45,7 @@ func stubAll(t *testing.T) (
 	env := map[string]string{}
 	procCmdline := ""
 
-	GetenvFn = func(key string) string { return env[key] }
+	testConfig = env
 	ReadProcCmdlineFn = func() (string, error) {
 		if procCmdline == "" {
 			return "", fs.ErrNotExist
@@ -90,12 +95,13 @@ func stubAll(t *testing.T) (
 	}
 
 	return &captured, fileContents, env, &procCmdline, func() {
-		GetenvFn = origGetenv
+		testConfig = nil
 		ReadProcCmdlineFn = origReadProc
 		hostreqkit.ReadFileFn = origRead
 		hostreqkit.RunCommandFn = origRun
 		hostreqkit.CombinedOutputFn = origCombined
 		hostreqkit.LookPathFn = origLookPath
+		hostreqkit.RunningAsRootFn = origRoot
 		hostreqkit.WriteTempFileFn = origWriteTemp
 		grub.NowFn = origNow
 		grub.ValidateGrubConfigFn = origValidate
@@ -111,8 +117,13 @@ func linuxHost() hostreqkit.Host {
 }
 
 func req(manual bool) hostreqspec.ResolvedRequirement {
+	config := map[string]any{}
+	if value := testConfig[CrashkernelEnvVar]; value != "" {
+		config["reservation"] = value
+	}
 	return hostreqspec.ResolvedRequirement{
 		Name: "crashkernel_reserve", Kind: hostreqspec.KindSafeguard, Required: true, Manual: manual,
+		Config: config,
 	}
 }
 
@@ -128,7 +139,7 @@ func TestCrashkernelValueOverride(t *testing.T) {
 	_, _, env, _, restore := stubAll(t)
 	defer restore()
 	env[CrashkernelEnvVar] = "768M"
-	if got := crashkernelValue(); got != "768M" {
+	if got := crashkernelValue(map[string]any{"reservation": "768M"}); got != "768M" {
 		t.Errorf("override crashkernelValue() = %q", got)
 	}
 }

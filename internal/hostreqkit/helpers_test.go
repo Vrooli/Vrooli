@@ -16,12 +16,14 @@ func stubLookups(t *testing.T) func() {
 	origCombinedOutput := CombinedOutputFn
 	origRunCommand := RunCommandFn
 	origWriteTemp := WriteTempFileFn
+	origElevationFacts := ElevationFactsFn
 	return func() {
 		LookPathFn = origLookPath
 		ReadFileFn = origReadFile
 		CombinedOutputFn = origCombinedOutput
 		RunCommandFn = origRunCommand
 		WriteTempFileFn = origWriteTemp
+		ElevationFactsFn = origElevationFacts
 	}
 }
 

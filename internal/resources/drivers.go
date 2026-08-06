@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	repocontract "github.com/vrooli/repo-contract-go"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	runtimeenv "github.com/vrooli/vrooli/internal/resources/runtime/env"
@@ -83,6 +84,13 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 		Resource:   item,
 		StatusCode: StatusCodeOK,
 		Message:    "stopped",
+	}
+	mode := ""
+	if manifest.GPU != nil {
+		mode = "cpu"
+		if shouldUseGPU(ctx, manifest.GPU.Probe) {
+			mode = "gpu"
+		}
 	}
 
 	if err := ensureSupportedPlatform(manifest); err != nil {
@@ -178,6 +186,10 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 		status.Health = "unhealthy"
 		status.Message = "unhealthy"
 	}
+	if mode != "" {
+		status.Raw = statusRawWithMode(status.Raw, mode)
+		status.Message = fmt.Sprintf("%s (mode: %s)", status.Message, mode)
+	}
 	return status, nil
 }
 
@@ -187,6 +199,19 @@ func statusRawWithCompanions(raw json.RawMessage, companions []CompanionStatus) 
 		_ = json.Unmarshal(raw, &payload)
 	}
 	payload["companions"] = companions
+	out, err := json.Marshal(payload)
+	if err != nil {
+		return raw
+	}
+	return out
+}
+
+func statusRawWithMode(raw json.RawMessage, mode string) json.RawMessage {
+	payload := make(map[string]any)
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &payload)
+	}
+	payload["mode"] = mode
 	out, err := json.Marshal(payload)
 	if err != nil {
 		return raw
@@ -1501,7 +1526,11 @@ func runSourceBuild(ctx context.Context, controller *Controller, manifest Resour
 	moduleDir := filepath.Join(resourceRoot, filepath.FromSlash(manifest.CLI.Adapter.ModuleDir))
 	manifestPath := filepath.Join(resourceRoot, "resource.json")
 	installerDir := filepath.Join(controller.Root, "packages", "cli-core")
-	installDir := filepath.Join(controller.Home, ".vrooli", "bin")
+	runtimeHome, err := repocontract.VrooliUserRoot(controller.Home)
+	if err != nil {
+		return fmt.Errorf("resolve runtime home: %w", err)
+	}
+	installDir := filepath.Join(runtimeHome, "bin")
 	spec := cliutil.CanonicalResourceGoModuleFreshnessSpec(resourceRoot, moduleDir, manifest.CLI.Command, manifest.CLI.Freshness.Inputs)
 	args := cliutil.GoModuleInstallerArgs(moduleDir, manifestPath, manifest.CLI.Command, installDir, spec)
 	stderrTail := newTailBuffer(16 << 10)

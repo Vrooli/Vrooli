@@ -21,20 +21,102 @@ type Provenance struct {
 }
 
 type Snapshot struct {
-	OS              string            `json:"os"`
-	Arch            string            `json:"arch"`
-	CPU             CPU               `json:"cpu"`
-	Load            Load              `json:"load,omitempty"`
-	Memory          Memory            `json:"memory"`
-	Swap            Swap              `json:"swap"`
-	GPUs            []GPU             `json:"gpus"`
-	GPUProcesses    []GPUProcess      `json:"gpu_processes,omitempty"`
-	RuntimeTools    map[string]Tool   `json:"runtime_tools,omitempty"`
-	DockerGPU       DockerGPU         `json:"docker_gpu"`
-	Warnings        []string          `json:"warnings,omitempty"`
-	ProbeStatuses   map[string]string `json:"probe_statuses,omitempty"`
-	FieldProvenance map[string]Provenance
+	OS                      string                  `json:"os"`
+	Arch                    string                  `json:"arch"`
+	CPU                     CPU                     `json:"cpu"`
+	Load                    Load                    `json:"load,omitempty"`
+	Memory                  Memory                  `json:"memory"`
+	Swap                    Swap                    `json:"swap"`
+	GPUs                    []GPU                   `json:"gpus"`
+	GPUProcesses            []GPUProcess            `json:"gpu_processes,omitempty"`
+	RuntimeTools            map[string]Tool         `json:"runtime_tools,omitempty"`
+	DockerGPU               DockerGPU               `json:"docker_gpu"`
+	InitSystem              string                  `json:"init_system,omitempty"`
+	SessionType             string                  `json:"session_type,omitempty"`
+	Seat                    string                  `json:"seat,omitempty"`
+	ActiveSessionUser       string                  `json:"active_session_user,omitempty"`
+	DisplayManager          string                  `json:"display_manager,omitempty"`
+	DisplayServer           string                  `json:"display_server,omitempty"`
+	DisplayAttached         bool                    `json:"display_attached"`
+	AutoLoginUser           string                  `json:"auto_login_user,omitempty"`
+	RemoteDesktop           RemoteDesktopCapability `json:"remote_desktop"`
+	Wayland                 WaylandCapability       `json:"wayland"`
+	Elevation               ElevationCapability     `json:"elevation"`
+	SupportsSysctl          bool                    `json:"supports_sysctl"`
+	SupportsSystemd         bool                    `json:"supports_systemd"`
+	SupportsLaunchd         bool                    `json:"supports_launchd"`
+	SupportsWindowsServices bool                    `json:"supports_windows_services"`
+	SupportsRDP             bool                    `json:"supports_rdp"`
+	IsHeadless              bool                    `json:"is_headless"`
+	IsWSL                   bool                    `json:"is_wsl"`
+	SupportsCloudflared     bool                    `json:"supports_cloudflared"`
+	Warnings                []string                `json:"warnings,omitempty"`
+	ProbeStatuses           map[string]string       `json:"probe_statuses,omitempty"`
+	FieldProvenance         map[string]Provenance
 }
+
+// WaylandCapability describes both the observed preference and whether the
+// host can attain a Wayland session without overriding distribution policy.
+type WaylandCapability struct {
+	Attainable bool   `json:"attainable"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+// RemoteDesktopCapability is the shared, read-only classification of host
+// remote-desktop providers. Consumers must select from these observations;
+// they must not re-run provider-specific probes themselves.
+type RemoteDesktopCapability struct {
+	Supported        bool                      `json:"supported"`
+	Observed         bool                      `json:"observed"`
+	Mode             string                    `json:"mode,omitempty"`
+	Active           bool                      `json:"active"`
+	ListeningPort    int                       `json:"listening_port,omitempty"`
+	SelectedProvider string                    `json:"selected_provider,omitempty"`
+	Providers        []RemoteDesktopProvider   `json:"providers,omitempty"`
+	CredentialStore  CredentialStoreCapability `json:"credential_store"`
+}
+
+// CredentialStoreCapability is the result of a real Secret Service read. A
+// successful D-Bus peer ping is deliberately not considered evidence that the
+// store can serve credentials.
+type CredentialStoreCapability struct {
+	Supported      bool   `json:"supported"`
+	Observed       bool   `json:"observed"`
+	State          string `json:"state,omitempty"`
+	ProbeSucceeded bool   `json:"probe_succeeded"`
+	Reason         string `json:"reason,omitempty"`
+}
+
+type RemoteDesktopProvider struct {
+	Name           string `json:"name"`
+	Present        bool   `json:"present"`
+	Active         bool   `json:"active"`
+	ProbeSucceeded bool   `json:"probe_succeeded"`
+	UserSession    bool   `json:"user_session,omitempty"`
+}
+
+func (c RemoteDesktopCapability) Provider(name string) (RemoteDesktopProvider, bool) {
+	for _, provider := range c.Providers {
+		if provider.Name == name {
+			return provider, true
+		}
+	}
+	return RemoteDesktopProvider{}, false
+}
+
+// ElevationCapability is the typed answer to whether a privileged operation
+// can proceed on the current host. Windows deliberately reports no
+// non-interactive elevation mechanism when the process is not elevated.
+type ElevationCapability struct {
+	Elevated   bool   `json:"elevated"`
+	CanElevate bool   `json:"can_elevate"`
+	Mechanism  string `json:"mechanism,omitempty"`
+}
+
+// DisplayManagerNames is the single display-manager vocabulary shared by the
+// control plane and autoheal. xrdp is intentionally absent: it is an RDP
+// server, not a display manager.
+var DisplayManagerNames = []string{"gdm", "gdm3", "lightdm", "sddm", "lxdm", "xdm"}
 
 type CPU struct {
 	Cores int `json:"cores"`

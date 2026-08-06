@@ -1,7 +1,48 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "rasdaemon",
-  "storage": {"entries": {"event_database": {"rung": "owned", "path": "/var/lib/rasdaemon/ras-mc_event.db", "kind": "file", "class": "data", "format": "sqlite", "regenerable": false, "rationale": "rasdaemon persists hardware-error events in its SQLite database."}}, "rationale": "rasdaemon owns its Linux event database."},
+  "name": "rasdaemon",
+  "storage": {
+    "entries": {
+      "event_database": {
+        "rung": "owned",
+        "path": "/var/lib/rasdaemon/ras-mc_event.db",
+        "kind": "file",
+        "class": "data",
+        "format": "sqlite",
+        "regenerable": false,
+        "rationale": "rasdaemon persists hardware-error events in its SQLite database.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      },
+      "event_database_wal": {
+        "rung": "owned",
+        "path": "/var/lib/rasdaemon/ras-mc_event.db-wal",
+        "kind": "file",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "SQLite WAL sidecar counted while rasdaemon is live.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      },
+      "event_database_shm": {
+        "rung": "owned",
+        "path": "/var/lib/rasdaemon/ras-mc_event.db-shm",
+        "kind": "file",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar counted while rasdaemon is live.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      }
+    },
+    "rationale": "rasdaemon owns its Linux event database and live SQLite sidecars."
+  },
   "description": "AMD/Intel hardware error capture daemon (memory ECC, PCIe AER, MCE) — writes events to /var/lib/rasdaemon/ras-mc_event.db",
   "commands": [
     "rasdaemon"

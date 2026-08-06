@@ -416,10 +416,11 @@ func ensureBootstrapHostTools(home string, opts vrooliruntime.EnsureOptions) err
 
 const homebrewInstallURL = "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
 
-// ensureBootstrapPackageManager closes macOS's only remaining chicken-and-egg:
+// ensureBootstrapPackageManager is the Homebrew-specific bootstrap for macOS's
+// only remaining chicken-and-egg:
 // a fresh host has curl but no package manager capable of installing Go. Linux
-// distributions already ship their package manager, and other platforms are
-// handled by their native runtime policy.
+// distributions already ship their package manager, and Windows needs no
+// bootstrap because winget ships with supported Windows installations.
 func ensureBootstrapPackageManager(
 	host vrooliruntime.Host,
 	home string,
@@ -485,6 +486,10 @@ func recoverHostToolPATH(home string) {
 		filepath.Join(home, "go", "bin"),
 		filepath.Join(home, ".local", "bin"),
 	}
+	if localAppData := strings.TrimSpace(os.Getenv("LOCALAPPDATA")); localAppData != "" {
+		candidates = append(candidates, filepath.Join(localAppData, "Microsoft", "WinGet", "Links"))
+	}
+	candidates = append(candidates, filepath.Join(home, "AppData", "Local", "Microsoft", "WinGet", "Links"))
 	if runtimeBin, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin); err == nil {
 		candidates = append(candidates, runtimeBin)
 	}

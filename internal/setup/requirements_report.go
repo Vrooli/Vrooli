@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	vroolilauncher "github.com/vrooli/vrooli/internal/safeguards/vrooli-launcher"
 )
@@ -169,8 +171,10 @@ func renderGrouped(w io.Writer, report vrooliruntime.Report) {
 	}
 
 	if len(groups.NotApplicable) > 0 {
-		_, _ = fmt.Fprintf(w, "Not applicable (%d): %s\n",
-			len(groups.NotApplicable), itemNames(groups.NotApplicable))
+		_, _ = fmt.Fprintf(w, "Not applicable (%d):\n", len(groups.NotApplicable))
+		for _, item := range groups.NotApplicable {
+			renderGroupedItem(w, "–", item, true)
+		}
 	}
 
 	if len(groups.Unsupported) > 0 {
@@ -231,6 +235,9 @@ func renderActionBlock(w io.Writer, groups outcomeGroups) {
 func renderGroupedItem(w io.Writer, marker string, item vrooliruntime.ItemStatus, attachDetail bool) {
 	headline := primaryNote(item)
 	if headline == "" {
+		headline = operatorChoiceNote(item)
+	}
+	if headline == "" {
 		headline = strings.TrimSpace(strings.Join(uniqueNonEmpty(item.Reasons), "; "))
 	}
 	if headline != "" {
@@ -239,6 +246,9 @@ func renderGroupedItem(w io.Writer, marker string, item vrooliruntime.ItemStatus
 		_, _ = fmt.Fprintf(w, "  %s %s\n", marker, item.Name)
 	}
 	if !attachDetail {
+		if choice := operatorChoiceLabel(item.OperatorChoice); choice != "" {
+			_, _ = fmt.Fprintf(w, "       operator choice: %s\n", choice)
+		}
 		return
 	}
 	if detail := failureDetail(item); detail != "" {
@@ -249,6 +259,9 @@ func renderGroupedItem(w io.Writer, marker string, item vrooliruntime.ItemStatus
 			}
 			_, _ = fmt.Fprintf(w, "       %s\n", line)
 		}
+	}
+	if choice := operatorChoiceLabel(item.OperatorChoice); choice != "" {
+		_, _ = fmt.Fprintf(w, "       operator choice: %s\n", choice)
 	}
 }
 
@@ -285,7 +298,9 @@ func groupItemsByOutcome(items []vrooliruntime.ItemStatus) outcomeGroups {
 		case hostreqkit.BlockingOptionalSkipped:
 			groups.Optional = append(groups.Optional, item)
 			continue
-		case hostreqkit.BlockingNeedsReboot, hostreqkit.BlockingManual, hostreqkit.BlockingNeedsEnv:
+		case hostreqkit.BlockingNeedsReboot, hostreqkit.BlockingManual, hostreqkit.BlockingNeedsEnv,
+			hostreqkit.BlockingOperatorChoiceMissing, hostreqkit.BlockingOperatorDeclined,
+			hostreqkit.BlockingInvalidParameter:
 			groups.NeedsOperatorInput = append(groups.NeedsOperatorInput, item)
 			continue
 		}
@@ -418,6 +433,37 @@ func renderRequirementVerboseItem(w io.Writer, item vrooliruntime.ItemStatus, ex
 	}
 	if notes := strings.Join(uniqueNonEmpty(item.Notes), "; "); notes != "" {
 		_, _ = fmt.Fprintf(w, "    notes: %s\n", notes)
+	}
+	if choice := operatorChoiceLabel(item.OperatorChoice); choice != "" {
+		_, _ = fmt.Fprintf(w, "    operator choice: %s\n", choice)
+	}
+	if len(item.Config) > 0 {
+		if data, err := json.Marshal(item.Config); err == nil {
+			_, _ = fmt.Fprintf(w, "    config: %s\n", data)
+		}
+	}
+}
+
+func operatorChoiceNote(item vrooliruntime.ItemStatus) string {
+	switch item.BlockingReason {
+	case hostreqkit.BlockingOperatorChoiceMissing:
+		return "no operator choice recorded"
+	case hostreqkit.BlockingOperatorDeclined:
+		return "operator declined"
+	}
+	return ""
+}
+
+func operatorChoiceLabel(choice hostreqspec.OperatorChoice) string {
+	switch choice {
+	case hostreqspec.OperatorChoiceOptedIn:
+		return "opted_in"
+	case hostreqspec.OperatorChoiceDeclined:
+		return "declined"
+	case hostreqspec.OperatorChoiceNotRecorded, "":
+		return "not_recorded"
+	default:
+		return string(choice)
 	}
 }
 

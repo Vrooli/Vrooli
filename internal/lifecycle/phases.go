@@ -410,7 +410,7 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}
 
-	stepEnv := mergeEnv(os.Environ(), env)
+	stepEnv := lifecycleStepEnv(phase, env)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_PROCESS_ID", processID)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_PHASE", phase)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_SCENARIO", item.Slug)
@@ -478,9 +478,7 @@ func (r *Runner) runForegroundStep(item scenario.Scenario, phase, command string
 		return err
 	}
 
-	stepEnv := mergeEnv(os.Environ(), env)
-	stepEnv = setEnvValue(stepEnv, "LIFECYCLE_PHASE", phase)
-	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", "true")
+	stepEnv := lifecycleStepEnv(phase, env)
 
 	// Scenario lifecycle steps remain shell-defined by the service.json contract.
 	cmd := shell.BashCommand(command, shell.Spec{
@@ -490,6 +488,21 @@ func (r *Runner) runForegroundStep(item scenario.Scenario, phase, command string
 		Stderr: logWriter,
 	})
 	return cmd.Run()
+}
+
+// lifecycleStepEnv makes setup and test phases safe for server-owned
+// execution. Those phases may invoke package managers and other tools that
+// prompt when they detect stale state; a lifecycle request has no interactive
+// stdin to answer such prompts, so fail deterministically instead.
+func lifecycleStepEnv(phase string, overrides map[string]string) []string {
+	stepEnv := mergeEnv(os.Environ(), overrides)
+	stepEnv = setEnvValue(stepEnv, "LIFECYCLE_PHASE", phase)
+	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", "true")
+	if phase == "setup" || phase == "test" {
+		stepEnv = setEnvValue(stepEnv, "CI", "true")
+		stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_NONINTERACTIVE", "true")
+	}
+	return stepEnv
 }
 
 // runWithLifecycleLog opens the scenario lifecycle log file and invokes fn

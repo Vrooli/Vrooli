@@ -24,6 +24,10 @@ func stubAll(t *testing.T) (commands *[]capturedCommand, tempContents *[]string,
 	origWriteTemp := hostreqkit.WriteTempFileFn
 	origNow := NowFn
 	origValidate := ValidateGrubConfigFn
+	origElevation := hostreqkit.ElevationFactsFn
+	hostreqkit.ElevationFactsFn = func() hostreqkit.ElevationFacts {
+		return hostreqkit.ElevationFacts{Platform: "linux", Elevated: true, CanElevate: true, Mechanism: "test"}
+	}
 
 	cmds := []capturedCommand{}
 	temps := []string{}
@@ -63,6 +67,7 @@ func stubAll(t *testing.T) (commands *[]capturedCommand, tempContents *[]string,
 		hostreqkit.WriteTempFileFn = origWriteTemp
 		NowFn = origNow
 		ValidateGrubConfigFn = origValidate
+		hostreqkit.ElevationFactsFn = origElevation
 	}
 }
 

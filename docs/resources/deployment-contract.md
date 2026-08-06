@@ -389,7 +389,7 @@ resources/<name>/
     CONFIGURATION.md              # when configuration exists
   config/
     capabilities.yaml             # declarative capability contract, if needed
-  initialization/                 # repo-owned seed assets only, if needed
+  api/internal/<domain>/                 # repo-owned seed assets only, if needed
   cli/
     go.mod
     go.sum

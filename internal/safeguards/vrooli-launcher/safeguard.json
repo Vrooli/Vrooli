@@ -1,12 +1,32 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
- "name": "vrooli_launcher",
-  "storage": {"entries": {"launcher": {"rung": "pinned", "path": {"linux": "/usr/local/bin/vrooli", "macos": "/usr/local/bin/vrooli", "windows": null}, "kind": "file", "class": "state", "sensitive": false, "rationale": "The safeguard installs the POSIX launcher on Linux and macOS."}}, "rationale": "The launcher is an explicitly verified host installation artifact."},
+  "name": "vrooli_launcher",
+  "storage": {
+    "entries": {
+      "launcher": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/usr/local/bin/vrooli",
+          "macos": "/usr/local/bin/vrooli",
+          "windows": null
+        },
+        "kind": "file",
+        "class": "state",
+        "sensitive": false,
+        "rationale": "The safeguard installs the POSIX launcher on Linux and macOS.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable state storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    },
+    "rationale": "The launcher is an explicitly verified host installation artifact."
+  },
   "description": "Install a POSIX shim at /usr/local/bin/vrooli so `sudo vrooli` works. See package doc for design rationale.",
   "handler": "vrooli_launcher",
   "platforms": [
     "linux",
-    "darwin"
+    "macos"
   ],
   "risk": "low",
   "verificationCheck": {
@@ -16,5 +36,25 @@
   },
   "privilege": "elevated",
   "bundling": "prohibited",
-  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  }
 }

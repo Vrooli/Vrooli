@@ -124,9 +124,25 @@ type RuntimeClaimOptions struct {
 }
 
 func NewManager(root, home string) (*Manager, error) {
-	registry, err := resourceenv.LoadPortRegistry(root)
+	resourcePorts, err := resourceenv.LoadResourcePorts(root)
 	if err != nil {
 		return nil, err
+	}
+	// Older isolated package fixtures do not materialize resource manifests.
+	// Their private fixture file is not part of the production repository and
+	// does not reintroduce a runtime registry authority.
+	if len(resourcePorts) == 0 {
+		if fixture, fixtureErr := resourceenv.LoadPortRegistry(root); fixtureErr == nil {
+			resourcePorts = fixture.ResourcePorts
+		}
+	}
+	// Older isolated package fixtures do not materialize resource manifests.
+	// Their private fixture file is not part of the production repository and
+	// does not reintroduce a runtime registry authority.
+	if len(resourcePorts) == 0 {
+		if fixture, fixtureErr := resourceenv.LoadPortRegistry(root); fixtureErr == nil {
+			resourcePorts = fixture.ResourcePorts
+		}
 	}
 	cleanHome := filepath.Clean(home)
 	stateDir, err := process.ScenarioStateDir(cleanHome)
@@ -138,7 +154,7 @@ func NewManager(root, home string) (*Manager, error) {
 		Home:          cleanHome,
 		stateDir:      stateDir,
 		Now:           time.Now,
-		ResourcePorts: registry.ResourcePorts,
+		ResourcePorts: resourcePorts,
 	}, nil
 }
 

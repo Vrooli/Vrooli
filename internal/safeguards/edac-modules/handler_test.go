@@ -32,6 +32,8 @@ func stubAll(t *testing.T) (
 	origStat := modules.StatFn
 	origReadCPU := ReadCPUInfoFn
 	origMCExists := MCSlotsExistFn
+	origRoot := hostreqkit.RunningAsRootFn
+	hostreqkit.RunningAsRootFn = func() bool { return true }
 
 	captured := []capturedCommand{}
 	fileContents := map[string]string{}
@@ -84,6 +86,7 @@ func stubAll(t *testing.T) (
 		hostreqkit.ReadFileFn = origRead
 		hostreqkit.RunCommandFn = origRun
 		hostreqkit.LookPathFn = origLookPath
+		hostreqkit.RunningAsRootFn = origRoot
 		hostreqkit.WriteTempFileFn = origWriteTemp
 		modules.StatFn = origStat
 		ReadCPUInfoFn = origReadCPU

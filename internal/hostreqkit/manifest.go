@@ -89,6 +89,7 @@ type SafeguardManifest struct {
 	Bundling          hostreqspec.Bundling  `json:"bundling"`
 	BundlingReason    string                `json:"bundlingReason,omitempty"`
 	VerificationCheck *VerificationCheck    `json:"verificationCheck,omitempty"`
+	Config            map[string]any        `json:"config,omitempty"`
 	Version           string                `json:"version,omitempty"`
 	Notes             string                `json:"notes,omitempty"`
 }

@@ -17,6 +17,10 @@ type capturedCommand struct {
 	Args []string
 }
 
+const TargetEnvVar = "target"
+
+var testConfig map[string]string
+
 // stubAll swaps every shared seam (env, FS, exec, modules.Stat) for fakes
 // and returns a restore func plus access to the capture state.
 func stubAll(t *testing.T) (
@@ -26,19 +30,20 @@ func stubAll(t *testing.T) (
 	restore func(),
 ) {
 	t.Helper()
-	origGetenv := GetenvFn
 	origRead := hostreqkit.ReadFileFn
 	origRun := hostreqkit.RunCommandFn
 	origLookPath := hostreqkit.LookPathFn
 	origWriteTemp := hostreqkit.WriteTempFileFn
 	origStat := modules.StatFn
+	origRoot := hostreqkit.RunningAsRootFn
+	hostreqkit.RunningAsRootFn = func() bool { return true }
 
 	captured := []capturedCommand{}
 	fileContents := map[string]string{}
 	env := map[string]string{}
 	tempContents := map[string]string{}
 
-	GetenvFn = func(key string) string { return env[key] }
+	testConfig = env
 
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		if c, ok := fileContents[path]; ok {
@@ -79,10 +84,11 @@ func stubAll(t *testing.T) (
 	}
 
 	return &captured, fileContents, env, func() {
-		GetenvFn = origGetenv
+		testConfig = nil
 		hostreqkit.ReadFileFn = origRead
 		hostreqkit.RunCommandFn = origRun
 		hostreqkit.LookPathFn = origLookPath
+		hostreqkit.RunningAsRootFn = origRoot
 		hostreqkit.WriteTempFileFn = origWriteTemp
 		modules.StatFn = origStat
 	}
@@ -101,11 +107,16 @@ func darwinHost() hostreqkit.Host {
 }
 
 func req(manual bool) hostreqspec.ResolvedRequirement {
+	config := map[string]any{}
+	if target := testConfig[TargetEnvVar]; target != "" {
+		config["target"] = target
+	}
 	return hostreqspec.ResolvedRequirement{
 		Name:     "netconsole",
 		Kind:     hostreqspec.KindSafeguard,
 		Required: true,
 		Manual:   manual,
+		Config:   config,
 	}
 }
 

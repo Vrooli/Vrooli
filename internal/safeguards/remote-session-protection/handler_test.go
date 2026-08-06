@@ -501,14 +501,14 @@ func TestApplyStaticCommandsNoDesktop(t *testing.T) {
 		t.Fatalf("ExecutionState = %q", status.ExecutionState)
 	}
 
-	// Expect 8 commands: mkdir, install, sysctl -p, mkdir, mkdir, install, install, systemctl daemon-reload
+	// Expect 8 commands: mkdir, install, sysctl --system, mkdir, mkdir, install, install, systemctl daemon-reload
 	if len(calls) != 8 {
 		t.Fatalf("call count = %d, want 8; calls: %v", len(calls), calls)
 	}
 
 	needles := []string{
 		"mkdir -p",
-		"sysctl -p " + sysctlPath,
+		"sysctl --system",
 		"install -m 0644",
 		"systemctl daemon-reload",
 	}
@@ -649,7 +649,7 @@ func TestApplyDesktopFullFlow(t *testing.T) {
 
 	// Verify key commands were issued
 	needles := []string{
-		"sysctl -p",                // static sysctl
+		"sysctl --system",          // static sysctl
 		"systemctl daemon-reload",  // static daemon-reload
 		"fallocate",                // swap creation
 		"mkswap",                   // swap format
@@ -916,7 +916,7 @@ func TestIsDesktopInstalledDisplayManager(t *testing.T) {
 	}
 }
 
-func TestIsDesktopInstalledXrdp(t *testing.T) {
+func TestIsDesktopInstalledDoesNotClassifyXrdpAsDisplayManager(t *testing.T) {
 	restore := stubAll(t)
 	defer restore()
 
@@ -927,8 +927,8 @@ func TestIsDesktopInstalledXrdp(t *testing.T) {
 		return nil, fmt.Errorf("stubbed")
 	}
 
-	if !isDesktopInstalled() {
-		t.Fatal("expected desktop detected via xrdp")
+	if isDesktopInstalled() {
+		t.Fatal("xrdp must not be classified as a display manager")
 	}
 }
 

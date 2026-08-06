@@ -17,6 +17,14 @@ type capturedCommand struct {
 	Args []string
 }
 
+const (
+	MemAddressEnvVar = "mem_address"
+	MemSizeEnvVar    = "mem_size"
+	ECCEnvVar        = "ecc"
+)
+
+var testConfig map[string]string
+
 func stubAll(t *testing.T) (
 	cmds *[]capturedCommand,
 	files map[string]string,
@@ -25,7 +33,6 @@ func stubAll(t *testing.T) (
 	restore func(),
 ) {
 	t.Helper()
-	origGetenv := GetenvFn
 	origReadProc := ReadProcCmdlineFn
 	origRead := hostreqkit.ReadFileFn
 	origRun := hostreqkit.RunCommandFn
@@ -34,6 +41,8 @@ func stubAll(t *testing.T) (
 	origWriteTemp := hostreqkit.WriteTempFileFn
 	origNow := grub.NowFn
 	origValidate := grub.ValidateGrubConfigFn
+	origRoot := hostreqkit.RunningAsRootFn
+	hostreqkit.RunningAsRootFn = func() bool { return true }
 
 	captured := []capturedCommand{}
 	fileContents := map[string]string{}
@@ -41,7 +50,7 @@ func stubAll(t *testing.T) (
 	env := map[string]string{}
 	procCmdline := ""
 
-	GetenvFn = func(key string) string { return env[key] }
+	testConfig = env
 	ReadProcCmdlineFn = func() (string, error) {
 		if procCmdline == "" {
 			return "", fs.ErrNotExist
@@ -91,12 +100,13 @@ func stubAll(t *testing.T) (
 	}
 
 	return &captured, fileContents, env, &procCmdline, func() {
-		GetenvFn = origGetenv
+		testConfig = nil
 		ReadProcCmdlineFn = origReadProc
 		hostreqkit.ReadFileFn = origRead
 		hostreqkit.RunCommandFn = origRun
 		hostreqkit.CombinedOutputFn = origCombined
 		hostreqkit.LookPathFn = origLookPath
+		hostreqkit.RunningAsRootFn = origRoot
 		hostreqkit.WriteTempFileFn = origWriteTemp
 		grub.NowFn = origNow
 		grub.ValidateGrubConfigFn = origValidate
@@ -112,8 +122,13 @@ func linuxHost() hostreqkit.Host {
 }
 
 func req(manual bool) hostreqspec.ResolvedRequirement {
+	config := map[string]any{}
+	for key, value := range testConfig {
+		config[key] = value
+	}
 	return hostreqspec.ResolvedRequirement{
 		Name: "pstore_ramoops", Kind: hostreqspec.KindSafeguard, Required: true, Manual: manual,
+		Config: config,
 	}
 }
 
@@ -319,15 +334,7 @@ func TestApplyBackupFailureBlocksWrite(t *testing.T) {
 	setEnv(env, "0x70000000", "0x100000")
 	files[grub.DefaultConfigPath] = `GRUB_CMDLINE_LINUX="quiet"` + "\n"
 
-	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
-		*cmds = append(*cmds, capturedCommand{Name: name, Args: append([]string(nil), args...)})
-		// First install (backup) fails; second install (new content) must not run.
-		if name == "install" && len(*cmds) <= 1 {
-			// not yet hit; we're appending after; need a different approach
-		}
-		return nil
-	}
-	// Simpler: track install calls and fail the first.
+	// Track install calls and fail the first.
 	calls := 0
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
 		*cmds = append(*cmds, capturedCommand{Name: name, Args: append([]string(nil), args...)})
@@ -383,11 +390,11 @@ func TestApplyIdempotentFileAppliedNoCmdline(t *testing.T) {
 func TestECCDefaultAndOverride(t *testing.T) {
 	_, _, env, _, restore := stubAll(t)
 	defer restore()
-	if got := ecc(); got != "1" {
+	if got := configECC(nil); got != "1" {
 		t.Errorf("default ecc() = %q, want 1", got)
 	}
 	env[ECCEnvVar] = "16"
-	if got := ecc(); got != "16" {
+	if got := configECC(map[string]any{"ecc": "16"}); got != "16" {
 		t.Errorf("override ecc() = %q, want 16", got)
 	}
 }

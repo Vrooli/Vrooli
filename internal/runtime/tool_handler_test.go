@@ -565,7 +565,14 @@ func TestFetchToolRepairsLauncherMissingDeclaredRuntimeEnvironment(t *testing.T)
 	manifest.Source.Targets["linux/amd64"] = hostreqkit.ToolSourceTarget{
 		URL: "https://example.test/tool.zip", SHA256: "deadbeef", Archive: "zip", Layout: "dir", BinPath: "go/bin/go", RuntimeEnv: map[string]string{"GOROOT": "go"},
 	}
-	if err := writeFile(filepath.Join(binDir, fetchTestTool), []byte("#!/bin/sh\necho go version go1.25.12 linux/amd64\n")); err != nil {
+	entry := filepath.Join(optRoot, fetchTestTool, "go/bin/go")
+	if err := os.MkdirAll(filepath.Dir(entry), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFile(entry, []byte("#!/bin/sh\necho go version go1.25.12 linux/amd64\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFile(filepath.Join(binDir, fetchTestTool), []byte("#!/bin/sh\nexec '"+entry+"' \"$@\"\n")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -583,15 +590,39 @@ func TestInspectFetch_DirLayoutInstalledWhenLauncherPresent(t *testing.T) {
 	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64"})
 	withArch(t, "amd64")
 	binDir := withUserBin(t)
-	withUserOpt(t)
-	// The launcher's mere presence in ~/.vrooli/bin counts as installed.
-	if err := writeFile(binDir+"/"+fetchTestTool, []byte("#!/bin/sh\nexec opt/test/tool \"$@\"\n")); err != nil {
+	optRoot := withUserOpt(t)
+	entry := filepath.Join(optRoot, fetchTestTool, fetchTestTool+"-cli")
+	if err := os.MkdirAll(filepath.Dir(entry), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFile(entry, []byte("#!/bin/sh\nexit 0\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFile(binDir+"/"+fetchTestTool, []byte("#!/bin/sh\nexec '"+entry+"' \"$@\"\n")); err != nil {
 		t.Fatal(err)
 	}
 	h := toolHandler{manifest: dirReleaseManifest(fetchTestTool)}
 	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
 	if status.ExecutionState != hostreqkit.ExecutionAlreadyPresent {
 		t.Fatalf("state = %q, want already_present", status.ExecutionState)
+	}
+}
+
+func TestInspectFetch_DirLayoutRejectsDanglingLauncher(t *testing.T) {
+	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64"})
+	withArch(t, "amd64")
+	binDir := withUserBin(t)
+	withUserOpt(t)
+	if err := writeFile(binDir+"/"+fetchTestTool, []byte("#!/bin/sh\nexec /missing/payload \"$@\"\n")); err != nil {
+		t.Fatal(err)
+	}
+	h := toolHandler{manifest: dirReleaseManifest(fetchTestTool)}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
+	if status.ExecutionState != hostreqkit.ExecutionPending || status.Installed {
+		t.Fatalf("state = %#v, want repairable pending status", status)
+	}
+	if !notesContain(status.Notes, "managed tool payload is missing or not executable") {
+		t.Fatalf("status notes = %v", status.Notes)
 	}
 }
 

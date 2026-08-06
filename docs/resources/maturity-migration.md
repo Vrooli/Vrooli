@@ -110,7 +110,7 @@ An assessor should collect repository evidence before making recommendations:
    runtime/health/storage declarations, environment exports, and platform
    metadata.
 2. Map actual entrypoints and imports: `cli/`, root scripts, `lib/`, `config/`,
-   `initialization/`, tests, and any `source`/shared-script references.
+   `api/internal/<domain>/`, tests, and any `source`/shared-script references.
 3. Find callers outside the resource, including scenario dependencies,
    environment-variable consumers, resource CLI invocations, and direct HTTP
    clients.
@@ -241,3 +241,38 @@ Mark a resource M4 or M5 only when all applicable statements are true:
 
 For a fleet audit, replace `resources/<name>` with `resources/` and require a
 ranked table plus recommended migration candidates.
+
+## Fleet Completion Ledger — 2026-08-05
+
+The following resource READMEs record the current M4 evidence level. The
+fleet contract test is the shared gate for shell absence, health semantics,
+immutable images, and capability/test correspondence; resource-specific
+README notes remain the source for runtime constraints.
+
+| Resource | Level | Evidence |
+|---|---:|---|
+| adguard-home | M4 | `resource.json`, `cli/main_test.go` |
+| antigravity | M4 | `resource.json`, `cli/main_test.go` |
+| claude-code | M4 | `resource.json`, `cli/main_test.go` |
+| codex | M4 | `resource.json`, `cli/main_test.go` |
+| gemini | M4 | `resource.json`, `cli/main_test.go` |
+| grok | M4 | `resource.json`, `cli/main_test.go` |
+| home-assistant | M4 | `resource.json`, `cli/main_test.go` |
+| k6 | M4 | `resource.json`, `cli/main_test.go` |
+| kokoro | M4 | `resource.json`, `cli/main_test.go` |
+| kopia | M4 | `resource.json`, `cli/main_test.go` |
+| kyutai-stt | M4 | `resource.json`, `cli/main_test.go` |
+| minio | M4 | `resource.json`, managed artifact checks, `cli/main_test.go` |
+| ollama | M4 | `resource.json`, `cli/main_test.go` |
+| opencode | M4 | `resource.json`, `cli/main_test.go` |
+| openrouter | M4 | `resource.json`, `cli/main_test.go` |
+| postgres | M4 | `resource.json`, query readiness, `cli/main_test.go` |
+| qdrant | M4 | `resource.json`, managed artifact checks, `cli/main_test.go` |
+| redis | M4 | `resource.json`, `cli/main_test.go` |
+| reranker | M4 | `resource.json`, `cli/main_test.go` |
+| searxng | M4 | `resource.json`, `cli/main_test.go` |
+| speaker-verification | M4 | `resource.json`, `cli/main_test.go` |
+| twilio | M4 | `resource.json`, `cli/main_test.go` |
+| unstructured-io | M4 | `resource.json`, `cli/main_test.go` |
+| vault | M4 | `resource.json`, managed artifact checks, `cli/main_test.go` |
+| whisper | M4 | `resource.json`, `cli/main_test.go` |

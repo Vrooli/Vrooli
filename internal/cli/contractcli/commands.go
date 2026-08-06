@@ -61,7 +61,7 @@ func ResolveCommandSpecs() []commandtree.Spec[CommandID] {
 			Summary: "Resolve contract paths for a scenario",
 			Group:   "Repository Contract",
 			Help: commandtree.Help{
-				Description: "Known keys: service, orientation, docs, requirements, api, ui, cli, initialization",
+				Description: "Known keys: service, orientation, docs, requirements, api, ui, cli",
 			},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}},

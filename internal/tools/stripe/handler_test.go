@@ -31,9 +31,9 @@ var testManifest = hostreqkit.ToolManifest{
 	Commands:    []string{"stripe"},
 	VersionArgs: []string{"version"},
 	Handler:     "stripe",
-	Packages:    map[string]string{"brew": "stripe/stripe-cli/stripe"},
+	Packages:    map[string]string{"brew": "stripe/stripe-cli/stripe", "winget": "Stripe.StripeCli"},
 	InstallHint: "Install the Stripe CLI",
-	Platforms:   []string{"linux", "macos"},
+	Platforms:   []string{"linux", "macos", "windows"},
 }
 
 func newTestHandler() hostreqkit.Handler {
@@ -137,6 +137,27 @@ func TestInspectDarwinBrew(t *testing.T) {
 		t.Fatal("InstallSupported should be true for brew on macOS")
 	}
 	if status.PackageName != "stripe/stripe-cli/stripe" {
+		t.Fatalf("PackageName = %q", status.PackageName)
+	}
+}
+
+func TestInspectWindowsWinget(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	h := newTestHandler()
+	status := h.Inspect(
+		hostreqkit.Host{OS: "windows", PackageManager: "winget"},
+		baseRequirement(),
+	)
+
+	if status.SupportClass != hostreqkit.SupportSupported {
+		t.Fatalf("SupportClass = %q", status.SupportClass)
+	}
+	if !status.InstallSupported {
+		t.Fatal("InstallSupported should be true for winget on Windows")
+	}
+	if status.PackageName != "Stripe.StripeCli" {
 		t.Fatalf("PackageName = %q", status.PackageName)
 	}
 }

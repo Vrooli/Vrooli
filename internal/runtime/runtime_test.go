@@ -188,9 +188,11 @@ func TestMissingRequiredErrorIncludesToolInstallRemediation(t *testing.T) {
 		Environment:     "development",
 		MissingRequired: []string{"secret-tool"},
 		Tools: []ToolStatus{{
-			Name:     "secret-tool",
-			Kind:     hostreq.KindTool,
-			Required: true,
+			Name:           "secret-tool",
+			Kind:           hostreq.KindTool,
+			Required:       true,
+			ExecutionState: hostreqkit.ExecutionFailed,
+			Notes:          []string{"managed launcher exists but its payload is missing"},
 		}},
 	}, EnsureOptions{})
 	if err == nil {
@@ -198,6 +200,9 @@ func TestMissingRequiredErrorIncludesToolInstallRemediation(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "secret-tool") || !strings.Contains(err.Error(), "vrooli host install secret-tool") {
 		t.Fatalf("missing requirement error = %q, want tool name and install remediation", err)
+	}
+	if !strings.Contains(err.Error(), "state=failed") || !strings.Contains(err.Error(), "payload is missing") {
+		t.Fatalf("missing requirement error = %q, want diagnostic state and note", err)
 	}
 }
 
@@ -368,6 +373,20 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 	}
 }
 
+func TestInspectRequirementReportsPlatformMismatchAsNotApplicable(t *testing.T) {
+	status := inspectRequirement(Host{OS: "macos"}, hostreq.ResolvedRequirement{
+		Name:      "linux_only",
+		Kind:      hostreq.KindSafeguard,
+		Platforms: []string{"linux"},
+	})
+	if status.SupportClass != SupportNotApplicable || status.ExecutionState != ExecutionNotApplicable {
+		t.Fatalf("status = %+v, want typed NotApplicable", status)
+	}
+	if len(status.Notes) != 1 || !strings.Contains(status.Notes[0], "current host is macos") {
+		t.Fatalf("notes = %v, want platform mismatch reason", status.Notes)
+	}
+}
+
 func TestRemoteSessionProtectionApplyRunsManagedScript(t *testing.T) {
 	restore := stubRuntimeLookups(t)
 	defer restore()
@@ -429,7 +448,7 @@ func TestRemoteSessionProtectionApplyRunsManagedScript(t *testing.T) {
 	expected := []string{
 		"mkdir -p " + filepath.Dir(remoteSessionSysctlPath),
 		"install -m 0644",
-		"sysctl -p " + remoteSessionSysctlPath,
+		"sysctl --system",
 		"mkdir -p " + remoteSessionSystemdDir,
 		"mkdir -p " + remoteSessionLogindDir,
 		"install -m 0644",
@@ -553,7 +572,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 		"edac_modules", "host_hardening", "kernel_config", "model_policy_drift", "nat_protection", "netconsole",
 		"nvidia_driver",
 		"ollama_resource_controls",
-		"pstore_native", "pstore_observability", "pstore_ramoops", "remote_session_protection", "tcp_tuning",
+		"pstore_native", "pstore_observability", "pstore_ramoops", "remote_desktop_access", "remote_session_protection", "tcp_tuning",
 		"tpm_credential_access",
 		"vrooli_launcher", "workspace_sandbox_userns",
 	}
@@ -673,6 +692,20 @@ func TestMarkOptionalSkippedTagsBlockingReason(t *testing.T) {
 	out := markOptionalSkipped(in)
 	if out.BlockingReason != hostreqkit.BlockingOptionalSkipped {
 		t.Fatalf("BlockingReason = %q", out.BlockingReason)
+	}
+}
+
+func TestInspectRequirementRejectsInvalidConfigAsTypedUnsupported(t *testing.T) {
+	status := inspectRequirement(Current(), hostreq.ResolvedRequirement{
+		Name:        "example_safeguard",
+		Kind:        hostreq.KindSafeguard,
+		ConfigError: "invalid safeguard parameter(s) for example_safeguard: experience",
+	})
+	if status.SupportClass != hostreqkit.SupportUnsupported || status.ExecutionState != hostreqkit.ExecutionUnsupported {
+		t.Fatalf("status = %+v, want typed unsupported", status)
+	}
+	if status.BlockingReason != hostreqkit.BlockingInvalidParameter || !strings.Contains(strings.Join(status.Notes, " "), "experience") {
+		t.Fatalf("status = %+v, want invalid parameter blocker naming experience", status)
 	}
 }
 

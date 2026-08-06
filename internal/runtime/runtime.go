@@ -2,10 +2,12 @@ package runtime
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 var ErrUnsupportedPlatform = hostreqkit.ErrUnsupportedPlatform
@@ -60,10 +62,13 @@ func EnsureTool(name string, opts EnsureOptions) (ItemStatus, error) {
 func EnsureSafeguard(name string, opts EnsureOptions) (ItemStatus, error) {
 	opts.Environment = hostreq.NormalizeEnvironment(opts.Environment)
 	host := Current()
-	requirement := hostreq.ResolvedRequirement{
-		Name:     strings.TrimSpace(name),
-		Kind:     hostreq.KindSafeguard,
-		Required: true,
+	root, err := os.Getwd()
+	if err != nil {
+		return ItemStatus{}, fmt.Errorf("resolve project root for safeguard %q: %w", name, err)
+	}
+	requirement, err := hostreq.ResolveSafeguard(root, name, host.OS)
+	if err != nil {
+		return ItemStatus{}, err
 	}
 	status := inspectRequirement(host, requirement)
 	if requirementSatisfied(status) {
@@ -89,10 +94,8 @@ func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report
 		if requirementSatisfied(status) {
 			continue
 		}
-		if !status.Required && !opts.IncludeOptional {
-			if isPendingState(status.ExecutionState) {
-				report.Tools[index] = markOptionalSkipped(status)
-			}
+		if updated, skip := skipOptional(status, opts.IncludeOptional); skip {
+			report.Tools[index] = updated
 			continue
 		}
 		updated, applyErr := applyRequirement(report.Host, status, opts)
@@ -105,10 +108,8 @@ func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report
 		if requirementSatisfied(status) {
 			continue
 		}
-		if !status.Required && !opts.IncludeOptional {
-			if isPendingState(status.ExecutionState) {
-				report.Safeguards[index] = markOptionalSkipped(status)
-			}
+		if updated, skip := skipOptional(status, opts.IncludeOptional); skip {
+			report.Safeguards[index] = updated
 			continue
 		}
 		updated, applyErr := applyRequirement(report.Host, status, opts)
@@ -132,6 +133,27 @@ func markOptionalSkipped(status ItemStatus) ItemStatus {
 	return status
 }
 
+func skipOptional(status ItemStatus, includeOptional bool) (ItemStatus, bool) {
+	if status.Required || !isPendingState(status.ExecutionState) {
+		return status, false
+	}
+	switch status.OperatorChoice {
+	case hostreqspec.OperatorChoiceDeclined:
+		status.BlockingReason = hostreqkit.BlockingOperatorDeclined
+		return status, true
+	case "":
+		if !includeOptional {
+			return markOptionalSkipped(status), true
+		}
+	case hostreqspec.OperatorChoiceNotRecorded:
+		if !includeOptional {
+			status.BlockingReason = hostreqkit.BlockingOperatorChoiceMissing
+			return status, true
+		}
+	}
+	return status, false
+}
+
 // AnnotateInspectOnly post-processes a Report from inspect-only flows
 // (`vrooli setup status`) so the renderer's grouped output matches what the
 // apply path would produce: optional pending items get tagged
@@ -144,8 +166,8 @@ func AnnotateInspectOnly(report Report, includeOptional bool) Report {
 			if item.BlockingReason != hostreqkit.BlockingNone {
 				continue
 			}
-			if !item.Required && !includeOptional && isPendingState(item.ExecutionState) {
-				items[index] = markOptionalSkipped(item)
+			if updated, skip := skipOptional(item, includeOptional); skip {
+				items[index] = updated
 				continue
 			}
 			items[index] = annotateBlockingReason(item)
@@ -185,6 +207,10 @@ func annotateBlockingReason(status ItemStatus) ItemStatus {
 		if notesContainSudoSentinel(status.Notes) {
 			status.BlockingReason = hostreqkit.BlockingNeedsSudo
 		}
+		if notesContainElevationRequired(status.Notes) {
+			status.ExecutionState = hostreqkit.ExecutionManualActionRequired
+			status.BlockingReason = hostreqkit.BlockingManual
+		}
 	case hostreqkit.ExecutionRebootRequired:
 		status.BlockingReason = hostreqkit.BlockingNeedsReboot
 	case hostreqkit.ExecutionManualActionRequired:
@@ -208,6 +234,15 @@ func notesContainSudoSentinel(notes []string) bool {
 	return false
 }
 
+func notesContainElevationRequired(notes []string) bool {
+	for _, note := range notes {
+		if strings.Contains(strings.ToLower(note), "elevation required") {
+			return true
+		}
+	}
+	return false
+}
+
 func inspectResolution(host Host, environment string, resolution hostreq.Resolution) (Report, error) {
 	report := Report{
 		Environment: environment,
@@ -225,6 +260,12 @@ func inspectResolution(host Host, environment string, resolution hostreq.Resolut
 }
 
 func inspectRequirement(host Host, requirement hostreq.ResolvedRequirement) ItemStatus {
+	if len(requirement.Platforms) > 0 && !containsPlatform(requirement.Platforms, host.OS) {
+		return hostreqkit.NotApplicableRequirementStatus(requirement, fmt.Sprintf("declared for %s; current host is %s", strings.Join(requirement.Platforms, ", "), host.OS))
+	}
+	if strings.TrimSpace(requirement.ConfigError) != "" {
+		return hostreqkit.InvalidConfigStatus(requirement, requirement.ConfigError)
+	}
 	h, err := lookupHandler(requirement.Kind, requirement.Name)
 	if err != nil {
 		return hostreqkit.UnsupportedRequirementStatus(requirement, fmt.Sprintf("runtime registry unavailable: %v", err))
@@ -233,6 +274,16 @@ func inspectRequirement(host Host, requirement hostreq.ResolvedRequirement) Item
 		return hostreqkit.UnsupportedRequirementStatus(requirement, "no native runtime handler registered")
 	}
 	return h.Inspect(host, requirement)
+}
+
+func containsPlatform(values []string, target string) bool {
+	target = hostreqspec.NormalizePlatform(target)
+	for _, value := range values {
+		if hostreqspec.NormalizePlatform(value) == target {
+			return true
+		}
+	}
+	return false
 }
 
 func applyRequirement(host Host, status ItemStatus, opts EnsureOptions) (ItemStatus, error) {
@@ -300,11 +351,50 @@ func missingRequiredError(report Report, opts EnsureOptions) error {
 	if len(report.MissingRequired) == 0 {
 		return nil
 	}
-	message := fmt.Sprintf("missing required host requirements for %s: %s", hostreq.NormalizeEnvironment(report.Environment), strings.Join(report.MissingRequired, ", "))
+	message := fmt.Sprintf("missing required host requirements for %s: %s", hostreq.NormalizeEnvironment(report.Environment), strings.Join(missingRequiredDetails(report), ", "))
 	if commands := missingRequiredToolInstallCommands(report); len(commands) > 0 {
 		message += "; install missing tools with: " + strings.Join(commands, "; ")
 	}
 	return fmt.Errorf("%s", message)
+}
+
+func missingRequiredDetails(report Report) []string {
+	statuses := make(map[string]ItemStatus, len(report.Tools)+len(report.Safeguards))
+	for _, item := range report.Tools {
+		statuses[item.Name] = item
+	}
+	for _, item := range report.Safeguards {
+		statuses[item.Name] = item
+	}
+	details := make([]string, 0, len(report.MissingRequired))
+	for _, name := range report.MissingRequired {
+		status, ok := statuses[name]
+		if !ok {
+			details = append(details, name)
+			continue
+		}
+		attributes := []string{"state=" + string(status.ExecutionState)}
+		if status.Command != "" {
+			attributes = append(attributes, "command="+status.Command)
+		}
+		if status.Version != "" {
+			attributes = append(attributes, "version="+status.Version)
+		}
+		if len(status.Notes) > 0 {
+			attributes = append(attributes, "detail="+compactRequirementNote(status.Notes[len(status.Notes)-1]))
+		}
+		details = append(details, name+" ("+strings.Join(attributes, ", ")+")")
+	}
+	return details
+}
+
+func compactRequirementNote(note string) string {
+	const maxNoteLength = 240
+	compact := strings.Join(strings.Fields(note), " ")
+	if len(compact) > maxNoteLength {
+		return compact[:maxNoteLength-3] + "..."
+	}
+	return compact
 }
 
 func missingRequiredToolInstallCommands(report Report) []string {

@@ -83,6 +83,15 @@ const (
 	// runtime did not attempt Apply because IncludeOptional=false. Operator
 	// opts in via --include-optional.
 	BlockingOptionalSkipped BlockingReason = "optional_skipped"
+	// BlockingOperatorChoiceMissing means an optional item is pending because
+	// no durable operator choice has been recorded yet.
+	BlockingOperatorChoiceMissing BlockingReason = "operator_choice_missing"
+	// BlockingOperatorDeclined means the operator explicitly declined the
+	// optional host change in operator-state.json.
+	BlockingOperatorDeclined BlockingReason = "operator_declined"
+	// BlockingInvalidParameter means declared safeguard config failed its
+	// manifest schema and was not passed to the handler.
+	BlockingInvalidParameter BlockingReason = "invalid_parameter"
 	// BlockingNeedsEnv: handler reported it is waiting on an env var or other
 	// operator-supplied configuration (e.g. netconsole target).
 	BlockingNeedsEnv BlockingReason = "needs_env"
@@ -98,22 +107,30 @@ const (
 )
 
 type ItemStatus struct {
-	Name             string                   `json:"name"`
-	Kind             hostreqspec.Kind         `json:"kind"`
-	Command          string                   `json:"command,omitempty"`
-	Version          string                   `json:"version,omitempty"`
-	Installed        bool                     `json:"installed"`
-	Applied          bool                     `json:"applied,omitempty"`
-	Required         bool                     `json:"required"`
-	InstallSupported bool                     `json:"install_supported"`
-	PackageName      string                   `json:"package_name,omitempty"`
-	SupportClass     SupportClass             `json:"support_class"`
-	ExecutionState   ExecutionState           `json:"execution_state"`
-	BlockingReason   BlockingReason           `json:"blocking_reason,omitempty"`
-	Manual           bool                     `json:"manual"`
-	Reasons          []string                 `json:"reasons,omitempty"`
-	Notes            []string                 `json:"notes,omitempty"`
-	Provenance       []hostreqspec.Provenance `json:"provenance,omitempty"`
+	Name                 string                     `json:"name"`
+	Kind                 hostreqspec.Kind           `json:"kind"`
+	Command              string                     `json:"command,omitempty"`
+	Version              string                     `json:"version,omitempty"`
+	Installed            bool                       `json:"installed"`
+	Applied              bool                       `json:"applied,omitempty"`
+	Required             bool                       `json:"required"`
+	OperatorChoice       hostreqspec.OperatorChoice `json:"operator_choice"`
+	Config               map[string]any             `json:"config,omitempty"`
+	SelectedProvider     string                     `json:"selected_provider,omitempty"`
+	ObservedProvider     string                     `json:"observed_provider,omitempty"`
+	ObservedMode         string                     `json:"observed_mode,omitempty"`
+	ObservedLive         bool                       `json:"observed_live,omitempty"`
+	ObservedActive       bool                       `json:"observed_active,omitempty"`
+	CredentialStoreState string                     `json:"credential_store_state,omitempty"`
+	InstallSupported     bool                       `json:"install_supported"`
+	PackageName          string                     `json:"package_name,omitempty"`
+	SupportClass         SupportClass               `json:"support_class"`
+	ExecutionState       ExecutionState             `json:"execution_state"`
+	BlockingReason       BlockingReason             `json:"blocking_reason,omitempty"`
+	Manual               bool                       `json:"manual"`
+	Reasons              []string                   `json:"reasons,omitempty"`
+	Notes                []string                   `json:"notes,omitempty"`
+	Provenance           []hostreqspec.Provenance   `json:"provenance,omitempty"`
 }
 
 func (h Host) ValidateSetup() error {

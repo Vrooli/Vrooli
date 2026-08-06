@@ -26,6 +26,10 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, files map[string]string, re
 	origLookPath := hostreqkit.LookPathFn
 	origWriteTemp := hostreqkit.WriteTempFileFn
 	origStat := StatFn
+	origElevation := hostreqkit.ElevationFactsFn
+	hostreqkit.ElevationFactsFn = func() hostreqkit.ElevationFacts {
+		return hostreqkit.ElevationFacts{Platform: "linux", Elevated: true, CanElevate: true, Mechanism: "test"}
+	}
 
 	captured := []capturedCommand{}
 	fileContents := map[string]string{}
@@ -75,6 +79,7 @@ func stubAll(t *testing.T) (cmds *[]capturedCommand, files map[string]string, re
 
 	return &captured, fileContents, func() {
 		hostreqkit.ReadFileFn = origRead
+		hostreqkit.ElevationFactsFn = origElevation
 		hostreqkit.RunCommandFn = origRun
 		hostreqkit.CombinedOutputFn = origCombined
 		hostreqkit.LookPathFn = origLookPath

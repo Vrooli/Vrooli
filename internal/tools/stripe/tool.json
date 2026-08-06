@@ -11,12 +11,14 @@
   ],
   "handler": "stripe",
   "packages": {
-    "brew": "stripe/stripe-cli/stripe"
+    "brew": "stripe/stripe-cli/stripe",
+    "winget": "Stripe.StripeCli"
   },
   "installHint": "Install the Stripe CLI for local webhook forwarding and payment-workflow validation",
   "platforms": [
     "linux",
-    "macos"
+    "macos",
+    "windows"
   ],
   "bundling": "host-required"
 }

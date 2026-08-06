@@ -50,10 +50,13 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	case host.OS == "darwin" && host.PackageManager == "brew":
 		status.PackageName = h.manifest.Packages["brew"]
 		status.InstallSupported = true
+	case host.OS == "windows" && host.PackageManager == "winget":
+		status.PackageName = h.manifest.Packages["winget"]
+		status.InstallSupported = status.PackageName != ""
 	default:
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
-		status.Notes = append(status.Notes, "automatic Stripe CLI install is implemented for apt-based Linux hosts and Homebrew-managed macOS hosts")
+		status.Notes = append(status.Notes, "automatic Stripe CLI install is implemented for apt-based Linux, Homebrew-managed macOS, and winget-managed Windows hosts")
 	}
 
 	if status.Installed {
@@ -106,7 +109,31 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 			status.Notes = append(status.Notes, "brew install "+brewPkg)
 			return status, nil
 		}
-		if err := hostreqkit.RunInstallCommand("brew", []string{"install", brewPkg}, opts); err != nil {
+		command, args, err := hostreqkit.InstallCommand(host, brewPkg, opts.SudoMode)
+		if err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, err.Error())
+			return status, nil
+		}
+		if err := hostreqkit.RunInstallCommand(command, args, opts); err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, err.Error())
+			return status, nil
+		}
+	case host.OS == "windows" && host.PackageManager == "winget":
+		wingetPkg := h.manifest.Packages["winget"]
+		if opts.DryRun {
+			status.ExecutionState = hostreqkit.ExecutionWouldInstall
+			status.Notes = append(status.Notes, "dry-run: winget install "+wingetPkg)
+			return status, nil
+		}
+		command, args, err := hostreqkit.InstallCommand(host, wingetPkg, opts.SudoMode)
+		if err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, err.Error())
+			return status, nil
+		}
+		if err := hostreqkit.RunInstallCommand(command, args, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, err.Error())
 			return status, nil

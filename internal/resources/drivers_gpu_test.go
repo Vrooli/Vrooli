@@ -2,12 +2,24 @@ package resources
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
+
+func TestStatusRawWithModeReportsSelectedExecutionMode(t *testing.T) {
+	raw := statusRawWithMode(nil, "cpu")
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["mode"] != "cpu" {
+		t.Fatalf("mode=%v, want cpu", payload["mode"])
+	}
+}
 
 func gpuTestManifest(name string, gpu *manifestpkg.ResourceGPU) ResourceManifest {
 	return ResourceManifest{

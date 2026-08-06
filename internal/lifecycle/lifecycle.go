@@ -258,6 +258,10 @@ type StartOptions struct {
 	// the target instance — restart semantics. Set only by Runner.Restart;
 	// unexported so external callers express restart through Restart.
 	stopFirst bool
+	// hostRequirementsPreflighted is set only by the top-level start path. It
+	// prevents duplicate work for the root scenario while recursive dependency
+	// starts still enforce their own requirements normally.
+	hostRequirementsPreflighted string
 }
 
 type StopOptions struct {
@@ -464,6 +468,20 @@ func (r *Runner) Start(name string, opts StartOptions) (Result, error) {
 // per-scenario advisory lock for `name` (acquireScenarioLock). Used by Start
 // and Restart to avoid double-acquiring the lock from the same goroutine.
 func (r *Runner) startLocked(name string, opts StartOptions) (Result, error) {
+	// Validate and converge the target's host requirements before restart tears
+	// down a working instance or dependency bootstrap performs unrelated work.
+	// The execute path retains its enforcement as a safety net for recursive and
+	// future start paths, but this preflight is the user-visible transaction
+	// boundary for top-level starts and restarts.
+	item, err := r.loadScenario(name, opts.CustomPath)
+	if err != nil {
+		return Result{}, err
+	}
+	if err := r.enforceScenarioHostRequirements(item); err != nil {
+		return Result{}, fmt.Errorf("preflight host requirements for scenario %q: %w", name, err)
+	}
+	opts.hostRequirementsPreflighted = item.Slug
+
 	// Durable start-operation record: every top-level start/restart is
 	// introspectable by other processes for the duration of the run and
 	// after. Nil recorder (registry unavailable) degrades to an unrecorded
@@ -618,8 +636,10 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		return Result{}, err
 	}
 
-	if err := r.enforceScenarioHostRequirements(item); err != nil {
-		return Result{}, err
+	if item.Slug != opts.hostRequirementsPreflighted {
+		if err := r.enforceScenarioHostRequirements(item); err != nil {
+			return Result{}, err
+		}
 	}
 
 	env, err := r.prepareScenarioEnvironment(item, runtimeSession)
@@ -800,12 +820,6 @@ func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, runtimeSessi
 		return ports.Environment{}, err
 	}
 	r.logCredentialGaps(item.Slug, env)
-
-	if _, err := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "environment", Phase: "database"}, func(logWriter, _ io.Writer) error {
-		return r.ensureScenarioDatabase(item, env.EnvVars, logWriter)
-	}); err != nil {
-		return ports.Environment{}, err
-	}
 
 	return env, nil
 }

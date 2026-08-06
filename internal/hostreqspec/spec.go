@@ -8,6 +8,17 @@ import (
 
 type Kind string
 
+// OperatorChoice records the durable decision, if any, for an optional host
+// requirement. The explicit third state matters: an absent entry means the
+// operator has not answered yet, while false means the operator declined.
+type OperatorChoice string
+
+const (
+	OperatorChoiceNotRecorded OperatorChoice = "not_recorded"
+	OperatorChoiceOptedIn     OperatorChoice = "opted_in"
+	OperatorChoiceDeclined    OperatorChoice = "declined"
+)
+
 // Privilege describes the highest privilege an object needs on a target host.
 // It is deliberately independent of Bundling: a vendorable binary may need
 // elevated installation on one OS while still being safe to ship in a bundle.
@@ -86,6 +97,13 @@ type CapabilityRequirement struct {
 	Arch []string `json:"arch,omitempty"`
 	// MinRAMGb is the minimum total system RAM (GiB).
 	MinRAMGb float64 `json:"minRamGb,omitempty"`
+	// InitSystem, SessionType and DisplayManager are exact host-fact gates.
+	InitSystem     string `json:"initSystem,omitempty"`
+	SessionType    string `json:"sessionType,omitempty"`
+	DisplayManager string `json:"displayManager,omitempty"`
+	// WaylandAttainable gates experiences that require a policy-compatible
+	// Wayland session. A pointer preserves the distinction between false and no gate.
+	WaylandAttainable *bool `json:"waylandAttainable,omitempty"`
 }
 
 // IsZero reports whether the requirement imposes no constraint at all.
@@ -93,7 +111,9 @@ func (c *CapabilityRequirement) IsZero() bool {
 	if c == nil {
 		return true
 	}
-	return c.GPU == nil && c.MinVRAMGb == 0 && len(c.Arch) == 0 && c.MinRAMGb == 0
+	return c.GPU == nil && c.MinVRAMGb == 0 && len(c.Arch) == 0 && c.MinRAMGb == 0 &&
+		strings.TrimSpace(c.InitSystem) == "" && strings.TrimSpace(c.SessionType) == "" &&
+		strings.TrimSpace(c.DisplayManager) == "" && c.WaylandAttainable == nil
 }
 
 // CapabilityFacts are the host hardware facts a CapabilityRequirement is
@@ -101,10 +121,14 @@ func (c *CapabilityRequirement) IsZero() bool {
 // dependency on internal/hostinventory; callers translate a host snapshot into
 // these facts (the seam that lets tests use a fake host).
 type CapabilityFacts struct {
-	HasGPU    bool
-	MaxVRAMGb float64 // largest VRAM (GiB) across detected GPUs; 0 when unknown
-	Arch      string  // Go GOARCH of the host
-	RAMGb     float64 // total system RAM (GiB)
+	HasGPU            bool
+	MaxVRAMGb         float64 // largest VRAM (GiB) across detected GPUs; 0 when unknown
+	Arch              string  // Go GOARCH of the host
+	RAMGb             float64 // total system RAM (GiB)
+	InitSystem        string
+	SessionType       string
+	DisplayManager    string
+	WaylandAttainable bool
 }
 
 // Evaluate reports whether facts satisfy the requirement. When unmet, the
@@ -134,6 +158,18 @@ func (c *CapabilityRequirement) Evaluate(facts CapabilityFacts) (bool, string) {
 	}
 	if c.MinRAMGb > 0 && facts.RAMGb < c.MinRAMGb {
 		return false, fmt.Sprintf("requires >= %.0f GiB RAM; host has %.1f GiB", c.MinRAMGb, facts.RAMGb)
+	}
+	if expected := strings.TrimSpace(c.InitSystem); expected != "" && !strings.EqualFold(expected, strings.TrimSpace(facts.InitSystem)) {
+		return false, fmt.Sprintf("requires init system %q; host reports %q", expected, facts.InitSystem)
+	}
+	if expected := strings.TrimSpace(c.SessionType); expected != "" && !strings.EqualFold(expected, strings.TrimSpace(facts.SessionType)) {
+		return false, fmt.Sprintf("requires session type %q; host reports %q", expected, facts.SessionType)
+	}
+	if expected := strings.TrimSpace(c.DisplayManager); expected != "" && !strings.EqualFold(expected, strings.TrimSpace(facts.DisplayManager)) {
+		return false, fmt.Sprintf("requires display manager %q; host reports %q", expected, facts.DisplayManager)
+	}
+	if c.WaylandAttainable != nil && *c.WaylandAttainable != facts.WaylandAttainable {
+		return false, fmt.Sprintf("requires Wayland attainable=%t; host reports %t", *c.WaylandAttainable, facts.WaylandAttainable)
 	}
 	return true, ""
 }
@@ -209,27 +245,77 @@ type Provenance struct {
 }
 
 type ResolvedRequirement struct {
-	Name         string                 `json:"name"`
-	Kind         Kind                   `json:"kind"`
-	Required     bool                   `json:"required"`
-	Manual       bool                   `json:"manual"`
-	Privilege    Privilege              `json:"privilege"`
-	Bundling     Bundling               `json:"bundling"`
-	Reasons      []string               `json:"reasons,omitempty"`
-	When         []string               `json:"when,omitempty"`
-	Environments []string               `json:"environments,omitempty"`
-	Platforms    []string               `json:"platforms,omitempty"`
-	Notes        []string               `json:"notes,omitempty"`
-	Provenance   []Provenance           `json:"provenance,omitempty"`
-	Requires     *CapabilityRequirement `json:"requires,omitempty"`
+	Name           string                 `json:"name"`
+	Kind           Kind                   `json:"kind"`
+	Required       bool                   `json:"required"`
+	OperatorChoice OperatorChoice         `json:"operator_choice"`
+	Config         map[string]any         `json:"config,omitempty"`
+	ConfigError    string                 `json:"config_error,omitempty"`
+	Manual         bool                   `json:"manual"`
+	Privilege      Privilege              `json:"privilege"`
+	Bundling       Bundling               `json:"bundling"`
+	Reasons        []string               `json:"reasons,omitempty"`
+	When           []string               `json:"when,omitempty"`
+	Environments   []string               `json:"environments,omitempty"`
+	Platforms      []string               `json:"platforms,omitempty"`
+	Notes          []string               `json:"notes,omitempty"`
+	Provenance     []Provenance           `json:"provenance,omitempty"`
+	Requires       *CapabilityRequirement `json:"requires,omitempty"`
+}
+
+// ConfigString returns a declared string parameter and reports whether it was
+// present with the expected type.
+func (r ResolvedRequirement) ConfigString(name string) (string, bool) {
+	value, ok := r.Config[strings.TrimSpace(name)]
+	if !ok {
+		return "", false
+	}
+	result, ok := value.(string)
+	return result, ok
+}
+
+// ConfigInt returns a declared integer parameter. JSON numbers decode as
+// float64, so fractional values are rejected instead of silently truncated.
+func (r ResolvedRequirement) ConfigInt(name string) (int, bool) {
+	value, ok := r.Config[strings.TrimSpace(name)]
+	if !ok {
+		return 0, false
+	}
+	switch number := value.(type) {
+	case int:
+		return number, true
+	case float64:
+		if number == float64(int(number)) {
+			return int(number), true
+		}
+	}
+	return 0, false
+}
+
+// ConfigBool returns a declared boolean parameter and reports whether it was
+// present with the expected type.
+func (r ResolvedRequirement) ConfigBool(name string) (bool, bool) {
+	value, ok := r.Config[strings.TrimSpace(name)]
+	if !ok {
+		return false, false
+	}
+	result, ok := value.(bool)
+	return result, ok
 }
 
 func CurrentPlatform() string {
-	switch runtime.GOOS {
+	return NormalizePlatform(runtime.GOOS)
+}
+
+// NormalizePlatform converts operating-system identifiers at the declaration
+// boundary into the vocabulary used by host manifests. The legacy darwin token
+// remains readable so previously published manifests keep resolving on macOS.
+func NormalizePlatform(value string) string {
+	switch value = strings.ToLower(strings.TrimSpace(value)); value {
 	case "darwin":
 		return "macos"
 	default:
-		return runtime.GOOS
+		return value
 	}
 }
 

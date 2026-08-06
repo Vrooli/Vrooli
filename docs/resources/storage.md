@@ -89,7 +89,7 @@ resources/
     resource.json
     README.md
     docs/
-    initialization/
+    api/internal/<domain>/
     cli/
       main.go
       internal/

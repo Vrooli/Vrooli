@@ -65,7 +65,7 @@ func TestRenderGroupedSeparatesGroups(t *testing.T) {
 	pendingIdx := strings.Index(out, "Needs operator input")
 	appliedIdx := strings.Index(out, "Applied (1):")
 	alreadyIdx := strings.Index(out, "Already present (3): docker, git, mcelog")
-	notApplIdx := strings.Index(out, "Not applicable (1): edac_modules")
+	notApplIdx := strings.Index(out, "Not applicable (1):")
 	deltaIdx := strings.Index(out, "Δ installed=0  applied=1  failed=1  pending=1  unchanged=4")
 
 	for label, idx := range map[string]int{

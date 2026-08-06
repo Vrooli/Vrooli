@@ -122,9 +122,9 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sysctl", []string{"-p", configPath}, opts); err != nil {
+	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sysctl", []string{"--system"}, opts); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, "config written but sysctl -p failed: "+err.Error())
+		status.Notes = append(status.Notes, "config written but sysctl --system failed: "+err.Error())
 		return status, nil
 	}
 
