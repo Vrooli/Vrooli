@@ -203,7 +203,7 @@ export QDRANT_URL=http://localhost:6333
 
 ## App Configuration
 
-Located at `initialization/configuration/app-config.json`:
+Located at `api/internal/<domain>/configuration/app-config.json`:
 
 ```json
 {
@@ -253,7 +253,8 @@ Git-tracked and hot-loadable. Missing file → the defaults below.
 Levers are validated on load (bounds + `topicGate > AI_SEARCH_THRESHOLD`); an
 invalid file falls back to defaults. Tune **only from `discovery-metrics`**
 (see the rubric in the discovery-pipeline doc), not from a hunch, and record any
-change in a `swarm-manager records create --kind execute` entry.
+change with `vrooli-memory note --kind work-record` including trigger, approach,
+evidence, and outcome.
 
 **Levers deliberately *not* exposed:** the similarity threshold (it is
 `AI_SEARCH_THRESHOLD`, an env var — §Environment Variables) and the per-result
@@ -341,7 +342,7 @@ prompt-manager graph regenerate
 
 ## Campaign Templates
 
-Located at `initialization/configuration/campaign-templates.json`:
+Located at `api/internal/<domain>/configuration/campaign-templates.json`:
 
 Predefined campaign types with colors and icons for organizing skills.
 

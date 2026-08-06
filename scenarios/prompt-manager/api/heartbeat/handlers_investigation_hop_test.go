@@ -11,7 +11,9 @@ import (
 
 func TestCreateInvestigationRunSetsErrorHopHeaderOnUpstreamFailure(t *testing.T) {
 	mockClient := newMockAgentClient().WithCreateInvestigationRunError(errors.New("upstream failed"))
-	handlers := NewHandlers(nil, nil, nil, nil, nil, nil, mockClient, nil)
+	handlers := NewHandlers(HandlersDeps{
+		AgentClient: mockClient,
+	})
 
 	req := httpx.Request(t, http.MethodPost, "/runs/investigate", strings.NewReader(`{"run_ids":["run-1"],"depth":"standard"}`), nil)
 	w := httpx.Recorder()
@@ -26,7 +28,9 @@ func TestCreateInvestigationRunSetsErrorHopHeaderOnUpstreamFailure(t *testing.T)
 
 func TestCreateInvestigationApplyRunSetsErrorHopHeaderOnUpstreamFailure(t *testing.T) {
 	mockClient := newMockAgentClient().WithCreateInvestigationApplyError(errors.New("upstream failed"))
-	handlers := NewHandlers(nil, nil, nil, nil, nil, nil, mockClient, nil)
+	handlers := NewHandlers(HandlersDeps{
+		AgentClient: mockClient,
+	})
 
 	req := httpx.Request(t, http.MethodPost, "/runs/investigation-apply", strings.NewReader(`{"investigation_run_id":"run-1"}`), nil)
 	w := httpx.Recorder()

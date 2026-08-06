@@ -71,7 +71,7 @@ func TestCmdTopicsShowsValidationErrors(t *testing.T) {
 		Edges: nil,
 		Validation: topicValidation{
 			Findings: []topicFinding{
-				{Rule: "orphan_input", Severity: "error", Member: topicMemberRef{Team: "t", Member: "m"}, Prefix: "x/*", Detail: "no producer"},
+				{Rule: "orphan_input", Severity: "error", Kind: "declaration", Team: "t", Member: "m", Prefix: "x/*", Detail: "no producer"},
 			},
 			Errors: 1,
 		},
@@ -104,14 +104,18 @@ func TestCmdTopicsGroupsAndCapsHumanFindingsWhileJSONStaysComplete(t *testing.T)
 		{Rule: "prose_topic_leak", Severity: "warning", OwnerKey: "docs:a", Detail: "first"},
 		{Rule: "prose_topic_leak", Severity: "warning", OwnerKey: "docs:c", Detail: "third"},
 		{Rule: "prose_topic_leak", Severity: "warning", OwnerKey: "docs:b", Detail: "second"},
-		{Rule: "actual_writer_undeclared", Severity: "error", Member: topicMemberRef{Team: "t", Member: "m"}, Prefix: "x/*", Detail: "missing declaration"},
+		{Rule: "actual_writer_undeclared", Severity: "error", Kind: "runtime", Team: "t", Member: "m", Prefix: "x/*", Detail: "missing declaration"},
 	}
 	resp := topicsGraphResponse{Validation: topicValidation{Findings: findings, Errors: 1, Warnings: 4}}
 	ctx.Respond("GET", "/topics/graph", resp)
 
+	// The only error here is a runtime finding. `graph topics` gates on
+	// declaration findings alone, so it must still succeed: no edit to the
+	// tree can clear a runtime finding, and failing on one is what made this
+	// command unusable as a CI gate.
 	stdout, _, err := clitest.Output(t, func() error { return cmdTopics(ctx, nil) })
-	if err == nil {
-		t.Fatal("expected validation error")
+	if err != nil {
+		t.Fatalf("runtime-only findings must not fail the declaration gate: %v", err)
 	}
 	for _, want := range []string{
 		"Finding summary:",
@@ -130,9 +134,11 @@ func TestCmdTopicsGroupsAndCapsHumanFindingsWhileJSONStaysComplete(t *testing.T)
 		t.Errorf("human output included uncapped finding\n%s", stdout)
 	}
 
+	// --json still emits every finding regardless of kind; only the exit code
+	// is scoped to declarations.
 	jsonOut, _, err := clitest.Output(t, func() error { return cmdTopics(ctx, []string{"--json"}) })
-	if err == nil {
-		t.Fatal("expected validation error")
+	if err != nil {
+		t.Fatalf("runtime-only findings must not fail the declaration gate: %v", err)
 	}
 	var got topicsGraphResponse
 	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
@@ -162,7 +168,7 @@ func TestCmdTopics_FindingsOutWritesFile(t *testing.T) {
 		Nodes: []topicNode{{Kind: "member", ID: "member:t/m", Label: "m"}},
 		Validation: topicValidation{
 			Findings: []topicFinding{
-				{Rule: "unread_required", Severity: "warning", Member: topicMemberRef{Team: "t", Member: "m"}, Prefix: "x/*", Detail: "no producer"},
+				{Rule: "unread_required", Severity: "warning", Kind: "declaration", Team: "t", Member: "m", Prefix: "x/*", Detail: "no producer"},
 			},
 			Warnings: 1,
 		},
@@ -262,7 +268,7 @@ func TestCmdTopics_FindingsOutOnValidationError(t *testing.T) {
 	ctx.Respond("GET", "/topics/graph", topicsGraphResponse{
 		Validation: topicValidation{
 			Findings: []topicFinding{
-				{Rule: "orphan_input", Severity: "error", Member: topicMemberRef{Team: "t", Member: "m"}, Prefix: "x/*", Detail: "no producer"},
+				{Rule: "orphan_input", Severity: "error", Kind: "declaration", Team: "t", Member: "m", Prefix: "x/*", Detail: "no producer"},
 			},
 			Errors: 1,
 		},

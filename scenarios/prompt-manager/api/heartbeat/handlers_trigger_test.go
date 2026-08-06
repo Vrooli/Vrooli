@@ -35,7 +35,12 @@ func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
 	}
 
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
@@ -63,7 +68,12 @@ func TestTriggerHeartbeatRequiresMembership(t *testing.T) {
 	}
 
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
@@ -100,7 +110,13 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 	exec := &captureExecutor{}
 	teamExecStore := NewTeamExecutionStore(teamStore, exec, t.TempDir(), nil)
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, teamExecStore)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+		TeamExecStore: teamExecStore,
+	})
 
 	// First trigger should succeed (202 Accepted)
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
@@ -162,7 +178,15 @@ func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
 
 	teamExecStore := NewTeamExecutionStore(teamStore, executor, t.TempDir(), nil)
 
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, registry, mockClient, teamExecStore)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+		RunRegistry:   registry,
+		AgentClient:   mockClient,
+		TeamExecStore: teamExecStore,
+	})
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
@@ -239,7 +263,13 @@ func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
 	}
 
 	// No teamExecStore — should use direct execution fallback
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, mockClient, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+		AgentClient:   mockClient,
+	})
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
@@ -301,7 +331,12 @@ func TestTriggerHeartbeatBlockedWhenTeamDisabled(t *testing.T) {
 	}
 
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})

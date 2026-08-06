@@ -88,7 +88,12 @@ func TestGetAllPendingDecisions_MultipleTeams(t *testing.T) {
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 	ctx := context.Background()
 
 	// Create two teams

@@ -22,7 +22,12 @@ func setupTeamTriggerTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 	return handlers, teamStore, agentStore, relationStore
 }
 
@@ -207,7 +212,11 @@ func TestTriggerTeam_ExecutorNotConfigured(t *testing.T) {
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 	// No executor
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, nil, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+	})
 
 	if err := teamStore.Create(context.Background(), newIndependentTestTeam("team-1", "Team")); err != nil {
 		t.Fatalf("create team: %v", err)
@@ -256,7 +265,13 @@ func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
 	exec := &captureExecutor{}
 	teamExecStore := NewTeamExecutionStore(teamStore, exec, t.TempDir(), nil)
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, teamExecStore)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+		TeamExecStore: teamExecStore,
+	})
 
 	// First team trigger should succeed
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-q/trigger", nil)

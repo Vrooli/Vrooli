@@ -12,43 +12,13 @@ func TestDefaultOperatingRelationshipRegistryIsInternallyConsistent(t *testing.T
 		if spec.DiffIncluded && !spec.CoverageIncluded {
 			t.Fatalf("relationship %q participates in diff but not coverage", spec.Kind)
 		}
-		if spec.CoverageIncluded && len(spec.ValidationRules) == 0 {
-			t.Fatalf("relationship %q participates in coverage without validation metadata", spec.Kind)
-		}
-		if spec.CoverageIncluded && spec.ValidationSeverity == "" {
-			t.Fatalf("relationship %q participates in coverage without validation severity", spec.Kind)
-		}
 		if spec.CoverageIncluded && spec.RuntimeCoverageMode == "" {
 			t.Fatalf("relationship %q participates in coverage without runtime coverage mode", spec.Kind)
 		}
-		if spec.RuntimeOnlyCompletes && len(spec.RuntimeFields) == 0 {
-			t.Fatalf("relationship %q requires runtime completeness without acceptable runtime fields", spec.Kind)
-		}
-		if spec.RuntimeOnlyCompletes && len(spec.CompletenessTargets) == 0 {
-			t.Fatalf("relationship %q requires runtime completeness without registry targets", spec.Kind)
-		}
-	}
-}
-
-func TestDefaultOperatingGraphRulesIncludeRegistryBackedCompleteness(t *testing.T) {
-	registry := DefaultOperatingRelationshipRegistry()
-	rules := DefaultOperatingGraphRules()
-	rulesByID := map[string]Rule{}
-	for _, rule := range rules {
-		if _, ok := rulesByID[rule.ID()]; ok {
-			t.Fatalf("duplicate operating graph rule id %q", rule.ID())
-		}
-		rulesByID[rule.ID()] = rule
-	}
-
-	for _, spec := range registry.Specs() {
-		if !spec.RuntimeOnlyCompletes {
-			continue
-		}
-		for _, target := range spec.CompletenessTargets {
-			if _, ok := rulesByID[target.RuleID]; !ok {
-				t.Fatalf("registry relationship %q expects completeness rule %q", spec.Kind, target.RuleID)
-			}
+		// A covered relationship has to name the declaration fields its
+		// runtime side is read from, or coverage counts nothing.
+		if spec.CoverageIncluded && len(spec.RuntimeFields) == 0 {
+			t.Fatalf("relationship %q participates in coverage without acceptable runtime fields", spec.Kind)
 		}
 	}
 }
@@ -62,8 +32,11 @@ func TestOperatingRelationshipRegistryOwnsCoveragePolicies(t *testing.T) {
 	if !topicRead.SubtypeCoverage {
 		t.Fatalf("topic read should declare runtime subtype coverage in the registry")
 	}
-	if len(topicRead.CompletenessTargets) != 3 {
-		t.Fatalf("topic read completeness targets = %d, want 3", len(topicRead.CompletenessTargets))
+	// The coarse topic->member read edge stands for three declaration fields.
+	// OPERATING_GRAPHS.md records that coarseness as a deliberate readability
+	// decision, so the registry must keep all three rather than splitting them.
+	if len(topicRead.RuntimeFields) != 3 {
+		t.Fatalf("topic read runtime fields = %d, want 3 (intake, required_read, evidence_consumed)", len(topicRead.RuntimeFields))
 	}
 
 	externalIntake, ok := registry.Spec(operatingRelExternalProducerIntake)

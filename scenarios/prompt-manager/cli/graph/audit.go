@@ -117,11 +117,60 @@ func auditCollectors() []func(appctx.Context) auditTarget {
 		auditCrossTeamCoupling,
 		auditCanonCoherence,
 		auditObjectiveCoverage,
-		auditSkillReachability,
+		auditStaticallyUnreferencedSkills,
 		auditSkillConditioning,
 		auditExperimentLiveness,
 		auditPoREntropy,
+		auditTeamOrientationCost,
+		auditDiscoveryBudgetPressure,
+		auditPromptStructureInvariant,
+		auditRulesWithNoFinding,
 	}
+}
+
+// auditPromptStructureInvariant is the first audit target that measures the
+// artifact an agent actually receives rather than a declaration it was built
+// from. Every other target reads checked-in files; a prompt-breaking defect
+// lived on all six teams for months precisely because nothing watched the
+// output.
+func auditPromptStructureInvariant(ctx appctx.Context) auditTarget {
+	t := auditTarget{
+		Target:   "Prompt structure invariant",
+		Sensor:   "go test ./heartbeat/ -run TestAssembledPromptEmitsOnlyRegisteredSectionHeadings",
+		Deadband: "every level-one heading in an assembled prompt is a registered prompt section",
+		Actuator: "framework-update; repair the prompt builder, never the section registry alone",
+	}
+	// The invariant is enforced in-process by the heartbeat test suite, which
+	// has the store and builder this CLI does not. Reporting it here without a
+	// corpus-wide sensor of its own would be a claim with nothing behind it, so
+	// it carries a gap marker instead.
+	t.Observed = "pending-telemetry: enforced in-process by TestAssembledPromptEmitsOnlyRegisteredSectionHeadings and TestPromptPrecedenceListNamesNonEmptySections, with no corpus-wide CLI sensor"
+	t.Status = auditStatusNoSensor
+	t.GapMarker = "2026-07-31: no corpus-wide CLI sensor; the invariant runs in the heartbeat unit suite, which owns the prompt builder"
+	return t
+}
+
+// auditRulesWithNoFinding tracks the reduction metric Decision 7 carries. A
+// rule that produced no finding is not necessarily dead — a clean tree is also
+// silent — so the band is a downward trend, not a threshold.
+func auditRulesWithNoFinding(ctx appctx.Context) auditTarget {
+	t := auditTarget{
+		Target:   "Catalogued rules with no finding",
+		Sensor:   "prompt-manager graph rules",
+		Deadband: "downward trend against the previous cycle; a single reading is a baseline, not a finding",
+		Actuator: "screen the silent rules on whether a test makes each fire and whether a failure names something specific to change",
+	}
+	var resp rulesResponse
+	if err := ctx.Get("/topics/rules", &resp); err != nil {
+		return auditFailed(t, err)
+	}
+	t.Observed = fmt.Sprintf("pending-baseline: %d of %d catalogued rules produced no finding this cycle; a trend needs the previous cycle to band", resp.Silent, resp.Total)
+	// A trend target cannot be judged from one reading; the band is comparison
+	// against the previous framework-health record, which this command does not
+	// hold. Reporting in-band here would assert a trend that was never measured.
+	t.Status = auditStatusNoSensor
+	t.GapMarker = "2026-07-31: trend target; needs the previous cycle's reading from the framework-health record to band"
+	return t
 }
 
 func auditContractValidity(ctx appctx.Context) auditTarget {
@@ -238,7 +287,7 @@ func auditMemberDocConformance(ctx appctx.Context) auditTarget {
 		switch {
 		case f.Severity == "error":
 			errors++
-			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s %s/%s: %s", f.Rule, f.Member.Team, f.Member.Member, f.Detail))
+			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s %s/%s: %s", f.Rule, f.Team, f.Member, f.Detail))
 		case f.Rule == "member_doc_section_recommended":
 			gaps++
 		}
@@ -299,19 +348,66 @@ func auditCrossTeamCoupling(ctx appctx.Context) auditTarget {
 	return t
 }
 
-func auditSkillReachability(ctx appctx.Context) auditTarget {
+// auditStaticallyUnreferencedSkills reports and does not band. Static
+// reference is one of three reachability classes (FRAMEWORK_HEALTH
+// §"Three reachability classes, one sensor"); banding on it alone reported
+// heavily-discovered skills as unreachable. The row returns to a band when the
+// sensor joins static references, discovery hits, and read counts.
+// discoveryMetricsResponse mirrors the fields of GET /discovery-metrics that
+// this sweep reads. The full payload carries more; keep this struct to the
+// budget-pressure slice so an unrelated field addition cannot break the audit.
+type discoveryMetricsResponse struct {
+	BudgetedCallCount int     `json:"budgetedCallCount"`
+	OverBudgetRate    float64 `json:"overBudgetRate"`
+	BudgetHogs        []struct {
+		ID             string `json:"id"`
+		MaxChars       int    `json:"maxChars"`
+		Seen           int    `json:"seen"`
+		OverBudgetSeen int    `json:"overBudgetSeen"`
+	} `json:"budgetHogs"`
+}
+
+func auditStaticallyUnreferencedSkills(ctx appctx.Context) auditTarget {
 	t := auditTarget{
-		Target:   "Skill reachability",
+		Target:   "Statically unreferenced skills",
 		Sensor:   "prompt-manager graph orphaned-skills",
-		Deadband: "0 unreachable candidates",
-		Actuator: "skill-deprecation or skill-improvement",
+		Deadband: "none until the sensor joins static references, discovery hits, and read counts",
+		Actuator: "skill-deprecation or skill-improvement, only after the join confirms the skill is also undiscovered and unread",
 	}
 	var nodes []node
 	if err := ctx.Get("/graph/orphans", &nodes); err != nil {
 		return auditFailed(t, err)
 	}
-	t.Observed = fmt.Sprintf("%d candidates", len(nodes))
-	t.Status = auditBand(len(nodes) == 0)
+	t.Observed = fmt.Sprintf("pending-baseline — %d statically unreferenced; cross-check against prompt-manager skill-usage before treating any as dead", len(nodes))
+	t.Status = auditStatusNoSensor
+	t.GapMarker = "2026-07-31 — discovery and read telemetry are now instrumented (prompt-manager skill-usage); restore a band once a full window has accumulated and the three classes are joined in one reading"
+	return t
+}
+
+func auditDiscoveryBudgetPressure(ctx appctx.Context) auditTarget {
+	t := auditTarget{
+		Target:   "Discovery budget pressure",
+		Sensor:   "prompt-manager discovery-metrics --json — overBudgetRate",
+		Deadband: "under 25% of budgeted calls over budget",
+		Actuator: "skill-improvement, owned by skill-optimizer",
+	}
+	var resp discoveryMetricsResponse
+	if err := ctx.GetWithQuery("/discovery-metrics", url.Values{}, &resp); err != nil {
+		return auditFailed(t, err)
+	}
+	if resp.BudgetedCallCount == 0 {
+		t.Observed = "no budgeted discovery calls in the window"
+		t.Status = auditStatusInBand
+		return t
+	}
+	pct := resp.OverBudgetRate * 100
+	t.Observed = fmt.Sprintf("%.0f%% of %d budgeted calls over budget", pct, resp.BudgetedCallCount)
+	t.Status = auditBand(resp.OverBudgetRate < 0.25)
+	for _, h := range resp.BudgetHogs {
+		if h.OverBudgetSeen > 0 {
+			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s: %d chars, seen %d, over budget %d", h.ID, h.MaxChars, h.Seen, h.OverBudgetSeen))
+		}
+	}
 	return t
 }
 
@@ -341,19 +437,47 @@ func auditExperimentLiveness(appctx.Context) auditTarget {
 	}
 }
 
-// auditObjectiveCoverage is external: the coverage rule joins two plan-of-record
-// documents, and neither the objective set nor the team contribution map is a
-// relationship-graph surface. Reporting it as external keeps the join visible
-// rather than letting an unserved objective read as a clean sweep.
-func auditObjectiveCoverage(appctx.Context) auditTarget {
-	return auditTarget{
+// auditObjectiveCoverage reads the objective join in both directions.
+//
+// This target was `external` until the objective edge became a declaration.
+// The coverage rule joins the operator's objective table against
+// team.json::objectivesServed, so the downward direction (objectives to teams)
+// and the upward direction (teams to objectives) are both mechanical here.
+//
+// What stays outside this sensor: the outcome-category half of the upward
+// direction. Categories are Command Center dashboard ids in the outcomes
+// charter, not a relationship-graph surface, so Phase 4 of the audit still
+// reads that one by hand.
+func auditObjectiveCoverage(ctx appctx.Context) auditTarget {
+	t := auditTarget{
 		Target:   "Objective coverage",
-		Sensor:   "read docs/director-swarm/strategy/OBJECTIVES.md §\"The coverage rule\" against the charter's team contribution map",
-		Deadband: "0 objectives unserved without a dated gap marker; 0 teams or outcome categories tracing to no objective",
+		Sensor:   "prompt-manager graph objectives",
+		Deadband: "0 objectives unserved without a dated gap marker; 0 teams tracing to no objective; 0 declaration errors",
 		Actuator: "outcome-direction or capability-gap in director-swarm",
-		Observed: "not collected — read both coverage directions",
-		Status:   auditStatusExternal,
 	}
+	var resp objectiveResponse
+	if err := ctx.GetWithQuery("/objectives", url.Values{}, &resp); err != nil {
+		return auditFailed(t, err)
+	}
+	t.Observed = fmt.Sprintf("%d unserved (%d undeclared), %d unattached team(s), %d error(s), %d warning(s)",
+		resp.Unserved, resp.Undeclared, len(resp.UnattachedTeams), resp.Validation.Errors, resp.Validation.Warnings)
+	t.Status = auditBand(resp.Undeclared == 0 && len(resp.UnattachedTeams) == 0 && resp.Validation.Errors == 0)
+	// A declared hole is in band but must still reach the reader: it is an open
+	// finding whose disposition is known, and it stays in the list until it
+	// closes rather than disappearing into a green cell.
+	for _, row := range resp.Rows {
+		if !row.Served {
+			marker := row.GapMarker
+			if marker == "" {
+				marker = "no gap marker"
+			}
+			t.Detail = appendCapped(t.Detail, fmt.Sprintf("%s unserved (%s)", row.ID, marker))
+		}
+	}
+	for _, f := range resp.Validation.Findings {
+		t.Detail = appendCapped(t.Detail, fmt.Sprintf("[%s] %s: %s", f.Severity, f.Rule, f.Detail))
+	}
+	return t
 }
 
 func auditSkillConditioning(appctx.Context) auditTarget {
@@ -378,6 +502,39 @@ func auditPoREntropy(appctx.Context) auditTarget {
 		Status:    auditStatusNoSensor,
 		GapMarker: "2026-07-27 — build state-in-prose telemetry; blocked on a stable document-state classification contract",
 	}
+}
+
+// auditTeamOrientationCost reads the composite for every team.
+//
+// The band is a trend, so this collector cannot band a single sweep: a rise is
+// only a finding when it happened in a cycle where scenario coverage also rose,
+// and one reading holds no cycle. It therefore reports the composites and marks
+// the target `pending-baseline` until an audit record exists to diff against —
+// which is exactly what the audit-record step in FRAMEWORK_HEALTH exists for.
+func auditTeamOrientationCost(ctx appctx.Context) auditTarget {
+	t := auditTarget{
+		Target:    "Team orientation cost",
+		Sensor:    "prompt-manager graph orientation-cost",
+		Deadband:  "no team's orientation cost rises across an audit cycle in which its scenario coverage grew",
+		Actuator:  "team-capability-consolidation",
+		Status:    auditStatusNoSensor,
+		GapMarker: "2026-07-30 — the composite is built; the trend needs one prior framework-health-audit record to diff against",
+	}
+	var resp orientationCostReport
+	if err := ctx.GetWithQuery("/orientation-cost", url.Values{}, &resp); err != nil {
+		return auditFailed(t, err)
+	}
+	t.Observed = fmt.Sprintf("pending-baseline — %d team composite(s) read; the band needs a prior audit record", len(resp.Teams))
+	// Every team's reading is appended, not capped to the usual three leads.
+	// For other targets Detail is a lead into a sensor the reader can re-run;
+	// here it is the payload the next cycle diffs against, and a truncated
+	// record would silently lose teams from the trend.
+	for _, team := range resp.Teams {
+		t.Detail = append(t.Detail, fmt.Sprintf("%s composite=%d (members=%d canon=%d topics=%d decisions=%d) scenarios=%d",
+			team.TeamID, team.Composite, team.Components.Members, team.Components.CanonLines,
+			team.Components.Topics, team.Components.DecisionContexts, team.ScenarioCoverage))
+	}
+	return t
 }
 
 func auditBand(inBand bool) string {

@@ -249,7 +249,7 @@ func main() {
 	// api-core/storage (ProfileAuto). The three roots live on the Roots
 	// struct and are threaded through the FileStore constructor and any
 	// handler that needs a class-aware path.
-	configDir := filepath.Join("..", "store")
+	configDir := filepath.Join("..", ".vrooli")
 	if envDir := os.Getenv("STORE_DIR"); envDir != "" {
 		configDir = envDir
 	}
@@ -428,6 +428,14 @@ func main() {
 	// every discover call so threshold/budget/clipping behavior is measurable.
 	discoveryCallStore := store.NewDiscoveryCallStore(roots.RuntimeData)
 	aiSearchService.SetDiscoveryCallStore(discoveryCallStore)
+
+	// Skill-read telemetry. Recording happens at the read handler, which is the
+	// only point every consumer passes through; the reporter joins those reads
+	// against the discovery calls above so a skill returned often and read
+	// rarely reads as a search-precision defect rather than as demand.
+	skillReadStore := store.NewSkillReadStore(roots.RuntimeData)
+	skillHandlers.SetReadRecorder(skills.NewReadRecorder(skillReadStore, discoveryCallStore, metricsAdapter))
+	skillHandlers.SetUsageReporter(skills.NewUsageReporter(skillReadStore, discoveryCallStore))
 	// Opt-in threshold-clipping probe (default off). DISCOVERY_PROBE_SAMPLE=N
 	// samples 1-in-N calls to re-search at threshold 0 and count clipped hits.
 	if sampleStr := os.Getenv("DISCOVERY_PROBE_SAMPLE"); sampleStr != "" {
@@ -626,6 +634,7 @@ func main() {
 	// Usage tracking routes (part of skills domain)
 	v1.HandleFunc("/skills/{id}/use", skillHandlers.RecordUsage).Methods("POST")
 	v1.HandleFunc("/skills/{id}/rating", skillHandlers.SetRating).Methods("PUT")
+	v1.HandleFunc("/skill-usage", skillHandlers.SkillUsage).Methods("GET")
 
 	// Search routes
 	v1.HandleFunc("/search/skills", searchHandlers.Search).Methods("GET")
@@ -735,6 +744,9 @@ func main() {
 	// registered before /topics/{id} so mux does not treat "graph"/
 	// "drain-status" as topic IDs.
 	v1.HandleFunc("/topics/graph", memberFlowHandlers.GetGraph).Methods("GET")
+	v1.HandleFunc("/topics/rules", memberFlowHandlers.GetRules).Methods("GET")
+	v1.HandleFunc("/objectives", memberFlowHandlers.GetObjectives).Methods("GET")
+	v1.HandleFunc("/orientation-cost", memberFlowHandlers.GetOrientationCost).Methods("GET")
 	v1.HandleFunc("/topics/drain-status", memberFlowHandlers.GetDrainStatus).Methods("GET")
 	v1.HandleFunc("/operating-models", memberFlowHandlers.GetOperatingModels).Methods("GET")
 	v1.HandleFunc("/operating-models/map", graphHandlers.GetOperatingMap).Methods("GET")
@@ -808,16 +820,16 @@ func main() {
 		teamExecStore,
 	)
 	heartbeatScheduler.SetControlStore(heartbeatControlStore)
-	heartbeatHandlers := heartbeat.NewHandlers(
-		fileStore.Teams().(*store.FileTeamStore),
-		fileStore.Agents().(*store.FileAgentStore),
-		fileStore.Relations(),
-		heartbeatScheduler,
-		heartbeatExecutor,
-		runRegistry,
-		agentManagerClient,
-		teamExecStore,
-	)
+	heartbeatHandlers := heartbeat.NewHandlers(heartbeat.HandlersDeps{
+		TeamStore:     fileStore.Teams().(*store.FileTeamStore),
+		AgentStore:    fileStore.Agents().(*store.FileAgentStore),
+		RelationStore: fileStore.Relations(),
+		Scheduler:     heartbeatScheduler,
+		Executor:      heartbeatExecutor,
+		RunRegistry:   runRegistry,
+		AgentClient:   agentManagerClient,
+		TeamExecStore: teamExecStore,
+	})
 	heartbeatHandlers.SetControlStore(heartbeatControlStore)
 	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
 

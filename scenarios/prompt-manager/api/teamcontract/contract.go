@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"prompt-manager/finding"
 )
 
 const (
@@ -234,14 +236,6 @@ type ValidationInput struct {
 	RepoRoot     string
 }
 
-// ValidationFinding is one independently actionable operating-contract
-// defect. Validation reports the complete set on reads; callers that write a
-// contract can retain strict rejection through Validate.
-type ValidationFinding struct {
-	Field   string `json:"field"`
-	Message string `json:"message"`
-}
-
 type RenderInput struct {
 	TeamID         string
 	TeamName       string
@@ -335,45 +329,57 @@ func Validate(contract *OperatingContract, input ValidationInput) error {
 	if len(findings) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%s", findings[0].Message)
+	return fmt.Errorf("%s", findings[0].Detail)
 }
 
 // ValidateFindings reports all independent contract defects that can be
 // evaluated from the supplied document. It intentionally avoids fail-fast
 // control flow: the read path must leave a malformed team visible and give
 // its operator the whole repair list in one pass.
-func ValidateFindings(contract *OperatingContract, input ValidationInput) []ValidationFinding {
-	var findings []ValidationFinding
-	add := func(field, format string, args ...any) {
-		findings = append(findings, ValidationFinding{Field: field, Message: fmt.Sprintf(format, args...)})
+func ValidateFindings(contract *OperatingContract, input ValidationInput) []finding.Finding {
+	var findings []finding.Finding
+	add := func(rule, field, format string, args ...any) {
+		entry, ok := contractRuleCatalog[rule]
+		severity := finding.SeverityError
+		if ok {
+			severity = entry.Severity
+		}
+		findings = append(findings, finding.Finding{
+			Rule:     rule,
+			Severity: severity,
+			Kind:     finding.KindDeclaration,
+			Team:     input.TeamID,
+			Path:     field,
+			Detail:   fmt.Sprintf(format, args...),
+		})
 	}
 	if contract == nil {
-		add("operatingContract", "operatingContract is required")
+		add("contract_missing", "operatingContract", "operatingContract is required")
 		return findings
 	}
 	if contract.SchemaVersion != SchemaVersion {
-		add("operatingContract.schemaVersion", "operatingContract.schemaVersion must equal %d", SchemaVersion)
+		add("contract_schema_version_invalid", "operatingContract.schemaVersion", "operatingContract.schemaVersion must equal %d", SchemaVersion)
 	}
 	if strings.TrimSpace(contract.Governance.DecisionMode) == "" {
-		add("operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode is required")
+		add("contract_decision_mode_missing", "operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode is required")
 	}
 	if input.DecisionMode != "" && contract.Governance.DecisionMode != input.DecisionMode {
-		add("operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode %q must match team decisionMode %q", contract.Governance.DecisionMode, input.DecisionMode)
+		add("contract_decision_mode_team_mismatch", "operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode %q must match team decisionMode %q", contract.Governance.DecisionMode, input.DecisionMode)
 	}
 	if contract.Governance.DecisionMode != DecisionModeYolo && contract.Governance.DecisionMode != DecisionModeApproval {
-		add("operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode must be 'yolo' or 'approval'")
+		add("contract_decision_mode_unknown", "operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode must be 'yolo' or 'approval'")
 	}
 	if contract.Governance.TeamPendingCeiling.Value < 0 {
-		add("operatingContract.governance.teamPendingCeiling.value", "operatingContract.governance.teamPendingCeiling.value must be non-negative")
+		add("contract_team_pending_ceiling_negative", "operatingContract.governance.teamPendingCeiling.value", "operatingContract.governance.teamPendingCeiling.value must be non-negative")
 	}
 	if contract.DecisionContext == nil {
-		add("operatingContract.decisionContexts", "operatingContract.decisionContexts is required")
+		add("contract_decision_contexts_missing", "operatingContract.decisionContexts", "operatingContract.decisionContexts is required")
 	}
 	if contract.KnowledgeTopics == nil {
-		add("operatingContract.knowledgeTopics", "operatingContract.knowledgeTopics is required")
+		add("contract_knowledge_topics_missing", "operatingContract.knowledgeTopics", "operatingContract.knowledgeTopics is required")
 	}
 	if contract.Members == nil {
-		add("operatingContract.members", "operatingContract.members is required")
+		add("contract_members_missing", "operatingContract.members", "operatingContract.members is required")
 	}
 	for _, memberID := range input.MemberIDs {
 		memberID = strings.TrimSpace(memberID)
@@ -381,31 +387,31 @@ func ValidateFindings(contract *OperatingContract, input ValidationInput) []Vali
 			continue
 		}
 		if _, ok := contract.Members[memberID]; !ok {
-			add("operatingContract.members", "operatingContract.members missing active member %q", memberID)
+			add("contract_member_absent", "operatingContract.members", "operatingContract.members missing active member %q", memberID)
 		}
 	}
 
 	for id, member := range contract.Members {
 		if strings.TrimSpace(id) == "" {
-			add("operatingContract.members", "operatingContract.members contains an empty member id")
+			add("contract_member_id_empty", "operatingContract.members", "operatingContract.members contains an empty member id")
 		}
 		if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat < 0 {
-			add("operatingContract.members."+id+".newDecisionCapPerHeartbeat", "operatingContract.members.%s.newDecisionCapPerHeartbeat must be non-negative", id)
+			add("contract_member_decision_cap_negative", "operatingContract.members."+id+".newDecisionCapPerHeartbeat", "operatingContract.members.%s.newDecisionCapPerHeartbeat must be non-negative", id)
 		}
 		if member.PendingOwnedDecisionCap != nil && *member.PendingOwnedDecisionCap < 0 {
-			add("operatingContract.members."+id+".pendingOwnedDecisionCap", "operatingContract.members.%s.pendingOwnedDecisionCap must be non-negative", id)
+			add("contract_member_pending_cap_negative", "operatingContract.members."+id+".pendingOwnedDecisionCap", "operatingContract.members.%s.pendingOwnedDecisionCap must be non-negative", id)
 		}
 		for contextID, cap := range member.NewDecisionCapsByContext {
 			if cap < 0 {
-				add("operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s.newDecisionCapsByContext.%s must be non-negative", id, contextID)
+				add("contract_member_context_cap_negative", "operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s.newDecisionCapsByContext.%s must be non-negative", id, contextID)
 			}
 			if _, ok := contract.DecisionContext[contextID]; !ok {
-				add("operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s.newDecisionCapsByContext.%s is not declared in decisionContexts", id, contextID)
+				add("contract_member_context_cap_undeclared", "operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s.newDecisionCapsByContext.%s is not declared in decisionContexts", id, contextID)
 			}
 		}
 		for _, contextID := range member.OwnedDecisionContexts {
 			if _, ok := contract.DecisionContext[contextID]; !ok {
-				add("operatingContract.members."+id+".ownedDecisionContexts", "operatingContract.members.%s.ownedDecisionContexts contains undeclared context %q", id, contextID)
+				add("contract_member_owned_context_undeclared", "operatingContract.members."+id+".ownedDecisionContexts", "operatingContract.members.%s.ownedDecisionContexts contains undeclared context %q", id, contextID)
 			}
 		}
 		// A member that forbids decision writes must zero its caps. Owning a
@@ -415,53 +421,53 @@ func ValidateFindings(contract *OperatingContract, input ValidationInput) []Vali
 		// states both "decision writes: not allowed" and "max new decisions: N".
 		if writeRefsContainKind(member.ForbiddenWrites, "decision") {
 			if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat != 0 {
-				add("operatingContract.members."+id+".newDecisionCapPerHeartbeat", "operatingContract.members.%s forbids decision writes but declares newDecisionCapPerHeartbeat %d; set it to 0 or drop the forbidden write", id, *member.NewDecisionCapPerHeartbeat)
+				add("contract_member_decision_cap_contradicts_forbidden_write", "operatingContract.members."+id+".newDecisionCapPerHeartbeat", "operatingContract.members.%s forbids decision writes but declares newDecisionCapPerHeartbeat %d; set it to 0 or drop the forbidden write", id, *member.NewDecisionCapPerHeartbeat)
 			}
 			if member.PendingOwnedDecisionCap != nil && *member.PendingOwnedDecisionCap != 0 {
-				add("operatingContract.members."+id+".pendingOwnedDecisionCap", "operatingContract.members.%s forbids decision writes but declares pendingOwnedDecisionCap %d; set it to 0 or drop the forbidden write", id, *member.PendingOwnedDecisionCap)
+				add("contract_member_pending_cap_contradicts_forbidden_write", "operatingContract.members."+id+".pendingOwnedDecisionCap", "operatingContract.members.%s forbids decision writes but declares pendingOwnedDecisionCap %d; set it to 0 or drop the forbidden write", id, *member.PendingOwnedDecisionCap)
 			}
 			for contextID, cap := range member.NewDecisionCapsByContext {
 				if cap != 0 {
-					add("operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s forbids decision writes but declares newDecisionCapsByContext.%s %d; set it to 0 or drop the forbidden write", id, contextID, cap)
+					add("contract_member_context_cap_contradicts_forbidden_write", "operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s forbids decision writes but declares newDecisionCapsByContext.%s %d; set it to 0 or drop the forbidden write", id, contextID, cap)
 				}
 			}
 		}
 		if err := validateWriteRefs(member.AllowedWrites, input, id, "allowedWrites"); err != nil {
-			add("operatingContract.members."+id+".allowedWrites", "%s", err)
+			add("contract_member_allowed_writes_invalid", "operatingContract.members."+id+".allowedWrites", "%s", err)
 		}
 		if err := validateWriteRefs(member.ForbiddenWrites, input, id, "forbiddenWrites"); err != nil {
-			add("operatingContract.members."+id+".forbiddenWrites", "%s", err)
+			add("contract_member_forbidden_writes_invalid", "operatingContract.members."+id+".forbiddenWrites", "%s", err)
 		}
 	}
 	for contextID, dc := range contract.DecisionContext {
 		if len(dc.OwnerMemberIDs) == 0 && len(dc.ExternalAuthorizedRaisers) == 0 {
-			add("operatingContract.decisionContexts."+contextID, "operatingContract.decisionContexts.%s requires ownerMemberIds or externalAuthorizedRaisers", contextID)
+			add("contract_decision_context_unowned", "operatingContract.decisionContexts."+contextID, "operatingContract.decisionContexts.%s requires ownerMemberIds or externalAuthorizedRaisers", contextID)
 		}
 		for _, ownerID := range dc.OwnerMemberIDs {
 			if _, ok := contract.Members[ownerID]; !ok {
-				add("operatingContract.decisionContexts."+contextID+".ownerMemberIds", "operatingContract.decisionContexts.%s owner %q is not a contract member", contextID, ownerID)
+				add("contract_decision_context_owner_unknown", "operatingContract.decisionContexts."+contextID+".ownerMemberIds", "operatingContract.decisionContexts.%s owner %q is not a contract member", contextID, ownerID)
 			}
 		}
 	}
 	if policy := contract.Governance.StaleDecisionPolicy; policy != nil {
 		if policy.AfterHeartbeats < 1 {
-			add("operatingContract.governance.staleDecisionPolicy.afterHeartbeats", "operatingContract.governance.staleDecisionPolicy.afterHeartbeats must be at least 1")
+			add("contract_stale_policy_after_heartbeats_invalid", "operatingContract.governance.staleDecisionPolicy.afterHeartbeats", "operatingContract.governance.staleDecisionPolicy.afterHeartbeats must be at least 1")
 		}
 		if _, ok := contract.Members[policy.OwnerMemberID]; !ok {
-			add("operatingContract.governance.staleDecisionPolicy.ownerMemberId", "operatingContract.governance.staleDecisionPolicy.ownerMemberId %q is not a contract member", policy.OwnerMemberID)
+			add("contract_stale_policy_owner_unknown", "operatingContract.governance.staleDecisionPolicy.ownerMemberId", "operatingContract.governance.staleDecisionPolicy.ownerMemberId %q is not a contract member", policy.OwnerMemberID)
 		}
 		if len(policy.RequiredOutcomes) == 0 {
-			add("operatingContract.governance.staleDecisionPolicy.requiredOutcomes", "operatingContract.governance.staleDecisionPolicy.requiredOutcomes is required")
+			add("contract_stale_policy_outcomes_missing", "operatingContract.governance.staleDecisionPolicy.requiredOutcomes", "operatingContract.governance.staleDecisionPolicy.requiredOutcomes is required")
 		}
 	}
 	if err := validateDocuments(contract, input); err != nil {
-		add("operatingContract.documents", "%s", err)
+		add("contract_documents_invalid", "operatingContract.documents", "%s", err)
 	}
 	sort.SliceStable(findings, func(i, j int) bool {
-		if findings[i].Field != findings[j].Field {
-			return findings[i].Field < findings[j].Field
+		if findings[i].Path != findings[j].Path {
+			return findings[i].Path < findings[j].Path
 		}
-		return findings[i].Message < findings[j].Message
+		return findings[i].Detail < findings[j].Detail
 	})
 	return findings
 }

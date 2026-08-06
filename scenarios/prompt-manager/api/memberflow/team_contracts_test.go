@@ -388,9 +388,9 @@ func TestTeamRoleMemberDrift(t *testing.T) {
 			t.Errorf("unexpected rule %q", f.Rule)
 		}
 		if f.Severity != SeverityError {
-			t.Errorf("%s: severity = %q, want error", f.Member.Member, f.Severity)
+			t.Errorf("%s: severity = %q, want error", f.Member, f.Severity)
 		}
-		byMember[f.Member.Team+"/"+f.Member.Member] = f.Detail
+		byMember[f.Team+"/"+f.Member] = f.Detail
 	}
 
 	if _, ok := byMember["alpha/ghost"]; !ok {
@@ -421,7 +421,7 @@ func TestBundledTeamRolesMatchContractMembers(t *testing.T) {
 		t.Fatalf("expected bundled teams")
 	}
 	for _, f := range ruleTeamRoleMemberDrift(ValidationOptions{TeamContracts: registry}) {
-		t.Errorf("%s: %s", f.Member.Team, f.Detail)
+		t.Errorf("%s: %s", f.Team, f.Detail)
 	}
 }
 

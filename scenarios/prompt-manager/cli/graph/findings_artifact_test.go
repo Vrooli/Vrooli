@@ -22,16 +22,16 @@ func sampleResponse() topicsGraphResponse {
 				{
 					Rule:     "orphan_input",
 					Severity: "error",
-					Member:   topicMemberRef{Team: "marketing-crew", Member: "researcher"},
-					Prefix:   "research-inbox/*",
-					Detail:   "no producer",
+					Team:     "marketing-crew", Member: "researcher",
+					Prefix: "research-inbox/*",
+					Detail: "no producer",
 				},
 				{
 					Rule:     "unread_required",
 					Severity: "warning",
-					Member:   topicMemberRef{Team: "marketing-crew", Member: "researcher"},
-					Prefix:   "vision-walk-record/*",
-					Detail:   "no producer",
+					Team:     "marketing-crew", Member: "researcher",
+					Prefix: "vision-walk-record/*",
+					Detail: "no producer",
 				},
 			},
 			Errors:   1,
@@ -174,9 +174,9 @@ func TestWriteFindingsArtifact_GoldenJSONShape(t *testing.T) {
 				{
 					Rule:     "orphan_input",
 					Severity: "error",
-					Member:   topicMemberRef{Team: "t", Member: "m"},
-					Prefix:   "x/*",
-					Detail:   "no producer",
+					Team:     "t", Member: "m",
+					Prefix: "x/*",
+					Detail: "no producer",
 				},
 			},
 			Errors:   1,
@@ -200,10 +200,8 @@ func TestWriteFindingsArtifact_GoldenJSONShape(t *testing.T) {
     {
       "rule": "orphan_input",
       "severity": "error",
-      "member": {
-        "team": "t",
-        "member": "m"
-      },
+      "team": "t",
+      "member": "m",
       "prefix": "x/*",
       "detail": "no producer"
     }

@@ -66,33 +66,3 @@ func (r graphUnsupportedEdgeSemanticsRule) Check(ctx RuleContext) []OperatingGra
 	}
 	return findings
 }
-
-type graphEdgeUnbackedRule struct{}
-
-func (r graphEdgeUnbackedRule) ID() string                { return "graph_edge_unbacked" }
-func (r graphEdgeUnbackedRule) Group() RuleGroup          { return OperatingRuleGroupEdgeTruth }
-func (r graphEdgeUnbackedRule) DefaultSeverity() Severity { return SeverityError }
-func (r graphEdgeUnbackedRule) AppliesTo(ctx RuleContext) bool {
-	return string(ctx.Block.Metadata.Mode) != "explanatory"
-}
-
-func (r graphEdgeUnbackedRule) Check(ctx RuleContext) []OperatingGraphFinding {
-	builder := NewOperatingFindingBuilder(ctx, r)
-	var findings []OperatingGraphFinding
-	for _, edge := range ctx.Block.Graph.Edges {
-		from, fok := ctx.Index.NodesByID[edge.From]
-		to, tok := ctx.Index.NodesByID[edge.To]
-		if !fok || !tok || from.Kind == "" || to.Kind == "" {
-			continue
-		}
-		if !operatingGraphEdgeActionable(from, to) {
-			continue
-		}
-		rel, ok := ctx.Index.RelationshipForEdge(edge)
-		if !ok || ctx.Matcher.GraphBackedByRuntime(rel, ctx.Index.RuntimeRelationships) {
-			continue
-		}
-		findings = append(findings, builder.WithEdge(ctx.Block.Source.Path, edge, fmt.Sprintf("edge %s:%s -> %s:%s is not backed by runtime declarations", from.Kind, from.Value, to.Kind, to.Value)))
-	}
-	return findings
-}

@@ -29,6 +29,8 @@ import (
 	"sync"
 	"time"
 
+	"prompt-manager/finding"
+
 	"prompt-manager/memberflow"
 	"prompt-manager/store"
 )
@@ -36,12 +38,10 @@ import (
 // ContractFinding is one open validation finding against a member's own
 // declarations, already collapsed to one entry per defect by
 // memberflow's per-defect grouping.
-type ContractFinding struct {
-	Rule     string `json:"rule"`
-	Severity string `json:"severity"`
-	Prefix   string `json:"prefix,omitempty"`
-	Detail   string `json:"detail"`
-}
+// ContractFinding is the same type every other validation surface produces.
+// It was a separate four-field shape whose Severity was a bare string, so a
+// contract defect arriving here lost its catalogued identity on the way in.
+type ContractFinding = finding.Finding
 
 // ContractFindingsProvider supplies the open findings attributed to one
 // member. Implementations are expected to be cheap to call once per prompt
@@ -82,7 +82,7 @@ func renderContractFindings(teamID string, findings []ContractFinding) string {
 		if sorted[i].Severity != sorted[j].Severity {
 			// Errors first; both values are known, so a simple compare is
 			// enough to keep "error" ahead of "warning".
-			return sorted[i].Severity == string(memberflow.SeverityError)
+			return sorted[i].Severity == finding.SeverityError
 		}
 		if sorted[i].Rule != sorted[j].Rule {
 			return sorted[i].Rule < sorted[j].Rule
@@ -91,12 +91,12 @@ func renderContractFindings(teamID string, findings []ContractFinding) string {
 	})
 
 	var b strings.Builder
-	b.WriteString(promptHeadingContractFindings + "\n\n")
+	b.WriteString(promptHeading(promptSectionKindContractFindings) + "\n\n")
 	b.WriteString(fmt.Sprintf("Validation found %s open against your own declarations. ", pluralItems(len(sorted))))
 	b.WriteString("These describe a gap between what you actually write and what your `topics.json` and member documents say you write. They are not this run's task, and clearing them is not a substitute for it.\n\n")
 
 	for _, finding := range sorted {
-		b.WriteString(fmt.Sprintf("- **%s** `%s`", strings.ToLower(finding.Severity), finding.Rule))
+		b.WriteString(fmt.Sprintf("- **%s** `%s`", strings.ToLower(string(finding.Severity)), finding.Rule))
 		if finding.Prefix != "" {
 			b.WriteString(fmt.Sprintf(" — `%s`", finding.Prefix))
 		}
@@ -203,17 +203,29 @@ func mergeTeamValidationFindings(byMember map[string][]ContractFinding, teams []
 		if len(team.ValidationFindings) == 0 || team.OperatingContract == nil {
 			continue
 		}
-		for _, finding := range team.ValidationFindings {
-			memberID := memberIDForTeamFinding(finding.Field)
+		for _, entry := range team.ValidationFindings {
+			memberID := memberIDForTeamFinding(entry.Field)
 			for id := range team.OperatingContract.Members {
 				if memberID != "" && id != memberID {
 					continue
 				}
 				key := memberflow.MemberRef{Team: team.ID, Member: id}.String()
+				// The rule id comes from the contract catalog when the
+				// producing family has one. Synthesizing "team_<source>_invalid"
+				// here is what made a malformed team.json uncatalogued and
+				// therefore unrankable and undocumentable.
+				rule := entry.Rule
+				if rule == "" {
+					rule = "team_" + entry.Source + "_invalid"
+				}
 				byMember[key] = append(byMember[key], ContractFinding{
-					Rule:     "team_" + finding.Source + "_invalid",
-					Severity: string(memberflow.SeverityError),
-					Detail:   finding.Message,
+					Rule:     rule,
+					Severity: finding.SeverityError,
+					Kind:     finding.KindDeclaration,
+					Team:     team.ID,
+					Member:   id,
+					Path:     entry.Field,
+					Detail:   entry.Message,
 				})
 			}
 		}
@@ -244,13 +256,13 @@ func filterActionableFindings(findings []memberflow.Finding) map[string][]Contra
 		if finding.Advisory {
 			continue
 		}
-		key := strings.TrimSpace(finding.Member.String())
-		if key == "" || key == "/" || finding.Member.Member == "" {
+		key := strings.TrimSpace(finding.Subject())
+		if key == "" || key == "/" || finding.Member == "" {
 			continue
 		}
 		byMember[key] = append(byMember[key], ContractFinding{
 			Rule:     finding.Rule,
-			Severity: string(finding.Severity),
+			Severity: finding.Severity,
 			Prefix:   finding.Prefix,
 			Detail:   finding.Detail,
 		})

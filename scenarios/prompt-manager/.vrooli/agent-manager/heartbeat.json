@@ -3,7 +3,7 @@
   "name": "prompt-manager-heartbeat",
   "profileKey": "prompt-manager/heartbeat",
   "description": "Portable profile for Prompt Manager multi-process heartbeats",
-  "roleRef": "code.smart",
+  "roleRef": "code.cheap",
   "maxTurns": 50,
   "timeout": "600s",
   "allowedTools": ["read", "write", "shell"],

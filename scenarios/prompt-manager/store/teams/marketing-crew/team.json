@@ -4,6 +4,17 @@
   "id": "marketing-crew",
   "displayName": "Marketing Crew",
   "mission": "Own Vrooli's external voice — subscription marketing, open-source / community marketing, brand canon, and publishing pipeline — and surface the publishing, campaign, and positioning decisions the operator reviews each heartbeat.",
+  "objectivesServed": [
+    {
+      "id": "T1",
+      "role": "supporting"
+    },
+    {
+      "id": "T3",
+      "coverage": "partial",
+      "note": "OSS surface only"
+    }
+  ],
   "enabled": false,
   "runtime": {
     "mode": "multi-process"

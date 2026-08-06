@@ -568,6 +568,15 @@ func discoverDocsTargets(docsDir string) ([]proseTarget, error) {
 			if domain == "agent-system" && entry.Name() == "_outline.md" {
 				return nil
 			}
+			// Exclude the scanner's own specification. PROSE_SCAN_TARGETS.md
+			// documents these regexes and shows a worked example for each, so
+			// by construction it contains text every pattern matches. Scanning
+			// it reports the documentation of a rule as a violation of that
+			// rule — two such self-matches were the only declaration errors
+			// left on the tree, and no team could ever clear them.
+			if domain == "agent-system" && entry.Name() == "PROSE_SCAN_TARGETS.md" {
+				return nil
+			}
 			// Defensive size cap (1 MiB) per the doc's exclusion table.
 			if info, err := entry.Info(); err == nil && info.Size() > 1<<20 {
 				return nil
@@ -837,7 +846,7 @@ func (idx *proseDeclarationIndex) addTaxonomyPrefixes(roots []string) {
 }
 
 func (idx proseDeclarationIndex) recognizesInferredPrefix(prefix string) bool {
-	return anyOverlaps(idx.allPrefixes, normalizePlaceholderPrefix(prefix))
+	return anyOverlaps(idx.allPrefixes, prefix)
 }
 
 // joinProseMatch checks one match against the relevant declaration set
@@ -866,7 +875,7 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 	//      overlap `friction-report/toolchain/*` even though the CLI
 	//      would clearly list entries written there.
 	candidate := m.Prefix
-	joinKey := normalizePlaceholderPrefix(candidate)
+	joinKey := candidate
 	if m.Pattern.Name == "cli-knowledge-list-prefix" && joinKey != "" && !strings.HasSuffix(joinKey, "/*") && joinKey != "*" {
 		joinKey += "/*"
 	}
@@ -917,7 +926,7 @@ func joinProseMatch(m proseMatch, idx proseDeclarationIndex, skills proseSkillIn
 			Rule:     proseScanRule,
 			Severity: m.Pattern.Severity,
 			Advisory: m.Pattern.Advisory,
-			Member:   MemberRef{Team: m.Target.TeamID},
+			Team:     m.Target.TeamID,
 			Prefix:   candidate,
 			OwnerKey: m.Target.OwnerKey,
 			Detail:   fmt.Sprintf("%s: line %d references topic prefix %q via %s pattern, but no member of team %q declares an overlapping prefix in topics.json (intake/required_read/evidence_consumed/output)", m.Target.Path, m.Line, candidate, m.Pattern.Name, m.Target.TeamID),
@@ -1046,63 +1055,11 @@ func memberFinding(m proseMatch, candidate string) Finding {
 		Rule:     proseScanRule,
 		Severity: m.Pattern.Severity,
 		Advisory: m.Pattern.Advisory,
-		Member:   MemberRef{Team: m.Target.TeamID, Member: m.Target.MemberID},
+		Team:     m.Target.TeamID, Member: m.Target.MemberID,
 		Prefix:   candidate,
 		OwnerKey: m.Target.OwnerKey,
 		Detail:   fmt.Sprintf("%s: line %d references topic prefix %q via %s pattern, but member %s/%s does not declare an overlapping prefix in topics.json::%s (or anywhere on team %q)", m.Target.Path, m.Line, candidate, m.Pattern.Name, m.Target.TeamID, m.Target.MemberID, declarationSet, m.Target.TeamID),
 	}
-}
-
-// normalizePlaceholderPrefix collapses `<...>` placeholder segments into a
-// trailing wildcard `*` so prose-captured prefixes join against
-// declarations using the standard Overlap semantics.
-//
-// PROSE_SCAN_TARGETS.md guarantees this behavior:
-//
-//	"The scanner treats segments containing `<...>` placeholders or
-//	trailing `*` as wildcards when joining against declarations
-//	(e.g., `audience-scan/<date>/<slug>` joins against the declared
-//	`audience-scan/*` output prefix)."
-//
-// Without this normalization, a prose reference like
-// `friction-report/<scope>/<date>/<slug>` (the canonical placeholder form
-// agents use in TOOLS.md and HEARTBEAT.md to document a parameterized CLI
-// invocation) does not overlap a declaration like
-// `friction-report/toolchain/*` because Overlap treats `<scope>` as a
-// literal string segment, not a wildcard. The result was spurious
-// prose_topic_leak findings on every parameterized prose reference.
-//
-// Strategy: segments through (but not including) the first `<...>` segment
-// are preserved literally; the `<...>` segment and everything after it
-// become a single trailing `/*`. Examples:
-//
-//   - `friction-report/<scope>/<date>/<slug>` → `friction-report/*`
-//   - `audience-scan/<date>`                → `audience-scan/*`
-//   - `audience-scan/2026-04-23/q2`         → unchanged (no placeholder)
-//   - `<placeholder>`                        → `*`
-//   - empty                                  → empty (callers handle empty)
-//
-// The truncation choice (rather than per-segment wildcard substitution)
-// avoids producing multi-segment patterns like `foo/*/*/*` that Overlap
-// does not handle. The semantic loss — that a reference like
-// `audience-scan/<date>/q2-creators` matches `audience-scan/*` instead of
-// requiring a `audience-scan/*/q2-creators` declaration — is intentional:
-// the placeholder convention is for parameterized invocations, and the
-// wildcard tail is the convention's natural mapping.
-func normalizePlaceholderPrefix(prefix string) string {
-	if prefix == "" {
-		return prefix
-	}
-	segments := strings.Split(prefix, "/")
-	for i, seg := range segments {
-		if strings.ContainsAny(seg, "<>") {
-			if i == 0 {
-				return "*"
-			}
-			return strings.Join(segments[:i], "/") + "/*"
-		}
-	}
-	return prefix
 }
 
 // anyOverlaps reports whether any declared prefix overlaps the observed

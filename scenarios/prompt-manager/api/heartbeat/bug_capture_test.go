@@ -53,7 +53,12 @@ func TestBugCaptureDraftRemainsPrivateUntilRepairPublishes(t *testing.T) {
 	fileStore := newFileStore(t, roots)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	h := NewHandlers(teamStore, agentStore, fileStore.Relations(), nil, newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil), nil, nil, nil)
+	h := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: fileStore.Relations(),
+		Executor:      newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil),
+	})
 	if err := teamStore.Create(context.Background(), newIndependentTestTeam(scenarioQATeamID, "Scenario QA")); err != nil {
 		t.Fatal(err)
 	}

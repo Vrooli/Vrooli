@@ -228,7 +228,7 @@ func TestRuntimeAttribution_AgentMemberUndeclared_FiresError(t *testing.T) {
 	if got.Severity != SeverityError {
 		t.Errorf("Severity = %q, want %q (agent-member output drift is concrete, not advisory)", got.Severity, SeverityError)
 	}
-	if got.Member != (MemberRef{Team: "alpha", Member: "researcher"}) {
+	if got.Team != "alpha" || got.Member != "researcher" {
 		t.Errorf("Member = %v, want alpha/researcher", got.Member)
 	}
 	if got.Prefix != "rogue-prefix/x" {
@@ -254,7 +254,7 @@ func TestRuntimeAttribution_AgentMemberUnknownMember_FiresWarning(t *testing.T) 
 	if findings[0].Rule != "actual_writer_undeclared" {
 		t.Errorf("Rule = %q, want actual_writer_undeclared", findings[0].Rule)
 	}
-	if findings[0].Member.Member != "ghost" {
+	if findings[0].Member != "ghost" {
 		t.Errorf("Member = %v, want member_id=ghost", findings[0].Member)
 	}
 	if !strings.Contains(findings[0].Detail, "no team member of that id exists") {

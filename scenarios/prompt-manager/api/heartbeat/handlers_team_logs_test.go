@@ -23,7 +23,12 @@ func setupTeamLogsTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore, *
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 	return handlers, teamStore, agentStore, relationStore, roots.RuntimeData
 }
 

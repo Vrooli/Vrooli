@@ -44,10 +44,18 @@ type topicMemberRef struct {
 }
 
 type topicFinding struct {
-	Rule     string         `json:"rule"`
-	Severity string         `json:"severity"`
-	Member   topicMemberRef `json:"member,omitempty"`
-	Prefix   string         `json:"prefix,omitempty"`
+	Rule     string `json:"rule"`
+	Severity string `json:"severity"`
+	// Kind is "declaration" or "runtime". A declaration finding is computed
+	// only from checked-in files, so a clean tree can clear it and it can gate
+	// CI. A runtime finding is computed from live agent behavior, so no edit to
+	// the tree clears it and gating on it would make the gate unpassable.
+	Kind string `json:"kind,omitempty"`
+	// Team and Member are flat because the API now emits one finding shape
+	// (prompt-manager/finding.Finding) across every rule family.
+	Team   string `json:"team,omitempty"`
+	Member string `json:"member,omitempty"`
+	Prefix string `json:"prefix,omitempty"`
 	// OwnerKey is the canonical surface owner (`team:<t>/<m>`,
 	// `team:<t>`, `agent:<id>`, `skill:<id>`, `docs:<domain>`)
 	// populated by Pillar 2 (`prose_topic_leak`). Other rules leave
@@ -124,13 +132,46 @@ func cmdTopics(ctx appctx.Context, args []string) error {
 		fmt.Printf("Findings artifact written to %s\n", *findingsOut)
 	}
 
-	if resp.Validation.Errors > 0 {
+	// The exit code comes from declaration findings alone. Sharing one exit
+	// code with runtime observation is why this command could not gate CI, and
+	// why actual_writer_undeclared grew from 9 findings to 43 unchecked: no
+	// gate could run, so nothing ever forced the count down.
+	if declarationErrors := countFindings(resp.Validation.Findings, kindDeclaration, severityError); declarationErrors > 0 {
 		// Returning a non-nil error makes the cliapp dispatcher exit
 		// with a non-zero status, matching the contract in
 		// docs/agent-system/TOPICS_SCHEMA.md.
-		return fmt.Errorf("topics validation failed: %d error(s)", resp.Validation.Errors)
+		return fmt.Errorf("topics validation failed: %d declaration error(s)", declarationErrors)
 	}
 	return nil
+}
+
+const (
+	kindDeclaration = "declaration"
+	kindRuntime     = "runtime"
+	severityError   = "error"
+)
+
+// findingsOfKind selects findings by catalogued kind. An empty kind on a
+// finding means the API did not catalogue it; those are reported by neither
+// command rather than silently joining the gate.
+func findingsOfKind(findings []topicFinding, kind string) []topicFinding {
+	out := make([]topicFinding, 0, len(findings))
+	for _, f := range findings {
+		if f.Kind == kind {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func countFindings(findings []topicFinding, kind, severity string) int {
+	n := 0
+	for _, f := range findings {
+		if f.Kind == kind && f.Severity == severity {
+			n++
+		}
+	}
+	return n
 }
 
 func printTopicsHuman(resp topicsGraphResponse, team string) {
@@ -214,13 +255,13 @@ func topicSeverityRank(severity string) int {
 }
 
 func topicFindingSortKey(finding topicFinding) string {
-	return strings.Join([]string{finding.Member.Team, finding.Member.Member, finding.OwnerKey, finding.Prefix, finding.Detail}, "\x00")
+	return strings.Join([]string{finding.Team, finding.Member, finding.OwnerKey, finding.Prefix, finding.Detail}, "\x00")
 }
 
 func formatTopicFinding(finding topicFinding) string {
 	location := finding.OwnerKey
-	if location == "" && (finding.Member.Team != "" || finding.Member.Member != "") {
-		location = finding.Member.Team + "/" + finding.Member.Member
+	if location == "" && (finding.Team != "" || finding.Member != "") {
+		location = finding.Team + "/" + finding.Member
 	}
 	parts := make([]string, 0, 3)
 	if location != "" {

@@ -3,7 +3,6 @@ package memberflow
 import (
 	"fmt"
 	"sort"
-	"strings"
 )
 
 // RulePass names the validation entry point a rule executes in. Every rule
@@ -13,9 +12,10 @@ import (
 type RulePass string
 
 const (
-	RulePassTopic RulePass = "topic"
-	RulePassGraph RulePass = "graph"
-	RulePassModel RulePass = "model"
+	RulePassTopic     RulePass = "topic"
+	RulePassGraph     RulePass = "graph"
+	RulePassModel     RulePass = "model"
+	RulePassObjective RulePass = "objective"
 )
 
 // rulePassForGroup is the single mapping from rule group to validation pass.
@@ -30,6 +30,8 @@ func rulePassForGroup(group RuleGroup) (RulePass, error) {
 		OperatingRuleGroupCompleteness, OperatingRuleGroupDocs,
 		OperatingRuleGroupCoherence, OperatingRuleGroupPrompt:
 		return RulePassGraph, nil
+	case OperatingRuleGroupObjective:
+		return RulePassObjective, nil
 	case OperatingRuleGroupPlanOfRecord,
 		OperatingModelRuleGroupStructure, OperatingModelRuleGroupDecision,
 		OperatingModelRuleGroupExternalInput, OperatingModelRuleGroupOutput,
@@ -51,33 +53,6 @@ type RuleRegistry struct {
 	byPass map[RulePass][]Rule
 }
 
-// RuleCatalogEntry is the operator-facing identity for a validation rule.
-// A rule without this metadata is not actionable enough to be registered by
-// catalog-enforced construction.
-type RuleCatalogEntry struct {
-	ID          string
-	Group       RuleGroup
-	Severity    Severity
-	Description string
-	Actuator    string
-}
-
-type RuleCatalog map[string]RuleCatalogEntry
-
-func NewRuleCatalog(entries ...RuleCatalogEntry) (RuleCatalog, error) {
-	catalog := make(RuleCatalog, len(entries))
-	for _, entry := range entries {
-		if entry.ID == "" || entry.Group == "" || entry.Severity == "" || entry.Description == "" || entry.Actuator == "" {
-			return nil, fmt.Errorf("rule catalog entry must include id, group, severity, description, and actuator")
-		}
-		if _, exists := catalog[entry.ID]; exists {
-			return nil, fmt.Errorf("rule catalog contains duplicate identifier %q", entry.ID)
-		}
-		catalog[entry.ID] = entry
-	}
-	return catalog, nil
-}
-
 func NewRuleRegistry(rules ...Rule) (*RuleRegistry, error) {
 	return newRuleRegistry(nil, rules...)
 }
@@ -88,11 +63,35 @@ func NewRuleRegistryWithCatalog(catalog RuleCatalog, rules ...Rule) (*RuleRegist
 	return newRuleRegistry(catalog, rules...)
 }
 
+// multiEmitter is implemented by a check that produces more than one rule id.
+//
+// Emits is an optional interface rather than a method on Rule because the
+// overwhelming majority of rules emit exactly their own id, and requiring all
+// ninety of them to restate that would be ceremony with a drift risk attached.
+// A check that emits several ids must declare them, and registration verifies
+// the declaration against the catalog.
+type multiEmitter interface {
+	Emits() []string
+}
+
+// ruleEmits is the single answer to "which ids can this rule produce".
+func ruleEmits(rule Rule) []string {
+	if emitter, ok := rule.(multiEmitter); ok {
+		if ids := emitter.Emits(); len(ids) > 0 {
+			return ids
+		}
+	}
+	return []string{rule.ID()}
+}
+
 func newRuleRegistry(catalog RuleCatalog, rules ...Rule) (*RuleRegistry, error) {
 	registry := &RuleRegistry{
 		byID:   make(map[string]Rule, len(rules)),
 		byPass: make(map[RulePass][]Rule),
 	}
+	// claimed maps every catalogued id to the rule that emits it, so a catalog
+	// entry cannot be claimed twice and cannot go unclaimed.
+	claimed := make(map[string]string, len(rules))
 	for _, rule := range rules {
 		if rule == nil {
 			return nil, fmt.Errorf("validation rule registry contains nil rule")
@@ -117,13 +116,25 @@ func newRuleRegistry(catalog RuleCatalog, rules ...Rule) (*RuleRegistry, error) 
 			}
 		}
 		registry.byPass[pass] = append(registry.byPass[pass], rule)
+		emitted := ruleEmits(rule)
 		if catalog != nil {
-			entry, ok := catalog[id]
-			if !ok {
-				return nil, fmt.Errorf("validation rule %q is missing from the rule catalog", id)
-			}
-			if entry.Group != rule.Group() || entry.Severity != rule.DefaultSeverity() {
-				return nil, fmt.Errorf("rule catalog metadata for %q disagrees with its registration", id)
+			for _, emittedID := range emitted {
+				entry, ok := catalog[emittedID]
+				if !ok {
+					return nil, fmt.Errorf("validation rule %q emits %q, which is missing from the rule catalog", id, emittedID)
+				}
+				if claimant, taken := claimed[emittedID]; taken {
+					return nil, fmt.Errorf("rule catalog entry %q is claimed by both %q and %q", emittedID, claimant, id)
+				}
+				claimed[emittedID] = id
+				// Group and severity are pinned only for a rule that emits
+				// exactly its own id. A multi-emit check spans several
+				// severities by design — ruleMemberDocSections emits five
+				// errors and one warning — and the per-finding severity is set
+				// by the check, not by the registration.
+				if len(emitted) == 1 && (entry.Group != rule.Group() || entry.Severity != rule.DefaultSeverity()) {
+					return nil, fmt.Errorf("rule catalog metadata for %q disagrees with its registration", id)
+				}
 			}
 		}
 		registry.rules = append(registry.rules, rule)
@@ -131,11 +142,23 @@ func newRuleRegistry(catalog RuleCatalog, rules ...Rule) (*RuleRegistry, error) 
 	}
 	// Ranging a nil catalog is a no-op, which is exactly the unenforced case.
 	for id := range catalog {
-		if _, ok := registry.byID[id]; !ok {
+		if _, ok := claimed[id]; !ok {
 			return nil, fmt.Errorf("rule catalog entry %q has no registered rule", id)
 		}
 	}
 	return registry, nil
+}
+
+// EmittedIDs returns every rule id the registry can produce, across all
+// registrations. It is the registration-model-independent answer to "which
+// rules exist": one registration may claim several ids.
+func (r *RuleRegistry) EmittedIDs() []string {
+	ids := make([]string, 0, len(r.rules))
+	for _, rule := range r.rules {
+		ids = append(ids, ruleEmits(rule)...)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 func (r *RuleRegistry) Rules() []Rule {
@@ -153,6 +176,7 @@ func DefaultRuleRegistry() (*RuleRegistry, error) {
 	rules := append(DefaultOperatingGraphRules(), DefaultOperatingModelRules()...)
 	rules = append(rules, DefaultTopicRules()...)
 	rules = append(rules, DefaultPlanOfRecordRules()...)
+	rules = append(rules, DefaultObjectiveRules()...)
 	catalog, err := DefaultRuleCatalog()
 	if err != nil {
 		return nil, err
@@ -182,6 +206,11 @@ func DefaultRuleCatalog() (RuleCatalog, error) {
 	if err != nil {
 		return nil, err
 	}
+	objectiveCatalog, err := ObjectiveRuleCatalog()
+	if err != nil {
+		return nil, err
+	}
+	entries = append(entries, catalogEntries(objectiveCatalog)...)
 	entries = append(entries, catalogEntries(topicCatalog)...)
 	entries = append(entries, catalogEntries(porCatalog)...)
 	entries = append(entries, catalogEntries(modelCatalog)...)
@@ -199,23 +228,4 @@ func catalogEntries(catalog RuleCatalog) []RuleCatalogEntry {
 		entries = append(entries, catalog[id])
 	}
 	return entries
-}
-
-// Markdown renders the operator-facing rule reference from the catalog. It
-// is deterministic so documentation generation can fail on semantic catalog
-// drift rather than producing noisy reorder-only diffs.
-func (c RuleCatalog) Markdown() string {
-	ids := make([]string, 0, len(c))
-	for id := range c {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	var b strings.Builder
-	b.WriteString("| Rule | Group | Default severity | Description | Actuator |\n")
-	b.WriteString("|---|---|---|---|---|\n")
-	for _, id := range ids {
-		entry := c[id]
-		fmt.Fprintf(&b, "| `%s` | `%s` | `%s` | %s | %s |\n", entry.ID, entry.Group, entry.Severity, entry.Description, entry.Actuator)
-	}
-	return b.String()
 }

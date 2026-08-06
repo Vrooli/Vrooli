@@ -1,0 +1,105 @@
+{
+  "shortNames": {
+    "decision:audience-update": "AUD",
+    "decision:brand-guideline-update": "BGUIDE",
+    "decision:campaign-launch-proposal": "CAMP",
+    "decision:capability-gap": "CAP",
+    "decision:channel-strategy-update": "CHSTR",
+    "decision:channel-update": "CHUP",
+    "decision:coverage-gap": "COVGAP",
+    "decision:decision-rejection-proposed": "DREJ",
+    "decision:framework-update": "FRAME",
+    "decision:hook-candidate-promotion": "HCP",
+    "decision:post-type-proposal": "POST",
+    "external:operator": "OP",
+    "external:vision-walk": "VW",
+    "member:brand-manager": "BM",
+    "member:marketing-contrarian": "CONTRA",
+    "member:producer": "P",
+    "por:docs/marketing/strategy/AUDIENCES.md": "CANON2",
+    "por:docs/marketing/strategy/STRATEGY.md": "CANON1",
+    "process:learning-synthesis": "LEARN",
+    "process:skill-scenario-action-backlog": "BACKLOG",
+    "topic:audience-scan/*": "AS",
+    "topic:brand-snapshot/*": "BRANDSNAP",
+    "topic:channel-scan/*": "CHAN",
+    "topic:competitor-record/*": "COMP",
+    "topic:format-scan/*": "FORMAT",
+    "topic:hook-record/*": "HOOK",
+    "topic:marketing-craft-observation/*": "MCO",
+    "topic:monetization-benchmark-adjacent-record/*": "MB",
+    "topic:skill-scan/*": "SKILL",
+    "topic:workflow-scan/*": "WF"
+  },
+  "displays": {
+    "external:operator": "Operator",
+    "external:vision-walk": "Vision walk",
+    "member:brand-manager": "Brand Manager",
+    "member:marketing-contrarian": "Marketing Contrarian",
+    "member:producer": "Producer",
+    "process:learning-synthesis": "Learning synthesis",
+    "process:skill-scenario-action-backlog": "Skill / scenario / action backlog"
+  },
+  "nodeOrder": [
+    "topic:audience-scan/*",
+    "decision:audience-update",
+    "process:skill-scenario-action-backlog",
+    "decision:brand-guideline-update",
+    "member:brand-manager",
+    "topic:brand-snapshot/*",
+    "decision:campaign-launch-proposal",
+    "por:docs/marketing/strategy/STRATEGY.md",
+    "por:docs/marketing/strategy/AUDIENCES.md",
+    "decision:capability-gap",
+    "topic:channel-scan/*",
+    "decision:channel-strategy-update",
+    "decision:channel-update",
+    "topic:competitor-record/*",
+    "member:marketing-contrarian",
+    "decision:coverage-gap",
+    "decision:decision-rejection-proposed",
+    "topic:format-scan/*",
+    "decision:framework-update",
+    "decision:hook-candidate-promotion",
+    "topic:hook-record/*",
+    "process:learning-synthesis",
+    "topic:monetization-benchmark-adjacent-record/*",
+    "topic:marketing-craft-observation/*",
+    "external:operator",
+    "member:producer",
+    "decision:post-type-proposal",
+    "topic:skill-scan/*",
+    "external:vision-walk",
+    "topic:workflow-scan/*"
+  ],
+  "readabilityEdges": [
+    {
+      "from": "decision:brand-guideline-update",
+      "to": "process:skill-scenario-action-backlog"
+    },
+    {
+      "from": "decision:capability-gap",
+      "to": "process:skill-scenario-action-backlog"
+    },
+    {
+      "from": "decision:channel-update",
+      "to": "process:skill-scenario-action-backlog"
+    },
+    {
+      "from": "decision:hook-candidate-promotion",
+      "to": "process:skill-scenario-action-backlog"
+    },
+    {
+      "from": "decision:post-type-proposal",
+      "to": "process:skill-scenario-action-backlog"
+    },
+    {
+      "from": "process:learning-synthesis",
+      "to": "topic:marketing-craft-observation/*"
+    },
+    {
+      "from": "topic:marketing-craft-observation/*",
+      "to": "process:learning-synthesis"
+    }
+  ]
+}

@@ -50,7 +50,12 @@ func TestPreviewPromptMatrixHandler(t *testing.T) {
 	}
 
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/prompt-matrix", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": team.ID})
@@ -105,7 +110,12 @@ func TestPreviewPromptMatrixNotFound(t *testing.T) {
 	relationStore := fileStore.Relations()
 
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/nonexistent/prompt-matrix", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
@@ -133,7 +143,12 @@ func TestPreviewPromptMatrixEmptyTeam(t *testing.T) {
 	}
 
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-empty/prompt-matrix", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": team.ID})

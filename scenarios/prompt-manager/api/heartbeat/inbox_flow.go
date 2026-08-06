@@ -62,7 +62,7 @@ func RenderInboxFlow(in *inboxFlowInputs) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString(promptHeadingInboxFlow + "\n\n")
+	b.WriteString(promptHeading(promptSectionKindInboxFlow) + "\n\n")
 	b.WriteString("You drain one or more team-knowledge inboxes. The mechanics, destinations, decisions, and dispatch below are generated from your topics.json and the taxonomies it cites. Do not paraphrase from memory; the generated text is the source of truth.\n")
 
 	for _, intake := range in.memberFlow.Topics.Intake {

@@ -1,11 +1,13 @@
 package memberflow
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"prompt-manager/internal/testutil/fixtures"
+	"prompt-manager/teamcontract"
 )
 
 // Typed fixture builders live in this package rather than in
@@ -73,4 +75,22 @@ func requireRepositoryRoot(t testing.TB) string {
 func requirePromptManagerStoreDir(t testing.TB) string {
 	t.Helper()
 	return filepath.Join(requireRepositoryRoot(t), "scenarios", "prompt-manager", "store")
+}
+
+// writeTeamContract persists a team's operating contract through the production
+// struct. Tests used to hand-write this JSON as a string literal, which is a
+// second untyped copy of the schema: it keeps compiling after the real struct
+// changes, so the test goes on asserting against a shape production no longer
+// produces.
+func writeTeamContract(t testing.TB, storeDir, teamID string, contract *teamcontract.OperatingContract) string {
+	t.Helper()
+	team := struct {
+		ID                string                          `json:"id"`
+		OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
+	}{ID: teamID, OperatingContract: contract}
+	encoded, err := json.Marshal(team)
+	if err != nil {
+		t.Fatalf("encode team contract for %s: %v", teamID, err)
+	}
+	return writeRepoFile(t, storeDir, filepath.ToSlash(filepath.Join("teams", teamID, "team.json")), string(encoded))
 }

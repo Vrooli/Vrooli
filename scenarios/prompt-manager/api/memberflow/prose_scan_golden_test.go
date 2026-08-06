@@ -180,8 +180,8 @@ func normalizeProseFindings(findings []Finding) []goldenFinding {
 			Severity: string(f.Severity),
 			OwnerKey: f.OwnerKey,
 			Pattern:  extractPatternName(f.Detail),
-			Team:     f.Member.Team,
-			Member:   f.Member.Member,
+			Team:     f.Team,
+			Member:   f.Member,
 			Prefix:   f.Prefix,
 		})
 	}

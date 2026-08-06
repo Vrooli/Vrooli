@@ -126,8 +126,7 @@ type OperatingGapsSection struct {
 }
 
 type OperatingGapItem struct {
-	Text        string   `json:"text"`
-	References  []string `json:"references,omitempty"`
-	TargetState bool     `json:"target_state,omitempty"`
-	SourceLine  int      `json:"source_line"`
+	Text       string   `json:"text"`
+	References []string `json:"references,omitempty"`
+	SourceLine int      `json:"source_line"`
 }

@@ -37,6 +37,8 @@ type Handlers struct {
 	variantStore     store.VariantStore    // Optional: for variant-aware read
 	packSkillStore   store.SkillStore      // Optional: for variant-aware read (pack-based)
 	identityVerifier IdentityVerifier      // Optional: verifies workflow provenance on skill reads
+	readRecorder     *ReadRecorder         // Optional: records skill-read telemetry
+	usageReporter    *UsageReporter        // Optional: serves the per-skill usage report
 	configDir        string                // Absolute path to store directory for computing file paths
 }
 
@@ -78,6 +80,17 @@ func NewHandlers(store SkillStore, metrics MetricsService, configDir string) *Ha
 // This is called after the aisearch.Service is initialized to avoid circular deps.
 func (h *Handlers) SetAIIndexer(indexer AISearchIndexer) {
 	h.aiIndexer = indexer
+}
+
+// SetReadRecorder sets the skill-read telemetry recorder. A nil recorder
+// disables recording; a read is never failed because telemetry is unavailable.
+func (h *Handlers) SetReadRecorder(recorder *ReadRecorder) {
+	h.readRecorder = recorder
+}
+
+// SetUsageReporter sets the aggregator behind the per-skill usage report.
+func (h *Handlers) SetUsageReporter(reporter *UsageReporter) {
+	h.usageReporter = reporter
 }
 
 // SetExperimentStores sets the stores needed for variant-aware read.

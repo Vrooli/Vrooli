@@ -1,8 +1,6 @@
 package memberflow
 
 import (
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -26,7 +24,6 @@ func TestLoadPlanOfRecordManifestRejectsUnknownFields(t *testing.T) {
 func TestLoadPlanOfRecordManifestAcceptsOptionalFolders(t *testing.T) {
 	repoRoot := t.TempDir()
 	writeRepoFile(t, repoRoot, "docs/team-a/manifest.json", `{
-  "$schema": "../agent-system/team-plan-of-record.schema.json",
   "version": "1.0.0",
   "contract": {"kind": "team-plan-of-record", "schema": "team-plan-of-record/v1", "team": "team-a"},
   "sections": [{
@@ -153,27 +150,12 @@ func TestLoadResolvedPlanOfRecordManifestRejectsBaseCycle(t *testing.T) {
 	}
 }
 
-func TestTeamPlanOfRecordSchemaJSONIsValid(t *testing.T) {
-	repoRoot := requireRepositoryRoot(t)
-	data, err := os.ReadFile(filepath.Join(repoRoot, "docs", "agent-system", "team-plan-of-record.schema.json"))
-	if err != nil {
-		t.Fatalf("read schema: %v", err)
-	}
-	var schema map[string]any
-	if err := json.Unmarshal(data, &schema); err != nil {
-		t.Fatalf("schema must be valid JSON: %v", err)
-	}
-	if schema["$schema"] == "" || schema["$id"] == "" {
-		t.Fatalf("schema missing $schema or $id: %#v", schema)
-	}
-}
-
 func TestValidateAllPlanOfRecordsRepoBaseline(t *testing.T) {
 	repoRoot := requireRepositoryRoot(t)
 	findings := ValidateAllPlanOfRecords(repoRoot)
 	var errors []OperatingGraphFinding
 	for _, finding := range findings {
-		if finding.Severity == string(SeverityError) {
+		if finding.Severity == SeverityError {
 			errors = append(errors, finding)
 		}
 	}

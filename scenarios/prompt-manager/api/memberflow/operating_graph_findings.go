@@ -52,7 +52,7 @@ func (b OperatingFindingBuilder) WithRelationship(rel OperatingRelationship, det
 func (b OperatingFindingBuilder) base(sourcePath string, line int, detail string) OperatingGraphFinding {
 	return OperatingGraphFinding{
 		Rule:       b.RuleID,
-		Severity:   string(b.Severity),
+		Severity:   b.Severity,
 		GraphID:    b.GraphID,
 		Team:       b.Team,
 		SourcePath: sourcePath,
@@ -65,9 +65,9 @@ func addOperatingFindings(result *OperatingGraphValidationResult, findings []Ope
 	for _, f := range findings {
 		result.Findings = append(result.Findings, f)
 		switch f.Severity {
-		case string(SeverityError):
+		case SeverityError:
 			result.Errors++
-		case string(SeverityWarning):
+		case SeverityWarning:
 			result.Warnings++
 		}
 	}

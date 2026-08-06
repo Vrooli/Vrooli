@@ -4,6 +4,11 @@
   "id": "infra-health",
   "displayName": "Infra Health Team",
   "mission": "Watch the platform's own health — internal Vrooli code, lifecycle, autoheal/system-monitor history — and surface durable findings the operator can act on. Detect patterns across runtime incidents, audit internal code along the same dimensions scenario-qa applies to scenarios, and drive internal instrumentation forward so future findings are sharper.",
+  "objectivesServed": [
+    {
+      "id": "I2"
+    }
+  ],
   "enabled": true,
   "runtime": {
     "mode": "multi-process"

@@ -262,10 +262,68 @@ func TestMemberDocLiveRosterHasNoErrors(t *testing.T) {
 	var errs []string
 	for _, f := range findings {
 		if f.Severity == SeverityError {
-			errs = append(errs, f.Member.String()+": "+f.Detail)
+			errs = append(errs, f.Subject()+": "+f.Detail)
 		}
 	}
 	if len(errs) > 0 {
 		t.Fatalf("live roster has %d member-doc errors:\n%s", len(errs), strings.Join(errs, "\n"))
+	}
+}
+
+// TestRuleMemberDocUnreadableFiresOnAnUnreadableFile is the behavioral test for
+// member_doc_unreadable, which had no test anywhere in the module at plan start.
+//
+// The distinction it guards matters: a member document that is ABSENT is a
+// different defect from one that is PRESENT AND UNREADABLE. The first is a
+// member that has not written its contract yet; the second is a file the
+// validator cannot see, so every section check silently reports nothing. Without
+// this test, the unreadable branch could stop firing and every downstream
+// section rule would go quiet with it.
+func TestRuleMemberDocUnreadableFiresOnAnUnreadableFile(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses file permissions, so an unreadable file cannot be simulated")
+	}
+	store := t.TempDir()
+	memberDir := filepath.Join(store, "teams", "t", "members", "m")
+	if err := os.MkdirAll(memberDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	path := filepath.Join(memberDir, "HEARTBEAT.md")
+	if err := os.WriteFile(path, []byte("# Heartbeat\n\n## Task Loop\n\n## Handoff Shape\n"), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	// Present but unreadable: the branch under test.
+	if err := os.Chmod(path, 0o000); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
+
+	findings := ruleMemberDocSections(
+		[]MemberTopics{{Ref: MemberRef{Team: "t", Member: "m"}, Exists: true}},
+		ValidationOptions{StoreDir: store},
+	)
+
+	var got *Finding
+	for i := range findings {
+		if findings[i].Rule == "member_doc_unreadable" {
+			got = &findings[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("member_doc_unreadable did not fire on an unreadable HEARTBEAT.md; findings: %+v", findings)
+	}
+	if got.Severity != SeverityError {
+		t.Errorf("severity = %q, want error", got.Severity)
+	}
+	if got.Team != "t" || got.Member != "m" {
+		t.Errorf("finding does not name the member: team=%q member=%q", got.Team, got.Member)
+	}
+	// An unreadable file must not also be reported as missing; they are
+	// different defects with different fixes.
+	for _, f := range findings {
+		if f.Rule == "member_doc_file_missing" && strings.Contains(f.Detail, "HEARTBEAT.md") {
+			t.Errorf("an unreadable file was also reported missing: %+v", f)
+		}
 	}
 }

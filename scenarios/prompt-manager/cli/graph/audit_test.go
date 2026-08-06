@@ -29,6 +29,16 @@ func cleanAuditContext(t *testing.T) *clitest.Context {
 		Edges: []operatingMapEdge{{From: "alpha", To: "inbox/*"}},
 	})
 	ctx.Respond("GET", "/graph/orphans", []node{})
+	ctx.Respond("GET", "/discovery-metrics", discoveryMetricsResponse{})
+	// An objective that is unserved but carries a gap marker is in band: a
+	// declared hole is a known disposition, not a defect.
+	ctx.Respond("GET", "/objectives", objectiveResponse{
+		Rows:     []objectiveRow{{ID: "T1", Served: true}, {ID: "T2", GapMarker: "pending-capability"}},
+		Unserved: 1,
+	})
+	ctx.Respond("GET", "/orientation-cost", orientationCostReport{
+		Teams: []orientationCost{{TeamID: "alpha", Composite: 42, ScenarioCoverage: 1}},
+	})
 	return ctx
 }
 
@@ -59,10 +69,14 @@ func TestCmdAuditCoversEveryFrameworkHealthTarget(t *testing.T) {
 		"Cross-team coupling visibility",
 		"Canon coherence",
 		"Objective coverage",
-		"Skill reachability",
+		"Statically unreferenced skills",
 		"Skill conditioning quality",
 		"Skill-experiment loop liveness",
 		"PoR entropy",
+		"Team orientation cost",
+		"Discovery budget pressure",
+		"Prompt structure invariant",
+		"Catalogued rules with no finding",
 	}
 	got := strings.Join(auditTargetTitles(report), "|")
 	for _, w := range want {
@@ -90,9 +104,12 @@ func TestCmdAuditReportsUnsensoredTargetsRatherThanDroppingThem(t *testing.T) {
 	if report.OutOfBand != 0 {
 		t.Fatalf("clean fixtures should be in band, got %d out of band", report.OutOfBand)
 	}
-	// Two targets are open-loop in FRAMEWORK_HEALTH today.
-	if report.Unsensored != 2 {
-		t.Fatalf("unsensored = %d, want 2", report.Unsensored)
+	// Six targets are open-loop in FRAMEWORK_HEALTH today. Two were added with
+	// this plan: the prompt structure invariant, enforced in the heartbeat unit
+	// suite rather than by a corpus-wide CLI sensor, and the rules-with-no-
+	// finding trend, which cannot be banded from a single reading.
+	if report.Unsensored != 6 {
+		t.Fatalf("unsensored = %d, want 6", report.Unsensored)
 	}
 	// An unsensored target must name both the honest open-loop state and a dated
 	// marker for the work that closes it. The marker prevents an intentionally
@@ -177,4 +194,88 @@ func TestAppendCappedLimitsLeadsToThree(t *testing.T) {
 	if len(list) != 3 {
 		t.Fatalf("len = %d, want 3", len(list))
 	}
+}
+
+// An undeclared hole must take the sweep out of band. This is the check that
+// makes editing OBJECTIVES.md consequential: adding an objective that no team
+// declares now moves a sensor rather than waiting to be noticed by hand.
+func TestCmdAuditFlagsAnUndeclaredObjectiveHole(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	ctx.Respond("GET", "/objectives", objectiveResponse{
+		Rows:       []objectiveRow{{ID: "T4"}},
+		Unserved:   1,
+		Undeclared: 1,
+	})
+	stdout, _, err := clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
+	if err != nil {
+		t.Fatalf("cmdAudit: %v", err)
+	}
+	var report auditReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	for _, tgt := range report.Targets {
+		if tgt.Target != "Objective coverage" {
+			continue
+		}
+		if tgt.Status != auditStatusOutOfBand {
+			t.Fatalf("status = %q, want out-of-band", tgt.Status)
+		}
+		if len(tgt.Detail) == 0 {
+			t.Fatal("an unserved objective must reach the reader as a detail line")
+		}
+		return
+	}
+	t.Fatal("audit did not report Objective coverage")
+}
+
+// A team that declares no objective is the upward half of the coverage rule:
+// effort that traces to no stated intent.
+func TestCmdAuditFlagsAnUnattachedTeam(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	ctx.Respond("GET", "/objectives", objectiveResponse{
+		Rows:            []objectiveRow{{ID: "T1", Served: true}},
+		UnattachedTeams: []string{"orphan-team"},
+	})
+	stdout, _, err := clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
+	if err != nil {
+		t.Fatalf("cmdAudit: %v", err)
+	}
+	var report auditReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	for _, tgt := range report.Targets {
+		if tgt.Target == "Objective coverage" && tgt.Status != auditStatusOutOfBand {
+			t.Fatalf("status = %q, want out-of-band", tgt.Status)
+		}
+	}
+}
+
+// Orientation cost must report every team, not the usual three-lead cap: the
+// record is what the next cycle diffs against, and a truncated one silently
+// drops teams out of the trend.
+func TestCmdAuditRecordsEveryTeamsOrientationCost(t *testing.T) {
+	ctx := cleanAuditContext(t)
+	ctx.Respond("GET", "/orientation-cost", orientationCostReport{Teams: []orientationCost{
+		{TeamID: "a"}, {TeamID: "b"}, {TeamID: "c"}, {TeamID: "d"}, {TeamID: "e"}, {TeamID: "f"},
+	}})
+	stdout, _, err := clitest.Output(t, func() error { return cmdAudit(ctx, []string{"--json"}) })
+	if err != nil {
+		t.Fatalf("cmdAudit: %v", err)
+	}
+	var report auditReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	for _, tgt := range report.Targets {
+		if tgt.Target != "Team orientation cost" {
+			continue
+		}
+		if len(tgt.Detail) != 6 {
+			t.Fatalf("detail lines = %d, want 6 (one per team)", len(tgt.Detail))
+		}
+		return
+	}
+	t.Fatal("audit did not report Team orientation cost")
 }

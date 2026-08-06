@@ -64,7 +64,7 @@ func EnrichWithKeyPrefixMismatch(members []MemberTopics, q KnowledgeQuery) []Fin
 			findings = append(findings, Finding{
 				Rule:     "topic_key_query_unavailable",
 				Severity: SeverityWarning,
-				Member:   MemberRef{Team: team},
+				Team:     team,
 				Detail:   fmt.Sprintf("ListAll(%q) error: %v", team, err),
 			})
 			continue
@@ -83,7 +83,7 @@ func EnrichWithKeyPrefixMismatch(members []MemberTopics, q KnowledgeQuery) []Fin
 			return Finding{
 				Rule:     "topic_key_prefix_mismatch",
 				Severity: SeverityWarning,
-				Member:   MemberRef{Team: team},
+				Team:     team,
 				Prefix:   family,
 				Detail:   fmt.Sprintf("%s under %q have no matching declared prefix in any member's topics.json on team %q", evidence, family, team),
 			}
@@ -96,15 +96,29 @@ func stripPrefixWildcard(p string) string {
 	return strings.TrimSuffix(p, "/*")
 }
 
+// topicMatchesAnyPrefix reports whether a live topic key is covered by any
+// declared prefix. Matching is segment-wise so that a `<name>` placeholder in
+// a declaration covers one real segment; without that, a member declaring
+// `challenge-report/<decision-id>` appears to have declared nothing and every
+// entry it writes is reported as undeclared drift.
 func topicMatchesAnyPrefix(topic string, prefixes map[string]struct{}) bool {
+	topicSegs := strings.Split(topic, "/")
 	for p := range prefixes {
 		if p == "" {
 			continue
 		}
-		if topic == p {
-			return true
+		prefixSegs := strings.Split(p, "/")
+		if len(prefixSegs) > len(topicSegs) {
+			continue
 		}
-		if strings.HasPrefix(topic, p+"/") {
+		matched := true
+		for i, seg := range prefixSegs {
+			if !topicSegmentsUnify(seg, topicSegs[i]) {
+				matched = false
+				break
+			}
+		}
+		if matched {
 			return true
 		}
 	}

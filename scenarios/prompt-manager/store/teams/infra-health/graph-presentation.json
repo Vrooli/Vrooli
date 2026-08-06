@@ -1,0 +1,97 @@
+{
+  "shortNames": {
+    "decision:capability-gap": "CG",
+    "decision:cross-platform-debt": "CPD",
+    "decision:decision-rejection-proposed": "DRP",
+    "decision:framework-meta": "FM",
+    "decision:instrumentation-gap": "IG",
+    "decision:platform-code-finding": "PCF",
+    "decision:reliability-target-update": "RTU",
+    "decision:runtime-health-finding": "RHF",
+    "external:operator": "OP",
+    "external:swarm-manager-work": "SWARM",
+    "member:infra-contrarian": "IC",
+    "member:platform-code-auditor": "PCA",
+    "member:runtime-health-scanner": "RHS",
+    "process:operator-approval": "APPROVAL",
+    "process:operator-curated-canon": "CANON",
+    "topic:challenge-report/\u003cdecision-id\u003e": "CR",
+    "topic:challenge-resolution-record/\u003cdecision-id\u003e": "CRR",
+    "topic:contrarian-scan/YYYY-MM-DD": "CS",
+    "topic:platform-code-audit/YYYY-MM-DD": "PCAUD",
+    "topic:runtime-health-audit/YYYY-MM-DD": "RHA"
+  },
+  "displays": {
+    "external:operator": "Operator",
+    "external:swarm-manager-work": "Swarm Manager work",
+    "member:infra-contrarian": "Infra Contrarian",
+    "member:platform-code-auditor": "Platform Code Auditor",
+    "member:runtime-health-scanner": "Runtime Health Scanner",
+    "process:operator-approval": "Operator approval",
+    "process:operator-curated-canon": "Operator-curated canon"
+  },
+  "nodeOrder": [
+    "process:operator-approval",
+    "process:operator-curated-canon",
+    "decision:capability-gap",
+    "decision:cross-platform-debt",
+    "topic:challenge-report/\u003cdecision-id\u003e",
+    "topic:challenge-resolution-record/\u003cdecision-id\u003e",
+    "topic:contrarian-scan/YYYY-MM-DD",
+    "decision:decision-rejection-proposed",
+    "decision:framework-meta",
+    "member:infra-contrarian",
+    "decision:instrumentation-gap",
+    "external:operator",
+    "member:platform-code-auditor",
+    "topic:platform-code-audit/YYYY-MM-DD",
+    "decision:platform-code-finding",
+    "topic:runtime-health-audit/YYYY-MM-DD",
+    "decision:runtime-health-finding",
+    "member:runtime-health-scanner",
+    "decision:reliability-target-update",
+    "external:swarm-manager-work"
+  ],
+  "readabilityEdges": [
+    {
+      "from": "decision:capability-gap",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:cross-platform-debt",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:decision-rejection-proposed",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:framework-meta",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:instrumentation-gap",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:platform-code-finding",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:reliability-target-update",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:runtime-health-finding",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "process:operator-approval",
+      "to": "external:swarm-manager-work"
+    },
+    {
+      "from": "process:operator-approval",
+      "to": "process:operator-curated-canon"
+    }
+  ]
+}

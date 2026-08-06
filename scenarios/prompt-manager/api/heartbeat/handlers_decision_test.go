@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 
@@ -19,13 +18,8 @@ import (
 
 func setupDecisionTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore) {
 	t.Helper()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	relationStore := fileStore.Relations()
-	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	h := newTestHandlers(t)
+	handlers, teamStore := h.Handlers, h.TeamStore
 
 	if err := teamStore.Create(context.Background(), newIndependentTestTeam("team-1", "Test Team")); err != nil {
 		t.Fatalf("create team: %v", err)
@@ -553,13 +547,9 @@ func TestAddDecision_AlwaysSetsStatusPending(t *testing.T) {
 // setupApprovalTestHandlers sets up handlers with a team in approval mode and a member agent.
 func setupApprovalTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore) {
 	t.Helper()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	relationStore := fileStore.Relations()
-	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	h := newTestHandlers(t)
+	handlers, teamStore := h.Handlers, h.TeamStore
+	agentStore, relationStore := h.AgentStore, h.RelationStore
 
 	ctx := context.Background()
 

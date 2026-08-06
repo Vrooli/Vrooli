@@ -175,7 +175,7 @@ func route(ctx appctx.Context, args []string) error {
 	case "delete", "rm":
 		return cmdDelete(ctx, subArgs)
 	case "use", "copy":
-		return cmdUse(ctx, subArgs)
+		return fmt.Errorf("skill use/copy was removed; use `skill read <id>` — it records the read and takes --copy for the clipboard")
 	case "sync":
 		return cmdSync(ctx, subArgs)
 	case "rate":
@@ -210,7 +210,6 @@ Subcommands:
   add, create <name>    Create a new skill
   update, edit <id>     Update an existing skill
   delete, rm <id>       Delete a skill
-  use, copy <id>        Record usage and copy to clipboard
   sync                  Sync skills with hash-based change detection
   rate <id> <1-5>       Rate skill effectiveness
   versions, history <id> Show version history
@@ -610,37 +609,6 @@ func cmdDelete(ctx appctx.Context, args []string) error {
 	}
 
 	fmt.Printf("Deleted skill: %s\n", skill.Name)
-	return nil
-}
-
-func cmdUse(ctx appctx.Context, args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: skill use <id>")
-	}
-	skillID := args[0]
-
-	// Record usage
-	if err := ctx.Post(fmt.Sprintf("/skills/%s/use", skillID), struct{}{}, nil); err != nil {
-		return fmt.Errorf("failed to record usage: %w", err)
-	}
-
-	// Get and display the skill
-	var skill SkillResponse
-	if err := ctx.Get(fmt.Sprintf("/skills/%s", skillID), &skill); err != nil {
-		return fmt.Errorf("failed to get skill: %w", err)
-	}
-
-	fmt.Println("Usage recorded!")
-	fmt.Printf("\nSkill Content:\n%s\n", skill.Content)
-
-	// Copy to clipboard if available
-	if clipboard.IsAvailable() {
-		if errMsg := clipboard.Copy(skill.Content); errMsg == "" {
-			fmt.Printf("\n(Copied to clipboard via %s)\n", clipboard.ToolName())
-		} else {
-			fmt.Printf("\n(%s)\n", errMsg)
-		}
-	}
 	return nil
 }
 

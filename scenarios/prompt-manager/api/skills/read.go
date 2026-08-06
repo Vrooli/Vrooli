@@ -131,6 +131,13 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 	// assigned prompt. Provenance comes exclusively from verified claims; an
 	// unavailable or invalid token is retained as an unattributed observation.
 	h.recordExposureReceipts(r, responses)
+	// Counted at the read, not at `skill use`, so every consumer — CLI, UI,
+	// MCP, other scenarios — is counted exactly once per resolved skill.
+	readIDs := make([]string, 0, len(responses))
+	for _, response := range responses {
+		readIDs = append(readIDs, response.ID)
+	}
+	h.readRecorder.Record(r, readIDs)
 
 	if !allowMissing && (len(resp.Missing) > 0 || len(resp.Ambiguous) > 0) {
 		status := http.StatusNotFound

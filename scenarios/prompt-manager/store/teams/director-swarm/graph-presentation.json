@@ -1,0 +1,110 @@
+{
+  "shortNames": {
+    "decision:capability-gap": "CG",
+    "decision:goal-portfolio": "GP",
+    "decision:goal-proposal": "GPR",
+    "decision:goal-readiness": "GR",
+    "decision:goal-supplement": "GS",
+    "decision:outcome-direction": "OD",
+    "decision:outcome-gap": "OG",
+    "decision:vision-update": "VU",
+    "external:operator": "OP",
+    "external:swarm-manager-work": "SMWORK",
+    "external:vision-walk": "VW",
+    "member:outcome-strategist": "OS",
+    "member:portfolio-manager": "PM",
+    "member:vision-walk-prep": "VWP",
+    "process:operator-approval": "APPROVAL",
+    "process:operator-curated-canon": "CANON",
+    "team:marketing-crew": "MKT",
+    "team:monetization": "MON",
+    "topic:decision-application/\u003cdecision-id\u003e": "APP",
+    "topic:goal-portfolio-record/YYYY-MM-DD": "PORT",
+    "topic:opportunity-inbox/*": "OI",
+    "topic:outcome-target-record/YYYY-MM-DD": "OUT",
+    "topic:research-inbox/*": "RI",
+    "topic:validation-inbox/*": "VI",
+    "topic:vision-walk-record/\u003cdate\u003e/\u003cslug\u003e": "WALK"
+  },
+  "displays": {
+    "external:operator": "Operator",
+    "external:swarm-manager-work": "Swarm Manager work",
+    "external:vision-walk": "Vision Walk",
+    "member:outcome-strategist": "Outcome Strategist",
+    "member:portfolio-manager": "Portfolio Manager",
+    "member:vision-walk-prep": "Vision Walk Prep",
+    "process:operator-approval": "Operator approval",
+    "process:operator-curated-canon": "Operator-curated canon",
+    "team:marketing-crew": "Marketing Crew",
+    "team:monetization": "Monetization"
+  },
+  "nodeOrder": [
+    "topic:decision-application/\u003cdecision-id\u003e",
+    "process:operator-approval",
+    "process:operator-curated-canon",
+    "decision:capability-gap",
+    "decision:goal-portfolio",
+    "decision:goal-proposal",
+    "decision:goal-readiness",
+    "decision:goal-supplement",
+    "team:marketing-crew",
+    "team:monetization",
+    "decision:outcome-direction",
+    "decision:outcome-gap",
+    "topic:opportunity-inbox/*",
+    "external:operator",
+    "member:outcome-strategist",
+    "topic:outcome-target-record/YYYY-MM-DD",
+    "member:portfolio-manager",
+    "topic:goal-portfolio-record/YYYY-MM-DD",
+    "topic:research-inbox/*",
+    "external:swarm-manager-work",
+    "topic:validation-inbox/*",
+    "decision:vision-update",
+    "external:vision-walk",
+    "member:vision-walk-prep",
+    "topic:vision-walk-record/\u003cdate\u003e/\u003cslug\u003e"
+  ],
+  "readabilityEdges": [
+    {
+      "from": "decision:capability-gap",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:goal-portfolio",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:goal-proposal",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:goal-readiness",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:goal-supplement",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:outcome-direction",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:outcome-gap",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "decision:vision-update",
+      "to": "process:operator-approval"
+    },
+    {
+      "from": "process:operator-approval",
+      "to": "external:swarm-manager-work"
+    },
+    {
+      "from": "process:operator-approval",
+      "to": "process:operator-curated-canon"
+    }
+  ]
+}

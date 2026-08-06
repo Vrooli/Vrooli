@@ -197,16 +197,14 @@ type operatingGraphCoverage struct {
 }
 
 type operatingRelationshipCoverage struct {
-	Relationship       string                                 `json:"relationship"`
-	RuntimeDeclared    int                                    `json:"runtime_declared"`
-	GraphShown         int                                    `json:"graph_shown"`
-	Matched            int                                    `json:"matched"`
-	GraphOnly          int                                    `json:"graph_only"`
-	RuntimeOnly        int                                    `json:"runtime_only"`
-	RuntimeSubtypes    []operatingRelationshipSubtypeCoverage `json:"runtime_subtypes,omitempty"`
-	ValidationRule     string                                 `json:"validation_rule,omitempty"`
-	ValidationSeverity string                                 `json:"validation_severity,omitempty"`
-	DiffRelationship   string                                 `json:"diff_relationship,omitempty"`
+	Relationship     string                                 `json:"relationship"`
+	RuntimeDeclared  int                                    `json:"runtime_declared"`
+	GraphShown       int                                    `json:"graph_shown"`
+	Matched          int                                    `json:"matched"`
+	GraphOnly        int                                    `json:"graph_only"`
+	RuntimeOnly      int                                    `json:"runtime_only"`
+	RuntimeSubtypes  []operatingRelationshipSubtypeCoverage `json:"runtime_subtypes,omitempty"`
+	DiffRelationship string                                 `json:"diff_relationship,omitempty"`
 }
 
 type operatingRelationshipSubtypeCoverage struct {

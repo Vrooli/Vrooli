@@ -75,6 +75,7 @@ func (s *SQLiteExperimentStore) RecordAuditReceipt(ctx context.Context, receipt 
 	_, err = s.db.ExecContext(ctx, `INSERT INTO experiment_audit_receipts(experiment_id,protocol_hash,sampled_assignment_ids,findings_hash,challenge_state,anomaly_count,gaming_count,completed_at,signature,signature_envelope,idempotency_key) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(experiment_id) DO NOTHING`, receipt.ExperimentID, receipt.ProtocolHash, samples, receipt.FindingsHash, receipt.ChallengeState, receipt.AnomalyCount, receipt.GamingCount, receipt.CompletedAt, receipt.Signature, []byte(string(receipt.SignatureEnvelope)), receipt.IdempotencyKey)
 	return err
 }
+
 func (s *SQLiteExperimentStore) GetAuditReceipt(ctx context.Context, experimentID string) (*ExperimentAuditReceipt, error) {
 	var receipt ExperimentAuditReceipt
 	var samples []byte
@@ -167,6 +168,7 @@ func (s *SQLiteExperimentStore) List(ctx context.Context) ([]Experiment, error) 
 	}
 	return result, rows.Err()
 }
+
 func (s *SQLiteExperimentStore) ListBySkill(ctx context.Context, skillID string) ([]Experiment, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT payload FROM experiments WHERE skill_id=? ORDER BY id`, skillID)
 	if err != nil {
@@ -187,6 +189,7 @@ func (s *SQLiteExperimentStore) ListBySkill(ctx context.Context, skillID string)
 	}
 	return result, rows.Err()
 }
+
 func (s *SQLiteExperimentStore) Get(ctx context.Context, id string) (*Experiment, error) {
 	var payload []byte
 	if err := s.db.QueryRowContext(ctx, `SELECT payload FROM experiments WHERE id=?`, id).Scan(&payload); err != nil {
@@ -198,6 +201,7 @@ func (s *SQLiteExperimentStore) Get(ctx context.Context, id string) (*Experiment
 	}
 	return &e, nil
 }
+
 func (s *SQLiteExperimentStore) Create(ctx context.Context, e *Experiment) error {
 	e.Kind = KindExperiment
 	e.SchemaVersion = CurrentSchemaVersion
@@ -214,6 +218,7 @@ func (s *SQLiteExperimentStore) Create(ctx context.Context, e *Experiment) error
 	}
 	return nil
 }
+
 func (s *SQLiteExperimentStore) Update(ctx context.Context, id string, e *Experiment) error {
 	existing, err := s.Get(ctx, id)
 	if err != nil {
@@ -238,6 +243,7 @@ func (s *SQLiteExperimentStore) Update(ctx context.Context, id string, e *Experi
 	}
 	return nil
 }
+
 func (s *SQLiteExperimentStore) Delete(ctx context.Context, id string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -272,6 +278,7 @@ func (s *SQLiteExperimentStore) Delete(ctx context.Context, id string) error {
 	}
 	return tx.Commit()
 }
+
 func (s *SQLiteExperimentStore) RecordOutcome(ctx context.Context, id string, o ExperimentOutcome) error {
 	if _, err := s.Get(ctx, id); err != nil {
 		return err
@@ -303,6 +310,7 @@ func (s *SQLiteExperimentStore) RecordOutcome(ctx context.Context, id string, o 
 	}
 	return tx.Commit()
 }
+
 func (s *SQLiteExperimentStore) RecordServe(ctx context.Context, e ExperimentServe) error {
 	if _, err := s.Get(ctx, e.ExperimentID); err != nil {
 		return err
@@ -314,6 +322,7 @@ func (s *SQLiteExperimentStore) RecordServe(ctx context.Context, e ExperimentSer
 	_, err := s.db.ExecContext(ctx, `INSERT INTO experiment_serves(experiment_id,skill_id,variant_id,source,served_at,idempotency_key) VALUES(?,?,?,?,?,?) ON CONFLICT(idempotency_key) DO NOTHING`, e.ExperimentID, e.SkillID, e.VariantID, e.Source, e.ServedAt, key)
 	return err
 }
+
 func (s *SQLiteExperimentStore) ListServes(ctx context.Context, id string) ([]ExperimentServe, error) {
 	if _, err := s.Get(ctx, id); err != nil {
 		return nil, err
@@ -333,6 +342,7 @@ func (s *SQLiteExperimentStore) ListServes(ctx context.Context, id string) ([]Ex
 	}
 	return result, rows.Err()
 }
+
 func (s *SQLiteExperimentStore) CountServesByVariant(ctx context.Context, id string) (map[string]int, error) {
 	rows, err := s.ListServes(ctx, id)
 	if err != nil {
@@ -344,6 +354,7 @@ func (s *SQLiteExperimentStore) CountServesByVariant(ctx context.Context, id str
 	}
 	return out, nil
 }
+
 func (s *SQLiteExperimentStore) ListOutcomes(ctx context.Context, id string) ([]ExperimentOutcome, error) {
 	if _, err := s.Get(ctx, id); err != nil {
 		return nil, err
@@ -376,6 +387,7 @@ func (s *SQLiteExperimentStore) ListOutcomes(ctx context.Context, id string) ([]
 	}
 	return result, rows.Err()
 }
+
 func (s *SQLiteExperimentStore) CountOutcomesByVariant(ctx context.Context, id string) (map[string]int, error) {
 	rows, err := s.ListOutcomes(ctx, id)
 	if err != nil {
@@ -387,9 +399,11 @@ func (s *SQLiteExperimentStore) CountOutcomesByVariant(ctx context.Context, id s
 	}
 	return out, nil
 }
+
 func outcomeKey(id string, o ExperimentOutcome) string {
 	return fmt.Sprintf("%s|%s|%s|%d|%s|%s", id, o.VariantID, o.Source, o.SchemaVersion, o.RecordedAt, string(o.Data))
 }
+
 func serveKey(e ExperimentServe) string {
 	return fmt.Sprintf("%s|%s|%s|%s|%s", e.ExperimentID, e.SkillID, e.VariantID, e.Source, e.ServedAt)
 }

@@ -77,7 +77,7 @@ func (r graphTopicCatalogDriftRule) Check(ctx RuleContext) []OperatingGraphFindi
 	}
 	var findings []OperatingGraphFinding
 	for key, node := range graphTopics {
-		if _, ok := rows[key]; ok {
+		if _, ok := rowForQualifiedTopic(rows, key); ok {
 			continue
 		}
 		f := builder.WithNode(ctx.Block.Source.Path, node, fmt.Sprintf("graph topic %q is missing from the Topic Catalog table", displayQualifiedTopic(string(node.Qualifier), node.Value)))
@@ -85,7 +85,10 @@ func (r graphTopicCatalogDriftRule) Check(ctx RuleContext) []OperatingGraphFindi
 		findings = append(findings, f)
 	}
 	for key, row := range rows {
-		if _, ok := graphTopics[key]; ok {
+		// Both directions use prefix overlap, not exact keys: a catalog row is
+		// backed when the graph draws a topic covering it, whichever spelling
+		// each side uses.
+		if _, ok := graphTopicForQualifiedTopic(graphTopics, key); ok {
 			continue
 		}
 		f := builder.base(ctx.Block.Source.Path, row.SourceLine, fmt.Sprintf("Topic Catalog row %q is missing from the contract graph", displayQualifiedTopic(row.Qualifier, row.Topic)))
@@ -242,7 +245,7 @@ func (r graphTopicCatalogPurposeDriftRule) Check(ctx RuleContext) []OperatingGra
 		if row.Topic == "" {
 			continue
 		}
-		entry, ok := catalog[qualifiedTopicKey(row.Qualifier, row.Topic)]
+		entry, ok := catalogEntryForTopic(catalog, row.Qualifier, row.Topic)
 		if !ok {
 			if operatingTopicCatalogStatusIsCurrent(row.StatusKind) {
 				f := builder.base(ctx.Block.Source.Path, row.SourceLine, fmt.Sprintf("Topic Catalog row %q has no matching team.json::topicCatalog entry", displayQualifiedTopic(row.Qualifier, row.Topic)))
@@ -261,6 +264,83 @@ func (r graphTopicCatalogPurposeDriftRule) Check(ctx RuleContext) []OperatingGra
 	return findings
 }
 
+// catalogEntryForTopic finds a topic's authored catalog entry by FAMILY.
+//
+// 39 topic families across all six teams are declared under two spellings —
+// one member writes `friction-inbox/*`, another writes
+// `friction-inbox/<scope>/<slug>` — while team.json::topicCatalog authors one
+// entry per family. Matching on the exact string treats those as two different
+// topics, so one of them reports as having no catalog entry and no purpose when
+// both name the same thing. The trailing segment is an instance placeholder in
+// either spelling, not part of the family's name.
+func catalogEntryForTopic(catalog map[string]TopicCatalogEntry, qualifier, topic string) (TopicCatalogEntry, bool) {
+	if entry, ok := catalog[qualifiedTopicKey(qualifier, topic)]; ok {
+		return entry, true
+	}
+	for key, entry := range catalog {
+		keyQualifier, keyTopic, ok := splitQualifiedTopicKey(key)
+		if !ok || keyQualifier != qualifier {
+			continue
+		}
+		// Overlap is the codebase's own prefix semantics: `friction-inbox/*`
+		// covers `friction-inbox/<scope>/<slug>`. Guessing the family from the
+		// token's shape cannot distinguish a broad parent prefix from a sibling
+		// sub-family; prefix containment can.
+		if topicsOverlap(topic, keyTopic) {
+			return entry, true
+		}
+	}
+	return TopicCatalogEntry{}, false
+}
+
+// rowForQualifiedTopic finds a catalog row for a graph topic, by family when
+// the two spell the family differently.
+func rowForQualifiedTopic(rows map[string]OperatingTopicCatalogRow, key string) (OperatingTopicCatalogRow, bool) {
+	if row, ok := rows[key]; ok {
+		return row, true
+	}
+	qualifier, topic, ok := splitQualifiedTopicKey(key)
+	if !ok {
+		return OperatingTopicCatalogRow{}, false
+	}
+	for candidateKey, row := range rows {
+		candidateQualifier, candidateTopic, ok := splitQualifiedTopicKey(candidateKey)
+		if !ok || candidateQualifier != qualifier {
+			continue
+		}
+		if topicsOverlap(topic, candidateTopic) {
+			return row, true
+		}
+	}
+	return OperatingTopicCatalogRow{}, false
+}
+
+// graphTopicForQualifiedTopic finds the graph node covering a catalog row.
+func graphTopicForQualifiedTopic(graphTopics map[string]OperatingGraphNode, key string) (OperatingGraphNode, bool) {
+	if node, ok := graphTopics[key]; ok {
+		return node, true
+	}
+	qualifier, topic, ok := splitQualifiedTopicKey(key)
+	if !ok {
+		return OperatingGraphNode{}, false
+	}
+	for candidateKey, node := range graphTopics {
+		candidateQualifier, candidateTopic, ok := splitQualifiedTopicKey(candidateKey)
+		if !ok || candidateQualifier != qualifier {
+			continue
+		}
+		if topicsOverlap(candidateTopic, topic) {
+			return node, true
+		}
+	}
+	return OperatingGraphNode{}, false
+}
+
+func splitQualifiedTopicKey(key string) (string, string, bool) {
+	qualifier, topic, ok := strings.Cut(key, "\x00")
+	return qualifier, topic, ok
+}
+
 func qualifiedTopicKey(qualifier, topic string) string {
 	return qualifier + "\x00" + topic
 }
@@ -274,7 +354,13 @@ func displayQualifiedTopic(qualifier, topic string) string {
 
 func catalogGraphTopicExists(block OperatingGraphBlock, qualifier, topic string) bool {
 	for _, node := range block.Graph.Nodes {
-		if node.Kind == OperatingGraphNodeKindTopic && string(node.Qualifier) == qualifier && node.Value == topic {
+		if node.Kind != OperatingGraphNodeKindTopic || string(node.Qualifier) != qualifier {
+			continue
+		}
+		// Family comparison for the same reason catalogEntryForTopic uses it:
+		// one family may be spelled two ways across members, and a catalog row
+		// documents the family rather than one member's spelling of it.
+		if node.Value == topic || topicsOverlap(node.Value, topic) {
 			return true
 		}
 	}

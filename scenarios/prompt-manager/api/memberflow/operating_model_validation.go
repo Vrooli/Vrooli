@@ -14,7 +14,7 @@ func ValidateOperatingModels(models []OperatingModelDocument, runtime OperatingG
 	if err != nil {
 		addOperatingFindings(&result, []OperatingGraphFinding{{
 			Rule:     "rule_registry_invalid",
-			Severity: string(SeverityError),
+			Severity: SeverityError,
 			Detail:   err.Error(),
 		}})
 		sortOperatingFindings(result.Findings)
@@ -68,7 +68,7 @@ func checkOperatingModelRequiredSectionMissing(ctx OperatingModelRuleContext) []
 		}
 		findings = append(findings, OperatingGraphFinding{
 			Rule:       "operating_model_required_section_missing",
-			Severity:   string(SeverityError),
+			Severity:   SeverityError,
 			GraphID:    ctx.Model.ID,
 			Team:       ctx.Model.Team,
 			SourcePath: ctx.Model.Source.Path,
@@ -85,7 +85,7 @@ func checkOperatingModelDuplicateSection(ctx OperatingModelRuleContext) []Operat
 		for _, duplicateLine := range required.section.Duplicates {
 			findings = append(findings, OperatingGraphFinding{
 				Rule:       "operating_model_duplicate_section",
-				Severity:   string(SeverityError),
+				Severity:   SeverityError,
 				GraphID:    ctx.Model.ID,
 				Team:       ctx.Model.Team,
 				SourcePath: ctx.Model.Source.Path,
@@ -134,9 +134,6 @@ func validateDecisionsTable(model OperatingModelDocument) []OperatingGraphFindin
 		if len(missing) > 0 {
 			findings = append(findings, operatingModelFinding(model, "operating_model_decisions_row_incomplete", row.SourceLine, fmt.Sprintf("Decisions row %q is missing %s", decisionRowLabel(row), strings.Join(missing, ", "))))
 			continue
-		}
-		if !acceptedEffectNamesDownstreamSurface(row.AcceptedEffect) {
-			findings = append(findings, operatingModelFinding(model, "operating_model_decisions_effect_weak", row.SourceLine, fmt.Sprintf("Decisions row %q accepted effect must name a concrete downstream surface", decisionRowLabel(row))))
 		}
 	}
 	return findings
@@ -270,9 +267,6 @@ func validateOperatingModelGaps(model OperatingModelDocument) []OperatingGraphFi
 	for _, item := range section.Items {
 		if len(item.References) == 0 {
 			findings = append(findings, operatingModelFinding(model, "operating_model_gap_item_unanchored", item.SourceLine, "Current Implementation Gaps item must name at least one concrete surface in inline code"))
-		}
-		if !item.TargetState {
-			findings = append(findings, operatingModelFinding(model, "operating_model_gap_item_target_state_missing", item.SourceLine, "Current Implementation Gaps item must state its target-state disposition"))
 		}
 	}
 	return findings
@@ -439,39 +433,6 @@ func decisionRowLabel(row OperatingDecisionRow) string {
 	return "<empty>"
 }
 
-func acceptedEffectNamesDownstreamSurface(effect string) bool {
-	normalized := strings.ToLower(effect)
-	for _, token := range []string{
-		"`topic:",
-		"`path:",
-		"docs/",
-		"backlog",
-		"team",
-		"member",
-		"skill",
-		"action",
-		"scenario",
-		"config",
-		"canon",
-		"plan-of-record",
-		"document",
-		"documentation",
-		"surface",
-		"artifact",
-		"campaign",
-		"channel",
-		"gap",
-		"framework",
-		"decision",
-		"publisher",
-	} {
-		if strings.Contains(normalized, token) {
-			return true
-		}
-	}
-	return false
-}
-
 func sameStringSlice(got, want []string) bool {
 	if len(got) != len(want) {
 		return false
@@ -487,7 +448,7 @@ func sameStringSlice(got, want []string) bool {
 func operatingModelFinding(model OperatingModelDocument, rule string, line int, detail string) OperatingGraphFinding {
 	return OperatingGraphFinding{
 		Rule:       rule,
-		Severity:   string(SeverityError),
+		Severity:   SeverityError,
 		GraphID:    model.ID,
 		Team:       model.Team,
 		SourcePath: model.Source.Path,

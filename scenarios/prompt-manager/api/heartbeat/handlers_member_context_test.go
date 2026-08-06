@@ -38,7 +38,12 @@ func TestGetMemberContext_Success(t *testing.T) {
 	}
 
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/members/agent-1/context", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
@@ -73,7 +78,12 @@ func TestGetMemberContext_TeamNotFound(t *testing.T) {
 	relationStore := fileStore.Relations()
 
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/nonexistent/members/agent-1/context", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent", "agentId": "agent-1"})
@@ -104,7 +114,12 @@ func TestGetMemberContext_MemberNotFound(t *testing.T) {
 	// Note: not adding agent-1 as a member
 
 	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/members/agent-1/context", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
@@ -132,7 +147,12 @@ func TestGetTeamExecutionStatus_Success(t *testing.T) {
 
 	exec := &captureExecutor{}
 	teamExecStore := NewTeamExecutionStore(teamStore, exec, roots.Config, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, nil, nil, nil, teamExecStore)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		TeamExecStore: teamExecStore,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/team-1/execution-status", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
@@ -163,7 +183,11 @@ func TestGetTeamExecutionStatus_TeamNotFound(t *testing.T) {
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	relationStore := fileStore.Relations()
 
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, nil, nil, nil, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/teams/nonexistent/execution-status", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})

@@ -241,7 +241,10 @@ type Team struct {
 // TeamValidationFinding identifies one contract defect without hiding the
 // team that needs repair from operators.
 type TeamValidationFinding struct {
-	Source  string `json:"source"`
+	Source string `json:"source"`
+	// Rule is the catalogued rule id when the finding came from a rule family
+	// that has one. teamconfig checks are config-load errors and leave it empty.
+	Rule    string `json:"rule,omitempty"`
 	Field   string `json:"field,omitempty"`
 	Message string `json:"message"`
 }

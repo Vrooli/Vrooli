@@ -73,7 +73,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "graph",
 				Aliases:     []string{"g"},
 				NeedsAPI:    true,
-				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health|topics|operating-model|map|audit|drain-status)",
+				Description: "Relationship graph (show|dump|node|regenerate|orphaned-skills|skillless-agents|empty-teams|unaffiliated-agents|cliless-skills|popular|circular-refs|health|topics|operating-model|map|objectives|orientation-cost|audit|drain-status)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -117,10 +117,18 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHealth(ctx, subArgs)
 	case "topics":
 		return cmdTopics(ctx, subArgs)
+	case "runtime":
+		return cmdRuntime(ctx, subArgs)
+	case "rules":
+		return cmdRules(ctx, subArgs)
 	case "operating-model":
 		return cmdOperatingModel(ctx, subArgs)
 	case "map":
 		return cmdMap(ctx, subArgs)
+	case "objectives":
+		return cmdObjectives(ctx, subArgs)
+	case "orientation-cost":
+		return cmdOrientationCost(ctx, subArgs)
 	case "audit":
 		return cmdAudit(ctx, subArgs)
 	case "drain-status":
@@ -155,11 +163,25 @@ Subcommands:
                                       Synthetic cli nodes are excluded unless
                                       --type names cli explicitly.
   topics [--team X] [--json] [--findings-out PATH]
-                                      Member topic-flow graph + validation
+                                      Member topic-flow graph + DECLARATION
+                                      validation. Exits non-zero on declaration
+                                      errors only, so it can gate CI
                                       (--findings-out writes a stable JSON
                                       artifact for CI diff telemetry)
+  rules [--json]                      The validation rule catalog: id, group,
+                                      severity, kind, description, actuator, and
+                                      how many findings each produced this run.
+                                      The generated doc tables render from this
+  runtime [--team X] [--json]         Runtime observations: what agents actually
+                                      wrote, versus what they declared. Always
+                                      exits 0 — no edit to the tree clears a
+                                      runtime finding
   operating-model <list|validate|diff|coverage> [--team X] [--id ID] [--json]
                                       Plan-of-record Mermaid contract checks
+  objectives [--json]                 Objective coverage: OBJECTIVES.md against
+                                      team.json::objectivesServed, both directions
+  orientation-cost [--json]           Per-team orientation cost and its
+                                      components, read against scenario coverage
   drain-status [--team X] [--json]    Per-prefix queue depth (Phase 5)
   audit [--json] [--out PATH]         Framework-health sweep: every sensor in
                                       FRAMEWORK_HEALTH.md read in one call`

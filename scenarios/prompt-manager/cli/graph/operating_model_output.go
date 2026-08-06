@@ -97,9 +97,6 @@ func printOperatingModelCoverage(resp operatingModelCoverageResponse) {
 			for _, rel := range cov.Relationships {
 				fmt.Printf("- %s: runtime declared %d, graph shown %d, matched %d, graph-only %d, runtime-only %d",
 					rel.Relationship, rel.RuntimeDeclared, rel.GraphShown, rel.Matched, rel.GraphOnly, rel.RuntimeOnly)
-				if rel.ValidationSeverity != "" {
-					fmt.Printf(" (%s)", rel.ValidationSeverity)
-				}
 				fmt.Println()
 				for _, subtype := range rel.RuntimeSubtypes {
 					fmt.Printf("  - %s: runtime declared %d, covered %d, runtime-only %d\n",

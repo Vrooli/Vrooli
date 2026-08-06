@@ -1,0 +1,217 @@
+{
+  "shortNames": {
+    "decision:action-candidate": "ACTC",
+    "decision:action-deprecation": "ACTDEP",
+    "decision:action-improvement": "ACTIMP",
+    "decision:agent-deprecation": "AGDEP",
+    "decision:agent-improvement": "AGIMP",
+    "decision:capability-gap": "CAP",
+    "decision:decision-rejection-proposed": "DREJ",
+    "decision:framework-update": "FUP",
+    "decision:meta-self-improvement": "MSIM",
+    "decision:run-lesson": "RLESSD",
+    "decision:skill-conversion-candidate": "SKCONV",
+    "decision:skill-deprecation": "SKDEP",
+    "decision:skill-experiment-promotion": "SKEXPPROMO",
+    "decision:skill-graduation": "SKGRAD",
+    "decision:skill-improvement": "SKIMP",
+    "decision:team-deprecation": "TDEP",
+    "decision:team-structure-change": "TSTRUCT",
+    "decision:toolchain-violation": "TCV",
+    "external:operator": "OP",
+    "external:operator-approved-implementation": "ACCEPT",
+    "external:report-friction": "RF",
+    "member:debt-curator": "DC",
+    "member:friction-curator": "FC",
+    "member:meta-contrarian": "MC",
+    "member:run-introspector": "RI",
+    "member:skill-optimizer": "SO",
+    "member:team-agent-optimizer": "TAO",
+    "member:toolchain-validator": "TV",
+    "process:capability-gap-routing": "GAPROUTE",
+    "process:owner-routing": "OWN",
+    "team:director-swarm": "DIR",
+    "team:infra-health": "INFRA",
+    "team:marketing-crew": "MKT",
+    "team:monetization": "MON",
+    "team:scenario-qa": "QA_IN",
+    "topic:action-audit/YYYY-MM-DD": "ACTIONAUD",
+    "topic:action-visited/\u003caction-id\u003e": "ACTIONVIS",
+    "topic:agent-audit/YYYY-MM-DD": "AGENTAUD",
+    "topic:agent-visited/\u003cagent-id\u003e": "AGENTVIS",
+    "topic:challenge-report/\u003cdecision-id\u003e": "CHAL",
+    "topic:challenge-resolution-record/\u003cdecision-id\u003e": "RES",
+    "topic:debt-scan/YYYY-MM-DD": "DEBT",
+    "topic:framework-health-audit/YYYY-MM-DD": "FHAUD",
+    "topic:friction-inbox/\u003cscope\u003e/\u003cslug\u003e": "FIN",
+    "topic:friction-report/prompt-team-agent-storage/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e": "FPTA",
+    "topic:friction-report/recurring-workaround/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e": "FREC",
+    "topic:friction-report/run-execution/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e": "FRUN",
+    "topic:friction-report/toolchain/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e": "FTOOL",
+    "topic:friction-triage-record/\u003cYYYY-MM-DD\u003e": "FTRI",
+    "topic:run-lesson-report/YYYY-MM-DD": "RUNLESS",
+    "topic:self-health/test-genie/YYYY-MM-DD": "SELFHEALTH",
+    "topic:skill-audit/YYYY-MM-DD": "SKILLAUD",
+    "topic:skill-experiment/\u003cskill-id\u003e/\u003cexperiment-id\u003e": "SKEXP",
+    "topic:skill-visited/\u003cskill-id\u003e": "SKILLVIS",
+    "topic:team-audit/YYYY-MM-DD": "TEAMAUD",
+    "topic:team-visited/\u003cteam-id\u003e": "TEAMVIS",
+    "topic:toolchain-audit/YYYY-MM-DD": "TOOL"
+  },
+  "displays": {
+    "external:operator": "Operator",
+    "external:operator-approved-implementation": "Operator-approved implementation",
+    "external:report-friction": "report-friction skill",
+    "member:debt-curator": "Debt Curator",
+    "member:friction-curator": "Friction Curator",
+    "member:meta-contrarian": "Meta Contrarian",
+    "member:run-introspector": "Run Introspector",
+    "member:skill-optimizer": "Skill Optimizer",
+    "member:team-agent-optimizer": "Team Agent Optimizer",
+    "member:toolchain-validator": "Toolchain Validator",
+    "process:capability-gap-routing": "Capability-gap routing",
+    "process:owner-routing": "Owning surface routing",
+    "team:director-swarm": "Director Swarm",
+    "team:infra-health": "Infra Health",
+    "team:marketing-crew": "Marketing Crew",
+    "team:monetization": "Monetization",
+    "team:scenario-qa": "Scenario QA"
+  },
+  "nodeOrder": [
+    "external:operator-approved-implementation",
+    "decision:action-candidate",
+    "decision:action-deprecation",
+    "decision:action-improvement",
+    "topic:action-audit/YYYY-MM-DD",
+    "topic:action-visited/\u003caction-id\u003e",
+    "decision:agent-deprecation",
+    "topic:agent-audit/YYYY-MM-DD",
+    "topic:agent-visited/\u003cagent-id\u003e",
+    "decision:agent-improvement",
+    "decision:capability-gap",
+    "topic:challenge-report/\u003cdecision-id\u003e",
+    "member:debt-curator",
+    "topic:debt-scan/YYYY-MM-DD",
+    "team:director-swarm",
+    "decision:decision-rejection-proposed",
+    "member:friction-curator",
+    "topic:framework-health-audit/YYYY-MM-DD",
+    "topic:friction-inbox/\u003cscope\u003e/\u003cslug\u003e",
+    "topic:friction-report/prompt-team-agent-storage/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e",
+    "topic:friction-report/recurring-workaround/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e",
+    "topic:friction-report/run-execution/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e",
+    "topic:friction-report/toolchain/\u003cYYYY-MM-DD\u003e/\u003cslug\u003e",
+    "topic:friction-triage-record/\u003cYYYY-MM-DD\u003e",
+    "decision:framework-update",
+    "process:capability-gap-routing",
+    "team:infra-health",
+    "member:meta-contrarian",
+    "team:marketing-crew",
+    "team:monetization",
+    "decision:meta-self-improvement",
+    "external:operator",
+    "process:owner-routing",
+    "team:scenario-qa",
+    "topic:challenge-resolution-record/\u003cdecision-id\u003e",
+    "external:report-friction",
+    "member:run-introspector",
+    "decision:run-lesson",
+    "topic:run-lesson-report/YYYY-MM-DD",
+    "topic:self-health/test-genie/YYYY-MM-DD",
+    "decision:skill-conversion-candidate",
+    "decision:skill-deprecation",
+    "topic:skill-experiment/\u003cskill-id\u003e/\u003cexperiment-id\u003e",
+    "decision:skill-experiment-promotion",
+    "decision:skill-graduation",
+    "topic:skill-audit/YYYY-MM-DD",
+    "topic:skill-visited/\u003cskill-id\u003e",
+    "decision:skill-improvement",
+    "member:skill-optimizer",
+    "member:team-agent-optimizer",
+    "decision:toolchain-violation",
+    "decision:team-deprecation",
+    "topic:team-audit/YYYY-MM-DD",
+    "topic:team-visited/\u003cteam-id\u003e",
+    "topic:toolchain-audit/YYYY-MM-DD",
+    "decision:team-structure-change",
+    "member:toolchain-validator"
+  ],
+  "readabilityEdges": [
+    {
+      "from": "decision:action-candidate",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:action-deprecation",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:action-improvement",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:agent-deprecation",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:agent-improvement",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:capability-gap",
+      "to": "process:capability-gap-routing"
+    },
+    {
+      "from": "decision:decision-rejection-proposed",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:framework-update",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:meta-self-improvement",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:run-lesson",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:skill-conversion-candidate",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:skill-deprecation",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:skill-experiment-promotion",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:skill-graduation",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:skill-improvement",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:team-deprecation",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:team-structure-change",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "decision:toolchain-violation",
+      "to": "process:owner-routing"
+    },
+    {
+      "from": "process:owner-routing",
+      "to": "external:operator-approved-implementation"
+    }
+  ]
+}

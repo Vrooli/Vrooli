@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"prompt-manager/internal/paths"
 	"prompt-manager/store"
 
 	"github.com/gorilla/mux"
@@ -15,13 +14,8 @@ import (
 
 func setupHandoffTestHandlers(t *testing.T) (*Handlers, *store.FileTeamStore) {
 	t.Helper()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	relationStore := fileStore.Relations()
-	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, nil, nil)
+	h := newTestHandlers(t)
+	handlers, teamStore := h.Handlers, h.TeamStore
 
 	ctx := context.Background()
 	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Test Team")); err != nil {

@@ -179,14 +179,14 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 
 	agentIndex := promptHeadingIndex(prompt, "# Agent Files (Markdown)")
 	teamCharterIndex := promptHeadingIndex(prompt, "## Team Charter")
-	briefIndex := promptHeadingIndex(prompt, promptHeadingActiveTaskBrief)
-	policyIndex := promptHeadingIndex(prompt, promptHeadingOperatingPolicy)
+	briefIndex := promptHeadingIndex(prompt, promptHeading(promptSectionKindActiveTaskBrief))
+	policyIndex := promptHeadingIndex(prompt, promptHeading(promptSectionKindOperatingPolicy))
 	respIndex := promptHeadingIndex(prompt, "# Team Responsibilities (RESPONSIBILITIES.md)")
 	orgIndex := promptHeadingIndex(prompt, "# Team Org Context")
 	storageIndex := promptHeadingIndex(prompt, "# Storage Map")
 	inboxIndex := promptHeadingIndex(prompt, "# Team Inbox")
-	taskIndex := promptHeadingIndex(prompt, promptHeadingHeartbeatTask)
-	reminderIndex := promptHeadingIndex(prompt, promptHeadingTaskReminder)
+	taskIndex := promptHeadingIndex(prompt, promptHeading(promptSectionKindHeartbeatTask))
+	reminderIndex := promptHeadingIndex(prompt, promptHeading(promptSectionKindTaskReminder))
 
 	if agentIndex == -1 || teamCharterIndex == -1 || briefIndex == -1 || policyIndex == -1 || respIndex == -1 || orgIndex == -1 || storageIndex == -1 || inboxIndex == -1 || taskIndex == -1 || reminderIndex == -1 {
 		t.Fatalf("expected all heartbeat sections in prompt")
@@ -204,8 +204,8 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 
 	for _, want := range []string{
 		"# Storage Map",
-		promptHeadingActiveTaskBrief,
-		promptHeadingOperatingPolicy,
+		promptHeading(promptSectionKindActiveTaskBrief),
+		promptHeading(promptSectionKindOperatingPolicy),
 		"## Team Charter",
 		"Source: `teams/team-1/shared/TEAM.md`",
 		"Operate as an initiative portfolio manager.",
@@ -233,7 +233,7 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		"Primitive availability for this member:",
 		"- decisions: `write-allowed`",
 		"## Available Storage Commands",
-		promptHeadingTaskReminder,
+		promptHeading(promptSectionKindTaskReminder),
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt missing storage map content %q", want)
@@ -280,7 +280,7 @@ func TestBuildOmitsCoordinationSkillForPlainIndependentTeam(t *testing.T) {
 		t.Fatalf("build prompt: %v", err)
 	}
 
-	if !strings.Contains(prompt, promptHeadingOperatingPolicy) {
+	if !strings.Contains(prompt, promptHeading(promptSectionKindOperatingPolicy)) {
 		t.Fatalf("expected operating policy in prompt")
 	}
 	if strings.Contains(prompt, "team-coordination-independent") {
@@ -820,13 +820,13 @@ func TestBundledVisionWalkPrepPromptUsesMemberAwareStorage(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		promptHeadingActiveTaskBrief,
+		promptHeading(promptSectionKindActiveTaskBrief),
 		"Decision writes: not allowed for this member. Review decisions when useful; do not create them.",
 		"Primitive availability for this member:",
 		"- decisions: `review-only`",
 		"- task board: `review-only`",
 		"- Decision writes are not allowed for this member.",
-		promptHeadingTaskReminder,
+		promptHeading(promptSectionKindTaskReminder),
 		"do not create decisions",
 	} {
 		if !strings.Contains(prompt, want) {
@@ -1276,10 +1276,10 @@ func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 	// All sections except heartbeat should be present
 	for _, section := range []string{
 		"# Agent Files (Markdown)",
-		promptHeadingActiveTaskBrief,
+		promptHeading(promptSectionKindActiveTaskBrief),
 		"# Team Responsibilities (RESPONSIBILITIES.md)",
 		"# Team Org Context",
-		promptHeadingOperatingPolicy,
+		promptHeading(promptSectionKindOperatingPolicy),
 		"# Storage Map",
 		"# Team Inbox",
 	} {

@@ -78,18 +78,6 @@ func expectedTopicContractContent(runtime OperatingGraphRuntime, team, member st
 	return "", false
 }
 
-func (r OperatingGraphRuntime) topicDeclared(team, topic string) bool {
-	for _, rel := range BuildRuntimeOperatingRelationships(r, team) {
-		switch rel.Kind {
-		case operatingRelTopicIntake, operatingRelTopicRequiredRead, operatingRelTopicEvidenceConsumed, operatingRelTopicOutput:
-			if topicsOverlap(rel.Topic, topic) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func runtimeMemberTopicsPath(runtime OperatingGraphRuntime, team, member string) string {
 	return relativeRuntimePath(runtime, filepath.Join(runtime.StoreDir, "teams", team, "members", member, "topics.json"))
 }

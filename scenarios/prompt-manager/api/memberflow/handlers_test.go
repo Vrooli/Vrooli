@@ -272,11 +272,16 @@ func TestOperatingModelHandlersValidateAndDiffAgainstRuntime(t *testing.T) {
 	if err := json.NewDecoder(validateW.Body).Decode(&validateResp); err != nil {
 		t.Fatalf("decode validate: %v", err)
 	}
-	if validateResp.Validation.Errors != 2 {
-		t.Fatalf("validation errors=%d, want 2: %+v", validateResp.Validation.Errors, validateResp.Validation.Findings)
+	// This fixture used to raise graph_topic_unresolved and graph_edge_unbacked:
+	// a drawn topic with no runtime relationship, and an edge no declaration
+	// backs. Both rules are gone. The contract graph is now GENERATED from
+	// topics.json, so a drawn node with no declaration behind it cannot occur —
+	// there is no second copy of the relationship set left to disagree with.
+	// The drift test (TestCheckedInOperatingGraphsMatchTheGenerator) is what
+	// holds that property, and it reports the offending topic by name.
+	if validateResp.Validation.Errors != 0 {
+		t.Fatalf("validation errors=%d, want 0: %+v", validateResp.Validation.Errors, validateResp.Validation.Findings)
 	}
-	assertOperatingFinding(t, validateResp.Validation, "graph_topic_unresolved")
-	assertOperatingFinding(t, validateResp.Validation, "graph_edge_unbacked")
 
 	diffReq := httptest.NewRequest("GET", "/operating-models/diff?team=team-a&id=g", nil)
 	diffW := httptest.NewRecorder()

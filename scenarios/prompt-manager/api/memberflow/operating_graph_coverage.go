@@ -13,16 +13,14 @@ type OperatingGraphCoverage struct {
 }
 
 type OperatingRelationshipCoverage struct {
-	Relationship       string                                 `json:"relationship"`
-	RuntimeDeclared    int                                    `json:"runtime_declared"`
-	GraphShown         int                                    `json:"graph_shown"`
-	Matched            int                                    `json:"matched"`
-	GraphOnly          int                                    `json:"graph_only"`
-	RuntimeOnly        int                                    `json:"runtime_only"`
-	RuntimeSubtypes    []OperatingRelationshipSubtypeCoverage `json:"runtime_subtypes,omitempty"`
-	ValidationRule     string                                 `json:"validation_rule,omitempty"`
-	ValidationSeverity string                                 `json:"validation_severity,omitempty"`
-	DiffRelationship   string                                 `json:"diff_relationship,omitempty"`
+	Relationship     string                                 `json:"relationship"`
+	RuntimeDeclared  int                                    `json:"runtime_declared"`
+	GraphShown       int                                    `json:"graph_shown"`
+	Matched          int                                    `json:"matched"`
+	GraphOnly        int                                    `json:"graph_only"`
+	RuntimeOnly      int                                    `json:"runtime_only"`
+	RuntimeSubtypes  []OperatingRelationshipSubtypeCoverage `json:"runtime_subtypes,omitempty"`
+	DiffRelationship string                                 `json:"diff_relationship,omitempty"`
 }
 
 type OperatingRelationshipSubtypeCoverage struct {
@@ -61,7 +59,6 @@ type OperatingDocsCoverage struct {
 	DecisionsInvalid                  int                     `json:"decisions_invalid"`
 	DecisionsMetadataComplete         int                     `json:"decisions_metadata_complete"`
 	DecisionsMetadataIncomplete       int                     `json:"decisions_metadata_incomplete"`
-	DecisionsAcceptedEffectWeak       int                     `json:"decisions_accepted_effect_weak"`
 	ExternalInputsTable               OperatingCoverageStatus `json:"external_inputs_table"`
 	ExternalInputsRows                int                     `json:"external_inputs_rows"`
 	ExternalInputsBackedRows          int                     `json:"external_inputs_backed_rows"`
@@ -75,7 +72,6 @@ type OperatingDocsCoverage struct {
 	FeedbackUnbackedReferences        int                     `json:"feedback_unbacked_references"`
 	GapsItems                         int                     `json:"gaps_items"`
 	GapsAnchoredItems                 int                     `json:"gaps_anchored_items"`
-	GapsTargetStateItems              int                     `json:"gaps_target_state_items"`
 	AdoptionValidationCommands        int                     `json:"adoption_validation_commands"`
 	PlanOfRecordRegistration          OperatingCoverageStatus `json:"plan_of_record_registration"`
 	ReadmeDiscoverability             OperatingCoverageStatus `json:"readme_discoverability"`
@@ -134,16 +130,14 @@ func buildOperatingRelationshipCoverage(ctx OperatingGraphContractContext) []Ope
 		graphOnly := countGraphOnlyRelationships(ctx, graphRels)
 		runtimeOnly := countRuntimeOnlyRelationships(ctx, runtimeRels)
 		out = append(out, OperatingRelationshipCoverage{
-			Relationship:       string(spec.Kind),
-			RuntimeDeclared:    len(runtimeRels),
-			GraphShown:         len(graphRels),
-			Matched:            len(graphRels) - graphOnly,
-			GraphOnly:          graphOnly,
-			RuntimeOnly:        runtimeOnly,
-			RuntimeSubtypes:    buildOperatingRelationshipSubtypeCoverage(ctx, spec),
-			ValidationRule:     spec.ValidationRule(),
-			ValidationSeverity: string(spec.ValidationSeverity),
-			DiffRelationship:   coverageDiffRelationship(spec),
+			Relationship:     string(spec.Kind),
+			RuntimeDeclared:  len(runtimeRels),
+			GraphShown:       len(graphRels),
+			Matched:          len(graphRels) - graphOnly,
+			GraphOnly:        graphOnly,
+			RuntimeOnly:      runtimeOnly,
+			RuntimeSubtypes:  buildOperatingRelationshipSubtypeCoverage(ctx, spec),
+			DiffRelationship: coverageDiffRelationship(spec),
 		})
 	}
 	return out
@@ -272,7 +266,7 @@ func buildOperatingDocsCoverage(ctx OperatingGraphContractContext) OperatingDocs
 	docs.TopicCatalogRows, docs.TopicCatalogMatched, docs.TopicCatalogGraphOnly, docs.TopicCatalogDocsOnly, docs.TopicCatalogInvalid = topicCatalogCoverageCounts(block)
 	docs.TopicCatalogPurposeMatched, docs.TopicCatalogPurposeMismatch, docs.TopicCatalogPurposeMissingRuntime = topicCatalogPurposeCoverageCounts(block, ctx.Runtime.Contracts[block.Metadata.Team])
 	docs.DecisionsRows, docs.DecisionsMatched, docs.DecisionsGraphOnly, docs.DecisionsDocsOnly, docs.DecisionsInvalid = decisionTableCoverageCounts(block)
-	docs.DecisionsMetadataComplete, docs.DecisionsMetadataIncomplete, docs.DecisionsAcceptedEffectWeak = decisionMetadataCoverageCounts(block)
+	docs.DecisionsMetadataComplete, docs.DecisionsMetadataIncomplete = decisionMetadataCoverageCounts(block)
 	return docs
 }
 
@@ -292,7 +286,7 @@ func addOperatingModelDocsCoverage(docs *OperatingDocsCoverage, model OperatingM
 	docs.OutputsRows = len(model.Sections.Outputs.Rows)
 	docs.OutputsBackedRows, docs.OutputsUnbackedRows = outputsCoverageCounts(references)
 	docs.FeedbackSteps, docs.FeedbackAnchoredSteps, docs.FeedbackUnbackedReferences = feedbackLoopCoverageCounts(references)
-	docs.GapsItems, docs.GapsAnchoredItems, docs.GapsTargetStateItems = gapsCoverageCounts(model)
+	docs.GapsItems, docs.GapsAnchoredItems = gapsCoverageCounts(model)
 	docs.AdoptionValidationCommands = countOperatingModelValidationCommands(model)
 	if runtime.Contracts.HasPlanOfRecordPath(model.Team, model.Source.Path) {
 		docs.PlanOfRecordRegistration = OperatingCoverageStatusEnforced
@@ -361,14 +355,11 @@ func outputsCoverageCounts(references OperatingModelReferenceIndex) (backed, unb
 	return
 }
 
-func gapsCoverageCounts(model OperatingModelDocument) (items, anchored, targetState int) {
+func gapsCoverageCounts(model OperatingModelDocument) (items, anchored int) {
 	for _, item := range model.Sections.Gaps.Items {
 		items++
 		if len(item.References) > 0 {
 			anchored++
-		}
-		if item.TargetState {
-			targetState++
 		}
 	}
 	return
@@ -398,19 +389,46 @@ func topicCatalogCoverageCounts(block OperatingGraphBlock) (rows, matched, graph
 		}
 		docTopics[qualifiedTopicKey(row.Qualifier, row.Topic)] = true
 	}
+	// Prefix overlap, matching the rules. The counter used exact keys while
+	// graph_topic_catalog_drift compares by overlap, so a family spelled
+	// `friction-inbox/*` in the graph and `friction-inbox/<scope>/<slug>` in
+	// the table read as matched by the rule and unmatched by the metric. One
+	// comparison, one answer.
 	for key := range graphTopics {
-		if docTopics[key] {
+		if topicKeyCoveredBy(docTopics, key) {
 			matched++
 		} else {
 			graphOnly++
 		}
 	}
 	for key := range docTopics {
-		if !graphTopics[key] {
+		if !topicKeyCoveredBy(graphTopics, key) {
 			docsOnly++
 		}
 	}
 	return
+}
+
+// topicKeyCoveredBy reports whether any key in the set names the same topic,
+// allowing for the two spellings a family may carry.
+func topicKeyCoveredBy(set map[string]bool, key string) bool {
+	if set[key] {
+		return true
+	}
+	qualifier, topic, ok := splitQualifiedTopicKey(key)
+	if !ok {
+		return false
+	}
+	for candidate := range set {
+		candidateQualifier, candidateTopic, ok := splitQualifiedTopicKey(candidate)
+		if !ok || candidateQualifier != qualifier {
+			continue
+		}
+		if topicsOverlap(candidateTopic, topic) {
+			return true
+		}
+	}
+	return false
 }
 
 func topicCatalogPurposeCoverageCounts(block OperatingGraphBlock, contract *LoadedTeamContract) (matched, mismatch, missingRuntime int) {
@@ -466,16 +484,13 @@ func decisionTableCoverageCounts(block OperatingGraphBlock) (rows, matched, grap
 	return
 }
 
-func decisionMetadataCoverageCounts(block OperatingGraphBlock) (complete, incomplete, effectWeak int) {
+func decisionMetadataCoverageCounts(block OperatingGraphBlock) (complete, incomplete int) {
 	for _, row := range block.Docs.Decisions.Rows {
 		if len(missingDecisionFields(row)) > 0 {
 			incomplete++
 			continue
 		}
 		complete++
-		if !acceptedEffectNamesDownstreamSurface(row.AcceptedEffect) {
-			effectWeak++
-		}
 	}
 	return
 }

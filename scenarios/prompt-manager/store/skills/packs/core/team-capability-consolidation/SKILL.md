@@ -8,6 +8,7 @@ Required reading:
 
 Optional reading:
 - `prompt-manager skill read agent-system-audit scenario-capability-extraction team-tool-mapping`
+- Phase 3 reframe lenses: `prompt-manager skill read screaming-architecture-audit boundary-of-responsibility-enforcement cognitive-load-reduction`
 
 ---
 
@@ -16,6 +17,7 @@ Optional reading:
 | Situation | Use this? | Instead use |
 |---|---|---|
 | A team produces little despite a large roster and canon | Yes | — |
+| A team costs more to orient in each cycle, whatever it ships | Yes | — |
 | A team hand-maintains files that look like a database | Yes | — |
 | A new scenario absorbs work a team currently does by hand | Yes | — |
 | "Is the agentic layer meeting our objectives?" | No | `agent-system-audit` |
@@ -46,22 +48,32 @@ Two rejection points, both early and both cheap. Most candidate teams stop at Ph
 
 ---
 
-### **3. Phase 1 — Measure output against doctrine**
+### **3. Phase 1 — Measure output and orientation cost against doctrine**
 
-**Entry criteria:** a team looks heavy, slow, or blocked.
+**Entry criteria:** a team looks heavy, slow, blocked, or hard to explain.
+
+Two triggers admit a team to Phase 2, and they are independent. Read both before you judge.
 
 **Actions:**
 1. Count what the team has actually shipped. Use its terminal artifact, not its activity — published items, filed reports, merged changes.
 2. Count the volume it carries: roster size, canon line count, declared topics, declared decision contexts.
-3. Compare the two.
-   - If output is proportional to volume: **stop.** This team is not a consolidation candidate. Route to `agent-system-audit`.
-   - If output is near zero while volume is large: continue.
+3. Read the same volume against the previous audit record and ask whether it rose in a cycle where the team's scenario coverage grew (`path:docs/agent-system/FRAMEWORK_HEALTH.md` §"Team orientation cost").
+4. Apply the table.
 
-**Exit criteria:** you can state the ratio in one sentence with two numbers in it.
+| Reading | Verdict |
+|---|---|
+| Output is proportional to volume, and orientation cost is flat or falling | **Stop.** This team is not a consolidation candidate. Route to `agent-system-audit`. |
+| Output is near zero while volume is large | Continue to Phase 2. |
+| Orientation cost rose while scenario coverage grew | Continue to Phase 2, whatever the output ratio says. |
+| No previous audit record names this team | Record this cycle's volume as the baseline. Judge on the output ratio alone. |
+
+**Exit criteria:** you can state one sentence with two numbers in it — the output ratio, or the volume delta and the coverage growth that ran beside it.
 
 **Artifacts:** a dated observation in the team's knowledge topic.
 
 Zero output is a stronger signal than slow output. A team that has never completed its loop end to end has no calibration data, and every downstream loop that depends on that data is unpowered.
+
+The second trigger exists because the first one is blind to a team that ships. Output ratio finds a team that has stalled; orientation cost finds a team that still delivers while costing more to understand every cycle, and the second failure is the one that compounds — every new capability handed to that team arrives as more to read rather than less. `marketing-crew` cleared the first gate only by accident: its output was near zero, but what actually prompted the pass was that its own system had grown past what an operator could hold in mind, and a productive team in the same state would have been waved through.
 
 ---
 
@@ -100,13 +112,22 @@ The last row is the one agents miss. A rule that says a thing "must" happen, wit
 1. Read each operational surface. Write what it was trying to be.
 2. Read each unenforceable rule. Write what it would refuse if it could.
 3. State the capability as the union of those two lists.
-4. Check the capability against the team's stated mission. Drop anything the mission does not ask for.
+4. Restate the capability the way a member would recognize it, not the way the current files are arranged. Run whichever lens fits — all three are written for code and apply to a roster unchanged.
+5. Check the capability against the team's stated mission. Drop anything the mission does not ask for.
+
+| Lens | Ask of the team |
+|---|---|
+| `screaming-architecture-audit` | Does the team's shape announce what it is for, or only how it was assembled? |
+| `boundary-of-responsibility-enforcement` | Which member owns each decision, and where do two members share one? |
+| `cognitive-load-reduction` | What must a member read before it can act at all? |
 
 **Exit criteria:** one paragraph naming the capability, and a list of the gates it enforces.
 
 **Artifacts:** the capability statement, which becomes the new scenario's PRD purpose line.
 
 Derive the capability from the evidence rather than from a blank page. The files and the unenforceable rules already describe the product; they describe it badly, which is why they are files.
+
+Step 4 decides whether the rest of the pass is worth running. A capability named after the existing file layout reproduces that layout in a scenario and buys nothing; the roster collapses in Phase 5 only when the new name makes the old separations look arbitrary. This is a screaming-architecture exercise performed on a team instead of a package tree, which is why the lens list is borrowed rather than restated.
 
 ---
 

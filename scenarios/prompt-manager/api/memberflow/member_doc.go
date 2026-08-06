@@ -125,7 +125,7 @@ func checkMemberDoc(storeDir string, ref MemberRef, contract memberDocContract) 
 			return []Finding{{
 				Rule:     "member_doc_unreadable",
 				Severity: SeverityError,
-				Member:   ref,
+				Team:     ref.Team, Member: ref.Member,
 				Detail: fmt.Sprintf("%s cannot be read: %v",
 					contract.File, err),
 			}}
@@ -133,7 +133,7 @@ func checkMemberDoc(storeDir string, ref MemberRef, contract memberDocContract) 
 		return []Finding{{
 			Rule:     "member_doc_file_missing",
 			Severity: contract.AbsentSeverity,
-			Member:   ref,
+			Team:     ref.Team, Member: ref.Member,
 			Detail: fmt.Sprintf("member %q on team %q has no %s; see docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md §\"Member document contract\" for the required sections",
 				ref.Member, ref.Team, contract.File),
 		}}
@@ -148,7 +148,7 @@ func checkMemberDoc(storeDir string, ref MemberRef, contract memberDocContract) 
 			out = append(out, Finding{
 				Rule:     "member_doc_section_alias",
 				Severity: SeverityError,
-				Member:   ref,
+				Team:     ref.Team, Member: ref.Member,
 				Detail: fmt.Sprintf("%s uses retired heading %q; rename it to %q (docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md §\"Retired aliases\")",
 					contract.File, "## "+h, "## "+canonical),
 			})
@@ -174,7 +174,7 @@ func checkMemberDoc(storeDir string, ref MemberRef, contract memberDocContract) 
 		out = append(out, Finding{
 			Rule:     "member_doc_section_duplicate",
 			Severity: SeverityError,
-			Member:   ref,
+			Team:     ref.Team, Member: ref.Member,
 			Detail: fmt.Sprintf("%s declares section %q %d times; merge them into one — a split section makes the member's own index ambiguous",
 				contract.File, "## "+h, seen[h]),
 		})
@@ -193,7 +193,7 @@ func checkMemberDoc(storeDir string, ref MemberRef, contract memberDocContract) 
 			out = append(out, Finding{
 				Rule:     "member_doc_section_missing",
 				Severity: SeverityError,
-				Member:   ref,
+				Team:     ref.Team, Member: ref.Member,
 				Detail: fmt.Sprintf("%s is missing required section %q (docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md §\"Canonical section vocabulary\")",
 					contract.File, "## "+h),
 			})
@@ -201,7 +201,7 @@ func checkMemberDoc(storeDir string, ref MemberRef, contract memberDocContract) 
 			out = append(out, Finding{
 				Rule:     "member_doc_section_recommended",
 				Severity: SeverityWarning,
-				Member:   ref,
+				Team:     ref.Team, Member: ref.Member,
 				Detail: fmt.Sprintf("%s has no %q section; the owning team should add one through its own decision context — the content is team judgment, not something a validator can infer",
 					contract.File, "## "+h),
 			})

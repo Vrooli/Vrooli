@@ -220,6 +220,11 @@ func (h *Handlers) GetGraph(w http.ResponseWriter, r *http.Request) {
 		// Cross-check entry topic keys against declared prefixes.
 		mismatchExtra := EnrichWithKeyPrefixMismatch(all, h.knowledgeQuery)
 		val = MergeFindings(val, mismatchExtra)
+
+		// The enrichment passes run outside the registry, so their findings
+		// have not been stamped yet. Without this they would reach the CLI with
+		// an empty Kind and be excluded from both the gate and the report.
+		StampFindingKinds(val.Findings)
 	}
 
 	if team != "" {
@@ -234,7 +239,7 @@ func (h *Handlers) GetGraph(w http.ResponseWriter, r *http.Request) {
 		filteredFindings := make([]Finding, 0, len(val.Findings))
 		errs, warns := 0, 0
 		for _, f := range val.Findings {
-			if f.Member.Team == team {
+			if f.Team == team {
 				filteredFindings = append(filteredFindings, f)
 				switch f.Severity {
 				case SeverityError:
@@ -486,4 +491,76 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 
 func writeJSONError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// RuleCatalogEntryView is the operator-facing serialization of one catalogued
+// rule. Fields are explicit rather than reusing RuleCatalogEntry so the wire
+// shape does not silently change when internal metadata does.
+type RuleCatalogEntryView struct {
+	ID          string `json:"id"`
+	Group       string `json:"group"`
+	Severity    string `json:"severity"`
+	Kind        string `json:"kind"`
+	Description string `json:"description"`
+	Actuator    string `json:"actuator"`
+	// Findings is how many findings this rule produced in the current
+	// validation run. Zero is the number Decision 7 tracks downward.
+	Findings int `json:"findings"`
+}
+
+// RulesResponse is the catalog plus the current firing counts.
+type RulesResponse struct {
+	Rules []RuleCatalogEntryView `json:"rules"`
+	Total int                    `json:"total"`
+	// Silent counts catalogued rules that produced no finding this run. A rule
+	// that never fires is either working against a clean tree or is dead; the
+	// count alone does not distinguish them, which is why Phase 3 screened on
+	// three questions rather than this one.
+	Silent int `json:"silent"`
+}
+
+// GetRules serves the rule catalog with each rule's current finding count.
+func (h *Handlers) GetRules(w http.ResponseWriter, r *http.Request) {
+	catalog, err := DefaultRuleCatalog()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fired := map[string]int{}
+	if all, err := LoadAll(h.configDir); err == nil {
+		skillIDs, _ := LoadSkillIDs(h.configDir)
+		taxonomies, _ := LoadAllTaxonomies(h.repoRoot())
+		result := Validate(all, ValidationOptions{
+			RepoRoot:       h.repoRoot(),
+			StoreDir:       h.configDir,
+			RuntimeDataDir: h.runtimeDataDir,
+			SkillIDs:       skillIDs,
+			Taxonomies:     taxonomies,
+		})
+		for _, f := range result.Findings {
+			fired[f.Rule]++
+		}
+	}
+
+	resp := RulesResponse{Rules: make([]RuleCatalogEntryView, 0, len(catalog))}
+	for _, id := range catalog.IDs() {
+		entry := catalog[id]
+		resp.Rules = append(resp.Rules, RuleCatalogEntryView{
+			ID:          entry.ID,
+			Group:       string(entry.Group),
+			Severity:    string(entry.Severity),
+			Kind:        string(entry.Kind),
+			Description: entry.Description,
+			Actuator:    entry.Actuator,
+			Findings:    fired[id],
+		})
+		if fired[id] == 0 {
+			resp.Silent++
+		}
+	}
+	resp.Total = len(resp.Rules)
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
 }

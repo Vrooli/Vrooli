@@ -152,7 +152,7 @@ prompt-manager test history <skill-id>
 ## Configuration
 
 ### App Configuration
-Located in `initialization/configuration/app-config.json`:
+Located in `api/internal/<domain>/configuration/app-config.json`:
 - Port settings
 - SQLite override hooks
 - Feature toggles
@@ -160,7 +160,7 @@ Located in `initialization/configuration/app-config.json`:
 - Resource limits
 
 ### Campaign Templates
-Located in `initialization/configuration/campaign-templates.json`:
+Located in `api/internal/<domain>/configuration/campaign-templates.json`:
 - Pre-configured campaign types
 - Color and icon schemes
 - Quick setup options

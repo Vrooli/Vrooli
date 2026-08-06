@@ -10,7 +10,7 @@ func TestDefaultRuleRegistryRegistersEveryRegisteredRuleFamily(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DefaultRuleRegistry() error = %v", err)
 	}
-	want := len(DefaultOperatingGraphRules()) + len(DefaultOperatingModelRules()) + len(DefaultTopicRules()) + len(DefaultPlanOfRecordRules())
+	want := len(DefaultOperatingGraphRules()) + len(DefaultOperatingModelRules()) + len(DefaultTopicRules()) + len(DefaultPlanOfRecordRules()) + len(DefaultObjectiveRules())
 	if got := len(registry.Rules()); got != want {
 		t.Fatalf("registered rules = %d, want %d", got, want)
 	}
@@ -24,6 +24,7 @@ func TestDefaultRuleCatalogExactlyMatchesDefaultRegistry(t *testing.T) {
 	rules := append(DefaultOperatingGraphRules(), DefaultOperatingModelRules()...)
 	rules = append(rules, DefaultTopicRules()...)
 	rules = append(rules, DefaultPlanOfRecordRules()...)
+	rules = append(rules, DefaultObjectiveRules()...)
 	if _, err := NewRuleRegistryWithCatalog(catalog, rules...); err != nil {
 		t.Fatalf("default catalog and registry drifted: %v", err)
 	}
@@ -76,12 +77,25 @@ func TestTopicRegistryDefaultSeveritiesMatchRuleContracts(t *testing.T) {
 	for _, rule := range DefaultTopicRules() {
 		severity, tracked := want[rule.ID()]
 		if !tracked {
+			// A tracked id may be one of several a check emits; the check's own
+			// registration id is then a different id in the same family.
+			for _, id := range ruleEmits(rule) {
+				delete(want, id)
+			}
 			continue
 		}
-		if got := rule.DefaultSeverity(); got != severity {
-			t.Errorf("%s default severity = %s, want %s", rule.ID(), got, severity)
+		// A multi-id check spans severities by design; the per-finding
+		// severity is set by the check, so only a single-id registration
+		// pins DefaultSeverity.
+		emitted := ruleEmits(rule)
+		if len(emitted) == 1 {
+			if got := rule.DefaultSeverity(); got != severity {
+				t.Errorf("%s default severity = %s, want %s", rule.ID(), got, severity)
+			}
 		}
-		delete(want, rule.ID())
+		for _, id := range emitted {
+			delete(want, id)
+		}
 	}
 	for id := range want {
 		t.Errorf("tracked topic rule %q was not registered", id)
@@ -169,7 +183,7 @@ func TestEveryRegisteredRuleBelongsToExactlyOnePass(t *testing.T) {
 
 	seen := make(map[string]RulePass)
 	total := 0
-	for _, pass := range []RulePass{RulePassTopic, RulePassGraph, RulePassModel} {
+	for _, pass := range []RulePass{RulePassTopic, RulePassGraph, RulePassModel, RulePassObjective} {
 		for _, rule := range registry.RulesForPass(pass) {
 			if prior, duplicated := seen[rule.ID()]; duplicated {
 				t.Errorf("rule %q is in pass %q and pass %q", rule.ID(), prior, pass)
@@ -183,6 +197,7 @@ func TestEveryRegisteredRuleBelongsToExactlyOnePass(t *testing.T) {
 	if got := len(registry.Rules()); total != got {
 		t.Fatalf("rules across passes = %d, want %d registered", total, got)
 	}
+	_ = registry.EmittedIDs()
 }
 
 func TestRuleRegistryRejectsGroupWithNoPassAssignment(t *testing.T) {

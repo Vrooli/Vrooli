@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"prompt-manager/finding"
+
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
 
@@ -405,11 +407,12 @@ func (s *FileTeamStore) loadTeam(teamID string) (*Team, error) {
 			Message: finding.Message,
 		})
 	}
-	for _, finding := range s.validateOperatingContractFindings(context.Background(), team) {
+	for _, f := range s.validateOperatingContractFindings(context.Background(), team) {
 		team.ValidationFindings = append(team.ValidationFindings, TeamValidationFinding{
 			Source:  "teamcontract",
-			Field:   finding.Field,
-			Message: finding.Message,
+			Rule:    f.Rule,
+			Field:   f.Path,
+			Message: f.Detail,
 		})
 	}
 	return team, nil
@@ -420,12 +423,12 @@ func (s *FileTeamStore) validateOperatingContract(ctx context.Context, team *Tea
 	if len(findings) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%s", findings[0].Message)
+	return fmt.Errorf("%s", findings[0].Detail)
 }
 
-func (s *FileTeamStore) validateOperatingContractFindings(ctx context.Context, team *Team) []teamcontract.ValidationFinding {
+func (s *FileTeamStore) validateOperatingContractFindings(ctx context.Context, team *Team) []finding.Finding {
 	if team == nil {
-		return []teamcontract.ValidationFinding{{Field: "team", Message: "team is required"}}
+		return []finding.Finding{{Rule: "contract_missing", Severity: finding.SeverityError, Path: "team", Detail: "team is required"}}
 	}
 	var memberIDs []string
 	if s.relationStore != nil {

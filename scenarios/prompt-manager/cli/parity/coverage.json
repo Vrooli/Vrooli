@@ -88,7 +88,7 @@
     "status": "covered"
   },
   "GET /agent-file-templates": {
-    "reason": "No template subcommand visible in cli — may be UI-only",
+    "reason": "No template subcommand visible in cli \u2014 may be UI-only",
     "status": "audit-pending"
   },
   "GET /agents": {
@@ -100,7 +100,7 @@
     "status": "covered"
   },
   "GET /agents/{id}/files": {
-    "reason": "No agent-files subcommand in agents dispatch — file management may be a gap",
+    "reason": "No agent-files subcommand in agents dispatch \u2014 file management may be a gap",
     "status": "audit-pending"
   },
   "GET /agents/{id}/files/content": {
@@ -116,7 +116,7 @@
     "status": "audit-pending"
   },
   "GET /config/budgets": {
-    "reason": "No dedicated budgets get/put subcommand visible — likely surfaced via discover or admin tooling",
+    "reason": "No dedicated budgets get/put subcommand visible \u2014 likely surfaced via discover or admin tooling",
     "status": "audit-pending"
   },
   "GET /config/discover-filters": {
@@ -196,7 +196,7 @@
     "status": "covered"
   },
   "GET /health": {
-    "reason": "Liveness probe — never invoked from a CLI",
+    "reason": "Liveness probe \u2014 never invoked from a CLI",
     "status": "intentionally-absent"
   },
   "GET /heartbeat-attempts": {
@@ -208,11 +208,15 @@
     "status": "covered"
   },
   "GET /heartbeats/running": {
-    "reason": "No global running-heartbeats subcommand visible — only per-team list exists",
+    "reason": "No global running-heartbeats subcommand visible \u2014 only per-team list exists",
     "status": "audit-pending"
   },
+  "GET /objectives": {
+    "cli": "graph objectives",
+    "status": "covered"
+  },
   "GET /og-metadata": {
-    "reason": "Server-side metadata fetch for landing pages — operator does not call directly",
+    "reason": "Server-side metadata fetch for landing pages \u2014 operator does not call directly",
     "status": "intentionally-absent"
   },
   "GET /operating-models": {
@@ -233,6 +237,10 @@
   },
   "GET /operating-models/validate": {
     "cli": "graph operating-model validate",
+    "status": "covered"
+  },
+  "GET /orientation-cost": {
+    "cli": "graph orientation-cost",
     "status": "covered"
   },
   "GET /runs": {
@@ -279,6 +287,10 @@
     "reason": "See above",
     "status": "audit-pending"
   },
+  "GET /skill-usage": {
+    "cli": "skill-usage",
+    "status": "covered"
+  },
   "GET /skills": {
     "cli": "skill list",
     "status": "covered"
@@ -320,7 +332,7 @@
     "status": "covered"
   },
   "GET /teams/import/claude-code/available": {
-    "reason": "No list-available subcommand visible — import-cc may bundle this",
+    "reason": "No list-available subcommand visible \u2014 import-cc may bundle this",
     "status": "audit-pending"
   },
   "GET /teams/{id}": {
@@ -332,7 +344,7 @@
     "status": "covered"
   },
   "GET /teams/{id}/exclusive-members": {
-    "reason": "No exclusive-members subcommand visible — may be UI-only",
+    "reason": "No exclusive-members subcommand visible \u2014 may be UI-only",
     "status": "audit-pending"
   },
   "GET /teams/{id}/execution-status": {
@@ -356,7 +368,7 @@
     "status": "covered"
   },
   "GET /teams/{id}/heartbeats/logs": {
-    "reason": "Team-wide log list — heartbeat-logs is per-agent",
+    "reason": "Team-wide log list \u2014 heartbeat-logs is per-agent",
     "status": "audit-pending"
   },
   "GET /teams/{id}/heartbeats/{agentId}": {
@@ -440,7 +452,11 @@
     "status": "covered"
   },
   "GET /topics/graph": {
-    "cli": "graph topics",
+    "cli": "graph topics | graph runtime",
+    "status": "covered"
+  },
+  "GET /topics/rules": {
+    "cli": "graph rules",
     "status": "covered"
   },
   "GET /topics/{id}": {
@@ -556,7 +572,7 @@
     "status": "intentionally-absent"
   },
   "POST /runs": {
-    "reason": "No top-level runs subcommand visible — may be UI/agent-only",
+    "reason": "No top-level runs subcommand visible \u2014 may be UI/agent-only",
     "status": "audit-pending"
   },
   "POST /runs/investigate": {
@@ -628,7 +644,7 @@
     "status": "covered"
   },
   "POST /tasks": {
-    "reason": "Top-level POST /tasks (heartbeat-managed) — verify whether team task-add covers or a separate run-task command exists",
+    "reason": "Top-level POST /tasks (heartbeat-managed) \u2014 verify whether team task-add covers or a separate run-task command exists",
     "status": "audit-pending"
   },
   "POST /teams": {
@@ -656,7 +672,7 @@
     "status": "covered"
   },
   "POST /teams/{id}/heartbeats/{agentId}": {
-    "reason": "team heartbeat-enable wraps PUT-style update; CreateHeartbeat (POST) may be redundant — verify",
+    "reason": "team heartbeat-enable wraps PUT-style update; CreateHeartbeat (POST) may be redundant \u2014 verify",
     "status": "audit-pending"
   },
   "POST /teams/{id}/heartbeats/{agentId}/trigger": {
@@ -728,7 +744,7 @@
     "status": "audit-pending"
   },
   "PUT /experiments/{eid}": {
-    "reason": "No explicit update case in experiments dispatch — verify whether create overwrites or update is missing",
+    "reason": "No explicit update case in experiments dispatch \u2014 verify whether create overwrites or update is missing",
     "status": "audit-pending"
   },
   "PUT /graph/health-config": {

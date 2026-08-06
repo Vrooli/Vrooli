@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"prompt-manager/cli/internal/appctx"
 	"strings"
+
+	"prompt-manager/cli/internal/appctx"
 )
 
 func printRawOperatingModelJSON(ctx appctx.Context, path string, query url.Values) error {

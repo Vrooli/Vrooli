@@ -5,7 +5,14 @@ package memberflow
 // catalog-enforced registry then rejects omissions and stale entries.
 func TopicRuleCatalog() (RuleCatalog, error) {
 	entry := func(id string, severity Severity, description string) RuleCatalogEntry {
-		return RuleCatalogEntry{ID: id, Group: OperatingRuleGroupTopic, Severity: severity, Description: description, Actuator: "Route the declaration or runtime-state correction through the owning team"}
+		return RuleCatalogEntry{ID: id, Group: OperatingRuleGroupTopic, Severity: severity, Kind: KindDeclaration, Description: description, Actuator: "Route the declaration or runtime-state correction through the owning team"}
+	}
+	// A runtime rule reads live agent behavior, not checked-in files, so a
+	// clean tree cannot make it pass. These are reported, never gated.
+	runtime := func(id string, severity Severity, description string) RuleCatalogEntry {
+		e := entry(id, severity, description)
+		e.Kind = KindRuntime
+		return e
 	}
 	return NewRuleCatalog(
 		entry("conflicting_drain", SeverityError, "A required intake is drained by incompatible member contracts."),
@@ -19,8 +26,13 @@ func TopicRuleCatalog() (RuleCatalog, error) {
 		entry("dangling_por_sink", SeverityError, "A topic flow points to a missing plan-of-record sink."),
 		entry("dangling_evidence_decision", SeverityError, "A topic flow references a decision that does not exist."),
 		entry("team_role_member_drift", SeverityError, "A team role and its member declaration disagree."),
-		entry("actual_writer_undeclared", SeverityError, "Runtime attribution shows a member wrote outside its declared outputs."),
-		entry("attribution_malformed", SeverityError, "Runtime attribution cannot be safely interpreted."),
+		runtime("actual_writer_undeclared", SeverityError, "Runtime attribution shows a member wrote outside its declared outputs."),
+		runtime("attribution_malformed", SeverityError, "Runtime attribution cannot be safely interpreted."),
+		runtime("stalled_drain", SeverityWarning, "A declared intake has unrouted entries older than the team's drain threshold."),
+		runtime("piling_inbox", SeverityWarning, "A declared intake is accumulating unrouted entries faster than it drains."),
+		runtime("drain_status_unavailable", SeverityWarning, "Drain status cannot be read, so intake health is unknown this cycle."),
+		runtime("topic_key_prefix_mismatch", SeverityWarning, "A live knowledge key does not match the prefix its member declares."),
+		runtime("topic_key_query_unavailable", SeverityWarning, "The knowledge key query failed, so prefix conformance is unknown this cycle."),
 		entry("prose_topic_leak", SeverityWarning, "Operator prose references an undeclared or impermissible topic."),
 		entry("member_doc_unreadable", SeverityError, "A required member document cannot be read."),
 		entry("member_doc_file_missing", SeverityError, "A required member document is absent."),

@@ -17,10 +17,23 @@ type OperatingModelRuleContext struct {
 	ReferenceIndex OperatingModelReferenceIndex
 }
 
+// operatingModelRule is one registration per check function. Twenty-six
+// registrations previously backed seven functions: each re-ran the whole check
+// and then discarded every finding whose Rule field was not its own id, so a
+// seven-id function ran seven times per model and threw away six sevenths of
+// its output each time.
 type operatingModelRule struct {
 	id    string
+	emits []string
 	group RuleGroup
 	check func(OperatingModelRuleContext) []OperatingGraphFinding
+}
+
+func (rule operatingModelRule) Emits() []string {
+	if len(rule.emits) > 0 {
+		return rule.emits
+	}
+	return []string{rule.id}
 }
 
 func (rule operatingModelRule) ID() string {
@@ -50,74 +63,55 @@ func (rule operatingModelRule) Check(ctx RuleContext) []OperatingGraphFinding {
 }
 
 func DefaultOperatingModelRules() []Rule {
+	// model adapts a check that reads only the document.
+	model := func(group RuleGroup, check func(OperatingModelDocument) []OperatingGraphFinding, ids ...string) Rule {
+		return operatingModelRule{id: ids[0], emits: ids, group: group, check: func(ctx OperatingModelRuleContext) []OperatingGraphFinding {
+			return check(ctx.Model)
+		}}
+	}
+	// contextual adapts a check that also reads the reference index.
+	contextual := func(group RuleGroup, check func(OperatingModelRuleContext) []OperatingGraphFinding, ids ...string) Rule {
+		return operatingModelRule{id: ids[0], emits: ids, group: group, check: check}
+	}
+	// withRuntime adapts a check that also reads runtime declarations.
+	withRuntime := func(group RuleGroup, check func(OperatingModelDocument, OperatingGraphRuntime) []OperatingGraphFinding, ids ...string) Rule {
+		return operatingModelRule{id: ids[0], emits: ids, group: group, check: func(ctx OperatingModelRuleContext) []OperatingGraphFinding {
+			return check(ctx.Model, ctx.Runtime)
+		}}
+	}
 	return []Rule{
 		operatingModelRule{id: "operating_model_required_section_missing", group: OperatingModelRuleGroupStructure, check: checkOperatingModelRequiredSectionMissing},
 		operatingModelRule{id: "operating_model_duplicate_section", group: OperatingModelRuleGroupStructure, check: checkOperatingModelDuplicateSection},
-		operatingModelFilteredRule("operating_model_decisions_header_drift", OperatingModelRuleGroupDecision, validateOperatingModelDecisions),
-		operatingModelFilteredRule("operating_model_decisions_empty", OperatingModelRuleGroupDecision, validateOperatingModelDecisions),
-		operatingModelFilteredRule("operating_model_decisions_row_incomplete", OperatingModelRuleGroupDecision, validateOperatingModelDecisions),
-		operatingModelFilteredRule("operating_model_decisions_effect_weak", OperatingModelRuleGroupDecision, validateOperatingModelDecisions),
-		operatingModelContextualFilteredRule("operating_model_external_inputs_table_missing", OperatingModelRuleGroupExternalInput, validateOperatingModelExternalInputs),
-		operatingModelContextualFilteredRule("operating_model_external_inputs_header_drift", OperatingModelRuleGroupExternalInput, validateOperatingModelExternalInputs),
-		operatingModelContextualFilteredRule("operating_model_external_inputs_empty", OperatingModelRuleGroupExternalInput, validateOperatingModelExternalInputs),
-		operatingModelContextualFilteredRule("operating_model_external_inputs_row_incomplete", OperatingModelRuleGroupExternalInput, validateOperatingModelExternalInputs),
-		operatingModelContextualFilteredRule("operating_model_external_inputs_producer_unbacked", OperatingModelRuleGroupExternalInput, validateOperatingModelExternalInputs),
-		operatingModelContextualFilteredRule("operating_model_external_inputs_entry_unbacked", OperatingModelRuleGroupExternalInput, validateOperatingModelExternalInputs),
-		operatingModelContextualFilteredRule("operating_model_external_inputs_drainer_unbacked", OperatingModelRuleGroupExternalInput, validateOperatingModelExternalInputs),
-		operatingModelContextualFilteredRule("operating_model_outputs_table_missing", OperatingModelRuleGroupOutput, validateOperatingModelOutputs),
-		operatingModelContextualFilteredRule("operating_model_outputs_header_drift", OperatingModelRuleGroupOutput, validateOperatingModelOutputs),
-		operatingModelContextualFilteredRule("operating_model_outputs_empty", OperatingModelRuleGroupOutput, validateOperatingModelOutputs),
-		operatingModelContextualFilteredRule("operating_model_outputs_row_incomplete", OperatingModelRuleGroupOutput, validateOperatingModelOutputs),
-		operatingModelContextualFilteredRule("operating_model_outputs_surface_unbacked", OperatingModelRuleGroupOutput, validateOperatingModelOutputs),
-		operatingModelContextualFilteredRule("operating_model_outputs_consumer_unbacked", OperatingModelRuleGroupOutput, validateOperatingModelOutputs),
-		operatingModelContextualFilteredRule("operating_model_feedback_steps_missing", OperatingModelRuleGroupFeedback, validateOperatingModelFeedback),
-		operatingModelContextualFilteredRule("operating_model_feedback_step_unanchored", OperatingModelRuleGroupFeedback, validateOperatingModelFeedback),
-		operatingModelContextualFilteredRule("operating_model_feedback_reference_unbacked", OperatingModelRuleGroupFeedback, validateOperatingModelFeedback),
-		operatingModelFilteredRule("operating_model_gaps_items_missing", OperatingModelRuleGroupGap, validateOperatingModelGapItems),
-		operatingModelFilteredRule("operating_model_gap_item_unanchored", OperatingModelRuleGroupGap, validateOperatingModelGapItems),
-		operatingModelFilteredRule("operating_model_gap_item_target_state_missing", OperatingModelRuleGroupGap, validateOperatingModelGapItems),
-		operatingModelFilteredRule("operating_model_adoption_command_missing", OperatingModelRuleGroupAdoption, validateOperatingModelAdoptionCommands),
-		operatingModelFilteredRuleWithRuntime("operating_model_plan_of_record_missing", OperatingModelRuleGroupDiscoverability, validateOperatingModelDiscoverability),
-		operatingModelFilteredRuleWithRuntime("operating_model_readme_link_missing", OperatingModelRuleGroupDiscoverability, validateOperatingModelDiscoverability),
+		model(OperatingModelRuleGroupDecision, validateOperatingModelDecisions,
+			"operating_model_decisions_header_drift",
+			"operating_model_decisions_empty",
+			"operating_model_decisions_row_incomplete"),
+		contextual(OperatingModelRuleGroupExternalInput, validateOperatingModelExternalInputs,
+			"operating_model_external_inputs_table_missing",
+			"operating_model_external_inputs_header_drift",
+			"operating_model_external_inputs_empty",
+			"operating_model_external_inputs_row_incomplete",
+			"operating_model_external_inputs_producer_unbacked",
+			"operating_model_external_inputs_entry_unbacked",
+			"operating_model_external_inputs_drainer_unbacked"),
+		contextual(OperatingModelRuleGroupOutput, validateOperatingModelOutputs,
+			"operating_model_outputs_table_missing",
+			"operating_model_outputs_header_drift",
+			"operating_model_outputs_empty",
+			"operating_model_outputs_row_incomplete",
+			"operating_model_outputs_surface_unbacked",
+			"operating_model_outputs_consumer_unbacked"),
+		contextual(OperatingModelRuleGroupFeedback, validateOperatingModelFeedback,
+			"operating_model_feedback_steps_missing",
+			"operating_model_feedback_step_unanchored",
+			"operating_model_feedback_reference_unbacked"),
+		model(OperatingModelRuleGroupGap, validateOperatingModelGapItems,
+			"operating_model_gaps_items_missing",
+			"operating_model_gap_item_unanchored"),
+		model(OperatingModelRuleGroupAdoption, validateOperatingModelAdoptionCommands,
+			"operating_model_adoption_command_missing"),
+		withRuntime(OperatingModelRuleGroupDiscoverability, validateOperatingModelDiscoverability,
+			"operating_model_plan_of_record_missing",
+			"operating_model_readme_link_missing"),
 	}
-}
-
-func operatingModelFilteredRule(id string, group RuleGroup, check func(OperatingModelDocument) []OperatingGraphFinding) Rule {
-	return operatingModelRule{
-		id:    id,
-		group: group,
-		check: func(ctx OperatingModelRuleContext) []OperatingGraphFinding {
-			return operatingModelFindingsForRule(check(ctx.Model), id)
-		},
-	}
-}
-
-func operatingModelContextualFilteredRule(id string, group RuleGroup, check func(OperatingModelRuleContext) []OperatingGraphFinding) Rule {
-	return operatingModelRule{
-		id:    id,
-		group: group,
-		check: func(ctx OperatingModelRuleContext) []OperatingGraphFinding {
-			return operatingModelFindingsForRule(check(ctx), id)
-		},
-	}
-}
-
-func operatingModelFilteredRuleWithRuntime(id string, group RuleGroup, check func(OperatingModelDocument, OperatingGraphRuntime) []OperatingGraphFinding) Rule {
-	return operatingModelRule{
-		id:    id,
-		group: group,
-		check: func(ctx OperatingModelRuleContext) []OperatingGraphFinding {
-			return operatingModelFindingsForRule(check(ctx.Model, ctx.Runtime), id)
-		},
-	}
-}
-
-func operatingModelFindingsForRule(findings []OperatingGraphFinding, ruleID string) []OperatingGraphFinding {
-	var out []OperatingGraphFinding
-	for _, finding := range findings {
-		if finding.Rule == ruleID {
-			out = append(out, finding)
-		}
-	}
-	return out
 }

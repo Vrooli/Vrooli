@@ -215,29 +215,6 @@ func (r graphUnknownPORRule) Check(ctx RuleContext) []OperatingGraphFinding {
 	return findings
 }
 
-type graphTopicUnresolvedRule struct{}
-
-func (r graphTopicUnresolvedRule) ID() string                { return "graph_topic_unresolved" }
-func (r graphTopicUnresolvedRule) Group() RuleGroup          { return OperatingRuleGroupEntity }
-func (r graphTopicUnresolvedRule) DefaultSeverity() Severity { return SeverityError }
-func (r graphTopicUnresolvedRule) AppliesTo(ctx RuleContext) bool {
-	return string(ctx.Block.Metadata.Mode) != "explanatory"
-}
-
-func (r graphTopicUnresolvedRule) Check(ctx RuleContext) []OperatingGraphFinding {
-	builder := NewOperatingFindingBuilder(ctx, r)
-	var findings []OperatingGraphFinding
-	for _, node := range ctx.Block.Graph.Nodes {
-		if node.Kind != "topic" || node.Qualifier == "future" || node.Qualifier == "old" || node.Qualifier == "external" {
-			continue
-		}
-		if !ctx.Runtime.topicDeclared(ctx.Block.Metadata.Team, node.Value) {
-			findings = append(findings, builder.WithNode(ctx.Block.Source.Path, node, fmt.Sprintf("live topic %q is not declared by any %s member topics.json", node.Value, ctx.Block.Metadata.Team)))
-		}
-	}
-	return findings
-}
-
 func operatingGraphFileExists(path string) bool {
 	if strings.TrimSpace(path) == "" {
 		return false

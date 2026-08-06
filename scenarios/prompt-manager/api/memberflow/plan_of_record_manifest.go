@@ -396,7 +396,7 @@ func ValidateAllPlanOfRecords(repoRoot string) []OperatingGraphFinding {
 	if err != nil {
 		return []OperatingGraphFinding{{
 			Rule:       "por_discovery_failed",
-			Severity:   string(SeverityError),
+			Severity:   SeverityError,
 			SourcePath: filepath.ToSlash(filepath.Join(repoRoot, "docs")),
 			Path:       filepath.ToSlash(filepath.Join(repoRoot, "docs")),
 			Detail:     fmt.Sprintf("plan-of-record discovery failed: %v", err),
@@ -714,7 +714,7 @@ func relPath(root, path string) string {
 func planOfRecordFinding(model OperatingModelDocument, rule, path string, line int, detail string, severity Severity) OperatingGraphFinding {
 	return OperatingGraphFinding{
 		Rule:       rule,
-		Severity:   string(severity),
+		Severity:   severity,
 		GraphID:    model.ID,
 		Team:       model.Team,
 		Path:       filepath.ToSlash(path),

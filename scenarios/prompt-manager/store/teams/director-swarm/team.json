@@ -4,6 +4,11 @@
   "id": "director-swarm",
   "displayName": "Director Swarm",
   "mission": "Keep Vrooli's goal portfolio flowing through Swarm Manager and surface outcome-driven strategy from Command Center's measured outcomes and gaps registry.",
+  "objectivesServed": [
+    {
+      "id": "I1"
+    }
+  ],
   "enabled": true,
   "runtime": {
     "mode": "multi-process"

@@ -66,8 +66,8 @@ func TestEnrichWithKeyPrefixMismatch_FlagsUndeclaredEntry(t *testing.T) {
 		if f.Rule != "topic_key_prefix_mismatch" || f.Severity != SeverityWarning {
 			t.Errorf("unexpected finding shape: %+v", f)
 		}
-		if f.Member.Team != "alpha" {
-			t.Errorf("expected team=alpha, got %q", f.Member.Team)
+		if f.Team != "alpha" {
+			t.Errorf("expected team=alpha, got %q", f.Team)
 		}
 	}
 }
@@ -97,8 +97,66 @@ func TestEnrichWithKeyPrefixMismatch_ScopesByTeam(t *testing.T) {
 	if len(findings) != 1 {
 		t.Fatalf("expected 1 cross-team-isolation finding, got %d: %+v", len(findings), findings)
 	}
-	if findings[0].Member.Team != "alpha" {
-		t.Errorf("expected finding scoped to alpha, got %q", findings[0].Member.Team)
+	if findings[0].Team != "alpha" {
+		t.Errorf("expected finding scoped to alpha, got %q", findings[0].Team)
+	}
+}
+
+// A member that declares its output with the `<name>` notation TOPICS_SCHEMA.md
+// teaches by example has declared its prefix. Before segment-wise matching, the
+// declaration matched nothing and every entry it wrote was reported as drift —
+// and the finding's own remedy text ("declare it on topics.json") would have led
+// the team to replace a precise declaration with a wildcard to silence a bug.
+func TestEnrichWithKeyPrefixMismatch_PlaceholderDeclarationCoversItsKeys(t *testing.T) {
+	members := []MemberTopics{
+		{
+			Ref:    MemberRef{Team: "alpha", Member: "contrarian"},
+			Exists: true,
+			Topics: Topics{
+				Output: []OutputEntry{
+					{Prefix: "challenge-report/<decision-id>", DestinationKind: "knowledge"},
+					{Prefix: "friction-report/<scope>/<date>/<slug>", DestinationKind: "knowledge"},
+				},
+			},
+		},
+	}
+	q := stubKnowledgeQuery{
+		allByTeam: map[string][]InboxEntry{
+			"alpha": {
+				{ID: "knw-1", Topic: "challenge-report/dec-1778803361775636366"},
+				{ID: "knw-2", Topic: "friction-report/toolchain/2026-07-31/slow-build"},
+			},
+		},
+	}
+	if findings := EnrichWithKeyPrefixMismatch(members, q); len(findings) != 0 {
+		t.Fatalf("placeholder declarations should cover their own keys, got %d findings: %+v",
+			len(findings), findings)
+	}
+}
+
+// The placeholder must not become a blanket wildcard: it binds exactly one
+// segment, so a key at a different depth or under a different root still drifts.
+func TestEnrichWithKeyPrefixMismatch_PlaceholderIsNotABlanketWildcard(t *testing.T) {
+	members := []MemberTopics{
+		{
+			Ref:    MemberRef{Team: "alpha", Member: "contrarian"},
+			Exists: true,
+			Topics: Topics{
+				Output: []OutputEntry{{Prefix: "challenge-report/<decision-id>", DestinationKind: "knowledge"}},
+			},
+		},
+	}
+	q := stubKnowledgeQuery{
+		allByTeam: map[string][]InboxEntry{
+			"alpha": {{ID: "knw-1", Topic: "quality-audit/dec-42"}},
+		},
+	}
+	findings := EnrichWithKeyPrefixMismatch(members, q)
+	if len(findings) != 1 {
+		t.Fatalf("expected the unrelated root to still be reported, got %d: %+v", len(findings), findings)
+	}
+	if findings[0].Rule != "topic_key_prefix_mismatch" {
+		t.Errorf("expected topic_key_prefix_mismatch, got %q", findings[0].Rule)
 	}
 }
 

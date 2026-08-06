@@ -9,8 +9,9 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"prompt-manager/cli/internal/appctx"
 	"strings"
+
+	"prompt-manager/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -96,6 +97,20 @@ Options:
   --json                 Emit JSON output instead of human format`,
 				Run: func(args []string) error {
 					return cmdDiscoveryGaps(ctx, args)
+				},
+			},
+			{
+				Name:        "skill-usage",
+				Aliases:     []string{"usage"},
+				NeedsAPI:    true,
+				Description: "Show per-skill demand: how often discovery returned a skill vs how often an agent read it",
+				Usage:       "prompt-manager skill-usage [options]",
+				HelpText: `Options:
+  --since <window>       Window to report, e.g. 7d, 24h, 30m (default: 7d)
+  --limit <n>            Maximum number of rows to show (default: 20)
+  --json                 Emit JSON output instead of human format`,
+				Run: func(args []string) error {
+					return cmdSkillUsage(ctx, args)
 				},
 			},
 			{
@@ -439,4 +454,91 @@ func formatNumber(n int) string {
 		return fmt.Sprintf("%d,%03d", n/1000, n%1000)
 	}
 	return fmt.Sprintf("%d,%03d,%03d", n/1000000, (n/1000)%1000, n%1000)
+}
+
+// SkillUsageRow mirrors one row of GET /skill-usage.
+type SkillUsageRow struct {
+	SkillID           string         `json:"skillId"`
+	Returned          int            `json:"returned"`
+	Reads             int            `json:"reads"`
+	DemandReads       int            `json:"demandReads"`
+	ViaDiscovery      int            `json:"viaDiscovery"`
+	ReadsByCallerKind map[string]int `json:"readsByCallerKind,omitempty"`
+	ConversionRate    *float64       `json:"conversionRate,omitempty"`
+	LastReadAt        string         `json:"lastReadAt,omitempty"`
+}
+
+// SkillUsageResponse wraps the per-skill demand aggregation.
+type SkillUsageResponse struct {
+	Since  string          `json:"since"`
+	Unread []string        `json:"unread,omitempty"`
+	Rows   []SkillUsageRow `json:"rows"`
+}
+
+func cmdSkillUsage(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("skill-usage", flag.ContinueOnError)
+	since := fs.String("since", "7d", "Window to report (e.g. 7d, 24h, 30m)")
+	limit := fs.Int("limit", 20, "Maximum number of rows to show")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	query := url.Values{}
+	query.Set("since", *since)
+
+	var resp SkillUsageResponse
+	if err := ctx.GetWithQuery("/skill-usage", query, &resp); err != nil {
+		return fmt.Errorf("skill-usage failed: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if len(resp.Rows) == 0 {
+		fmt.Printf("No skill reads or discovery results recorded in the last %s.\n", *since)
+		return nil
+	}
+
+	fmt.Printf("Skill demand (last %s, %d skill(s) seen):\n\n", *since, len(resp.Rows))
+	fmt.Printf("  %-42s %8s %8s %8s %8s  %s\n", "SKILL", "RETURNED", "READS", "DEMAND", "VIA-DISC", "CONV")
+	shown := 0
+	for _, row := range resp.Rows {
+		if shown >= *limit {
+			break
+		}
+		conv := "-"
+		if row.ConversionRate != nil {
+			conv = fmt.Sprintf("%.2f", *row.ConversionRate)
+		}
+		fmt.Printf("  %-42s %8d %8d %8d %8d  %s\n", truncateID(row.SkillID, 42), row.Returned, row.Reads, row.DemandReads, row.ViaDiscovery, conv)
+		shown++
+	}
+	if len(resp.Rows) > shown {
+		fmt.Printf("\n  ... %d more (use --limit)\n", len(resp.Rows)-shown)
+	}
+
+	if len(resp.Unread) > 0 {
+		fmt.Printf("\nReturned but never read (%d) — search-precision suspects, most-offered first:\n", len(resp.Unread))
+		for i, id := range resp.Unread {
+			if i >= 10 {
+				fmt.Printf("  ... %d more\n", len(resp.Unread)-i)
+				break
+			}
+			fmt.Printf("  %s\n", id)
+		}
+	}
+
+	fmt.Printf("\nDEMAND counts agent-member reads only; audit and operator reads are excluded\nso that visiting a skill does not raise its own demand rank.\n")
+	return nil
+}
+
+func truncateID(id string, max int) string {
+	if len(id) <= max {
+		return id
+	}
+	return id[:max-3] + "..."
 }

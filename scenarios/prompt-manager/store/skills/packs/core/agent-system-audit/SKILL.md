@@ -11,6 +11,7 @@ Required reading:
 Optional reading, when a finding narrows to one target:
 - `prompt-manager skill read team-member-capability-architecture-audit` — one member's capability shape
 - `prompt-manager skill read skill-improvement-suggestions` — one skill's efficiency and conditioning quality
+- `prompt-manager skill read team-capability-consolidation` — one team whose structure Phase 5 flags
 
 ---
 
@@ -25,6 +26,7 @@ Optional reading, when a finding narrows to one target:
 | One skill looks bloated or hand-rolled | No | `skill-improvement-suggestions` |
 | One team's contract fails validation | No | Fix it directly; that is a `validate` finding, not an audit |
 | One team produces little and hand-maintains its own state | No | `team-capability-consolidation` |
+| One team's structure is hard to hold in your head, whatever it ships | No | `team-capability-consolidation` |
 
 Session boundary: this is an audit. Read, measure, and report. Do not fix what you find — findings route through the actuators named in `FRAMEWORK_HEALTH.md`.
 
@@ -79,21 +81,22 @@ Report these four structural defects:
 
 Run this phase in the direction of derivation: objectives first, then categories, then teams. Auditing upward from the team roster hides whole missing programs, because a roster is always fully self-consistent with itself.
 
-1. Read `OBJECTIVES.md` — the objective table and §"The coverage rule".
-2. Read `OUTCOMES_CHARTER.md` §"Team contribution map".
-3. Read each team's `## Mission` §"Objective served" and §"Outcome contribution" paragraphs.
+Most of this phase is now a sensor. Run it first, then spend the reading on what the sensor cannot see.
 
-Report these five structural defects:
+1. Run `prompt-manager graph objectives`. It reports the team half of both coverage directions: unserved objectives, undeclared holes, unattached teams, unknown ids, and one-sided links.
+2. Read `OUTCOMES_CHARTER.md` §"Team contribution map" and score every outcome category against an objective. This half stays a document read — categories are Command Center dashboard ids, not a store surface.
+3. Read each team's `## Mission` §"Objective served" and §"Outcome contribution" paragraphs for claims that disagree with the sensor.
 
 | Defect | Detection | Direction |
 |---|---|---|
-| Unserved objective | An objective that no team and no outcome category serves, and that carries no dated gap marker | downward |
-| Unmeasurable objective | An objective whose evidence source does not exist; route it to the capability ladder | downward |
-| Unattached team | A team whose declared objective appears in no objective row | upward |
-| Unattached category | An outcome category that traces to no objective | upward |
-| Drifted claim | A team's own `## Mission` paragraphs disagree with the aggregate map or with the objective table | either |
+| Unserved objective | `graph objectives` reports it unserved | downward |
+| Unmeasurable objective | `graph objectives` raises `objective_unmeasurable`; route it to the capability ladder | downward |
+| Unattached team | `graph objectives` raises `objective_team_unattached` | upward |
+| Unattached category | An outcome category in the charter that traces to no objective — **read, not sensed** | upward |
+| Drifted claim | A team's `## Mission` paragraphs disagree with the objective table or the aggregate map — **read, not sensed**; the sensor compares id sets only, so a role or emphasis stated in prose is yours to check | either |
 
 4. Treat a **declared** gap as reported, not as clean. An objective marked unserved with a dated marker is an open finding whose disposition is known; it stays in the findings list every cycle until it closes.
+5. Do not close a finding this phase produced. The actuator is `outcome-direction` or `capability-gap` in `director-swarm`, which owns the objective set. Measuring the join and restructuring on the strength of your own measurement are different authorities.
 
 #### Phase 5 — Entropy and consolidation
 
@@ -101,7 +104,9 @@ Report these five structural defects:
 2. Run `prompt-manager graph health --type skill,agent,team --worst 20`. Omitting `--type` is still valid but ranks synthetic `cli:` nodes, which score 0 by construction and carry no finding.
 3. Look for skill families whose members differ only in a few lines — a consolidation candidate.
 4. Classify each conditioning defect using the C1–C5 table in `docs/agent-system/SKILL_AUTHORING.md` §"Conditioning defect patterns". Cite the row id; do not restate the row.
-5. Record any team whose shipped output is near zero against a large roster and canon, or that hand-maintains records with a lifecycle. Route it to `team-capability-consolidation`; the missing capability, not the roster, is usually the defect.
+5. Record any team that meets one of three conditions: its shipped output is near zero against a large roster and canon; it hand-maintains records with a lifecycle; or its orientation cost rose in a cycle where its scenario coverage grew (`FRAMEWORK_HEALTH.md` § Team orientation cost). Route it to `team-capability-consolidation`; the missing capability, not the roster, is usually the defect.
+6. Read the third condition against the previous audit record, not against a single reading. The sweep reports every team's composite and its components (`prompt-manager graph orientation-cost` for the standalone read), but orientation cost is banded as a trend, so one cycle's numbers cannot say whether it moved. A first reading establishes the baseline and raises no finding.
+7. When the composite rose, name the component that rose with it — members, canon lines, topics, or decision contexts. "Orientation cost is up" routes nowhere; "the roster grew while `content-desk` absorbed the drafting loop" names the consolidation target.
 
 #### Phase 6 — Report and record
 

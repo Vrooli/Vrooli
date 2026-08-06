@@ -1,7 +1,5 @@
 package memberflow
 
-type RuleGroup string
-
 const (
 	OperatingRuleGroupEntity       RuleGroup = "entity"
 	OperatingRuleGroupEdgeTruth    RuleGroup = "edge_truth"
@@ -28,9 +26,22 @@ type Rule interface {
 type RuleContext struct {
 	OperatingGraphRuleContext
 	ModelContext         *OperatingModelRuleContext
+	ObjectiveInput       *ObjectiveValidationInput
 	PlanOfRecordFindings []OperatingGraphFinding
 	Members              []MemberTopics
 	Options              ValidationOptions
+}
+
+// GraphBlock reports the graph block and whether one was supplied. The block is
+// one optional input among several rather than an embedded requirement: a check
+// that reads no graph — the topic, plan-of-record, and objective families — must
+// be registrable without one. Requiring it is why those families grew adapter
+// types that executed nothing or went around the registry entirely.
+func (c RuleContext) GraphBlock() (OperatingGraphBlock, bool) {
+	if c.Block.Source.Path == "" {
+		return OperatingGraphBlock{}, false
+	}
+	return c.Block, true
 }
 
 type OperatingGraphRuleContext struct {
@@ -41,7 +52,6 @@ type OperatingGraphRuleContext struct {
 }
 
 func DefaultOperatingGraphRules() []Rule {
-	registry := DefaultOperatingRelationshipRegistry()
 	rules := []Rule{
 		graphUntypedNodeRule{},
 		graphUnknownNodeKindRule{},
@@ -50,13 +60,9 @@ func DefaultOperatingGraphRules() []Rule {
 		graphUnknownDecisionRule{},
 		graphUnknownTeamRule{},
 		graphUnknownPORRule{},
-		graphTopicUnresolvedRule{},
 		graphFutureTopicLiveEdgeRule{},
 		graphUnsupportedEdgeSemanticsRule{},
-		graphEdgeUnbackedRule{},
-		graphDeclaredMemberMissingRule{},
 	}
-	rules = append(rules, graphDeclaredRuntimeRelationshipMissingRules(registry)...)
 	rules = append(rules,
 		graphTopicCatalogMissingRule{},
 		graphTopicCatalogInvalidTopicRule{},
@@ -66,10 +72,6 @@ func DefaultOperatingGraphRules() []Rule {
 		graphTopicCatalogLiveStatusUnbackedRule{},
 		graphTopicCatalogTransitionalWithoutTargetRule{},
 		graphTopicCatalogPurposeDriftRule{},
-		graphDocsUnknownActorRule{},
-		graphTopicCatalogWriterDriftRule{},
-		graphTopicCatalogReaderDriftRule{},
-		graphTopicCatalogActorUnsupportedRule{},
 		graphDecisionsTableMissingRule{},
 		graphDecisionsTableDriftRule{},
 		graphDecisionsTableOwnerDriftRule{},
@@ -90,7 +92,7 @@ func ValidateOperatingGraphs(blocks []OperatingGraphBlock, runtime OperatingGrap
 	result := OperatingGraphValidationResult{Findings: []OperatingGraphFinding{}}
 	registry, err := DefaultRuleRegistry()
 	if err != nil {
-		addOperatingFindings(&result, []OperatingGraphFinding{{Rule: "rule_registry_invalid", Severity: string(SeverityError), Detail: err.Error()}})
+		addOperatingFindings(&result, []OperatingGraphFinding{{Rule: "rule_registry_invalid", Severity: SeverityError, Detail: err.Error()}})
 		return result
 	}
 	for _, block := range filterOperatingGraphBlocks(blocks, teamFilter, idFilter) {

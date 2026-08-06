@@ -263,9 +263,8 @@ Guardrails:
 - Levers trade precision for recall; all are config/env-reversible. Measure both
   sides of the trade.
 - The budget unit stays per-skill own file. No transitive budget.
-- Record any value change (and the metrics that justified it) in a
-  `swarm-manager records create --kind execute` entry so future tuners inherit
-  the rationale.
+- Record any value change (and the metrics that justified it) with
+  `vrooli-memory note --kind work-record` so future tuners inherit the rationale.
 
 ---
 

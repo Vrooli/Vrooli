@@ -6,7 +6,7 @@ package memberflow
 // surface before the rule can enter the shared registry.
 func OperatingModelRuleCatalog() (RuleCatalog, error) {
 	entry := func(id string, group RuleGroup, description string) RuleCatalogEntry {
-		return RuleCatalogEntry{ID: id, Group: group, Severity: SeverityError, Description: description, Actuator: "Correct the operating-model document or route a team-owned content change through its decision context"}
+		return RuleCatalogEntry{ID: id, Group: group, Severity: SeverityError, Kind: KindDeclaration, Description: description, Actuator: "Correct the operating-model document or route a team-owned content change through its decision context"}
 	}
 	return NewRuleCatalog(
 		entry("operating_model_required_section_missing", OperatingModelRuleGroupStructure, "The operating model omits a required section."),
@@ -14,7 +14,6 @@ func OperatingModelRuleCatalog() (RuleCatalog, error) {
 		entry("operating_model_decisions_header_drift", OperatingModelRuleGroupDecision, "The Decisions table header does not match the operating-model contract."),
 		entry("operating_model_decisions_empty", OperatingModelRuleGroupDecision, "The Decisions table has no declared decisions."),
 		entry("operating_model_decisions_row_incomplete", OperatingModelRuleGroupDecision, "A Decisions table row omits required information."),
-		entry("operating_model_decisions_effect_weak", OperatingModelRuleGroupDecision, "A decision does not state an actionable expected effect."),
 		entry("operating_model_external_inputs_table_missing", OperatingModelRuleGroupExternalInput, "The operating model omits its External Inputs table."),
 		entry("operating_model_external_inputs_header_drift", OperatingModelRuleGroupExternalInput, "The External Inputs table header does not match the contract."),
 		entry("operating_model_external_inputs_empty", OperatingModelRuleGroupExternalInput, "The External Inputs table has no declared inputs."),
@@ -33,7 +32,6 @@ func OperatingModelRuleCatalog() (RuleCatalog, error) {
 		entry("operating_model_feedback_reference_unbacked", OperatingModelRuleGroupFeedback, "A feedback reference is unsupported by the runtime contract."),
 		entry("operating_model_gaps_items_missing", OperatingModelRuleGroupGap, "The operating model omits declared implementation gaps."),
 		entry("operating_model_gap_item_unanchored", OperatingModelRuleGroupGap, "An implementation-gap item has no traceable anchor."),
-		entry("operating_model_gap_item_target_state_missing", OperatingModelRuleGroupGap, "An implementation-gap item omits its target state."),
 		entry("operating_model_adoption_command_missing", OperatingModelRuleGroupAdoption, "The operating model omits an adoption command."),
 		entry("operating_model_plan_of_record_missing", OperatingModelRuleGroupDiscoverability, "The operating model is missing its plan-of-record reference."),
 		entry("operating_model_readme_link_missing", OperatingModelRuleGroupDiscoverability, "The operating model is not linked from its README."),

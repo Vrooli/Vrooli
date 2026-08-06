@@ -19,7 +19,9 @@ func TestListRuns_ResolvesProfileKeyToAgentProfileID(t *testing.T) {
 			Total: 1,
 		})
 
-	handlers := NewHandlers(nil, nil, nil, nil, nil, nil, mockClient, nil)
+	handlers := NewHandlers(HandlersDeps{
+		AgentClient: mockClient,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/runs?profile_key=prompt-manager-heartbeat&limit=5", nil)
 	w := httptest.NewRecorder()
@@ -48,7 +50,9 @@ func TestListRuns_ResolvesProfileKeyToAgentProfileID(t *testing.T) {
 
 func TestListRuns_ProfileKeyResolutionFailureReturnsBadGateway(t *testing.T) {
 	mockClient := newMockAgentClient().WithEnsureProfileResponse(&EnsureProfileResponse{})
-	handlers := NewHandlers(nil, nil, nil, nil, nil, nil, mockClient, nil)
+	handlers := NewHandlers(HandlersDeps{
+		AgentClient: mockClient,
+	})
 
 	req := httptest.NewRequest(http.MethodGet, "/runs?profile_key=prompt-manager-heartbeat", nil)
 	w := httptest.NewRecorder()

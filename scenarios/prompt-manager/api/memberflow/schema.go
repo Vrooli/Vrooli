@@ -397,6 +397,25 @@ func validPrefix(p string) bool {
 	return true
 }
 
+// topicSegmentIsPlaceholder reports whether one path segment is a `<name>`
+// placeholder standing for a single real segment.
+//
+// TOPICS_SCHEMA.md teaches this form by example — a contrarian declares
+// `challenge-report/<decision-id>`, a curator routes to
+// `friction-report/<scope>/<date>/<slug>` — and 27 declarations across five
+// teams use it. Treating `<decision-id>` as literal text makes every one of
+// them match nothing, so the member reads as having declared no prefix at all.
+func topicSegmentIsPlaceholder(seg string) bool {
+	return len(seg) > 2 && strings.HasPrefix(seg, "<") && strings.HasSuffix(seg, ">")
+}
+
+// topicSegmentsUnify reports whether two single segments can name the same
+// real segment. A placeholder unifies with anything at its position; two
+// literals must be equal.
+func topicSegmentsUnify(a, b string) bool {
+	return a == b || topicSegmentIsPlaceholder(a) || topicSegmentIsPlaceholder(b)
+}
+
 // Overlap reports whether two prefixes share at least one matchable topic.
 //
 // Semantics (matches docs/agent-system/TOPICS_SCHEMA.md):
@@ -406,20 +425,36 @@ func validPrefix(p string) bool {
 //   - "foo/bar/*" does not overlap "foo/baz/*".
 //   - Exact prefixes (no /*) overlap only with equal exact prefixes or with
 //     wildcards whose stripped form is a prefix.
+//   - A `<name>` segment matches any one segment, so
+//     "challenge-report/<decision-id>" overlaps "challenge-report/dec-42".
+//
+// Comparison is segment-wise rather than by raw string prefix. For inputs
+// carrying no placeholder the result is identical to plain string matching:
+// a shorter prefix still only reaches a longer one through a trailing "/*".
 func Overlap(a, b string) bool {
 	aWild := strings.HasSuffix(a, "/*")
 	bWild := strings.HasSuffix(b, "/*")
-	aCore := strings.TrimSuffix(a, "/*")
-	bCore := strings.TrimSuffix(b, "/*")
+	aSegs := strings.Split(strings.TrimSuffix(a, "/*"), "/")
+	bSegs := strings.Split(strings.TrimSuffix(b, "/*"), "/")
+
+	shared := len(aSegs)
+	if len(bSegs) < shared {
+		shared = len(bSegs)
+	}
+	for i := 0; i < shared; i++ {
+		if !topicSegmentsUnify(aSegs[i], bSegs[i]) {
+			return false
+		}
+	}
 
 	switch {
-	case aCore == bCore:
+	case len(aSegs) == len(bSegs):
 		return true
-	case aWild && (strings.HasPrefix(bCore, aCore+"/") || bCore == aCore):
-		return true
-	case bWild && (strings.HasPrefix(aCore, bCore+"/") || aCore == bCore):
-		return true
+	case len(aSegs) < len(bSegs):
+		// a is the shorter pattern; it only reaches deeper topics if it is
+		// declared open-ended.
+		return aWild
 	default:
-		return false
+		return bWild
 	}
 }

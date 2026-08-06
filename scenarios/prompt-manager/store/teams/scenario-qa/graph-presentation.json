@@ -1,0 +1,86 @@
+{
+  "shortNames": {
+    "decision:bug-resolution-proposal": "BUGDEC",
+    "decision:capability-gap": "CAP",
+    "decision:quality-audit-backlog": "QBACK",
+    "external:operator": "OP",
+    "external:report-bug": "RB",
+    "external:swarm-manager": "SWARM",
+    "member:bug-investigator": "BI",
+    "member:qa-contrarian": "QC",
+    "member:quality-auditor": "QA",
+    "process:capability-gap-routing": "GAPROUTE",
+    "process:swarm-manager-backlog-routing": "BACKLOG",
+    "team:director-swarm": "DIR",
+    "team:infra-health": "INFRA",
+    "team:marketing-crew": "MKT",
+    "team:meta-optimization": "META_IN",
+    "team:monetization": "MON",
+    "topic:bug-inbox/\u003csignal-type\u003e/\u003cslug\u003e": "BUGIN",
+    "topic:bug-investigation-report/\u003cslug\u003e": "BUGREP",
+    "topic:challenge-report/\u003cslug\u003e": "CHAL",
+    "topic:challenge-resolution-record/\u003cslug\u003e": "RES",
+    "topic:quality-audit/\u003cscenario-id\u003e/\u003cskill-id\u003e": "QUAUD"
+  },
+  "displays": {
+    "external:operator": "Operator",
+    "external:report-bug": "report-bug skill",
+    "external:swarm-manager": "Swarm Manager",
+    "member:bug-investigator": "Bug Investigator",
+    "member:qa-contrarian": "QA Contrarian",
+    "member:quality-auditor": "Quality Auditor",
+    "process:capability-gap-routing": "Capability-gap routing",
+    "process:swarm-manager-backlog-routing": "Swarm Manager backlog routing",
+    "team:director-swarm": "Director Swarm",
+    "team:infra-health": "Infra Health",
+    "team:marketing-crew": "Marketing Crew",
+    "team:meta-optimization": "Meta Optimization",
+    "team:monetization": "Monetization"
+  },
+  "nodeOrder": [
+    "process:swarm-manager-backlog-routing",
+    "member:bug-investigator",
+    "decision:bug-resolution-proposal",
+    "topic:bug-inbox/\u003csignal-type\u003e/\u003cslug\u003e",
+    "topic:bug-investigation-report/\u003cslug\u003e",
+    "decision:capability-gap",
+    "topic:challenge-report/\u003cslug\u003e",
+    "team:director-swarm",
+    "process:capability-gap-routing",
+    "team:infra-health",
+    "team:meta-optimization",
+    "team:meta-optimization",
+    "team:marketing-crew",
+    "team:monetization",
+    "external:operator",
+    "member:quality-auditor",
+    "decision:quality-audit-backlog",
+    "member:qa-contrarian",
+    "topic:quality-audit/\u003cscenario-id\u003e/\u003cskill-id\u003e",
+    "external:report-bug",
+    "topic:challenge-resolution-record/\u003cslug\u003e",
+    "external:swarm-manager"
+  ],
+  "readabilityEdges": [
+    {
+      "from": "decision:bug-resolution-proposal",
+      "to": "process:swarm-manager-backlog-routing"
+    },
+    {
+      "from": "decision:capability-gap",
+      "to": "process:capability-gap-routing"
+    },
+    {
+      "from": "decision:quality-audit-backlog",
+      "to": "process:swarm-manager-backlog-routing"
+    },
+    {
+      "from": "process:capability-gap-routing",
+      "to": "team:meta-optimization"
+    },
+    {
+      "from": "process:swarm-manager-backlog-routing",
+      "to": "external:swarm-manager"
+    }
+  ]
+}

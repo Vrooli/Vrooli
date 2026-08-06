@@ -49,25 +49,35 @@ func (h *Handlers) SetSwarmInitiativeClient(c *SwarmInitiativeClient) {
 }
 
 // NewHandlers creates new heartbeat handlers
-func NewHandlers(
-	teamStore *store.FileTeamStore,
-	agentStore *store.FileAgentStore,
-	relationStore store.RelationStore,
-	scheduler *Scheduler,
-	executor *Executor,
-	runRegistry *RunRegistry,
-	agentClient AgentClient,
-	teamExecStore *TeamExecutionStore,
-) *Handlers {
+// HandlersDeps carries what the heartbeat handlers need.
+//
+// This replaced eight positional parameters, of which most call sites passed
+// nil for most. `NewHandlers(nil, nil, nil, nil, nil, nil, mockClient, nil)`
+// gave a reader no way to know which nil mattered, and adding a dependency
+// meant editing every call site to add one more nil. A named field says which
+// collaborator a test actually needs; every other field being absent is then
+// information rather than noise.
+type HandlersDeps struct {
+	TeamStore     *store.FileTeamStore
+	AgentStore    *store.FileAgentStore
+	RelationStore store.RelationStore
+	Scheduler     *Scheduler
+	Executor      *Executor
+	RunRegistry   *RunRegistry
+	AgentClient   AgentClient
+	TeamExecStore *TeamExecutionStore
+}
+
+func NewHandlers(deps HandlersDeps) *Handlers {
 	return &Handlers{
-		teamStore:     teamStore,
-		agentStore:    agentStore,
-		relationStore: relationStore,
-		scheduler:     scheduler,
-		executor:      executor,
-		runRegistry:   runRegistry,
-		agentClient:   agentClient,
-		teamExecStore: teamExecStore,
+		teamStore:     deps.TeamStore,
+		agentStore:    deps.AgentStore,
+		relationStore: deps.RelationStore,
+		scheduler:     deps.Scheduler,
+		executor:      deps.Executor,
+		runRegistry:   deps.RunRegistry,
+		agentClient:   deps.AgentClient,
+		teamExecStore: deps.TeamExecStore,
 	}
 }
 

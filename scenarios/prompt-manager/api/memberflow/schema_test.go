@@ -496,6 +496,24 @@ func TestOverlap(t *testing.T) {
 		// Wildcard does not overlap something with shared prefix but no separator
 		{"foo/*", "fooBar", false},
 		{"foo/*", "foobar/*", false},
+
+		// `<name>` placeholders stand for exactly one segment. TOPICS_SCHEMA.md
+		// teaches this form by example and 27 live declarations use it; before
+		// this was implemented every one of them matched nothing.
+		{"challenge-report/<decision-id>", "challenge-report/dec-42", true},
+		{"decision-application/<decision-id>", "decision-application/dec-1778803361775636366", true},
+		{"skill-experiment/<skill-id>/<experiment-id>", "skill-experiment/report-bug/exp-1", true},
+		{"vision-walk-record/<date>/<slug>", "vision-walk-record/2026-06-16/kickoff", true},
+		// A placeholder binds one segment, not many: the declaration is depth-2,
+		// so it must not reach a depth-3 key.
+		{"challenge-report/<decision-id>", "challenge-report/dec-42/extra", false},
+		// A literal after a placeholder still has to agree.
+		{"friction-report/<scope>/summary", "friction-report/toolchain/summary", true},
+		{"friction-report/<scope>/summary", "friction-report/toolchain/detail", false},
+		// The placeholder does not make disjoint roots overlap.
+		{"challenge-report/<decision-id>", "quality-audit/dec-42", false},
+		// A wildcard is still wider than a placeholder.
+		{"challenge-report/*", "challenge-report/<decision-id>", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.a+" vs "+tt.b, func(t *testing.T) {

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"prompt-manager/teamcontract"
 )
 
 func mkMember(team, member string, t Topics) MemberTopics {
@@ -298,7 +300,7 @@ func TestRule_UnreadRequired_NoProducer(t *testing.T) {
 		if f.Severity != SeverityError {
 			t.Errorf("unread_required must be error severity; got %s", f.Severity)
 		}
-		if f.Member.Member != "reader" {
+		if f.Member != "reader" {
 			t.Errorf("unread_required should attribute to declaring member; got %v", f.Member)
 		}
 		if f.Prefix != "missing-context/YYYY-MM-DD" {
@@ -717,7 +719,7 @@ func TestRule_DanglingEvidenceDecision_Dangles(t *testing.T) {
 		if !strings.Contains(f.Detail, "ghost-decision") {
 			t.Errorf("finding detail should name the dangling id; got %q", f.Detail)
 		}
-		if f.Member.Member != "catalog-strategist" {
+		if f.Member != "catalog-strategist" {
 			t.Errorf("finding should attribute to declaring member; got %v", f.Member)
 		}
 	}
@@ -803,16 +805,12 @@ func TestRule_DanglingEvidenceDecision_LazyLoadFromStoreDir(t *testing.T) {
 	// When TeamContracts is nil but StoreDir is set, Validate lazy-loads.
 	// This is the canonical configuration the CLI uses.
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "teams", "team-a"), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	if err := os.WriteFile(
-		filepath.Join(root, "teams", "team-a", "team.json"),
-		[]byte(`{"id":"team-a","operatingContract":{"schemaVersion":1,"decisionContexts":{"declared":{"description":"x"}}}}`),
-		0o644,
-	); err != nil {
-		t.Fatalf("write: %v", err)
-	}
+	writeTeamContract(t, root, "team-a", &teamcontract.OperatingContract{
+		SchemaVersion: 1,
+		DecisionContext: map[string]teamcontract.DecisionContext{
+			"declared": {Description: "x"},
+		},
+	})
 
 	members := []MemberTopics{
 		mkMember("team-a", "writer", Topics{

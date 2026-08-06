@@ -15,6 +15,8 @@ Pick one target and evaluate:
 
 Concrete current-state evidence is mandatory: quote the prose, cite usage, name the missing role, or cite run evidence.
 
+Question 2 has two kinds of evidence and you must check both. The first is output against volume — a team that ships little against a large roster and canon. The second is orientation cost (`path:docs/agent-system/FRAMEWORK_HEALTH.md` §"Team orientation cost"): a team whose roster, canon, topics, and decision contexts grew in a cycle where its scenario coverage also grew. The second reading finds a productive team that is getting harder to work inside, which the first cannot see. Either reading routes to `team-capability-consolidation`. Orientation cost is banded as a trend, so read it against the previous `topic:framework-health-audit/<YYYY-MM-DD>` record; a first reading sets the baseline and is not a finding.
+
 ## When To Run The System Audit
 
 `agent-system-audit` is the whole-system lens. It does not fit one-target-per-heartbeat, so run it on a trigger, not by default. Run it when one of these is true:
@@ -28,20 +30,12 @@ Score its Phase 4 (objective coverage) as a measurement only. The actuator for a
 
 ## Capability Architecture Audits
 
-Use `prompt-manager skill read team-member-capability-architecture-audit` when a member's capability is vague, workflow-heavy, repeatedly blocked, dependent on external/operator-fed signals, or missing an obvious skill/doc/tool surface.
+Use `prompt-manager skill read team-member-capability-architecture-audit` when a member's capability is vague, workflow-heavy, repeatedly blocked, dependent on external/operator-fed signals, or missing an obvious skill/doc/tool surface. The skill carries the audit process; the nine layers, the score scale, and the smell catalogue are canon in `path:docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`. Read them there.
 
-For each target, distinguish:
-- Identity: stable behavioral posture that belongs in `SOUL.md` or short agent prose.
-- Ownership: member lane, decision contexts, write surfaces, and safety boundaries.
-- Plan of record: durable accepted strategy/canon docs and hubs.
-- Skill surface: repeatable judgment workflows that should be focused, optimizable skills.
-- Intake: how work enters the member's lane, including operator-fed, proactive, cross-team, and telemetry sources.
-- Collection: how evidence/source material is gathered, and whether missing tooling should become a capability gap.
-- Analysis method: reusable reasoning methods that should not be reinvented every heartbeat.
-- Promotion/routing: how outputs become typed knowledge, decisions, skill proposals, Actions, scenario/backlog work, or handoffs.
-- Feedback loop: which meta-optimization member should own the next improvement.
+Two judgments this lane adds on top of the scoring:
 
-Prefer router-plus-focused-method skills over one mega-skill when a member handles multiple distinct methodologies. For signal-processing members, explicitly check whether both proactive and operator-fed intake are relevant. If only one is relevant, say why.
+- Prefer router-plus-focused-method skills over one mega-skill when a member handles multiple distinct methodologies.
+- For signal-processing members, check whether both proactive and operator-fed intake are relevant. If only one is relevant, say why.
 
 ## Boundaries
 - Do not touch skills.
@@ -56,7 +50,7 @@ Prefer router-plus-focused-method skills over one mega-skill when a member handl
 |-------|---------|
 | `prompt-manager action run agent-system.framework-health` | Read every framework-health sensor against its deadband, with the actuator named for each sensor out of band. Run it before picking a target. |
 | `prompt-manager skill read agent-system-audit` | The whole-system lens across all teams. **Trigger, not default** — see "When to run the system audit" below. |
-| `prompt-manager skill read team-capability-consolidation` | A team produces little against a large roster, or hand-maintains records with a lifecycle. Turns the missing capability into a scenario and re-derives the roster from it. |
+| `prompt-manager skill read team-capability-consolidation` | A team produces little against a large roster, hand-maintains records with a lifecycle, or costs more to orient in each cycle. Turns the missing capability into a scenario and re-derives the roster from it. |
 | `prompt-manager skill read team-member-capability-architecture-audit` | Audit whether a member has the right identity, ownership, doc, skill, intake, collection, analysis, promotion, and feedback-loop structure |
 | `prompt-manager skill read skill-authoring-tools` | Reference for agent tool-surface proposals |
 | `prompt-manager skill read capability-extraction` | Distill methodologies from agent files |

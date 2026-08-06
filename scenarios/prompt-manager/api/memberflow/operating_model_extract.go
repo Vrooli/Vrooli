@@ -186,10 +186,9 @@ func extractOperatingGapsSection(sections map[string][]OperatingMarkdownSection)
 			continue
 		}
 		gaps.Items = append(gaps.Items, OperatingGapItem{
-			Text:        text,
-			References:  extractInlineCodeTokens(text),
-			TargetState: operatingGapItemHasTargetState(text),
-			SourceLine:  section.Line + i + 1,
+			Text:       text,
+			References: extractInlineCodeTokens(text),
+			SourceLine: section.Line + i + 1,
 		})
 	}
 	return gaps
@@ -255,33 +254,6 @@ func operatingNumberedListItemText(line string) (string, bool) {
 		return "", false
 	}
 	return text, true
-}
-
-func operatingGapItemHasTargetState(text string) bool {
-	normalized := strings.ToLower(text)
-	for _, token := range []string{
-		"target-state",
-		"target state",
-		"future",
-		"deferred",
-		"stub",
-		"not modeled",
-		"not yet",
-		"until",
-		"should",
-		"remain",
-		"graduate",
-		"migration",
-		"transition",
-		"transitional",
-		"accepted",
-		"add ",
-	} {
-		if strings.Contains(normalized, token) {
-			return true
-		}
-	}
-	return false
 }
 
 func extractInlineCodeCommands(line string) []string {

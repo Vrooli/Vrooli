@@ -29,7 +29,7 @@
   "targetDimensions": [
     "storage"
   ],
-  "programmaticHome": "storage-health:storage",
+  "programmaticHome": "storage-manager:storage",
   "revision": 51,
   "createdAt": "2026-01-30T20:00:00-05:00",
   "updatedAt": "2026-06-22T00:00:00Z"

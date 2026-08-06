@@ -85,9 +85,9 @@ func EnrichWithDrainStatus(members []MemberTopics, q KnowledgeQuery, opts InboxA
 				findings = append(findings, Finding{
 					Rule:     "drain_status_unavailable",
 					Severity: SeverityWarning,
-					Member:   m.Ref,
-					Prefix:   in.Prefix,
-					Detail:   fmt.Sprintf("knowledge-query error: %v", err),
+					Team:     m.Ref.Team, Member: m.Ref.Member,
+					Prefix: in.Prefix,
+					Detail: fmt.Sprintf("knowledge-query error: %v", err),
 				})
 				continue
 			}
@@ -98,9 +98,9 @@ func EnrichWithDrainStatus(members []MemberTopics, q KnowledgeQuery, opts InboxA
 				findings = append(findings, Finding{
 					Rule:     "piling_inbox",
 					Severity: SeverityWarning,
-					Member:   m.Ref,
-					Prefix:   in.Prefix,
-					Detail:   fmt.Sprintf("%d unrouted entries under %q (threshold %d)", len(entries), in.Prefix, o.PilingAt),
+					Team:     m.Ref.Team, Member: m.Ref.Member,
+					Prefix: in.Prefix,
+					Detail: fmt.Sprintf("%d unrouted entries under %q (threshold %d)", len(entries), in.Prefix, o.PilingAt),
 				})
 			}
 			oldest := oldestEntry(entries)
@@ -110,9 +110,9 @@ func EnrichWithDrainStatus(members []MemberTopics, q KnowledgeQuery, opts InboxA
 					findings = append(findings, Finding{
 						Rule:     "stalled_drain",
 						Severity: SeverityWarning,
-						Member:   m.Ref,
-						Prefix:   in.Prefix,
-						Detail:   fmt.Sprintf("oldest unrouted entry under %q is %s old (threshold %s)", in.Prefix, age.Round(time.Hour), o.StalledAfter),
+						Team:     m.Ref.Team, Member: m.Ref.Member,
+						Prefix: in.Prefix,
+						Detail: fmt.Sprintf("oldest unrouted entry under %q is %s old (threshold %s)", in.Prefix, age.Round(time.Hour), o.StalledAfter),
 					})
 				}
 			}

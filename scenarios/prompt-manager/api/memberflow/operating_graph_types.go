@@ -177,22 +177,6 @@ type OperatingActorReference struct {
 	Raw   string             `json:"raw"`
 }
 
-type OperatingGraphFinding struct {
-	Rule       string `json:"rule"`
-	Severity   string `json:"severity"`
-	GraphID    string `json:"graph_id,omitempty"`
-	Team       string `json:"team,omitempty"`
-	NodeID     string `json:"node_id,omitempty"`
-	Edge       string `json:"edge,omitempty"`
-	Member     string `json:"member,omitempty"`
-	Topic      string `json:"topic,omitempty"`
-	Decision   string `json:"decision,omitempty"`
-	Path       string `json:"path,omitempty"`
-	SourcePath string `json:"source_path,omitempty"`
-	Line       int    `json:"line,omitempty"`
-	Detail     string `json:"detail"`
-}
-
 type OperatingGraphValidationResult struct {
 	Findings []OperatingGraphFinding `json:"findings"`
 	Errors   int                     `json:"errors"`

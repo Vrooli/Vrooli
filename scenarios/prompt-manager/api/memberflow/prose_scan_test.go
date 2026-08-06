@@ -20,51 +20,39 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Placeholder normalization: PROSE_SCAN_TARGETS.md guarantees that prose
-// references containing `<...>` segments are joined against declarations
-// using a trailing-wildcard form. This isolates that contract; the join-side
-// integration is exercised separately by the rule tests below.
+// Placeholder joins: PROSE_SCAN_TARGETS.md guarantees that prose references
+// containing `<...>` segments join against declarations. Overlap now honours
+// placeholders natively, so the scanner needs no normalization step of its
+// own — these cases pin the guarantee at the seam the scanner actually uses.
 // ---------------------------------------------------------------------------
 
-func TestNormalizePlaceholderPrefix_TruncatesAtFirstPlaceholderSegment(t *testing.T) {
-	cases := map[string]string{
-		"":                                      "",
-		"audience-scan/2026-04-23/q2":           "audience-scan/2026-04-23/q2",
-		"audience-scan/<date>":                  "audience-scan/*",
-		"audience-scan/<date>/<slug>":           "audience-scan/*",
-		"friction-report/<scope>/<date>/<slug>": "friction-report/*",
-		"<placeholder>":                         "*",
-		"single-segment":                        "single-segment",
-		"<scope>/concrete":                      "*",
-		"prefix/<bracketed-mid>/tail":           "prefix/*",
-		"prefix/contains>only-close":            "prefix/*", // ContainsAny <,> matches > too
-		"prefix/contains<only-open":             "prefix/*",
-	}
-	for in, want := range cases {
-		got := normalizePlaceholderPrefix(in)
-		if got != want {
-			t.Errorf("normalizePlaceholderPrefix(%q) = %q; want %q", in, got, want)
-		}
-	}
-}
-
-func TestNormalizePlaceholderPrefix_EnablesOverlapWithDeclaration(t *testing.T) {
+func TestProsePlaceholderRefsJoinAgainstDeclarations(t *testing.T) {
 	// Real-store regression: friction-curator/TOOLS.md uses
-	// `friction-report/<scope>/<date>/<slug>` to document a parameterized
-	// CLI invocation. The friction-curator member declares concrete
-	// scopes (e.g., `friction-report/toolchain/*`). Without
-	// normalization the join misses; with normalization the prose
-	// reference's `<scope>` segment collapses to a wildcard tail and
-	// Overlap accepts it.
-	prose := "friction-report/<scope>/<date>/<slug>"
-	declaration := "friction-report/toolchain/*"
-
-	if Overlap(declaration, prose) {
-		t.Fatal("setup invariant broken: raw Overlap should NOT match before normalization (otherwise this regression case is gone and the test no longer guards anything)")
+	// `friction-report/<scope>/<date>/<slug>` to document a parameterized CLI
+	// invocation, while the member declares concrete scopes such as
+	// `friction-report/toolchain/*`. This join missing was what produced
+	// spurious prose_topic_leak findings on every parameterized reference.
+	cases := []struct {
+		declaration, prose string
+		want               bool
+	}{
+		{"friction-report/toolchain/*", "friction-report/<scope>/<date>/<slug>", true},
+		{"audience-scan/*", "audience-scan/<date>/<slug>", true},
+		{"audience-scan/*", "audience-scan/2026-04-23/q2", true},
+		// Placeholders bind one segment each rather than collapsing to a
+		// wildcard tail, so a reference under a different root still misses.
+		// The previous normalization truncated at the first placeholder and
+		// could not express this.
+		{"audience-scan/*", "competitor-record/<date>", false},
+		{"friction-report/toolchain/*", "friction-report/<scope>/<date>", true},
+		// A stray angle bracket is not a placeholder; the segment stays literal.
+		{"prefix/*", "prefix/contains>only-close", true},
+		{"prefix/tail", "prefix/contains<only-open", false},
 	}
-	normalized := normalizePlaceholderPrefix(prose)
-	if !Overlap(declaration, normalized) {
-		t.Errorf("normalized prose %q should overlap declaration %q (got false)", normalized, declaration)
+	for _, c := range cases {
+		if got := Overlap(c.declaration, c.prose); got != c.want {
+			t.Errorf("Overlap(%q, %q) = %v; want %v", c.declaration, c.prose, got, c.want)
+		}
 	}
 }
 
@@ -754,7 +742,7 @@ func TestFinding_JSONRoundTrip_OwnerKey(t *testing.T) {
 	in := Finding{
 		Rule:     proseScanRule,
 		Severity: SeverityWarning,
-		Member:   MemberRef{Team: "x", Member: "y"},
+		Team:     "x", Member: "y",
 		Prefix:   "some-prefix",
 		OwnerKey: "team:x/y",
 		Detail:   "test",

@@ -88,8 +88,8 @@ func ruleLoopKindMissing(members []MemberTopics) []Finding {
 		out = append(out, Finding{
 			Rule:     "loop_kind_missing",
 			Severity: SeverityWarning,
-			Member:   m.Ref,
-			Detail:   "member declares no loop_kind; the loop's memory location is unstated, so ledger obligations cannot be checked (queue | reactive | sweep | generative)",
+			Team:     m.Ref.Team, Member: m.Ref.Member,
+			Detail: "member declares no loop_kind; the loop's memory location is unstated, so ledger obligations cannot be checked (queue | reactive | sweep | generative)",
 		})
 	}
 	return out
@@ -106,8 +106,8 @@ func ruleLoopKindInvalid(members []MemberTopics) []Finding {
 		out = append(out, Finding{
 			Rule:     "loop_kind_invalid",
 			Severity: SeverityError,
-			Member:   m.Ref,
-			Detail:   fmt.Sprintf("loop_kind %q is not one of queue | reactive | sweep | generative", string(k)),
+			Team:     m.Ref.Team, Member: m.Ref.Member,
+			Detail: fmt.Sprintf("loop_kind %q is not one of queue | reactive | sweep | generative", string(k)),
 		})
 	}
 	return out
@@ -134,7 +134,7 @@ func ruleLoopKindIntakeMismatch(members []MemberTopics) []Finding {
 		out = append(out, Finding{
 			Rule:     "loop_kind_intake_mismatch",
 			Severity: SeverityError,
-			Member:   m.Ref,
+			Team:     m.Ref.Team, Member: m.Ref.Member,
 			Detail: fmt.Sprintf(
 				"member declares %d intake prefix(es) but loop_kind is %q; a member that drains an intake is queue-driven — its memory is the unrouted set",
 				len(m.Topics.Intake), string(m.Topics.LoopKind)),
@@ -161,8 +161,8 @@ func ruleSweepWithoutLedger(members []MemberTopics) []Finding {
 		out = append(out, Finding{
 			Rule:     "sweep_without_ledger",
 			Severity: SeverityError,
-			Member:   m.Ref,
-			Detail:   "loop_kind is sweep but no coverage ledger is declared; add a `<subject>-visited/<id>` prefix to both output[] and required_read[] so the loop remembers which targets it has reached",
+			Team:     m.Ref.Team, Member: m.Ref.Member,
+			Detail: "loop_kind is sweep but no coverage ledger is declared; add a `<subject>-visited/<id>` prefix to both output[] and required_read[] so the loop remembers which targets it has reached",
 		})
 	}
 	return out
@@ -196,9 +196,9 @@ func ruleLedgerShapeInvalid(members []MemberTopics) []Finding {
 			out = append(out, Finding{
 				Rule:     "ledger_shape_invalid",
 				Severity: SeverityError,
-				Member:   m.Ref,
-				Prefix:   o.Prefix,
-				Detail:   fmt.Sprintf("ledger output %q is not read back by its writer; a coverage ledger the member never reads cannot inform target selection", o.Prefix),
+				Team:     m.Ref.Team, Member: m.Ref.Member,
+				Prefix: o.Prefix,
+				Detail: fmt.Sprintf("ledger output %q is not read back by its writer; a coverage ledger the member never reads cannot inform target selection", o.Prefix),
 			})
 		}
 	}
@@ -236,8 +236,8 @@ func ruleSweepPopulationMissing(members []MemberTopics) []Finding {
 		out = append(out, Finding{
 			Rule:     "sweep_population_missing",
 			Severity: SeverityWarning,
-			Member:   m.Ref,
-			Detail:   "loop_kind is sweep but no population is named; coverage stays unmeasurable (declare a graph node type, or omit deliberately when the population is not graph-resident)",
+			Team:     m.Ref.Team, Member: m.Ref.Member,
+			Detail: "loop_kind is sweep but no population is named; coverage stays unmeasurable (declare a graph node type, or omit deliberately when the population is not graph-resident)",
 		})
 	}
 	return out

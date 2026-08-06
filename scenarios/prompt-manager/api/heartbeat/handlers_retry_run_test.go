@@ -38,7 +38,13 @@ func TestRetryRun_RetriesHeartbeatRunByTag(t *testing.T) {
 		WithCreateRunResponse(&Run{ID: "run-retry-1", Status: "RUN_STATUS_RUNNING"})
 
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, mockClient, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+		AgentClient:   mockClient,
+	})
 
 	req := httpx.Request(t, http.MethodPost, "/runs/run-failed/retry", nil, map[string]string{"runId": "run-failed"})
 	w := httpx.Recorder()
@@ -70,7 +76,13 @@ func TestRetryRun_RejectsNonHeartbeatRun(t *testing.T) {
 		WithGetRunResponse("run-1", &Run{ID: "run-1", Tag: "manual-tag", Status: "RUN_STATUS_FAILED"})
 
 	executor := newTestExecutor(t, teamStore, agentStore, mockClient, t.TempDir(), nil, nil)
-	handlers := NewHandlers(teamStore, agentStore, relationStore, nil, executor, nil, mockClient, nil)
+	handlers := NewHandlers(HandlersDeps{
+		TeamStore:     teamStore,
+		AgentStore:    agentStore,
+		RelationStore: relationStore,
+		Executor:      executor,
+		AgentClient:   mockClient,
+	})
 
 	req := httpx.Request(t, http.MethodPost, "/runs/run-1/retry", nil, map[string]string{"runId": "run-1"})
 	w := httpx.Recorder()

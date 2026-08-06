@@ -10,38 +10,6 @@ import (
 
 // Severity classifies a validation finding. Errors fail the
 // `prompt-manager graph topics` exit code; warnings are informational.
-type Severity string
-
-const (
-	SeverityError   Severity = "error"
-	SeverityWarning Severity = "warning"
-)
-
-// Finding is one validation result. Multiple findings may apply to a single
-// member or prefix.
-//
-// OwnerKey is the canonical owner string from the prose-scan owner-derivation
-// rules (`team:<team>/<member>`, `team:<team>`, `agent:<id>`, `skill:<id>`,
-// `docs:<domain>`). Populated by Pillar 2 (`ruleProseTopicLeak`) so CI
-// summary scripts can group findings by surface owner. Other rules leave it
-// empty; consumers that group by owner should fall back to Member when
-// OwnerKey is absent.
-type Finding struct {
-	Rule     string    `json:"rule"`
-	Severity Severity  `json:"severity"`
-	Member   MemberRef `json:"member,omitempty"`
-	Prefix   string    `json:"prefix,omitempty"`
-	OwnerKey string    `json:"owner_key,omitempty"`
-	Detail   string    `json:"detail"`
-
-	// Advisory marks a finding produced by a heuristic that cannot fully
-	// distinguish a real defect from a lookalike. Advisory findings are
-	// review material for an operator sweep, not instructions: they are
-	// reported by `graph topics` and withheld from surfaces that ask an
-	// agent to act on them. See prose_scan.go's proseRegex.Advisory for the
-	// case that motivated the split.
-	Advisory bool `json:"advisory,omitempty"`
-}
 
 // ValidationOptions configures runtime checks that depend on filesystem state
 // (taxonomy registry, team-contract registry, prose-scan roots, PoR file
@@ -164,7 +132,7 @@ func Validate(members []MemberTopics, opts ValidationOptions) ValidationResult {
 			})
 			continue
 		}
-		if !rule.AppliesTo(ctx) {
+		if !registered.AppliesTo(ctx) {
 			continue
 		}
 		findings = append(findings, rule.CheckFindings(ctx)...)
@@ -178,6 +146,7 @@ func Validate(members []MemberTopics, opts ValidationOptions) ValidationResult {
 	// here only loses warnings — never spurious failures.
 
 	sortFindings(findings)
+	StampFindingKinds(findings)
 
 	r := ValidationResult{Findings: findings}
 	for _, f := range findings {
@@ -196,8 +165,8 @@ func sortFindings(f []Finding) {
 		if f[i].Rule != f[j].Rule {
 			return f[i].Rule < f[j].Rule
 		}
-		if f[i].Member.String() != f[j].Member.String() {
-			return f[i].Member.String() < f[j].Member.String()
+		if f[i].Subject() != f[j].Subject() {
+			return f[i].Subject() < f[j].Subject()
 		}
 		return f[i].Prefix < f[j].Prefix
 	})
@@ -229,16 +198,16 @@ func ruleConflictingDrain(members []MemberTopics) []Finding {
 				Finding{
 					Rule:     "conflicting_drain",
 					Severity: SeverityError,
-					Member:   claims[i].ref,
-					Prefix:   claims[i].prefix,
-					Detail:   fmt.Sprintf("intake prefix %q overlaps with %s/%s drain on %q", claims[i].prefix, claims[j].ref.Team, claims[j].ref.Member, claims[j].prefix),
+					Team:     claims[i].ref.Team, Member: claims[i].ref.Member,
+					Prefix: claims[i].prefix,
+					Detail: fmt.Sprintf("intake prefix %q overlaps with %s/%s drain on %q", claims[i].prefix, claims[j].ref.Team, claims[j].ref.Member, claims[j].prefix),
 				},
 				Finding{
 					Rule:     "conflicting_drain",
 					Severity: SeverityError,
-					Member:   claims[j].ref,
-					Prefix:   claims[j].prefix,
-					Detail:   fmt.Sprintf("intake prefix %q overlaps with %s/%s drain on %q", claims[j].prefix, claims[i].ref.Team, claims[i].ref.Member, claims[i].prefix),
+					Team:     claims[j].ref.Team, Member: claims[j].ref.Member,
+					Prefix: claims[j].prefix,
+					Detail: fmt.Sprintf("intake prefix %q overlaps with %s/%s drain on %q", claims[j].prefix, claims[i].ref.Team, claims[i].ref.Member, claims[i].prefix),
 				},
 			)
 		}
@@ -282,9 +251,9 @@ func ruleOrphanOutput(members []MemberTopics, opts ValidationOptions) []Finding 
 			out = append(out, Finding{
 				Rule:     "orphan_output",
 				Severity: SeverityWarning,
-				Member:   m.Ref,
-				Prefix:   o.Prefix,
-				Detail:   fmt.Sprintf("output prefix %q has no declared consumer (operator-only snapshot is acceptable; pair with an intake if this should be drained)", o.Prefix),
+				Team:     m.Ref.Team, Member: m.Ref.Member,
+				Prefix: o.Prefix,
+				Detail: fmt.Sprintf("output prefix %q has no declared consumer (operator-only snapshot is acceptable; pair with an intake if this should be drained)", o.Prefix),
 			})
 		}
 	}
@@ -335,9 +304,9 @@ func ruleOrphanInput(members []MemberTopics) []Finding {
 				out = append(out, Finding{
 					Rule:     "orphan_input",
 					Severity: SeverityError,
-					Member:   m.Ref,
-					Prefix:   in.Prefix,
-					Detail:   fmt.Sprintf("intake prefix %q has no producer (no member's output overlaps and no external_producer is declared)", in.Prefix),
+					Team:     m.Ref.Team, Member: m.Ref.Member,
+					Prefix: in.Prefix,
+					Detail: fmt.Sprintf("intake prefix %q has no producer (no member's output overlaps and no external_producer is declared)", in.Prefix),
 				})
 			}
 		}
@@ -430,9 +399,9 @@ func ruleUnreadRequired(members []MemberTopics, opts ValidationOptions) []Findin
 			out = append(out, Finding{
 				Rule:     "unread_required",
 				Severity: SeverityError,
-				Member:   m.Ref,
-				Prefix:   r.Prefix,
-				Detail:   fmt.Sprintf("required_read prefix %q has no producer (no member's output[] overlaps and no writer-skill declares it in skill.json::writes_to[]; rename to match a producer's declared prefix, add a member that writes it, or add it to a writer skill's writes_to[])", r.Prefix),
+				Team:     m.Ref.Team, Member: m.Ref.Member,
+				Prefix: r.Prefix,
+				Detail: fmt.Sprintf("required_read prefix %q has no producer (no member's output[] overlaps and no writer-skill declares it in skill.json::writes_to[]; rename to match a producer's declared prefix, add a member that writes it, or add it to a writer skill's writes_to[])", r.Prefix),
 			})
 		}
 	}
@@ -459,9 +428,9 @@ func ruleWildcardSourceMisuse(members []MemberTopics) []Finding {
 			out = append(out, Finding{
 				Rule:     "wildcard_source_misuse",
 				Severity: SeverityWarning,
-				Member:   m.Ref,
-				Prefix:   in.Prefix,
-				Detail:   fmt.Sprintf("intake %q declares source_team=%q but external_producers is empty; document the producer-side anchor (e.g., the writer skill or external system that produces entries)", in.Prefix, SourceTeamWildcard),
+				Team:     m.Ref.Team, Member: m.Ref.Member,
+				Prefix: in.Prefix,
+				Detail: fmt.Sprintf("intake %q declares source_team=%q but external_producers is empty; document the producer-side anchor (e.g., the writer skill or external system that produces entries)", in.Prefix, SourceTeamWildcard),
 			})
 		}
 	}
@@ -493,9 +462,9 @@ func ruleUnknownTaxonomy(members []MemberTopics, opts ValidationOptions) []Findi
 				out = append(out, Finding{
 					Rule:     "missing_taxonomy",
 					Severity: SeverityError,
-					Member:   m.Ref,
-					Prefix:   in.Prefix,
-					Detail:   fmt.Sprintf("intake %q has no taxonomy id; set intake[].taxonomy to a registered taxonomy", in.Prefix),
+					Team:     m.Ref.Team, Member: m.Ref.Member,
+					Prefix: in.Prefix,
+					Detail: fmt.Sprintf("intake %q has no taxonomy id; set intake[].taxonomy to a registered taxonomy", in.Prefix),
 				})
 				continue
 			}
@@ -503,9 +472,9 @@ func ruleUnknownTaxonomy(members []MemberTopics, opts ValidationOptions) []Findi
 				out = append(out, Finding{
 					Rule:     "unknown_taxonomy",
 					Severity: SeverityError,
-					Member:   m.Ref,
-					Prefix:   in.Prefix,
-					Detail:   fmt.Sprintf("taxonomy %q does not resolve under docs/", id),
+					Team:     m.Ref.Team, Member: m.Ref.Member,
+					Prefix: in.Prefix,
+					Detail: fmt.Sprintf("taxonomy %q does not resolve under docs/", id),
 				})
 			}
 		}
@@ -530,9 +499,9 @@ func ruleMissingDestinationSchema(members []MemberTopics, opts ValidationOptions
 				out = append(out, Finding{
 					Rule:     "missing_destination_schema",
 					Severity: SeverityWarning,
-					Member:   m.Ref,
-					Prefix:   o.Prefix,
-					Detail:   fmt.Sprintf("output schema %q is not declared by any loaded taxonomy", id),
+					Team:     m.Ref.Team, Member: m.Ref.Member,
+					Prefix: o.Prefix,
+					Detail: fmt.Sprintf("output schema %q is not declared by any loaded taxonomy", id),
 				})
 			}
 		}
@@ -561,9 +530,9 @@ func ruleDanglingPORSink(members []MemberTopics, opts ValidationOptions) []Findi
 				out = append(out, Finding{
 					Rule:     "dangling_por_sink",
 					Severity: SeverityError,
-					Member:   m.Ref,
-					Prefix:   o.Prefix,
-					Detail:   fmt.Sprintf("destination_path %q does not exist (resolved: %s)", *o.DestinationPath, full),
+					Team:     m.Ref.Team, Member: m.Ref.Member,
+					Prefix: o.Prefix,
+					Detail: fmt.Sprintf("destination_path %q does not exist (resolved: %s)", *o.DestinationPath, full),
 				})
 			}
 		}
@@ -610,9 +579,9 @@ func ruleDanglingEvidenceDecision(members []MemberTopics, opts ValidationOptions
 				out = append(out, Finding{
 					Rule:     "dangling_evidence_decision",
 					Severity: SeverityError,
-					Member:   m.Ref,
-					Prefix:   ev.Prefix,
-					Detail:   fmt.Sprintf("evidence_consumed[].for_decisions references decision-context %q which is not declared in any team.json::operatingContract.decisionContexts", id),
+					Team:     m.Ref.Team, Member: m.Ref.Member,
+					Prefix: ev.Prefix,
+					Detail: fmt.Sprintf("evidence_consumed[].for_decisions references decision-context %q which is not declared in any team.json::operatingContract.decisionContexts", id),
 				})
 			}
 		}
@@ -701,7 +670,7 @@ func ruleTeamRoleMemberDrift(opts ValidationOptions) []Finding {
 			out = append(out, Finding{
 				Rule:     "team_role_member_drift",
 				Severity: SeverityError,
-				Member:   MemberRef{Team: teamID, Member: roleID},
+				Team:     teamID, Member: roleID,
 				Detail: fmt.Sprintf("roles.json on team %q declares role %q but team.json::operatingContract.members has no such member; remove the role or add the member",
 					teamID, roleID),
 			})
@@ -718,11 +687,31 @@ func ruleTeamRoleMemberDrift(opts ValidationOptions) []Finding {
 			out = append(out, Finding{
 				Rule:     "team_role_member_drift",
 				Severity: SeverityError,
-				Member:   MemberRef{Team: teamID, Member: memberID},
+				Team:     teamID, Member: memberID,
 				Detail: fmt.Sprintf("member %q on team %q has no entry in roles.json; add the role or drop the member from the contract",
 					memberID, teamID),
 			})
 		}
 	}
 	return out
+}
+
+// StampFindingKinds copies each finding's catalogued Kind onto the finding.
+//
+// A check knows what it found; only the catalog knows whether that answer came
+// from a checked-in file or from live agent behavior. Stamping here means every
+// consumer — the gating command, the reporting command, the prompt section —
+// reads one field instead of re-deriving the split from a hardcoded rule list.
+// An uncatalogued id is left empty rather than defaulted, so it cannot quietly
+// join the gate.
+func StampFindingKinds(findings []Finding) {
+	catalog, err := DefaultRuleCatalog()
+	if err != nil {
+		return
+	}
+	for i := range findings {
+		if entry, ok := catalog[findings[i].Rule]; ok {
+			findings[i].Kind = entry.Kind
+		}
+	}
 }

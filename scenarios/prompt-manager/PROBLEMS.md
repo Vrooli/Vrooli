@@ -436,7 +436,7 @@ The scenario-auditor flagged 3 HIGH severity findings for CORS wildcard configur
 
 ## Database Schema Mismatch
 **Date**: 2025-09-28
-**Issue**: The PostgreSQL database schema doesn't match the expected structure defined in `initialization/storage/postgres/schema.sql`
+**Issue**: The PostgreSQL database schema doesn't match the expected structure defined in `api/internal/<domain>/storage/postgres/schema.sql`
 
 ### Expected columns (from schema.sql):
 - campaigns table: id, name, description, color, icon, parent_id, sort_order, is_favorite, prompt_count, last_used, created_at, updated_at

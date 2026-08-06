@@ -53,7 +53,7 @@ func TestContractFindingsSectionAbsentWithoutProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
-	if strings.Contains(prompt, promptHeadingContractFindings) {
+	if strings.Contains(prompt, promptHeading(promptSectionKindContractFindings)) {
 		t.Fatalf("unwired builder rendered a findings section:\n%s", prompt)
 	}
 }
@@ -69,7 +69,7 @@ func TestContractFindingsSectionAbsentWhenMemberIsClean(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
-	if strings.Contains(prompt, promptHeadingContractFindings) {
+	if strings.Contains(prompt, promptHeading(promptSectionKindContractFindings)) {
 		t.Fatalf("clean member rendered a findings section:\n%s", prompt)
 	}
 	if stub.calls == 0 {
@@ -87,7 +87,7 @@ func TestContractFindingsProviderErrorDoesNotFailTheBuild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build should tolerate a findings provider error: %v", err)
 	}
-	if strings.Contains(prompt, promptHeadingContractFindings) {
+	if strings.Contains(prompt, promptHeading(promptSectionKindContractFindings)) {
 		t.Fatalf("errored provider rendered a findings section:\n%s", prompt)
 	}
 }
@@ -159,7 +159,7 @@ func TestMemberflowProviderWithholdsAdvisoryFindings(t *testing.T) {
 		{
 			Rule:     "prose_topic_leak",
 			Severity: memberflow.SeverityWarning,
-			Member:   memberflow.MemberRef{Team: "team-1", Member: "agent-1"},
+			Team:     "team-1", Member: "agent-1",
 			Prefix:   "docs/configuration/host",
 			Detail:   "inferred-backtick match on a docs path",
 			Advisory: true,
@@ -167,9 +167,9 @@ func TestMemberflowProviderWithholdsAdvisoryFindings(t *testing.T) {
 		{
 			Rule:     "actual_writer_undeclared",
 			Severity: memberflow.SeverityError,
-			Member:   memberflow.MemberRef{Team: "team-1", Member: "agent-1"},
-			Prefix:   "contrarian-scan/*",
-			Detail:   "undeclared prefix",
+			Team:     "team-1", Member: "agent-1",
+			Prefix: "contrarian-scan/*",
+			Detail: "undeclared prefix",
 		},
 		{
 			// No member attribution: belongs to the corpus, not to anyone's

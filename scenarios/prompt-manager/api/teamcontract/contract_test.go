@@ -61,7 +61,7 @@ func TestValidateFindingsCollectsIndependentContractDefects(t *testing.T) {
 	} {
 		found := false
 		for _, finding := range findings {
-			if finding.Field == field {
+			if finding.Path == field {
 				found = true
 				break
 			}

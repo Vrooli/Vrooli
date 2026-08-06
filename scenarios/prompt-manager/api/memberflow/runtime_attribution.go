@@ -148,7 +148,7 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 		return []Finding{{
 			Rule:     "actual_writer_undeclared",
 			Severity: SeverityWarning,
-			Member:   MemberRef{Team: teamID},
+			Team:     teamID,
 			Detail:   fmt.Sprintf("could not read team knowledge.jsonl at %s: %v", knowledgePath, err),
 		}}
 	}
@@ -209,7 +209,7 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 					findings = append(findings, Finding{
 						Rule:     "attribution_malformed",
 						Severity: SeverityError,
-						Member:   MemberRef{Team: teamID},
+						Team:     teamID,
 						Detail:   fmt.Sprintf("entry %q has unparseable `at` field %q: %v", e.ID, e.At, kerr),
 					})
 					continue
@@ -225,7 +225,7 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 			findings = append(findings, Finding{
 				Rule:     "attribution_malformed",
 				Severity: SeverityError,
-				Member:   MemberRef{Team: teamID},
+				Team:     teamID,
 				Prefix:   e.Topic,
 				Detail:   fmt.Sprintf("post-cutoff entry %q carries kind=\"legacy\"; legacy is reserved for pre-cutoff migration output", e.ID),
 			})
@@ -239,7 +239,7 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 			findings = append(findings, Finding{
 				Rule:     "attribution_malformed",
 				Severity: SeverityError,
-				Member:   MemberRef{Team: teamID},
+				Team:     teamID,
 				Prefix:   e.Topic,
 				Detail:   fmt.Sprintf("entry %q has no attribution.kind; the API enforces this at write time", e.ID),
 			})
@@ -251,7 +251,7 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 			findings = append(findings, Finding{
 				Rule:     "attribution_malformed",
 				Severity: SeverityError,
-				Member:   MemberRef{Team: teamID},
+				Team:     teamID,
 				Prefix:   e.Topic,
 				Detail:   fmt.Sprintf("entry %q has unknown attribution.kind %q (known kinds: %s)", e.ID, e.Attribution.Kind, strings.Join(store.KnowledgeKinds, ", ")),
 			})
@@ -273,9 +273,9 @@ func scanTeamForUndeclaredWriters(teamID string, contract *LoadedTeamContract, t
 			return Finding{
 				Rule:     "actual_writer_undeclared",
 				Severity: SeverityError,
-				Member:   MemberRef{Team: teamID, Member: memberID},
-				Prefix:   family,
-				Detail:   detail,
+				Team:     teamID, Member: memberID,
+				Prefix: family,
+				Detail: detail,
 			}
 		})...)
 	}
@@ -319,7 +319,7 @@ func checkAgentMemberDeclaration(teamID string, teamMembers map[string]MemberTop
 		return agentMemberCheck{Malformed: &Finding{
 			Rule:     "attribution_malformed",
 			Severity: SeverityError,
-			Member:   MemberRef{Team: teamID},
+			Team:     teamID,
 			Prefix:   e.Topic,
 			Detail:   fmt.Sprintf("entry %q has kind=agent-member but no member_id", e.ID),
 		}}
@@ -366,7 +366,7 @@ func externalThresholdFindings(teamID string, externalByWeek map[string][]knowle
 			out = append(out, Finding{
 				Rule:     "actual_writer_undeclared",
 				Severity: SeverityWarning,
-				Member:   MemberRef{Team: teamID},
+				Team:     teamID,
 				Prefix:   e.Topic,
 				Detail:   fmt.Sprintf("kind=external entry %q in ISO week %s pushes the team's external-writes count over the configured threshold (policy.flagExternalWritesPerWeek=%d)", e.ID, week, threshold),
 			})

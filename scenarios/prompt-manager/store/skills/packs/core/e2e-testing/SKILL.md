@@ -533,7 +533,7 @@ counter is a hard failure.
 What this means for test authors:
 
 - **Seed data**: any `bas/seeds/seed.go` runs against the leased test database and file roots, not production storage.
-- **Mutations are safe only after proof**: workflows can create, update, delete after the target passes storage-health's SQL and file seam checks; otherwise workflow-health refuses them.
+- **Mutations are safe only after proof**: workflows can create, update, delete after the target passes storage-manager's SQL and file seam checks; otherwise workflow-health refuses them.
 - **Don't try to set the test-mode header yourself** in workflow JSON. It's already attached at the browser context for every request; doing it again per-step is redundant and confusing.
 - **If your test only passes against prod data**, it's not really an E2E test — it's an observation. Fix it: seed what you need.
 

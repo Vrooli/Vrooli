@@ -64,7 +64,7 @@ func (b *PromptBuilder) buildSections(ctx context.Context, req PromptBuildReques
 	var parts []string
 	for i := 0; i < len(sections); i++ {
 		if sections[i].Kind == promptSectionKindAgentFile {
-			block := "# Agent Files (Markdown)\n\n"
+			block := promptHeading(promptSectionKindAgentFile) + "\n\n"
 			for i < len(sections) && sections[i].Kind == promptSectionKindAgentFile {
 				block += sections[i].Content
 				i++
@@ -135,12 +135,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 				if err != nil {
 					continue
 				}
-				agentSections = append(agentSections, PromptSection{
-					Kind:       promptSectionKindAgentFile,
-					Label:      entry.Path,
-					SourcePath: fmt.Sprintf("agents/%s/%s", agentID, entry.Path),
-					Content:    fmt.Sprintf("## %s\n\n%s\n\n", entry.Path, content),
-				})
+				agentSections = append(agentSections, newPromptSection(promptSectionKindAgentFile, fmt.Sprintf("agents/%s/%s", agentID, entry.Path), fmt.Sprintf("## %s\n\n%s\n\n", entry.Path, shiftMarkdownHeadings(content, 3))))
 			}
 		}
 	}
@@ -165,58 +160,31 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 		// current job, while the full HEARTBEAT.md and final reminder stay near
 		// the end for recency. Middle sections should not duplicate doctrine
 		// already owned by generated storage, contract, or coordination context.
-		sections = append(sections, PromptSection{
-			Kind:       promptSectionKindActiveTaskBrief,
-			Label:      promptSectionLabelActiveTaskBrief,
-			SourcePath: fmt.Sprintf("teams/%s/team.json#operatingContract.members.%s", teamID, agentID),
-			Content:    buildActiveTaskBriefSection(team, agentID, includeHeartbeat, heartbeatInstructions, b.teamStore.StoreDir()),
-		})
+		sections = append(sections, newPromptSection(promptSectionKindActiveTaskBrief, fmt.Sprintf("teams/%s/team.json#operatingContract.members.%s", teamID, agentID), buildActiveTaskBriefSection(team, agentID, includeHeartbeat, heartbeatInstructions, b.teamStore.StoreDir())))
 
 		if teamconfig.ShouldInjectInbox(contract) {
 			if section := b.buildInboxSection(ctx, teamID, agentID); section != "" {
-				sections = append(sections, PromptSection{
-					Kind:    promptSectionKindTeamInbox,
-					Label:   "Team Inbox",
-					Content: section,
-				})
+				sections = append(sections, newPromptSection(promptSectionKindTeamInbox, "", section))
 			}
 		}
 
 		if handoff, err := b.teamStore.GetLastHandoff(ctx, teamID, agentID); err == nil && handoff != "" {
-			sections = append(sections, PromptSection{
-				Kind:       promptSectionKindLastHandoff,
-				Label:      "Previous Handoff",
-				SourcePath: fmt.Sprintf("teams/%s/members/%s/last-handoff.md", teamID, agentID),
-				Content:    "# Previous Heartbeat Handoff\n\nThis is what you noted at the end of your last heartbeat:\n\n" + handoff,
-			})
+			sections = append(sections, newPromptSection(promptSectionKindLastHandoff, fmt.Sprintf("teams/%s/members/%s/last-handoff.md", teamID, agentID), promptHeading(promptSectionKindLastHandoff)+"\n\nThis is what you noted at the end of your last heartbeat:\n\n"+shiftMarkdownHeadings(handoff, 2)))
 		}
 
 		if section := b.buildChallengeReviewSection(ctx, team, agentID); section != "" {
-			sections = append(sections, PromptSection{
-				Kind:       promptSectionKindChallengeReview,
-				Label:      promptSectionLabelChallengeReview,
-				SourcePath: fmt.Sprintf("teams/%s/shared/knowledge.jsonl", teamID),
-				Content:    section,
-			})
+			sections = append(sections, newPromptSection(promptSectionKindChallengeReview, fmt.Sprintf("teams/%s/shared/knowledge.jsonl", teamID), section))
 		}
 
 		if section, err := b.buildStorageMapSection(team, agentID); err != nil {
 			return nil, err
 		} else if section != "" {
-			sections = append(sections, PromptSection{
-				Kind:    promptSectionKindStorageMap,
-				Label:   "Storage Map",
-				Content: section,
-			})
+			sections = append(sections, newPromptSection(promptSectionKindStorageMap, "", section))
 		}
 
 		if teamconfig.ShouldShowOrgContext(contract) {
 			if section := b.buildOrgContextSection(ctx, team, agentID); section != "" {
-				sections = append(sections, PromptSection{
-					Kind:    promptSectionKindOrgContext,
-					Label:   "Team Org Context",
-					Content: section,
-				})
+				sections = append(sections, newPromptSection(promptSectionKindOrgContext, "", section))
 			}
 		}
 
@@ -224,76 +192,41 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 		if err != nil {
 			return nil, err
 		}
-		sections = append(sections, PromptSection{
-			Kind:       promptSectionKindOperatingPolicy,
-			Label:      promptSectionLabelOperatingPolicy,
-			SourcePath: fmt.Sprintf("teams/%s/team.json", teamID),
-			Content:    operatingPolicy,
-		})
+		sections = append(sections, newPromptSection(promptSectionKindOperatingPolicy, fmt.Sprintf("teams/%s/team.json", teamID), operatingPolicy))
 
 		if section := b.buildTopicContractSection(teamID, agentID); section != "" {
-			sections = append(sections, PromptSection{
-				Kind:       promptSectionKindTopicContract,
-				Label:      promptSectionLabelTopicContract,
-				SourcePath: fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID),
-				Content:    section,
-			})
+			sections = append(sections, newPromptSection(promptSectionKindTopicContract, fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID), section))
 		}
 
 		if section := b.buildInboxFlowSection(teamID, agentID); section != "" {
-			sections = append(sections, PromptSection{
-				Kind:       promptSectionKindInboxFlow,
-				Label:      promptSectionLabelInboxFlow,
-				SourcePath: fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID),
-				Content:    section,
-			})
+			sections = append(sections, newPromptSection(promptSectionKindInboxFlow, fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID), section))
 		}
 
 		// Sits directly after the declarations it reports on, so the contract
 		// and the ways this member is currently breaking it read together.
 		if section := b.buildContractFindingsSection(ctx, teamID, agentID); section != "" {
-			sections = append(sections, PromptSection{
-				Kind:       promptSectionKindContractFindings,
-				Label:      promptSectionLabelContractFindings,
-				SourcePath: fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID),
-				Content:    section,
-			})
+			sections = append(sections, newPromptSection(promptSectionKindContractFindings, fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID), section))
 		}
 
 		responsibilities, err := b.teamStore.GetResponsibilities(ctx, teamID, agentID)
 		if err == nil && responsibilities != "" {
-			sections = append(sections, PromptSection{
-				Kind:       promptSectionKindResponsibilities,
-				Label:      "RESPONSIBILITIES.md",
-				SourcePath: fmt.Sprintf("teams/%s/members/%s/RESPONSIBILITIES.md", teamID, agentID),
-				Content:    "# Team Responsibilities (RESPONSIBILITIES.md)\n\n" + responsibilities,
-			})
+			sections = append(sections, newPromptSection(promptSectionKindResponsibilities, fmt.Sprintf("teams/%s/members/%s/RESPONSIBILITIES.md", teamID, agentID), promptHeading(promptSectionKindResponsibilities)+"\n\n"+shiftMarkdownHeadings(responsibilities, 2)))
 		}
 
 		sections = append(sections, agentSections...)
 
 		if includeHeartbeat {
 			if heartbeatInstructions != "" {
-				sections = append(sections, PromptSection{
-					Kind:       promptSectionKindHeartbeatTask,
-					Label:      "HEARTBEAT.md",
-					SourcePath: fmt.Sprintf("teams/%s/members/%s/HEARTBEAT.md", teamID, agentID),
-					Content:    promptHeadingHeartbeatTask + "\n\n" + heartbeatInstructions,
-				})
+				sections = append(sections, newPromptSection(promptSectionKindHeartbeatTask, fmt.Sprintf("teams/%s/members/%s/HEARTBEAT.md", teamID, agentID), promptHeading(promptSectionKindHeartbeatTask)+"\n\n"+shiftMarkdownHeadings(heartbeatInstructions, 2)))
 			} else {
-				// No heartbeat instructions - use default task
-				sections = append(sections, PromptSection{
-					Kind:    promptSectionKindHeartbeatTask,
-					Label:   "Heartbeat Task",
-					Content: "# Heartbeat Task\n\nNo specific heartbeat instructions defined. Please review your responsibilities and perform any pending work.",
-				})
+				// No HEARTBEAT.md for this member. The heading is the same as
+				// the populated branch because the precedence list names it
+				// unconditionally; a second spelling here would rank a heading
+				// the reader cannot find.
+				sections = append(sections, newPromptSection(promptSectionKindHeartbeatTask, "",
+					promptHeading(promptSectionKindHeartbeatTask)+"\n\nNo specific heartbeat instructions defined. Please review your responsibilities and perform any pending work."))
 			}
-			sections = append(sections, PromptSection{
-				Kind:       promptSectionKindTaskReminder,
-				Label:      promptSectionLabelTaskReminder,
-				SourcePath: fmt.Sprintf("teams/%s/team.json#operatingContract.members.%s", teamID, agentID),
-				Content:    buildTaskReminderSection(team, agentID, heartbeatInstructions),
-			})
+			sections = append(sections, newPromptSection(promptSectionKindTaskReminder, fmt.Sprintf("teams/%s/team.json#operatingContract.members.%s", teamID, agentID), buildTaskReminderSection(team, agentID, heartbeatInstructions)))
 		}
 	} else {
 		sections = append(sections, agentSections...)
@@ -362,7 +295,7 @@ func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartb
 	}
 
 	var section strings.Builder
-	section.WriteString(promptHeadingActiveTaskBrief + "\n\n")
+	section.WriteString(promptHeading(promptSectionKindActiveTaskBrief) + "\n\n")
 	section.WriteString(fmt.Sprintf("You are running one prompt-manager heartbeat as `%s` on `%s`", agentID, teamID))
 	if teamName != "" && teamName != teamID {
 		section.WriteString(fmt.Sprintf(" (`%s`)", teamName))
@@ -377,25 +310,7 @@ func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartb
 	} else {
 		section.WriteString("The active heartbeat task is intentionally omitted from member context.\n\n")
 	}
-	section.WriteString("## Write Surface\n\n")
-	if len(policy.AllowedWriteLabels) == 0 {
-		section.WriteString("Allowed: none declared\n\n")
-	} else {
-		section.WriteString("Allowed:\n")
-		for _, label := range policy.AllowedWriteLabels {
-			section.WriteString("- " + label + "\n")
-		}
-		section.WriteString("\n")
-	}
-	if len(policy.ForbiddenWriteLabels) == 0 {
-		section.WriteString("Forbidden: none declared\n\n")
-	} else {
-		section.WriteString("Forbidden:\n")
-		for _, label := range policy.ForbiddenWriteLabels {
-			section.WriteString("- " + label + "\n")
-		}
-		section.WriteString("\n")
-	}
+	section.WriteString(renderWriteSurface(policy))
 	section.WriteString("## Required Memory\n\n")
 	if len(policy.RequiredReadPrefixes) == 0 {
 		section.WriteString("Knowledge topics: none declared\n\n")
@@ -431,15 +346,15 @@ func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartb
 		rank++
 	}
 	writeRank("Operator instruction given during this run")
-	writeRank("Your contract — `" + promptHeadingActiveTaskBrief + "`, `" + promptHeadingOperatingPolicy + "`, `" + promptHeadingTopicContract + "`. Write surfaces, decision caps, and safety-critical rules bound the task; the task cannot widen them.")
+	writeRank("Your contract — `" + promptHeading(promptSectionKindActiveTaskBrief) + "`, `" + promptHeading(promptSectionKindOperatingPolicy) + "`, `" + promptHeading(promptSectionKindTopicContract) + "`. Write surfaces, decision caps, and safety-critical rules bound the task; the task cannot widen them.")
 	// The context-only build omits the heartbeat task, so naming it here would
 	// rank a section the reader cannot find.
 	if includeHeartbeat {
-		writeRank("`" + promptHeadingHeartbeatTask + "` — the job for this run")
+		writeRank("`" + promptHeading(promptSectionKindHeartbeatTask) + "` — the job for this run")
 	}
-	writeRank("`# Team Responsibilities` and `# Agent Files` — standing guidance that a task may override")
-	writeRank("`# Previous Heartbeat Handoff` — prior-run notes, never authority")
-	section.WriteString("\nThat order settles disagreements between sections. For disagreements about the state of the world — what is accepted, current, or true — use the authority order in `# Storage Map` instead.")
+	writeRank("`" + promptHeading(promptSectionKindResponsibilities) + "` and `" + promptHeading(promptSectionKindAgentFile) + "` — standing guidance that a task may override")
+	writeRank("`" + promptHeading(promptSectionKindLastHandoff) + "` — prior-run notes, never authority")
+	section.WriteString("\nThat order settles disagreements between sections. For disagreements about the state of the world — what is accepted, current, or true — use the authority order in `" + promptHeading(promptSectionKindStorageMap) + "` instead.")
 	return section.String()
 }
 
@@ -462,7 +377,7 @@ func buildTaskReminderSection(team *store.Team, agentID string, heartbeatInstruc
 	}
 
 	var section strings.Builder
-	section.WriteString(promptHeadingTaskReminder + "\n\n")
+	section.WriteString(promptHeading(promptSectionKindTaskReminder) + "\n\n")
 	section.WriteString(fmt.Sprintf("Run this heartbeat as `%s` on `%s`.\n\n", agentID, teamID))
 	section.WriteString(fmt.Sprintf("Focus on: %s.\n\n", focus))
 	section.WriteString("Do now:\n")
@@ -554,7 +469,7 @@ func (b *PromptBuilder) buildChallengeReviewSection(ctx context.Context, team *s
 	}
 
 	var section strings.Builder
-	section.WriteString(promptHeadingChallengeReview + "\n\n")
+	section.WriteString(promptHeading(promptSectionKindChallengeReview) + "\n\n")
 	section.WriteString("These pending decisions you authored or own by context have unresolved contrarian challenges. Respond before filing unrelated new decisions when possible.\n\n")
 	for _, challenge := range challenges {
 		section.WriteString(fmt.Sprintf("## `%s`\n\n", challenge.Decision.ID))
@@ -657,10 +572,32 @@ func firstHeartbeatTaskHeading(markdown string) string {
 	return ""
 }
 
+// renderWriteSurface renders the member's declared write surface for the
+// Active Task Brief. It is the one place that turns the storage policy into
+// prose, so the brief and `# Storage Map` cannot describe different surfaces
+// for the same member: both read the same policy, computed once per build.
+// TestWriteSurfaceSitesMoveTogether pins that across a declaration change.
+func renderWriteSurface(policy memberStoragePolicy) string {
+	var out strings.Builder
+	out.WriteString("## Write Surface\n\n")
+	writeList := func(heading string, labels []string) {
+		if len(labels) == 0 {
+			out.WriteString(heading + ": none declared\n\n")
+			return
+		}
+		out.WriteString(heading + ":\n")
+		for _, label := range labels {
+			out.WriteString("- " + label + "\n")
+		}
+		out.WriteString("\n")
+	}
+	writeList("Allowed", policy.AllowedWriteLabels)
+	writeList("Forbidden", policy.ForbiddenWriteLabels)
+	return out.String()
+}
+
 // describeDecisionCaps renders the member's new-decision caps as a single
-// clause for the Active Task Brief. It must stay consistent with the bullet
-// list rendered into "# Operating Policy" by teamcontract.RenderMemberContract;
-// TestPromptSectionsAgreeOnDecisionCaps enforces that across the live roster.
+// clause for the Active Task Brief.
 //
 // A member may cap per heartbeat (newDecisionCapPerHeartbeat), per owned
 // context (newDecisionCapsByContext), or both. Reporting only the scalar left
@@ -943,11 +880,11 @@ func (b *PromptBuilder) buildOperatingPolicySection(team *store.Team, agentID st
 
 	contract := team.Contract()
 	var section strings.Builder
-	section.WriteString(promptHeadingOperatingPolicy + "\n\n")
+	section.WriteString(promptHeading(promptSectionKindOperatingPolicy) + "\n\n")
 	if strings.TrimSpace(teamCharter) != "" {
 		section.WriteString("## Team Charter\n\n")
 		section.WriteString(fmt.Sprintf("Source: `teams/%s/shared/TEAM.md`\n\n", team.ID))
-		section.WriteString(strings.TrimSpace(teamCharter))
+		section.WriteString(shiftMarkdownHeadings(strings.TrimSpace(teamCharter), 3))
 		section.WriteString("\n\n")
 	}
 	section.WriteString("## Runtime\n\n")
@@ -1083,7 +1020,7 @@ func (b *PromptBuilder) buildOrgContextSection(ctx context.Context, team *store.
 		reportsLabel = strings.Join(labels, ", ")
 	}
 
-	section := "# Team Org Context\n\n"
+	section := promptHeading(promptSectionKindOrgContext) + "\n\n"
 	section += fmt.Sprintf("Team: %s (%s)\n", teamName, team.ID)
 	section += fmt.Sprintf("Your agent ID: %s\n\n", agentID)
 	section += fmt.Sprintf("- Reporting mode: %s\n", contract.Coordination.ReportingMode)
@@ -1098,7 +1035,7 @@ func (b *PromptBuilder) buildStorageMapSection(team *store.Team, agentID string)
 	}
 
 	var section strings.Builder
-	section.WriteString(`# Storage Map
+	section.WriteString(promptHeading(promptSectionKindStorageMap) + `
 
 Use persistent storage only when information should survive this run.
 
@@ -1387,14 +1324,14 @@ func (b *PromptBuilder) buildInboxSection(ctx context.Context, teamID, agentID s
 		return fmt.Sprintf("%s (%s)", agent.DisplayName, id)
 	}
 
-	section := "# Team Inbox\n\n"
+	section := promptHeading(promptSectionKindTeamInbox) + "\n\n"
 	section += fmt.Sprintf("You have %d pending message(s):\n\n", len(messages))
 	for _, message := range messages {
 		fromLabel := resolveAgentLabel(message.FromAgentID)
 		section += fmt.Sprintf("## %s\n\n", message.ID)
 		section += fmt.Sprintf("From: %s\n", fromLabel)
 		section += fmt.Sprintf("Sent: %s\n\n", message.CreatedAt)
-		section += message.Content + "\n\n"
+		section += shiftMarkdownHeadings(message.Content, 3) + "\n\n"
 	}
 	return section
 }
