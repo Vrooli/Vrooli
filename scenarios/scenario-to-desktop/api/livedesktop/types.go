@@ -1,6 +1,7 @@
 package livedesktop
 
 import (
+	"sort"
 	"sync"
 	"time"
 
@@ -114,10 +115,17 @@ type MetricsView struct {
 	ReadyDurationMs *int64 `json:"ready_duration_ms,omitempty"`
 	ReadyDetected   bool   `json:"ready_detected"`
 
-	CurrentCPU   *float64 `json:"current_cpu_percent,omitempty"`
-	CurrentRSSMB *float64 `json:"current_rss_mb,omitempty"`
-	PeakRSSMB    *float64 `json:"peak_rss_mb,omitempty"`
-	SampleCount  int      `json:"sample_count"`
+	CurrentCPU                *float64                  `json:"current_cpu_percent,omitempty"`
+	CurrentRSSMB              *float64                  `json:"current_rss_mb,omitempty"`
+	PeakRSSMB                 *float64                  `json:"peak_rss_mb,omitempty"`
+	SampleCount               int                       `json:"sample_count"`
+	PerformanceStatus         string                    `json:"performance_status,omitempty"`
+	PerformanceReason         string                    `json:"performance_reason,omitempty"`
+	ProtocolStartupDurationMs *int64                    `json:"protocol_startup_duration_ms,omitempty"`
+	DemoStartupDurationMs     *int64                    `json:"demo_startup_duration_ms,omitempty"`
+	ProtocolTraceRef          string                    `json:"protocol_trace_ref,omitempty"`
+	DemoTraceRef              string                    `json:"demo_trace_ref,omitempty"`
+	ProcessRoles              []procmetrics.RoleSummary `json:"process_roles,omitempty"`
 }
 
 // SessionView is the JSON-safe view of a session for API responses.
@@ -182,6 +190,14 @@ func buildMetricsView(r *procmetrics.Report) *MetricsView {
 		ReadyDurationMs:  r.Startup.ReadyMs,
 		ReadyDetected:    r.Startup.ReadyAt != nil,
 		SampleCount:      len(r.Samples),
+	}
+	if r.ProcessTree != nil {
+		for _, summary := range r.ProcessTree.Roles {
+			mv.ProcessRoles = append(mv.ProcessRoles, summary)
+		}
+		sort.Slice(mv.ProcessRoles, func(i, j int) bool {
+			return mv.ProcessRoles[i].Role < mv.ProcessRoles[j].Role
+		})
 	}
 	if n := len(r.Samples); n > 0 {
 		latest := r.Samples[n-1]

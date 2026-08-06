@@ -61,4 +61,48 @@ describe("MetricsBar", () => {
     expect(screen.getByText("Starting...")).toBeInTheDocument();
     expect(screen.queryByText(/Ready/)).not.toBeInTheDocument();
   });
+
+  it("labels observed and unavailable process roles without inventing values", () => {
+    useLiveDesktopStore.setState({
+      activeSession: {
+        appRunning: true,
+        metrics: {
+          sampleCount: 1,
+          processRoles: [
+            { role: "electron_main", available: true, processCount: 1, rssBytes: 64n * 1024n * 1024n },
+            { role: "electron_gpu", available: false, unsupported: true, processCount: 0, rssBytes: 0n },
+          ],
+        },
+      } as never,
+    });
+
+    renderWithProviders(<MetricsBar />);
+
+    expect(screen.getByText("Attribution")).toBeInTheDocument();
+    expect(screen.getByText("electron_main")).toBeInTheDocument();
+    expect(screen.getByText("1 proc · 64 MB")).toBeInTheDocument();
+    expect(screen.getByText("Unavailable")).toBeInTheDocument();
+  });
+
+  it("separates protocol and demo performance evidence and preserves unavailable data", () => {
+    useLiveDesktopStore.setState({
+      activeSession: {
+        appRunning: true,
+        metrics: {
+          sampleCount: 1,
+          performanceStatus: "degraded",
+          performanceReason: "demo trace was unavailable",
+          protocolStartupDurationMs: 420n,
+        },
+      } as never,
+    });
+
+    renderWithProviders(<MetricsBar />);
+
+    expect(screen.getByText("Performance")).toBeInTheDocument();
+    expect(screen.getByText("degraded")).toBeInTheDocument();
+    expect(screen.getByText("0.4s")).toBeInTheDocument();
+    expect(screen.getByText("demo trace was unavailable")).toBeInTheDocument();
+    expect(screen.getAllByText("Unavailable").length).toBeGreaterThan(0);
+  });
 });

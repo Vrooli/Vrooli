@@ -320,11 +320,37 @@ func metricsToProto(value *livedesktop.MetricsView) *domainv1.DesktopSessionMetr
 		return nil
 	}
 	result := &domainv1.DesktopSessionMetrics{SplashDetected: value.SplashDetected, ReadyDetected: value.ReadyDetected, SampleCount: int32(value.SampleCount)}
+	for _, role := range value.ProcessRoles {
+		result.ProcessRoles = append(result.ProcessRoles, &domainv1.DesktopProcessRoleMetric{
+			Role: string(role.Role), Available: role.Available, Unsupported: role.Unsupported,
+			ProcessCount: int32(role.ProcessCount), CpuPercent: role.CPUPercent, PeakCpuPercent: role.PeakCPU,
+			RssBytes: role.RSSBytes, PeakRssBytes: role.PeakRSSBytes, Threads: int32(role.Threads),
+			DurationMs: role.DurationMs, SampleCount: int32(role.SampleCount),
+		})
+	}
 	if value.SplashDurationMs != nil {
 		result.SplashDurationMs = value.SplashDurationMs
 	}
 	if value.ReadyDurationMs != nil {
 		result.ReadyDurationMs = value.ReadyDurationMs
+	}
+	if value.PerformanceStatus != "" {
+		result.PerformanceStatus = &value.PerformanceStatus
+	}
+	if value.PerformanceReason != "" {
+		result.PerformanceReason = &value.PerformanceReason
+	}
+	if value.ProtocolStartupDurationMs != nil {
+		result.ProtocolStartupDurationMs = value.ProtocolStartupDurationMs
+	}
+	if value.DemoStartupDurationMs != nil {
+		result.DemoStartupDurationMs = value.DemoStartupDurationMs
+	}
+	if value.ProtocolTraceRef != "" {
+		result.ProtocolTraceRef = &value.ProtocolTraceRef
+	}
+	if value.DemoTraceRef != "" {
+		result.DemoTraceRef = &value.DemoTraceRef
 	}
 	if value.CurrentCPU != nil {
 		result.CurrentCpuPercent = value.CurrentCPU

@@ -22,6 +22,14 @@ import (
 // demo app visible for screen recording.
 const DefaultDemoHoldMs = 30000
 
+func launchTracePath(smokeTestID, kind string) string {
+	return filepath.Join(os.TempDir(), "scenario-to-desktop", "launch-traces", smokeTestID+"-"+kind+".json")
+}
+
+func profileDirPath(smokeTestID, kind string) string {
+	return filepath.Join(os.TempDir(), "scenario-to-desktop", "profiles", smokeTestID+"-"+kind)
+}
+
 // recordingState holds the active screen recording context during a smoke test.
 type recordingState struct {
 	captureID          string
@@ -369,6 +377,10 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 		"SMOKE_TEST=1",
 		fmt.Sprintf("SMOKE_TEST_TIMEOUT_MS=%d", s.config.TimeoutMS()),
 		fmt.Sprintf("SMOKE_TEST_UPLOAD_URL=%s", uploadURL),
+		fmt.Sprintf("SMOKE_TEST_RUN_ID=%s", smokeTestID),
+		fmt.Sprintf("S2D_TRACE_PATH=%s", launchTracePath(smokeTestID, "protocol")),
+		fmt.Sprintf("S2D_PROFILE_MODE=%s", configuredProfileMode()),
+		fmt.Sprintf("S2D_PROFILE_DIR=%s", profileDirPath(smokeTestID, "protocol")),
 	}
 
 	// When screen recording manages the display, tell Electron to render on it.
@@ -435,7 +447,13 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 		fmt.Sprintf("DISPLAY=%s", rec.displayID),
 		"SMOKE_TEST_DEMO=1",
 		fmt.Sprintf("SMOKE_TEST_DEMO_HOLD_MS=%d", DefaultDemoHoldMs),
+		fmt.Sprintf("SMOKE_TEST_RUN_ID=%s", smokeTestID),
+		fmt.Sprintf("S2D_TRACE_PATH=%s", launchTracePath(smokeTestID, "demo")),
+		fmt.Sprintf("S2D_PROFILE_MODE=%s", configuredProfileMode()),
+		fmt.Sprintf("S2D_PROFILE_DIR=%s", profileDirPath(smokeTestID, "demo")),
 	}
+	var monitor procmetrics.Monitor
+	s.installMonitorHook(rec.displayID, rec.displayWidth, rec.displayHeight, func(m procmetrics.Monitor) { monitor = m })
 
 	demoTimeout := 90 * time.Second
 	resultCh := make(chan struct {
@@ -464,6 +482,8 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 	})
 
 	completed := <-resultCh
+	s.clearMonitorHook()
+	s.harvestDemoMonitor(monitor, smokeTestID)
 	result, err := completed.result, completed.err
 
 	if err != nil {
@@ -552,7 +572,15 @@ func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID,
 		RunID: smokeTestID, ScenarioName: status.ScenarioName, Platform: platform,
 		ArtifactPath: artifactPath, Profile: profile, StartedAt: status.StartedAt,
 		CompletedAt: time.Now().UTC(), Journey: journey, Captures: items,
-		GovernanceReported: governanceReported,
+		GovernanceReported:      governanceReported,
+		ProtocolTracePath:       status.ProtocolTracePath,
+		DemoTracePath:           status.DemoTracePath,
+		ProtocolResourceSummary: status.ProtocolResourceSummary,
+		DemoResourceSummary:     status.DemoResourceSummary,
+		DemoProcessTree:         status.DemoProcessTree,
+		ProtocolProfileDir:      status.ProtocolProfileDir,
+		DemoProfileDir:          status.DemoProfileDir,
+		ProfileMode:             configuredProfileMode(),
 	})
 	if err != nil {
 		s.store.Update(smokeTestID, func(status *Status) {
@@ -566,6 +594,15 @@ func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID,
 		status.Logs = append(status.Logs, "Evidence manifest persisted")
 	})
 	return nil
+}
+
+func configuredProfileMode() string {
+	switch mode := strings.ToLower(strings.TrimSpace(os.Getenv("S2D_PROFILE_MODE"))); mode {
+	case "chromium", "cpu", "heap", "all":
+		return mode
+	default:
+		return "disabled"
+	}
 }
 
 // StripSmokeTestFlag removes "--smoke-test" from args so the app launches
@@ -751,5 +788,29 @@ func (s *DefaultService) harvestMonitor(monitor procmetrics.Monitor, smokeTestID
 		status.SplashDurationMs = report.Startup.SplashDurationMs
 		status.ReadyDurationMs = report.Startup.ReadyMs
 		status.ResourceSummary = report.Summary
+		status.ProtocolResourceSummary = report.Summary
+		status.ProtocolTracePath = launchTracePath(smokeTestID, "protocol")
+		status.ProtocolProfileDir = profileDirPath(smokeTestID, "protocol")
+		refreshPerformanceStatus(status)
+	})
+}
+
+func (s *DefaultService) harvestDemoMonitor(monitor procmetrics.Monitor, smokeTestID string) {
+	if monitor == nil {
+		return
+	}
+	monitor.Stop()
+	report := monitor.Report()
+	if report == nil {
+		return
+	}
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.DemoResourceSummary = report.Summary
+		status.DemoProcessTree = report.ProcessTree
+		status.SplashDurationMs = report.Startup.SplashDurationMs
+		status.ReadyDurationMs = report.Startup.ReadyMs
+		status.DemoTracePath = launchTracePath(smokeTestID, "demo")
+		status.DemoProfileDir = profileDirPath(smokeTestID, "demo")
+		refreshPerformanceStatus(status)
 	})
 }

@@ -44,6 +44,23 @@ An unavailable host capability or missing recording offset is visible and
 never promoted to pass. Cross-platform compilation/package checks do not imply
 native Windows or macOS visual execution.
 
+### Launch-performance trace alignment
+
+The protocol and demo are separate producer runs even though one smoke-test
+status owns both. The protocol trace records validation and cleanup; the demo
+trace is aligned with the recording and owns the user-visible launch timeline.
+Trace events use monotonic timestamps for durations and wall-clock timestamps
+for review alignment. The demo event sequence distinguishes process creation,
+Electron readiness, splash first paint, runtime/server readiness, main-window
+load/show, and app readiness. A missing event is unavailable evidence, not a
+zero-duration phase.
+
+Trace artifacts are redacted and checksum-addressed in the producer manifest.
+They are reference-only when deployment-manager receives the evidence report;
+raw trace/profile bytes remain producer-owned. See the [live desktop API
+reference](live-desktop-api.md#launch-performance-evidence) for the phase
+projection, role attribution, optional profiling modes, and comparability rules.
+
 ## Pacing profiles
 
 The runner uses explicit bounded policies rather than unlabelled sleeps. The

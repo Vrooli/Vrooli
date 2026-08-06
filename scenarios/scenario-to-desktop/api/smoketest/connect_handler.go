@@ -39,7 +39,11 @@ func (s *ConnectService) StartSmokeTest(ctx context.Context, req *connect.Reques
 	}
 	id := uuid.NewString()
 	now := time.Now()
-	s.store.Save(&Status{SmokeTestID: id, ScenarioName: req.Msg.GetScenarioName(), Platform: platform, Status: "running", ArtifactPath: req.Msg.GetArtifactPath(), StartedAt: now, Logs: []string{"Smoke test queued"}, CurrentState: StateInitializing})
+	status := &Status{SmokeTestID: id, ScenarioName: req.Msg.GetScenarioName(), Platform: platform, Status: "running", ArtifactPath: req.Msg.GetArtifactPath(), StartedAt: now, Logs: []string{"Smoke test queued"}, CurrentState: StateInitializing}
+	if req.Msg.GetRecordDesktop() {
+		status.RecordingConfig = &ScreenRecordingConfig{Enabled: true, DisplayWidth: 1920, DisplayHeight: 1080, FPS: 15}
+	}
+	s.store.Save(status)
 	// Preserve request-scoped values (trace/auth) while deliberately detaching
 	// cancellation: smoke-test lifetime is owned by the cancellation registry.
 	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
@@ -113,6 +117,16 @@ func StatusToProto(v *Status) *sharedv1.SmokeTestStatusResponse {
 			})
 		}
 		result.EvidenceReview = review
+	}
+	if v.PerformanceStatus != "" || len(v.ProtocolPhases) > 0 || len(v.DemoPhases) > 0 {
+		performance := &sharedv1.SmokeTestPerformance{Status: v.PerformanceStatus, Reason: optional(v.PerformanceReason)}
+		for _, phase := range v.ProtocolPhases {
+			performance.ProtocolPhases = append(performance.ProtocolPhases, &sharedv1.PerformancePhase{Name: phase.Name, Available: phase.Available, DurationMs: phase.DurationMs, Reason: optional(phase.Reason)})
+		}
+		for _, phase := range v.DemoPhases {
+			performance.DemoPhases = append(performance.DemoPhases, &sharedv1.PerformancePhase{Name: phase.Name, Available: phase.Available, DurationMs: phase.DurationMs, Reason: optional(phase.Reason)})
+		}
+		result.Performance = performance
 	}
 	return result
 }

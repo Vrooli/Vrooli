@@ -182,16 +182,38 @@ type EvidenceManifestWriter interface {
 }
 
 type EvidenceManifestInput struct {
-	RunID              string
-	ScenarioName       string
-	Platform           string
-	ArtifactPath       string
-	Profile            string
-	StartedAt          time.Time
-	CompletedAt        time.Time
-	Journey            *JourneyResult
-	Captures           []captures.Capture
-	GovernanceReported bool
+	RunID                   string
+	ScenarioName            string
+	Platform                string
+	ArtifactPath            string
+	Profile                 string
+	StartedAt               time.Time
+	CompletedAt             time.Time
+	Journey                 *JourneyResult
+	Captures                []captures.Capture
+	GovernanceReported      bool
+	ProtocolTracePath       string
+	DemoTracePath           string
+	PerformanceArtifacts    []PerformanceArtifact
+	ProtocolResourceSummary *procmetrics.Summary
+	DemoResourceSummary     *procmetrics.Summary
+	DemoProcessTree         *procmetrics.ProcessTreeReport
+	ProtocolProfileDir      string
+	DemoProfileDir          string
+	ProfileMode             string
+}
+
+// PerformanceArtifact is a producer-owned file with an immutable checksum.
+// LocalPath is retained only for local review; remote consumers receive the
+// immutable reference, checksum, and size through the manifest.
+type PerformanceArtifact struct {
+	ImmutableRef string
+	LocalPath    string
+	Kind         string
+	Checksum     string
+	SizeBytes    int64
+	Available    bool
+	Reason       string
 }
 
 type EvidenceReportInput struct {

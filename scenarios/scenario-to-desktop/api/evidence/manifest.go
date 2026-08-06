@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -143,6 +144,84 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 	if len(manifest.Artifacts) < 2 {
 		return fmt.Errorf("journey and recording captures are both required")
 	}
+	for _, tracePath := range []struct {
+		path    string
+		kind    string
+		runKind smoketest.LaunchRunKind
+	}{
+		{path: input.ProtocolTracePath, kind: "protocol_launch_trace", runKind: smoketest.LaunchRunProtocol},
+		{path: input.DemoTracePath, kind: "demo_launch_trace", runKind: smoketest.LaunchRunDemo},
+	} {
+		if strings.TrimSpace(tracePath.path) == "" {
+			continue
+		}
+		trace, traceErr := readValidatedLaunchTrace(tracePath.path, tracePath.runKind)
+		if traceErr != nil {
+			manifest.Performance.Status = "degraded"
+			manifest.Performance.Reason = traceErr.Error()
+			continue
+		}
+		artifact, traceErr := performanceArtifact(tracePath.path, recordingPathFor(manifest.Artifacts))
+		if traceErr != nil {
+			manifest.Performance.Status = "degraded"
+			manifest.Performance.Reason = traceErr.Error()
+			continue
+		}
+		artifact.Kind = tracePath.kind
+		manifest.Artifacts = append(manifest.Artifacts, artifact)
+		manifest.Performance.TraceRefs = append(manifest.Performance.TraceRefs, artifact.ImmutableRef)
+		phases := LaunchPhaseDurations(trace)
+		if tracePath.runKind == smoketest.LaunchRunProtocol {
+			manifest.Performance.ProtocolPhases = phases
+		} else {
+			manifest.Performance.DemoPhases = phases
+		}
+	}
+	for _, profileDir := range []string{input.ProtocolProfileDir, input.DemoProfileDir} {
+		if strings.TrimSpace(profileDir) == "" {
+			continue
+		}
+		entries, readErr := os.ReadDir(profileDir)
+		if readErr != nil {
+			if input.ProfileMode != "" && input.ProfileMode != "disabled" {
+				manifest.Performance.Status = "degraded"
+				manifest.Performance.Reason = fmt.Sprintf("profile directory unavailable: %v", readErr)
+			}
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			artifact, profileErr := performanceArtifact(filepath.Join(profileDir, entry.Name()), recordingPathFor(manifest.Artifacts))
+			if profileErr != nil {
+				manifest.Performance.Status = "degraded"
+				manifest.Performance.Reason = profileErr.Error()
+				continue
+			}
+			artifact.Kind = "profile"
+			manifest.Artifacts = append(manifest.Artifacts, artifact)
+			manifest.Performance.ProfileRefs = append(manifest.Performance.ProfileRefs, artifact.ImmutableRef)
+		}
+	}
+	manifest.Performance.ProtocolSummary = input.ProtocolResourceSummary
+	manifest.Performance.DemoSummary = input.DemoResourceSummary
+	manifest.Performance.DemoProcessTree = input.DemoProcessTree
+	if manifest.Performance.Status == "" {
+		switch {
+		case input.ProfileMode != "" && input.ProfileMode != "disabled" && len(manifest.Performance.ProfileRefs) == 0:
+			manifest.Performance.Status = "degraded"
+			manifest.Performance.Reason = "profiling was requested but no profile artifact was available"
+		case len(manifest.Performance.TraceRefs) == 2 && input.ProtocolResourceSummary != nil && input.DemoResourceSummary != nil:
+			manifest.Performance.Status = "measured"
+		case len(manifest.Performance.TraceRefs) > 0:
+			manifest.Performance.Status = "degraded"
+			manifest.Performance.Reason = "one or more performance phases lack complete metrics"
+		default:
+			manifest.Performance.Status = "unavailable"
+			manifest.Performance.Reason = "launch traces were not persisted"
+		}
+	}
 	persistenceOK = true
 	governanceOK := profile != ProfileReleaseVisual || input.GovernanceReported
 	protocolOK := true // this writer is invoked only after the protocol smoke succeeded.
@@ -185,6 +264,29 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 	return nil
 }
 
+func readValidatedLaunchTrace(path string, expectedKind smoketest.LaunchRunKind) (smoketest.LaunchTrace, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return smoketest.LaunchTrace{}, fmt.Errorf("read launch trace %q: %w", path, err)
+	}
+	var trace smoketest.LaunchTrace
+	if err := json.Unmarshal(data, &trace); err != nil {
+		return smoketest.LaunchTrace{}, fmt.Errorf("decode launch trace %q: %w", path, err)
+	}
+	if trace.RunKind != expectedKind {
+		return smoketest.LaunchTrace{}, fmt.Errorf("launch trace %q has run kind %q, want %q", path, trace.RunKind, expectedKind)
+	}
+	if err := trace.Validate(); err != nil {
+		return smoketest.LaunchTrace{}, fmt.Errorf("validate launch trace %q: %w", path, err)
+	}
+	return trace, nil
+}
+
+func validateLaunchTraceFile(path string, expectedKind smoketest.LaunchRunKind) error {
+	_, err := readValidatedLaunchTrace(path, expectedKind)
+	return err
+}
+
 func capturesForRun(items []captures.Capture, runID string) []captures.Capture {
 	result := make([]captures.Capture, 0, 2)
 	source := "smoke-test:" + runID
@@ -211,6 +313,43 @@ func artifactFromCapture(item captures.Capture, path string, inspection screenre
 		UsefulFrames: item.Type != captures.CaptureRecording || inspection.UsefulFrame,
 		CreatedAt:    item.CreatedAt,
 	}
+}
+
+func recordingPathFor(artifacts []Artifact) string {
+	for _, artifact := range artifacts {
+		if artifact.Kind == string(captures.CaptureRecording) {
+			return artifact.LocalPath
+		}
+	}
+	return ""
+}
+
+func performanceArtifact(sourcePath, recordingPath string) (Artifact, error) {
+	data, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return Artifact{}, fmt.Errorf("read performance artifact %q: %w", sourcePath, err)
+	}
+	if len(data) == 0 {
+		return Artifact{}, fmt.Errorf("performance artifact %q is empty", sourcePath)
+	}
+	digest := sha256.Sum256(data)
+	checksum := "sha256:" + hex.EncodeToString(digest[:])
+	destination := sourcePath
+	if recordingPath != "" {
+		destination = recordingPath + "." + filepath.Base(filepath.Dir(sourcePath)) + "." + filepath.Base(sourcePath)
+		if err := os.WriteFile(destination, data, 0o600); err != nil {
+			return Artifact{}, fmt.Errorf("persist performance artifact: %w", err)
+		}
+	}
+	return Artifact{
+		ImmutableRef: "performance:" + checksum,
+		LocalPath:    destination,
+		Kind:         "performance",
+		Checksum:     checksum,
+		SizeBytes:    int64(len(data)),
+		UsefulFrames: true,
+		CreatedAt:    time.Now().UTC(),
+	}, nil
 }
 
 func fileDigest(path string) (string, error) {

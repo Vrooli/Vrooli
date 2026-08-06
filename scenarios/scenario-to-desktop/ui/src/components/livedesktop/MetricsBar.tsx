@@ -1,4 +1,5 @@
 import { Cpu, HardDrive, Zap } from "lucide-react";
+import type { DesktopProcessRoleMetric } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/evidence_pb";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
 
 function cpuColor(percent: number): string {
@@ -12,7 +13,7 @@ function formatMB(mb: number): string {
   return `${String(Math.round(mb))} MB`;
 }
 
-function formatSeconds(ms: bigint): string {
+  function formatSeconds(ms: bigint): string {
   return `${(Number(ms) / 1000).toFixed(1)}s`;
 }
 
@@ -105,6 +106,64 @@ export function MetricsBar() {
             </div>
           )}
         </>
+      )}
+
+      {metrics && (metrics.processRoles?.length ?? 0) > 0 && (
+        <details className="relative">
+          <summary className="cursor-pointer list-none text-slate-400 hover:text-slate-200">
+            Attribution
+          </summary>
+          <div className="absolute right-0 bottom-6 z-20 min-w-64 rounded border border-slate-700 bg-slate-950 p-2 shadow-xl">
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">
+              Process roles
+            </div>
+            {(metrics.processRoles ?? []).map((role: DesktopProcessRoleMetric) => (
+              <div
+                key={role.role}
+                className="flex items-center justify-between gap-4 py-1 text-[11px]"
+              >
+                <span className="text-slate-300">{role.role || "unknown"}</span>
+                {role.unsupported ? (
+                  <span className="text-slate-500">Unavailable</span>
+                ) : role.available ? (
+                  <span className="text-slate-400">
+                    {role.processCount} proc · {Math.round(Number(role.rssBytes) / 1024 / 1024)} MB
+                  </span>
+                ) : (
+                  <span className="text-slate-500">Not observed</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {metrics && (metrics.performanceStatus || metrics.protocolStartupDurationMs != null || metrics.demoStartupDurationMs != null) && (
+        <details className="relative">
+          <summary className="cursor-pointer list-none text-slate-400 hover:text-slate-200">
+            Performance
+          </summary>
+          <div className="absolute right-0 bottom-6 z-20 min-w-64 rounded border border-slate-700 bg-slate-950 p-2 shadow-xl">
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">
+              Launch evidence
+            </div>
+            <div className="flex justify-between gap-4 py-1 text-[11px]">
+              <span className="text-slate-300">Status</span>
+              <span className={metrics.performanceStatus === "measured" ? "text-emerald-400" : "text-amber-400"}>
+                {metrics.performanceStatus || "Unmeasured"}
+              </span>
+            </div>
+            {metrics.performanceReason && <div className="py-1 text-[10px] text-slate-500">{metrics.performanceReason}</div>}
+            <div className="flex justify-between gap-4 py-1 text-[11px] text-slate-400">
+              <span>Protocol</span>
+              <span>{metrics.protocolStartupDurationMs != null ? formatSeconds(metrics.protocolStartupDurationMs) : "Unavailable"}</span>
+            </div>
+            <div className="flex justify-between gap-4 py-1 text-[11px] text-slate-400">
+              <span>Demo</span>
+              <span>{metrics.demoStartupDurationMs != null ? formatSeconds(metrics.demoStartupDurationMs) : "Unavailable"}</span>
+            </div>
+          </div>
+        </details>
       )}
     </div>
   );

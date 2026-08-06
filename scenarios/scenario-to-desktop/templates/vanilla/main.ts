@@ -15,7 +15,7 @@
  * - window-state/ - Window position persistence
  */
 
-import { app, BrowserWindow, net as electronNet, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard, safeStorage, screen } from "electron";
+import { app, BrowserWindow, net as electronNet, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard, safeStorage, screen, contentTracing } from "electron";
 import { type ChildProcess, fork, spawn } from "node:child_process";
 import * as nodeNet from "node:net";
 import { randomUUID } from "node:crypto";
@@ -55,6 +55,12 @@ import {
     createFetchHttpClient,
     createNodeFileSystem as createTelemetryFileSystem,
     createNodePathUtils as createTelemetryPathUtils,
+    createLaunchTraceRecorder,
+    type LaunchTraceRecorder,
+    createLaunchProfiler,
+    type LaunchProfiler,
+    type ProfileArtifact,
+    type ProfileMode,
 } from "./telemetry";
 
 // DOC: docs/internal/SEAMS.md#runtime-module
@@ -226,6 +232,24 @@ const isSmokeTestDemo = process.env.SMOKE_TEST_DEMO === "1";
 // Keep a long safe fallback for older launchers that omit the variable.
 const smokeTestDemoHoldMs = Number(process.env.SMOKE_TEST_DEMO_HOLD_MS) || 30000;
 
+const launchTrace: LaunchTraceRecorder = createLaunchTraceRecorder({
+    runId: process.env.SMOKE_TEST_RUN_ID,
+    runKind: isSmokeTestDemo ? "demo" : "protocol",
+    tracePath: process.env.S2D_TRACE_PATH,
+    record: (event, details, level) => recordTelemetry(event, details, level),
+});
+const profileModeValue = process.env.S2D_PROFILE_MODE?.trim() || "disabled";
+const profileMode: ProfileMode = ["disabled", "chromium", "cpu", "heap", "all"].includes(profileModeValue) ? profileModeValue as ProfileMode : "disabled";
+const launchProfiler: LaunchProfiler = createLaunchProfiler(profileMode, process.env.S2D_PROFILE_DIR || path.join(app.getPath("userData"), "performance"), {
+    startChromium: () => contentTracing.startRecording({ included_categories: ["blink", "browser", "gpu", "renderer", "v8"] }),
+    stopChromium: (filePath) => contentTracing.stopRecording(filePath).then(() => undefined),
+});
+let profilerStartError = "";
+let demoTraceFinalizing = false;
+let demoRecordingEnded = false;
+void launchTrace.emit("recorder_started", "smoke-orchestrator", "trace");
+void launchTrace.emit(isSmokeTestDemo ? "demo_spawn" : "protocol_started", "electron", "main");
+
 // Stability check configuration
 const POST_SUCCESS_STABILITY_DELAY_MS = 2000;
 const STABILITY_CHECK_INTERVAL_MS = 200;
@@ -281,6 +305,22 @@ function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Deterministic launch-latency seam used by generated smoke fixtures. It is
+// deliberately opt-in, bounded, and inactive for normal desktop sessions.
+function configuredStartupDelay(phase: string): number {
+    if (!isSmokeTest) return 0;
+    const candidate = Number(process.env[`S2D_TEST_DELAY_${phase.toUpperCase()}`] || 0);
+    if (!Number.isFinite(candidate) || candidate <= 0) return 0;
+    return Math.min(Math.floor(candidate), 30_000);
+}
+
+async function applyStartupDelay(phase: string): Promise<void> {
+    const durationMs = configuredStartupDelay(phase);
+    if (durationMs <= 0) return;
+    await recordTelemetry("launch_fixture_delay", { phase, duration_ms: durationMs });
+    await delay(durationMs);
+}
+
 async function pathExists(filePath: string): Promise<boolean> {
     try {
         await fs.promises.access(filePath);
@@ -299,6 +339,38 @@ function getRuntimeAppDataRoot(): string {
 async function recordTelemetry(event: string, details: Record<string, unknown> = {}, level: TelemetryLevel = "info"): Promise<void> {
     if (!telemetryRecorder) return;
     await telemetryRecorder.record(event, details, level);
+}
+
+async function stopLaunchProfiler(): Promise<ProfileArtifact[]> {
+    const artifacts = await launchProfiler.stop();
+    if (artifacts.length > 0) {
+        await recordTelemetry("profiling_completed", { mode: profileMode, artifacts: artifacts.map((artifact) => ({ kind: artifact.kind, path: artifact.path, checksum: artifact.checksum, size_bytes: artifact.sizeBytes, available: artifact.available, reason: artifact.reason })) });
+    }
+    if (profilerStartError) await recordTelemetry("profiling_unavailable", { mode: profileMode, reason: profilerStartError }, "warn");
+    return artifacts;
+}
+
+async function startLaunchProfiler(): Promise<void> {
+    try {
+        await launchProfiler.start();
+    } catch (error) {
+        profilerStartError = String(error);
+        await recordTelemetry("profiling_unavailable", { mode: profileMode, reason: profilerStartError }, "warn");
+    }
+}
+
+async function finalizeDemoTrace(): Promise<void> {
+    if (!isSmokeTestDemo || demoTraceFinalizing) return;
+    demoTraceFinalizing = true;
+    if (!demoRecordingEnded) {
+        demoRecordingEnded = true;
+        await launchTrace.emit("recording_ended", "screen-recorder", "recorder");
+    }
+    await launchTrace.complete();
+    await stopLaunchProfiler();
+    await shutdownRuntime();
+    app.quit();
+    process.exit(0);
 }
 
 async function recordAppSessionOutcome(reason?: string): Promise<void> {
@@ -613,6 +685,7 @@ async function shutdownLocalVrooli(): Promise<void> {
 // ===== SERVER READINESS =====
 
 async function checkServerReady(url: string, timeout: number): Promise<void> {
+    await applyStartupDelay("SERVER_READY");
     const httpClient = createElectronReadinessChecker(electronNet);
     const config: ReadinessConfig = { url, timeoutMs: timeout, pollIntervalMs: APP_CONFIG.SERVER_CHECK_INTERVAL_MS, acceptableStatusCodes: DEFAULT_READINESS_CONFIG.acceptableStatusCodes, acceptAny2xx: true };
     const result = await checkServerReadiness(httpClient, config, undefined, (attempt, elapsed) => {
@@ -622,6 +695,7 @@ async function checkServerReady(url: string, timeout: number): Promise<void> {
     if (result.ready) {
         console.log(`[Desktop App] Server ready at ${url} (status: ${result.statusCode}, took: ${result.durationMs}ms)`);
         void recordTelemetry("server_ready", { url, statusCode: result.statusCode, durationMs: result.durationMs });
+        await launchTrace.emit("server_ready", "scenario-service", "scenario_service", { status: String(result.statusCode ?? "ok") });
     } else {
         const errorMsg = result.statusCode !== undefined
             ? `Server at ${url} returned status ${result.statusCode} (expected 2xx). ${result.error ?? ""}`.trim()
@@ -808,6 +882,7 @@ async function startBundledRuntime(): Promise<string> {
     updateSplashStatus("starting-runtime", "Starting runtime services...", 30);
 
     runtimeProcess = spawn(runtimePath, args, { stdio: ["inherit", "inherit", "pipe"], env: runtimeEnv });
+    await launchTrace.emit("runtime_spawned", "bundled-runtime", "bundled_runtime");
     let stderrErrorEmitted = false;
     if (runtimeProcess.stderr) {
         runtimeProcess.stderr.on("data", (data: Buffer) => {
@@ -834,25 +909,39 @@ async function startBundledRuntime(): Promise<string> {
     updateSplashStatus("waiting-for-token", "Waiting for authentication token...", 40);
     console.log(`[Desktop App] Waiting for runtime auth token at: ${tokenPath}`);
     await waitForFile(tokenPath, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+    await launchTrace.emit("runtime_token_available", "bundled-runtime", "bundled_runtime", { available: "true" });
 
     await initializeRuntimeControlClient();
 
     if (isSmokeTest) SmokeTestProtocol.stage.runtimeHealthz();
     updateSplashStatus("checking-health", "Checking service health...", 50);
     await runtimeControlClient!.waitForHealth(APP_CONFIG.SERVER_CHECK_TIMEOUT_MS);
+    await launchTrace.emit("runtime_health_ready", "bundled-runtime", "bundled_runtime");
 
     await ensureRuntimeSecretsIfNeeded();
+
+    await applyStartupDelay("RUNTIME_READY");
 
     if (isSmokeTest) SmokeTestProtocol.stage.runtimeReadyz();
     updateSplashStatus("checking-ready", "Verifying services are ready...", 60);
     const readyDeadline = Date.now() + APP_CONFIG.SERVER_CHECK_TIMEOUT_MS;
+    let runtimeReady = false;
     while (Date.now() < readyDeadline) {
         try {
             const ready = await runtimeControlClient!.request<RuntimeReadyResponse>("/readyz");
-            if ((ready as RuntimeReadyResponse)?.ready) break;
+            if ((ready as RuntimeReadyResponse)?.ready) {
+                runtimeReady = true;
+                break;
+            }
         } catch { /* runtime may still be starting */ }
         await delay(350);
     }
+    if (!runtimeReady) {
+        const error = `Bundled runtime did not become ready within ${APP_CONFIG.SERVER_CHECK_TIMEOUT_MS}ms`;
+        await launchTrace.emit("runtime_ready", "bundled-runtime", "bundled_runtime", { available: "false" }, "error");
+        throw new Error(error);
+    }
+    await launchTrace.emit("runtime_ready", "bundled-runtime", "bundled_runtime");
 
     if (isSmokeTest) SmokeTestProtocol.stage.runtimePorts();
     updateSplashStatus("discovering-ports", "Discovering service endpoints...", 70);
@@ -862,6 +951,7 @@ async function startBundledRuntime(): Promise<string> {
     const svcPorts = (ports as RuntimePortsResponse).services?.[serviceId!];
     const port = svcPorts?.[portName];
     if (!serviceId || !port) throw new Error("Bundled runtime started but did not expose a UI port");
+    await launchTrace.emit("port_discovered", "bundled-runtime", "bundled_runtime", { service: serviceId, port_name: portName });
 
     updateSplashStatus("loading-ui", "Starting user interface...", 80);
     const url = `http://127.0.0.1:${port}/`;
@@ -903,13 +993,18 @@ async function startScenarioServer(): Promise<void> {
         } else if (APP_CONFIG.SERVER_TYPE === "executable") {
             serverProcess = spawn(serverPath, [], { env: { ...process.env, PORT: APP_CONFIG.SERVER_PORT.toString(), DESKTOP_MODE: "true", API_ENDPOINT: APP_CONFIG.API_ENDPOINT }, stdio: serverStdioCfg });
         }
+        await launchTrace.emit("runtime_spawned", "scenario-service", "scenario_service", { mode: APP_CONFIG.SERVER_TYPE });
         void recordTelemetry("local_server_started", { mode: APP_CONFIG.SERVER_TYPE, serverPath });
         if (serverProcess) {
             if (isSmokeTest && serverProcess.stderr) serverProcess.stderr.on("data", (data: Buffer) => { const chunk = data.toString(); serverStderr += chunk; process.stderr.write(chunk); });
             serverProcess.on("error", error => { console.error(`[Desktop App] Server process error: ${error}`); if (isSmokeTest) SmokeTestProtocol.error("runtime", `Server error: ${error.message}`); else dialog.showErrorBox("Server Error", `Failed to start scenario server: ${error.message}`); });
             serverProcess.on("exit", (code, signal) => { console.log(`[Desktop App] Server process exited with code ${code} and signal ${signal}`); if (isSmokeTest && code !== 0 && code !== null) SmokeTestProtocol.error("runtime", serverStderr.trim() ? `Server crashed (exit ${code}): ${serverStderr.slice(0, 200)}` : `Server crashed with exit code ${code}`); });
         }
-    } catch (error) { console.error(`[Desktop App] Failed to start server: ${error}`); dialog.showErrorBox("Startup Error", `Failed to start scenario server: ${error}`); }
+    } catch (error) {
+        console.error(`[Desktop App] Failed to start server: ${error}`);
+        if (isSmokeTest) SmokeTestProtocol.error("runtime", `Failed to start scenario server: ${error}`);
+        throw error;
+    }
 }
 
 // ===== WINDOW CREATION =====
@@ -922,9 +1017,33 @@ function getAppIcon(): string | undefined {
 }
 
 async function createSplashWindowManager(): Promise<void> {
-    if (!APP_CONFIG.ENABLE_SPLASH) return;
+    if (!APP_CONFIG.ENABLE_SPLASH) {
+        await launchTrace.emit("splash_created", "electron", "splash", { availability: "unavailable" });
+        await launchTrace.emit("splash_load_completed", "electron", "splash", { availability: "unavailable" });
+        await launchTrace.emit("splash_first_paint", "electron", "splash", { availability: "unavailable" });
+        return;
+    }
     console.log("[Desktop App] Creating splash window...");
-    splashManager = createSplashManager(BrowserWindow, app, ipcMain, path, clipboard, { alwaysOnTop: false, allowEscapeClose: true });
+    splashManager = createSplashManager(BrowserWindow, app, ipcMain, path, clipboard, {
+        alwaysOnTop: false,
+        allowEscapeClose: true,
+        onPhase: async (phase) => {
+            if (phase === "load_completed") await applyStartupDelay("SPLASH_LOAD");
+            const names = {
+                created: "splash_created",
+                load_completed: "splash_load_completed",
+                ready_to_show: "splash_ready_to_show",
+                shown: "splash_shown",
+                first_paint: "splash_first_paint",
+            } as const;
+            void launchTrace.emit(names[phase], "electron", "splash");
+            // The splash owner knows when the window is visible even when the
+            // renderer's optional IPC-ready signal is delayed or interrupted
+            // by a fast journey quit. Treat visibility as the stable first
+            // paint seam; the IPC callback remains supplemental telemetry.
+            if (phase === "shown") void launchTrace.emit("splash_first_paint", "electron", "splash");
+        },
+    });
     splashManager.onEscapePressed(() => { console.log("[Desktop App] User requested startup cancellation via ESC"); void handleStartupCancellation(); });
     const created = await splashManager.create();
     if (!created) { console.warn("[Desktop App] Failed to create splash window, continuing without it"); splashManager = null; }
@@ -963,6 +1082,7 @@ async function createMainWindow(): Promise<BrowserWindow> {
         webPreferences: { preload: path.join(__dirname, "preload.js"), nodeIntegration: false, contextIsolation: true },
         ...(appIcon && { icon: appIcon }),
     });
+    await launchTrace.emit("main_window_created", "electron", "renderer");
     windowStateManager.manage(mainWindow);
     mainWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: "deny" }; });
     mainWindow.on("closed", () => { mainWindow = null; });
@@ -1062,6 +1182,7 @@ async function runSmokeTest(): Promise<void> {
     const telemetryPath = path.join(userData, "deployment-telemetry.jsonl");
     telemetryRecorder = createTelemetryRecorder(createTelemetryFileSystem(fs.promises), { filePath: telemetryPath, sessionId, sessionKind, deploymentMode: APP_CONFIG.DEPLOYMENT_MODE, serverType: APP_CONFIG.SERVER_TYPE });
     await telemetryRecorder.initialize();
+    await startLaunchProfiler();
     await recordTelemetry("smoke_test_started", { deploymentMode: APP_CONFIG.DEPLOYMENT_MODE, serverType: APP_CONFIG.SERVER_TYPE });
     let success = false, failureMessage = "", runtimeUrl = "";
     try {
@@ -1102,6 +1223,7 @@ async function runSmokeTest(): Promise<void> {
         if (failureMessage.includes("not ready") || failureMessage.includes("timeout") || failureMessage.includes("ECONNREFUSED")) SmokeTestProtocol.error("network", failureMessage);
         else if (!failureMessage.includes("SMOKE_TEST_ERROR")) SmokeTestProtocol.error("runtime", failureMessage);
     } finally { if (isBundledMode) await shutdownRuntime(); }
+    await stopLaunchProfiler();
     if (success) await recordTelemetry("smoke_test_passed", { serverUrl: runtimeUrl || SERVER_URL }); else await recordTelemetry("smoke_test_failed", { error: failureMessage }, "error");
     SmokeTestProtocol.result(success, failureMessage);
     if (smokeTestUploadURL && telemetryRecorder) {
@@ -1111,6 +1233,8 @@ async function runSmokeTest(): Promise<void> {
             SmokeTestProtocol.upload(true);
         } catch (error) { SmokeTestProtocol.upload(false, String(error)); }
     }
+    await launchTrace.emit("protocol_completed", "electron", "main", { result: success ? "passed" : "failed" }, success ? "info" : "error");
+    await launchTrace.complete();
     SmokeTestProtocol.exit();
     // A smoke run has no user-facing windows and must not remain alive because
     // Electron retains an internal handle after app.exit(). The runtime has
@@ -1122,6 +1246,7 @@ async function runSmokeTest(): Promise<void> {
 // ===== APP LIFECYCLE =====
 
 app.whenReady().then(async () => {
+    await launchTrace.emit("electron_ready", "electron", "main");
     if (isSmokeTest) { await runSmokeTest(); return; }
     if (APP_CONFIG.ENABLE_SINGLE_INSTANCE) {
         const gotTheLock = app.requestSingleInstanceLock();
@@ -1145,6 +1270,7 @@ app.whenReady().then(async () => {
         const telemetryPath = path.join(userData, "deployment-telemetry.jsonl");
         telemetryRecorder = createTelemetryRecorder(createTelemetryFileSystem(fs.promises), { filePath: telemetryPath, sessionId, sessionKind, deploymentMode: APP_CONFIG.DEPLOYMENT_MODE, serverType: APP_CONFIG.SERVER_TYPE });
         await telemetryRecorder.initialize();
+        await startLaunchProfiler();
         telemetryUploader = createTelemetryUploader(createTelemetryFileSystem(fs.promises), createFetchHttpClient(), createTelemetryPathUtils(path), { scenarioName: LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME || APP_CONFIG.APP_NAME, deploymentMode: APP_CONFIG.DEPLOYMENT_MODE, statePath: path.join(getRuntimeAppDataRoot(), "telemetry-upload.json") });
         appStorage = createAppStorage(createNodeStorageFileSystem(fs.promises), createNodeStoragePathUtils(path), { userDataPath: userData });
         await appStorage.ensureDir("");
@@ -1223,12 +1349,15 @@ app.whenReady().then(async () => {
         await createMainWindow();
         if (APP_CONFIG.SERVER_TYPE !== "static" || isBundledMode) { updateSplashStatus("loading-ui", "Waiting for server..."); await checkServerReady(targetUrl, APP_CONFIG.SERVER_CHECK_TIMEOUT_MS); }
         updateSplashStatus("loading-ui", "Loading application...", 95);
+        await applyStartupDelay("MAIN_WINDOW_LOAD");
         if (APP_CONFIG.SERVER_TYPE === "static" && !isBundledMode) await mainWindow!.loadFile(path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH)); else await mainWindow!.loadURL(targetUrl);
+        await launchTrace.emit("main_window_load_completed", "electron", "renderer");
         const shouldMaximize = windowStateManager?.wasMaximized() ?? false;
         if (shouldMaximize && process.platform !== "linux") mainWindow!.maximize();
         updateSplashStatus("ready", "Ready!", 100);
         await closeSplashWindow();
         mainWindow!.show();
+        await launchTrace.emit("main_window_shown", "electron", "renderer");
         if (shouldMaximize && process.platform === "linux") { await delay(50); mainWindow!.maximize(); }
         mainWindow!.focus();
 
@@ -1236,16 +1365,17 @@ app.whenReady().then(async () => {
         // recording, then quit gracefully. This gives the screen capture a
         // realistic view of the complete startup experience.
         if (isSmokeTestDemo) {
+            await launchTrace.emit("app_ready", "electron", "main");
             console.log(`[Desktop App] Demo recording: app ready, holding for ${smokeTestDemoHoldMs}ms`);
             await delay(smokeTestDemoHoldMs);
             console.log("[Desktop App] Demo recording: hold complete, quitting");
-            await shutdownRuntime();
-            app.quit();
+            await finalizeDemoTrace();
             return;
         }
 
         console.log(`[Desktop App] ${APP_CONFIG.APP_DISPLAY_NAME} ready!`);
         appSessionReadyAt = new Date().toISOString();
+        await launchTrace.emit("app_ready", "electron", "main");
         void recordTelemetry("app_ready", { serverUrl: targetUrl, bundled: isBundledMode });
     } catch (error) {
         console.error("[Desktop App] Startup error:", error);
@@ -1262,7 +1392,13 @@ app.whenReady().then(async () => {
 
 app.on("window-all-closed", () => { if (process.platform !== "darwin" && !APP_CONFIG.ENABLE_SYSTEM_TRAY) app.quit(); });
 app.on("activate", async () => { if (BrowserWindow.getAllWindows().length === 0) await createMainWindow(); });
-app.on("before-quit", () => {
+app.on("before-quit", (event) => {
+    if (isSmokeTestDemo && !demoRecordingEnded) {
+        event.preventDefault();
+        void finalizeDemoTrace();
+        return;
+    }
+    void launchTrace.complete();
     if (runtimeProcess) void shutdownRuntime();
     if (serverProcess) { console.log("[Desktop App] Terminating server process..."); serverProcess.kill(); serverProcess = null; }
     void shutdownLocalVrooli();

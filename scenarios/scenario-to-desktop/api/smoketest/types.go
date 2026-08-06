@@ -160,9 +160,27 @@ type Status struct {
 	EvidenceReview            *JourneyReview         `json:"evidence_review,omitempty"`
 
 	// Process metrics from app execution
-	SplashDurationMs *int64               `json:"splash_duration_ms,omitempty"`
-	ReadyDurationMs  *int64               `json:"ready_duration_ms,omitempty"`
-	ResourceSummary  *procmetrics.Summary `json:"resource_summary,omitempty"`
+	SplashDurationMs        *int64                         `json:"splash_duration_ms,omitempty"`
+	ReadyDurationMs         *int64                         `json:"ready_duration_ms,omitempty"`
+	ResourceSummary         *procmetrics.Summary           `json:"resource_summary,omitempty"`
+	ProtocolResourceSummary *procmetrics.Summary           `json:"protocol_resource_summary,omitempty"`
+	DemoResourceSummary     *procmetrics.Summary           `json:"demo_resource_summary,omitempty"`
+	DemoProcessTree         *procmetrics.ProcessTreeReport `json:"demo_process_tree,omitempty"`
+	ProtocolTracePath       string                         `json:"protocol_trace_path,omitempty"`
+	DemoTracePath           string                         `json:"demo_trace_path,omitempty"`
+	ProtocolProfileDir      string                         `json:"protocol_profile_dir,omitempty"`
+	DemoProfileDir          string                         `json:"demo_profile_dir,omitempty"`
+	PerformanceStatus       string                         `json:"performance_status,omitempty"`
+	PerformanceReason       string                         `json:"performance_reason,omitempty"`
+	ProtocolPhases          []PerformancePhase             `json:"protocol_phases,omitempty"`
+	DemoPhases              []PerformancePhase             `json:"demo_phases,omitempty"`
+}
+
+type PerformancePhase struct {
+	Name       string `json:"name"`
+	Available  bool   `json:"available"`
+	DurationMs int64  `json:"duration_ms,omitempty"`
+	Reason     string `json:"reason,omitempty"`
 }
 
 type JourneyReview struct {

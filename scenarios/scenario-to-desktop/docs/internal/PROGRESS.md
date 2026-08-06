@@ -30,6 +30,14 @@
 
 ## Current State
 
+The launch-performance baseline is durable at
+`docs/internal/performance-baseline.json`. It contains ten measured Linux
+Xvfb-compatible Hello Desktop runs on one artifact and host identity: five
+cold-designated and five warm-designated. Warm process-to-splash p95 is 651 ms;
+cold p95 is 1,745 ms because of one first-launch outlier. The 1-second
+process-to-splash budget remains advisory and is not promoted to a release gate
+until another baseline confirms the variance.
+
 - **Overall Status**: Baseline native journey proven; provider-specific release claims remain evidence-gated
 - **Bundled Mode**: Pipeline and supervisor contracts are implemented; offline/resource-native claims require the selected dependency journey
 - **Thin Client Mode**: Supported deployment mode; live Tier 1 route evidence depends on the target server fixture

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"scenario-to-desktop-api/procmetrics"
 )
 
 // ManifestSchemaVersion is incremented when the JSON contract changes in an
@@ -118,20 +120,35 @@ type TimelineSummary struct {
 	RedactionStatus  string   `json:"redaction_status"`
 }
 
+// PerformanceEvidence is independent from capability gates. Missing data is
+// explicit and never becomes a zero-valued timing or resource measurement.
+type PerformanceEvidence struct {
+	Status          string                         `json:"status"`
+	Reason          string                         `json:"reason,omitempty"`
+	ProtocolSummary *procmetrics.Summary           `json:"protocol_summary,omitempty"`
+	DemoSummary     *procmetrics.Summary           `json:"demo_summary,omitempty"`
+	DemoProcessTree *procmetrics.ProcessTreeReport `json:"demo_process_tree,omitempty"`
+	ProtocolPhases  []PhaseDuration                `json:"protocol_phases,omitempty"`
+	DemoPhases      []PhaseDuration                `json:"demo_phases,omitempty"`
+	TraceRefs       []string                       `json:"trace_refs,omitempty"`
+	ProfileRefs     []string                       `json:"profile_refs,omitempty"`
+}
+
 // Manifest is the producer-owned, reviewable evidence record. Paths are
 // intentionally retained for local operator evidence, while remote consumers
 // use ImmutableRef and checksum instead of reading local files.
 type Manifest struct {
-	SchemaVersion int             `json:"schema_version"`
-	RunID         string          `json:"run_id"`
-	Profile       Profile         `json:"profile"`
-	State         RunState        `json:"state"`
-	Target        Target          `json:"target"`
-	Runner        Runner          `json:"runner"`
-	Provenance    Provenance      `json:"provenance"`
-	Timeline      TimelineSummary `json:"timeline"`
-	Gates         []GateResult    `json:"gates"`
-	Artifacts     []Artifact      `json:"artifacts"`
+	SchemaVersion int                 `json:"schema_version"`
+	RunID         string              `json:"run_id"`
+	Profile       Profile             `json:"profile"`
+	State         RunState            `json:"state"`
+	Target        Target              `json:"target"`
+	Runner        Runner              `json:"runner"`
+	Provenance    Provenance          `json:"provenance"`
+	Timeline      TimelineSummary     `json:"timeline"`
+	Gates         []GateResult        `json:"gates"`
+	Artifacts     []Artifact          `json:"artifacts"`
+	Performance   PerformanceEvidence `json:"performance"`
 }
 
 var transitionTable = map[RunState][]RunState{
