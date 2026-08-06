@@ -1,0 +1,117 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "corpus",
+    "title": "Corpus",
+    "routes": ["/", "/collections/:collectionId"],
+    "purpose": "Let an operator browse collections and documents, see at a glance where each document was processed and how confident the parse was, and pick up the ones that need human attention.",
+    "prd_refs": ["OT-P0-023", "OT-P0-024", "OT-P0-025", "OT-P1-018"]
+  },
+  "priorities": [
+    {
+      "statement": "Where a document was processed is visible in the list itself, never behind a click.",
+      "notes": "Locality is a first-class property of every row. The product claim is falsifiable, so the evidence has to be in the default view."
+    },
+    {
+      "statement": "A collection's privacy class is visible before anything is added to it.",
+      "notes": "The collection confers a default class its documents inherit; a user must see what they are about to inherit."
+    },
+    {
+      "statement": "Low-confidence parses surface as work, not as silent wrong answers."
+    },
+    {
+      "statement": "Search returns anchored units, and every result can be opened at its exact source region."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "Collections and documents are listed with locality, privacy class and confidence visible." },
+    { "id": "empty", "description": "No collections exist yet; the primary action is creating one, which requires choosing a default privacy class." },
+    { "id": "searching", "description": "A retrieval query is in flight." },
+    { "id": "results", "description": "Retrieval results are shown, each carrying a resolvable anchor." },
+    { "id": "review-queue", "description": "The queue of low-confidence parses is filtered into view." },
+    { "id": "error", "description": "The corpus or retrieval call failed and the reason is visible." }
+  ],
+  "elements": [
+    { "id": "corpus-region", "role": "region", "name": "Corpus browser" },
+    { "id": "collection-list", "role": "list", "name": "Collections", "description": "Each row shows the collection's default privacy class." },
+    { "id": "document-table", "role": "table", "name": "Documents", "description": "Columns include privacy class, where processed, derivation tier and parse confidence." },
+    { "id": "search-input", "role": "textbox", "name": "Search this corpus" },
+    { "id": "review-queue-link", "role": "link", "name": "Review queue" },
+    { "id": "locality-status", "role": "status", "name": "Where processed", "description": "Local or remote, conveyed by text and shape as well as color." },
+    { "id": "new-collection", "role": "button", "name": "New collection" }
+  ],
+  "claims": [
+    {
+      "id": "corpus-region-present",
+      "type": "element-present",
+      "statement": "The corpus page exposes a named browsing region.",
+      "tier": "machine",
+      "elements": ["corpus-region"],
+      "states": ["default", "empty", "searching", "results", "review-queue", "error"]
+    },
+    {
+      "id": "locality-visible-in-list",
+      "type": "element-present",
+      "statement": "Every document row shows where it was processed without the operator opening it.",
+      "tier": "machine",
+      "elements": ["document-table", "locality-status"],
+      "states": ["default", "results"]
+    },
+    {
+      "id": "locality-not-color-only",
+      "type": "custom",
+      "statement": "The local-versus-remote distinction is conveyed by text and shape, never by color alone.",
+      "tier": "manual",
+      "elements": ["locality-status"],
+      "states": ["default", "results"],
+      "rationale": "The residency claim is the product. A user with a color-vision difference must be able to read it, and WCAG 2.1 AA requires it."
+    },
+    {
+      "id": "results-carry-anchors",
+      "type": "custom",
+      "statement": "Every retrieval result exposes a link that opens the Reader at its exact source region.",
+      "tier": "manual",
+      "elements": ["document-table"],
+      "states": ["results"],
+      "rationale": "A result the operator cannot trace back to a page is not a citation, and citability is why retrieval exists here at all."
+    },
+    {
+      "id": "privacy-required-on-create",
+      "type": "custom",
+      "statement": "Creating a collection requires choosing a default privacy class; there is no unclassified path.",
+      "tier": "manual",
+      "elements": ["new-collection"],
+      "states": ["empty", "default"],
+      "rationale": "OT-P0-025. An unclassified collection would let documents enter with no routing profile, which is the silent failure the guarantee exists to prevent."
+    },
+    {
+      "id": "corpus-states-covered",
+      "type": "state-covered",
+      "statement": "Loading, empty, populated and error states are all reachable and distinct.",
+      "tier": "machine",
+      "elements": ["corpus-region"],
+      "states": ["default", "empty", "searching", "results", "error"]
+    },
+    {
+      "id": "corpus-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Search, collection navigation and the review queue are reachable by keyboard alone.",
+      "tier": "machine",
+      "elements": ["search-input", "collection-list", "review-queue-link"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "corpus-region": { "testid": "page-corpus" },
+      "collection-list": { "testid": "corpus-collections" },
+      "document-table": { "testid": "corpus-documents" },
+      "search-input": { "testid": "corpus-search" },
+      "review-queue-link": { "testid": "corpus-review-queue" },
+      "locality-status": { "testid": "corpus-locality" },
+      "new-collection": { "testid": "corpus-new-collection" }
+    }
+  }
+}

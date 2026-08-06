@@ -200,6 +200,26 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
+### GatewayRequest constructor (residency choke point)
+
+| | |
+|---|---|
+| **Seam** | The single construction site for every outbound AI Gateway request |
+| **Interface** | `internal/gatewayreq/gatewayreq.go::Builder` (`For(ctx, doc DocumentClass, role string, opts …) (*sharedpb.GatewayRequest, error)`). It resolves `PrivacyClass` → `Profile`, attaches any declared `required_vram_bytes` footprint, and returns an error rather than a request when the caller asks for a profile weaker than the document's class. |
+| **Production wiring** | Constructed once in `main.go` from the `sensitivity` domain's policy table and passed through `server.Deps`. `enrichment`, `sensitivity` and `derivation` (tier 3) receive the `Builder` — never the raw proto type. No domain imports `sharedpb.GatewayRequest` directly. |
+| **Test fake** | `internal/testutil/mocks::FakeGatewayBuilder` records every `(class, role, profile)` triple it was asked for and can be primed to fail, so a test can assert *what was requested* rather than only what came back. Route-level behavior is faked separately at the gateway client. |
+| **Why it exists** | **This seam is the product's central claim.** AI Gateway's fail-closed behavior is a property of the *profile*, not of the privacy class: `PROFILE_LOCAL_FIRST` is documented to fall back to a permitted remote provider, so a confidential document sent under `local-first` routes remote and the gateway is behaving *correctly*. The residency guarantee therefore lives entirely in the class→profile mapping, and a second construction site anywhere in the tree voids it silently — no test fails, no finding fires, the document just leaves. Enforced by an AST check (`internal/gatewayreq/exclusivity_test.go`) asserting exactly one construction site exists, in the same spirit as `storage-manager`'s routed-database check. Covers `DOC-P0-013` and `DOC-P0-026`. |
+
+### Anchor resolver (version-crossing resolution)
+
+| | |
+|---|---|
+| **Seam** | Resolving an anchor to a source region, across derivation versions |
+| **Interface** | `internal/anchors/resolver.go::Resolver` (`Resolve(ctx, Anchor, atVersion int) (SourceRegion, error)`) with one implementation per anchor kind behind a dispatch on `Anchor.Kind`. |
+| **Production wiring** | `main.go` composes `GeometricResolver` (reads original bytes through the routed file-store seam) and `LogicalResolver` (reads `anchor_alignments` from SQLite). Neither reads a parse output from the artifact store. |
+| **Test fake** | `internal/anchors/mocks::FakeResolver` plus a fixture corpus with a known v1→v2 reparse, so cross-version cases are table tests rather than integration runs. |
+| **Why it exists** | `DOC-P0-009` promises a v1 anchor still resolves after v2, while parse outputs are `regenerable: true` and prunable. Those two facts are only compatible if resolution never depends on a prior version's parse output. Making resolution a seam with two typed implementations forces that: `geometric` resolves against the original bytes (`regenerable: false`), `logical` resolves through a stored alignment, and an unaligned `logical` anchor returns `ErrUnresolved` rather than a plausible wrong region. Without the seam, the natural implementation reads the old parse output and works perfectly until the first prune. |
+
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)
 

@@ -164,7 +164,7 @@
         },
         {
           "kind": "file_exists",
-          "path": "experience/pages/dashboard.json"
+          "path": "experience/pages/corpus.json"
         },
         {
           "kind": "json_min_entries",
@@ -210,7 +210,7 @@
     {
       "id": "example-domain-removed",
       "title": "Example domain removed",
-      "description": "Remove the notes and attachment reference domain after a real replacement domain is green. Run `template-manager detemplate \u003cscenario\u003e` to remove it mechanically; this gate fails while any EXAMPLE-DOMAIN marker survives.",
+      "description": "Remove the notes and attachment reference domain after a real replacement domain is green. Run `template-manager detemplate <scenario>` to remove it mechanically; this gate fails while any EXAMPLE-DOMAIN marker survives.",
       "docs": [
         "docs/START-HERE.md",
         "docs/concepts/ARCHITECTURE.md"

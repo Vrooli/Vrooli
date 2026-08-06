@@ -293,11 +293,11 @@
     },
     {
       "criticality": "P1",
-      "description": "Registered and active so corpus content is reachable from federated search",
+      "description": "A caller records a finding about this corpus into a declared ledger scope, carrying an anchor as provenance; findings only, never units",
       "id": "DOC-P1-020",
       "prd_ref": "OT-P1-020",
       "status": "planned",
-      "title": "search-hub provider registration",
+      "title": "Ledger handoff",
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-020] tag) once the behavior exists.",
@@ -331,6 +331,21 @@
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-022] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Re-running publish produces no duplicate entries, matching the ledger composite import key",
+      "id": "DOC-P1-023",
+      "prd_ref": "OT-P1-023",
+      "status": "planned",
+      "title": "Idempotent ledger handoff",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-023] tag) once the behavior exists.",
           "status": "planned",
           "type": "manual"
         }

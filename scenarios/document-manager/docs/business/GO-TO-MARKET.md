@@ -72,7 +72,7 @@ Sequenced so the cheapest disproof comes first.
 | "Everything you self-host for, plus the machine actually reads the document." | Self-hosters | Working tier-1/tier-2 parse with anchors, side by side with Paperless-ngx output. | Deferred until the free tier is real. |
 | "Same understanding as a hosted parser, without the upload. The comparison isn't price — it's admissibility." | Regulated buyers | Attestation artifact plus fail-closed test evidence. | Deferred until a reviewer confirms acceptability. |
 | "Every claim traces to a page and a character range." | Researchers, agents | Anchor resolution surviving re-derivation. | Deferred until `DOC-P0-009` is green. |
-| "The corpus compounds — the fiftieth document is worth more than the first." | All | Ledger handoff producing cross-document recall. | Deferred; depends on `vrooli-memory` scope work. |
+| "The corpus compounds — the fiftieth document is worth more than the first." | All | Corpus retrieval returning anchored units across documents (`DOC-P0-023`), then federated reach through search-hub (`DOC-P0-018`). | Deferred until retrieval is green. No longer depends on ledger work. |
 
 Two things not to say: nothing about encryption strength (table stakes,
 and it was the retired scenario's mistake), and no compliance-framework

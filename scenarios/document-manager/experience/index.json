@@ -7,26 +7,33 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "document-manager",
-  "description": "Generated L0 experience contract for Document Manager. Replace these route identities with product-specific priorities, claims, bindings, states, and journeys as the UI becomes real.",
+  "description": "Three surfaces carry Document Manager: the Corpus (what is here), the Reader (what the machine understood), and the Receipt (where every step ran). Each exists to make one normally invisible thing visible, and the organizing principle across all three is that locality is a first-class visual property rather than a settings page. Source and watched-directory configuration lives inside the Corpus surface; there is deliberately no separate settings route.",
   "pages": [
     {
-      "id": "dashboard",
-      "path": "pages/dashboard.json",
-      "title": "Dashboard",
+      "id": "corpus",
+      "path": "pages/corpus.json",
+      "title": "Corpus",
       "status": "active"
     },
     {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
+      "id": "reader",
+      "path": "pages/reader.json",
+      "title": "Reader",
       "status": "active"
     },
     {
-      "id": "settings",
-      "path": "pages/settings.json",
-      "title": "Settings",
+      "id": "receipt",
+      "path": "pages/receipt.json",
+      "title": "Receipt",
       "status": "active"
     }
   ],
-  "journeys": []
+  "journeys": [
+    {
+      "id": "ingest-to-citation",
+      "path": "journeys/ingest-to-citation.json",
+      "title": "Ingest a document and cite a passage from it",
+      "status": "active"
+    }
+  ]
 }

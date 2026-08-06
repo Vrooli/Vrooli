@@ -24,11 +24,14 @@ Use this document to answer:
 
 - **Direct product: yes.** It has a real external buyer and a defensible
   wedge, which is unusual for an enabler.
-- **Internal capability: yes, and this comes first.** It is the ingestion
-  half of the infinite ledger. Even with zero external revenue it earns
-  its place by making every Vrooli research, proof-search and
-  truth-seeking capability able to work from real source documents with
-  citations.
+- **Internal capability: yes, and this comes first.** It is the **library**
+  half of a sibling pair — sources, held permanently and citably — where
+  the ledger is the other half, holding findings that compact. Even with
+  zero external revenue it earns its place by making every Vrooli
+  research, proof-search and truth-seeking capability able to work from
+  real source documents with citations. Note that it earns that place
+  *without* the ledger existing: the two are independent, and a consumer
+  scenario is what joins them.
 - **SKU/bundle candidate: likely both bundles.** The SKU map already
   lists "note-taking / knowledge-base" as a pending candidate expected to
   serve business and lifestyle alike. This scenario is the closest

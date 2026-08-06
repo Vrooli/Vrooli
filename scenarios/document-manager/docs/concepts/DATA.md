@@ -31,8 +31,31 @@ Two stores, with different guarantees:
    retaining a startup root string. Registered with `storage-manager` as
    declared kinds with explicit budgets.
 
-No external storage resource is declared. Vector storage in particular
-belongs to `vrooli-memory` — see [`INTEGRATIONS.md`](INTEGRATIONS.md).
+No external storage resource is declared. Embeddings live in SQLite
+beside the units they describe, and the `retrieval` domain queries them.
+That is deliberate and is an established pattern here — **nine**
+scenarios declare embedding tables in their own schema
+(`agent-metareasoning-manager`, `api-library`, `audio-tools`,
+`calendar`, `prompt-injection-arena`, `task-planner`, `text-tools`,
+`vrooli-assistant`, `vrooli-memory`), with `calendar.event_embeddings`
+and `task-planner.embedding_metadata` as the worked examples. A further
+~38 scenarios touch embeddings in Go without owning a table; do not
+conflate the two counts.
+
+Vectors are stored as little-endian `float32` blobs with a leading
+dimension header, following `vrooli-memory/api/internal/vector/codec.go`.
+Blob storage rather than JSON is not an optimisation detail — it is what
+kept that scenario's 8,181 vectors at 32 MB instead of 125 MB.
+
+**What this store must never hold is ledger content.** Sources and
+findings are different content classes: sources are permanent and never
+compacted, findings are a stream that folds into summaries so ambient
+attention stays bounded. Each needs a store that fits it, and each has
+exclusive authority over its own class. Duplication would mean *the same
+content indexed twice with no defined authority* — which is what a
+`retrieval` index over ledger entries would create. Cross-corpus queries
+go through `search-hub`. See
+[`../internal/DECISIONS.md`](../internal/DECISIONS.md).
 
 ## Two Append-Only Surfaces
 
@@ -58,7 +81,9 @@ is a product guarantee rather than an implementation preference:
 | Derivation versions | derivation | SQLite (append-only) | `api/internal/derivation/schema.sql` | Follows the parent document | Monotonic. Never rewritten. |
 | Parse outputs | derivation | Artifact store | Blob written through the routed seam | **`regenerable: true`** — prunable; re-derivable from original bytes | The safe thing to evict under budget pressure. |
 | Units | anchors | SQLite | `api/internal/anchors/schema.sql` | Follows the parent derivation version | The citable fragment. |
-| Anchors | anchors | SQLite | `api/internal/anchors/schema.sql` | Follows the parent unit | (document hash, version, page, char range, optional bbox). |
+| Anchors | anchors | SQLite | `api/internal/anchors/schema.sql` | Follows the parent unit | Carries `kind` from the first migration. **`geometric`** = page + bbox in the original document's coordinate space; durable across every derivation because the original bytes are `regenerable: false`. **`logical`** = structural path + char offset; covers every format but needs an alignment to cross a version. |
+| Anchor alignments | anchors | SQLite | `api/internal/anchors/schema.sql` | Follows the newer derivation version | Maps `logical` anchors from version N to N+1, computed at re-derivation. Absent alignment, an old `logical` anchor resolves to its minting version or reports `unresolved` — never silently to the wrong region. |
+| Retrieval index | retrieval | SQLite | `api/internal/retrieval/schema.sql` | Rebuildable at any time | Derived state only — a cache over units, anchors and embeddings. Registered as a `regenerable: true` kind; losing it costs a rebuild, never data. Two halves: an **FTS5 virtual table** over unit text for the lexical side, and the `enrichment` vector blobs scanned in-process for the semantic side. See the retrieval-mechanism decision in [`../internal/DECISIONS.md`](../internal/DECISIONS.md). |
 | Enrichments | enrichment | SQLite | `api/internal/enrichment/schema.sql` | Follows the parent unit | Summaries, entities, claims, extraction results. |
 | Embeddings | enrichment | SQLite | `api/internal/enrichment/schema.sql` | Follows the parent unit; invalidated by intentional retarget | **Every row carries role, model, dimension, content-version and retarget strategy.** Missing metadata is an `ai-conformance` ERROR. |
 | Extraction schemas | enrichment | SQLite | `api/internal/enrichment/schema.sql` | Until removed by the operator | Caller-supplied shapes for schema-first extraction. |
@@ -68,9 +93,9 @@ is a product guarantee rather than an implementation preference:
 | Custody records | custody | SQLite (append-only) | `api/internal/custody/schema.sql` | Retained beyond document deletion | Assembled from AI Gateway `RouteEvidence` plus local step records. |
 | Access events | custody | SQLite (append-only) | `api/internal/custody/schema.sql` | Retained beyond document deletion | Who read what, when. |
 | Legal holds | custody | SQLite | `api/internal/custody/schema.sql` | Until explicitly released; release is itself audited | Suppresses all prune paths. |
-| Collections | corpus | SQLite | `api/internal/corpus/schema.sql` | Until deleted | Membership is many-to-many with documents. |
+| Collections | corpus | SQLite | `api/internal/corpus/schema.sql` | Until deleted | Membership is many-to-many with documents. Carries `default_privacy_class`, inherited by documents on intake; a document may be classified more restrictively, never less. |
 | Retention state | corpus | SQLite | `api/internal/corpus/schema.sql` | Operational | Mirrors `storage-manager` kind declarations. |
-| Publications | handoff | SQLite | `api/internal/handoff/schema.sql` | Follows the parent unit | Idempotency keys matching the ledger's composite import key. |
+| Publications | handoff | SQLite | `api/internal/handoff/schema.sql` | Follows the cited anchor, not the unit | One row per published *finding*. Carries the anchor URI it cites plus an idempotency key matching the ledger's composite import key. Never holds unit text. |
 | Scope bindings | handoff | SQLite | `api/internal/handoff/schema.sql` | Until unbound | Which collection publishes into which ledger scope. |
 
 ## Schema Map
@@ -84,6 +109,7 @@ is a product guarantee rather than an implementation preference:
 | sensitivity tables | sensitivity | `api/internal/sensitivity/schema.sql` | sensitivity repository/service/handlers |
 | custody tables | custody | `api/internal/custody/schema.sql` | custody repository/service/handlers |
 | corpus tables | corpus | `api/internal/corpus/schema.sql` | corpus repository/service/handlers |
+| retrieval tables | retrieval | `api/internal/retrieval/schema.sql` | retrieval repository/service/handlers |
 | handoff tables | handoff | `api/internal/handoff/schema.sql` | handoff repository/service/handlers |
 | artifact store layout | corpus | `api/internal/corpus/artifactstore.go` | intake, derivation, corpus (through the routed seam only) |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
@@ -142,16 +168,17 @@ Two changes are *not* ordinary migrations and need a recorded decision in
 | Full corpus export | Open, documented archive: original bytes, derivations, units, anchors, enrichments and custody records | corpus | `DOC-P0-017` — required for viability. No proprietary container, no lock-in. |
 | Residency attestation | Human-readable signed report per document or collection | custody | `DOC-P1-013`. The artifact a compliance reviewer accepts. |
 | Redaction manifest | Structured record: original version, redacted version, per-redaction actor/time/basis | sensitivity | `DOC-P1-011`. |
-| Ledger publication | Scoped, idempotent unit append with provenance | handoff | `DOC-P0-018`. Not an export format — a live seam. |
+| Ledger publication | Scoped, idempotent append of a *finding* — a small entry citing an anchor URI as provenance. **Never a unit, and never unit text.** | handoff | `DOC-P1-020` (publish) and `DOC-P1-023` (idempotency). Not an export format — a live, optional seam. |
 
 ## Retention And Deletion
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
 | Original bytes | Explicit document delete, never budget pressure | `regenerable: false`; budget pressure must fail loudly | Depends on `storage-manager` honoring the flag. A known upstream issue: its enforcer has pruned `regenerable: false` entries elsewhere — verify before relying on it. |
-| Parse outputs | Budget pressure or explicit prune | `regenerable: true`; re-derivable from original bytes | None. This is the intended eviction target. |
+| Parse outputs | Budget pressure or explicit prune | `regenerable: true`; re-derivable from original bytes | The intended eviction target — but only safe because anchor resolution must not depend on it. `geometric` anchors resolve against the original bytes, so they are unaffected. `logical` anchors resolve through stored alignments, which live in SQLite rather than the artifact store. A resolution path that reads a pruned parse output is a bug, and there is a test for it. |
+| Retrieval index | Budget pressure or explicit rebuild | `regenerable: true`; rebuildable from units, anchors and embeddings | None. Losing it costs a rebuild, never data. |
 | Derivation versions | Parent document delete only | Append-only while the document lives | None. |
-| Custody records | Never by document delete | Outlive the document; deletion writes a tombstone | Long-horizon retention policy for the journal itself is undecided. |
+| Custody records | Never by document delete | Outlive the document; deletion writes a tombstone | Two gaps. (1) Long-horizon retention for the journal itself is undecided. (2) **A known upstream trap:** `storage-manager`'s enforcer prunes any `kind=dir` entry that carries a budget, regardless of append-only intent — `vrooli-memory`'s append-only journal declared `max_age 365d` and became prune-eligible exactly this way. Declare the custody kind without a prunable budget, and verify enforcement behavior before trusting it. |
 | Redaction manifests | Never by document delete | Audit lifetime, not document lifetime | Same. |
 | Anything under legal hold | Nothing | Hold suppresses every prune path until explicitly released | Release must itself be audited. |
 
