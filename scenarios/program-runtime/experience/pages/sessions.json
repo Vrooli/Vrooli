@@ -1,0 +1,150 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "sessions",
+    "title": "Sessions",
+    "routes": ["/sessions", "/sessions/:sessionId"],
+    "purpose": "Show what a live kernel is holding: the variables bound so far, the grants it runs under, how close it is to its ceilings, and why a reclaimed session ended.",
+    "prd_refs": ["OT-P0-004", "OT-P0-005", "OT-P1-004", "OT-P1-005", "OT-P2-001"]
+  },
+  "priorities": [
+    {
+      "statement": "The variable inspector obeys the same handle discipline it displays.",
+      "notes": "Variables render as bounded representations. Materializing one in the console is an explicit, recorded operator action — never an incidental read. A console that eagerly renders payloads contradicts the product inside its own interface and becomes a way around the boundary."
+    },
+    {
+      "statement": "Grants held are legible before anything is submitted.",
+      "notes": "A reader should be able to answer 'could this session call something destructive' without running anything."
+    },
+    {
+      "statement": "A reclaimed session states why it was reclaimed.",
+      "notes": "Idle, wall-clock, or memory. A session that simply disappears is indistinguishable from a crash."
+    },
+    {
+      "statement": "Proximity to a ceiling is visible before the ceiling is hit.",
+      "notes": "Reclamation should be predictable from the page, not a surprise reported after the fact."
+    },
+    {
+      "statement": "Sandbox binding is stated when present.",
+      "notes": "Whether a session's filesystem effects are isolated changes how much a reader should trust what it did."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "Live sessions are listed; a selected session shows its variables, grants, and ceilings." },
+    { "id": "loading", "description": "Session state is being read." },
+    { "id": "empty", "description": "No session is live. The page explains that sessions are created by agents and are per-run, not long-lived." },
+    { "id": "running", "description": "The selected session is executing a program; variables and ceilings update as it proceeds." },
+    { "id": "reclaimed", "description": "The selected session has ended and states which ceiling or idle rule reclaimed it." },
+    { "id": "permission-denied", "description": "A variable's contents were requested but the operator's grant does not permit materialization." },
+    { "id": "request-error", "description": "Session state could not be read and the reason is visible." }
+  ],
+  "elements": [
+    { "id": "sessions-region", "role": "region", "name": "Sessions" },
+    { "id": "session-list", "role": "table", "name": "Live sessions", "description": "One row per session: id, owner, age, grants, program count, ceiling proximity." },
+    { "id": "variable-inspector", "role": "list", "name": "Kernel variables", "description": "Name, type, and bounded representation for each bound variable. Contents are not rendered by default." },
+    { "id": "materialize-action", "role": "button", "name": "Materialize variable", "description": "Explicitly renders a variable's contents and records the operator action." },
+    { "id": "materialization-notice", "role": "status", "name": "Materialization recorded" },
+    { "id": "grants-list", "role": "list", "name": "Grants held" },
+    { "id": "ceiling-meter", "role": "meter", "name": "Ceiling usage", "description": "Wall-clock, memory, and idle time against their configured limits." },
+    { "id": "reclamation-note", "role": "note", "name": "Reclamation reason" },
+    { "id": "sandbox-badge", "role": "status", "name": "Workspace sandbox", "description": "Whether the session is bound to an isolated workspace." },
+    { "id": "execution-stream", "role": "log", "name": "Execution output", "description": "Invocations and output as they complete, for the session's running program." },
+    { "id": "empty-explainer", "role": "note", "name": "How sessions are created" }
+  ],
+  "claims": [
+    {
+      "id": "sessions-region-present",
+      "type": "element-present",
+      "statement": "The page exposes a named sessions region containing the session list.",
+      "tier": "machine",
+      "elements": ["sessions-region", "session-list"],
+      "states": ["default", "running", "reclaimed"]
+    },
+    {
+      "id": "variables-are-bounded-by-default",
+      "type": "custom",
+      "statement": "Kernel variables render as bounded representations; contents appear only after an explicit materialize action.",
+      "tier": "manual",
+      "elements": ["variable-inspector", "materialize-action"],
+      "states": ["default", "running"],
+      "rationale": "OT-P0-003. The console must not become a path that reads full payloads without crossing the same boundary a program crosses."
+    },
+    {
+      "id": "materialization-is-recorded",
+      "type": "custom",
+      "statement": "Materializing a variable from the console is recorded as an operator action rather than treated as a free read.",
+      "tier": "manual",
+      "elements": ["materialize-action", "materialization-notice"],
+      "states": ["default"],
+      "rationale": "An unrecorded console read is an ungoverned egress path with no provenance, which is precisely what the binding boundary exists to prevent."
+    },
+    {
+      "id": "grants-visible-before-execution",
+      "type": "element-present",
+      "statement": "The grants a session holds are shown without needing to run anything.",
+      "tier": "machine",
+      "elements": ["grants-list"],
+      "states": ["default", "running", "reclaimed"]
+    },
+    {
+      "id": "reclamation-states-its-reason",
+      "type": "custom",
+      "statement": "A reclaimed session names the rule that reclaimed it — idle, wall-clock, or memory.",
+      "tier": "manual",
+      "elements": ["reclamation-note"],
+      "states": ["reclaimed"],
+      "rationale": "OT-P1-005. A session that ends without a stated reason is indistinguishable from a crash, and an agent that lost state deserves a better answer than silence."
+    },
+    {
+      "id": "ceiling-proximity-not-color-only",
+      "type": "custom",
+      "statement": "Proximity to a ceiling is conveyed by value and text as well as by any color treatment.",
+      "tier": "manual",
+      "elements": ["ceiling-meter"],
+      "states": ["default", "running"],
+      "rationale": "The accessibility floor forbids status carried by color alone, and this is the status that predicts losing kernel state."
+    },
+    {
+      "id": "denied-materialization-is-explained",
+      "type": "custom",
+      "statement": "A materialization the operator's grant does not permit is refused with a stated reason rather than rendering empty.",
+      "tier": "manual",
+      "elements": ["variable-inspector", "materialization-notice"],
+      "states": ["permission-denied"],
+      "rationale": "An empty render is indistinguishable from an empty variable."
+    },
+    {
+      "id": "sessions-states-covered",
+      "type": "state-covered",
+      "statement": "Loading, empty, running, reclaimed, permission-denied, and error states each render dedicated content.",
+      "tier": "machine",
+      "elements": ["sessions-region"],
+      "states": ["loading", "empty", "running", "reclaimed", "permission-denied", "request-error"]
+    },
+    {
+      "id": "sessions-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The session list, the variable inspector, and the materialize action are reachable by keyboard alone.",
+      "tier": "machine",
+      "elements": ["session-list", "variable-inspector", "materialize-action"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "sessions-region": { "testid": "page-sessions" },
+      "session-list": { "testid": "sessions-list" },
+      "variable-inspector": { "testid": "sessions-variables" },
+      "materialize-action": { "testid": "sessions-materialize" },
+      "materialization-notice": { "testid": "sessions-materialization-notice" },
+      "grants-list": { "testid": "sessions-grants" },
+      "ceiling-meter": { "testid": "sessions-ceilings" },
+      "reclamation-note": { "testid": "sessions-reclamation" },
+      "sandbox-badge": { "testid": "sessions-sandbox" },
+      "execution-stream": { "testid": "sessions-stream" },
+      "empty-explainer": { "testid": "sessions-empty-explainer" }
+    }
+  }
+}

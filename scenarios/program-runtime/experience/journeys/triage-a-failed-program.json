@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "triage-a-failed-program",
+    "title": "Understand why an agent's program failed, and correct it",
+    "purpose": "The spine of the console. An agent submitted a program, it stopped, and a human needs to find out why without reconstructing the agent's reasoning. Every surface appears once, in the order a real operator meets them, ending with a correction that becomes evidence rather than a private fix.",
+    "prd_refs": ["OT-P0-002", "OT-P0-003", "OT-P0-005", "OT-P1-006", "OT-P1-008", "OT-P2-001"]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "default",
+      "intent": "See that something failed and which class of failure it was, without opening anything.",
+      "via": "recent-failures"
+    },
+    {
+      "page": "program",
+      "state": "validation-error",
+      "intent": "Land on the failing line with the failure summary already read. Learn that pre-flight validation rejected an argument and that no request was ever issued.",
+      "via": "failure-summary"
+    },
+    {
+      "page": "program",
+      "state": "validation-error",
+      "intent": "Hover the offending binding to see its typed signature from the proto descriptor, and find the field name the program should have used.",
+      "via": "source-editor"
+    },
+    {
+      "page": "bindings",
+      "state": "default",
+      "intent": "Confirm the binding's declared effect and required permissions, and check whether the session that ran it held a satisfying grant.",
+      "via": "binding-signature"
+    },
+    {
+      "page": "program",
+      "state": "default",
+      "intent": "Read the materialization ledger for the calls that did succeed, to judge whether the program was spending context well before it stopped.",
+      "via": "materialization-ledger"
+    },
+    {
+      "page": "program",
+      "state": "forking",
+      "intent": "Fork the program and correct the field. Markers become predictive and come from the same validator the API uses, so the editor agrees with the runtime.",
+      "via": "fork-action"
+    },
+    {
+      "page": "program",
+      "state": "submitting",
+      "intent": "Submit the fork into a fresh session and watch invocations stream in as they complete.",
+      "via": "submit-action"
+    },
+    {
+      "page": "programs",
+      "state": "default",
+      "intent": "See the fork in the corpus, marked operator-submitted and linked to the agent program it came from, so the correction is legible as evidence without being counted as agent behavior.",
+      "via": "provenance-filter"
+    }
+  ],
+  "claims": [
+    {
+      "id": "triage-reaches-cause-in-two-steps",
+      "type": "custom",
+      "statement": "From the dashboard, an operator reaches the failing line and its stated cause within two navigations.",
+      "tier": "manual",
+      "params": { "maxSteps": 2 },
+      "rationale": "This is the most common path through the console. Every additional hop is paid by every operator on every failure."
+    },
+    {
+      "id": "triage-never-requires-reading-the-agent-transcript",
+      "type": "custom",
+      "statement": "The journey completes without leaving this scenario for agent-manager.",
+      "tier": "manual",
+      "rationale": "The program and its typed failure are self-sufficient evidence. Needing the agent's transcript to understand a failure would mean the program record is incomplete."
+    },
+    {
+      "id": "correction-lands-as-evidence",
+      "type": "custom",
+      "statement": "The corrected fork is discoverable in the corpus with its provenance and ancestry intact.",
+      "tier": "manual",
+      "rationale": "OT-P1-008. A fix that leaves no linked record teaches nothing; a fix miscounted as agent behavior corrupts what corpus mining measures."
+    }
+  ]
+}

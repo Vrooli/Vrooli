@@ -1,0 +1,132 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "measures",
+    "title": "Measures",
+    "routes": ["/measures", "/measures/:measureId"],
+    "purpose": "Render this scenario's declared measures — the same typed, parameterized queries search-hub answers from a natural-language question. Not a bespoke analytics surface; the presentation layer over a contract that already exists.",
+    "prd_refs": ["OT-P0-009", "OT-P0-003", "OT-P0-008"]
+  },
+  "priorities": [
+    {
+      "statement": "Every number states its basis.",
+      "notes": "A measure shows the window it covers and the population it counted. An unmeasured surface reports unavailable with a reason, never zero — the same honesty contract the readiness board holds."
+    },
+    {
+      "statement": "Context avoided is the headline.",
+      "notes": "Fetched versus materialized across the corpus is the measure that says whether this scenario is working at all. Session and program counts are inventory; they lead nowhere."
+    },
+    {
+      "statement": "The page shows declared measures and nothing else.",
+      "notes": "If a number is worth showing here it is worth declaring in the CLI manifest, where search-hub can match it and any caller can query it. A chart with no declared measure behind it is a local analysis stack by another name."
+    },
+    {
+      "statement": "A domain with no measure says so.",
+      "notes": "A waived domain shows its waiver and reason. Silence would read as coverage."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "Declared measures render with their current values and stated basis." },
+    { "id": "loading", "description": "Measure results are being computed." },
+    { "id": "empty", "description": "No measure has produced data yet — typically a fresh install with no programs." },
+    { "id": "partial", "description": "Some measures resolved and others are unavailable; each unavailable one states why." },
+    { "id": "stale", "description": "Results are from a cached snapshot and the snapshot age is shown." },
+    { "id": "request-error", "description": "Measures could not be computed and the reason is visible." }
+  ],
+  "elements": [
+    { "id": "measures-region", "role": "region", "name": "Measures" },
+    { "id": "context-avoided", "role": "status", "name": "Context avoided", "description": "Fetched versus materialized across the corpus — the scenario's thesis metric." },
+    { "id": "measure-list", "role": "list", "name": "Declared measures", "description": "One entry per measure declared in the CLI manifest, with its intent and result kind." },
+    { "id": "measure-result", "role": "region", "name": "Measure result", "description": "Scalar, table, or series, rendered per the measure's declared result kind." },
+    { "id": "measure-basis", "role": "note", "name": "Basis", "description": "The window, population, and parameters the result was computed over." },
+    { "id": "unavailable-note", "role": "note", "name": "Measure unavailable", "description": "States why a measure could not be computed, in place of a zero." },
+    { "id": "waived-domain-note", "role": "note", "name": "Waived domain", "description": "A domain intentionally carrying no measure, with the declared reason." },
+    { "id": "binding-coverage", "role": "status", "name": "Binding coverage", "description": "Bound against total operation classes — the same registry state the Act numerator reports." },
+    { "id": "snapshot-freshness", "role": "status", "name": "Snapshot age" }
+  ],
+  "claims": [
+    {
+      "id": "measures-region-present",
+      "type": "element-present",
+      "statement": "The page exposes a named measures region containing the declared measure list.",
+      "tier": "machine",
+      "elements": ["measures-region", "measure-list"],
+      "states": ["default", "partial", "stale"]
+    },
+    {
+      "id": "context-avoided-is-dominant",
+      "type": "single-dominant-action",
+      "statement": "Context avoided is the visually dominant element on the page.",
+      "tier": "machine",
+      "elements": ["context-avoided"],
+      "states": ["default"]
+    },
+    {
+      "id": "every-result-states-its-basis",
+      "type": "custom",
+      "statement": "No measure result renders without the window and population it was computed over.",
+      "tier": "manual",
+      "elements": ["measure-result", "measure-basis"],
+      "states": ["default", "partial"],
+      "rationale": "A number without a basis cannot be checked, and this console's voice contract requires every number to be falsifiable."
+    },
+    {
+      "id": "unavailable-is-not-zero",
+      "type": "custom",
+      "statement": "A measure that could not be computed reports unavailable with a reason and never renders as zero.",
+      "tier": "manual",
+      "elements": ["unavailable-note"],
+      "states": ["partial", "empty"],
+      "rationale": "Zero is a measurement. Reporting an absence as zero is the exact failure the readiness board's denominator-confidence model exists to prevent."
+    },
+    {
+      "id": "waived-domains-are-shown",
+      "type": "custom",
+      "statement": "A stateful domain carrying no measure appears with its waiver and reason rather than being omitted.",
+      "tier": "manual",
+      "elements": ["waived-domain-note"],
+      "states": ["default", "partial"],
+      "rationale": "OT-P0-009. An omitted domain is indistinguishable from a covered one, which defeats the point of grading coverage."
+    },
+    {
+      "id": "only-declared-measures-render",
+      "type": "custom",
+      "statement": "Every value on this page traces to a measure declared in the CLI manifest.",
+      "tier": "manual",
+      "elements": ["measure-list", "measure-result", "context-avoided", "binding-coverage"],
+      "states": ["default"],
+      "rationale": "An undeclared chart is unreachable by search-hub and by any other caller, and constitutes the scenario-local analysis stack this scenario does not build."
+    },
+    {
+      "id": "measures-states-covered",
+      "type": "state-covered",
+      "statement": "Loading, empty, partial, stale, and error states each render dedicated content.",
+      "tier": "machine",
+      "elements": ["measures-region"],
+      "states": ["loading", "empty", "partial", "stale", "request-error"]
+    },
+    {
+      "id": "measures-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The measure list and every measure result are reachable by keyboard alone.",
+      "tier": "machine",
+      "elements": ["measure-list", "measure-result"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "measures-region": { "testid": "page-measures" },
+      "context-avoided": { "testid": "measures-context-avoided" },
+      "measure-list": { "testid": "measures-list" },
+      "measure-result": { "testid": "measures-result" },
+      "measure-basis": { "testid": "measures-basis" },
+      "unavailable-note": { "testid": "measures-unavailable" },
+      "waived-domain-note": { "testid": "measures-waived-domain" },
+      "binding-coverage": { "testid": "measures-binding-coverage" },
+      "snapshot-freshness": { "testid": "measures-snapshot-age" }
+    }
+  }
+}

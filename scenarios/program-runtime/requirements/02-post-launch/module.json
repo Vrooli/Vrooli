@@ -1,0 +1,223 @@
+{
+  "_metadata": {
+    "description": "Requirements that widen the runtime after launch: discovery, typed inference, delegation, sandbox composition, session limits, and the program corpus.",
+    "last_validated_at": "2026-08-06T03:36:21-04:00",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PRT-P1-001",
+      "title": "In-kernel capability discovery",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "bindings.discovery",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD expose capability discovery as an in-kernel call so a program resolves an operation by intent without the callable surface being preloaded into the submitting agent's context.",
+      "tags": [
+        "discovery",
+        "search-hub",
+        "context-cost"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/bindings/discovery_test.go::TestResolvesOperationByIntent` (tag the test [REQ:PRT-P1-001]). An intent string resolves to candidate bindings through search-hub without preloading the surface."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/bindings/discovery_test.go::TestDegradesWhenSearchHubUnavailable` (tag the test [REQ:PRT-P1-001]). An unreachable search-hub degrades to a stated reason; direct binding calls keep working."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-002",
+      "title": "Typed inference bindings",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "programs.inference",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD expose classify, extract, and judge operations resolved through ai-gateway, so a program performs bounded typed inference without spawning a delegated agent run.",
+      "tags": [
+        "ai-gateway",
+        "inference",
+        "typed"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/programs/inference_test.go::TestClassifyExtractJudgeRouteToAIGateway` (tag the test [REQ:PRT-P1-002]). Typed inference resolves through ai-gateway, never through a direct provider client or agent-manager."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/programs/inference_test.go::TestLocalSchemaValidationIsAuthority` (tag the test [REQ:PRT-P1-002]). Provider extraction is advisory; a candidate failing local schema validation is refused, not returned."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-003",
+      "title": "Delegated agent runs from a program",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "programs.delegation",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD let a program spawn an agent-manager run and collect its evidence, so unbounded agentic work stays distinguishable from bounded inference.",
+      "tags": [
+        "agent-manager",
+        "delegation",
+        "runs"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/programs/delegation_test.go::TestSpawnsAgentManagerRunAndCollectsEvidence` (tag the test [REQ:PRT-P1-003]). A program spawns a real run and collects its evidence, keeping unbounded agentic work distinct from bounded inference."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-004",
+      "title": "Sandbox composition",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "sessions.sandbox",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD bind a session to a workspace-sandbox workspace so filesystem effects are isolated and reviewable.",
+      "tags": [
+        "workspace-sandbox",
+        "isolation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/sessions/sandbox_test.go::TestSessionBindsToSandboxWorkspace` (tag the test [REQ:PRT-P1-004]). A session bound to a workspace-sandbox workspace confines filesystem effects to that workspace."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-005",
+      "title": "Bounded session lifecycle",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "sessions.limits",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD enforce idle reclamation and wall-clock and memory ceilings per session, and SHOULD report the reason when it reclaims a session.",
+      "tags": [
+        "limits",
+        "reclamation",
+        "resources"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/sessions/limits_test.go::TestReclaimsIdleSessionWithStatedReason` (tag the test [REQ:PRT-P1-005]). An idle session past its ceiling is reclaimed and the reclamation reason is readable afterward."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/sessions/limits_test.go::TestEnforcesWallClockAndMemoryCeilings` (tag the test [REQ:PRT-P1-005]). Wall-clock and memory ceilings terminate a session deterministically rather than degrading the host."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-006",
+      "title": "Queryable program corpus",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "programs.corpus",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD retain submitted program source and failure detail as a queryable corpus so recurring failure shapes are derivable mechanically.",
+      "tags": [
+        "corpus",
+        "history",
+        "friction"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/programs/corpus_test.go::TestRetainsProgramSourceAndFailureDetail` (tag the test [REQ:PRT-P1-006]). Submitted source and failure detail are retained and queryable after the session ends."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/programs/corpus_test.go::TestRecurringFailureShapesAreDerivable` (tag the test [REQ:PRT-P1-006]). Repeated failures sharing a shape are countable mechanically, without an inference call."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-007",
+      "title": "Binding registry inspection surface",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "ui.bindings",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD provide an operator surface that browses the resolved callable namespace and, for every fleet capability that is unbound, states which of the declared unbound reasons applies.",
+      "tags": [
+        "ui",
+        "bindings",
+        "unbound",
+        "act"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/bindings/unbound_test.go::TestEveryUnboundCapabilityCarriesAReason` (tag the test [REQ:PRT-P1-007]). No capability is reported unbound without one of the closed set of unbound reasons; an unclassifiable capability is reported as such rather than omitted."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "pending",
+          "notes": "Target `ui/src/features/bindings/BindingRegistry.test.tsx::rendersBoundAndUnboundWithReasons` (tag the test [REQ:PRT-P1-007]). The surface renders with an empty program corpus, proving it carries information before any program has run."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P1-008",
+      "title": "Program provenance",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "programs.provenance",
+      "criticality": "P1",
+      "description": "The Program Runtime SHOULD record whether a program was submitted by an agent or by a human operator, and SHOULD exclude operator-submitted programs from corpus mining by default.",
+      "tags": [
+        "provenance",
+        "corpus",
+        "operator"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/programs/provenance_test.go::TestSubmissionRecordsProvenance` (tag the test [REQ:PRT-P1-008]). Every submission carries an agent or operator provenance; neither is inferred silently."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/programs/provenance_test.go::TestMiningExcludesOperatorProgramsByDefault` (tag the test [REQ:PRT-P1-008]). A corpus query for recurring shapes omits operator-submitted programs unless they are explicitly included."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "bindings",
+    "title": "Binding registry",
+    "routes": ["/bindings", "/bindings/:bindingId"],
+    "purpose": "Answer two questions nothing else in Vrooli can answer: what can an agent actually call, and for everything it cannot, why not. The second half is the point — an unbound capability is a real gap in the acting surface even when the underlying capability plainly exists.",
+    "prd_refs": ["OT-P1-007", "OT-P0-008", "OT-P0-001", "OT-P0-005"]
+  },
+  "priorities": [
+    {
+      "statement": "Every unbound capability states its reason. A capability is never listed as unavailable without one.",
+      "notes": "The reasons are a closed set — no manifest, local-only command, omitted RPC, external-tool-only. A capability that fits none of them is shown as unclassified, which is itself a finding, rather than being dropped from the list."
+    },
+    {
+      "statement": "The page carries information with an empty program corpus.",
+      "notes": "This is why the surface was promoted out of OT-P2-001. On day one, before a single program has run, the registry is already the honest picture of the acting surface."
+    },
+    {
+      "statement": "Bound and unbound are shown against one another, never as separate inventories.",
+      "notes": "A reader should be able to see the ratio without doing arithmetic. Manifest coverage is the ceiling on everything this scenario can do, and hiding the denominator would conceal that."
+    },
+    {
+      "statement": "A binding's declared effect and permissions are visible before anyone calls it.",
+      "notes": "Governance is read from cli-manifest and never restated here. The page displays the contract; it does not author one."
+    },
+    {
+      "statement": "Reading the registry never mutates anything.",
+      "notes": "Every surface on this page is a query. No affordance on it can submit a call."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "The resolved namespace is browsable and unbound capabilities are listed with their reasons." },
+    { "id": "loading", "description": "The registry is resolving from the descriptor image and the CLI manifests." },
+    { "id": "empty", "description": "No manifest resolved at all, so nothing is callable. Distinct from a registry that resolved and found little." },
+    { "id": "partial", "description": "The registry resolved but at least one manifest failed to parse; the affected scenarios are named and excluded rather than silently missing." },
+    { "id": "stale", "description": "The descriptor image or a manifest changed since this registry snapshot was taken." },
+    { "id": "searching", "description": "A filter or query is narrowing the namespace." },
+    { "id": "request-error", "description": "The registry could not be read and the reason is visible." }
+  ],
+  "elements": [
+    { "id": "registry-region", "role": "region", "name": "Binding registry" },
+    { "id": "namespace-tree", "role": "tree", "name": "Callable namespace", "description": "The resolved surface, nested scenario > group > command, mirroring the path a program writes." },
+    { "id": "coverage-summary", "role": "status", "name": "Binding coverage", "description": "Bound versus total operation classes, with the manifest-coverage denominator stated alongside." },
+    { "id": "unbound-list", "role": "list", "name": "Unbound capabilities", "description": "One entry per capability with no typed binding, each carrying its unbound reason." },
+    { "id": "unbound-reason", "role": "note", "name": "Unbound reason", "description": "Which of the closed set applies: no manifest, local-only binding, omitted RPC, or external-tool-only." },
+    { "id": "unclassified-note", "role": "note", "name": "Unclassified capability", "description": "Shown when a capability matches no declared unbound reason, so the gap in the taxonomy is visible rather than swallowed." },
+    { "id": "binding-signature", "role": "region", "name": "Binding signature", "description": "Typed request fields resolved from the proto descriptor." },
+    { "id": "effect-badge", "role": "status", "name": "Declared effect", "description": "read, write, or destructive, read from cli-manifest governance." },
+    { "id": "permissions-list", "role": "list", "name": "Required permissions" },
+    { "id": "registry-filter", "role": "searchbox", "name": "Filter bindings" },
+    { "id": "snapshot-freshness", "role": "status", "name": "Registry snapshot age" }
+  ],
+  "claims": [
+    {
+      "id": "registry-region-present",
+      "type": "element-present",
+      "statement": "The page exposes a named registry region containing both the callable namespace and the unbound list.",
+      "tier": "machine",
+      "elements": ["registry-region", "namespace-tree", "unbound-list"],
+      "states": ["default", "partial", "stale", "searching"]
+    },
+    {
+      "id": "every-unbound-entry-has-a-reason",
+      "type": "custom",
+      "statement": "No entry in the unbound list renders without an unbound reason or an explicit unclassified marker.",
+      "tier": "manual",
+      "elements": ["unbound-list", "unbound-reason", "unclassified-note"],
+      "states": ["default", "partial"],
+      "rationale": "OT-P1-007. A capability listed as unavailable with no reason is indistinguishable from a bug in the registry, and teaches operators to distrust the whole surface."
+    },
+    {
+      "id": "coverage-states-its-denominator",
+      "type": "custom",
+      "statement": "The coverage summary shows the denominator alongside the bound count, including how many scenarios ship no manifest at all.",
+      "tier": "manual",
+      "elements": ["coverage-summary"],
+      "states": ["default", "partial"],
+      "rationale": "Manifest coverage is the hard ceiling on the acting surface. A bound count without its denominator reads as completeness."
+    },
+    {
+      "id": "useful-with-empty-corpus",
+      "type": "custom",
+      "statement": "The registry renders its full information with zero programs in the corpus.",
+      "tier": "manual",
+      "elements": ["namespace-tree", "unbound-list", "coverage-summary"],
+      "states": ["default"],
+      "rationale": "OT-P1-007's promotion argument. If this page needs program history to be useful, it belongs back at P2."
+    },
+    {
+      "id": "empty-distinct-from-partial",
+      "type": "state-distinct",
+      "statement": "A registry that resolved nothing is visibly different from one that resolved with some manifests failing.",
+      "tier": "machine",
+      "elements": ["registry-region", "coverage-summary"],
+      "states": ["empty", "partial"]
+    },
+    {
+      "id": "effect-not-color-only",
+      "type": "custom",
+      "statement": "A binding's declared effect is conveyed by text as well as by any color treatment.",
+      "tier": "manual",
+      "elements": ["effect-badge"],
+      "states": ["default"],
+      "rationale": "destructive versus read is the distinction that decides whether a grant is needed; it must not depend on color perception."
+    },
+    {
+      "id": "registry-is-read-only",
+      "type": "custom",
+      "statement": "No affordance on this page submits a call or mutates state.",
+      "tier": "manual",
+      "elements": ["registry-region"],
+      "states": ["default", "searching"],
+      "rationale": "The registry is a query surface. An execute affordance here would create a submission path with no session, no grant, and no provenance."
+    },
+    {
+      "id": "stale-snapshot-is-stated",
+      "type": "custom",
+      "statement": "When the descriptor image or a manifest has changed since the snapshot, the page says so rather than presenting stale data as current.",
+      "tier": "manual",
+      "elements": ["snapshot-freshness"],
+      "states": ["stale"],
+      "rationale": "A stale registry silently misreports what an agent can call, which is worse than reporting unavailable."
+    },
+    {
+      "id": "bindings-states-covered",
+      "type": "state-covered",
+      "statement": "Loading, empty, partial, stale, searching, and error states each render dedicated content.",
+      "tier": "machine",
+      "elements": ["registry-region"],
+      "states": ["loading", "empty", "partial", "stale", "searching", "request-error"]
+    },
+    {
+      "id": "bindings-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The namespace tree, the filter, and every unbound entry are reachable by keyboard alone.",
+      "tier": "machine",
+      "elements": ["namespace-tree", "registry-filter", "unbound-list"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "registry-region": { "testid": "page-bindings" },
+      "namespace-tree": { "testid": "bindings-namespace-tree" },
+      "coverage-summary": { "testid": "bindings-coverage-summary" },
+      "unbound-list": { "testid": "bindings-unbound-list" },
+      "unbound-reason": { "testid": "bindings-unbound-reason" },
+      "unclassified-note": { "testid": "bindings-unclassified" },
+      "binding-signature": { "testid": "bindings-signature" },
+      "effect-badge": { "testid": "bindings-effect" },
+      "permissions-list": { "testid": "bindings-permissions" },
+      "registry-filter": { "testid": "bindings-filter" },
+      "snapshot-freshness": { "testid": "bindings-snapshot-age" }
+    }
+  }
+}

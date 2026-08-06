@@ -1,0 +1,305 @@
+{
+  "_metadata": {
+    "description": "Non-negotiable launch requirements: the binding registry, typed validation, handle discipline, session state, governance enforcement, telemetry, and Act projection ownership.",
+    "last_validated_at": "2026-08-06T03:36:21-04:00",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PRT-P0-001",
+      "title": "Runtime binding generation",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "bindings.registry",
+      "criticality": "P0",
+      "description": "The Program Runtime MUST generate callable bindings at session start from the proto descriptor image and the scenario CLI manifests, and MUST NOT require per-scenario integration code for a scenario that ships a manifest.",
+      "tags": [
+        "bindings",
+        "descriptor",
+        "manifest"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/bindings/registry_test.go::TestProjectsManifestBoundMethods` (tag the test [REQ:PRT-P0-001]). Given the generated descriptor image and a scenario CLI manifest, the registry yields one callable per manifest-bound Connect method."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/bindings/registry_test.go::TestNewManifestNeedsNoScenarioCode` (tag the test [REQ:PRT-P0-001]). A manifest added to the fixture set becomes callable without any registry edit, proving zero per-scenario integration."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `kernel/tests/test_namespace.py::test_namespace_mirrors_manifest_groups` (tag the test [REQ:PRT-P0-001]). The kernel namespace path matches the manifest group/command shape agents already know from the CLI."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P0-002",
+      "title": "Pre-flight argument validation",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "bindings.validation",
+      "criticality": "P0",
+      "description": "When a program calls a binding with arguments that do not satisfy the bound proto method's field contract, the Program Runtime MUST reject the call before issuing any request and MUST name the offending field.",
+      "tags": [
+        "bindings",
+        "validation",
+        "typed-args"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/bindings/validate_test.go::TestRejectsUnknownFieldBeforeDispatch` (tag the test [REQ:PRT-P0-002]). An argument absent from the bound request message is refused with no outbound request issued."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/bindings/validate_test.go::TestErrorNamesOffendingField` (tag the test [REQ:PRT-P0-002]). The refusal names the offending field so a program can be repaired without reading proto source."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/bindings/validate_test.go::TestRejectsMistypedAndMissingRequiredFields` (tag the test [REQ:PRT-P0-002]). Wrong-typed and omitted required fields are refused pre-flight, not surfaced as a remote 400."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P0-003",
+      "title": "Handle-based results",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "programs.handles",
+      "criticality": "P0",
+      "description": "The Program Runtime MUST return operation results as in-kernel handles whose default representation is bounded, and MUST require an explicit materialization call before result data enters the submitter's output.",
+      "tags": [
+        "handles",
+        "materialization",
+        "context-cost"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `kernel/tests/test_handles.py::test_default_repr_is_bounded` (tag the test [REQ:PRT-P0-003]). A handle's default representation is bounded regardless of underlying row count or payload size."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `kernel/tests/test_handles.py::test_materialization_is_explicit` (tag the test [REQ:PRT-P0-003]). Row data reaches program output only through an explicit materialization call, never via default repr."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `kernel/tests/test_handles.py::test_filter_and_aggregate_run_in_kernel` (tag the test [REQ:PRT-P0-003]). Filter, count, and group operations resolve in-kernel without materializing the source collection."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/programs/materialization_test.go::TestContextBytesPerQueryBudget` (tag the test [REQ:PRT-P0-003]). Pins context bytes returned for a large-result query. This is the acceptance signal for the scenario's core value claim."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P0-004",
+      "title": "Session-persistent kernel state",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "sessions.state",
+      "criticality": "P0",
+      "description": "While a session is live, the Program Runtime MUST preserve kernel variable state across separate program submissions so a later program can reference an earlier program's handles.",
+      "tags": [
+        "sessions",
+        "persistence",
+        "kernel"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/sessions/lifecycle_test.go::TestVariablesSurviveSubmissionBoundary` (tag the test [REQ:PRT-P0-004]). A handle bound in one submission is referenceable by name in a later submission on the same session."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/sessions/lifecycle_test.go::TestSessionsAreIsolatedFromEachOther` (tag the test [REQ:PRT-P0-004]). State bound in one session is not reachable from another, so concurrent agents cannot observe each other."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P0-005",
+      "title": "Governance enforced at the binding boundary",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "bindings.governance",
+      "criticality": "P0",
+      "description": "The Program Runtime MUST NOT generate a binding for a command whose CLI manifest governance declares run_eligible false, and MUST refuse a binding whose declared effect is destructive unless the session holds an explicit matching grant.",
+      "tags": [
+        "governance",
+        "effect",
+        "grants"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/bindings/governance_test.go::TestRunIneligibleCommandGeneratesNoBinding` (tag the test [REQ:PRT-P0-005]). A manifest command declaring run_eligible false produces no callable at all, not a callable that fails at dispatch."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/bindings/governance_test.go::TestDestructiveEffectRequiresGrant` (tag the test [REQ:PRT-P0-005]). A destructive-effect binding refuses without a matching session grant and succeeds with one."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/bindings/governance_test.go::TestGovernanceIsReadNotRedefined` (tag the test [REQ:PRT-P0-005]). Effect and permission vocabulary is read from the manifest contract; the scenario declares no second policy vocabulary."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P0-006",
+      "title": "Typed program telemetry",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "telemetry.events",
+      "criticality": "P0",
+      "description": "The Program Runtime MUST emit a typed platform event for every program submission, binding invocation, and program failure through the shared event bus, so friction analysis reads program evidence without a scenario-local analysis stack.",
+      "tags": [
+        "telemetry",
+        "events",
+        "friction"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/telemetry/events_test.go::TestEmitsSubmissionInvocationAndFailureEvents` (tag the test [REQ:PRT-P0-006]). Each program submission, binding invocation, and failure emits one typed event through the shared event bus."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/telemetry/events_test.go::TestFailureEventCarriesProgramLocator` (tag the test [REQ:PRT-P0-006]). A failure event carries the program id and failing location so friction analysis can trace it without re-running."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/telemetry/events_test.go::TestNoScenarioLocalAnalysisStack` (tag the test [REQ:PRT-P0-006]). Telemetry is emitted only; no aggregation or ranking happens here. Analysis belongs to agent-manager and meta-optimization-manager."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P0-007",
+      "title": "Act projection ownership",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "actspace.denominator",
+      "criticality": "P0",
+      "description": "The Program Runtime MUST serve the Act denominator through the shared space projection verb.",
+      "tags": [
+        "act",
+        "coverage",
+        "spacedoc"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/actspace/space_test.go::TestServesActDenominator` (tag the test [REQ:PRT-P0-007]). The shared space projection verb returns the Act denominator parsed from docs/spaces/act-space.md."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/actspace/space_test.go::TestMatchesSpacedocContract` (tag the test [REQ:PRT-P0-007]). Output satisfies the shared spacedoc contract meta-optimization-manager reads, including denominator confidence."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P0-008",
+      "title": "Act numerator registry RPC",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "actspace.numerator",
+      "criticality": "P0",
+      "description": "The Program Runtime MUST expose a binding-registry RPC that reports, per Act operation class, whether every operation it names resolves to a manifest-bound governed binding, so meta-optimization-manager computes the Act numerator live and never stores it.",
+      "tags": [
+        "act",
+        "coverage",
+        "registry-rpc"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/actspace/numerator_test.go::TestReportsPerCellBindingResolution` (tag the test [REQ:PRT-P0-008]). The registry RPC reports, per Act operation class, whether every named operation resolves to a governed binding."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/actspace/numerator_test.go::TestPartiallyBoundCellIsInReach` (tag the test [REQ:PRT-P0-008]). A cell whose operations are only partially bound reports in-reach rather than covered."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/actspace/numerator_test.go::TestUnresolvableCellKeepsAuthoredStatus` (tag the test [REQ:PRT-P0-008]). A cell that cannot be resolved keeps its authored status and is never fabricated as missing."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P0-009",
+      "title": "Domain measure coverage",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "category": "measures.coverage",
+      "criticality": "P0",
+      "description": "Every stateful domain the Program Runtime owns MUST carry at least one declared measure in the CLI manifest, or a `measures.omitted` waiver naming the domain and its reason, so measures-health grades the scenario on a stated position rather than an absence.",
+      "tags": [
+        "measures",
+        "manifest",
+        "coverage"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/measures/coverage_test.go::TestEveryStatefulDomainHasMeasureOrWaiver` (tag the test [REQ:PRT-P0-009]). Each domain classified stateful resolves to at least one declared measure or a waiver carrying a reason; a domain with neither fails."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/measures/coverage_test.go::TestWaiverNamesALiveDomain` (tag the test [REQ:PRT-P0-009]). A waiver pointing at a non-stateful or nonexistent domain is reported as stale rather than silently accepted."
+        }
+      ]
+    }
+  ]
+}

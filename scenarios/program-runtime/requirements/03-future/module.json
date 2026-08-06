@@ -1,0 +1,96 @@
+{
+  "_metadata": {
+    "description": "Aspirational requirements: operator inspection, corpus mining, named durable sessions, and alternate kernel adapters.",
+    "last_validated_at": "2026-08-06T03:36:21-04:00",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PRT-P2-001",
+      "title": "Operator inspection surface",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "ui.inspection",
+      "criticality": "P2",
+      "description": "The Program Runtime MAY provide an operator UI for browsing sessions, program history, and the resolved binding surface.",
+      "tags": [
+        "ui",
+        "operator"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `ui/src/features/sessions/SessionsCard.test.tsx::renders session and program history` (tag the test [REQ:PRT-P2-001]). Operator surface lists sessions, program history, and the resolved binding surface."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P2-002",
+      "title": "Program corpus mining",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "programs.mining",
+      "criticality": "P2",
+      "description": "The Program Runtime MAY analyze recurring program shapes in the corpus and propose them as skill or action candidates with their call sites as evidence.",
+      "tags": [
+        "corpus",
+        "skills",
+        "meta-optimization"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/programs/mining_test.go::TestProposesRecurringShapeWithCallSites` (tag the test [REQ:PRT-P2-002]). A recurring program shape is proposed as a skill or action candidate with its call sites attached as evidence."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P2-003",
+      "title": "Named durable workspaces",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "sessions.named",
+      "criticality": "P2",
+      "description": "The Program Runtime MAY support named sessions that survive across agent runs so a long investigation reuses accumulated state.",
+      "tags": [
+        "sessions",
+        "durability"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/sessions/named_test.go::TestNamedSessionSurvivesAcrossAgentRuns` (tag the test [REQ:PRT-P2-003]). A named session is resumable by a later agent run with its accumulated state intact."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P2-004",
+      "title": "Alternate kernel adapters",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "kernel.adapters",
+      "criticality": "P2",
+      "description": "The Program Runtime MAY support kernel languages beyond Python where a measured capability argument justifies the added surface.",
+      "tags": [
+        "kernel",
+        "extensibility"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Target `api/internal/sessions/adapter_test.go::TestKernelAdapterSeamIsLanguageNeutral` (tag the test [REQ:PRT-P2-004]). The kernel adapter seam admits a non-Python kernel without changes to bindings or governance."
+        }
+      ]
+    }
+  ]
+}

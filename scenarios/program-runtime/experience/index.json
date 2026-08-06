@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "program-runtime",
+  "description": "Experience contract for the Program Runtime operator console. Its primary user is an agent that never opens it, so every surface is forensic rather than task-oriented and the layout follows an IDE: binding registry as symbol explorer, corpus as file history, program detail as editor, sessions as debug sessions with a watch window. Two journeys anchor it — triage of a failed program, and the day-one question of what an agent cannot call.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Dashboard",
+      "status": "active"
+    },
+    {
+      "id": "bindings",
+      "path": "pages/bindings.json",
+      "title": "Binding registry",
+      "status": "active"
+    },
+    {
+      "id": "programs",
+      "path": "pages/programs.json",
+      "title": "Programs",
+      "status": "active"
+    },
+    {
+      "id": "program",
+      "path": "pages/program.json",
+      "title": "Program",
+      "status": "active"
+    },
+    {
+      "id": "sessions",
+      "path": "pages/sessions.json",
+      "title": "Sessions",
+      "status": "active"
+    },
+    {
+      "id": "measures",
+      "path": "pages/measures.json",
+      "title": "Measures",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    },
+    {
+      "id": "notes",
+      "path": "pages/notes.json",
+      "title": "Notes",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "triage-a-failed-program",
+      "path": "journeys/triage-a-failed-program.json",
+      "title": "Understand why an agent's program failed, and correct it",
+      "status": "active"
+    },
+    {
+      "id": "find-what-cannot-be-called",
+      "path": "journeys/find-what-cannot-be-called.json",
+      "title": "Find what an agent cannot call, and why",
+      "status": "active"
+    }
+  ]
+}

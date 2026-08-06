@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "find-what-cannot-be-called",
+    "title": "Find what an agent cannot call, and why",
+    "purpose": "The day-one journey. Before a single program has run, an operator can already learn the shape of the acting surface: what is callable, what is not, and which of the closed set of reasons explains each gap. It ends pointing at the work that would raise the ceiling.",
+    "prd_refs": ["OT-P1-007", "OT-P0-008", "OT-P0-001", "OT-P0-009"]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "empty",
+      "intent": "Arrive with nothing run yet, learn what a program and a handle are, and see that binding coverage is reported even though the corpus is empty.",
+      "via": "first-run-explainer"
+    },
+    {
+      "page": "bindings",
+      "state": "default",
+      "intent": "Browse the resolved namespace and see bound capabilities against their denominator rather than as a standalone inventory.",
+      "via": "coverage-summary"
+    },
+    {
+      "page": "bindings",
+      "state": "searching",
+      "intent": "Filter to the unbound capabilities and read the reason attached to each one.",
+      "via": "registry-filter"
+    },
+    {
+      "page": "bindings",
+      "state": "default",
+      "intent": "Recognise that the largest single reason is scenarios shipping no CLI manifest at all, which is the hard ceiling on everything the runtime can do.",
+      "via": "unbound-reason"
+    },
+    {
+      "page": "measures",
+      "state": "default",
+      "intent": "Confirm the same coverage is published as a declared measure, so the finding is answerable through search-hub by anyone who never opens this console.",
+      "via": "binding-coverage"
+    }
+  ],
+  "claims": [
+    {
+      "id": "journey-works-with-empty-corpus",
+      "type": "custom",
+      "statement": "Every step completes with zero programs submitted and zero sessions live.",
+      "tier": "manual",
+      "rationale": "OT-P1-007's promotion argument. If this journey needs history, the binding registry belongs back at P2."
+    },
+    {
+      "id": "every-gap-is-attributable",
+      "type": "custom",
+      "statement": "The journey ends with each unbound capability attributed to a named reason and an owning scenario.",
+      "tier": "manual",
+      "rationale": "An unattributed gap cannot be assigned to anyone, which makes the Act projection a scoreboard rather than a work queue."
+    },
+    {
+      "id": "finding-escapes-the-console",
+      "type": "custom",
+      "statement": "The coverage finding is reachable as a declared measure, not only as a rendered page.",
+      "tier": "manual",
+      "rationale": "The primary user never opens this UI. A finding that exists only on screen is invisible to the agents and teams that would act on it."
+    }
+  ]
+}

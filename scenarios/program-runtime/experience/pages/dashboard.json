@@ -1,0 +1,133 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Dashboard",
+    "routes": ["/"],
+    "purpose": "Answer whether the runtime is doing its job, and route a reader to whatever went wrong. It leads with context avoided rather than inventory, because a count of sessions says nothing about whether the scenario is working.",
+    "prd_refs": ["OT-P0-003", "OT-P0-009", "OT-P1-007", "OT-P2-001"]
+  },
+  "priorities": [
+    {
+      "statement": "Context avoided leads. Inventory does not.",
+      "notes": "'12 sessions active' is true and useless. Fetched versus materialized is the number that says whether the thesis holds, and it is also the PRD's acceptance signal — so the dashboard and the acceptance criteria agree by construction."
+    },
+    {
+      "statement": "Recent failures are one interaction from the failing line.",
+      "notes": "The most common reason anyone opens this console is that a program failed. The dashboard's job is to shorten that path, not to summarize it."
+    },
+    {
+      "statement": "A human who has never seen this product can learn it here.",
+      "notes": "The primary user is an agent, so a first-time reader has no mental model. The empty state is the teaching surface, not a placeholder."
+    },
+    {
+      "statement": "Binding coverage is visible without opening the registry.",
+      "notes": "It is the ceiling on everything the runtime can do, and it moves as the fleet ships manifests."
+    },
+    {
+      "statement": "Nothing on the dashboard mounts the code editor.",
+      "notes": "Snippets are static. The dashboard must stay fast enough to be the default route."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "Thesis metric, recent failures, live sessions, and binding coverage are shown." },
+    { "id": "loading", "description": "Summary data is in flight." },
+    { "id": "empty", "description": "Nothing has run yet. The page explains what a program is, what a handle is, and why the runtime exists." },
+    { "id": "partial", "description": "Some summaries resolved and others are unavailable; each states why." },
+    { "id": "stale", "description": "Summaries are from a cached snapshot whose age is shown." },
+    { "id": "request-error", "description": "The summary could not be read and the reason is visible." }
+  ],
+  "elements": [
+    { "id": "dashboard-region", "role": "region", "name": "Program Runtime overview" },
+    { "id": "context-avoided", "role": "status", "name": "Context avoided", "description": "Fetched versus materialized across the corpus, with the window it covers." },
+    { "id": "recent-failures", "role": "list", "name": "Recent failures", "description": "Newest failing programs with their failure class, each linking to the failing line." },
+    { "id": "live-sessions", "role": "list", "name": "Live sessions" },
+    { "id": "binding-coverage", "role": "status", "name": "Binding coverage", "description": "Bound against total operation classes, with the manifest-coverage denominator." },
+    { "id": "unavailable-note", "role": "note", "name": "Summary unavailable" },
+    { "id": "first-run-explainer", "role": "note", "name": "What Program Runtime is", "description": "The teaching surface: a program replaces many tool calls, and a handle keeps results out of context." },
+    { "id": "snapshot-freshness", "role": "status", "name": "Snapshot age" }
+  ],
+  "claims": [
+    {
+      "id": "dashboard-region-present",
+      "type": "element-present",
+      "statement": "The dashboard exposes a named region containing the thesis metric and recent failures.",
+      "tier": "machine",
+      "elements": ["dashboard-region", "context-avoided", "recent-failures"],
+      "states": ["default", "partial", "stale"]
+    },
+    {
+      "id": "thesis-metric-is-dominant",
+      "type": "single-dominant-action",
+      "statement": "Context avoided is the visually dominant element on the dashboard.",
+      "tier": "machine",
+      "elements": ["context-avoided"],
+      "states": ["default"]
+    },
+    {
+      "id": "thesis-metric-above-the-fold",
+      "type": "visible-without-scroll",
+      "statement": "Context avoided is visible without scrolling at every declared viewport.",
+      "tier": "machine",
+      "elements": ["context-avoided"],
+      "states": ["default"]
+    },
+    {
+      "id": "failures-reach-the-failing-line",
+      "type": "custom",
+      "statement": "Each recent failure links directly to the program page positioned at its failing line, not to an unfiltered list.",
+      "tier": "manual",
+      "elements": ["recent-failures"],
+      "states": ["default"],
+      "rationale": "Triage is the spine journey. A link that lands on a list reintroduces the search this page exists to remove."
+    },
+    {
+      "id": "empty-state-teaches-the-model",
+      "type": "custom",
+      "statement": "With nothing run yet, the dashboard explains what a program and a handle are rather than showing empty tiles.",
+      "tier": "manual",
+      "elements": ["first-run-explainer"],
+      "states": ["empty"],
+      "rationale": "The product's user is an agent, so no human learns this by using it. If the empty state does not teach, nothing does."
+    },
+    {
+      "id": "unavailable-summaries-explain-themselves",
+      "type": "custom",
+      "statement": "A summary that could not be computed states why instead of rendering zero.",
+      "tier": "manual",
+      "elements": ["unavailable-note"],
+      "states": ["partial"],
+      "rationale": "Reporting an absence as zero misrepresents the runtime as idle rather than unmeasured."
+    },
+    {
+      "id": "dashboard-states-covered",
+      "type": "state-covered",
+      "statement": "Loading, empty, partial, stale, and error states each render dedicated content.",
+      "tier": "machine",
+      "elements": ["dashboard-region"],
+      "states": ["loading", "empty", "partial", "stale", "request-error"]
+    },
+    {
+      "id": "dashboard-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Recent failures, live sessions, and binding coverage are reachable by keyboard alone.",
+      "tier": "machine",
+      "elements": ["recent-failures", "live-sessions", "binding-coverage"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "dashboard-region": { "testid": "page-dashboard" },
+      "context-avoided": { "testid": "dashboard-context-avoided" },
+      "recent-failures": { "testid": "dashboard-recent-failures" },
+      "live-sessions": { "testid": "dashboard-live-sessions" },
+      "binding-coverage": { "testid": "dashboard-binding-coverage" },
+      "unavailable-note": { "testid": "dashboard-unavailable" },
+      "first-run-explainer": { "testid": "dashboard-first-run-explainer" },
+      "snapshot-freshness": { "testid": "dashboard-snapshot-age" }
+    }
+  }
+}

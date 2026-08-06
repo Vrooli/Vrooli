@@ -1,0 +1,127 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": ["/settings"],
+    "purpose": "Configure the operator's own console and the ceilings sessions run under. It does not configure governance: what a binding may do is declared in each scenario's CLI manifest and is never editable from here.",
+    "prd_refs": ["OT-P1-005", "OT-P0-005", "OT-P1-004"]
+  },
+  "priorities": [
+    {
+      "statement": "Governance is shown as inherited, never as editable.",
+      "notes": "effect, run_eligible, requires_confirmation, and permissions come from cli-manifest. A settings page that appeared to change them would create a second policy authority, which is the one thing the binding boundary must not have."
+    },
+    {
+      "statement": "Session ceilings state their units and their consequence.",
+      "notes": "Lowering an idle ceiling reclaims kernels sooner and destroys handle state. The control should say that, not just accept a number."
+    },
+    {
+      "statement": "Operator grants are a deliberate act with a visible scope.",
+      "notes": "Holding a destructive grant is the difference between reading the console and being able to break something from it."
+    },
+    {
+      "statement": "Every preference the console actually needs appears here.",
+      "notes": "Theme, locale, font scale, editor preferences, accessibility options, and default corpus filters — not only whatever the template shipped."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "Console preferences, session ceilings, and inherited governance are shown." },
+    { "id": "loading", "description": "Current settings are being read." },
+    { "id": "saving", "description": "A change is being persisted." },
+    { "id": "success", "description": "A change was persisted and the new value is reflected." },
+    { "id": "validation-error", "description": "A submitted value is out of range and the accepted range is stated." },
+    { "id": "permission-denied", "description": "The operator lacks the grant required to change a setting; the control reads as unavailable with a reason rather than failing on submit." },
+    { "id": "request-error", "description": "Settings could not be read or written and the reason is visible." }
+  ],
+  "elements": [
+    { "id": "settings-region", "role": "region", "name": "Settings" },
+    { "id": "appearance-group", "role": "group", "name": "Appearance", "description": "Theme, locale, and font scale." },
+    { "id": "editor-group", "role": "group", "name": "Editor", "description": "Word wrap, whitespace rendering, and whether inline materialization decorations are shown by default." },
+    { "id": "accessibility-group", "role": "group", "name": "Accessibility", "description": "Reduced motion, and whether the marker list is expanded by default alongside the editor." },
+    { "id": "ceilings-group", "role": "group", "name": "Session ceilings", "description": "Idle, wall-clock, and memory limits, each with its unit and its consequence stated." },
+    { "id": "grants-group", "role": "group", "name": "Operator grants", "description": "Which effects this operator may exercise from the console." },
+    { "id": "corpus-defaults-group", "role": "group", "name": "Corpus defaults", "description": "Default provenance filter and grouping for the program list." },
+    { "id": "inherited-governance-note", "role": "note", "name": "Governance is inherited", "description": "States that binding governance is declared in each scenario's CLI manifest and is not editable here." },
+    { "id": "ceiling-consequence-note", "role": "note", "name": "Effect of this ceiling" },
+    { "id": "save-status", "role": "status", "name": "Save status" }
+  ],
+  "claims": [
+    {
+      "id": "settings-region-present",
+      "type": "element-present",
+      "statement": "The page exposes a named settings region containing appearance, editor, accessibility, ceiling, grant, and corpus groups.",
+      "tier": "machine",
+      "elements": ["settings-region", "appearance-group", "editor-group", "accessibility-group", "ceilings-group", "grants-group", "corpus-defaults-group"],
+      "states": ["default"]
+    },
+    {
+      "id": "governance-is-read-only-here",
+      "type": "custom",
+      "statement": "Binding governance is presented as inherited from cli-manifest and offers no editing affordance.",
+      "tier": "manual",
+      "elements": ["inherited-governance-note"],
+      "states": ["default"],
+      "rationale": "OT-P0-005. This scenario enforces a governance contract it does not own. An editable copy here would be a second, divergent authority."
+    },
+    {
+      "id": "ceilings-state-their-consequence",
+      "type": "custom",
+      "statement": "Each session ceiling states its unit and what happens when it is reached.",
+      "tier": "manual",
+      "elements": ["ceilings-group", "ceiling-consequence-note"],
+      "states": ["default"],
+      "rationale": "OT-P1-005. Reclamation destroys kernel state, so a bare number with no stated consequence invites an operator to discard an agent's work by accident."
+    },
+    {
+      "id": "denied-controls-explain-themselves",
+      "type": "custom",
+      "statement": "A setting the operator may not change reads as unavailable with a reason rather than failing after submission.",
+      "tier": "manual",
+      "elements": ["grants-group", "save-status"],
+      "states": ["permission-denied"],
+      "rationale": "A control that accepts input and then rejects it teaches operators that the console is unreliable."
+    },
+    {
+      "id": "validation-states-the-range",
+      "type": "custom",
+      "statement": "An out-of-range ceiling reports the accepted range rather than a generic invalid message.",
+      "tier": "manual",
+      "elements": ["ceilings-group"],
+      "states": ["validation-error"],
+      "rationale": "Matches the voice contract the program page holds for pre-flight validation: name the field and the acceptable values."
+    },
+    {
+      "id": "settings-states-covered",
+      "type": "state-covered",
+      "statement": "Loading, saving, success, validation-error, permission-denied, and error states each render dedicated content.",
+      "tier": "machine",
+      "elements": ["settings-region"],
+      "states": ["loading", "saving", "success", "validation-error", "permission-denied", "request-error"]
+    },
+    {
+      "id": "settings-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Every control in every settings group is reachable and operable by keyboard alone.",
+      "tier": "machine",
+      "elements": ["appearance-group", "editor-group", "accessibility-group", "ceilings-group", "grants-group", "corpus-defaults-group"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "settings-region": { "testid": "page-settings" },
+      "appearance-group": { "testid": "settings-appearance" },
+      "editor-group": { "testid": "settings-editor" },
+      "accessibility-group": { "testid": "settings-accessibility" },
+      "ceilings-group": { "testid": "settings-ceilings" },
+      "grants-group": { "testid": "settings-grants" },
+      "corpus-defaults-group": { "testid": "settings-corpus-defaults" },
+      "inherited-governance-note": { "testid": "settings-inherited-governance" },
+      "ceiling-consequence-note": { "testid": "settings-ceiling-consequence" },
+      "save-status": { "testid": "settings-save-status" }
+    }
+  }
+}

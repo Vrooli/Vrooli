@@ -1,0 +1,228 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "program",
+    "title": "Program",
+    "routes": ["/programs/:programId", "/programs/:programId/fork", "/programs/new"],
+    "purpose": "Read one program the way its author would: the source in a real editor, what each line called, what it fetched, what it materialized, and exactly where and why it stopped. From here a failed program can be forked, corrected, and resubmitted.",
+    "prd_refs": ["OT-P0-003", "OT-P0-002", "OT-P0-005", "OT-P1-006", "OT-P1-008", "OT-P2-001"]
+  },
+  "priorities": [
+    {
+      "statement": "The failing line is the first thing a reader finds.",
+      "notes": "Someone arrives here because something went wrong. Scrolling to find the failure is the single most common wasted action this page can cause."
+    },
+    {
+      "statement": "The three failure classes read as three different things.",
+      "notes": "Refused means governance said no and the program was correct to ask. Invalid means the arguments were wrong before anything was sent. Errored means the program itself was wrong. Collapsing them into one red state destroys the most useful signal on the page."
+    },
+    {
+      "statement": "What stayed in the kernel is as visible as what came back.",
+      "notes": "The materialization ledger is the product thesis rendered at line granularity. A reader should be able to point at the line that spent context."
+    },
+    {
+      "statement": "The editor's meaning survives without the editor.",
+      "notes": "Every gutter marker also exists as text in an adjacent list. A squiggle is a convenience for sighted mouse users, never the only carrier of a failure."
+    },
+    {
+      "statement": "A fork is visibly a fork.",
+      "notes": "Provenance and ancestry are stated. An operator-submitted program must never be mistaken for something an agent wrote, because the corpus that feeds meta-optimization depends on that distinction."
+    },
+    {
+      "statement": "Predictive markers come from the real validator, never a lookalike.",
+      "notes": "While editing a fork, what the editor flags is exactly what the API would refuse. An editor that disagrees with the runtime is worse than one with no markers at all."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "A completed program is shown in replay: read-only source, invocation timeline, and per-line materialization." },
+    { "id": "loading", "description": "The program record and its invocation history are still in flight." },
+    { "id": "running", "description": "The program is executing; invocations and decorations stream in as they complete." },
+    { "id": "refused", "description": "A binding call was denied by declared governance — run_eligible false, or a destructive effect with no matching grant. The program was well-formed." },
+    { "id": "validation-error", "description": "Pre-flight validation rejected the arguments before any request was issued, and the offending field is named." },
+    { "id": "errored", "description": "The program raised at runtime; the traceback and the failing line are shown." },
+    { "id": "forking", "description": "An editable copy is open. Markers are predictive rather than historical, and nothing has been submitted." },
+    { "id": "submitting", "description": "A fork or a new program is being submitted to a session." },
+    { "id": "request-error", "description": "The program record could not be read and the reason is visible." }
+  ],
+  "elements": [
+    { "id": "program-region", "role": "region", "name": "Program" },
+    { "id": "source-editor", "role": "region", "name": "Program source", "description": "Monaco in replay, fork, or compose mode. Lazy-loaded; never mounted on list surfaces." },
+    { "id": "marker-list", "role": "list", "name": "Markers", "description": "Every gutter marker as text — line, class, and message. The non-visual equivalent of the gutter, not a summary of it." },
+    { "id": "failure-summary", "role": "alert", "name": "Failure summary", "description": "Names the failure class and the line, and is the page's first announced content when a program failed." },
+    { "id": "refusal-note", "role": "note", "name": "Refused by governance", "description": "States the declared effect, the missing grant, and that the call never left the kernel." },
+    { "id": "validation-note", "role": "note", "name": "Invalid arguments", "description": "Names the offending field and the fields the bound request message actually accepts." },
+    { "id": "traceback", "role": "log", "name": "Traceback", "description": "Full text, selectable and readable. Never collapsed into an icon or a color swatch." },
+    { "id": "invocation-timeline", "role": "list", "name": "Binding invocations", "description": "One entry per call in execution order: binding, declared effect, duration, outcome." },
+    { "id": "materialization-ledger", "role": "status", "name": "Materialization ledger", "description": "Fetched versus materialized for the whole program — rows, bytes, and the share that stayed in the kernel." },
+    { "id": "line-decoration", "role": "note", "name": "Per-line result", "description": "Inline after a binding call: what it fetched, how long it took, and whether it was materialized." },
+    { "id": "provenance-badge", "role": "status", "name": "Submitted by", "description": "Agent or operator, with the submitting identity when known." },
+    { "id": "ancestry-link", "role": "link", "name": "Forked from" },
+    { "id": "session-link", "role": "link", "name": "Session" },
+    { "id": "investigation-link", "role": "link", "name": "Run investigation", "description": "Links out to agent-manager for friction analysis of the owning run. This scenario does not analyze friction itself." },
+    { "id": "fork-action", "role": "button", "name": "Fork program" },
+    { "id": "submit-action", "role": "button", "name": "Submit program" },
+    { "id": "diff-view", "role": "region", "name": "Changes from original" }
+  ],
+  "claims": [
+    {
+      "id": "program-region-present",
+      "type": "element-present",
+      "statement": "The page exposes a named program region containing the source editor and the invocation timeline.",
+      "tier": "machine",
+      "elements": ["program-region", "source-editor", "invocation-timeline"],
+      "states": ["default", "running", "refused", "validation-error", "errored"]
+    },
+    {
+      "id": "failure-summary-is-first",
+      "type": "reading-order",
+      "statement": "When a program failed, the failure summary precedes the source in reading order.",
+      "tier": "machine",
+      "elements": ["failure-summary", "source-editor"],
+      "states": ["refused", "validation-error", "errored"]
+    },
+    {
+      "id": "failure-classes-are-distinct",
+      "type": "state-distinct",
+      "statement": "Refused, invalid, and errored are distinguishable from one another without reading the message body.",
+      "tier": "machine",
+      "elements": ["failure-summary"],
+      "states": ["refused", "validation-error", "errored"]
+    },
+    {
+      "id": "refusal-reads-as-policy-working",
+      "type": "custom",
+      "statement": "A call refused by declared governance is presented as the boundary behaving correctly, not as a defect in the program.",
+      "tier": "manual",
+      "elements": ["refusal-note", "failure-summary"],
+      "states": ["refused"],
+      "rationale": "OT-P0-005. If a refusal reads as a malfunction, operators will look for a way around the grant model, which inverts the point of enforcing governance at the binding boundary."
+    },
+    {
+      "id": "validation-names-the-field",
+      "type": "custom",
+      "statement": "A pre-flight rejection names the offending field and states that no request was issued.",
+      "tier": "manual",
+      "elements": ["validation-note"],
+      "states": ["validation-error"],
+      "rationale": "OT-P0-002. 'Invalid arguments' without a field name reproduces the vagueness this scenario exists to remove, and is the exact failure shape corpus mining is expected to find."
+    },
+    {
+      "id": "traceback-is-content",
+      "type": "custom",
+      "statement": "The traceback renders as selectable, screen-reader-legible text.",
+      "tier": "manual",
+      "elements": ["traceback"],
+      "states": ["errored"],
+      "rationale": "A traceback is the evidence, not decoration. Collapsing it into an icon or a color removes the only thing that makes the failure actionable."
+    },
+    {
+      "id": "markers-exist-as-text",
+      "type": "custom",
+      "statement": "Every marker shown in the editor gutter has a corresponding entry in the marker list, with its line, class, and message.",
+      "tier": "manual",
+      "elements": ["marker-list", "source-editor"],
+      "states": ["default", "refused", "validation-error", "errored", "forking"],
+      "rationale": "A code editor is the least accessible surface in this console. The gutter is a convenience; the marker list is the contract."
+    },
+    {
+      "id": "materialization-ledger-present",
+      "type": "element-present",
+      "statement": "A completed program shows what it fetched against what it materialized.",
+      "tier": "machine",
+      "elements": ["materialization-ledger"],
+      "states": ["default", "errored"]
+    },
+    {
+      "id": "per-line-materialization",
+      "type": "custom",
+      "statement": "Each binding call in the source carries an inline result stating what it fetched and whether it was materialized.",
+      "tier": "manual",
+      "elements": ["line-decoration", "source-editor"],
+      "states": ["default"],
+      "rationale": "OT-P0-003. Aggregate savings are believable; per-line attribution is what lets someone find the line that spent the context."
+    },
+    {
+      "id": "predictive-markers-match-the-validator",
+      "type": "custom",
+      "statement": "While editing a fork, the markers shown are produced by the same pre-flight validation the API uses to refuse a call.",
+      "tier": "manual",
+      "elements": ["source-editor", "marker-list"],
+      "states": ["forking"],
+      "rationale": "Stated as a design invariant in docs/internal/DECISIONS.md. A UI-side reimplementation would drift and the editor would begin lying about what is accepted."
+    },
+    {
+      "id": "provenance-visible",
+      "type": "element-present",
+      "statement": "Every program states whether it was submitted by an agent or by an operator.",
+      "tier": "machine",
+      "elements": ["provenance-badge"],
+      "states": ["default", "running", "forking", "refused", "validation-error", "errored"]
+    },
+    {
+      "id": "fork-declares-its-ancestor",
+      "type": "custom",
+      "statement": "A forked program links to the program it came from and can show the difference between them.",
+      "tier": "manual",
+      "elements": ["ancestry-link", "diff-view"],
+      "states": ["forking", "default"],
+      "rationale": "OT-P1-008. Without visible ancestry, a corrected fork and an original failure are two unrelated corpus entries, and the correction stops being evidence."
+    },
+    {
+      "id": "friction-links-out",
+      "type": "custom",
+      "statement": "Friction analysis for the owning run is reached by link, not reproduced on this page.",
+      "tier": "manual",
+      "elements": ["investigation-link"],
+      "states": ["default", "errored"],
+      "rationale": "agent-manager owns friction analysis. Reproducing it here would be the scenario-local analysis stack this scenario deliberately does not build."
+    },
+    {
+      "id": "running-streams-progress",
+      "type": "custom",
+      "statement": "While a program runs, completed invocations appear as they finish rather than only at completion.",
+      "tier": "manual",
+      "elements": ["invocation-timeline"],
+      "states": ["running"],
+      "rationale": "A program making many calls is otherwise indistinguishable from a hung one, and the events that would show progress are already emitted."
+    },
+    {
+      "id": "program-states-covered",
+      "type": "state-covered",
+      "statement": "Loading, running, refused, invalid, errored, forking, submitting, and error states each render dedicated content.",
+      "tier": "machine",
+      "elements": ["program-region"],
+      "states": ["loading", "running", "refused", "validation-error", "errored", "forking", "submitting", "request-error"]
+    },
+    {
+      "id": "program-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The marker list, the invocation timeline, fork, and submit are reachable by keyboard alone, and focus can leave the editor without a trap.",
+      "tier": "machine",
+      "elements": ["marker-list", "invocation-timeline", "fork-action", "submit-action"],
+      "states": ["default", "forking"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "program-region": { "testid": "page-program" },
+      "source-editor": { "testid": "program-source" },
+      "marker-list": { "testid": "program-markers" },
+      "failure-summary": { "testid": "program-failure-summary" },
+      "refusal-note": { "testid": "program-refusal" },
+      "validation-note": { "testid": "program-validation" },
+      "traceback": { "testid": "program-traceback" },
+      "invocation-timeline": { "testid": "program-invocations" },
+      "materialization-ledger": { "testid": "program-materialization" },
+      "line-decoration": { "testid": "program-line-result" },
+      "provenance-badge": { "testid": "program-provenance" },
+      "ancestry-link": { "testid": "program-ancestry" },
+      "session-link": { "testid": "program-session-link" },
+      "investigation-link": { "testid": "program-investigation-link" },
+      "fork-action": { "testid": "program-fork" },
+      "submit-action": { "testid": "program-submit" },
+      "diff-view": { "testid": "program-diff" }
+    }
+  }
+}
