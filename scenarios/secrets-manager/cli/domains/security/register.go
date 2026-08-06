@@ -145,7 +145,7 @@ func runCompliance(core *cliapp.ScenarioApp, args []string) error {
 	report := cliapp.OperationalReport{
 		Status: []string{
 			fmt.Sprintf("Overall score: %d", resp.OverallScore),
-			fmt.Sprintf("Vault health: %d", resp.VaultSecretsHealth),
+			fmt.Sprintf("Credential coverage health: %d", resp.CredentialCoverageHealth),
 			fmt.Sprintf("Security score: %d", resp.RemediationProgress.SecurityScore),
 			fmt.Sprintf("Total vulnerabilities: %d", resp.TotalVulnerabilities),
 		},

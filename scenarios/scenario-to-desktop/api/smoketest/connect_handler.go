@@ -81,6 +81,39 @@ func StatusToProto(v *Status) *sharedv1.SmokeTestStatusResponse {
 			Error:     optional(v.ScreenRecording.Error),
 		}
 	}
+	if v.EvidenceReview != nil {
+		review := &sharedv1.EvidenceReview{
+			SchemaVersion:    v.EvidenceReview.SchemaVersion,
+			Capability:       v.EvidenceReview.Capability,
+			PlanId:           v.EvidenceReview.PlanID,
+			Profile:          v.EvidenceReview.Profile,
+			Disposition:      v.EvidenceReview.Disposition,
+			Reason:           optional(v.EvidenceReview.Reason),
+			EventCount:       int32(v.EvidenceReview.EventCount),
+			DeploymentMode:   optional(v.EvidenceReview.DeploymentMode),
+			ProviderTier:     optional(v.EvidenceReview.ProviderTier),
+			ServiceIdentity:  optional(v.EvidenceReview.ServiceIdentity),
+			Readiness:        optional(v.EvidenceReview.Readiness),
+			FallbackDecision: optional(v.EvidenceReview.FallbackDecision),
+			SafeRouteClass:   optional(v.EvidenceReview.SafeRouteClass),
+		}
+		for _, chapter := range v.EvidenceReview.Chapters {
+			review.Chapters = append(review.Chapters, &sharedv1.EvidenceChapter{
+				Id:                 chapter.ID,
+				Purpose:            chapter.Purpose,
+				Action:             chapter.Action,
+				Disposition:        chapter.Disposition,
+				AssertionId:        optional(chapter.AssertionID),
+				Expected:           optional(chapter.Expected),
+				Observed:           optional(chapter.Observed),
+				Error:              optional(chapter.Error),
+				VideoStartOffsetMs: chapter.VideoStartOffsetMs,
+				VideoEndOffsetMs:   chapter.VideoEndOffsetMs,
+				EvidenceIds:        append([]string(nil), chapter.EvidenceIDs...),
+			})
+		}
+		result.EvidenceReview = review
+	}
 	return result
 }
 

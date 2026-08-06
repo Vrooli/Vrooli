@@ -50,12 +50,14 @@ than copying a stale invocation here.
 
 ## Requirements Status
 
-**Overall Progress**: Both bundled offline mode (recommended) and thin-client mode are production-ready.
+**Overall Progress**: The baseline desktop path and provider-policy contracts are implemented. A fresh native Linux Hello Desktop journey passed on 2026-08-06; bundled-private, thin-client, shared-resource, and fallback release claims remain evidence-gated until their native fixture journeys run successfully.
 
 ### Stable Today ✅
-- **Bundled offline mode** (recommended default) - complete offline desktop applications with runtime supervisor
+- **Bundled offline mode** (recommended default) - supervisor and signed-artifact contract implemented; native dependency journey remains evidence-gated
 - Template generation for Electron (multiple template configs)
-- Thin-client mode for shared-server scenarios
+- Thin-client mode for shared-server scenarios - routing contract implemented; live Tier 1 operation evidence remains environment-dependent
+- Shared Tier 1 leases and private fallback - consent, lease, fallback, readiness, and redacted provider observations are implemented and unit-tested
+- Tier 2 peer communication - explicitly unsupported until an authenticated, scoped peer protocol exists
 - Development tooling (CLI, API, UI) and accompanying tests
 - Native features in templates (tray, menus, file dialogs)
 - API integration patterns (secure IPC, bundled runtime wiring)
@@ -87,7 +89,7 @@ than copying a stale invocation here.
 ### UI Tests
 - **ui/src/components/__tests__/**: 7/7 tests passing
 
-**Total**: Tests exist across API/CLI/UI/e2e; rerun suites to refresh pass/fail and coverage before reporting numbers.
+**Total**: Tests exist across API/CLI/UI/e2e. The current native evidence run is pipeline `e1c278d0-6170-3d28-6688-cb44b2d16006`; it produced a passing v2 journey and persisted MP4/manifest evidence for `hello-desktop` only.
 
 ## Reference Implementations
 
@@ -106,4 +108,4 @@ vrooli scenario requirements report scenario-to-desktop --format markdown
 ```
 
 ## Last Updated
-Needs refresh after the next full test run and requirement sync.
+Updated 2026-08-06 after native evidence validation and requirements validation (L3 clean). Provider-specific native release claims remain intentionally open.

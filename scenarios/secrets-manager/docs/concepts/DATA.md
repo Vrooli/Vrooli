@@ -6,11 +6,15 @@ This document defines metadata ownership and secret-value boundaries.
 
 ## Storage Overview
 
-Postgres stores shared secret requirements, validation history, scans, strategies, and overrides. Desktop mode uses a scenario-private SQLite database for metadata. Vault stores secret values.
+Postgres stores shared credential requirements, validation history, scans,
+strategies, and overrides. Desktop mode uses a scenario-private SQLite database
+for metadata. The credential authority stores secret values.
 
 ## Data Ownership
 
-Secrets Manager owns the metadata it creates. `resource-vault` owns Vault secret values and access control. Clients receive status, identifiers, and remediation guidance, never values.
+Secrets Manager owns the metadata it creates. The credential authority owns
+secret values and access control. Clients receive status, identifiers, and
+remediation guidance, never values.
 
 ## Schema Map
 
@@ -22,11 +26,13 @@ Schema initialization is idempotent. Routed database selection keeps shared and 
 
 ## Import / Export
 
-Deployment exports contain strategies and required secret identifiers. They must not contain secret values or Vault management credentials.
+Deployment exports contain strategies and required credential identifiers. They
+must not contain secret values or authority management credentials.
 
 ## Retention And Deletion
 
-Validation and scan records are operational metadata. Deletion and cleanup flows must preserve audit semantics and must not delete Vault values implicitly.
+Validation and scan records are operational metadata. Deletion and cleanup flows
+must preserve audit semantics and must not delete authority values implicitly.
 
 ## Privacy Notes
 

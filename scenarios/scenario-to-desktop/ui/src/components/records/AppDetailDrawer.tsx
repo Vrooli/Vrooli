@@ -94,13 +94,13 @@ export function AppDetailDrawer({
               Your browser does not support the video tag.
             </video>
             <div className="flex gap-4 text-xs text-slate-500">
-              {item.screen_recording?.duration_ms != null && (
+              {item.screen_recording.duration_ms != null && (
                 <span>
                   Duration:{" "}
                   {(item.screen_recording.duration_ms / 1000).toFixed(1)}s
                 </span>
               )}
-              {item.screen_recording?.file_size_bytes != null && (
+              {item.screen_recording.file_size_bytes != null && (
                 <span>
                   Size: {formatBytes(item.screen_recording.file_size_bytes)}
                 </span>

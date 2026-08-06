@@ -1,12 +1,17 @@
 # Tier 2 · Desktop Bundles
 
+> Current communication, bundle ownership, and evidence truth is maintained in
+> [`docs/reference/scenario-to-desktop-evidence-and-tier-contract.md`](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md).
+
 Goal: deliver a portable Windows/macOS/Linux app that contains the UI, API, dependencies, and bootstrap secrets for a single scenario (plus whatever scenarios/resources it needs).
 
 ## Current State (v1)
 
 - `scenario-to-desktop` can generate an Electron wrapper that bundles the UI.
-- The resulting `.exe` (or `.app`) is a **thin client**: it expects the API + resources to be reachable on a running Vrooli installation.
-- There is **no** automated bootstrap for dependencies, secrets, or offline capability.
+- A Tier 2 artifact may be a bundled private runtime or an external-server thin client. These are different communication contracts and must not be described interchangeably.
+- Bundled dependencies require verified artifacts, an explicit runtime plan, resource-native readiness, and redacted evidence before an offline claim is made.
+- Shared Tier 1 reuse is consent-gated broker access; it does not transfer resource lifecycle ownership to the desktop.
+- Tier 2 peer communication is unsupported until an authenticated, scoped, versioned peer protocol is implemented.
 
 ## Why v1 Failed
 

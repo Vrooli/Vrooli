@@ -11,7 +11,7 @@ const apiMocks = vi.hoisted(() => ({
   fetchCampaigns: vi.fn(),
   fetchScenarios: vi.fn(),
   fetchHealth: vi.fn(),
-  fetchVaultStatus: vi.fn(),
+  fetchCredentialCoverage: vi.fn(),
   fetchCompliance: vi.fn(),
   fetchOrientationSummary: vi.fn(),
   fetchVulnerabilities: vi.fn()
@@ -37,7 +37,7 @@ describe("dashboard data hooks", () => {
     ));
     apiMocks.fetchScenarios.mockResolvedValue({ scenarios: [{ name: "secrets-manager" }, { name: "api-gateway" }], count: 2 });
     apiMocks.fetchHealth.mockResolvedValue({ status: "ok" });
-    apiMocks.fetchVaultStatus.mockResolvedValue({ resource_statuses: [{ resource_name: "vault" }] });
+    apiMocks.fetchCredentialCoverage.mockResolvedValue({ resource_statuses: [{ resource_name: "vault" }] });
     apiMocks.fetchCompliance.mockResolvedValue({ overall_score: 100 });
     apiMocks.fetchOrientationSummary.mockResolvedValue({ hero_stats: { missing_secrets: 0 } });
     apiMocks.fetchVulnerabilities.mockResolvedValue({
@@ -87,7 +87,7 @@ describe("dashboard data hooks", () => {
     act(() => result.current.refreshAll());
     await waitFor(() => {
       expect(apiMocks.fetchHealth.mock.calls.length).toBeGreaterThan(1);
-      expect(apiMocks.fetchVaultStatus.mock.calls.length).toBeGreaterThan(1);
+      expect(apiMocks.fetchCredentialCoverage.mock.calls.length).toBeGreaterThan(1);
       expect(apiMocks.fetchCompliance.mock.calls.length).toBeGreaterThan(1);
       expect(apiMocks.fetchOrientationSummary.mock.calls.length).toBeGreaterThan(1);
     });

@@ -10,14 +10,14 @@ Returns lifecycle and dependency posture. `GET /api/v1/health` is the API-prefix
 
 | Area | Routes | Purpose |
 |---|---|---|
-| Vault | `/api/v1/vault/secrets/status`, `/validate`, `/provision` | Coverage, validation, and guarded provisioning |
+| Credentials | `/api/v1/credentials/secrets/status`, `/validate`, `/provision` | Metadata-only coverage, validation, and stdin-guarded provisioning through the credential authority |
 | Security | `/api/v1/security/scan`, `/compliance`, `/vulnerabilities` | Scan and posture reporting |
 | Resources | `/api/v1/resources/{resource}` | Resource detail and strategy mutation |
 | Deployment | `/api/v1/deployment/secrets`, `/readiness` | Bundle-safe strategy manifests |
 | Scenarios | `/api/v1/scenarios`, overrides routes | Inventory and strategy overrides |
 | Operations | orientation, campaigns, allowlist, watchlist, receipt signing | Operator workflows and supporting controls |
 
-Secret values and Vault management credentials are not response fields.
+Secret values and authority management credentials are not response fields.
 
 ## Adding A New Endpoint
 

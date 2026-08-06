@@ -21,13 +21,29 @@ import (
 // ServiceStatus is the credential-free runtime state shown by the desktop
 // supervisor. The server is an internal component, never a launch-surface app.
 type ServiceStatus struct {
-	Resource string         `json:"resource"`
-	PID      int            `json:"pid,omitempty"`
-	Running  bool           `json:"running"`
-	LogPath  string         `json:"log_path,omitempty"`
-	Ports    map[string]int `json:"ports,omitempty"`
-	Message  string         `json:"message,omitempty"`
-	Provider string         `json:"provider,omitempty"`
+	Resource    string              `json:"resource"`
+	PID         int                 `json:"pid,omitempty"`
+	Running     bool                `json:"running"`
+	LogPath     string              `json:"log_path,omitempty"`
+	Ports       map[string]int      `json:"ports,omitempty"`
+	Message     string              `json:"message,omitempty"`
+	Provider    string              `json:"provider,omitempty"`
+	Observation ProviderObservation `json:"provider_observation"`
+}
+
+// ProviderObservation is the credential-free runtime evidence contract. It
+// describes selection and readiness without exposing endpoints, tokens, or
+// operator configuration. The broker remains the authority for shared leases;
+// the supervisor remains the authority for private lifecycle.
+type ProviderObservation struct {
+	DeploymentMode   string     `json:"deployment_mode"`
+	ProviderTier     string     `json:"provider_tier"`
+	ServiceIdentity  string     `json:"service_identity"`
+	ArtifactDigest   string     `json:"artifact_digest,omitempty"`
+	Readiness        string     `json:"readiness"`
+	FallbackDecision string     `json:"fallback_decision,omitempty"`
+	SafeRouteClass   string     `json:"safe_route_class"`
+	LeaseExpiresAt   *time.Time `json:"lease_expires_at,omitempty"`
 }
 
 type runningService struct {
@@ -93,19 +109,19 @@ func (s *ServiceSupervisor) tryShared(ctx context.Context, item Item) bool {
 	binding, err := s.sharedResolver.ResolveSharedService(ctx, item)
 	if err != nil {
 		s.mu.Lock()
-		s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Message: "shared unavailable; using private bundled service"}
+		s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Message: "shared unavailable; using private bundled service", Observation: ProviderObservation{DeploymentMode: "bundled", ProviderTier: "none", ServiceIdentity: item.Resource, Readiness: "fallback", FallbackDecision: "private-bundle", SafeRouteClass: "private-bundle"}}
 		s.mu.Unlock()
 		return false
 	}
 	if strings.TrimSpace(binding.Endpoint) == "" {
 		s.mu.Lock()
-		s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Message: "shared binding was empty; using private bundled service"}
+		s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Message: "shared binding was empty; using private bundled service", Observation: ProviderObservation{DeploymentMode: "bundled", ProviderTier: "none", ServiceIdentity: item.Resource, Readiness: "fallback", FallbackDecision: "private-bundle", SafeRouteClass: "private-bundle"}}
 		s.mu.Unlock()
 		return false
 	}
 	if binding.ExpiresAt.IsZero() || !binding.ExpiresAt.After(time.Now()) {
 		s.mu.Lock()
-		s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Message: "shared binding was expired; using private bundled service"}
+		s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Message: "shared binding was expired; using private bundled service", Observation: ProviderObservation{DeploymentMode: "bundled", ProviderTier: "none", ServiceIdentity: item.Resource, Readiness: "fallback", FallbackDecision: "private-bundle", SafeRouteClass: "private-bundle"}}
 		s.mu.Unlock()
 		return false
 	}
@@ -115,7 +131,8 @@ func (s *ServiceSupervisor) tryShared(ctx context.Context, item Item) bool {
 	}
 	s.mu.Lock()
 	s.bindings[item.Resource] = SharedServiceBinding{Endpoint: binding.Endpoint, Environment: cloneEnvironment(binding.Environment), ExpiresAt: binding.ExpiresAt, Provider: provider}
-	s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Running: true, Message: "using consented shared service", Provider: provider}
+	expiresAt := binding.ExpiresAt
+	s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Running: true, Message: "using consented shared service", Provider: provider, Observation: ProviderObservation{DeploymentMode: "bundled", ProviderTier: provider, ServiceIdentity: item.Resource, Readiness: "ready", SafeRouteClass: "shared-resource", LeaseExpiresAt: &expiresAt}}
 	s.mu.Unlock()
 	return true
 }
@@ -164,7 +181,10 @@ func (s *ServiceSupervisor) startOne(ctx context.Context, item Item) error {
 		logFile.Close()
 		return fmt.Errorf("start bundled service %s: %w", item.Resource, err)
 	}
-	running := &runningService{cmd: cmd, logFile: logFile, status: ServiceStatus{Resource: item.Resource, PID: cmd.Process.Pid, Running: true, LogPath: logPath, Ports: servicePorts, Message: "running", Provider: "managed-private"}}
+	s.mu.RLock()
+	fallbackDecision := s.statuses[item.Resource].Observation.FallbackDecision
+	s.mu.RUnlock()
+	running := &runningService{cmd: cmd, logFile: logFile, status: ServiceStatus{Resource: item.Resource, PID: cmd.Process.Pid, Running: true, LogPath: logPath, Ports: servicePorts, Message: "running", Provider: "managed-private", Observation: ProviderObservation{DeploymentMode: "bundled", ProviderTier: "managed-private", ServiceIdentity: item.Resource, ArtifactDigest: "sha256:" + service.SHA256, Readiness: "starting", FallbackDecision: fallbackDecision, SafeRouteClass: "private-bundle"}}}
 	s.mu.Lock()
 	s.running[item.Resource] = running
 	s.statuses[item.Resource] = running.status
@@ -185,6 +205,7 @@ func (s *ServiceSupervisor) startOne(ctx context.Context, item Item) error {
 	}
 	if status, ok := s.statuses[item.Resource]; ok && status.Running {
 		status.Message = "healthy"
+		status.Observation.Readiness = "ready"
 		s.statuses[item.Resource] = status
 	}
 	s.mu.Unlock()

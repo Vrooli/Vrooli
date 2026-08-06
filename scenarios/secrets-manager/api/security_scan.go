@@ -411,7 +411,7 @@ func scanResourceFileForVulnerabilities(ctx context.Context, filePath, component
 			Pattern:        `(DATABASE_URL|DB_URL|POSTGRES_URL)\s*=\s*[\"'](?!.*\$)[^\"']*://[^\"']*:[^\"']*@[^\"']+`,
 			Description:    "Database URL with hardcoded credentials",
 			Title:          "Hardcoded Database Credentials",
-			Recommendation: "Use environment variables or vault for database credentials",
+			Recommendation: "Use the credential authority and process-scoped injection for database credentials",
 			CanAutoFix:     false,
 		},
 		{

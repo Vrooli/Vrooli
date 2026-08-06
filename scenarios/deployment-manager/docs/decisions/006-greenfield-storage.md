@@ -8,7 +8,7 @@ Accepted
 
 deployment-manager has three competing sources of schema truth:
 
-- `initialization/postgres/schema.sql` declares six tables
+- `api/internal/<domain>/schema.sql` declares six tables
 - `api/migrations/002` through `005` declare four more tables plus column changes, and no code applies them
 - `EnsureSchema` methods on four repositories execute `CREATE TABLE IF NOT EXISTS` at boot
 
@@ -30,7 +30,7 @@ Adopt the greenfield per-domain storage architecture.
 
 **One application path.** The API binary calls `database.EnsureSchemas(ctx, db, modules.AllSchemas()...)` at boot from a modules registry. No repository executes DDL of its own.
 
-**No migrations folder.** `api/migrations/` is removed. `initialization/postgres/schema.sql` is removed. The per-domain `schema.sql` files describe the desired clean state at all times.
+**No migrations folder.** `api/migrations/` is removed. `api/internal/<domain>/schema.sql` is removed. The per-domain `schema.sql` files describe the desired clean state at all times.
 
 **Cross-cutting definitions go to a system home.** `internal/database/system.sql` holds extensions, custom types, and cross-domain views, and stays empty by default. A `CREATE TABLE` there is a signal that a domain is missing.
 

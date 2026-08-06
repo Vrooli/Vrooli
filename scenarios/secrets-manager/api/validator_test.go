@@ -405,17 +405,17 @@ func TestValidationResponseStructure(t *testing.T) {
 	})
 }
 
-// TestVaultResourceStatus tests vault resource status structures
-func TestVaultResourceStatus(t *testing.T) {
+// TestCredentialResourceStatus tests vault resource status structures
+func TestCredentialResourceStatus(t *testing.T) {
 	t.Run("ConfiguredStatus", func(t *testing.T) {
-		status := VaultResourceStatus{
+		status := CredentialResourceStatus{
 			ResourceName:    "postgres",
 			SecretsTotal:    5,
 			SecretsFound:    5,
 			SecretsMissing:  0,
 			SecretsOptional: 0,
 			HealthStatus:    "healthy",
-			AllSecrets:      []VaultSecret{},
+			AllSecrets:      []CredentialStatus{},
 		}
 
 		if status.HealthStatus != "healthy" {
@@ -432,14 +432,14 @@ func TestVaultResourceStatus(t *testing.T) {
 	})
 
 	t.Run("PartiallyConfiguredStatus", func(t *testing.T) {
-		status := VaultResourceStatus{
+		status := CredentialResourceStatus{
 			ResourceName:    "openai",
 			SecretsTotal:    3,
 			SecretsFound:    2,
 			SecretsMissing:  1,
 			SecretsOptional: 0,
 			HealthStatus:    "degraded",
-			AllSecrets:      []VaultSecret{},
+			AllSecrets:      []CredentialStatus{},
 		}
 
 		if status.HealthStatus == "healthy" {
@@ -453,14 +453,14 @@ func TestVaultResourceStatus(t *testing.T) {
 	})
 
 	t.Run("UnconfiguredStatus", func(t *testing.T) {
-		status := VaultResourceStatus{
+		status := CredentialResourceStatus{
 			ResourceName:    "new-resource",
 			SecretsTotal:    4,
 			SecretsFound:    0,
 			SecretsMissing:  4,
 			SecretsOptional: 0,
 			HealthStatus:    "critical",
-			AllSecrets:      []VaultSecret{},
+			AllSecrets:      []CredentialStatus{},
 		}
 
 		if status.SecretsFound != 0 {

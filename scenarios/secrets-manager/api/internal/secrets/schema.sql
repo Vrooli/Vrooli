@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS secret_validations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     resource_secret_id UUID NOT NULL REFERENCES resource_secrets(id) ON DELETE CASCADE,
     validation_status VARCHAR(20) NOT NULL CHECK (validation_status IN ('missing', 'invalid', 'valid', 'expired')),
-    validation_method VARCHAR(20) NOT NULL CHECK (validation_method IN ('env', 'vault', 'file', 'api')),
+    validation_method VARCHAR(20) NOT NULL CHECK (validation_method IN ('credential_authority', 'env', 'file', 'api')),
     validation_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     error_message TEXT,
     validation_details JSONB
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS secret_scans (
 CREATE TABLE IF NOT EXISTS secret_provisions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     resource_secret_id UUID NOT NULL REFERENCES resource_secrets(id) ON DELETE CASCADE,
-    storage_method VARCHAR(20) NOT NULL CHECK (storage_method IN ('vault', 'env', 'file')),
+    storage_method VARCHAR(20) NOT NULL CHECK (storage_method IN ('credential-authority', 'env', 'file', 'cloud')),
     storage_location TEXT NOT NULL,
     provisioned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     provisioned_by VARCHAR(100),

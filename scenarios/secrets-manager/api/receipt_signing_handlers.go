@@ -13,11 +13,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/storage"
+	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 )
 
 // ReceiptSigningHandlers exposes non-sensitive operational truth for the
 // trusted experiment receipt signer. It intentionally never returns the
-// credential-file contents, a Vault token, or signing key material.
+// credential-file contents, a Vault Transit token, or signing key material.
 type rotationSigner interface {
 	Rotate(context.Context) (receiptsigning.Health, error)
 }
@@ -76,7 +77,12 @@ func (h *ReceiptSigningHandlers) Status(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	response.Configured, response.Mode = true, config.Mode
-	signer, _, err := receiptsigning.NewSignerFromRuntimeConfig(config)
+	var signer receiptsigning.ReceiptSigner
+	if config.Mode == receiptsigning.ModeCredentialAuthorityEd25519 {
+		signer, _, err = credentialauthoritysigning.NewSignerFromRuntimeConfig(config)
+	} else {
+		signer, _, err = receiptsigning.NewSignerFromRuntimeConfig(config)
+	}
 	if err != nil {
 		response.Error = "receipt signer is unavailable"
 		writeReceiptSigningStatus(w, response)
@@ -95,10 +101,9 @@ func writeReceiptSigningStatus(w http.ResponseWriter, response any) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-// Rotate uses a separate operator Vault identity and a verified mTLS client
-// certificate. Application workloads cannot reach this method through their
-// Transit policy, and a caller-provided decision ID/header is never trusted as
-// authorization.
+// Rotate uses a verified mTLS operator certificate. The signer itself writes
+// only through the credential authority; a caller-provided decision
+// ID/header is never trusted as authorization.
 func (h *ReceiptSigningHandlers) Rotate(w http.ResponseWriter, r *http.Request) {
 	signer, subjects, err := h.operatorSigner()
 	if err != nil {
@@ -135,11 +140,15 @@ func authorizeReceiptSigningOperator(connection *tls.ConnectionState, subjects [
 
 func loadOperatorRotationSigner() (rotationSigner, []string, error) {
 	type trustSigning struct {
-		Provider               string   `json:"provider"`
-		Address                string   `json:"address"`
-		KeyName                string   `json:"key_name"`
-		OperatorCredentialFile string   `json:"operator_credential_file"`
-		OperatorSubjects       []string `json:"operator_subjects"`
+		Provider           string   `json:"provider"`
+		Identity           string   `json:"identity"`
+		Field              string   `json:"field"`
+		OperatorSubjects   []string `json:"operator_subjects"`
+		LegacyVaultTransit *struct {
+			Address        string `json:"address"`
+			KeyName        string `json:"key_name"`
+			CredentialFile string `json:"credential_file"`
+		} `json:"legacy_vault_transit"`
 	}
 	type manifest struct {
 		TrustSigning *trustSigning `json:"trust_signing"`
@@ -157,20 +166,27 @@ func loadOperatorRotationSigner() (rotationSigner, []string, error) {
 		return nil, nil, fmt.Errorf("missing trust-signing operator lifecycle declaration")
 	}
 	config := service.TrustSigning
-	if config.Provider != "vault-transit" || config.OperatorCredentialFile == "" || len(config.OperatorSubjects) == 0 {
+	if config.Provider != receiptsigning.ModeCredentialAuthorityEd25519 || config.Identity == "" || config.Field == "" || len(config.OperatorSubjects) == 0 {
 		return nil, nil, fmt.Errorf("trust-signing operator rotation is not configured")
 	}
-	signer, err := receiptsigning.NewVaultTransitSigner(receiptsigning.VaultTransitConfig{
-		Address:     config.Address,
-		KeyName:     config.KeyName,
-		Credentials: receiptsigning.FileCredentialSource{Path: config.OperatorCredentialFile},
-		AllowedPurposes: []receiptsigning.Purpose{
-			receiptsigning.PurposeExperimentAuditReceipt,
-			receiptsigning.PurposeExperimentHoldoutReceipt,
+	runtimeConfig := receiptsigning.RuntimeConfig{
+		Version: receiptsigning.RuntimeConfigVersion,
+		Mode:    receiptsigning.ModeCredentialAuthorityEd25519,
+		CredentialAuthority: &receiptsigning.CredentialAuthorityRuntimeConfig{
+			Identity: config.Identity,
+			Field:    config.Field,
 		},
-	})
+	}
+	if legacy := config.LegacyVaultTransit; legacy != nil {
+		runtimeConfig.LegacyVaultTransit = &receiptsigning.VaultTransitRuntimeConfig{Address: legacy.Address, KeyName: legacy.KeyName, CredentialFile: legacy.CredentialFile}
+	}
+	signer, _, err := credentialauthoritysigning.NewSignerFromRuntimeConfig(runtimeConfig)
 	if err != nil {
 		return nil, nil, err
 	}
-	return signer, config.OperatorSubjects, nil
+	rotator, ok := signer.(rotationSigner)
+	if !ok {
+		return nil, nil, fmt.Errorf("credential authority receipt signer does not support rotation")
+	}
+	return rotator, config.OperatorSubjects, nil
 }

@@ -6,7 +6,7 @@ import (
 )
 
 // APIServer centralizes the HTTP surface for the scenario so routes reflect the
-// core domains: health, vault coverage, security scanning, resources, and deployment.
+// core domains: health, credential coverage, security scanning, resources, and deployment.
 type APIServer struct {
 	db       *database.RoutedDB
 	handlers handlerSet
@@ -14,7 +14,7 @@ type APIServer struct {
 
 type handlerSet struct {
 	health         *HealthHandlers
-	vault          *VaultHandlers
+	credentials    *CredentialHandlers
 	security       *SecurityHandlers
 	resources      *ResourceHandlers
 	deployment     *DeploymentHandlers
@@ -49,7 +49,7 @@ func newAPIServer(db *database.RoutedDB, logger *Logger) *APIServer {
 		db: db,
 		handlers: handlerSet{
 			health:         NewHealthHandlers(db),
-			vault:          NewVaultHandlers(db, logger, validator),
+			credentials:    NewCredentialHandlers(db, logger, validator),
 			security:       NewSecurityHandlers(db, logger),
 			resources:      NewResourceHandlers(db),
 			deployment:     NewDeploymentHandlers(manifestBuilder),
@@ -81,10 +81,10 @@ func (s *APIServer) routes() *mux.Router {
 	orientation := api.PathPrefix("/orientation").Subrouter()
 	s.handlers.orientation.RegisterRoutes(orientation)
 
-	// Credential coverage and provisioning. Receipt signing remains a Vault
-	// capability endpoint because it uses Vault Transit, not ordinary credentials.
+	// Credential coverage and provisioning. Receipt signing is an authority-backed
+	// operational endpoint, separate from ordinary credential provisioning.
 	credentials := api.PathPrefix("/credentials").Subrouter()
-	s.handlers.vault.RegisterRoutes(credentials)
+	s.handlers.credentials.RegisterRoutes(credentials)
 	s.handlers.receiptSigning.RegisterRoutes(credentials)
 
 	// Security intelligence

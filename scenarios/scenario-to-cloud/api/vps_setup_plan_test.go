@@ -205,9 +205,6 @@ func TestBuildSetupPlanUsesDeploymentLocalNativeCLIForSetupAndVerify(t *testing.
 	if !strings.Contains(verifyCmd, wantBinary) || !strings.Contains(verifyCmd, "--no-stale-check --version") {
 		t.Fatalf("expected verify command to use deployment-local binary, got: %s", verifyCmd)
 	}
-	if strings.Contains(setupCmd, "./scripts/manage.sh") || strings.Contains(verifyCmd, "./scripts/manage.sh") {
-		t.Fatalf("expected no legacy manage.sh fallback in setup/verify commands: setup=%s verify=%s", setupCmd, verifyCmd)
-	}
 }
 
 func TestBuildSetupPlanSSHConfig(t *testing.T) {

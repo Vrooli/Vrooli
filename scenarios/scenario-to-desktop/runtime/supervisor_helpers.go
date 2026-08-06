@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
 )
 
@@ -190,6 +191,23 @@ func (s *Supervisor) ServiceStatuses() map[string]ServiceStatus {
 		}
 	}
 	return out
+}
+
+// ProviderObservations exposes only credential-free resource selection facts
+// for journey evidence. Endpoints, leases, tokens, and service environments
+// remain behind their owning runtime boundaries.
+func (s *Supervisor) ProviderObservations() map[string]resourceplan.ProviderObservation {
+	s.mu.RLock()
+	resourceServer := s.resourceServer
+	s.mu.RUnlock()
+	if resourceServer == nil {
+		return map[string]resourceplan.ProviderObservation{}
+	}
+	observations := make(map[string]resourceplan.ProviderObservation)
+	for resource, status := range resourceServer.Statuses() {
+		observations[resource] = status.Observation
+	}
+	return observations
 }
 
 // ResourceLogPath returns a managed resource log only when the resource was

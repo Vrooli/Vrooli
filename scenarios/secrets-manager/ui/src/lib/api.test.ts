@@ -27,7 +27,7 @@ import {
   fetchScenarioOverrides,
   fetchScenarioTierOverrides,
   fetchScenarios,
-  fetchVaultStatus,
+  fetchCredentialCoverage,
   fetchVulnerabilities,
   fetchWatchlist,
   generateDeploymentManifest,
@@ -70,8 +70,8 @@ describe("Secrets Manager API contract client", () => {
 
   it("uses the shared API base for health, Vault, compliance, and discovery reads", async () => {
     await expectRequest(fetchHealth, "/health");
-    await expectRequest(() => fetchVaultStatus("vault local"), "/credentials/secrets/status?resource=vault%20local");
-	await expectRequest(() => fetchVaultStatus(), "/credentials/secrets/status");
+    await expectRequest(() => fetchCredentialCoverage("vault local"), "/credentials/secrets/status?resource=vault%20local");
+	await expectRequest(() => fetchCredentialCoverage(), "/credentials/secrets/status");
     await expectRequest(fetchCompliance, "/security/compliance");
     await expectRequest(fetchAllowlistRules, "/security/allowlist-rules");
     await expectRequest(fetchWatchlist, "/security/watchlist");

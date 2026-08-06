@@ -174,7 +174,7 @@ secrets-manager
 **Key endpoints**:
 ```
 POST /api/v1/desktop/generate/quick    - Generate thin client
-POST /api/v1/desktop/generate/bundled  - Generate bundled app (planned)
+POST /api/v1/desktop/generate/bundled  - Generate bundled app (implementation exists; native evidence remains profile-gated)
 GET  /api/v1/desktop/packages          - List built installers
 ```
 

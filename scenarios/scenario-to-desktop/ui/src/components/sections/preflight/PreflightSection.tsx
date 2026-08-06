@@ -609,13 +609,13 @@ export const PreflightSection = forwardRef<
                     </div>
                   ))}
                 </div>
-                {(deploymentPlan.hostRequirements ?? []).length > 0 && (
+                {deploymentPlan.hostRequirements.length > 0 && (
                   <div className="mt-3 border-t border-slate-800 pt-3">
                     <p className="font-medium text-slate-100">
                       Host requirements
                     </p>
                     <div className="mt-2 space-y-2">
-                      {(deploymentPlan.hostRequirements ?? []).map(
+                      {deploymentPlan.hostRequirements.map(
                         (requirement) => (
                           <div
                             key={`${requirement.kind}-${requirement.name}-${requirement.os}`}

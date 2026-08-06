@@ -6,7 +6,8 @@ This document describes operator-visible signals without recording secret values
 
 ## Signals
 
-Health, Vault coverage, compliance, deployment readiness, scan status, and campaign state are the primary signals.
+Health, credential-authority coverage, compliance, deployment readiness, scan
+status, and campaign state are the primary signals.
 
 ## Logs
 

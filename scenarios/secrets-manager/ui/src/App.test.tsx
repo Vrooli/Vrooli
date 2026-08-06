@@ -47,7 +47,7 @@ function setDefaults(options: { activeTab?: string; resourceTab?: string; initia
   });
   mocks.secretsData.mockReturnValue({
     healthQuery: { data: options.initialLoading ? undefined : {}, isLoading: false },
-    vaultQuery: { data: options.initialLoading ? undefined : { missing_secrets: options.emptyCounts ? [] : ["TOKEN"], resource_statuses: options.emptyCounts ? [] : [{ resource_name: "vault", secrets_missing: 1 }] }, isLoading: false },
+    credentialQuery: { data: options.initialLoading ? undefined : { missing_secrets: options.emptyCounts ? [] : ["TOKEN"], resource_statuses: options.emptyCounts ? [] : [{ resource_name: "vault", secrets_missing: 1 }] }, isLoading: false },
     complianceQuery: { data: options.initialLoading ? undefined : { vulnerability_summary: { critical: options.emptyCounts ? 0 : 1, high: 0, medium: 0, low: 0 } }, isLoading: false },
     orientationQuery: { data: { hero_stats: { missing_secrets: options.emptyCounts ? 0 : 1 }, journeys: [{ id: "prep-deployment", title: "Prep deployment", description: "Prepare a bundle" }, { id: "fix-vulnerabilities", title: "Fix vulnerabilities", description: "Fix findings" }], tier_readiness: options.emptyCounts ? [] : [{ ready_percent: 50, strategized: 1, total: 2 }], resource_insights: options.hasResourceInsight ? [{ resource_name: "vault" }] : [], updated_at: "now" }, isLoading: false },
     isRefreshing: false,

@@ -89,6 +89,31 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 			CompletedAt:    completedAt,
 		},
 	}
+	if err := smoketest.ValidateJourneyTimeline(*input.Journey); err != nil {
+		return fmt.Errorf("validate journey timeline: %w", err)
+	}
+	manifest.Timeline = TimelineSummary{
+		Version:         input.Journey.EvidenceVersion,
+		Capability:      input.Journey.Capability,
+		EventCount:      len(input.Journey.Events),
+		Ordered:         true,
+		RedactionStatus: "verified",
+	}
+	if input.Journey.ProviderObservation != nil {
+		manifest.Timeline.ProviderTier = input.Journey.ProviderObservation.ProviderTier
+		manifest.Timeline.SafeRouteClass = input.Journey.ProviderObservation.SafeRouteClass
+		manifest.Timeline.FallbackDecision = input.Journey.ProviderObservation.FallbackDecision
+	}
+	if manifest.Timeline.Version == "" {
+		manifest.Timeline.Version = "journey-evidence.v1"
+	}
+	for _, step := range input.Journey.Steps {
+		chapterID := step.ID
+		if chapterID == "" {
+			chapterID = step.Name
+		}
+		manifest.Timeline.ChapterIDs = append(manifest.Timeline.ChapterIDs, chapterID)
+	}
 
 	journeyOK := input.Journey.Disposition == "pass"
 	recordingOK := false
@@ -111,6 +136,7 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 			if pathErr != nil {
 				return fmt.Errorf("resolve journey capture %q: %w", item.ID, pathErr)
 			}
+			manifest.Timeline.JourneyRef = "capture:" + item.ID
 			manifest.Artifacts = append(manifest.Artifacts, artifactFromCapture(item, path, screenrecording.MediaInspection{}))
 		}
 	}
@@ -120,7 +146,7 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 	persistenceOK = true
 	governanceOK := profile != ProfileReleaseVisual || input.GovernanceReported
 	protocolOK := true // this writer is invoked only after the protocol smoke succeeded.
-	visualOK := input.Journey.Disposition != "degraded" && input.Journey.Disposition != "failed"
+	visualOK := input.Journey.Disposition == "pass"
 	manifest.Gates = []GateResult{
 		gate(GateProtocol, protocolOK, "protocol smoke completed", startedAt, completedAt),
 		gate(GateVisual, visualOK, "usable application window and visual launch", startedAt, completedAt),

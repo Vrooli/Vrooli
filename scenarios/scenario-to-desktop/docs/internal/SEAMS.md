@@ -80,6 +80,22 @@ type bundlePackager struct {
 **Usage**: Tests can inject stubs to avoid invoking Go toolchains.
 **Status**: ✅ Implemented
 
+## Versioned Journey Evidence Seams (Aug 2026)
+
+The smoke journey is a domain runner over consumer-owned seams. Production
+adapters may use Linux xdotool/X11, but the runner depends only on:
+
+- `smoketest.DesktopDriver` for window and input actions;
+- `smoketest.Clock` and `smoketest.JourneyWaiter` for bounded deterministic pacing;
+- `smoketest.JourneyCapture` for producer-owned screenshot persistence;
+- `smoketest.JourneyAPIProbe` for fixture semantic assertions; and
+- the capability registry (`JourneyFixture`) for plan/action registration.
+
+The persisted `JourneyResult` is the single timeline source for manifests,
+status projections, and review UX. The runtime `ProviderObservation` seam is
+credential-free and records provider tier, readiness, safe route class,
+artifact digest, fallback decision, and lease expiry only.
+
 #### 2. Preflight Session Store Seam (`PreflightSessionStore`)
 **Location**: `api/preflight_store.go:17-31`
 ```go

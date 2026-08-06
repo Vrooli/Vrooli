@@ -1,7 +1,23 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"budget":{"max_bytes":"2GiB","max_age":"365d","rationale":"The SQLite database and producer-reference ledger are bounded to a 2 GiB working set and one year of historical release evidence; retention/reclaim is performed by the scenario data maintenance command."},"rationale":"Deployment-manager owns its SQLite database and reference-ledger data under the scenario data directory."}},"rationale":"Scenario-owned SQLite and evidence reference storage is declared explicitly so lifecycle startup creates the data root before opening the database."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "max_age": "365d",
+          "rationale": "The SQLite database and producer-reference ledger are bounded to a 2 GiB working set and one year of historical release evidence; retention/reclaim is performed by the scenario data maintenance command."
+        },
+        "rationale": "Deployment-manager owns its SQLite database and reference-ledger data under the scenario data directory."
+      }
+    },
+    "rationale": "Scenario-owned SQLite and evidence reference storage is declared explicitly so lifecycle startup creates the data root before opening the database."
+  },
   "maturity": "greenfield",
   "generation": {
     "template": {

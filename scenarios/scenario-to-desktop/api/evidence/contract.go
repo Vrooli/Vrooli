@@ -105,19 +105,33 @@ type Provenance struct {
 	CompletedAt    time.Time `json:"completed_at"`
 }
 
+type TimelineSummary struct {
+	Version          string   `json:"version"`
+	JourneyRef       string   `json:"journey_ref"`
+	Capability       string   `json:"capability,omitempty"`
+	ProviderTier     string   `json:"provider_tier,omitempty"`
+	SafeRouteClass   string   `json:"safe_route_class,omitempty"`
+	FallbackDecision string   `json:"fallback_decision,omitempty"`
+	ChapterIDs       []string `json:"chapter_ids"`
+	EventCount       int      `json:"event_count"`
+	Ordered          bool     `json:"ordered"`
+	RedactionStatus  string   `json:"redaction_status"`
+}
+
 // Manifest is the producer-owned, reviewable evidence record. Paths are
 // intentionally retained for local operator evidence, while remote consumers
 // use ImmutableRef and checksum instead of reading local files.
 type Manifest struct {
-	SchemaVersion int          `json:"schema_version"`
-	RunID         string       `json:"run_id"`
-	Profile       Profile      `json:"profile"`
-	State         RunState     `json:"state"`
-	Target        Target       `json:"target"`
-	Runner        Runner       `json:"runner"`
-	Provenance    Provenance   `json:"provenance"`
-	Gates         []GateResult `json:"gates"`
-	Artifacts     []Artifact   `json:"artifacts"`
+	SchemaVersion int             `json:"schema_version"`
+	RunID         string          `json:"run_id"`
+	Profile       Profile         `json:"profile"`
+	State         RunState        `json:"state"`
+	Target        Target          `json:"target"`
+	Runner        Runner          `json:"runner"`
+	Provenance    Provenance      `json:"provenance"`
+	Timeline      TimelineSummary `json:"timeline"`
+	Gates         []GateResult    `json:"gates"`
+	Artifacts     []Artifact      `json:"artifacts"`
 }
 
 var transitionTable = map[RunState][]RunState{
@@ -189,6 +203,17 @@ func (m Manifest) Validate() error {
 	if m.Provenance.CompletedAt.Before(m.Provenance.StartedAt) {
 		return fmt.Errorf("provenance completion precedes start")
 	}
+	if m.Profile != ProfileProtocol {
+		if strings.TrimSpace(m.Timeline.Version) == "" || strings.TrimSpace(m.Timeline.JourneyRef) == "" || len(m.Timeline.ChapterIDs) == 0 {
+			return fmt.Errorf("visual profiles require a versioned timeline with chapters")
+		}
+		if !m.Timeline.Ordered {
+			return fmt.Errorf("timeline ordering is not verified")
+		}
+		if m.Timeline.RedactionStatus != "verified" {
+			return fmt.Errorf("timeline redaction is not verified")
+		}
+	}
 
 	gates := make(map[GateName]GateResult, len(m.Gates))
 	for _, gate := range m.Gates {
@@ -236,6 +261,9 @@ func (m Manifest) Validate() error {
 func validateArtifact(artifact Artifact) error {
 	if strings.TrimSpace(artifact.ImmutableRef) == "" || strings.TrimSpace(artifact.Kind) == "" || strings.TrimSpace(artifact.Checksum) == "" {
 		return fmt.Errorf("artifact immutable_ref, kind, and checksum are required")
+	}
+	if !strings.HasPrefix(artifact.Checksum, "sha256:") {
+		return fmt.Errorf("artifact %q checksum must be sha256", artifact.ImmutableRef)
 	}
 	if artifact.SizeBytes <= 0 || artifact.CreatedAt.IsZero() {
 		return fmt.Errorf("artifact %q must have positive size and creation time", artifact.ImmutableRef)

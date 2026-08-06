@@ -3,7 +3,8 @@
 ## Prerequisites
 
 - A Vrooli checkout with lifecycle tooling available.
-- The required Vault and Postgres resources configured for the scenario.
+- The credential authority available through the host key service or encrypted authority storage.
+- Postgres configured for the scenario metadata.
 - Node and Go toolchains supplied by the Vrooli environment.
 
 ## 1 — Setup
@@ -20,7 +21,7 @@ Run `make open`, or inspect assigned ports with `make status`.
 
 ## 4 — Inspect posture
 
-Run `secrets-manager status` for health, Vault coverage, and compliance posture.
+Run `secrets-manager status` for health, credential-authority coverage, and compliance posture.
 
 ## 5 — Run the tests
 

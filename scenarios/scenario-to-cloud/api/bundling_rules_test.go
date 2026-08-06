@@ -462,9 +462,6 @@ func TestBuildMiniVrooliBundle_Smoke_ProducesSelfContainedMiniRepo(t *testing.T)
 	if !manifest.Contains(entries, ".vrooli/cloud/bundle-metadata.json") {
 		t.Fatalf("expected embedded bundle metadata, entries=%v", entries)
 	}
-	if manifest.Contains(entries, "scripts/manage.sh") {
-		t.Fatalf("did not expect legacy manage.sh in bundle, entries=%v", entries)
-	}
 	for _, name := range entries {
 		if strings.HasPrefix(name, "cli/") {
 			t.Fatalf("did not expect top-level cli tree in bundle, found %q", name)

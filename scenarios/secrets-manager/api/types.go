@@ -267,16 +267,16 @@ type PromptMetadata struct {
 	Description string `json:"description,omitempty"`
 }
 
-// Vault-specific data structures
-type VaultSecretsStatus struct {
-	TotalResources      int                   `json:"total_resources"`
-	ConfiguredResources int                   `json:"configured_resources"`
-	MissingSecrets      []VaultMissingSecret  `json:"missing_secrets"`
-	ResourceStatuses    []VaultResourceStatus `json:"resource_statuses"`
-	LastUpdated         time.Time             `json:"last_updated"`
+// Credential-authority coverage data structures.
+type CredentialCoverageStatus struct {
+	TotalResources      int                        `json:"total_resources"`
+	ConfiguredResources int                        `json:"configured_resources"`
+	MissingSecrets      []MissingCredential        `json:"missing_secrets"`
+	ResourceStatuses    []CredentialResourceStatus `json:"resource_statuses"`
+	LastUpdated         time.Time                  `json:"last_updated"`
 }
 
-type VaultMissingSecret struct {
+type MissingCredential struct {
 	ResourceName string `json:"resource_name"`
 	SecretName   string `json:"secret_name"`
 	SecretPath   string `json:"secret_path"`
@@ -284,7 +284,7 @@ type VaultMissingSecret struct {
 	Description  string `json:"description"`
 }
 
-type VaultSecret struct {
+type CredentialStatus struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Required    bool   `json:"required"`
@@ -298,26 +298,26 @@ type VaultSecret struct {
 	ValidationHint    string `json:"validation_hint,omitempty"`
 }
 
-type VaultResourceStatus struct {
-	ResourceName    string        `json:"resource_name"`
-	SecretsTotal    int           `json:"secrets_total"`
-	SecretsFound    int           `json:"secrets_found"`
-	SecretsMissing  int           `json:"secrets_missing"`
-	SecretsOptional int           `json:"secrets_optional"`
-	HealthStatus    string        `json:"health_status"` // healthy, degraded, critical
-	LastChecked     time.Time     `json:"last_checked"`
-	AllSecrets      []VaultSecret `json:"all_secrets,omitempty"` // All secrets for this resource
+type CredentialResourceStatus struct {
+	ResourceName    string             `json:"resource_name"`
+	SecretsTotal    int                `json:"secrets_total"`
+	SecretsFound    int                `json:"secrets_found"`
+	SecretsMissing  int                `json:"secrets_missing"`
+	SecretsOptional int                `json:"secrets_optional"`
+	HealthStatus    string             `json:"health_status"` // healthy, degraded, critical
+	LastChecked     time.Time          `json:"last_checked"`
+	AllSecrets      []CredentialStatus `json:"all_secrets,omitempty"` // All secrets for this resource
 }
 
-type VaultValidationSummary struct {
-	ConfiguredCount int                  `json:"configured_count"`
-	MissingSecrets  []VaultMissingSecret `json:"missing_secrets"`
+type CredentialValidationSummary struct {
+	ConfiguredCount int                 `json:"configured_count"`
+	MissingSecrets  []MissingCredential `json:"missing_secrets"`
 }
 
 type secretProvisionResult struct {
 	EnvKey    string `json:"env_key"`
-	VaultPath string `json:"vault_path"`
-	VaultKey  string `json:"vault_key"`
+	LogicalID string `json:"logical_id"`
+	Field     string `json:"field"`
 	Status    string `json:"status"`
 	Error     string `json:"error,omitempty"`
 }
@@ -447,14 +447,14 @@ type ProgressiveScanResult struct {
 }
 
 type ComplianceMetrics struct {
-	VaultSecretsHealth   int `json:"vault_secrets_health"` // 0-100
-	SecurityScore        int `json:"security_score"`       // 0-100
-	OverallCompliance    int `json:"overall_compliance"`   // 0-100
-	ConfiguredComponents int `json:"configured_components"`
-	CriticalIssues       int `json:"critical_issues"`
-	HighIssues           int `json:"high_issues"`
-	MediumIssues         int `json:"medium_issues"`
-	LowIssues            int `json:"low_issues"`
+	CredentialCoverageHealth int `json:"credential_coverage_health"` // 0-100
+	SecurityScore            int `json:"security_score"`             // 0-100
+	OverallCompliance        int `json:"overall_compliance"`         // 0-100
+	ConfiguredComponents     int `json:"configured_components"`
+	CriticalIssues           int `json:"critical_issues"`
+	HighIssues               int `json:"high_issues"`
+	MediumIssues             int `json:"medium_issues"`
+	LowIssues                int `json:"low_issues"`
 }
 
 // API request/response types
@@ -495,7 +495,6 @@ type ProvisionResponse struct {
 	Success       bool                    `json:"success"`
 	Resource      string                  `json:"resource,omitempty"`
 	StoredSecrets int                     `json:"stored_secrets"`
-	VaultStored   int                     `json:"vault_stored"`
 	Details       []secretProvisionResult `json:"details,omitempty"`
 	Message       string                  `json:"message,omitempty"`
 }

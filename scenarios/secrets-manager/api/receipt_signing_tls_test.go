@@ -23,7 +23,7 @@ func TestReceiptSigningServerTLSConfigRejectsIncompleteProductionDeclaration(t *
 	if err := os.MkdirAll(manifestDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	manifest := `{"trust_signing":{"provider":"vault-transit","operator_credential_file":"/run/operator-token"}}`
+	manifest := `{"trust_signing":{"provider":"credential-authority-ed25519","identity":"vrooli/prompt-manager/experiment-receipts","field":"key-ring"}}`
 	if err := os.WriteFile(filepath.Join(manifestDir, "service.json"), []byte(manifest), 0o600); err != nil {
 		t.Fatal(err)
 	}

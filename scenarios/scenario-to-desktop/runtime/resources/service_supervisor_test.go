@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -134,8 +136,45 @@ func TestServiceSupervisorUsesConsentedSharedBinding(t *testing.T) {
 	if !status.Running || status.PID != 0 || status.Provider != "managed-shared" {
 		t.Fatalf("shared status = %#v", status)
 	}
+	if status.Observation.ProviderTier != "managed-shared" || status.Observation.Readiness != "ready" || status.Observation.SafeRouteClass != "shared-resource" || status.Observation.LeaseExpiresAt == nil {
+		t.Fatalf("shared provider observation = %#v", status.Observation)
+	}
 	if environment := supervisor.Environment(); environment["VAULT_TOKEN"] != "scoped-token" || environment["VAULT_ADDR"] != "http://127.0.0.1:8200" {
 		t.Fatalf("shared environment = %#v", environment)
+	}
+}
+
+func TestServiceSupervisorProviderObservationIsCredentialFree(t *testing.T) {
+	resolver := &testSharedResolver{binding: SharedServiceBinding{
+		Endpoint:    "http://127.0.0.1:8200",
+		Environment: map[string]string{"VAULT_ADDR": "http://127.0.0.1:8200", "VAULT_TOKEN": "scoped-token"},
+		ExpiresAt:   time.Now().Add(time.Minute),
+	}}
+	plan := &Plan{Resources: []Item{{
+		Resource: "vault", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-service",
+		Service: &Service{ProviderPolicy: resourcedeployment.ProviderPolicy{
+			TargetDefaults:             map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{resourcedeployment.ProviderTargetControlPlane: resourcedeployment.ProviderManagedShared, resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate},
+			AllowedModes:               []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate, resourcedeployment.ProviderManagedShared},
+			SharedReuseRequiresConsent: true,
+			ExternalManagement:         "forbidden",
+		}},
+	}}}
+	supervisor := NewServiceSupervisor(t.TempDir(), t.TempDir(), resolver)
+	if err := supervisor.Start(context.Background(), plan); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	encoded, err := json.Marshal(supervisor.Statuses()["vault"])
+	if err != nil {
+		t.Fatalf("marshal status: %v", err)
+	}
+	serialized := string(encoded)
+	for _, forbidden := range []string{"scoped-token", "VAULT_TOKEN", "VAULT_ADDR", "127.0.0.1:8200"} {
+		if strings.Contains(serialized, forbidden) {
+			t.Fatalf("provider status exposed %q: %s", forbidden, serialized)
+		}
+	}
+	if !strings.Contains(serialized, "managed-shared") || !strings.Contains(serialized, "shared-resource") {
+		t.Fatalf("provider status omitted safe identity: %s", serialized)
 	}
 }
 
@@ -178,6 +217,9 @@ func TestServiceSupervisorFallsBackToPrivateServiceForExpiredSharedBinding(t *te
 	status := supervisor.Statuses()["fixture"]
 	if !resolver.called || !status.Running || status.Provider != "managed-private" || status.PID <= 0 {
 		t.Fatalf("expired shared binding did not fall back to private service: %#v", status)
+	}
+	if status.Observation.ProviderTier != "managed-private" || status.Observation.Readiness != "ready" || status.Observation.FallbackDecision != "private-bundle" || status.Observation.SafeRouteClass != "private-bundle" {
+		t.Fatalf("private fallback observation = %#v", status.Observation)
 	}
 	if _, ok := supervisor.Environment()["VAULT_TOKEN"]; ok {
 		t.Fatal("expired shared credential was exposed to the private fallback")

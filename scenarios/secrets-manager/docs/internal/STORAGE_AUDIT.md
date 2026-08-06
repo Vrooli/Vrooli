@@ -4,11 +4,11 @@
 
 | Runtime | Metadata store | Secret-value authority |
 | --- | --- | --- |
-| Managed shared service | Lifecycle-provisioned PostgreSQL metadata | Managed shared Vault |
+| Managed shared service | Lifecycle-provisioned PostgreSQL metadata | Credential authority (host key service or encrypted authority store) |
 | Tier 2 desktop bundle | Private SQLite metadata under `APP_DATA_DIR` | Desktop secret service or explicit operator input |
 
-The desktop database is metadata only. It does not become an alternate Vault
-secret-value store for the managed-service flow.
+The desktop database is metadata only. It does not become an alternate secret-value
+store for the managed-service flow.
 
 ## Desktop storage contract
 
@@ -44,7 +44,7 @@ not overwritten.
 
 ## Managed-service boundary
 
-When managed Vault status is unavailable, the Secrets Manager API returns an
-unavailable response. It does not scan local files or environment variables
-for a fallback result. Provisioning to the managed-service route writes only
-through the Vault CLI boundary.
+When credential-authority status is unavailable, the Secrets Manager API returns
+an unavailable response. It does not scan local files or environment variables
+for a fallback result. Provisioning writes only through the credential-authority
+client and accepts values from the guarded stdin path.

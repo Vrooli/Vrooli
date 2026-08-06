@@ -17,222 +17,182 @@ import (
 	"scenario-to-desktop-api/procmetrics"
 )
 
-// JourneyStep is the durable, human-readable record of one desktop action.
+// JourneyStep is the durable, human-readable record of one planned action.
+// The legacy fields remain additive reader fields for captures already stored
+// by older scenario-to-desktop versions.
 type JourneyStep struct {
-	Name            string                      `json:"name"`
-	Action          string                      `json:"action"`
-	Disposition     string                      `json:"disposition"`
-	BeforeCaptureID string                      `json:"before_capture_id,omitempty"`
-	AfterCaptureID  string                      `json:"after_capture_id,omitempty"`
-	Geometry        *procmetrics.WindowGeometry `json:"geometry,omitempty"`
-	AssertionID     string                      `json:"assertion_id,omitempty"`
-	ExpectedState   string                      `json:"expected_state,omitempty"`
-	ObservedState   string                      `json:"observed_state,omitempty"`
-	Error           string                      `json:"error,omitempty"`
-	DegradedReason  string                      `json:"degraded_reason,omitempty"`
-	StartedAt       time.Time                   `json:"started_at"`
-	CompletedAt     time.Time                   `json:"completed_at"`
+	ID                 string                      `json:"id,omitempty"`
+	Name               string                      `json:"name"`
+	Purpose            string                      `json:"purpose,omitempty"`
+	Action             string                      `json:"action"`
+	Disposition        string                      `json:"disposition"`
+	BeforeCaptureID    string                      `json:"before_capture_id,omitempty"`
+	AfterCaptureID     string                      `json:"after_capture_id,omitempty"`
+	Evidence           []EvidenceReference         `json:"evidence,omitempty"`
+	Geometry           *procmetrics.WindowGeometry `json:"geometry,omitempty"`
+	AssertionID        string                      `json:"assertion_id,omitempty"`
+	AssertionStatus    string                      `json:"assertion_status,omitempty"`
+	ExpectedState      string                      `json:"expected_state,omitempty"`
+	ObservedState      string                      `json:"observed_state,omitempty"`
+	ProcessBefore      string                      `json:"process_before,omitempty"`
+	ProcessAfter       string                      `json:"process_after,omitempty"`
+	Route              string                      `json:"route,omitempty"`
+	Error              string                      `json:"error,omitempty"`
+	DegradedReason     string                      `json:"degraded_reason,omitempty"`
+	Readiness          ReadinessPolicy             `json:"readiness,omitempty"`
+	Settle             SettlePolicy                `json:"settle,omitempty"`
+	StartedAt          time.Time                   `json:"started_at"`
+	CompletedAt        time.Time                   `json:"completed_at"`
+	MonotonicStartMs   int64                       `json:"monotonic_start_ms"`
+	MonotonicEndMs     int64                       `json:"monotonic_end_ms"`
+	VideoStartOffsetMs *int64                      `json:"video_start_offset_ms,omitempty"`
+	VideoEndOffsetMs   *int64                      `json:"video_end_offset_ms,omitempty"`
 }
 
 // JourneyResult is stored as a journey capture beside the video and images.
+// It is the single human-facing review model; manifests and API reports refer
+// to this sidecar rather than rebuilding a second timeline.
 type JourneyResult struct {
-	SchemaVersion                int           `json:"schema_version"`
-	SmokeTestID                  string        `json:"smoke_test_id"`
-	ScenarioName                 string        `json:"scenario_name"`
-	Platform                     string        `json:"platform"`
-	Display                      string        `json:"display"`
-	WindowManager                string        `json:"window_manager,omitempty"`
-	Titlebar                     bool          `json:"titlebar"`
-	RecordingStartedBeforeLaunch bool          `json:"recording_started_before_launch"`
-	Disposition                  string        `json:"disposition"`
-	DegradedReason               string        `json:"degraded_reason,omitempty"`
-	Steps                        []JourneyStep `json:"steps"`
-	CreatedAt                    time.Time     `json:"created_at"`
+	SchemaVersion                int                         `json:"schema_version"`
+	EvidenceVersion              string                      `json:"evidence_version"`
+	SmokeTestID                  string                      `json:"smoke_test_id"`
+	ScenarioName                 string                      `json:"scenario_name"`
+	Capability                   string                      `json:"capability"`
+	PlanID                       string                      `json:"plan_id"`
+	Profile                      string                      `json:"profile"`
+	Platform                     string                      `json:"platform"`
+	Display                      string                      `json:"display"`
+	WindowManager                string                      `json:"window_manager,omitempty"`
+	Titlebar                     bool                        `json:"titlebar"`
+	RecordingStartedBeforeLaunch bool                        `json:"recording_started_before_launch"`
+	ProviderObservation          *JourneyProviderObservation `json:"provider_observation,omitempty"`
+	Disposition                  string                      `json:"disposition"`
+	DegradedReason               string                      `json:"degraded_reason,omitempty"`
+	Events                       []JourneyEvent              `json:"events,omitempty"`
+	Steps                        []JourneyStep               `json:"steps"`
+	CreatedAt                    time.Time                   `json:"created_at"`
+	CompletedAt                  time.Time                   `json:"completed_at,omitempty"`
 }
 
 const (
-	journeyPass         = "pass"
-	journeyDegraded     = "degraded"
-	journeyFailed       = "failed"
-	journeyStepPass     = "passed"
-	journeyStepFail     = "failed"
-	journeyStepDegraded = "degraded"
-	// The generated Electron splash is intentionally small (400x300). A
-	// visual journey must wait for the usable application window, otherwise
-	// generic actions can be applied to the splash and falsely look successful.
+	journeyPass                = JourneyDispositionPass
+	journeyDegraded            = JourneyDispositionDegraded
+	journeyFailed              = JourneyDispositionFailed
+	journeyStepPass            = JourneyStepPassed
+	journeyStepFail            = JourneyStepFailed
+	journeyStepDegraded        = JourneyStepDegraded
 	journeyMainWindowMinWidth  = 600
 	journeyMainWindowMinHeight = 400
 	journeyStepTimeout         = 10 * time.Second
 	journeyCaptureTimeout      = 5 * time.Second
 )
 
-func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState) JourneyResult {
-	journey := JourneyResult{
-		SchemaVersion:                1,
-		SmokeTestID:                  smokeTestID,
-		ScenarioName:                 scenarioName,
-		Platform:                     platform,
-		Display:                      rec.displayID,
-		WindowManager:                rec.windowManager,
-		Titlebar:                     rec.titlebar,
-		RecordingStartedBeforeLaunch: rec.captureID != "",
-		Disposition:                  journeyPass,
-		CreatedAt:                    time.Now().UTC(),
-	}
+type procmetricsDesktopDriver struct{ detector *procmetrics.XdotoolDetector }
 
-	degrade := func(reason string) JourneyResult {
-		journey.Disposition = journeyDegraded
-		journey.DegradedReason = reason
-		return journey
-	}
-	if runtime.GOOS != "linux" {
-		return degrade("platform_not_linux")
-	}
-	if rec.windowManager == "" {
-		return degrade("window_manager_not_started")
-	}
-	if !rec.titlebar {
-		return degrade("window_manager_titlebar_unavailable")
-	}
-	if s.windowDetector == nil || !s.windowDetector.IsAvailable(ctx) {
-		return degrade("xdotool_unavailable")
-	}
-
-	visibleCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
-	defer cancel()
-	for {
-		window, _ := s.windowDetector.LargestVisibleWindow(visibleCtx, 0, rec.displayID)
-		if window != nil && window.Width >= journeyMainWindowMinWidth && window.Height >= journeyMainWindowMinHeight {
-			break
-		}
-		select {
-		case <-visibleCtx.Done():
-			return degrade("no_visible_window")
-		case <-time.After(100 * time.Millisecond):
-		}
-	}
-
-	addInteraction := func(name, action string, perform func(context.Context) error, geometry bool) {
-		step := JourneyStep{Name: name, Action: action, Disposition: journeyStepPass, StartedAt: time.Now().UTC()}
-		beforeCtx, beforeCancel := context.WithTimeout(ctx, journeyCaptureTimeout)
-		beforeID, err := s.captureJourneyScreenshot(beforeCtx, smokeTestID, scenarioName, rec.displayID, "before-"+name)
-		beforeCancel()
-		if err != nil {
-			step.Disposition = journeyStepFail
-			step.Error = "before screenshot: " + err.Error()
-			journey.Disposition = journeyFailed
-			journey.Steps = append(journey.Steps, step)
-			return
-		}
-		step.BeforeCaptureID = beforeID
-
-		stepCtx, stepCancel := context.WithTimeout(ctx, journeyStepTimeout)
-		err = perform(stepCtx)
-		if err != nil {
-			step.Disposition = journeyStepFail
-			step.Error = err.Error()
-			journey.Disposition = journeyFailed
-			if stepCtx.Err() != nil {
-				journey.DegradedReason = "step_timeout_" + name
-			}
-		} else if geometry {
-			step.Geometry, err = s.windowDetector.WindowGeometry(stepCtx, 0, rec.displayID)
-			if err != nil {
-				step.Disposition = journeyStepFail
-				step.Error = "geometry: " + err.Error()
-				journey.Disposition = journeyFailed
-			}
-		}
-		stepCancel()
-
-		afterCtx, afterCancel := context.WithTimeout(ctx, journeyCaptureTimeout)
-		afterID, captureErr := s.captureJourneyScreenshot(afterCtx, smokeTestID, scenarioName, rec.displayID, "after-"+name)
-		afterCancel()
-		if captureErr != nil {
-			step.Disposition = journeyStepFail
-			if step.Error == "" {
-				step.Error = "after screenshot: " + captureErr.Error()
-			} else {
-				step.Error += "; after screenshot: " + captureErr.Error()
-			}
-			journey.Disposition = journeyFailed
-		} else {
-			step.AfterCaptureID = afterID
-		}
-		step.CompletedAt = time.Now().UTC()
-		journey.Steps = append(journey.Steps, step)
-	}
-
-	detector := s.windowDetector
-	addInteraction("activate", "window_activate", func(stepCtx context.Context) error { return detector.ActivateWindow(stepCtx, 0, rec.displayID) }, true)
-	addInteraction("maximize", "window_maximize", func(stepCtx context.Context) error {
-		return detector.MaximizeWindow(stepCtx, 0, rec.displayID, rec.displayWidth, rec.displayHeight)
-	}, true)
-	if step := journey.Steps[len(journey.Steps)-1]; step.Geometry == nil || step.Geometry.Width < rec.displayWidth*90/100 || step.Geometry.Height < rec.displayHeight*90/100 {
-		journey.Disposition = journeyFailed
-		journey.DegradedReason = "maximize_below_ninety_percent"
-	}
-	if scenarioName == "hello-desktop" {
-		observedState := ""
-		semanticName := "Vrooli-" + strings.ReplaceAll(smokeTestID, "-", "")
-		if len(semanticName) > 24 {
-			semanticName = semanticName[:24]
-		}
-		addInteraction("semantic_greet", "semantic_state_change", func(stepCtx context.Context) error {
-			if err := detector.KeyPress(stepCtx, rec.displayID, "Tab"); err != nil {
-				return err
-			}
-			if err := detector.KeyPress(stepCtx, rec.displayID, "ctrl+a"); err != nil {
-				return err
-			}
-			if err := detector.Type(stepCtx, rec.displayID, semanticName); err != nil {
-				return err
-			}
-			if err := detector.KeyPress(stepCtx, rec.displayID, "Tab"); err != nil {
-				return err
-			}
-			if err := detector.KeyPress(stepCtx, rec.displayID, "Return"); err != nil {
-				return err
-			}
-			observed, err := helloDesktopGreeting(stepCtx, semanticName)
-			observedState = observed
-			if err != nil {
-				return err
-			}
-			select {
-			case <-time.After(500 * time.Millisecond):
-				return nil
-			case <-stepCtx.Done():
-				return stepCtx.Err()
-			}
-		}, false)
-		step := &journey.Steps[len(journey.Steps)-1]
-		step.AssertionID = "hello-desktop.greeting"
-		step.ExpectedState = "Hello, " + semanticName + "!"
-		step.ObservedState = observedState
-	}
-	addInteraction("pointer_click", "pointer_click", func(stepCtx context.Context) error {
-		return detector.Click(stepCtx, rec.displayID, rec.displayWidth/2, rec.displayHeight/2, 1)
-	}, false)
-	addInteraction("key_press", "key_press", func(stepCtx context.Context) error { return detector.KeyPress(stepCtx, rec.displayID, "Return") }, false)
-	addInteraction("resize", "window_resize", func(stepCtx context.Context) error {
-		return detector.ResizeWindow(stepCtx, 0, rec.displayID, rec.displayWidth*80/100, rec.displayHeight*80/100)
-	}, true)
-	addInteraction("move", "window_move", func(stepCtx context.Context) error { return detector.MoveWindow(stepCtx, 0, rec.displayID, 32, 32) }, true)
-	addInteraction("quit", "quit_app", func(stepCtx context.Context) error { return detector.KeyPress(stepCtx, rec.displayID, "alt+F4") }, false)
-	for _, step := range journey.Steps {
-		if step.Disposition != journeyStepPass {
-			journey.Disposition = journeyFailed
-		}
-	}
-	if !journeyHasScreenshotPairs(journey.Steps) {
-		journey.Disposition = journeyFailed
-		journey.DegradedReason = "interaction_screenshot_pair_missing"
-	}
-	return journey
+func (d procmetricsDesktopDriver) IsAvailable(ctx context.Context) bool {
+	return d.detector != nil && d.detector.IsAvailable(ctx)
 }
 
-func helloDesktopGreeting(ctx context.Context, expectedName string) (string, error) {
+func (d procmetricsDesktopDriver) LargestVisibleWindow(ctx context.Context, display string) (*procmetrics.WindowGeometry, error) {
+	return d.detector.LargestVisibleWindow(ctx, 0, display)
+}
+
+func (d procmetricsDesktopDriver) WindowGeometry(ctx context.Context, display string) (*procmetrics.WindowGeometry, error) {
+	return d.detector.WindowGeometry(ctx, 0, display)
+}
+
+func (d procmetricsDesktopDriver) ActivateWindow(ctx context.Context, display string) error {
+	return d.detector.ActivateWindow(ctx, 0, display)
+}
+
+func (d procmetricsDesktopDriver) MaximizeWindow(ctx context.Context, display string, width, height int) error {
+	return d.detector.MaximizeWindow(ctx, 0, display, width, height)
+}
+
+func (d procmetricsDesktopDriver) ResizeWindow(ctx context.Context, display string, width, height int) error {
+	return d.detector.ResizeWindow(ctx, 0, display, width, height)
+}
+
+func (d procmetricsDesktopDriver) MoveWindow(ctx context.Context, display string, x, y int) error {
+	return d.detector.MoveWindow(ctx, 0, display, x, y)
+}
+
+func (d procmetricsDesktopDriver) Click(ctx context.Context, display string, x, y, button int) error {
+	return d.detector.Click(ctx, display, x, y, button)
+}
+
+func (d procmetricsDesktopDriver) KeyPress(ctx context.Context, display, key string) error {
+	return d.detector.KeyPress(ctx, display, key)
+}
+
+func (d procmetricsDesktopDriver) Type(ctx context.Context, display, value string) error {
+	return d.detector.Type(ctx, display, value)
+}
+
+type captureJourneySink struct{ service *DefaultService }
+
+func (c captureJourneySink) Capture(ctx context.Context, smokeTestID, scenarioName, display, label string) (EvidenceReference, error) {
+	id, err := c.service.captureJourneyScreenshot(ctx, smokeTestID, scenarioName, display, label)
+	if err != nil {
+		return EvidenceReference{}, err
+	}
+	return EvidenceReference{ID: id, Kind: string(captures.CaptureScreenshot)}, nil
+}
+
+type defaultJourneyWaiter struct{ clock Clock }
+
+func (w defaultJourneyWaiter) WaitUntil(ctx context.Context, policy ReadinessPolicy, condition func(context.Context) (bool, string, error)) (WaitResult, error) {
+	if policy.Timeout <= 0 || policy.PollInterval <= 0 {
+		return WaitResult{}, fmt.Errorf("readiness policy %q must have positive timeout and poll interval", policy.ID)
+	}
+	deadline := w.clock.After(policy.Timeout)
+	interval := w.clock.After(0)
+	stabilityNeeded := policy.StabilityCount
+	if stabilityNeeded < 1 {
+		stabilityNeeded = 1
+	}
+	attempts := 0
+	stable := 0
+	for {
+		select {
+		case <-ctx.Done():
+			return WaitResult{}, ctx.Err()
+		case <-deadline:
+			return WaitResult{Attempts: attempts}, fmt.Errorf("readiness policy %q timed out", policy.ID)
+		case <-interval:
+			attempts++
+			ready, observed, err := condition(ctx)
+			if err != nil {
+				return WaitResult{Attempts: attempts}, err
+			}
+			if ready {
+				stable++
+				if stable >= stabilityNeeded {
+					return WaitResult{Observed: observed, Attempts: attempts}, nil
+				}
+			} else {
+				stable = 0
+			}
+			interval = w.clock.After(policy.PollInterval)
+		}
+	}
+}
+
+func (w defaultJourneyWaiter) Settle(ctx context.Context, policy SettlePolicy) error {
+	if policy.Minimum < 0 || policy.Maximum < policy.Minimum || policy.Maximum <= 0 {
+		return fmt.Errorf("settle policy %q has invalid bounds", policy.ID)
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-w.clock.After(policy.Minimum):
+		return nil
+	}
+}
+
+type loopbackJourneyAPI struct{}
+
+func (loopbackJourneyAPI) Greet(ctx context.Context, expectedName string) (string, error) {
 	baseURL := strings.TrimRight(os.Getenv("HELLO_DESKTOP_API_URL"), "/")
 	if baseURL == "" {
 		baseURL = "http://127.0.0.1:23100"
@@ -271,7 +231,343 @@ func helloDesktopGreeting(ctx context.Context, expectedName string) (string, err
 	return payload.Message, nil
 }
 
+func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState) JourneyResult {
+	capability := strings.TrimSpace(s.journeyCapability)
+	if capability == "" {
+		capability = strings.TrimSpace(os.Getenv("S2D_JOURNEY_CAPABILITY"))
+	}
+	if capability == "" {
+		capability = capabilityForScenario(scenarioName)
+	}
+	return s.runDesktopJourneyCapability(ctx, smokeTestID, scenarioName, platform, rec, capability)
+}
+
+func (s *DefaultService) runDesktopJourneyCapability(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState, capability string) (result JourneyResult) {
+	clock := s.journeyClock
+	if clock == nil {
+		clock = RealClock{}
+	}
+	started := clock.Now().UTC()
+	input := JourneyInput{SmokeTestID: smokeTestID, ScenarioName: scenarioName, Platform: platform, Display: rec.displayID, DisplayWidth: rec.displayWidth, DisplayHeight: rec.displayHeight}
+	fixture, ok := journeyFixture(capability)
+	base := JourneyResult{SchemaVersion: JourneySchemaVersion, EvidenceVersion: "journey-evidence.v2", SmokeTestID: smokeTestID, ScenarioName: scenarioName, Capability: capability, Platform: platform, Display: rec.displayID, WindowManager: rec.windowManager, Titlebar: rec.titlebar, RecordingStartedBeforeLaunch: rec.captureID != "", Disposition: journeyPass, CreatedAt: started}
+	if !ok {
+		base.Disposition = JourneyDispositionUnavailable
+		base.DegradedReason = "capability_not_registered"
+		base.CompletedAt = clock.Now().UTC()
+		return base
+	}
+	plan := fixture.Plan(input)
+	requestedProfile := strings.TrimSpace(os.Getenv("S2D_JOURNEY_PROFILE"))
+	if requestedProfile != "" {
+		var profileErr error
+		plan, profileErr = applyJourneyProfile(plan, requestedProfile)
+		if profileErr != nil {
+			base.Disposition = JourneyDispositionUnavailable
+			base.DegradedReason = profileErr.Error()
+			base.CompletedAt = clock.Now().UTC()
+			return base
+		}
+	}
+	base.PlanID, base.Profile = plan.ID, plan.Profile
+	if support, ok := fixture.(JourneySupportStatus); ok {
+		if supported, reason := support.Supported(input); !supported {
+			base.Disposition = JourneyDispositionUnsupported
+			base.DegradedReason = reason
+			step := JourneyStep{ID: "unsupported", Name: "unsupported", Purpose: plan.Purpose, Action: "unsupported", Disposition: JourneyStepUnavailable, Error: reason, StartedAt: started}
+			step = finishJourneyStep(step, clock, started)
+			base.Steps = append(base.Steps, step)
+			base.CompletedAt = clock.Now().UTC()
+			return base
+		}
+	}
+	if runtime.GOOS != "linux" {
+		base.Disposition = JourneyDispositionUnavailable
+		base.DegradedReason = "native_visual_runtime_not_supported_on_host"
+		base.CompletedAt = clock.Now().UTC()
+		return base
+	}
+	if rec.windowManager == "" || !rec.titlebar {
+		base.Disposition = JourneyDispositionUnavailable
+		base.DegradedReason = "window_manager_capability_unavailable"
+		base.CompletedAt = clock.Now().UTC()
+		return base
+	}
+	driver := s.journeyDriver
+	if driver == nil && s.windowDetector != nil {
+		driver = procmetricsDesktopDriver{detector: s.windowDetector}
+	}
+	if driver == nil || !driver.IsAvailable(ctx) {
+		base.Disposition = JourneyDispositionDegraded
+		base.DegradedReason = "xdotool_unavailable"
+		base.CompletedAt = clock.Now().UTC()
+		return base
+	}
+	if err := ctx.Err(); err != nil {
+		base.Disposition = JourneyDispositionFailed
+		base.DegradedReason = "context_" + err.Error()
+		base.CompletedAt = clock.Now().UTC()
+		return base
+	}
+	waiter := s.journeyWaiter
+	if waiter == nil {
+		waiter = defaultJourneyWaiter{clock: clock}
+	}
+	capture := s.journeyCapture
+	if capture == nil {
+		capture = captureJourneySink{service: s}
+	}
+	api := s.journeyAPI
+	if api == nil {
+		api = loopbackJourneyAPI{}
+	}
+	actions := fixture.Actions()
+	cleanupNeeded := true
+	defer func() {
+		if cleanupNeeded {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), journeyStepTimeout)
+			if cleanupErr := driver.KeyPress(cleanupCtx, rec.displayID, "alt+F4"); cleanupErr != nil {
+				base.Disposition = JourneyDispositionFailed
+				base.DegradedReason = "cleanup_failed"
+				s.recordJourneyEvent(&base, clock, started, "cleanup_failed", "", "clean_shutdown", "", cleanupErr.Error())
+			} else {
+				s.recordJourneyEvent(&base, clock, started, "cleanup_completed", "", "clean_shutdown", "", "")
+			}
+			cancel()
+		}
+		result = base
+	}()
+
+	for _, spec := range plan.Steps {
+		if err := ctx.Err(); err != nil {
+			base.Disposition = JourneyDispositionFailed
+			base.DegradedReason = "context_" + err.Error()
+			break
+		}
+		step := JourneyStep{ID: spec.ID, Name: spec.ID, Purpose: spec.Purpose, Action: spec.Action, Disposition: journeyStepPass, Readiness: spec.Readiness, Settle: spec.Settle, StartedAt: clock.Now().UTC()}
+		step.MonotonicStartMs = startedSubMs(started, step.StartedAt)
+		if s.journeyProcess != nil {
+			if observed, observeErr := s.journeyProcess.Observe(ctx); observeErr == nil {
+				step.ProcessBefore = observed
+				s.recordJourneyEvent(&base, clock, started, "process_observed", step.ID, "", observed, "before_action")
+			}
+		}
+		s.recordJourneyEvent(&base, clock, started, "step_started", step.ID, "", "", "")
+		ready, err := waiter.WaitUntil(ctx, spec.Readiness, func(checkCtx context.Context) (bool, string, error) {
+			if spec.Readiness.ID == "target_window_visible" {
+				window, windowErr := driver.LargestVisibleWindow(checkCtx, rec.displayID)
+				if windowErr != nil {
+					return false, "window_probe_error", windowErr
+				}
+				if window != nil && window.Width >= journeyMainWindowMinWidth && window.Height >= journeyMainWindowMinHeight {
+					return true, fmt.Sprintf("usable_window:%dx%d", window.Width, window.Height), nil
+				}
+				return false, "waiting_for_usable_window", nil
+			}
+			return true, "condition_not_required", nil
+		})
+		if err != nil {
+			eventType := "readiness_failed"
+			if strings.Contains(strings.ToLower(err.Error()), "timed out") {
+				eventType = "readiness_timeout"
+			}
+			s.recordJourneyEvent(&base, clock, started, eventType, step.ID, spec.Readiness.ID, ready.Observed, err.Error())
+			step.Disposition = dispositionForJourneyError(err)
+			step.Error = err.Error()
+			step.DegradedReason = "readiness_failed"
+			step = finishJourneyStep(step, clock, started)
+			setVideoOffsets(&step, rec.recordingStartedAt)
+			base.Steps = append(base.Steps, step)
+			base.Disposition = dispositionForJourneyError(err)
+			base.DegradedReason = "readiness_" + spec.ID
+			break
+		}
+		if ready.Attempts > 1 {
+			s.recordJourneyEvent(&base, clock, started, "readiness_retry", step.ID, spec.Readiness.ID, ready.Observed, fmt.Sprintf("attempts=%d", ready.Attempts))
+		}
+		s.recordJourneyEvent(&base, clock, started, "readiness_ready", step.ID, spec.Readiness.ID, ready.Observed, "")
+		if spec.Capture {
+			captureCtx, captureCancel := context.WithTimeout(ctx, journeyCaptureTimeout)
+			ref, captureErr := capture.Capture(captureCtx, smokeTestID, scenarioName, rec.displayID, "before-"+spec.ID)
+			captureCancel()
+			if captureErr != nil {
+				step.Disposition, step.Error, base.Disposition = journeyStepFail, "before screenshot: "+captureErr.Error(), journeyFailed
+				step = finishJourneyStep(step, clock, started)
+				setVideoOffsets(&step, rec.recordingStartedAt)
+				base.Steps = append(base.Steps, step)
+				break
+			}
+			step.BeforeCaptureID = ref.ID
+			step.Evidence = append(step.Evidence, ref)
+		}
+		action := actions[spec.Action]
+		if action == nil {
+			action = genericJourneyAction(spec.Action)
+		}
+		if action == nil {
+			step.Disposition, step.Error, base.Disposition = JourneyStepUnavailable, "action is not supported by the selected capability", JourneyDispositionUnsupported
+			step = finishJourneyStep(step, clock, started)
+			setVideoOffsets(&step, rec.recordingStartedAt)
+			base.Steps = append(base.Steps, step)
+			break
+		}
+		actionCtx, cancel := context.WithTimeout(ctx, journeyStepTimeout)
+		observation, actionErr := action(actionCtx, driver, api, input)
+		cancel()
+		if actionErr != nil {
+			step.Disposition = dispositionForJourneyError(actionErr)
+			step.Error = actionErr.Error()
+			base.Disposition = dispositionForJourneyError(actionErr)
+		} else {
+			step.ObservedState = observation.Observed
+			step.Geometry = observation.Geometry
+			step.Route = observation.Route
+			if observation.Provider != nil {
+				base.ProviderObservation = observation.Provider
+			}
+			if spec.Assertion != nil {
+				step.AssertionID, step.ExpectedState = spec.Assertion.ID, spec.Assertion.Expected
+				step.AssertionStatus = assertionStatus(spec.Assertion.Expected, observation.Observed, observation.Geometry, input)
+				if step.AssertionStatus != JourneyStepPassed {
+					step.Disposition, step.Error, base.Disposition = JourneyStepFailed, "assertion did not match observed result", journeyFailed
+				}
+			}
+		}
+		if s.journeyProcess != nil {
+			if observed, observeErr := s.journeyProcess.Observe(ctx); observeErr == nil {
+				step.ProcessAfter = observed
+				s.recordJourneyEvent(&base, clock, started, "process_observed", step.ID, "", observed, "after_action")
+			}
+		}
+		if settleErr := waiter.Settle(ctx, spec.Settle); settleErr != nil && step.Error == "" {
+			step.Disposition, step.Error, base.Disposition = dispositionForJourneyError(settleErr), settleErr.Error(), dispositionForJourneyError(settleErr)
+		}
+		s.recordJourneyEvent(&base, clock, started, "settle_completed", step.ID, spec.Settle.ID, spec.Settle.Reason, "")
+		if spec.Capture {
+			captureCtx, captureCancel := context.WithTimeout(ctx, journeyCaptureTimeout)
+			ref, captureErr := capture.Capture(captureCtx, smokeTestID, scenarioName, rec.displayID, "after-"+spec.ID)
+			captureCancel()
+			if captureErr != nil {
+				step.Disposition, step.Error, base.Disposition = journeyStepFail, "after screenshot: "+captureErr.Error(), journeyFailed
+			} else {
+				step.AfterCaptureID = ref.ID
+				step.Evidence = append(step.Evidence, ref)
+			}
+		}
+		step = finishJourneyStep(step, clock, started)
+		setVideoOffsets(&step, rec.recordingStartedAt)
+		base.Steps = append(base.Steps, step)
+		s.recordJourneyEvent(&base, clock, started, "step_completed", step.ID, "", step.ObservedState, step.Error)
+		if step.Disposition != journeyStepPass {
+			break
+		}
+		if spec.Action == "quit_app" {
+			cleanupNeeded = false
+		}
+	}
+	if base.Disposition == journeyPass && !journeyHasScreenshotPairs(base.Steps) {
+		base.Disposition, base.DegradedReason = journeyFailed, "interaction_screenshot_pair_missing"
+	}
+	base.CompletedAt = clock.Now().UTC()
+	return base
+}
+
+func genericJourneyAction(action string) JourneyAction {
+	switch action {
+	case "window_activate", "window_maximize", "pointer_click", "key_press", "window_resize", "window_move", "quit_app":
+	default:
+		return nil
+	}
+	return func(ctx context.Context, driver DesktopDriver, _ JourneyAPIProbe, input JourneyInput) (JourneyObservation, error) {
+		var err error
+		var geometry *procmetrics.WindowGeometry
+		switch action {
+		case "window_activate":
+			err = driver.ActivateWindow(ctx, input.Display)
+		case "window_maximize":
+			err = driver.MaximizeWindow(ctx, input.Display, input.DisplayWidth, input.DisplayHeight)
+			if err == nil {
+				geometry, err = driver.WindowGeometry(ctx, input.Display)
+			}
+		case "pointer_click":
+			err = driver.Click(ctx, input.Display, input.DisplayWidth/2, input.DisplayHeight/2, 1)
+		case "key_press":
+			err = driver.KeyPress(ctx, input.Display, "Return")
+		case "window_resize":
+			err = driver.ResizeWindow(ctx, input.Display, input.DisplayWidth*80/100, input.DisplayHeight*80/100)
+			if err == nil {
+				geometry, err = driver.WindowGeometry(ctx, input.Display)
+			}
+		case "window_move":
+			err = driver.MoveWindow(ctx, input.Display, 32, 32)
+			if err == nil {
+				geometry, err = driver.WindowGeometry(ctx, input.Display)
+			}
+		case "quit_app":
+			err = driver.KeyPress(ctx, input.Display, "alt+F4")
+		}
+		return JourneyObservation{Observed: action, Geometry: geometry}, err
+	}
+}
+
+func assertionStatus(expected, observed string, geometry *procmetrics.WindowGeometry, input JourneyInput) string {
+	if strings.HasPrefix(expected, "window covers") {
+		if geometry != nil && geometry.Width >= input.DisplayWidth*90/100 && geometry.Height >= input.DisplayHeight*90/100 {
+			return JourneyStepPassed
+		}
+		return JourneyStepFailed
+	}
+	if expected == observed {
+		return JourneyStepPassed
+	}
+	return JourneyStepFailed
+}
+
+func dispositionForJourneyError(err error) string {
+	if err == nil {
+		return journeyStepPass
+	}
+	if err == context.Canceled || err == context.DeadlineExceeded {
+		return journeyFailed
+	}
+	return journeyStepFail
+}
+
+func finishJourneyStep(step JourneyStep, clock Clock, started time.Time) JourneyStep {
+	step.CompletedAt = clock.Now().UTC()
+	step.MonotonicEndMs = startedSubMs(started, step.CompletedAt)
+	return step
+}
+
+func setVideoOffsets(step *JourneyStep, recordingStartedAt time.Time) {
+	if step == nil || recordingStartedAt.IsZero() {
+		return
+	}
+	start := step.StartedAt.Sub(recordingStartedAt).Milliseconds()
+	end := step.CompletedAt.Sub(recordingStartedAt).Milliseconds()
+	if start < 0 || end < start {
+		return
+	}
+	step.VideoStartOffsetMs = &start
+	step.VideoEndOffsetMs = &end
+}
+
+func startedSubMs(start, end time.Time) int64 {
+	if end.Before(start) {
+		return 0
+	}
+	return end.Sub(start).Milliseconds()
+}
+
+func (s *DefaultService) recordJourneyEvent(result *JourneyResult, clock Clock, started time.Time, eventType, stepID, policyID, observed, reason string) {
+	now := clock.Now().UTC()
+	result.Events = append(result.Events, JourneyEvent{Type: eventType, StepID: stepID, PolicyID: policyID, Observed: observed, StartedAt: now, CompletedAt: now, MonotonicStartMs: startedSubMs(started, now), MonotonicEndMs: startedSubMs(started, now), Reason: reason})
+}
+
 func journeyHasScreenshotPairs(steps []JourneyStep) bool {
+	if len(steps) == 0 {
+		return false
+	}
 	for _, step := range steps {
 		if step.Action == "screenshot" || step.Action == "window_geometry" {
 			continue
@@ -280,7 +576,99 @@ func journeyHasScreenshotPairs(steps []JourneyStep) bool {
 			return false
 		}
 	}
-	return len(steps) > 0
+	return true
+}
+
+// ValidateJourneyTimeline is the fail-closed contract check used by the
+// producer manifest and focused contract tests. It intentionally validates the
+// persisted sidecar, not transient runner state.
+func ValidateJourneyTimeline(journey JourneyResult) error {
+	if journey.SchemaVersion != 1 && journey.SchemaVersion != JourneySchemaVersion {
+		return fmt.Errorf("unsupported journey schema version %d", journey.SchemaVersion)
+	}
+	if strings.TrimSpace(journey.SmokeTestID) == "" || strings.TrimSpace(journey.ScenarioName) == "" {
+		return fmt.Errorf("journey identity is required")
+	}
+	if journey.CreatedAt.IsZero() {
+		return fmt.Errorf("journey start time is required")
+	}
+	if journey.SchemaVersion >= JourneySchemaVersion {
+		if strings.TrimSpace(journey.EvidenceVersion) == "" || strings.TrimSpace(journey.Capability) == "" || strings.TrimSpace(journey.PlanID) == "" {
+			return fmt.Errorf("versioned journey requires evidence, capability, and plan identity")
+		}
+		if journey.CompletedAt.IsZero() {
+			return fmt.Errorf("journey completion time is required")
+		}
+	}
+	previousEnd := int64(0)
+	stepIDs := make(map[string]struct{}, len(journey.Steps))
+	for index, step := range journey.Steps {
+		if step.StartedAt.IsZero() || step.CompletedAt.IsZero() || step.CompletedAt.Before(step.StartedAt) {
+			return fmt.Errorf("journey step %d has invalid timestamps", index)
+		}
+		if step.MonotonicEndMs < step.MonotonicStartMs || step.MonotonicStartMs < previousEnd {
+			return fmt.Errorf("journey step %d is out of order", index)
+		}
+		previousEnd = step.MonotonicEndMs
+		if journey.SchemaVersion >= JourneySchemaVersion && strings.TrimSpace(step.ID) == "" {
+			return fmt.Errorf("journey step %d has no stable ID", index)
+		}
+		if step.ID != "" {
+			if _, exists := stepIDs[step.ID]; exists {
+				return fmt.Errorf("journey step %d repeats ID %q", index, step.ID)
+			}
+			stepIDs[step.ID] = struct{}{}
+		}
+		if step.VideoStartOffsetMs != nil && *step.VideoStartOffsetMs < 0 {
+			return fmt.Errorf("journey step %d has invalid video start offset", index)
+		}
+		if step.VideoEndOffsetMs != nil && *step.VideoEndOffsetMs < 0 {
+			return fmt.Errorf("journey step %d has invalid video end offset", index)
+		}
+		if step.VideoStartOffsetMs != nil && step.VideoEndOffsetMs != nil && *step.VideoEndOffsetMs < *step.VideoStartOffsetMs {
+			return fmt.Errorf("journey step %d has invalid video offsets", index)
+		}
+	}
+	previousEvent := int64(0)
+	for index, event := range journey.Events {
+		if event.StartedAt.IsZero() || event.CompletedAt.IsZero() || event.CompletedAt.Before(event.StartedAt) || event.MonotonicEndMs < event.MonotonicStartMs || event.MonotonicStartMs < previousEvent {
+			return fmt.Errorf("journey event %d is out of order", index)
+		}
+		previousEvent = event.MonotonicEndMs
+	}
+	if journey.SchemaVersion >= JourneySchemaVersion && len(journey.Steps) == 0 {
+		return fmt.Errorf("versioned journey must contain chapters")
+	}
+	data, err := json.Marshal(journey)
+	if err != nil {
+		return fmt.Errorf("serialize journey for redaction check: %w", err)
+	}
+	for _, forbidden := range []string{"authorization", "bearer ", "client_secret", "private_key"} {
+		if strings.Contains(strings.ToLower(string(data)), forbidden) {
+			return fmt.Errorf("journey contains forbidden credential material")
+		}
+	}
+	return nil
+}
+
+func reviewFromJourney(journey JourneyResult) *JourneyReview {
+	review := &JourneyReview{SchemaVersion: journey.EvidenceVersion, Capability: journey.Capability, PlanID: journey.PlanID, Profile: journey.Profile, Disposition: journey.Disposition, Reason: journey.DegradedReason, EventCount: len(journey.Events), Chapters: make([]JourneyChapter, 0, len(journey.Steps))}
+	if provider := journey.ProviderObservation; provider != nil {
+		review.DeploymentMode = provider.DeploymentMode
+		review.ProviderTier = provider.ProviderTier
+		review.ServiceIdentity = provider.ServiceIdentity
+		review.Readiness = provider.Readiness
+		review.FallbackDecision = provider.FallbackDecision
+		review.SafeRouteClass = provider.SafeRouteClass
+	}
+	for _, step := range journey.Steps {
+		chapter := JourneyChapter{ID: step.ID, Purpose: step.Purpose, Action: step.Action, Disposition: step.Disposition, AssertionID: step.AssertionID, Expected: step.ExpectedState, Observed: step.ObservedState, Error: step.Error, VideoStartOffsetMs: step.VideoStartOffsetMs, VideoEndOffsetMs: step.VideoEndOffsetMs}
+		for _, ref := range step.Evidence {
+			chapter.EvidenceIDs = append(chapter.EvidenceIDs, ref.ID)
+		}
+		review.Chapters = append(review.Chapters, chapter)
+	}
+	return review
 }
 
 func (s *DefaultService) captureJourneyScreenshot(ctx context.Context, smokeTestID, scenarioName, display, label string) (string, error) {
@@ -322,8 +710,6 @@ func runJourneyCommand(ctx context.Context, command string, args []string, env [
 	return result, err
 }
 
-// execCommandContext is a variable to keep the journey's host seam replaceable
-// in focused tests without making production code depend on a shell mock.
 var execCommandContext = func(ctx context.Context, command string, args ...string) *exec.Cmd {
 	return exec.CommandContext(ctx, command, args...)
 }

@@ -49,7 +49,7 @@
       "vite",
       "go-api",
       "secrets-management",
-      "vault",
+      "credential-authority",
       "postgres"
     ],
     "maintainers": [
@@ -254,12 +254,6 @@
   },
   "dependencies": {
     "resources": {
-      "vault": {
-        "type": "vault",
-        "enabled": true,
-        "required": true,
-        "description": "Secure secret storage and validation"
-      },
       "postgres": {
         "type": "postgres",
         "enabled": true,

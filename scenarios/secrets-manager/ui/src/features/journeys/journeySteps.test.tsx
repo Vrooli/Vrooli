@@ -23,7 +23,7 @@ const callbacks = () => ({
 function build(journey: JourneyId, overrides = {}) {
   const handlers = callbacks();
   const steps = buildJourneySteps(journey, {
-    heroStats: { vault_configured: 2, vault_total: 4, missing_secrets: 1, risk_score: 75 },
+    heroStats: { credential_configured: 2, credential_total: 4, missing_secrets: 1, risk_score: 75 },
     vulnerabilitySummary: { critical: 2, high: 1, medium: 3, low: 4 },
     tierReadiness: [
       { tier: "tier-1-local", label: "Tier 1", ready_percent: 50, strategized: 1, total: 2 },

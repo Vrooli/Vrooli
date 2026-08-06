@@ -39,10 +39,17 @@ type DefaultService struct {
 	captures   *captures.Service
 
 	// Optional process monitoring (nil = monitoring disabled)
-	monitorFactory   procmetrics.MonitorFactory
-	windowDetector   *procmetrics.XdotoolDetector
-	evidenceReporter EvidenceReporter
-	manifestWriter   EvidenceManifestWriter
+	monitorFactory    procmetrics.MonitorFactory
+	windowDetector    *procmetrics.XdotoolDetector
+	journeyDriver     DesktopDriver
+	journeyClock      Clock
+	journeyWaiter     JourneyWaiter
+	journeyCapture    JourneyCapture
+	journeyAPI        JourneyAPIProbe
+	journeyProcess    JourneyProcessObserver
+	journeyCapability string
+	evidenceReporter  EvidenceReporter
+	manifestWriter    EvidenceManifestWriter
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -133,6 +140,32 @@ func (s *DefaultService) WithMonitor(factory procmetrics.MonitorFactory) {
 // visible-window behavior stay consistent across both evidence paths.
 func (s *DefaultService) WithWindowDetector(detector *procmetrics.XdotoolDetector) {
 	s.windowDetector = detector
+	if detector != nil {
+		s.journeyDriver = procmetricsDesktopDriver{detector: detector}
+	}
+}
+
+// WithJourneySeams replaces platform, timing, readiness, capture, and API
+// dependencies for deterministic contract tests. Production callers normally
+// use WithWindowDetector and the default clock/wait/capture adapters.
+func (s *DefaultService) WithJourneySeams(driver DesktopDriver, clock Clock, waiter JourneyWaiter, capture JourneyCapture, api JourneyAPIProbe) {
+	s.journeyDriver = driver
+	s.journeyClock = clock
+	s.journeyWaiter = waiter
+	s.journeyCapture = capture
+	s.journeyAPI = api
+}
+
+// WithJourneyProcessObserver adds a credential-free process observation seam
+// to the journey without making process monitoring part of desktop actions.
+func (s *DefaultService) WithJourneyProcessObserver(observer JourneyProcessObserver) {
+	s.journeyProcess = observer
+}
+
+// WithJourneyCapability selects an explicit behavior fixture for the next
+// smoke journey. Empty values retain registry lookup by scenario identity.
+func (s *DefaultService) WithJourneyCapability(capability string) {
+	s.journeyCapability = capability
 }
 
 // EvidenceReporter is optional so local smoke tests do not acquire a startup

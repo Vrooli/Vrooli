@@ -17,11 +17,11 @@ type vulnerabilitySeverityCounts struct {
 	low      int
 }
 
-// calculateComplianceMetrics computes compliance metrics from vault and security data.
-func calculateComplianceMetrics(vaultStatus *VaultSecretsStatus, securityResults *SecurityScanResult) ComplianceMetrics {
-	vault := VaultSecretsStatus{}
-	if vaultStatus != nil {
-		vault = *vaultStatus
+// calculateComplianceMetrics computes compliance metrics from credential coverage and security data.
+func calculateComplianceMetrics(credentialStatus *CredentialCoverageStatus, securityResults *SecurityScanResult) ComplianceMetrics {
+	coverage := CredentialCoverageStatus{}
+	if credentialStatus != nil {
+		coverage = *credentialStatus
 	}
 
 	summary := ComponentScanSummary{}
@@ -34,28 +34,28 @@ func calculateComplianceMetrics(vaultStatus *VaultSecretsStatus, securityResults
 		riskScore = securityResults.RiskScore
 	}
 
-	vaultHealth := calculatePercentage(vault.ConfiguredResources, vault.TotalResources)
+	credentialCoverage := calculatePercentage(coverage.ConfiguredResources, coverage.TotalResources)
 	securityScore := 100 - riskScore
 	if securityScore < 0 {
 		securityScore = 0
 	}
-	overallCompliance := (vaultHealth + securityScore) / 2
+	overallCompliance := (credentialCoverage + securityScore) / 2
 
 	severityCounts := tallyVulnerabilitySeverities(vulnerabilities)
-	configuredComponents := vault.ConfiguredResources
+	configuredComponents := coverage.ConfiguredResources
 	if summary.TotalComponents > 0 {
 		configuredComponents += summary.ConfiguredCount
 	}
 
 	return ComplianceMetrics{
-		VaultSecretsHealth:   vaultHealth,
-		SecurityScore:        securityScore,
-		OverallCompliance:    overallCompliance,
-		ConfiguredComponents: configuredComponents,
-		CriticalIssues:       severityCounts.critical,
-		HighIssues:           severityCounts.high,
-		MediumIssues:         severityCounts.medium,
-		LowIssues:            severityCounts.low,
+		CredentialCoverageHealth: credentialCoverage,
+		SecurityScore:            securityScore,
+		OverallCompliance:        overallCompliance,
+		ConfiguredComponents:     configuredComponents,
+		CriticalIssues:           severityCounts.critical,
+		HighIssues:               severityCounts.high,
+		MediumIssues:             severityCounts.medium,
+		LowIssues:                severityCounts.low,
 	}
 }
 
@@ -86,10 +86,10 @@ func tallyVulnerabilitySeverities(vulnerabilities []SecurityVulnerability) vulne
 }
 
 // buildComplianceResponse constructs the compliance API response payload.
-func buildComplianceResponse(metrics ComplianceMetrics, vaultStatus *VaultSecretsStatus, securityResults *SecurityScanResult) map[string]interface{} {
-	vault := VaultSecretsStatus{}
-	if vaultStatus != nil {
-		vault = *vaultStatus
+func buildComplianceResponse(metrics ComplianceMetrics, credentialStatus *CredentialCoverageStatus, securityResults *SecurityScanResult) map[string]interface{} {
+	coverage := CredentialCoverageStatus{}
+	if credentialStatus != nil {
+		coverage = *credentialStatus
 	}
 
 	componentsSummary := ComponentScanSummary{}
@@ -100,8 +100,8 @@ func buildComplianceResponse(metrics ComplianceMetrics, vaultStatus *VaultSecret
 	}
 
 	return map[string]interface{}{
-		"overall_score":        metrics.OverallCompliance,
-		"vault_secrets_health": metrics.VaultSecretsHealth,
+		"overall_score":              metrics.OverallCompliance,
+		"credential_coverage_health": metrics.CredentialCoverageHealth,
 		"vulnerability_summary": map[string]int{
 			"critical": metrics.CriticalIssues,
 			"high":     metrics.HighIssues,
@@ -109,8 +109,8 @@ func buildComplianceResponse(metrics ComplianceMetrics, vaultStatus *VaultSecret
 			"low":      metrics.LowIssues,
 		},
 		"remediation_progress":  metrics,
-		"total_resources":       vault.TotalResources,
-		"configured_resources":  vault.ConfiguredResources,
+		"total_resources":       coverage.TotalResources,
+		"configured_resources":  coverage.ConfiguredResources,
 		"configured_components": metrics.ConfiguredComponents,
 		"total_components":      componentsSummary.TotalComponents,
 		"components_summary":    componentsSummary,

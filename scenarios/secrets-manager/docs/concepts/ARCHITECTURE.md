@@ -6,25 +6,39 @@ This document names the stable product boundaries so agents can place changes pr
 
 ## Scenario Shape
 
-Secrets Manager is a Go API, a React/Vite UI, and a Go CLI. It inventories secret requirements, checks Vault coverage, scans security posture, produces deployment strategies, and records metadata in Postgres or desktop-scoped SQLite.
+Secrets Manager is a Go API, a React/Vite UI, and a Go CLI. It inventories
+credential requirements, checks credential-authority coverage, scans security
+posture, produces deployment strategies, and records metadata in Postgres or
+desktop-scoped SQLite.
 
 ## System Boundaries
 
-The API owns validation, strategy resolution, persistence, and integration decisions. The UI renders API data. The CLI proxies API operations. Vault is consumed through the declared `resource-vault` boundary; secret values are not returned to clients.
+The API owns validation, strategy resolution, persistence, and integration
+decisions. The UI renders API data. The CLI proxies API operations. The
+credential authority is consumed through its control-plane client; secret values
+are not returned to clients.
 
 ## Contracts And Data Flow
 
-The API registers capability routes in `api/server.go`. UI calls enter through `ui/src/lib/api.ts`; CLI commands use the scenario API client. Deployment consumers receive a generated manifest rather than direct Vault access.
+The API registers capability routes in `api/server.go`. UI calls enter through
+`ui/src/lib/api.ts`; CLI commands use the scenario API client. Deployment
+consumers receive a generated manifest rather than direct credential access.
 
 ## Shared Infrastructure
 
-`api-core` supplies lifecycle server behavior, database routing, test-mode middleware, and development routing. `resource-vault` supplies secret-storage validation and provisioning. Postgres stores shared metadata; desktop mode uses a private SQLite database.
+`api-core` supplies lifecycle server behavior, database routing, test-mode
+middleware, and development routing. The credential-authority client supplies
+metadata-safe status and stdin-only provisioning. Postgres stores shared
+metadata; desktop mode uses a private SQLite database.
 
 ## UI Deployment Surface
 
 The UI uses `@vrooli/api-base/server` as its only production server. That server owns health, static serving, SPA fallback, and `/api` proxying so direct localhost, tunnel, and app-monitor iframe requests use the same route. The child iframe bridge is initialized only when embedded; spatial navigation is initialized at startup. Tutorial anchors move focus rather than calling cross-frame scrolling APIs.
 
-The Vite base and public PWA assets are relative to the mounted UI. The scoped service worker caches the app shell and same-origin static assets, while API requests remain network-only. This preserves private Vault data and prevents a desktop/offline cache from serving stale secret-status responses.
+The Vite base and public PWA assets are relative to the mounted UI. The scoped
+service worker caches the app shell and same-origin static assets, while API
+requests remain network-only. This preserves private authority metadata and
+prevents a desktop/offline cache from serving stale credential-status responses.
 
 ## Extension Rules
 
@@ -36,7 +50,9 @@ The scenario has an explicit API composition root and capability route groups. T
 
 ## Intentional Deviations
 
-Desktop deployments use private SQLite metadata storage. Shared Vault reuse is an explicit brokered decision; a desktop bundle must not route directly to a remote Vault endpoint.
+Desktop deployments use private SQLite metadata storage. Authority storage is
+host-local or encrypted and recovery-bundle controlled; a desktop bundle must
+not route directly to a remote secret service.
 
 ## Documentation Architecture
 

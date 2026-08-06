@@ -18,4 +18,7 @@ func TestPostgresSchemaIsEmbeddedAndIdempotent(t *testing.T) {
 	if !strings.Contains(secrets.ResourceSecretMetadataMigration(), "ALTER TABLE resource_secrets") {
 		t.Fatal("metadata migration is not embedded")
 	}
+	if !strings.Contains(secrets.CredentialAuthorityStorageMigration(), "credential_authority") {
+		t.Fatal("credential authority storage migration is not embedded")
+	}
 }

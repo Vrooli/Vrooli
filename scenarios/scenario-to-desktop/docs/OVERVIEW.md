@@ -30,7 +30,9 @@ before runtime, while an unsupported route is a blocking error.
    ```bash
    deployment-manager deploy-desktop --profile my-profile
    ```
-3) Distribute the installers to users - they work completely offline
+3) Distribute the installers to users after the selected dependency matrix and
+   native evidence gates pass. Only verified bundled capabilities are offline;
+   cloud/remote dependencies remain network-dependent.
 
 See [Hello Desktop Tutorial](../../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md) for a complete walkthrough.
 

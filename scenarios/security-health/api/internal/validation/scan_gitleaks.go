@@ -81,7 +81,7 @@ func (g *gitleaksScanner) Scan(ctx context.Context, scenarioDir string, _ Substr
 			"gitleaks rule %q matched a likely secret. The matched value is redacted; review the file directly.",
 			nonEmpty(r.RuleID, "generic"),
 		)
-		remediation := "Rotate the exposed credential immediately, purge it from git history, and move the secret into the vault resource (resource-vault content set …)."
+		remediation := "Rotate the exposed credential immediately, purge it from git history, and provision it through the canonical credential authority; use Vault only when the finding explicitly targets a Vault capability."
 		if ignored[r.File] {
 			// Gitignored: cannot be committed, so it does not gate. Kept as an
 			// INFO observation rather than dropped.
@@ -90,7 +90,7 @@ func (g *gitleaksScanner) Scan(ctx context.Context, scenarioDir string, _ Substr
 				"gitleaks rule %q matched a likely secret in a gitignored file. The file cannot be committed, so this does not gate; the matched value is redacted.",
 				nonEmpty(r.RuleID, "generic"),
 			)
-			remediation = "Gitignored files are the sanctioned home for local credentials; no action required unless the value is unexpectedly a real shared secret, in which case move it into the vault resource (resource-vault content set …)."
+			remediation = "Gitignored files are not a durable secret store; no action is required for a local test fixture, but a real shared secret must be rotated and provisioned through the canonical credential authority."
 		}
 		findings = append(findings, Finding{
 			RuleID:       "gitleaks." + nonEmpty(r.RuleID, "generic"),

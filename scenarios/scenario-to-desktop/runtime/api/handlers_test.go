@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
 )
 
@@ -36,6 +37,15 @@ type mockRuntime struct {
 	telemetryData  []map[string]interface{}
 	gpuStatus      gpu.Status
 	runtimeInfo    RuntimeInfo
+}
+
+type providerObservationRuntime struct {
+	*mockRuntime
+	observations map[string]resourceplan.ProviderObservation
+}
+
+func (m *providerObservationRuntime) ProviderObservations() map[string]resourceplan.ProviderObservation {
+	return m.observations
 }
 
 func (m *mockRuntime) Shutdown(ctx context.Context) error {
@@ -187,6 +197,30 @@ func TestHandleHealth(t *testing.T) {
 
 	if body["services"].(float64) != 1 {
 		t.Errorf("handleHealth() services = %v, want 1", body["services"])
+	}
+}
+
+func TestHandleProviderObservations(t *testing.T) {
+	base := testRuntime(t, nil)
+	rt := &providerObservationRuntime{mockRuntime: base, observations: map[string]resourceplan.ProviderObservation{
+		"vault": {DeploymentMode: "bundled", ProviderTier: "tier1-local-vrooli", Readiness: "ready", SafeRouteClass: "shared-resource"},
+	}}
+	server := NewServer(rt, "test-token")
+	mux := http.NewServeMux()
+	server.RegisterHandlers(mux)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/provider-observations", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("provider observations status = %d, want 200", w.Code)
+	}
+	var body struct {
+		Observations map[string]resourceplan.ProviderObservation `json:"observations"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Observations["vault"].SafeRouteClass != "shared-resource" {
+		t.Fatalf("provider observations = %#v", body.Observations)
 	}
 }
 

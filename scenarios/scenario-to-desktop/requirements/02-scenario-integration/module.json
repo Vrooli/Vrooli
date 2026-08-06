@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-05T13:42:54-04:00"
+    "last_validated_at": "2026-08-05T23:38:08-04:00"
   },
   "requirements": [
     {
@@ -58,6 +58,42 @@
         {
           "type": "test",
           "ref": "api/generation/analyzer_test.go::TestAnalyzeScenario_WithBuiltUI",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "STD-EVIDENCE-PROVIDER-JOURNEYS",
+      "title": "Provider and communication journeys report honest routes",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "description": "Bundled-private, Tier 2 to Tier 1 thin-client, shared-resource, and private-fallback capabilities have dedicated machine contracts and credential-free provider observations; native release evidence remains environment-gated.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/smoketest/journey_test.go::TestDesktopJourney_CommunicationFixturesHaveDedicatedMachineContracts",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "runtime/resources/service_supervisor_test.go::TestServiceSupervisorProviderObservationIsCredentialFree",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "STD-EVIDENCE-PEER-GATE",
+      "title": "Tier 2 peer communication is fail-closed",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "description": "The typed desktop-peer candidate cannot produce a pass verdict until discovery, authentication, scoped authority, routing, cancellation, and lifecycle semantics are implemented.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/smoketest/journey_test.go::TestDesktopJourney_PeerCapabilityIsExplicitlyUnsupported",
           "phase": "unit",
           "status": "implemented"
         }

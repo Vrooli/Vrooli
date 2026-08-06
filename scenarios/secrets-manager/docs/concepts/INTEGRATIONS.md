@@ -6,11 +6,17 @@ This document describes the external contracts Secrets Manager relies on.
 
 ## Dependency Inventory
 
-Required resources are Vault and Postgres. Claude Code is optional for remediation workflows.
+Postgres is required for shared metadata. Ordinary credential storage and
+resolution use the canonical credential authority backed by the host key
+service or encrypted authority storage. Claude Code is optional for remediation
+workflows. Vault is not an implicit scenario dependency.
 
 ## Vrooli Resources
 
-`resource-vault` validates and provisions secret storage. The managed-service contract requires verified artifacts, brokered shared use, and no direct remote endpoint bypass. Postgres stores shared metadata.
+The credential authority validates and provisions secret storage through
+stdin-only control-plane commands. The managed-service contract requires
+metadata-safe status, recovery-bundle support, and no plaintext API response.
+Postgres stores shared metadata.
 
 ## Scenario Dependencies
 
@@ -18,11 +24,15 @@ Deployment Manager and scenario-to-desktop consume deployment strategy outputs. 
 
 ## Third-Party Services
 
-HashiCorp Vault is distributed as a provenance-verified artifact. No direct public-cloud secret service is a runtime dependency.
+No remote secret service is a runtime dependency. Vault may be selected only by
+an explicitly governed Vault-specific capability such as Transit signing.
 
 ## Failure Modes
 
-Missing Vault or Secret Service tooling fails resource preflight with remediation. Broker denial or expired shared permission falls back to an authorized private bundle resource where policy allows. Database failures produce degraded metadata posture rather than secret disclosure.
+Missing native key-service/authority support fails credential operations with
+actionable remediation. Recovery-bundle import/export remains operator
+controlled. Database failures produce degraded metadata posture rather than
+secret disclosure.
 
 ## Cross-References
 

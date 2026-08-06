@@ -24,14 +24,14 @@ type OrientationSummary struct {
 }
 
 type HeroStats struct {
-	VaultConfigured int     `json:"vault_configured"`
-	VaultTotal      int     `json:"vault_total"`
-	MissingSecrets  int     `json:"missing_secrets"`
-	RiskScore       int     `json:"risk_score"`
-	OverallScore    int     `json:"overall_score"`
-	LastScan        string  `json:"last_scan"`
-	ReadinessLabel  string  `json:"readiness_label"`
-	Confidence      float64 `json:"confidence"`
+	CredentialConfigured int     `json:"credential_configured"`
+	CredentialTotal      int     `json:"credential_total"`
+	MissingSecrets       int     `json:"missing_secrets"`
+	RiskScore            int     `json:"risk_score"`
+	OverallScore         int     `json:"overall_score"`
+	LastScan             string  `json:"last_scan"`
+	ReadinessLabel       string  `json:"readiness_label"`
+	Confidence           float64 `json:"confidence"`
 }
 
 type JourneyCard struct {
@@ -110,7 +110,7 @@ func (h *OrientationHandlers) Summary(w http.ResponseWriter, r *http.Request) {
 type OrientationBuilder struct {
 	db                    *database.RoutedDB
 	logger                *Logger
-	vaultStatusFn         func(string) (*VaultSecretsStatus, error)
+	credentialStatusFn    func(string) (*CredentialCoverageStatus, error)
 	vulnerabilityScanFunc func(string, string, string) (*SecurityScanResult, error)
 }
 
@@ -118,7 +118,7 @@ func NewOrientationBuilder(db *database.RoutedDB, logger *Logger) *OrientationBu
 	return &OrientationBuilder{
 		db:                    db,
 		logger:                logger,
-		vaultStatusFn:         getVaultSecretsStatus,
+		credentialStatusFn:    getCredentialCoverageStatus,
 		vulnerabilityScanFunc: scanComponentsForVulnerabilities,
 	}
 }
@@ -128,10 +128,10 @@ func (b *OrientationBuilder) Build(ctx context.Context) (*OrientationSummary, er
 		return nil, fmt.Errorf("database not initialized for orientation summary")
 	}
 
-	vaultStatus, err := b.vaultStatusFn("")
+	credentialStatus, err := b.credentialStatusFn("")
 	if err != nil {
-		b.logger.Info("orientation vault status fallback: %v", err)
-		vaultStatus = &VaultSecretsStatus{}
+		b.logger.Info("orientation credential coverage fallback: %v", err)
+		credentialStatus = &CredentialCoverageStatus{}
 	}
 
 	securityResult, err := b.vulnerabilityScanFunc("", "", "")
@@ -155,8 +155,8 @@ func (b *OrientationBuilder) Build(ctx context.Context) (*OrientationSummary, er
 	}
 
 	return &OrientationSummary{
-		HeroStats:             b.buildHeroStats(vaultStatus, securityResult, tierReadiness),
-		Journeys:              b.buildJourneyCards(vaultStatus, securityResult, tierReadiness),
+		HeroStats:             b.buildHeroStats(credentialStatus, securityResult, tierReadiness),
+		Journeys:              b.buildJourneyCards(credentialStatus, securityResult, tierReadiness),
 		TierReadiness:         tierReadiness,
 		ResourceInsights:      resourceInsights,
 		VulnerabilityInsights: b.buildVulnerabilityHighlights(securityResult),
@@ -331,13 +331,13 @@ func (b *OrientationBuilder) fetchResourceInsights(ctx context.Context) ([]Resou
 	return insights, nil
 }
 
-func (b *OrientationBuilder) buildHeroStats(vaultStatus *VaultSecretsStatus, security *SecurityScanResult, readiness []TierReadiness) HeroStats {
+func (b *OrientationBuilder) buildHeroStats(credentialStatus *CredentialCoverageStatus, security *SecurityScanResult, readiness []TierReadiness) HeroStats {
 	hero := HeroStats{}
-	if vaultStatus != nil {
-		hero.VaultConfigured = vaultStatus.ConfiguredResources
-		hero.VaultTotal = vaultStatus.TotalResources
-		hero.MissingSecrets = len(vaultStatus.MissingSecrets)
-		hero.LastScan = vaultStatus.LastUpdated.Format(time.RFC3339)
+	if credentialStatus != nil {
+		hero.CredentialConfigured = credentialStatus.ConfiguredResources
+		hero.CredentialTotal = credentialStatus.TotalResources
+		hero.MissingSecrets = len(credentialStatus.MissingSecrets)
+		hero.LastScan = credentialStatus.LastUpdated.Format(time.RFC3339)
 	}
 	if security != nil {
 		hero.RiskScore = security.RiskScore
@@ -345,15 +345,15 @@ func (b *OrientationBuilder) buildHeroStats(vaultStatus *VaultSecretsStatus, sec
 			hero.LastScan = time.Now().Format(time.RFC3339)
 		}
 	}
-	vaultHealth := 0
-	if hero.VaultTotal > 0 {
-		vaultHealth = (hero.VaultConfigured * 100) / hero.VaultTotal
+	credentialCoverage := 0
+	if hero.CredentialTotal > 0 {
+		credentialCoverage = (hero.CredentialConfigured * 100) / hero.CredentialTotal
 	}
 	securityScore := 100 - hero.RiskScore
 	if securityScore < 0 {
 		securityScore = 0
 	}
-	hero.OverallScore = (vaultHealth + securityScore) / 2
+	hero.OverallScore = (credentialCoverage + securityScore) / 2
 	bestReadiness := 0
 	for _, tier := range readiness {
 		if tier.ReadyPercent > bestReadiness {
@@ -372,10 +372,10 @@ func (b *OrientationBuilder) buildHeroStats(vaultStatus *VaultSecretsStatus, sec
 	return hero
 }
 
-func (b *OrientationBuilder) buildJourneyCards(vaultStatus *VaultSecretsStatus, security *SecurityScanResult, readiness []TierReadiness) []JourneyCard {
+func (b *OrientationBuilder) buildJourneyCards(credentialStatus *CredentialCoverageStatus, security *SecurityScanResult, readiness []TierReadiness) []JourneyCard {
 	missing := 0
-	if vaultStatus != nil {
-		missing = len(vaultStatus.MissingSecrets)
+	if credentialStatus != nil {
+		missing = len(credentialStatus.MissingSecrets)
 	}
 	risk := 0
 	if security != nil {
@@ -402,7 +402,7 @@ func (b *OrientationBuilder) buildJourneyCards(vaultStatus *VaultSecretsStatus, 
 		{
 			ID:          "configure-secrets",
 			Title:       "Configure Secrets",
-			Description: "Audit vault coverage and close the gap per resource with guided provisioning.",
+			Description: "Audit credential coverage and close the gap per resource with guided provisioning.",
 			Status:      map[bool]string{true: "attention", false: "steady"}[missing > 0],
 			CtaLabel:    "Start Coverage Flow",
 			CtaAction:   "open-configure-flow",

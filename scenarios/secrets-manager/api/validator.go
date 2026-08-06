@@ -184,7 +184,7 @@ func (v *SecretValidator) getSecretsForValidationContext(ctx context.Context, re
 }
 
 // validateSecret asks the canonical credential authority for status metadata.
-// It never reads a value from the process environment, Vault, or a file.
+// It never reads a value from the process environment, the credential authority, or a file.
 func (v *SecretValidator) validateSecret(secret ResourceSecret) SecretValidation {
 	validation := SecretValidation{
 		ID:                  uuid.New().String(),

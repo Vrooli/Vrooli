@@ -4,8 +4,8 @@
 
 - Rung: W1
 - Evidence: goal `desktop-deployment-readiness` requires host/resource eligibility, release trust, updater proof, and routed BAS evidence; PRD targets `OT-P0-003`, `OT-P0-007`, `OT-P0-008`, `OT-P0-009`, and `OT-P0-010` now cover those capabilities without a superseding decision record.
-- Blocker: requirements linkage has not yet been revalidated after the P0 contract amendment.
-- Measured: 2026-07-30
+- Blocker: none for the current contract; requirements linkage was revalidated at L3 on 2026-08-06.
+- Measured: 2026-08-06
 
 ## Security scanner triage (2026-07-27)
 
@@ -93,6 +93,17 @@ lease. Its durable BAS timeline is
 **Remaining scope**: The fixture validates the routed console mutation seam;
 it does not stand in for a release AppImage or a live-desktop VNC success
 journey. Those require their own real desktop evidence.
+
+### Native evidence boundary (CURRENT)
+
+The native Linux baseline is proven by pipeline
+`e1c278d0-6170-3d28-6688-cb44b2d16006` for `hello-desktop`: the generated
+AppImage launched under Xvfb/openbox, the v2 journey passed, the MP4 decoded,
+and the producer manifest persisted. Provider-specific communication fixtures
+remain contract/unit evidence only until a real bundled-service, thin-client,
+and shared-broker fixture can exercise those routes through a generated app.
+They remain environment-gated and must not be promoted to release claims from
+the deterministic provider seam alone.
 
 ## Recently Resolved Issues
 

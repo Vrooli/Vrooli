@@ -19,7 +19,7 @@ type fakeRotationSigner struct{ called bool }
 
 func (s *fakeRotationSigner) Rotate(context.Context) (receiptsigning.Health, error) {
 	s.called = true
-	return receiptsigning.Health{Ready: true, Provider: "vault-transit", KeyID: "key:v2", Production: true, RotationOK: true}, nil
+	return receiptsigning.Health{Ready: true, Provider: "credential-authority-ed25519", KeyID: "key:v2", Production: true, RotationOK: true}, nil
 }
 
 func TestReceiptSigningStatusReportsExplicitDevelopmentModeWithoutSecrets(t *testing.T) {

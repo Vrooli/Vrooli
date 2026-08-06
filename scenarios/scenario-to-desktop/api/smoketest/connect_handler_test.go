@@ -125,3 +125,29 @@ func TestStatusToProtoPreservesScreenRecordingEvidenceWithoutVideoPath(t *testin
 		t.Fatalf("StatusToProto() screen recording = %+v, want recorded capture reference", got)
 	}
 }
+
+func TestStatusToProtoProjectsVersionedEvidenceReview(t *testing.T) {
+	status := &smoketest.Status{
+		SmokeTestID:  "smoke-review",
+		ScenarioName: "hello-desktop",
+		StartedAt:    time.Now(),
+		EvidenceReview: &smoketest.JourneyReview{
+			SchemaVersion: "journey-evidence.v2",
+			Capability:    "hello-desktop",
+			PlanID:        "hello-desktop.baseline.v2",
+			Profile:       "normal-review",
+			Disposition:   "degraded",
+			Reason:        "recording unavailable",
+			EventCount:    2,
+			Chapters:      []smoketest.JourneyChapter{{ID: "greet", Purpose: "Prove greeting", Action: "semantic_greet", Disposition: "passed", Expected: "Hello", Observed: "Hello", EvidenceIDs: []string{"capture-1"}}},
+		},
+	}
+
+	review := smoketest.StatusToProto(status).GetEvidenceReview()
+	if review == nil || review.GetCapability() != "hello-desktop" || review.GetDisposition() != "degraded" || len(review.GetChapters()) != 1 {
+		t.Fatalf("evidence review = %+v", review)
+	}
+	if review.GetChapters()[0].GetPurpose() != "Prove greeting" || review.GetChapters()[0].GetEvidenceIds()[0] != "capture-1" {
+		t.Fatalf("chapter projection = %+v", review.GetChapters()[0])
+	}
+}

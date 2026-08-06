@@ -29,8 +29,8 @@ func BenchmarkHealthHandler(b *testing.B) {
 	}
 }
 
-// BenchmarkVaultSecretsStatusHandler benchmarks the vault status endpoint
-func BenchmarkVaultSecretsStatusHandler(b *testing.B) {
+// BenchmarkCredentialCoverageStatusHandler benchmarks the vault status endpoint
+func BenchmarkCredentialCoverageStatusHandler(b *testing.B) {
 	router := benchmarkServer().routes()
 	req, _ := http.NewRequest("GET", "/api/v1/credentials/secrets/status", nil)
 
@@ -208,10 +208,10 @@ func BenchmarkIsTextFile(b *testing.B) {
 
 // BenchmarkJSONEncoding benchmarks JSON encoding of responses
 func BenchmarkJSONEncoding(b *testing.B) {
-	response := VaultSecretsStatus{
+	response := CredentialCoverageStatus{
 		TotalResources:      10,
 		ConfiguredResources: 7,
-		MissingSecrets: []VaultMissingSecret{
+		MissingSecrets: []MissingCredential{
 			{
 				ResourceName: "openai",
 				SecretName:   "OPENAI_API_KEY",
@@ -220,7 +220,7 @@ func BenchmarkJSONEncoding(b *testing.B) {
 				Description:  "OpenAI API key for AI features",
 			},
 		},
-		ResourceStatuses: []VaultResourceStatus{
+		ResourceStatuses: []CredentialResourceStatus{
 			{
 				ResourceName:    "postgres",
 				SecretsTotal:    5,

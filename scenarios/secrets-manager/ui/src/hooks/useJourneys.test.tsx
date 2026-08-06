@@ -52,7 +52,7 @@ function testWrapper() {
 const options = {
   selectedScenario: "secrets-manager",
   tierReadiness: [{ tier: "tier-2-desktop", label: "Desktop", ready_percent: 100, strategized: 2, total: 2 }],
-  heroStats: { vault_configured: 1, vault_total: 1, missing_secrets: 0, risk_score: 4 },
+  heroStats: { credential_configured: 1, credential_total: 1, missing_secrets: 0, risk_score: 4 },
   onOpenResource: vi.fn(),
   onRefetchVulnerabilities: vi.fn(),
   onNavigateTab: vi.fn()

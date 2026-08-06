@@ -12,7 +12,7 @@ describe("ComplianceOverview", () => {
         overallScore={91}
         configuredComponents={8}
         securityScore={88}
-        vaultHealth={94}
+        credentialCoverage={94}
         vulnerabilitySummary={{ critical: 1, high: 2, medium: 3, low: 4 }}
         isComplianceLoading={false}
       />

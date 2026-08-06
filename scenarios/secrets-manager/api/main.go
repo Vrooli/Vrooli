@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/receiptsigning"
 	apiserver "github.com/vrooli/api-core/server"
 
 	// Register the driver selected by database.DriverPostgres. Without this
@@ -156,7 +157,6 @@ func main() {
 func receiptSigningServerTLSConfig() (*tls.Config, error) {
 	type trustSigning struct {
 		Provider                string `json:"provider"`
-		OperatorCredentialFile  string `json:"operator_credential_file"`
 		OperatorTLSCertFile     string `json:"operator_tls_cert_file"`
 		OperatorTLSKeyFile      string `json:"operator_tls_key_file"`
 		OperatorTLSClientCAFile string `json:"operator_tls_client_ca_file"`
@@ -183,8 +183,8 @@ func receiptSigningServerTLSConfig() (*tls.Config, error) {
 	if config == nil || config.Provider == "development" {
 		return nil, nil
 	}
-	if config.Provider != "vault-transit" || config.OperatorCredentialFile == "" || config.OperatorTLSCertFile == "" || config.OperatorTLSKeyFile == "" || config.OperatorTLSClientCAFile == "" {
-		return nil, fmt.Errorf("Vault Transit operator rotation requires lifecycle-declared credential, server certificate, server key, and client CA files")
+	if config.Provider != receiptsigning.ModeCredentialAuthorityEd25519 || config.OperatorTLSCertFile == "" || config.OperatorTLSKeyFile == "" || config.OperatorTLSClientCAFile == "" {
+		return nil, fmt.Errorf("credential authority operator rotation requires lifecycle-declared server certificate, server key, and client CA files")
 	}
 	certificate, err := tls.LoadX509KeyPair(config.OperatorTLSCertFile, config.OperatorTLSKeyFile)
 	if err != nil {

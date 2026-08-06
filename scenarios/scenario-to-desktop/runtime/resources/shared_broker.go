@@ -186,5 +186,5 @@ func (r BrokerSharedServiceResolver) ResolveSharedService(ctx context.Context, i
 		value = strings.ReplaceAll(value, "${RESOURCE_CREDENTIAL}", grant.Credential)
 		environment[key] = value
 	}
-	return SharedServiceBinding{Endpoint: grant.Endpoint, Environment: environment, ExpiresAt: grant.ExpiresAt}, nil
+	return SharedServiceBinding{Endpoint: grant.Endpoint, Environment: environment, ExpiresAt: grant.ExpiresAt, Provider: string(SharedProviderTierLocalVrooli)}, nil
 }

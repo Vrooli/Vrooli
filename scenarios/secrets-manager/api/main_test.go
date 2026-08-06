@@ -17,8 +17,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type vaultCLIStub struct {
-	status         *VaultSecretsStatus
+type credentialAuthorityStub struct {
+	status         *CredentialCoverageStatus
 	secret         string
 	secretResource string
 	secretKey      string
@@ -26,41 +26,27 @@ type vaultCLIStub struct {
 	putErr         error
 }
 
-func (s vaultCLIStub) GetSecretsStatus(context.Context, string) (*VaultSecretsStatus, error) {
+func (s credentialAuthorityStub) GetSecretsStatus(context.Context, string) (*CredentialCoverageStatus, error) {
 	return s.status, s.err
 }
 
-func (s vaultCLIStub) GetSecret(_ context.Context, resourceName, key string) (string, error) {
-	if s.secretResource != "" && s.secretResource != resourceName {
-		return "", fmt.Errorf("unexpected secret resource %q", resourceName)
-	}
-	if s.secretKey != "" && s.secretKey != key {
-		return "", fmt.Errorf("unexpected secret key %q", key)
-	}
-	return s.secret, s.err
-}
-
-func (s vaultCLIStub) PutSecret(context.Context, string, string, string) error {
-	return s.putErr
-}
-
-func setVaultCLIForTest(t *testing.T, cli VaultCLI) {
+func setCredentialAuthorityClientForTest(t *testing.T, cli CredentialAuthorityClient) {
 	t.Helper()
-	original := defaultVaultCLI
-	SetVaultCLI(cli)
-	t.Cleanup(func() { SetVaultCLI(original) })
+	original := defaultCredentialAuthorityClient
+	SetCredentialAuthorityClient(cli)
+	t.Cleanup(func() { SetCredentialAuthorityClient(original) })
 }
 
-func TestResolveVaultSecretMappingUsesCanonicalDescriptor(t *testing.T) {
-	mapping, ok := resolveVaultSecretMapping("openrouter", "OPENROUTER_API_KEY")
+func TestResolveCredentialMappingUsesCanonicalDescriptor(t *testing.T) {
+	mapping, ok := resolveCredentialMapping("openrouter", "OPENROUTER_API_KEY")
 	if !ok {
 		t.Fatal("expected canonical resource descriptor mapping")
 	}
-	if mapping.Path != "vrooli/openrouter" {
-		t.Fatalf("logical identifier = %q", mapping.Path)
+	if mapping.LogicalID != "vrooli/openrouter" {
+		t.Fatalf("logical identifier = %q", mapping.LogicalID)
 	}
-	if mapping.VaultKey != "api-key" {
-		t.Fatalf("credential field = %q", mapping.VaultKey)
+	if mapping.Field != "api-key" {
+		t.Fatalf("credential field = %q", mapping.Field)
 	}
 }
 
@@ -97,7 +83,7 @@ func TestHealthHandler(t *testing.T) {
 		}
 
 		// [REQ:SEC-API-001] Health endpoint returns valid status
-		// Accept healthy, degraded, or unhealthy since unit tests don't have DB/Vault
+		// Accept healthy, degraded, or unhealthy since unit tests don't have DB/credential-authority
 		status, ok := response["status"].(string)
 		if !ok {
 			t.Fatal("status field is not a string")
@@ -135,15 +121,15 @@ func TestHealthHandler(t *testing.T) {
 	})
 }
 
-// TestVaultSecretsStatusHandler tests the vault secrets status endpoint
-func TestVaultSecretsStatusHandler(t *testing.T) {
+// TestCredentialCoverageStatusHandler tests the credential coverage status endpoint
+func TestCredentialCoverageStatusHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	server := newAPIServer(nil, logger)
 	router := server.routes()
 
 	t.Run("Success_NoFilter", func(t *testing.T) {
-		setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
+		setCredentialAuthorityClientForTest(t, credentialAuthorityStub{status: &CredentialCoverageStatus{TotalResources: 1}})
 		req, err := http.NewRequest("GET", "/api/v1/credentials/secrets/status", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -156,7 +142,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 			t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 		}
 
-		var response VaultSecretsStatus
+		var response CredentialCoverageStatus
 		if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 			t.Fatalf("Failed to parse response: %v", err)
 		}
@@ -167,7 +153,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 	})
 
 	t.Run("Success_WithFilter", func(t *testing.T) {
-		setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
+		setCredentialAuthorityClientForTest(t, credentialAuthorityStub{status: &CredentialCoverageStatus{TotalResources: 1}})
 		req, err := http.NewRequest("GET", "/api/v1/credentials/secrets/status?resource=postgres", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -181,8 +167,8 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		}
 	})
 
-	t.Run("VaultUnavailable", func(t *testing.T) {
-		setVaultCLIForTest(t, vaultCLIStub{err: errors.New("credential authority unavailable")})
+	t.Run("CredentialAuthorityUnavailable", func(t *testing.T) {
+		setCredentialAuthorityClientForTest(t, credentialAuthorityStub{err: errors.New("credential authority unavailable")})
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/credentials/secrets/status", nil)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -190,12 +176,12 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 			t.Fatalf("handler returned %d, want %d", rr.Code, http.StatusServiceUnavailable)
 		}
 		if strings.Contains(rr.Body.String(), "credential authority unavailable") {
-			t.Fatalf("status response exposed internal Vault error: %s", rr.Body.String())
+			t.Fatalf("status response exposed internal credential-authority error: %s", rr.Body.String())
 		}
 	})
 
 	t.Run("POST_Success", func(t *testing.T) {
-		setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
+		setCredentialAuthorityClientForTest(t, credentialAuthorityStub{status: &CredentialCoverageStatus{TotalResources: 1}})
 		scanReq := ScanRequest{
 			Resources: []string{"postgres", "vault"},
 		}
@@ -216,7 +202,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 	})
 
 	t.Run("POST_InvalidJSON", func(t *testing.T) {
-		setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
+		setCredentialAuthorityClientForTest(t, credentialAuthorityStub{status: &CredentialCoverageStatus{TotalResources: 1}})
 		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/status", bytes.NewReader([]byte("invalid json")))
 		if err != nil {
 			t.Fatal(err)
@@ -369,7 +355,7 @@ func TestProvisionHandler(t *testing.T) {
 func TestComplianceHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
-	setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
+	setCredentialAuthorityClientForTest(t, credentialAuthorityStub{status: &CredentialCoverageStatus{TotalResources: 1}})
 	server := newAPIServer(nil, logger)
 	router := server.routes()
 

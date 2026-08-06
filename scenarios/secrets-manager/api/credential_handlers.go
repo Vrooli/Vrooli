@@ -15,14 +15,14 @@ import (
 	"github.com/vrooli/api-core/database"
 )
 
-type VaultHandlers struct {
+type CredentialHandlers struct {
 	db        *database.RoutedDB
 	logger    *Logger
 	validator *SecretValidator
 }
 
-func NewVaultHandlers(db *database.RoutedDB, logger *Logger, validator *SecretValidator) *VaultHandlers {
-	return &VaultHandlers{
+func NewCredentialHandlers(db *database.RoutedDB, logger *Logger, validator *SecretValidator) *CredentialHandlers {
+	return &CredentialHandlers{
 		db:        db,
 		logger:    logger,
 		validator: validator,
@@ -30,7 +30,7 @@ func NewVaultHandlers(db *database.RoutedDB, logger *Logger, validator *SecretVa
 }
 
 // RegisterRoutes mounts credential-authority endpoints.
-func (h *VaultHandlers) RegisterRoutes(router *mux.Router) {
+func (h *CredentialHandlers) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/secrets/status", h.Status).Methods("GET", "POST")
 	router.HandleFunc("/secrets/provision", h.Provision).Methods("POST")
 	router.HandleFunc("/secrets/validate", h.Validate).Methods("GET", "POST")
@@ -40,10 +40,10 @@ func (h *VaultHandlers) RegisterRoutes(router *mux.Router) {
 }
 
 // Status returns credential-authority metadata only.
-func (h *VaultHandlers) Status(w http.ResponseWriter, r *http.Request) {
+func (h *CredentialHandlers) Status(w http.ResponseWriter, r *http.Request) {
 	resourceFilter := r.URL.Query().Get("resource")
 
-	status, err := getVaultSecretsStatus(resourceFilter)
+	status, err := getCredentialCoverageStatus(resourceFilter)
 	if err != nil {
 		if h.logger != nil {
 			h.logger.Info("credential authority status unavailable: %v", err)
@@ -57,7 +57,7 @@ func (h *VaultHandlers) Status(w http.ResponseWriter, r *http.Request) {
 }
 
 // Provision writes supplied values to the canonical credential authority.
-func (h *VaultHandlers) Provision(w http.ResponseWriter, r *http.Request) {
+func (h *CredentialHandlers) Provision(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ResourceName string            `json:"resource_name"`
 		Secrets      map[string]string `json:"secrets"`
@@ -88,7 +88,7 @@ func (h *VaultHandlers) Provision(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(result)
 }
 
-func (h *VaultHandlers) normalizeProvisionSecrets(raw map[string]string) map[string]string {
+func (h *CredentialHandlers) normalizeProvisionSecrets(raw map[string]string) map[string]string {
 	updates := map[string]string{}
 	for key, value := range raw {
 		envName := strings.TrimSpace(key)
@@ -110,7 +110,7 @@ func (h *VaultHandlers) normalizeProvisionSecrets(raw map[string]string) map[str
 	return updates
 }
 
-func (h *VaultHandlers) performSecretProvision(ctx context.Context, resource string, secrets map[string]string) (*ProvisionResponse, error) {
+func (h *CredentialHandlers) performSecretProvision(ctx context.Context, resource string, secrets map[string]string) (*ProvisionResponse, error) {
 	if len(secrets) == 0 {
 		return nil, fmt.Errorf("no secrets provided")
 	}
@@ -123,15 +123,14 @@ func (h *VaultHandlers) performSecretProvision(ctx context.Context, resource str
 		Resource: resource,
 	}
 
-	results, provisionErr := h.provisionSecretsToVault(ctx, resource, secrets)
+	results, provisionErr := h.provisionCredentials(ctx, resource, secrets)
 	response.Details = results
-	response.VaultStored = countSuccessfullyStoredSecrets(results)
-	response.StoredSecrets = response.VaultStored
+	response.StoredSecrets = countSuccessfullyStoredSecrets(results)
 
-	// Decision: Determine provision outcome based on vault results
-	outcome := determineProvisionOutcome(provisionErr, response.VaultStored)
+	// Decide the outcome from authority provisioning results.
+	outcome := determineProvisionOutcome(provisionErr, response.StoredSecrets)
 	if outcome.shouldReturnError {
-		return response, fmt.Errorf("failed to store secrets in vault: %w", provisionErr)
+		return response, fmt.Errorf("failed to provision credentials through the authority: %w", provisionErr)
 	}
 
 	response.Success = outcome.isSuccess
@@ -141,7 +140,7 @@ func (h *VaultHandlers) performSecretProvision(ctx context.Context, resource str
 	return response, nil
 }
 
-// countSuccessfullyStoredSecrets counts how many secrets were stored in vault.
+// countSuccessfullyStoredSecrets counts how many credentials were accepted by the authority.
 func countSuccessfullyStoredSecrets(results []secretProvisionResult) int {
 	count := 0
 	for _, result := range results {
@@ -161,26 +160,26 @@ type provisionOutcome struct {
 // determineProvisionOutcome decides whether the provision operation succeeded.
 //
 // Decision logic:
-//   - If vault provisioning had errors AND no secrets were stored → fail with error
-//   - If vault provisioning had errors BUT some secrets were stored → partial success
+//   - If authority provisioning had errors AND no secrets were stored → fail with error
+//   - If authority provisioning had errors BUT some secrets were stored → partial success
 //   - If no errors → full success
 //
 // This allows partial success when some secrets fail but others succeed,
 // which is preferable to failing the entire operation.
-func determineProvisionOutcome(provisionErr error, vaultStoredCount int) provisionOutcome {
+func determineProvisionOutcome(provisionErr error, storedCount int) provisionOutcome {
 	// Complete failure: errors occurred and nothing was stored
-	if provisionErr != nil && vaultStoredCount == 0 {
+	if provisionErr != nil && storedCount == 0 {
 		return provisionOutcome{isSuccess: false, shouldReturnError: true}
 	}
 
 	// Partial or full success: either no errors, or some secrets were stored
 	return provisionOutcome{
-		isSuccess:         provisionErr == nil || vaultStoredCount > 0,
+		isSuccess:         provisionErr == nil || storedCount > 0,
 		shouldReturnError: false,
 	}
 }
 
-func (h *VaultHandlers) provisionSecretsToVault(ctx context.Context, resourceName string, secrets map[string]string) ([]secretProvisionResult, error) {
+func (h *CredentialHandlers) provisionCredentials(ctx context.Context, resourceName string, secrets map[string]string) ([]secretProvisionResult, error) {
 	results := []secretProvisionResult{}
 	if len(secrets) == 0 {
 		return results, fmt.Errorf("no secrets provided")
@@ -199,7 +198,7 @@ func (h *VaultHandlers) provisionSecretsToVault(ctx context.Context, resourceNam
 			errs = append(errs, fmt.Sprintf("%s: %v", envKey, err))
 			continue
 		}
-		result := secretProvisionResult{EnvKey: envKey, VaultPath: descriptor.LogicalID, VaultKey: descriptor.Field}
+		result := secretProvisionResult{EnvKey: envKey, LogicalID: descriptor.LogicalID, Field: descriptor.Field}
 		if err := provisionCredential(ctx, descriptor, value); err != nil {
 			result.Status = "failed"
 			result.Error = err.Error()
@@ -216,7 +215,7 @@ func (h *VaultHandlers) provisionSecretsToVault(ctx context.Context, resourceNam
 	return results, nil
 }
 
-func (h *VaultHandlers) recordSecretProvision(ctx context.Context, resourceName, envKey, vaultPath string) {
+func (h *CredentialHandlers) recordSecretProvision(ctx context.Context, resourceName, envKey, logicalID string) {
 	if h.db == nil {
 		return
 	}
@@ -230,8 +229,8 @@ func (h *VaultHandlers) recordSecretProvision(ctx context.Context, resourceName,
 	}
 	_, err = h.db.ExecContext(ctx, `
 			INSERT INTO secret_provisions (resource_secret_id, storage_method, storage_location, provisioned_at, provisioned_by, provision_status)
-			VALUES ($1, 'native-secure-store', $2, CURRENT_TIMESTAMP, $3, 'active')
-		`, secretID, vaultPath, provisionedBy)
+			VALUES ($1, 'credential-authority', $2, CURRENT_TIMESTAMP, $3, 'active')
+		`, secretID, logicalID, provisionedBy)
 	if err != nil {
 		if h.logger != nil {
 			h.logger.Info("failed to record secret provision for %s: %v", envKey, err)
@@ -306,7 +305,7 @@ func provisionNativeCredential(ctx context.Context, descriptor credentialDescrip
 	return nil
 }
 
-func (h *VaultHandlers) Validate(w http.ResponseWriter, r *http.Request) {
+func (h *CredentialHandlers) Validate(w http.ResponseWriter, r *http.Request) {
 	var req ValidationRequest
 	if r.Method == "POST" {
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

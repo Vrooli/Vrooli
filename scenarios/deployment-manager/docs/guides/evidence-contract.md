@@ -10,6 +10,32 @@ disposition. `EvidenceRef` identifies producer-owned artifacts by producer,
 artifact ID, checksum, kind, and size. The governance plane stores this
 metadata and reference only; it never proxies or stores artifact bytes.
 
+## Producer manifest lifecycle
+
+Before mapping to `TargetVerdict`, scenario-to-desktop emits its versioned
+producer manifest (`schema_version: 1`). The manifest has one terminal state and
+cannot skip a required gate:
+
+```text
+created -> protocol_ready -> visual_launched -> journey_passed
+        -> capture_integrity_passed -> artifacts_persisted
+        -> governance_reported -> passed
+```
+
+`failed`, `degraded`, and `unavailable` are terminal non-pass states. The
+`protocol` profile requires only protocol readiness; `visual` additionally
+requires visual launch, semantic journey, capture integrity, and artifact
+persistence; `release_visual` also requires governance reporting. A protocol
+or compile-only result therefore cannot serialize as a visual pass.
+
+Each manifest records the run, target, runner and target OS, artifact digest,
+gate dispositions, and producer-owned artifact metadata. Recordings must carry
+an immutable reference, absolute local operator path when available, checksum,
+size, dimensions, duration, container, codec, creation time, and a useful-frame
+result. These fields are validated before a verdict is reported. Deployment-
+manager receives only the resulting references and never the MP4 or screenshot
+bytes.
+
 ## Producer example
 
 scenario-to-desktop runs its smoke-test journey, writes the recording and

@@ -23,7 +23,7 @@ describe("Header and SnapshotPanel", () => {
   it("toggles snapshot detail and displays loaded or skeleton statistics", () => {
     const { rerender } = renderWithProviders(
       <SnapshotPanel
-        heroStats={{ overall_score: 80, readiness_label: "ready", risk_score: 2, confidence: 90, vault_configured: 3, vault_total: 4, missing_secrets: 1 }}
+        heroStats={{ overall_score: 80, readiness_label: "ready", risk_score: 2, confidence: 90, credential_configured: 3, credential_total: 4, missing_secrets: 1 }}
         updatedAt="2026-07-23T00:00:00Z"
         isLoading={false}
       />

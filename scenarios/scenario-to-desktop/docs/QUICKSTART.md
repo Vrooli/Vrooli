@@ -2,7 +2,9 @@
 
 ## Bundled Desktop Apps (Recommended)
 
-The recommended approach creates complete offline desktop applications:
+The recommended approach creates bundled desktop applications. Offline use is
+claimed only after the selected dependency matrix and native journey evidence
+pass; cloud/remote dependencies remain network-dependent:
 
 ```bash
 # Create a deployment profile for your scenario
@@ -12,7 +14,9 @@ deployment-manager profile create my-profile my-scenario --tier 2
 deployment-manager deploy-desktop --profile my-profile
 ```
 
-This creates installers for Windows, macOS, and Linux that work completely offline.
+This creates installers for Windows, macOS, and Linux. Package creation is not
+runtime proof for every target: native visual evidence is currently qualified
+on Linux, while other platforms remain package/compile claims unless executed.
 
 See [Hello Desktop Tutorial](../../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md) for a complete walkthrough.
 

@@ -10,9 +10,9 @@ import (
 )
 
 type statusPayload struct {
-	Health     support.HealthResponse     `json:"health"`
-	Vault      support.VaultSecretsStatus `json:"vault"`
-	Compliance support.ComplianceResponse `json:"compliance"`
+	Health     support.HealthResponse           `json:"health"`
+	Coverage   support.CredentialCoverageStatus `json:"credential_coverage"`
+	Compliance support.ComplianceResponse       `json:"compliance"`
 }
 
 func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
@@ -22,7 +22,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 			{
 				Name:        "status",
 				NeedsAPI:    true,
-				Description: "Show health, vault coverage, and compliance posture",
+				Description: "Show health, credential coverage, and compliance posture",
 				Run: func(args []string) error {
 					return runStatus(core, args)
 				},
@@ -46,7 +46,7 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 	if err := support.GetRootJSON(core, "/health", nil, &payload.Health); err != nil {
 		return err
 	}
-	if err := support.GetJSON(core, "/credentials/secrets/status", nil, &payload.Vault); err != nil {
+	if err := support.GetJSON(core, "/credentials/secrets/status", nil, &payload.Coverage); err != nil {
 		return err
 	}
 	if err := support.GetJSON(core, "/security/compliance", nil, &payload.Compliance); err != nil {
@@ -59,7 +59,7 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 			fmt.Sprintf("Health: %s", payload.Health.Status),
 			fmt.Sprintf("Readiness: %s", support.BoolLabel(payload.Health.Readiness, "ready", "not ready")),
 			fmt.Sprintf("Overall compliance: %d", payload.Compliance.OverallScore),
-			fmt.Sprintf("Vault coverage: %d/%d resources configured", payload.Vault.ConfiguredResources, payload.Vault.TotalResources),
+			fmt.Sprintf("Credential coverage: %d/%d resources configured", payload.Coverage.ConfiguredResources, payload.Coverage.TotalResources),
 			fmt.Sprintf("Total vulnerabilities: %d", payload.Compliance.TotalVulnerabilities),
 		},
 		Triage: []cliapp.TriageGroup{
@@ -71,10 +71,10 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 				},
 			},
 			{
-				Heading: "Vault Coverage",
+				Heading: "Credential Coverage",
 				Items: []string{
-					fmt.Sprintf("Missing secrets: %d", len(payload.Vault.MissingSecrets)),
-					fmt.Sprintf("Last updated: %s", support.FormatTime(payload.Vault.LastUpdated)),
+					fmt.Sprintf("Missing credentials: %d", len(payload.Coverage.MissingSecrets)),
+					fmt.Sprintf("Last updated: %s", support.FormatTime(payload.Coverage.LastUpdated)),
 				},
 			},
 			{

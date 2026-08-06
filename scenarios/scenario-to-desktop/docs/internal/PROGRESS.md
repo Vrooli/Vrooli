@@ -4,6 +4,7 @@
 
 | Date       | Author           | Change % | Description |
 |------------|------------------|----------|-------------|
+| 2026-08-06 | Codex | +0.0% | Revalidated the journey-evidence.v2 contract with native Linux pipeline `e1c278d0-6170-3d28-6688-cb44b2d16006`: generated Hello Desktop AppImage launched under Xvfb/openbox, all eight ordered chapters and 33 timeline events passed, the H.264 MP4 was visually inspected, and the producer manifest passed ordering/redaction/checksum/persistence gates. Provider-specific native release claims remain explicitly environment-gated; requirements validation is L3 clean. |
 | 2026-07-28 | Codex | +0.0% | Completed the scenario-to-desktop maturity and proto-foundation plan. The final source-stable Test Genie run (`20260728-133628-ae16aa50`) passed all 20 phases; completeness is 93/100 (`nearly_ready`), performance reached its L3 ceiling, and measures domain coverage is clean. `make lint`, `make fmt`, live restart health, dependency health, and the fresh baseline comparison all passed. Deferred work is tracked separately for multi-framework generation, LAN/public authentication, and secrets-manager/Vault dependency health; no shared-package defect was found during the proto migration. |
 | 2026-07-23 | Codex | +0.1% | Added a server-side thin-client admission gate that rejects direct Vault listeners and `/v1/` Vault APIs before desktop generation. The operator receives a configuration recovery action to provide the Vrooli scenario proxy URL instead; no resource deployment plan is produced. The full scenario-to-desktop API Go suite passes. |
 | 2026-07-23 | Codex | +0.1% | Added direct operator-flow coverage for desktop wrapper generation: bundled mode now has a tested contract requiring the deployment-manager bundle manifest, while thin-client mode carries only the saved Tier 1 proxy URL. The full UI suite passes 63 files / 1,275 tests; V8 coverage is 51.90% lines/statements. The 85% global floor remains enforced. |
@@ -29,11 +30,11 @@
 
 ## Current State
 
-- **Overall Status**: Production Ready (bundled mode is the recommended default)
-- **Bundled Mode**: Fully operational - creates complete offline desktop applications
-- **Thin Client Mode**: Available for shared-server scenarios
-- **Tests**: Fresh Test Genie run passed all 20 phases (2026-07-28)
-- **Completeness Score**: 93/100 (`nearly_ready`, 2026-07-28)
+- **Overall Status**: Baseline native journey proven; provider-specific release claims remain evidence-gated
+- **Bundled Mode**: Pipeline and supervisor contracts are implemented; offline/resource-native claims require the selected dependency journey
+- **Thin Client Mode**: Supported deployment mode; live Tier 1 route evidence depends on the target server fixture
+- **Tests**: Fresh native pipeline passed; latest scenario Test Genie run passed all 20 phases (2026-07-28)
+- **Completeness Score**: 93/100 (`nearly_ready`, 2026-07-28); this score does not promote environment-gated provider claims
 
 ## Architecture Notes
 

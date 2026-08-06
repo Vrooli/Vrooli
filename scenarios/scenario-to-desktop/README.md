@@ -4,6 +4,9 @@ Scenario to Desktop packages a Vrooli scenario as a professional Electron deskto
 
 Electron is the only supported desktop framework. Cross-ramp release approval, promotion, and deployment evidence belong to deployment-manager; this scenario owns the typed desktop generation, packaging, smoke-test, signing-configuration, and interactive-evidence workflows.
 
+The authoritative support matrix for bundled, thin-client, shared-resource,
+fallback, and peer claims is the [scenario-to-desktop evidence and tier contract](../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md).
+
 ## Start here
 
 Use the scenario lifecycle instead of running binaries directly:
@@ -24,7 +27,7 @@ scenario-to-desktop pipeline active --help
 
 ## Deployment modes
 
-- **Bundled runtime** is the default for offline desktop delivery. It packages the selected scenario's declared runtime and validates it before installer creation.
+- **Bundled runtime** is the default packaging mode for offline desktop delivery when every required capability has a verified target artifact and native readiness evidence. Packaging support is not by itself an offline-runtime claim.
 - **External server** is for a desktop shell that connects to a managed scenario endpoint. Validate the endpoint before release; do not describe it as offline.
 
 The supported local evidence path starts a Linux desktop session on this host, launches the generated artifact, and exposes its VNC stream only through the API's loopback proxy. The typed evidence contract also represents a bridge-node target, but remote desktop execution is intentionally rejected until the bridge-owned remote-desktop protocol is implemented.

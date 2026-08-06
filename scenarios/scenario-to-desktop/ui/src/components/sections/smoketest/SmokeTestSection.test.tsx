@@ -313,6 +313,108 @@ describe("SmokeTestSection", () => {
     expect(screen.getByText("Linux")).toBeInTheDocument();
   });
 
+  it("renders backend-owned evidence chapters and explains missing video offsets", () => {
+    act(() => {
+      usePipelineStore.setState({
+        smokeTestResult: createSmokeTestResult({
+          evidenceReview: {
+            schemaVersion: "journey-evidence.v2",
+            capability: "hello-desktop",
+            planId: "hello-desktop.baseline.v2",
+            profile: "normal-review",
+            disposition: "degraded",
+            reason: "recording unavailable on this host",
+            providerTier: "tier1-local-vrooli",
+            safeRouteClass: "scenario-api-proxy",
+            eventCount: 3,
+            chapters: [
+              {
+                id: "semantic_greet",
+                purpose: "Prove the semantic greeting",
+                action: "semantic_greet",
+                disposition: "passed",
+                expected: "Hello, Vrooli!",
+                observed: "Hello, Vrooli!",
+              },
+            ],
+          },
+        }),
+        pipelineStatus: createPipelineStatus({
+          status: StageStatus.COMPLETED,
+          stages: {
+            ...createPipelineStatus().stages,
+            smoketest: { stage: StageName.SMOKE_TEST, status: StageStatus.COMPLETED },
+          },
+        }),
+      });
+    });
+
+    render(<SmokeTestSection scenarioName="test-scenario" />);
+
+    expect(screen.getByTestId("evidence-review")).toBeInTheDocument();
+    expect(screen.getByText("Verdict: degraded")).toBeInTheDocument();
+    expect(screen.getByText(/Prove the semantic greeting/)).toBeInTheDocument();
+    expect(screen.getByText(/No video offset recorded/)).toBeInTheDocument();
+    expect(screen.getByText(/recording unavailable on this host/)).toBeInTheDocument();
+    expect(screen.getByText("Provider: tier1-local-vrooli")).toBeInTheDocument();
+    expect(screen.getByText("Route: scenario-api-proxy")).toBeInTheDocument();
+  });
+
+  it("seeks review video chapters and exposes failed chapter detail", () => {
+    const playSpy = vi
+      .spyOn(HTMLMediaElement.prototype, "play")
+      .mockResolvedValue(undefined);
+
+    act(() => {
+      usePipelineStore.setState({
+        smokeTestResult: createSmokeTestResult({
+          smokeTestId: "smoke-test-review",
+          screenRecording: {
+            recorded: true,
+            captureId: "capture-review",
+            durationMs: 4000n,
+            fileSizeBytes: 128n,
+          },
+          evidenceReview: {
+            schemaVersion: "journey-evidence.v2",
+            capability: "hello-desktop",
+            planId: "hello-desktop.baseline.v2",
+            disposition: "pass",
+            eventCount: 1,
+            chapters: [
+              {
+                id: "semantic_greet",
+                purpose: "Prove the semantic greeting",
+                action: "semantic_greet",
+                disposition: "failed",
+                error: "semantic assertion failed",
+                videoStartOffsetMs: 1250n,
+              },
+            ],
+          },
+        }),
+        pipelineStatus: createPipelineStatus({
+          status: StageStatus.COMPLETED,
+          stages: {
+            ...createPipelineStatus().stages,
+            smoketest: { stage: StageName.SMOKE_TEST, status: StageStatus.COMPLETED },
+          },
+        }),
+      });
+    });
+
+    render(<SmokeTestSection scenarioName="test-scenario" />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /review chapter 1/i }),
+    );
+
+    expect(screen.getByTestId("evidence-review").textContent).toContain("Video");
+    expect(screen.getByText("semantic assertion failed")).toBeInTheDocument();
+    expect(playSpy).toHaveBeenCalled();
+    playSpy.mockRestore();
+  });
+
   it("shows telemetry upload status", () => {
     act(() => {
       usePipelineStore.setState({

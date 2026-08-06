@@ -16,7 +16,7 @@ var credentialKeyringRelay = func(ctx context.Context, action string) ([]byte, e
 	return secretsKeyringJSON(ctx, action)
 }
 
-func (h *VaultHandlers) Doctor(w http.ResponseWriter, r *http.Request) {
+func (h *CredentialHandlers) Doctor(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 	output, err := credentialDoctorRelay(ctx)
@@ -27,11 +27,11 @@ func (h *VaultHandlers) Doctor(w http.ResponseWriter, r *http.Request) {
 	writeCredentialJSON(w, output)
 }
 
-func (h *VaultHandlers) KeyringInspect(w http.ResponseWriter, r *http.Request) {
+func (h *CredentialHandlers) KeyringInspect(w http.ResponseWriter, r *http.Request) {
 	h.relayKeyring(w, r, "inspect")
 }
 
-func (h *VaultHandlers) KeyringRepair(w http.ResponseWriter, r *http.Request) {
+func (h *CredentialHandlers) KeyringRepair(w http.ResponseWriter, r *http.Request) {
 	var body map[string]json.RawMessage
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "confirm=true is required to repair the keyring", http.StatusBadRequest)
@@ -46,7 +46,7 @@ func (h *VaultHandlers) KeyringRepair(w http.ResponseWriter, r *http.Request) {
 	h.relayKeyring(w, r, "repair")
 }
 
-func (h *VaultHandlers) relayKeyring(w http.ResponseWriter, r *http.Request, action string) {
+func (h *CredentialHandlers) relayKeyring(w http.ResponseWriter, r *http.Request, action string) {
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 	output, err := credentialKeyringRelay(ctx, action)

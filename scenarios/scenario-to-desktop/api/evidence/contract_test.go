@@ -21,6 +21,7 @@ func validManifest(profile Profile, state RunState) Manifest {
 		Target:        Target{Ramp: "scenario-to-desktop", Platform: "linux", OS: "linux", DeviceKind: "host"},
 		Runner:        Runner{ID: "runner-1", Kind: "local", HostOS: "linux", TargetOS: "linux", Isolation: "xvfb"},
 		Provenance:    Provenance{ArtifactDigest: "sha256:artifact", GitCommit: "commit", StartedAt: now, CompletedAt: now.Add(time.Minute)},
+		Timeline:      TimelineSummary{Version: "journey-evidence.v2", JourneyRef: "capture:journey-1", ChapterIDs: []string{"launch"}, EventCount: 1, Ordered: true, RedactionStatus: "verified"},
 		Gates:         gates,
 		Artifacts:     []Artifact{{ImmutableRef: "capture:recording-1", LocalPath: "/tmp/recording.mp4", Kind: "recording", Checksum: "sha256:capture", SizeBytes: 42, Width: 1280, Height: 720, DurationMs: 3000, Container: "mp4", Codec: "h264", UsefulFrames: true, CreatedAt: now}},
 	}

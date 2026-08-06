@@ -20,7 +20,7 @@ Run `vrooli scenario test secrets-manager`. Test Genie owns long runs; retrieve 
 
 Desktop mode uses a private SQLite database. Shared mode uses routed Postgres metadata. A locked SQLite database indicates concurrent access or an unclosed cursor; do not delete the database as a first response.
 
-## Vault
+## Credential authority
 
 If preflight reports missing Secret Service tooling, use `vrooli host install secret-tool` with an authorized interactive session. If bundle staging rejects an artifact, obtain the required detached checksum signature.
 

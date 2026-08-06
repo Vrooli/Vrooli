@@ -77,7 +77,7 @@ export const ResourceTable = ({ resourceStatuses, isLoading, onOpenResource }: R
               <p>
                 Each resource declares credential descriptors in <code>resource.json</code>. A descriptor supplies the
                 backend-neutral logical identity, field, process injection name, and operator-facing metadata; it never
-                contains a value or a Vault-shaped storage path.
+                contains metadata only; values and storage paths are never returned.
               </p>
               <p>
                 To add a credential, update <code>resources/&lt;resource&gt;/resource.json</code> through the approved

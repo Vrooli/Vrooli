@@ -28,8 +28,8 @@ interface UseJourneysOptions {
     onSelect: (scenario: string) => void;
   };
   heroStats?: {
-    vault_configured: number;
-    vault_total: number;
+    credential_configured: number;
+    credential_total: number;
     missing_secrets: number;
     risk_score: number;
   };

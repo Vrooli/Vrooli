@@ -67,10 +67,10 @@ func (h *SecurityHandlers) SecurityScan(w http.ResponseWriter, r *http.Request) 
 
 // Compliance dashboard handler
 func (h *SecurityHandlers) Compliance(w http.ResponseWriter, r *http.Request) {
-	// Get vault secrets status
-	vaultStatus, err := getVaultSecretsStatus("")
+	// Get credential coverage status
+	credentialStatus, err := getCredentialCoverageStatus("")
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get vault status: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to get credential coverage: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -81,8 +81,8 @@ func (h *SecurityHandlers) Compliance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	compliance := calculateComplianceMetrics(vaultStatus, securityResults)
-	response := buildComplianceResponse(compliance, vaultStatus, securityResults)
+	compliance := calculateComplianceMetrics(credentialStatus, securityResults)
+	response := buildComplianceResponse(compliance, credentialStatus, securityResults)
 
 	writeJSON(w, http.StatusOK, response)
 }

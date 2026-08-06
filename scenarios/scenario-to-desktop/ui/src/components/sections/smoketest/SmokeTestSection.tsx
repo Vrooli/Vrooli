@@ -7,7 +7,7 @@
  * - Pipeline genuinely failed/cancelled before smoketest → show warning + "New Pipeline"
  */
 
-import { forwardRef, useMemo, useCallback, useState } from "react";
+import { forwardRef, useMemo, useCallback, useRef, useState } from "react";
 import {
   TestTube,
   CheckCircle2,
@@ -30,7 +30,7 @@ import {
   StagePlaceholder,
   StageError,
 } from "../shared";
-import { buildUrl } from "../../../lib/api";
+import { buildUrl, type SmokeTestStageDetails } from "../../../lib/api";
 import {
   usePipelineStore,
   selectStageStatus,
@@ -194,6 +194,76 @@ function ScreenRecordingError({ error }: { error: string }) {
   );
 }
 
+type EvidenceReviewData = NonNullable<SmokeTestStageDetails["evidenceReview"]>;
+
+function EvidenceReviewPanel({
+  review,
+  videoRef,
+}: {
+  review: EvidenceReviewData;
+  videoRef: { current: HTMLVideoElement | null };
+}) {
+  const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
+  const selected = review.chapters.find((chapter) => chapter.id === selectedChapter);
+  const isPass = review.disposition === "pass";
+  const statusLabel = review.disposition.replace(/_/g, " ");
+
+  const seekToChapter = (chapter: (typeof review.chapters)[number]) => {
+    setSelectedChapter(chapter.id);
+    const offset = chapter.videoStartOffsetMs;
+    if (offset != null && videoRef.current) {
+      videoRef.current.currentTime = Number(offset) / 1000;
+      void videoRef.current.play().catch(() => undefined);
+    }
+  };
+
+  return (
+    <StageDetailCard icon={FileText} label="Evidence Review">
+      <div className="space-y-3" data-testid="evidence-review">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className={isPass ? "text-emerald-300" : "text-amber-300"}>
+            Verdict: {statusLabel}
+          </span>
+          <span className="text-slate-500">Capability: {review.capability}</span>
+          {review.profile && <span className="text-slate-500">Profile: {review.profile}</span>}
+          {review.providerTier && <span className="text-slate-500">Provider: {review.providerTier}</span>}
+          {review.safeRouteClass && <span className="text-slate-500">Route: {review.safeRouteClass}</span>}
+        </div>
+        {!isPass && (
+          <div className="rounded border border-amber-900/60 bg-amber-950/20 p-2 text-xs text-amber-200">
+            <p>{review.reason || "The selected claim was not proven."}</p>
+            <p className="mt-1 text-amber-300/80">Next action: inspect the failed chapter and raw journey capture.</p>
+          </div>
+        )}
+        <ol className="space-y-1" aria-label="Evidence chapters">
+          {review.chapters.map((chapter, index) => (
+            <li key={chapter.id}>
+              <button
+                type="button"
+                className={`w-full rounded border p-2 text-left text-xs transition-colors ${selectedChapter === chapter.id ? "border-blue-500 bg-blue-950/30" : "border-slate-800 hover:border-slate-700"}`}
+                onClick={() => { seekToChapter(chapter); }}
+                aria-label={`Review chapter ${String(index + 1)}: ${chapter.purpose}`}
+              >
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-slate-200">{String(index + 1)}. {chapter.purpose}</span>
+                  <span className={chapter.disposition === "passed" ? "text-emerald-300" : "text-amber-300"}>{chapter.disposition}</span>
+                </span>
+                <span className="mt-1 block text-slate-500">
+                  {chapter.expected ? `Expected: ${chapter.expected}` : "Action"}
+                  {chapter.observed ? ` · Observed: ${chapter.observed}` : ""}
+                  {chapter.videoStartOffsetMs == null ? " · No video offset recorded" : ` · Video ${((Number(chapter.videoStartOffsetMs) || 0) / 1000).toFixed(1)}s`}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+        {selected?.error && <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-950 p-2 text-xs text-red-300">{selected.error}</pre>}
+        <p className="text-[11px] text-slate-600">Timeline events: {String(review.eventCount)}. Raw captures remain available from the captures drawer.</p>
+      </div>
+    </StageDetailCard>
+  );
+}
+
 interface SmokeTestSectionProps {
   scenarioName: string;
 }
@@ -229,6 +299,7 @@ export const SmokeTestSection = forwardRef<
   // Local error state for runStage("smoketest") call failures
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [isCreatingPipeline, setIsCreatingPipeline] = useState(false);
+  const evidenceVideoRef = useRef<HTMLVideoElement>(null);
 
   const hasResult = Boolean(smokeTestResult);
   const hasBuildArtifacts =
@@ -527,6 +598,7 @@ export const SmokeTestSection = forwardRef<
               <StageDetailCard icon={Video} label="Screen Recording">
                 <div className="space-y-2">
                   <video
+                    ref={evidenceVideoRef}
                     controls
                     className="w-full rounded border border-slate-700"
                     src={buildUrl(
@@ -567,6 +639,13 @@ export const SmokeTestSection = forwardRef<
           {smokeTestResult?.screenRecording?.error && (
             <ScreenRecordingError
               error={smokeTestResult.screenRecording.error}
+            />
+          )}
+
+          {smokeTestResult?.evidenceReview && (
+            <EvidenceReviewPanel
+              review={smokeTestResult.evidenceReview}
+              videoRef={evidenceVideoRef}
             />
           )}
 

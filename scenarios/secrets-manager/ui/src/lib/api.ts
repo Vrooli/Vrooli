@@ -66,7 +66,7 @@ export interface HealthResponse {
   };
 }
 
-export interface VaultMissingSecret {
+export interface MissingCredential {
   resource_name: string;
   secret_name: string;
   secret_path: string;
@@ -74,7 +74,7 @@ export interface VaultMissingSecret {
   description: string;
 }
 
-export interface VaultResourceStatus {
+export interface CredentialResourceStatus {
   resource_name: string;
   secrets_total: number;
   secrets_found: number;
@@ -84,11 +84,11 @@ export interface VaultResourceStatus {
   last_checked: string;
 }
 
-export interface VaultSecretsStatus {
+export interface CredentialCoverageStatus {
   total_resources: number;
   configured_resources: number;
-  missing_secrets: VaultMissingSecret[];
-  resource_statuses: VaultResourceStatus[];
+  missing_secrets: MissingCredential[];
+  resource_statuses: CredentialResourceStatus[];
   last_updated: string;
 }
 
@@ -124,7 +124,7 @@ export function fetchCredentialKeyringReport() {
 
 export interface ComplianceResponse {
   overall_score: number;
-  vault_secrets_health: number;
+  credential_coverage_health: number;
   vulnerability_summary: Record<string, number>;
   remediation_progress: {
     configured_components: number;
@@ -133,7 +133,7 @@ export interface ComplianceResponse {
     medium_issues: number;
     low_issues: number;
     security_score: number;
-    vault_secrets_health: number;
+    credential_coverage_health: number;
     overall_compliance: number;
   };
   total_resources: number;
@@ -217,8 +217,8 @@ export interface ResourceInsight {
 
 export interface OrientationSummary {
   hero_stats: {
-    vault_configured: number;
-    vault_total: number;
+    credential_configured: number;
+    credential_total: number;
     missing_secrets: number;
     risk_score: number;
     overall_score: number;
@@ -376,9 +376,9 @@ export interface DeploymentReadinessResponse {
 
 export const fetchHealth = () => jsonFetch<HealthResponse>("/health");
 
-export const fetchVaultStatus = (resource?: string) => {
+export const fetchCredentialCoverage = (resource?: string) => {
   const search = resource ? `?resource=${encodeURIComponent(resource)}` : "";
-  return jsonFetch<VaultSecretsStatus>(`/credentials/secrets/status${search}`);
+  return jsonFetch<CredentialCoverageStatus>(`/credentials/secrets/status${search}`);
 };
 
 export const fetchCompliance = () => jsonFetch<ComplianceResponse>("/security/compliance");
@@ -542,10 +542,10 @@ export interface ProvisionSecretsPayload {
 
 export interface ProvisionSecretsResponse {
   success: boolean;
+  resource?: string;
   message?: string;
-  local_stored: number;
-  vault_stored: number;
-  total_provisioned: number;
+  stored_secrets: number;
+  details?: Array<{ env_key: string; logical_id: string; field: string; status: string; error?: string }>;
 }
 
 export const provisionSecrets = (payload: ProvisionSecretsPayload) =>

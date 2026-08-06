@@ -2,7 +2,7 @@
   "name": "Secrets Manager",
   "short_name": "Secrets",
   "id": "./",
-  "description": "Validate Vault coverage, audit vulnerabilities, and provision declared secrets.",
+  "description": "Validate credential coverage, audit vulnerabilities, and provision declared credentials.",
   "display": "standalone",
   "start_url": "./",
   "scope": "./",

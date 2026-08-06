@@ -33,8 +33,8 @@ The migration and private metadata query are covered by
 | --- | --- | --- |
 | Linux API build | `CGO_ENABLED=0 go build ./...` | Pass |
 | Desktop private database | Focused desktop storage tests | Pass |
-| Linux desktop pipeline | A fresh Vault release stage was built and every `SHA256SUMS` entry was verified. The pipeline correctly rejected it because the external release signer has not supplied `SHA256SUMS.sig`. | Fail closed; release-signing handoff required |
-| Linux shared Vault | Starting Secrets Manager correctly rejects the unmet Vault `secret-tool` host requirement before starting the service. | Host installation required |
+| Linux desktop pipeline | A fresh authority-backed release stage was built and every `SHA256SUMS` entry was verified. The pipeline correctly rejected it because the external release signer has not supplied `SHA256SUMS.sig`. | Fail closed; release-signing handoff required |
+| Linux native authority | Starting Secrets Manager correctly rejects an unmet Linux Secret Service `secret-tool` host requirement before credential operations. | Host installation required |
 | Headless host with no native credential store | With `secret-tool` removed from `PATH`, `vrooli credentials store init` created the encrypted file store and a full provision → status → delete cycle ran through the CLI. A resource declaring a required credential reported `Healthy: yes, Status: configured`, and reported unhealthy again after the credential was deleted. The provisioned value appeared in no command output, log, or file. | Pass |
 | macOS and Windows | No signed artifact or target-host test evidence in this run | Not claimed |
 

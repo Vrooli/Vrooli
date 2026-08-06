@@ -157,11 +157,43 @@ type Status struct {
 	JourneyDegradedReason     string                 `json:"journey_degraded_reason,omitempty"`
 	EvidenceReportDisposition string                 `json:"evidence_report_disposition,omitempty"`
 	EvidenceReportError       string                 `json:"evidence_report_error,omitempty"`
+	EvidenceReview            *JourneyReview         `json:"evidence_review,omitempty"`
 
 	// Process metrics from app execution
 	SplashDurationMs *int64               `json:"splash_duration_ms,omitempty"`
 	ReadyDurationMs  *int64               `json:"ready_duration_ms,omitempty"`
 	ResourceSummary  *procmetrics.Summary `json:"resource_summary,omitempty"`
+}
+
+type JourneyReview struct {
+	SchemaVersion    string           `json:"schema_version"`
+	Capability       string           `json:"capability"`
+	PlanID           string           `json:"plan_id"`
+	Profile          string           `json:"profile"`
+	Disposition      string           `json:"disposition"`
+	Reason           string           `json:"reason,omitempty"`
+	EventCount       int              `json:"event_count"`
+	DeploymentMode   string           `json:"deployment_mode,omitempty"`
+	ProviderTier     string           `json:"provider_tier,omitempty"`
+	ServiceIdentity  string           `json:"service_identity,omitempty"`
+	Readiness        string           `json:"readiness,omitempty"`
+	FallbackDecision string           `json:"fallback_decision,omitempty"`
+	SafeRouteClass   string           `json:"safe_route_class,omitempty"`
+	Chapters         []JourneyChapter `json:"chapters"`
+}
+
+type JourneyChapter struct {
+	ID                 string   `json:"id"`
+	Purpose            string   `json:"purpose"`
+	Action             string   `json:"action"`
+	Disposition        string   `json:"disposition"`
+	AssertionID        string   `json:"assertion_id,omitempty"`
+	Expected           string   `json:"expected,omitempty"`
+	Observed           string   `json:"observed,omitempty"`
+	Error              string   `json:"error,omitempty"`
+	VideoStartOffsetMs *int64   `json:"video_start_offset_ms,omitempty"`
+	VideoEndOffsetMs   *int64   `json:"video_end_offset_ms,omitempty"`
+	EvidenceIDs        []string `json:"evidence_ids,omitempty"`
 }
 
 // ScreenRecordingConfig controls whether the smoke test records the display.

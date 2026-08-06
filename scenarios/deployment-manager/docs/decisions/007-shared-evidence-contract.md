@@ -13,3 +13,9 @@ coupling its internal storage model or build to the governance scenario.
 Every target is identified by ramp, platform, OS, and device kind. Producers
 report a failed disposition for degraded runs; an unreachable governance
 service is a reporting failure, never an implicit pass.
+
+The producer-side manifest is versioned independently from the neutral wire
+messages. Its gate taxonomy separates protocol readiness, visual launch,
+semantic interaction, capture integrity, artifact persistence, and governance
+reporting. Release-visual manifests require all six gates and a terminal pass;
+protocol-only, degraded, unavailable, and unverified results remain non-pass.

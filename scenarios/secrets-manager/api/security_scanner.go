@@ -39,7 +39,7 @@ var vulnerabilityPatterns = []VulnerabilityPattern{
 		Pattern:        `(password|secret|key|token|api_key)\s*[:=]\s*["'](?!.*env|.*getenv)[^"']{8,}["']`,
 		Description:    "Hardcoded secret or credential found",
 		Title:          "Hardcoded Secret",
-		Recommendation: "Move secrets to vault or environment variables",
+		Recommendation: "Move secrets to the credential authority with process-scoped injection",
 		CanAutoFix:     false,
 	},
 	{
@@ -385,7 +385,7 @@ func checkHardcodedSecrets(assign *ast.AssignStmt, fset *token.FileSet, componen
 							Title:          "Hardcoded Secret Detected",
 							Description:    fmt.Sprintf("Variable '%s' appears to contain a hardcoded secret", ident.Name),
 							Code:           extractLineFromFile(filePath, pos.Line),
-							Recommendation: "Move secret to vault or environment variable",
+							Recommendation: "Move the secret to the credential authority with process-scoped injection",
 							CanAutoFix:     false,
 							DiscoveredAt:   time.Now(),
 						}

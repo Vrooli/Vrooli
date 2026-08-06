@@ -32,7 +32,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
-	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
+	@printf "  make endpoints                  Validate the maintained .vrooli/endpoints.json contract\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
@@ -128,8 +128,9 @@ open: ## Open the scenario in a browser
 orient: ## Show generated-scenario orientation progress
 	@template-manager orient "$(SCENARIO_NAME)"
 
-endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
-	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
+endpoints: ## Validate the maintained .vrooli/endpoints.json contract
+	@jq -e '.scenario == "secrets-manager" and (.endpoints | type == "array")' .vrooli/endpoints.json >/dev/null
+	@printf "Validated .vrooli/endpoints.json for %s\n" "$(SCENARIO_NAME)"
 
 # Development shortcuts
 run: start

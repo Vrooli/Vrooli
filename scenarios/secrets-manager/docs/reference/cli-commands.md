@@ -18,7 +18,7 @@ Use `--api-base`, `--instance`, `--auto-start`, and `--json` before the command 
 
 | Group | Operations |
 |---|---|
-| `vault` | `status`, `validate`, `provision` |
+| `credentials` | `list`, `status`, `coverage`, `validate`, `doctor`, `provision`, `delete` |
 | `security` | `vulnerabilities`, `scan`, `compliance`, `set-status`, `fix` |
 | `deployment` | `plan`, `readiness` |
 | `resources`, `scenarios`, `campaigns` | inventory and metadata inspection |

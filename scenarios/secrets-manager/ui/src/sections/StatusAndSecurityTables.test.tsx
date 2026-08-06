@@ -11,11 +11,11 @@ describe("StatusGrid", () => {
     renderWithProviders(
       <StatusGrid
         healthData={{ status: "healthy", service: "secrets-manager", version: "2.0", timestamp: "2026-07-23T00:00:00Z", dependencies: { database: { connected: true, latency_ms: 4 } } }}
-        vaultData={{ total_resources: 2, configured_resources: 1, missing_secrets: [{ resource_name: "vault", secret_name: "TOKEN", secret_path: "secret/token", required: true, description: "token" }], resource_statuses: [], last_updated: "2026-07-23T00:00:00Z" }}
-        complianceData={{ overall_score: 90, vault_secrets_health: 80, vulnerability_summary: {}, remediation_progress: { configured_components: 1, critical_issues: 0, high_issues: 0, medium_issues: 0, low_issues: 0, security_score: 90, vault_secrets_health: 80, overall_compliance: 90 }, total_resources: 2, configured_resources: 1, configured_components: 1, total_components: 2, total_vulnerabilities: 0, last_updated: "2026-07-23T00:00:00Z" }}
+        credentialData={{ total_resources: 2, configured_resources: 1, missing_secrets: [{ resource_name: "vault", secret_name: "TOKEN", secret_path: "secret/token", required: true, description: "token" }], resource_statuses: [], last_updated: "2026-07-23T00:00:00Z" }}
+        complianceData={{ overall_score: 90, credential_coverage_health: 80, vulnerability_summary: {}, remediation_progress: { configured_components: 1, critical_issues: 0, high_issues: 0, medium_issues: 0, low_issues: 0, security_score: 90, credential_coverage_health: 80, overall_compliance: 90 }, total_resources: 2, configured_resources: 1, configured_components: 1, total_components: 2, total_vulnerabilities: 0, last_updated: "2026-07-23T00:00:00Z" }}
         vulnerabilityData={{ vulnerabilities: [], total_count: 0, scan_id: "scan-1", scan_duration: 15, risk_score: 71 }}
         isHealthLoading={false}
-        isVaultLoading={false}
+        isCredentialLoading={false}
         isComplianceLoading={false}
         isVulnerabilityLoading={false}
       />
@@ -32,7 +32,7 @@ describe("StatusGrid", () => {
     renderWithProviders(
       <StatusGrid
         isHealthLoading={false}
-        isVaultLoading={false}
+        isCredentialLoading={false}
         isComplianceLoading
         isVulnerabilityLoading={false}
       />
@@ -57,7 +57,7 @@ describe("SecurityTables", () => {
       <SecurityTables
         resourceStatuses={[{ resource_name: "vault", secrets_total: 2, secrets_found: 1, secrets_missing: 1, secrets_optional: 0, health_status: "degraded", last_checked: "now" }]}
         vulnerabilities={[{ id: "v-1", component_type: "resource", component_name: "vault", file_path: "resource.json", line_number: 7, severity: "high", type: "configuration", title: "Missing token", description: "A required token is absent", recommendation: "Configure the token", can_auto_fix: false, discovered_at: "now" }]}
-        isVaultLoading={false}
+        isCredentialLoading={false}
         isVulnerabilityLoading={false}
         componentType=""
         componentFilter=""
@@ -89,7 +89,7 @@ describe("SecurityTables", () => {
       <SecurityTables
         resourceStatuses={[]}
         vulnerabilities={[]}
-        isVaultLoading
+        isCredentialLoading
         isVulnerabilityLoading
         componentType=""
         componentFilter=""
@@ -105,7 +105,7 @@ describe("SecurityTables", () => {
       <SecurityTables
         resourceStatuses={[]}
         vulnerabilities={[]}
-        isVaultLoading={false}
+        isCredentialLoading={false}
         isVulnerabilityLoading={false}
         componentType=""
         componentFilter=""

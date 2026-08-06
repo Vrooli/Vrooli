@@ -230,7 +230,7 @@ Secrets get their own `.vrooli/secrets-deployment.json` so lifecycle metadata st
       "tiers": {
         "tier-1-local": {
           "action": "reuse",
-          "source": "secrets-manager:vault://secret/data/vrooli/dev/postgres"
+          "source": "credential-authority:vrooli/postgres:password"
         },
         "tier-2-desktop": {
           "action": "generate_sqlite_path",

@@ -16,28 +16,22 @@ import (
 )
 
 // -----------------------------------------------------------------------------
-// VaultCLI Interface
+// CredentialAuthorityClient Interface
 // -----------------------------------------------------------------------------
 
-// VaultCLI abstracts vault CLI operations for testability.
-// This interface enables mocking native credential status responses in tests.
+// CredentialAuthorityClient abstracts metadata-only authority operations for testability.
+// This interface enables mocking native credential coverage responses in tests.
 //
-// seam: VaultCLI isolates credential authority checks.
-type VaultCLI interface {
-	// GetSecretsStatus retrieves vault secrets status, optionally filtered by resource.
-	GetSecretsStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error)
-
-	// GetSecret retrieves a single secret value from vault.
-	GetSecret(ctx context.Context, resourceName, key string) (string, error)
-
-	// PutSecret stores a secret in vault at the specified path.
-	PutSecret(ctx context.Context, path, vaultKey, value string) error
+// seam: CredentialAuthorityClient isolates credential authority checks.
+type CredentialAuthorityClient interface {
+	// GetSecretsStatus retrieves credential coverage, optionally filtered by resource.
+	GetSecretsStatus(ctx context.Context, resourceFilter string) (*CredentialCoverageStatus, error)
 }
 
-// DefaultVaultCLI is retained as an API compatibility seam. Production checks
+// DefaultCredentialAuthorityClient is the production authority seam. It checks
 // the native credential authority through `vrooli credentials status`; it never
-// asks a vault for a plaintext value.
-type DefaultVaultCLI struct{}
+// asks Secrets Manager for a plaintext value.
+type DefaultCredentialAuthorityClient struct{}
 
 func determineResourceHealthStatus(missingRequiredSecrets int) string {
 	switch {
@@ -50,59 +44,47 @@ func determineResourceHealthStatus(missingRequiredSecrets int) string {
 	}
 }
 
-// NewDefaultVaultCLI creates the production VaultCLI implementation.
-func NewDefaultVaultCLI() *DefaultVaultCLI {
-	return &DefaultVaultCLI{}
+// NewDefaultCredentialAuthorityClient creates the production CredentialAuthorityClient implementation.
+func NewDefaultCredentialAuthorityClient() *DefaultCredentialAuthorityClient {
+	return &DefaultCredentialAuthorityClient{}
 }
 
-// GetSecretsStatus implements VaultCLI using canonical resource descriptors.
-func (v *DefaultVaultCLI) GetSecretsStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error) {
-	return getNativeCredentialStatus(ctx, resourceFilter)
+// GetSecretsStatus implements CredentialAuthorityClient using canonical resource descriptors.
+func (v *DefaultCredentialAuthorityClient) GetSecretsStatus(ctx context.Context, resourceFilter string) (*CredentialCoverageStatus, error) {
+	return getNativeCredentialCoverage(ctx, resourceFilter)
 }
 
-// GetSecret intentionally refuses value reads. Consumers receive credentials by
-// explicit process injection, never through the Secrets Manager API.
-func (v *DefaultVaultCLI) GetSecret(ctx context.Context, resourceName, key string) (string, error) {
-	return "", fmt.Errorf("plaintext credential reads are not supported")
-}
-
-// PutSecret intentionally refuses writes. Provisioning is stdin-only through
-// `vrooli credentials provision` in vault_handlers.go.
-func (v *DefaultVaultCLI) PutSecret(ctx context.Context, path, vaultKey, value string) error {
-	return fmt.Errorf("use canonical credential provisioning")
-}
-
-// defaultVaultCLI is the package-level vault CLI instance.
-// It can be replaced in tests via SetVaultCLI.
-var defaultVaultCLI VaultCLI = NewDefaultVaultCLI()
+// defaultCredentialAuthorityClient is the package-level authority client.
+// It can be replaced in tests via SetCredentialAuthorityClient.
+var defaultCredentialAuthorityClient CredentialAuthorityClient = NewDefaultCredentialAuthorityClient()
 
 var credentialStatusCommand = func(ctx context.Context, logicalID, field string) ([]byte, error) {
 	return secretsStatusJSON(ctx, logicalID, field)
 }
 
-// SetVaultCLI replaces the default vault CLI implementation.
+// SetCredentialAuthorityClient replaces the default authority client.
 // This is primarily used for testing with mock implementations.
-func SetVaultCLI(cli VaultCLI) {
-	defaultVaultCLI = cli
+func SetCredentialAuthorityClient(cli CredentialAuthorityClient) {
+	defaultCredentialAuthorityClient = cli
 }
 
 // -----------------------------------------------------------------------------
-// Public API (uses VaultCLI interface)
+// Public API (uses CredentialAuthorityClient interface)
 // -----------------------------------------------------------------------------
 
 // Credential authority integration for status metadata.
-func getVaultSecretsStatus(resourceFilter string) (*VaultSecretsStatus, error) {
+func getCredentialCoverageStatus(resourceFilter string) (*CredentialCoverageStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	status, err := defaultVaultCLI.GetSecretsStatus(ctx, resourceFilter)
+	status, err := defaultCredentialAuthorityClient.GetSecretsStatus(ctx, resourceFilter)
 	if err != nil {
-		return nil, fmt.Errorf("Vault status is unavailable: %w", err)
+		return nil, fmt.Errorf("credential authority coverage is unavailable: %w", err)
 	}
 	return status, nil
 }
 
-func getNativeCredentialStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error) {
-	status := &VaultSecretsStatus{MissingSecrets: []VaultMissingSecret{}, ResourceStatuses: []VaultResourceStatus{}, LastUpdated: time.Now()}
+func getNativeCredentialCoverage(ctx context.Context, resourceFilter string) (*CredentialCoverageStatus, error) {
+	status := &CredentialCoverageStatus{MissingSecrets: []MissingCredential{}, ResourceStatuses: []CredentialResourceStatus{}, LastUpdated: time.Now()}
 	resources := listKnownResources()
 	for _, resourceName := range resources {
 		if resourceFilter != "" && resourceFilter != resourceName {
@@ -112,7 +94,7 @@ func getNativeCredentialStatus(ctx context.Context, resourceFilter string) (*Vau
 		if err != nil {
 			continue
 		}
-		row := VaultResourceStatus{ResourceName: resourceName, SecretsTotal: len(descriptors), LastChecked: time.Now()}
+		row := CredentialResourceStatus{ResourceName: resourceName, SecretsTotal: len(descriptors), LastChecked: time.Now()}
 		for _, descriptor := range descriptors {
 			configured, _ := credentialConfiguredDescriptor(ctx, descriptor)
 			if configured {
@@ -121,7 +103,7 @@ func getNativeCredentialStatus(ctx context.Context, resourceFilter string) (*Vau
 			}
 			if descriptor.Required {
 				row.SecretsMissing++
-				status.MissingSecrets = append(status.MissingSecrets, VaultMissingSecret{ResourceName: resourceName, SecretName: descriptor.Env, SecretPath: descriptor.LogicalID, Required: true, Description: descriptor.Description})
+				status.MissingSecrets = append(status.MissingSecrets, MissingCredential{ResourceName: resourceName, SecretName: descriptor.Env, SecretPath: descriptor.LogicalID, Required: true, Description: descriptor.Description})
 			} else {
 				row.SecretsOptional++
 			}
@@ -276,7 +258,7 @@ func isTextFile(path string) bool {
 	return IsTextFileExtension(ext)
 }
 
-func resolveVaultSecretMapping(resourceName, key string) (secretMapping, bool) {
+func resolveCredentialMapping(resourceName, key string) (secretMapping, bool) {
 	key = strings.ToUpper(strings.TrimSpace(key))
 	if key == "" {
 		return secretMapping{}, false
@@ -284,27 +266,22 @@ func resolveVaultSecretMapping(resourceName, key string) (secretMapping, bool) {
 	resourceName = strings.TrimSpace(resourceName)
 	if resourceName != "" {
 		if descriptor, err := credentialDescriptorForEnv(resourceName, key); err == nil {
-			return secretMapping{Path: descriptor.LogicalID, VaultKey: descriptor.Field}, true
+			return secretMapping{LogicalID: descriptor.LogicalID, Field: descriptor.Field}, true
 		}
 		return secretMapping{}, false
 	}
 
 	for _, resourceName := range listKnownResources() {
 		if descriptor, err := credentialDescriptorForEnv(resourceName, key); err == nil {
-			return secretMapping{Path: descriptor.LogicalID, VaultKey: descriptor.Field}, true
+			return secretMapping{LogicalID: descriptor.LogicalID, Field: descriptor.Field}, true
 		}
 	}
 
 	return secretMapping{}, false
 }
 
-// secretMapping represents a vault path and key for a secret.
-// Moved from vault_handlers.go to separate integration logic from HTTP handlers.
+// secretMapping represents the canonical authority identity and field for a credential.
 type secretMapping struct {
-	Path     string
-	VaultKey string
+	LogicalID string
+	Field     string
 }
-
-// buildSecretMappings builds a mapping of environment variable names to vault paths
-// based on the resource's secrets.yaml configuration.
-// Moved from vault_handlers.go to separate integration logic from HTTP handlers.

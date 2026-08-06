@@ -8,14 +8,16 @@ This document records flows whose ordering or resource authority matters.
 
 | Flow | Trigger | Outcome |
 |---|---|---|
-| Vault validation | API or CLI request | Coverage metadata and missing-secret posture |
+| Credential-authority validation | API or CLI request | Coverage metadata and missing-credential posture |
 | Deployment manifest | deployment consumer request | Tier-specific strategies without secret values |
 | Override mutation | authorized operator request | Effective strategy recomputation |
 | Desktop launch | bundled lifecycle start | Private metadata storage and an authorized resource binding |
 
 ## Flow Details
 
-Vault validation resolves the resource boundary, reads coverage metadata, and records the result. Deployment manifest generation resolves resources and strategies before emitting a bundle-safe result.
+Credential-authority validation reads metadata through the control-plane client
+and records the result. Deployment manifest generation resolves resources and
+strategies before emitting a bundle-safe result.
 
 ## State Machines
 
@@ -27,7 +29,9 @@ Current flows have handler and persistence coverage. Brokered shared-resource re
 
 ## Production Shape
 
-The control plane selects a shared Vault only under its authority. Desktop bundles select private Vault by default and require explicit consent for shared reuse.
+The control plane selects the native/encrypted credential authority for ordinary
+credentials. Desktop bundles use local authority storage and explicit recovery
+bundles; Vault is selected only by a governed Vault-specific capability.
 
 ## Deferred / Unmodeled Flows
 

@@ -24,5 +24,8 @@ func ensurePostgresSchema(ctx context.Context, db *database.RoutedDB) error {
 	if _, err := db.Primary().ExecContext(ctx, secrets.ResourceSecretMetadataMigration()); err != nil {
 		return fmt.Errorf("apply resource secret metadata migration: %w", err)
 	}
+	if _, err := db.Primary().ExecContext(ctx, secrets.CredentialAuthorityStorageMigration()); err != nil {
+		return fmt.Errorf("apply credential authority storage migration: %w", err)
+	}
 	return nil
 }

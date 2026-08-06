@@ -10,13 +10,15 @@ Run `make setup`, `make start`, `make status`, `make logs`, and `make stop` from
 
 ## Common Incidents
 
-- Missing Vault or Secret Service tooling: follow the resource preflight remediation and use the governed host installer.
+- Missing native key-service or encrypted-authority support: follow the credential-authority doctor remediation and use a recovery bundle when moving hosts.
 - Database unavailable: check Postgres lifecycle health and confirm whether desktop mode is expected.
 - Bundle artifact rejection: obtain a correctly signed release checksum manifest; do not bypass provenance verification.
 
 ## Backup / Restore
 
-Vault state and metadata are distinct stores. Back up and restore only through their owning supported mechanisms. Do not copy private bundle state into shared Vault roots.
+Credential values and metadata are distinct stores. Back up and restore only
+through their owning supported mechanisms. Keep recovery bundles and
+passphrases separate and never copy plaintext values into scenario metadata.
 
 ## Maintenance Tasks
 

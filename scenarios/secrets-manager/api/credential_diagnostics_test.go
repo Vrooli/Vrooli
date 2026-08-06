@@ -20,7 +20,7 @@ func TestCredentialDoctorRelaysMetadataOnly(t *testing.T) {
 	t.Cleanup(func() { credentialDoctorRelay = prior })
 
 	router := mux.NewRouter()
-	NewVaultHandlers(nil, nil, nil).RegisterRoutes(router)
+	NewCredentialHandlers(nil, nil, nil).RegisterRoutes(router)
 	req := httptest.NewRequest(http.MethodGet, "/doctor", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -31,7 +31,7 @@ func TestCredentialDoctorRelaysMetadataOnly(t *testing.T) {
 
 func TestCredentialKeyringRepairRequiresConfirmation(t *testing.T) {
 	router := mux.NewRouter()
-	NewVaultHandlers(nil, nil, nil).RegisterRoutes(router)
+	NewCredentialHandlers(nil, nil, nil).RegisterRoutes(router)
 	req := httptest.NewRequest(http.MethodPost, "/keyring/repair", bytes.NewBufferString(`{}`))
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -48,7 +48,7 @@ func TestCredentialDoctorHidesRelayFailureDetails(t *testing.T) {
 	t.Cleanup(func() { credentialDoctorRelay = prior })
 
 	router := mux.NewRouter()
-	NewVaultHandlers(nil, nil, nil).RegisterRoutes(router)
+	NewCredentialHandlers(nil, nil, nil).RegisterRoutes(router)
 	req := httptest.NewRequest(http.MethodGet, "/doctor", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)

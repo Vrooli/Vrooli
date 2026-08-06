@@ -24,13 +24,14 @@ const DefaultDemoHoldMs = 30000
 
 // recordingState holds the active screen recording context during a smoke test.
 type recordingState struct {
-	captureID     string
-	displayID     string
-	displayWidth  int
-	displayHeight int
-	windowManager string
-	titlebar      bool
-	cleanup       func()
+	captureID          string
+	displayID          string
+	displayWidth       int
+	displayHeight      int
+	windowManager      string
+	titlebar           bool
+	recordingStartedAt time.Time
+	cleanup            func()
 }
 
 // PerformSmokeTest runs a smoke test on a built application.
@@ -154,6 +155,7 @@ func (s *DefaultService) setupScreenRecording(ctx context.Context, smokeTestID s
 		return recordingState{}
 	}
 
+	recordingStartedAt := time.Now().UTC()
 	cID, err := s.recorder.StartCapture(ctx, screenrecording.CaptureConfig{
 		Display: displayID,
 		Width:   width,
@@ -186,13 +188,14 @@ func (s *DefaultService) setupScreenRecording(ctx context.Context, smokeTestID s
 	}
 
 	return recordingState{
-		captureID:     cID,
-		displayID:     displayID,
-		displayWidth:  width,
-		displayHeight: height,
-		windowManager: windowManager,
-		titlebar:      titlebar,
-		cleanup:       displayCleanup,
+		captureID:          cID,
+		displayID:          displayID,
+		displayWidth:       width,
+		displayHeight:      height,
+		windowManager:      windowManager,
+		titlebar:           titlebar,
+		recordingStartedAt: recordingStartedAt,
+		cleanup:            displayCleanup,
 	}
 }
 
@@ -456,6 +459,7 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 		status.JourneyCaptureID = journeyID
 		status.JourneyDisposition = journey.Disposition
 		status.JourneyDegradedReason = journey.DegradedReason
+		status.EvidenceReview = reviewFromJourney(journey)
 		status.Logs = append(status.Logs, fmt.Sprintf("Desktop journey %s", journey.Disposition))
 	})
 

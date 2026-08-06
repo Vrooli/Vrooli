@@ -11,11 +11,11 @@ This internal ledger tracks unresolved problems, blockers, and technical debt fo
 ## Work ladder
 
 - Rung: W3
-- Evidence: the operator plan requires canonical credential authority and a full scenario-owned suite; `vrooli scenario requirements validate secrets-manager` passes, while the 2026-07-29 Test Genie run `20260729-183036-01656268` initially failed implementation validation for unrouted file persistence, missing baseline headers, and absent BAS workflow coverage.
-- Blocker: remaining Security Health lockfile advisories are transitive dependency findings; the direct code and workflow defects are being repaired before the server-owned rerun.
-- Measured: 2026-07-29
+- Evidence: the scenario manifest declares only Postgres (required) and Claude Code (optional); ordinary coverage, validation, and provisioning use the credential-authority client; the API source and CLI surface no longer use Vault compatibility names; the live Vault route is absent; and Test Genie run `20260806-022209-acb2bb0b` passed all 19 phases.
+- Blocker: none for the credential-authority migration. Vault remains only as an explicitly governed receipt-signing compatibility capability or as a user-selected cloud provider, never as ordinary Secrets Manager storage.
+- Measured: 2026-08-06
 
-- Linux Tier 1 Vault acceptance is intentionally fail-closed until the active user has the declared `secret-tool` host prerequisite. `vrooli host install secret-tool --sudo-mode=ask --json` requires an interactive privileged operator on this host; do not bypass it with a raw system package command.
+- Linux Tier 1 native-authority acceptance is intentionally fail-closed until the active user has the declared `secret-tool` host prerequisite. `vrooli host install secret-tool --sudo-mode=ask --json` requires an interactive privileged operator on this host; do not bypass it with a raw system package command.
 - Secrets Manager's unit policy now has a shared API test utility and valid UI coverage configuration. The UI suite covers API contracts plus manifest-editor, app-shell, journey, resource-panel, data-hook, campaign, tier-readiness, dashboard snapshot, live security/compliance, resource-tree, scenario-selection, deployment failure states, JSON manifest previews, and per-resource workbench behavior. `pnpm test:coverage` meets the enforced global thresholds without lowering them; use that command as the current coverage source of truth and continue expanding behavior tests and production seams as the UI evolves.
 - The UI deployment surface is validated statically at interop and PWA L5. Remaining UI Health component-location and governed-primitive findings are advisory refactoring debt; they do not change route or secret-storage behavior.
 - The deployment-readiness journey now treats an empty successful response as a retryable readiness error instead of dereferencing it. The regression was caused by asynchronous hook work observing a cleared test mock during teardown; hooks are now cleaned up before mocks reset, and the response guard protects the same runtime failure mode. Evidence: `pnpm test:coverage` and Unit Health run `uh-20260723-045127` (zero blocking findings).
@@ -324,7 +324,7 @@ Dark chrome theme looks good but hasn't been tested with accessibility tools. Co
 **Description**:
 Unit Health run `uh-20260723-043923` reported `MISSING_INJECTABLE_SEAM` because production API code directly called `time.Now()` and `os.Getenv()` / `os.LookupEnv()`. The deployment manifest path has a real `ManifestClock` seam, and the validation path now has a real `envx.Reader` seam: `SecretValidator` receives `envx.Reader` through `NewSecretValidatorWithEnv`, production uses `envx.OS`, and tests use `mocks.FakeEnv`. This is not a detector-only declaration.
 
-The API-wide migration remains incomplete. Direct environment reads still exist in `security_handlers.go`, `security_scan.go`, `receipt_signing_handlers.go`, `watchlist.go`, `vault_handlers.go`, `postgres_schema.go`, `http_utils.go`, `desktop_storage.go`, and `logger.go`; composition-root reads in `main.go` are intentionally retained there. Pattern strings in scanners are not process reads.
+The API-wide migration remains incomplete. Direct environment reads still exist in `security_handlers.go`, `security_scan.go`, `receipt_signing_handlers.go`, `watchlist.go`, `credential_handlers.go`, `postgres_schema.go`, `http_utils.go`, `desktop_storage.go`, and `logger.go`; composition-root reads in `main.go` are intentionally retained there. Pattern strings in scanners are not process reads. Receipt-signing key custody is now through the credential authority.
 
 **Proposed Solution**:
 - Migrate the remaining direct environment reads to narrow injected readers, starting with security and storage boundaries.

@@ -14,7 +14,10 @@ The lifecycle supplies `API_PORT` and `UI_PORT`. The API exits when `API_PORT` i
 
 ## Service Manifest (`.vrooli/service.json`)
 
-The manifest declares Vault and Postgres as required resources and Claude Code as optional. It is the source of lifecycle port and resource dependency metadata.
+The manifest declares Postgres as the required resource and Claude Code as
+optional. Ordinary credentials use the canonical credential authority and do
+not add a remote secret-service lifecycle dependency. This is the source of lifecycle port and
+resource dependency metadata.
 
 ## Schema Bootstrap
 

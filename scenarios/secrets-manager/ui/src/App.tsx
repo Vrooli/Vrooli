@@ -46,7 +46,7 @@ export default function App() {
   const [workspaceCollapsed, setWorkspaceCollapsed] = useState(false);
   const {
     healthQuery,
-    vaultQuery,
+    credentialQuery,
     complianceQuery,
     orientationQuery,
     isRefreshing,
@@ -63,7 +63,7 @@ export default function App() {
     setComponentType,
     setComponentFilter,
     setSeverityFilter
-  } = useVulnerabilities(vaultQuery.data);
+  } = useVulnerabilities(credentialQuery.data);
 
   const {
     activeResource,
@@ -117,9 +117,9 @@ export default function App() {
     if (firstInsight) {
       return firstInsight.resource_name;
     }
-    const resourceStatuses = vaultQuery.data?.resource_statuses ?? [];
+    const resourceStatuses = credentialQuery.data?.resource_statuses ?? [];
     return resourceStatuses.find((status) => status.secrets_missing > 0)?.resource_name;
-  }, [resourceInsights, vaultQuery.data]);
+  }, [resourceInsights, credentialQuery.data]);
 
   const vulnerabilitySummary = {
     critical: complianceQuery.data?.vulnerability_summary?.critical ?? 0,
@@ -128,8 +128,8 @@ export default function App() {
     low: complianceQuery.data?.vulnerability_summary?.low ?? 0
   };
 
-  const missingSecrets = vaultQuery.data?.missing_secrets ?? [];
-  const resourceStatuses = vaultQuery.data?.resource_statuses ?? [];
+  const missingSecrets = credentialQuery.data?.missing_secrets ?? [];
+  const resourceStatuses = credentialQuery.data?.resource_statuses ?? [];
   const vulnerabilities = vulnerabilityQuery.data?.vulnerabilities ?? [];
 
   const tutorialAnchors: Partial<Record<JourneyId, Record<number, string | undefined>>> = {
@@ -285,14 +285,14 @@ export default function App() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.15),_transparent_50%),radial-gradient(circle_at_bottom,_rgba(59,130,246,0.15),_transparent_60%)]" />
 
       {/* Initial loading overlay */}
-      {isInitialLoading && !healthQuery.data && !vaultQuery.data && !complianceQuery.data && (
+      {isInitialLoading && !healthQuery.data && !credentialQuery.data && !complianceQuery.data && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-sm">
           <div className="rounded-3xl border border-emerald-400/40 bg-emerald-400/5 px-8 py-6 shadow-2xl shadow-emerald-500/20">
             <div className="flex items-center gap-4">
               <RefreshCcw className="h-8 w-8 animate-spin text-emerald-400" />
               <div>
                 <p className="text-lg font-semibold text-white">Loading Security Dashboard</p>
-                <p className="text-sm text-white/60">Fetching vault status, compliance data, and vulnerability scans...</p>
+                <p className="text-sm text-white/60">Fetching credential coverage, compliance data, and vulnerability scans...</p>
               </div>
             </div>
           </div>
@@ -368,11 +368,11 @@ export default function App() {
                 heroStats={heroStats}
                 updatedAt={orientationData?.updated_at}
                 healthData={healthQuery.data}
-                vaultData={vaultQuery.data}
+                credentialData={credentialQuery.data}
                 complianceData={complianceQuery.data}
                 vulnerabilityData={vulnerabilityQuery.data}
                 isLoading={
-                  healthQuery.isLoading || vaultQuery.isLoading || complianceQuery.isLoading || vulnerabilityQuery.isLoading
+                  healthQuery.isLoading || credentialQuery.isLoading || complianceQuery.isLoading || vulnerabilityQuery.isLoading
                 }
               />
 
@@ -415,7 +415,7 @@ export default function App() {
               ) : (
                 <ResourceTable
                   resourceStatuses={resourceStatuses}
-                  isLoading={vaultQuery.isLoading}
+                  isLoading={credentialQuery.isLoading}
                   onOpenResource={openResourcePanel}
                 />
               )}
@@ -458,7 +458,7 @@ export default function App() {
                 overallScore={complianceQuery.data?.overall_score}
                 configuredComponents={complianceQuery.data?.configured_components}
                 securityScore={complianceQuery.data?.remediation_progress?.security_score}
-                vaultHealth={complianceQuery.data?.vault_secrets_health}
+                credentialCoverage={complianceQuery.data?.credential_coverage_health}
                 vulnerabilitySummary={vulnerabilitySummary}
                 isComplianceLoading={complianceQuery.isLoading}
               />
@@ -466,7 +466,7 @@ export default function App() {
               <SecurityTables
                 resourceStatuses={resourceStatuses}
                 vulnerabilities={vulnerabilities}
-                isVaultLoading={vaultQuery.isLoading}
+                isCredentialLoading={credentialQuery.isLoading}
                 isVulnerabilityLoading={vulnerabilityQuery.isLoading}
                 componentType={componentType}
                 componentFilter={componentFilter}

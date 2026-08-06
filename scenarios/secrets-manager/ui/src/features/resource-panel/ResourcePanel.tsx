@@ -162,7 +162,7 @@ export const ResourcePanel = ({
                     <code>vrooli credentials</code> control-plane command.
                   </p>
                   <p className="text-white/70">
-                    Do not add a resource-private secrets file or a Vault path as a runtime fallback. The native authority
+                    Do not add a resource-private secrets file or a remote secret path as a runtime fallback. The native authority
                     resolves configured values only into the target process.
                   </p>
                 </div>

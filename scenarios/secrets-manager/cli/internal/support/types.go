@@ -25,7 +25,7 @@ type HealthResponse struct {
 	} `json:"dependencies"`
 }
 
-type VaultMissingSecret struct {
+type MissingCredential struct {
 	ResourceName string `json:"resource_name"`
 	SecretName   string `json:"secret_name"`
 	SecretPath   string `json:"secret_path"`
@@ -33,7 +33,7 @@ type VaultMissingSecret struct {
 	Description  string `json:"description"`
 }
 
-type VaultResourceStatus struct {
+type CredentialResourceStatus struct {
 	ResourceName    string    `json:"resource_name"`
 	SecretsTotal    int       `json:"secrets_total"`
 	SecretsFound    int       `json:"secrets_found"`
@@ -43,12 +43,12 @@ type VaultResourceStatus struct {
 	LastChecked     time.Time `json:"last_checked"`
 }
 
-type VaultSecretsStatus struct {
-	TotalResources      int                   `json:"total_resources"`
-	ConfiguredResources int                   `json:"configured_resources"`
-	MissingSecrets      []VaultMissingSecret  `json:"missing_secrets"`
-	ResourceStatuses    []VaultResourceStatus `json:"resource_statuses"`
-	LastUpdated         time.Time             `json:"last_updated"`
+type CredentialCoverageStatus struct {
+	TotalResources      int                        `json:"total_resources"`
+	ConfiguredResources int                        `json:"configured_resources"`
+	MissingSecrets      []MissingCredential        `json:"missing_secrets"`
+	ResourceStatuses    []CredentialResourceStatus `json:"resource_statuses"`
+	LastUpdated         time.Time                  `json:"last_updated"`
 }
 
 type SecretValidation struct {
@@ -78,8 +78,8 @@ type ValidationResponse struct {
 
 type ProvisionDetail struct {
 	EnvKey    string `json:"env_key"`
-	VaultPath string `json:"vault_path"`
-	VaultKey  string `json:"vault_key"`
+	LogicalID string `json:"logical_id"`
+	Field     string `json:"field"`
 	Status    string `json:"status"`
 	Error     string `json:"error"`
 }
@@ -88,24 +88,23 @@ type ProvisionResponse struct {
 	Success       bool              `json:"success"`
 	Resource      string            `json:"resource"`
 	StoredSecrets int               `json:"stored_secrets"`
-	VaultStored   int               `json:"vault_stored"`
 	Details       []ProvisionDetail `json:"details"`
 	Message       string            `json:"message"`
 }
 
 type ComplianceResponse struct {
-	OverallScore         int            `json:"overall_score"`
-	VaultSecretsHealth   int            `json:"vault_secrets_health"`
-	VulnerabilitySummary map[string]int `json:"vulnerability_summary"`
-	RemediationProgress  struct {
-		ConfiguredComponents int `json:"configured_components"`
-		CriticalIssues       int `json:"critical_issues"`
-		HighIssues           int `json:"high_issues"`
-		MediumIssues         int `json:"medium_issues"`
-		LowIssues            int `json:"low_issues"`
-		SecurityScore        int `json:"security_score"`
-		VaultSecretsHealth   int `json:"vault_secrets_health"`
-		OverallCompliance    int `json:"overall_compliance"`
+	OverallScore             int            `json:"overall_score"`
+	CredentialCoverageHealth int            `json:"credential_coverage_health"`
+	VulnerabilitySummary     map[string]int `json:"vulnerability_summary"`
+	RemediationProgress      struct {
+		ConfiguredComponents     int `json:"configured_components"`
+		CriticalIssues           int `json:"critical_issues"`
+		HighIssues               int `json:"high_issues"`
+		MediumIssues             int `json:"medium_issues"`
+		LowIssues                int `json:"low_issues"`
+		SecurityScore            int `json:"security_score"`
+		CredentialCoverageHealth int `json:"credential_coverage_health"`
+		OverallCompliance        int `json:"overall_compliance"`
 	} `json:"remediation_progress"`
 	TotalResources       int       `json:"total_resources"`
 	ConfiguredResources  int       `json:"configured_resources"`

@@ -345,7 +345,8 @@ const WINDOW_WIDTH = 1200;
 - Real-time data sharing between users
 - You already have server infrastructure
 
-**Status:** Production-ready, for shared-server scenarios
+**Status:** Supported deployment mode for shared-server scenarios; live route
+evidence remains dependent on the configured Tier 1 fixture.
 
 ---
 

@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
 )
 
 // BundleValidationResult contains the results of bundle validation.
@@ -99,6 +100,12 @@ type Runtime interface {
 	RuntimeInfo() RuntimeInfo
 }
 
+// ProviderObservationSource is optional so older/test runtimes can keep the
+// core control API while the bundled supervisor exposes safe provider facts.
+type ProviderObservationSource interface {
+	ProviderObservations() map[string]resourceplan.ProviderObservation
+}
+
 // SecretStore defines the interface for secret management used by the API.
 type SecretStore interface {
 	Get() map[string]string
@@ -144,6 +151,7 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/telemetry", s.handleTelemetry)
 	mux.HandleFunc("/validate", s.handleValidate)
 	mux.HandleFunc("/status", s.handleStatus)
+	mux.HandleFunc("/provider-observations", s.handleProviderObservations)
 }
 
 // AuthMiddleware returns middleware that enforces bearer token authentication.
@@ -248,6 +256,15 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"runtime_version": runtime.Version(),
 		"build_version":   runtimeBuildVersion(),
 	})
+}
+
+func (s *Server) handleProviderObservations(w http.ResponseWriter, r *http.Request) {
+	source, ok := s.runtime.(ProviderObservationSource)
+	if !ok {
+		http.Error(w, "provider observations unavailable", http.StatusNotImplemented)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"observations": source.ProviderObservations()})
 }
 
 func runtimeBuildVersion() string {

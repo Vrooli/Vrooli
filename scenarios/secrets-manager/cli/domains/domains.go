@@ -14,7 +14,6 @@ import (
 	"secrets-manager/cli/domains/scenarios"
 	"secrets-manager/cli/domains/security"
 	"secrets-manager/cli/domains/tiers"
-	"secrets-manager/cli/domains/vault"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -27,7 +26,6 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
-		vault.Register(core),
 		security.Register(core),
 		deployment.Register(core),
 		resources.Register(core),

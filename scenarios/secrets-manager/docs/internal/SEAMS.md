@@ -14,7 +14,7 @@ The goal is to make code easier to test, safer to change, and more modular by ma
 
 | File | Responsibility |
 |------|----------------|
-| `vault_handlers.go` | HTTP handlers for vault secrets status and provisioning |
+| `credential_handlers.go` | HTTP handlers for credential coverage status and provisioning |
 | `security_handlers.go` | HTTP handlers for security scanning and compliance |
 | `deployment_handlers.go` | HTTP handlers for deployment manifest generation |
 | `resource_handlers.go` | HTTP handlers for resource management |
@@ -62,8 +62,7 @@ The goal is to make code easier to test, safer to change, and more modular by ma
 
 | File | Responsibility |
 |------|----------------|
-| `vault_status.go` | Vault CLI integration and status parsing |
-| `vault_fallback.go` | Fallback secret discovery when vault unavailable |
+| `credential_coverage.go` | Credential-authority coverage and status parsing |
 | `deployment_manifest_fetcher.go` | Scenario-dependency-analyzer client |
 | `deployment_manifest_resolver.go` | Resource resolution from service.json |
 | `resource_queries.go` | Database queries for resource data |
@@ -92,7 +91,7 @@ The goal is to make code easier to test, safer to change, and more modular by ma
 1. **Secret Classification** (`secret_classification.go`)
    - Extracted `ClassifySecretType()`, `IsLikelySecret()`, `IsLikelyRequired()`
    - Added `GetSecretKeywords()` to consolidate keyword lists
-   - Previously duplicated in `scanner.go` and `vault_status.go`
+   - Previously duplicated in `scanner.go` and `credential_coverage.go`
    - Original functions now delegate to consolidated versions
 
 2. **Compliance Metrics** (`compliance_domain.go`)
@@ -109,9 +108,9 @@ The goal is to make code easier to test, safer to change, and more modular by ma
 
 ### Separated Integration Logic from Handlers (December 2025)
 
-4. **Vault Integration Functions** (`vault_status.go`)
-   - Moved `secretMapping` type, `buildSecretMappings()`, `putSecretInVault()` from `vault_handlers.go`
-   - Keeps vault CLI integration logic together with other vault status functions
+4. **Credential Authority Functions** (`credential_coverage.go`)
+   - Moved canonical credential identity mapping from `credential_handlers.go`
+   - Keeps credential-authority client integration logic together with other credential coverage functions
    - HTTP handlers now call these integration functions
 
 ### Consolidated Secret Keywords (December 2025)
@@ -122,10 +121,9 @@ The goal is to make code easier to test, safer to change, and more modular by ma
 
 ### Documented Technical Debt
 
-1. **Mock Data in Production** (`vault_fallback.go:getMockVaultStatus`)
-   - Currently used as production fallback when vault unavailable
-   - Documented recommended refactoring approach
-   - Risk too high to move without changing handler behavior
+1. **No plaintext fallback** (`credential_coverage.go`)
+   - Authority status failures are returned explicitly
+   - The production path never scans files, environment variables, or remote secret services for substitute values
 
 ## Known Responsibility Leaks (Future Work)
 
@@ -136,9 +134,9 @@ The goal is to make code easier to test, safer to change, and more modular by ma
    - Global caching state in `security_scan.go`
    - Consider dependency injection pattern
 
-2. **Mock Data Fallback** (`vault_fallback.go`)
-   - `getMockVaultStatus()` is called from production handler
-   - Should propagate errors or return degraded status instead
+2. **Authority availability** (`credential_coverage.go`)
+   - Credential-authority failures remain explicit and actionable
+   - Tests substitute the authority client instead of depending on host state
 
 ### Medium Priority
 
@@ -158,7 +156,7 @@ The goal is to make code easier to test, safer to change, and more modular by ma
 | Add new domain rule | Add function to relevant `*_domain.go` file |
 | Add new secret type classification | Update `secret_classification.go` |
 | Add new compliance metric | Update `compliance_domain.go` |
-| Add new vault integration | Update `vault_status.go` or `vault_fallback.go` |
+| Add new credential-authority integration | Update `credential_coverage.go` or `credential_coverage.go` |
 | Add new database query | Add to `resource_queries.go` |
 | Add cross-cutting utility | Add to `http_utils.go` or create specific utility file |
 | Add secret keyword detection | Update `secret_classification.go` with new keywords |
@@ -178,7 +176,7 @@ These interfaces already exist and enable dependency injection:
 |------|---------------------------|-----------------|------------------|
 | `envx.Reader` (`api/internal/envx/env.go`) | `envx.OS` | `mocks.FakeEnv` | `SecretValidator` |
 | `ManifestClock` (`deployment_manifest_builder.go`) | `systemManifestClock` | `fixedManifestClock` | `ManifestBuilder` |
-| `VaultCLI` (`vault_status.go`) | `DefaultVaultCLI` | `vaultCLIStub` | Vault status and validation |
+| `CredentialAuthorityClient` (`credential_coverage.go`) | `DefaultCredentialAuthorityClient` | `credentialAuthorityStub` | Credential coverage and validation |
 | `ScenarioCLI` (`scenario_list.go`) | `DefaultScenarioCLI` | scenario-list test fakes | `ScenarioHandlers` |
 
 `envx.Reader` was introduced on 2026-07-23 and is constructor-injected through
@@ -263,27 +261,25 @@ func NewManifestBuilderWithDeps(
 **Pattern:** Constructor injection for all external dependencies
 **Testability:** Can test all builder logic with mocks, no real I/O needed
 
-#### 5. VaultCLI Interface (`vault_status.go:27-36`)
+#### 5. CredentialAuthorityClient Interface (`credential_coverage.go:27-36`)
 
 **Status:** Implemented (December 2025)
 
 ```go
-type VaultCLI interface {
-    GetSecretsStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error)
-    GetSecret(ctx context.Context, resourceName, key string) (string, error)
-    PutSecret(ctx context.Context, path, vaultKey, value string) error
+type CredentialAuthorityClient interface {
+    GetSecretsStatus(ctx context.Context, resourceFilter string) (*CredentialCoverageStatus, error)
 }
 ```
 
-**Implementation:** `DefaultVaultCLI`
+**Implementation:** `DefaultCredentialAuthorityClient`
 **Injection Points:**
-- `SetVaultCLI()` - Package-level setter for tests
-- `NewDefaultVaultCLI()` - Production constructor
-**Testability:** Fully mockable; isolates all `exec.Command` calls to resource-vault CLI
+- `SetCredentialAuthorityClient()` - Package-level setter for tests
+- `NewDefaultCredentialAuthorityClient()` - Production constructor
+**Testability:** Fully mockable; isolates all `exec.Command` calls to vrooli credentials CLI
 
 **Benefits:**
-- Tests can mock vault responses without CLI installation
-- Enables fallback/retry strategies without code changes
+- Tests can mock authority responses without host-service installation
+- Keeps fallback behavior explicit instead of introducing a second secret store
 - Consolidates exec.Command calls to single implementation
 
 #### 6. ScenarioCLI Interface (`scenario_list.go:22-25`)
@@ -306,7 +302,7 @@ type ScenarioCLI interface {
 **Benefits:**
 - Tests can mock scenario lists without vrooli CLI installation
 - Enables testing scenario handlers in isolation
-- Follows the established VaultCLI pattern
+- Follows the established CredentialAuthorityClient pattern
 
 ### Seams That Could Be Strengthened (Lower Priority)
 
@@ -316,7 +312,7 @@ These areas have some structure but could benefit from further abstraction:
 
 **Current State:** Direct `os.ReadFile`, `filepath.WalkDir` calls in:
 - `scanner.go:findResourceFiles()`, `scanFile()`
-- `vault_fallback.go:scanResourcesDirectly()`, `loadResourceSecrets()`
+- `credential_coverage.go:scanResourcesDirectly()`, `loadResourceSecrets()`
 - `deployment_manifest_resolver.go:findServiceJSON()`
 
 **Problem:** Tests require actual filesystem fixtures
@@ -327,7 +323,7 @@ These areas have some structure but could benefit from further abstraction:
 
 **Current State:** `time.Now()` called directly throughout:
 - `deployment_manifest_builder.go:147` - manifest generation timestamp
-- `vault_status.go:107` - last updated timestamp
+- `credential_coverage.go:107` - last updated timestamp
 - Various scan and validation timestamps
 
 **Problem:** Time-dependent tests are flaky or require sleep()
@@ -354,8 +350,8 @@ func (RealClock) Now() time.Time { return time.Now() }
 ### Seam Violation Patterns to Avoid
 
 1. **Bypassing existing seams:**
-   - DON'T call `exec.Command("resource-vault", ...)` directly in new code
-   - DO use `VaultCLI` interface methods or `SetVaultCLI()` for testing
+   - DON'T call `exec.Command("vrooli credentials", ...)` directly in new code
+   - DO use `CredentialAuthorityClient` interface methods or `SetCredentialAuthorityClient()` for testing
    - DON'T call `exec.Command("vrooli", "scenario", "list", ...)` directly
    - DO use `ScenarioCLI` interface methods or `SetScenarioCLI()` for testing
 
@@ -364,7 +360,7 @@ func (RealClock) Now() time.Time { return time.Now() }
    - DO keep integration functions focused on data translation
 
 3. **Testing through side effects:**
-   - DON'T write tests that depend on vault/filesystem state
+   - DON'T write tests that depend on authority/filesystem state
    - DO use interface mocks where seams exist
 
 ### Test Patterns for Each Seam Type
@@ -375,7 +371,7 @@ func (RealClock) Now() time.Time { return time.Now() }
 | `AnalyzerClient` | Mock interface | `deployment_manifest_test.go` |
 | `HTTPDoer` | Recording fake transport | `deployment_manifest_test.go` |
 | `ResourceResolver` | Mock interface | Use `NewManifestBuilderWithDeps()` |
-| `VaultCLI` | Mock interface | Use `SetVaultCLI()` |
+| `CredentialAuthorityClient` | Mock interface | Use `SetCredentialAuthorityClient()` |
 | `ScenarioCLI` | Mock interface | Use `SetScenarioCLI()` or `NewScenarioHandlersWithCLI()` |
 | Filesystem | Temp directories | `scanner_test.go` |
 

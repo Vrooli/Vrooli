@@ -17,6 +17,44 @@ The smoke test stage:
 - **Blocks**: Deploy stage (won't proceed unless smoke test passes)
 - **Skippable**: Yes, via `SkipSmokeTest` configuration flag
 
+## Journey evidence contract
+
+When visual evidence is enabled, the normal run launches a second, non-smoke
+demo process on the recording display and executes the registered capability
+plan. Hello Desktop is registered as `hello-desktop`; the generic runner has no
+scenario-name branch. Each chapter records its purpose, action, bounded
+readiness policy, settle policy, expected/observed result, assertion status,
+capture references, and monotonic/wall-clock timing. Readiness and settle
+events are in the same timeline.
+
+The persisted journey sidecar uses `journey-evidence.v2`. The status API exposes
+an `EvidenceReview` projection, while the raw journey and recording remain
+producer-owned captures. The UI must display the backend verdict verbatim:
+`pass`, `failed`, `degraded`, `unavailable`, `unsupported`, or `not_run`.
+
+Visual pass requires all of the following:
+
+- the capability and plan are registered;
+- the target window and semantic assertions pass;
+- every required chapter has before/after evidence;
+- the MP4 decodes and contains useful application frames;
+- timeline order, chapter coverage, checksums, persistence, and redaction pass.
+
+An unavailable host capability or missing recording offset is visible and
+never promoted to pass. Cross-platform compilation/package checks do not imply
+native Windows or macOS visual execution.
+
+## Pacing profiles
+
+The runner uses explicit bounded policies rather than unlabelled sleeps. The
+The `normal-review` profile leaves a named visual settle window for human review.
+`fast-ci` shortens bounded readiness and settle windows for deterministic CI;
+`diagnostic-slow` lengthens them within explicit upper bounds. Select them with
+`S2D_JOURNEY_PROFILE`; unknown values fail closed. `S2D_JOURNEY_CAPABILITY`
+selects a registered behavior fixture when a journey is not the baseline
+scenario identity. The app demo hold remains owned by this smoke orchestration
+(`SMOKE_TEST_DEMO_HOLD_MS`); a journey step may not silently extend it.
+
 ---
 
 ## Execution Flow
@@ -183,6 +221,8 @@ type Config struct {
 | `SMOKE_TEST_UPLOAD_URL` | `http://127.0.0.1:{port}/api/v1/deployment/telemetry` | Where to upload telemetry |
 | `DEPLOYMENT_MANAGER_URL` | Optional Connect base URL | Enables reference-only `ReportTargetVerdict` after the journey |
 | `DEPLOYMENT_MANAGER_PROFILE_ID` | Optional profile ID | Identifies the release profile for the evidence report |
+| `S2D_JOURNEY_CAPABILITY` | Optional registered capability | Selects a behavior fixture such as bundled-private or shared-resource |
+| `S2D_JOURNEY_PROFILE` | `normal-review`, `fast-ci`, or `diagnostic-slow` | Selects bounded journey pacing; unknown profiles fail closed |
 | `VROOLI_GIT_COMMIT` | Optional exact commit hash | Binds the evidence report to the reviewed source |
 
 ---

@@ -61,7 +61,7 @@ var piiVulnerabilityPatterns = []VulnerabilityPattern{
 		Pattern:        `\b(?:AKIA|ASIA)[0-9A-Z]{16}\b`,
 		Description:    "AWS access key ID detected",
 		Title:          "AWS Access Key (PII)",
-		Recommendation: "Rotate immediately; move to vault or AWS IAM role",
+		Recommendation: "Rotate immediately; move to the credential authority or an AWS IAM role",
 		CanAutoFix:     false,
 	},
 	{

@@ -83,7 +83,7 @@ func TestBuildPromptAndContext_UsesDeploymentLocalNativeCLIInSSHExamples(t *test
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if strings.Contains(out.Prompt, "scripts/manage.sh") || strings.Contains(out.Prompt, "scripts/lib/setup.sh") {
+	if strings.Contains(out.Prompt, "source resources/") {
 		t.Fatalf("prompt should not mention legacy bash setup paths: %q", out.Prompt)
 	}
 	if strings.Contains(out.Prompt, " cd /root/Vrooli && vrooli ") {

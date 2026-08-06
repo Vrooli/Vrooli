@@ -22,7 +22,7 @@ The promise is evidence-backed secret posture without secret-value disclosure.
 
 ## Validation Experiments
 
-Measure whether scenarios complete Vault-backed workflows with fewer manual configuration failures.
+Measure whether scenarios complete credential-authority-backed workflows with fewer manual configuration failures.
 
 ## Cross-References
 
