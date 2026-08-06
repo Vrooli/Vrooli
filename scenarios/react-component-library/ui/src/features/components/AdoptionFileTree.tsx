@@ -1,9 +1,10 @@
+/** @vrooliComponentSource data-display.tree-view */
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileCode2, Folder } from "lucide-react";
 
 import { adoptionsClient, type ResolvedVersionFile } from "../../api/adoptions";
-import { Button } from "../../components/ui/button";
+import { Button } from "../../components/Button";
 import { selectors } from "../../consts/selectors";
 import { useTranslation } from "../../i18n";
 import type { TemplateOption } from "./adoptionTemplates";
@@ -89,7 +90,7 @@ function TreeRows({
           return (
             <li key={child.name}>
               <div
-                className="flex items-center gap-1.5 py-1 text-xs text-app-muted-foreground"
+                className="flex items-center gap-space-2xs py-space-3xs text-xs text-app-muted-foreground"
                 style={indent}
               >
                 <Folder aria-hidden className="h-3.5 w-3.5 shrink-0" />
@@ -117,7 +118,7 @@ function TreeRows({
               data-entry={file.isEntry ? "true" : "false"}
               aria-current={active ? "true" : undefined}
               onClick={() => onSelectFile(fileKey(file))}
-              className={`flex w-full items-center gap-1.5 rounded-control py-1 pr-2 text-left text-xs transition-colors ${
+              className={`flex w-full items-center gap-space-2xs rounded-control py-space-3xs pr-2 text-left text-xs transition-colors ${
                 active
                   ? "bg-app-primary/10 text-app-foreground"
                   : "text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
@@ -127,7 +128,7 @@ function TreeRows({
               <FileCode2 aria-hidden className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate font-mono">{child.name}</span>
               {file.slot && (
-                <span className="ml-auto shrink-0 rounded bg-app-surface-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-app-muted-foreground">
+                <span className="ml-auto shrink-0 rounded bg-app-surface-muted px-space-2xs py-space-3xs text-[10px] uppercase tracking-wide text-app-muted-foreground">
                   {file.slot}
                 </span>
               )}
@@ -182,14 +183,14 @@ export function AdoptionFileTree({
   const multiTemplate = templates.length > 1;
 
   const templateSeam = (
-    <div className="flex items-center gap-1.5 text-[11px] text-app-muted-foreground">
+    <div className="flex items-center gap-space-2xs text-[11px] text-app-muted-foreground">
       <span>{t("components.editor.templateLabel", { defaultValue: "Template" })}</span>
       {multiTemplate ? (
         <select
           data-testid={selectors.components.editor.templateSelect}
           value={template}
           onChange={(event) => onSelectTemplate(event.target.value)}
-          className="rounded-control border border-app-border bg-app-surface px-1.5 py-0.5 text-[11px] text-app-foreground"
+          className="rounded-control border border-app-border bg-app-surface px-space-2xs py-space-3xs text-[11px] text-app-foreground"
         >
           {templates.map((option) => (
             <option key={option.id} value={option.id}>
@@ -200,7 +201,7 @@ export function AdoptionFileTree({
       ) : (
         <span
           data-testid={selectors.components.editor.templateSelect}
-          className="rounded-control bg-app-surface-muted px-1.5 py-0.5 font-mono text-app-foreground"
+          className="rounded-control bg-app-surface-muted px-space-2xs py-space-3xs font-mono text-app-foreground"
         >
           {templates[0]?.label ?? template}
         </span>
@@ -212,9 +213,9 @@ export function AdoptionFileTree({
   // flat file-tab row so switching files still works.
   if (!manifestResolved) {
     return (
-      <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-space-3xs">
         <div
-          className="flex min-w-0 gap-1 overflow-x-auto"
+          className="flex min-w-0 gap-space-3xs overflow-x-auto"
           data-testid={selectors.components.editor.fileTabs}
         >
           {files.map((file) => (
@@ -225,7 +226,7 @@ export function AdoptionFileTree({
                   ? "primary"
                   : "secondary"
               }
-              className="h-7 shrink-0 px-2 text-xs"
+              className="h-7 shrink-0 px-space-2xs text-xs"
               onClick={() => onSelectFile(file.isEntry ? "" : file.path)}
             >
               {file.path}
@@ -238,8 +239,8 @@ export function AdoptionFileTree({
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <div className="flex min-w-0 items-center justify-between gap-2">
+    <div className="flex min-w-0 flex-col gap-space-2xs">
+      <div className="flex min-w-0 items-center justify-between gap-space-2xs">
         <span className="text-[11px] font-medium uppercase tracking-wide text-app-muted-foreground">
           {t("components.editor.placementHeading", { defaultValue: "Placement" })}
         </span>
@@ -247,7 +248,7 @@ export function AdoptionFileTree({
       </div>
       <ul
         data-testid={selectors.components.editor.fileTree}
-        className="min-w-0 rounded-control bg-app-background py-1"
+        className="min-w-0 rounded-control bg-app-background py-space-3xs"
       >
         <TreeRows
           node={tree as TreeNode}

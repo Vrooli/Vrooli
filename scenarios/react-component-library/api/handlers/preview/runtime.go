@@ -15,14 +15,19 @@ import (
 )
 
 type RuntimeHandler struct {
-	logger *log.Logger
+	logger   *log.Logger
+	repoRoot string
 }
 
 func NewRuntimeHandler(logger *log.Logger) *RuntimeHandler {
+	return NewRuntimeHandlerAtRoot(logger, "")
+}
+
+func NewRuntimeHandlerAtRoot(logger *log.Logger, repoRoot string) *RuntimeHandler {
 	if logger == nil {
 		logger = log.Default()
 	}
-	return &RuntimeHandler{logger: logger}
+	return &RuntimeHandler{logger: logger, repoRoot: discoverRepoRoot(repoRoot)}
 }
 
 func (h *RuntimeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +51,7 @@ func (h *RuntimeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "preview runtime module not found", http.StatusNotFound)
 		return
 	}
-	root, err := findNodeModulesRoot()
+	root, err := findVendoredNodeModulesRoot()
 	if err != nil {
 		h.logger.Printf("preview.runtime node_modules: %v", err)
 		http.Error(w, "preview runtime unavailable", http.StatusServiceUnavailable)
@@ -200,16 +205,16 @@ func (h *RuntimeHandler) servePackageRuntime(w http.ResponseWriter, moduleName, 
 		http.Error(w, "preview dependency runtime package not found", http.StatusNotFound)
 		return
 	}
-	if matched, ok := internaldepsResolveExact(version, installedPackageVersionCandidates(moduleName)); !ok || matched != version {
-		http.Error(w, fmt.Sprintf("preview dependency runtime %s@%s is not installed", moduleName, version), http.StatusNotFound)
+	if matched, ok := internaldepsResolveExact(version, installedPackageVersionCandidatesAtRoot(h.repoRoot, moduleName)); !ok || matched != version {
+		http.Error(w, fmt.Sprintf("preview dependency runtime %s@%s is not installed in the governed preview runtime store; populate with: %s", moduleName, version, previewDependencyPopulateCommand(moduleName, version)), http.StatusNotFound)
 		return
 	}
-	entry, ok := packageRuntimeEntry(moduleName, runtimePath)
+	entry, ok := packageRuntimeEntryAtRoot(h.repoRoot, moduleName, runtimePath)
 	if !ok {
 		http.Error(w, "preview dependency runtime module not found", http.StatusNotFound)
 		return
 	}
-	root, err := findNodeModulesRoot()
+	root, err := previewRuntimePackageRoot(h.repoRoot, moduleName, version)
 	if err != nil {
 		h.logger.Printf("preview.runtime node_modules: %v", err)
 		http.Error(w, "preview runtime unavailable", http.StatusServiceUnavailable)
@@ -289,15 +294,27 @@ func runtimeNeedsReactRequireShim(externals []string) bool {
 }
 
 func packageRuntimeEntry(moduleName, runtimePath string) (string, bool) {
+	root, err := findVendoredNodeModulesRoot()
+	if err != nil {
+		return "", false
+	}
+	return packageRuntimeEntryFromRoot(root, moduleName, runtimePath)
+}
+
+func packageRuntimeEntryAtRoot(repoRoot, moduleName, runtimePath string) (string, bool) {
+	root, err := previewRuntimePackageRoot(repoRoot, moduleName, "")
+	if err != nil {
+		return "", false
+	}
+	return packageRuntimeEntryFromRoot(root, moduleName, runtimePath)
+}
+
+func packageRuntimeEntryFromRoot(root, moduleName, runtimePath string) (string, bool) {
 	if !safePackageName(moduleName) || strings.Contains(runtimePath, "..") || strings.HasPrefix(runtimePath, "/") {
 		return "", false
 	}
 	if runtimePath != "index.js" {
 		return filepath.Join(filepath.FromSlash(moduleName), filepath.FromSlash(runtimePath)), true
-	}
-	root, err := findNodeModulesRoot()
-	if err != nil {
-		return "", false
 	}
 	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(moduleName), "package.json"))
 	if err != nil {
@@ -395,7 +412,7 @@ func internaldepsResolveExact(version string, candidates []string) (string, bool
 	return "", false
 }
 
-func findNodeModulesRoot() (string, error) {
+func findVendoredNodeModulesRoot() (string, error) {
 	for _, candidate := range []string{
 		"../../../ui/node_modules",
 		"../ui/node_modules",

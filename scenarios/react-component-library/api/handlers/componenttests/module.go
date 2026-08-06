@@ -16,6 +16,7 @@ import (
 	componenttestsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests"
 	componenttestsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests/componenttests_v1connect"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/components"
 	domain "react-component-library/internal/componenttests"
 	"react-component-library/internal/module"
@@ -30,7 +31,7 @@ func Module(db *sql.DB, assets components.Service, sourceRoot string, logger *lo
 func ModuleWithExecutor(db *sql.DB, assets components.Service, sourceRoot string, executor domain.StoryExecutor, logger *log.Logger) module.Module {
 	svc := domain.NewService(domain.Runner{Assets: assets, Stories: assets, Executor: executor}, domain.NewSQLiteRepository(db))
 	path, handler := componenttestsconnect.NewComponentTestsServiceHandler(&connectHandler{service: svc, logger: logger})
-	sharedPath, shared := scenariovalidationconnect.NewScenarioValidationServiceHandler(&sharedHandler{service: svc, assets: assets, sourceRoot: sourceRoot, logger: logger})
+	sharedPath, shared := scenariovalidationconnect.NewScenarioValidationServiceHandler(&sharedHandler{service: svc, assets: assets, sourceRoot: sourceRoot, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db)})
 	return module.Module{Name: "component-tests", Mount: func(r *mux.Router) {
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler})
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: sharedPath, Handler: shared})

@@ -1,9 +1,5 @@
 {
   "selectors": {
-    "components.harness.root": {
-      "testId": "component-harness-root",
-      "selector": "[data-testid=\"component-harness-root\"]"
-    },
     "app.title": {
       "testId": "app-title",
       "selector": "[data-testid=\"app-title\"]"
@@ -111,6 +107,10 @@
     "preview.bottomNav": {
       "testId": "bottom-nav",
       "selector": "[data-testid=\"bottom-nav\"]"
+    },
+    "components.harness.root": {
+      "testId": "component-harness-root",
+      "selector": "[data-testid=\"component-harness-root\"]"
     },
     "components.card": {
       "testId": "components-card",
@@ -584,10 +584,6 @@
       "testId": "components-emulator-viewport",
       "selector": "[data-testid=\"components-emulator-viewport\"]"
     },
-    "components.emulator.viewportFrame": {
-      "testId": "components-emulator-viewport-frame",
-      "selector": "[data-testid=\"components-emulator-viewport-frame\"]"
-    },
     "components.emulator.viewportCanvas": {
       "testId": "components-emulator-viewport-canvas",
       "selector": "[data-testid=\"components-emulator-viewport-canvas\"]"
@@ -616,6 +612,10 @@
       "testId": "components-emulator-overflow-panel",
       "selector": "[data-testid=\"components-emulator-overflow-panel\"]"
     },
+    "components.emulator.viewportFrame": {
+      "testId": "components-emulator-viewport-frame",
+      "selector": "[data-testid=\"components-emulator-viewport-frame\"]"
+    },
     "components.themeSwitcher.root": {
       "testId": "components-theme-switcher",
       "selector": "[data-testid=\"components-theme-switcher\"]"
@@ -643,6 +643,10 @@
     "components.themeSwitcher.modeDark": {
       "testId": "components-theme-switcher-mode-dark",
       "selector": "[data-testid=\"components-theme-switcher-mode-dark\"]"
+    },
+    "components.themeSwitcher.kitSelect": {
+      "testId": "components-theme-switcher-kit-select",
+      "selector": "[data-testid=\"components-theme-switcher-kit-select\"]"
     },
     "components.themeSwitcher.select": {
       "testId": "components-theme-switcher-select",

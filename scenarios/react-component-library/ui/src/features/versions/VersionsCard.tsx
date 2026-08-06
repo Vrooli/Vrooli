@@ -1,9 +1,10 @@
+/** @vrooliComponentSource data-display.data-table */
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { Button } from "../../components/ui/button";
-import { EmptyState } from "../../components/ui/empty-state";
-import { Select } from "../../components/ui/select";
+import { Button } from "../../components/Button";
+import { EmptyState } from "../../components/EmptyState";
+import { Select } from "../../components/Select";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -55,9 +56,9 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
     <section
       data-testid={selectors.versions.card}
       aria-label={t(strings.versions.title)}
-      className="mt-4 rounded-xl border border-app-border bg-app-surface p-4 backdrop-blur-sm"
+      className="mt-space-sm rounded-xl border border-app-border bg-app-surface p-space-sm backdrop-blur-sm"
     >
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex items-center justify-between gap-space-xs">
         <h2 className="text-sm font-medium text-app-foreground">{t(strings.versions.title)}</h2>
         {versions.length > 0 && (
           <span className="text-xs text-app-muted-foreground">
@@ -67,12 +68,12 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
       </header>
 
       {versionsQuery.isLoading && (
-        <p data-testid={selectors.versions.loading} className="mt-3 text-app-foreground">
+        <p data-testid={selectors.versions.loading} className="mt-space-xs text-app-foreground">
           {t(strings.versions.loading)}
         </p>
       )}
       {versionsQuery.error && (
-        <p data-testid={selectors.versions.error} className="mt-3 text-app-danger">
+        <p data-testid={selectors.versions.error} className="mt-space-xs text-app-danger">
           {errorMessage(versionsQuery.error, t)}
         </p>
       )}
@@ -80,7 +81,7 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
         <div data-testid={selectors.versions.empty}>
           <EmptyState
             title={t(strings.versions.empty)}
-            className="mt-3 border-app-border bg-app-surface text-app-foreground"
+            className="mt-space-xs border-app-border bg-app-surface text-app-foreground"
           />
         </div>
       )}
@@ -90,19 +91,19 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
           <Button
             type="button"
             variant={selectedVersion ? "secondary" : "primary"}
-            className="mt-3 h-8 px-3 text-xs"
+            className="mt-space-xs h-8 px-space-xs text-xs"
             onClick={() => onSelectVersion?.(undefined)}
           >
             {t(strings.versions.currentSource)}
           </Button>
-          <ul data-testid={selectors.versions.list} className="mt-3 space-y-2 text-sm text-app-foreground">
+          <ul data-testid={selectors.versions.list} className="mt-space-xs space-y-space-2xs text-sm text-app-foreground">
           {versions.map((v) => (
             <li
               key={v.id}
               data-testid={selectors.versions.item}
-              className="rounded-lg border border-app-border p-3"
+              className="rounded-lg border border-app-border p-space-xs"
             >
-              <div className="flex items-baseline justify-between gap-3">
+              <div className="flex items-baseline justify-between gap-space-xs">
                 <span data-testid={selectors.versions.itemVersion} className="font-medium">
                   {v.version
                     ? t(strings.versions.versionLabel, { version: v.version })
@@ -115,7 +116,7 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
                   {t(strings.versions.shaLabel, { sha: v.contentSha256.slice(0, 12) })}
                 </span>
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-app-muted-foreground">
+              <div className="mt-space-3xs flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-app-muted-foreground">
                 <span data-testid={selectors.versions.itemRecordedAt}>
                   {t(strings.versions.recordedAt, {
                     when: v.recordedAt?.seconds
@@ -133,7 +134,7 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
               <Button
                 type="button"
                 variant={selectedVersion === v.version ? "primary" : "secondary"}
-                className="mt-2 h-7 px-2 text-xs"
+                className="mt-space-2xs h-7 px-space-2xs text-xs"
                 onClick={() => onSelectVersion?.(v.version)}
               >
                 {selectedVersion === v.version
@@ -148,28 +149,28 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
 
       <div
         data-testid={selectors.versions.diff.card}
-        className="mt-4 rounded-lg border border-app-border bg-app-surface-muted p-3"
+        className="mt-space-sm rounded-lg border border-app-border bg-app-surface-muted p-space-xs"
       >
         <h3 className="text-xs font-medium text-app-muted-foreground">{t(strings.versions.diff.title)}</h3>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-app-muted-foreground">
-          <label className="flex items-center gap-1.5">
+        <div className="mt-space-2xs flex flex-wrap items-center gap-space-2xs text-xs text-app-muted-foreground">
+          <label className="flex items-center gap-space-2xs">
             <span>{t(strings.versions.diff.fromLabel)}</span>
             <Select
               data-testid={selectors.versions.diff.fromSelect}
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="min-h-8 w-32 border-app-border bg-app-surface px-2 py-1 text-sm text-app-foreground"
+              className="min-h-8 w-32 border-app-border bg-app-surface px-space-2xs py-space-3xs text-sm text-app-foreground"
               options={versionOptions.map((version) => ({ value: version, label: version }))}
               placeholder="—"
             />
           </label>
-          <label className="flex items-center gap-1.5">
+          <label className="flex items-center gap-space-2xs">
             <span>{t(strings.versions.diff.toLabel)}</span>
             <Select
               data-testid={selectors.versions.diff.toSelect}
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="min-h-8 w-32 border-app-border bg-app-surface px-2 py-1 text-sm text-app-foreground"
+              className="min-h-8 w-32 border-app-border bg-app-surface px-space-2xs py-space-3xs text-sm text-app-foreground"
               options={versionOptions.map((version) => ({ value: version, label: version }))}
               placeholder="—"
             />
@@ -178,7 +179,7 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
             data-testid={selectors.versions.diff.runButton}
             onClick={() => diffMutation.mutate()}
             disabled={!from || !to || diffMutation.isPending}
-            className="h-7 px-3 text-xs"
+            className="h-7 px-space-xs text-xs"
           >
             {diffMutation.isPending
               ? t(strings.versions.diff.running)
@@ -187,13 +188,13 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
         </div>
 
         {diffMutation.error && (
-          <p data-testid={selectors.versions.diff.error} className="mt-2 text-xs text-app-danger">
+          <p data-testid={selectors.versions.diff.error} className="mt-space-2xs text-xs text-app-danger">
             {errorMessage(diffMutation.error, t)}
           </p>
         )}
 
         {!diff && !diffMutation.isPending && !diffMutation.error && (
-          <p data-testid={selectors.versions.diff.empty} className="mt-2 text-xs text-app-muted-foreground">
+          <p data-testid={selectors.versions.diff.empty} className="mt-space-2xs text-xs text-app-muted-foreground">
             {t(strings.versions.diff.empty)}
           </p>
         )}
@@ -202,7 +203,7 @@ export function VersionsCard({ componentId, selectedVersion, onSelectVersion, on
           <>
             <p
               data-testid={selectors.versions.diff.summary}
-              className="mt-2 text-xs text-app-muted-foreground"
+              className="mt-space-2xs text-xs text-app-muted-foreground"
             >
               {t(strings.versions.diff.summary, {
                 from: diff.fromLabel,

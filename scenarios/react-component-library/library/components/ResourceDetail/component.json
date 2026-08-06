@@ -1,0 +1,1 @@
+{"libraryId":"react-component-library:ResourceDetail","catalogId":"patterns.resource-detail","displayName":"ResourceDetail","description":"A route-safe resource identity, metadata, and history composition.","assetKind":"component","tags":["pattern","data-source","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}

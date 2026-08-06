@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:Tokens",
+  "catalogId": "foundations.tokens",
+  "displayName": "Tokens",
+  "description": "Typed semantic ramps shared by every Vrooli surface.",
+  "assetKind": "foundation",
+  "tags": ["tokens", "design-system", "accessibility"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-command-display","affinity":"compatible"},{"styleId":"vrooli-conversion-landing","affinity":"compatible"}],
+  "dependencies": []
+}

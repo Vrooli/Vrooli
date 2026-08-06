@@ -9,6 +9,8 @@ export const appRoutes = {
   catalog: "/",
   assetCatalog: "/catalog",
   asset: "/assets/:id",
+  coverage: "/coverage",
+  capabilities: "/capabilities",
   settings: "/settings",
 } as const;
 

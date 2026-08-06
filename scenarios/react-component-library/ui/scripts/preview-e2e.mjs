@@ -96,32 +96,55 @@ async function captureThemeTier(page, frameElements, componentID) {
   const captures = {};
   const outputDir = screenshotArtifactDir();
   if (outputDir) await mkdir(outputDir, { recursive: true });
+  // Screenshots taken from an iframe element can include the host's painted
+  // surface where the child document is transparent. That made the old
+  // artifact look like a component plus the editor's tool panels. Reopen the
+  // exact harness URL in an isolated page so the artifact is ground truth for
+  // the component document itself.
+  const captureContext = await page.context().browser().newContext({ viewport: { width: 1254, height: 720 } });
+  const capturePage = await captureContext.newPage();
 
-  for (const theme of ["light", "dark"]) {
-    await selectResolvedTheme(page, theme);
-    await page.waitForTimeout(100);
-    captures[theme] = [];
-    const count = await frameElements.count();
-    for (let index = 0; index < count; index += 1) {
-      const iframe = frameElements.nth(index);
-      const handle = await iframe.elementHandle();
-      const frame = await handle?.contentFrame();
-      if (!frame) throw new Error(`preview iframe ${index} had no content frame for ${theme}`);
-      await frame.waitForFunction((expected) => document.documentElement.dataset.resolvedTheme === expected, theme, {
-        timeout: 5_000,
-      });
-      const background = await frame.locator("body").evaluate((element) => getComputedStyle(element).backgroundColor);
-      if (!background || background === "rgba(0, 0, 0, 0)" || background === "transparent") {
-        throw new Error(`preview iframe ${index} has a blank ${theme} background`);
+  try {
+    for (const theme of ["light", "dark"]) {
+      await selectResolvedTheme(page, theme);
+      await page.waitForTimeout(100);
+      captures[theme] = [];
+      const count = await frameElements.count();
+      for (let index = 0; index < count; index += 1) {
+        const iframe = frameElements.nth(index);
+        const source = await iframe.getAttribute("src");
+        if (!source) throw new Error(`preview iframe ${index} had no source for ${theme}`);
+        await capturePage.goto(source, { waitUntil: "domcontentloaded" });
+        await capturePage.evaluate((resolvedTheme) => {
+          window.postMessage({ type: "rcl-resolved-theme", theme: resolvedTheme }, "*");
+        }, theme);
+        await capturePage.locator("#root > *").first().waitFor({ state: "attached", timeout: 10_000 });
+        await capturePage.waitForFunction((expected) => document.documentElement.dataset.resolvedTheme === expected, theme, { timeout: 5_000 });
+        const visual = await capturePage.locator("#root").evaluate((element) => {
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return {
+            background: style.backgroundColor,
+            width: rect.width,
+            height: rect.height,
+            interactiveCount: element.querySelectorAll("button, input, select, textarea, a[href]").length,
+          };
+        });
+        if (!visual.background || visual.background === "rgba(0, 0, 0, 0)" || visual.background === "transparent") {
+          throw new Error(`preview iframe ${index} has a blank ${theme} background`);
+        }
+        if (visual.width < 320 || visual.height < 160) throw new Error(`preview iframe ${index} ${theme} visual surface is unexpectedly small`);
+        const bytes = await capturePage.locator("#root").screenshot({ animations: "disabled" });
+        if (bytes.length < 256) throw new Error(`preview iframe ${index} ${theme} screenshot is unexpectedly small`);
+        const hash = screenshotHash(bytes);
+        const story = new URL(source).searchParams.get("story") || "default";
+        const artifact = `${safeArtifactPart(componentID)}--${safeArtifactPart(story)}--${index}--${theme}.png`;
+        if (outputDir) await writeFile(path.join(outputDir, artifact), bytes);
+        captures[theme].push({ story, background: visual.background, bytes: bytes.length, hash, width: visual.width, height: visual.height, interactiveCount: visual.interactiveCount, artifact: outputDir ? artifact : undefined });
       }
-      const bytes = await iframe.screenshot();
-      if (bytes.length < 256) throw new Error(`preview iframe ${index} ${theme} screenshot is unexpectedly small`);
-      const hash = screenshotHash(bytes);
-      const story = new URL((await iframe.getAttribute("src")) || "http://invalid/").searchParams.get("story") || "default";
-      const artifact = `${safeArtifactPart(componentID)}--${safeArtifactPart(story)}--${index}--${theme}.png`;
-      if (outputDir) await writeFile(path.join(outputDir, artifact), bytes);
-      captures[theme].push({ story, background, bytes: bytes.length, hash, artifact: outputDir ? artifact : undefined });
     }
+  } finally {
+    await captureContext.close();
   }
 
   if (captures.light.length !== captures.dark.length) throw new Error("theme screenshot frame count changed");
@@ -140,10 +163,23 @@ async function captureThemeTier(page, frameElements, componentID) {
 
 async function previewableAssetTargets() {
   if (process.env.RCL_PREVIEW_COMPONENT_ID) {
-    return [{
-      id: process.env.RCL_PREVIEW_COMPONENT_ID,
-      label: process.env.RCL_PREVIEW_COMPONENT_ID,
-    }];
+    const requested = process.env.RCL_PREVIEW_COMPONENT_ID.split(",").map((value) => value.trim()).filter(Boolean);
+    const isUUID = (value) => /^[0-9a-f-]{36}$/i.test(value);
+    if (requested.every(isUUID)) return requested.map((id) => ({ id, label: id }));
+    const response = await fetch(`${baseURL()}${LIST_COMPONENTS_PATH}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ limit: 500 }),
+    });
+    if (!response.ok) throw new Error(`typed catalog query failed: ${response.status} ${await response.text()}`);
+    const payload = await response.json();
+    const normalize = (value) => String(value).replace(/[^a-z0-9]/gi, "").toLowerCase();
+    return requested.map((value) => {
+      const key = normalize(value.split(".").pop());
+      const match = (payload.components || []).find((component) => component.id === value || component.libraryId === value || component.displayName === value || normalize(component.displayName) === key || normalize(component.slug) === key);
+      if (!match?.id) throw new Error(`requested preview component ${value} was not found by id, library id, display name, or catalog slug`);
+      return { id: match.id, label: match.displayName || match.libraryId || match.id, sourcePath: match.sourcePath || "" };
+    });
   }
   const response = await fetch(`${baseURL()}${LIST_COMPONENTS_PATH}`, {
     method: "POST",

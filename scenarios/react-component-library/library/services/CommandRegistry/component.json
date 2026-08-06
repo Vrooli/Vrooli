@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:CommandRegistry",
+  "catalogId": "services.command-registry",
+  "displayName": "CommandRegistry",
+  "description": "Scoped runtime service for predictable CommandRegistry behavior.",
+  "assetKind": "service",
+  "tags": ["runtime", "state"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"}],
+  "dependencies": []
+}

@@ -41,8 +41,10 @@ type TokenMapping struct {
 
 var designTokenClassRE = regexp.MustCompile(`(?:bg|text|border|ring|outline|divide)-app-[a-z0-9-]+(?:/[0-9]+)?`)
 
-var tokenRoleRE = regexp.MustCompile(`^app-[a-z0-9-]+$`)
-var cssVariableRE = regexp.MustCompile(`^--[a-z0-9-]+$`)
+var (
+	tokenRoleRE   = regexp.MustCompile(`^app-[a-z0-9-]+$`)
+	cssVariableRE = regexp.MustCompile(`^--[a-z0-9-]+$`)
+)
 
 // ValidateTokenMappingInjective checks the semantic roles emitted by one
 // adopted asset against the mapping supplied by its consumer scenario.

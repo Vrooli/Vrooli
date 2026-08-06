@@ -1,0 +1,1 @@
+{"libraryId":"react-component-library:TopBar","catalogId":"navigation.top-bar","displayName":"TopBar","description":"A stable application header region that adapts its navigation affordances by viewport.","assetKind":"component","tags":["navigation","responsive","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}

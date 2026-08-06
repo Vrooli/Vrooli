@@ -6,6 +6,7 @@
     "app-danger": { "target": "app-danger", "css_variable": "--color-danger" },
     "app-foreground": { "target": "app-foreground", "css_variable": "--color-foreground" },
     "app-info": { "target": "app-info", "css_variable": "--color-info" },
+    "app-shell": { "target": "app-shell", "css_variable": "--color-shell" },
     "app-muted-foreground": { "target": "app-muted-foreground", "css_variable": "--color-muted-foreground" },
     "app-primary": { "target": "app-primary", "css_variable": "--color-primary" },
     "app-primary-foreground": { "target": "app-primary-foreground", "css_variable": "--color-primary-foreground" },

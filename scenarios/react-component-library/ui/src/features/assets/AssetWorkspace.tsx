@@ -1,3 +1,4 @@
+/** @vrooliComponentSource patterns.master-detail-workspace */
 import type { ReactNode } from "react";
 
 /**

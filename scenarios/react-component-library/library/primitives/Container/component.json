@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:Container",
+  "catalogId": "primitives.container",
+  "displayName": "Container",
+  "description": "Container constrains readable content widths without hard-coded dimensions.",
+  "assetKind": "primitive",
+  "tags": ["primitive", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-command-display","affinity":"compatible"},{"styleId":"vrooli-conversion-landing","affinity":"compatible"}],
+  "dependencies": []
+}

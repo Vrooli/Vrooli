@@ -26,9 +26,9 @@ export function InlineCode({ children, resolveInlineToken, looksLikeFileReferenc
   const resolution = resolveInlineToken?.(text);
   const isFile = !resolution && looksLikeFileReference?.(text);
   const { copied, copy } = useCodeCopy();
-  const tokenClass = "rounded bg-slate-800 px-1 py-0.5 font-mono text-slate-200";
+  const tokenClass = "rounded bg-[var(--color-surface-muted)] [padding-inline:var(--space-3xs)] [padding-block:var(--space-3xs)] font-mono text-[var(--color-foreground)]";
 
-  if (resolution) return <a href={resolution.href} data-entity-ref={resolution.kind === "entity" ? "true" : undefined} onClick={(event) => onLinkClick?.(resolution.href, event)} className={`${tokenClass} text-cyan-200 underline`}>{text}</a>;
-  if (isFile) return <button type="button" onClick={() => onFileReferenceClick?.(text)} className={`${tokenClass} text-cyan-200 hover:bg-slate-700`}>{text}</button>;
-  return <span className="group relative inline-flex items-center"><code className={tokenClass}>{text}</code><button type="button" aria-label={copyLabel} onClick={() => void copy(text)} className="ml-1 hidden rounded px-1 text-[10px] text-slate-400 group-hover:inline hover:bg-slate-800">{copied ? "Copied" : "Copy"}</button></span>;
+  if (resolution) return <a href={resolution.href} data-entity-ref={resolution.kind === "entity" ? "true" : undefined} onClick={(event) => onLinkClick?.(resolution.href, event)} className={`${tokenClass} text-[var(--color-accent)] underline`}>{text}</a>;
+  if (isFile) return <button type="button" onClick={() => onFileReferenceClick?.(text)} className={`${tokenClass} text-[var(--color-accent)] hover:bg-[var(--color-surface-raised)]`}>{text}</button>;
+  return <span className="group relative inline-flex items-center"><code className={tokenClass}>{text}</code><button type="button" aria-label={copyLabel} onClick={() => void copy(text)} className="[margin-inline-start:var(--space-3xs)] hidden rounded [padding-inline:var(--space-3xs)] [font-size:var(--text-caption-size)] text-[var(--color-muted-foreground)] group-hover:inline hover:bg-[var(--color-surface-muted)]">{copied ? "Copied" : "Copy"}</button></span>;
 }

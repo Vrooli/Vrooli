@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:LayerManager",
+  "catalogId": "services.layer-manager",
+  "displayName": "LayerManager",
+  "description": "Scoped runtime service for predictable LayerManager behavior.",
+  "assetKind": "service",
+  "tags": ["runtime", "state"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"}],
+  "dependencies": []
+}

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm strings:gen && tsc --noEmit && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build": "pnpm strings:gen && pnpm build:preview-kits && tsc --noEmit && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
     "build:profile": "pnpm strings:gen && tsc --noEmit && vite build --mode profile",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -18,6 +18,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:preview-e2e": "node scripts/preview-e2e.mjs",
+    "build:preview-kits": "node scripts/build-preview-kits.mjs",
     "strings:gen": "node scripts/gen-strings.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check",
     "selector:manifest": "node ./scripts/generate-selector-manifest.mjs"

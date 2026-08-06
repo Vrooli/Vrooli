@@ -2,7 +2,7 @@ import { afterEach, describe, it } from "vitest";
 import { cleanup } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils";
 
-import { BottomNav } from "../../../library/components/BottomNav/versions/1.0.0/BottomNav";
+import { BottomNav } from "./BottomNav";
 import { expectNoA11yViolations } from "../test-utils";
 
 describe("BottomNav accessibility", () => {

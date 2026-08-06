@@ -219,20 +219,13 @@
         "light": "Light",
         "dark": "Dark"
       },
-      "packLabel": "Token pack",
-      "packDescription": "Packs override CSS custom properties; they do not change the selected color mode.",
-      "noneOption": "No pack",
-      "builtinOptionGroup": "Built-in palettes",
-      "packNames": {
-        "slate": "Slate",
-        "midnight": "Midnight",
-        "highContrast": "High Contrast"
+      "kitLabel": "Design kit",
+      "kitDescription": "Render every preview with a real kit stylesheet and its compiled utilities.",
+      "kitOptions": {
+        "default": "Vrooli Default",
+        "commandDisplay": "Command Display",
+        "conversionLanding": "Conversion Landing"
       },
-      "importLabel": "Import DESIGN.md",
-      "importDescription": "Enter a scenario ID to have the server parse that scenario's DESIGN.md into preview tokens.",
-      "scenarioInputLabel": "Scenario id",
-      "scenarioInputPlaceholder": "e.g. flow-verifier",
-      "scenarioApply": "Apply",
       "visualLabel": "Visual simulation",
       "visualDescription": "Simulate color-vision conditions or blur the rendered preview without changing component data.",
       "loading": "Loading theme…",
@@ -256,6 +249,7 @@
       "zoomValue": "{{percent}}%",
       "rotate": "Rotate",
       "reset": "Reset emulator",
+      "fit": "Fit viewport",
       "visionFilterLabel": "Vision filter",
       "visionFilter": {
         "normal": "Normal",

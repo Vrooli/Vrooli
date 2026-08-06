@@ -63,6 +63,9 @@ func (b Esbuilder) BuildBundle(_ context.Context, tsx string, sourcePath string)
 			Name: "preview-bare-imports",
 			Setup: func(build esbuild.PluginBuild) {
 				build.OnResolve(esbuild.OnResolveOptions{Filter: ".*"}, func(args esbuild.OnResolveArgs) (esbuild.OnResolveResult, error) {
+					if localPath, ok := resolveLocalVrooliPackage(args.Path, resolveDir); ok {
+						return esbuild.OnResolveResult{Path: localPath}, nil
+					}
 					if isBareImport(args.Path) {
 						return esbuild.OnResolveResult{Path: args.Path, External: true}, nil
 					}
@@ -86,6 +89,33 @@ func (b Esbuilder) BuildBundle(_ context.Context, tsx string, sourcePath string)
 		return "", warns, ErrBundle{SourcePath: sourcePath, Messages: []string{"bundle produced no output"}}
 	}
 	return string(result.OutputFiles[0].Contents), warns, nil
+}
+
+// resolveLocalVrooliPackage keeps preview artifacts self-contained for
+// governed repo packages such as @vrooli/audio-capture-browser. These are
+// source packages, not third-party runtime-store entries: bundling their
+// source preserves the same preview contract as a relative companion import
+// while leaving their React peer external for the harness import map.
+func resolveLocalVrooliPackage(importPath, startDir string) (string, bool) {
+	const prefix = "@vrooli/"
+	if !strings.HasPrefix(importPath, prefix) {
+		return "", false
+	}
+	packageName := strings.TrimPrefix(importPath, prefix)
+	if packageName == "" || strings.Contains(packageName, "/") || strings.Contains(packageName, "..") {
+		return "", false
+	}
+	for dir := startDir; dir != ""; dir = filepath.Dir(dir) {
+		candidate := filepath.Join(dir, "packages", packageName, "src", "index.ts")
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+	}
+	return "", false
 }
 
 func (b Esbuilder) resolveDir(sourcePath string) (string, error) {

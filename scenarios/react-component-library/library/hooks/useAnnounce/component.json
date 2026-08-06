@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:useAnnounce",
+  "catalogId": "hooks.use-announce",
+  "displayName": "useAnnounce",
+  "description": "Production-ready useAnnounce hook with SSR-safe lifecycle behavior.",
+  "assetKind": "hook",
+  "tags": ["runtime", "accessibility"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"}],
+  "dependencies": []
+}

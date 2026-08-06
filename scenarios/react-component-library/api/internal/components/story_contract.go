@@ -19,6 +19,7 @@ type StoryContract struct {
 	Title         string            `json:"title,omitempty"`
 	Args          StoryArgsSchema   `json:"args"`
 	Environment   StoryEnvironment  `json:"environment"`
+	Frame         *StoryFrame       `json:"frame,omitempty"`
 	Stories       []StoryDefinition `json:"stories"`
 }
 
@@ -75,6 +76,15 @@ type StoryFixture struct {
 	Options []string `json:"options"`
 }
 
+// StoryFrame names the catalog-owned composition context for a specimen. It
+// is deliberately declarative: the preview service resolves the catalog
+// asset and fixture, while the story only chooses the region to fill.
+type StoryFrame struct {
+	Asset   string `json:"asset"`
+	Region  string `json:"region"`
+	Fixture string `json:"fixture"`
+}
+
 // storyFixtureAdapters is deliberately server-owned. A story may select a
 // fixture id, but it cannot name an arbitrary provider/import to execute.
 var storyFixtureAdapters = map[string]struct{}{
@@ -89,6 +99,7 @@ type StoryDefinition struct {
 	// Harness selects a named export from the version-local story.tsx file.
 	// It is available only in schemaVersion 2 and later.
 	Harness      string             `json:"harness,omitempty"`
+	Frame        *StoryFrame        `json:"frame,omitempty"`
 	Args         json.RawMessage    `json:"args"`
 	Environment  map[string]string  `json:"environment,omitempty"`
 	Interactions []StoryInteraction `json:"interactions,omitempty"`
@@ -114,6 +125,143 @@ type StoryDiagnostic struct {
 	Pointer string
 	Rule    string
 	Detail  string
+}
+
+// CatalogFrameAsset is the small catalog projection needed to validate a
+// story frame. Keeping this interface-shaped projection here lets the story
+// grammar remain independent of the catalog loader and makes diagnostics
+// deterministic in indexer and preview tests.
+type CatalogFrameAsset struct {
+	ID               string
+	Kind             string
+	Targets          []string
+	Regions          []string
+	Expects          []CatalogFramePort
+	FixtureSatisfies *CatalogFramePort
+}
+
+type CatalogFramePort struct {
+	Capability    string
+	TypeArguments []string
+}
+
+type CatalogFrameRegistry interface {
+	LookupCatalogFrameAsset(id string) (CatalogFrameAsset, bool)
+}
+
+// EffectiveStoryFrame applies the story-level override over the file-level
+// declaration. Returning nil is intentional: unframed stories retain the
+// existing direct-render path.
+func EffectiveStoryFrame(contract *StoryContract, story *StoryDefinition) *StoryFrame {
+	if story != nil && story.Frame != nil {
+		return story.Frame
+	}
+	if contract == nil {
+		return nil
+	}
+	return contract.Frame
+}
+
+// ValidateStoryFrames checks references that require the desired-state
+// catalog. ParseStoryContract performs only shape and schema-version checks;
+// this second pass is what produces named diagnostics for unknown assets,
+// regions, and incompatible data-source fixtures.
+func ValidateStoryFrames(contract *StoryContract, registry CatalogFrameRegistry) []StoryDiagnostic {
+	if contract == nil || registry == nil {
+		return nil
+	}
+	var diagnostics []StoryDiagnostic
+	if contract.Frame != nil {
+		diagnostics = append(diagnostics, validateStoryFrame("/frame", contract.Frame, registry)...)
+	}
+	for index := range contract.Stories {
+		if contract.Stories[index].Frame != nil {
+			diagnostics = append(diagnostics, validateStoryFrame(fmt.Sprintf("/stories/%d/frame", index), contract.Stories[index].Frame, registry)...)
+		}
+	}
+	sort.Slice(diagnostics, func(i, j int) bool { return diagnostics[i].Pointer < diagnostics[j].Pointer })
+	return diagnostics
+}
+
+func validateStoryFrameShape(pointer string, frame *StoryFrame) []StoryDiagnostic {
+	if frame == nil {
+		return nil
+	}
+	var diagnostics []StoryDiagnostic
+	if !validCatalogAssetID(frame.Asset) {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/asset", "frame_asset_id", "frame asset must be a catalog asset id"))
+	}
+	if !validStoryID(frame.Region) {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/region", "frame_region", "frame region must be a stable lowercase slug"))
+	}
+	if !validCatalogAssetID(frame.Fixture) {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/fixture", "frame_fixture_id", "frame fixture must be a catalog asset id"))
+	}
+	return diagnostics
+}
+
+func validateStoryFrame(pointer string, frame *StoryFrame, registry CatalogFrameRegistry) []StoryDiagnostic {
+	if frame == nil {
+		return nil
+	}
+	var diagnostics []StoryDiagnostic
+	asset, found := registry.LookupCatalogFrameAsset(frame.Asset)
+	if !found {
+		return []StoryDiagnostic{storyDiagnostic(pointer+"/asset", "frame_asset_exists", "frame asset is not declared in the catalog")}
+	}
+	if !containsFrameString(asset.Targets, "react-vite") {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/asset", "frame_target", "frame asset does not target react-vite"))
+	}
+	if !containsFrameString(asset.Regions, frame.Region) {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/region", "frame_region_exists", "frame region is not declared by the frame asset"))
+	}
+	fixture, found := registry.LookupCatalogFrameAsset(frame.Fixture)
+	if !found {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/fixture", "frame_fixture_exists", "frame fixture is not declared in the catalog"))
+		return diagnostics
+	}
+	if fixture.Kind != "fixture" {
+		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/fixture", "frame_fixture_kind", "frame fixture must reference an asset of kind fixture"))
+		return diagnostics
+	}
+	for _, expect := range asset.Expects {
+		if expect.Capability != "data-source" {
+			continue
+		}
+		if fixture.FixtureSatisfies == nil || fixture.FixtureSatisfies.Capability != "data-source" || !compatibleTypeArguments(expect.TypeArguments, fixture.FixtureSatisfies.TypeArguments) {
+			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/fixture", "frame_fixture_data_source", "frame fixture does not satisfy the frame asset's data-source port"))
+		}
+	}
+	return diagnostics
+}
+
+func compatibleTypeArguments(expected, actual []string) bool {
+	if len(expected) != len(actual) {
+		return false
+	}
+	for index := range expected {
+		if strings.HasPrefix(expected[index], "T") {
+			continue
+		}
+		if expected[index] != actual[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func validCatalogAssetID(value string) bool {
+	parts := strings.Split(strings.TrimSpace(value), ".")
+	return len(parts) == 2 && validStoryID(parts[0]) && validStoryID(parts[1])
+}
+
+func containsFrameString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 // StoryCoverageGap is a release-readiness finding. Enum options are part of
@@ -205,8 +353,8 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		return []StoryDiagnostic{{Pointer: "/", Rule: "required", Detail: "story contract is required"}}
 	}
 	var diagnostics []StoryDiagnostic
-	if contract.SchemaVersion != 1 && contract.SchemaVersion != 2 {
-		diagnostics = append(diagnostics, storyDiagnostic("/schemaVersion", "supported_version", "schemaVersion must be 1 or 2"))
+	if contract.SchemaVersion != 1 && contract.SchemaVersion != 2 && contract.SchemaVersion != 3 {
+		diagnostics = append(diagnostics, storyDiagnostic("/schemaVersion", "supported_version", "schemaVersion must be 1, 2, or 3"))
 	}
 	if contract.Kind != StoryKindComponent && contract.Kind != StoryKindHook {
 		diagnostics = append(diagnostics, storyDiagnostic("/kind", "asset_kind", "kind must be component or hook"))
@@ -257,6 +405,12 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		}
 		fixtureOptions[key] = options
 	}
+	if contract.SchemaVersion < 3 && contract.Frame != nil {
+		diagnostics = append(diagnostics, storyDiagnostic("/frame", "schema_version", "frame requires schemaVersion 3"))
+	}
+	if contract.Frame != nil {
+		diagnostics = append(diagnostics, validateStoryFrameShape("/frame", contract.Frame)...)
+	}
 	ids := map[string]struct{}{}
 	for index, story := range contract.Stories {
 		pointer := fmt.Sprintf("/stories/%d", index)
@@ -270,8 +424,14 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		if strings.TrimSpace(story.Name) == "" {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/name", "required", "name is required"))
 		}
-		if contract.SchemaVersion == 1 && (story.Harness != "" || story.Description != "") {
+		if contract.SchemaVersion == 1 && (story.Harness != "" || story.Description != "" || story.Frame != nil) {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer, "schema_version", "harness and description require schemaVersion 2"))
+		}
+		if contract.SchemaVersion < 3 && story.Frame != nil {
+			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/frame", "schema_version", "frame requires schemaVersion 3"))
+		}
+		if story.Frame != nil {
+			diagnostics = append(diagnostics, validateStoryFrameShape(pointer+"/frame", story.Frame)...)
 		}
 		if story.Harness != "" && !validHarnessExport(story.Harness) {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/harness", "javascript_identifier", "harness must be a valid named JavaScript export identifier"))

@@ -8,18 +8,22 @@
  * and height inputs, but keeps all state local to this scenario.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { VIEWPORT_AXIS_PRESETS } from "./viewportAxis";
 
 export const DEVICE_EMULATION_STORAGE_KEY = "react-component-library.emulator.v1";
 
+const axisPreset = (id: string) => {
+  const preset = VIEWPORT_AXIS_PRESETS.find((candidate) => candidate.id === id);
+  if (!preset) throw new Error(`Unknown experience-manager viewport axis: ${id}`);
+  return preset;
+};
+
 export const DEVICE_PRESETS = [
-  { id: "responsive", label: "Responsive", width: 1280, height: 720 },
-  { id: "iphone-14", label: "iPhone 14", width: 390, height: 844 },
-  { id: "iphone-se", label: "iPhone SE", width: 375, height: 667 },
-  { id: "ipad", label: "iPad", width: 768, height: 1024 },
-  { id: "ipad-pro", label: "iPad Pro", width: 1024, height: 1366 },
-  { id: "desktop-1280", label: "Desktop 1280", width: 1280, height: 800 },
-  { id: "desktop-1440", label: "Desktop 1440", width: 1440, height: 900 },
-  { id: "desktop-1920", label: "Desktop 1920", width: 1920, height: 1080 },
+  { ...axisPreset("mobile"), label: "Mobile" },
+  { ...axisPreset("tablet"), label: "Tablet" },
+  { ...axisPreset("desktop"), label: "Desktop" },
+  { ...axisPreset("wide"), label: "Wide" },
+  { id: "responsive", label: "Responsive", width: axisPreset("desktop").width, height: axisPreset("desktop").height },
 ] as const;
 
 export type DevicePresetId = (typeof DEVICE_PRESETS)[number]["id"];
@@ -29,7 +33,7 @@ export const ZOOM_MAX = 2.0;
 const ZOOM_STEP = 0.1;
 export const DEVICE_ZOOM_LEVELS = [0.1, 0.2, 0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2] as const;
 
-const DEFAULT_PRESET_ID: DevicePresetId = "desktop-1280";
+const DEFAULT_PRESET_ID: DevicePresetId = "desktop";
 const DEFAULT_CUSTOM_WIDTH = 1280;
 const DEFAULT_CUSTOM_HEIGHT = 720;
 const DIMENSION_MIN = 1;
@@ -118,6 +122,7 @@ export interface DeviceEmulationValue {
   zoomIn: () => void;
   zoomOut: () => void;
   resetZoom: () => void;
+  fitToPane: () => void;
   rotate: () => void;
   reset: () => void;
 }
@@ -173,6 +178,19 @@ export function useDeviceEmulation(): DeviceEmulationValue {
     setState((prev) => ({ ...prev, zoom: 1 }));
   }, []);
 
+  const fitToPane = useCallback(() => {
+    const frame = document.querySelector<HTMLElement>("[data-emulator-viewport-frame]");
+    const availableWidth = frame?.clientWidth ?? 0;
+    const availableHeight = frame?.clientHeight ?? 0;
+    if (availableWidth <= 0 || availableHeight <= 0) {
+      setState((prev) => ({ ...prev, zoom: 1 }));
+      return;
+    }
+    const horizontalPadding = 24;
+    const nextZoom = Math.min(1, (availableWidth - horizontalPadding) / displayWidth, (availableHeight - horizontalPadding) / displayHeight);
+    setState((prev) => ({ ...prev, zoom: clampZoom(nextZoom) }));
+  }, [displayHeight, displayWidth]);
+
   const rotate = useCallback(() => {
     setState((prev) => ({ ...prev, isRotated: !prev.isRotated }));
   }, []);
@@ -200,6 +218,7 @@ export function useDeviceEmulation(): DeviceEmulationValue {
     zoomIn,
     zoomOut,
     resetZoom,
+    fitToPane,
     rotate,
     reset,
   };

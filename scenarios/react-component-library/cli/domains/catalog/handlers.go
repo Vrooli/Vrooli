@@ -49,6 +49,9 @@ func (h *handlers) next(ctx cliapp.RunContext) error {
 
 func (h *handlers) gate(ctx cliapp.RunContext) error {
 	gate := ctx.Positional("gate")
+	if gate == "record" {
+		gate = "record:" + ctx.Positional("record-gate")
+	}
 	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate}))
 	if err != nil {
 		return cliapp.WrapAPIError("run catalog gate", err, nil)
@@ -61,7 +64,7 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 		findings = append(findings, fmt.Sprintf("%s [%s] %s: %s", finding.AssetId, finding.Code, finding.Severity, finding.Message))
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Gate %s: %d finding(s).", resp.Msg.Gate, len(findings))},
+		Summary:        []string{fmt.Sprintf("Gate %s: inspected %d file(s), %d finding(s).", resp.Msg.Gate, resp.Msg.InspectedFiles, len(findings))},
 		ResultsHeading: "Findings",
 		Results:        findings,
 	})

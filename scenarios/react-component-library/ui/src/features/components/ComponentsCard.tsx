@@ -1,12 +1,13 @@
+/** @vrooliComponentSource data-display.data-table */
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "react-router-dom";
 
-import { Button } from "../../components/ui/button";
-import { DataTable, type DataTableColumn } from "../../components/ui/data-table";
-import { EmptyState } from "../../components/ui/empty-state";
-import { Input } from "../../components/ui/input";
-import { StatusBadge } from "../../components/ui/status-badge";
+import { Button } from "../../components/Button";
+import { DataTable, type DataTableColumn } from "../../components/DataTable";
+import { EmptyState } from "../../components/EmptyState";
+import { Input } from "../../components/Input";
+import { StatusBadge } from "../../components/StatusBadge";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -94,12 +95,12 @@ export function ComponentsCard() {
           </div>
           <div
             data-testid={selectors.components.itemLibraryId}
-            className="mt-1 font-mono text-xs text-app-muted-foreground"
+            className="mt-space-3xs font-mono text-xs text-app-muted-foreground"
           >
             {component.libraryId}
           </div>
           {component.description && (
-            <div className="mt-1 text-xs text-app-muted-foreground">{component.description}</div>
+            <div className="mt-space-3xs text-xs text-app-muted-foreground">{component.description}</div>
           )}
         </div>
       ),
@@ -150,7 +151,7 @@ export function ComponentsCard() {
         return (
           <div
             data-testid={selectors.components.itemDesignStyles}
-            className="flex max-w-80 flex-wrap gap-1 text-xs"
+            className="flex max-w-80 flex-wrap gap-space-3xs text-xs"
             aria-label={t(strings.components.designStylesLabel, {
               styles: designStylesSummary,
             })}
@@ -184,10 +185,10 @@ export function ComponentsCard() {
       header: "Actions",
       className: "text-right",
       accessor: (component) => (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-space-2xs">
           <Link
             to={assetPath(component.id, currentTab ? { tab: currentTab } : {})}
-            className="inline-flex min-h-8 items-center justify-center rounded-control border border-app-border bg-app-surface px-3 text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+            className="inline-flex min-h-8 items-center justify-center rounded-control border border-app-border bg-app-surface px-space-xs text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
           >
             {t(strings.components.openAction)}
           </Link>
@@ -200,11 +201,11 @@ export function ComponentsCard() {
     <section
       data-testid={selectors.components.card}
       aria-label={t(strings.components.title)}
-      className="mt-4 rounded-xl border border-app-border bg-app-surface p-4"
+      className="mt-space-sm rounded-xl border border-app-border bg-app-surface p-space-sm"
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-space-xs">
         <h2 className="text-sm font-medium text-app-muted-foreground">{t(strings.components.title)}</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-space-2xs">
           <Button
             data-testid={selectors.components.create.button}
             onClick={() => setShowCreate(true)}
@@ -226,7 +227,7 @@ export function ComponentsCard() {
 
       <details
         data-testid="components-filters"
-        className="group mt-3 rounded-control border border-app-border bg-app-surface-muted p-2"
+        className="group mt-space-xs rounded-control border border-app-border bg-app-surface-muted p-space-2xs"
       >
         <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium text-app-foreground">
           {t("components.filters", { defaultValue: "Filters" })}
@@ -237,7 +238,7 @@ export function ComponentsCard() {
             {t("components.filtersHide", { defaultValue: "Hide" })}
           </span>
         </summary>
-        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-space-2xs grid grid-cols-1 gap-space-2xs sm:grid-cols-2 lg:grid-cols-3">
           <label className="block text-xs text-app-muted-foreground">
             {t(strings.components.searchLabel)}
             <Input
@@ -245,7 +246,7 @@ export function ComponentsCard() {
               value={match}
               onChange={(e) => setMatch(e.target.value)}
               placeholder={t(strings.components.searchPlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -255,7 +256,7 @@ export function ComponentsCard() {
               value={tag}
               onChange={(e) => setTag(e.target.value)}
               placeholder={t(strings.components.tagPlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -265,7 +266,7 @@ export function ComponentsCard() {
               value={tagsRaw}
               onChange={(e) => setTagsRaw(e.target.value)}
               placeholder={t(strings.components.tagsFilterPlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -275,7 +276,7 @@ export function ComponentsCard() {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder={t(strings.components.categoryPlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -285,7 +286,7 @@ export function ComponentsCard() {
               value={styleId}
               onChange={(e) => setStyleId(e.target.value)}
               placeholder={t(strings.components.stylePlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -295,34 +296,34 @@ export function ComponentsCard() {
               value={affinity}
               onChange={(e) => setAffinity(e.target.value)}
               placeholder={t(strings.components.affinityPlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
         </div>
       </details>
 
       {componentsQuery.isLoading && (
-        <p data-testid={selectors.components.loading} className="mt-3 text-app-foreground">
+        <p data-testid={selectors.components.loading} className="mt-space-xs text-app-foreground">
           {t(strings.components.loading)}
         </p>
       )}
       {componentsQuery.error && (
-        <p data-testid={selectors.components.error} className="mt-3 text-app-danger">
+        <p data-testid={selectors.components.error} className="mt-space-xs text-app-danger">
           {errorMessage(componentsQuery.error, t)}
         </p>
       )}
       {indexMutation.error && (
-        <p data-testid={selectors.components.error} className="mt-3 text-app-danger">
+        <p data-testid={selectors.components.error} className="mt-space-xs text-app-danger">
           {errorMessage(indexMutation.error, t)}
         </p>
       )}
 
       {!componentsQuery.isLoading && components.length === 0 && (
-        <div data-testid={selectors.components.empty} className="mt-3">
+        <div data-testid={selectors.components.empty} className="mt-space-xs">
           <EmptyState
             title={t(strings.components.empty)}
             action={(
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-space-2xs">
                 <Button onClick={() => setShowCreate(true)}>
                   {t(strings.components.create.action)}
                 </Button>
@@ -341,10 +342,10 @@ export function ComponentsCard() {
 
       {components.length > 0 && (
         <>
-          <p data-testid={selectors.components.summary} className="mt-3 text-xs text-app-muted-foreground">
+          <p data-testid={selectors.components.summary} className="mt-space-xs text-xs text-app-muted-foreground">
             {t(strings.components.summary, { count: components.length })}
           </p>
-          <div data-testid={selectors.components.list} className="mt-2">
+          <div data-testid={selectors.components.list} className="mt-space-2xs">
             <DataTable
               rows={components}
               columns={columns}

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"kind":"component","title":"ButtonGroup","args":{"fields":[{"path":"label","kind":"text","default":"Actions"}]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default actions","args":{"label":"Actions"},"expect":[{"kind":"role","role":"group","name":"Actions"}],"interactions":[{"kind":"settle"}]}]}

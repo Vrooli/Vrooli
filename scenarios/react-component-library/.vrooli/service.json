@@ -190,7 +190,23 @@
               ".vrooli/agent-manager/adopt-assist.json"
             ]
           }
-        }
+      },
+      "experience-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "version": "0.0.1",
+        "versionRange": ">=0.0.1",
+        "description": "Provides the shared experience-spec contract and capture reconciliation used by RCL experience evidence.",
+        "degraded_behavior": "Catalog, component contracts, and direct library APIs remain available; experience capture and reconciliation are unavailable until experience-manager is healthy."
+      },
+      "ui-health": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Provides the shared UI inventory and provenance contracts used by RCL inventory adapters.",
+        "degraded_behavior": "Catalog and component APIs remain available; cross-scenario UI inventory integration is unavailable until ui-health is healthy."
+      }
       }
     },
     "resources": {}

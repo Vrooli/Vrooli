@@ -1,5 +1,6 @@
-import { Button } from "../../components/ui/button";
-import { StatusBadge } from "../../components/ui/status-badge";
+/** @vrooliComponentSource overlays.inspector-panel */
+import { Button } from "../../components/Button";
+import { StatusBadge } from "../../components/StatusBadge";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -32,16 +33,16 @@ export function InspectorPanel({ inspector, specimenLabel }: InspectorPanelProps
     <section
       data-testid={selectors.components.inspector.panel}
       aria-label={t(strings.components.inspector.title)}
-      className="mt-3 rounded-lg border border-app-border bg-app-surface p-3 backdrop-blur-sm"
+      className="mt-space-xs rounded-lg border border-app-border bg-app-surface p-space-xs backdrop-blur-sm"
     >
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex items-center justify-between gap-space-xs">
         <div className="min-w-0">
           <h3 className="text-xs font-medium text-app-muted-foreground">
             {t(strings.components.inspector.title)}
           </h3>
           {specimenLabel && <p className="truncate text-xs text-app-muted-foreground">{specimenLabel}</p>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-space-2xs">
           <StatusBadge
             data-testid={selectors.components.inspector.statusBadge}
             tone={active ? "warning" : "neutral"}
@@ -51,7 +52,7 @@ export function InspectorPanel({ inspector, specimenLabel }: InspectorPanelProps
           <Button
             data-testid={selectors.components.inspector.toggleButton}
             onClick={() => (active ? stopInspect() : startInspect())}
-            className="h-7 px-3 text-xs"
+            className="h-7 px-space-xs text-xs"
             variant={active ? "secondary" : "primary"}
           >
             {active
@@ -64,14 +65,14 @@ export function InspectorPanel({ inspector, specimenLabel }: InspectorPanelProps
       {!selected && (
         <p
           data-testid={selectors.components.inspector.empty}
-          className="mt-2 text-xs text-app-muted-foreground"
+          className="mt-space-2xs text-xs text-app-muted-foreground"
         >
           {t(strings.components.inspector.empty)}
         </p>
       )}
 
       {selected && (
-        <div className="mt-2 space-y-2 text-xs text-app-foreground">
+        <div className="mt-space-2xs space-y-space-2xs text-xs text-app-foreground">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span data-testid={selectors.components.inspector.selectedTag} className="font-mono text-app-foreground">
               &lt;{selected.meta.tag}&gt;
@@ -99,7 +100,7 @@ export function InspectorPanel({ inspector, specimenLabel }: InspectorPanelProps
           {selected.meta.text && (
             <p
               data-testid={selectors.components.inspector.selectedText}
-              className="rounded border border-app-border bg-app-surface-muted px-2 py-1 font-mono text-[0.7rem] text-app-muted-foreground"
+              className="rounded border border-app-border bg-app-surface-muted px-space-2xs py-space-3xs font-mono text-[0.7rem] text-app-muted-foreground"
             >
               {selected.meta.text}
             </p>
@@ -109,7 +110,7 @@ export function InspectorPanel({ inspector, specimenLabel }: InspectorPanelProps
               data-testid={selectors.components.inspector.breadcrumb}
               role="navigation"
               aria-label={t(strings.components.inspector.breadcrumbLabel)}
-              className="flex flex-wrap items-center gap-1 text-[0.7rem] text-app-muted-foreground"
+              className="flex flex-wrap items-center gap-space-3xs text-[0.7rem] text-app-muted-foreground"
             >
               {selected.ancestors
                 .slice()
@@ -118,7 +119,7 @@ export function InspectorPanel({ inspector, specimenLabel }: InspectorPanelProps
                   <span
                     key={`${a.depth}-${a.selector}`}
                     data-testid={selectors.components.inspector.breadcrumbItem}
-                    className="rounded bg-app-surface-muted px-1.5 py-0.5 font-mono"
+                    className="rounded bg-app-surface-muted px-space-2xs py-space-3xs font-mono"
                   >
                     {a.selector || a.tag}
                   </span>

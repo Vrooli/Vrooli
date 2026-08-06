@@ -1,3 +1,4 @@
+/** @vrooliComponentSource foundations.viewport-axis */
 import { selectors } from "../../consts/selectors";
 
 /**

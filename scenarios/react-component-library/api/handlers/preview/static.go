@@ -41,6 +41,7 @@ type HarnessHandler struct {
 	service    preview.Service
 	components components.Service
 	logger     *log.Logger
+	repoRoot   string
 }
 
 func NewHarnessHandler(svc preview.Service, logger *log.Logger) *HarnessHandler {
@@ -51,7 +52,14 @@ func NewHarnessHandlerWithStories(svc preview.Service, comp components.Service, 
 	if logger == nil {
 		logger = log.Default()
 	}
-	return &HarnessHandler{service: svc, components: comp, logger: logger}
+	return &HarnessHandler{service: svc, components: comp, logger: logger, repoRoot: discoverRepoRoot("")}
+}
+
+func NewHarnessHandlerWithStoriesAtRoot(svc preview.Service, comp components.Service, logger *log.Logger, repoRoot string) *HarnessHandler {
+	if logger == nil {
+		logger = log.Default()
+	}
+	return &HarnessHandler{service: svc, components: comp, logger: logger, repoRoot: discoverRepoRoot(repoRoot)}
 }
 
 // ServeHTTP returns the iframe-friendly HTML shell. Status mapping
@@ -68,17 +76,31 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeHarnessError(w, h.logger, id, err)
 		return
 	}
-	bundle, err := h.service.GetBundleVersion(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")))
-	if err != nil {
-		writeHarnessError(w, h.logger, id, err)
-		return
-	}
 	story, err := h.resolveStory(r, componentID)
 	if err != nil {
 		writeHarnessError(w, h.logger, id, err)
 		return
 	}
-	doc := renderHarnessHTML(id, bundle, story)
+	frame := story.Frame
+	if strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("frame")), "off") {
+		frame = nil
+	}
+	bundle, err := h.service.GetBundleVersionWithFrame(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")), frame)
+	if err != nil {
+		writeHarnessError(w, h.logger, id, err)
+		return
+	}
+	kit := strings.TrimSpace(r.URL.Query().Get("kit"))
+	if kit == "" {
+		kit = defaultPreviewKit
+	}
+	css, err := previewDesignSystemCSS(h.repoRoot, kit)
+	if err != nil {
+		h.logger.Printf("preview.harness design kit %q: %v", kit, err)
+		http.Error(w, "preview: requested design kit is unavailable", http.StatusInternalServerError)
+		return
+	}
+	doc := renderHarnessHTML(id, bundle, story, css)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	// Same-origin: the host iframe controls the `src`, and same-origin
@@ -135,6 +157,7 @@ type harnessStory struct {
 	InteractionsJSON      string
 	ExpectJSON            string
 	Harness               string
+	Frame                 *components.StoryFrame
 }
 
 // resolveStory uses the indexed story contract as the only harness baseline.
@@ -176,13 +199,13 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 			if err != nil {
 				return harnessStory{}, fmt.Errorf("preview: encode story environment: %w", err)
 			}
-			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect), Harness: definition.Harness}, nil
+			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect), Harness: definition.Harness, Frame: components.EffectiveStoryFrame(&contract, &definition)}, nil
 		}
 	}
 	return harnessStory{}, fmt.Errorf("preview: story %q not found for component %q", storyID, id)
 }
 
-func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory) string {
+func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSystemCSS string) string {
 	var sb strings.Builder
 	sb.WriteString(`<!doctype html>
 <html lang="en">
@@ -202,10 +225,10 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory) string {
 	sb.WriteString(`" />
 <style>
 `)
-	sb.WriteString(previewDesignSystemCSS())
+	sb.WriteString(designSystemCSS)
 	sb.WriteString(`
-  html, body { margin: 0; padding: 0; min-height: 100vh; background: var(--color-background); color: var(--color-foreground); font-family: ui-sans-serif, system-ui, sans-serif; }
-  #root { padding: 16px; }
+  html, body { margin: 0; padding: 0; min-height: 100vh; background: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans, ui-sans-serif), system-ui, sans-serif; }
+  #root { min-height: 100vh; box-sizing: border-box; padding: 24px; background: var(--color-background); }
   #preview-importmap-diagnostics,
   #preview-error { padding: 16px; font-family: ui-monospace, SFMono-Regular, monospace; color: #ff8c8c; white-space: pre-wrap; }
 </style>
@@ -257,6 +280,9 @@ const componentModuleURL = "data:text/javascript;base64,`)
 const storyHarnessModuleURL = "data:text/javascript;base64,`)
 	sb.WriteString(base64Encode(b.HarnessJS))
 	sb.WriteString(`";
+const frameModuleURL = "data:text/javascript;base64,`)
+	sb.WriteString(base64Encode(b.FrameJS))
+	sb.WriteString(`";
 const previewStory = {
   name: ` + jsString(ex.Name) + `,
   version: ` + jsString(ex.Version) + `,
@@ -269,6 +295,8 @@ const previewStory = {
 	interactions: ` + jsonArrayLiteral(ex.InteractionsJSON) + `,
   expect: ` + jsonArrayLiteral(ex.ExpectJSON) + `,
   harness: ` + jsString(ex.Harness) + `,
+  frame: ` + frameJSON(ex.Frame) + `,
+  fixture: ` + jsonObjectLiteral(b.FixtureJSON) + `,
 };
 // Resolved-theme bridge: the host owns the app/system decision and posts
 // {type:"rcl-resolved-theme", theme:"light"|"dark"}. Stamping the root is
@@ -572,17 +600,19 @@ const isRenderableComponent = (value) => (
   (value && typeof value === "object" && typeof value.$$typeof === "symbol")
 );
 try {
-  const [{ createRoot }, Mod, React, Icons, HarnessMod] = await Promise.all([
+  const [{ createRoot }, Mod, React, Icons, HarnessMod, FrameMod] = await Promise.all([
     import("react-dom/client"),
     import(componentModuleURL),
     import("react"),
     import("lucide-react").catch(() => ({})),
 		previewStory.harness ? import(storyHarnessModuleURL) : Promise.resolve({}),
+		previewStory.frame ? import(frameModuleURL) : Promise.resolve({}),
   ]);
   const Cmp = isRenderableComponent(Mod.default)
     ? Mod.default
     : Mod[Object.keys(Mod).find(k => isRenderableComponent(Mod[k]))] ?? null;
   const hookEntry = Object.entries(Mod).find(([name, value]) => name.startsWith("use") && typeof value === "function");
+  const Frame = Object.values(FrameMod).find((value) => isRenderableComponent(value));
   if (previewStory.kind === "hook" && !hookEntry) {
     showPreviewError("preview: hook file exports no callable use* hook");
   } else if (previewStory.kind !== "hook" && !Cmp) {
@@ -670,6 +700,15 @@ try {
     const renderPreview = (override, environment = previewStory.environment) => {
       const safeOverride = override && typeof override === "object" && !Array.isArray(override) ? override : {};
       const props = resolveProps(mergeStoryProps(previewStory.props, safeOverride));
+      const subject = previewStory.harness
+        ? React.createElement(HarnessMod[previewStory.harness], { args: props, log: postPreviewEvent })
+        : previewStory.kind === "hook" ? React.createElement(hookFixture(props, environment)) : React.createElement(Cmp, props);
+      if (previewStory.frame && Frame) {
+        const fixtureRegion = React.createElement("section", { "data-frame-region": "fixture", "data-fixture-asset": previewStory.fixture?.asset || "" }, React.createElement("span", { className: "sr-only" }, previewStory.fixture?.asset || ""));
+        const regions = { [previewStory.frame.region]: subject, content: fixtureRegion };
+        root.render(React.createElement(Frame, { regions, fixture: previewStory.fixture, children: subject, "data-frame-subject": previewStory.frame.asset }));
+        return;
+      }
       if (previewStory.harness) {
         const Harness = HarnessMod[previewStory.harness];
         if (typeof Harness !== "function") throw new Error("preview: harness export " + previewStory.harness + " was not found");
@@ -806,7 +845,7 @@ func buildImportMapJSON(b preview.Bundle) (string, []string) {
 		}
 		version, ok := internaldeps.ResolveRangeToLatest(d.VersionRange, packageRuntimeCandidatesFor(name))
 		if !ok {
-			warnings = append(warnings, fmt.Sprintf("preview: cannot pin dependency %q from range %q", name, d.VersionRange))
+			warnings = append(warnings, fmt.Sprintf("preview: dependency %q cannot be resolved from declared range %q; package is absent from the governed preview runtime store. Populate with: %s", name, d.VersionRange, previewDependencyPopulateCommand(name, d.VersionRange)))
 			continue
 		}
 		imports[name] = packageRuntimeURL(name, version, "", &warnings)
@@ -881,32 +920,6 @@ func packageRuntimeURL(name, version, subpath string, warnings *[]string) string
 	return "/preview/runtime/npm/" + name + "@" + version + "/index.js"
 }
 
-func installedPackageVersionCandidates(name string) []string {
-	name = strings.TrimSpace(name)
-	if name == "" || strings.Contains(name, "..") || strings.HasPrefix(name, "/") {
-		return nil
-	}
-	root, err := findNodeModulesRoot()
-	if err != nil {
-		return nil
-	}
-	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name), "package.json"))
-	if err != nil {
-		return nil
-	}
-	var pkg struct {
-		Version string `json:"version"`
-	}
-	if err := json.Unmarshal(raw, &pkg); err != nil {
-		return nil
-	}
-	version := strings.TrimSpace(pkg.Version)
-	if version == "" {
-		return nil
-	}
-	return []string{version}
-}
-
 func renderBundleErrorHTML(err preview.ErrBundle) string {
 	var sb strings.Builder
 	sb.WriteString(`<!doctype html>
@@ -964,6 +977,17 @@ func jsonObjectLiteral(raw string) string {
 	return string(normalized)
 }
 
+func frameJSON(frame *components.StoryFrame) string {
+	if frame == nil {
+		return "null"
+	}
+	raw, err := json.Marshal(frame)
+	if err != nil {
+		return "null"
+	}
+	return string(raw)
+}
+
 func jsonArrayLiteral(raw string) string {
 	if strings.TrimSpace(raw) == "" {
 		return "[]"
@@ -979,104 +1003,64 @@ func jsonArrayLiteral(raw string) string {
 	return string(normalized)
 }
 
+const defaultPreviewKit = "vrooli-default"
+
 var previewCSSCache struct {
 	sync.Mutex
-	path     string
-	modified int64
+	key      string
+	modified string
 	css      string
 }
 
-func previewDesignSystemCSS() string {
-	previewCSSCache.Lock()
-	defer previewCSSCache.Unlock()
-	for _, pattern := range []string{
-		"../../../ui/dist/assets/*.css",
-		"../ui/dist/assets/*.css",
-		"ui/dist/assets/*.css",
-		"scenarios/react-component-library/ui/dist/assets/*.css",
-	} {
-		matches, err := filepath.Glob(pattern)
-		if err != nil || len(matches) == 0 {
+func discoverRepoRoot(explicit string) string {
+	candidates := []string{explicit, ".", "../..", "../../..", "../../../..", "../../../../.."}
+	for _, candidate := range candidates {
+		if strings.TrimSpace(candidate) == "" {
 			continue
 		}
-		info, err := os.Stat(matches[0])
-		if err != nil {
-			continue
-		}
-		if previewCSSCache.path == matches[0] && previewCSSCache.modified == info.ModTime().UnixNano() && previewCSSCache.css != "" {
-			return previewCSSCache.css
-		}
-		raw, err := os.ReadFile(matches[0])
-		if err == nil && len(raw) > 0 {
-			previewCSSCache.path = matches[0]
-			previewCSSCache.modified = info.ModTime().UnixNano()
-			previewCSSCache.css = string(raw)
-			return previewCSSCache.css
+		path := filepath.Join(candidate, "templates", "design", defaultPreviewKit, "adapters", "react-vite-tailwind", "tokens.css")
+		if _, err := os.Stat(path); err == nil {
+			return candidate
 		}
 	}
-	previewCSSCache.path = ""
-	previewCSSCache.modified = 0
-	previewCSSCache.css = fallbackPreviewDesignSystemCSS
-	return previewCSSCache.css
+	return explicit
 }
 
-const fallbackPreviewDesignSystemCSS = `
-:root {
-  --color-background: #f8fafc;
-  --color-shell: #020617;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f1f5f9;
-  --color-surface-raised: #ffffff;
-  --color-foreground: #0f172a;
-  --color-muted-foreground: #64748b;
-  --color-border: #cbd5e1;
-  --color-primary: #2563eb;
-  --color-primary-foreground: #ffffff;
-  --color-accent: #0891b2;
-  --color-success: #16a34a;
-  --color-danger: #dc2626;
-  --color-warning: #d97706;
-  --color-info: #0284c7;
-  --color-focus: #2563eb;
-  --radius-control: 0.375rem;
-  --radius-panel: 0.5rem;
-  --radius-pill: 9999px;
-  --touch-target: 44px;
-  color-scheme: light;
+func previewDesignSystemCSS(repoRoot, kit string) (string, error) {
+	if kit == "" || strings.Contains(kit, ".") || strings.ContainsAny(kit, `/\\`) {
+		return "", fmt.Errorf("invalid design kit %q", kit)
+	}
+	adapter := filepath.Join(repoRoot, "templates", "design", kit, "adapters", "react-vite-tailwind")
+	tokensPath := filepath.Join(adapter, "tokens.css")
+	utilitiesPath := filepath.Join(adapter, "preview-utilities.css")
+	tokensInfo, err := os.Stat(tokensPath)
+	if err != nil {
+		return "", fmt.Errorf("tokens stylesheet missing: %w", err)
+	}
+	utilitiesInfo, err := os.Stat(utilitiesPath)
+	if err != nil {
+		return "", fmt.Errorf("compiled utility stylesheet missing for %q: %w", kit, err)
+	}
+	key := kit
+	modified := fmt.Sprintf("%d:%d", tokensInfo.ModTime().UnixNano(), utilitiesInfo.ModTime().UnixNano())
+	previewCSSCache.Lock()
+	defer previewCSSCache.Unlock()
+	if previewCSSCache.key == key && previewCSSCache.modified == modified && previewCSSCache.css != "" {
+		return previewCSSCache.css, nil
+	}
+	tokens, err := os.ReadFile(tokensPath)
+	if err != nil {
+		return "", fmt.Errorf("read tokens stylesheet: %w", err)
+	}
+	utilities, err := os.ReadFile(utilitiesPath)
+	if err != nil {
+		return "", fmt.Errorf("read compiled utility stylesheet: %w", err)
+	}
+	if len(utilities) == 0 {
+		return "", fmt.Errorf("compiled utility stylesheet for %q is empty", kit)
+	}
+	previewCSSCache.key = key
+	previewCSSCache.modified = modified
+	previewCSSCache.css = string(tokens) + "\n" + string(utilities)
+	return previewCSSCache.css, nil
 }
-:root[data-resolved-theme="dark"] {
-  --color-background: #020617;
-  --color-shell: #020617;
-  --color-surface: #0f172a;
-  --color-surface-muted: #1e293b;
-  --color-surface-raised: #1e293b;
-  --color-foreground: #f8fafc;
-  --color-muted-foreground: #cbd5e1;
-  --color-border: #334155;
-  --color-primary: #60a5fa;
-  --color-primary-foreground: #0f172a;
-  --color-accent: #67e8f9;
-  --color-success: #4ade80;
-  --color-danger: #f87171;
-  --color-warning: #fbbf24;
-  --color-info: #7dd3fc;
-  --color-focus: #93c5fd;
-  color-scheme: dark;
-}
-.bg-app-background { background-color: var(--color-background); }
-.bg-app-shell { background-color: var(--color-shell); }
-.bg-app-surface { background-color: var(--color-surface); }
-.bg-app-surface-muted { background-color: var(--color-surface-muted); }
-.bg-app-primary { background-color: var(--color-primary); }
-.bg-app-danger { background-color: var(--color-danger); }
-.text-app-foreground { color: var(--color-foreground); }
-.text-app-muted-foreground { color: var(--color-muted-foreground); }
-.text-app-primary-foreground { color: var(--color-primary-foreground); }
-.text-app-primary { color: var(--color-primary); }
-.text-app-danger { color: var(--color-danger); }
-.border-app-border { border-color: var(--color-border); }
-.rounded-control { border-radius: var(--radius-control); }
-.rounded-panel { border-radius: var(--radius-panel); }
-.rounded-pill { border-radius: var(--radius-pill); }
-.touch-target { min-height: var(--touch-target); min-width: var(--touch-target); }
-`

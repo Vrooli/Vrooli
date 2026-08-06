@@ -31,6 +31,14 @@ type Bundle struct {
 	// separate preserves the component entry's export selection and lets a
 	// harness import the version-local component normally.
 	HarnessJS string
+	// FrameJS is the optional catalog frame module used to render a subject in
+	// context. It is kept separate from JS so the subject's adoption closure
+	// never acquires the frame asset.
+	FrameJS         string
+	FrameAsset      string
+	FrameRegion     string
+	FixtureJSON     string
+	FrameSourcePath string
 
 	// SourcePath is echoed from the components service so callers can
 	// render a heading without a second lookup.
@@ -60,12 +68,14 @@ type Service interface {
 	// GetBundleVersion compiles an immutable catalog version. An empty version
 	// preserves GetBundle's editable-current-content behavior.
 	GetBundleVersion(ctx context.Context, id, version string) (Bundle, error)
+	GetBundleVersionWithFrame(ctx context.Context, id, version string, frame *components.StoryFrame) (Bundle, error)
 }
 
 type service struct {
 	components components.Service
 	bundler    Bundler
 	deps       deps.Service
+	repoRoot   string
 }
 
 // NewService wires the components service (for resolution + content)
@@ -78,8 +88,47 @@ func NewServiceWithDeps(comp components.Service, bundler Bundler, depsSvc deps.S
 	return &service{components: comp, bundler: bundler, deps: depsSvc}
 }
 
+func NewServiceWithDepsAtRoot(comp components.Service, bundler Bundler, depsSvc deps.Service, repoRoot string) Service {
+	return &service{components: comp, bundler: bundler, deps: depsSvc, repoRoot: strings.TrimSpace(repoRoot)}
+}
+
 func (s *service) GetBundle(ctx context.Context, id string) (Bundle, error) {
 	return s.GetBundleVersion(ctx, id, "")
+}
+
+func (s *service) GetBundleVersionWithFrame(ctx context.Context, id, version string, frame *components.StoryFrame) (Bundle, error) {
+	bundle, err := s.GetBundleVersion(ctx, id, version)
+	if err != nil || frame == nil {
+		return bundle, err
+	}
+	frameJS, fixtureJSON, sourcePath, frameDeps, err := s.bundleFrame(ctx, frame)
+	if err != nil {
+		return Bundle{}, err
+	}
+	bundle.FrameJS = frameJS
+	bundle.FrameAsset = frame.Asset
+	bundle.FrameRegion = frame.Region
+	bundle.FixtureJSON = fixtureJSON
+	bundle.FrameSourcePath = sourcePath
+	bundle.Dependencies = appendUniqueDeclarations(bundle.Dependencies, frameDeps)
+	bundle.SHA256 = digest(bundle.JS + bundle.HarnessJS + bundle.FrameJS + bundle.FixtureJSON + frame.Asset + frame.Region)
+	return bundle, nil
+}
+
+func appendUniqueDeclarations(base, extra []deps.Declaration) []deps.Declaration {
+	seen := make(map[string]struct{}, len(base))
+	for _, declaration := range base {
+		seen[declaration.DepName+"\x00"+declaration.VersionRange] = struct{}{}
+	}
+	for _, declaration := range extra {
+		key := declaration.DepName + "\x00" + declaration.VersionRange
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		base = append(base, declaration)
+	}
+	return base
 }
 
 func (s *service) GetBundleVersion(ctx context.Context, id, version string) (Bundle, error) {

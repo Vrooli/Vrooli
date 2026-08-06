@@ -18,6 +18,7 @@ import (
 // if the surface widens unintentionally.
 type fakeComponentsService struct {
 	getFn               func(ctx context.Context, id string) (components.Component, error)
+	listFn              func(ctx context.Context, q components.SearchQuery) ([]components.Component, error)
 	getContentFn        func(ctx context.Context, id string) (components.Content, error)
 	getVersionContentFn func(ctx context.Context, id, version string) (components.Content, error)
 }
@@ -45,7 +46,10 @@ func (f *fakeComponentsService) GetByLibraryID(context.Context, string) (compone
 	panic("not called")
 }
 
-func (f *fakeComponentsService) List(context.Context, components.SearchQuery) ([]components.Component, error) {
+func (f *fakeComponentsService) List(ctx context.Context, q components.SearchQuery) ([]components.Component, error) {
+	if f.listFn != nil {
+		return f.listFn(ctx, q)
+	}
 	panic("not called")
 }
 
@@ -190,6 +194,42 @@ func TestService_GetBundleVersion_UsesImmutableVersionContent(t *testing.T) {
 	require.Contains(t, bundle.JS, "Historical")
 }
 
+func TestService_GetBundleVersionWithFrameBundlesSubjectAndCatalogFrame(t *testing.T) {
+	comp := &fakeComponentsService{
+		getFn: func(_ context.Context, id string) (components.Component, error) {
+			if id == "frame-id" {
+				return components.Component{ID: id, CatalogID: "navigation.page", LibraryID: "react-component-library:PageFrame", LatestVersion: "1.0.0"}, nil
+			}
+			return components.Component{ID: id, LibraryID: "react-component-library:SidebarShell", LatestVersion: "1.2.0"}, nil
+		},
+		listFn: func(context.Context, components.SearchQuery) ([]components.Component, error) {
+			return []components.Component{{ID: "frame-id"}}, nil
+		},
+		getContentFn: func(context.Context, string) (components.Content, error) {
+			return components.Content{Body: "export default function Subject() { return <aside>subject</aside> }", SourcePath: "components/Subject.tsx"}, nil
+		},
+		getVersionContentFn: func(_ context.Context, id, version string) (components.Content, error) {
+			if id == "frame-id" {
+				return components.Content{Body: "export function PageFrame({ regions }) { return <main data-frame>{regions.navigation}{regions.content}</main> }", SourcePath: "components/PageFrame/versions/1.0.0/PageFrame.tsx"}, nil
+			}
+			return components.Content{Body: "export default function Subject() { return <aside>subject</aside> }", SourcePath: "components/Subject/versions/1.2.0/Subject.tsx"}, nil
+		},
+	}
+	repoRoot := filepath.Join("..", "..", "..", "..", "..")
+	svc := NewServiceWithDepsAtRoot(comp, NewEsbuilder(), nil, repoRoot)
+	bundle, err := svc.GetBundleVersionWithFrame(context.Background(), "subject-id", "1.2.0", &components.StoryFrame{Asset: "navigation.page", Region: "navigation", Fixture: "fixtures.resource-collection"})
+	// The production service needs only the repository root to load the catalog;
+	// use the concrete root directly above so this remains a focused bundler
+	// assertion rather than a handler integration test.
+	require.NoError(t, err)
+	require.Contains(t, bundle.JS, "Subject")
+	require.NotEmpty(t, bundle.FrameJS)
+	require.Contains(t, bundle.FrameJS, "data-frame")
+	require.Equal(t, "navigation.page", bundle.FrameAsset)
+	require.Equal(t, "navigation", bundle.FrameRegion)
+	require.Contains(t, bundle.FixtureJSON, "fixtures.resource-collection")
+}
+
 func TestService_GetBundle_AllowsHookFixtures(t *testing.T) {
 	comp := &fakeComponentsService{
 		getFn: func(_ context.Context, id string) (components.Component, error) {
@@ -220,4 +260,21 @@ export default function RelativeDemo() {
 	require.Contains(t, js, "Relative import works")
 	require.NotContains(t, js, `from "./label"`)
 	require.Contains(t, js, "react/jsx-runtime")
+}
+
+func TestEsbuilderBundlesLocalVrooliPackageImports(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "packages", "audio-capture-browser", "src"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "packages", "audio-capture-browser", "src", "index.ts"), []byte(`export const localVoice = "local package works";`), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "components", "Voice"), 0o755))
+
+	ts := `import { localVoice } from "@vrooli/audio-capture-browser";
+export const useVoiceInput = () => localVoice;`
+	bundler := NewEsbuilderWithRoot(root)
+
+	js, warnings, err := bundler.BuildBundle(context.Background(), ts, "components/Voice/useVoiceInput.ts")
+	require.NoError(t, err)
+	require.Empty(t, warnings)
+	require.Contains(t, js, "local package works")
+	require.NotContains(t, js, `from "@vrooli/audio-capture-browser"`)
 }

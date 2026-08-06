@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { CommandCenterShell } from "../../../library/components/CommandCenterShell/versions/1.0.0/CommandCenterShell";
+import { CommandCenterShell } from "../components/CommandCenterShell/versions/1.0.0/CommandCenterShell";
 
 describe("CommandCenterShell", () => {
   it("keeps operational context visible while its primary region reports a partial lifecycle", () => {

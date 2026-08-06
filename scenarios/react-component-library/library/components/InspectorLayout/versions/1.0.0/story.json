@@ -130,6 +130,39 @@
           "value": "Nothing to show yet."
         }
       ]
+    },
+    {
+      "id": "loading-inspector",
+      "name": "Loading inspector",
+      "args": {
+        "title": "Workflow editor",
+        "canvas": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] },
+        "inspector": { "$node": "p", "children": [{ "$text": "Loading step details…" }] },
+        "inspectorState": "loading"
+      },
+      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"inspector\"]", "name": "data-experience-state", "value": "loading" }]
+    },
+    {
+      "id": "partial-inspector",
+      "name": "Partial inspector",
+      "args": {
+        "title": "Workflow editor",
+        "canvas": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] },
+        "inspector": { "$node": "p", "children": [{ "$text": "Some step details are unavailable." }] },
+        "inspectorState": "partial"
+      },
+      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"inspector\"]", "name": "data-experience-state", "value": "partial" }]
+    },
+    {
+      "id": "error-inspector",
+      "name": "Inspector error",
+      "args": {
+        "title": "Workflow editor",
+        "canvas": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] },
+        "inspector": { "$node": "p", "children": [{ "$text": "Step details are unavailable." }] },
+        "inspectorState": "error"
+      },
+      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"inspector\"]", "name": "data-experience-state", "value": "error" }]
     }
   ]
 }

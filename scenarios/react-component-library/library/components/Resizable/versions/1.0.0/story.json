@@ -1,0 +1,1 @@
+{"schemaVersion":1,"kind":"component","title":"Resizable","args":{"fields":[{"path":"orientation","kind":"enum","default":"horizontal","options":["horizontal","vertical"]}]},"environment":{"fixtures":[]},"stories":[{"id":"horizontal","name":"Horizontal","args":{"orientation":"horizontal"}},{"id":"vertical","name":"Vertical","args":{"orientation":"vertical"}}]}

@@ -1,5 +1,6 @@
+/** @vrooliComponentSource feedback.error-state */
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Button } from "./ui/button";
+import { Button } from "./Button";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
@@ -59,14 +60,14 @@ function DefaultFallback({ onRetry }: { onRetry: () => void }) {
     <div
       data-testid={selectors.errorBoundary.root}
       role="alert"
-      className="flex min-h-full flex-col items-center justify-center bg-app-background p-6 text-app-foreground"
+      className="flex min-h-full flex-col items-center justify-center bg-app-background p-space-md text-app-foreground"
     >
-      <div className="w-full max-w-md rounded-2xl border border-app-danger/40 bg-app-danger/10 p-6 text-center backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl border border-app-danger/40 bg-app-danger/10 p-space-md text-center backdrop-blur-sm">
         <h1 className="text-2xl font-semibold">{t(strings.errorBoundary.title)}</h1>
-        <p className="mt-3 text-app-muted-foreground">{t(strings.errorBoundary.message)}</p>
+        <p className="mt-space-xs text-app-muted-foreground">{t(strings.errorBoundary.message)}</p>
         <Button
           data-testid={selectors.errorBoundary.retryButton}
-          className="mt-5"
+          className="mt-space-md"
           onClick={onRetry}
         >
           {t(strings.errorBoundary.retry)}

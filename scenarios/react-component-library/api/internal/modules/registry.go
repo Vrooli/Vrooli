@@ -17,6 +17,7 @@
 package modules
 
 import (
+	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/module"
 
 	apidb "github.com/vrooli/api-core/database"
@@ -101,6 +102,7 @@ func AllProtoFiles() []ProtoFileEntry {
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(catalogcoverage.Schema),
 		apidb.SchemaProviderFunc(adoptionsH.Schema),
 		apidb.SchemaProviderFunc(componentsH.Schema),
 		apidb.SchemaProviderFunc(depsH.Schema),

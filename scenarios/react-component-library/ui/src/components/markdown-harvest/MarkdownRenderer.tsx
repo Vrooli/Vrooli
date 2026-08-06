@@ -60,10 +60,10 @@ export function MarkdownRenderer({ content, className, inline = false, resolveIn
       return <InlineCode resolveInlineToken={resolveInlineToken} looksLikeFileReference={looksLikeFileReference} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick}>{text}</InlineCode>;
     },
     a: ({ href = "", children }: { href?: string; children?: ReactNode }) => <a href={href} onClick={(event) => onLinkClick?.(href, event)} className="text-[var(--markdown-link)] underline underline-offset-2">{children}</a>,
-    blockquote: ({ children }: { children?: ReactNode }) => <blockquote className="my-3 border-l-2 border-[var(--markdown-link)] pl-3 italic text-[var(--markdown-muted)]">{children}</blockquote>,
-    table: ({ children }: { children?: ReactNode }) => <div className="my-3 overflow-x-auto"><table className="border-collapse text-sm">{children}</table></div>,
-    th: ({ children }: { children?: ReactNode }) => <th className="border border-[var(--markdown-border)] px-2 py-1 text-left">{children}</th>,
-    td: ({ children }: { children?: ReactNode }) => <td className="border border-[var(--markdown-border)] px-2 py-1">{children}</td>,
+    blockquote: ({ children }: { children?: ReactNode }) => <blockquote className="my-space-xs border-l-2 border-[var(--markdown-link)] pl-3 italic text-[var(--markdown-muted)]">{children}</blockquote>,
+    table: ({ children }: { children?: ReactNode }) => <div className="my-space-xs overflow-x-auto"><table className="border-collapse text-sm">{children}</table></div>,
+    th: ({ children }: { children?: ReactNode }) => <th className="border border-[var(--markdown-border)] px-space-2xs py-space-3xs text-left">{children}</th>,
+    td: ({ children }: { children?: ReactNode }) => <td className="border border-[var(--markdown-border)] px-space-2xs py-space-3xs">{children}</td>,
   }), [looksLikeFileReference, onFileReferenceClick, onLinkClick, onMermaidOpen, resolveInlineToken]);
   if (!content) return null;
   const Wrapper = inline ? "span" : "div";

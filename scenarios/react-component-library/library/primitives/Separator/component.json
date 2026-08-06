@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:Separator",
+  "catalogId": "primitives.separator",
+  "displayName": "Separator",
+  "description": "Separator communicates an orientation-aware boundary using semantic border tokens.",
+  "assetKind": "primitive",
+  "tags": ["primitive", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-command-display","affinity":"compatible"},{"styleId":"vrooli-conversion-landing","affinity":"compatible"}],
+  "dependencies": []
+}

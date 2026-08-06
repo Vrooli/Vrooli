@@ -123,6 +123,37 @@ func TestModule_HarnessHTML(t *testing.T) {
 	require.Contains(t, body, `rcl-theme-applied`)
 }
 
+func TestModule_HarnessUsesSelectedKitAndRejectsMissingCompiledUtilities(t *testing.T) {
+	r, root := setupModule(t)
+	writeButtonManifest(t, root, buttonTSX)
+	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	rw = callConnect(r, componentsconnect.ComponentsServiceGetComponentByLibraryIdProcedure,
+		`{"libraryId":"react-component-library:Button"}`)
+	id := extractFirstID(t, rw.Body.String())
+
+	cases := []struct {
+		kit    string
+		radius string
+	}{
+		{kit: "vrooli-default", radius: "--radius-control: 0.375rem"},
+		{kit: "vrooli-command-display", radius: "--radius-control: 10px"},
+		{kit: "vrooli-conversion-landing", radius: "--radius-control: 9999px"},
+	}
+	for _, tc := range cases {
+		req := httptest.NewRequest(http.MethodGet, "/preview/"+id+"/harness.html?kit="+tc.kit, nil)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code, tc.kit)
+		require.Contains(t, rec.Body.String(), tc.radius, tc.kit)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/preview/"+id+"/harness.html?kit=missing-kit", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusInternalServerError, rec.Code)
+}
+
 func TestModule_HarnessAcceptsLibraryID(t *testing.T) {
 	r, root := setupModule(t)
 	writeButtonManifest(t, root, buttonTSX)

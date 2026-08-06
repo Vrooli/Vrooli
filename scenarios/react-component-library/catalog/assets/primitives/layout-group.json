@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {"variants": {}, "modes": [], "parts": ["group"]},
+  "asset": {
+    "id": "primitives.layout-group",
+    "name": "Layout Group",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "A structural grouping boundary that gives coordinated layout and motion adapters a stable ownership surface.",
+    "targets": ["react-vite"],
+    "slot": "ui-primitive",
+    "delivery": "template-seeded",
+    "target": {"priority": "P2", "maturity": "implemented"}
+  },
+  "dependencies": {"requires": [{"asset": "foundations.visual-recipes", "reason": "Grouped layout behavior is resolved through shared visual recipes."}]},
+  "rationale": "A named boundary keeps coordinated layout behavior composable without forcing every consumer to invent a wrapper contract."
+}

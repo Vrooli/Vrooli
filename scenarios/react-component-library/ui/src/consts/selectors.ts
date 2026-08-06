@@ -475,6 +475,7 @@ const literalSelectors = {
       modeSystem: "components-theme-switcher-mode-system",
       modeLight: "components-theme-switcher-mode-light",
       modeDark: "components-theme-switcher-mode-dark",
+      kitSelect: "components-theme-switcher-kit-select",
       select: "components-theme-switcher-select",
       importToggle: "components-theme-switcher-import-toggle",
       scenarioInput: "components-theme-switcher-scenario-input",

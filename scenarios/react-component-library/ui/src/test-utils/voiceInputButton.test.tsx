@@ -1,6 +1,6 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { VoiceInputButton } from "../../../library/components/VoiceInputButton/versions/1.0.0/VoiceInputButton";
+import { VoiceInputButton } from "../components/VoiceInputButton";
 import { renderWithProviders } from "./renderWithProviders";
 
 describe("VoiceInputButton", () => {
@@ -44,5 +44,21 @@ describe("VoiceInputButton", () => {
     expect(button.className).not.toContain("border-app-danger");
     expect(container.querySelector(".bg-app-info\\/30")).toHaveStyle({ height: "80%" });
     expect(button.querySelector("circle")).toBeNull();
+  });
+
+  it("dismisses errors and forwards pointer cancellation", () => {
+    const onDismissError = vi.fn();
+    const onPointerCancel = vi.fn();
+    renderWithProviders(<VoiceInputButton state="error" error="Microphone denied" onDismissError={onDismissError} onPointerCancel={onPointerCancel} />);
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss voice input error" }));
+    expect(onDismissError).toHaveBeenCalledOnce();
+
+    cleanup();
+    const { rerender } = renderWithProviders(<VoiceInputButton state="idle" onPointerCancel={onPointerCancel} />);
+    const button = screen.getByRole("button", { name: "Start voice input" });
+    fireEvent.pointerCancel(button);
+    expect(onPointerCancel).toHaveBeenCalledOnce();
+    rerender(<VoiceInputButton state="preparing" onPrepare={vi.fn()} />);
+    fireEvent.focus(screen.getByRole("button", { name: "Preparing microphone" }));
   });
 });

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "BottomNav",
   "args": {
@@ -46,6 +46,11 @@
   },
   "environment": {
     "fixtures": []
+  },
+  "frame": {
+    "asset": "navigation.page",
+    "region": "navigation",
+    "fixture": "fixtures.user-directory"
   },
   "stories": [
     {

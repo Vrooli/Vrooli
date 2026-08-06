@@ -38,9 +38,9 @@ type Asset struct {
 
 // Implementation is one on-disk component manifest.
 type Implementation struct {
-	// Name is the directory name under library/components or library/hooks.
+	// Name is the directory name under any library asset root.
 	Name string
-	// Root is "components" or "hooks".
+	// Root is "foundations", "hooks", "services", "primitives", or "components".
 	Root string
 	// CatalogID is the nullable back-reference to a catalog asset. Empty means
 	// the implementation is supplemental: real, adopted, and outside the target
@@ -154,7 +154,7 @@ func LoadCatalog(catalogDir string) ([]Asset, error) {
 // LoadImplementations reads every component.json under the library roots.
 func LoadImplementations(libraryDir string) ([]Implementation, error) {
 	var out []Implementation
-	for _, root := range []string{"components", "hooks"} {
+	for _, root := range []string{"foundations", "hooks", "services", "primitives", "components"} {
 		paths, err := filepath.Glob(filepath.Join(libraryDir, root, "*", "component.json"))
 		if err != nil {
 			return nil, fmt.Errorf("scan %s: %w", root, err)

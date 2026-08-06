@@ -1,3 +1,4 @@
+/** @vrooliComponentSource navigation.app-shell */
 import { Link } from "react-router-dom";
 import { Menu, Settings as SettingsIcon } from "lucide-react";
 
@@ -13,7 +14,7 @@ export function MobileHeader({ onOpenDrawer }: Props) {
   return (
     <header
       data-testid="mobile-header"
-      className="pt-safe sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-app-border bg-app-surface px-3 md:hidden"
+      className="pt-safe sticky top-0 z-30 flex h-14 items-center gap-space-2xs border-b border-app-border bg-app-surface px-space-xs md:hidden"
     >
       <button
         type="button"
@@ -24,7 +25,7 @@ export function MobileHeader({ onOpenDrawer }: Props) {
       >
         <Menu aria-hidden className="h-5 w-5" />
       </button>
-      <Link to="/" data-testid="mobile-header-brand" className="flex items-center gap-2 text-app-foreground">
+      <Link to="/" data-testid="mobile-header-brand" className="flex items-center gap-space-2xs text-app-foreground">
         <BrandMark className="h-7 w-7 shrink-0 text-app-primary" />
         <span className="text-sm font-semibold tracking-tight">
           {t("app.brand", { defaultValue: "Component Library" })}

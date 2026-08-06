@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:EdgeFade",
+  "catalogId": "primitives.edge-fade",
+  "displayName": "EdgeFade",
+  "description": "EdgeFade provides a token-backed directional affordance at an overflow edge.",
+  "assetKind": "primitive",
+  "tags": ["primitive", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-command-display","affinity":"compatible"},{"styleId":"vrooli-conversion-landing","affinity":"compatible"}],
+  "dependencies": []
+}

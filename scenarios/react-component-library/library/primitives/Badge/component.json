@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:Badge",
+  "catalogId": "primitives.badge",
+  "displayName": "Badge",
+  "description": "Badge communicates compact status with a typed semantic tone.",
+  "assetKind": "primitive",
+  "tags": ["primitive", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-command-display","affinity":"compatible"},{"styleId":"vrooli-conversion-landing","affinity":"compatible"}],
+  "dependencies": []
+}

@@ -7,6 +7,10 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { forwardRef, type InputHTMLAttributes } from "react";
+export const INPUT_MODES = ["controlled", "uncontrolled"] as const;
+export const INPUT_SIZES = ["sm", "md", "lg"] as const;
+export const INPUT_TONES = ["default", "invalid"] as const;
+export const INPUT_PARTS = ["prefix", "control", "suffix"] as const;
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement>;
 

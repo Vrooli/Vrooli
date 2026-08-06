@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Page Frame",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id": "default", "name": "Default", "args": {}}]
+}

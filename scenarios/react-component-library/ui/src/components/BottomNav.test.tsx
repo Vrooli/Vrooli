@@ -3,7 +3,7 @@ import { cleanup, screen } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils";
 import userEvent from "@testing-library/user-event";
 
-import { BottomNav } from "../../../library/components/BottomNav/versions/1.0.0/BottomNav";
+import { BottomNav } from "./BottomNav";
 
 describe("BottomNav", () => {
   afterEach(() => cleanup());

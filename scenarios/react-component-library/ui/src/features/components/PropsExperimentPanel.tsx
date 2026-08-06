@@ -1,6 +1,7 @@
+/** @vrooliComponentSource data-display.description-list */
 import { useEffect, useState } from "react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "../../components/Button";
 import { type ComponentStory } from "../../api/components";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -130,41 +131,41 @@ export function PropsExperimentPanel({ storyId, storyName, initialArgs = {}, ini
   };
 
   return (
-    <section data-testid={selectors.components.editor.propsPanel} aria-label={t(strings.components.editor.tryProps)} className="mt-3 rounded-md border border-app-border bg-app-surface p-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+    <section data-testid={selectors.components.editor.propsPanel} aria-label={t(strings.components.editor.tryProps)} className="mt-space-xs rounded-md border border-app-border bg-app-surface p-space-xs">
+      <div className="flex flex-wrap items-baseline justify-between gap-space-2xs">
         <div>
           <h3 className="text-sm font-semibold text-app-foreground">{t(strings.components.editor.tryProps)}</h3>
-          <p className="mt-1 text-xs text-app-muted-foreground">Temporary changes affect only {storyName || "this story"} and disappear when you reset, reload, or leave.</p>
+          <p className="mt-space-3xs text-xs text-app-muted-foreground">Temporary changes affect only {storyName || "this story"} and disappear when you reset, reload, or leave.</p>
         </div>
         {status === "applied" && <span className="text-xs text-app-success">{t(strings.components.editor.propsApplied)}</span>}
       </div>
       {controls.map((control) => (
-        <label key={control.key} className="mt-3 block text-xs font-medium text-app-foreground">
+        <label key={control.key} className="mt-space-xs block text-xs font-medium text-app-foreground">
           {control.label || control.key}
           {control.kind === "boolean" ? (
             <input className="ml-2 h-4 w-4 align-middle" type="checkbox" checked={Boolean(valueAtPath(values, control.key))} onChange={(event) => setValue(control.key, event.target.checked)} />
           ) : control.kind === "select" ? (
-            <select className="mt-1 h-9 w-full rounded-md border border-app-border bg-app-background px-2 text-sm" value={String(valueAtPath(values, control.key) ?? "")} onChange={(event) => setValue(control.key, event.target.value)}>
+            <select className="mt-space-3xs h-9 w-full rounded-md border border-app-border bg-app-background px-space-2xs text-sm" value={String(valueAtPath(values, control.key) ?? "")} onChange={(event) => setValue(control.key, event.target.value)}>
               {(control.options ?? []).map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
           ) : (
-            <input className="mt-1 h-9 w-full rounded-md border border-app-border bg-app-background px-2 text-sm" type={control.kind === "number" ? "number" : "text"} min={control.minimum} max={control.maximum} minLength={control.minLength} maxLength={control.maxLength} value={String(valueAtPath(values, control.key) ?? "")} onChange={(event) => setValue(control.key, control.kind === "number" ? Number(event.target.value) : event.target.value)} />
+            <input className="mt-space-3xs h-9 w-full rounded-md border border-app-border bg-app-background px-space-2xs text-sm" type={control.kind === "number" ? "number" : "text"} min={control.minimum} max={control.maximum} minLength={control.minLength} maxLength={control.maxLength} value={String(valueAtPath(values, control.key) ?? "")} onChange={(event) => setValue(control.key, control.kind === "number" ? Number(event.target.value) : event.target.value)} />
           )}
         </label>
       ))}
-      {controls.length === 0 && <p className="mt-3 text-xs text-app-muted-foreground">This story declares no configurable scalar arguments.</p>}
-		{fixtures.length > 0 && <div className="mt-4 border-t border-app-border pt-3"><h4 className="text-xs font-semibold text-app-foreground">Environment</h4><p className="mt-1 text-xs text-app-muted-foreground">Only this story’s declared fixture states are available.</p>{fixtures.map((fixture) => <label key={fixture.key} className="mt-3 block text-xs font-medium text-app-foreground">{fixture.label}<select className="mt-1 h-9 w-full rounded-md border border-app-border bg-app-background px-2 text-sm" value={environment[fixture.key] ?? fixture.options[0] ?? ""} onChange={(event) => setEnvironment((current) => ({ ...current, [fixture.key]: event.target.value }))}>{fixture.options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>)}</div>}
-      {controls.length > 0 && <Button type="button" variant="ghost" className="mt-3 h-8 px-0 text-xs text-app-primary" aria-expanded={showAdvanced} onClick={() => setShowAdvanced((visible) => !visible)}>Advanced JSON</Button>}
+      {controls.length === 0 && <p className="mt-space-xs text-xs text-app-muted-foreground">This story declares no configurable scalar arguments.</p>}
+		{fixtures.length > 0 && <div className="mt-space-sm border-t border-app-border pt-space-xs"><h4 className="text-xs font-semibold text-app-foreground">Environment</h4><p className="mt-space-3xs text-xs text-app-muted-foreground">Only this story’s declared fixture states are available.</p>{fixtures.map((fixture) => <label key={fixture.key} className="mt-space-xs block text-xs font-medium text-app-foreground">{fixture.label}<select className="mt-space-3xs h-9 w-full rounded-md border border-app-border bg-app-background px-space-2xs text-sm" value={environment[fixture.key] ?? fixture.options[0] ?? ""} onChange={(event) => setEnvironment((current) => ({ ...current, [fixture.key]: event.target.value }))}>{fixture.options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>)}</div>}
+      {controls.length > 0 && <Button type="button" variant="ghost" className="mt-space-xs h-8 px-0 text-xs text-app-primary" aria-expanded={showAdvanced} onClick={() => setShowAdvanced((visible) => !visible)}>Advanced JSON</Button>}
       {showAdvanced && <>
-        <label className="mt-2 block text-xs text-app-muted-foreground" htmlFor="rcl-props-experiment">{t(strings.components.editor.indexedPropsLabel)}</label>
-        <textarea id="rcl-props-experiment" data-testid={selectors.components.editor.propsDraft} value={draft} onChange={(event) => setDraft(event.target.value)} spellCheck={false} className="mt-1 min-h-40 w-full resize-y rounded-md border border-app-border bg-app-background p-2 font-mono text-xs text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50" />
+        <label className="mt-space-2xs block text-xs text-app-muted-foreground" htmlFor="rcl-props-experiment">{t(strings.components.editor.indexedPropsLabel)}</label>
+        <textarea id="rcl-props-experiment" data-testid={selectors.components.editor.propsDraft} value={draft} onChange={(event) => setDraft(event.target.value)} spellCheck={false} className="mt-space-3xs min-h-40 w-full resize-y rounded-md border border-app-border bg-app-background p-space-2xs font-mono text-xs text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50" />
       </>}
-      {(parseError || (status === "error" && message)) && <p data-testid={selectors.components.editor.propsError} className="mt-2 text-xs text-app-danger">{parseError || message}</p>}
-      <div className="mt-3 flex gap-2">
-        <Button data-testid={selectors.components.editor.propsApply} type="button" className="h-8 px-3 text-xs" disabled={status === "applying"} onClick={apply}>
+      {(parseError || (status === "error" && message)) && <p data-testid={selectors.components.editor.propsError} className="mt-space-2xs text-xs text-app-danger">{parseError || message}</p>}
+      <div className="mt-space-xs flex gap-space-2xs">
+        <Button data-testid={selectors.components.editor.propsApply} type="button" className="h-8 px-space-xs text-xs" disabled={status === "applying"} onClick={apply}>
           {status === "applying" ? t(strings.components.editor.applyingProps) : t(strings.components.editor.applyTemporaryProps)}
         </Button>
-        <Button data-testid={selectors.components.editor.propsReset} type="button" variant="secondary" className="h-8 px-3 text-xs" onClick={onReset}>
+        <Button data-testid={selectors.components.editor.propsReset} type="button" variant="secondary" className="h-8 px-space-xs text-xs" onClick={onReset}>
           {t(strings.components.editor.resetIndexedProps)}
         </Button>
       </div>

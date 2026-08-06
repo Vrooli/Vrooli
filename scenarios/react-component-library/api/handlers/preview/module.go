@@ -31,13 +31,17 @@ func Module(comp components.Service, logger *log.Logger) module.Module {
 }
 
 func ModuleWithDeps(comp components.Service, depsSvc deps.Service, logger *log.Logger) module.Module {
-	svc := preview.NewServiceWithDeps(comp, preview.NewEsbuilder(), depsSvc)
+	return ModuleWithDepsAtRoot(comp, depsSvc, logger, "")
+}
+
+func ModuleWithDepsAtRoot(comp components.Service, depsSvc deps.Service, logger *log.Logger, repoRoot string) module.Module {
+	svc := preview.NewServiceWithDepsAtRoot(comp, preview.NewEsbuilder(), depsSvc, repoRoot)
 	connectPath, connectHandler := previewconnect.NewPreviewServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,
 	}))
-	harness := NewHarnessHandlerWithStories(svc, comp, logger)
-	runtime := NewRuntimeHandler(logger)
+	harness := NewHarnessHandlerWithStoriesAtRoot(svc, comp, logger, repoRoot)
+	runtime := NewRuntimeHandlerAtRoot(logger, repoRoot)
 	return module.Module{
 		Name: "preview",
 		Mount: func(r *mux.Router) {

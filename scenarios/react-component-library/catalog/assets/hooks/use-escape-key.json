@@ -2,6 +2,11 @@
   "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
   "kind": "catalog-asset",
   "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
   "asset": {
     "id": "hooks.use-escape-key",
     "name": "useEscapeKey",

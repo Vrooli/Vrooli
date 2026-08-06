@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:Slot",
+  "catalogId": "primitives.slot",
+  "displayName": "Slot",
+  "description": "Slot composes child semantics while preserving the caller's structural props.",
+  "assetKind": "primitive",
+  "tags": ["primitive", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-command-display","affinity":"compatible"},{"styleId":"vrooli-conversion-landing","affinity":"compatible"}],
+  "dependencies": []
+}

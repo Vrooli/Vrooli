@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils";
 import userEvent from "@testing-library/user-event";
 
-import { SidebarShell } from "../../../library/components/SidebarShell/versions/1.0.0/SidebarShell";
+import { SidebarShell } from "./SidebarShell";
 
 describe("SidebarShell", () => {
   afterEach(() => cleanup());

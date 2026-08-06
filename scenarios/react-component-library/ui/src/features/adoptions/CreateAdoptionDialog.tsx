@@ -1,9 +1,10 @@
+/** @vrooliComponentSource overlays.dialog */
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "../../components/ui/button";
-import { Dialog } from "../../components/ui/dialog";
-import { Input } from "../../components/ui/input";
+import { Button } from "../../components/Button";
+import { Dialog } from "../../components/Dialog";
+import { Input } from "../../components/Input";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -231,7 +232,7 @@ export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
       closeLabel={t(strings.adoptions.create.cancelAction)}
       className="max-w-md"
       footer={
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-space-2xs">
           <Button
             variant="secondary"
             data-testid={selectors.adoptions.createCancel}
@@ -255,7 +256,7 @@ export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
       }
     >
       <div data-testid={selectors.adoptions.createDialog}>
-        <div className="mt-3 space-y-2">
+        <div className="mt-space-xs space-y-space-2xs">
           <label className="block text-xs text-app-muted-foreground">
             {t(strings.adoptions.create.componentIdLabel)}
             <Input
@@ -263,7 +264,7 @@ export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
               value={componentId}
               onChange={(e) => setComponentId(e.target.value)}
               placeholder={t(strings.adoptions.create.componentIdPlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -273,7 +274,7 @@ export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
               value={scenario}
               onChange={(e) => setScenario(e.target.value)}
               placeholder={t(strings.adoptions.create.scenarioPlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -287,7 +288,7 @@ export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
                 setPathSource(ResolveSource.EXPLICIT);
               }}
               placeholder={t(strings.adoptions.create.adoptedPathPlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
             <PathSourceBadge
               resolving={pathResolving}
@@ -302,10 +303,10 @@ export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
               value={adoptedVersion}
               onChange={(e) => setAdoptedVersion(e.target.value)}
               placeholder={t(strings.adoptions.create.adoptedVersionPlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
-          <label className="flex items-start gap-2 rounded-md border border-app-warning/30 bg-app-warning/10 p-2 text-xs text-app-foreground">
+          <label className="flex items-start gap-space-2xs rounded-md border border-app-warning/30 bg-app-warning/10 p-space-2xs text-xs text-app-foreground">
             <input
               type="checkbox"
               aria-label={t(strings.adoptions.create.replaceExistingLabel)}
@@ -335,7 +336,7 @@ export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
         {createMutation.error && (
           <p
             data-testid={selectors.adoptions.createError}
-            className="mt-3 text-xs text-app-danger"
+            className="mt-space-xs text-xs text-app-danger"
           >
             {overwriteRequired
               ? t(strings.adoptions.create.overwriteRequired)
@@ -357,7 +358,7 @@ function WarnAcknowledgement({ ack, setAck }: WarnAcknowledgementProps) {
   const { t } = useTranslation();
 
   return (
-    <label className="mt-2 flex items-center gap-2 text-xs text-app-warning">
+    <label className="mt-space-2xs flex items-center gap-space-2xs text-xs text-app-warning">
       <input
         type="checkbox"
         data-testid={selectors.adoptions.createVerdictAck}
@@ -390,7 +391,7 @@ function VerdictBlock({
 
   if (validating) {
     return (
-      <p className="mt-3 text-xs text-app-muted-foreground">
+      <p className="mt-space-xs text-xs text-app-muted-foreground">
         {t(strings.adoptions.create.validating)}
       </p>
     );
@@ -417,7 +418,7 @@ function VerdictBlock({
     <div
       data-testid={selectors.adoptions.createVerdict}
       data-verdict-kind={verdictKindString}
-      className={"mt-3 rounded-lg border p-3 text-xs " + tone}
+      className={"mt-space-xs rounded-lg border p-space-xs text-xs " + tone}
     >
       <div
         data-testid={selectors.adoptions.createVerdictKind}
@@ -426,7 +427,7 @@ function VerdictBlock({
         {headline}
       </div>
       {verdict.issues.length > 0 && (
-        <ul className="mt-2 space-y-1">
+        <ul className="mt-space-2xs space-y-space-3xs">
           {verdict.issues.map((issue, idx) => (
             <li
               key={`${issue.depName}-${idx}`}
@@ -454,7 +455,7 @@ function StyleFitBlock({ validating, verdict }: StyleFitBlockProps) {
 
   if (validating) {
     return (
-      <p className="mt-2 text-xs text-app-muted-foreground">
+      <p className="mt-space-2xs text-xs text-app-muted-foreground">
         {t(strings.adoptions.create.styleValidating)}
       </p>
     );
@@ -475,7 +476,7 @@ function StyleFitBlock({ validating, verdict }: StyleFitBlockProps) {
     <div
       data-testid={selectors.adoptions.createStyleVerdict}
       data-verdict-kind={kindString}
-      className={"mt-2 rounded-lg border p-3 text-xs " + tone}
+      className={"mt-space-2xs rounded-lg border p-space-xs text-xs " + tone}
     >
       <div
         data-testid={selectors.adoptions.createStyleVerdictKind}
@@ -490,7 +491,7 @@ function StyleFitBlock({ validating, verdict }: StyleFitBlockProps) {
       {verdict.detail && (
         <p
           data-testid={selectors.adoptions.createStyleVerdictDetail}
-          className="mt-1"
+          className="mt-space-3xs"
         >
           {verdict.detail}
         </p>
@@ -538,7 +539,7 @@ function PathSourceBadge({ resolving, source, warnings }: PathSourceBadgeProps) 
       <p
         data-testid={selectors.adoptions.createPathSource}
         data-path-source="resolving"
-        className="mt-1 text-[11px] text-app-muted-foreground"
+        className="mt-space-3xs text-[11px] text-app-muted-foreground"
       >
         {t(strings.adoptions.create.pathResolving)}
       </p>
@@ -553,12 +554,12 @@ function PathSourceBadge({ resolving, source, warnings }: PathSourceBadgeProps) 
       <span
         data-testid={selectors.adoptions.createPathSource}
         data-path-source={slug}
-        className={"mt-1 inline-block rounded-md border px-2 py-0.5 text-[11px] " + tone}
+        className={"mt-space-3xs inline-block rounded-md border px-space-2xs py-space-3xs text-[11px] " + tone}
       >
         {label}
       </span>
       {warnings.length > 0 && (
-        <ul className="mt-1 space-y-0.5 text-[11px] text-app-warning">
+        <ul className="mt-space-3xs space-y-0.5 text-[11px] text-app-warning">
           {warnings.map((w, idx) => (
             <li
               key={idx}

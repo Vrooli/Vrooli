@@ -14,6 +14,12 @@ const ComponentDetailPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
 );
+const CoveragePage = lazy(() =>
+  import("./pages/CoveragePage").then((m) => ({ default: m.CoveragePage })),
+);
+const CapabilitiesPage = lazy(() =>
+  import("./pages/CapabilitiesPage").then((m) => ({ default: m.CapabilitiesPage })),
+);
 const NotFoundPage = lazy(() =>
   import("./pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })),
 );
@@ -25,7 +31,7 @@ function RouteSkeleton() {
       data-testid="route-skeleton"
       role="status"
       aria-live="polite"
-      className="flex items-center gap-2 text-sm text-app-muted-foreground"
+      className="flex items-center gap-space-2xs text-sm text-app-muted-foreground"
     >
       <span className="inline-block h-3 w-3 animate-pulse rounded-pill bg-app-surface-muted" />
       {t("route.loading", { defaultValue: "Loading…" })}
@@ -50,6 +56,8 @@ export default function App() {
         <Route path={appRoutes.catalog} element={<Page><CatalogBrowser surfaceId="catalog-results" /></Page>} />
         <Route path={appRoutes.assetCatalog} element={<Page><CatalogBrowser surfaceId="catalog-results" /></Page>} />
         <Route path={appRoutes.asset} element={<Page><ComponentDetailPage /></Page>} />
+        <Route path={appRoutes.coverage} element={<Page><CoveragePage /></Page>} />
+        <Route path={appRoutes.capabilities} element={<Page><CapabilitiesPage /></Page>} />
         <Route path={appRoutes.settings} element={<Page><SettingsPage /></Page>} />
         <Route path="*" element={<Page><NotFoundPage /></Page>} />
       </Route>

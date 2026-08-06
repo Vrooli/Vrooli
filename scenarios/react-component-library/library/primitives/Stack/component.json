@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:Stack",
+  "catalogId": "primitives.stack",
+  "displayName": "Stack",
+  "description": "Stack lays out content on the block axis with a token-backed gap.",
+  "assetKind": "primitive",
+  "tags": ["primitive", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-command-display","affinity":"compatible"},{"styleId":"vrooli-conversion-landing","affinity":"compatible"}],
+  "dependencies": []
+}

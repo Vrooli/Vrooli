@@ -1,0 +1,1 @@
+{"schemaVersion":1,"kind":"component","title":"DescriptionList","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"entries":[{"term":"Owner","description":"Platform"}]},"expect":[{"kind":"text","value":"Owner"}]},{"id":"empty","name":"Empty","args":{"entries":[{"term":"Owner","description":"Platform"}]}}]}

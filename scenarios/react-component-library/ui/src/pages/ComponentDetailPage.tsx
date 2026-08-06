@@ -1,4 +1,5 @@
-/**
+/** @vrooliComponentSource navigation.page
+ *
  * ComponentDetailPage — full-width editor + preview for a component.
  *
  * Resolves the component id from the route param, fetches the
@@ -11,9 +12,9 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { adoptionsClient } from "../api/adoptions";
-import { Button } from "../components/ui/button";
-import { EmptyState } from "../components/ui/empty-state";
-import { StatusBadge } from "../components/ui/status-badge";
+import { Button } from "../components/Button";
+import { EmptyState } from "../components/EmptyState";
+import { StatusBadge } from "../components/StatusBadge";
 import { componentsClient, getCatalogAsset, getComponentExperience, type CatalogAsset } from "../api/components";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -42,8 +43,8 @@ function DetailTabs({ active, onChange, versionCount, adoptionCount, renderable 
   ];
 
   return <div role="tablist" aria-label={t("componentDetail.info.tabs", { defaultValue: "Asset information" })} className="flex border-b border-app-border">
-    {tabs.map((tab) => <Button key={tab.id} data-testid={tab.id === "overview" ? selectors.assets.hookOverviewTab : tab.id === "files" ? selectors.assets.hookFilesTab : tab.id === "preview" ? selectors.assets.componentPreviewTab : undefined} type="button" role="tab" variant="secondary" aria-selected={active === tab.id} onClick={() => onChange(tab.id)} className={`min-h-0 rounded-none border-0 px-2 py-2 text-xs font-medium ${active === tab.id ? "border-b-2 border-app-primary text-app-foreground" : "text-app-muted-foreground"}`}>
-      {tab.label}{tab.count !== undefined && <span aria-hidden="true" className="ml-1.5 inline-flex min-w-4 items-center justify-center rounded-pill bg-app-surface-muted px-1 py-0.5 text-[10px] leading-none text-app-muted-foreground">{tab.count}</span>}
+    {tabs.map((tab) => <Button key={tab.id} data-testid={tab.id === "overview" ? selectors.assets.hookOverviewTab : tab.id === "files" ? selectors.assets.hookFilesTab : tab.id === "preview" ? selectors.assets.componentPreviewTab : undefined} type="button" role="tab" variant="secondary" aria-selected={active === tab.id} onClick={() => onChange(tab.id)} className={`min-h-0 rounded-none border-0 px-space-2xs py-space-2xs text-xs font-medium ${active === tab.id ? "border-b-2 border-app-primary text-app-foreground" : "text-app-muted-foreground"}`}>
+      {tab.label}{tab.count !== undefined && <span aria-hidden="true" className="ml-1.5 inline-flex min-w-4 items-center justify-center rounded-pill bg-app-surface-muted px-space-3xs py-space-3xs text-[10px] leading-none text-app-muted-foreground">{tab.count}</span>}
     </Button>)}
   </div>;
 }
@@ -80,7 +81,7 @@ function isHook(asset: CatalogAsset) {
 function HookWorkspace({ asset, onClose, tab, onTabChange, selectedStory, onSelectedStoryChange }: { asset: CatalogAsset; onClose: () => void; tab: InfoTab; onTabChange: (tab: InfoTab) => void; selectedStory?: string; onSelectedStoryChange: (story: string) => void }) {
   const { t } = useTranslation();
   const effective = useQuery({ queryKey: ["adoptions", "effective", asset.id], queryFn: () => adoptionsClient.listEffectiveAdoptions({ componentId: asset.id, limit: 100 }) });
-  return <div data-testid="hook-detail-page" className="flex min-h-0 flex-1 flex-col"><ComponentEditor id={asset.id} libraryId={asset.libraryId || asset.id} onClose={onClose} renderable={false} activePane={paneForTab(tab)} onActivePaneChange={(pane) => onTabChange(tabForPane(pane, tab))} selectedStory={selectedStory} onSelectedStoryChange={onSelectedStoryChange} navigationSlot={<DetailTabs active={tab} onChange={onTabChange} versionCount={asset.metrics?.versionCount ?? 0} adoptionCount={asset.metrics?.effectiveAdoptionCount ?? 0} renderable={false} />} metadataSlot={<aside data-testid="hook-workspace-details" className="space-y-3"><StatusBadge tone="info">{t("catalog.hookFixturePreview", { defaultValue: "Live fixture preview — declared inputs and adapters only." })}</StatusBadge><div className="flex flex-wrap gap-2 text-xs"><StatusBadge tone="neutral">{t("catalog.directAdoptions", { defaultValue: "{{count}} direct", count: asset.metrics?.directAdoptionCount ?? 0 })}</StatusBadge><StatusBadge tone="neutral">{t("catalog.effectiveAdoptions", { defaultValue: "{{count}} effective", count: asset.metrics?.effectiveAdoptionCount ?? 0 })}</StatusBadge></div>{tab === "overview" && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs"><dt className="text-app-muted-foreground">{t("catalog.kind", { defaultValue: "Kind" })}</dt><dd>{t("catalog.hook", { defaultValue: "Hook" })}</dd><dt className="text-app-muted-foreground">{t("catalog.source", { defaultValue: "Source" })}</dt><dd className="break-all font-mono">{asset.sourcePath || "—"}</dd></dl>}{tab === "tests" && <ComponentTestPanel componentId={asset.id} version={asset.latestVersion || asset.version} />}{tab === "versions" && <VersionsCard componentId={asset.id} onSelectVersion={() => undefined} onCompare={() => undefined} />}{tab === "adoptions" && <div data-testid="hook-effective-adoptions" className="space-y-2 text-xs">{effective.isLoading ? <p className="text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : (effective.data?.adoptions ?? []).length === 0 ? <EmptyState className="p-2 text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No recorded usage." })} /> : <ul className="space-y-2">{(effective.data?.adoptions ?? []).map((entry) => <li key={`${entry.sourceAssetId}:${entry.parentAdoption?.id}`} className="rounded-control border border-app-border p-2"><p className="font-medium">{entry.mediated ? t("catalog.indirectUsage", { defaultValue: "Indirect usage" }) : t("catalog.directUsage", { defaultValue: "Direct usage" })}</p><p className="mt-1">{entry.parentAdoption?.scenario} · {entry.parentAdoption?.adoptedVersion}</p><p className="mt-1 font-mono text-app-muted-foreground">{entry.parentAdoption?.id}</p></li>)}</ul>}</div>}</aside>} /></div>;
+  return <div data-testid="hook-detail-page" className="flex min-h-0 flex-1 flex-col"><ComponentEditor id={asset.id} libraryId={asset.libraryId || asset.id} onClose={onClose} renderable={false} activePane={paneForTab(tab)} onActivePaneChange={(pane) => onTabChange(tabForPane(pane, tab))} selectedStory={selectedStory} onSelectedStoryChange={onSelectedStoryChange} navigationSlot={<DetailTabs active={tab} onChange={onTabChange} versionCount={asset.metrics?.versionCount ?? 0} adoptionCount={asset.metrics?.effectiveAdoptionCount ?? 0} renderable={false} />} metadataSlot={<aside data-testid="hook-workspace-details" className="space-y-space-xs"><StatusBadge tone="info">{t("catalog.hookFixturePreview", { defaultValue: "Live fixture preview — declared inputs and adapters only." })}</StatusBadge><div className="flex flex-wrap gap-space-2xs text-xs"><StatusBadge tone="neutral">{t("catalog.directAdoptions", { defaultValue: "{{count}} direct", count: asset.metrics?.directAdoptionCount ?? 0 })}</StatusBadge><StatusBadge tone="neutral">{t("catalog.effectiveAdoptions", { defaultValue: "{{count}} effective", count: asset.metrics?.effectiveAdoptionCount ?? 0 })}</StatusBadge></div>{tab === "overview" && <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs"><dt className="text-app-muted-foreground">{t("catalog.kind", { defaultValue: "Kind" })}</dt><dd>{t("catalog.hook", { defaultValue: "Hook" })}</dd><dt className="text-app-muted-foreground">{t("catalog.source", { defaultValue: "Source" })}</dt><dd className="break-all font-mono">{asset.sourcePath || "—"}</dd></dl>}{tab === "tests" && <ComponentTestPanel componentId={asset.id} version={asset.latestVersion || asset.version} />}{tab === "versions" && <VersionsCard componentId={asset.id} onSelectVersion={() => undefined} onCompare={() => undefined} />}{tab === "adoptions" && <div data-testid="hook-effective-adoptions" className="space-y-space-2xs text-xs">{effective.isLoading ? <p className="text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : (effective.data?.adoptions ?? []).length === 0 ? <EmptyState className="p-space-2xs text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No recorded usage." })} /> : <ul className="space-y-space-2xs">{(effective.data?.adoptions ?? []).map((entry) => <li key={`${entry.sourceAssetId}:${entry.parentAdoption?.id}`} className="rounded-control border border-app-border p-space-2xs"><p className="font-medium">{entry.mediated ? t("catalog.indirectUsage", { defaultValue: "Indirect usage" }) : t("catalog.directUsage", { defaultValue: "Direct usage" })}</p><p className="mt-space-3xs">{entry.parentAdoption?.scenario} · {entry.parentAdoption?.adoptedVersion}</p><p className="mt-space-3xs font-mono text-app-muted-foreground">{entry.parentAdoption?.id}</p></li>)}</ul>}</div>}</aside>} /></div>;
 }
 
 export function ComponentDetailPage() {
@@ -228,6 +229,7 @@ export function ComponentDetailPage() {
       <ComponentEditor
         id={component.id}
         libraryId={component.libraryId || component.id}
+        stageMode={/navigation|pattern|sidebar|shell|pageframe|page-template|bottomnav/i.test(component.libraryId || component.id)}
         onClose={() => {
           void navigate("/");
         }}
@@ -241,12 +243,12 @@ export function ComponentDetailPage() {
         comparison={comparison}
         onCloseComparison={() => setComparison(null)}
         metadataSlot={(
-          <div className="space-y-4">
+          <div className="space-y-space-sm">
             {infoTab === "overview" && <>
               <ComponentExperiencePanel experience={experienceQuery.data} isLoading={experienceQuery.isLoading} isError={experienceQuery.isError} />
-              <section className="rounded-lg border border-app-border bg-app-surface-muted p-3 text-sm text-app-foreground">
+              <section className="rounded-lg border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-foreground">
                 <h3 className="font-medium">{t("componentDetail.info.identity", { defaultValue: "Identity" })}</h3>
-                <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                <dl className="mt-space-2xs grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
                   <dt className="text-app-muted-foreground">{t(strings.components.editor.libraryIdLabel)}</dt><dd className="break-all font-mono">{component.libraryId}</dd>
                   <dt className="text-app-muted-foreground">{t(strings.components.editor.slotLabel)}</dt><dd>{component.slot || "—"}</dd>
                   <dt className="text-app-muted-foreground">{t(strings.components.editor.categoryLabel)}</dt><dd>{component.category || headers.category || "—"}</dd>
@@ -254,21 +256,21 @@ export function ComponentDetailPage() {
                   <dt className="text-app-muted-foreground">{t("componentDetail.info.sourceHash", { defaultValue: "Source hash" })}</dt><dd className="break-all font-mono">{sourceContentQuery.data?.sha256 || "—"}</dd>
                 </dl>
               </section>
-              <section className="rounded-lg border border-app-border bg-app-surface-muted p-3 text-sm text-app-foreground">
+              <section className="rounded-lg border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-foreground">
                 <h3 className="font-medium">{t("componentDetail.info.affinities", { defaultValue: "Design affinities" })}</h3>
-                {designStyles.length === 0 ? <p className="mt-2 text-xs text-app-muted-foreground">{t("componentDetail.info.noAffinities", { defaultValue: "No design affinities declared." })}</p> : <ul className="mt-2 space-y-1 text-xs">{designStyles.map((affinity) => <li key={affinity.styleId}>{affinity.styleId}: {affinity.reason || affinity.affinity}</li>)}</ul>}
+                {designStyles.length === 0 ? <p className="mt-space-2xs text-xs text-app-muted-foreground">{t("componentDetail.info.noAffinities", { defaultValue: "No design affinities declared." })}</p> : <ul className="mt-space-2xs space-y-space-3xs text-xs">{designStyles.map((affinity) => <li key={affinity.styleId}>{affinity.styleId}: {affinity.reason || affinity.affinity}</li>)}</ul>}
               </section>
-              <section className="rounded-lg border border-app-border bg-app-surface-muted p-3 text-sm text-app-foreground">
+              <section className="rounded-lg border border-app-border bg-app-surface-muted p-space-xs text-sm text-app-foreground">
                 <h3 className="font-medium">{t("componentDetail.info.dependencies", { defaultValue: "Shared assets" })}</h3>
-                {dependencies.length === 0 ? <p className="mt-2 text-xs text-app-muted-foreground">{t("componentDetail.info.noDependencies", { defaultValue: "No shared assets declared." })}</p> : <ul className="mt-2 space-y-1 text-xs">{dependencies.map((dependency) => <li key={`${dependency.libraryId}@${dependency.version}`}><Link to={assetPath(dependency.libraryId, { tab: infoTab })} className="font-mono text-app-primary underline-offset-2 hover:underline">{dependency.libraryId}</Link><span className="text-app-muted-foreground"> · {dependency.version}</span></li>)}</ul>}
+                {dependencies.length === 0 ? <p className="mt-space-2xs text-xs text-app-muted-foreground">{t("componentDetail.info.noDependencies", { defaultValue: "No shared assets declared." })}</p> : <ul className="mt-space-2xs space-y-space-3xs text-xs">{dependencies.map((dependency) => <li key={`${dependency.libraryId}@${dependency.version}`}><Link to={assetPath(dependency.libraryId, { tab: infoTab })} className="font-mono text-app-primary underline-offset-2 hover:underline">{dependency.libraryId}</Link><span className="text-app-muted-foreground"> · {dependency.version}</span></li>)}</ul>}
               </section>
             </>}
             {infoTab === "tests" && <ComponentTestPanel componentId={component.id} version={selectedVersion ?? component.latestVersion ?? component.version} />}
             {infoTab === "versions" && <VersionsCard componentId={component.id} selectedVersion={selectedVersion} onSelectVersion={setSelectedVersion} onCompare={setComparison} />}
-            {infoTab === "adoptions" && <section data-testid="component-detail-adoptions" className="space-y-3 text-sm text-app-foreground">
+            {infoTab === "adoptions" && <section data-testid="component-detail-adoptions" className="space-y-space-xs text-sm text-app-foreground">
               <div className="flex items-center justify-between"><h3 className="font-medium">{t("componentDetail.info.adoptions", { defaultValue: "Adoptions" })}</h3><Button size="sm" onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>{refreshMutation.isPending ? t(strings.adoptions.refreshing) : t(strings.adoptions.refreshAction)}</Button></div>
-              {adoptionsQuery.isLoading ? <p className="text-xs text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : adoptions.length === 0 ? <EmptyState className="p-2 text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No scenarios have adopted this component yet." })} /> : <div className="space-y-2">{adoptions.map((adoption) => <Button key={adoption.id} type="button" variant="secondary" onClick={() => setSelectedAdoptionID(adoption.id)} className={`h-auto w-full rounded-control border p-2 text-left ${selectedAdoption?.id === adoption.id ? "border-app-primary" : "border-app-border"}`}><div className="flex items-center justify-between gap-2"><span className="font-medium">{adoption.scenario}</span><StatusBadge tone={statusTone(adoption.libraryVersionStatus, adoption.localStatus)}>{statusLabel(adoption.libraryVersionStatus, adoption.localStatus)}</StatusBadge></div><p className="mt-1 font-mono text-xs text-app-muted-foreground">{adoption.adoptedVersion} · {adoption.adoptedPath}</p></Button>)}</div>}
-              {selectedAdoption && <ul data-testid="component-detail-adoption-file-tree" className="space-y-1 rounded-control bg-app-background p-2 font-mono text-xs text-app-muted-foreground">{(selectedAdoption.files.length > 0 ? selectedAdoption.files.map((file) => file.adoptedPath) : [selectedAdoption.adoptedPath]).map((path) => <li key={path}>{path}</li>)}</ul>}
+              {adoptionsQuery.isLoading ? <p className="text-xs text-app-muted-foreground">{t("componentDetail.info.adoptionsLoading", { defaultValue: "Loading adoptions…" })}</p> : adoptions.length === 0 ? <EmptyState className="p-space-2xs text-xs" title={t("componentDetail.info.noAdoptions", { defaultValue: "No scenarios have adopted this component yet." })} /> : <div className="space-y-space-2xs">{adoptions.map((adoption) => <Button key={adoption.id} type="button" variant="secondary" onClick={() => setSelectedAdoptionID(adoption.id)} className={`h-auto w-full rounded-control border p-space-2xs text-left ${selectedAdoption?.id === adoption.id ? "border-app-primary" : "border-app-border"}`}><div className="flex items-center justify-between gap-space-2xs"><span className="font-medium">{adoption.scenario}</span><StatusBadge tone={statusTone(adoption.libraryVersionStatus, adoption.localStatus)}>{statusLabel(adoption.libraryVersionStatus, adoption.localStatus)}</StatusBadge></div><p className="mt-space-3xs font-mono text-xs text-app-muted-foreground">{adoption.adoptedVersion} · {adoption.adoptedPath}</p></Button>)}</div>}
+              {selectedAdoption && <ul data-testid="component-detail-adoption-file-tree" className="space-y-space-3xs rounded-control bg-app-background p-space-2xs font-mono text-xs text-app-muted-foreground">{(selectedAdoption.files.length > 0 ? selectedAdoption.files.map((file) => file.adoptedPath) : [selectedAdoption.adoptedPath]).map((path) => <li key={path}>{path}</li>)}</ul>}
               <AdoptionsCard componentId={component.id} suggestionsOnly />
             </section>}
           </div>

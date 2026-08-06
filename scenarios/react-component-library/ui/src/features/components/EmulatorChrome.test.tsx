@@ -70,6 +70,17 @@ describe("EmulatorChrome", () => {
     expect(screen.getByTestId(selectors.components.emulator.viewport).style.transform).toContain("scale(0.9)");
   });
 
+  it("fits the declared viewport to the available emulator frame", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+    const frame = screen.getByTestId(selectors.components.emulator.viewportFrame);
+    Object.defineProperty(frame, "clientWidth", { configurable: true, value: 500 });
+    Object.defineProperty(frame, "clientHeight", { configurable: true, value: 500 });
+    await openViewport(user);
+    await user.click(screen.getByTestId("components-emulator-fit"));
+    expect(screen.getByTestId(selectors.components.emulator.viewport).style.transform).toContain("scale(0.37)");
+  });
+
   it("returns focus to Viewport after Escape", async () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness />);

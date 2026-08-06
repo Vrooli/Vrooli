@@ -1,3 +1,4 @@
+/** @vrooliComponentSource overlays.popover */
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
@@ -73,7 +74,7 @@ export function AnchoredMenu({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={id}
-        className="touch-target inline-flex h-11 min-h-11 max-w-full items-center justify-center gap-1.5 rounded-control border border-app-border bg-app-surface px-2.5 text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+        className="touch-target inline-flex h-11 min-h-11 max-w-full items-center justify-center gap-space-2xs rounded-control border border-app-border bg-app-surface px-space-xs text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
         onClick={() => setOpen((current) => !current)}
       >
         {icon}
@@ -88,7 +89,7 @@ export function AnchoredMenu({
           data-testid={panelTestId}
           role="dialog"
           aria-label={label}
-          className="absolute left-0 top-full z-40 mt-1 max-h-96 w-80 overflow-y-auto rounded-md border border-app-border bg-app-surface p-3 text-app-foreground shadow-xl"
+          className="absolute left-0 top-full z-40 mt-space-3xs max-h-96 w-80 overflow-y-auto rounded-md border border-app-border bg-app-surface p-space-xs text-app-foreground shadow-xl"
         >
           {children}
         </div>

@@ -16,6 +16,13 @@ import (
 
 type Finding struct{ Code, AssetID, Message string }
 
+// Result makes runner coverage observable. A gate that reports no findings
+// after inspecting zero inputs is not a passing gate; it is a broken runner.
+type Result struct {
+	Findings  []Finding
+	Inspected int
+}
+
 type assetDoc struct {
 	Asset struct {
 		ID, Kind, Name string
@@ -30,6 +37,10 @@ type assetDoc struct {
 	} `json:"api"`
 	Fixture *struct {
 		DataShapes []string `json:"dataShapes"`
+		Satisfies  *struct {
+			Capability    string   `json:"capability"`
+			TypeArguments []string `json:"typeArguments"`
+		} `json:"satisfies"`
 	} `json:"fixture"`
 }
 
@@ -57,38 +68,39 @@ func loadAssets(root string) ([]assetDoc, error) {
 // ValidateAPI checks declared API vocabulary against the implementation
 // source selected by catalogId. Missing implementations are not failures of
 // this runner; coverage keeps those assets at missing/scaffolded.
-func ValidateAPI(root string) ([]Finding, error) {
+func ValidateAPI(root string) (Result, error) {
 	assets, err := loadAssets(root)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
-	var findings []Finding
+	result := Result{}
 	for _, asset := range assets {
 		if asset.API == nil {
 			continue
 		}
 		manifest, source, ok, err := implementationSource(root, asset.Asset.ID)
 		if err != nil {
-			return nil, err
+			return Result{}, err
 		}
 		if !ok {
 			continue
 		}
 		data, err := os.ReadFile(source)
 		if err != nil {
-			return nil, err
+			return Result{}, err
 		}
+		result.Inspected++
 		text := string(data)
 		for group, values := range asset.API.Variants {
 			for _, value := range values {
 				if !strings.Contains(text, value) {
-					findings = append(findings, Finding{"catalog.api_mismatch", asset.Asset.ID, fmt.Sprintf("declared %s variant %q is absent from %s", group, value, manifest)})
+					result.Findings = append(result.Findings, Finding{"catalog.api_mismatch", asset.Asset.ID, fmt.Sprintf("declared %s variant %q is absent from %s", group, value, manifest)})
 				}
 			}
 		}
 		for _, value := range asset.API.Modes {
 			if !strings.Contains(text, value) {
-				findings = append(findings, Finding{"catalog.api_mismatch", asset.Asset.ID, fmt.Sprintf("declared mode %q is absent from %s", value, manifest)})
+				result.Findings = append(result.Findings, Finding{"catalog.api_mismatch", asset.Asset.ID, fmt.Sprintf("declared mode %q is absent from %s", value, manifest)})
 			}
 		}
 		for _, rawPart := range asset.API.Parts {
@@ -101,23 +113,23 @@ func ValidateAPI(root string) ([]Finding, error) {
 				partID = part.ID
 			}
 			if partID != "" && !strings.Contains(text, partID) {
-				findings = append(findings, Finding{"catalog.api_mismatch", asset.Asset.ID, fmt.Sprintf("declared part %q is absent from %s", partID, manifest)})
+				result.Findings = append(result.Findings, Finding{"catalog.api_mismatch", asset.Asset.ID, fmt.Sprintf("declared part %q is absent from %s", partID, manifest)})
 			}
 		}
 	}
-	return findings, nil
+	return nonEmpty(result, "api"), nil
 }
 
 func implementationSource(root, catalogID string) (string, string, bool, error) {
-	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "components", "*", "component.json"))
-	if err != nil {
-		return "", "", false, err
+	paths := []string{}
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		matches, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		if err != nil {
+			return "", "", false, err
+		}
+		paths = append(paths, matches...)
 	}
-	paths2, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "hooks", "*", "component.json"))
-	if err != nil {
-		return "", "", false, err
-	}
-	paths = append(paths, paths2...)
+	sort.Strings(paths)
 	for _, manifest := range paths {
 		data, err := os.ReadFile(manifest)
 		if err != nil {
@@ -134,9 +146,14 @@ func implementationSource(root, catalogID string) (string, string, bool, error) 
 			return manifest, "", false, nil
 		}
 		rootDir := filepath.Dir(manifest)
-		source := filepath.Join(rootDir, doc.Latest, filepath.Base(rootDir)+".tsx")
+		versionDir := filepath.Join(rootDir, "versions", doc.Latest)
+		source := filepath.Join(versionDir, filepath.Base(rootDir)+".tsx")
 		if _, err := os.Stat(source); err != nil {
-			matches, _ := filepath.Glob(filepath.Join(rootDir, doc.Latest, "*.tsx"))
+			matches := versionSources(versionDir)
+			if len(matches) == 0 {
+				versionDir = filepath.Join(rootDir, doc.Latest)
+				matches = versionSources(versionDir)
+			}
 			if len(matches) == 0 {
 				return manifest, "", false, nil
 			}
@@ -147,103 +164,183 @@ func implementationSource(root, catalogID string) (string, string, bool, error) 
 	return "", "", false, nil
 }
 
-var pxValue = regexp.MustCompile(`--space-[a-z0-9-]+\s*:\s*([0-9.]+)px`)
-var literalDimension = regexp.MustCompile(`(?:\b(?:p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|w|h)-[0-9]+(?:\.[0-9]+)?\b|\[[0-9.]+px\])`)
+func versionSources(versionDir string) []string {
+	var matches []string
+	for _, extension := range []string{"*.tsx", "*.ts"} {
+		found, _ := filepath.Glob(filepath.Join(versionDir, extension))
+		matches = append(matches, found...)
+	}
+	sort.Strings(matches)
+	return matches
+}
+
+var (
+	pxValue          = regexp.MustCompile(`--space-[a-z0-9-]+\s*:\s*([0-9.]+)px`)
+	literalDimension = regexp.MustCompile(`(?:\b(?:p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|w|h)-[0-9]+(?:\.[0-9]+)?\b|\[[0-9.]+px\])`)
+)
 
 // ValidateTokens checks the shared ramp contract in every design kit and
 // rejects non-grid spacing declarations.
-func ValidateTokens(root string) ([]Finding, error) {
+func ValidateTokens(root string) (Result, error) {
 	paths, err := filepath.Glob(filepath.Join(root, "templates", "design", "*", "adapters", "react-vite-tailwind", "tokens.css"))
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
 	shared := []string{"space-3xs", "space-2xs", "space-xs", "space-sm", "space-md", "space-lg", "space-xl", "space-2xl", "text-display", "text-title", "text-heading", "text-body", "elev-flat", "elev-raised", "layer-base", "layer-modal", "dur-instant"}
-	var findings []Finding
+	result := Result{}
 	for _, path := range paths {
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return nil, err
+			return Result{}, err
 		}
 		text := string(data)
 		kit := filepath.Base(filepath.Dir(filepath.Dir(filepath.Dir(path))))
 		for _, token := range shared {
 			if !strings.Contains(text, "--"+token) {
-				findings = append(findings, Finding{"catalog.tokens_missing", "foundations.tokens", fmt.Sprintf("%s does not declare shared token --%s", kit, token)})
+				result.Findings = append(result.Findings, Finding{"catalog.tokens_missing", "foundations.tokens", fmt.Sprintf("%s does not declare shared token --%s", kit, token)})
 			}
 		}
 		for _, match := range pxValue.FindAllStringSubmatch(text, -1) {
 			value, _ := strconv.ParseFloat(match[1], 64)
 			if int(value)%4 != 0 {
-				findings = append(findings, Finding{"catalog.tokens_grid", "foundations.tokens", fmt.Sprintf("%s spacing token is not on the 4px grid: %spx", kit, match[1])})
+				result.Findings = append(result.Findings, Finding{"catalog.tokens_grid", "foundations.tokens", fmt.Sprintf("%s spacing token is not on the 4px grid: %spx", kit, match[1])})
 			}
 		}
 	}
-	for _, kind := range []string{"components", "hooks"} {
-		sources, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "*.tsx"))
-		if err != nil {
-			return nil, err
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		sources := []string{}
+		for _, extension := range []string{"*.tsx", "*.ts"} {
+			matches, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "versions", "*", extension))
+			if err != nil {
+				return Result{}, err
+			}
+			sources = append(sources, matches...)
 		}
+		sort.Strings(sources)
 		for _, path := range sources {
 			data, err := os.ReadFile(path)
 			if err != nil {
-				return nil, err
+				return Result{}, err
 			}
-			if match := literalDimension.FindString(string(data)); match != "" {
-				findings = append(findings, Finding{"catalog.tokens_literal", filepath.Base(filepath.Dir(filepath.Dir(path))), fmt.Sprintf("implementation contains literal dimension %q; use a declared semantic token", match)})
+			result.Inspected++
+			for _, match := range literalDimension.FindAllString(string(data), -1) {
+				result.Findings = append(result.Findings, Finding{"catalog.tokens_literal", implementationName(path), fmt.Sprintf("implementation contains literal dimension %q; use a declared semantic token", match)})
 			}
 		}
 	}
-	return findings, nil
+	return nonEmpty(result, "tokens"), nil
 }
 
 // ValidateLifecycle performs conservative static checks over hook/service/
 // adapter/generator sources. It deliberately prefers a finding over a green
 // result when cleanup evidence is absent.
-func ValidateLifecycle(root string) ([]Finding, error) {
-	var findings []Finding
-	for _, kind := range []string{"hooks", "components"} {
-		paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "*.tsx"))
-		if err != nil {
-			return nil, err
+func ValidateLifecycle(root string) (Result, error) {
+	result := Result{}
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		paths := []string{}
+		for _, extension := range []string{"*.tsx", "*.ts"} {
+			matches, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "versions", "*", extension))
+			if err != nil {
+				return Result{}, err
+			}
+			paths = append(paths, matches...)
 		}
+		sort.Strings(paths)
 		for _, path := range paths {
 			data, err := os.ReadFile(path)
 			if err != nil {
-				return nil, err
+				return Result{}, err
 			}
+			result.Inspected++
 			text := string(data)
 			if strings.Contains(text, "addEventListener") && !strings.Contains(text, "removeEventListener") {
-				findings = append(findings, Finding{"catalog.lifecycle_cleanup", filepath.Base(filepath.Dir(filepath.Dir(path))), "adds an event listener without a matching removal"})
+				result.Findings = append(result.Findings, Finding{"catalog.lifecycle_cleanup", implementationName(path), "adds an event listener without a matching removal"})
 			}
 			if strings.Contains(text, "new MutationObserver") && !strings.Contains(text, ".disconnect(") {
-				findings = append(findings, Finding{"catalog.lifecycle_cleanup", filepath.Base(filepath.Dir(filepath.Dir(path))), "creates an observer without disconnect cleanup"})
+				result.Findings = append(result.Findings, Finding{"catalog.lifecycle_cleanup", implementationName(path), "creates an observer without disconnect cleanup"})
 			}
-			if strings.Contains(text, "window.") && strings.Contains(text, "export") && strings.Contains(text, "typeof window") == false {
-				findings = append(findings, Finding{"catalog.lifecycle_ssr", filepath.Base(filepath.Dir(filepath.Dir(path))), "accesses window without an SSR guard"})
+			if strings.Contains(text, "window.") && strings.Contains(text, "export") && !strings.Contains(text, "typeof window") {
+				result.Findings = append(result.Findings, Finding{"catalog.lifecycle_ssr", implementationName(path), "accesses window without an SSR guard"})
 			}
 		}
 	}
-	return findings, nil
+	return nonEmpty(result, "lifecycle"), nil
 }
 
-func ValidateFixtures(root string) ([]Finding, error) {
+func implementationName(path string) string {
+	return filepath.Base(filepath.Dir(filepath.Dir(filepath.Dir(path))))
+}
+
+func ValidateFixtures(root string) (Result, error) {
 	assets, err := loadAssets(root)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
-	var findings []Finding
+	result := Result{}
 	for _, asset := range assets {
 		if asset.Asset.Kind != "fixture" || asset.Fixture == nil {
 			continue
 		}
+		result.Inspected++
 		if len(asset.Fixture.DataShapes) == 0 {
-			findings = append(findings, Finding{"catalog.fixture_adversarial", asset.Asset.ID, "fixture declares no adversarial data shapes"})
+			result.Findings = append(result.Findings, Finding{"catalog.fixture_adversarial", asset.Asset.ID, "fixture declares no adversarial data shapes"})
 		}
 		if !contains(asset.Fixture.DataShapes, "failure") && !contains(asset.Fixture.DataShapes, "overflow") {
-			findings = append(findings, Finding{"catalog.fixture_adversarial", asset.Asset.ID, "fixture must include failure or overflow data"})
+			result.Findings = append(result.Findings, Finding{"catalog.fixture_adversarial", asset.Asset.ID, "fixture must include failure or overflow data"})
+		}
+		if asset.Fixture.Satisfies != nil && asset.Fixture.Satisfies.Capability == "data-source" && len(asset.Fixture.Satisfies.TypeArguments) == 0 {
+			result.Findings = append(result.Findings, Finding{"catalog.fixture_data_source", asset.Asset.ID, "data-source fixture must declare a type argument"})
 		}
 	}
-	return findings, nil
+	return nonEmpty(result, "fixture_adversarial"), nil
+}
+
+// ValidateExamples checks that renderable assets have a public story contract
+// beside their released source. Enum completeness is validated by the story
+// contract parser in the registry; this gate owns the filesystem-level
+// requirement so coverage never promotes a primitive with no specimen.
+func ValidateExamples(root string) (Result, error) {
+	result := Result{}
+	for _, kind := range []string{"components", "primitives"} {
+		manifests, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		if err != nil {
+			return Result{}, err
+		}
+		sort.Strings(manifests)
+		for _, manifestPath := range manifests {
+			data, err := os.ReadFile(manifestPath)
+			if err != nil {
+				return Result{}, err
+			}
+			var manifest struct {
+				Latest string `json:"latest"`
+			}
+			if err := json.Unmarshal(data, &manifest); err != nil {
+				return Result{}, err
+			}
+			result.Inspected++
+			storyPath := filepath.Join(filepath.Dir(manifestPath), "versions", manifest.Latest, "story.json")
+			if _, err := os.Stat(storyPath); err != nil {
+				if os.IsNotExist(err) {
+					result.Findings = append(result.Findings, Finding{"catalog.examples_missing", filepath.Base(filepath.Dir(manifestPath)), "released renderable asset has no story.json specimen"})
+					continue
+				}
+				return Result{}, err
+			}
+		}
+	}
+	return nonEmpty(result, "examples"), nil
+}
+
+func nonEmpty(result Result, gate string) Result {
+	if result.Inspected == 0 {
+		result.Findings = append(result.Findings, Finding{
+			Code:    "catalog." + gate + "_zero_inspected",
+			AssetID: "catalog.runner",
+			Message: "gate inspected zero inputs; runner configuration is stale or broken",
+		})
+	}
+	return result
 }
 
 func contains(values []string, wanted string) bool {

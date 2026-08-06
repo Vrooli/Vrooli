@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:useDirection",
+  "catalogId": "hooks.use-direction",
+  "displayName": "useDirection",
+  "description": "Production-ready useDirection hook with SSR-safe lifecycle behavior.",
+  "assetKind": "hook",
+  "tags": ["runtime", "accessibility"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"}],
+  "dependencies": []
+}

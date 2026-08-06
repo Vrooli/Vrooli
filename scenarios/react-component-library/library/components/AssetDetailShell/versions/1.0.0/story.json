@@ -163,6 +163,42 @@
           "name": "Some information is unavailable."
         }
       ]
+    },
+    {
+      "id": "activity-loading",
+      "name": "Loading activity",
+      "args": {
+        "title": "Release artifact",
+        "preview": { "$node": "div", "children": [{ "$text": "Artifact preview" }] },
+        "metadata": { "$node": "p", "children": [{ "$text": "Version 1.2.0" }] },
+        "activityState": "loading",
+        "activityLoading": { "$node": "p", "children": [{ "$text": "Loading checks…" }] }
+      },
+      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"asset-activity\"]", "name": "data-experience-state", "value": "loading" }]
+    },
+    {
+      "id": "activity-empty",
+      "name": "Empty activity",
+      "args": {
+        "title": "Release artifact",
+        "preview": { "$node": "div", "children": [{ "$text": "Artifact preview" }] },
+        "metadata": { "$node": "p", "children": [{ "$text": "Version 1.2.0" }] },
+        "activityState": "empty",
+        "activityEmpty": { "$node": "p", "children": [{ "$text": "No checks yet." }] }
+      },
+      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"asset-activity\"]", "name": "data-experience-state", "value": "empty" }]
+    },
+    {
+      "id": "activity-error",
+      "name": "Activity error",
+      "args": {
+        "title": "Release artifact",
+        "preview": { "$node": "div", "children": [{ "$text": "Artifact preview" }] },
+        "metadata": { "$node": "p", "children": [{ "$text": "Version 1.2.0" }] },
+        "activityState": "error",
+        "activityError": { "$node": "p", "children": [{ "$text": "Checks could not be loaded." }] }
+      },
+      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"asset-activity\"]", "name": "data-experience-state", "value": "error" }]
     }
   ]
 }

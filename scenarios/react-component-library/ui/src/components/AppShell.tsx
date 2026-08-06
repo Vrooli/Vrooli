@@ -1,4 +1,5 @@
-/**
+/** @vrooliComponentSource navigation.app-shell
+ *
  * AppShell — full-width operational shell.
  *
  * Desktop (≥ md): resizable left sidebar + main content. The sidebar is
@@ -13,8 +14,8 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import { SidebarShell } from "../../../library/components/SidebarShell/versions/1.1.0/SidebarShell";
-import { WorkspaceHeader } from "../../../library/components/WorkspaceHeader/versions/1.0.0/WorkspaceHeader";
+import { SidebarShell } from "./SidebarShell";
+import { WorkspaceHeader } from "./WorkspaceHeader";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useTranslation } from "../i18n";
@@ -24,8 +25,8 @@ import { SidebarContent } from "./Sidebar";
 import { ShellNavigationContext } from "./ShellNavigationContext";
 import { CatalogBrowser } from "../features/catalog/CatalogBrowser";
 import { CreateComponentDialog } from "../features/components/CreateComponentDialog";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
+import { Button } from "./Button";
+import { Input } from "./Input";
 import { ActionLauncher, type LauncherAction } from "./ActionLauncher";
 
 const SIDEBAR_STORAGE = "react-component-library.sidebar.width.v1";
@@ -85,8 +86,8 @@ export function AppShell({ children }: Props) {
 
   const isComponentDetail = /^\/assets\/[^/]+/.test(location.pathname);
   const isCatalog = location.pathname === "/" || location.pathname === "/catalog";
-  const pageTitle = isComponentDetail ? t("catalog.title", { defaultValue: "Component Library" }) : location.pathname === "/settings" ? t("settings.title", { defaultValue: "Settings" }) : isCatalog ? t("catalog.title", { defaultValue: "Library workspace" }) : t("app.brand", { defaultValue: "Component Library" });
-  const pageDescription = isComponentDetail ? t("components.editor.subtitle", { defaultValue: "Source, preview, and viewport controls" }) : location.pathname === "/settings" ? t("settings.subtitle", { defaultValue: "Theme and locale preferences persist locally in your browser." }) : isCatalog ? t("catalog.subtitle", { defaultValue: "Find reusable components and non-renderable hooks." }) : t("app.brand", { defaultValue: "Component Library" });
+  const pageTitle = isComponentDetail ? t("catalog.title", { defaultValue: "Component Library" }) : location.pathname === "/settings" ? t("settings.title", { defaultValue: "Settings" }) : location.pathname === "/coverage" ? "Catalog coverage" : location.pathname === "/capabilities" ? "Capability readiness" : isCatalog ? t("catalog.title", { defaultValue: "Library workspace" }) : t("app.brand", { defaultValue: "Component Library" });
+  const pageDescription = isComponentDetail ? t("components.editor.subtitle", { defaultValue: "Source, preview, and viewport controls" }) : location.pathname === "/settings" ? t("settings.subtitle", { defaultValue: "Theme and locale preferences persist locally in your browser." }) : location.pathname === "/coverage" ? "Maturity distribution and ranked next work" : location.pathname === "/capabilities" ? "Integration readiness and recovery guidance" : isCatalog ? t("catalog.subtitle", { defaultValue: "Find reusable components and non-renderable hooks." }) : t("app.brand", { defaultValue: "Component Library" });
 
   return (
     <ShellNavigationContext.Provider value={{ sidebarCollapsed, openSidebar }}>
@@ -132,7 +133,7 @@ export function AppShell({ children }: Props) {
           className={
             isComponentDetail
               ? "pb-safe flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-auto p-0 pb-20 md:pb-0"
-              : "pb-safe min-w-0 w-0 max-w-full flex-1 overflow-auto px-4 py-4 pb-20 md:px-8 md:py-6 md:pb-8"
+              : "pb-safe min-w-0 w-0 max-w-full flex-1 overflow-auto px-space-sm py-space-sm pb-20 md:px-space-lg md:py-space-md md:pb-space-lg"
           }
         >
           {children ?? <Outlet />}

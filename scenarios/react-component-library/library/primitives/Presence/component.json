@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:Presence",
+  "catalogId": "primitives.presence",
+  "displayName": "Presence",
+  "description": "Presence provides a predictable conditional mount boundary.",
+  "assetKind": "primitive",
+  "tags": ["primitive", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-command-display","affinity":"compatible"},{"styleId":"vrooli-conversion-landing","affinity":"compatible"}],
+  "dependencies": []
+}

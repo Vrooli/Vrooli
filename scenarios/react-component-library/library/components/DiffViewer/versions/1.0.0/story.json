@@ -1,0 +1,1 @@
+{"schemaVersion":1,"kind":"component","title":"DiffViewer","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"before":"old","after":"new"},"expect":[{"kind":"text","value":"new"}]},{"id":"empty","name":"Empty","args":{"before":"old","after":"new"}}]}

@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "contract": { "kind": "rcl-component-experience-contract", "schema": "scenario-experience-spec/v1", "provenance": "react-component-library:AppNavigation@1.0.0" },
+  "component": { "id": "app-navigation", "title": "AppNavigation", "purpose": "One navigation model changes presentation with viewport while preserving its content and capability parity.", "storyRef": "../../library/components/AppNavigation/versions/1.0.0/story.json" },
+  "states": [
+    { "id": "desktop", "example": "desktop", "description": "Persistent sidebar presentation." },
+    { "id": "tablet", "example": "tablet", "description": "Drawer presentation for constrained workspaces." },
+    { "id": "mobile", "example": "mobile", "description": "Bottom-navigation presentation for compact viewports." }
+  ],
+  "elements": [
+    { "id": "sidebar", "role": "complementary", "description": "Persistent desktop navigation." },
+    { "id": "drawer", "role": "complementary", "description": "Constrained-viewport drawer navigation." },
+    { "id": "bottom-navigation", "role": "navigation", "description": "Compact-viewport bottom navigation." }
+  ],
+  "claims": [
+    { "id": "sidebar-presentation", "type": "element-present", "statement": "Desktop navigation is presented as a persistent sidebar.", "tier": "machine", "elements": ["sidebar"], "states": ["desktop"], "viewports": ["desktop", "wide"] },
+    { "id": "drawer-presentation", "type": "element-present", "statement": "Tablet navigation is presented as a drawer.", "tier": "machine", "elements": ["drawer"], "states": ["tablet"], "viewports": ["tablet"] },
+    { "id": "bottom-navigation-presentation", "type": "element-present", "statement": "Mobile navigation is presented as bottom navigation.", "tier": "machine", "elements": ["bottom-navigation"], "states": ["mobile"], "viewports": ["mobile"] }
+  ],
+  "bindings": { "elements": { "sidebar": { "testid": "app-navigation-sidebar" }, "drawer": { "testid": "app-navigation-drawer" }, "bottom-navigation": { "testid": "app-navigation-bottom-navigation" } } }
+}

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"kind":"component","title":"JsonViewer","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"value":{"state":"ready"}},"expect":[{"kind":"text","value":"ready"}]},{"id":"empty","name":"Empty","args":{"value":{"state":"ready"}}}]}

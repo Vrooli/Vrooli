@@ -1,0 +1,841 @@
+/** @vrooliComponentSource patterns.master-detail-workspace */
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type Monaco } from "@monaco-editor/react";
+import type { editor } from "monaco-editor";
+import { ArrowLeft, ChevronDown, ChevronUp, Eye, Info, Maximize2, Menu, Minimize2, PanelsLeftRight } from "lucide-react";
+import { Group, Panel, Separator, type PanelImperativeHandle } from "react-resizable-panels";
+
+import { Button } from "../../components/Button";
+import { IconButton } from "../../components/IconButton";
+import { StatusBadge } from "../../components/StatusBadge";
+import { useTheme } from "../../components/theme/useTheme";
+import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
+import { useTranslation } from "../../i18n";
+import { componentsClient, listComponentStories, type ComponentStory } from "../../api/components";
+import { useComponentInspector } from "../../hooks/useComponentInspector";
+import { useDeviceEmulation } from "../../hooks/useDeviceEmulation";
+import { useDeviceFilters } from "../../hooks/useDeviceFilters";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { errorMessage } from "../../lib/errorMessage";
+import { EmulatorToolbar } from "./EmulatorChrome";
+import { ComponentEditorStage } from "./ComponentEditorStage";
+import { ComponentEditorSource } from "./ComponentEditorSource";
+import { ComponentEditorMobileTools, ComponentEditorTools } from "./ComponentEditorTools";
+import { ThemeSwitcher, type PreviewKit } from "./ThemeSwitcher";
+import { DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplates";
+import { AssetWorkspace } from "../assets/AssetWorkspace";
+import type { DiffRow } from "../../api/versions";
+import { ExperienceSurface } from "../../components/ExperienceSurface/versions/1.0.0/ExperienceSurface";
+import { WorkspaceHeader } from "../../components/WorkspaceHeader";
+import { useShellNavigation } from "../../components/ShellNavigationContext";
+
+const PREVIEW_LOAD_TIMEOUT_MS = 8_000;
+const PANEL_LAYOUT_STORAGE_KEY = "rcl.component-editor.split-view.v1";
+const DEFAULT_DESKTOP_PANEL_LAYOUT = { primary: 50, secondary: 50 };
+const DEFAULT_PANE_ORDER = ["details", "files", "preview"] as const;
+
+type WorkspacePane = (typeof DEFAULT_PANE_ORDER)[number];
+type FilesView = "tree" | "source" | "diff";
+type SpecimenIdentity = `${string}:${string}`;
+type PreviewSpecimen = {
+  id: string; componentId: string; libraryId: string; version: string;
+  name: string; displayName: string; propsJson: string; environment: Record<string, string>; expectJson: string;
+  sourcePath: string; storyId: string; description?: string;
+};
+
+type PreviewEvent = { story: string; name: string; args: unknown[]; ts: number };
+const MAX_PREVIEW_EVENTS = 200;
+
+
+function specimenIdentity(example?: Pick<PreviewSpecimen, "version" | "name">): SpecimenIdentity {
+  return `${example?.version || "__current__"}:${example?.name || "__default__"}`;
+}
+
+function withoutRecordKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  return Object.fromEntries(Object.entries(record).filter(([candidate]) => candidate !== key));
+}
+
+export interface ComparisonSession {
+  fromLabel: string;
+  toLabel: string;
+  rows: DiffRow[];
+}
+
+function loadSplitLayout(): Record<string, number> {
+  const fallback = DEFAULT_DESKTOP_PANEL_LAYOUT;
+  try {
+    const raw = window.localStorage.getItem(PANEL_LAYOUT_STORAGE_KEY);
+    if (!raw) return fallback;
+    const saved = JSON.parse(raw) as Record<string, number>;
+    return { ...fallback, ...saved };
+  } catch {
+    return fallback;
+  }
+}
+
+// JSDOM does not provide ResizeObserver, while the browser-only panel library
+// requires one at mount time. The fallback is intentionally inert: production
+// browsers retain the native observer and panel sizing; unit tests only need a
+// stable layout tree.
+if (typeof ResizeObserver === "undefined") {
+  class NoopResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  globalThis.ResizeObserver = NoopResizeObserver;
+}
+
+/**
+ * Build the harness URL the iframe loads. The query param `v` is the
+ * latest content sha256 — when the sha changes (i.e. after a save),
+ * React's `src` diff forces the iframe to reload. The harness route is
+ * served by the API at the same origin as the Connect transport.
+ */
+interface ComponentEditorProps {
+  id: string;
+  libraryId: string;
+  onClose: () => void;
+  metadataSlot?: ReactNode;
+  /** Asset-level navigation stays visible while Files or Preview replaces Details. */
+  navigationSlot?: ReactNode;
+  selectedVersion?: string;
+  comparison?: ComparisonSession | null;
+  onCloseComparison?: () => void;
+  /** Hooks share the source/details workspace but intentionally omit preview. */
+  renderable?: boolean;
+  /** Asset pages control the normal one-pane view from their URL-backed tabs. */
+  activePane?: WorkspacePane;
+  onActivePaneChange?: (pane: WorkspacePane) => void;
+  selectedStory?: string;
+  onSelectedStoryChange?: (story: string) => void;
+  /** Lets the asset-page root expose preview readiness to external automation. */
+  onPreviewExperienceStateChange?: (state: "loading" | "partial" | "ready" | "error") => void;
+  /** Structural assets open in the single-specimen stage; ordinary components keep the gallery. */
+  stageMode?: boolean;
+}
+
+/**
+ * ComponentEditor opens a Monaco TSX editor over a component's source
+ * file. Mounts as a full-card surface; the user returns to the list
+ * via Back-to-list. Save POSTs the buffer through
+ * `componentsClient.updateComponentContent` with the optimistic-
+ * concurrency `expectedSha256` taken from the most recent server
+ * fetch — the server rejects with FailedPrecondition when the on-disk
+ * file moved underneath us, so the user sees a typed error instead of
+ * silently overwriting drift.
+ */
+export function ComponentEditorImpl({
+  id,
+  libraryId,
+  onClose,
+  metadataSlot,
+  navigationSlot,
+  selectedVersion,
+  comparison,
+  onCloseComparison,
+  renderable = true,
+  activePane,
+  onActivePaneChange,
+  selectedStory,
+  onSelectedStoryChange,
+  onPreviewExperienceStateChange,
+  stageMode: initialStageMode = false,
+}: ComponentEditorProps) {
+  const { t } = useTranslation();
+  const shellNavigation = useShellNavigation();
+  const queryClient = useQueryClient();
+  const emulator = useDeviceEmulation();
+  const filters = useDeviceFilters();
+  const desktopLayout = useMediaQuery("(min-width: 1024px)");
+  const { resolved: appResolvedTheme } = useTheme();
+  const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const previewStageRef = useRef<HTMLDivElement | null>(null);
+  const previewCanvasRef = useRef<HTMLDivElement | null>(null);
+  const previewToolsPanelRef = useRef<PanelImperativeHandle | null>(null);
+  const previewFramesRef = useRef(new Set<HTMLIFrameElement>());
+  const specimenFramesRef = useRef(new Map<SpecimenIdentity, HTMLIFrameElement>());
+  const inspector = useComponentInspector(previewFrameRef);
+  const [selectedFile, setSelectedFile] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState(DEFAULT_ADOPTION_TEMPLATE);
+  const versionsQuery = useQuery({
+    queryKey: ["components", "versions", id],
+    queryFn: () => componentsClient.listComponentVersions({ componentId: id, limit: 100 }),
+  });
+  const activeVersion = selectedVersion || versionsQuery.data?.versions[0]?.version || "";
+  const activeVersionFiles = ((versionsQuery.data?.versions ?? []).find((version) => version.version === activeVersion)?.files ?? []) as Array<{ path: string; isEntry: boolean }>;
+
+  const contentQuery = useQuery({
+    queryKey: ["components", "content", id, selectedVersion ?? "current", selectedFile],
+    queryFn: async (): Promise<{ content: string; sha256: string }> => {
+      if (!selectedVersion) {
+        const current = await componentsClient.getComponentContent({ id, ...(selectedFile ? { path: selectedFile } : {}) });
+        return { content: current.content, sha256: current.sha256 };
+      }
+      const historical = await componentsClient.getComponentVersionContent({
+        componentId: id,
+        version: selectedVersion,
+        ...(selectedFile ? { path: selectedFile } : {}),
+      });
+      return {
+        content: historical.content,
+        sha256: historical.version?.contentSha256 ?? "",
+      };
+    },
+  });
+
+  const storiesQuery = useQuery({
+    // The editor must resolve exactly the contract that owns the source being
+    // previewed. An empty version used to fetch every historical contract;
+    // before an index existed that degraded to a fabricated Default specimen.
+    queryKey: ["components", "stories", id, activeVersion],
+    queryFn: () => listComponentStories({ componentId: id, version: activeVersion, limit: 1 }),
+    enabled: renderable && Boolean(activeVersion),
+  });
+
+  const [buffer, setBuffer] = useState<string>("");
+  const [baselineSha, setBaselineSha] = useState<string>("");
+  const [showSaved, setShowSaved] = useState(false);
+  const [previewState, setPreviewState] = useState<"waiting" | "ready" | "error">("waiting");
+  const [previewMessage, setPreviewMessage] = useState("");
+  const [readyExamples, setReadyExamples] = useState<ReadonlySet<string>>(() => new Set());
+  const [specimenErrors, setSpecimenErrors] = useState<Record<string, string>>({});
+  const [specimenRetries, setSpecimenRetries] = useState<Record<string, number>>({});
+  const [comparedSpecimens, setComparedSpecimens] = useState<ReadonlySet<SpecimenIdentity>>(() => new Set());
+  const [activeSpecimen, setActiveSpecimen] = useState<SpecimenIdentity | null>(null);
+  const [mobileTool, setMobileTool] = useState<"props" | "inspector" | null>(null);
+  const [previewToolsCollapsed, setPreviewToolsCollapsed] = useState(false);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [stageMode, setStageMode] = useState(initialStageMode);
+  const [specimenOverrides, setSpecimenOverrides] = useState<Record<string, Record<string, unknown>>>({});
+  const [overrideStatus, setOverrideStatus] = useState<Record<string, "idle" | "applying" | "applied" | "error">>({});
+  const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
+  const [previewEvents, setPreviewEvents] = useState<PreviewEvent[]>([]);
+  const [previewKit, setPreviewKit] = useState<PreviewKit>("vrooli-default");
+  const [frameEnabled, setFrameEnabled] = useState(true);
+  const previewReloadKey = 0;
+  const [uncontrolledPane, setUncontrolledPane] = useState<WorkspacePane>("files");
+  const currentPane = activePane ?? uncontrolledPane;
+  const [splitView, setSplitView] = useState(false);
+  const [secondaryPane, setSecondaryPane] = useState<WorkspacePane>(renderable ? "preview" : "files");
+  const [splitLayout, setSplitLayout] = useState<Record<string, number>>(loadSplitLayout);
+  const [filesView, setFilesView] = useState<FilesView>("source");
+  const [wordWrap, setWordWrap] = useState<"on" | "off">("on");
+  const [fontSize, setFontSize] = useState(13);
+  const savedToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewReady = previewState === "ready";
+  // A preview is usable once all specimens settle. Failed individual specimens
+  // retain their own retry UI, so the composed region is honestly partial
+  // rather than falsely ready when any of them fail.
+  const previewExperienceState = previewState === "waiting"
+    ? "loading"
+    : previewState === "error"
+    ? "error"
+    : Object.keys(specimenErrors).length > 0
+    ? "partial"
+    : "ready";
+
+  useEffect(() => {
+    onPreviewExperienceStateChange?.(previewExperienceState);
+  }, [onPreviewExperienceStateChange, previewExperienceState]);
+  const resolvedPreviewTheme = filters.colorScheme === "system"
+    ? appResolvedTheme
+    : filters.colorScheme;
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setPreviewFullscreen(document.fullscreenElement === previewCanvasRef.current);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const postToPreviewFrames = useCallback((message: unknown) => {
+    for (const frame of previewFramesRef.current) {
+      frame.contentWindow?.postMessage(message, "*");
+    }
+  }, []);
+
+  const postToSpecimen = useCallback((identity: SpecimenIdentity, message: unknown) => {
+    specimenFramesRef.current.get(identity)?.contentWindow?.postMessage(message, "*");
+  }, []);
+
+  const registerPreviewFrame = useCallback((identity: SpecimenIdentity, frame: HTMLIFrameElement | null) => {
+    const previous = specimenFramesRef.current.get(identity);
+    if (previous) previewFramesRef.current.delete(previous);
+    if (!frame) {
+      specimenFramesRef.current.delete(identity);
+      if (previewFrameRef.current === previous) previewFrameRef.current = null;
+      return;
+    }
+    specimenFramesRef.current.set(identity, frame);
+    previewFramesRef.current.add(frame);
+    if (!previewFrameRef.current) previewFrameRef.current = frame;
+  }, []);
+
+  const activateSpecimen = useCallback((identity: SpecimenIdentity) => {
+    setActiveSpecimen(identity);
+    previewFrameRef.current = specimenFramesRef.current.get(identity) ?? null;
+    const story = identity.split(":").slice(1).join(":");
+    if (story && story !== "__default__") onSelectedStoryChange?.(story);
+  }, [onSelectedStoryChange]);
+
+  const retrySpecimen = useCallback((identity: SpecimenIdentity) => {
+    setSpecimenErrors((current) => {
+      return withoutRecordKey(current, identity);
+    });
+    setSpecimenRetries((current) => ({ ...current, [identity]: (current[identity] ?? 0) + 1 }));
+  }, []);
+
+  const toggleComparison = useCallback((identity: SpecimenIdentity) => {
+    setComparedSpecimens((current) => {
+      const next = new Set(current);
+      if (next.has(identity)) next.delete(identity);
+      else if (next.size < 2) next.add(identity);
+      return next;
+    });
+    activateSpecimen(identity);
+  }, [activateSpecimen]);
+
+  useEffect(() => {
+    const handler = (ev: MessageEvent) => {
+      const data = ev.data as { type?: string; id?: string; message?: string; story?: string; version?: string; name?: string; args?: unknown[]; ts?: number; passed?: boolean; failures?: Array<{ message?: string }> } | null;
+      const identity: SpecimenIdentity = `${data?.version || "__current__"}:${data?.story || "__default__"}`;
+      const frame = specimenFramesRef.current.get(identity);
+      if (!data || data.id !== id || !frame || ev.source !== frame.contentWindow) return;
+      if (data.type === "preview-ready") {
+        setReadyExamples((current) => {
+          const next = new Set(current);
+          next.add(identity);
+          return next;
+        });
+        setSpecimenErrors((current) => {
+          if (!current[identity]) return current;
+          return withoutRecordKey(current, identity);
+        });
+      } else if (data.type === "preview-error") {
+        setSpecimenErrors((current) => ({
+          ...current,
+          [identity]: data.message || t(strings.components.editor.previewFailed),
+        }));
+      } else if (data.type === "rcl-preview-props-applied") {
+        setOverrideStatus((current) => ({ ...current, [identity]: "applied" }));
+      } else if (data.type === "rcl-preview-props-reset") {
+        setOverrideStatus((current) => ({ ...current, [identity]: "idle" }));
+        setOverrideMessages((current) => ({ ...current, [identity]: "" }));
+      } else if (data.type === "rcl-preview-props-error") {
+        setOverrideStatus((current) => ({ ...current, [identity]: "error" }));
+        setOverrideMessages((current) => ({ ...current, [identity]: data.message || t(strings.components.editor.propsRejected) }));
+      } else if (data.type === "rcl-story-result" && data.passed === false) {
+        const details = (data.failures ?? []).map((failure) => failure.message).filter(Boolean).join(" ");
+        setSpecimenErrors((current) => ({ ...current, [identity]: details || "Story interactions or expectations failed." }));
+      } else if (data.type === "rcl-preview-event" && typeof data.name === "string") {
+        const eventName = data.name;
+        setPreviewEvents((current) => [{ story: data.story ?? "", name: eventName, args: Array.isArray(data.args) ? data.args : [], ts: typeof data.ts === "number" ? data.ts : Date.now() }, ...current].slice(0, MAX_PREVIEW_EVENTS));
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [id, t]);
+
+  // The app owns the resolved theme. Emulator "system" means follow the
+  // app decision, never a separate OS media decision inside the iframe.
+  useEffect(() => {
+    if (!previewReady) return;
+    postToPreviewFrames({ type: "rcl-resolved-theme", theme: resolvedPreviewTheme });
+  }, [postToPreviewFrames, previewReady, resolvedPreviewTheme]);
+
+  useEffect(() => {
+    // A new baselineSha (post-save or first fetch) means the iframe is
+    // about to reload with the freshly bundled output — flip the badge
+    // back to "waiting" until the harness re-announces preview-ready.
+    setPreviewState("waiting");
+    setPreviewMessage("");
+    setReadyExamples(new Set());
+    setSpecimenErrors({});
+    setSpecimenRetries({});
+    setSpecimenOverrides({});
+    setOverrideStatus({});
+    setOverrideMessages({});
+    setPreviewEvents([]);
+  }, [baselineSha, previewKit, previewReloadKey]);
+
+  const storySpecimens = useMemo<PreviewSpecimen[]>(() => (storiesQuery.data?.stories ?? []).flatMap((contract) => {
+    try {
+      const definitions = JSON.parse(contract.storiesJson) as Array<{ id?: unknown; name?: unknown; description?: unknown; args?: unknown; environment?: unknown; expect?: unknown }>;
+      if (!Array.isArray(definitions)) return [];
+      return definitions.flatMap((definition) => {
+        if (typeof definition.id !== "string" || typeof definition.name !== "string" || !definition.args || typeof definition.args !== "object" || Array.isArray(definition.args)) return [];
+        const environment: Record<string, string> = definition.environment && typeof definition.environment === "object" && !Array.isArray(definition.environment) ? Object.fromEntries(Object.entries(definition.environment as Record<string, unknown>).filter(([, value]) => typeof value === "string")) as Record<string, string> : {};
+        return [{ id: `${contract.id}:${definition.id}`, componentId: contract.componentId, libraryId: contract.libraryId, version: contract.version, name: definition.id, displayName: definition.name, description: typeof definition.description === "string" && definition.description.trim() ? definition.description : undefined, propsJson: JSON.stringify(definition.args), environment, expectJson: JSON.stringify(Array.isArray(definition.expect) ? definition.expect : []), sourcePath: contract.sourcePath, storyId: definition.id }];
+      });
+    } catch { return []; }
+  }), [storiesQuery.data?.stories]);
+  const examples = storySpecimens;
+  // Only the active specimen is mounted in the normal workspace; comparison
+  // mounts exactly two. Waiting for every indexed example left the region in
+  // loading forever even after the visible preview had announced readiness.
+  const expectedReadyCount = comparedSpecimens.size === 2 ? 2 : 1;
+
+  useEffect(() => {
+    // A transient loading/fallback specimen can outlive the story query when
+    // the editor is entered through client-side catalog navigation. Reconcile
+    // by identity against the settled contract instead of treating any
+    // non-null value as a valid selection.
+    if (examples.length === 0 || (activeSpecimen && examples.some((example) => specimenIdentity(example) === activeSpecimen))) return;
+    const restored = selectedStory ? examples.find((example) => example.storyId === selectedStory) : undefined;
+    activateSpecimen(specimenIdentity(restored ?? examples[0]));
+  }, [activeSpecimen, activateSpecimen, examples, selectedStory]);
+
+  useEffect(() => {
+    if (previewState !== "waiting") return;
+    if (readyExamples.size + Object.keys(specimenErrors).length >= expectedReadyCount) {
+      setPreviewState("ready");
+    }
+  }, [expectedReadyCount, previewState, readyExamples, specimenErrors]);
+
+  useEffect(() => {
+    if (previewState !== "waiting") return;
+    if (contentQuery.isError) {
+      setPreviewMessage(errorMessage(contentQuery.error, t));
+      setPreviewState("error");
+      return;
+    }
+    if (storiesQuery.isError) {
+      setPreviewMessage(errorMessage(storiesQuery.error, t));
+      setPreviewState("error");
+      return;
+    }
+  }, [contentQuery.error, contentQuery.isError, previewState, storiesQuery.error, storiesQuery.isError, t]);
+
+  useEffect(() => {
+    if (!contentQuery.data || previewState !== "waiting") return undefined;
+    if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
+    previewTimeoutRef.current = setTimeout(() => {
+      setPreviewMessage(t(strings.components.editor.previewTimeout));
+      setPreviewState("error");
+    }, PREVIEW_LOAD_TIMEOUT_MS);
+    return () => {
+      if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
+    };
+  }, [baselineSha, contentQuery.data, previewReloadKey, previewState, t]);
+
+  useEffect(() => {
+    if (contentQuery.data) {
+      setBuffer(contentQuery.data.content);
+      setBaselineSha(contentQuery.data.sha256);
+    }
+  }, [contentQuery.data]);
+
+  useEffect(() => {
+    return () => {
+      if (savedToastTimerRef.current) clearTimeout(savedToastTimerRef.current);
+      if (previewTimeoutRef.current) clearTimeout(previewTimeoutRef.current);
+    };
+  }, []);
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      componentsClient.updateComponentContent({
+        id,
+        content: buffer,
+        expectedSha256: baselineSha,
+        ...(selectedFile ? { path: selectedFile } : {}),
+      }),
+    onSuccess: (resp) => {
+      setBaselineSha(resp.sha256);
+      setShowSaved(true);
+      if (savedToastTimerRef.current) clearTimeout(savedToastTimerRef.current);
+      savedToastTimerRef.current = setTimeout(() => setShowSaved(false), 2500);
+      void queryClient.invalidateQueries({ queryKey: ["components", "content", id] });
+      void queryClient.invalidateQueries({ queryKey: ["components"] });
+    },
+  });
+
+  const readOnly = Boolean(selectedVersion);
+  const dirty = !readOnly && !!contentQuery.data && buffer !== contentQuery.data.content;
+
+  const handleBeforeMount = (monaco: Monaco) => {
+    const diagnosticsOptions = {
+      noSemanticValidation: true,
+      noSyntaxValidation: false,
+    };
+    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(diagnosticsOptions);
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions(diagnosticsOptions);
+  };
+
+  const handleMount = (monacoEditor: editor.IStandaloneCodeEditor, monaco: Monaco) => {
+    monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      if (!saveMutation.isPending) saveMutation.mutate();
+    });
+  };
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(splitLayout));
+    } catch {
+      // Split sizing is a convenience; editing never depends on storage access.
+    }
+  }, [splitLayout]);
+
+  useEffect(() => {
+    if (!desktopLayout) setSplitView(false);
+  }, [desktopLayout]);
+
+  useEffect(() => {
+    if (!comparison) return;
+    setFilesView("diff");
+    selectPane("files");
+  }, [comparison]);
+
+  const selectPane = (pane: WorkspacePane) => {
+    if (pane === "preview" && !renderable) return;
+    if (onActivePaneChange) onActivePaneChange(pane);
+    else setUncontrolledPane(pane);
+  };
+
+  const availablePanes = DEFAULT_PANE_ORDER.filter((pane) => pane !== "preview" || renderable);
+  const visiblePanes = splitView ? [currentPane, secondaryPane].filter((pane, index, panes) => panes.indexOf(pane) === index) : [currentPane];
+
+  const toggleSplitView = () => {
+    if (!desktopLayout) return;
+    if (!splitView && secondaryPane === currentPane) {
+      setSecondaryPane(availablePanes.find((pane) => pane !== currentPane) ?? currentPane);
+    }
+    setSplitView((current) => !current);
+  };
+
+  const selectSplitPane = (index: number, pane: WorkspacePane) => {
+    if (pane === "preview" && !renderable) return;
+    if (index === 0) {
+      selectPane(pane);
+      if (pane === secondaryPane) setSecondaryPane(currentPane);
+      return;
+    }
+    setSecondaryPane(pane === currentPane ? (availablePanes.find((candidate) => candidate !== currentPane) ?? pane) : pane);
+  };
+
+  const saveDesktopPanelLayout = (layout: Record<string, number>) => {
+    if (!desktopLayout) return;
+    setSplitLayout((current) => ({ ...current, ...layout }));
+  };
+
+  const selectFile = (path: string) => {
+    setSelectedFile(path);
+    setFilesView("source");
+  };
+
+  const paneHeader = (pane: WorkspacePane, index: number, label: string, icon: ReactNode) => {
+    return (
+      <header className="flex h-10 shrink-0 items-center justify-between gap-space-2xs border-b border-app-border bg-app-surface px-space-2xs">
+        <details className="relative min-w-0">
+          <summary data-testid="components-editor-split-pane-switcher" data-pane={pane} className="flex cursor-pointer list-none items-center gap-space-2xs rounded-control px-space-3xs py-space-3xs text-xs font-semibold text-app-foreground hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50">
+            {icon}<span className="truncate">{label}</span>
+          </summary>
+          <div className="absolute left-0 z-20 mt-space-3xs w-36 rounded-control border border-app-border bg-app-surface p-space-3xs shadow-lg">
+            {availablePanes.map((candidate) => <Button key={candidate} type="button" variant="secondary" className="h-8 w-full justify-start px-space-2xs text-xs" onClick={() => selectSplitPane(index, candidate)}>{paneLabels[candidate]}</Button>)}
+          </div>
+        </details>
+      </header>
+    );
+  };
+
+  // Do not mount a fabricated fallback while the indexed story contract is
+  // still loading. That transient iframe is aborted when the real story
+  // arrives and can leave the host waiting forever for a readiness message on
+  // a frame that no longer exists. A fallback is valid only after a settled,
+  // genuinely empty contract has been observed.
+  const specimens: Array<PreviewSpecimen | undefined> = storiesQuery.isLoading
+    ? []
+    : examples.length > 0
+    ? examples
+    : [undefined];
+  const comparisonActive = !stageMode && comparedSpecimens.size === 2;
+  const visibleSpecimens = stageMode
+    ? specimens.filter((example) => specimenIdentity(example) === (activeSpecimen ?? specimenIdentity(specimens[0]))).slice(0, 1)
+    : comparisonActive
+    ? specimens.filter((example) => comparedSpecimens.has(specimenIdentity(example)))
+    : activeSpecimen
+    ? specimens.filter((example) => specimenIdentity(example) === activeSpecimen)
+    : [specimens[0]];
+  const activeExample = specimens.find((example) => specimenIdentity(example) === activeSpecimen);
+  const activeStoryContract: ComponentStory | undefined = (storiesQuery.data?.stories ?? []).find((story) => story.version === (activeExample?.version || activeVersion));
+  const activeSpecimenLabel = activeExample?.displayName || activeExample?.name;
+  const paneLabels: Record<WorkspacePane, string> = {
+    files: t(strings.components.editor.files),
+    preview: t(strings.components.editor.previewMode),
+    details: t(strings.components.editor.info),
+  };
+  const applyPropsOverride = (props: Record<string, unknown>, environment?: Record<string, string>) => {
+    if (!activeSpecimen) return;
+    const example = specimens.find((candidate) => specimenIdentity(candidate) === activeSpecimen);
+    setSpecimenOverrides((current) => ({ ...current, [activeSpecimen]: props }));
+    setOverrideStatus((current) => ({ ...current, [activeSpecimen]: "applying" }));
+    setOverrideMessages((current) => ({ ...current, [activeSpecimen]: "" }));
+    postToSpecimen(activeSpecimen, {
+      type: "rcl-preview-props-override",
+      componentId: id,
+      story: example?.storyId || "",
+      version: example?.version || "",
+      props,
+	  environment: environment ?? example?.environment ?? {},
+    });
+  };
+  const resetPropsOverride = () => {
+    if (!activeSpecimen) return;
+    const example = specimens.find((candidate) => specimenIdentity(candidate) === activeSpecimen);
+    setSpecimenOverrides((current) => {
+      return withoutRecordKey(current, activeSpecimen);
+    });
+    setOverrideStatus((current) => ({ ...current, [activeSpecimen]: "applying" }));
+    postToSpecimen(activeSpecimen, {
+      type: "rcl-preview-props-reset",
+      componentId: id,
+      story: example?.storyId || "",
+      version: example?.version || "",
+    });
+  };
+  const togglePreviewTools = () => {
+    setPreviewToolsCollapsed((collapsed) => {
+      if (collapsed) previewToolsPanelRef.current?.expand();
+      else previewToolsPanelRef.current?.collapse();
+      return !collapsed;
+    });
+  };
+
+  const editorToolProps = {
+    activeSpecimen,
+    activeExample,
+    activeSpecimenLabel,
+    storyContract: activeStoryContract,
+    inspector,
+    overrideStatus,
+    specimenOverrides,
+    overrideMessages,
+    previewEvents,
+    onApply: applyPropsOverride,
+    onReset: resetPropsOverride,
+    onClearEvents: () => setPreviewEvents([]),
+  };
+
+  const togglePreviewFullscreen = async () => {
+    const stage = previewCanvasRef.current ?? previewStageRef.current;
+    if (!stage) return;
+    if (previewFullscreen) {
+      if (document.fullscreenElement === stage && typeof document.exitFullscreen === "function") await document.exitFullscreen();
+      setPreviewFullscreen(false);
+      return;
+    }
+    try {
+      if (typeof stage.requestFullscreen === "function") {
+        await stage.requestFullscreen();
+      }
+    } catch {
+      // A browser or embedded host may deny native fullscreen. The fixed
+      // fallback still gives the operator a useful, viewport-sized preview.
+    }
+    setPreviewFullscreen(true);
+  };
+
+  return (
+    <AssetWorkspace testId={selectors.components.editor.panel} label={t(strings.components.editor.title, { libraryId })}>
+      <WorkspaceHeader
+        title={<span data-testid={selectors.components.editor.title}>{libraryId}</span>}
+        description={t(strings.components.editor.subtitle)}
+        leading={shellNavigation.sidebarCollapsed ? <button type="button" onClick={shellNavigation.openSidebar} aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })} data-testid="workspace-header-open-sidebar" className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"><Menu aria-hidden className="h-5 w-5" /></button> : undefined}
+        actions={<div className="flex items-center gap-space-2xs">{dirty && <StatusBadge data-testid={selectors.components.editor.dirtyBadge} tone="warning">{t(strings.components.editor.dirty)}</StatusBadge>}{previewReady && (desktopLayout || currentPane === "preview") && <StatusBadge data-testid={selectors.components.editor.previewBadge} tone="success">{t(strings.components.editor.previewReady)}</StatusBadge>}{availablePanes.length > 1 && <IconButton data-testid="components-editor-split-view-toggle" aria-label={t("components.editor.splitView", { defaultValue: "Split view" })} aria-pressed={splitView} onClick={toggleSplitView} className={`hidden h-8 min-h-8 min-w-8 lg:inline-flex ${splitView ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}><PanelsLeftRight aria-hidden className="h-3.5 w-3.5" /></IconButton>}{renderable && <IconButton data-testid={selectors.components.editor.closeButton} aria-label={t(strings.components.editor.close)} onClick={onClose} className="h-11 min-h-11 min-w-11 border border-app-border bg-app-surface"><ArrowLeft aria-hidden className="h-3.5 w-3.5" /></IconButton>}</div>}
+      />
+
+      {navigationSlot && <div className="shrink-0 border-b border-app-border bg-app-surface px-space-sm">{navigationSlot}</div>}
+
+      {contentQuery.isLoading && (
+        <p
+          data-testid={selectors.components.editor.loading}
+          className="p-space-sm text-app-foreground"
+        >
+          {t(strings.components.editor.loading)}
+        </p>
+      )}
+
+      {contentQuery.error && (
+        <p
+          data-testid={selectors.components.editor.error}
+          className="p-space-sm text-app-danger"
+        >
+          {errorMessage(contentQuery.error, t)}
+        </p>
+      )}
+
+      {saveMutation.error && (
+        <p
+          data-testid={selectors.components.editor.error}
+          className="p-space-sm text-app-danger"
+        >
+          {errorMessage(saveMutation.error, t)}
+        </p>
+      )}
+
+      {contentQuery.data && (
+        <div className="min-h-0 flex-1">
+          {selectedVersion && (
+            <p className="border-b border-app-border bg-app-warning/10 px-space-sm py-space-2xs text-xs text-app-warning">
+              {t(strings.components.editor.viewingVersion, { version: selectedVersion })}
+            </p>
+          )}
+          <Group
+                id="component-editor-panels"
+                orientation={splitView && desktopLayout ? "horizontal" : "vertical"}
+                defaultLayout={splitView && desktopLayout ? splitLayout : { primary: 100 }}
+                onLayoutChanged={saveDesktopPanelLayout}
+                className="h-full min-h-0"
+              >
+                {visiblePanes.map((pane, index) => (
+                  <Fragment key={pane}>
+                    <Panel
+                      id={index === 0 ? "primary" : "secondary"}
+                      minSize="15%"
+                      defaultSize={splitView ? splitLayout[index === 0 ? "primary" : "secondary"] : 100}
+                    >
+                      <div className="h-full min-h-0">
+                  {pane === "files" && (
+                    <ComponentEditorSource
+                      id={id}
+                      libraryId={libraryId}
+                      renderable={renderable}
+                      splitView={splitView}
+                      activeVersionFiles={activeVersionFiles}
+                      selectedFile={selectedFile}
+                      selectedTemplate={selectedTemplate}
+                      filesView={filesView}
+                      comparison={comparison}
+                      buffer={buffer}
+                      appResolvedTheme={appResolvedTheme}
+                      fontSize={fontSize}
+                      wordWrap={wordWrap}
+                      readOnly={readOnly}
+                      dirty={dirty}
+                      savePending={saveMutation.isPending}
+                      contentLoading={contentQuery.isLoading}
+                      handleBeforeMount={handleBeforeMount}
+                      handleMount={handleMount}
+                      onSelectFile={selectFile}
+                      onSelectTemplate={setSelectedTemplate}
+                      onFilesViewChange={setFilesView}
+                      onBufferChange={setBuffer}
+                      onSave={() => saveMutation.mutate()}
+                      onRevert={() => setBuffer(contentQuery.data.content)}
+                      onToggleWordWrap={() => setWordWrap((current) => current === "on" ? "off" : "on")}
+                      onDecreaseFont={() => setFontSize((current) => Math.max(11, current - 1))}
+                      onIncreaseFont={() => setFontSize((current) => Math.min(20, current + 1))}
+                      onCloseComparison={() => {
+                        onCloseComparison?.();
+                        setFilesView("source");
+                      }}
+                    />
+                  )}
+                  {pane === "preview" && (
+                    <div
+                      ref={previewStageRef}
+                      data-testid={selectors.components.editor.previewStage}
+                      data-preview-fullscreen={previewFullscreen ? "true" : "false"}
+                      className={previewFullscreen ? "fixed inset-0 z-50 h-full w-full bg-app-background" : "h-full min-h-0"}
+                    >
+                    <ExperienceSurface
+                      surfaceId="component-preview"
+                      state={previewExperienceState}
+                      data-testid={selectors.components.editor.workspacePane}
+                      data-preview-state={previewExperienceState}
+                      data-pane="preview"
+                      className="flex h-full min-h-0 flex-col overflow-hidden bg-app-background"
+                    >
+                      {splitView && paneHeader("preview", index, paneLabels.preview, <Eye aria-hidden className="h-3.5 w-3.5" />)}
+                      <div className="flex shrink-0 flex-wrap items-center gap-space-2xs border-b border-app-border bg-app-surface px-space-2xs py-space-2xs">
+                        <nav className="order-last flex min-w-0 max-w-full basis-full flex-wrap gap-space-3xs sm:order-none sm:basis-auto sm:flex-1" aria-label={t(strings.components.editor.storiesLabel)}>
+                          {specimens.map((example) => { const identity = specimenIdentity(example); const selected = identity === activeSpecimen; return <Button key={identity} data-testid={selectors.components.editor.storyPickerItem} type="button" variant={selected ? "primary" : "secondary"} className="h-8 min-w-11 shrink-0 px-space-2xs text-xs" aria-current={selected ? "true" : undefined} title={example?.description} onClick={() => activateSpecimen(identity)}>{example?.displayName || example?.name || "Default"}</Button>; })}
+                        </nav>
+                        <IconButton
+                          data-testid={selectors.components.editor.previewStageFullscreen}
+                          type="button"
+                          aria-label={previewFullscreen ? t("components.editor.exitFullscreen", { defaultValue: "Exit full screen" }) : t("components.editor.enterFullscreen", { defaultValue: "View preview full screen" })}
+                          aria-pressed={previewFullscreen}
+                          onClick={() => { void togglePreviewFullscreen(); }}
+                          className="h-11 min-h-11 min-w-11 border border-app-border bg-app-surface"
+                        >
+                          {previewFullscreen ? <Minimize2 aria-hidden className="h-3.5 w-3.5" /> : <Maximize2 aria-hidden className="h-3.5 w-3.5" />}
+                        </IconButton>
+                        <ThemeSwitcher previewReady={previewReady} colorScheme={filters.colorScheme} setColorScheme={filters.setColorScheme} kit={previewKit} setKit={setPreviewKit} filters={filters} />
+                        <Button type="button" variant={stageMode ? "primary" : "secondary"} className="h-8 px-space-2xs text-xs" aria-pressed={stageMode} data-testid="components-editor-stage-mode" onClick={() => { setStageMode((enabled) => !enabled); setComparedSpecimens(new Set()); }}>{stageMode ? "Stage" : "Gallery"}</Button>
+                        {activeSpecimen && <Button type="button" variant={frameEnabled ? "primary" : "secondary"} className="h-8 px-space-2xs text-xs" aria-pressed={frameEnabled} onClick={() => setFrameEnabled((enabled) => !enabled)}>{frameEnabled ? t("components.editor.framed", { defaultValue: "Framed" }) : t("components.editor.unframed", { defaultValue: "Unframed" })}</Button>}
+                        <EmulatorToolbar emulator={emulator} />
+                        {activeSpecimen && <IconButton data-testid={selectors.components.editor.previewToolsToggle} aria-label={previewToolsCollapsed ? t("components.editor.showTools", { defaultValue: "Show controls" }) : t("components.editor.hideTools", { defaultValue: "Hide controls" })} className="ml-auto h-11 min-h-11 min-w-11 border border-app-border bg-app-surface" aria-expanded={!previewToolsCollapsed} aria-controls="component-preview-tools" onClick={togglePreviewTools}>{previewToolsCollapsed ? <ChevronUp aria-hidden className="h-3.5 w-3.5" /> : <ChevronDown aria-hidden className="h-3.5 w-3.5" />}</IconButton>}
+                      </div>
+                      <ComponentEditorStage
+                        emulator={emulator}
+                        filters={filters}
+                        desktopLayout={desktopLayout}
+                        stageMode={stageMode}
+                        comparisonActive={comparisonActive}
+                        specimens={specimens}
+                        visibleSpecimens={visibleSpecimens}
+                        readyExamples={readyExamples}
+                        previewMessage={previewMessage}
+                        specimenErrors={specimenErrors}
+                        specimenRetries={specimenRetries}
+                        comparedSpecimens={comparedSpecimens}
+                        activeSpecimen={activeSpecimen}
+                        previewKit={previewKit}
+                        frameEnabled={frameEnabled}
+                        id={id}
+                        baselineSha={baselineSha}
+                        previewReloadKey={previewReloadKey}
+                        selectedVersion={selectedVersion}
+                        resolvedPreviewTheme={resolvedPreviewTheme}
+                        previewCanvasRef={previewCanvasRef}
+                        onClearComparison={() => setComparedSpecimens(new Set())}
+                        onToggleComparison={toggleComparison}
+                        onRetrySpecimen={retrySpecimen}
+                        onRegisterPreviewFrame={registerPreviewFrame}
+                        onPreviewLoad={(identity) => {
+                          setActiveSpecimen((current) => current ?? identity);
+                        }}
+                        onPreviewError={(identity) => setSpecimenErrors((current) => ({ ...current, [identity]: t(strings.components.editor.previewFailed) }))}
+                        postToPreviewFrames={postToPreviewFrames}
+                        previewToolsPanelRef={previewToolsPanelRef}
+                        onPanelCollapsed={(collapsed) => setPreviewToolsCollapsed(collapsed)}
+                        onSetMobileTool={setMobileTool}
+                        tools={<ComponentEditorTools {...editorToolProps} />}
+                        mobileTools={<ComponentEditorMobileTools tool={mobileTool} onClose={() => setMobileTool(null)} props={editorToolProps} />}
+
+                      />
+                    </ExperienceSurface>
+                    </div>
+                  )}
+                  {pane === "details" && (
+                    <aside data-testid={selectors.components.editor.workspacePane} data-pane="details" className="flex h-full min-h-0 flex-col overflow-hidden bg-app-surface">
+                      {splitView && paneHeader("details", index, paneLabels.details, <Info aria-hidden className="h-3.5 w-3.5" />)}
+                      <div data-testid={selectors.components.editor.infoDialog} className="min-h-0 flex-1 overflow-auto p-space-sm">{metadataSlot ?? <p className="text-sm text-app-muted-foreground">{t(strings.components.editor.noInfo)}</p>}</div>
+                    </aside>
+                  )}
+                      </div>
+                    </Panel>
+                    {index < visiblePanes.length - 1 && <Separator className="w-1 shrink-0 bg-app-border hover:bg-app-primary" />}
+                  </Fragment>
+                ))}
+          </Group>
+        </div>
+      )}
+
+      {showSaved && (
+        <p
+          data-testid={selectors.components.editor.savedToast}
+          className="absolute bottom-3 right-3 rounded-md bg-app-success/10 px-space-xs py-space-2xs text-xs text-app-success shadow-lg"
+        >
+          {t(strings.components.editor.saved)}
+        </p>
+      )}
+    </AssetWorkspace>
+  );
+}

@@ -1,4 +1,4 @@
-import type { VoiceInputAdapter, VoiceInputCapture, VoiceInputClock, VoiceInputCues, VoiceInputEvent, VoiceInputMedia, VoiceInputTerminalReason } from "../../../library/hooks/useVoiceInput/versions/1.0.0/useVoiceInput";
+import type { VoiceInputAdapter, VoiceInputCapture, VoiceInputClock, VoiceInputCues, VoiceInputEvent, VoiceInputMedia, VoiceInputTerminalReason } from "../hooks/useVoiceInput/versions/1.0.0/useVoiceInput";
 
 export class FakeVoiceCapture implements VoiceInputCapture {
   stopped = 0;

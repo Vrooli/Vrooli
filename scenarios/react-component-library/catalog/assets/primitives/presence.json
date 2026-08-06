@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {"variants": {}, "modes": [], "parts": []},
+  "asset": {
+    "id": "primitives.presence",
+    "name": "Presence",
+    "kind": "primitive",
+    "domain": "primitives",
+    "description": "A lifecycle-aware conditional boundary for mounting and unmounting content while leaving motion policy to the consuming recipe.",
+    "targets": ["react-vite"],
+    "slot": "ui-primitive",
+    "delivery": "template-seeded",
+    "target": {"priority": "P1", "maturity": "production-ready"}
+  },
+  "dependencies": {"requires": [{"asset": "foundations.contracts", "reason": "Presence state is expressed through shared lifecycle vocabulary."}]},
+  "requiredCapabilities": ["reduced-motion"],
+  "rationale": "Conditional content should have a predictable mount boundary before richer motion adapters are layered on."
+}

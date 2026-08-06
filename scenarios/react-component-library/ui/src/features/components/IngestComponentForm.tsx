@@ -1,9 +1,10 @@
+/** @vrooliComponentSource forms.input */
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { componentsClient } from "../../api/components";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "../../components/Button";
+import { Input } from "../../components/Input";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -36,11 +37,11 @@ export function IngestComponentForm() {
   });
 
   return (
-    <details data-testid={selectors.components.ingest.details} className="rounded-xl border border-app-border bg-app-surface p-4">
+    <details data-testid={selectors.components.ingest.details} className="rounded-xl border border-app-border bg-app-surface p-space-sm">
       <summary className="cursor-pointer text-sm font-medium text-app-foreground">{t(strings.components.ingest.title)}</summary>
-      <p className="mt-2 text-xs text-app-muted-foreground">{t(strings.components.ingest.description)}</p>
+      <p className="mt-space-2xs text-xs text-app-muted-foreground">{t(strings.components.ingest.description)}</p>
       <form
-        className="mt-3 grid gap-2 md:grid-cols-2"
+        className="mt-space-xs grid gap-space-2xs md:grid-cols-2"
         onSubmit={(event) => {
           event.preventDefault();
           ingest.mutate();
@@ -50,7 +51,7 @@ export function IngestComponentForm() {
         <Input data-testid={selectors.components.ingest.sourceFile} value={sourceFile} onChange={(event) => setSourceFile(event.target.value)} placeholder={t(strings.components.ingest.sourceFile)} required />
         <Input data-testid={selectors.components.ingest.slug} value={slug} onChange={(event) => setSlug(event.target.value)} placeholder={t(strings.components.ingest.slug)} required />
         <Input data-testid={selectors.components.ingest.tags} value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t(strings.components.ingest.tags)} />
-        <label className="flex items-center gap-2 text-xs text-app-muted-foreground md:col-span-2">
+        <label className="flex items-center gap-space-2xs text-xs text-app-muted-foreground md:col-span-2">
           <input data-testid={selectors.components.ingest.acceptLoss} type="checkbox" checked={acceptBehaviorLoss} onChange={(event) => setAcceptBehaviorLoss(event.target.checked)} />
           {t(strings.components.ingest.acceptBehaviorLoss)}
         </label>
@@ -58,18 +59,18 @@ export function IngestComponentForm() {
           <Button data-testid={selectors.components.ingest.submit} type="submit" disabled={ingest.isPending}>{ingest.isPending ? t(strings.components.ingest.running) : t(strings.components.ingest.submit)}</Button>
         </div>
       </form>
-      {ingest.error && <p data-testid={selectors.components.ingest.error} className="mt-2 text-xs text-app-danger">{errorMessage(ingest.error, t)}</p>}
+      {ingest.error && <p data-testid={selectors.components.ingest.error} className="mt-space-2xs text-xs text-app-danger">{errorMessage(ingest.error, t)}</p>}
       {ingest.data && (
-        <div className="mt-2 space-y-2 text-xs">
+        <div className="mt-space-2xs space-y-space-2xs text-xs">
           <p data-testid={selectors.components.ingest.success} className="text-app-success">
             {t(strings.components.ingest.success, { version: ingest.data.draftVersion, findings: ingest.data.findings.length })}
             {acceptedLosses > 0 && ` ${t(strings.components.ingest.acceptedNotice, { findings: acceptedLosses })}`}
           </p>
-          {readiness.data?.readiness && <section aria-label={t("components.ingest.promotionReadiness", { defaultValue: "Promotion readiness" })} className="rounded-control border border-app-border p-2 text-app-muted-foreground">
+          {readiness.data?.readiness && <section aria-label={t("components.ingest.promotionReadiness", { defaultValue: "Promotion readiness" })} className="rounded-control border border-app-border p-space-2xs text-app-muted-foreground">
             <p className="font-medium text-app-foreground">{readiness.data.readiness.ready ? t("components.ingest.promotionReady", { defaultValue: "Promotion evidence is complete." }) : t("components.ingest.promotionBlocked", { defaultValue: "Promotion evidence is incomplete." })}</p>
             <p>{t("components.ingest.promotionExamples", { defaultValue: "Examples: {{available}}/{{required}}", available: readiness.data.readiness.availableExampleCount, required: readiness.data.readiness.requiredExampleCount })}</p>
             {readiness.data.readiness.blockers.map((blocker) => <p key={blocker} className="text-app-danger">{blocker}</p>)}
-            <p className="mt-1 font-mono">{readiness.data.readiness.nextValidationCommand}</p>
+            <p className="mt-space-3xs font-mono">{readiness.data.readiness.nextValidationCommand}</p>
           </section>}
         </div>
       )}

@@ -1,0 +1,2 @@
+/** @vrooliComponentSource materialized.diffviewer */
+export function DiffViewer({ before = "", after = "" }: { before?: string; after?: string }) { return <div aria-label="Diff" style={{ display: "grid", gap: 8 }}><div style={{ borderInlineStart: "3px solid var(--color-danger, #dc2626)", padding: 12 }}><del>{before}</del></div><div style={{ borderInlineStart: "3px solid var(--color-success, #16a34a)", padding: 12 }}><ins>{after}</ins></div></div>; }

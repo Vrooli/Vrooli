@@ -1,12 +1,13 @@
+/** @vrooliComponentSource overlays.dialog */
 import { FormEvent, KeyboardEvent, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import { componentsClient } from "../../api/components";
-import { Button } from "../../components/ui/button";
-import { Dialog } from "../../components/ui/dialog";
-import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
+import { Button } from "../../components/Button";
+import { Dialog } from "../../components/Dialog";
+import { Input } from "../../components/Input";
+import { Textarea } from "../../components/Textarea";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -81,8 +82,8 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
       className="max-w-2xl"
     >
       <div data-testid={selectors.components.create.dialog}>
-      <form onSubmit={submit} className="grid gap-3">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+      <form onSubmit={submit} className="grid gap-space-xs">
+        <div className="grid grid-cols-1 gap-space-2xs md:grid-cols-2">
           <label className="block text-xs text-app-muted-foreground">
             {t(strings.components.create.slug)}
             <Input
@@ -90,7 +91,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               required
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -100,7 +101,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               value={libraryId}
               onChange={(e) => setLibraryId(e.target.value)}
               placeholder={t(strings.components.create.libraryIdPlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -109,7 +110,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               data-testid={selectors.components.create.displayName}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -118,7 +119,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               data-testid={selectors.components.create.version}
               value={initialVersion}
               onChange={(e) => setInitialVersion(e.target.value)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -128,13 +129,13 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
               placeholder={t(strings.components.create.fileNamePlaceholder)}
-              className="mt-1"
+              className="mt-space-3xs"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
             {t(strings.components.create.tags)}
-            <div className="mt-1 flex flex-wrap gap-1 rounded-control border border-app-border bg-app-background p-1">
-              {tags.map((tag) => <button key={tag} type="button" onClick={() => setTags((current) => current.filter((value) => value !== tag))} aria-label={`Remove ${tag}`} className="rounded bg-app-surface-muted px-2 py-1 text-xs">{tag} ×</button>)}
+            <div className="mt-space-3xs flex flex-wrap gap-space-3xs rounded-control border border-app-border bg-app-background p-space-3xs">
+              {tags.map((tag) => <button key={tag} type="button" onClick={() => setTags((current) => current.filter((value) => value !== tag))} aria-label={`Remove ${tag}`} className="rounded bg-app-surface-muted px-space-2xs py-space-3xs text-xs">{tag} ×</button>)}
               <Input data-testid={selectors.components.create.tags} value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} onKeyDown={tagKeyDown} onBlur={() => addTags(tagDraft)} placeholder={t(strings.components.create.tagsPlaceholder)} className="min-w-28 flex-1 border-0 bg-transparent" />
             </div>
           </label>
@@ -145,7 +146,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
             data-testid={selectors.components.create.description}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="mt-1 min-h-20"
+            className="mt-space-3xs min-h-20"
           />
         </label>
         <label className="block text-xs text-app-muted-foreground">
@@ -155,7 +156,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
             value={initialSource}
             onChange={(e) => setInitialSource(e.target.value)}
             placeholder={t(strings.components.create.initialSourcePlaceholder)}
-            className="mt-1 min-h-32 font-mono text-xs"
+            className="mt-space-3xs min-h-32 font-mono text-xs"
           />
         </label>
         {mutation.error && (
@@ -163,7 +164,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
             {errorMessage(mutation.error, t)}
           </p>
         )}
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-space-2xs">
           <Button type="button" variant="secondary" data-testid={selectors.components.create.cancel} onClick={onClose}>
             {t(strings.components.create.cancel)}
           </Button>

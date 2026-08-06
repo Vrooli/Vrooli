@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "SidebarShell",
   "args": {
@@ -81,6 +81,11 @@
   },
   "environment": {
     "fixtures": []
+  },
+  "frame": {
+    "asset": "navigation.page",
+    "region": "navigation",
+    "fixture": "fixtures.resource-collection"
   },
   "stories": [
     {

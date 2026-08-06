@@ -19,11 +19,11 @@ describe("useDeviceEmulation", () => {
 
   it("defaults to Desktop 1280 with zoom 1 and no rotation", () => {
     const { result } = renderHook(() => useDeviceEmulation());
-    expect(result.current.presetId).toBe("desktop-1280");
+    expect(result.current.presetId).toBe("desktop");
     expect(result.current.zoom).toBe(1);
     expect(result.current.isRotated).toBe(false);
     expect(result.current.displayWidth).toBe(1280);
-    expect(result.current.displayHeight).toBe(800);
+    expect(result.current.displayHeight).toBe(720);
   });
 
   it("exposes every preset listed in the spec", () => {
@@ -31,13 +31,10 @@ describe("useDeviceEmulation", () => {
     const ids = result.current.presets.map((p) => p.id);
     expect(ids).toEqual(
       expect.arrayContaining([
-        "iphone-14",
-        "iphone-se",
-        "ipad",
-        "ipad-pro",
-        "desktop-1280",
-        "desktop-1440",
-        "desktop-1920",
+        "mobile",
+        "tablet",
+        "desktop",
+        "wide",
         "responsive",
       ]),
     );
@@ -45,9 +42,9 @@ describe("useDeviceEmulation", () => {
 
   it("changes display dimensions when preset is selected", () => {
     const { result } = renderHook(() => useDeviceEmulation());
-    act(() => result.current.setPreset("iphone-se"));
-    expect(result.current.displayWidth).toBe(375);
-    expect(result.current.displayHeight).toBe(667);
+    act(() => result.current.setPreset("mobile"));
+    expect(result.current.displayWidth).toBe(390);
+    expect(result.current.displayHeight).toBe(844);
   });
 
   it("responsive dimensions can be edited and become the active preset", () => {
@@ -80,18 +77,18 @@ describe("useDeviceEmulation", () => {
 
   it("resetZoom returns to 1.0 without touching preset or rotation", () => {
     const { result } = renderHook(() => useDeviceEmulation());
-    act(() => result.current.setPreset("ipad"));
+    act(() => result.current.setPreset("tablet"));
     act(() => result.current.rotate());
     act(() => result.current.setZoom(1.5));
     act(() => result.current.resetZoom());
     expect(result.current.zoom).toBe(1);
-    expect(result.current.presetId).toBe("ipad");
+    expect(result.current.presetId).toBe("tablet");
     expect(result.current.isRotated).toBe(true);
   });
 
   it("rotate swaps width and height", () => {
     const { result } = renderHook(() => useDeviceEmulation());
-    act(() => result.current.setPreset("iphone-14"));
+    act(() => result.current.setPreset("mobile"));
     expect(result.current.displayWidth).toBe(390);
     expect(result.current.displayHeight).toBe(844);
     act(() => result.current.rotate());
@@ -101,26 +98,26 @@ describe("useDeviceEmulation", () => {
 
   it("reset returns to defaults", () => {
     const { result } = renderHook(() => useDeviceEmulation());
-    act(() => result.current.setPreset("ipad-pro"));
+    act(() => result.current.setPreset("tablet"));
     act(() => result.current.rotate());
     act(() => result.current.setZoom(0.5));
     act(() => result.current.reset());
-    expect(result.current.presetId).toBe("desktop-1280");
+    expect(result.current.presetId).toBe("desktop");
     expect(result.current.isRotated).toBe(false);
     expect(result.current.zoom).toBe(1);
   });
 
   it("scaledWidth / scaledHeight reflect zoom multiplier", () => {
     const { result } = renderHook(() => useDeviceEmulation());
-    act(() => result.current.setPreset("iphone-se"));
+    act(() => result.current.setPreset("mobile"));
     act(() => result.current.setZoom(0.5));
-    expect(result.current.scaledWidth).toBe(187.5);
-    expect(result.current.scaledHeight).toBe(333.5);
+    expect(result.current.scaledWidth).toBe(195);
+    expect(result.current.scaledHeight).toBe(422);
   });
 
   it("persists state to localStorage under the namespaced key", () => {
     const { result, unmount } = renderHook(() => useDeviceEmulation());
-    act(() => result.current.setPreset("ipad"));
+    act(() => result.current.setPreset("tablet"));
     act(() => result.current.setZoom(0.75));
     act(() => result.current.rotate());
     unmount();
@@ -128,7 +125,7 @@ describe("useDeviceEmulation", () => {
     const raw = window.localStorage.getItem(DEVICE_EMULATION_STORAGE_KEY);
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!) as Record<string, unknown>;
-    expect(parsed.presetId).toBe("ipad");
+    expect(parsed.presetId).toBe("tablet");
     expect(parsed.zoom).toBe(0.75);
     expect(parsed.isRotated).toBe(true);
   });
@@ -136,10 +133,10 @@ describe("useDeviceEmulation", () => {
   it("restores persisted state on a fresh mount", () => {
     window.localStorage.setItem(
       DEVICE_EMULATION_STORAGE_KEY,
-      JSON.stringify({ presetId: "iphone-14", zoom: 1.5, isRotated: true }),
+      JSON.stringify({ presetId: "mobile", zoom: 1.5, isRotated: true }),
     );
     const { result } = renderHook(() => useDeviceEmulation());
-    expect(result.current.presetId).toBe("iphone-14");
+    expect(result.current.presetId).toBe("mobile");
     expect(result.current.zoom).toBe(1.5);
     expect(result.current.isRotated).toBe(true);
   });
@@ -151,13 +148,13 @@ describe("useDeviceEmulation", () => {
     );
     const { result } = renderHook(() => useDeviceEmulation());
     expect(DEVICE_PRESETS.some((p) => p.id === result.current.presetId)).toBe(true);
-    expect(result.current.presetId).toBe("desktop-1280");
+    expect(result.current.presetId).toBe("desktop");
   });
 
   it("tolerates corrupt payload", () => {
     window.localStorage.setItem(DEVICE_EMULATION_STORAGE_KEY, "{not json");
     const { result } = renderHook(() => useDeviceEmulation());
-    expect(result.current.presetId).toBe("desktop-1280");
+    expect(result.current.presetId).toBe("desktop");
     expect(result.current.zoom).toBe(1);
   });
 });

@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:usePress",
+  "catalogId": "hooks.use-press",
+  "displayName": "usePress",
+  "description": "Production-ready usePress hook with SSR-safe lifecycle behavior.",
+  "assetKind": "hook",
+  "tags": ["runtime", "accessibility"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"}],
+  "dependencies": []
+}

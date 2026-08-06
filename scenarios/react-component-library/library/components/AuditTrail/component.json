@@ -1,0 +1,1 @@
+{"libraryId":"react-component-library:AuditTrail","catalogId":"data-display.audit-trail","displayName":"AuditTrail","description":"An ordered activity surface that makes actor, action, and sequence legible.","assetKind":"component","tags":["data-display","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}

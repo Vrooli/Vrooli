@@ -6,9 +6,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"react-component-library/internal/components"
 	internaldeps "react-component-library/internal/deps"
 	internalpreview "react-component-library/internal/preview"
 )
+
+const testPreviewCSS = `:root { --color-primary: #2563eb; } .bg-app-primary { background: var(--color-primary); } .rounded-control { border-radius: var(--radius-control); }`
 
 func TestBuildImportMapJSONPinsDeclaredDeps(t *testing.T) {
 	withPackageRuntimeCandidates(t, func(name string) []string {
@@ -27,6 +30,8 @@ func TestBuildImportMapJSONPinsDeclaredDeps(t *testing.T) {
 	require.Contains(t, raw, `"lucide-react": "/preview/runtime/npm/lucide-react@0.424.0/index.js"`)
 	require.Contains(t, raw, `"/preview/runtime/react@18.3.1/index.js"`)
 	require.NotContains(t, raw, `esm.sh`)
+	require.NotContains(t, raw, `http://`)
+	require.NotContains(t, raw, `https://`)
 }
 
 func TestBuildImportMapJSONUsesResolvedDependencyVersionPerBundle(t *testing.T) {
@@ -95,7 +100,7 @@ func TestRenderHarnessHTMLInjectsDesignSystemCSS(t *testing.T) {
 		JS:         "export default function Demo() { return null }",
 		SourcePath: "components/Demo.tsx",
 		SHA256:     "sha",
-	}, harnessStory{})
+	}, harnessStory{}, testPreviewCSS)
 	require.Contains(t, html, `--color-primary`)
 	require.Contains(t, html, `.bg-app-primary`)
 	require.Contains(t, html, `.rounded-control`)
@@ -119,10 +124,11 @@ func TestRenderHarnessHTMLShowsImportMapDiagnostics(t *testing.T) {
 		Dependencies: []internaldeps.Declaration{
 			{DepName: "some-lib", VersionRange: "*"},
 		},
-	}, harnessStory{})
+	}, harnessStory{}, testPreviewCSS)
 	require.Contains(t, html, `id="preview-importmap-diagnostics"`)
-	require.Contains(t, html, `cannot pin dependency`)
-	require.False(t, strings.Contains(html, `some-lib@*`))
+	require.Contains(t, html, `cannot be resolved from declared range`)
+	require.Contains(t, html, `scenario-dependency-analyzer deps install npm/some-lib@*`)
+	require.False(t, strings.Contains(html, `/preview/runtime/npm/some-lib@*`))
 }
 
 func TestRenderHarnessHTMLCanShowRuntimeImportFailure(t *testing.T) {
@@ -130,7 +136,7 @@ func TestRenderHarnessHTMLCanShowRuntimeImportFailure(t *testing.T) {
 		JS:         "export default function Demo() { return null }",
 		SourcePath: "components/Demo.tsx",
 		SHA256:     "sha",
-	}, harnessStory{})
+	}, harnessStory{}, testPreviewCSS)
 	require.NotContains(t, html, `import { createRoot } from "react-dom/client";`)
 	require.Contains(t, html, `try {`)
 	require.Contains(t, html, `import("react-dom/client")`)
@@ -145,7 +151,7 @@ func TestRenderHarnessHTMLSupportsScopedTemporaryPropsOverrides(t *testing.T) {
 		JS:         "export default function Demo() { return null }",
 		SourcePath: "components/Demo.tsx",
 		SHA256:     "sha",
-	}, harnessStory{Name: "default", Version: "1.0.0", PropsJSON: `{"title":"Indexed"}`})
+	}, harnessStory{Name: "default", Version: "1.0.0", PropsJSON: `{"title":"Indexed"}`}, testPreviewCSS)
 	require.Contains(t, html, `const root = createRoot(document.getElementById("root"))`)
 	require.Contains(t, html, `const renderPreview = (override, environment = previewStory.environment)`)
 	require.Contains(t, html, `const validateEnvironment = (environment)`)
@@ -169,13 +175,30 @@ func TestRenderHarnessHTMLSupportsScopedTemporaryPropsOverrides(t *testing.T) {
 	require.NotContains(t, html, `eval(`)
 }
 
+func TestRenderHarnessHTMLIncludesFrameAndFixtureComposition(t *testing.T) {
+	html := renderHarnessHTML("cmp-sidebar", internalpreview.Bundle{
+		JS:          "export default function Sidebar() { return null }",
+		FrameJS:     "export function PageFrame() { return null }",
+		FrameAsset:  "navigation.page",
+		FrameRegion: "navigation",
+		FixtureJSON: `{"asset":"fixtures.resource-collection"}`,
+		SourcePath:  "components/SidebarShell.tsx",
+		SHA256:      "sha-frame",
+	}, harnessStory{Name: "persistent", Frame: &components.StoryFrame{Asset: "navigation.page", Region: "navigation", Fixture: "fixtures.resource-collection"}}, testPreviewCSS)
+	require.Contains(t, html, `const frameModuleURL`)
+	require.Contains(t, html, `previewStory.frame`)
+	require.Contains(t, html, `data-frame-region`)
+	require.Contains(t, html, `const regions = { [previewStory.frame.region]: subject, content: fixtureRegion }`)
+	require.Contains(t, html, `data-fixture-asset`)
+}
+
 func TestRenderHarnessHTMLRecordsDeclarativeHandlersAndCustomHarnessEvents(t *testing.T) {
 	html := renderHarnessHTML("cmp-1", internalpreview.Bundle{
 		JS:         "export default function Demo() { return null }",
 		HarnessJS:  "export function StatefulHarness() { return null }",
 		SourcePath: "components/Demo.tsx",
 		SHA256:     "sha",
-	}, harnessStory{Name: "interactive", Version: "1.0.0", Harness: "StatefulHarness"})
+	}, harnessStory{Name: "interactive", Version: "1.0.0", Harness: "StatefulHarness"}, testPreviewCSS)
 	require.Contains(t, html, `const createNodeFactory = (React, Icons, log) =>`)
 	require.Contains(t, html, `return (...args) => log(name, ...args);`)
 	require.Contains(t, html, `type: "rcl-preview-event"`)

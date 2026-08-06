@@ -36,6 +36,7 @@ type (
 		Params                    map[string]any
 	}
 )
+
 type Evidence struct {
 	ClaimID, Verdict, StateID, ExampleName, CaptureRef, CheckedAt, Message, Viewport string
 	ViewportWidth, ViewportHeight                                                    int

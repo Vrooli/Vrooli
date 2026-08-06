@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { ExperienceSurface } from "../../../library/components/ExperienceSurface/versions/1.0.0/ExperienceSurface";
+import { ExperienceSurface } from "../components/ExperienceSurface/versions/1.0.0/ExperienceSurface";
 
 describe("ExperienceSurface", () => {
   it("exposes the stable semantic lifecycle contract without prescribing layout", () => {

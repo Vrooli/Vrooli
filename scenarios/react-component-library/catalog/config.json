@@ -133,7 +133,8 @@
       "rung": "production-ready",
       "description": "Named specimens covering every required state, authored as story contract data.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
-      "blocking": true
+      "blocking": true,
+      "runner": { "react-vite": "react-component-library catalog gates examples" }
     },
     {
       "id": "integration",

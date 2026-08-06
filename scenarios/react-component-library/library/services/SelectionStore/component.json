@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:SelectionStore",
+  "catalogId": "services.selection-store",
+  "displayName": "SelectionStore",
+  "description": "Scoped runtime service for predictable SelectionStore behavior.",
+  "assetKind": "service",
+  "tags": ["runtime", "state"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"}],
+  "dependencies": []
+}

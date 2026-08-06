@@ -7,6 +7,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type { HTMLAttributes, ReactNode } from "react";
+export const CARD_PARTS = ["header", "media", "body", "footer"] as const;
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
@@ -72,4 +73,3 @@ export function CardContent({ children, className, ...props }: CardContentProps)
     </div>
   );
 }
-

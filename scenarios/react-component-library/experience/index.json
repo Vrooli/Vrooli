@@ -71,6 +71,48 @@
       "path": "components/use-voice-input.json",
       "title": "useVoiceInput",
       "status": "active"
+    },
+    {
+      "id": "app-navigation",
+      "path": "components/app-navigation.json",
+      "title": "AppNavigation",
+      "status": "active"
+    },
+    {
+      "id": "asset-detail-shell",
+      "path": "components/asset-detail-shell.json",
+      "title": "Asset Detail Shell",
+      "status": "active"
+    },
+    {
+      "id": "async-panel",
+      "path": "components/async-panel.json",
+      "title": "Async Panel",
+      "status": "active"
+    },
+    {
+      "id": "command-center-shell",
+      "path": "components/command-center-shell.json",
+      "title": "Command Center Shell",
+      "status": "active"
+    },
+    {
+      "id": "experience-surface",
+      "path": "components/experience-surface.json",
+      "title": "Experience Surface",
+      "status": "active"
+    },
+    {
+      "id": "inspector-layout",
+      "path": "components/inspector-layout.json",
+      "title": "Inspector Layout",
+      "status": "active"
+    },
+    {
+      "id": "stat-card",
+      "path": "components/stat-card.json",
+      "title": "Stat Card",
+      "status": "active"
     }
   ]
 }

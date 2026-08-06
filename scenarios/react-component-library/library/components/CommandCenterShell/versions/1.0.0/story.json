@@ -228,6 +228,42 @@
           "name": "Some information is unavailable."
         }
       ]
+    },
+    {
+      "id": "loading-workspace",
+      "name": "Loading workspace",
+      "args": {
+        "title": "Operations command center",
+        "navigation": { "$node": "nav", "children": [{ "$text": "Runs" }] },
+        "metrics": [{ "label": "Active runs", "value": "12" }],
+        "regionState": "loading",
+        "loading": { "$node": "p", "children": [{ "$text": "Loading recent runs…" }] }
+      },
+      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"command-center-primary\"]", "name": "data-experience-state", "value": "loading" }]
+    },
+    {
+      "id": "empty-workspace",
+      "name": "Empty workspace",
+      "args": {
+        "title": "Operations command center",
+        "navigation": { "$node": "nav", "children": [{ "$text": "Runs" }] },
+        "metrics": [{ "label": "Active runs", "value": "0" }],
+        "regionState": "empty",
+        "empty": { "$node": "p", "children": [{ "$text": "No recent runs." }] }
+      },
+      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"command-center-primary\"]", "name": "data-experience-state", "value": "empty" }]
+    },
+    {
+      "id": "error-workspace",
+      "name": "Workspace error",
+      "args": {
+        "title": "Operations command center",
+        "navigation": { "$node": "nav", "children": [{ "$text": "Runs" }] },
+        "metrics": [{ "label": "Active runs", "value": "12" }],
+        "regionState": "error",
+        "error": { "$node": "p", "children": [{ "$text": "Recent runs are unavailable." }] }
+      },
+      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"command-center-primary\"]", "name": "data-experience-state", "value": "error" }]
     }
   ]
 }

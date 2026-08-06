@@ -1,3 +1,4 @@
+/** @vrooliComponentSource primitives.icon */
 interface BrandMarkProps {
   className?: string;
 }

@@ -219,20 +219,13 @@
         "light": "فاتح",
         "dark": "داكن"
       },
-      "packLabel": "حزمة الرموز",
-      "packDescription": "تتجاوز الحزم خصائص CSS المخصصة ولا تغيّر وضع الألوان المحدد.",
-      "noneOption": "بدون حزمة",
-      "builtinOptionGroup": "لوحات مدمجة",
-      "packNames": {
-        "slate": "سليت",
-        "midnight": "منتصف الليل",
-        "highContrast": "تباين عالٍ"
+      "kitLabel": "حزمة التصميم",
+      "kitDescription": "اعرض كل معاينة باستخدام ورقة أنماط الحزمة الفعلية وأدواتها المجمعة.",
+      "kitOptions": {
+        "default": "Vrooli Default",
+        "commandDisplay": "Command Display",
+        "conversionLanding": "Conversion Landing"
       },
-      "importLabel": "استيراد DESIGN.md",
-      "importDescription": "أدخل معرّف سيناريو لكي يحلل الخادم ملف DESIGN.md لذلك السيناريو إلى رموز معاينة.",
-      "scenarioInputLabel": "معرّف السيناريو",
-      "scenarioInputPlaceholder": "مثال: flow-verifier",
-      "scenarioApply": "تطبيق",
       "visualLabel": "محاكاة مرئية",
       "visualDescription": "حاكِ حالات رؤية الألوان أو موّه المعاينة دون تغيير بيانات المكوّن.",
       "loading": "جارٍ تحميل السمة…",
@@ -256,6 +249,7 @@
       "zoomValue": "{{percent}}%",
       "rotate": "تدوير",
       "reset": "إعادة ضبط المحاكي",
+      "fit": "ملاءمة العرض",
       "visionFilterLabel": "مرشح الرؤية",
       "visionFilter": {
         "normal": "عادي",

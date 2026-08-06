@@ -215,20 +215,13 @@
         "light": "ライト",
         "dark": "ダーク"
       },
-      "packLabel": "トークンパック",
-      "packDescription": "パックは CSS カスタムプロパティを上書きします。カラーモードは変更しません。",
-      "noneOption": "パックなし",
-      "builtinOptionGroup": "ビルトインパレット",
-      "packNames": {
-        "slate": "スレート",
-        "midnight": "ミッドナイト",
-        "highContrast": "ハイコントラスト"
+      "kitLabel": "デザインキット",
+      "kitDescription": "実際のキットのスタイルシートとコンパイル済みユーティリティでプレビューを表示します。",
+      "kitOptions": {
+        "default": "Vrooli Default",
+        "commandDisplay": "Command Display",
+        "conversionLanding": "Conversion Landing"
       },
-      "importLabel": "DESIGN.md を読み込む",
-      "importDescription": "シナリオ ID を入力すると、サーバーがそのシナリオの DESIGN.md をプレビュートークンとして解析します。",
-      "scenarioInputLabel": "シナリオID",
-      "scenarioInputPlaceholder": "例: flow-verifier",
-      "scenarioApply": "適用",
       "visualLabel": "視覚シミュレーション",
       "visualDescription": "コンポーネントデータを変更せずに、色覚条件やぼかしをシミュレートします。",
       "loading": "テーマを読み込み中…",
@@ -252,6 +245,7 @@
       "zoomValue": "{{percent}}%",
       "rotate": "回転",
       "reset": "エミュレーターをリセット",
+      "fit": "ビューポートに合わせる",
       "visionFilterLabel": "視覚フィルター",
       "visionFilter": {
         "normal": "通常",

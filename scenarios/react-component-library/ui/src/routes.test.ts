@@ -4,7 +4,7 @@ import { appRoutes, assetInfoTab, assetPath, assetSearchForTab, assetStory, asse
 
 describe("workspace route contract", () => {
   it("owns the route patterns used by the application shell", () => {
-    expect(appRoutes).toEqual({ catalog: "/", assetCatalog: "/catalog", asset: "/assets/:id", settings: "/settings" });
+    expect(appRoutes).toEqual({ catalog: "/", assetCatalog: "/catalog", asset: "/assets/:id", coverage: "/coverage", capabilities: "/capabilities", settings: "/settings" });
   });
 
   it("encodes asset identities and produces a stable test-evidence deep link", () => {

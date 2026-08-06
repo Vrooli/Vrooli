@@ -1,0 +1,1 @@
+{"libraryId":"react-component-library:Drawer","catalogId":"overlays.drawer","displayName":"Drawer","description":"A layered side surface with predictable dismissal, focus semantics, and token-backed elevation.","assetKind":"component","tags":["overlay","layered","token-bound"],"latest":"1.0.0","designStyles":[{"styleId":"vrooli-default","affinity":"native"}],"dependencies":[]}

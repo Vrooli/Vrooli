@@ -6,8 +6,11 @@ import { fileURLToPath } from "node:url";
 const uiDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scenarioDir = path.resolve(uiDir, "..");
 const assetRoots = [
-  path.join(scenarioDir, "library", "components"),
+  path.join(scenarioDir, "library", "foundations"),
   path.join(scenarioDir, "library", "hooks"),
+  path.join(scenarioDir, "library", "services"),
+  path.join(scenarioDir, "library", "primitives"),
+  path.join(scenarioDir, "library", "components"),
 ];
 const eslintBin = path.join(uiDir, "node_modules", "eslint", "bin", "eslint.js");
 const generatedTSConfig = path.join(uiDir, ".catalog-tsconfig.generated.json");
@@ -65,7 +68,7 @@ function versionPaths(manifestPath) {
 
 function catalogFiles() {
   return assetRoots.flatMap((assetRoot) => readdirSync(assetRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
+    .filter((entry) => entry.isDirectory() && entry.name !== "shared")
     .flatMap((entry) => versionPaths(path.join(assetRoot, entry.name, "component.json"))))
     .sort((a, b) => a.uiRelative.localeCompare(b.uiRelative));
 }

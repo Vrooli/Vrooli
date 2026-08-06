@@ -1,0 +1,3 @@
+/** @vrooliComponentSource materialized.page */
+import type { ReactNode } from "react";
+export function Page({ navigation, children, state = "ready" }: { navigation?: ReactNode; children?: ReactNode; state?: string }) { return <div data-page-state={state} style={{ display: "grid", gridTemplateColumns: navigation ? "minmax(200px, 240px) minmax(0, 1fr)" : "1fr", minHeight: 480, background: "var(--color-background, #f8fafc)", color: "var(--color-foreground, #0f172a)" }}>{navigation && <aside style={{ borderInlineEnd: "1px solid var(--color-border, #cbd5e1)", padding: 16 }}>{navigation}</aside>}<main tabIndex={-1} style={{ minWidth: 0, padding: 24 }}>{children}</main></div>; }

@@ -25,9 +25,9 @@ export function InlineCode({ children, resolveInlineToken, looksLikeFileReferenc
   const resolution = resolveInlineToken?.(text);
   const isFile = !resolution && looksLikeFileReference?.(text);
   const { copied, copy } = useCodeCopy();
-  const tokenClass = "rounded bg-[var(--markdown-code-surface)] px-1 py-0.5 font-mono text-[var(--markdown-code-text)]";
+  const tokenClass = "rounded bg-[var(--markdown-code-surface)] [padding-inline:var(--space-3xs)] [padding-block:var(--space-3xs)] font-mono text-[var(--markdown-code-text)]";
 
   if (resolution) return <a href={resolution.href} data-entity-ref={resolution.kind === "entity" ? "true" : undefined} onClick={(event) => onLinkClick?.(resolution.href, event)} className={`${tokenClass} text-[var(--markdown-link)] underline`}>{text}</a>;
   if (isFile) return <button type="button" onClick={() => onFileReferenceClick?.(text)} className={`${tokenClass} text-[var(--markdown-link)] hover:opacity-80`}>{text}</button>;
-  return <span className="group relative inline-flex items-center"><code className={tokenClass}>{text}</code><button type="button" aria-label={copyLabel} onClick={() => void copy(text)} className="ml-1 hidden rounded px-1 text-[10px] text-[var(--markdown-muted)] group-hover:inline hover:opacity-80">{copied ? "Copied" : "Copy"}</button></span>;
+  return <span className="group relative inline-flex items-center"><code className={tokenClass}>{text}</code><button type="button" aria-label={copyLabel} onClick={() => void copy(text)} className="[margin-inline-start:var(--space-3xs)] hidden rounded [padding-inline:var(--space-3xs)] [font-size:var(--text-caption-size)] text-[var(--markdown-muted)] group-hover:inline hover:opacity-80">{copied ? "Copied" : "Copy"}</button></span>;
 }

@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:useRovingFocus",
+  "catalogId": "hooks.use-roving-focus",
+  "displayName": "useRovingFocus",
+  "description": "Production-ready useRovingFocus hook with SSR-safe lifecycle behavior.",
+  "assetKind": "hook",
+  "tags": ["runtime", "accessibility"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"}],
+  "dependencies": []
+}

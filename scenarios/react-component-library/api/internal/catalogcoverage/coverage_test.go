@@ -166,6 +166,53 @@ func TestCoverageDerivesMaturityFromEvidence(t *testing.T) {
 	}
 }
 
+func TestCoverageReachesTargetWhenEveryBlockingGatePasses(t *testing.T) {
+	assets := []Asset{{ID: "controls.button", Name: "Button", Kind: "component", Domain: "controls", Priority: "P0", Maturity: "production-ready", Targets: []string{"react-vite"}}}
+	impls := []Implementation{{Name: "Button", Root: "components", CatalogID: "controls.button"}}
+	gates := []GateDefinition{
+		{ID: "types", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "api", Rung: RungImplemented, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "visual", Rung: RungVerified, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "stress", Rung: RungProductionReady, Blocking: true, AppliesTo: []string{"component"}},
+	}
+	evidence := []GateEvidence{
+		{AssetID: "controls.button", Target: "react-vite", Gate: "types", Result: "pass"},
+		{AssetID: "controls.button", Target: "react-vite", Gate: "api", Result: "pass"},
+		{AssetID: "controls.button", Target: "react-vite", Gate: "visual", Result: "pass"},
+		{AssetID: "controls.button", Target: "react-vite", Gate: "stress", Result: "pass"},
+	}
+	report := ComputeWithEvidence(assets, impls, evidence, gates)
+	if got := report.Rows[0].Achieved; got != RungProductionReady {
+		t.Fatalf("achieved = %q, want production-ready", got)
+	}
+}
+
+func TestCoverageDropsOneRungWhenLastGateEvidenceIsRemoved(t *testing.T) {
+	assets := []Asset{{ID: "controls.button", Name: "Button", Kind: "component", Maturity: "production-ready", Targets: []string{"react-vite"}}}
+	impls := []Implementation{{Name: "Button", Root: "components", CatalogID: "controls.button"}}
+	gates := []GateDefinition{
+		{ID: "types", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "api", Rung: RungImplemented, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "visual", Rung: RungVerified, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "stress", Rung: RungProductionReady, Blocking: true, AppliesTo: []string{"component"}},
+	}
+	all := []GateEvidence{{AssetID: "controls.button", Target: "react-vite", Gate: "types", Result: "pass"}, {AssetID: "controls.button", Target: "react-vite", Gate: "api", Result: "pass"}, {AssetID: "controls.button", Target: "react-vite", Gate: "visual", Result: "pass"}, {AssetID: "controls.button", Target: "react-vite", Gate: "stress", Result: "pass"}}
+	withoutLast := all[:len(all)-1]
+	if got := ComputeWithEvidence(assets, impls, withoutLast, gates).Rows[0].Achieved; got != RungVerified {
+		t.Fatalf("achieved after removing final gate = %q, want verified", got)
+	}
+}
+
+func TestSkippedEvidenceNeverRaisesMaturity(t *testing.T) {
+	assets := []Asset{{ID: "controls.button", Name: "Button", Kind: "component", Maturity: "verified", Targets: []string{"react-vite"}}}
+	impls := []Implementation{{Name: "Button", Root: "components", CatalogID: "controls.button"}}
+	gates := []GateDefinition{{ID: "types", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}}, {ID: "api", Rung: RungImplemented, Blocking: true, AppliesTo: []string{"component"}}}
+	evidence := []GateEvidence{{AssetID: "controls.button", Target: "react-vite", Gate: "types", Result: "pass"}, {AssetID: "controls.button", Target: "react-vite", Gate: "api", Result: "skipped"}}
+	if got := ComputeWithEvidence(assets, impls, evidence, gates).Rows[0].Achieved; got != RungScaffolded {
+		t.Fatalf("achieved with skipped gate = %q, want scaffolded", got)
+	}
+}
+
 func TestNextWorkPrefersBuiltMaturityGap(t *testing.T) {
 	assets := []Asset{
 		{ID: "foundation.tokens", Name: "Tokens", Kind: "foundation", Domain: "foundations", Priority: "P0", Maturity: "implemented", Targets: []string{"react-vite"}},

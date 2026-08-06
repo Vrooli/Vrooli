@@ -15,6 +15,7 @@ never declares a competing schema.
 | Internal component state | Public controlled/default API or interaction sequence | No direct mutation |
 | Hook state | Hook fixture, action, settle, and observable output | No direct mutation |
 | Render assertions | `expect` vocabulary | Yes, with safe assertions only |
+| Composition context | `frame` block and catalog fixture | Yes, by naming an existing frame, region, and fixture |
 
 This boundary deliberately prevents both per-story controls and arbitrary
 hook/setup execution. The contract is declarative data, not an escape hatch
@@ -24,12 +25,12 @@ for running code in the preview iframe.
 
 Every asset version contains exactly one `story.json`. Schema version 1 remains
 fully supported. Schema version 2 adds optional story captions and a constrained
-code harness seam; use it when a controlled or composed specimen cannot be
-shown faithfully with public props alone.
+code harness seam. Schema version 3 adds declarative composition frames;
+versions 1 and 2 continue to parse unchanged.
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "Status Badge",
   "args": {
@@ -53,6 +54,11 @@ shown faithfully with public props alone.
     ]
   },
   "environment": { "fixtures": [] },
+  "frame": {
+    "asset": "navigation.page",
+    "region": "navigation",
+    "fixture": "fixtures.user-directory"
+  },
   "stories": [
     {
       "id": "success",
@@ -64,6 +70,23 @@ shown faithfully with public props alone.
   ]
 }
 ```
+
+### Schema version 3: preview frames
+
+`frame` may appear at the file level or on an individual story. A story-level
+frame replaces the file-level declaration. `asset` names a catalog asset that
+targets `react-vite`, `region` names one of that asset's declared regions, and
+`fixture` names a catalog asset of kind `fixture`. The indexer rejects unknown
+assets, undeclared regions, non-fixtures, and fixtures that do not satisfy the
+frame's `data-source` type arguments with named diagnostics.
+
+The preview bundles the frame and subject separately into the same isolated
+document. The subject is passed in the selected region; the remaining frame
+regions receive the declared fixture context. A frame is preview composition
+only and is never added to the subject's adoption or dependency closure. The
+reference specimen is `navigation.sidebar` framed by `navigation.page`, so a
+sidebar is judged as it appears in a real page document rather than as an
+orphaned panel.
 
 ### Schema version 2: captions and custom harnesses
 
@@ -200,8 +223,8 @@ registered start/stop actions.
 
 Catalog conformance fails when an eligible version has no valid `story.json`,
 has more than one, still contains `examples.json`, declares legacy `controls`
-or `setup`, or uses an undeclared environment fixture. This is a greenfield
-cutover: there is no compatibility reader.
+or `setup`, uses an undeclared environment fixture, or declares an invalid
+frame. This is a greenfield cutover: there is no compatibility reader.
 
 ## Cross-References
 

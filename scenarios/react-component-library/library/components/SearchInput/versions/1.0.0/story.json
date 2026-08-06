@@ -1,0 +1,1 @@
+{"schemaVersion":2,"kind":"component","title":"SearchInput","args":{"fields":[{"path":"placeholder","kind":"text","default":"Search"}]},"environment":{"fixtures":[]},"stories":[{"id":"empty","name":"Empty","harness":"SearchInputStory","args":{"placeholder":"Search"}}]}

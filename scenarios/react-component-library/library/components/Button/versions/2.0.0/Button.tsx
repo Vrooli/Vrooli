@@ -7,6 +7,10 @@
  */
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { ControlBase, type ControlDensity, type ControlShape, type ControlSize, type ControlVariant } from "../../../ControlBase/versions/1.0.0/ControlBase";
+export const BUTTON_VARIANTS = ["primary", "secondary", "ghost", "danger"] as const;
+export const BUTTON_SIZES = ["xs", "sm", "md", "lg", "xl", "icon"] as const;
+export const BUTTON_DENSITIES = ["comfortable", "compact"] as const;
+export const BUTTON_SHAPES = ["square", "pill"] as const;
 
 export type ButtonVariant = ControlVariant;
 export type ButtonSize = ControlSize;

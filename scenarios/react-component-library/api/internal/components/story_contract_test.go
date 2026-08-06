@@ -18,6 +18,67 @@ func TestParseStoryContractSchemaVersionTwoParsesHarnessAndDescription(t *testin
 	}
 }
 
+func TestParseStoryContractSchemaVersionThreeSupportsFileAndStoryFrames(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "frame": {"asset":"navigation.page","region":"navigation","fixture":"fixtures.user-directory"},
+  "stories": [{"id":"primary","name":"Primary","frame":{"asset":"templates.collection-page","region":"collection","fixture":"fixtures.resource-collection"},"args":{}}]
+}`))
+	if len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diagnostics)
+	}
+	if got := EffectiveStoryFrame(contract, &contract.Stories[0]); got == nil || got.Asset != "templates.collection-page" {
+		t.Fatalf("effective frame = %#v", got)
+	}
+}
+
+type frameRegistry map[string]CatalogFrameAsset
+
+func (r frameRegistry) LookupCatalogFrameAsset(id string) (CatalogFrameAsset, bool) {
+	asset, ok := r[id]
+	return asset, ok
+}
+
+func TestValidateStoryFramesReportsNamedCatalogDiagnostics(t *testing.T) {
+	contract, parseDiagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 3,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "frame": {"asset":"navigation.page","region":"missing","fixture":"fixtures.bad"},
+  "stories": [{"id":"primary","name":"Primary","args":{}}]
+}`))
+	if len(parseDiagnostics) != 0 {
+		t.Fatalf("unexpected parse diagnostics: %v", parseDiagnostics)
+	}
+	diagnostics := ValidateStoryFrames(contract, frameRegistry{
+		"navigation.page": {ID: "navigation.page", Kind: "navigation", Targets: []string{"react-vite"}, Regions: []string{"navigation"}, Expects: []CatalogFramePort{{Capability: "data-source", TypeArguments: []string{"TRecord"}}}},
+		"fixtures.bad":    {ID: "fixtures.bad", Kind: "fixture", FixtureSatisfies: &CatalogFramePort{Capability: "router-adapter", TypeArguments: []string{"Bad"}}},
+	})
+	if len(diagnostics) != 2 {
+		t.Fatalf("diagnostics = %v", diagnostics)
+	}
+	if diagnostics[0].Rule != "frame_fixture_data_source" || diagnostics[1].Rule != "frame_region_exists" {
+		t.Fatalf("diagnostic rules = %v", diagnostics)
+	}
+}
+
+func TestSchemaVersionTwoStillParsesWithoutFrame(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 2,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id":"primary","name":"Primary","args":{}}]
+}`))
+	if contract == nil || len(diagnostics) != 0 {
+		t.Fatalf("contract=%#v diagnostics=%v", contract, diagnostics)
+	}
+}
+
 func TestParseStoryContractRejectsInvalidHarnessExport(t *testing.T) {
 	_, diagnostics := ParseStoryContract([]byte(`{
   "schemaVersion": 2,

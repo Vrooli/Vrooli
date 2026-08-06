@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:ShortcutRegistry",
+  "catalogId": "services.shortcut-registry",
+  "displayName": "ShortcutRegistry",
+  "description": "Scoped runtime service for predictable ShortcutRegistry behavior.",
+  "assetKind": "service",
+  "tags": ["runtime", "state"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"}],
+  "dependencies": []
+}

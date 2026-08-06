@@ -639,6 +639,27 @@ describe("ComponentEditor", () => {
     expect(screen.queryByTestId(selectors.components.editor.previewError)).not.toBeInTheDocument();
   });
 
+  it("renders structural previews as one declared-viewport specimen stage", async () => {
+    const { componentsClient } = await import("../../api/components");
+    vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(
+      makeGetComponentContentResponse({ content: "// stage", sha256: "sha-stage" }),
+    );
+
+    renderWithProviders(
+      <ComponentEditor id="cmp-stage" libraryId="lib:PageFrame" onClose={() => {}} activePane="preview" stageMode />,
+    );
+
+    const frame = await screen.findByTestId<HTMLIFrameElement>(selectors.components.editor.previewFrame);
+    fireEvent.load(frame);
+    const card = await screen.findByTestId(selectors.components.editor.exampleCard);
+    expect(screen.getByTestId("components-editor-stage-mode")).toHaveTextContent("Stage");
+    expect(screen.getByTestId(selectors.components.editor.gallery)).toHaveAttribute("data-preview-stage-mode", "true");
+    expect(card).toContainElement(frame);
+    expect(frame).not.toHaveClass("h-[20rem]");
+    expect(frame.style.width).toBe("1280px");
+    expect(frame.style.height).toBe("720px");
+  });
+
   it("invokes onClose when the Back-to-list button is clicked", async () => {
     const { componentsClient } = await import("../../api/components");
     vi.mocked(componentsClient.getComponentContent).mockResolvedValueOnce(

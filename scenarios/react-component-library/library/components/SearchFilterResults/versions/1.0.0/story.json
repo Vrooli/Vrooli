@@ -1,0 +1,1 @@
+{"schemaVersion":1,"kind":"component","title":"SearchFilterResults","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"query":"alpha","items":["Alpha","Beta"]},"expect":[{"kind":"role","role":"search"}]},{"id":"empty","name":"Empty","args":{"query":"alpha","items":["Alpha","Beta"]}}]}

@@ -8,6 +8,8 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { X } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
+export const DIALOG_MODES = ["controlled", "uncontrolled"] as const;
+export const DIALOG_PARTS = ["trigger", "overlay", "content", "header", "title", "description", "body", "footer", "close"] as const;
 
 export interface DialogProps {
   open: boolean;
@@ -84,4 +86,3 @@ export function Dialog({
     </div>
   );
 }
-

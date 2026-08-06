@@ -1,7 +1,8 @@
+/** @vrooliComponentSource data-display.diff-viewer */
 import { useEffect, useMemo, useState } from "react";
 import { Check, Copy, Columns2, Rows3 } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "../../components/Button";
 import { useTheme } from "../../components/theme/useTheme";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -39,13 +40,13 @@ export function VersionDiffViewer({ rows }: VersionDiffViewerProps) {
   };
 
   return (
-    <section aria-label={t(strings.versions.diff.viewerLabel)} className="mt-2 overflow-hidden rounded border border-app-border bg-app-surface">
-      <header className="flex items-center justify-between gap-2 border-b border-app-border bg-app-surface-muted px-2 py-1.5">
-        <div className="flex items-center gap-1" role="group" aria-label={t(strings.versions.diff.modeLabel)}>
+    <section aria-label={t(strings.versions.diff.viewerLabel)} className="mt-space-2xs overflow-hidden rounded border border-app-border bg-app-surface">
+      <header className="flex items-center justify-between gap-space-2xs border-b border-app-border bg-app-surface-muted px-space-2xs py-space-2xs">
+        <div className="flex items-center gap-space-3xs" role="group" aria-label={t(strings.versions.diff.modeLabel)}>
           <Button
             type="button"
             variant={mode === "split" ? "primary" : "secondary"}
-            className="h-7 gap-1 px-2 text-xs"
+            className="h-7 gap-space-3xs px-space-2xs text-xs"
             onClick={() => setMode("split")}
             aria-pressed={mode === "split"}
           >
@@ -54,14 +55,14 @@ export function VersionDiffViewer({ rows }: VersionDiffViewerProps) {
           <Button
             type="button"
             variant={mode === "unified" ? "primary" : "secondary"}
-            className="h-7 gap-1 px-2 text-xs"
+            className="h-7 gap-space-3xs px-space-2xs text-xs"
             onClick={() => setMode("unified")}
             aria-pressed={mode === "unified"}
           >
             <Rows3 aria-hidden className="h-3.5 w-3.5" /> {t(strings.versions.diff.unified)}
           </Button>
         </div>
-        <Button type="button" variant="secondary" className="h-7 gap-1 px-2 text-xs" onClick={() => void copyDiff()}>
+        <Button type="button" variant="secondary" className="h-7 gap-space-3xs px-space-2xs text-xs" onClick={() => void copyDiff()}>
           {copied ? <Check aria-hidden className="h-3.5 w-3.5" /> : <Copy aria-hidden className="h-3.5 w-3.5" />}
           {copied ? t(strings.versions.diff.copied) : t(strings.versions.diff.copy)}
         </Button>
@@ -110,9 +111,9 @@ function DiffLine({ cell }: { cell: DiffCell | undefined }) {
       ? "bg-app-danger/10"
       : "text-app-muted-foreground";
   return (
-    <div role="cell" className={`flex min-w-0 px-2 ${tone}`}>
+    <div role="cell" className={`flex min-w-0 px-space-2xs ${tone}`}>
       <span className="w-8 shrink-0 select-none text-right text-app-muted-foreground">{cell.lineNumber || ""}</span>
-      <span className="mx-2 w-3 shrink-0 select-none text-app-muted-foreground">{marker}</span>
+      <span className="mx-space-2xs w-3 shrink-0 select-none text-app-muted-foreground">{marker}</span>
       <HighlightedSource source={cell.text} />
     </div>
   );

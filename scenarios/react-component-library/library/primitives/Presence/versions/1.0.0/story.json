@@ -1,0 +1,1 @@
+{"schemaVersion":1,"kind":"component","title":"Presence","args":{"fields":[{"path":"present","label":"Present","kind":"boolean","default":false}]},"environment":{"fixtures":[]},"stories":[{"id":"present-false","name":"present false","args":{"present":false}},{"id":"present-true","name":"present true","args":{"present":true}}]}

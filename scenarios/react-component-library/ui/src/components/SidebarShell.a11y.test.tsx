@@ -2,7 +2,7 @@ import { afterEach, describe, it } from "vitest";
 import { cleanup } from "@testing-library/react";
 import { renderWithProviders } from "../test-utils";
 
-import { SidebarShell } from "../../../library/components/SidebarShell/versions/1.0.0/SidebarShell";
+import { SidebarShell } from "./SidebarShell";
 import { expectNoA11yViolations } from "../test-utils";
 
 describe("SidebarShell accessibility", () => {

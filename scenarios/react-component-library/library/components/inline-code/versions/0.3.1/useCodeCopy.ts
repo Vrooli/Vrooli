@@ -4,7 +4,7 @@ export function useCodeCopy(resetAfterMs = 1500) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!copied) return;
+    if (!copied || typeof window === "undefined") return;
     const timer = window.setTimeout(() => setCopied(false), resetAfterMs);
     return () => window.clearTimeout(timer);
   }, [copied, resetAfterMs]);

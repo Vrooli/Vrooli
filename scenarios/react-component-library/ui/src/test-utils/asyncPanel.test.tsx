@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { AsyncPanel } from "../../../library/components/AsyncPanel/versions/1.0.0/AsyncPanel";
+import { AsyncPanel } from "../components/AsyncPanel/versions/1.0.0/AsyncPanel";
 
 describe("AsyncPanel", () => {
   it("preserves semantic lifecycle telemetry for partial content", () => {

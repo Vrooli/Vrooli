@@ -1,4 +1,5 @@
-/**
+/** @vrooliComponentSource templates.settings-page
+ *
  * SettingsPage — preferences surface.
  *
  * Scoped to the preferences this scenario can persist today: theme
@@ -10,7 +11,7 @@
  */
 import { type Theme } from "../components/theme/theme-context";
 import { useTheme } from "../components/theme/useTheme";
-import { Select } from "../components/ui/select";
+import { Select } from "../components/Select";
 import {
   SUPPORTED_LOCALES,
   getCurrentLocale,
@@ -24,14 +25,14 @@ export function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const locale = getCurrentLocale();
 
-  return <div data-testid="settings-page" className="grid max-w-5xl gap-6 md:grid-cols-[12rem_minmax(0,1fr)]">
-    <nav aria-label={t("settings.preferences", { defaultValue: "Preferences" })} className="rounded-panel border border-app-border bg-app-surface p-2">
-      <p className="px-2 py-2 text-sm font-semibold">{t("settings.preferences", { defaultValue: "Preferences" })}</p>
-      <a href="#appearance" className="block rounded-control px-2 py-2 text-sm hover:bg-app-surface-muted">{t("settings.appearance", { defaultValue: "Appearance" })}</a>
-      <a href="#language" className="block rounded-control px-2 py-2 text-sm hover:bg-app-surface-muted">{t("settings.language", { defaultValue: "Language" })}</a>
-      <span className="block cursor-not-allowed rounded-control px-2 py-2 text-sm text-app-muted-foreground" aria-disabled="true">{t("settings.workspaceFuture", { defaultValue: "Workspace (future)" })}</span>
+  return <div data-testid="settings-page" className="grid max-w-5xl gap-space-md md:grid-cols-[12rem_minmax(0,1fr)]">
+    <nav aria-label={t("settings.preferences", { defaultValue: "Preferences" })} className="rounded-panel border border-app-border bg-app-surface p-space-2xs">
+      <p className="px-space-2xs py-space-2xs text-sm font-semibold">{t("settings.preferences", { defaultValue: "Preferences" })}</p>
+      <a href="#appearance" className="block rounded-control px-space-2xs py-space-2xs text-sm hover:bg-app-surface-muted">{t("settings.appearance", { defaultValue: "Appearance" })}</a>
+      <a href="#language" className="block rounded-control px-space-2xs py-space-2xs text-sm hover:bg-app-surface-muted">{t("settings.language", { defaultValue: "Language" })}</a>
+      <span className="block cursor-not-allowed rounded-control px-space-2xs py-space-2xs text-sm text-app-muted-foreground" aria-disabled="true">{t("settings.workspaceFuture", { defaultValue: "Workspace (future)" })}</span>
     </nav>
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-space-md">
       <Section id="appearance" title={t("settings.appearance", { defaultValue: "Appearance" })}>
         <Field label={t("settings.theme", { defaultValue: "Theme" })}>
           <AppearanceCards
@@ -66,16 +67,16 @@ export function SettingsPage() {
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="rounded-panel border border-app-border bg-app-surface p-4">
+    <section id={id} className="rounded-panel border border-app-border bg-app-surface p-space-sm">
       <h2 className="text-sm font-semibold text-app-foreground">{title}</h2>
-      <div className="mt-3 flex flex-col gap-3">{children}</div>
+      <div className="mt-space-xs flex flex-col gap-space-xs">{children}</div>
     </section>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-wrap items-center justify-between gap-2 text-sm text-app-foreground">
+    <label className="flex flex-wrap items-center justify-between gap-space-2xs text-sm text-app-foreground">
       <span className="text-app-muted-foreground">{label}</span>
       {children}
     </label>
@@ -97,7 +98,7 @@ function AppearanceCards({
     <div
       data-testid={testid}
       role="radiogroup"
-      className="grid w-full gap-2 sm:grid-cols-3"
+      className="grid w-full gap-space-2xs sm:grid-cols-3"
     >
       {options.map((o) => {
         const active = o.value === value;
@@ -110,7 +111,7 @@ function AppearanceCards({
             data-testid={`${testid}-${o.value}`}
             onClick={() => onChange(o.value)}
             className={[
-              "min-h-24 rounded-panel border p-3 text-left text-sm",
+              "min-h-24 rounded-panel border p-space-xs text-left text-sm",
               active
                 ? "border-app-primary bg-app-surface-muted text-app-foreground ring-1 ring-app-primary"
                 : "border-app-border bg-app-surface text-app-foreground hover:bg-app-surface-muted",

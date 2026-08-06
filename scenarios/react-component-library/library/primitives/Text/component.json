@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:Text",
+  "catalogId": "primitives.text",
+  "displayName": "Text",
+  "description": "Text selects one of the eight bundled text styles without free-form font sizing.",
+  "assetKind": "primitive",
+  "tags": ["primitive", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-command-display","affinity":"compatible"},{"styleId":"vrooli-conversion-landing","affinity":"compatible"}],
+  "dependencies": []
+}

@@ -531,11 +531,21 @@
         {
           "name": "gates",
           "description": "Run one deterministic catalog gate against the live corpus",
-          "positionals": [{ "name": "gate", "required": true, "description": "Gate: api, tokens, lifecycle, or fixture-adversarial" }],
+          "positionals": [
+            { "name": "gate", "required": true, "description": "Gate: api, tokens, lifecycle, fixture-adversarial, or record" },
+            { "name": "record-gate", "required": false, "description": "Browser-backed gate to persist when gate is record" }
+          ],
           "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "RunGate" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
         }
       ]
+    }
+  ],
+  "exceptions": [
+    {
+      "command": "preview populate-store",
+      "class": "external_delegation",
+      "reason": "The command owns a filesystem-backed preview-store plan and delegates every package mutation to scenario-dependency-analyzer rather than a Connect RPC."
     }
   ],
   "omitted": [

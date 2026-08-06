@@ -1,10 +1,15 @@
 package preview
 
 import (
+	"io"
+	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 )
 
@@ -134,6 +139,45 @@ func TestPackageRuntimeEntryPreservesExplicitRuntimeSubpath(t *testing.T) {
 
 	require.True(t, ok)
 	require.Equal(t, filepath.Join("tailwind-merge", "dist", "bundle-mjs.mjs"), got)
+}
+
+func TestInstalledPackageCandidatesIgnoreLibraryUINodeModules(t *testing.T) {
+	withTempNodeModulesPackage(t, "ui-only", `{"version":"9.9.9"}`)
+
+	require.Empty(t, installedPackageVersionCandidates("ui-only"))
+}
+
+func TestRuntimeHandlerServesPackageOnlyFromGovernedStore(t *testing.T) {
+	root := t.TempDir()
+	store := filepath.Join(root, "tools")
+	packageRoot := filepath.Join(store, "preview-runtime-store-only", "node_modules", "store-only")
+	require.NoError(t, os.MkdirAll(packageRoot, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "package.json"), []byte(`{"version":"1.2.3","module":"index.js"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(packageRoot, "index.js"), []byte(`export const source = "governed-store";`), 0o600))
+	t.Setenv(previewRuntimeStoreEnv, store)
+
+	h := NewRuntimeHandlerAtRoot(log.New(io.Discard, "", 0), root)
+	req := httptest.NewRequest(http.MethodGet, "/preview/runtime/npm/store-only@1.2.3/index.js", nil)
+	req = mux.SetURLVars(req, map[string]string{"module": "store-only", "version": "1.2.3", "path": "index.js"})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Contains(t, rec.Body.String(), "governed-store")
+}
+
+func TestRuntimeHandlerMissingPackageNamesGovernedPopulateCommand(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv(previewRuntimeStoreEnv, filepath.Join(root, "tools"))
+	h := NewRuntimeHandlerAtRoot(log.New(io.Discard, "", 0), root)
+	req := httptest.NewRequest(http.MethodGet, "/preview/runtime/npm/missing-package@2.0.0/index.js", nil)
+	req = mux.SetURLVars(req, map[string]string{"module": "missing-package", "version": "2.0.0", "path": "index.js"})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusNotFound, rec.Code)
+	require.Contains(t, rec.Body.String(), "missing-package@2.0.0")
+	require.Contains(t, rec.Body.String(), "scenario-dependency-analyzer deps install npm/missing-package@2.0.0")
 }
 
 func withTempNodeModulesPackage(t *testing.T, moduleName, packageJSON string) {

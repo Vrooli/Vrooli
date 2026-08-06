@@ -1,0 +1,1 @@
+{"schemaVersion":1,"kind":"component","title":"List","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"items":["Alpha","Beta"]},"expect":[{"kind":"text","value":"Alpha"}]},{"id":"empty","name":"Empty","args":{"items":["Alpha","Beta"]}}]}

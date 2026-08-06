@@ -1,0 +1,1 @@
+{"schemaVersion":1,"kind":"component","title":"OfflineState","args":{},"environment":{"fixtures":[]},"stories":[{"id":"offline","name":"Offline","args":{},"expect":[{"kind":"role","role":"status"}]}]}

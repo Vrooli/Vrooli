@@ -36,10 +36,12 @@ const (
 // Result is pass, fail, or not-run. Unknown and empty results are treated as
 // not-run so a new runner cannot accidentally inflate coverage.
 type GateEvidence struct {
-	AssetID string
-	Target  string
-	Gate    string
-	Result  string
+	AssetID        string
+	Target         string
+	Gate           string
+	Result         string
+	SourceRevision string
+	RecordedAt     string
 }
 
 // GateDefinition is the config projection needed by the coverage engine.
@@ -232,6 +234,7 @@ func contains(values []string, value string) bool {
 	}
 	return false
 }
+
 func rungRank(r AchievedRung) int {
 	for i, item := range []AchievedRung{RungMissing, RungScaffolded, RungImplemented, RungVerified, RungProductionReady} {
 		if r == item {
@@ -240,6 +243,7 @@ func rungRank(r AchievedRung) int {
 	}
 	return 0
 }
+
 func atOrAbove(achieved, target AchievedRung) bool {
 	return target != "" && rungRank(achieved) >= rungRank(target)
 }

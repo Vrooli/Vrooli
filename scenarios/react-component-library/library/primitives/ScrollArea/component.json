@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:ScrollArea",
+  "catalogId": "primitives.scroll-area",
+  "displayName": "ScrollArea",
+  "description": "ScrollArea provides a keyboard-reachable overflow boundary.",
+  "assetKind": "primitive",
+  "tags": ["primitive", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{"styleId":"vrooli-default","affinity":"native"},{"styleId":"vrooli-command-display","affinity":"compatible"},{"styleId":"vrooli-conversion-landing","affinity":"compatible"}],
+  "dependencies": []
+}

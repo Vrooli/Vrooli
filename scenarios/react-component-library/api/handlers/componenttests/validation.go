@@ -31,6 +31,7 @@ type sharedHandler struct {
 	assets     components.Service
 	sourceRoot string
 	logger     *log.Logger
+	evidence   *catalogcoverage.EvidenceStore
 }
 
 const componentValidationWorkers = 4
@@ -65,7 +66,7 @@ func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	coverage, err := h.coverageReport()
+	coverage, err := h.coverageReport(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -143,7 +144,7 @@ func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 	}), nil
 }
 
-func (h *sharedHandler) coverageReport() (*catalogcoverage.Report, error) {
+func (h *sharedHandler) coverageReport(ctx context.Context) (*catalogcoverage.Report, error) {
 	root := h.sourceRoot
 	for root != "" {
 		if _, err := os.Stat(filepath.Join(root, ".vrooli", "schemas", "catalog-asset.schema.json")); err == nil {
@@ -159,7 +160,11 @@ func (h *sharedHandler) coverageReport() (*catalogcoverage.Report, error) {
 			if err != nil {
 				return nil, fmt.Errorf("load catalog coverage gates: %w", err)
 			}
-			report := catalogcoverage.ComputeWithEvidence(assets, impls, nil, gates)
+			evidence, err := catalogcoverage.MergedEvidence(ctx, root, h.evidence)
+			if err != nil {
+				return nil, fmt.Errorf("load catalog gate evidence: %w", err)
+			}
+			report := catalogcoverage.ComputeWithEvidence(assets, impls, evidence, gates)
 			return &report, nil
 		}
 		parent := filepath.Dir(root)

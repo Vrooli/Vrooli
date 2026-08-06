@@ -14,9 +14,11 @@ import (
 	"strings"
 )
 
-// Indexer walks a configured filesystem root for asset manifests under
+// Indexer walks a configured filesystem root for registry-backed manifests under
 // components/*/component.json and hooks/*/component.json and upserts the
-// manifest plus its version folders into the Repository. A final DeleteMissing call
+// manifest plus its version folders into the Repository. Catalog foundations,
+// primitives, and services are intentionally owned by catalog coverage rather
+// than this component registry, so they are skipped during indexing. A final DeleteMissing call
 // removes rows whose manifests no longer exist, so deleted components
 // leave the registry without manual intervention.
 //
@@ -98,6 +100,10 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 		if filepath.Base(path) != "component.json" {
 			return nil
 		}
+		if !registryAssetPath(path) {
+			result.Skipped++
+			return nil
+		}
 		result.Scanned++
 		in, _, perr := idx.buildManifestInput(path)
 		if perr != nil {
@@ -148,6 +154,11 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 	result.Deleted = deleted
 
 	return result, nil
+}
+
+func registryAssetPath(path string) bool {
+	clean := filepath.ToSlash(path)
+	return strings.HasPrefix(clean, "components/") || strings.HasPrefix(clean, "hooks/")
 }
 
 func registryOrphanFinding(o OrphanVersion) IndexFinding {
@@ -517,6 +528,16 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 		}
 		return nil, findings
 	}
+	if registry := idx.storyFrameRegistry(); registry != nil {
+		diagnostics = append(diagnostics, ValidateStoryFrames(contract, registry)...)
+		if len(diagnostics) > 0 {
+			findings := make([]IndexFinding, 0, len(diagnostics))
+			for _, diagnostic := range diagnostics {
+				findings = append(findings, invalidStoryFinding(sourcePath, diagnostic.Pointer, diagnostic.Rule, "", diagnostic.Detail))
+			}
+			return nil, findings
+		}
+	}
 	if AssetKind(contract.Kind) != assetKind {
 		return nil, []IndexFinding{invalidStoryFinding(sourcePath, "/kind", string(assetKind), string(contract.Kind), "story kind must match manifest asset kind")}
 	}
@@ -550,6 +571,21 @@ func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, asse
 	stories, _ := json.Marshal(contract.Stories)
 	normalized, _ := json.Marshal(contract)
 	return &ComponentStory{LibraryID: libraryID, Version: version, SchemaVersion: contract.SchemaVersion, Kind: contract.Kind, Title: contract.Title, ArgsJSON: string(args), EnvironmentJSON: string(environment), StoriesJSON: string(stories), ContractJSON: string(normalized), SourcePath: sourcePath}, nil
+}
+
+func (idx *Indexer) storyFrameRegistry() CatalogFrameRegistry {
+	if strings.TrimSpace(idx.root) == "" {
+		return nil
+	}
+	catalogDir := filepath.Clean(filepath.Join(idx.root, "..", "catalog"))
+	if _, err := os.Stat(catalogDir); err != nil {
+		return nil
+	}
+	registry, err := CatalogFrameRegistryFromDir(catalogDir)
+	if err != nil {
+		return nil
+	}
+	return registry
 }
 
 var storyHarnessExportRE = regexp.MustCompile(`(?m)^\s*export\s+(?:async\s+)?(?:function|const|let|var|class)\s+([A-Za-z_$][A-Za-z0-9_$]*)`)
