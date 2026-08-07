@@ -2,8 +2,10 @@ package policy
 
 import "context"
 
-type scopeContextKey struct{}
-type configContextKey struct{}
+type (
+	scopeContextKey  struct{}
+	configContextKey struct{}
+)
 
 // NormalizeScope is the single defaulting rule shared by handlers, services,
 // and CLI-facing integration code. Empty requests address the original

@@ -22,7 +22,7 @@ import (
 	internalrecall "vrooli-memory/internal/recall"
 )
 
-func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client inference.Client, logger *log.Logger, clocks ...clock.Clock) module.Module {
+func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client inference.Client, logger *log.Logger, compactor maintenance.Compactor, clocks ...clock.Clock) module.Module {
 	home, _ := os.UserHomeDir()
 	root := os.Getenv("VROOLI_MEMORY_CLAUDE_ROOT")
 	if root == "" {
@@ -44,7 +44,12 @@ func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client infere
 	if len(clocks) > 0 && clocks[0] != nil {
 		clk = clocks[0]
 	}
-	maintenanceService := maintenance.NewService(maintenance.NewSQLiteStore(db.Primary()), importer, projector, clk, interval)
+	compactLimit, err := maintenance.CompactLimitFromOS()
+	if err != nil {
+		panic(err)
+	}
+	maintenanceService := maintenance.NewService(maintenance.NewSQLiteStore(db.Primary()), importer, projector, clk, interval).
+		WithCompaction(compactor, compactLimit)
 	path, h := harnessconnect.NewHarnessServiceHandler(NewConnectHandler(importer, projector, logger, maintenanceService))
 	maintenanceService.Start(context.Background())
 	return module.Module{Name: "harness", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}

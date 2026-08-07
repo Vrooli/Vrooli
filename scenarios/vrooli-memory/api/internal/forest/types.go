@@ -20,6 +20,10 @@ type (
 	}
 	CompactionResult struct {
 		CompactedCount, EligibleFrontierBefore, EligibleFrontierAfter int
+		// Target is the frontier target this pass resolved for its scope. It
+		// travels with the result so a reporting surface never has to re-resolve
+		// scope policy to interpret the frontier number.
+		Target int
 	}
 	FrontierResult struct {
 		Nodes         []Node

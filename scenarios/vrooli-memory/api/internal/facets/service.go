@@ -59,9 +59,11 @@ func (s *Service) ListPinProposals(ctx context.Context) ([]PinProposal, error) {
 func (s *Service) ResolvePinProposal(ctx context.Context, id string, accept bool) error {
 	return s.repo.ResolvePinProposal(ctx, id, accept)
 }
+
 func (s *Service) RecordRecall(ctx context.Context, entryIDs []string) error {
 	return s.repo.RecordRecall(ctx, entryIDs)
 }
+
 func (s *Service) ListPinCandidates(ctx context.Context, limit int) ([]PinCandidate, error) {
 	return s.repo.ListPinCandidates(ctx, limit)
 }
@@ -77,6 +79,7 @@ func (s *Service) ListRules(ctx context.Context, scope string) ([]Rule, error) {
 func (s *Service) DryRunRule(ctx context.Context, id string) (DryRun, error) {
 	return s.repo.DryRunRule(ctx, id)
 }
+
 func (s *Service) MeasureDistribution(ctx context.Context, scope string) (DistributionMeasurement, error) {
 	return s.repo.MeasureDistribution(ctx, scope)
 }

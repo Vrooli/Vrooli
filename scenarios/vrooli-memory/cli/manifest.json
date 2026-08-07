@@ -903,11 +903,9 @@
               "default": "100"
             },
             {
-              "name": "facet",
-              "description": "Target facet",
-              "bind": {
-                "field": "rule"
-              }
+      "name": "facet",
+      "description": "Target facet",
+      "local_only": true
             },
             {
               "name": "source-runtime",
@@ -918,11 +916,9 @@
               "description": "Entry kind condition"
             },
             {
-              "name": "source-path",
-              "description": "Source path glob condition",
-              "bind": {
-                "field": "rule"
-              }
+      "name": "source-path",
+      "description": "Source path glob condition",
+      "local_only": true
             },
             {
               "name": "body-pattern",

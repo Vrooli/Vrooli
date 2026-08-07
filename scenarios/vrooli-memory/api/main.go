@@ -15,6 +15,7 @@ import (
 	"vrooli-memory/internal/forest"
 	"vrooli-memory/internal/inference"
 	"vrooli-memory/internal/journal"
+	"vrooli-memory/internal/maintenance"
 	"vrooli-memory/internal/modules"
 	"vrooli-memory/internal/policy"
 	internalrecall "vrooli-memory/internal/recall"
@@ -243,15 +244,19 @@ func main() {
 		return nil
 	}
 
+	// One compaction service, shared by the operator RPC and the scheduled
+	// maintenance pass, so the two can never compact concurrently.
+	forestService := forestH.NewService(db, gatewayClient, recallConfig.FrontierTarget, registry)
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		healthH.Module(db, "vrooli-memory-api", "1.0.0", db.Primary()),
+		healthH.Module(db, "vrooli-memory-api", "1.0.0", maintenance.NewSQLiteStore(db.Primary()), db.Primary()),
 		journalH.Module(db, gatewayClient, facetService, log.Default()),
 		facetsH.Module(db, log.Default()),
-		forestH.Module(db, gatewayClient, recallConfig.FrontierTarget, registry, log.Default()),
+		forestH.Module(forestService, log.Default()),
 		recallH.Module(db, gatewayClient, recallConfig, registry, log.Default()),
 		federation.Module(),
-		harnessH.Module(db, fileRoots, gatewayClient, log.Default(), clock.System{}),
+		harnessH.Module(db, fileRoots, gatewayClient, log.Default(), forestService, clock.System{}),
 		rulesH.Module(db, log.Default(), gatewayClient),
 		scopesH.Module(db, registry, registerScopeProvider, log.Default()),
 	)

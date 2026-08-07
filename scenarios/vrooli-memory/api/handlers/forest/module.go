@@ -14,9 +14,16 @@ import (
 	"vrooli-memory/internal/policy"
 )
 
-func Module(db *database.RoutedDB, client inference.Client, target int, registry *policy.Registry, logger *log.Logger) module.Module {
+// NewService builds the compaction service. The composition root owns the
+// single instance because the scheduled maintenance pass and the operator RPC
+// must share one run mutex; two instances would compact concurrently.
+func NewService(db *database.RoutedDB, client inference.Client, target int, registry *policy.Registry) *internalforest.Service {
 	svc := internalforest.NewService(internalforest.NewSQLiteRepository(db.Primary()), internalforest.NewSQLiteCandidateSource(db.Primary()), client, internalforest.Config{Target: target})
 	svc.SetPolicyRegistry(registry)
+	return svc
+}
+
+func Module(svc *internalforest.Service, logger *log.Logger) module.Module {
 	path, h := forestconnect.NewForestServiceHandler(NewConnectHandler(svc, logger))
 	return module.Module{Name: "forest", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}
 }

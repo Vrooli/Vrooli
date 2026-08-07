@@ -40,7 +40,7 @@ func TestSQLiteReaderAndNonEmptyParserFailure(t *testing.T) {
 	bad := filepath.Join(dir, "bad.jsonl")
 	require.NoError(t, os.WriteFile(bad, []byte("not json"), 0o600))
 	d := AdapterDescriptor{HarnessID: "test", Locations: []string{bad}, Format: JSONL, Extract: jsonlItems}
-	_, err = d.discover(nil)
+	_, _, err = d.discover(nil)
 	require.ErrorContains(t, err, "extract")
 }
 
@@ -48,8 +48,10 @@ func TestGeneratedProjectionIsNeverAnImportItem(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "MEMORY.md")
 	require.NoError(t, os.WriteFile(path, []byte(generatedHeader+"# Unified Vrooli Memory\n"), 0o600))
 	d := AdapterDescriptor{HarnessID: "test", Locations: []string{path}, Format: MarkdownBlob, Extract: wholeMarkdown}
-	_, err := d.discover(nil)
-	require.ErrorContains(t, err, "yielded zero importable items")
+	items, managedOnly, err := d.discover(nil)
+	require.NoError(t, err, "a store holding only generated output is a healthy zero, not a failure")
+	require.Empty(t, items)
+	require.True(t, managedOnly)
 }
 
 func TestEmptyStoreErrorsAreClassifiedForHonestDryRuns(t *testing.T) {
@@ -63,8 +65,9 @@ func TestAdapterStripsManagedWakeBlockButKeepsNativeText(t *testing.T) {
 	body := "native memory before\n" + wakeStart + "\nmanaged wake\n" + wakeEnd + "\nnative memory after\n"
 	require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
 	d := AdapterDescriptor{HarnessID: "test", Locations: []string{path}, Format: MarkdownBlob, Extract: wholeMarkdown}
-	items, err := d.discover(nil)
+	items, managedOnly, err := d.discover(nil)
 	require.NoError(t, err)
+	require.False(t, managedOnly)
 	require.Len(t, items, 1)
 	require.Equal(t, "native memory before\n\nnative memory after", items[0].Body)
 	require.NotContains(t, items[0].Body, "managed wake")
@@ -80,4 +83,36 @@ func TestSwarmRecordAdapterImportsOnlyCompletedNarratives(t *testing.T) {
 	draft, err := swarmRecord("draft.json", []byte(`{"id":"rec-draft","trigger":"partial"}`))
 	require.NoError(t, err)
 	require.Empty(t, draft)
+}
+
+// A runtime whose entire store is this service's own projection must report a
+// completed import that saw nothing, not a failure. Four runtimes reported a
+// permanent red on every maintenance tick before this distinction existed.
+func TestStoreHoldingOnlyManagedContentImportsWithoutFailing(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "AGENTS.md")
+	body := wakeStart + "\nprojected wake block\n" + wakeEnd + "\n"
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
+
+	d := AdapterDescriptor{HarnessID: "codex", Locations: []string{path}, Format: MarkdownBlob, Extract: wholeMarkdown}
+	items, managedOnly, err := d.discover(nil)
+	require.NoError(t, err)
+	require.Empty(t, items)
+	require.True(t, managedOnly)
+}
+
+// A store with real content that cannot be parsed is still a failure.
+func TestStoreWithUnparseableContentStillFails(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "memory.md")
+	require.NoError(t, os.WriteFile(path, []byte("   \n\n   \n"), 0o600))
+
+	d := AdapterDescriptor{HarnessID: "codex", Locations: []string{path}, Format: MarkdownBlob, Extract: wholeMarkdown}
+	_, managedOnly, err := d.discover(nil)
+	if err == nil {
+		require.True(t, managedOnly, "whitespace-only store must not be reported as a parse failure")
+	} else {
+		require.ErrorContains(t, err, "yielded zero importable items")
+		require.False(t, managedOnly)
+	}
 }

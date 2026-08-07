@@ -53,7 +53,7 @@ func (i *Importer) Import(ctx context.Context, runtime string, dryRun bool) (Imp
 	if err != nil {
 		return result, err
 	}
-	items, err := adapter.discover(i.projectionTargets)
+	items, managedOnly, err := adapter.discover(i.projectionTargets)
 	if err != nil {
 		return result, err
 	}
@@ -63,6 +63,12 @@ func (i *Importer) Import(ctx context.Context, runtime string, dryRun bool) (Imp
 		}
 	}
 	if result.Seen == 0 {
+		// A store whose only content is this service's own projection is
+		// correctly empty. Reporting it as a failure would turn the one-way
+		// projection guarantee into a permanent red on the operator surface.
+		if managedOnly {
+			return result, nil
+		}
 		return result, fmt.Errorf("non-empty harness %q store yielded zero importable items", runtime)
 	}
 	return result, nil
@@ -96,7 +102,7 @@ func (i *Importer) Start(ctx context.Context, runtime string) (ImportRun, bool, 
 	if err != nil {
 		return ImportRun{}, false, err
 	}
-	items, err := adapter.discover(i.projectionTargets)
+	items, _, err := adapter.discover(i.projectionTargets)
 	if err != nil {
 		return ImportRun{}, false, err
 	}

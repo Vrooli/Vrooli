@@ -7,11 +7,13 @@ import (
 	"context"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"vrooli-memory/internal/clock"
+	"vrooli-memory/internal/forest"
 	"vrooli-memory/internal/harness"
 
 	"github.com/google/uuid"
@@ -21,6 +23,14 @@ const (
 	IntervalEnv     = "VROOLI_MEMORY_MAINTENANCE_INTERVAL"
 	DefaultInterval = 6 * time.Hour
 	RuntimeTimeout  = 2 * time.Minute
+
+	// CompactLimitEnv bounds how many clusters one scheduled pass compacts.
+	// Compaction is the only maintenance step whose cost scales with the
+	// backlog rather than with the number of runtimes, so it needs its own
+	// bound and its own timeout. Zero disables scheduled compaction.
+	CompactLimitEnv     = "VROOLI_MEMORY_MAINTENANCE_COMPACT_LIMIT"
+	DefaultCompactLimit = 200
+	CompactTimeout      = 30 * time.Minute
 )
 
 type (
@@ -28,16 +38,29 @@ type (
 		Runtime, ImportStatus, ImportError, ProjectionStatus, ProjectionError string
 		StartedAt, CompletedAt                                                time.Time
 	}
+	// Compaction is run-level, not per-runtime: the canopy belongs to the
+	// corpus, not to any coding harness that feeds it.
+	Compaction struct {
+		Status, Error                                    string
+		Compacted, FrontierBefore, FrontierAfter, Target int
+	}
 	Run struct {
 		ID                     string
 		StartedAt, CompletedAt time.Time
 		Outcomes               []Outcome
+		Compaction             Compaction
 	}
 	Store interface {
 		Begin(context.Context, Run) error
 		PutOutcome(context.Context, string, Outcome) error
+		PutCompaction(context.Context, string, Compaction) error
 		Complete(context.Context, string, time.Time) error
 		Latest(context.Context) (Run, error)
+	}
+	// Compactor is the forest seam. The maintenance loop never reaches into
+	// the forest repository directly.
+	Compactor interface {
+		RunBounded(context.Context, int) (forest.CompactionResult, error)
 	}
 	Importer interface {
 		Runtimes() []string
@@ -48,12 +71,14 @@ type (
 		Project(context.Context, string, bool) (harness.ProjectionResult, error)
 	}
 	Service struct {
-		store     Store
-		importer  Importer
-		projector Projector
-		clock     clock.Clock
-		interval  time.Duration
-		running   atomic.Bool
+		store        Store
+		importer     Importer
+		projector    Projector
+		compactor    Compactor
+		clock        clock.Clock
+		interval     time.Duration
+		compactLimit int
+		running      atomic.Bool
 	}
 )
 
@@ -61,8 +86,26 @@ func NewService(store Store, importer Importer, projector Projector, clk clock.C
 	if clk == nil {
 		clk = clock.System{}
 	}
-	return &Service{store: store, importer: importer, projector: projector, clock: clk, interval: interval}
+	return &Service{store: store, importer: importer, projector: projector, clock: clk, interval: interval, compactLimit: DefaultCompactLimit}
 }
+
+// WithCompaction adds the scheduled compaction step. It is separate from
+// NewService so a caller that only refreshes harness stores stays unchanged.
+func (s *Service) WithCompaction(compactor Compactor, limit int) *Service {
+	s.compactor = compactor
+	s.compactLimit = limit
+	return s
+}
+
+func CompactLimitFromEnv(getenv func(string) (string, bool)) (int, error) {
+	raw, ok := getenv(CompactLimitEnv)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return DefaultCompactLimit, nil
+	}
+	return strconv.Atoi(strings.TrimSpace(raw))
+}
+
+func CompactLimitFromOS() (int, error) { return CompactLimitFromEnv(os.LookupEnv) }
 
 func IntervalFromEnv(getenv func(string) (string, bool)) (time.Duration, error) {
 	raw, ok := getenv(IntervalEnv)
@@ -144,6 +187,16 @@ func (s *Service) RunOnce(ctx context.Context) (bool, error) {
 			return true, err
 		}
 	}
+	// Compaction runs last. It is the only step whose duration scales with the
+	// backlog, so putting it ahead of projection would hold every harness memory
+	// file hostage to a long catch-up pass. The canopy this pass grows is picked
+	// up by the next tick's projection; ambient memory is never blocked on it.
+	compaction, err := s.compact(ctx, run.ID)
+	if err != nil {
+		return true, err
+	}
+	run.Compaction = compaction
+
 	completed := s.clock.Now().UTC()
 	for _, runtime := range runtimes {
 		o := outcomes[runtime]
@@ -155,6 +208,31 @@ func (s *Service) RunOnce(ctx context.Context) (bool, error) {
 		}
 	}
 	return true, s.store.Complete(ctx, run.ID, completed)
+}
+
+// compact runs one bounded pass and records its outcome. A compaction failure
+// never fails the maintenance run: import and projection are independent of the
+// canopy, and a provider outage must not stop ambient memory from refreshing.
+// The error is recorded so a stalled canopy is visible instead of silent.
+func (s *Service) compact(ctx context.Context, runID string) (Compaction, error) {
+	if s.compactor == nil || s.compactLimit == 0 {
+		out := Compaction{Status: "not_configured"}
+		return out, s.store.PutCompaction(ctx, runID, out)
+	}
+	runCtx, cancel := context.WithTimeout(ctx, CompactTimeout)
+	defer cancel()
+	result, err := s.compactor.RunBounded(runCtx, s.compactLimit)
+	out := Compaction{
+		Status:         "completed",
+		Compacted:      result.CompactedCount,
+		FrontierBefore: result.EligibleFrontierBefore,
+		FrontierAfter:  result.EligibleFrontierAfter,
+		Target:         result.Target,
+	}
+	if err != nil {
+		out.Status, out.Error = "failed", err.Error()
+	}
+	return out, s.store.PutCompaction(ctx, runID, out)
 }
 
 func (s *Service) Latest(ctx context.Context) (Run, error) { return s.store.Latest(ctx) }

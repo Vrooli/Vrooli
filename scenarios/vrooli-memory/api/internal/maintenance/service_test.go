@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"vrooli-memory/internal/forest"
 	"vrooli-memory/internal/harness"
 	"vrooli-memory/internal/testutil/mocks"
 )
@@ -53,12 +54,23 @@ func (f *fakeProjector) Project(_ context.Context, runtime string, _ bool) (harn
 }
 
 type memoryStore struct {
-	mu       sync.Mutex
-	runs     []Run
-	outcomes map[string]map[string]Outcome
+	mu          sync.Mutex
+	runs        []Run
+	outcomes    map[string]map[string]Outcome
+	compactions map[string]Compaction
 }
 
-func newMemoryStore() *memoryStore { return &memoryStore{outcomes: map[string]map[string]Outcome{}} }
+func newMemoryStore() *memoryStore {
+	return &memoryStore{outcomes: map[string]map[string]Outcome{}, compactions: map[string]Compaction{}}
+}
+
+func (s *memoryStore) PutCompaction(_ context.Context, id string, c Compaction) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.compactions[id] = c
+	return nil
+}
+
 func (s *memoryStore) Begin(_ context.Context, run Run) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -66,12 +78,14 @@ func (s *memoryStore) Begin(_ context.Context, run Run) error {
 	s.outcomes[run.ID] = map[string]Outcome{}
 	return nil
 }
+
 func (s *memoryStore) PutOutcome(_ context.Context, id string, o Outcome) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.outcomes[id][o.Runtime] = o
 	return nil
 }
+
 func (s *memoryStore) Complete(_ context.Context, id string, at time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -82,6 +96,7 @@ func (s *memoryStore) Complete(_ context.Context, id string, at time.Time) error
 	}
 	return nil
 }
+
 func (s *memoryStore) Latest(_ context.Context) (Run, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -151,5 +166,82 @@ func TestIntervalFromEnv(t *testing.T) {
 	require.NoError(t, err)
 	require.Zero(t, d)
 	_, err = IntervalFromEnv(func(string) (string, bool) { return "nonsense", true })
+	require.Error(t, err)
+}
+
+type fakeCompactor struct {
+	calls  []int
+	result forest.CompactionResult
+	err    error
+}
+
+func (f *fakeCompactor) RunBounded(_ context.Context, limit int) (forest.CompactionResult, error) {
+	f.calls = append(f.calls, limit)
+	return f.result, f.err
+}
+
+func TestRunOnceCompactsAfterProjectionSoAmbientMemoryIsNeverBlocked(t *testing.T) {
+	order := []string{}
+	store := newMemoryStore()
+	compactor := &fakeCompactor{result: forest.CompactionResult{CompactedCount: 3, EligibleFrontierBefore: 100, EligibleFrontierAfter: 97}}
+	service := NewService(store,
+		&fakeImporter{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
+		&fakeProjector{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
+		mocks.NewFakeClock(time.Time{}), 0).WithCompaction(compactor, 25)
+	_, err := service.RunOnce(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, []int{25}, compactor.calls, "compaction runs once per pass, at the configured limit")
+	require.Equal(t, []string{"import:a", "project:a"}, order,
+		"projection completes before the backlog-scaled compaction pass starts")
+
+	run, err := service.Latest(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "completed", store.compactions[run.ID].Status)
+	require.Equal(t, 3, store.compactions[run.ID].Compacted)
+	require.Equal(t, 100, store.compactions[run.ID].FrontierBefore)
+	require.Equal(t, 97, store.compactions[run.ID].FrontierAfter)
+}
+
+func TestCompactionFailureDoesNotStopProjection(t *testing.T) {
+	order := []string{}
+	store := newMemoryStore()
+	compactor := &fakeCompactor{err: errors.New("provider unavailable")}
+	service := NewService(store,
+		&fakeImporter{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
+		&fakeProjector{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
+		mocks.NewFakeClock(time.Time{}), 0).WithCompaction(compactor, 10)
+	_, err := service.RunOnce(context.Background())
+	require.NoError(t, err, "a compaction failure is recorded, not propagated")
+
+	run, err := service.Latest(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "failed", store.compactions[run.ID].Status)
+	require.Contains(t, store.compactions[run.ID].Error, "provider unavailable")
+	require.Contains(t, order, "project:a", "ambient memory still refreshes when the canopy stalls")
+}
+
+func TestCompactionNotConfiguredWhenLimitIsZero(t *testing.T) {
+	store := newMemoryStore()
+	compactor := &fakeCompactor{}
+	service := NewService(store,
+		&fakeImporter{runtimes: []string{"a"}, err: map[string]error{}},
+		&fakeProjector{runtimes: []string{"a"}, err: map[string]error{}},
+		mocks.NewFakeClock(time.Time{}), 0).WithCompaction(compactor, 0)
+	_, err := service.RunOnce(context.Background())
+	require.NoError(t, err)
+	require.Empty(t, compactor.calls)
+	run, err := service.Latest(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "not_configured", store.compactions[run.ID].Status)
+}
+
+func TestCompactLimitFromEnv(t *testing.T) {
+	n, err := CompactLimitFromEnv(func(string) (string, bool) { return "", false })
+	require.NoError(t, err)
+	require.Equal(t, DefaultCompactLimit, n)
+	n, err = CompactLimitFromEnv(func(string) (string, bool) { return "0", true })
+	require.NoError(t, err)
+	require.Zero(t, n)
+	_, err = CompactLimitFromEnv(func(string) (string, bool) { return "many", true })
 	require.Error(t, err)
 }

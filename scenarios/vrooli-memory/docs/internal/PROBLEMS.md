@@ -77,6 +77,32 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `internal/recall/sqlite_source.go`, `internal/forest/sqlite_source.go`, `VMEM-P1-005`.
 
+### 2026-08-07 — The corpus ran from `/tmp` against a different backup target (RESOLVED)
+
+**Symptom:** The API ran with `SQLITE_PATH=/tmp/vmem-refacet-copy.db` while backup target `33df5137` pointed at `scenarios/vrooli-memory/data/vrooli-memory.db`. Two days of writes existed in one volatile file that nothing backed up.
+
+**Root cause:** A phase-4 re-facet working copy was committed into `.vrooli/service.json` as a permanent environment override and never unwound. Removing it revealed a third path — the storage resolver default at `~/.vrooli/data/vrooli/vrooli-memory/` — which the service had never been using.
+
+**What made it dangerous:** the two files were forks, not stale-and-fresh. 351 entries existed only in the runtime copy and 3 only in the repository copy, with all 2,725 shared bodies byte-identical. Copying either file over the other would have deleted permanent journal rows.
+
+**Real fix (done):** merged by union to 3,081 entries with the high-water mark advanced, installed at the resolver path, override removed, backup target re-pointed, backup and restore drill verified equal row counts and equal per-row body hashes, redundant copies removed, and the plan given a 12h schedule with a weekly recovery drill. See D-039.
+
+### 2026-08-07 — The compaction forest was empty and nothing rebuilt it (RESOLVED)
+
+**Symptom:** `summaries` and `tree_edges` were both zero while the eligible frontier held 2,628 nodes against a target of 16. Wake still returned 39 items, so nothing looked wrong.
+
+**Root cause:** two correct changes with a gap between them. D-031 made `Rebuild` a provider-independent cache recovery that drops summaries and does not regenerate them, and D-032 built the maintenance loop as import plus projection only. After the phase-4 re-facet rebuild, nothing ever called compaction again.
+
+**Real fix (done):** `forest.Service.RunBounded` plus a scheduled compaction step between import and projection, and a `canopy` health check that reports the eligible frontier against its target. See D-036 and D-037.
+
+### 2026-08-07 — Four runtimes reported a false import failure every tick (RESOLVED)
+
+**Symptom:** codex, gemini, grok and opencode each failed with `non-empty harness store yielded zero importable items` on every maintenance run.
+
+**Root cause:** their entire store is this service's projection — all four files byte-identical at 17,037 bytes. The one-directional projection fix correctly strips the managed block, leaving nothing, and the importer reported that empty result as an error.
+
+**Real fix (done):** `extractPath` drops sources that are empty after marker removal and reports that it did so; that case returns a completed import with zero items. See D-038.
+
 ### 2026-08-05 — Recall still scores every node linearly (wake half RESOLVED)
 
 **Symptom:** `Recall` scores every leaf and summary in Go on every query. Cost is linear in corpus size.

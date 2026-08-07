@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"path"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -388,13 +387,4 @@ func corpusFingerprint(ctx context.Context, db *sql.DB, scope string) (string, e
 	}
 	h := sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%s", scope, count, latest.String)))
 	return hex.EncodeToString(h[:]), nil
-}
-
-func sortRules(rules []Rule) {
-	sort.SliceStable(rules, func(i, j int) bool {
-		if rules[i].Priority != rules[j].Priority {
-			return rules[i].Priority < rules[j].Priority
-		}
-		return rules[i].ID < rules[j].ID
-	})
 }

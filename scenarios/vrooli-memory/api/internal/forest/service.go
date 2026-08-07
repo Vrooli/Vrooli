@@ -102,18 +102,38 @@ func (s *Service) Run(ctx context.Context) (CompactionResult, error) {
 	if err != nil {
 		return CompactionResult{}, err
 	}
-	return s.runLocked(ctx, config)
+	return s.runLocked(ctx, config, 0)
 }
 
-func (s *Service) runLocked(ctx context.Context, config Config) (CompactionResult, error) {
+// RunBounded compacts at most maxClusters clusters and then returns cleanly,
+// even when the frontier is still above target. A scheduled caller needs a pass
+// whose cost is knowable in advance: driving a large backlog to target can take
+// thousands of provider calls, and a caller that cannot bound that either blocks
+// its own loop or reports a deadline as a failure. Each cluster is still written
+// atomically, so a bounded pass is durable progress and the next pass resumes
+// from the smaller frontier. maxClusters <= 0 means run to target.
+func (s *Service) RunBounded(ctx context.Context, maxClusters int) (CompactionResult, error) {
+	s.runMu.Lock()
+	defer s.runMu.Unlock()
+	config, err := s.configFor(ctx)
+	if err != nil {
+		return CompactionResult{}, err
+	}
+	return s.runLocked(ctx, config, maxClusters)
+}
+
+func (s *Service) runLocked(ctx context.Context, config Config, maxClusters int) (CompactionResult, error) {
 	candidates, err := s.eligible(ctx)
 	if err != nil {
 		return CompactionResult{}, err
 	}
-	result := CompactionResult{EligibleFrontierBefore: len(candidates), EligibleFrontierAfter: len(candidates)}
+	result := CompactionResult{EligibleFrontierBefore: len(candidates), EligibleFrontierAfter: len(candidates), Target: config.Target}
 	failedPairs := make(map[string]struct{})
 	var lastSummarizeErr error
 	for len(candidates) > config.Target {
+		if maxClusters > 0 && result.CompactedCount >= maxClusters {
+			return result, nil
+		}
 		best, pairKey, ok := bestPairExcluding(candidates, failedPairs)
 		if !ok {
 			if lastSummarizeErr != nil {
@@ -292,11 +312,6 @@ func (s *Service) eligible(ctx context.Context) ([]Candidate, error) {
 		}
 	}
 	return out, nil
-}
-
-func bestPair(candidates []Candidate) ([2]Candidate, bool) {
-	selected, _, ok := bestPairExcluding(candidates, nil)
-	return selected, ok
 }
 
 func bestPairExcluding(candidates []Candidate, excluded map[string]struct{}) ([2]Candidate, string, bool) {

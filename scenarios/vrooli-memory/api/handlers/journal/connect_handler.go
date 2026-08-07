@@ -143,13 +143,6 @@ func importKey(p *journalv1.ImportProvenance) string {
 	return p.GetRuntime() + ":" + p.GetSourceLocator() + ":" + p.GetContentHash()
 }
 
-func attributionFromProto(a *journalv1.Attribution) internaljournal.Attribution {
-	if a == nil {
-		return internaljournal.Attribution{}
-	}
-	return internaljournal.Attribution{ActorID: a.GetActorId(), ActorKind: a.GetActorKind(), SourceRuntime: a.GetSourceRuntime(), VerificationStatus: a.GetVerificationStatus(), HarnessSessionID: a.GetHarnessSessionId(), HarnessKind: a.GetHarnessKind()}
-}
-
 func entryToProto(e internaljournal.Entry) *journalv1.Entry {
 	out := &journalv1.Entry{Id: e.ID, Body: e.Body, FacetId: e.FacetID, Kind: e.Kind, Attribution: &journalv1.Attribution{ActorId: e.Attribution.ActorID, ActorKind: e.Attribution.ActorKind, SourceRuntime: e.Attribution.SourceRuntime, VerificationStatus: e.Attribution.VerificationStatus, HarnessSessionId: e.Attribution.HarnessSessionID, HarnessKind: e.Attribution.HarnessKind}, Correlation: &journalv1.Correlation{RunId: e.Correlation.RunID, WorkflowExecutionId: e.Correlation.WorkflowExecutionID, ActorKind: e.Correlation.ActorKind}, CreatedAt: timestamppb.New(e.CreatedAt)}
 	for _, f := range e.FacetTexts {

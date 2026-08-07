@@ -16,11 +16,12 @@ import (
 
 type Scope string
 
+const AgentMemory Scope = "agent-memory"
+
 const (
-	AgentMemory       Scope = "agent-memory"
-	FrontierTargetEnv       = "VROOLI_MEMORY_FRONTIER_TARGET"
-	WakeBudgetEnv           = "VROOLI_MEMORY_WAKE_BUDGET"
-	MaxEntryLinesEnv        = "VROOLI_MEMORY_MAX_ENTRY_LINES"
+	FrontierTargetEnv = "VROOLI_MEMORY_FRONTIER_TARGET"
+	WakeBudgetEnv     = "VROOLI_MEMORY_WAKE_BUDGET"
+	MaxEntryLinesEnv  = "VROOLI_MEMORY_MAX_ENTRY_LINES"
 )
 
 type Config struct {
@@ -303,6 +304,7 @@ func (r *Resolver) Resolve(ctx context.Context) (Config, error) {
 	}
 	return r.config, nil
 }
+
 func (r *Resolver) Vocabulary(ctx context.Context) ([]Facet, error) {
 	if r.vocabulary == nil {
 		return nil, nil

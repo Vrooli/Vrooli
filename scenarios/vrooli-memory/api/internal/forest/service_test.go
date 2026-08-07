@@ -305,3 +305,50 @@ func TestFrontierFiltersAndOrdersEligibleNodesByCompactionScore(t *testing.T) {
 	require.InDelta(t, 1, result.Nodes[0].CompactionScore, 1e-9)
 	require.InDelta(t, 0, result.Nodes[2].CompactionScore, 1e-9)
 }
+
+// A scheduled pass must stop at its cluster budget and return cleanly, even
+// with the frontier still far above target. Driving a large backlog to target
+// in one pass costs one provider call per cluster, which a loop cannot bound.
+func TestRunBoundedStopsAtClusterBudgetAboveTarget(t *testing.T) {
+	now := time.Now().UTC()
+	candidates := make([]Candidate, 0, 12)
+	for n := range 12 {
+		candidates = append(candidates, Candidate{
+			ID: fmt.Sprintf("entry-%02d", n), FacetID: "episode", Compactable: true,
+			Body: fmt.Sprintf("body %d", n), Kind: "entry", CreatedAt: now.Add(-48 * time.Hour),
+			Vectors: [][]float64{{1, float64(n) / 100}},
+		})
+	}
+	source := &memorySource{candidates: candidates}
+	repo := &memoryRepo{source: source}
+	svc := NewService(repo, source, &mocks.FakeInference{SummarizeOut: "summary", EmbedOut: []float64{1, 0}}, Config{Target: 2})
+	svc.now = func() time.Time { return now }
+
+	result, err := svc.RunBounded(context.Background(), 3)
+	require.NoError(t, err, "hitting the budget is a clean stop, not a failure")
+	require.Equal(t, 3, result.CompactedCount)
+	require.Equal(t, 12, result.EligibleFrontierBefore)
+	require.Equal(t, 9, result.EligibleFrontierAfter, "each cluster absorbs two nodes and adds one summary")
+	require.Greater(t, result.EligibleFrontierAfter, 2, "the frontier is deliberately left above target")
+}
+
+// A budget of zero means run to target, matching the unbounded operator RPC.
+func TestRunBoundedWithoutBudgetRunsToTarget(t *testing.T) {
+	now := time.Now().UTC()
+	candidates := make([]Candidate, 0, 6)
+	for n := range 6 {
+		candidates = append(candidates, Candidate{
+			ID: fmt.Sprintf("entry-%02d", n), FacetID: "episode", Compactable: true,
+			Body: fmt.Sprintf("body %d", n), Kind: "entry", CreatedAt: now.Add(-48 * time.Hour),
+			Vectors: [][]float64{{1, float64(n) / 100}},
+		})
+	}
+	source := &memorySource{candidates: candidates}
+	repo := &memoryRepo{source: source}
+	svc := NewService(repo, source, &mocks.FakeInference{SummarizeOut: "summary", EmbedOut: []float64{1, 0}}, Config{Target: 2})
+	svc.now = func() time.Time { return now }
+
+	result, err := svc.RunBounded(context.Background(), 0)
+	require.NoError(t, err)
+	require.Equal(t, 2, result.EligibleFrontierAfter)
+}

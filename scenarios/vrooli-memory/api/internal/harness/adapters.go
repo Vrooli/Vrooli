@@ -74,16 +74,21 @@ func (i *Importer) Runtimes() []string {
 	return out
 }
 
-func (d AdapterDescriptor) discover(projectionTargets map[string]struct{}) ([]sourceItem, error) {
-	var items []sourceItem
+// discover walks the adapter's declared locations. managedOnly reports that the
+// store exists and every source in it was either a projection target or held
+// nothing once the managed block was removed. That is a healthy zero, not a
+// parse failure: a runtime whose whole store is the projection would otherwise
+// report an import failure on every maintenance tick forever.
+func (d AdapterDescriptor) discover(projectionTargets map[string]struct{}) (items []sourceItem, managedOnly bool, err error) {
 	var found bool
+	var sawSource, sawManaged bool
 	for _, location := range d.Locations {
 		info, err := os.Stat(location)
 		if os.IsNotExist(err) {
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("read harness store %q: %w", location, err)
+			return nil, false, fmt.Errorf("read harness store %q: %w", location, err)
 		}
 		found = true
 		if info.IsDir() {
@@ -94,62 +99,85 @@ func (d AdapterDescriptor) discover(projectionTargets map[string]struct{}) ([]so
 				if entry.IsDir() || (!matchesFormat(path, d.Format) && d.HarnessID != "swarm-manager-records") {
 					return nil
 				}
+				sawSource = true
 				if _, excluded := projectionTargets[normalizedAbsolutePath(path)]; excluded {
+					sawManaged = true
 					return nil
 				}
-				loaded, err := d.extractPath(path)
-				if err != nil {
-					return err
+				loaded, managed, walkErr2 := d.extractPath(path)
+				if walkErr2 != nil {
+					return walkErr2
+				}
+				if managed {
+					sawManaged = true
 				}
 				items = append(items, loaded...)
 				return nil
 			})
 			if err != nil {
-				return nil, fmt.Errorf("walk harness store %q: %w", location, err)
+				return nil, false, fmt.Errorf("walk harness store %q: %w", location, err)
 			}
 			continue
 		}
+		sawSource = true
 		if _, excluded := projectionTargets[normalizedAbsolutePath(location)]; excluded {
+			sawManaged = true
 			continue
 		}
-		loaded, err := d.extractPath(location)
+		loaded, managed, err := d.extractPath(location)
 		if err != nil {
-			return nil, err
+			return nil, false, err
+		}
+		if managed {
+			sawManaged = true
 		}
 		items = append(items, loaded...)
 	}
 	if !found {
-		return nil, fmt.Errorf("harness %q store is not present", d.HarnessID)
+		return nil, false, fmt.Errorf("harness %q store is not present", d.HarnessID)
 	}
 	if len(items) == 0 {
-		return nil, fmt.Errorf("non-empty harness %q store yielded zero importable items", d.HarnessID)
+		if sawSource && sawManaged {
+			return nil, true, nil
+		}
+		return nil, false, fmt.Errorf("non-empty harness %q store yielded zero importable items", d.HarnessID)
 	}
 	sort.Slice(items, func(a, b int) bool { return items[a].Path < items[b].Path })
-	return items, nil
+	return items, false, nil
 }
 
-func (d AdapterDescriptor) extractPath(path string) ([]sourceItem, error) {
+// extractPath reads one source. managed reports that the source held content
+// before the managed block was removed and nothing after it, which is a healthy
+// zero rather than a parse failure.
+func (d AdapterDescriptor) extractPath(path string) (items []sourceItem, managed bool, err error) {
 	if d.Format == SQLite {
-		return extractSQLite(path)
+		out, err := extractSQLite(path)
+		return out, false, err
 	}
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, false, fmt.Errorf("read %s: %w", path, err)
 	}
 	// Older whole-file projections predate managed markers. Keep their
 	// generated-only guard for relocated stores; current projections are
 	// removed by stripManagedWakeBlock below.
 	if strings.HasPrefix(string(b), generatedHeader) {
-		return nil, nil
+		return nil, true, nil
 	}
-	items, err := d.Extract(path, b)
+	extracted, err := d.Extract(path, b)
 	if err != nil {
-		return nil, fmt.Errorf("extract %s: %w", path, err)
+		return nil, false, fmt.Errorf("extract %s: %w", path, err)
 	}
-	for n := range items {
-		items[n].Body = stripManagedWakeBlock(items[n].Body)
+	for _, item := range extracted {
+		item.Body = stripManagedWakeBlock(item.Body)
+		if strings.TrimSpace(item.Body) == "" {
+			// The source existed and carried only this service's own output.
+			managed = true
+			continue
+		}
+		items = append(items, item)
 	}
-	return items, nil
+	return items, managed, nil
 }
 
 // stripManagedWakeBlock removes generated wake content while preserving all

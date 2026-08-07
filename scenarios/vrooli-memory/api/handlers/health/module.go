@@ -16,12 +16,12 @@ import (
 // probe convention infrastructure (LB, Kubernetes) reaches for;
 // /api/v1/health is what API clients use so they only have to know
 // one base path.
-func Module(pinger database.Pinger, service, version string, maintenanceDB ...*sql.DB) module.Module {
+func Module(pinger database.Pinger, service, version string, canopy CanopyReporter, maintenanceDB ...*sql.DB) module.Module {
 	var db *sql.DB
 	if len(maintenanceDB) > 0 {
 		db = maintenanceDB[0]
 	}
-	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version, MaintenanceDB: db})
+	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version, MaintenanceDB: db, Canopy: canopy})
 	return module.Module{
 		Name: "health",
 		Mount: func(r *mux.Router) {

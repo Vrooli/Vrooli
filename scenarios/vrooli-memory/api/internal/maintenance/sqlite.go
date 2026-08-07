@@ -29,6 +29,12 @@ func (s *SQLiteStore) PutOutcome(ctx context.Context, runID string, o Outcome) e
 	return err
 }
 
+func (s *SQLiteStore) PutCompaction(ctx context.Context, runID string, c Compaction) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE maintenance_runs SET compaction_status=?,compaction_error=?,compacted_count=?,frontier_before=?,frontier_after=?,frontier_target=? WHERE id=?`,
+		c.Status, c.Error, c.Compacted, c.FrontierBefore, c.FrontierAfter, c.Target, runID)
+	return err
+}
+
 func (s *SQLiteStore) Complete(ctx context.Context, runID string, at time.Time) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE maintenance_runs SET completed_at=? WHERE id=?`, at.Format(time.RFC3339Nano), runID)
 	return err
@@ -37,7 +43,8 @@ func (s *SQLiteStore) Complete(ctx context.Context, runID string, at time.Time) 
 func (s *SQLiteStore) Latest(ctx context.Context) (Run, error) {
 	var run Run
 	var started, completed string
-	err := s.db.QueryRowContext(ctx, `SELECT id,started_at,completed_at FROM maintenance_runs ORDER BY started_at DESC,id DESC LIMIT 1`).Scan(&run.ID, &started, &completed)
+	err := s.db.QueryRowContext(ctx, `SELECT id,started_at,completed_at,compaction_status,compaction_error,compacted_count,frontier_before,frontier_after,frontier_target FROM maintenance_runs ORDER BY started_at DESC,id DESC LIMIT 1`).
+		Scan(&run.ID, &started, &completed, &run.Compaction.Status, &run.Compaction.Error, &run.Compaction.Compacted, &run.Compaction.FrontierBefore, &run.Compaction.FrontierAfter, &run.Compaction.Target)
 	if err != nil {
 		return run, err
 	}

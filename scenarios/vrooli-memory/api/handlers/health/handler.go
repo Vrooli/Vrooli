@@ -9,7 +9,11 @@ package health
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"net/http"
+
+	"vrooli-memory/internal/maintenance"
 
 	"vrooli-memory/internal/database"
 
@@ -24,6 +28,7 @@ type Deps struct {
 	Service       string
 	Version       string
 	MaintenanceDB *sql.DB
+	Canopy        CanopyReporter
 }
 
 // NewHandler returns a handler that reports overall health, service
@@ -39,7 +44,64 @@ func NewHandler(d Deps) http.HandlerFunc {
 	if d.MaintenanceDB != nil {
 		b = b.Check(maintenanceCheck(d.MaintenanceDB), apihealth.Optional)
 	}
+	if d.Canopy != nil {
+		b = b.Check(canopyCheck(d.Canopy), apihealth.Optional)
+	}
 	return b.Handler()
+}
+
+// CanopyBacklogFactor is how far the compaction-eligible frontier may exceed
+// its target before the canopy is reported as lagging. The frontier is a
+// context-budget device, so a backlog degrades ambient recall quality without
+// making the corpus unreadable.
+const CanopyBacklogFactor = 10
+
+// CanopyReporter is the seam onto the maintenance record. Health reads the
+// engine's own recorded numbers through it rather than opening the database,
+// which keeps raw SQL out of the handler layer.
+type CanopyReporter interface {
+	Latest(context.Context) (maintenance.Run, error)
+}
+
+// canopyCheck surfaces the compaction backlog. It is Optional on purpose: a
+// frontier far above target does not stop recall, and reporting the scenario
+// unhealthy would hand a quality signal to a liveness remediator.
+//
+// It reports the frontier size and target the compaction engine recorded on its
+// last pass, and deliberately recomputes nothing. Eligibility is four guards
+// deep - policy, pin, recency floor, and vector presence - and a surface that
+// re-derives it drifts from the engine and reports numbers no operator can act
+// on. The first version of this check did exactly that and read 273 against the
+// engine's 16. Reading the recorded pair also keeps a thirty-second probe from
+// loading every candidate.
+func canopyCheck(reporter CanopyReporter) apihealth.Checker {
+	return apihealth.CheckerFunc(func(ctx context.Context) apihealth.CheckResult {
+		run, err := reporter.Latest(ctx)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return apihealth.CheckResult{Name: "canopy", Connected: true, Database: "pending"}
+			}
+			return apihealth.CheckResult{Name: "canopy", Connected: false, Error: err}
+		}
+		c := run.Compaction
+		if c.Status == "" || c.Status == "not_configured" {
+			return apihealth.CheckResult{Name: "canopy", Connected: true, Database: "not_configured"}
+		}
+		detail := fmt.Sprintf("eligible_frontier=%d target=%d last_pass=%s", c.FrontierAfter, c.Target, c.Status)
+		if c.Status == "failed" {
+			return apihealth.CheckResult{
+				Name: "canopy", Connected: true, Database: detail,
+				Error: fmt.Errorf("last compaction pass failed: %s", c.Error),
+			}
+		}
+		if c.Target > 0 && c.FrontierAfter > c.Target*CanopyBacklogFactor {
+			return apihealth.CheckResult{
+				Name: "canopy", Connected: true, Database: detail + " status=lagging",
+				Error: fmt.Errorf("compaction backlog: %d eligible nodes against target %d", c.FrontierAfter, c.Target),
+			}
+		}
+		return apihealth.CheckResult{Name: "canopy", Connected: true, Database: detail + " status=ok"}
+	})
 }
 
 // maintenanceCheck deliberately remains optional: the process is healthy
