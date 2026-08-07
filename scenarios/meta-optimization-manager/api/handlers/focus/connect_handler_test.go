@@ -47,7 +47,16 @@ func (f *fakeService) AddGapNote(_ context.Context, id, approach string) (intern
 
 func TestHandlerGetFocus(t *testing.T) {
 	svc := &fakeService{items: []internalfocus.FocusItem{{
-		Gap:        internalfocus.Gap{ID: "answer/1", Projection: internalfocus.ProjectionAnswer, Title: "x", Status: spacedoc.StatusMissing},
+		Gap: internalfocus.Gap{
+			ID:              "answer/1",
+			Axis:            internalfocus.AxisCoverage,
+			Projection:      internalfocus.ProjectionAnswer,
+			Title:           "x",
+			Status:          spacedoc.StatusMissing,
+			Recurrence:      3,
+			EvidenceSource:  "trials",
+			EvidenceLocator: "trial-task:x/run:1",
+		},
 		Impact:     1.0,
 		Importance: 1.0,
 		Priority:   1.0,
@@ -64,6 +73,9 @@ func TestHandlerGetFocus(t *testing.T) {
 	}
 	if its[0].GetGap().GetStatus() != sharedv1.CellStatus_CELL_STATUS_MISSING {
 		t.Fatalf("status not mapped: %v", its[0].GetGap().GetStatus())
+	}
+	if its[0].GetGap().GetAxis() != sharedv1.GapAxis_GAP_AXIS_COVERAGE || its[0].GetGap().GetRecurrence() != 3 || its[0].GetGap().GetEvidenceLocator() == "" {
+		t.Fatalf("provenance not mapped: %v", its[0].GetGap())
 	}
 }
 

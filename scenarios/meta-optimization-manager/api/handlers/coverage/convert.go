@@ -20,6 +20,8 @@ func projFromProto(p sharedv1.Projection) internalcoverage.Projection {
 		return internalcoverage.ProjectionValidate
 	case sharedv1.Projection_PROJECTION_GUIDE:
 		return internalcoverage.ProjectionGuide
+	case sharedv1.Projection_PROJECTION_ACT:
+		return internalcoverage.ProjectionAct
 	default:
 		return "" // UNSPECIFIED => all projections
 	}
@@ -33,6 +35,8 @@ func projToProto(p internalcoverage.Projection) sharedv1.Projection {
 		return sharedv1.Projection_PROJECTION_VALIDATE
 	case internalcoverage.ProjectionGuide:
 		return sharedv1.Projection_PROJECTION_GUIDE
+	case internalcoverage.ProjectionAct:
+		return sharedv1.Projection_PROJECTION_ACT
 	default:
 		return sharedv1.Projection_PROJECTION_UNSPECIFIED
 	}

@@ -31,14 +31,15 @@ const (
 	ProjectionAnswer   = spacedoc.ProjectionAnswer
 	ProjectionValidate = spacedoc.ProjectionValidate
 	ProjectionGuide    = spacedoc.ProjectionGuide
+	ProjectionAct      = spacedoc.ProjectionAct
 )
 
 // AllProjections is the canonical iteration order for the scoreboard.
-var AllProjections = []Projection{ProjectionAnswer, ProjectionValidate, ProjectionGuide}
+var AllProjections = []Projection{ProjectionAnswer, ProjectionValidate, ProjectionGuide, ProjectionAct}
 
 // OwnerFor maps a projection to the scenario that owns its denominator + live
 // numerator. The canonical model (COVERAGE-MODEL.md): Answer→search-hub,
-// Validate→test-genie, Guide→prompt-manager.
+// Validate→test-genie, Guide→prompt-manager, Act→program-runtime.
 func OwnerFor(p Projection) string {
 	switch p {
 	case ProjectionAnswer:
@@ -47,6 +48,8 @@ func OwnerFor(p Projection) string {
 		return "test-genie"
 	case ProjectionGuide:
 		return "prompt-manager"
+	case ProjectionAct:
+		return "program-runtime"
 	default:
 		return ""
 	}

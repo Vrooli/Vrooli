@@ -2,6 +2,7 @@ package focus
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/vrooli/api-core/spacedoc"
 )
@@ -22,10 +23,10 @@ import (
 // rank, they do not score correctness.
 func score(g Gap) (impact, importance, priority float64, rationale string) {
 	impact = impactWeight(g.Status)
-	importance = importanceWeight(g.Projection, g.Global)
+	importance = importanceWeight(g)
 	priority = impact * importance
 	rationale = fmt.Sprintf("impact=%.2f (%s) × importance=%.2f (%s) ⇒ %.2f",
-		impact, impactReason(g.Status), importance, importanceReason(g.Projection, g.Global), priority)
+		impact, impactReason(g.Status), importance, importanceReason(g), priority)
 	return impact, importance, priority, rationale
 }
 
@@ -52,9 +53,46 @@ func impactReason(s spacedoc.CellStatus) string {
 	}
 }
 
-// importanceWeight orders the projections by the COVERAGE-MODEL leverage chain
-// (understand → verify → guide) and boosts cross-cutting gaps.
-func importanceWeight(p Projection, global bool) float64 {
+// Empirical ranking constants are deliberately named so the board's judgment
+// remains auditable. A single observation starts below a structural coverage
+// gap; repeated observations climb monotonically, but never exceed Answer's
+// importance. The traceability cap keeps an unlocatable signal below every
+// locatable empirical observation. Revisit the step or caps when the empirical
+// lanes have enough history to calibrate against completed interventions.
+const (
+	empiricalBaseImportance        = 0.20
+	empiricalRecurrenceStep        = 0.16
+	empiricalAnswerImportanceCap   = 1.0
+	empiricalUntraceableImportance = 0.30
+)
+
+// importanceWeight orders coverage projections by the COVERAGE-MODEL leverage
+// chain (understand → verify → guide → act) and boosts cross-cutting gaps.
+// Empirical gaps use recurrence and evidence traceability instead.
+//
+// actImportance = 0.8 is a deliberately conservative starting weight: Act is the
+// newest projection and its numerator has no production distribution yet, so it
+// ranks below the three established projections rather than displacing them.
+// Revisit once program-runtime reports a real Act numerator — the leverage
+// argument for raising it is that an un-invocable operation makes its Guide skill
+// unusable, which would place Act above Guide.
+func importanceWeight(g Gap) float64 {
+	if g.Axis == AxisEmpirical {
+		recurrence := g.Recurrence
+		if recurrence < 1 {
+			recurrence = 1
+		}
+		w := empiricalBaseImportance + empiricalRecurrenceStep*float64(recurrence)
+		if strings.TrimSpace(g.EvidenceLocator) == "" && w > empiricalUntraceableImportance {
+			w = empiricalUntraceableImportance
+		}
+		if w > empiricalAnswerImportanceCap {
+			w = empiricalAnswerImportanceCap
+		}
+		return w
+	}
+
+	p, global := g.Projection, g.Global
 	w := 0.7 // default: cross-cutting / convergence
 	switch p {
 	case ProjectionAnswer:
@@ -63,6 +101,8 @@ func importanceWeight(p Projection, global bool) float64 {
 		w = 0.9
 	case ProjectionGuide:
 		w = 0.85
+	case ProjectionAct:
+		w = 0.8
 	}
 	if global {
 		w += 0.1
@@ -73,7 +113,20 @@ func importanceWeight(p Projection, global bool) float64 {
 	return w
 }
 
-func importanceReason(p Projection, global bool) string {
+func importanceReason(g Gap) string {
+	if g.Axis == AxisEmpirical {
+		source := g.EvidenceSource
+		if source == "" {
+			source = "unknown source"
+		}
+		traceability := "traceable"
+		if strings.TrimSpace(g.EvidenceLocator) == "" {
+			traceability = "untraceable"
+		}
+		return fmt.Sprintf("empirical — recurrence=%d, source=%s, %s", g.Recurrence, source, traceability)
+	}
+
+	p, global := g.Projection, g.Global
 	if global {
 		return "cross-cutting — unblocks many cells"
 	}
@@ -84,6 +137,8 @@ func importanceReason(p Projection, global bool) string {
 		return "validate — verification gates change"
 	case ProjectionGuide:
 		return "guide — skill coverage"
+	case ProjectionAct:
+		return "act — operation is programmatically invocable"
 	default:
 		return "cross-cutting"
 	}

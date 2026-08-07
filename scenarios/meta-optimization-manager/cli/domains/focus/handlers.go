@@ -129,7 +129,7 @@ func (h *handlers) gapsNote(ctx cliapp.RunContext) error {
 
 func formatFocusItem(it *focusv1.FocusItem) string {
 	g := it.GetGap()
-	return fmt.Sprintf("[%.2f] %s [%s] %s — %s", it.GetPriorityScore(), g.GetId(), statusLabel(g.GetStatus()), g.GetTitle(), it.GetRationale())
+	return fmt.Sprintf("[%.2f] %s [%s/%s] %s — %s", it.GetPriorityScore(), g.GetId(), axisLabel(g.GetAxis()), statusLabel(g.GetStatus()), g.GetTitle(), focusEvidence(g, it.GetRationale()))
 }
 
 func formatGap(g *focusv1.Gap) string {
@@ -137,11 +137,18 @@ func formatGap(g *focusv1.Gap) string {
 	if g.GetGlobal() {
 		scope = "global"
 	}
-	return fmt.Sprintf("%s [%s/%s] %s", g.GetId(), scope, statusLabel(g.GetStatus()), g.GetTitle())
+	base := fmt.Sprintf("%s [%s/%s/%s] %s", g.GetId(), axisLabel(g.GetAxis()), scope, statusLabel(g.GetStatus()), g.GetTitle())
+	if evidence := gapEvidence(g); evidence != "" {
+		return base + " — " + evidence
+	}
+	return base
 }
 
 func gapDetail(g *focusv1.Gap) []string {
 	out := []string{formatGap(g)}
+	if g.GetAvailabilityReason() != "" {
+		out = append(out, "  ! availability: "+g.GetAvailabilityReason())
+	}
 	for _, n := range g.GetNotes() {
 		out = append(out, "  · note: "+n)
 	}
@@ -152,6 +159,28 @@ func gapDetail(g *focusv1.Gap) []string {
 		out = append(out, "  → follow-up: "+f)
 	}
 	return out
+}
+
+func focusEvidence(g *focusv1.Gap, rationale string) string {
+	evidence := gapEvidence(g)
+	if evidence == "" {
+		return rationale
+	}
+	return rationale + " — " + evidence
+}
+
+func gapEvidence(g *focusv1.Gap) string {
+	parts := make([]string, 0, 3)
+	if g.GetRecurrence() > 0 {
+		parts = append(parts, fmt.Sprintf("recurrence=%d", g.GetRecurrence()))
+	}
+	if g.GetEvidenceSource() != "" {
+		parts = append(parts, "source="+g.GetEvidenceSource())
+	}
+	if g.GetEvidenceLocator() != "" {
+		parts = append(parts, "evidence="+g.GetEvidenceLocator())
+	}
+	return strings.Join(parts, ", ")
 }
 
 // limitFlag parses the optional --limit flag (0 => server default). A negative
@@ -211,6 +240,17 @@ func projectionLabel(p sharedv1.Projection) string {
 		return "guide"
 	default:
 		return "cross-cutting"
+	}
+}
+
+func axisLabel(axis sharedv1.GapAxis) string {
+	switch axis {
+	case sharedv1.GapAxis_GAP_AXIS_COVERAGE:
+		return "coverage"
+	case sharedv1.GapAxis_GAP_AXIS_EMPIRICAL:
+		return "empirical"
+	default:
+		return "?"
 	}
 }
 

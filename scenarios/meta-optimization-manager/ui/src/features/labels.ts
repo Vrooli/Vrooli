@@ -1,4 +1,4 @@
-import { Projection, CellStatus, DenominatorConfidence } from "@vrooli/proto-types/meta-optimization-manager/v1/shared/model_pb";
+import { Projection, CellStatus, DenominatorConfidence, GapAxis } from "@vrooli/proto-types/meta-optimization-manager/v1/shared/model_pb";
 import {
   FitnessTier,
   ReferenceEligibility,
@@ -20,6 +20,8 @@ export function projectionLabel(p: Projection): string {
       return "validate";
     case Projection.GUIDE:
       return "guide";
+    case Projection.ACT:
+      return "act";
     default:
       return "cross-cutting";
   }
@@ -33,6 +35,17 @@ export function cellStatusLabel(s: CellStatus): string {
       return "in_reach";
     case CellStatus.MISSING:
       return "missing";
+    default:
+      return "?";
+  }
+}
+
+export function gapAxisLabel(axis: GapAxis): string {
+  switch (axis) {
+    case GapAxis.COVERAGE:
+      return "coverage";
+    case GapAxis.EMPIRICAL:
+      return "empirical";
     default:
       return "?";
   }

@@ -10,6 +10,7 @@ import (
 	internalcoverage "meta-optimization-manager/internal/coverage"
 	internalfocus "meta-optimization-manager/internal/focus"
 	"meta-optimization-manager/internal/module"
+	internaltrials "meta-optimization-manager/internal/trials"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -24,9 +25,14 @@ import (
 // with the coverage domain (the same cross-scenario read seam) — wired here at
 // the production edge, never imported into internal/focus.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+	trialsRepo := internaltrials.NewSQLiteRepository(db, clk)
 	svc := internalfocus.NewService(internalfocus.Deps{
-		Source: internalfocus.NewSpaceGapSource(internalcoverage.NewSpaceReader()),
-		Repo:   internalfocus.NewSQLiteRepository(db, clk),
+		Source: internalfocus.NewMultiGapSource([]internalfocus.NamedGapSource{
+			{Name: "coverage", Source: internalfocus.NewSpaceGapSource(internalcoverage.NewSpaceReader())},
+			{Name: "trials", Source: internalfocus.NewEmpiricalGapSource(trialsRepo)},
+			{Name: "agent-manager", Source: internalfocus.NewAgentManagerGapSource(internalfocus.NewAgentManagerFindingReader())},
+		}),
+		Repo: internalfocus.NewSQLiteRepository(db, clk),
 	})
 	connectPath, connectHandler := focusconnect.NewFocusServiceHandler(NewConnectHandler(Deps{
 		Service: svc,

@@ -12,6 +12,8 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/spacedoc"
 
+	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
+	bindingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings/bindings_v1connect"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph"
 	graphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph/graph_v1connect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
@@ -109,9 +111,60 @@ func (j *apiNumeratorJoiner) Join(ctx context.Context, p Projection, cells []spa
 		}
 		return JoinResult{Available: true, Statuses: recomputeGuide(cells, scoresToGuideIndex(resp.Msg.GetScores()))}
 
+	case ProjectionAct:
+		client := bindingsconnect.NewBindingRegistryServiceClient(j.http, base)
+		request := &bindingsv1.ResolveActCellsRequest{Cells: make([]*bindingsv1.ActCell, 0, len(cells))}
+		for _, cell := range cells {
+			// The denominator owns the taxonomy, while the registry owns the
+			// mechanical namespace. Owner text is the stable bridge between the
+			// two: it names the scenario(s) expected to serve the operation class.
+			request.Cells = append(request.Cells, &bindingsv1.ActCell{
+				Id: cell.ID, Operations: []string{cell.Owner}, AuthoredStatus: string(cell.Status),
+			})
+		}
+		resp, err := client.ResolveActCells(ctx, connect.NewRequest(request))
+		if err != nil {
+			return JoinResult{Available: false, Reason: rpcReason(owner, "ResolveActCells", err)}
+		}
+		return JoinResult{Available: true, Statuses: recomputeAct(cells, resp.Msg.GetCells()), DenominatorConfidence: actConfidence(resp.Msg.GetDenominatorConfidence())}
+
 	default:
 		return JoinResult{Available: false, Reason: "unknown coverage projection: " + string(p)}
 	}
+}
+
+func actConfidence(value string) spacedoc.DenominatorConfidence {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "authoritative":
+		return spacedoc.ConfidenceAuthoritative
+	case "partial", "measured":
+		return spacedoc.ConfidencePartial
+	default:
+		return spacedoc.ConfidenceSketch
+	}
+}
+
+func recomputeAct(cells []spacedoc.Cell, verdicts []*bindingsv1.ActCellVerdict) map[string]spacedoc.CellStatus {
+	out := make(map[string]spacedoc.CellStatus, len(verdicts))
+	for _, verdict := range verdicts {
+		if verdict == nil {
+			continue
+		}
+		switch verdict.GetVerdict() {
+		case bindingsv1.ActVerdict_ACT_VERDICT_NOW:
+			out[verdict.GetId()] = spacedoc.StatusNow
+		case bindingsv1.ActVerdict_ACT_VERDICT_IN_REACH:
+			out[verdict.GetId()] = spacedoc.StatusInReach
+		case bindingsv1.ActVerdict_ACT_VERDICT_AUTHORED:
+			for _, cell := range cells {
+				if cell.ID == verdict.GetId() {
+					out[cell.ID] = cell.Status
+					break
+				}
+			}
+		}
+	}
+	return out
 }
 
 // resolveReason formats an honest reason for a failed owner URL resolution,

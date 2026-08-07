@@ -190,6 +190,9 @@ func mergeGaps(derived, registry []Gap) []Gap {
 	}
 	for i := range registry {
 		r := registry[i]
+		if r.Axis == "" {
+			r.Axis = AxisCoverage
+		}
 		if base, ok := byID[r.ID]; ok {
 			base.Approaches = mergeUnique(base.Approaches, r.Approaches)
 			base.FollowUps = mergeUnique(base.FollowUps, r.FollowUps)

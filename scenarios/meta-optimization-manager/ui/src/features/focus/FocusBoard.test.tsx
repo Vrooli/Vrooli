@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 
-import { Projection, CellStatus } from "@vrooli/proto-types/meta-optimization-manager/v1/shared/model_pb";
+import { Projection, CellStatus, GapAxis } from "@vrooli/proto-types/meta-optimization-manager/v1/shared/model_pb";
 
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
@@ -33,7 +33,7 @@ describe("FocusBoard", () => {
     getFocus.mockResolvedValue({
       items: [
         {
-          gap: { id: "answer/1", projection: Projection.ANSWER, title: "explain domain map", status: CellStatus.MISSING },
+          gap: { id: "answer/1", projection: Projection.ANSWER, axis: GapAxis.COVERAGE, title: "explain domain map", status: CellStatus.MISSING },
           impact: 1,
           importance: 1,
           priorityScore: 1,
@@ -46,6 +46,7 @@ describe("FocusBoard", () => {
         {
           id: "answer/1",
           projection: Projection.ANSWER,
+          axis: GapAxis.COVERAGE,
           title: "explain domain map",
           status: CellStatus.MISSING,
           global: false,
@@ -54,6 +55,7 @@ describe("FocusBoard", () => {
         {
           id: "global-x",
           projection: Projection.UNSPECIFIED,
+          axis: GapAxis.EMPIRICAL,
           title: "typed contracts everywhere",
           status: CellStatus.MISSING,
           global: true,
@@ -68,6 +70,7 @@ describe("FocusBoard", () => {
     });
     expect(screen.getAllByTestId(selectors.focus.gap)).toHaveLength(2);
     expect(screen.getByText(/cartographer provider/)).toBeInTheDocument();
+    expect(screen.getAllByTestId("focus-axis").length).toBeGreaterThan(0);
   });
 
   it("renders the empty state when nothing comes back", async () => {

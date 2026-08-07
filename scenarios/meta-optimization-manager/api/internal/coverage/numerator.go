@@ -33,6 +33,10 @@ type JoinResult struct {
 	Available bool
 	// Reason is the honest explanation when Available is false.
 	Reason string
+	// DenominatorConfidence is supplied by owners that audit their own
+	// denominator (currently Act/program-runtime). Empty means the owner did
+	// not provide a confidence signal and the space document remains the source.
+	DenominatorConfidence spacedoc.DenominatorConfidence
 }
 
 // guideHealthyScore is the prompt-manager graph health-score threshold at or

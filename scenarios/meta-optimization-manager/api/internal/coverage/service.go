@@ -131,6 +131,9 @@ func (s *service) coverageFor(ctx context.Context, p Projection) ProjectionCover
 	pc.TotalCells = len(def.Cells)
 
 	join := s.joiner.Join(ctx, p, def.Cells)
+	if join.DenominatorConfidence != "" {
+		pc.DenominatorConfidence = join.DenominatorConfidence
+	}
 	pc.Available = join.Available
 	pc.UnavailableReason = join.Reason
 	for _, c := range def.Cells {

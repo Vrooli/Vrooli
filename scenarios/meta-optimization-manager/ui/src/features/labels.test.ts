@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { Projection, CellStatus, DenominatorConfidence } from "@vrooli/proto-types/meta-optimization-manager/v1/shared/model_pb";
+import { Projection, CellStatus, DenominatorConfidence, GapAxis } from "@vrooli/proto-types/meta-optimization-manager/v1/shared/model_pb";
 import {
   FitnessTier,
   ReferenceEligibility,
@@ -10,6 +10,7 @@ import { TrialVerdict } from "@vrooli/proto-types/meta-optimization-manager/v1/t
 import {
   projectionLabel,
   cellStatusLabel,
+  gapAxisLabel,
   confidenceLabel,
   tierLabel,
   eligibilityLabel,
@@ -30,6 +31,12 @@ describe("labels", () => {
     expect(cellStatusLabel(CellStatus.IN_REACH)).toBe("in_reach");
     expect(cellStatusLabel(CellStatus.MISSING)).toBe("missing");
     expect(cellStatusLabel(CellStatus.UNSPECIFIED)).toBe("?");
+  });
+
+  it("maps gap axes", () => {
+    expect(gapAxisLabel(GapAxis.COVERAGE)).toBe("coverage");
+    expect(gapAxisLabel(GapAxis.EMPIRICAL)).toBe("empirical");
+    expect(gapAxisLabel(GapAxis.UNSPECIFIED)).toBe("?");
   });
 
   it("maps denominator confidence", () => {

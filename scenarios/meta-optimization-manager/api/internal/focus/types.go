@@ -20,6 +20,16 @@ import (
 	"github.com/vrooli/api-core/spacedoc"
 )
 
+// Axis identifies whether a gap is a declared coverage deficit or an observed
+// empirical problem. Empirical evidence has no enumerable denominator, so it is
+// kept on a separate axis and described by recurrence plus traceability.
+type Axis string
+
+const (
+	AxisCoverage  Axis = "coverage"
+	AxisEmpirical Axis = "empirical"
+)
+
 // Projection re-exports spacedoc.Projection so callers of this package work in
 // one vocabulary. An empty Projection denotes a cross-cutting / convergence gap
 // that is not projection-scoped.
@@ -29,6 +39,7 @@ const (
 	ProjectionAnswer   = spacedoc.ProjectionAnswer
 	ProjectionValidate = spacedoc.ProjectionValidate
 	ProjectionGuide    = spacedoc.ProjectionGuide
+	ProjectionAct      = spacedoc.ProjectionAct
 )
 
 // OwnerFor maps a projection to the scenario that owns its denominator, or ""
@@ -41,6 +52,8 @@ func OwnerFor(p Projection) string {
 		return "test-genie"
 	case ProjectionGuide:
 		return "prompt-manager"
+	case ProjectionAct:
+		return "program-runtime"
 	default:
 		return ""
 	}
@@ -51,15 +64,20 @@ func OwnerFor(p Projection) string {
 // registry-only (global) gap carries Global=true and may have an empty
 // projection. Notes/Approaches/FollowUps accumulate the team's thinking.
 type Gap struct {
-	ID           string
-	Projection   Projection
-	Title        string
-	Status       spacedoc.CellStatus
-	SourceCellID string
-	Global       bool
-	Notes        []string
-	Approaches   []string
-	FollowUps    []string
+	ID                 string
+	Axis               Axis
+	Projection         Projection
+	Title              string
+	Status             spacedoc.CellStatus
+	SourceCellID       string
+	Global             bool
+	EvidenceSource     string
+	EvidenceLocator    string
+	Recurrence         int
+	AvailabilityReason string
+	Notes              []string
+	Approaches         []string
+	FollowUps          []string
 }
 
 // FocusItem is a ranked next-best gap: the gap plus its impact × importance

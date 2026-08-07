@@ -19,6 +19,8 @@ func projFromProto(p sharedv1.Projection) internalfocus.Projection {
 		return internalfocus.ProjectionValidate
 	case sharedv1.Projection_PROJECTION_GUIDE:
 		return internalfocus.ProjectionGuide
+	case sharedv1.Projection_PROJECTION_ACT:
+		return internalfocus.ProjectionAct
 	default:
 		return "" // UNSPECIFIED => all / not projection-scoped
 	}
@@ -32,6 +34,8 @@ func projToProto(p internalfocus.Projection) sharedv1.Projection {
 		return sharedv1.Projection_PROJECTION_VALIDATE
 	case internalfocus.ProjectionGuide:
 		return sharedv1.Projection_PROJECTION_GUIDE
+	case internalfocus.ProjectionAct:
+		return sharedv1.Projection_PROJECTION_ACT
 	default:
 		return sharedv1.Projection_PROJECTION_UNSPECIFIED
 	}
@@ -60,5 +64,16 @@ func statusToProto(s spacedoc.CellStatus) sharedv1.CellStatus {
 		return sharedv1.CellStatus_CELL_STATUS_MISSING
 	default:
 		return sharedv1.CellStatus_CELL_STATUS_UNSPECIFIED
+	}
+}
+
+func axisToProto(axis internalfocus.Axis) sharedv1.GapAxis {
+	switch axis {
+	case internalfocus.AxisCoverage:
+		return sharedv1.GapAxis_GAP_AXIS_COVERAGE
+	case internalfocus.AxisEmpirical:
+		return sharedv1.GapAxis_GAP_AXIS_EMPIRICAL
+	default:
+		return sharedv1.GapAxis_GAP_AXIS_UNSPECIFIED
 	}
 }

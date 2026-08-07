@@ -6,19 +6,27 @@ agents** to do real software engineering — and points to where to improve next
 It is a thin, **read-mostly aggregator**: it reads each owner scenario's
 "intended space" (the denominator) and joins it against that owner's live
 registry (the numerator) to produce an honest, per-projection readiness
-scoreboard. It **surfaces numbers and candidates; it never decides** — substrate,
+scoreboard. Its `focus next` board carries both the declared **coverage axis**
+and the observed **empirical axis** (trial verdict recurrence and attributed
+agent-manager friction), so the team gets one synthesized surface for what is
+missing and what is costly. It **surfaces numbers and candidates; it never decides** — substrate,
 tiering, and nomination calls stay agentic.
 
 ## The Model In One Picture
 
-Readiness is measured as coverage across three answerability **projections**, each
-owned by another scenario, plus upstream-generator convergence:
+Readiness is measured as coverage across four **projections**, each owned by
+another scenario, plus upstream-generator convergence:
 
 | Projection | Question it answers | Denominator owner | Live numerator source |
 |---|---|---|---|
 | **Answer** | "Can the project answer architectural questions?" | `search-hub` | `search-hub` provider registry |
 | **Validate** | "Is the right thing tested and auto-fixed?" | `test-genie` | `test-genie health` + `fleet status` |
 | **Guide** | "Is there a skill for each SWE task?" | `prompt-manager` | `prompt-manager graph health` |
+| **Act** | "Can an agent programmatically invoke each operation?" | `program-runtime` | binding registry *(pending — owner not built yet)* |
+
+Answer/Validate/Guide measure **knowledge** supply; Act measures **effect** supply.
+Act is wired end-to-end and reports an honest `UNAVAILABLE` until `program-runtime`
+ships — never `0%`, never silently dropped.
 
 Coverage = `now / total` per projection, **computed live and never stored** (only
 short-TTL snapshots are cached). Every coverage number is paired with a

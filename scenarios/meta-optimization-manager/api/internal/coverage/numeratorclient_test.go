@@ -373,6 +373,10 @@ func (j sleepyJoiner) Join(ctx context.Context, p Projection, _ []spacedoc.Cell)
 	return JoinResult{Available: true}
 }
 
+// allProjectionsReader supplies a denominator for every projection that has an
+// owner shipping a space doc today. ProjectionAct is deliberately absent —
+// program-runtime does not exist yet — so the board must still surface an Act
+// row (degraded, with an honest reason) rather than dropping it.
 func allProjectionsReader() fakeReader {
 	return fakeReader{defs: map[Projection]*spacedoc.SpaceDefinition{
 		ProjectionAnswer:   answerDef(),
@@ -394,12 +398,16 @@ func TestGetStatusRunsProjectionsConcurrently(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(st.Projections) != 3 {
-		t.Fatalf("projections=%d, want 3", len(st.Projections))
+	// Every projection in the canonical model gets a board row, including ones
+	// whose owner cannot be read — asserting len(AllProjections) keeps this test
+	// tracking the model instead of a frozen count.
+	if len(st.Projections) != len(AllProjections) {
+		t.Fatalf("projections=%d, want %d", len(st.Projections), len(AllProjections))
 	}
-	// Serial would be 3*delay; concurrent is ~1*delay. Allow generous slack.
+	// Serial would be len(AllProjections)*delay; concurrent is ~1*delay. Allow
+	// generous slack.
 	if elapsed > 2*delay {
-		t.Errorf("projections not concurrent: %s for 3x%s reads", elapsed, delay)
+		t.Errorf("projections not concurrent: %s for %dx%s reads", elapsed, len(AllProjections), delay)
 	}
 }
 

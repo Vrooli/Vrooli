@@ -85,14 +85,19 @@ func (h *connectHandler) AddGapNote(ctx context.Context, req *connect.Request[fo
 // gapToProto translates a domain Gap to its proto wire form.
 func gapToProto(g internalfocus.Gap) *focusv1.Gap {
 	return &focusv1.Gap{
-		Id:           g.ID,
-		Projection:   projToProto(g.Projection),
-		Title:        g.Title,
-		Status:       statusToProto(g.Status),
-		SourceCellId: g.SourceCellID,
-		Global:       g.Global,
-		Notes:        g.Notes,
-		Approaches:   g.Approaches,
-		FollowUps:    g.FollowUps,
+		Id:                 g.ID,
+		Projection:         projToProto(g.Projection),
+		Title:              g.Title,
+		Status:             statusToProto(g.Status),
+		SourceCellId:       g.SourceCellID,
+		Global:             g.Global,
+		Notes:              g.Notes,
+		Approaches:         g.Approaches,
+		FollowUps:          g.FollowUps,
+		Axis:               axisToProto(g.Axis),
+		Recurrence:         int32(g.Recurrence),
+		EvidenceSource:     g.EvidenceSource,
+		EvidenceLocator:    g.EvidenceLocator,
+		AvailabilityReason: g.AvailabilityReason,
 	}
 }

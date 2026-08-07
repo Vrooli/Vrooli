@@ -4,7 +4,7 @@ import { focusClient } from "../../api/focus";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { cellStatusLabel, projectionLabel } from "../labels";
+import { cellStatusLabel, gapAxisLabel, projectionLabel } from "../labels";
 
 /**
  * FocusBoard renders the ranked next-best gaps (OT-P0-002) and the gaps registry
@@ -50,9 +50,12 @@ export function FocusBoard() {
         <ol className="flex flex-col gap-2">
           {items.map((it) => {
             const gap = it.gap;
+            if (!gap) {
+              return null;
+            }
             return (
               <li
-                key={gap?.id}
+                key={gap.id}
                 data-testid={selectors.focus.item}
                 className="rounded-panel border border-app-border bg-app-surface p-3"
               >
@@ -60,9 +63,17 @@ export function FocusBoard() {
                   <span className="rounded bg-app-border px-2 py-0.5 text-xs font-mono">
                     {it.priorityScore.toFixed(2)} {t(strings.pages.focus.priorityLabel)}
                   </span>
-                  <span className="text-sm font-medium">{gap?.title}</span>
+                  <span className="text-sm font-medium">{gap.title}</span>
+                  <span data-testid="focus-axis" className="rounded bg-app-border px-2 py-0.5 text-xs font-mono">
+                    {gapAxisLabel(gap.axis)}
+                  </span>
                 </div>
                 <p className="mt-1 text-xs text-app-muted-foreground">{it.rationale}</p>
+                {gap.recurrence ? (
+                  <p data-testid="focus-evidence" className="text-xs text-app-muted-foreground">
+                    {evidenceLabel(gap.recurrence, gap.evidenceSource, gap.evidenceLocator)}
+                  </p>
+                ) : null}
               </li>
             );
           })}
@@ -84,6 +95,9 @@ export function FocusBoard() {
                 <span className="text-xs uppercase text-app-muted-foreground">
                   {gap.global ? t(strings.pages.focus.globalBadge) : projectionLabel(gap.projection)}
                 </span>
+                <span data-testid="focus-axis" className="rounded bg-app-border px-2 py-0.5 text-xs font-mono">
+                  {gapAxisLabel(gap.axis)}
+                </span>
                 <span className="rounded bg-app-border px-2 py-0.5 text-xs font-mono">
                   {cellStatusLabel(gap.status)}
                 </span>
@@ -102,4 +116,8 @@ export function FocusBoard() {
       </section>
     </div>
   );
+}
+
+function evidenceLabel(recurrence: number, source: string, locator: string): string {
+  return [`recurrence=${recurrence}`, source, locator].filter(Boolean).join(" · ");
 }
