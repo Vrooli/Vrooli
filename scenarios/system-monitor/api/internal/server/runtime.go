@@ -23,6 +23,7 @@ import (
 	sqliterepo "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/sqlite"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/autoheal"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/cleanupmanager"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/forensics"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/journal"
 )
@@ -41,7 +42,7 @@ func Run(cfg *config.Config) error {
 
 	closer, repo, routedDB := connectRepository(cfg)
 
-	_ = services.NewAlertService(cfg, repo) // Alert service available for future wiring //nolint:ineffassign
+	alertSvc := services.NewAlertService(cfg, repo)
 	monitorSvc := services.NewMonitorService(cfg, repo, infrastructure.NewStaticProvider())
 
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
@@ -87,6 +88,14 @@ func Run(cfg *config.Config) error {
 		WithProcessRetention(repo, cfg.Monitoring.RawRetention, cfg.Monitoring.RollupRetention)
 	retentionScheduler.Start()
 
+	// Disk-pressure lifecycle: evaluate the configured threshold on a schedule
+	// and persist a violation when it is crossed. Without this loop the
+	// threshold setting, the violation model, and the alert repository are all
+	// reachable only from tests.
+	thresholdScheduler := services.NewThresholdScheduler(settingsMgr, alertSvc, repo, apiLog.With("service", "threshold"),
+		services.WithPressureReporter(cleanupmanager.NewClient(cleanupmanager.Config{})))
+	thresholdScheduler.Start()
+
 	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc, settingsMgr)
 	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc, apiLog.With("handler", "metrics"))
 	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc, scriptSvc, apiLog.With("handler", "investigations"))
@@ -102,8 +111,9 @@ func Run(cfg *config.Config) error {
 	autohealClient := autoheal.NewClient(autoheal.Config{})
 	forensicsHandler := handlers.NewForensicsHandler(forensicsSvc, autohealClient, apiLog.With("handler", "forensics"))
 	logsHandler := handlers.NewLogsHandler(journalReader, apiLog.With("handler", "logs"))
+	diskPressureHandler := handlers.NewDiskPressureHandler(thresholdScheduler, repo, apiLog.With("handler", "disk-pressure"))
 
-	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler)
+	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, diskPressureHandler)
 	rootMux := http.NewServeMux()
 	if routedDB != nil {
 		devrouting.Register(rootMux, routedDB)
@@ -132,7 +142,7 @@ func Run(cfg *config.Config) error {
 		}
 	}()
 
-	waitForShutdown(monitorSvc, investigationSvc, retentionScheduler, srv, closer)
+	waitForShutdown(monitorSvc, investigationSvc, retentionScheduler, thresholdScheduler, srv, closer)
 	return nil
 }
 

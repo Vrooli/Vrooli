@@ -42,12 +42,16 @@ that trips over a missing password.
 
 | Platform | Service | Detection |
 |----------|---------|-----------|
-| Linux | GNOME Remote Desktop | `grdctl status` reports enabled |
-| Linux | xrdp | `xrdp.service` unit exists |
-| Windows | TermService | `sc query TermService` |
+| Linux | GNOME Remote Desktop or xrdp | Shared `internal/hostinventory` remote-desktop facts |
+| Windows | TermService | Shared `internal/hostinventory` remote-desktop facts |
 | Other | none | Not checkable; reports OK |
 
-For GNOME Remote Desktop the check reads five independent signals:
+Provider classification is centralized in `internal/hostinventory`. This check
+consumes the selected provider and live observation from that snapshot; it does
+not duplicate provider discovery or interpret display-manager policy itself.
+
+For GNOME Remote Desktop the check reads five independent signals after the
+shared provider classifier selects it:
 
 1. **Daemon liveness** — is `gnome-remote-desktop-daemon` running?
 2. **Credential state** — can the daemon authenticate anyone? (three states, below)
@@ -106,7 +110,9 @@ On the **user-session** model autoheal deliberately refuses to repair. Unlocking
 the login keyring requires a secret autoheal must not hold, and writing a fresh
 RDP password would mean autoheal minting remote-access credentials on its own
 initiative. That is a real expansion of blast radius and this check declines it.
-There is no `set-credentials` action, by design.
+Autoheal still has no credential-setting action, by design. The host safeguard
+may show a permission-gated manual command for an operator who has explicitly
+declared a direct-desktop experience, but it never accepts or stores the secret.
 
 On the **system** model the remedy is deterministic and non-interactive: restart
 the system unit so the daemon re-reads its own credential store. No credential

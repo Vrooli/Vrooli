@@ -220,7 +220,7 @@
             "enabled": true,
             "model": "codex-mini-latest",
             "investigation_templates": [
-                "initialization/claude-code/anomaly-check.md"
+                "prompts/anomaly-check.md"
             ]
         }
     },

@@ -222,6 +222,9 @@ func (h *SettingsHandler) validateSettings(settings *services.Settings) error {
 	if settings.DiskThreshold < 0 || settings.DiskThreshold > 100 {
 		return apierrors.Validation("disk_threshold", "must be between 0 and 100")
 	}
+	if err := validateDiskBands(settings); err != nil {
+		return err
+	}
 
 	// Validate reasonable ranges
 	if settings.MetricCollectionInterval > 3600 { // Max 1 hour
@@ -251,5 +254,38 @@ func (h *SettingsHandler) validateSettings(settings *services.Settings) error {
 		return apierrors.Validation("retention_check_interval_seconds", "must be less than or equal to 604800 seconds")
 	}
 
+	return nil
+}
+
+// validateDiskBands rejects an escalation configuration that cannot work.
+//
+// Ascending order is the load-bearing rule. If the bands do not ascend, a
+// higher band becomes unreachable — usage could climb past the critical
+// boundary while only ever classifying as warning, which is a quieter version
+// of the failure this whole plan exists to prevent. Rejecting the write is
+// better than accepting it and silently repairing it, because the operator
+// would otherwise believe the bands they set are the bands in force.
+func validateDiskBands(settings *services.Settings) error {
+	if settings.DiskHighPercent < 0 || settings.DiskHighPercent > 100 {
+		return apierrors.Validation("disk_high_percent", "must be between 0 and 100")
+	}
+	if settings.DiskCriticalPercent < 0 || settings.DiskCriticalPercent > 100 {
+		return apierrors.Validation("disk_critical_percent", "must be between 0 and 100")
+	}
+	if settings.DiskThreshold >= settings.DiskHighPercent {
+		return apierrors.Validation("disk_high_percent", "must be greater than disk_threshold (the warning band boundary)")
+	}
+	if settings.DiskHighPercent >= settings.DiskCriticalPercent {
+		return apierrors.Validation("disk_critical_percent", "must be greater than disk_high_percent")
+	}
+	if settings.DiskEscalationCooldownSeconds < 0 {
+		return apierrors.Validation("disk_escalation_cooldown_seconds", "must be greater than or equal to 0")
+	}
+	if settings.DiskEscalationDebounceTicks < 1 {
+		return apierrors.Validation("disk_escalation_debounce_ticks", "must be at least 1")
+	}
+	if settings.DiskFastFillJumpPercent < 0 || settings.DiskFastFillJumpPercent > 100 {
+		return apierrors.Validation("disk_fast_fill_jump_percent", "must be between 0 and 100")
+	}
 	return nil
 }

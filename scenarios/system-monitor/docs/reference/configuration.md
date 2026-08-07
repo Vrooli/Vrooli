@@ -43,7 +43,7 @@ curl -X PUT http://localhost:8080/api/v1/settings \
 
 ## Investigation Triggers
 
-Auto-fix triggers are configured in `initialization/configuration/investigation-triggers.json`:
+Auto-fix triggers are configured in `api/internal/<domain>/configuration/investigation-triggers.json`:
 
 | Trigger | Threshold | Sustained Duration |
 |---------|-----------|-------------------|
@@ -65,7 +65,7 @@ curl -X PUT http://localhost:8080/api/v1/investigations/triggers/{id}/threshold 
   -d '{"threshold": 80}'
 ```
 
-`[CODE: initialization/configuration/investigation-triggers.json]`
+`[CODE: api/internal/<domain>/configuration/investigation-triggers.json]`
 
 ## Agent-Manager integration
 
@@ -83,7 +83,7 @@ agent-manager profiles reconcile-scenario --scenario system-monitor --dry-run
 
 The API defaults to **in-memory storage** for simplicity. Data is lost on restart.
 
-To use PostgreSQL, set `DATABASE_URL` to a valid connection string. The schema is defined in `initialization/postgres/schema.sql`.
+To use PostgreSQL, set `DATABASE_URL` to a valid connection string. The schema is defined in `api/internal/<domain>/schema.sql`.
 
 Persistent time-series storage is not configured yet; the API currently uses in-memory storage.
 
@@ -91,7 +91,7 @@ Persistent time-series storage is not configured yet; the API currently uses in-
 
 The metrics history is the dominant consumer of database size. Retention and
 compaction settings bound that growth. They live in the settings file
-(`initialization/configuration/system-monitor-settings.json`, canonical
+(`api/internal/<domain>/configuration/system-monitor-settings.json`, canonical
 `{version, metadata, settings}` shape) and are editable via the Settings API/CLI.
 
 | Setting | Default | Description |
@@ -108,6 +108,58 @@ Retention runs on a settings-driven scheduler (not the storage layer). Changes
 to the interval, window, or compaction policy take effect on the next cycle
 without restarting the scenario. Scheduled retention runs regardless of the
 monitor's active/inactive state because it is housekeeping, not collection.
+
+## Collection Intervals and Thresholds
+
+These live in the same settings file and are read live on each cycle.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `metric_collection_interval` | `20` | Seconds between metric collection cycles. |
+| `anomaly_detection_interval` | `30` | Seconds between anomaly detection passes. |
+| `threshold_check_interval` | `20` | Seconds between disk-pressure evaluations (min 5). |
+| `cooldown_period_seconds` | `300` | Minimum gap between investigations of the same condition. |
+| `cpu_threshold` | `85.0` | CPU usage percentage treated as elevated. |
+| `memory_threshold` | `90.0` | Memory usage percentage treated as elevated. |
+
+## Disk Pressure Escalation
+
+Disk usage is measured the way `df` measures it — `used / (used + available)`,
+not `used / total`. The difference is the superuser reserve, which was 93 GB on
+the host during the 2026-07-31 incident: reading free blocks reported 87 percent
+while `df` reported 93, keeping every safeguard below its critical threshold
+while the filesystem was unwritable for the runtime supervisor.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `disk_threshold` | `80.0` | The **warning** band boundary: usage at which pressure starts being recorded. There is deliberately no separate `disk_warning_percent`; two settings for one boundary is how a configuration surface drifts from the code reading it. |
+| `disk_high_percent` | `90.0` | The **high** band: request a conservative storage-manager preview. Nothing is deleted. |
+| `disk_critical_percent` | `95.0` | The **critical** band: storage-manager applies safe-tier providers with no operator present. |
+| `disk_escalation_cooldown_seconds` | `1800` | Minimum gap between two records for the same band. Without it a disk parked above a boundary alerts every tick. |
+| `disk_escalation_debounce_ticks` | `2` | Consecutive observations a new band needs before it takes effect, so one noisy sample cannot escalate. |
+| `disk_fast_fill_jump_percent` | `5.0` | A rise of at least this many points in one evaluation escalates immediately, bounding the delay debounce introduces. |
+
+The three band boundaries must ascend
+(`disk_threshold` < `disk_high_percent` < `disk_critical_percent`). The Settings
+API rejects a write that does not, so an operator learns immediately rather than
+believing bands are in force that are not. A settings *file* that violates the
+order is repaired to defaults on load instead, because refusing to load would
+take the service down.
+
+De-escalation is not debounced and resets the cooldown: dropping below a
+boundary is good news, and holding a stale high band would keep remediation
+armed after the pressure is gone.
+
+Read current pressure, the active band, the last violation, and the last
+remediation result with:
+
+```bash
+curl -s http://localhost:16914/api/v1/disk-pressure
+```
+
+Escalation flows to storage-manager, which runs only `safe`-tier providers
+unattended. See
+[../operations/RUNBOOK.md](../operations/RUNBOOK.md#disk-pressure-detection-and-escalation).
 
 ## Per-Process Attribution Timeline
 

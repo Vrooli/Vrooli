@@ -1,5 +1,12 @@
 # Known Issues & Technical Debt
 
+## Work ladder
+
+- Rung: W3
+- Evidence: the original restart exposed stale managed-Go state (`~/.vrooli/bin/go` predated `~/.vrooli/opt/go`) and lifecycle setup exposed an interactive pnpm purge prompt. The shared lifecycle now preflights host requirements before teardown, verifies managed payloads and launchers, serializes repairs, preserves diagnostics, and runs setup/test phases with `CI=true`. A real `vrooli scenario restart system-monitor` completed setup and reached healthy status without a prompt; focused regressions passed.
+- Blocker: none for this incident; the remaining scenario test-genie failures are pre-existing product-quality findings unrelated to lifecycle startup/tool convergence.
+- Measured: 2026-08-05
+
 ## Last Updated
 2026-06-22 (Phase-5 health pass)
 
@@ -34,6 +41,6 @@ The remaining **~0.04** gap is **not** system-monitor's own code. The dashboard 
 
 ## Cleanup History
 
-- 2026-07-08: Implemented the proto-owned `MetricsService.GetDiskDetail` path with read-only partition, directory, and largest-file attribution plus cleanup-manager handoff notes. Removed the disk-detail missing-endpoint issue from the open ledger; cleanup execution remains outside system-monitor.
+- 2026-07-08: Implemented the proto-owned `MetricsService.GetDiskDetail` path with read-only partition, directory, and largest-file attribution plus storage-manager handoff notes. Removed the disk-detail missing-endpoint issue from the open ledger; cleanup execution remains outside system-monitor.
 - 2026-06-22: Phase-5 health pass — reconciled this file with the current codebase (most 2026-02-16 items were already fixed); migrated `docs/manifest.json` to `scenario-docs-manifest/v2`; restructured `PRD.md` to the canonical template and linked all P0/P1 operational targets to requirements; added `bas/registry.json`; added `minimumReleaseAge` to `ui/pnpm-workspace.yaml`; cleared the six gating tidiness errors; fixed the four UI lifecycle bugs; split the god hook; code-split the UI bundle. The lone residual red (`performance` Lighthouse `0.66–0.68 < 0.70`) is documented above as fleet/platform infrastructure debt (api-base no-gzip, bug knw-1782155812312310344), not scenario code.
 - 2026-02-16: Previous spec-sync sessions corrected script count (70+ → 30), removed non-existent timeline endpoint from API contract, documented placeholder endpoints, corrected polling interval descriptions.

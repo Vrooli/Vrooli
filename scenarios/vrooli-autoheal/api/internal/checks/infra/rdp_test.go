@@ -7,10 +7,65 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
+	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
+
+type blockingRDPExecutor struct{}
+
+func (blockingRDPExecutor) Output(ctx context.Context, _ string, _ ...string) ([]byte, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func TestDetectRDPServiceUsesTypedRemoteDesktopFact(t *testing.T) {
+	caps := &platform.Capabilities{
+		Platform:          platform.Linux,
+		SupportsSystemd:   true,
+		DisplayAttached:   true,
+		ActiveSessionUser: "alice",
+		RemoteDesktop: sharedhost.RemoteDesktopCapability{
+			Supported:        true,
+			Observed:         true,
+			Active:           true,
+			Mode:             "user-shared",
+			SelectedProvider: "gnome-user-shared",
+			Providers: []sharedhost.RemoteDesktopProvider{{
+				Name:        "gnome-user-shared",
+				Present:     true,
+				Active:      true,
+				UserSession: true,
+			}},
+		},
+	}
+	check := NewRDPCheck(caps, WithRDPExecutor(blockingRDPExecutor{}))
+	got := check.detectRDPService(context.Background())
+	if got.Type != RDPTypeGnome || got.Mode != "user-shared" || !got.IsUserSession || !got.Active {
+		t.Fatalf("detectRDPService() = %+v, want active user-shared GNOME service", got)
+	}
+}
+
+func (e blockingRDPExecutor) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return e.Output(ctx, name, args...)
+}
+
+func (e blockingRDPExecutor) Run(ctx context.Context, name string, args ...string) error {
+	_, err := e.Output(ctx, name, args...)
+	return err
+}
+
+func TestRDPCheckRunBoundsNeverReturningHostProbe(t *testing.T) {
+	check := NewRDPCheck(&platform.Capabilities{Platform: platform.Linux, SupportsSystemd: true}, WithRDPExecutor(blockingRDPExecutor{}))
+	start := time.Now()
+	result := check.Run(context.Background())
+	elapsed := time.Since(start)
+	if elapsed > probeTimeout+time.Second {
+		t.Fatalf("RDP check took %s with a non-returning host probe, want <= %s; result=%+v", elapsed, probeTimeout+time.Second, result)
+	}
+}
 
 // =============================================================================
 // RDPCheck Unit Tests with Mock Interfaces
@@ -67,7 +122,7 @@ func TestRDPCheckDeclaredIntentVerdicts(t *testing.T) {
 	}{
 		{name: "unmanaged", managed: false, wantStatus: checks.StatusOK, wantVerdict: RemoteDesktopVerdictUnmanaged},
 		{name: "matching", managed: true, experience: "login-screen", wantStatus: checks.StatusOK, wantVerdict: RemoteDesktopVerdictMatching},
-		{name: "drifted", managed: true, experience: "direct-desktop", wantStatus: checks.StatusWarning, wantVerdict: RemoteDesktopVerdictDrifted},
+		{name: "drifted", managed: true, experience: "login-screen", wantStatus: checks.StatusWarning, wantVerdict: RemoteDesktopVerdictDrifted},
 	}
 
 	for _, tt := range tests {
@@ -79,6 +134,8 @@ func TestRDPCheckDeclaredIntentVerdicts(t *testing.T) {
 				return RemoteDesktopIntent{Managed: tt.managed, Experience: tt.experience, Provider: "auto"}, nil
 			}
 			if tt.name == "matching" {
+				mockExec.Responses["systemctl is-enabled gnome-remote-desktop.service"] = checks.MockResponse{Output: []byte("enabled\n")}
+				mockExec.Responses["systemctl is-active gnome-remote-desktop.service"] = checks.MockResponse{Output: []byte("active\n")}
 				mockExec.Responses["pgrep -f gnome-remote-desktop-daemon"] = checks.MockResponse{Output: []byte("12345")}
 				mockExec.Responses["pgrep -a -f gnome-remote-desktop-daemon"] = checks.MockResponse{Output: []byte("12345 /usr/libexec/gnome-remote-desktop-daemon")}
 				mockSessionBus(mockExec, "alice", "1000")
@@ -94,7 +151,7 @@ func TestRDPCheckDeclaredIntentVerdicts(t *testing.T) {
 				t.Fatalf("desiredVerdict = %v, want %q", got, tt.wantVerdict)
 			}
 			t.Logf("declared intent verdict=%s status=%s message=%q", result.Details["desiredVerdict"], result.Status, result.Message)
-			if tt.name == "drifted" && !strings.Contains(result.Message, "declared direct-desktop") {
+			if tt.name == "drifted" && !strings.Contains(result.Message, "declared login-screen") {
 				t.Fatalf("drift message = %q", result.Message)
 			}
 			if tt.name == "unmanaged" {
@@ -658,13 +715,16 @@ func TestRaiseIncidentIsNonMutating(t *testing.T) {
 		t.Errorf("raise-incident should succeed, got error: %s", result.Error)
 	}
 
-	mutating := []string{"restart", "start", "stop", "set-credentials", "rm", "systemctl"}
+	mutating := []string{"restart", "start", "stop", "set-credentials", "rm"}
 	for _, call := range mockExec.Calls {
 		joined := call.Name + " " + strings.Join(call.Args, " ")
 		for _, verb := range mutating {
 			if strings.Contains(joined, verb) {
 				t.Errorf("raise-incident must not mutate host state, got: %s", joined)
 			}
+		}
+		if call.Name == "systemctl" && len(call.Args) > 0 && (call.Args[0] == "enable" || call.Args[0] == "disable" || call.Args[0] == "restart" || call.Args[0] == "start" || call.Args[0] == "stop") {
+			t.Errorf("raise-incident must not mutate host state, got: %s", joined)
 		}
 	}
 
@@ -946,7 +1006,7 @@ func TestRDPCheckRunWithMock_WindowsRunning(t *testing.T) {
 	}
 
 	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sc query TermService"] = checks.MockResponse{
+	mockExec.Responses["sc.exe query TermService"] = checks.MockResponse{
 		Output: []byte("SERVICE_NAME: TermService\n        TYPE               : 20  WIN32_SHARE_PROCESS\n        STATE              : 4  RUNNING"),
 		Error:  nil,
 	}
@@ -973,7 +1033,7 @@ func TestRDPCheckRunWithMock_WindowsStopped(t *testing.T) {
 	}
 
 	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sc query TermService"] = checks.MockResponse{
+	mockExec.Responses["sc.exe query TermService"] = checks.MockResponse{
 		Output: []byte("SERVICE_NAME: TermService\n        TYPE               : 20  WIN32_SHARE_PROCESS\n        STATE              : 1  STOPPED"),
 		Error:  nil,
 	}
@@ -997,7 +1057,7 @@ func TestRDPCheckRunWithMock_WindowsQueryError(t *testing.T) {
 	}
 
 	mockExec := checks.NewMockExecutor()
-	mockExec.Responses["sc query TermService"] = checks.MockResponse{
+	mockExec.Responses["sc.exe query TermService"] = checks.MockResponse{
 		Output: []byte(""),
 		Error:  checks.ErrCommandNotFound,
 	}
@@ -1050,7 +1110,8 @@ func TestRDPCheckDefaultExecutor(t *testing.T) {
 }
 
 // TestRDPCheckMockCallsVerified verifies mock was called with correct args
-// The new detection order: 1) grdctl status for GNOME RDP config, 2) systemctl for xrdp
+// Detection is delegated to shared hostinventory; this test verifies that the
+// classifier still receives both provider observations.
 func TestRDPCheckMockCallsVerified(t *testing.T) {
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
@@ -1075,22 +1136,14 @@ func TestRDPCheckMockCallsVerified(t *testing.T) {
 	check := NewRDPCheck(caps, WithRDPExecutor(mockExec), WithRDPAutoLoginUserProvider(func() string { return "" }))
 	check.Run(context.Background())
 
-	// Verify the mock was called with expected sequence:
-	// 1. grdctl status (detect GNOME RDP configuration)
-	// 2. systemctl list-unit-files xrdp.service (detect xrdp installed)
-	// 3. systemctl is-active xrdp (check xrdp status)
-	if len(mockExec.Calls) < 1 {
-		t.Errorf("Expected at least 1 call, got %d", len(mockExec.Calls))
-		return
+	seen := map[string]bool{}
+	for _, call := range mockExec.Calls {
+		seen[call.Name+" "+strings.Join(call.Args, " ")] = true
 	}
-
-	// First call should be grdctl for GNOME RDP configuration detection
-	firstCall := mockExec.Calls[0]
-	if firstCall.Name != "grdctl" {
-		t.Errorf("Expected first command 'grdctl', got %q", firstCall.Name)
-	}
-	if len(firstCall.Args) < 1 || firstCall.Args[0] != "status" {
-		t.Errorf("Expected args [status], got %v", firstCall.Args)
+	for _, command := range []string{"grdctl status", "systemctl list-unit-files xrdp.service"} {
+		if !seen[command] {
+			t.Errorf("expected shared classifier to observe %q; calls=%v", command, mockExec.Calls)
+		}
 	}
 }
 

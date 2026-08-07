@@ -279,7 +279,7 @@ func (c *RDPCheck) Run(ctx context.Context) checks.Result {
 
 // checkGnomeRDP verifies GNOME Remote Desktop daemon is running
 func (c *RDPCheck) checkGnomeRDP(ctx context.Context, result checks.Result) checks.Result {
-	isRunning := c.isGnomeRDPRunning(ctx)
+	isRunning := c.cachedServiceInfo != nil && c.cachedServiceInfo.Active
 	result.Details["configured"] = true
 	result.Details["running"] = isRunning
 
@@ -293,11 +293,6 @@ func (c *RDPCheck) checkGnomeRDP(ctx context.Context, result checks.Result) chec
 	}
 
 	result.Details["status"] = "active"
-
-	// Get additional info about the daemon
-	if output, _ := c.executor.Output(ctx, "pgrep", "-a", "-f", "gnome-remote-desktop-daemon"); len(output) > 0 {
-		result.Details["processInfo"] = strings.TrimSpace(string(output))
-	}
 
 	// A running daemon is not a serviceable daemon. Clients that reach
 	// authentication are denied when no credentials are set, so liveness alone
@@ -457,15 +452,13 @@ func (c *RDPCheck) checkLinuxXRDP(ctx context.Context, result checks.Result) che
 
 // checkWindowsTermService checks TermService status on Windows
 func (c *RDPCheck) checkWindowsTermService(ctx context.Context, result checks.Result) checks.Result {
-	output, err := c.executor.Output(ctx, "sc", "query", "TermService")
-	if err != nil {
+	if c.cachedServiceInfo == nil || !c.cachedServiceInfo.ProbeSucceeded {
 		result.Status = checks.StatusWarning
 		result.Message = "Unable to check RDP service"
 		return result
 	}
 
-	// Decision: Windows sc query returns "STATE : X RUNNING" when service is running
-	if strings.Contains(string(output), "RUNNING") {
+	if c.cachedServiceInfo.Active {
 		result.Status = checks.StatusOK
 		result.Message = "RDP service is running"
 	} else {
@@ -478,6 +471,14 @@ func (c *RDPCheck) checkWindowsTermService(ctx context.Context, result checks.Re
 // RecoveryActions returns available recovery actions for RDP service issues
 // [REQ:HEAL-ACTION-001]
 func (c *RDPCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
+	return c.RecoveryActionsWithContext(context.TODO(), lastResult)
+}
+
+// RecoveryActionsWithContext discovers service state under the caller's
+// context. The interface without a context remains for the generic check
+// registry; its bounded TODO root is only a compatibility fallback for direct
+// callers that have no request context.
+func (c *RDPCheck) RecoveryActionsWithContext(ctx context.Context, lastResult *checks.Result) []checks.RecoveryAction {
 	if !c.desiredStateAllowsRecovery(lastResult) {
 		return nil
 	}
@@ -486,7 +487,9 @@ func (c *RDPCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryA
 	if c.cachedServiceInfo != nil {
 		serviceInfo = *c.cachedServiceInfo
 	} else {
-		serviceInfo = c.detectRDPService(context.Background())
+		probeCtx, cancel := context.WithTimeout(ctx, probeTimeout)
+		defer cancel()
+		serviceInfo = c.detectRDPService(probeCtx)
 	}
 
 	isRunning := false
@@ -1004,8 +1007,15 @@ func (c *RDPCheck) executeStatus(ctx context.Context, result checks.ActionResult
 		outputBuilder.Write(output)
 
 	case RDPTypeTermService:
-		output, _ := c.executor.CombinedOutput(ctx, "sc", "query", "TermService")
-		outputBuilder.Write(output)
+		if serviceInfo.ProbeSucceeded {
+			if serviceInfo.Active {
+				outputBuilder.WriteString("TermService: RUNNING\n")
+			} else {
+				outputBuilder.WriteString("TermService: NOT RUNNING\n")
+			}
+		} else {
+			outputBuilder.WriteString("TermService: unable to query\n")
+		}
 
 	default:
 		outputBuilder.WriteString("No RDP service detected on this system.\n")

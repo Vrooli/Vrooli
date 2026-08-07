@@ -21,24 +21,27 @@ const (
 )
 
 type Capabilities struct {
-	Platform            Type   `json:"platform"`
-	SupportsRDP         bool   `json:"supportsRdp"`
-	SupportsSystemd     bool   `json:"supportsSystemd"`
-	SupportsLaunchd     bool   `json:"supportsLaunchd"`
-	SupportsWindowsSvc  bool   `json:"supportsWindowsServices"`
-	IsHeadlessServer    bool   `json:"isHeadlessServer"`
-	HasDocker           bool   `json:"hasDocker"`
-	IsWSL               bool   `json:"isWsl"`
-	SupportsCloudflared bool   `json:"supportsCloudflared"`
-	SessionType         string `json:"sessionType,omitempty"`
-	Seat                string `json:"seat,omitempty"`
-	DisplayManager      string `json:"displayManager,omitempty"`
-	DisplayServer       string `json:"displayServer,omitempty"`
-	WaylandAttainable   bool   `json:"waylandAttainable"`
-	WaylandReason       string `json:"waylandReason,omitempty"`
-	ElevationMechanism  string `json:"elevationMechanism,omitempty"`
-	IsElevated          bool   `json:"isElevated"`
-	CanElevate          bool   `json:"canElevate"`
+	Platform            Type                               `json:"platform"`
+	SupportsRDP         bool                               `json:"supportsRdp"`
+	SupportsSystemd     bool                               `json:"supportsSystemd"`
+	SupportsLaunchd     bool                               `json:"supportsLaunchd"`
+	SupportsWindowsSvc  bool                               `json:"supportsWindowsServices"`
+	IsHeadlessServer    bool                               `json:"isHeadlessServer"`
+	HasDocker           bool                               `json:"hasDocker"`
+	IsWSL               bool                               `json:"isWsl"`
+	SupportsCloudflared bool                               `json:"supportsCloudflared"`
+	SessionType         string                             `json:"sessionType,omitempty"`
+	Seat                string                             `json:"seat,omitempty"`
+	DisplayManager      string                             `json:"displayManager,omitempty"`
+	DisplayServer       string                             `json:"displayServer,omitempty"`
+	DisplayAttached     bool                               `json:"displayAttached"`
+	ActiveSessionUser   string                             `json:"activeSessionUser,omitempty"`
+	RemoteDesktop       sharedhost.RemoteDesktopCapability `json:"remoteDesktop"`
+	WaylandAttainable   bool                               `json:"waylandAttainable"`
+	WaylandReason       string                             `json:"waylandReason,omitempty"`
+	ElevationMechanism  string                             `json:"elevationMechanism,omitempty"`
+	IsElevated          bool                               `json:"isElevated"`
+	CanElevate          bool                               `json:"canElevate"`
 }
 
 // Detect deliberately collects on each call. A process-lifetime cache made
@@ -74,6 +77,9 @@ func capabilitiesFromSnapshot(snapshot sharedhost.Snapshot) *Capabilities {
 		Seat:                snapshot.Seat,
 		DisplayManager:      snapshot.DisplayManager,
 		DisplayServer:       snapshot.DisplayServer,
+		DisplayAttached:     snapshot.DisplayAttached,
+		ActiveSessionUser:   snapshot.ActiveSessionUser,
+		RemoteDesktop:       snapshot.RemoteDesktop,
 		WaylandAttainable:   snapshot.Wayland.Attainable,
 		WaylandReason:       snapshot.Wayland.Reason,
 		ElevationMechanism:  snapshot.Elevation.Mechanism,
@@ -102,6 +108,3 @@ func detectLaunchd() bool         { return detect().SupportsLaunchd }
 func detectWindowsServices() bool { return detect().SupportsWindowsSvc }
 func detectHeadless() bool        { return detect().IsHeadlessServer }
 func detectCloudflared() bool     { return detect().SupportsCloudflared }
-func detectRDP(caps *Capabilities) bool {
-	return caps != nil && caps.SupportsRDP
-}

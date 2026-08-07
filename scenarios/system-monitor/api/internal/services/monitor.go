@@ -752,9 +752,9 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 	return detailed, nil
 }
 
-// GetDiskDetail returns read-only disk usage detail plus cleanup-manager
+// GetDiskDetail returns read-only disk usage detail plus storage-manager
 // remediation guidance. It observes pressure and attribution only; cleanup
-// execution remains owned by cleanup-manager policy/audit.
+// execution remains owned by storage-manager policy/audit.
 func (s *MonitorService) GetDiskDetail(_ context.Context) (*models.DiskDetailResponse, error) {
 	partitions, err := collectors.GetDiskPartitions()
 	if err != nil {
@@ -767,12 +767,12 @@ func (s *MonitorService) GetDiskDetail(_ context.Context) (*models.DiskDetailRes
 		Depth:       2,
 		Timestamp:   s.clock.Now(),
 		Notes: []string{
-			"Disk detail is observational only; broad cleanup is delegated to cleanup-manager plan/apply.",
-			"Suggested handoff: cleanup-manager cleanup plan --profile conservative",
+			"Disk detail is observational only; broad cleanup is delegated to storage-manager plan/apply.",
+			"Suggested handoff: storage-manager cleanup plan --profile conservative",
 		},
 	}
 	if highestDiskPressure(detail.Partitions) >= 85 {
-		detail.Notes = append(detail.Notes, "High disk pressure detected; request a cleanup-manager preview before applying remediation.")
+		detail.Notes = append(detail.Notes, "High disk pressure detected; request a storage-manager preview before applying remediation.")
 	}
 
 	topDirs, dirErr := collectors.GetLargestDirectories(detail.ActiveMount, detail.Depth, 8)

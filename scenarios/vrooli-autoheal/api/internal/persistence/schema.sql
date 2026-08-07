@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS health_results (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     check_id TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('ok', 'warning', 'critical')),
+    status TEXT NOT NULL CHECK (status IN ('ok', 'warning', 'critical', 'not-applicable')),
     message TEXT NOT NULL,
     details TEXT NOT NULL DEFAULT '{}',
     duration_ms INTEGER NOT NULL DEFAULT 0,
@@ -258,4 +258,3 @@ SELECT
         ELSE 'ok'
     END AS overall_status
 FROM latest_health_results;
-

@@ -73,6 +73,9 @@ func ResolveRemoteDesktopIntent(_ context.Context, caps *platform.Capabilities) 
 func observedRemoteDesktopExperience(service RDPServiceInfo) string {
 	switch service.Type {
 	case RDPTypeGnome:
+		if service.Mode == "user-shared" || service.Mode == "headless" {
+			return "direct-desktop"
+		}
 		return "login-screen"
 	case RDPTypeXrdp, RDPTypeTermService:
 		return "direct-desktop"
@@ -84,6 +87,12 @@ func observedRemoteDesktopExperience(service RDPServiceInfo) string {
 func observedRemoteDesktopProvider(service RDPServiceInfo) string {
 	switch service.Type {
 	case RDPTypeGnome:
+		if service.Mode == "user-shared" {
+			return "gnome-user-shared"
+		}
+		if service.Mode == "headless" {
+			return "gnome-headless"
+		}
 		return "gnome-system"
 	case RDPTypeXrdp:
 		return "xrdp"

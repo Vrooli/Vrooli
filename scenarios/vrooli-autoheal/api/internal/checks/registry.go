@@ -742,7 +742,12 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 		}
 
 		// Get available recovery actions
-		actions := healable.RecoveryActions(&result)
+		var actions []RecoveryAction
+		if contextAware, ok := healable.(ContextAwareHealableCheck); ok {
+			actions = contextAware.RecoveryActionsWithContext(ctx, &result)
+		} else {
+			actions = healable.RecoveryActions(&result)
+		}
 
 		selectedAction := selectAutoHealAction(result, actions)
 

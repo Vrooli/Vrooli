@@ -3,13 +3,12 @@
 package infra
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
+	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
@@ -96,66 +95,7 @@ func loginKeyringCollectionPresent(ctx context.Context, exec checks.CommandExecu
 // authenticates through pam_permit with no password, so pam_gnome_keyring has
 // nothing to unlock the login keyring with. See loginKeyringCollectionPresent.
 func autoLoginUser() string {
-	// Try both gdm3 (Debian/Ubuntu) and gdm (RHEL/Fedora) config paths
-	configPaths := []string{
-		"/etc/gdm3/custom.conf",
-		"/etc/gdm/custom.conf",
-	}
-
-	for _, configPath := range configPaths {
-		if user := autoLoginUserFromFile(configPath); user != "" {
-			return user
-		}
-	}
-
-	return ""
-}
-
-// autoLoginUserFromFile parses one GDM custom.conf.
-func autoLoginUserFromFile(configPath string) string {
-	file, err := os.Open(configPath)
-	if err != nil {
-		return ""
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	inDaemonSection := false
-	autoLoginEnabled := false
-	user := ""
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-
-		// Track which section we're in
-		if strings.HasPrefix(line, "[") {
-			inDaemonSection = strings.HasPrefix(line, "[daemon]")
-			continue
-		}
-
-		if !inDaemonSection {
-			continue
-		}
-
-		if strings.HasPrefix(line, "AutomaticLoginEnable") {
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				value := strings.TrimSpace(strings.ToLower(parts[1]))
-				autoLoginEnabled = value == "true" || value == "1" || value == "yes"
-			}
-		}
-		if strings.HasPrefix(line, "AutomaticLogin=") {
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				user = strings.TrimSpace(parts[1])
-			}
-		}
-	}
-
-	if autoLoginEnabled && user != "" {
-		return user
-	}
-	return ""
+	return sharedhost.CollectPlatformFacts(context.Background()).AutoLoginUser
 }
 
 // seat0SessionUser resolves the user that owns the active graphical session on
@@ -165,22 +105,13 @@ func autoLoginUserFromFile(configPath string) string {
 // This is shared by the display and RDP checks so both agree on who owns the
 // graphical session.
 func seat0SessionUser(ctx context.Context, exec checks.CommandExecutor) string {
-	output, err := exec.Output(ctx, "loginctl", "show-seat", "seat0", "-p", "ActiveSession", "--value")
-	if err != nil {
-		return ""
-	}
+	return sharedhost.ActiveSessionUser(ctx, hostInventoryCommandRunner{executor: exec})
+}
 
-	sessionID := strings.TrimSpace(string(output))
-	if sessionID == "" {
-		return ""
-	}
+type hostInventoryCommandRunner struct{ executor checks.CommandExecutor }
 
-	output, err = exec.Output(ctx, "loginctl", "show-session", sessionID, "-p", "Name", "--value")
-	if err != nil {
-		return ""
-	}
-
-	return strings.TrimSpace(string(output))
+func (r hostInventoryCommandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return r.executor.Output(ctx, name, args...)
 }
 
 // gnomeShellRunningFor reports whether a gnome-shell process exists. When user

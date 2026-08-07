@@ -41,7 +41,7 @@ func TestSQLite_UpsertAndGetRoundTrip(t *testing.T) {
 		Mode:         config.ModeLocal,
 		TunnelID:     "tid-123",
 		AccountID:    "acct-456",
-		CredRef:      "vault://cf/cred",
+		CredRef:      "vrooli/cloudflare:api-token",
 		PromEndpoint: "127.0.0.1:9999",
 	}
 	stored, err := repo.Upsert(ctx, want)

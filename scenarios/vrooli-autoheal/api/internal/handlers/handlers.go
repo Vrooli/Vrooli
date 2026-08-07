@@ -1420,7 +1420,12 @@ func (h *Handlers) GetCheckActions(w http.ResponseWriter, r *http.Request) {
 		lastResultPtr = &lastResult
 	}
 
-	actions := healable.RecoveryActions(lastResultPtr)
+	var actions []checks.RecoveryAction
+	if contextAware, ok := healable.(checks.ContextAwareHealableCheck); ok {
+		actions = contextAware.RecoveryActionsWithContext(r.Context(), lastResultPtr)
+	} else {
+		actions = healable.RecoveryActions(lastResultPtr)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{

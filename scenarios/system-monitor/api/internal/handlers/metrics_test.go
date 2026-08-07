@@ -208,7 +208,7 @@ func TestGetDiskDetailConnectReturnsCleanupManagerHandoff(t *testing.T) {
 			},
 			ActiveMount: "/",
 			Depth:       2,
-			Notes:       []string{"Suggested handoff: cleanup-manager cleanup plan --profile conservative"},
+			Notes:       []string{"Suggested handoff: storage-manager cleanup plan --profile conservative"},
 			Timestamp:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		})
 	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
@@ -221,8 +221,8 @@ func TestGetDiskDetailConnectReturnsCleanupManagerHandoff(t *testing.T) {
 		t.Fatalf("disk pressure = %v, want 90", res.Msg.GetData().GetPartitions()[0].GetUsePercent())
 	}
 	notes := res.Msg.GetData().GetNotes()
-	if len(notes) != 1 || notes[0] != "Suggested handoff: cleanup-manager cleanup plan --profile conservative" {
-		t.Fatalf("notes = %v, want cleanup-manager handoff", notes)
+	if len(notes) != 1 || notes[0] != "Suggested handoff: storage-manager cleanup plan --profile conservative" {
+		t.Fatalf("notes = %v, want storage-manager handoff", notes)
 	}
 }
 

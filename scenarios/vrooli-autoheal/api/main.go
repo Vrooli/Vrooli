@@ -360,12 +360,70 @@ func initializeSchema(db interface {
 		return fmt.Errorf("failed to execute schema: %w", err)
 	}
 
+	if err := migrateHealthResultStatusContract(db); err != nil {
+		return fmt.Errorf("failed to migrate health_results.status: %w", err)
+	}
+
 	if err := migrateActionLogsAddTimedOut(db); err != nil {
 		return fmt.Errorf("failed to migrate action_logs.timed_out: %w", err)
 	}
 
 	log.Printf("database schema initialized successfully")
 	return nil
+}
+
+// migrateHealthResultStatusContract upgrades the original three-value health
+// status constraint so platform-boundary observations can be persisted as
+// not-applicable. SQLite cannot alter a CHECK constraint in place, so this is
+// a transactional table rebuild that preserves every observation and index.
+func migrateHealthResultStatusContract(db interface {
+	database.SchemaExecer
+	database.SchemaQuerier
+}) error {
+	var createSQL string
+	rows, err := db.QueryContext(context.Background(), `SELECT sql FROM sqlite_master WHERE type='table' AND name='health_results'`)
+	if err != nil {
+		return err
+	}
+	if rows.Next() {
+		if err := rows.Scan(&createSQL); err != nil {
+			rows.Close()
+			return err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	if createSQL == "" {
+		return nil
+	}
+	if strings.Contains(strings.ToLower(createSQL), "not-applicable") {
+		return nil
+	}
+	_, err = db.ExecContext(context.Background(), `
+BEGIN;
+ALTER TABLE health_results RENAME TO health_results_legacy;
+CREATE TABLE health_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    check_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('ok', 'warning', 'critical', 'not-applicable')),
+    message TEXT NOT NULL,
+    details TEXT NOT NULL DEFAULT '{}',
+    duration_ms INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+INSERT INTO health_results (id, check_id, status, message, details, duration_ms, created_at)
+SELECT id, check_id, status, message, details, duration_ms, created_at FROM health_results_legacy;
+DROP TABLE health_results_legacy;
+CREATE INDEX IF NOT EXISTS idx_health_results_check_id_created ON health_results (check_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_health_results_created_at ON health_results (created_at DESC);
+COMMIT;`)
+	if err != nil {
+		_, _ = db.ExecContext(context.Background(), "ROLLBACK")
+	}
+	return err
 }
 
 // migrateActionLogsAddTimedOut adds the timed_out column to action_logs for

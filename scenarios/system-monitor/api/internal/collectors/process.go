@@ -78,19 +78,6 @@ func (c *ProcessCollector) Collect(ctx context.Context) (*MetricData, error) {
 	}, nil
 }
 
-// getTotalProcessCount returns the total number of processes
-func (c *ProcessCollector) getTotalProcessCount(ctx context.Context) int {
-	if runtime.GOOS != "linux" {
-		return 250
-	}
-
-	stats, err := readProcessStats(ctx)
-	if err != nil {
-		return 0
-	}
-	return len(stats)
-}
-
 func zombieProcessesFromStats(stats []processStat) []map[string]interface{} {
 	var zombies []map[string]interface{}
 	for _, stat := range stats {
@@ -128,37 +115,6 @@ func highThreadProcessesFromStats(stats []processStat) []map[string]interface{} 
 		}
 	}
 	return processes
-}
-
-// getZombieProcesses returns zombie processes
-func (c *ProcessCollector) getZombieProcesses(ctx context.Context) []map[string]interface{} {
-	var zombies []map[string]interface{}
-
-	if runtime.GOOS != "linux" {
-		return zombies
-	}
-
-	stats, err := readProcessStats(ctx)
-	if err != nil {
-		return zombies
-	}
-
-	return zombieProcessesFromStats(stats)
-}
-
-// getHighThreadProcesses returns processes with high thread counts
-func (c *ProcessCollector) getHighThreadProcesses(ctx context.Context) []map[string]interface{} {
-	var processes []map[string]interface{}
-
-	if runtime.GOOS != "linux" {
-		return processes
-	}
-
-	stats, err := readProcessStats(ctx)
-	if err != nil {
-		return processes
-	}
-	return highThreadProcessesFromStats(stats)
 }
 
 // processHealth builds the health summary from the zombie and high-thread

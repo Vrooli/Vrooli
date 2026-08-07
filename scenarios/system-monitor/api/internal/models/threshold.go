@@ -30,23 +30,6 @@ type ThresholdViolation struct {
 	Trend          string    `json:"trend"` // increasing, decreasing, stable
 }
 
-// ThresholdMonitorRequest represents a request to check thresholds
-type ThresholdMonitorRequest struct {
-	ForceCheck bool `json:"force_check"`
-}
-
-// ThresholdMonitorResponse represents the response from threshold monitoring
-type ThresholdMonitorResponse struct {
-	CheckID         string               `json:"check_id"`
-	Status          string               `json:"status"`
-	ViolationsFound int                  `json:"violations_found"`
-	Violations      []ThresholdViolation `json:"violations"`
-	SystemHealth    string               `json:"system_health"` // healthy, warning, critical
-	CheckedAt       time.Time            `json:"checked_at"`
-	NextCheck       time.Time            `json:"next_check"`
-	Summary         string               `json:"summary"`
-}
-
 // Alert represents a system alert
 type Alert struct {
 	ID          string                 `json:"id"`

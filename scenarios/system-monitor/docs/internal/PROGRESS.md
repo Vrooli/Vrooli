@@ -66,7 +66,7 @@
 ### 2026-07-08 Cleanup-Manager Integration Slice
 
 - Implemented the proto-owned `MetricsService.GetDiskDetail` handler and service path with read-only partition, largest-directory, and largest-file attribution.
-- Added cleanup-manager handoff notes to disk detail responses so system-monitor surfaces pressure while cleanup-manager owns preview/apply/audit.
+- Added storage-manager handoff notes to disk detail responses so system-monitor surfaces pressure while storage-manager owns preview/apply/audit.
 - Validation: `go test ./...` passed in `scenarios/system-monitor/api`.
 
 ### Unresolved Discrepancies

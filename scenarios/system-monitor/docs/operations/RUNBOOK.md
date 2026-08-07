@@ -7,9 +7,9 @@ The `metrics` table dominates `system-monitor.db` size. Left unbounded, it grows
 compaction reclaims the freed file space.
 
 System-monitor cleanup is limited to its own metrics lifecycle. Broad host
-disk-pressure remediation belongs to cleanup-manager: system-monitor observes
+disk-pressure remediation belongs to storage-manager: system-monitor observes
 pressure and attribution, then operators preview and apply reclaim candidates
-through cleanup-manager policy and audit.
+through storage-manager policy and audit.
 
 ### How it runs automatically
 
@@ -81,17 +81,98 @@ Recommended pre-backup sequence: preview retention → apply retention → compa
 back up. This keeps Data Backup Manager from treating gigabytes of stale metrics
 as meaningful payload.
 
-## Disk Pressure Handoff
+## Disk Pressure: Detection and Escalation
 
-When disk usage crosses investigation or alert thresholds, use system-monitor
-to identify pressure and likely owners, then hand off remediation:
+> Rewritten after the 2026-07-31 incident, in which the host filled to 100
+> percent while three healthy safeguards did nothing.
+
+### One command to read the current state
+
+```bash
+curl -s http://localhost:16914/api/v1/disk-pressure | jq
+```
+
+It reports current usage, the active band, the evaluation interval, the most
+recent threshold violation, the observation that caused the last band
+transition, and the most recent remediation result — everything needed to
+answer "is there pressure, and did anything act on it".
+
+### The threshold loop
+
+`ThresholdScheduler` evaluates disk usage every `threshold_check_interval`
+seconds (default 20) whenever the monitor is active. It reads its settings
+live on every tick, so changes take effect without a restart.
+
+Usage is measured the way `df` measures it — `used / (used + available)`, not
+`used / total`. The difference is the superuser reserve, which was 93 GB on the
+incident host: reading free blocks reported 87 percent while `df` reported 93.
+
+### Bands
+
+Every boundary is settings-driven; none is hardcoded.
+
+| Band | Default | Action |
+| --- | --- | --- |
+| normal | below `disk_threshold` | Record the sample. No alert. |
+| warning | `disk_threshold` (80) | Persist a `ThresholdViolation`. No remediation. |
+| high | `disk_high_percent` (90) | Ask storage-manager for a conservative preview. Nothing is deleted. |
+| critical | `disk_critical_percent` (95) | storage-manager applies safe-tier providers with no operator present. |
+
+`disk_threshold` *is* the warning boundary — there is deliberately not a
+separate setting meaning the same thing.
+
+### Hysteresis
+
+Three mechanisms keep escalation deliberate rather than noisy:
+
+- **Cooldown** (`disk_escalation_cooldown_seconds`, default 1800): at most one
+  record per band per window. During the incident the disk sat above its
+  threshold for days; a level-only rule would have produced thousands of
+  identical records.
+- **Debounce** (`disk_escalation_debounce_ticks`, default 2): a new band must
+  be observed on consecutive ticks before it takes effect, so one noisy sample
+  cannot escalate.
+- **Fast-fill bypass** (`disk_fast_fill_jump_percent`, default 5): a rise of at
+  least this many points in a single tick escalates immediately. The incident's
+  own growth was 3-5 GB per day, but a runaway process can fill 100 GB in
+  minutes, and waiting for a confirming tick is the wrong response to that.
+
+De-escalation is **not** debounced and resets the cooldown: dropping below a
+boundary is good news, and holding a stale high band would keep remediation
+armed after the pressure is gone.
+
+### Two independent paths to remediation
+
+system-monitor and vrooli-autoheal each report pressure to storage-manager on
+their own. This is deliberate — two safeguards routed through a single mediator
+share a failure mode, which is what the incident exposed. storage-manager
+deduplicates reports on partition and band, so duplicate concurrent reports
+produce one execution and reclaimed bytes are never double-counted.
+
+Only `safe`-tier providers run unattended. `safe_with_owner`, `conditional`,
+and `forbidden` are withheld and reported in the response.
+
+### Host floor
+
+Underneath both sits `scripts/emergency-watchdog.sh`, which needs no Go
+toolchain. It watches available (not free) space, requests `high`-band cleanup
+below its floor and `critical` below half the floor, bounds its own log, and
+tolerates a failed write — during the incident it died with
+`printf: write error: No space left on device`.
+
+Host-level steps (tmpfiles override, filesystem reserve, journal bounds) are in
+[docs/reference/environment-management.md](../../../../docs/reference/environment-management.md#host-disk-floor-operator-steps).
+
+### Manual handoff
+
+When investigating by hand, identify pressure and likely owners first:
 
 ```bash
 system-monitor metrics process-timeline --window 5m --top 20 --json
-cleanup-manager cleanup plan --json
+storage-manager cleanup plan --json
 ```
 
-Apply only an approved cleanup-manager plan with an idempotency key. Do not
+Apply only an approved storage-manager plan with an idempotency key. Do not
 add broad deletion, Docker prune, journal vacuum, package-cache cleanup, or
-scenario-private cleanup paths to system-monitor; those are cleanup-manager
+scenario-private cleanup paths to system-monitor; those are storage-manager
 provider responsibilities, with private data delegated to owner scenarios.

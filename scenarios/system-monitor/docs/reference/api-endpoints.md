@@ -194,7 +194,7 @@ The following endpoints are referenced by the UI but do not exist in the API:
 
 Disk detail is implemented through `MetricsService.GetDiskDetail`
 (`/vrooli.system_monitor.v1.metrics.MetricsService/GetDiskDetail`) and is
-read-only. Its response may include cleanup-manager handoff notes when disk
+read-only. Its response may include storage-manager handoff notes when disk
 pressure is high; system-monitor does not delete files or apply cleanup.
 
 ## Connect Migration Notes

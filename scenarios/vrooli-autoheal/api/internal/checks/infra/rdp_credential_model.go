@@ -2,8 +2,6 @@ package infra
 
 import (
 	"context"
-	"strings"
-	"time"
 )
 
 // CredentialModel identifies where GNOME Remote Desktop keeps its credentials.
@@ -15,24 +13,11 @@ const (
 	CredentialModelUserSession CredentialModel = "user-session"
 )
 
-const modelProbeTimeout = 10 * time.Second
-
-func (c *RDPCheck) gnomeRDPCredentialModel(ctx context.Context) CredentialModel {
-	ctx, cancel := context.WithTimeout(ctx, modelProbeTimeout)
-	defer cancel()
-	output, err := c.executor.Output(ctx, "systemctl", "is-enabled", "gnome-remote-desktop.service")
-	if err != nil {
-		return CredentialModelUserSession
+func (c *RDPCheck) gnomeRDPCredentialModel(_ context.Context) CredentialModel {
+	if c.cachedServiceInfo != nil && !c.cachedServiceInfo.IsUserSession && c.cachedServiceInfo.Type == RDPTypeGnome {
+		return CredentialModelSystem
 	}
-	status := strings.TrimSpace(string(output))
-	if status != "enabled" && status != "static" {
-		return CredentialModelUserSession
-	}
-	active, err := c.executor.Output(ctx, "systemctl", "is-active", "gnome-remote-desktop.service")
-	if err != nil || strings.TrimSpace(string(active)) != "active" {
-		return CredentialModelUserSession
-	}
-	return CredentialModelSystem
+	return CredentialModelUserSession
 }
 
 func keyringModelRemedies() []string {

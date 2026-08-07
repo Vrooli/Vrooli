@@ -68,7 +68,7 @@ live smoke confirmed `GET /api/v1/metrics/current` returns `404`, while
 
 #### F0: Disk detail Connect method implemented (LOW)
 - **Handler** (`api/internal/handlers/metrics.go`): `MetricsService.GetDiskDetail` now returns read-only partition/detail data.
-- **Boundary**: Response notes point remediation to cleanup-manager plan/apply; system-monitor still observes only and does not mutate disk state.
+- **Boundary**: Response notes point remediation to storage-manager plan/apply; system-monitor still observes only and does not mutate disk state.
 
 #### F1: Hardcoded `localhost:port` in investigation prompt and handler response (HIGH)
 - **Handler** (`api/internal/handlers/investigations.go`): `resolveAPIBaseURL()` derives URL from forwarded headers (resolved 2026-02-17).

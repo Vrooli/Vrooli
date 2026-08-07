@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
-	"golang.org/x/sys/unix"
 )
 
 // DiskCollector collects disk metrics
@@ -61,24 +60,16 @@ func (c *DiskCollector) getDiskUsage() map[string]interface{} {
 		"percent": float64(0),
 	}
 
-	if runtime.GOOS != "linux" {
-		usage["percent"] = 67.8
+	measured, err := ReadDiskUsage(RootMountPath())
+	if err != nil || measured.TotalBytes <= 0 {
 		return usage
 	}
-
-	total, free, available, err := statfsBytes("/")
-	if err != nil || total <= 0 {
-		return usage
-	}
-
-	used := total - free
-	if used < 0 {
-		used = 0
-	}
-	usage["total"] = total
-	usage["used"] = used
-	usage["free"] = available
-	usage["percent"] = float64(used) / float64(total) * 100
+	usage["total"] = measured.TotalBytes
+	usage["used"] = measured.UsedBytes
+	// "free" is the space a writer can actually use, which is what every
+	// consumer of this metric cares about.
+	usage["free"] = measured.AvailableBytes
+	usage["percent"] = measured.UsedPercent
 
 	return usage
 }
@@ -335,18 +326,6 @@ func cloneMap(source map[string]interface{}) map[string]interface{} {
 	return clone
 }
 
-func statfsBytes(path string) (total, free, available int64, err error) {
-	var stat unix.Statfs_t
-	if err := unix.Statfs(path, &stat); err != nil {
-		return 0, 0, 0, err
-	}
-	blockSize := int64(stat.Bsize)
-	if blockSize <= 0 {
-		return 0, 0, 0, nil
-	}
-	return int64(stat.Blocks) * blockSize, int64(stat.Bfree) * blockSize, int64(stat.Bavail) * blockSize, nil
-}
-
 func readIOWaitPercent() (float64, bool) {
 	raw, err := os.ReadFile("/proc/stat")
 	if err != nil {
@@ -387,25 +366,20 @@ func GetDiskPartitions() ([]map[string]interface{}, error) {
 
 	partitions := make([]map[string]interface{}, 0, len(mounts))
 	for _, mount := range mounts {
-		sizeBytes, freeBytes, availBytes, err := statfsBytes(mount.mountPoint)
-		if err != nil || sizeBytes <= 0 {
+		measured, err := ReadDiskUsage(mount.mountPoint)
+		if err != nil || measured.TotalBytes <= 0 {
 			continue
 		}
-		usedBytes := sizeBytes - freeBytes
-		if usedBytes < 0 {
-			usedBytes = 0
-		}
-		percentVal := float64(usedBytes) / float64(sizeBytes) * 100
 
 		partitions = append(partitions, map[string]interface{}{
 			"device":          mount.device,
-			"size_bytes":      sizeBytes,
-			"size_human":      formatBytesHuman(sizeBytes),
-			"used_bytes":      usedBytes,
-			"used_human":      formatBytesHuman(usedBytes),
-			"available_bytes": availBytes,
-			"available_human": formatBytesHuman(availBytes),
-			"use_percent":     percentVal,
+			"size_bytes":      measured.TotalBytes,
+			"size_human":      formatBytesHuman(measured.TotalBytes),
+			"used_bytes":      measured.UsedBytes,
+			"used_human":      formatBytesHuman(measured.UsedBytes),
+			"available_bytes": measured.AvailableBytes,
+			"available_human": formatBytesHuman(measured.AvailableBytes),
+			"use_percent":     measured.UsedPercent,
 			"mount_point":     mount.mountPoint,
 		})
 	}

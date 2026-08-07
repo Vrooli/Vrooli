@@ -54,7 +54,7 @@ The following endpoints are referenced by the UI but are not implemented:
 
 Disk detail is served by the generated Connect path
 `/vrooli.system_monitor.v1.metrics.MetricsService/GetDiskDetail`. It is
-read-only and points cleanup remediation to cleanup-manager.
+read-only and points cleanup remediation to storage-manager.
 
 ## No Authentication
 

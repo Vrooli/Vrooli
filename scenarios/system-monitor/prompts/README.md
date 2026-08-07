@@ -7,8 +7,8 @@ This directory contains the prompt template used by the System Monitor's "Run An
 The prompt file (`anomaly-check.md`) is **hot-reloadable**, meaning you can edit it while the System Monitor app is running and changes will take effect immediately on the next anomaly check - no restart required!
 
 ## File Location
-- **Source**: `scenarios/system-monitor/initialization/claude-code/anomaly-check.md`
-- **Deployed App**: `${HOME}/Vrooli/scenarios/system-monitor/initialization/claude-code/anomaly-check.md`
+- **Source**: `scenarios/system-monitor/api/internal/<domain>/claude-code/anomaly-check.md`
+- **Deployed App**: `${HOME}/Vrooli/scenarios/system-monitor/api/internal/<domain>/claude-code/anomaly-check.md`
 
 Both locations are checked by the API, so you can edit either file.
 
@@ -17,10 +17,10 @@ Both locations are checked by the API, so you can edit either file.
 1. **Edit the prompt file** while the app is running:
    ```bash
    # Edit in source location
-   nano scenarios/system-monitor/initialization/claude-code/anomaly-check.md
+   nano scenarios/system-monitor/api/internal/<domain>/claude-code/anomaly-check.md
    
    # OR edit in deployed location
-   nano ~/Vrooli/scenarios/system-monitor/initialization/claude-code/anomaly-check.md
+   nano ~/Vrooli/scenarios/system-monitor/api/internal/<domain>/claude-code/anomaly-check.md
    ```
 
 2. **Test your changes** immediately:
@@ -82,3 +82,4 @@ The prompt is organized into sections:
 5. Iterate on the prompt as needed
 
 No compilation, no restarts, instant feedback! 🚀
+

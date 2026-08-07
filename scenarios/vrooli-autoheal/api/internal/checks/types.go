@@ -16,6 +16,10 @@ const (
 	StatusOK       Status = "ok"
 	StatusWarning  Status = "warning"
 	StatusCritical Status = "critical"
+	// StatusNotApplicable is an honest platform boundary, not a successful
+	// health observation. It is used when a check's capability does not exist
+	// on the current host (for example, NVIDIA container access on a CPU host).
+	StatusNotApplicable Status = "not-applicable"
 )
 
 // Category groups related health checks for UI organization
@@ -94,9 +98,10 @@ type Summary struct {
 // Severity order: critical > warning > ok
 func WorstStatus(a, b Status) Status {
 	priority := map[Status]int{
-		StatusOK:       0,
-		StatusWarning:  1,
-		StatusCritical: 2,
+		StatusNotApplicable: -1,
+		StatusOK:            0,
+		StatusWarning:       1,
+		StatusCritical:      2,
 	}
 	if priority[a] >= priority[b] {
 		return a
@@ -171,6 +176,15 @@ type HealableCheck interface {
 	RecoveryActions(lastResult *Result) []RecoveryAction
 	// ExecuteAction runs the specified recovery action
 	ExecuteAction(ctx context.Context, actionID string) ActionResult
+}
+
+// ContextAwareHealableCheck is implemented by checks whose recovery-action
+// discovery performs host probes. Callers should prefer this seam so those
+// probes inherit the request/tick context instead of creating an unbounded
+// root context.
+type ContextAwareHealableCheck interface {
+	HealableCheck
+	RecoveryActionsWithContext(ctx context.Context, lastResult *Result) []RecoveryAction
 }
 
 // ConfigProvider provides check configuration for the registry.

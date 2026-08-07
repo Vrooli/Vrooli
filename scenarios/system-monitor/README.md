@@ -39,8 +39,8 @@ Real-time server monitoring with threshold-based anomaly detection, AI-driven in
 ### Resources (active runtime)
 | Resource | Purpose | Config |
 |----------|---------|--------|
-| PostgreSQL | Metrics, thresholds, investigations, reports, system health (6 tables) | `initialization/postgres/schema.sql` |
-| Redis | Real-time alerts queue, metrics caching, session data | `initialization/redis/redis.conf` |
+| PostgreSQL | Metrics, thresholds, investigations, reports, system health (6 tables) | `api/internal/<domain>/schema.sql` |
+| Redis | Real-time alerts queue, metrics caching, session data | `api/internal/<domain>/redis/redis.conf` |
 | Ollama | AI analysis model (llama3.2:3b) | Pulled during setup |
 
 ### Scenario Dependencies
@@ -105,7 +105,7 @@ Global flags: `--help`, `--version`, `--port <port>`, `--json`, `--quiet`
 - **System**: comprehensive-system-analyzer, resource-exhaustion-detector, master-system-sweep
 - **Service-specific**: chrome-cpu-analyzer
 
-Auto-fix triggers (configurable in `initialization/configuration/investigation-triggers.json`):
+Auto-fix triggers (configurable in `api/internal/<domain>/configuration/investigation-triggers.json`):
 1. High CPU Usage (75%, 60s sustained)
 2. Memory Pressure (10% available, 30s sustained)
 3. Low Disk Space (90%, 120s sustained)
@@ -172,7 +172,7 @@ Other scenarios can leverage system-monitor for:
 - **CLI report bug**: Calls `/api/reports/generate` (missing `/v1/` prefix) — will 404
 - **Storage Default**: API defaults to in-memory; persistent metric history is not yet implemented
 - **Missing API endpoint**: UI references `POST /processes/{pid}/kill`, but no process-kill route exists in the API router — process kill silently fails
-- **Disk remediation boundary**: Disk detail is read-only; broad cleanup routes through cleanup-manager preview/apply rather than system-monitor deletion paths
+- **Disk remediation boundary**: Disk detail is read-only; broad cleanup routes through storage-manager preview/apply rather than system-monitor deletion paths
 - **Script API placeholders**: Script list/get/execute endpoints return empty/404; scripts run via investigation agent, not API
 - **Test Coverage**: test/ directory is empty; tests defined via test-genie but not populated
 - **simulate command**: References test endpoint that doesn't exist in API

@@ -19,7 +19,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers"
 )
 
-func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, capacity *handlers.CapacityHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler) http.Handler {
+func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, capacity *handlers.CapacityHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, diskPressure *handlers.DiskPressureHandler) http.Handler {
 	r := http.NewServeMux()
 	mountDebugRoutes(cfg, r)
 	mountConnectRoutes(r, health, metrics, report, settings, capacity, maintenance, investigation)
@@ -39,6 +39,10 @@ func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 	r.HandleFunc("GET /api/v1/logs", logsH.Logs)
 	r.HandleFunc("GET /api/v1/logs/units", logsH.Units)
 	r.HandleFunc("GET /api/v1/logs/boots", logsH.Boots)
+
+	// Disk-pressure operator surface: current usage, the configured threshold,
+	// and every violation the evaluation loop has recorded.
+	r.HandleFunc("GET /api/v1/disk-pressure", diskPressure.Handle)
 
 	return r
 }

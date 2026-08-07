@@ -3,7 +3,8 @@ package infra
 import (
 	"context"
 	"strings"
-	"time"
+
+	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 // CredentialState classifies whether GNOME Remote Desktop holds RDP credentials.
@@ -15,19 +16,14 @@ const (
 	CredentialStateUnreadable CredentialState = "unreadable"
 )
 
-const credentialProbeTimeout = 10 * time.Second
-
 // readGnomeRDPCredentialState never returns credential values. It only reports
 // whether the daemon can authenticate clients from the calling session.
 func (c *RDPCheck) readGnomeRDPCredentialState(ctx context.Context) CredentialState {
-	ctx, cancel := context.WithTimeout(ctx, credentialProbeTimeout)
-	defer cancel()
 	env := sessionBusEnv(ctx, c.executor)
 	if len(env) == 0 {
 		return CredentialStateUnreadable
 	}
-	args := append(append([]string{}, env...), "grdctl", "status")
-	output, err := c.executor.CombinedOutput(ctx, "env", args...)
+	output, err := sharedhost.ProbeRemoteDesktopCredentials(ctx, remoteDesktopExecutor{executor: c.executor}, env)
 	if err != nil && len(output) == 0 {
 		return CredentialStateUnreadable
 	}

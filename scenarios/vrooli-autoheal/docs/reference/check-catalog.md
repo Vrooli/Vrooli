@@ -613,3 +613,19 @@ graphical-session layer and makes no statement about RDP.
 ## Adding Custom Checks
 
 See the [Adding Health Checks](../guides/adding-checks.md) guide for instructions on creating your own checks.
+
+## Resource Container GPU Access
+
+| Field | Value |
+|-------|-------|
+| ID | `resource-gpu-access` |
+| Interval | 60 seconds |
+| Category | Resource |
+| Platforms | Linux |
+| Importance | Host GPU health does not prove running resource containers retain device access |
+
+This check applies only when the host inventory reports a Docker-addressable
+NVIDIA GPU. It probes every running GPU resource container by opening
+`/dev/nvidiactl`: `ok` is healthy, `revoked` is critical and offers named/all
+revoked restart actions, and `unknown` is warning. A CPU-only host reports
+`not-applicable`, not a false healthy GPU observation.

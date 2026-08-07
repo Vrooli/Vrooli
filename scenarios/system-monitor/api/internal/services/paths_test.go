@@ -12,10 +12,10 @@ func TestResolvePathsFromRepoContract(t *testing.T) {
 	t.Setenv("VROOLI_SOURCE_ROOT", root)
 	t.Setenv("VROOLI_ROOT", "")
 
-	if got, want := ResolveConfigBasePath(), filepath.Join(root, "scenarios", "system-monitor", "initialization", "configuration"); got != want {
+	if got, want := ResolveConfigBasePath(), filepath.Join(root, "scenarios", "system-monitor", ".vrooli"); got != want {
 		t.Fatalf("ResolveConfigBasePath() = %q, want %q", got, want)
 	}
-	if got, want := ResolvePromptBasePath(), filepath.Join(root, "scenarios", "system-monitor", "initialization", "claude-code"); got != want {
+	if got, want := ResolvePromptBasePath(), filepath.Join(root, "scenarios", "system-monitor", "prompts"); got != want {
 		t.Fatalf("ResolvePromptBasePath() = %q, want %q", got, want)
 	}
 	if got, want := ResolveScriptsDir(), filepath.Join(root, "scenarios", "system-monitor", "investigations", "active"); got != want {
@@ -41,6 +41,16 @@ func TestResolveScriptsDirReturnsScenarioPathEvenWhenMissing(t *testing.T) {
 	t.Setenv("VROOLI_ROOT", "")
 	if got, want := ResolveScriptsDir(), filepath.Join(repoRoot, "scenarios", "system-monitor", "investigations", "active"); got != want {
 		t.Fatalf("ResolveScriptsDir() = %q, want %q", got, want)
+	}
+}
+
+func TestResolveRuntimeStateBasePathUsesApiCoreStorage(t *testing.T) {
+	storageRoot := t.TempDir()
+	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
+
+	want := filepath.Join(storageRoot, "state", "vrooli", "system-monitor")
+	if got := ResolveRuntimeStateBasePath(); got != want {
+		t.Fatalf("ResolveRuntimeStateBasePath() = %q, want %q", got, want)
 	}
 }
 

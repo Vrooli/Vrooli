@@ -23,6 +23,12 @@ func SettingsToProto(s *services.Settings) *settingspb.SystemSettings {
 		RetentionCheckIntervalSeconds: int32(s.RetentionCheckIntervalSeconds),
 		RetentionRunOnStartup:         s.RetentionRunOnStartup,
 		CompactAfterRetention:         s.CompactAfterRetention,
+
+		DiskHighPercent:               s.DiskHighPercent,
+		DiskCriticalPercent:           s.DiskCriticalPercent,
+		DiskEscalationCooldownSeconds: int32(s.DiskEscalationCooldownSeconds),
+		DiskEscalationDebounceTicks:   int32(s.DiskEscalationDebounceTicks),
+		DiskFastFillJumpPercent:       s.DiskFastFillJumpPercent,
 	}
 }
 
@@ -44,5 +50,11 @@ func ProtoToSettings(pb *settingspb.SystemSettings) *services.Settings {
 		RetentionCheckIntervalSeconds: int(pb.RetentionCheckIntervalSeconds),
 		RetentionRunOnStartup:         pb.RetentionRunOnStartup,
 		CompactAfterRetention:         pb.CompactAfterRetention,
+
+		DiskHighPercent:               pb.DiskHighPercent,
+		DiskCriticalPercent:           pb.DiskCriticalPercent,
+		DiskEscalationCooldownSeconds: int(pb.DiskEscalationCooldownSeconds),
+		DiskEscalationDebounceTicks:   int(pb.DiskEscalationDebounceTicks),
+		DiskFastFillJumpPercent:       pb.DiskFastFillJumpPercent,
 	}
 }

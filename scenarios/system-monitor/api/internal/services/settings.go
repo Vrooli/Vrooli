@@ -23,7 +23,38 @@ type Settings struct {
 	// System thresholds
 	CPUThreshold    float64 `json:"cpu_threshold"`
 	MemoryThreshold float64 `json:"memory_threshold"`
-	DiskThreshold   float64 `json:"disk_threshold"`
+
+	// DiskThreshold is the warning band boundary: the usage percentage at
+	// which disk pressure starts being recorded. It is deliberately the same
+	// setting the band model calls "warning" rather than a second setting
+	// meaning the same thing — two names for one boundary is how a
+	// configuration surface drifts away from the code that reads it.
+	DiskThreshold float64 `json:"disk_threshold"`
+
+	// Disk-pressure escalation bands, in percent used. Bands must ascend:
+	// DiskThreshold (warning) < DiskHighPercent < DiskCriticalPercent.
+	// warning  — record the pressure, take no action.
+	// high     — request a cleanup preview; still no deletion.
+	// critical — safe-tier reclamation may run with no operator present.
+	DiskHighPercent     float64 `json:"disk_high_percent"`
+	DiskCriticalPercent float64 `json:"disk_critical_percent"`
+
+	// DiskEscalationCooldownSeconds is the minimum gap between two records
+	// for the same band. Without it a disk parked above a boundary emits one
+	// record per tick, which is how alerting becomes noise an operator learns
+	// to ignore.
+	DiskEscalationCooldownSeconds int `json:"disk_escalation_cooldown_seconds"`
+
+	// DiskEscalationDebounceTicks is how many consecutive observations a new
+	// band needs before it takes effect, so a single noisy sample cannot
+	// escalate on its own.
+	DiskEscalationDebounceTicks int `json:"disk_escalation_debounce_ticks"`
+
+	// DiskFastFillJumpPercent bounds the debounce delay. A rise of at least
+	// this many percentage points in one tick escalates immediately. The
+	// incident's own growth was 3-5 GB per day, but a runaway process can
+	// consume 100 GB in minutes, and debounce must not stall that response.
+	DiskFastFillJumpPercent float64 `json:"disk_fast_fill_jump_percent"`
 
 	// Metrics lifecycle
 	MetricsRetentionDays          int  `json:"metrics_retention_days"`
@@ -45,7 +76,7 @@ type SettingsManager struct {
 	settings          Settings
 	mutex             sync.RWMutex
 	clock             Clock
-	configStore       ConfigStore
+	stateStore        ConfigStore
 	onActiveChanged   func(active bool)   // Callback for when active status changes
 	onSettingsChanged func(next Settings) // Callback for any settings change
 }
@@ -60,7 +91,7 @@ func WithSettingsClock(c Clock) SettingsOption {
 
 // WithSettingsConfigStore sets the config store used by the settings manager.
 func WithSettingsConfigStore(cs ConfigStore) SettingsOption {
-	return func(sm *SettingsManager) { sm.configStore = cs }
+	return func(sm *SettingsManager) { sm.stateStore = cs }
 }
 
 // Default settings (always start inactive for safety)
@@ -72,7 +103,13 @@ var defaultSettings = Settings{
 	CooldownPeriodSeconds:    300,   // 5 minutes
 	CPUThreshold:             85.0,  // 85%
 	MemoryThreshold:          90.0,  // 90%
-	DiskThreshold:            85.0,  // 85%
+	DiskThreshold:            80.0,  // warning band
+
+	DiskHighPercent:               90.0,
+	DiskCriticalPercent:           95.0,
+	DiskEscalationCooldownSeconds: 1800, // 30 minutes
+	DiskEscalationDebounceTicks:   2,
+	DiskFastFillJumpPercent:       5.0,
 
 	MetricsRetentionDays:          30,   // keep 30 days of metrics history
 	RetentionCheckIntervalSeconds: 3600, // re-check retention hourly
@@ -118,6 +155,10 @@ func sanitizeSettings(settings Settings) (Settings, bool) {
 		changed = true
 	}
 
+	if sanitizeDiskBands(&settings) {
+		changed = true
+	}
+
 	// A non-positive retention window means the lifecycle block is unset
 	// (legacy file or fresh defaults); apply the full retention default set,
 	// including enabling startup retention.
@@ -135,6 +176,53 @@ func sanitizeSettings(settings Settings) (Settings, bool) {
 	return settings, changed
 }
 
+// sanitizeDiskBands restores any unset escalation setting to its default and
+// repairs a non-ascending band order.
+//
+// Order matters more than the individual values: bands that do not ascend make
+// a higher band unreachable, so pressure could climb past critical while only
+// ever classifying as warning. A file that gets this wrong is repaired rather
+// than obeyed.
+func sanitizeDiskBands(settings *Settings) bool {
+	changed := false
+
+	if settings.DiskHighPercent <= 0 {
+		settings.DiskHighPercent = defaultSettings.DiskHighPercent
+		changed = true
+	}
+	if settings.DiskCriticalPercent <= 0 {
+		settings.DiskCriticalPercent = defaultSettings.DiskCriticalPercent
+		changed = true
+	}
+	if settings.DiskEscalationCooldownSeconds <= 0 {
+		settings.DiskEscalationCooldownSeconds = defaultSettings.DiskEscalationCooldownSeconds
+		changed = true
+	}
+	if settings.DiskEscalationDebounceTicks <= 0 {
+		settings.DiskEscalationDebounceTicks = defaultSettings.DiskEscalationDebounceTicks
+		changed = true
+	}
+	if settings.DiskFastFillJumpPercent <= 0 {
+		settings.DiskFastFillJumpPercent = defaultSettings.DiskFastFillJumpPercent
+		changed = true
+	}
+
+	if !diskBandsAscend(*settings) {
+		settings.DiskThreshold = defaultSettings.DiskThreshold
+		settings.DiskHighPercent = defaultSettings.DiskHighPercent
+		settings.DiskCriticalPercent = defaultSettings.DiskCriticalPercent
+		changed = true
+	}
+
+	return changed
+}
+
+// diskBandsAscend reports whether the three band boundaries are strictly
+// increasing.
+func diskBandsAscend(s Settings) bool {
+	return s.DiskThreshold < s.DiskHighPercent && s.DiskHighPercent < s.DiskCriticalPercent
+}
+
 // NewSettingsManager creates a new settings manager
 func NewSettingsManager(opts ...SettingsOption) *SettingsManager {
 	sm := &SettingsManager{
@@ -144,8 +232,8 @@ func NewSettingsManager(opts ...SettingsOption) *SettingsManager {
 	for _, opt := range opts {
 		opt(sm)
 	}
-	if sm.configStore == nil {
-		sm.configStore = &FileConfigStore{basePath: ResolveConfigBasePath()}
+	if sm.stateStore == nil {
+		sm.stateStore = &FileConfigStore{basePath: ResolveRuntimeStateBasePath()}
 	}
 
 	// Try to load existing settings, but if it fails, use defaults
@@ -253,7 +341,7 @@ func (sm *SettingsManager) SetSettingsChangedCallback(callback func(next Setting
 
 // loadFromFile loads settings from JSON file
 func (sm *SettingsManager) loadFromFile() error {
-	data, err := sm.configStore.ReadConfig("system-monitor-settings.json")
+	data, err := sm.stateStore.ReadConfig("system-monitor-settings.json")
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
@@ -292,7 +380,7 @@ func (sm *SettingsManager) saveToFile() error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := sm.configStore.WriteConfig("system-monitor-settings.json", data); err != nil {
+	if err := sm.stateStore.WriteConfig("system-monitor-settings.json", data); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
