@@ -6,7 +6,7 @@
     {
       "id": "viewport",
       "title": "Viewport",
-      "description": "The rendered viewport size. The only axis the reconciler drives today, and only for two of its four values.",
+      "description": "The rendered viewport size. The reconciler captures every declared viewport in its bounded covering matrix.",
       "values": [
         { "id": "mobile", "description": "Phone portrait.", "params": { "width": 390, "height": 844 } },
         { "id": "tablet", "description": "Tablet portrait.", "params": { "width": 834, "height": 1112 } },
@@ -15,7 +15,7 @@
       ],
       "default": "desktop",
       "mechanism": { "kind": "bas-browser-profile", "detail": "FingerprintSettings.viewport_width / viewport_height", "engineWorkRequired": false },
-      "notes": "reconcile.DefaultCaptureProfiles currently hardcodes desktop 1280x720 and mobile 390x844. Tablet and wide are declared but never captured."
+      "notes": "The reconciler pairs every declared viewport with a baseline rest-state profile before covering orthogonal axis values."
     },
     {
       "id": "color-scheme",
@@ -27,7 +27,7 @@
       ],
       "default": "light",
       "mechanism": { "kind": "bas-browser-profile", "detail": "FingerprintSettings.color_scheme", "engineWorkRequired": false },
-      "notes": "Available in the engine and already exercised by ui/scripts/preview-e2e.mjs, which captures every example frame in both schemes. The experience reconciler simply never asks — the cheapest axis to wire."
+      "notes": "Available in the engine and exercised by both preview-e2e and the experience reconciler's desktop-dark covering row."
     },
     {
       "id": "locale",
@@ -41,7 +41,7 @@
       ],
       "default": "en",
       "mechanism": { "kind": "bas-browser-profile", "detail": "FingerprintSettings.locale", "engineWorkRequired": false },
-      "notes": "scenario-experience-spec Claim already carries a `locales` scoping field, and its reading-order claim type is documented as direction-aware. The contract anticipated this axis; only the runner is missing."
+      "notes": "scenario-experience-spec Claim already carries a `locales` scoping field, and the covering matrix captures English, Arabic, Japanese, and German."
     },
     {
       "id": "interaction-state",

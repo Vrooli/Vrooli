@@ -85,7 +85,7 @@ optional:
 integration_priorities:
   1_shared_workflows:
     - workflow: ollama.json
-      location: initialization/automation/n8n/
+      location: api/internal/<domain>/automation/n8n/
       purpose: AI-powered comparison suggestions and similarity analysis
   
   2_resource_cli:
@@ -451,7 +451,7 @@ structure:
     - cli/install.sh
     - ui/index.html
     - ui/server.js
-    - initialization/storage/postgres/schema.sql
+    - api/internal/<domain>/storage/postgres/schema.sql
     - scenario-test.yaml
     
 tests:

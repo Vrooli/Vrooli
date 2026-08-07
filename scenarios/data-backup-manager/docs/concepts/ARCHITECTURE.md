@@ -109,11 +109,11 @@ The product vocabulary is fixed and decouples *what is backed up* from
 - **Target** — a source registered by an owning scenario. Unique key is
   `owner + name`. Carries one of six **source kinds** (filesystem,
   SQLite, Postgres, Redis, Qdrant, object-storage), a locator, and
-  optional pre/post quiesce hooks (P1). Source secrets come from vault.
+  optional pre/post quiesce hooks (P1). Source credentials remain owned by
+  their source resource contracts.
 - **Destination** — where artifacts land: one kopia repository, backed
   by a local filesystem path or S3/MinIO. Encrypted by default; repository
-  passphrases live in the credential authority and S3 access keys remain in
-  the Vault-backed resource secret surface; **must not** point under the
+  passphrases and S3 access keys live in the credential authority; **must not** point under the
   storage root it protects (separate-root rule); carries a configurable
   storage cap defaulting to **alert + block**.
 - **Plan** — binds targets to destinations (many-to-many) with a
@@ -301,7 +301,7 @@ when they are deliberate and durable.
 
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
-| 2026-05-26 | Hard dependency on the `kopia` and `vault` resources (the template default is standalone SQLite). | Wrap-not-use: the engine and secret store are foundational, not optional integrations. | n/a — foundational to the design. |
+| 2026-08-05 | Credential-authority-only secret routing for DBM and Kopia. | The native OS credential service or encrypted authority storage is portable and avoids a sealed Vault bootstrap dependency; repository and backend credentials use one provider-neutral identity surface. | Revisit only if a concrete source resource requires a separately governed credential adapter. |
 | 2026-05-26 | Two stores: the manager's SQLite catalog is a cache + run-history anchor, not the single source of truth; backup artifacts live in kopia repositories outside the source tree. | The registration model is reconstructable from scenario re-registration on boot; artifacts must never live under the protected source tree. | Revisit if catalog loss ever needs stronger durability than re-registration provides. |
 | 2026-05-26 | Storage cap default is alert + block, never silent eviction. | A backup tool that deletes backups to stay under a cap is unsafe; eviction is only ever explicit retention. | Revisit only if a requirement justifies an opt-in eviction tier (none planned). |
 | 2026-05-26 | Supersedes the prior n8n + MinIO source-tree backup design (now in `/tmp`). | That design backed up the repo source tree via an external orchestrator — explicitly the wrong model. | n/a — the old design is not revived. |

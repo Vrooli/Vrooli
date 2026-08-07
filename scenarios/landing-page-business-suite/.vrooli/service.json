@@ -294,11 +294,14 @@
     "entries": {
       "logs": {
         "rung": "owned",
-        "path": "logs",
         "kind": "dir",
         "class": "logs",
         "regenerable": true,
-        "rationale": "Scenario operational logs observed in the canonical logs directory."
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
       }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."

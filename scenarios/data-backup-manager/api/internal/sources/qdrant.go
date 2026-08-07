@@ -13,7 +13,7 @@ import (
 //	resource-qdrant snapshot create --collection <name> --output <file>
 //	  Triggers Qdrant's built-in snapshot mechanism for <collection> and
 //	  downloads the resulting snapshot to <file>. Credentials / host are
-//	  self-sourced by the resource CLI from vault. No secrets in argv.
+//	  self-sourced by the resource CLI. No secrets in argv.
 //
 //	resource-qdrant snapshot restore --collection <name> --input <file>
 //	  Uploads <file> as a snapshot and recovers it into <collection>.

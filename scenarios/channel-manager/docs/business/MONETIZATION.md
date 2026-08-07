@@ -205,7 +205,8 @@ wallet, one auth path, and one set of safety guarantees — exactly what
 - Willingness-to-pay evidence: none direct. The Tier 1 allowance model is inherited,
   not validated here.
 - Cost drivers: gateway token cost for AI navigation is the only variable line, and
-  it accrues to BAS. Local runtime otherwise; `vault` is a local resource. The one
+  it accrues to BAS. Local runtime otherwise; credential storage is owned by the
+  canonical credential authority. The one
   external cost in the design — device fingerprints and residential proxies — sits
   **upstream** and D-006 keeps it outside the boundary deliberately, which also means
   it is a cost the *user* carries, not Vrooli.

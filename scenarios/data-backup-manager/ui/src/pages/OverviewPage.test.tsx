@@ -67,7 +67,7 @@ beforeEach(() => {
       capBytes: 100n,
       capPolicy: CapPolicy.ALERT_BLOCK,
       encryptionAlgorithm: "AES256-GCM",
-      secretRef: "vault:dbm/d1",
+      secretRef: "vrooli/kopia/d1:repository-passphrase",
       usageBytes: 10n,
       usageState: UsageState.WITHIN,
     },

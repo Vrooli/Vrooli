@@ -93,7 +93,8 @@ current state.
      a. (P1) run the pre-quiesce hook if declared.
      b. Capture the source via its source-kind handler (filesystem tar,
         SQLite `VACUUM INTO`, `pg_dump`, Redis prefix dump, Qdrant
-        snapshot, or object-storage mirror), reading secrets from vault.
+        snapshot, or object-storage mirror), while source resource CLIs own
+        their credential resolution.
      c. Check the destination cap; if the write would exceed it, block
         (see Storage-limit block) and mark the target failed.
      d. `resource-kopia snapshot create` into the destination
@@ -104,7 +105,7 @@ current state.
   4. Close the run (success / partial-failure / failure) and emit a
      backup-outcome event for platform monitoring.
 - Outputs: a run record with per-target outcomes; events.
-- Failure modes: source resource unreachable, vault unavailable
+- Failure modes: source resource unreachable, credential authority unavailable
   (fail closed — never run unencrypted), kopia unreachable, cap
   exceeded. A single target's failure does not abort the others; the
   run is partial-failed.

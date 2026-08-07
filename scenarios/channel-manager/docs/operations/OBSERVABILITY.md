@@ -56,7 +56,7 @@ conditions are slow rather than sudden, which changes what an alert should be.
 | Actions overdue past their window | The window is the point. An action executed hours late is a different behavioural signature from the one the program declared. | Surface in the console's due list, not as a page. Manual execution is expected to slip. |
 | An identity paused by a flag | Its queue has stopped and nothing will resume it automatically (D-004). | Operator decision. Never auto-resume. |
 | A gate waiting past its interval | The program has stalled and the identity is neither progressing nor failing. | Surface it. A silently stalled warming run is the failure mode most likely to go unnoticed for weeks. |
-| Vault unreachable | Every browser and API execution fails; manual execution is unaffected. | Health check reports the dependency. Actions fail terminally rather than being marked complete. |
+| Credential authority unreachable | Every browser and API execution fails; manual execution is unaffected. | Health check reports the dependency. Actions fail terminally rather than being marked complete. |
 
 Deliberately **not** alerts: reach drops (that is a flag, and flags are evidence for
 an operator rather than pages), and failed individual actions (retry classification

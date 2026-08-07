@@ -20,6 +20,7 @@ var (
 	relativeImportRE         = regexp.MustCompile(`(?:from\s+|import\s*)["'](\.[^"']+)["']`)
 	comfortableGapUtilityRE  = regexp.MustCompile(`(?s)comfortable\s*:\s*["'][^"']*gap-(?:[1-9][0-9]*(?:\.[0-9]+)?|\[[^]]+\])[^"]*["']`)
 	positiveGapDeclarationRE = regexp.MustCompile(`(?i)gap\s*:\s*(?:[1-9][0-9]*(?:\.[0-9]+)?|0?\.[0-9]+|\[[^]]+\])`)
+	semanticGapDeclarationRE = regexp.MustCompile(`(?is)gap\s*:\s*[^;{}]*var\(--space-[^)]+\)`)
 )
 
 func componentSourceFindings(report spec.Report, loc string, component spec.ComponentDocument) []spec.Finding {
@@ -64,15 +65,22 @@ func sourceClaimPasses(claim spec.Claim, source string) bool {
 		// Tailwind's zero gap is not a valid proof. Requiring a positive gap
 		// utility catches the exact icon/text edge regression while accepting
 		// arbitrary positive spacing declarations used by catalog authors.
-		return comfortableGapUtilityRE.MatchString(source) || positiveGapDeclarationRE.MatchString(source)
+		return comfortableGapUtilityRE.MatchString(source) || positiveGapDeclarationRE.MatchString(source) || semanticGapDeclarationRE.MatchString(source)
 	case "state-contrast":
 		// A state-contrast claim must be backed by an interaction-state rule
 		// and a semantic surface/background token. A classless hover prop is
 		// not sufficient evidence because it can disappear against the base
-		// surface.
-		return strings.Contains(source, "hover:") && strings.Contains(source, "bg-app-")
+		// surface. Native in-house sources use CSS custom properties while
+		// older adopted sources use the app-* utility vocabulary; both are
+		// valid semantic proofs.
+		hasSemanticSurface := strings.Contains(source, "bg-app-") ||
+			(strings.Contains(source, "background") && strings.Contains(source, "--color-"))
+		hasInteraction := strings.Contains(source, "hover:") || strings.Contains(source, ":hover")
+		return hasInteraction && hasSemanticSurface
 	case "size-parity":
-		return strings.Contains(source, "sizeClasses") && strings.Contains(source, "min-h-") && strings.Contains(source, "min-w-")
+		legacySizeScale := strings.Contains(source, "sizeClasses") && strings.Contains(source, "min-h-") && strings.Contains(source, "min-w-")
+		semanticSizeScale := strings.Contains(source, "sizeStyles") && strings.Contains(source, "min-height: var(--tap-target-min)") && strings.Contains(source, "min-width: var(--tap-target-min)") && strings.Contains(source, "touch-target")
+		return legacySizeScale || semanticSizeScale
 	default:
 		return true
 	}

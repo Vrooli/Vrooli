@@ -2,6 +2,10 @@
 
 Fitness scores quantify how ready a resource or scenario is for a deployment tier. They combine measured requirements with subjective readiness so deployment-manager can highlight risk.
 
+> This is a planning signal, not an automatic release verdict. A high score
+> does not prove native runtime behavior, secure credential handling, or
+> promotability. The target plan and evidence contract decide those claims.
+
 ## Score Definition
 
 - **Range:** 0.0 – 1.0
@@ -251,7 +255,7 @@ Secrets get their own `.vrooli/secrets-deployment.json` so lifecycle metadata st
         "tier-2-desktop": {
           "action": "prompt_user",
           "prompt": "Provide your OpenRouter API key to unlock AI features",
-          "storage": "electron.safeStorage"
+          "storage": "target credential authority"
         }
       }
     }

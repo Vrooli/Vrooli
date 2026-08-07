@@ -11,7 +11,7 @@ import (
 //	resource-minio mirror --source <bucket/prefix> --dest <local-dir>
 //	  Mirrors the contents of <bucket/prefix> from the configured MinIO /
 //	  S3-compatible store into <local-dir>, creating it if necessary.
-//	  Credentials are self-sourced by the resource CLI from vault.
+//	  Credentials are self-sourced by the owning resource CLI.
 //	  No secrets appear in argv.
 //
 //	resource-minio mirror --source <local-dir> --dest <bucket/prefix>

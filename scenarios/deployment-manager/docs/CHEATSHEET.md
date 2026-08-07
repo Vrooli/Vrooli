@@ -20,13 +20,16 @@ deployment-manager secrets identify <profile-id>
 # 5. Validate
 deployment-manager validate <profile-id> --verbose
 
-# 6. Package
-deployment-manager package <profile-id> --packager scenario-to-desktop
+# 6. Build the desktop target
+deployment-manager deploy-desktop --profile <profile-id> --platforms linux
 ```
 
 ---
 
 ## Health & Analysis
+
+The `--tier 2` examples below use the technical deployment model: Tier 2 is
+the desktop target. They are unrelated to commercial monetization tiers.
 
 ```bash
 # Check API health

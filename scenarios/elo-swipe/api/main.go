@@ -17,6 +17,8 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
+
+	rankingSchema "elo-swipe/internal/ranking"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -118,7 +120,12 @@ func main() {
 		log.Fatal("Database connection failed:", err)
 	}
 
-	// Set connection pool settings
+	if err := database.EnsureSchemas(context.Background(), app.DB, database.SchemaProviderFunc(rankingSchema.Schema)); err != nil {
+		_ = app.DB.Close()
+		log.Fatal("Database schema initialization failed:", err)
+	}
+
+	// Set connection pool settings	// Set connection pool settings
 	app.DB.SetMaxOpenConns(25)
 	app.DB.SetMaxIdleConns(5)
 	app.DB.SetConnMaxLifetime(5 * time.Minute)
@@ -744,4 +751,5 @@ func (app *App) RefreshPairingQueue(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(response)
 }
+
 // Test change

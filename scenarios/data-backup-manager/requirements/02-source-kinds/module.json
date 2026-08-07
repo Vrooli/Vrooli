@@ -52,7 +52,7 @@
       "prd_ref": "OT-P0-002",
       "category": "source.postgres",
       "criticality": "P0",
-      "description": "Capture a Postgres schema/database via the postgres resource CLI (pg_dump), credentials sourced from vault.",
+      "description": "Capture a Postgres schema/database via the postgres resource CLI (pg_dump); the source resource owns its credential resolution and DBM never becomes a secret broker.",
       "tags": ["source", "postgres"],
       "validation": [
         {

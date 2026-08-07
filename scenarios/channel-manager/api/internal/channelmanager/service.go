@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	ErrCredentialValue = errors.New("credential values are forbidden; provide a vault reference only")
+	ErrCredentialValue = errors.New("credential values are forbidden; provide a credential-authority reference only")
 	ErrPreconditions   = errors.New("warming preconditions are not fully attested")
 	ErrCadence         = errors.New("identity daily cadence ceiling reached")
 	ErrForbiddenAction = errors.New("action is forbidden in the active warming phase")
@@ -188,7 +188,7 @@ type Identity struct {
 	Lifecycle         string          `json:"lifecycle"`
 	EnvironmentRef    string          `json:"environment_ref"`
 	ExpectedRegion    string          `json:"expected_region"`
-	VaultRef          string          `json:"vault_ref"`
+	CredentialRef     string          `json:"credential_ref"`
 	Status            string          `json:"status"`
 	LaneGrants        []string        `json:"lane_grants"`
 	Attestations      map[string]bool `json:"attestations"`
@@ -240,7 +240,7 @@ func (i Identity) Valid(platforms map[string]Platform) error {
 		return fmt.Errorf("unknown platform %q", i.PlatformID)
 	}
 	secretAssignment := "pass" + "word="
-	if strings.Contains(strings.ToLower(i.VaultRef), "token=") || strings.Contains(strings.ToLower(i.VaultRef), secretAssignment) {
+	if strings.Contains(strings.ToLower(i.CredentialRef), "token=") || strings.Contains(strings.ToLower(i.CredentialRef), secretAssignment) {
 		return ErrCredentialValue
 	}
 	return nil
@@ -536,7 +536,7 @@ func (s *Service) CreateIdentity(i Identity) error {
 }
 
 // UpdateIdentity changes operator metadata only. Credential material remains
-// an opaque Vault reference established during identity creation.
+// an opaque credential-authority reference established during identity creation.
 func (s *Service) UpdateIdentity(id string, update Identity) error {
 	current := s.Identities[id]
 	if current == nil {
@@ -557,7 +557,7 @@ func (s *Service) UpdateIdentity(id string, update Identity) error {
 	if update.D009AcceptanceRef == "" {
 		update.D009AcceptanceRef = current.D009AcceptanceRef
 	}
-	update.ID, update.PlatformID, update.VaultRef, update.Status, update.LaneGrants, update.Attestations = current.ID, current.PlatformID, current.VaultRef, current.Status, current.LaneGrants, current.Attestations
+	update.ID, update.PlatformID, update.CredentialRef, update.Status, update.LaneGrants, update.Attestations = current.ID, current.PlatformID, current.CredentialRef, current.Status, current.LaneGrants, current.Attestations
 	if err := update.Valid(s.Platforms); err != nil {
 		return err
 	}

@@ -212,12 +212,6 @@
   },
   "dependencies": {
     "resources": {
-      "vault": {
-        "enabled": false,
-        "required": false,
-        "startup_policy": "ignore",
-        "description": "Credential authority for a future executor. P0 manual operations store and display Vault references only, so no Vault process is required to run the safe operator console or its tests."
-      }
     },
     "scenarios": {
       "content-desk": {

@@ -29,8 +29,8 @@ folder. At the operator-facing bundle root you'll find `README.txt`,
 `RECOVERY.txt`, and a non-secret `vrooli-backup-destination.json` manifest; the
 vanilla, encrypted kopia repository is nested under
 `repositories/<slug>.kopia`. A detached drive therefore explains what it is and
-how to recover it — with plain kopia plus the vault passphrase — even with
-Vrooli down. Bundle files never contain a secret, only a vault secret
+how to recover it — with plain kopia plus the credential-authority passphrase — even with
+Vrooli down. Bundle files never contain a secret, only a credential-authority
 *reference*. Delete operations are precise: DBM never removes the encrypted
 repository bytes on the backend. See
 [docs/concepts/DATA.md](docs/concepts/DATA.md) for the full layout and deletion
@@ -136,7 +136,7 @@ target is protected. A target is actually protected only after:
 5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
 6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
 7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-8. **Keep resource declarations accurate.** Kopia and vault are required; source-kind resources stay conditional until their source kinds are used.
+8. **Keep resource declarations accurate.** Kopia and the credential authority are foundational; source-kind resources stay conditional until their source kinds are used.
 9. **Keep boundaries**: only edit within this scenario's directory.
 
 ## pnpm Everywhere

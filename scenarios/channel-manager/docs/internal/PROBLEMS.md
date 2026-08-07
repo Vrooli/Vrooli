@@ -158,10 +158,10 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
-- Rung: W4
-- Evidence: comprehensive Test Genie run `20260728-231326-13fe99a2` passed all 20 phases, including the synthetic BAS manual-operator path. The formal action lifecycle check passes with run `960df471-88c7-4ff7-be04-7d8e0447d92f`.
-- Blocker: No platform-account work is authorized. The remaining real-account validation is intentionally deferred; the manual UI and credential-free synthetic path are the supported validation boundary.
-- Measured: 2026-07-28
+- Rung: W3
+- Evidence: the PRD, service manifest, proto, API, CLI, UI, requirements, and operator docs now use credential-authority references; channel-manager has no Vault resource dependency. API, CLI, UI, proto, and CLI primitive-evidence tests pass. The comprehensive run reached 18/20 phases.
+- Blocker: Test Genie still reports the pre-existing missing `content-desk` capability-registry entry and mobile experience tap-target/safe-area claims. The credential-reference contract, dependencies runtime, unit execution, and proto generation are no longer blockers; no platform-account work is authorized.
+- Measured: 2026-08-06
 
 ## Cross-references
 

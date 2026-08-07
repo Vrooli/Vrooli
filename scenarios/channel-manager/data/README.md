@@ -66,7 +66,7 @@ plan generation rather than at the platform.
 
 ## What does not belong here
 
-- **Credentials.** They live in `vault`; an identity holds a path.
+- **Credentials.** They live in the canonical credential authority; an identity holds a reference and field, never a plaintext value.
 - **Handles and account state.** Those are rows in `identities`, not descriptors.
 - **Comment text.** Warming requires substantive comments, and generating them at
   scale produces exactly the low-effort pattern the warming exists to avoid. The

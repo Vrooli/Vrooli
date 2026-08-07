@@ -116,8 +116,8 @@ data-backup-manager targets get <target-id>
 ### `data-backup-manager destinations ...`
 
 Manage backup destinations (kopia repositories). Encryption is always
-on; repository passphrases come from the credential authority and S3 access
-keys come from the Vault-backed resource secret surface, never flags or config.
+on; repository passphrases and S3 access keys come from the credential
+authority, never flags or config.
 
 ```bash
 # --name must be slug-safe (lowercase, digits, hyphens) — it is also the kopia

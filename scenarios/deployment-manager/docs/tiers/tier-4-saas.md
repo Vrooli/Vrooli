@@ -34,4 +34,4 @@ Tier 4 covers scenarios deployed to remote servers (DigitalOcean, AWS, bare meta
 ## Interim Guidance
 
 - Continue using Tier 1 + Cloudflare tunnels for remote demos/customers.
-- When a true SaaS deployment is unavoidable, document every manual step under `docs/deployment/providers/` and file app-issue-tracker tasks to automate it in deployment-manager.
+- When a true SaaS deployment is unavoidable, document every manual step under this scenario's `docs/providers/` and file app-issue-tracker tasks to automate it in deployment-manager.

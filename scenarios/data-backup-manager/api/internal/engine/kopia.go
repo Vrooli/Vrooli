@@ -37,7 +37,7 @@ const (
 
 // RepoSpec describes a kopia repository (one per destination) to create.
 // Filesystem backends use Path; S3 backends use Bucket/Endpoint and pass
-// credentials to resource-kopia, which stores them in vault. Credentials are
+// credentials to resource-kopia, which stores them in the credential authority. Credentials are
 // passed to the CommandRunner as flags only at the engine boundary and never
 // persisted by this scenario.
 type RepoSpec struct {
@@ -212,7 +212,7 @@ func (k *KopiaCLI) RepoCreate(ctx context.Context, spec RepoSpec) error {
 			args = append(args, "--disable-tls")
 		}
 		// Credentials are handed to resource-kopia (which stores them in
-		// vault); they cross only this boundary and are never persisted here.
+		// the credential authority); they cross only this boundary and are never persisted here.
 		if spec.AccessKey != "" {
 			args = append(args, "--access-key", spec.AccessKey, "--secret-access-key", spec.SecretKey)
 		}

@@ -44,9 +44,9 @@ targets.
 
 ## Secrets
 
-Repository passphrases are provisioned in the Vrooli credential authority
-under a per-repository identity. S3/backend credentials and source
-credentials continue to use the `vault` resource at runtime. No secret is
+Repository passphrases and S3/backend credentials are provisioned in the Vrooli
+credential authority under a per-repository identity. Source resources retain
+their own credential contracts; DBM never becomes a secret broker. No secret is
 written to config files or passed on the command line. Where the wrapped
 `kopia` (or source) CLI needs a secret, it is provided through the
 environment or stdin, not argv, so it cannot leak through process listings.
@@ -54,8 +54,8 @@ environment or stdin, not argv, so it cannot leak through process listings.
 | Secret | Source | Required? | Notes |
 |---|---|---|---|
 | Destination (kopia repository) passphrase | credential authority (`vrooli/kopia/<repository>` / `repository-passphrase`) | yes, per destination | Read at runtime; used to open/create the encrypted repository. Never persisted to the manager's config or DB. |
-| Destination backend access keys (S3/MinIO etc.) | `vault` | when backend requires | Read at runtime; passed via env/stdin to kopia, never argv. |
-| Source access credentials (Postgres, Redis, Qdrant, object-storage) | `vault` (via each source's resource CLI) | per source kind | Provided to the source CLI through its standard secret path; never inlined into argv. |
+| Destination backend access keys (S3/MinIO etc.) | credential authority (`vrooli/kopia/<repository>`) | when backend requires | Read at runtime; passed via env/stdin to kopia, never argv. |
+| Source access credentials (Postgres, Redis, Qdrant, object-storage) | owning source resource contract | per source kind | DBM delegates to the source CLI and never stores or brokers the value. |
 
 ## Threat Model
 

@@ -213,7 +213,7 @@
       "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination",
       "method": "POST",
       "summary": "Create a backup destination",
-      "description": "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase is generated and stored in the credential authority. S3/backend credentials remain in vault. A filesystem destination must not point under the protected root.",
+      "description": "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase and S3/backend credentials are stored in the credential authority. A filesystem destination must not point under the protected root.",
       "category": "destinations",
       "request": {
         "type": "object",
@@ -373,12 +373,12 @@
       "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/DeleteDestination",
       "method": "POST",
       "summary": "Delete a destination",
-      "description": "Removes the destination catalog row. When delete_repository is explicitly set, also removes local resource-kopia metadata and Vault secret refs for the repository.",
+      "description": "Removes the destination catalog row. When delete_repository is explicitly set, also removes local resource-kopia metadata and credential-authority refs for the repository.",
       "category": "destinations",
       "request": {
         "type": "object",
         "properties": {
-          "delete_repository": "bool (also remove local resource-kopia metadata and Vault secret refs)",
+          "delete_repository": "bool (also remove local resource-kopia metadata and credential-authority refs)",
           "id": "string (required)"
         }
       },

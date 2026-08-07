@@ -1,8 +1,10 @@
 # Bundle Manifest Schema Reference
 
-> **Complete reference for the desktop bundle manifest (`bundle.json`) schema v0.1.**
+> **Reference for the desktop bundle manifest (`bundle.json`) schema v0.1.**
 >
-> This document defines all fields, validation rules, and usage patterns for the manifest that drives bundled desktop deployments.
+> The checked-in JSON Schema at `schemas/bundle-schema.desktop.v0.1.json` is
+> authoritative for machine validation. This page explains the fields and
+> runtime meaning. It is not the target resource-plan schema.
 
 ## Overview
 
@@ -651,63 +653,20 @@ Rust target mapping:
 
 ---
 
-## Code Signing (Future)
+## Trust and signing
 
-> **Note**: Code signing configuration is planned but not yet implemented in v0.1. See [ROADMAP.md](../ROADMAP.md).
+The manifest may describe build-time signing configuration, but it is not the
+release trust root. Keep these concerns separate:
 
-When implemented, code signing will be configured as:
+- `scenario-to-desktop` owns platform installer signing and notarization;
+- `vrooli release-authority` signs the exact staged release manifest and its
+  listed bytes;
+- deployment-manager records the trust and promotion decision.
 
-```json
-{
-  "code_signing": {
-    "enabled": true,
-    "windows": {
-      "certificate_file": "./certs/windows.pfx",
-      "certificate_password_env": "WIN_CERT_PASSWORD",
-      "timestamp_server": "http://timestamp.digicert.com"
-    },
-    "macos": {
-      "identity": "Developer ID Application: Your Name (TEAMID)",
-      "team_id": "TEAMID",
-      "hardened_runtime": true,
-      "notarize": true,
-      "apple_id_env": "APPLE_ID",
-      "apple_id_credential_env": "APPLE_APP_CREDENTIAL"
-    },
-    "linux": {
-      "gpg_key_id": "YOUR_GPG_KEY",
-      "gpg_key_passphrase_env": "GPG_PASSPHRASE"
-    }
-  }
-}
-```
-
-**Current workaround**: Configure signing directly in `package.json`:
-
-```json
-{
-  "build": {
-    "win": {
-      "certificateFile": "./cert.pfx",
-      "certificatePassword": "${WIN_CSC_KEY_PASSWORD}",
-      "signAndEditExecutable": true
-    },
-    "mac": {
-      "hardenedRuntime": true,
-      "gatekeeperAssess": true,
-      "entitlements": "build/entitlements.mac.plist"
-    }
-  }
-}
-```
-
-**Platform requirements:**
-
-| Platform | Requirement | Cost |
-|----------|-------------|------|
-| Windows | Authenticode certificate | $200-400/year |
-| macOS | Apple Developer account | $99/year |
-| Linux | GPG key (optional) | Free |
+Private signing material must remain in the appropriate secure authority. It
+must not be placed in `bundle.json`, source control, or a command argument. See
+the [managed release authority](../../../../docs/configuration/release-authority.md)
+and the [scenario-to-desktop signing guide](../../../scenario-to-desktop/docs/guides/code-signing.md).
 
 ---
 

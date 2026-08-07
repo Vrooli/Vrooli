@@ -90,12 +90,12 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `handlers/channelmanager/module_test.go::deliveryStub`; `integrations/contentdesk/client_test.go` mounts generated Content Desk handlers and verifies both wire calls. |
 | **Why it exists** | Channel Manager owns the durable release/metric outbox. It marks a receipt delivered or a metric acknowledged only after Content Desk accepts its idempotent inbound record; failed delivery stays pending and visible for retry. |
 
-### BAS and Vault execution handoff
+### BAS and credential-authority execution handoff
 
 | | |
 |---|---|
 | **Seam** | Optional browser dispatch and credential retrieval; neither is used by the P0 manual executor. |
-| **Interface** | Channel Manager's `internal/channelmanager.BrowserDispatch` and optional `BrowserInspector`; BAS's generated `WorkflowsService.ExecuteWorkflow`, `ExecutionsService.GetExecution`, and `ExecutionsService.GetExecutionReplayPackage` Connect contracts. Vault is an operator/BAS concern: Channel Manager retains an opaque Vault reference only. |
+| **Interface** | Channel Manager's `internal/channelmanager.BrowserDispatch` and optional `BrowserInspector`; BAS's generated `WorkflowsService.ExecuteWorkflow`, `ExecutionsService.GetExecution`, and `ExecutionsService.GetExecutionReplayPackage` Connect contracts. Credential resolution is an operator/BAS concern: Channel Manager retains an opaque authority reference only. |
 | **Production wiring** | `integrations/bas.Client` resolves BAS per request with a bounded client. It dispatches `session_profile_id`, `save_session_profile_id`, and a durable `action_id`; review reads BAS status plus its safe evidence manifest. Channel Manager's scenario-owned declaration supplies permitted profile keys, while its runtime assignment alone holds the opaque BAS profile/workflow references. |
 | **Test fake** | `internal/channelmanager.fakeBrowser` and `handlers/channelmanager.inspectingBrowserStub` supply synthetic execution IDs/status/artifact IDs. They make no platform request and supply no credential. |
 | **Operator shape** | Create a BAS protected session profile for exactly one sanctioned identity, then choose a profile key from `.vrooli/browser-automation-studio/consumer-declaration.json`. Assign its opaque BAS profile ID and approved workflow UUID only after D-009. BAS owns cookies and browser state in protected storage; Channel Manager can request bounded status and manifest identifiers but never raw artifact bytes. |

@@ -60,7 +60,7 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		changes = append(changes,
 			fmt.Sprintf("bundle root: %s (README.txt, RECOVERY.txt, vrooli-backup-destination.json)", d.Location),
 			fmt.Sprintf("kopia repository: %s", d.RepositoryLocation),
-			"the repository is encrypted; the passphrase is held in vault and never written to the drive",
+			"the repository is encrypted; the passphrase is held in the credential authority and never written to the drive",
 		)
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
@@ -158,14 +158,14 @@ func (h *handlers) delete(ctx cliapp.RunContext) error {
 		msg = "Deleted destination."
 		if deleteRepo {
 			changes = []string{
-				"Removed: catalog row + local resource-kopia metadata/config/cache + vault secret refs.",
+				"Removed: catalog row + local resource-kopia metadata/config/cache + credential-authority refs.",
 				"NOT removed: the encrypted repository bytes on the backend remain on disk. " +
 					"Delete the bundle folder manually if you intend to destroy the backups.",
 			}
 		} else {
 			changes = []string{
-				"Removed: catalog row only. Local kopia metadata, vault secret refs, and the encrypted repository bytes all remain.",
-				"Pass --delete-repository to also remove local kopia metadata and vault secret refs.",
+				"Removed: catalog row only. Local kopia metadata, credential-authority refs, and the encrypted repository bytes all remain.",
+				"Pass --delete-repository to also remove local kopia metadata and credential-authority refs.",
 			}
 		}
 	}

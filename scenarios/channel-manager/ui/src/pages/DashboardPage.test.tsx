@@ -26,7 +26,7 @@ describe("DashboardPage", () => {
     renderWithProviders(<DashboardPage />);
 		await screen.findByText(/No identities yet/i);
     fireEvent.change(screen.getByLabelText("New identity ID"), { target: { value: "x-1" } });
-    fireEvent.change(screen.getByLabelText("Vault credential reference"), { target: { value: "vault://channel/x-1" } });
+	fireEvent.change(screen.getByLabelText("Credential authority reference"), { target: { value: "authority://channel/x-1" } });
     fireEvent.click(screen.getByRole("button", { name: "Create identity and start warming" }));
     await waitFor(() => expect(screen.getByTestId("operator-identity-ready")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Queue manual engagement" }));
@@ -39,19 +39,19 @@ describe("DashboardPage", () => {
     await waitFor(() => expect(screen.getByText(/evidence, not a claim/i)).toBeInTheDocument());
   });
 
-	it("allows a manual-only identity before a Vault reference is needed", async () => {
+	it("allows a manual-only identity before a credential reference is needed", async () => {
 		vi.mocked(overview).mockResolvedValueOnce({ identities: {}, actions: {}, platforms: { x: { id: "x" } }, programs: { "x-conservative": { id: "x-conservative", platform_id: "x", provenance: { confidence: "speculative", source_kind: "operator", revisit_trigger: "five runs" } } } });
 		renderWithProviders(<DashboardPage />);
 		await screen.findByText(/No identities yet/i);
 		fireEvent.change(screen.getByLabelText("New identity ID"), { target: { value: "manual-only" } });
 		fireEvent.click(screen.getByRole("button", { name: "Create identity and start warming" }));
-		await waitFor(() => expect(createIdentity).toHaveBeenCalledWith(expect.objectContaining({ id: "manual-only", vault_ref: "" })));
+		await waitFor(() => expect(createIdentity).toHaveBeenCalledWith(expect.objectContaining({ id: "manual-only", credential_ref: "" })));
 	});
 
   // [REQ:CHANMGR-P0-018] [REQ:CHANMGR-P0-019]
   it("renders roster, due work, provenance, flags, and a purposeful empty state", async () => {
     vi.mocked(overview).mockResolvedValueOnce({
-      identities: { "x-brand": { id: "x-brand", platform_id: "x", purpose: "brand", environment_ref: "env", vault_ref: "vault://ref", status: "warming", lane_grants: ["main"] } },
+      identities: { "x-brand": { id: "x-brand", platform_id: "x", purpose: "brand", environment_ref: "env", credential_ref: "authority://ref", status: "warming", lane_grants: ["main"] } },
       actions: { "a-1": { id: "a-1", identity_id: "x-brand", kind: "engage", window: "2026-07-28T12:00:00Z", status: "scheduled", rolled_count: 2 } },
       programs: { "x-conservative": { id: "x-conservative", platform_id: "x", provenance: { confidence: "speculative", source_kind: "operator-practice", revisit_trigger: "five completed runs" } } },
       program_support: { "x-conservative": 3 },
@@ -75,14 +75,14 @@ describe("DashboardPage", () => {
   });
 
 	it("retires an identity without deleting its roster record", async () => {
-		vi.mocked(overview).mockResolvedValueOnce({ identities: { "x-brand": { id: "x-brand", platform_id: "x", purpose: "brand", environment_ref: "env", vault_ref: "vault://ref", status: "active" } }, actions: {} });
+	vi.mocked(overview).mockResolvedValueOnce({ identities: { "x-brand": { id: "x-brand", platform_id: "x", purpose: "brand", environment_ref: "env", credential_ref: "authority://ref", status: "active" } }, actions: {} });
 		renderWithProviders(<DashboardPage />);
 		fireEvent.click(await screen.findByRole("button", { name: "Retire" }));
 		await waitFor(() => expect(retireIdentity).toHaveBeenCalledWith("x-brand"));
 	});
 
 	it("updates existing identity metadata through the operator console", async () => {
-		vi.mocked(overview).mockResolvedValueOnce({ identities: { "x-brand": { id: "x-brand", platform_id: "x", purpose: "brand", environment_ref: "env", vault_ref: "vault://ref", status: "active" } }, actions: {} });
+	vi.mocked(overview).mockResolvedValueOnce({ identities: { "x-brand": { id: "x-brand", platform_id: "x", purpose: "brand", environment_ref: "env", credential_ref: "authority://ref", status: "active" } }, actions: {} });
 		renderWithProviders(<DashboardPage />);
 		await screen.findByLabelText("x-brand: active");
 		fireEvent.change(screen.getByLabelText("New identity ID"), { target: { value: "x-brand" } });
@@ -144,7 +144,7 @@ describe("DashboardPage", () => {
 		renderWithProviders(<DashboardPage />);
 		await screen.findAllByRole("option", { name: "x" });
 		fireEvent.change(screen.getByLabelText("New identity ID"), { target: { value: "x-missing" } });
-		fireEvent.change(screen.getByLabelText("Vault credential reference"), { target: { value: "vault://channel/x-missing" } });
+	fireEvent.change(screen.getByLabelText("Credential authority reference"), { target: { value: "authority://channel/x-missing" } });
 		fireEvent.click(screen.getByRole("button", { name: "Create identity and start warming" }));
 		await waitFor(() => expect(createIdentity).toHaveBeenCalled());
 		expect(await screen.findByTestId("operator-status")).toHaveTextContent("Could not create or resume the identity");

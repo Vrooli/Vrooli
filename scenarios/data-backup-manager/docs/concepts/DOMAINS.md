@@ -60,7 +60,7 @@ template-provided readiness surface and is retained.
   references to pre/post quiesce hooks (P1).
 - Does not own: where artifacts land (destinations), when capture runs
   (plans/runs), or how bytes are produced (sources). Does not own
-  source secrets — those live in vault.
+  source secrets — those remain owned by the source resource contract.
 - Catalog property: the targets table is a cache and a run-history
   anchor, not the single source of truth. Because scenarios
   re-register on boot, the catalog is reconstructable; a lost SQLite
@@ -85,7 +85,7 @@ template-provided readiness surface and is retained.
 - Secondary traits: encryption-by-default, per-destination storage cap.
 - Owns: destination records, the backend kind (`filesystem` or
   `s3`/MinIO), the configurable storage cap, and references to the
-  credential-authority-held passphrase and vault-held access keys. Tracks usage versus cap from
+  credential-authority-held passphrase and backend access keys. Tracks usage versus cap from
   kopia repository stats.
 - Also owns local-destination readiness and preparation planning through
   `api/internal/destinationreadiness/`: read-only mounted-volume
@@ -93,7 +93,7 @@ template-provided readiness surface and is retained.
   warnings, recommended backup subdirectory selection, non-destructive
   `create_subdir` execution, and execution guards for preparation
   actions. This subdomain persists no data.
-- Does not own: the secrets themselves (the `vault` resource holds
+- Does not own: the secret values themselves (the credential authority holds
   them; destinations hold only references), repository internals (the
   `kopia` resource owns dedup/encryption/compression), scheduling, or
   automatic drive formatting/wiping.
@@ -200,7 +200,7 @@ template-provided readiness surface and is retained.
   - **object-storage** — S3/MinIO mirror, sharing the SDK with the
     object-storage destination backend.
 - Does not own: durable product records (it is stateless strategy
-  code), secrets (read from vault at capture time), or the snapshot
+  code), source secrets, or the snapshot
   engine.
 - API: `api/internal/sources/` (internal — invoked by runs/restores).
 - CLI: diagnostic/inspection only; not a primary operator surface.

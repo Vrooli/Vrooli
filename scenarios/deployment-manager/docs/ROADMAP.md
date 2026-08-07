@@ -18,7 +18,7 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 | **API** | ✅ Working | Core routes functional |
 | **UI** | In Progress | Basic dashboard; swap UI pending |
 | **Thin Client Desktop** | ✅ Working | UI bundled; connects to Tier 1 |
-| **Bundled Desktop** | ✅ Working | Full pipeline via `deploy-desktop` command |
+| **Bundled Desktop** | ✅ Implemented | Pipeline is available; native release evidence remains target- and environment-gated |
 | **Mobile (Tier 3)** | Not Started | Documentation placeholder |
 | **SaaS (Tier 4)** | Not Started | Documentation placeholder |
 | **Enterprise (Tier 5)** | Vision | Future hardware appliance |
@@ -53,7 +53,7 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 - [x] Secrets merging into manifests (`POST /api/v1/bundles/merge-secrets`)
 - [x] Example manifests (desktop-happy.json, desktop-playwright.json)
 - [x] `bundle assemble` CLI command - Assemble manifest from scenario
-- [x] `bundle export` CLI command - Export production-ready manifest with checksum
+- [x] `bundle export` CLI command - Export release-candidate manifest with checksum
 - [x] `bundle validate` CLI command - Validate manifest against schema
 
 ### Runtime Supervisor (scenario-to-desktop)
@@ -87,7 +87,7 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 - [x] Workflow guides (desktop, mobile, saas, troubleshooting)
 - [x] Technical guides (8 topics)
 - [x] Example case studies and manifests
-- [x] Migration from `/docs/deployment/` to scenario-local docs
+- [x] Hub-and-spokes ownership between the project Deployment Hub and scenario-local docs
 
 ---
 
@@ -106,28 +106,31 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 ### Integration
 
 - [x] deployment-manager → scenario-to-desktop handoff
-  - **Completed**: Direct API integration via `DeployDesktop` orchestrator
-  - **Implementation**: `api/deployments/orchestrator.go` and `api/deployments/desktop_client.go`
-  - **CLI**: `deploy-desktop` command now invokes scenario-to-desktop automatically
+  - **Completed**: The `deploy-desktop` workflow invokes the scenario-to-desktop pipeline.
+  - **Contract**: deployment-manager owns target planning and admission; scenario-to-desktop owns generation, runtime, packaging, and native evidence.
 
 ---
 
-## Not Started
+## Open Work
+
+The items below include both follow-up work and capabilities that remain
+environment-gated. A checked item means the implementation exists; it does not
+mean every platform or release profile has been approved.
 
 ### Automation
 
 - [x] Automated binary cross-compilation
   - **Completed**: scenario-to-desktop reads manifest `build` config and compiles automatically
   - **Supported**: Go, Rust, npm, and custom build types
-  - **Implementation**: `scenario-to-desktop/api/bundle_packager.go:compileServiceBinary()`
+  - **Reference**: [Build and packaging](../../scenario-to-desktop/docs/guides/build-and-packaging.md)
 
 - [ ] Asset procurement automation
   - **Current**: Assets (Chromium, models, seeds) manually placed
   - **Needed**: Download/build/verify step before packaging
 
 - [ ] Code signing integration
-  - **Current**: Installers unsigned by default
-  - **Needed**: Certificate configuration in generation flow
+  - **Current**: Release trust and OS signing are separate gates; local development artifacts are not promotable by default.
+  - **Needed**: Complete per-platform signing and notarization automation.
 
 ### Validation
 
@@ -135,7 +138,7 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
   - **Completed**: `hello-desktop` scenario validates full pipeline
   - **Location**: `scenarios/hello-desktop/`
   - **Purpose**: Zero-dependency scenario for pipeline validation
-  - **Status**: ✅ Full end-to-end build complete with working installers (.exe, .AppImage, .deb, .zip)
+  - **Status**: ✅ Linux native journey is validated; Windows and macOS claims remain separately evidence-gated.
   - **Tutorial**: See [Hello Desktop Walkthrough](tutorials/hello-desktop-walkthrough.md)
 
 - [ ] Clean machine installation test
@@ -193,7 +196,7 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 
 ## How to Contribute
 
-1. **Pick an item** from "Not Started" or "In Progress"
+1. **Pick an item** from "Open Work" or "In Progress"
 2. **Check internal/PROBLEMS.md** for related blockers
 3. **Update this file** when starting work (move to In Progress)
 4. **Update PROGRESS.md** with implementation notes
@@ -207,4 +210,5 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 - [internal/PROBLEMS.md](internal/PROBLEMS.md) - Known issues and blockers
 - [PROGRESS.md](PROGRESS.md) - Implementation progress notes
 - [Integration seams](internal/SEAMS.md) - Integration points
-- [Bundled Runtime Plan](/docs/plans/bundled-desktop-runtime-plan.md) - Technical architecture
+- [Scenario-to-desktop architecture](../../scenario-to-desktop/docs/concepts/ARCHITECTURE.md)
+- [Desktop evidence and tier contract](../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md)

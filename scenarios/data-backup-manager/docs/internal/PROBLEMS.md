@@ -421,9 +421,9 @@ work closed that finding: the final comprehensive run on 2026-08-05 reached
 19/19 phases, with Lighthouse performance above the configured floor. Preserve
 the earlier result as incident history, but do not treat it as the current
 automated validation status. The final production recovery drill remains gated
-on restoring Vault/Kopia credentials and performing native inspection of the
+on recovering the original Kopia repository passphrases and performing native inspection of the
 unmounted Elements volume; DBM must continue to report the plan as blocked until
-those operator-owned steps are complete.
+those operator-owned steps are complete. Vault recovery is no longer a DBM gate.
 
 **Evidence:** `data-backup-manager status --json`, `destinations list --json`,
 `coverage report --json`, `runs list --json`, `lsblk`, and
@@ -457,6 +457,25 @@ page or schema query errors instead of converting the error to zero/empty facts.
 
 **Evidence:** `api/internal/runs/service.go`,
 `api/internal/runs/service_test.go`, and `api/internal/audits/dbcheck.go`.
+
+### 2026-08-05 — Vault removed from the greenfield DBM/Kopia stack
+
+The credential-authority recovery bundle was verified with the operator-held
+recovery passphrase. It contains ten legacy credentials, but no Vault unseal
+key and no `baseline-safety` or `elements-local` Kopia passphrase. Restoring it
+would not recover those values, so it remains preserved and was not imported.
+
+The greenfield contract is now credential-authority-only for DBM and
+resource-kopia: native OS credential storage or encrypted authority storage is
+the live source, recovery bundles are the portability mechanism, and Vault is
+not a lifecycle dependency. Repository passphrases and future S3 fields use
+per-repository authority identities. Existing encrypted repositories remain
+preserved but cannot be certified without their original passphrases.
+
+**Evidence:** `vrooli credentials recovery verify` output supplied by the
+operator; `resources/kopia/cli/internal/credentials/`; `resource.json`;
+`scenarios/data-backup-manager/.vrooli/service.json`; `PRD.md`;
+`docs/internal/DECISIONS.md`.
 
 ## Architecture Drift
 

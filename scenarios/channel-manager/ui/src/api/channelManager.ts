@@ -11,7 +11,7 @@ async function request<T>(path: string, body?: unknown): Promise<T> {
   if (!response.ok) throw await decodeApiError(response);
   return response.json() as Promise<T>;
 }
-export type Identity = { id: string; platform_id: string; handle?: string; display_label?: string; purpose: string; persona_ref?: string; goals?: string[]; notes?: string; owner_ref?: string; lifecycle?: string; environment_ref: string; vault_ref?: string; status: string; d009_acceptance_ref?: string; automation_mode?: string; lane_grants?: string[] };
+export type Identity = { id: string; platform_id: string; handle?: string; display_label?: string; purpose: string; persona_ref?: string; goals?: string[]; notes?: string; owner_ref?: string; lifecycle?: string; environment_ref: string; credential_ref?: string; status: string; d009_acceptance_ref?: string; automation_mode?: string; lane_grants?: string[] };
 export type Action = { id: string; identity_id: string; kind: string; window: string; status: string; rolled_count: number; deferred?: boolean; execution_id?: string; execution_error?: string; failure_class?: string; attempt_count?: number; next_attempt_at?: string };
 export type Program = { id: string; platform_id: string; provenance?: { source_kind: string; confidence: string; revisit_trigger: string } };
 export type Flag = { identity_id?: string; metric?: string; message?: string };

@@ -14,7 +14,7 @@ The API owns persisted data validation and writes. The UI owns transient view st
 
 ## Schema Map
 
-The database schema is defined in [CODE: initialization/postgres/schema.sql]. It includes:
+The database schema is defined in [CODE: api/internal/<domain>/schema.sql]. It includes:
 
 - `regions` for mapped foliage regions and typical peak weeks.
 - `foliage_observations` for observed foliage percentage, color intensity, and peak status.
@@ -29,7 +29,7 @@ Schema initialization is owned by lifecycle resource bootstrap. Keep changes add
 
 ## Import / Export
 
-The scenario imports seed data through PostgreSQL initialization. The UI exports predictions and trips as CSV/JSON without persisting export artifacts.
+The scenario imports seed data through its PostgreSQL schema provider. The UI exports predictions and trips as CSV/JSON without persisting export artifacts.
 
 ## Retention And Deletion
 

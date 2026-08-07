@@ -557,6 +557,10 @@ func TestComponentSourceClaimsDetectRemovedInteractionContracts(t *testing.T) {
 	if !sourceClaimPasses(spec.Claim{Type: "spacing"}, good) {
 		t.Fatal("spacing source claim rejected a positive gap")
 	}
+	semanticGap := `const style = { gap: "var(--space-2xs)" };`
+	if !sourceClaimPasses(spec.Claim{Type: "spacing"}, semanticGap) {
+		t.Fatal("spacing source claim rejected a positive semantic token gap")
+	}
 	badHover := strings.Replace(good, "hover:brightness-95", "brightness-95", 1)
 	if sourceClaimPasses(spec.Claim{Type: "state-contrast"}, badHover) {
 		t.Fatal("state-contrast source claim passed after hover treatment was removed")
@@ -564,8 +568,16 @@ func TestComponentSourceClaimsDetectRemovedInteractionContracts(t *testing.T) {
 	if !sourceClaimPasses(spec.Claim{Type: "state-contrast"}, good) {
 		t.Fatal("state-contrast source claim rejected a declared hover treatment")
 	}
+	semanticHover := `const styles = "[data-control]:hover { filter: brightness(1.06); }"; const colors = { background: "var(--color-primary)", color: "var(--color-primary-foreground)" };`
+	if !sourceClaimPasses(spec.Claim{Type: "state-contrast"}, semanticHover) {
+		t.Fatal("state-contrast source claim rejected semantic CSS hover treatment")
+	}
 	if !sourceClaimPasses(spec.Claim{Type: "size-parity"}, good) {
 		t.Fatal("size-parity source claim rejected the shared size scale")
+	}
+	semanticSize := `const sizeStyles = {}; const css = "min-height: var(--tap-target-min); min-width: var(--tap-target-min)"; const dismiss = "touch-target";`
+	if !sourceClaimPasses(spec.Claim{Type: "size-parity"}, semanticSize) {
+		t.Fatal("size-parity source claim rejected semantic token size scale")
 	}
 }
 

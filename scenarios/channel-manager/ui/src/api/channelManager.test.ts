@@ -11,7 +11,7 @@ describe("channel-manager API", () => {
 	it("uses the typed overview and operator action contracts", async () => {
 		fetchSpy.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ identities: {}, actions: {} }), { status: 200 })));
 		await overview();
-		await createIdentity({ id: "identity-1", platform_id: "x", purpose: "brand", environment_ref: "environment-1", vault_ref: "vault://identity-1", status: "draft", attestations: { region_locked: true } });
+		await createIdentity({ id: "identity-1", platform_id: "x", purpose: "brand", environment_ref: "environment-1", credential_ref: "authority://identity-1", status: "draft", attestations: { region_locked: true } });
 		await startProgram("identity-1", "program-1");
 		await enqueueAction("identity-1", "engage");
 		await completeAction("action-1", "evidence");

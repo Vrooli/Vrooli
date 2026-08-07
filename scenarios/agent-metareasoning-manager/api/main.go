@@ -1,7 +1,6 @@
 package main
 
 import (
-	schema "agent-metareasoning-manager-api/internal/workflow"
 	"bytes"
 	"context"
 	"database/sql"
@@ -10,9 +9,11 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
+
+	schema "agent-metareasoning-manager-api/internal/workflow"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -22,6 +23,7 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	resourceport "github.com/vrooli/vrooli/packages/resource-port"
 )
 
 const (
@@ -48,6 +50,10 @@ const (
 	defaultSearchLimit = 10
 	minSimilarityScore = 0.3
 )
+
+// Health is the dependency-free readiness surface used by local contract
+// tests. The process route below adds the database check for live operation.
+var Health = health.New(serviceName).Version(apiVersion).Handler()
 
 // Logger provides structured logging
 type Logger struct {
@@ -893,33 +899,19 @@ func (d *DiscoveryService) semanticSearch(query string, limit int) []WorkflowMet
 
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
-	defaults := map[string]string{
-		"n8n":      "5678",
-		"windmill": "5681",
-		"postgres": "5433",
-		"qdrant":   "6333",
+	root := os.Getenv("VROOLI_ROOT")
+	if root == "" {
+		root = filepath.Join(os.Getenv("HOME"), "Vrooli")
 	}
-
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(
-		"source ${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh && ports::get_resource_port %s",
-		resourceName,
-	))
-	output, err := cmd.Output()
-	if err != nil {
-		log.Printf("Warning: Failed to get port for %s, using default: %v", resourceName, err)
-		if port, ok := defaults[resourceName]; ok {
-			return port
-		}
-		return "8080" // Generic fallback
+	portName := ""
+	if resourceName == "postgres" {
+		portName = "sql"
 	}
-
-	port := strings.TrimSpace(string(output))
-	if port != "" {
+	if resourceName == "qdrant" {
+		portName = "http"
+	}
+	if port, err := resourceport.Resolve(root, resourceName, portName); err == nil {
 		return port
-	}
-
-	if fallback, ok := defaults[resourceName]; ok {
-		return fallback
 	}
 	return "8080"
 }

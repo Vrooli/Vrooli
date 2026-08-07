@@ -103,7 +103,7 @@ Five invariants follow, and they are the ones to defend in review:
    moving from manual to automated a swap rather than a rewrite — and manual stays
    permanently supported, not as a fallback but as the only executor with no
    terms-of-service exposure.
-3. **Credentials never enter this scenario's storage.** An identity holds a vault
+3. **Credentials never enter this scenario's storage.** An identity holds an authority
    reference. A schema change introducing a credential column is a defect.
 4. **Eligibility never fails open.** Unknown is a valid answer; eligible-by-default
    is not. `content-desk`'s own contract states that a permissive default here

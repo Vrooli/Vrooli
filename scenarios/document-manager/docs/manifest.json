@@ -470,6 +470,22 @@
             "requiredHeadings": ["Contract", "Slots (v1)", "Path-Pattern Tokens", "Resolution Order (Adoption Resolver)", "Overlays", "Cross-References"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
+        },
+        {
+          "path": "reference/format-matrix.md",
+          "docType": "format-reference",
+          "title": "Format Matrix",
+          "aliases": ["formats", "format-matrix", "supported-formats", "anchor-kinds"],
+          "description": "Accepted file formats, their parse paths and tiers, and which anchor kind each source shape can carry",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["format-reference", "anchor-kind-reference"],
+          "maturity": "draft",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Purpose Of This Document", "The Registry Is The Source Of Truth", "Handlers Declare Capabilities, Not Just Formats", "The Handlers", "The Matrix", "Why Both Parsers, And What Each Is For", "Degradation And Anchor Kind", "When Nothing Can Parse It", "Anchor Kinds By Source Shape", "Gaps", "Deliberately Out Of Scope", "Adding A Format", "Adding A Handler", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
         }
       ]
     },

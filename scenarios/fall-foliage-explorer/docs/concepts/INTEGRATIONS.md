@@ -17,7 +17,7 @@ This document records resource and service dependencies, their failure modes, an
 
 ### PostgreSQL
 
-PostgreSQL stores regions, observations, weather data, predictions, reports, and trips. The API connects through the shared Vrooli database helper in [CODE: api/main.go#initDB]. Schema ownership lives in [CODE: initialization/postgres/schema.sql].
+PostgreSQL stores regions, observations, weather data, predictions, reports, and trips. The API connects through the shared Vrooli database helper in [CODE: api/main.go#initDB]. Schema ownership lives in [CODE: api/internal/<domain>/schema.sql].
 
 ### Redis
 

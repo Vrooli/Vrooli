@@ -227,7 +227,7 @@ func (h *connectHandler) capabilityReport() (capstatus.Report, error) {
 	}
 	axes := map[string][]string{}
 	profiles := reconcile.DefaultCaptureProfiles
-	if loaded, loadErr := reconcile.CaptureProfilesFromAxes(filepath.Join(h.deps.RepoRoot, "scenarios", "experience-manager", "capabilities", "axes.json"), 12); loadErr == nil {
+	if loaded, loadErr := reconcile.CaptureProfilesFromAxes(filepath.Join(h.deps.RepoRoot, "scenarios", "experience-manager", "capabilities", "axes.json"), 16); loadErr == nil {
 		profiles = loaded
 	}
 	for _, support := range reconcile.WiredAxesFromProfiles(profiles) {

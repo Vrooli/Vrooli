@@ -175,7 +175,7 @@ func TestDeleteDestinationWordingMatchesBehavior(t *testing.T) {
 		t.Fatalf("default delete should say catalog row only: %q", out)
 	}
 
-	// --delete-repository: local metadata + vault refs, but NOT backend bytes.
+	// --delete-repository: local metadata + authority refs, but NOT backend bytes.
 	ctx2, stdout2 := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"id": "dst-1", "delete-repository": "true"},
 	})

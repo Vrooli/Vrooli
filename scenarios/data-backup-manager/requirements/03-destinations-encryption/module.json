@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "destinations-encryption",
-    "description": "Multiple encrypted backup destinations backed by kopia repositories with vault-sourced secrets.",
+    "description": "Multiple encrypted backup destinations backed by kopia repositories with credential-authority-sourced secrets.",
     "prd_ref": "OT-P0-003",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -28,20 +28,20 @@
     },
     {
       "id": "DBM-ENC-001",
-      "title": "Encryption on by default, secrets from vault",
+      "title": "Encryption on by default, secrets from credential authority",
       "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "destination.security",
       "criticality": "P0",
-      "description": "Every destination is created encrypted by default. Repository passphrases and backend access keys are read from the vault resource at runtime and never written to config files or argv.",
-      "tags": ["encryption", "vault", "secrets"],
+      "description": "Every destination is created encrypted by default. Repository passphrases and backend access keys are read from the credential authority at runtime and never written to config files or argv.",
+      "tags": ["encryption", "credential-authority", "secrets"],
       "validation": [
         {
           "type": "test",
           "phase": "integration",
           "status": "implemented",
           "ref": "api/internal/destinations/encryption_test.go::TestDestination_EncryptedByDefault",
-          "notes": "Assert repository status reports a non-null encryption algorithm; assert secrets resolved via vault, absent from persisted config."
+          "notes": "Assert repository status reports a non-null encryption algorithm; assert only the credential-authority reference is persisted and no secret value appears in the catalog or bundle."
         }
       ]
     }

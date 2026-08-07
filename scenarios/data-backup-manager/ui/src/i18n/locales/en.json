@@ -227,7 +227,7 @@
     "noRestores": "No restore or verify runs for this target yet."
   },
   "destinations": {
-    "subtitle": "Encrypted kopia repositories your backups are written to. Passphrases and keys live in vault — never here.",
+    "subtitle": "Encrypted kopia repositories your backups are written to. Passphrases and keys live in the credential authority — never here.",
     "create": "Add destination",
     "empty": "No destinations yet.",
     "emptyHint": "Add an encrypted destination before you can create a backup plan.",
@@ -249,7 +249,7 @@
     "delete": "Delete",
     "deleteTitle": "Delete this destination?",
     "deleteBody": "Removes {{name}} from the manager.",
-    "deleteRepo": "Also remove local kopia metadata and vault secret references",
+    "deleteRepo": "Also remove local kopia metadata and credential-authority references",
     "deleteRepoHint": "The encrypted repository bytes on the backend are never deleted by this action. Remove the bundle folder manually to destroy the backups.",
     "createError": "Couldn't create the destination.",
     "updateError": "Couldn't update the destination.",

@@ -20,7 +20,7 @@
 - [x] OT-P0-004 | Backup plans | Many-to-many plans bind targets to destinations with per-plan schedule and retention
 - [x] OT-P0-005 | Scheduled + on-demand execution | In-process scheduler runs plans on cadence; operators and scenarios can trigger a run manually
 - [x] OT-P0-006 | Verified restore | Restore a target to a chosen location; a verify mode test-restores to scratch and checksums the result
-- [x] OT-P0-007 | Encryption on by default | Every destination is encrypted by default; passphrases and access keys come from the vault resource, never config files
+- [x] OT-P0-007 | Credential-authority-backed encryption | Every destination is encrypted by default; repository passphrases and backend access keys come from the credential authority, never config files or provider-specific secret services
 - [x] OT-P0-008 | Storage limits | Per-destination caps that are configurable and default to alert+block (no silent eviction of backups)
 - [x] OT-P0-009 | Catalog & run history | List targets, destinations, plans, and runs; show last-success per target and browse snapshot contents
 - [x] OT-P0-010 | Health & observability | Health endpoint flags overdue/failed backups; backup outcomes are emitted as events for platform monitoring
@@ -43,14 +43,14 @@
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (Connect-RPC), React + Vite + Tailwind UI, Go CLI — react-vite template.
 - Data + storage expectations: SQLite via `modernc.org/sqlite` for the manager's own catalog and run history (per-domain schema, greenfield). Backup artifacts live in kopia repositories, never under the scenario source tree.
-- Integration strategy: wrap the `kopia` resource for all repository/snapshot/restore/dedup/encryption work (wrap-not-use); source secrets from the `vault` resource; read source data through each source's resource CLI (postgres, redis, qdrant, minio). No bespoke crypto, dedup, or scheduler-as-a-service (no n8n).
+- Integration strategy: wrap the `kopia` resource for all repository/snapshot/restore/dedup/encryption work (wrap-not-use); route repository and backend credentials through the portable credential authority (native OS credential service or encrypted authority storage), and read source data through each source's resource CLI (postgres, redis, qdrant, minio) without making DBM a secret broker. No bespoke crypto, dedup, or scheduler-as-a-service (no n8n).
 - Non-goals / guardrails: Not a git replacement and not a source-tree backup tool. Does not implement its own encryption or dedup. Does not silently delete backups to stay under a cap. Stays agnostic of which scenarios use it — scenarios register themselves.
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: `kopia` (backup engine), `vault` (secrets); source-kind resources used on demand: `postgres`, `redis`, `qdrant`, `minio`.
+- Required resources: `kopia` (backup engine); source-kind resources used on demand: `postgres`, `redis`, `qdrant`, `minio`. The shared credential authority is a platform contract, not a Vault resource dependency.
 - Scenario dependencies: none required to run; prompt-manager is the first registration customer (OT-P1-005).
 - Operational risks: backups that cannot restore (mitigated by the verified-restore gate); destination living under the root it protects (mitigated by separate-root policy); redis namespace snapshots are best-effort, not transactional point-in-time.
-- Launch sequencing: kopia resource ready → destinations + encryption → plans + scheduling → verified restore proven → register prompt-manager store and stop committing it.
+- Launch sequencing: credential authority ready → kopia resource ready → destinations + encryption → plans + scheduling → verified restore proven → register prompt-manager store and stop committing it.
 
 ## 🎨 UX & Branding
 - Look & feel: operational-console tone using the platform default design tokens; calm, status-forward, dark/light parity. Health and storage state are the visual centerpiece.

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "channel-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "f38d496cce1df4c09bb53deca96a11441b4a71cf2ef4caa4f7316ad0023e52c2",
+  "manifest_hash": "3820109eb8de6c7570bff073199a770b1b2e689b9418511117d8e53c1e100f20",
   "commands": [
     {
       "path": "channel assign-automation",

@@ -21,7 +21,7 @@ Fall Foliage Explorer is a lifecycle-managed scenario for tracking foliage statu
 - [CODE: cli/domains/foliage/register.go] - CLI foliage status, prediction, and weather commands.
 - [CODE: cli/domains/reports/register.go] - CLI report list and submit commands.
 - [CODE: cli/domains/trips/register.go] - CLI trip list and save commands.
-- [CODE: initialization/postgres/schema.sql] - PostgreSQL tables and seed data.
+- [CODE: api/internal/<domain>/schema.sql] - PostgreSQL tables and seed data.
 
 ## Safe Change Rules
 

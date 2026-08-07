@@ -145,7 +145,10 @@ type StepResult struct {
 // OllamaClient routes reasoning requests through the resource-ollama gateway
 // CLI. All daemon traffic goes through the CLI so the host-wide semaphore can
 // bound fleet-wide parallelism — never call Ollama HTTP directly.
-type OllamaClient struct{}
+type OllamaClient struct {
+	httpClient *http.Client
+	baseURL    string
+}
 
 // VectorStore handles vector operations
 type VectorStore struct {
@@ -170,7 +173,10 @@ func NewMetareasoningEngine(db *sql.DB) *MetareasoningEngine {
 
 // NewOllamaClient creates a new Ollama client.
 func NewOllamaClient() *OllamaClient {
-	return &OllamaClient{}
+	return &OllamaClient{
+		httpClient: &http.Client{Timeout: 120 * time.Second},
+		baseURL:    getEnv("OLLAMA_BASE_URL", "resource-ollama gateway"),
+	}
 }
 
 // NewVectorStore creates a new vector store client

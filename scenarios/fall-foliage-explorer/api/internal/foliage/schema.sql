@@ -1,3 +1,4 @@
+
 -- Fall Foliage Explorer Database Schema
 
 -- Regions table for geographic areas
@@ -80,10 +81,10 @@ CREATE TABLE IF NOT EXISTS trip_plans (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_observations_region_date ON foliage_observations(region_id, observation_date);
-CREATE INDEX idx_weather_region_date ON weather_data(region_id, date);
-CREATE INDEX idx_predictions_region ON foliage_predictions(region_id);
-CREATE INDEX idx_user_reports_region ON user_reports(region_id);
+CREATE INDEX IF NOT EXISTS idx_observations_region_date ON foliage_observations(region_id, observation_date);
+CREATE INDEX IF NOT EXISTS idx_weather_region_date ON weather_data(region_id, date);
+CREATE INDEX IF NOT EXISTS idx_predictions_region ON foliage_predictions(region_id);
+CREATE INDEX IF NOT EXISTS idx_user_reports_region ON user_reports(region_id);
 
 -- Insert some initial regions (popular foliage destinations)
 INSERT INTO regions (name, state, latitude, longitude, elevation_meters, typical_peak_week) VALUES
@@ -98,3 +99,4 @@ INSERT INTO regions (name, state, latitude, longitude, elevation_meters, typical
 ('Finger Lakes', 'New York', 42.6500, -76.8833, 382, 41),
 ('Upper Peninsula', 'Michigan', 46.5000, -87.5000, 603, 39)
 ON CONFLICT DO NOTHING;
+

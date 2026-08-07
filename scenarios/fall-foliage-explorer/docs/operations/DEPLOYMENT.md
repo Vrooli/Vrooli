@@ -11,7 +11,7 @@ Build steps are declared in [CODE: .vrooli/service.json].
 
 ## Resource Requirements
 
-Deployment requires PostgreSQL, Redis, Ollama, and Qdrant resources as configured in [DOC: docs/reference/configuration.md#resources]. PostgreSQL schema initialization uses [CODE: initialization/postgres/schema.sql].
+Deployment requires PostgreSQL, Redis, Ollama, and Qdrant resources as configured in [DOC: docs/reference/configuration.md#resources]. PostgreSQL schema initialization uses [CODE: api/internal/<domain>/schema.sql].
 
 ## Surface Expectations
 

@@ -8,8 +8,10 @@ Accepted
 
 Secrets handling is one of the hardest problems in portable deployments:
 
-- **Tier 1 (local dev)**: Secrets stored in `.env` files, Vault, or environment variables
-- **Tier 2+ (bundles)**: No access to infrastructure. How do bundles get secrets?
+- **Deployment Tier 1 (local stack)**: Credentials are resolved through the
+  platform authority for the local installation.
+- **Deployment Tier 2+ (portable targets)**: Infrastructure credentials cannot
+  be assumed to exist on the target. Each value needs an explicit target strategy.
 
 Naive approaches failed:
 1. **Bundle secrets directly**: Security disaster. Secrets visible in package.
@@ -89,9 +91,10 @@ Classify all secrets into **four classes** based on how they can be provisioned 
 
 ### Neutral
 
-- secrets-manager scenario owns classification logic
-- deployment-manager queries secrets-manager for classification
-- Runtime supervisor handles generation and injection
+- secrets-manager owns classification logic;
+- deployment-manager records the target strategy and admission decision;
+- the target runtime performs generation, prompting, resolution, and injection;
+- the credential authority owns secure storage and recovery.
 
 ## Alternatives Considered
 

@@ -16,7 +16,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        destinationsconnect.DestinationsServiceCreateDestinationProcedure,
 		Method:      "POST",
 		Summary:     "Create a backup destination",
-		Description: "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase is generated and stored in the credential authority. S3/backend credentials remain in vault. A filesystem destination must not point under the protected root.",
+		Description: "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase and S3/backend credentials are stored in the credential authority. A filesystem destination must not point under the protected root.",
 		Category:    "destinations",
 		Request: &module.Schema{
 			Type: "object",
@@ -124,13 +124,13 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        destinationsconnect.DestinationsServiceDeleteDestinationProcedure,
 		Method:      "POST",
 		Summary:     "Delete a destination",
-		Description: "Removes the destination catalog row. When delete_repository is explicitly set, also removes local resource-kopia metadata and Vault secret refs for the repository.",
+		Description: "Removes the destination catalog row. When delete_repository is explicitly set, also removes local resource-kopia metadata and credential-authority refs for the repository.",
 		Category:    "destinations",
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
 				"id":                "string (required)",
-				"delete_repository": "bool (also remove local resource-kopia metadata and Vault secret refs)",
+				"delete_repository": "bool (also remove local resource-kopia metadata and credential-authority refs)",
 			},
 		},
 		Response: &module.Schema{

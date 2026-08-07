@@ -89,18 +89,18 @@ if [[ ! -d "${REPOSITORY_LOCATION}" ]]; then
   echo "kopia repository dir not found at ${REPOSITORY_LOCATION}" >&2
   exit 1
 fi
-# The manifest must carry a vault secret REFERENCE (a path), never a secret
-# value, and must be valid JSON.
+# The manifest must carry a credential-authority REFERENCE (an identity/field
+# pair), never a secret value, and must be valid JSON.
 MANIFEST_SECRET_REF="$(jq -r '.secret_ref // empty' "${BUNDLE_ROOT}/vrooli-backup-destination.json")"
 if jq -e '.repository_path' "${BUNDLE_ROOT}/vrooli-backup-destination.json" >/dev/null; then :; else
   echo "manifest missing repository_path" >&2
   exit 1
 fi
-# secret_ref must be a vault REFERENCE PATH (not blank, not a value): a detached
-# bundle has to tell the operator where the passphrase lives for standalone
-# recovery. resource-kopia keeps passphrases under secret/resources/kopia/...
-if [[ "${MANIFEST_SECRET_REF}" != secret/resources/kopia/* ]]; then
-  echo "manifest secret_ref is not a vault reference path: '${MANIFEST_SECRET_REF}'" >&2
+# secret_ref must be the per-repository credential-authority identity and field
+# (not blank, not a value): a detached bundle has to tell the operator where
+# the passphrase lives for standalone recovery.
+if [[ "${MANIFEST_SECRET_REF}" != vrooli/kopia/*:repository-passphrase ]]; then
+  echo "manifest secret_ref is not a credential-authority reference: '${MANIFEST_SECRET_REF}'" >&2
   exit 1
 fi
 # Defense-in-depth: no obvious passphrase/credential value text in the bundle.

@@ -346,9 +346,9 @@ base64 in `data[].b64_json` (vector models add a `media_type`). It holds no loca
 weights, so `RequiresWeights()` is false and it is always "installed";
 runnability is gated instead by `Available()` — a usable `OPENROUTER_API_KEY`.
 
-- **Key resolution:** `OPENROUTER_API_KEY` from the environment first (injected by
-  the scenario lifecycle from the vault SSOT via `service.json`), then a
-  best-effort `resource-vault secrets export openrouter|opencode`. A usable key
+- **Key resolution:** `OPENROUTER_API_KEY` from the environment, injected by
+  the scenario lifecycle from the canonical credential authority. The provider
+  never invokes a resource CLI or reads a user credential file. A usable key
   must look like `sk-or-…` (length floor). No key → the provider reports
   unavailable and only-BYOK ops refuse cleanly with guidance.
 - **Model selection (greenfield):** no concrete slug is hard-coded. Each request

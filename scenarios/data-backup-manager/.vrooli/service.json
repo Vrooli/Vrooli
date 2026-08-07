@@ -217,16 +217,10 @@
   "dependencies": {
     "resources": {
       "kopia": {
-        "description": "Wrapped backup engine: one kopia repository per destination. All snapshot/restore/verify/stats/retention go through resource-kopia. Encryption is always on; kopia owns repository passphrases via vault.",
+        "description": "Wrapped backup engine: one kopia repository per destination. All snapshot/restore/verify/stats/retention go through resource-kopia. Encryption is always on; kopia owns repository passphrases and backend credentials through the credential authority.",
         "enabled": true,
         "required": true,
         "type": "kopia"
-      },
-      "vault": {
-        "description": "Holds repository passphrases and source/backend access keys. Secrets are referenced (never copied) by the catalog; the kopia and source resource CLIs source actual values from vault at call time.",
-        "enabled": true,
-        "required": true,
-        "type": "vault"
       },
       "postgres": {
         "description": "Conditional source kind: pg_dump of a Postgres target via the postgres resource CLI. Enable when a Postgres target is registered.",

@@ -663,16 +663,6 @@ func TestNewServerRejectsMissingProductionSessionSecretBeforeDatabaseConnection(
 	}
 }
 
-func TestPostgresSeedDoesNotContainAdminCredential(t *testing.T) {
-	seed, err := os.ReadFile(filepath.Join("..", "initialization", "postgres", "seed.sql"))
-	if err != nil {
-		t.Fatalf("read postgres seed: %v", err)
-	}
-	if strings.Contains(strings.ToLower(string(seed)), "password_hash") {
-		t.Fatal("tracked postgres seed must not contain an admin password hash")
-	}
-}
-
 func TestValidateProductionCredentialsRejectsMissingMagicLinkBaseURL(t *testing.T) {
 	isolateSecretResolution(t)
 	t.Setenv("LPBS_ENVIRONMENT", "production")

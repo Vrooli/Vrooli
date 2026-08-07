@@ -1,6 +1,6 @@
 // Package channelmanager exposes the manual-operations API.  It intentionally
-// never accepts a platform credential: identity creation takes a Vault path
-// reference and every platform interaction remains an operator action.
+// never accepts a platform credential: identity creation takes a credential-
+// authority reference and every platform interaction remains an operator action.
 package channelmanager
 
 import (
@@ -361,7 +361,7 @@ func (h *api) overview(w http.ResponseWriter, _ *http.Request) {
 }
 
 func publicIdentity(identity core.Identity) core.Identity {
-	identity.VaultRef = ""
+	identity.CredentialRef = ""
 	return identity
 }
 

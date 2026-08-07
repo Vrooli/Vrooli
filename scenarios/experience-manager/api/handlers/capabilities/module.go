@@ -33,7 +33,7 @@ func (h *handler) GetStatus(_ context.Context, _ *connect.Request[capabilitiesv1
 	}
 	axes := map[string][]string{}
 	profiles := reconcile.DefaultCaptureProfiles
-	if loaded, loadErr := reconcile.CaptureProfilesFromAxes(filepath.Join(h.repoRoot, "scenarios", "experience-manager", "capabilities", "axes.json"), 12); loadErr == nil {
+	if loaded, loadErr := reconcile.CaptureProfilesFromAxes(filepath.Join(h.repoRoot, "scenarios", "experience-manager", "capabilities", "axes.json"), 16); loadErr == nil {
 		profiles = loaded
 	}
 	for _, support := range reconcile.WiredAxesFromProfiles(profiles) {

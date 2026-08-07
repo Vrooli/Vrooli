@@ -278,7 +278,7 @@ server {
 
 ### Production Environment Variables
 
-Create `initialization/configuration/<slug>.env` with production values:
+Create `api/internal/<domain>/configuration/<slug>.env` with production values:
 
 ```bash
 # Database

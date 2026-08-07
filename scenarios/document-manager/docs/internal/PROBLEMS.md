@@ -230,6 +230,80 @@ the viability bar itself does not move.
 **Refs:** `PRD.md` (Operational Targets, Launch sequencing),
 `docs/concepts/INTEGRATIONS.md` (Vrooli Resources).
 
+### 2026-08-06 — PRD format wording predates `anydoc` and is read-only
+
+**Symptom:** Three statements in `PRD.md` are now wrong, and `PRD.md` is
+read-only after the orientation gate (`docs/START-HERE.md`), so they
+cannot simply be edited here.
+
+- `OT-P0-005` reads "DOCX, HTML, EPUB, Markdown and plain text parsed
+  through the structural resource." The format list is too narrow — no
+  presentations, spreadsheets, OpenDocument, RTF, CSV, XML or email — and
+  "the structural resource" is singular where there are now several
+  declared handlers selected by capability. HTML is correct as a P0
+  format and is handled by `unstructured-io`.
+- `OT-P0-008` reads "Every unit carries document hash, page and character
+  range." This presumes every source has pages. Spreadsheets, CSV, HTML
+  and reflowable EPUB do not, and `tabular` anchors carry a cell range
+  rather than a character range.
+- The Tech Direction snapshot and Dependencies section name "a new
+  pdf-inspector resource for tier 1" and `unstructured-io` for tier 2.
+  Both are superseded by the `anydoc` decisions.
+
+**Root cause:** `anydoc` was open-sourced 2026-08-04, two days after the
+PRD was written. Not an authoring defect.
+
+**Workaround:** [`../reference/format-matrix.md`](../reference/format-matrix.md)
+is authoritative for formats and anchor kinds; the PRD is not. Where the
+two disagree, the matrix wins and this entry records why.
+
+**Real fix:** Amend the three PRD statements in the next PRD-amendment
+cycle, and update the `DOC-P0-005` and `DOC-P0-008` descriptions in
+`requirements/01-must-ship/module.json` in the same pass so `prd_ref`
+stays honest. Suggested wording — `OT-P0-005`: "Word, presentations,
+spreadsheets, OpenDocument, RTF, EPUB, CSV, Markdown and plain text
+parsed locally through the declared handler chain for its format."
+`OT-P0-008`: "Every unit carries a document hash plus the coordinates
+its handler chain could prove — page and bounding box, sheet and cell
+range, or structural path and character offset." The Tech Direction
+snapshot should name the handler registry as the format source of truth
+rather than naming parsers.
+
+A further target is missing entirely: nothing covers the unsupported
+terminal states (`no_handler_for_format`, `handler_unavailable`,
+`handler_failed`, `blocked_by_policy`, `unsupported_variant`), and
+those are a user-facing contract, not an implementation detail. It
+belongs in P0 — a corpus that silently drops the files it cannot parse
+fails the custody claim.
+
+**Owner:** whoever authors the implementation plan.
+
+**Refs:** `PRD.md` (Operational Targets, Tech Direction Snapshot,
+Dependencies), `docs/reference/format-matrix.md`,
+`docs/internal/DECISIONS.md` (the three 2026-08-06 `anydoc` rows).
+
+### 2026-08-06 — Image intake is assumed by the anchor design but funded by no target
+
+**Symptom:** `DECISIONS.md` states geometric anchors are available for
+"PDF and image sources", and the format matrix lists raster images at
+tier 3. No operational target ingests an image.
+
+**Root cause:** The anchor-kinds decision reasoned about which sources
+have fixed geometry and correctly included images; the target list was
+derived from a document-centric brief that never mentioned them.
+
+**Workaround:** None needed yet — nothing is built.
+
+**Real fix:** Add a P1 target for raster image intake, or narrow the
+anchor decision's wording to PDF only. The first is better: images share
+tier 3 with scanned PDFs and need no separate parse path, so the marginal
+cost is close to zero once `vision.default` lands.
+
+**Owner:** whoever authors the implementation plan.
+
+**Refs:** `docs/reference/format-matrix.md` (Gaps),
+`docs/internal/DECISIONS.md` (anchor-kinds row).
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

@@ -39,7 +39,7 @@ type Service interface {
 
 	// DeleteDestination removes a destination's catalog row. When
 	// deleteRepository is true, it first removes local resource-kopia metadata
-	// and Vault secret refs for the underlying repository.
+	// and credential-authority refs for the underlying repository.
 	DeleteDestination(ctx context.Context, id string, deleteRepository bool) (bool, error)
 
 	// GetDestinationUsage returns current usage bytes, cap, state, and policy
@@ -164,7 +164,7 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 	}
 
 	// The encryption passphrase is generated and owned by resource-kopia; DBM
-	// records only the deterministic vault *reference path* (never the value) so
+	// records only the deterministic credential-authority *reference* (never the value) so
 	// a detached bundle can point an operator at the key for standalone recovery.
 	d := Destination{
 		Name:                name,

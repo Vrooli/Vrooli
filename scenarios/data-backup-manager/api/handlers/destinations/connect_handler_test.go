@@ -28,7 +28,7 @@ func TestDestinationsService_Contract(t *testing.T) {
 			CapBytes:            0,
 			CapPolicy:           destinations.CapPolicyAlertBlock,
 			EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256",
-			SecretRef:           "vault/kopia/primary",
+		SecretRef:           "vrooli/kopia/primary:repository-passphrase",
 			CreatedAt:           time.Unix(1700000000, 0).UTC(),
 			UpdatedAt:           time.Unix(1700000000, 0).UTC(),
 		}}

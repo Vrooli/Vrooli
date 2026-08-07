@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "channel-manager",
-  "description": "Manual platform-identity operations. The runtime `channel` group uses the scenario API and accepts Vault references only, never credential values.",
+  "description": "Manual platform-identity operations. The runtime `channel` group uses the scenario API and accepts credential-authority references only, never credential values.",
   "groups": [
     {
       "name": "channel",
@@ -23,7 +23,7 @@
         },
         {
           "name": "create",
-          "description": "Create an identity with non-secret metadata and an optional Vault reference",
+          "description": "Create an identity with non-secret metadata and an optional credential-authority reference",
           "binding": { "kind": "local" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         },

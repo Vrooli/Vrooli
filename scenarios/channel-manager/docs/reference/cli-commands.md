@@ -221,11 +221,11 @@ For a command inside an existing domain:
 
 The CLI is an alternative to the operator console for the same manual-only
 workflow. It calls the scenario API and never accepts, prints, or stores a
-credential value; `--vault-ref` is a Vault path reference only.
+credential value; `--credential-ref` is an authority identity/field reference only.
 
 ```bash
 channel-manager channel create --id x-brand-01 --platform x --purpose brand \
-  --environment operator-attested-device --vault-ref vault://channel-manager/x-brand-01
+  --environment operator-attested-device --credential-ref vrooli/channel-manager/x-brand-01:credential
 channel-manager channel start x-brand-01 --program x-conservative
 channel-manager channel queue --identity x-brand-01 --kind engage
 channel-manager channel complete act-1 --evidence https://example.test/proof
@@ -234,4 +234,4 @@ channel-manager channel overview
 ```
 
 Manual account activation is deliberately outside these commands: create the
-account and place its secret in Vault first, then register only the reference.
+account and place its secret in the credential authority first, then register only the reference.

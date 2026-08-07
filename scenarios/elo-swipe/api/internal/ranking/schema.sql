@@ -81,13 +81,13 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_items_list_id ON items(list_id);
-CREATE INDEX idx_items_rating ON items(list_id, elo_rating DESC);
-CREATE INDEX idx_comparisons_list_id ON comparisons(list_id);
-CREATE INDEX idx_comparisons_timestamp ON comparisons(timestamp DESC);
-CREATE INDEX idx_comparisons_participants ON comparisons(winner_id, loser_id);
-CREATE INDEX idx_pairing_queue_priority ON pairing_queue(list_id, priority DESC) WHERE NOT completed;
-CREATE INDEX idx_sessions_user ON sessions(user_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_items_list_id ON items(list_id);
+CREATE INDEX IF NOT EXISTS idx_items_rating ON items(list_id, elo_rating DESC);
+CREATE INDEX IF NOT EXISTS idx_comparisons_list_id ON comparisons(list_id);
+CREATE INDEX IF NOT EXISTS idx_comparisons_timestamp ON comparisons(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_comparisons_participants ON comparisons(winner_id, loser_id);
+CREATE INDEX IF NOT EXISTS idx_pairing_queue_priority ON pairing_queue(list_id, priority DESC) WHERE NOT completed;
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id, started_at DESC);
 
 -- Function to update timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -99,9 +99,11 @@ END;
 $$ language 'plpgsql';
 
 -- Triggers for updating timestamps
+DROP TRIGGER IF EXISTS update_lists_updated_at ON lists;
 CREATE TRIGGER update_lists_updated_at BEFORE UPDATE ON lists
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_items_updated_at ON items;
 CREATE TRIGGER update_items_updated_at BEFORE UPDATE ON items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

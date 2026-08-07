@@ -19,7 +19,7 @@ Use this document to answer:
 |---|---|---|---|---|---|
 | SQLite | embedded storage | yes | identities, platforms, warming, queue, signals | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
-| vault | local resource | no at P0 | future executor (at execution time only) | `resource-vault content get --path <kv> --key <field> --format raw` | P0 manual work stores only a reference, so the console and test suite run without Vault. A future credential-consuming executor must fail terminally and never cache a value. |
+| credential authority | native platform service | no at P0 | future executor (at execution time only) | Authority identity/field reference resolved through the control-plane credential contract | P0 manual work stores only a reference, so the console and test suite run without the authority. A future credential-consuming executor must fail terminally and never cache a value. |
 | content-desk | scenario | no (inbound) | queue, identities | Connect-RPC: release handoff and eligibility query | This scenario does not call it at P0; it answers. If nothing calls in, warming and manual actions continue unaffected. |
 | browser-automation-studio | scenario | no (P1) | queue (browser executor) | `workflows`, `executions`, `session-profiles` | The action degrades to the manual executor with the dispatch failure recorded. It is never marked complete on a dispatch error. |
 | asset-studio | scenario | no (P1) | queue (asset uniqueness) | Connect-RPC: has this asset been published, and by whom | **Refuse, not allow.** A lookup failure blocks the post, matching the fail-closed posture used for eligibility. |
@@ -30,7 +30,7 @@ Use this document to answer:
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
 | SQLite (embedded) | active | Identity, queue, warming, and signal tables are single-writer, local, and modest in size. | If the scenario ever becomes multi-host. |
-| vault | manual / executor-only | Credential authority. This scenario holds a path and never persists a value; P0 manual execution does not read it. | Enable only when a credential-consuming executor is approved. |
+| credential authority | manual / executor-only | Canonical credential authority. This scenario holds a reference and never persists a value; P0 manual execution does not read it. | Enable only when a credential-consuming executor is approved. |
 | browser-automation-studio resources | indirect (P1) | Reached through the BAS scenario, never driven directly. Per-identity session profiles are what keep browser state from leaking between identities. | If BAS stops exposing session profiles, multi-account browser execution is not safe and the executor must be withdrawn. |
 
 ## Scenario Dependencies
@@ -63,7 +63,7 @@ scenario's behaviour, and this scenario must never write to them.
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
-| vault | credential read error or timeout | The action fails terminally and is recorded as such. It is never marked complete, and no credential is cached to survive the outage. | `CHANMGR-P0-002` |
+| credential authority | credential read error or timeout | The action fails terminally and is recorded as such. It is never marked complete, and no credential is cached to survive the outage. | `CHANMGR-P0-002` |
 | content-desk (inbound release) | malformed draft, or an identity not eligible for its lane | Refused with a typed error. A refused release is never queued. | `CHANMGR-P0-014` |
 | content-desk (inbound eligibility) | internal repository or descriptor failure while evaluating | Returns **unknown**, never eligible. The caller's contract states that a permissive default would post from an unwarmed account. | `CHANMGR-P0-013` |
 | browser-automation-studio | dispatch error, or session profile unavailable | The action degrades to manual with the failure recorded. Never marked complete. | `CHANMGR-P1-001` |

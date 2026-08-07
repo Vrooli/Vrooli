@@ -21,7 +21,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if e = s.CreateIdentity(Identity{ID: "i", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", VaultRef: "vault://x"}); e != nil {
+	if e = s.CreateIdentity(Identity{ID: "i", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", CredentialRef: "authority://x"}); e != nil {
 		t.Fatal(e)
 	}
 	store := NewStore(db)
@@ -35,7 +35,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	if e = store.Load(context.Background(), reloaded); e != nil {
 		t.Fatal(e)
 	}
-	if reloaded.Identities["i"].VaultRef != "vault://x" {
+	if reloaded.Identities["i"].CredentialRef != "authority://x" {
 		t.Fatal("persisted identity not restored")
 	}
 }

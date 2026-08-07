@@ -39,9 +39,10 @@ registration model. Source data read during capture (Postgres dumps,
 Redis dumps, Qdrant snapshots, etc.) is transient and streamed into
 kopia, not persisted in the catalog.
 
-Source secrets and S3/backend credentials live in the `vault` resource;
-repository passphrases live in the credential authority. They are
-referenced — never copied — by the catalog.
+Repository passphrases and S3/backend credentials live in the credential
+authority. Source resources own source credentials; DBM only invokes their
+resource CLI contracts. All values are referenced — never copied — by the
+catalog.
 Document resource decisions in [`INTEGRATIONS.md`](INTEGRATIONS.md)
 before editing `.vrooli/service.json`.
 
@@ -50,7 +51,7 @@ before editing `.vrooli/service.json`.
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
 | Targets | targets | SQLite | `api/internal/targets/schema.sql` | Until deregistered by the owning scenario | Keyed by `owner + name`; reconstructable from re-registration on boot. |
-| Destinations | destinations | SQLite | `api/internal/destinations/schema.sql` | Until removed by an operator | Holds backend kind, storage cap, vault references, and the bundle-root (`location`) vs repository-path (`repository_location`) split — never the secrets themselves. |
+| Destinations | destinations | SQLite | `api/internal/destinations/schema.sql` | Until removed by an operator | Holds backend kind, storage cap, credential-authority references, and the bundle-root (`location`) vs repository-path (`repository_location`) split — never the secrets themselves. |
 | Destination bundle files | destinations | filesystem (bundle root) | The bundle root on the backend drive | Lives with the destination | `README.txt`, `RECOVERY.txt`, `vrooli-backup-destination.json` — non-secret operator-facing files written by the `BundleWriter` seam. Never contain a passphrase, only a credential-authority identity/field reference. |
 | Plan bindings | plans | SQLite | `api/internal/plans/schema.sql` | Until the plan is deleted | Many-to-many plan↔target and plan↔destination membership plus schedule and retention. |
 | Run history | runs | SQLite | `api/internal/runs/schema.sql` | Bounded retention (see Retention And Deletion) | Per-run outcomes plus redacted grouped preflight incidents; carries stable root-cause codes, next actions, last-success-per-target, and snapshot references. |
@@ -58,7 +59,7 @@ before editing `.vrooli/service.json`.
 | Audit records | audits | SQLite | `api/internal/audits/schema.sql` | Bounded retention | Generic snapshot-audit proofs: status, restorability, live + snapshot inventories and the comparison, stored as JSON blobs. **Only relative paths, counts, and hashes — never file contents or secrets.** |
 | Backup artifacts (snapshots) | destinations / kopia | kopia repository (filesystem or S3/MinIO) | The kopia repository per destination | Per-plan retention policy, applied by kopia; **alert+block, never silent eviction** | Encrypted by default; reached only via `resource-kopia`; never under the scenario source tree. |
 | Repository passphrases | (referenced by) destinations | credential authority | `vrooli/kopia/<repository>` | Lives with the destination | Catalog and bundles store only the identity/field reference; the `kopia` resource resolves the value at call time. |
-| S3/backend access keys | (referenced by) destinations | `vault` resource | `vault` | Lives with the destination | Catalog stores only secret references; the `kopia` resource resolves values at call time. |
+| S3/backend access keys | (referenced by) destinations | credential authority | `vrooli/kopia/<repository>` with S3 fields | Lives with the destination | Catalog stores only secret references; the `kopia` resource resolves values at call time. |
 
 ## Schema Map
 
@@ -161,7 +162,7 @@ This scenario backs up **other scenarios' runtime state**, which may
 contain personal, regulated, customer, financial, or sensitive
 business data. Two controls bound the exposure: every destination is
 encrypted by default, and all passphrases and access keys come from the
-`vault` resource — never config files, env files, or process argv. The
+credential authority — never config files, committed env files, or process argv. The
 manager handles source bytes only in transit (capture → kopia) and does
 not retain them in its own catalog. The generic snapshot audit upholds
 the same bound: it walks restored and live bytes in scratch only, and the

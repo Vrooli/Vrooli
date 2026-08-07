@@ -26,7 +26,7 @@ const dest = {
   capBytes: 100n * 1024n ** 3n,
   capPolicy: CapPolicy.ALERT_BLOCK,
   encryptionAlgorithm: "AES256-GCM",
-  secretRef: "vault:dbm/d1",
+  secretRef: "vrooli/kopia/d1:repository-passphrase",
   usageBytes: 10n * 1024n ** 3n,
   usageState: UsageState.WITHIN,
 };
@@ -44,7 +44,7 @@ describe("DestinationsPage", () => {
   it("lists destinations with their secret reference shown read-only", async () => {
     renderWithProviders(<DestinationsPage />);
     const row = await screen.findByTestId(selectors.destinations.row({ id: "d1" }));
-    expect(row).toHaveTextContent("vault:dbm/d1");
+    expect(row).toHaveTextContent("vrooli/kopia/d1:repository-passphrase");
   });
 
   it("requires name and location before creating", async () => {

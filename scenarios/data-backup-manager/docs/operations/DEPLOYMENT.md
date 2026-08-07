@@ -16,7 +16,7 @@ Use this document to answer:
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, SQLite path, `kopia` + `vault` resources | Validate a real destination, scheduled run, and restore verification before treating an install as protected. Companion `kopia` resource must be ready (`docs/plans/kopia-resource-plan.md`). |
+| Local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, SQLite path, `kopia` resource, and credential authority | Validate a real destination, scheduled run, and restore verification before treating an install as protected. Companion `kopia` resource must be ready (`docs/plans/kopia-resource-plan.md`). |
 | Desktop/mobile app | deferred | Cross-platform runtime, packaged UI/API, storage resolver | Run cross-platform readiness before adoption. |
 | Managed cloud/SaaS | deferred | Hosted runtime, auth, observability, cost model, offsite destinations | Requires deployment and monetization review. |
 | Enterprise/self-host | deferred (primary monetization path) | Install docs, encrypted + offsite destinations, restore/verify procedures, support model | Requires operational hardening; DR is a paid expectation at this tier (see `../business/MONETIZATION.md`). |
@@ -29,8 +29,8 @@ Use this document to answer:
   history. Backup artifacts do **not** live here — they live in kopia
   repositories (destinations).
 - Resources (required): `kopia` (backup engine — all repository,
-  snapshot, restore, dedup, encryption, retention work) and `vault`
-  (destination passphrases and backend access keys, read at runtime).
+  snapshot, restore, dedup, encryption, retention work). Repository passphrases
+  and backend access keys are read at runtime from the credential authority.
 - Resources (on demand, per source kind): `postgres`, `redis`, `qdrant`,
   `minio` — needed only when a registered target uses that source kind.
 - Network: local API/UI communication; outbound to remote destination

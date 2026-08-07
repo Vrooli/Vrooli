@@ -31,9 +31,9 @@ func TestAssignAutomationRequiresProfileAndWorkflowReferences(t *testing.T) {
 }
 
 // [REQ:CHANMGR-P0-001] A manual-only identity can be configured before it has
-// browser credentials; the Vault reference becomes mandatory only at browser
+// browser credentials; the credential-authority reference becomes mandatory only at browser
 // automation assignment time.
-func TestCreateAllowsManualIdentityWithoutVaultReference(t *testing.T) {
+func TestCreateAllowsManualIdentityWithoutCredentialReference(t *testing.T) {
 	group := Register(&cliapp.ScenarioApp{})
 	var command *cliapp.Command
 	for i := range group.Subcommands {
@@ -48,5 +48,5 @@ func TestCreateAllowsManualIdentityWithoutVaultReference(t *testing.T) {
 	for _, flag := range command.Args.Flags {
 		flags[flag.Name] = flag
 	}
-	require.False(t, flags["vault-ref"].Required)
+	require.False(t, flags["credential-ref"].Required)
 }

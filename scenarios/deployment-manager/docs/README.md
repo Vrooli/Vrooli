@@ -5,12 +5,16 @@ deployment policy, target fitness, approval gates, release records, and the
 shared evidence contract; target ramps own build, packaging, execution, and
 artifact publication.
 
+These pages describe technical deployment targets. They are separate from the
+commercial delivery tiers in `docs/monetization/strategy/TIERS.md`.
+
 ## Start here
 
 - [Architecture](concepts/ARCHITECTURE.md) — boundaries and proto-first data flow
 - [Evidence contract](guides/evidence-contract.md) — the reviewable release evidence model
 - [Desktop workflow](workflows/desktop-deployment.md) — scenario-to-desktop release path
 - [Tier 2 desktop](tiers/tier-2-desktop.md) — desktop target requirements
+- [General deployment guide](DEPLOYMENT-GUIDE.md) — governance workflow and target map
 - [CLI overview](cli/overview-commands.md) — current command surface
 - [API reference](api/bundles.md) — representative Connect/API contracts
 - [Product requirements](../PRD.md) — operational targets and traceability
@@ -25,6 +29,10 @@ artifact publication.
 | Assemble a bundle | [Bundle manifest schema](guides/bundle-manifest-schema.md) |
 | Sign a release | [Code signing](guides/code-signing.md) |
 | Diagnose a failed release | [Troubleshooting](workflows/troubleshooting.md) |
+
+Target-specific behavior is intentionally not repeated here. For desktop
+runtime, packaging, secrets, updates, and native evidence, use the
+[scenario-to-desktop documentation](../../scenario-to-desktop/docs/OVERVIEW.md).
 
 ## Engineering references
 

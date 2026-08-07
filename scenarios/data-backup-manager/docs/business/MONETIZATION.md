@@ -61,7 +61,7 @@ other scenario and underpins paid deployment tiers.
   review.
 - Willingness-to-pay evidence: none captured yet; expected to come from
   self-host evaluators citing DR as an adoption driver.
-- Cost drivers: `kopia` + `vault` resources (local), plus offsite/hosted
+- Cost drivers: `kopia` resource plus the credential authority (local), plus offsite/hosted
   destination storage and egress for the managed/enterprise path.
 
 ## Validation Plan

@@ -1,7 +1,8 @@
 /**
  * Destinations domain — UI ↔ API boundary over DestinationsService. A
  * destination is a kopia repository (local filesystem or S3/MinIO) the manager
- * snapshots into. Encryption is always on and secrets live in vault — the UI
+ * snapshots into. Encryption is always on and secrets live in the credential
+ * authority — the UI
  * only ever *displays* `encryptionAlgorithm` and `secretRef`, never edits them.
  * Update is intentionally cap-only (cap_bytes / cap_policy); name, backend, and
  * location are immutable once a repository exists.

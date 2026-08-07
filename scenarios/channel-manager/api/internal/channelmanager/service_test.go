@@ -46,7 +46,7 @@ func fixture(t *testing.T) *Service {
 // retains its operational references through the durable action lifecycle.
 func TestIdentityWarmingQueueAndManualEvidence(t *testing.T) {
 	s := fixture(t)
-	if e := s.CreateIdentity(Identity{ID: "i", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", VaultRef: "vault://x", Attestations: map[string]bool{"region": true}}); e != nil {
+	if e := s.CreateIdentity(Identity{ID: "i", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", CredentialRef: "authority://x", Attestations: map[string]bool{"region": true}}); e != nil {
 		t.Fatal(e)
 	}
 	if e := s.StartProgram("i", "x-warm"); e != nil {
@@ -96,7 +96,7 @@ func TestActionTransitionRejectsTerminalAndMissingEvidence(t *testing.T) {
 
 func TestCredentialCadenceSignalAndIdempotency(t *testing.T) {
 	s := fixture(t)
-	if e := s.CreateIdentity(Identity{ID: "bad", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", VaultRef: "token=secret"}); !errors.Is(e, ErrCredentialValue) {
+	if e := s.CreateIdentity(Identity{ID: "bad", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", CredentialRef: "token=secret"}); !errors.Is(e, ErrCredentialValue) {
 		t.Fatal(e)
 	}
 	if e := s.CreateIdentity(Identity{ID: "i", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", LaneGrants: []string{"main"}, Status: "active"}); e != nil {

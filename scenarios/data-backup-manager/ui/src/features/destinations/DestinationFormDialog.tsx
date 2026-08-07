@@ -39,7 +39,7 @@ function derivedRepositoryPath(location: string, name: string): string {
  * Create / edit a destination. On create the operator picks the backend and
  * location; on edit those are locked (the repository already exists) and only
  * the cap and policy are mutable — matching the API's cap-only Update. There is
- * no passphrase field: kopia + vault own secrets.
+ * no passphrase field: kopia + the credential authority own secrets.
  */
 export function DestinationFormDialog({
   open,

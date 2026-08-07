@@ -72,7 +72,7 @@ Single source of truth for everything the lifecycle needs to know.
 | `lifecycle.test` | which test command to invoke |
 | `lifecycle.stop` | how to shut down cleanly |
 | `environment` | static env vars set for every lifecycle step |
-| `dependencies.resources` | shared local resources (kopia, vault, postgres, redis, qdrant, minio) |
+| `dependencies.resources` | shared local resources (kopia, postgres, redis, qdrant, minio) |
 
 The template ships with `dependencies.resources: {}`, but this scenario
 is **not** standalone. Its locked design declares:
@@ -81,7 +81,6 @@ is **not** standalone. Its locked design declares:
 |---|---|---|
 | `kopia` | yes | The wrapped backup engine — one kopia repository per destination; all snapshot/restore/verify/stats/retention go through `resource-kopia`. |
 | credential authority | yes | Source of every destination repository passphrase; encryption-on-by-default depends on it. Fail closed if unavailable — never run unencrypted. |
-| `vault` | yes | Source of S3/backend and source/access secrets. Fail closed if unavailable for a requested backend or source kind. |
 | `postgres` | conditional | `pg_dump` for Postgres-kind targets. |
 | `redis` | conditional | Prefix `SCAN`+`DUMP` for Redis-kind targets (best-effort). |
 | `qdrant` | conditional | Snapshot API for Qdrant-kind targets. |
@@ -97,7 +96,7 @@ in this scenario's SQLite catalog or source tree.
 
 Repository passphrases are held by the credential authority under
 `vrooli/kopia/<repository>` with field `repository-passphrase`; S3 access
-keys remain in the `vault` resource. Both are referenced — never copied —
+keys use the same per-repository credential-authority identity. Both are referenced — never copied —
 by the catalog and are never read from `.vrooli/service.json`, env files,
 or process argv. The `kopia` resource resolves them at call time and passes
 the repository passphrase through `KOPIA_PASSWORD` only to the child engine.
@@ -130,7 +129,7 @@ greenfield with no migrations folder. The `sources` and `health`
 domains hold no durable tables. See
 [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#domain-owned-schema)
 for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)
-for the per-seam table (including the kopia and vault seams once wired).
+for the per-seam table (including the kopia and credential-authority seams).
 
 ## CLI config file
 

@@ -32,8 +32,8 @@ that projection as one JSON document in `channel_manager_state`; it is not a
 collection of per-domain tables. Platform and warming descriptors are loaded from
 versioned JSON files and are deliberately excluded from that runtime record.
 
-**No credential storage.** This scenario reads credentials from the `vault`
-resource at execution time and persists only a vault path. There is no encrypted
+**No credential storage.** This scenario reads credentials from the credential
+authority at execution time and persists only an authority reference. There is no encrypted
 column, no keyring, and no "temporary" cache. A schema change introducing a
 credential-shaped column is a defect, not a new feature — and
 `CHANMGR-P0-002` asserts it in the suite rather than trusting review.
@@ -87,7 +87,7 @@ without introducing in-process relocation, backfill, or compatibility logic.
 | Program observation | None. | Permanent, append-only. | None. |
 | Flag | Operator resolves it. | Until resolved. | Margin and run-length thresholds are unvalidated (`CHANMGR-P0-017`). |
 | Queued action | Cancelled by quarantine or pause. | Cancellation is a status, not a delete. | None. |
-| Credential | n/a | **Never stored here.** Lives in `vault`. | None. |
+| Credential | n/a | **Never stored here.** Lives in the credential authority. | None. |
 
 Nothing in this scenario deletes the record of an action taken as a real account.
 If a retention requirement ever demands it, that is a change to the scenario's
@@ -99,10 +99,10 @@ storage rewrite.
 
 This scenario stores **account handles**, which marketing canon deliberately keeps
 out of `docs/marketing/` and routes here, and it references credentials held in
-`vault`. It also stores audience-composition metrics that are aggregate figures
+the credential authority. It also stores audience-composition metrics that are aggregate figures
 reported by the platform, never individual audience-member data.
 
-Two rules follow. Handles and vault paths must not appear in log output at default
+Two rules follow. Handles and authority references must not appear in log output at default
 verbosity. And no endpoint returns a credential value under any circumstance —
 including a debug or admin path, of which there are none.
 

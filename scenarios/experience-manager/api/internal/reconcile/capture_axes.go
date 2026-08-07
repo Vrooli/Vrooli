@@ -7,7 +7,11 @@ import (
 	"path/filepath"
 )
 
-const defaultCaptureBudget = 12
+// The baseline covers every declared value for the five axes currently
+// transmitted by BAS: four viewports, two color schemes, four locales, two
+// motion preferences, and five interaction states. These are deliberately
+// paired into a bounded covering set rather than a Cartesian product.
+const defaultCaptureBudget = 16
 
 type axisRegistryDocument struct {
 	Axes []struct {
@@ -66,10 +70,11 @@ func CaptureProfilesFromAxes(path string, budget int) ([]CaptureProfile, error) 
 		}
 	}
 
-	// These rows are the vrooli-default baseline matrix. The first row for
-	// every viewport establishes responsive coverage, then orthogonal values
-	// are paired with representative viewports. In particular, desktop-dark
-	// is an explicit row rather than an alias of a mobile profile.
+	// These rows are the baseline matrix. The first row for every viewport
+	// establishes responsive coverage, then every value on each orthogonal
+	// axis is paired with the representative desktop viewport. In particular,
+	// desktop-dark and every declared locale are explicit rows rather than
+	// aliases of a mobile or English profile.
 	rows := []CaptureProfile{}
 	for _, viewport := range values["viewport"] {
 		rows = append(rows, profile(viewport, values["color-scheme"][0], values["locale"][0], values["motion-preference"][0], values["interaction-state"][0]))
@@ -78,14 +83,18 @@ func CaptureProfilesFromAxes(path string, budget int) ([]CaptureProfile, error) 
 	if baselineViewport == "" {
 		baselineViewport = values["viewport"][0]
 	}
-	rows = append(rows,
-		profile(baselineViewport, values["color-scheme"][1], values["locale"][0], values["motion-preference"][0], values["interaction-state"][0]),
-		profile(baselineViewport, values["color-scheme"][0], values["locale"][1], values["motion-preference"][0], values["interaction-state"][0]),
-		profile(baselineViewport, values["color-scheme"][0], values["locale"][0], values["motion-preference"][1], values["interaction-state"][0]),
-	)
+	for _, color := range values["color-scheme"][1:] {
+		rows = append(rows, profile(baselineViewport, color, values["locale"][0], values["motion-preference"][0], values["interaction-state"][0]))
+	}
+	for _, locale := range values["locale"][1:] {
+		rows = append(rows, profile(baselineViewport, values["color-scheme"][0], locale, values["motion-preference"][0], values["interaction-state"][0]))
+	}
+	for _, motion := range values["motion-preference"][1:] {
+		rows = append(rows, profile(baselineViewport, values["color-scheme"][0], values["locale"][0], motion, values["interaction-state"][0]))
+	}
 	for index, interaction := range values["interaction-state"][1:] {
 		rows = append(rows, profile(baselineViewport, values["color-scheme"][0], values["locale"][0], values["motion-preference"][0], interaction))
-		if index+len(values["viewport"])+4 >= budget {
+		if index+len(values["viewport"])+len(values["color-scheme"])+len(values["locale"])+len(values["motion-preference"])+1 >= budget {
 			break
 		}
 	}

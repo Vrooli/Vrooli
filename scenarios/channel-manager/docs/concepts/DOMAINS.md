@@ -55,11 +55,11 @@ audit record.
   account depends on.
 - Primary archetype: CRUD, with a policy edge for lane grants.
 - Owns: platform id, handle, purpose tag (`brand` or `persona-actor`), optional
-  persona reference into `asset-studio`, environment reference, vault credential
+  persona reference into `asset-studio`, environment reference, credential-authority reference
   reference, lane grants, lifecycle status.
-- Does not own: the credential itself (`vault`), what a lane means
+- Does not own: the credential itself (credential authority), what a lane means
   (`content-desk`), or the persona's visual identity (`asset-studio`).
-- Invariant: **no credential value is ever persisted.** An identity carries a vault
+- Invariant: **no credential value is ever persisted.** An identity carries an authority
   path; the value is read at execution time and never stored, logged, or returned.
 - Invariant: purpose tag is load-bearing, not descriptive. It selects the warming
   program, decides whether disclosure rules apply, and changes which flags matter.
@@ -225,7 +225,7 @@ are real enough to affect architecture or requirements.
 | Considered | Verdict | Reason |
 |---|---|---|
 | A separate `warming-executor` domain | **Rejected.** | Execution is cross-cutting: warming steps and posts both need it. It is a seam with pluggable implementations, registered in `SEAMS.md`, not a product capability. |
-| A `credentials` domain | **Rejected.** | `vault` owns credentials. This scenario owns a reference and nothing more; a domain here would invite storing the value. |
+| A `credentials` domain | **Rejected.** | The credential authority owns credentials. This scenario owns a reference and nothing more; a domain here would invite storing the value. |
 | A `campaigns` or `drafts` domain | **Rejected.** | Content, campaigns, claims, and approval belong to `content-desk`. This scenario receives an approved draft and knows nothing about how it was produced. |
 | A `personas` domain | **Rejected.** | Persona identity — appearance, voice, scene — is `asset-studio`. An identity here holds a reference to one. |
 

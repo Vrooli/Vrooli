@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	schema "fall-foliage-explorer/internal/foliage"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -71,6 +72,11 @@ func initDB() error {
 	if err != nil {
 		return fmt.Errorf("database connection failed: %w", err)
 	}
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		return fmt.Errorf("schema initialization failed: %w", err)
+	}
+
 	logInfo("database connection established")
 	return nil
 }

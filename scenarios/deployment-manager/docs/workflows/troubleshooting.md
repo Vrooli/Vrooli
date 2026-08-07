@@ -475,7 +475,7 @@ curl https://your-server.example.com/api/v1/health
    // In manifest
    {
      "telemetry": {
-       "upload_to": "https://your-server/api/v1/telemetry/upload"
+      "upload_url": "https://your-server/api/v1/telemetry/upload"
      }
    }
    ```

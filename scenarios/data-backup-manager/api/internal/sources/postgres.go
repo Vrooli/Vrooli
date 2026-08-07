@@ -11,7 +11,7 @@ import (
 //	resource-postgres dump   --database <name> --output <file>
 //	  Dumps the named database to <file> using pg_dump internally.
 //	  Credentials (host, port, user, password) are self-sourced by the
-//	  resource CLI from its own configuration / vault integration.
+//	  resource CLI from its own credential contract.
 //	  No secrets ever appear in argv.
 //
 //	resource-postgres restore --database <name> --input <file>

@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "elo-swipe",
     "displayName": "Elo Swipe",
@@ -192,13 +195,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store lists, items, ratings, and comparison history",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
+        "purpose": "Store lists, items, ratings, and comparison history"
       },
       "redis": {
         "type": "redis",

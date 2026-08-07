@@ -29,7 +29,13 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 #### Value Proposition
 **Without deployment-manager**: Scenarios are trapped in Tier 1 (local dev). Attempting to package scenarios fails because dependencies aren't portable (e.g., postgres doesn't run on mobile, ollama is too heavy for desktop bundles).
 
-**With deployment-manager**: Any scenario can target any tier. The system analyzes dependencies, scores fitness, suggests swaps (postgres → sqlite for mobile), validates configurations, orchestrates packaging, and monitors deployments — all through an intuitive UI and CLI.
+**With deployment-manager**: A scenario can be evaluated against each target;
+eligibility is determined by its dependency graph, host requirements, policy,
+and available evidence. The system analyzes dependencies, scores fitness,
+suggests swaps (postgres → sqlite for mobile), validates configurations,
+orchestrates packaging, and monitors deployments — all through an intuitive UI
+and CLI. A fitness score or generated package is not, by itself, a release
+approval.
 
 **Business Impact**: Unlocks Vrooli's full vision of scenarios as portable, deployable products that can ship as SaaS, desktop apps, mobile apps, or enterprise appliances.
 

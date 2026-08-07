@@ -173,7 +173,7 @@ func TestManualWorkflowOverHTTP(t *testing.T) {
 		router.ServeHTTP(w, r)
 		return w
 	}
-	identity := map[string]any{"id": "x-1", "platform_id": "x", "purpose": "brand", "environment_ref": "device", "vault_ref": "vault://channel/x", "attestations": map[string]bool{"region": true}}
+	identity := map[string]any{"id": "x-1", "platform_id": "x", "purpose": "brand", "environment_ref": "device", "credential_ref": "authority://channel/x", "attestations": map[string]bool{"region": true}}
 	if got := call(http.MethodPost, "/api/v1/channel-manager/identities", identity).Code; got != http.StatusCreated {
 		t.Fatalf("create=%d", got)
 	}
@@ -204,7 +204,7 @@ func TestIdentityMetadataUpdateAndRetirementOverHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = service.CreateIdentity(core.Identity{ID: "identity", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", VaultRef: "vault://identity", Status: "active"}); err != nil {
+	if err = service.CreateIdentity(core.Identity{ID: "identity", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", CredentialRef: "authority://identity", Status: "active"}); err != nil {
 		t.Fatal(err)
 	}
 	db, err := sql.Open("sqlite", "file:identity-lifecycle?mode=memory&cache=shared")
@@ -225,7 +225,7 @@ func TestIdentityMetadataUpdateAndRetirementOverHTTP(t *testing.T) {
 		return response
 	}
 	update := call(http.MethodPut, "/api/v1/channel-manager/identities/identity", map[string]any{"handle": "@brand", "display_label": "Brand account", "purpose": "brand", "environment_ref": "env", "lifecycle": "active", "d009_acceptance_ref": "D-009/test", "automation_mode": "operator-gated"})
-	if update.Code != http.StatusOK || service.Identities["identity"].DisplayLabel != "Brand account" || service.Identities["identity"].VaultRef != "vault://identity" {
+	if update.Code != http.StatusOK || service.Identities["identity"].DisplayLabel != "Brand account" || service.Identities["identity"].CredentialRef != "authority://identity" {
 		t.Fatalf("update=%d identity=%+v", update.Code, service.Identities["identity"])
 	}
 	retire := call(http.MethodPost, "/api/v1/channel-manager/identities/identity/retire", map[string]any{})
@@ -234,12 +234,12 @@ func TestIdentityMetadataUpdateAndRetirementOverHTTP(t *testing.T) {
 	}
 }
 
-func TestConnectOverviewDoesNotExposeVaultReference(t *testing.T) {
+func TestConnectOverviewDoesNotExposeCredentialReference(t *testing.T) {
 	service, err := core.New([]core.Platform{{ID: "x", DailyCeiling: 2, ActionKinds: []string{"engage"}, Formats: testFormats()}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = service.CreateIdentity(core.Identity{ID: "identity", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", VaultRef: "vault://private/path", Status: "active", DisplayLabel: "Safe label"}); err != nil {
+	if err = service.CreateIdentity(core.Identity{ID: "identity", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", CredentialRef: "authority://private/path", Status: "active", DisplayLabel: "Safe label"}); err != nil {
 		t.Fatal(err)
 	}
 	db, err := sql.Open("sqlite", "file:identity-overview?mode=memory&cache=shared")
@@ -258,17 +258,17 @@ func TestConnectOverviewDoesNotExposeVaultReference(t *testing.T) {
 	if err != nil || len(response.Msg.Identities) != 1 {
 		t.Fatalf("overview=%v err=%v", response, err)
 	}
-	if got := response.Msg.Identities[0]; got.VaultRef != "" || got.DisplayLabel != "Safe label" {
+	if got := response.Msg.Identities[0]; got.CredentialRef != "" || got.DisplayLabel != "Safe label" {
 		t.Fatalf("identity=%+v", got)
 	}
 }
 
-func TestRESTOverviewDoesNotExposeVaultReference(t *testing.T) {
+func TestRESTOverviewDoesNotExposeCredentialReference(t *testing.T) {
 	service, err := core.New([]core.Platform{{ID: "x", DailyCeiling: 2, ActionKinds: []string{"engage"}, Formats: testFormats()}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = service.CreateIdentity(core.Identity{ID: "identity", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", VaultRef: "vault://private/path", Status: "active"}); err != nil {
+	if err = service.CreateIdentity(core.Identity{ID: "identity", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", CredentialRef: "authority://private/path", Status: "active"}); err != nil {
 		t.Fatal(err)
 	}
 	db, err := sql.Open("sqlite", "file:identity-rest-overview?mode=memory&cache=shared")
@@ -283,7 +283,7 @@ func TestRESTOverviewDoesNotExposeVaultReference(t *testing.T) {
 	Module(service, core.NewStore(db)).Mount(router)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/channel-manager/overview", nil))
-	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "vault://private/path") {
+	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "authority://private/path") {
 		t.Fatalf("overview=%d %s", response.Code, response.Body.String())
 	}
 }

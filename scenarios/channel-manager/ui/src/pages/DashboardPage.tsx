@@ -24,7 +24,7 @@ export function DashboardPage() {
   const [identityGoals, setIdentityGoals] = useState("");
   const [identityNotes, setIdentityNotes] = useState("");
   const [identityOwnerRef, setIdentityOwnerRef] = useState("");
-  const [identityVaultRef, setIdentityVaultRef] = useState("");
+  const [identityCredentialRef, setIdentityCredentialRef] = useState("");
   const [d009AcceptanceRef, setD009AcceptanceRef] = useState("");
   const [action, setAction] = useState<Action | null>(null);
   const [message, setMessage] = useState("");
@@ -71,7 +71,7 @@ export function DashboardPage() {
 	const selectedPreviewType = configuredPlatforms.find((platform) => platform.id === selectedPreviewPlatform)?.post_types?.[0];
   const create = async () => {
     try {
-      await createIdentity({ id: identityID, platform_id: selectedIdentityPlatform, handle: identityHandle, display_label: identityLabel, goals: identityGoals.split("\n").map((goal) => goal.trim()).filter(Boolean), notes: identityNotes, owner_ref: identityOwnerRef, purpose: "brand", environment_ref: "operator-attested-environment", vault_ref: identityVaultRef, status: "draft", lifecycle: "draft", d009_acceptance_ref: d009AcceptanceRef, automation_mode: d009AcceptanceRef ? "operator-gated" : "manual", attestations: { region_locked: true, unique_fingerprint: true } });
+      await createIdentity({ id: identityID, platform_id: selectedIdentityPlatform, handle: identityHandle, display_label: identityLabel, goals: identityGoals.split("\n").map((goal) => goal.trim()).filter(Boolean), notes: identityNotes, owner_ref: identityOwnerRef, purpose: "brand", environment_ref: "operator-attested-environment", credential_ref: identityCredentialRef, status: "draft", lifecycle: "draft", d009_acceptance_ref: d009AcceptanceRef, automation_mode: d009AcceptanceRef ? "operator-gated" : "manual", attestations: { region_locked: true, unique_fingerprint: true } });
       const program = Object.values(data?.programs ?? {}).find((candidate) => candidate.platform_id === selectedIdentityPlatform);
       if (program) await startProgram(identityID, program.id);
       setMessage(program ? "Identity created and warming program started. Complete the queued platform actions manually." : "Identity created. Select a platform warming program before scheduling work.");
@@ -139,7 +139,7 @@ export function DashboardPage() {
         <Card>
           <CardHeader><CardTitle>Identity roster</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p><strong>Before activation:</strong> create the account outside Vrooli, place its secret in Vault, then record only the Vault reference and attest the clean environment.</p>
+            <p><strong>Before activation:</strong> create the account outside Vrooli, place its secret in the credential authority, then record only the authority reference and attest the clean environment.</p>
             <p><strong>Warming:</strong> start the conservative program only after each precondition is checked. Its numbers are speculative operator practice, not a platform promise.</p>
             <label className="block font-medium" htmlFor="identity-id">New identity ID</label>
             <Input id="identity-id" data-testid={selectors.operator.identityInput} value={identityID} onChange={(event) => setIdentityID(event.target.value)} placeholder="x-brand-01" />
@@ -150,7 +150,7 @@ export function DashboardPage() {
             <Textarea aria-label="Identity goals" value={identityGoals} onChange={(event) => setIdentityGoals(event.target.value)} placeholder="One goal per line" />
             <Textarea aria-label="Operator notes" value={identityNotes} onChange={(event) => setIdentityNotes(event.target.value)} placeholder="Private operator notes" />
             <Input aria-label="Identity owner reference" value={identityOwnerRef} onChange={(event) => setIdentityOwnerRef(event.target.value)} placeholder="Owner reference" />
-            <Input aria-label="Vault credential reference" value={identityVaultRef} onChange={(event) => setIdentityVaultRef(event.target.value)} placeholder="vault://path/reference" />
+            <Input aria-label="Credential authority reference" value={identityCredentialRef} onChange={(event) => setIdentityCredentialRef(event.target.value)} placeholder="vrooli/channel-manager/identity:credential" />
             <Input aria-label="D-009 acceptance reference" value={d009AcceptanceRef} onChange={(event) => setD009AcceptanceRef(event.target.value)} placeholder="D-009 acceptance reference (needed for BAS)" />
 			<Button data-testid={selectors.operator.createButton} onClick={create} disabled={!identityID || !selectedIdentityPlatform}>Create identity and start warming</Button>
 			<Button variant="secondary" onClick={() => void saveIdentityMetadata()} disabled={!identityID}>Save identity metadata</Button>

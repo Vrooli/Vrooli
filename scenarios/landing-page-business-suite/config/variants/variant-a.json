@@ -107,7 +107,7 @@
           },
           {
             "question": "How do we swap lesson downloads?",
-            "answer": "Upload installers/new labs, then update the download assets table or the CLI helper in scripts/manage.sh."
+            "answer": "Upload installers/new labs, then update the download assets table or the corresponding Vrooli CLI workflow."
           }
         ]
       }

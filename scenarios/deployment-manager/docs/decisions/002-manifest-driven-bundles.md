@@ -31,13 +31,13 @@ Adopt a **manifest-driven architecture** where a single `bundle.json` file decla
   "target": "desktop",
   "app": { "name": "...", "version": "...", "description": "..." },
   "ipc": { "mode": "loopback-http", "host": "127.0.0.1", "port": 47710 },
-  "telemetry": { "file": "...", "upload_to": "..." },
+  "telemetry": { "file": "...", "upload_url": "..." },
   "ports": { "default_range": { "min": 47000, "max": 47999 }, "reserved": [] },
   "swaps": [{ "original": "postgres", "replacement": "sqlite", "reason": "..." }],
   "secrets": [{ "id": "...", "class": "...", "target": { "type": "env", "name": "..." } }],
   "services": [{
     "id": "...",
-    "type": "ui-bundle|api-binary|resource",
+    "type": "ui-bundle|api-binary|worker|resource|embedded-storage",
     "binaries": { "darwin-arm64": { "path": "..." }, ... },
     "env": { ... },
     "ports": { "requested": [{ "name": "http", "range": { "min": ..., "max": ... } }] },
@@ -108,4 +108,5 @@ Use YAML for more human-readable manifests.
 
 - [Example Manifests](../examples/manifests/desktop-happy.json)
 - [Bundle API Documentation](../api/bundles.md)
-- [Bundled Runtime Plan](/docs/plans/bundled-desktop-runtime-plan.md)
+- [Desktop bundle manifest schema](../guides/bundle-manifest-schema.md)
+- [Desktop runtime](../../../scenario-to-desktop/runtime/README.md)

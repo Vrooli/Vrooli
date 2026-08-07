@@ -185,7 +185,7 @@ To add or rename a state/event:
 |---|---|---|
 | Browser execution dispatch | Deferred to `CHANMGR-P1-001`; the CLI contract is now verified, but no account-backed dispatch is authorized in P0. | Model `session-profile create → workflow execute → execution terminal result` as a sub-flow when the optional executor is implemented. The exact parameter shape is recorded in `docs/internal/SEAMS.md`. |
 | Portfolio scheduling | Deferred to `CHANMGR-P1-002`. Cross-identity separation is a constraint over many queues rather than a lifecycle, so it may never need a state machine. | Revisit if shifting a post for separation acquires its own states (proposed, shifted, refused). |
-| Credential rotation | Not modelled. Rotation happens in `vault`; this scenario holds a path and reads through it. | Only becomes a flow here if an execution failure must trigger a rotation request, which nothing currently requires. |
+| Credential rotation | Not modelled. Rotation happens in the credential authority; this scenario holds a reference and reads through it. | Only becomes a flow here if an execution failure must trigger a rotation request, which nothing currently requires. |
 
 ## Flow Diagram — action scheduling and execution
 

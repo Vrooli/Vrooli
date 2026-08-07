@@ -169,7 +169,9 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/bundles/assemble" \
 
 ## POST /bundles/export
 
-Export a production-ready bundle manifest with checksum.
+Export a release-candidate bundle manifest with checksum. The checksum proves
+manifest integrity; release approval still requires target eligibility and
+native evidence.
 
 **Request:**
 

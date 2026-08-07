@@ -81,11 +81,11 @@ func TestWiredAxesOnlyReportsTransmittedCaptureFields(t *testing.T) {
 }
 
 func TestCaptureProfilesFromAxesIncludesDesktopDarkWithinBudget(t *testing.T) {
-	profiles, err := CaptureProfilesFromAxes(filepath.Join(repoRootForSupportTest(t), "scenarios", "experience-manager", "capabilities", "axes.json"), 12)
+	profiles, err := CaptureProfilesFromAxes(filepath.Join(repoRootForSupportTest(t), "scenarios", "experience-manager", "capabilities", "axes.json"), 16)
 	if err != nil {
 		t.Fatalf("CaptureProfilesFromAxes: %v", err)
 	}
-	if len(profiles) > 12 {
+	if len(profiles) > 16 {
 		t.Fatalf("profiles = %d, exceeds capture budget", len(profiles))
 	}
 	foundDesktopDark := false
@@ -97,6 +97,42 @@ func TestCaptureProfilesFromAxesIncludesDesktopDarkWithinBudget(t *testing.T) {
 	if !foundDesktopDark {
 		t.Fatalf("profiles = %+v, want a desktop-dark capture", profiles)
 	}
+}
+
+func TestCaptureProfilesFromAxesCoversEveryTransmittedAxisValue(t *testing.T) {
+	profiles, err := CaptureProfilesFromAxes(filepath.Join(repoRootForSupportTest(t), "scenarios", "experience-manager", "capabilities", "axes.json"), 16)
+	if err != nil {
+		t.Fatalf("CaptureProfilesFromAxes: %v", err)
+	}
+	seen := map[string]map[string]bool{}
+	for _, profile := range profiles {
+		seen["viewport"] = addSeen(seen["viewport"], profile.ID)
+		seen["color-scheme"] = addSeen(seen["color-scheme"], profile.ColorScheme)
+		seen["locale"] = addSeen(seen["locale"], profile.Locale)
+		seen["motion-preference"] = addSeen(seen["motion-preference"], profile.MotionPreference)
+		seen["interaction-state"] = addSeen(seen["interaction-state"], profile.InteractionState)
+	}
+	for axis, values := range map[string][]string{
+		"viewport":          {"mobile", "tablet", "desktop", "wide"},
+		"color-scheme":      {"light", "dark"},
+		"locale":            {"en", "ar", "ja", "de"},
+		"motion-preference": {"no-preference", "reduce"},
+		"interaction-state": {"rest", "hover", "focus-visible", "pressed", "disabled"},
+	} {
+		for _, value := range values {
+			if !seen[axis][value] {
+				t.Errorf("axis %s value %q is not represented in profiles", axis, value)
+			}
+		}
+	}
+}
+
+func addSeen(values map[string]bool, value string) map[string]bool {
+	if values == nil {
+		values = map[string]bool{}
+	}
+	values[value] = true
+	return values
 }
 
 func repoRootForSupportTest(t *testing.T) string {

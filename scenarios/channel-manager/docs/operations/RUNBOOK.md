@@ -32,8 +32,9 @@ naming, ports, health checks, and logs.
 
 At P0 every action is executed by hand, so the operator *is* the executor. This is
 the core procedure, not a fallback. Create the identity first with its public
-metadata, purpose, goals, notes, lifecycle, and environment reference; a Vault
-path is optional for manual work and is never a credential value:
+metadata, purpose, goals, notes, lifecycle, and environment reference; a
+credential-authority reference is optional for manual work and is never a
+credential value:
 
 ```bash
 channel-manager channel create --id "<identity>" --platform "<platform>" --purpose "<purpose>" --environment "<environment>" --handle "<public-handle>" --label "<operator-label>" --goals "<goal-a,goal-b>" --notes "<operator-note>"
@@ -60,15 +61,15 @@ item below has been completed by the accountable operator:
   the operator and state the accepted platform-terms exposure; a generic approval
   is not enough.
 - Use a dedicated sanctioned test identity, never a production identity. Confirm
-  its environment attestation and its Vault reference without printing a credential.
+  its environment attestation and its credential-authority reference without printing a credential.
 - Create one BAS session profile for that identity only and choose one declared
   profile key from `.vrooli/browser-automation-studio/consumer-declaration.json`.
   Record the opaque BAS profile ID and an operator-reviewed persisted BAS workflow
   UUID only in Channel Manager's runtime assignment. Do not reuse either reference
   for another identity. The declaration is scenario-owned configuration, while BAS
   keeps the protected browser state in its own encrypted store.
-- Verify that the operator has the scoped Vault access required by the approved BAS
-  workflow. Channel Manager stores only the Vault path; credentials, cookies, and
+- Verify that the operator has the scoped credential-authority access required by the approved BAS
+  workflow. Channel Manager stores only the authority reference; credentials, cookies, and
   session contents must not enter its database, API responses, or logs.
 - Queue one non-destructive, platform-approved test action through the normal
   Channel Manager release path. Capture its action ID, BAS execution ID, timestamps,
@@ -76,7 +77,7 @@ item below has been completed by the accountable operator:
   execution-review endpoint returns only BAS status and stable artifact identifiers;
   it is never evidence that the platform action completed.
 
-If dispatch, the workflow, or the Vault read fails, leave the action uncompleted and
+If dispatch, the workflow, or the authority read fails, leave the action uncompleted and
 use the permanent manual executor. If a live action succeeds unexpectedly or its
 account/environment becomes suspect, pause the identity immediately; quarantine it
 when the warming gate requires that terminal outcome. Record the incident and the
@@ -98,7 +99,7 @@ evidence is updated truthfully.
 | An action cannot be queued | Read the refusal reason — it names phase, ceiling, or eligibility. | Refusals are correct behaviour, not errors. A phase-forbidden action means the program is not ready for it. | If a *valid* action is refused, the descriptor or the ceiling is wrong. |
 | Identity flagged and paused | `channel-manager channel overview` and `channel-manager channel timeline "<identity>"` for the evidence that raised it | **Operator decision. Never auto-resume.** Judge the measurement against the baseline; resolve or keep paused. | If flags fire constantly on healthy accounts, the decay thresholds are too tight — record it against the platform descriptor. |
 | Identity quarantined | The gate measurement that failed | **Do not resume.** Quarantine means abandon and rebuild with a tighter environment (D-007). | Repeated quarantines on one environment are evidence the attestation was wrong. |
-| Vault unreachable | `resource-vault` status | Browser and API execution fail terminally; manual execution is unaffected. | No action is ever marked complete on a credential failure. |
+| Credential authority unreachable | Control-plane credential authority health | Browser and API execution fail terminally; manual execution is unaffected. | No action is ever marked complete on a credential failure. |
 | Descriptor edit not taking effect | Confirm the lifecycle was restarted against the intended immutable descriptor directory. | Stop, inspect the descriptor JSON, and restart through `make restart`; descriptors are read and validated at boot. | A descriptor validation failure blocks startup loudly; read the error. |
 
 ## Backup / Restore
@@ -111,7 +112,7 @@ is "almost none of them."
 | SQLite database | Include the scenario data dir in the machine's normal backup. | Restore the file with the scenario stopped. | **Irreplaceable.** Action records, release records, metric observations, and program observations are the only record of what was done as real accounts, and no second copy exists anywhere (`DATA.md` § Rebuild contract). |
 | Descriptors under `data/` | Versioned in git. | Restore the files, then restart the lifecycle so boot-time validation reloads them. | Fully recoverable. |
 | Baselines | None needed. | Recomputed from observations. | Rebuildable cache. |
-| Credentials | **Not here.** `vault` owns them and has its own backup story. | n/a | Backing up this database never backs up a credential — by design. |
+| Credentials | **Not here.** The credential authority owns them and has its own recovery-bundle story. | n/a | Backing up this database never backs up a credential — by design. |
 
 A restored database that has drifted behind the live accounts is worse than no
 restore: the queue will reschedule actions that were already performed, and cadence
