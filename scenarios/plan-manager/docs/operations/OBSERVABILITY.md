@@ -39,7 +39,7 @@ Use this document to answer:
 - Secondary metrics (intended): counts of stale plans, validation
   pass/fail, and candidate-finding volume.
 - Run attribution: where an agent-manager run id is present
-  (`VROOLI_AGENT_MANAGER_RUN_ID`), velocity can be attributed to that run
+  (the verified identity-token run id), velocity can be attributed to that run
   via the run-id attribution contract.
 - This scenario is pre-implementation, so exact metric names and emission
   cadence are deferred until the first vertical slice exists.

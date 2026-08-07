@@ -149,6 +149,14 @@ func (h *connectHandler) RepairSourceScope(ctx context.Context, req *connect.Req
 	return connect.NewResponse(&executionv1.RepairSourceScopeResponse{Execution: executionToProto(e), Context: phaseContextToProto(pctx), Step: guidedStepToProto(step)}), nil
 }
 
+func (h *connectHandler) ExtendBoundary(ctx context.Context, req *connect.Request[executionv1.ExtendBoundaryRequest]) (*connect.Response[executionv1.ExtendBoundaryResponse], error) {
+	e, pctx, step, added, err := h.deps.Service.ExtendBoundary(ctx, req.Msg.GetExecutionId(), internalexecution.BoundaryExtensionRequest{Paths: req.Msg.GetPath(), Reason: req.Msg.GetReason(), Author: req.Msg.GetAuthor()})
+	if err != nil {
+		return nil, internalexecution.ToConnectError(err)
+	}
+	return connect.NewResponse(&executionv1.ExtendBoundaryResponse{Execution: executionToProto(e), Context: phaseContextToProto(pctx), Step: guidedStepToProto(step), AddedAllow: append([]string(nil), added...)}), nil
+}
+
 func (h *connectHandler) GetNext(ctx context.Context, req *connect.Request[executionv1.GetNextRequest]) (*connect.Response[executionv1.GetNextResponse], error) {
 	pctx, complete, step, err := h.deps.Service.GetNext(ctx, req.Msg.GetExecutionId())
 	if err != nil {

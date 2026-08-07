@@ -20,7 +20,7 @@ type Service interface {
 	ResolveReferences(ctx context.Context, planID, phaseID string) (ReferenceReport, error)
 	ComputeStaleness(ctx context.Context, planID, phaseID string) (ReferenceReport, error)
 	DeriveBaselineScope(ctx context.Context, planID, phaseID string) (BaselineScope, error)
-	SyncBaseline(ctx context.Context, planID string) (BaselineCapture, error)
+	SyncBaseline(ctx context.Context, planID, baselineName string) (BaselineCapture, error)
 	StartValidation(ctx context.Context, planID, phaseID, idempotencyKey string) (ValidationOperation, bool, error)
 	StartValidationTicket(ctx context.Context, req ValidationTicketRequest) (ValidationOperation, bool, error)
 	SyncValidation(ctx context.Context, operationID string) (ValidationOperation, error)
@@ -277,12 +277,19 @@ func (s *service) DeriveBaselineScope(ctx context.Context, planID, phaseID strin
 
 // SyncBaseline reads an already-started collection exactly once. The caller is
 // responsible for running the GCT capture and native wait actions first.
-func (s *service) SyncBaseline(ctx context.Context, planID string) (BaselineCapture, error) {
+func (s *service) SyncBaseline(ctx context.Context, planID, executionBaselineName string) (BaselineCapture, error) {
 	p, err := s.plans.GetPlan(ctx, planID)
 	if err != nil {
 		return BaselineCapture{}, err
 	}
 	baselineSet := p.BaselineSet
+	// A legacy execution may explicitly adopt a trustworthy recaptured
+	// collection whose ticket differs from the authored plan ticket. The
+	// execution owns that replacement; keep the plan as the source of scope
+	// defaults, but read the collection named by the execution.
+	if strings.TrimSpace(executionBaselineName) != "" {
+		baselineSet.Name = strings.TrimSpace(executionBaselineName)
+	}
 	base := BaselineCapture{BaselineName: baselineSet.Name, ScenarioTargets: append([]string(nil), baselineSet.ScenarioTargets...), RepoPaths: append([]string(nil), baselineSet.RepoPaths...)}
 	if strings.TrimSpace(baselineSet.Name) == "" {
 		base.Detail = "legacy plan has no collection baseline ticket"
@@ -349,19 +356,16 @@ func (s *service) StartValidationTicket(ctx context.Context, request ValidationT
 	if err != nil {
 		return ValidationOperation{}, false, err
 	}
-	// Older rendered plans have no authored collection baseline. When the caller
-	// binds validation to an execution that adopted a completed collection, that
-	// immutable execution checkpoint is authoritative for this ticket. This
-	// preserves the historical plan text while preventing a legacy ticket from
-	// falling back to direct per-scenario commands.
-	if strings.TrimSpace(request.ExecutionID) != "" && strings.TrimSpace(p.BaselineSet.Name) == "" && s.inventories != nil {
+	// When validation is bound to an execution, its immutable checkpoint is
+	// authoritative even if the authored plan still names an older collection.
+	// Recapture adoption deliberately preserves the plan text, so retaining the
+	// plan ticket here would dispatch validation against the superseded baseline.
+	if strings.TrimSpace(request.ExecutionID) != "" && s.inventories != nil {
 		if inventory, ok, inventoryErr := s.inventories.LatestBaselineInventory(ctx, p.ID); inventoryErr != nil {
 			return ValidationOperation{}, false, fmt.Errorf("load execution baseline inventory: %w", inventoryErr)
 		} else if ok && inventory.Complete && strings.TrimSpace(inventory.Name) != "" && len(inventory.ScenarioTargets) > 0 {
-			p.BaselineSet = planmodel.BaselineSetIntent{
-				Name:            inventory.Name,
-				ScenarioTargets: uniqueSortedStrings(inventory.ScenarioTargets),
-			}
+			p.BaselineSet.Name = inventory.Name
+			p.BaselineSet.ScenarioTargets = uniqueSortedStrings(inventory.ScenarioTargets)
 		}
 	}
 	refs, err := s.scopedReferences(p, phaseID)

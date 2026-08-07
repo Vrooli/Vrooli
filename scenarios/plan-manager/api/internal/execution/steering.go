@@ -9,19 +9,30 @@ import (
 )
 
 // boundaryReminders renders just-in-time change-boundary reminders for the phase
-// context step: the allowed paths, denied paths, which affected scenarios have a
+// context step: the planned paths, denied paths, which affected scenarios have a
 // baseline oracle, and where validation coverage is only informational. Returns
 // nil when the plan carries no boundary.
+//
+// The allow and deny halves are deliberately NOT symmetric in force.
+// acceptance_allow is the plan's authored blast-radius ESTIMATE — it drives
+// posture, anchor, and validation scope, but an estimate made before the work
+// started cannot be a permission ceiling. An agent that reads it as one writes a
+// workaround rather than the clean change, which is a worse outcome than a
+// recorded, validated scope extension. acceptance_deny stays hard: it is the
+// authored guardrail and the only half that expresses a real prohibition.
 func boundaryReminders(b planmodel.ChangeBoundary) []string {
 	if b.IsZero() {
 		return nil
 	}
 	var out []string
 	if len(b.AcceptanceAllow) > 0 {
-		out = append(out, "Change boundary — only edit within: "+strings.Join(b.AcceptanceAllow, ", "))
+		out = append(out,
+			"Planned change boundary (expected edits): "+strings.Join(b.AcceptanceAllow, ", "),
+			"That boundary is the plan's blast-radius estimate, not a permission ceiling. If the phase's intent needs an edit outside it — a shared type, a proto, the API shape a handler depends on — make the edit properly. Do NOT write a workaround to stay inside the boundary.",
+			"Before editing outside the boundary, run `exec boundary-extend <execution> --paths <glob> --reason <why>` so validation scope follows the edit, then record the choice with `log decision-add`. An unextended outside edit is real work that no oracle covers.")
 	}
 	if len(b.AcceptanceDeny) > 0 {
-		out = append(out, "Forbidden paths (do NOT edit): "+strings.Join(b.AcceptanceDeny, ", "))
+		out = append(out, "Forbidden paths (do NOT edit, and boundary-extend will refuse them): "+strings.Join(b.AcceptanceDeny, ", "))
 	}
 	if scenarios := b.AffectedScenarios(); len(scenarios) > 0 {
 		out = append(out, "Scenario baseline oracle covers: "+strings.Join(scenarios, ", "))
@@ -34,6 +45,14 @@ func boundaryReminders(b planmodel.ChangeBoundary) []string {
 	}
 	return out
 }
+
+// waitDiscipline is the shared disposition line for every producer-owned step
+// that routinely runs for tens of minutes (baseline capture, suite validation).
+// Without it agents read a slow run as a stalled one and abandon the phase, or
+// they burn tokens re-checking every few seconds. Both failure modes are common
+// enough to be worth restating at each long-wait seam rather than relying on the
+// agent having read docs/TESTING.md.
+const waitDiscipline = "Baseline capture and suite validation routinely run for tens of minutes. Block ONCE on the producer's own wait verb and let it return. Do not poll in a loop, and do not re-run the command while a run is in flight. A run still in progress is NOT a blocker: it is not a reason to stop, re-scope the phase, or report partial completion."
 
 func stepForStarted(e Execution) GuidedStep {
 	return GuidedStep{
@@ -213,7 +232,7 @@ func baselineRequiredStep(state BaselineSetState) GuidedStep {
 	return GuidedStep{
 		StepKind: "baseline_required", Title: "Baseline Required",
 		Summary:      "Git Control Tower must capture the immutable before-state before normal phase work can begin.",
-		Instructions: []string{"Run the producer-owned capture command. Use Git Control Tower's own printed one-shot wait/recovery command; do not wait through Plan Manager. Then synchronize the durable collection result here."},
+		Instructions: []string{"Run the producer-owned capture command. Use Git Control Tower's own printed one-shot wait/recovery command; do not wait through Plan Manager. Then synchronize the durable collection result here.", waitDiscipline},
 		NextActions: []NextAction{
 			{ID: "baseline-capture", Kind: NextActionRecommended, Label: "Start baseline capture", Reason: state.Detail, Argv: state.CaptureArgv},
 			{ID: "baseline-wait", Kind: NextActionRecovery, Label: "Wait for baseline in Git Control Tower", Reason: "Only Git Control Tower owns wait, timeout, recovery, and parking semantics.", Argv: state.WaitArgv},
@@ -265,7 +284,7 @@ func phasePrimaryAction(executionID, planID, phaseID string, ctx PhaseContext) N
 		ID:     "start-validation-ticket",
 		Kind:   NextActionRecommended,
 		Label:  "Create phase validation ticket",
-		Reason: "Create the producer-owned validation ticket, run its rendered Git Control Tower action and native wait, then synchronize terminal evidence before marking the phase done.",
+		Reason: "Create the producer-owned validation ticket, run its rendered Git Control Tower action and native wait, then synchronize terminal evidence before marking the phase done. " + waitDiscipline,
 		Argv:   validationTicketArgv(executionID, planID, phaseID, ctx.ScopeGeneration, ctx.ValidationMembers),
 		BlockedBy: []string{
 			validationBlockerReason(ctx.LastValidation, ctx.HasValidation, ctx.Staleness),
@@ -290,7 +309,7 @@ func stepForTransition(e Execution) GuidedStep {
 			StepKind:     "final_dod_required",
 			Title:        "Final Definition of Done Required",
 			Summary:      "All phases are terminal, but normal completion requires a fresh full-inventory producer validation.",
-			Instructions: []string{"Create the final validation ticket without member selectors, run its producer-owned action and native wait, synchronize it, then complete the execution."},
+			Instructions: []string{"Create the final validation ticket without member selectors, run its producer-owned action and native wait, synchronize it, then complete the execution.", waitDiscipline},
 			NextActions: []NextAction{
 				{
 					ID:     "start-final-dod-ticket",

@@ -160,6 +160,41 @@ and are re-estimated by GCT before Plan Manager restores the normal producer
 capture/wait/sync sequence. Source evidence remains informational—this command
 does not change behavioral collection members or Test Genie coverage.
 
+### Extending the change boundary mid-execution
+
+`plan-manager exec boundary-extend <execution> --paths '<glob>' --reason '<why>'`
+appends allow globs to the plan's `change_boundary.acceptance_allow` while the
+execution is active.
+
+It exists because `acceptance_allow` is a blast-radius **estimate** authored
+before the work started, and its inaccuracy is only discoverable during
+execution — which is exactly when `ApplyCandidate` refuses to revise the plan
+(it requires a terminal execution). Without this lane, an executing agent that
+needs an edit outside the boundary to implement a phase cleanly is left with
+only worse options: write a workaround that stays inside a stale estimate, or
+stop and report a blocker.
+
+The lane is deliberately narrow:
+
+- **Append-only.** An existing allow glob is never removed, so no in-flight edit
+  becomes retroactively illegal.
+- **Single-field.** Phases, acceptance, and validation strategy stay immutable
+  during execution; changing those still requires a candidate revision.
+- **`acceptance_deny` still refuses.** Deny is the authored prohibition, not an
+  estimate. `boundary-extend` rejects a denied glob, a path under a denied
+  subtree, and a wildcard that would swallow one. A change that genuinely needs
+  a denied path is an operator decision, not an execution one.
+- **It costs a re-validation.** The current phase's validation generation is
+  advanced, so evidence gathered under the narrower boundary cannot certify work
+  done under the wider one.
+
+Every extension is recorded as an append-only `BoundaryExtension` on the
+execution (added/old/new allow lists, phase, author, reason). A `--reason` is
+mandatory. Pair it with `log decision-add` for the design rationale.
+
+Disposition guidance for when to use this — versus working around the friction
+or stopping — lives in `prompt-manager skill read implementation-plan-execution`.
+
 ## `author` — the guided composer wizard
 
 `author status <session>` is an alias of `author preview`. Global flags

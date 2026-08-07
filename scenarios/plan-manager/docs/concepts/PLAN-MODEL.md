@@ -336,6 +336,24 @@ regression-anchor intent, validation scope, and execution reminders from.
 A phase may carry its own optional `change_boundary` that **narrows** the plan
 boundary for phase-specific checks; it can never widen the plan's blast radius.
 
+**allow is an estimate; deny is a prohibition.** These halves are not
+symmetric in force, and execution treats them differently.
+`acceptance_allow` is authored before the work starts, so it is a prediction of
+reach that the work itself can prove wrong; `ExecutionService.ExtendBoundary`
+(`exec boundary-extend`) appends to it mid-run so validation scope follows a
+needed edit instead of the agent writing a workaround to stay inside a stale
+estimate. `acceptance_deny` is an authored prohibition: it is re-checked on
+every extension, and a denied glob, a path under a denied subtree, and a
+wildcard that would swallow a denied subtree are all refused. Reaching a denied
+path is an operator decision, never an execution one.
+
+Extension is append-only, single-field, and advances the current phase's
+validation generation (so pre-widening evidence cannot certify post-widening
+work). Each one is recorded as a `BoundaryExtension` on the execution with the
+added/old/new allow lists and a mandatory reason. This is the ONLY plan mutation
+permitted while an execution is non-terminal — everything else still requires a
+candidate revision against a terminal execution.
+
 **Substrate honesty.** `git-control-tower` baselines and `test-genie` suites are
 scenario-keyed today. Plan Manager consumes that limitation honestly: it derives a
 scenario baseline **oracle** for each affected scenario and an **informational**
@@ -744,6 +762,12 @@ contract change, not an incidental edit.
    from the allow globs; `acceptance_deny` is a guardrail that never widens
    validation scope; finalized boundary/anchor data may not contain unresolved
    `<placeholder>` tokens.
+6a. **Boundary extension is append-only and deny-respecting.** `ExtendBoundary`
+   is the only plan mutation allowed while an execution is non-terminal. It may
+   only add allow globs, never remove one and never touch another field; it
+   refuses any glob `acceptance_deny` covers; and it advances the current
+   phase's validation generation so pre-widening evidence cannot certify
+   post-widening work.
 7. **Posture is aggregate and conservative.** It is derived from every scenario
    the boundary and references touch — if any affected scenario is pilot/
    production/sunset the plan is Brownfield. No code path uses "first scenario

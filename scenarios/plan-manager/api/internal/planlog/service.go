@@ -3,19 +3,15 @@ package planlog
 import (
 	"context"
 	"errors"
-	"os"
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/api-core/provenance"
 	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
 
 	"github.com/google/uuid"
 )
-
-// runIDEnv is the orchestration-layer attribution key. Add* falls back to it
-// when the caller does not supply a run id.
-const runIDEnv = "VROOLI_AGENT_MANAGER_RUN_ID"
 
 // recentSummaryLimit is how many entries a compact LogSummary surfaces.
 const recentSummaryLimit = 5
@@ -118,10 +114,7 @@ func (s *service) addEntry(ctx context.Context, typ EntryType, in AddInputs) (En
 	if err != nil {
 		return Entry{}, false, GuidedStep{}, err
 	}
-	runID := strings.TrimSpace(in.RunID)
-	if runID == "" {
-		runID = strings.TrimSpace(os.Getenv(runIDEnv))
-	}
+	_, _, _, verificationStatus, runID, _ := provenance.FromContext(ctx).WriteFields()
 	key := strings.TrimSpace(in.IdempotencyKey)
 
 	// Idempotency + attribution dedup: a retry returns the existing entry rather
@@ -134,23 +127,24 @@ func (s *service) addEntry(ctx context.Context, typ EntryType, in AddInputs) (En
 
 	now := s.now()
 	e := Entry{
-		ID:               uuid.NewString(),
-		Type:             typ,
-		PlanID:           scope.PlanID,
-		ExecutionID:      scope.ExecutionID,
-		PhaseID:          phaseID,
-		Title:            title,
-		Detail:           strings.TrimSpace(in.Detail),
-		Severity:         in.Severity,
-		SyncStatus:       planmodel.DefaultSyncStatusForType(typ),
-		SourceCommand:    strings.TrimSpace(in.SourceCommand),
-		Evidence:         trimmedNonEmpty(in.Evidence),
-		AttributionRunID: runID,
-		IdempotencyKey:   key,
-		CreatedAt:        now,
-		UpdatedAt:        now,
-		Bug:              in.Bug,
-		Record:           in.Record,
+		ID:                 uuid.NewString(),
+		Type:               typ,
+		PlanID:             scope.PlanID,
+		ExecutionID:        scope.ExecutionID,
+		PhaseID:            phaseID,
+		Title:              title,
+		Detail:             strings.TrimSpace(in.Detail),
+		Severity:           in.Severity,
+		SyncStatus:         planmodel.DefaultSyncStatusForType(typ),
+		SourceCommand:      strings.TrimSpace(in.SourceCommand),
+		Evidence:           trimmedNonEmpty(in.Evidence),
+		AttributionRunID:   runID,
+		VerificationStatus: verificationStatus,
+		IdempotencyKey:     key,
+		CreatedAt:          now,
+		UpdatedAt:          now,
+		Bug:                in.Bug,
+		Record:             in.Record,
 	}
 	if typ == planmodel.LogEntryFinding {
 		e.Triage = planmodel.TriageCandidate // findings file as CANDIDATE; never auto-promoted

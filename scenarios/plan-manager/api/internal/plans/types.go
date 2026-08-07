@@ -159,6 +159,14 @@ const (
 // (acceptance_allow / acceptance_deny). Scenario identity is derived from it.
 type ChangeBoundary = planmodel.ChangeBoundary
 
+// NormalizeBoundaryGlob and DenyCovers are re-exported so callers comparing a
+// submitted glob against a stored boundary (execution-time boundary extension)
+// use the same rules the plans domain enforces, rather than re-deriving them.
+var (
+	NormalizeBoundaryGlob = planmodel.NormalizeBoundaryGlob
+	DenyCovers            = planmodel.DenyCovers
+)
+
 // WorkPosture is the Greenfield/Brownfield stance of a plan. AUTOFILLED from
 // scenario maturity (default greenfield); never agent-authored.
 type WorkPosture = planmodel.WorkPosture

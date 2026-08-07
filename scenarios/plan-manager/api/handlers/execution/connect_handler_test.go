@@ -41,6 +41,10 @@ type fakeExecutionService struct {
 	gotReason      string
 	gotAuthor      string
 	gotInputs      internalexecution.CompletionInputs
+
+	gotBoundaryPaths  []string
+	gotBoundaryReason string
+	boundaryAdded     []string
 }
 
 func (f *fakeExecutionService) Start(_ context.Context, planID, runID string) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
@@ -91,6 +95,11 @@ func (f *fakeExecutionService) AdoptBaseline(_ context.Context, executionID stri
 func (f *fakeExecutionService) RepairSourceScope(_ context.Context, executionID string, _ internalexecution.SourceScopeRepairRequest) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
 	f.gotExecutionID = executionID
 	return f.execution, f.pctx, f.step, f.err
+}
+
+func (f *fakeExecutionService) ExtendBoundary(_ context.Context, executionID string, req internalexecution.BoundaryExtensionRequest) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, []string, error) {
+	f.gotExecutionID, f.gotBoundaryPaths, f.gotBoundaryReason = executionID, req.Paths, req.Reason
+	return f.execution, f.pctx, f.step, f.boundaryAdded, f.err
 }
 
 func (f *fakeExecutionService) GetNext(_ context.Context, executionID string) (internalexecution.PhaseContext, bool, internalexecution.GuidedStep, error) {

@@ -131,3 +131,71 @@ func TestFinalizeIdempotentRerunReportsAlreadyFinalized(t *testing.T) {
 	require.Equal(t, "/data/plan-manager.db", second.StorePath)
 	require.Equal(t, 1, writer.calls)
 }
+
+// TestFinalizeAlwaysAttachesExecutionDisciplineSkill covers the one skill every
+// plan must carry. It is autofilled rather than discovered because its absence
+// is invisible: an executing agent that never learned the divergence rules does
+// not report a missing skill, it silently writes a workaround or stops at
+// friction it could have cleared.
+func TestFinalizeAlwaysAttachesExecutionDisciplineSkill(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Discipline attached", "discipline-attached", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
+	require.NoError(t, err)
+
+	var found int
+	for _, item := range writer.created.RelevantContext {
+		if item.Kind != internalplans.RelevantContextSkill {
+			continue
+		}
+		if item.Target == "implementation-plan-execution" {
+			found++
+			require.True(t, item.Required, "execution discipline is not optional reading")
+			require.Equal(t, internalplans.RelevantContextScopeGlobal, item.Scope)
+			require.Equal(t, internalplans.RelevantContextOnResume, item.RepeatPolicy,
+				"a resumed agent needs the divergence rules again")
+			require.Contains(t, item.Command, "prompt-manager skill read")
+		}
+	}
+	require.Equal(t, 1, found, "exactly one execution-discipline skill item must be attached")
+}
+
+// TestFinalizeDoesNotDuplicateAnAuthoredExecutionSkill proves the injection is
+// idempotent: an authoring agent whose skill pack already returned the skill
+// keeps its own item and reason.
+func TestFinalizeDoesNotDuplicateAnAuthoredExecutionSkill(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "No duplicate", "no-duplicate", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	_, _, _, _, err = svc.SubmitRelevantContextItem(ctx, sess.ID, "", internalplans.RelevantContextItem{
+		Kind:        internalplans.RelevantContextSkill,
+		Scope:       internalplans.RelevantContextScopeGlobal,
+		Label:       "implementation-plan-execution",
+		Target:      "implementation-plan-execution",
+		Reason:      "authored by the skill pack",
+		Instruction: "Load before execution",
+	})
+	require.NoError(t, err)
+
+	_, _, err = svc.Finalize(ctx, sess.ID, authoring.FinalizeOptions{})
+	require.NoError(t, err)
+
+	var found int
+	for _, item := range writer.created.RelevantContext {
+		if item.Kind == internalplans.RelevantContextSkill && item.Target == "implementation-plan-execution" {
+			found++
+			require.Equal(t, "authored by the skill pack", item.Reason,
+				"the authored item must survive, not be replaced by the autofill")
+		}
+	}
+	require.Equal(t, 1, found)
+}

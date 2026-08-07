@@ -284,6 +284,49 @@ func ValidateBoundary(b ChangeBoundary, requireAllow bool) []string {
 	return problems
 }
 
+// NormalizeBoundaryGlob is the exported single-entry normalizer used by callers
+// outside this package (execution-time boundary extension) so a glob submitted
+// by an agent is compared against the stored boundary under identical rules.
+func NormalizeBoundaryGlob(g string) string { return normalizeGlob(g) }
+
+// DenyCovers reports whether any deny glob forbids the candidate path/glob, and
+// returns the deny entry that does. It treats a trailing "**" as a prefix
+// guard, so a deny of "scenarios/swarm-manager/**" covers a candidate of
+// "scenarios/swarm-manager/api/**".
+//
+// This is deliberately conservative in the direction of refusing: a candidate
+// that is broader than a deny glob (e.g. candidate "scenarios/**" against deny
+// "scenarios/swarm-manager/**") is also refused, because granting it would
+// silently swallow the forbidden subtree. Boundary extension is an
+// execution-time convenience; it must never become a way to erase an authored
+// prohibition.
+func DenyCovers(denies []string, candidate string) (bool, string) {
+	candidate = normalizeGlob(candidate)
+	if candidate == "" {
+		return false, ""
+	}
+	candidateBase := strings.TrimSuffix(candidate, "**")
+	for _, deny := range denies {
+		deny = normalizeGlob(deny)
+		if deny == "" {
+			continue
+		}
+		if candidate == deny {
+			return true, deny
+		}
+		denyBase := strings.TrimSuffix(deny, "**")
+		// The candidate sits under a forbidden subtree.
+		if denyBase != deny && denyBase != "" && strings.HasPrefix(candidate, denyBase) {
+			return true, deny
+		}
+		// The candidate is a wildcard that would swallow a forbidden subtree.
+		if candidateBase != candidate && candidateBase != "" && strings.HasPrefix(deny, candidateBase) {
+			return true, deny
+		}
+	}
+	return false, ""
+}
+
 // --- pure path/glob helpers (local mirror of swarm-manager pathutil) ---
 
 // normalizeGlobs trims, slash-normalizes, de-duplicates, and sorts a glob slice.

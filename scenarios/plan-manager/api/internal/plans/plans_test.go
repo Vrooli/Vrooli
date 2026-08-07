@@ -189,6 +189,60 @@ func TestStorageRoundTripsNewProfessionalFields(t *testing.T) {
 	require.Equal(t, "next phase needs this", ph.HandoffNotes)
 }
 
+// TestExtendChangeBoundaryIsAppendOnlyAndDenyRespecting covers the real
+// enforcement path (the execution-layer test uses a seam fake). The allow half
+// of the boundary is an estimate an execution may correct; the deny half is an
+// authored prohibition it may not.
+func TestExtendChangeBoundaryIsAppendOnlyAndDenyRespecting(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, plans.Plan{
+		Title: "Boundary extension",
+		ChangeBoundary: plans.ChangeBoundary{
+			AcceptanceAllow: []string{"scenarios/plan-manager/**"},
+			AcceptanceDeny:  []string{"scenarios/swarm-manager/**"},
+		},
+		Phases: []plans.Phase{{Title: "P1", Intent: "do", Status: plans.PhaseStatusTodo}},
+	})
+	require.NoError(t, err)
+
+	// A genuinely new glob is appended, and reported as added.
+	updated, added, err := svc.ExtendChangeBoundary(ctx, created.ID, plans.WorkspaceScope{}, []string{"packages/proto/**"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"packages/proto/**"}, added)
+	require.Contains(t, updated.ChangeBoundary.AcceptanceAllow, "packages/proto/**")
+	require.Contains(t, updated.ChangeBoundary.AcceptanceAllow, "scenarios/plan-manager/**",
+		"extension is append-only; the original allow glob must survive")
+
+	// It persists.
+	reloaded, err := svc.Get(ctx, created.ID, plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.Contains(t, reloaded.ChangeBoundary.AcceptanceAllow, "packages/proto/**")
+
+	// An already-covered glob is a no-op, not a duplicate.
+	_, addedAgain, err := svc.ExtendChangeBoundary(ctx, created.ID, plans.WorkspaceScope{}, []string{"packages/proto/**"})
+	require.NoError(t, err)
+	require.Empty(t, addedAgain)
+
+	// Deny wins, including for a subtree path and for a wildcard that would
+	// swallow the forbidden subtree.
+	for _, glob := range []string{"scenarios/swarm-manager/**", "scenarios/swarm-manager/api/**", "scenarios/**"} {
+		_, _, err := svc.ExtendChangeBoundary(ctx, created.ID, plans.WorkspaceScope{}, []string{glob})
+		require.Error(t, err, "acceptance_deny must refuse %s", glob)
+	}
+
+	// An unresolved placeholder is refused (the finalized-boundary invariant).
+	_, _, err = svc.ExtendChangeBoundary(ctx, created.ID, plans.WorkspaceScope{}, []string{"scenarios/<scenario>/**"})
+	require.Error(t, err)
+
+	// None of the refusals mutated the record.
+	final, err := svc.Get(ctx, created.ID, plans.WorkspaceScope{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"packages/proto/**", "scenarios/plan-manager/**"}, final.ChangeBoundary.AcceptanceAllow)
+	require.Equal(t, []string{"scenarios/swarm-manager/**"}, final.ChangeBoundary.AcceptanceDeny)
+}
+
 func TestStorageRoundTripsCanonicalWorkspaceFields(t *testing.T) {
 	svc, _ := newService(t)
 	ctx := context.Background()

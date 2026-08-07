@@ -3,21 +3,17 @@ package execution
 import (
 	"context"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/provenance"
 	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
 
 	"github.com/google/uuid"
 )
-
-// runIDEnv is the orchestration-layer attribution key. Start falls back to it
-// when the caller does not supply a run id (best-effort when absent).
-const runIDEnv = "VROOLI_AGENT_MANAGER_RUN_ID"
 
 // NoFeedbackCheckpointTitle is the durable note title that explicitly records a
 // phase feedback review found nothing to capture.
@@ -34,6 +30,11 @@ type Service interface {
 	AmendScope(ctx context.Context, executionID string, req ScopeAmendmentRequest) (Execution, PhaseContext, GuidedStep, error)
 	AdoptBaseline(ctx context.Context, executionID string, req BaselineAdoptionRequest) (Execution, PhaseContext, GuidedStep, error)
 	RepairSourceScope(ctx context.Context, executionID string, req SourceScopeRepairRequest) (Execution, PhaseContext, GuidedStep, error)
+	// ExtendBoundary returns the globs it actually added. An empty slice with a
+	// nil error is a successful no-op (every requested glob was already inside
+	// the boundary) — callers must not infer the outcome from the execution's
+	// extension history, which may hold an earlier entry.
+	ExtendBoundary(ctx context.Context, executionID string, req BoundaryExtensionRequest) (Execution, PhaseContext, GuidedStep, []string, error)
 	Resume(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error)
 	ContinueExecution(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error)
 	AbandonExecution(ctx context.Context, executionID, reason, actor string) (Execution, bool, GuidedStep, error)
@@ -131,22 +132,26 @@ func (s *service) Start(ctx context.Context, planID, runID string) (Execution, P
 }
 
 func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID, runID string, mode contextMode) (Execution, PhaseContext, GuidedStep, error) {
-	if runID == "" {
-		runID = strings.TrimSpace(os.Getenv(runIDEnv))
-	}
+	prov := provenance.FromContext(ctx)
+	_, _, _, verificationStatus, verifiedRunID, _ := prov.WriteFields()
+	harnessSessionID, harnessKind := prov.ObservationFields()
+	runID = verifiedRunID
 	currentPhaseID, err := resolveExecutionPhaseID(plan, phaseID)
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	now := s.now()
 	e := Execution{
-		ID:             uuid.NewString(),
-		PlanID:         plan.ID,
-		RunID:          runID,
-		CurrentPhaseID: currentPhaseID,
-		StartedAt:      now,
-		UpdatedAt:      now,
-		LifecycleState: ExecutionLifecycleActive,
+		ID:                 uuid.NewString(),
+		PlanID:             plan.ID,
+		RunID:              runID,
+		VerificationStatus: verificationStatus,
+		HarnessSessionID:   harnessSessionID,
+		HarnessKind:        harnessKind,
+		CurrentPhaseID:     currentPhaseID,
+		StartedAt:          now,
+		UpdatedAt:          now,
+		LifecycleState:     ExecutionLifecycleActive,
 	}
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
@@ -821,7 +826,7 @@ func (s *service) SyncBaseline(ctx context.Context, executionID string) (Executi
 	e.BaselineSet.LastSyncedAt = s.now()
 	if s.baseline == nil {
 		e.BaselineSet.Status, e.BaselineSet.Detail = BaselineSetStatusDegraded, "Git Control Tower baseline synchronization is unavailable"
-	} else if result, syncErr := s.baseline.SyncBaseline(ctx, plan.ID); syncErr != nil {
+	} else if result, syncErr := s.baseline.SyncBaseline(ctx, plan.ID, e.BaselineSet.Name); syncErr != nil {
 		e.BaselineSet.Status, e.BaselineSet.Detail = BaselineSetStatusDegraded, "baseline sync failed: "+syncErr.Error()
 	} else {
 		state := result.BaselineSet
@@ -905,6 +910,86 @@ func (s *service) AmendScope(ctx context.Context, executionID string, req ScopeA
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
 	s.applyFreshenContext(&pctx, e)
 	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+}
+
+// ExtendBoundary widens the plan's acceptance_allow mid-execution so validation
+// scope follows a sanctioned scope expansion.
+//
+// The authored change boundary is an estimate made before the work started. Its
+// inaccuracy is only discoverable during execution — precisely when, before this
+// lane existed, the plan was frozen. That left an executing agent two bad
+// options when a phase's intent genuinely needed an edit outside the boundary:
+// write a workaround that stays inside a stale estimate, or stop and report a
+// blocker. This is the third option, and it is the one that keeps the code clean
+// AND keeps the evidence honest.
+//
+// The widening is deliberately constrained:
+//   - Append-only, delegated to the plans domain, which re-checks acceptance_deny
+//     and placeholder rules. A forbidden path is still forbidden.
+//   - The current phase's validation generation is advanced, so evidence gathered
+//     before the widening cannot certify work done after it. Widening the blast
+//     radius always costs a re-validation; that is the price of the honesty.
+//   - Recorded as an append-only BoundaryExtension with a mandatory reason.
+//
+// It is NOT a general plan editor. Phases, acceptance, and validation strategy
+// stay immutable during execution — those still require a candidate revision
+// against a terminal execution.
+func (s *service) ExtendBoundary(ctx context.Context, executionID string, req BoundaryExtensionRequest) (Execution, PhaseContext, GuidedStep, []string, error) {
+	e, err := s.getExecution(ctx, executionID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, nil, err
+	}
+	plan, err := s.plans.GetPlan(ctx, e.PlanID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, nil, err
+	}
+	if e.EffectiveLifecycleState() != ExecutionLifecycleActive {
+		return Execution{}, PhaseContext{}, GuidedStep{}, nil, ErrInvalidExecution{Reason: "boundary extension requires an active execution"}
+	}
+	if len(req.Paths) == 0 {
+		return Execution{}, PhaseContext{}, GuidedStep{}, nil, ErrInvalidExecution{Reason: "at least one path glob is required"}
+	}
+	if strings.TrimSpace(req.Reason) == "" {
+		return Execution{}, PhaseContext{}, GuidedStep{}, nil, ErrInvalidExecution{Reason: "boundary extension reason is required (state which phase intent needs the edit and why the authored boundary did not cover it)"}
+	}
+	oldAllow := append([]string(nil), plan.ChangeBoundary.AcceptanceAllow...)
+	updated, added, err := s.plans.ExtendChangeBoundary(ctx, plan.ID, plan.WorkspaceID, plan.WorkspaceRoot, req.Paths)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, nil, err
+	}
+	if len(added) == 0 {
+		// Every glob was already inside the boundary. This is a no-op, not an
+		// error: the agent was right to check, and the edit needs no widening.
+		pctx := s.buildContext(ctx, updated, e.CurrentPhaseID, e.ID, contextModeStatus)
+		s.applyFreshenContext(&pctx, e)
+		return e, pctx, stepForContext(e.ID, updated.ID, pctx, e.Complete), added, nil
+	}
+	phaseID := strings.TrimSpace(e.CurrentPhaseID)
+	now := s.now()
+	if phaseID != "" {
+		if e.PhaseValidationGenerations == nil {
+			e.PhaseValidationGenerations = map[string]int{}
+		}
+		e.PhaseValidationGenerations[phaseID]++
+	}
+	e.BoundaryExtensions = append(e.BoundaryExtensions, BoundaryExtension{
+		ID:            uuid.NewString(),
+		PhaseID:       phaseID,
+		Author:        strings.TrimSpace(req.Author),
+		Reason:        strings.TrimSpace(req.Reason),
+		AddedAllow:    added,
+		OldAllow:      oldAllow,
+		NewAllow:      append([]string(nil), updated.ChangeBoundary.AcceptanceAllow...),
+		InvalidatedAt: now,
+		CreatedAt:     now,
+	})
+	e.UpdatedAt = now
+	if err := s.repo.SaveExecution(ctx, e); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, nil, err
+	}
+	pctx := s.buildContext(ctx, updated, e.CurrentPhaseID, e.ID, contextModeStatus)
+	s.applyFreshenContext(&pctx, e)
+	return e, pctx, stepForContext(e.ID, updated.ID, pctx, e.Complete), added, nil
 }
 
 // AdoptBaseline makes legacy handling explicit. It cannot infer whether edits

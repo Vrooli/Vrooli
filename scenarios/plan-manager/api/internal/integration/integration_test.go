@@ -26,6 +26,7 @@ import (
 	internalvalidation "plan-manager/internal/validation"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/provenance"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -70,11 +71,15 @@ func (a planStore) UpdatePhase(ctx context.Context, planID, workspaceID, workspa
 	return a.svc.UpdatePhase(ctx, planID, internalplans.WorkspaceScope{ID: workspaceID, Root: workspaceRoot}, phase)
 }
 
+func (a planStore) ExtendChangeBoundary(ctx context.Context, planID, workspaceID, workspaceRoot string, globs []string) (internalplans.Plan, []string, error) {
+	return a.svc.ExtendChangeBoundary(ctx, planID, internalplans.WorkspaceScope{ID: workspaceID, Root: workspaceRoot}, globs)
+}
+
 type validatorAdapter struct{ svc internalvalidation.Service }
 
 type completeBaselineSynchronizer struct{}
 
-func (completeBaselineSynchronizer) SyncBaseline(_ context.Context, _ string) (internalexecution.FreshenResult, error) {
+func (completeBaselineSynchronizer) SyncBaseline(_ context.Context, _, _ string) (internalexecution.FreshenResult, error) {
 	return internalexecution.FreshenResult{BaselineCaptured: true, BaselineName: "bound-receipt-baseline", BaselineSet: internalexecution.BaselineSetState{
 		Version: 1, Name: "bound-receipt-baseline", Status: internalexecution.BaselineSetStatusComplete, Required: 1, Ready: 1,
 		Members: []internalexecution.BaselineSetMember{{Scenario: "plan-manager", Status: "ready"}},
@@ -444,7 +449,8 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	_ = scope // derivation must not error; exact commands depend on ref targets
 
 	// 4) Execute the plan phase by phase with just-in-time context injection.
-	exec, _, _, err := executionSvc.Start(ctx, plan.ID, "run-xyz")
+	verifiedCtx := provenance.NewContext(ctx, provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-xyz"})
+	exec, _, _, err := executionSvc.Start(verifiedCtx, plan.ID, "run-xyz")
 	require.NoError(t, err)
 	require.Equal(t, plan.ID, exec.PlanID)
 	require.Equal(t, "run-xyz", exec.RunID)

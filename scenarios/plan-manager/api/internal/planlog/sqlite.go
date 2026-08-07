@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vrooli/api-core/provenance"
 	"plan-manager/internal/clock"
 	planmodel "plan-manager/internal/planmodel"
 )
@@ -41,9 +42,9 @@ const (
 	upsertEntrySQL = `
 INSERT INTO log_entries (
   id, type, plan_id, execution_id, phase_id, title, detail, severity, triage,
-  sync_status, downstream, bug_payload, record_payload, capture, source_command, evidence, attribution_run_id,
+  sync_status, downstream, bug_payload, record_payload, capture, source_command, evidence, attribution_run_id, verification_status, harness_session_id, harness_kind,
   idempotency_key, supersedes_id, promoted_from_id, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
   type=excluded.type,
   plan_id=excluded.plan_id,
@@ -61,6 +62,9 @@ ON CONFLICT(id) DO UPDATE SET
   source_command=excluded.source_command,
   evidence=excluded.evidence,
   attribution_run_id=excluded.attribution_run_id,
+  verification_status=excluded.verification_status,
+  harness_session_id=excluded.harness_session_id,
+  harness_kind=excluded.harness_kind,
   idempotency_key=excluded.idempotency_key,
   supersedes_id=excluded.supersedes_id,
   promoted_from_id=excluded.promoted_from_id,
@@ -68,7 +72,7 @@ ON CONFLICT(id) DO UPDATE SET
 
 	entryColumns = `
 SELECT id, type, plan_id, execution_id, phase_id, title, detail, severity, triage,
-       sync_status, downstream, bug_payload, record_payload, capture, source_command, evidence, attribution_run_id,
+       sync_status, downstream, bug_payload, record_payload, capture, source_command, evidence, attribution_run_id, verification_status, harness_session_id, harness_kind,
        idempotency_key, supersedes_id, promoted_from_id, created_at, updated_at
 FROM log_entries`
 
@@ -78,6 +82,15 @@ FROM log_entries`
 )
 
 func (r *sqliteRepository) SaveEntry(ctx context.Context, e Entry) error {
+	_, _, _, status, runID, _ := provenance.FromContext(ctx).WriteFields()
+	sessionID, sessionKind := provenance.FromContext(ctx).ObservationFields()
+	e.VerificationStatus = status
+	e.HarnessSessionID, e.HarnessKind = sessionID, sessionKind
+	if status == provenance.VerificationVerified {
+		e.AttributionRunID = runID
+	} else {
+		e.AttributionRunID = ""
+	}
 	created := e.CreatedAt
 	if created == "" {
 		created = r.now()
@@ -109,7 +122,7 @@ func (r *sqliteRepository) SaveEntry(ctx context.Context, e Entry) error {
 	if _, err := r.db.ExecContext(ctx, upsertEntrySQL,
 		e.ID, string(e.Type), e.PlanID, e.ExecutionID, e.PhaseID, e.Title, e.Detail,
 		string(e.Severity), string(e.Triage), string(e.SyncStatus), string(downstream), string(bug), string(record), string(capture),
-		e.SourceCommand, string(evidence), e.AttributionRunID, e.IdempotencyKey,
+		e.SourceCommand, string(evidence), e.AttributionRunID, e.VerificationStatus, e.HarnessSessionID, e.HarnessKind, e.IdempotencyKey,
 		e.SupersedesID, e.PromotedFromID, created, updated,
 	); err != nil {
 		return fmt.Errorf("upsert log entry %q: %w", e.ID, err)
@@ -221,7 +234,7 @@ func scanEntry(s rowScanner) (Entry, error) {
 	if err := s.Scan(
 		&e.ID, &typ, &e.PlanID, &e.ExecutionID, &e.PhaseID, &e.Title, &e.Detail,
 		&severity, &triage, &syncStatus, &downstream, &bug, &record, &capture, &e.SourceCommand, &evidence,
-		&e.AttributionRunID, &e.IdempotencyKey, &e.SupersedesID, &e.PromotedFromID,
+		&e.AttributionRunID, &e.VerificationStatus, &e.HarnessSessionID, &e.HarnessKind, &e.IdempotencyKey, &e.SupersedesID, &e.PromotedFromID,
 		&e.CreatedAt, &e.UpdatedAt,
 	); err != nil {
 		return Entry{}, err

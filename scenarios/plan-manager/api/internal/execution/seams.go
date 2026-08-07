@@ -16,6 +16,11 @@ type PlanStore interface {
 	// UpdatePhase applies an authored/status mutation to one phase and returns the
 	// recomputed plan (plan status is derived from the phase-status set there).
 	UpdatePhase(ctx context.Context, planID, workspaceID, workspaceRoot string, phase planmodel.Phase) (planmodel.Plan, error)
+	// ExtendChangeBoundary appends allow globs to the plan's change boundary and
+	// returns the recomputed plan plus the globs that were actually new. The
+	// plans domain owns the append/deny/placeholder rules; execution only decides
+	// WHEN a widening is legitimate and records the audit entry.
+	ExtendChangeBoundary(ctx context.Context, planID, workspaceID, workspaceRoot string, globs []string) (planmodel.Plan, []string, error)
 }
 
 // Validator is the read seam onto the validation domain for the just-in-time
@@ -69,7 +74,9 @@ type BaselineSynchronizer interface {
 	// FreshenInputs captures the baseline snapshot from the plan's anchor intent
 	// and recomputes reference staleness. It reports the outcome; it never mutates
 	// the authored plan/references (staleness is reported, not written back).
-	SyncBaseline(ctx context.Context, planID string) (FreshenResult, error)
+	// baselineName is the execution-owned ticket. It may differ from the
+	// authored plan ticket after an explicit legacy recapture adoption.
+	SyncBaseline(ctx context.Context, planID, baselineName string) (FreshenResult, error)
 }
 
 // SourceEvidencePreflighter is the optional, authoritative GCT estimate seam.

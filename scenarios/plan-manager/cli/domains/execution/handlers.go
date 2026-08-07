@@ -182,6 +182,24 @@ func (h *handlers) repairSourceScope(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{"Re-estimated replacement source evidence scope."}, Changes: formatStep(resp.Msg.GetStep()), NextCommand: formatRecommendedActions(resp.Msg.GetStep())})
 }
 
+func (h *handlers) extendBoundary(ctx cliapp.RunContext) error {
+	resp, err := h.client.ExtendBoundary(context.Background(), connect.NewRequest(&executionv1.ExtendBoundaryRequest{ExecutionId: ctx.Positional("execution"), Path: commaSeparated(ctx.Flag("paths")), Reason: ctx.Flag("reason"), Author: ctx.Flag("author")}))
+	if err != nil {
+		return cliapp.WrapAPIError("extend change boundary", err, nil)
+	}
+	// Read added_allow, NOT the execution's extension tail: on a no-op that tail
+	// still holds an EARLIER extension, and reporting it would claim work this
+	// call did not do.
+	result := []string{"Every requested glob was already inside the change boundary; no extension was needed."}
+	if added := resp.Msg.GetAddedAllow(); len(added) > 0 {
+		result = []string{
+			"Extended the change boundary with: " + strings.Join(added, ", "),
+			"Prior phase validation evidence is now stale — re-run phase validation before marking the phase done.",
+		}
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: result, Changes: formatStep(resp.Msg.GetStep()), NextCommand: formatRecommendedActions(resp.Msg.GetStep())})
+}
+
 func (h *handlers) next(ctx cliapp.RunContext) error {
 	resp, err := h.client.GetNext(context.Background(), connect.NewRequest(&executionv1.GetNextRequest{
 		ExecutionId: ctx.Positional("execution"),

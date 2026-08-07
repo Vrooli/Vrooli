@@ -12,6 +12,7 @@ import (
 	"plan-manager/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/provenance"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -141,13 +142,42 @@ func TestAddDecisionRejectsUnknownPhase(t *testing.T) {
 
 func TestAddFindingFilesCandidate(t *testing.T) {
 	svc, _ := newService(t, planlog.Deps{})
-	e, _, _, err := svc.AddFinding(context.Background(), planlog.AddInputs{
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-x"})
+	e, _, _, err := svc.AddFinding(ctx, planlog.AddInputs{
 		PlanOrExecution: "exec-1", Title: "maybe a bug", RunID: "run-x",
 	})
 	require.NoError(t, err)
 	require.Equal(t, planmodel.LogEntryFinding, e.Type)
 	require.Equal(t, planmodel.TriageCandidate, e.Triage, "findings file as CANDIDATE, never auto-promoted")
 	require.Equal(t, "run-x", e.AttributionRunID)
+	require.Equal(t, provenance.VerificationVerified, e.VerificationStatus)
+}
+
+func TestAddEntryIgnoresLegacyRunIDEnvironmentClaim(t *testing.T) {
+	t.Setenv("VROOLI_AGENT_MANAGER_RUN"+"_ID", "spoofed-run")
+
+	svc, _ := newService(t, planlog.Deps{})
+	e, _, _, err := svc.AddFinding(context.Background(), planlog.AddInputs{
+		PlanOrExecution: "exec-1", Title: "environment claim must not attribute",
+	})
+	require.NoError(t, err)
+	require.Empty(t, e.AttributionRunID)
+	require.Equal(t, provenance.VerificationAbsent, e.VerificationStatus)
+}
+
+func TestAddEntryPersistsHarnessObservationWithoutRunAttribution(t *testing.T) {
+	svc, repo := newService(t, planlog.Deps{})
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Invocation: provenance.Invocation{HarnessSessionID: "claude-session-1", HarnessKind: "claude-code"}})
+	e, _, _, err := svc.AddNote(ctx, planlog.AddInputs{PlanOrExecution: "exec-1", Title: "channel observation"})
+	require.NoError(t, err)
+	require.Empty(t, e.AttributionRunID)
+	require.Equal(t, provenance.VerificationAbsent, e.VerificationStatus)
+	stored, ok, err := repo.GetEntry(context.Background(), e.ID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "claude-session-1", stored.HarnessSessionID)
+	require.Equal(t, "claude-code", stored.HarnessKind)
+	require.Empty(t, stored.AttributionRunID)
 }
 
 func TestIdempotencyKeyDedup(t *testing.T) {
@@ -167,11 +197,12 @@ func TestIdempotencyKeyDedup(t *testing.T) {
 
 func TestAttributionDedup(t *testing.T) {
 	svc, _ := newService(t, planlog.Deps{})
-	first, _, _, err := svc.AddFinding(context.Background(), planlog.AddInputs{
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-1"})
+	first, _, _, err := svc.AddFinding(ctx, planlog.AddInputs{
 		PlanOrExecution: "exec-1", Title: "Config Drift", RunID: "run-1",
 	})
 	require.NoError(t, err)
-	second, dup, _, err := svc.AddFinding(context.Background(), planlog.AddInputs{
+	second, dup, _, err := svc.AddFinding(ctx, planlog.AddInputs{
 		PlanOrExecution: "exec-1", Title: "  config drift ", RunID: "run-1",
 	})
 	require.NoError(t, err)
@@ -244,7 +275,7 @@ func TestPromoteFindingToBugPreservesOrigin(t *testing.T) {
 func TestPromoteIsIdempotent(t *testing.T) {
 	sink := &countingBugSink{ref: planmodel.DownstreamRef{System: "scenario-qa", Kind: "bug", Reference: "bug-1"}}
 	svc, _ := newService(t, planlog.Deps{Bugs: sink})
-	ctx := context.Background()
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-1"})
 	finding, _, _, err := svc.AddFinding(ctx, planlog.AddInputs{PlanOrExecution: "exec-1", Title: "leak"})
 	require.NoError(t, err)
 
@@ -267,7 +298,7 @@ func TestAttributionDedupIsScopedPerPlan(t *testing.T) {
 	// planEchoResolver gives each handle its own plan id with empty execution
 	// scope — the path where a missing plan_id would have falsely deduped.
 	svc, _ := newService(t, planlog.Deps{Resolver: planEchoResolver{}})
-	ctx := context.Background()
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-1"})
 	a, dupA, _, err := svc.AddFinding(ctx, planlog.AddInputs{PlanOrExecution: "plan-A", Title: "Config Drift", RunID: "run-1"})
 	require.NoError(t, err)
 	require.False(t, dupA)

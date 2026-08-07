@@ -107,7 +107,7 @@ failing the flow:
 - **meta-optimization-manager** — velocity sink. If down: velocity is retained
   locally and emit is retried/skipped; no flow blocks.
 - **agent-manager** — provides the run-id attribution contract
-  (`VROOLI_AGENT_MANAGER_RUN_ID`) used to dedup handoff actions. **Owns the prose
+  (the verified identity-token run id) used to dedup handoff actions. **Owns the prose
   final-handoff capture** (it has the transcript); plan-manager links to it by
   reference but never reads transcripts itself.
 - **scenario-qa / swarm-manager** — downstream sinks for `log` `bug_report` and

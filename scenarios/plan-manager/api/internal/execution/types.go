@@ -48,16 +48,19 @@ const (
 // the first start/resume freshens; a degraded attempt is re-tried on the next
 // start/resume (status != "captured"), never on the per-poll status/next path.
 type Execution struct {
-	ID                string
-	PlanID            string
-	RunID             string
-	CurrentPhaseID    string
-	Complete          bool
-	StartedAt         string
-	UpdatedAt         string
-	InputsFreshenedAt string
-	FreshenStatus     string
-	FreshenDetail     string
+	ID                 string
+	PlanID             string
+	RunID              string
+	VerificationStatus string
+	HarnessSessionID   string
+	HarnessKind        string
+	CurrentPhaseID     string
+	Complete           bool
+	StartedAt          string
+	UpdatedAt          string
+	InputsFreshenedAt  string
+	FreshenStatus      string
+	FreshenDetail      string
 	// BaselineSet is the execution-owned checkpoint for a new-plan baseline
 	// collection. It snapshots the resolved policy at capture time so resume and
 	// phase validation never derive a different before-state from edited plan
@@ -69,11 +72,17 @@ type Execution struct {
 	// newly discovered work.
 	PhaseValidationGenerations map[string]int
 	ScopeAmendments            []ScopeAmendment
-	DegradedReason             string
-	LifecycleState             ExecutionLifecycleState
-	AbandonedReason            string
-	AbandonedAt                string
-	AbandonedBy                string
+	// BoundaryExtensions is the append-only audit trail of mid-execution
+	// widenings of the plan's acceptance_allow. It exists so a scope expansion is
+	// a recorded, validated event rather than an invisible one: the alternative
+	// an agent reaches for when the boundary looks like a hard wall is a
+	// workaround inside the wall, which leaves no trace at all.
+	BoundaryExtensions []BoundaryExtension
+	DegradedReason     string
+	LifecycleState     ExecutionLifecycleState
+	AbandonedReason    string
+	AbandonedAt        string
+	AbandonedBy        string
 }
 
 type ExecutionLifecycleState string
@@ -166,6 +175,33 @@ type ScopeAmendmentRequest struct {
 	Members []string
 	Author  string
 	Reason  string
+}
+
+// BoundaryExtension records one append-only widening of the plan's
+// acceptance_allow during execution. Unlike ScopeAmendment (which broadens the
+// validation selection inside an already-captured inventory), this changes the
+// authored blast radius itself, so it is stored with both the old and new allow
+// lists for audit reconstruction.
+type BoundaryExtension struct {
+	ID            string
+	PhaseID       string
+	Author        string
+	Reason        string
+	AddedAllow    []string
+	OldAllow      []string
+	NewAllow      []string
+	InvalidatedAt string
+	CreatedAt     string
+}
+
+// BoundaryExtensionRequest is the execution-owned control surface for widening
+// the plan's change boundary when a phase's intent needs an edit the authored
+// estimate did not anticipate. A reason is mandatory: the point of the lane is
+// that the widening is explainable, not that it is easy.
+type BoundaryExtensionRequest struct {
+	Paths  []string
+	Reason string
+	Author string
 }
 
 // SourceScopeRepairRequest replaces only the informational source selection

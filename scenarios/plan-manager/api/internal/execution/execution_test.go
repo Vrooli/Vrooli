@@ -14,6 +14,7 @@ import (
 	"plan-manager/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/provenance"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -44,6 +45,41 @@ func (f *fakePlanStore) UpdatePhase(_ context.Context, _, _, _ string, phase int
 		}
 	}
 	return f.plan, nil
+}
+
+// ExtendChangeBoundary mirrors the plans-domain rules the execution service
+// relies on: append-only, deny-respecting, and reporting only the globs that
+// were genuinely new.
+func (f *fakePlanStore) ExtendChangeBoundary(_ context.Context, _, _, _ string, globs []string) (internalplans.Plan, []string, error) {
+	if f.err != nil {
+		return internalplans.Plan{}, nil, f.err
+	}
+	boundary := f.plan.ChangeBoundary
+	existing := map[string]struct{}{}
+	for _, g := range boundary.AcceptanceAllow {
+		existing[g] = struct{}{}
+	}
+	var added []string
+	for _, glob := range globs {
+		glob = internalplans.NormalizeBoundaryGlob(glob)
+		if glob == "" {
+			continue
+		}
+		if covered, by := internalplans.DenyCovers(boundary.AcceptanceDeny, glob); covered {
+			return internalplans.Plan{}, nil, internalplans.ErrInvalidPlan{Reason: "boundary extension glob " + glob + " falls under the forbidden path " + by}
+		}
+		if _, dup := existing[glob]; dup {
+			continue
+		}
+		existing[glob] = struct{}{}
+		added = append(added, glob)
+	}
+	if len(added) == 0 {
+		return f.plan, nil, nil
+	}
+	boundary.AcceptanceAllow = append(append([]string(nil), boundary.AcceptanceAllow...), added...)
+	f.plan.ChangeBoundary = boundary
+	return f.plan, added, nil
 }
 
 // fakeValidator is the Validator seam — the cheap read of the LAST STORED
@@ -124,7 +160,7 @@ func (f *fakePreflight) EstimateSourceEvidence(_ context.Context, _ []string) (e
 	return f.result, f.err
 }
 
-func (f *fakeFreshener) SyncBaseline(_ context.Context, _ string) (execution.FreshenResult, error) {
+func (f *fakeFreshener) SyncBaseline(_ context.Context, _, _ string) (execution.FreshenResult, error) {
 	f.calls++
 	return f.result, f.err
 }
@@ -298,11 +334,13 @@ func doneOverride() execution.PhaseTransitionInputs {
 
 func TestStartLinksRunAndSetsResumePointer(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, pctx, step, err := h.svc.Start(context.Background(), "plan-1", "run-abc")
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-abc"})
+	e, pctx, step, err := h.svc.Start(ctx, "plan-1", "run-abc")
 	require.NoError(t, err)
 	require.NotEmpty(t, e.ID)
 	require.Equal(t, "plan-1", e.PlanID)
 	require.Equal(t, "run-abc", e.RunID)
+	require.Equal(t, provenance.VerificationVerified, e.VerificationStatus)
 	require.Equal(t, "ph-1", e.CurrentPhaseID, "current pointer starts at the earliest non-done phase")
 	require.False(t, e.Complete)
 	require.True(t, pctx.HasCurrent)
@@ -311,6 +349,26 @@ func TestStartLinksRunAndSetsResumePointer(t *testing.T) {
 	require.Equal(t, "execution_started", step.StepKind)
 	require.Equal(t, []string{"exec", "status", e.ID}, step.NextActions[0].Argv)
 	require.Equal(t, execution.ExecutionLifecycleActive, e.EffectiveLifecycleState())
+}
+
+func TestStartPersistsHarnessObservationWithoutRunAttribution(t *testing.T) {
+	h := newHarness(t, threePhasePlan(), nil)
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Invocation: provenance.Invocation{HarnessSessionID: "codex-thread-1", HarnessKind: "codex"}})
+	e, _, _, err := h.svc.Start(ctx, "plan-1", "caller-supplied-run")
+	require.NoError(t, err)
+	require.Empty(t, e.RunID)
+	require.Equal(t, provenance.VerificationAbsent, e.VerificationStatus)
+	require.Equal(t, "codex-thread-1", e.HarnessSessionID)
+	require.Equal(t, "codex", e.HarnessKind)
+}
+
+func TestStartIgnoresLegacyRunIDEnvironmentClaim(t *testing.T) {
+	t.Setenv("VROOLI_AGENT_MANAGER_RUN"+"_ID", "spoofed-run")
+
+	h := newHarness(t, threePhasePlan(), nil)
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+	require.Empty(t, e.RunID)
 }
 
 func TestStartRejectsDuplicateActiveExecutionWithRecoveryIdentity(t *testing.T) {
@@ -556,17 +614,19 @@ func TestGetContextPhaseOverrideDoesNotAdvancePointer(t *testing.T) {
 
 func TestResumeByPlanReusesLatestExecution(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	first, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-1")
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-1"})
+	first, _, _, err := h.svc.Start(ctx, "plan-1", "run-1")
 	require.NoError(t, err)
-	_, _, _, err = h.svc.TransitionPhase(context.Background(), first.ID, "ph-1", doneOverride())
+	_, _, _, err = h.svc.TransitionPhase(ctx, first.ID, "ph-1", doneOverride())
 	require.NoError(t, err)
 
-	resumed, pctx, _, err := h.svc.Resume(context.Background(), "plan-1", "", "ignored-new-run")
+	resumed, pctx, _, err := h.svc.Resume(ctx, "plan-1", "", "ignored-new-run")
 	require.NoError(t, err)
 	require.Equal(t, first.ID, resumed.ID, "resume by plan should reuse the latest execution")
 	require.Equal(t, "ph-2", resumed.CurrentPhaseID)
 	require.Equal(t, "ph-2", pctx.CurrentPhase.ID)
 	require.Equal(t, "run-1", resumed.RunID, "run id is only used when creating a new execution")
+	require.Equal(t, provenance.VerificationVerified, resumed.VerificationStatus)
 }
 
 func TestResumeExplicitPhasePersistsPointer(t *testing.T) {
@@ -1184,9 +1244,19 @@ func TestChangeBoundarySurfacedInContextAndHandoff(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "phase_context", statusStep.StepKind)
 	joined := strings.Join(statusStep.Instructions, " | ")
-	require.Contains(t, joined, "only edit within")
+	require.Contains(t, joined, "Planned change boundary")
 	require.Contains(t, joined, "Forbidden paths")
 	require.Contains(t, joined, "informational only", "repo paths must be flagged as non-oracle")
+
+	// The allow half must read as an advisory estimate with a sanctioned
+	// extension lane, and must NOT read as a hard permission ceiling: an agent
+	// that believes it cannot edit outside the boundary writes a workaround
+	// instead of the clean change.
+	require.Contains(t, joined, "not a permission ceiling")
+	require.Contains(t, joined, "boundary-extend")
+	require.NotContains(t, joined, "only edit within")
+	// The deny half stays hard — it is the authored guardrail.
+	require.Contains(t, joined, "do NOT edit")
 
 	// Drive every phase done and complete: the handoff snapshots the boundary.
 	for _, ph := range plan.Phases {
@@ -1201,6 +1271,173 @@ func TestChangeBoundarySurfacedInContextAndHandoff(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, plan.ChangeBoundary.AcceptanceAllow, handoff.ChangeBoundary.AcceptanceAllow)
 	require.Equal(t, plan.ChangeBoundary.AcceptanceDeny, handoff.ChangeBoundary.AcceptanceDeny)
+}
+
+// TestExtendBoundaryWidensAllowAndInvalidatesEvidence proves the sanctioned
+// scope-expansion lane: a phase whose intent needs an edit the authored boundary
+// did not anticipate can widen the boundary, and doing so costs a re-validation
+// rather than silently certifying the new blast radius with old evidence.
+func TestExtendBoundaryWidensAllowAndInvalidatesEvidence(t *testing.T) {
+	plan := threePhasePlan()
+	plan.ChangeBoundary = internalplans.ChangeBoundary{
+		AcceptanceAllow: []string{"scenarios/plan-manager/**"},
+		AcceptanceDeny:  []string{"scenarios/swarm-manager/**"},
+	}
+	h := newHarness(t, plan, nil)
+	ctx := context.Background()
+
+	e, _, _, err := h.svc.Start(ctx, "plan-1", "run-extend")
+	require.NoError(t, err)
+
+	before, _, _, err := h.svc.GetStatus(ctx, e.ID)
+	require.NoError(t, err)
+	generationBefore := before.PhaseValidationGenerations[before.CurrentPhaseID]
+
+	extended, pctx, _, added, err := h.svc.ExtendBoundary(ctx, e.ID, execution.BoundaryExtensionRequest{
+		Paths:  []string{"packages/proto/schemas/plan-manager/**"},
+		Reason: "phase 1 changes the API shape, which is defined in the proto the authored boundary omitted",
+		Author: "test",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"packages/proto/schemas/plan-manager/**"}, added,
+		"the call must report exactly what it added")
+
+	// The plan's boundary now covers the edit, so the phase context stops telling
+	// the agent the path is outside scope.
+	require.Contains(t, pctx.ChangeBoundary.AcceptanceAllow, "packages/proto/schemas/plan-manager/**")
+	require.Contains(t, pctx.ChangeBoundary.AcceptanceAllow, "scenarios/plan-manager/**",
+		"extension must be append-only — an existing allow glob may never be dropped")
+
+	// The audit entry records why, and what changed.
+	require.Len(t, extended.BoundaryExtensions, 1)
+	entry := extended.BoundaryExtensions[0]
+	require.Equal(t, []string{"packages/proto/schemas/plan-manager/**"}, entry.AddedAllow)
+	require.Equal(t, []string{"scenarios/plan-manager/**"}, entry.OldAllow)
+	require.Contains(t, entry.Reason, "API shape")
+	require.NotEmpty(t, entry.CreatedAt)
+
+	// Widening the blast radius always costs a re-validation.
+	require.Greater(t, extended.PhaseValidationGenerations[extended.CurrentPhaseID], generationBefore,
+		"a widened boundary must invalidate evidence gathered under the narrower one")
+}
+
+// TestExtendBoundaryRefusesForbiddenPaths proves acceptance_deny stays hard.
+// The allow half is an estimate an execution may correct; the deny half is an
+// authored prohibition an execution may not overrule.
+func TestExtendBoundaryRefusesForbiddenPaths(t *testing.T) {
+	plan := threePhasePlan()
+	plan.ChangeBoundary = internalplans.ChangeBoundary{
+		AcceptanceAllow: []string{"scenarios/plan-manager/**"},
+		AcceptanceDeny:  []string{"scenarios/swarm-manager/**"},
+	}
+	h := newHarness(t, plan, nil)
+	ctx := context.Background()
+	e, _, _, err := h.svc.Start(ctx, "plan-1", "run-deny")
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name string
+		path string
+	}{
+		{"exact deny glob", "scenarios/swarm-manager/**"},
+		{"path under a forbidden subtree", "scenarios/swarm-manager/api/**"},
+		{"wildcard that would swallow a forbidden subtree", "scenarios/**"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, _, _, err := h.svc.ExtendBoundary(ctx, e.ID, execution.BoundaryExtensionRequest{
+				Paths:  []string{tc.path},
+				Reason: "attempting to reach a forbidden path",
+			})
+			require.Error(t, err, "acceptance_deny must refuse %s", tc.path)
+		})
+	}
+
+	after, _, _, err := h.svc.GetStatus(ctx, e.ID)
+	require.NoError(t, err)
+	require.Empty(t, after.BoundaryExtensions, "a refused extension must leave no audit entry")
+}
+
+// TestExtendBoundaryRequiresReasonAndIsNoOpWhenCovered proves the lane stays
+// explainable, and that checking a path already inside the boundary is a
+// harmless no-op rather than a spurious widening.
+func TestExtendBoundaryRequiresReasonAndIsNoOpWhenCovered(t *testing.T) {
+	plan := threePhasePlan()
+	plan.ChangeBoundary = internalplans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/plan-manager/**"}}
+	h := newHarness(t, plan, nil)
+	ctx := context.Background()
+	e, _, _, err := h.svc.Start(ctx, "plan-1", "run-reason")
+	require.NoError(t, err)
+
+	_, _, _, _, err = h.svc.ExtendBoundary(ctx, e.ID, execution.BoundaryExtensionRequest{Paths: []string{"docs/**"}})
+	require.Error(t, err, "a widening with no stated reason is not auditable")
+
+	_, _, _, _, err = h.svc.ExtendBoundary(ctx, e.ID, execution.BoundaryExtensionRequest{Reason: "no paths"})
+	require.Error(t, err)
+
+	noop, _, _, noopAdded, err := h.svc.ExtendBoundary(ctx, e.ID, execution.BoundaryExtensionRequest{
+		Paths:  []string{"scenarios/plan-manager/**"},
+		Reason: "already covered",
+	})
+	require.NoError(t, err)
+	require.Empty(t, noopAdded, "a no-op must report no added globs")
+	require.Empty(t, noop.BoundaryExtensions, "an already-covered glob must not record an extension")
+}
+
+// TestExtendBoundaryNoOpAfterRealExtensionReportsNothingAdded pins a reporting
+// bug a live run exposed: a no-op leaves the execution's extension history
+// holding the PREVIOUS extension, so any caller that infers the outcome from
+// that history's tail reports work this call did not do. The added-globs return
+// is the only honest signal.
+func TestExtendBoundaryNoOpAfterRealExtensionReportsNothingAdded(t *testing.T) {
+	plan := threePhasePlan()
+	plan.ChangeBoundary = internalplans.ChangeBoundary{AcceptanceAllow: []string{"scenarios/plan-manager/**"}}
+	h := newHarness(t, plan, nil)
+	ctx := context.Background()
+	e, _, _, err := h.svc.Start(ctx, "plan-1", "run-noop-after")
+	require.NoError(t, err)
+
+	_, _, _, added, err := h.svc.ExtendBoundary(ctx, e.ID, execution.BoundaryExtensionRequest{
+		Paths: []string{"packages/proto/**"}, Reason: "a real widening",
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"packages/proto/**"}, added)
+
+	after, _, _, addedAgain, err := h.svc.ExtendBoundary(ctx, e.ID, execution.BoundaryExtensionRequest{
+		Paths: []string{"packages/proto/**"}, Reason: "same glob again",
+	})
+	require.NoError(t, err)
+	require.Empty(t, addedAgain, "the second call added nothing and must say so")
+	require.Len(t, after.BoundaryExtensions, 1,
+		"the history still holds the earlier extension — which is exactly why callers must not read it to describe this call")
+}
+
+// TestWaitDisciplineSurfacedOnLongRunningSteps proves the long-wait disposition
+// reaches the agent at the seams where runs actually take tens of minutes. An
+// agent that reads a slow run as a stalled one abandons the phase.
+func TestWaitDisciplineSurfacedOnLongRunningSteps(t *testing.T) {
+	h := newHarness(t, threePhasePlan(), nil)
+	ctx := context.Background()
+	e, _, _, err := h.svc.Start(ctx, "plan-1", "run-wait")
+	require.NoError(t, err)
+
+	// A todo phase is first offered "mark active"; the validation ticket (the
+	// long-running step) is only recommended once work is underway.
+	_, _, _, err = h.svc.TransitionPhase(ctx, e.ID, e.CurrentPhaseID, execution.PhaseTransitionInputs{ToStatus: internalplans.PhaseStatusActive})
+	require.NoError(t, err)
+
+	_, _, step, err := h.svc.GetStatus(ctx, e.ID)
+	require.NoError(t, err)
+
+	var validationReason string
+	for _, action := range step.NextActions {
+		if action.ID == "start-validation-ticket" {
+			validationReason = action.Reason
+		}
+	}
+	require.NotEmpty(t, validationReason, "phase context should offer the validation ticket action")
+	require.Contains(t, validationReason, "NOT a blocker",
+		"an in-progress validation run must not read as a blocker")
+	require.Contains(t, validationReason, "Block ONCE")
 }
 
 func TestPhaseContextStepSurfacesFeedbackCaptureActions(t *testing.T) {

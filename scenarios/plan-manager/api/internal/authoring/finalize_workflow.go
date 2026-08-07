@@ -97,6 +97,7 @@ func (s *service) Finalize(ctx context.Context, sessionID string, opts FinalizeO
 		if root := strings.TrimSpace(opts.WorkspaceRoot); root != "" {
 			draft.WorkspaceRoot = root
 		}
+		draft.RelevantContext = withExecutionDisciplineSkill(draft.RelevantContext)
 		created, err := s.writer.CreatePlan(ctx, draft)
 		if err != nil {
 			return false, err
@@ -121,6 +122,49 @@ func (s *service) Finalize(ctx context.Context, sessionID string, opts FinalizeO
 		result.FinalizedAt = sess.UpdatedAt
 	}
 	return result, stepForFinalizedPlan(sess, result.Plan.ID, result.Plan.Slug), nil
+}
+
+// executionDisciplineSkill is the skill every finalized plan carries: how to
+// execute a plan whose predictions turn out to be wrong.
+const executionDisciplineSkill = "implementation-plan-execution"
+
+// withExecutionDisciplineSkill guarantees every finalized plan carries the
+// execution-discipline skill as global relevant context.
+//
+// It is added at finalize rather than left to the authoring agent's skill sweep
+// because it is the one skill whose absence is invisible until it matters: an
+// executing agent that never learned the divergence rules does not report a
+// missing skill, it silently writes a workaround to stay inside a stale
+// boundary, or stops at friction it could have cleared. Every other skill in
+// the pack is task-specific and correctly discovered per plan; this one is
+// unconditional, so discovery is the wrong mechanism.
+//
+// It is idempotent: an authoring agent whose skill pack already returned it
+// keeps that item, with whatever reason the pack recorded.
+func withExecutionDisciplineSkill(items []planmodel.RelevantContextItem) []planmodel.RelevantContextItem {
+	for _, item := range items {
+		if item.Kind != planmodel.RelevantContextSkill {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(item.Target), executionDisciplineSkill) ||
+			strings.EqualFold(strings.TrimSpace(item.Label), executionDisciplineSkill) {
+			return items
+		}
+	}
+	return append(items, planmodel.RelevantContextItem{
+		Kind:         planmodel.RelevantContextSkill,
+		Scope:        planmodel.RelevantContextScopeGlobal,
+		Label:        executionDisciplineSkill,
+		Target:       executionDisciplineSkill,
+		Reason:       "Plans are predictions written before the work started. This skill governs what to do when this one turns out to be wrong: how far to diverge, when to widen the change boundary instead of writing a workaround, how long to wait on validation, and what actually counts as blocked.",
+		Instruction:  "Read before starting execution, and again on resume.",
+		Command:      "prompt-manager skill read " + executionDisciplineSkill,
+		Argv:         []string{"prompt-manager", "skill", "read", executionDisciplineSkill},
+		Required:     true,
+		RepeatPolicy: planmodel.RelevantContextOnResume,
+		Source:       planmodel.RelevantContextSourceAutofilled,
+		Status:       planmodel.RelevantContextStatusReady,
+	})
 }
 
 // computedMirror normalizes the mirror publish result threaded out of Create.

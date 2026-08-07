@@ -35,7 +35,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "execution",
-      "description": "Findings recorded during a run are filed as candidate (explicitly unvalidated) entries an operator triages before they become real bugs. The finalizer reconciles against run-id attribution (VROOLI_AGENT_MANAGER_RUN_ID) so anything the agent already did during the run is not double-filed.",
+      "description": "Findings recorded during a run are filed as candidate (explicitly unvalidated) entries an operator triages before they become real bugs. The finalizer reconciles against verified run attribution so anything the agent already did during the run is not double-filed.",
       "tags": [
         "handoff",
         "findings",

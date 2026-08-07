@@ -74,7 +74,7 @@ func (f *fakeValidationService) GetValidationOperation(_ context.Context, operat
 
 func (f *fakeValidationService) RecoverPending(context.Context) error { return f.err }
 
-func (f *fakeValidationService) SyncBaseline(_ context.Context, planID string) (internalvalidation.BaselineCapture, error) {
+func (f *fakeValidationService) SyncBaseline(_ context.Context, planID, _ string) (internalvalidation.BaselineCapture, error) {
 	f.gotPlanID = planID
 	return internalvalidation.BaselineCapture{}, f.err
 }

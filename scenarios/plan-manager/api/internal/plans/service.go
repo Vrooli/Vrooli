@@ -27,6 +27,12 @@ type Service interface {
 	Archive(ctx context.Context, idOrSlug string, workspace WorkspaceScope) (Plan, error)
 	Render(ctx context.Context, idOrSlug string, workspace WorkspaceScope, opts RenderOptions) (RenderResult, error)
 
+	// ExtendChangeBoundary appends allow globs to a plan's change boundary. It is
+	// the ONLY mutation permitted while an execution is non-terminal, and it is
+	// deliberately narrower than a candidate revision: append-only, one field,
+	// never a removal. See the method comment for why that is safe.
+	ExtendChangeBoundary(ctx context.Context, planID string, workspace WorkspaceScope, globs []string) (Plan, []string, error)
+
 	AddPhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error)
 	AddPhaseWithImpact(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase, allowRegression bool) (Plan, MutationImpact, error)
 	UpdatePhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error)
@@ -342,6 +348,85 @@ func (s *service) AddPhaseWithImpact(ctx context.Context, planID string, workspa
 	}
 	updated, err := s.saveRecomputed(ctx, p)
 	return updated, impact, err
+}
+
+// ExtendChangeBoundary appends globs to the plan's acceptance_allow and returns
+// the updated plan plus the globs that were actually new (empty when every glob
+// was already covered).
+//
+// Why this exists as a first-class mutation rather than going through a
+// candidate revision: ApplyCandidate deliberately refuses to run while an
+// execution is non-terminal, because a whole-plan replacement mid-flight can
+// change phases, acceptance, or validation strategy out from under a running
+// agent. That guard is correct and stays. But it also made the authored blast
+// radius unwidenable during the only period when its inaccuracy is discoverable
+// — while the work is being done. The result was that an executing agent facing
+// a genuinely-needed edit outside the boundary had exactly two options: write a
+// workaround to stay inside a stale estimate, or stop. Both are worse than
+// widening the boundary and re-validating.
+//
+// This mutation is safe where a whole-plan revision is not, because it is:
+//   - append-only (an existing allow glob can never be removed, so no in-flight
+//     edit is retroactively made illegal);
+//   - single-field (phases, acceptance, and validation strategy are untouched);
+//   - deny-respecting (the authored prohibition still wins — see below);
+//   - monotonic for validation (widening allow only ever adds oracles/paths).
+//
+// Deny globs are NOT extendable and are re-checked here. acceptance_deny is the
+// half of the boundary that expresses a real authored prohibition; an execution
+// may discover that the estimate was too narrow, but it may not overrule what
+// the plan explicitly forbade.
+func (s *service) ExtendChangeBoundary(ctx context.Context, planID string, workspace WorkspaceScope, globs []string) (Plan, []string, error) {
+	s.mutationMu.Lock()
+	defer s.mutationMu.Unlock()
+	p, err := s.Get(ctx, planID, workspace)
+	if err != nil {
+		return Plan{}, nil, err
+	}
+	if p.Status == PlanStatusArchived {
+		return Plan{}, nil, ErrInvalidPlan{Reason: "cannot extend the change boundary of an archived plan"}
+	}
+	boundary := p.ChangeBoundary.Normalized()
+	existing := make(map[string]struct{}, len(boundary.AcceptanceAllow))
+	for _, g := range boundary.AcceptanceAllow {
+		existing[g] = struct{}{}
+	}
+	deny := make(map[string]struct{}, len(boundary.AcceptanceDeny))
+	for _, g := range boundary.AcceptanceDeny {
+		deny[g] = struct{}{}
+	}
+	var added []string
+	for _, raw := range globs {
+		glob := planmodel.NormalizeBoundaryGlob(raw)
+		if glob == "" {
+			continue
+		}
+		if tokens := planmodel.UnresolvedPlaceholders(glob); len(tokens) > 0 {
+			return Plan{}, nil, ErrInvalidPlan{Reason: "boundary extension glob has unresolved placeholder(s) " + strings.Join(tokens, ", ") + ": " + glob}
+		}
+		if _, forbidden := deny[glob]; forbidden {
+			return Plan{}, nil, ErrInvalidPlan{Reason: "boundary extension glob is explicitly forbidden by acceptance_deny: " + glob}
+		}
+		if covered, by := planmodel.DenyCovers(boundary.AcceptanceDeny, glob); covered {
+			return Plan{}, nil, ErrInvalidPlan{Reason: "boundary extension glob " + glob + " falls under the forbidden path " + by}
+		}
+		if _, dup := existing[glob]; dup {
+			continue
+		}
+		existing[glob] = struct{}{}
+		added = append(added, glob)
+	}
+	if len(added) == 0 {
+		return p, nil, nil
+	}
+	boundary.AcceptanceAllow = append(boundary.AcceptanceAllow, added...)
+	p.ChangeBoundary = boundary.Normalized()
+	sort.Strings(added)
+	updated, err := s.saveRecomputed(ctx, p)
+	if err != nil {
+		return Plan{}, nil, err
+	}
+	return updated, added, nil
 }
 
 func (s *service) UpdatePhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error) {

@@ -71,6 +71,8 @@ type fakeCollectionClient struct {
 	pathResult validation.BaselinePathDiffResult
 	pathErr    error
 	pathCalled validation.BaselinePathDiffRequest
+	getName    string
+	getBranch  string
 }
 
 func (f *fakeCollectionClient) StartCollectionDiff(_ context.Context, req validation.BaselineCollectionDiffRequest) (validation.BaselineCollectionDiffResult, error) {
@@ -84,7 +86,8 @@ func (f *fakeCollectionClient) StartCollectionCapture(_ context.Context, req val
 	return f.result, f.err
 }
 
-func (f *fakeCollectionClient) GetCollection(_ context.Context, _ string, _ string) (validation.BaselineCollectionCaptureResult, error) {
+func (f *fakeCollectionClient) GetCollection(_ context.Context, name, branch string) (validation.BaselineCollectionCaptureResult, error) {
+	f.getName, f.getBranch = name, branch
 	return f.result, f.err
 }
 
@@ -613,6 +616,22 @@ func TestDirectValidationRequiresProducerTicket(t *testing.T) {
 	require.ErrorAs(t, err, &ticketRequired)
 }
 
+func TestSyncBaselineUsesExecutionAdoptedCollectionTicket(t *testing.T) {
+	plan := durableValidationPlan()
+	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "authored-before", ScenarioTargets: []string{"foo"}}
+	collections := &fakeCollectionClient{result: validation.BaselineCollectionCaptureResult{
+		Name: "recaptured-before", Branch: "agi", Required: 1, Ready: 1,
+		Members: []validation.BaselineCollectionMember{{Scenario: "foo", Required: true, Status: "ready"}},
+	}}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}, Collections: collections})
+
+	capture, err := svc.SyncBaseline(context.Background(), "p1", "recaptured-before")
+	require.NoError(t, err)
+	require.True(t, capture.Captured)
+	require.Equal(t, "recaptured-before", capture.BaselineName)
+	require.Equal(t, "recaptured-before", collections.getName)
+}
+
 func durableValidationPlan() internalplans.Plan {
 	plan := planWith(nil, nil)
 	plan.ChangeBoundary.AcceptanceAllow = []string{"scenarios/foo/**"}
@@ -849,16 +868,17 @@ func TestBaselineSetValidationRunsTypedScopedPathEvidenceSeparatelyFromOracle(t 
 func TestBaselineSetValidationPrefersCapturedExecutionInventory(t *testing.T) {
 	store := newFakeDurableStore()
 	plan := durableValidationPlan()
-	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "before", ScenarioTargets: []string{"foo", "bar"}}
+	plan.BaselineSet = planmodel.BaselineSetIntent{Name: "authored-before", ScenarioTargets: []string{"foo", "bar"}}
 	collections := &fakeCollectionClient{diffResult: validation.BaselineCollectionDiffResult{Classification: "clean"}}
 	svc := validation.NewService(validation.Deps{
 		Plans: fakePlans{plan: plan}, Results: store, Operations: store, Collections: collections,
-		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "before", ScenarioTargets: []string{"foo"}}, ok: true},
+		Inventories: fakeBaselineInventory{inventory: validation.BaselineInventory{Name: "recaptured-before", ScenarioTargets: []string{"foo"}, Complete: true}, ok: true},
 	})
-	op, _, err := svc.StartValidation(context.Background(), "p1", "", "captured-inventory")
+	op, _, err := svc.StartValidationTicket(context.Background(), validation.ValidationTicketRequest{PlanID: "p1", ExecutionID: "e1", IdempotencyKey: "captured-inventory"})
 	require.NoError(t, err)
 	_, err = svc.SyncValidation(context.Background(), op.ID)
 	require.NoError(t, err)
+	require.Contains(t, op.Children[0].Command, "--name recaptured-before")
 	require.NotContains(t, op.Children[0].Command, "--member", "final validation is selector-free even when the captured inventory was narrowed")
 }
 

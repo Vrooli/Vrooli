@@ -110,6 +110,10 @@ func (a planStoreAdapter) UpdatePhase(ctx context.Context, planID, workspaceID, 
 	return a.svc.UpdatePhase(ctx, planID, internalplans.WorkspaceScope{ID: workspaceID, Root: workspaceRoot}, phase)
 }
 
+func (a planStoreAdapter) ExtendChangeBoundary(ctx context.Context, planID, workspaceID, workspaceRoot string, globs []string) (internalplans.Plan, []string, error) {
+	return a.svc.ExtendChangeBoundary(ctx, planID, internalplans.WorkspaceScope{ID: workspaceID, Root: workspaceRoot}, globs)
+}
+
 // logLedgerAdapter adapts the log domain Service to execution's LogLedger seam.
 // It surfaces compact log summaries + captured entries (a cheap store read) into
 // the just-in-time context and the canonical handoff. Decisions/findings/bugs/
@@ -169,8 +173,8 @@ func (a validatorAdapter) LastValidation(ctx context.Context, planID, phaseID st
 // with a Detail, never a fabricated capture.
 type baselineSynchronizerAdapter struct{ svc internalvalidation.Service }
 
-func (a baselineSynchronizerAdapter) SyncBaseline(ctx context.Context, planID string) (internalexecution.FreshenResult, error) {
-	capture, err := a.svc.SyncBaseline(ctx, planID)
+func (a baselineSynchronizerAdapter) SyncBaseline(ctx context.Context, planID, baselineName string) (internalexecution.FreshenResult, error) {
+	capture, err := a.svc.SyncBaseline(ctx, planID, baselineName)
 	if err != nil {
 		return internalexecution.FreshenResult{}, err
 	}
@@ -286,6 +290,7 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("execution_amend_scope", executionconnect.ExecutionServiceAmendScopeProcedure, "Amend validation scope", "Records an auditable expansion within the captured baseline inventory and invalidates prior phase evidence."),
 	endpoint("execution_adopt_baseline", executionconnect.ExecutionServiceAdoptBaselineProcedure, "Adopt legacy baseline", "Creates a producer ticket or an explicit degraded legacy state without starting or waiting for capture."),
 	endpoint("execution_repair_source_scope", executionconnect.ExecutionServiceRepairSourceScopeProcedure, "Repair baseline source scope", "Boundary-checks and re-estimates an informational source-evidence replacement before capture can be issued."),
+	endpoint("execution_extend_boundary", executionconnect.ExecutionServiceExtendBoundaryProcedure, "Extend the change boundary", "Appends allow globs to the plan's change boundary mid-execution so validation scope follows a sanctioned scope expansion. Append-only; acceptance_deny still refuses."),
 	endpoint("execution_get_next", executionconnect.ExecutionServiceGetNextProcedure, "Advance to next phase", "Advances the runner's pointer to the next actionable phase and returns its injected context."),
 	endpoint("execution_transition_phase", executionconnect.ExecutionServiceTransitionPhaseProcedure, "Transition phase status", "Performs a typed phase-status transition; plan status is recomputed from the phase-status set."),
 	endpoint("execution_complete", executionconnect.ExecutionServiceCompleteProcedure, "Complete the run", "Runs the thin guided completion process, assembles the canonical handoff, and captures a velocity point (OT-P1-001/002)."),

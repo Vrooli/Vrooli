@@ -21,21 +21,40 @@ func orderToInt32(n int) int32 {
 
 func executionToProto(e internalexecution.Execution) *executionv1.Execution {
 	return &executionv1.Execution{
-		Id:              e.ID,
-		PlanId:          e.PlanID,
-		RunId:           e.RunID,
-		CurrentPhaseId:  e.CurrentPhaseID,
-		Complete:        e.Complete,
-		StartedAt:       e.StartedAt,
-		UpdatedAt:       e.UpdatedAt,
-		BaselineSet:     baselineSetToProto(e.BaselineSet),
-		ScopeAmendments: scopeAmendmentsToProto(e.ScopeAmendments),
-		DegradedReason:  e.DegradedReason,
-		LifecycleState:  string(e.EffectiveLifecycleState()),
-		AbandonedReason: e.AbandonedReason,
-		AbandonedAt:     e.AbandonedAt,
-		AbandonedBy:     e.AbandonedBy,
+		Id:                 e.ID,
+		PlanId:             e.PlanID,
+		RunId:              e.RunID,
+		CurrentPhaseId:     e.CurrentPhaseID,
+		Complete:           e.Complete,
+		StartedAt:          e.StartedAt,
+		UpdatedAt:          e.UpdatedAt,
+		BaselineSet:        baselineSetToProto(e.BaselineSet),
+		ScopeAmendments:    scopeAmendmentsToProto(e.ScopeAmendments),
+		BoundaryExtensions: boundaryExtensionsToProto(e.BoundaryExtensions),
+		DegradedReason:     e.DegradedReason,
+		LifecycleState:     string(e.EffectiveLifecycleState()),
+		AbandonedReason:    e.AbandonedReason,
+		AbandonedAt:        e.AbandonedAt,
+		AbandonedBy:        e.AbandonedBy,
 	}
+}
+
+func boundaryExtensionsToProto(items []internalexecution.BoundaryExtension) []*executionv1.BoundaryExtension {
+	out := make([]*executionv1.BoundaryExtension, 0, len(items))
+	for _, item := range items {
+		out = append(out, &executionv1.BoundaryExtension{
+			Id:            item.ID,
+			PhaseId:       item.PhaseID,
+			Author:        item.Author,
+			Reason:        item.Reason,
+			AddedAllow:    append([]string(nil), item.AddedAllow...),
+			OldAllow:      append([]string(nil), item.OldAllow...),
+			NewAllow:      append([]string(nil), item.NewAllow...),
+			InvalidatedAt: item.InvalidatedAt,
+			CreatedAt:     item.CreatedAt,
+		})
+	}
+	return out
 }
 
 func scopeAmendmentsToProto(items []internalexecution.ScopeAmendment) []*executionv1.ScopeAmendment {

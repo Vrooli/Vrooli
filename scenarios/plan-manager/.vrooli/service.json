@@ -253,7 +253,7 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Provides the run-id attribution contract (VROOLI_AGENT_MANAGER_RUN_ID) used to dedup handoff actions. Owns the prose-handoff capture (it holds the transcript); plan-manager links to it by reference and never reads transcripts.",
+        "description": "Provides the signed run-identity attribution contract used to dedup handoff actions. Owns the prose-handoff capture (it holds the transcript); plan-manager links to it by reference and never reads transcripts.",
         "degraded_behavior": "Handoff dedup falls back to content-based best-effort; structured handoff still assembles."
       },
       "search-hub": {

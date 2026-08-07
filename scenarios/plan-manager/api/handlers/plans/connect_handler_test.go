@@ -46,6 +46,8 @@ type fakePlansService struct {
 	gotAddPhasePlanID        string
 	gotAddPhaseWorkspace     internalplans.WorkspaceScope
 	gotAddPhase              internalplans.Phase
+	gotExtendBoundaryPlanID  string
+	gotExtendBoundaryGlobs   []string
 	gotUpdatePhasePlanID     string
 	gotUpdatePhaseWorkspace  internalplans.WorkspaceScope
 	gotUpdatePhase           internalplans.Phase
@@ -158,6 +160,11 @@ func (f *fakePlansService) AddPhase(_ context.Context, planID string, workspace 
 func (f *fakePlansService) AddPhaseWithImpact(ctx context.Context, planID string, workspace internalplans.WorkspaceScope, phase internalplans.Phase, _ bool) (internalplans.Plan, internalplans.MutationImpact, error) {
 	p, err := f.AddPhase(ctx, planID, workspace, phase)
 	return p, internalplans.MutationImpact{BeforeGrade: "pass", AfterGrade: "pass"}, err
+}
+
+func (f *fakePlansService) ExtendChangeBoundary(_ context.Context, planID string, _ internalplans.WorkspaceScope, globs []string) (internalplans.Plan, []string, error) {
+	f.gotExtendBoundaryPlanID, f.gotExtendBoundaryGlobs = planID, globs
+	return f.plan, globs, f.err
 }
 
 func (f *fakePlansService) UpdatePhase(_ context.Context, planID string, workspace internalplans.WorkspaceScope, phase internalplans.Phase) (internalplans.Plan, error) {

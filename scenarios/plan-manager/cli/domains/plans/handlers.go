@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"plan-manager/cli/internal/statusconv"
 
@@ -1051,7 +1052,74 @@ func formatPlan(p *sharedv1.Plan) string {
 	if p == nil {
 		return "(nil)"
 	}
-	return fmt.Sprintf("%s — %s [%s, phases=%d]", p.Slug, p.Title, statusconv.PlanStatusLabel(p.Status), len(p.Phases))
+	return fmt.Sprintf("%s — %s [%s%s, phases=%d]", p.Slug, p.Title, statusconv.PlanStatusLabel(p.Status), planActivitySuffix(p), len(p.Phases))
+}
+
+// planActivitySuffix decodes plan status and appends how long the plan has been
+// untouched.
+//
+// Plan status is COMPUTED from the phase-status set, not from anyone's
+// intent: `draft` means no phase has moved off todo, and `active` means at
+// least one has. But both words are borrowed from human-intent vocabulary, so
+// they get read as ownership claims — `draft` as "someone is still writing
+// this" and `active` as "someone is working on this right now". Neither is what
+// the value means, and neither carries any recency at all. A finalized plan
+// nobody ever started reports `draft` forever; a plan abandoned mid-phase a year
+// ago reports `active` forever.
+//
+// That misread has a real cost: a discovering agent skips a ready-to-execute
+// plan because it looks half-written, or refuses to pick up abandoned work
+// because it looks owned. Printing the decode and the age next to the status is
+// what stops the guess. Machine consumers read the proto and are unaffected.
+func planActivitySuffix(p *sharedv1.Plan) string {
+	var decode string
+	switch p.GetStatus() {
+	case sharedv1.PlanStatus_PLAN_STATUS_DRAFT:
+		decode = "no phase started"
+	case sharedv1.PlanStatus_PLAN_STATUS_ACTIVE:
+		decode = "some phase started"
+	default:
+		return ""
+	}
+	if age := humanizeAge(p.GetUpdatedAt()); age != "" {
+		return fmt.Sprintf(" · %s · last activity %s", decode, age)
+	}
+	return " · " + decode
+}
+
+// planStatusNote spells out, on the detail view, that status is not an
+// ownership claim. The one-line suffix is enough in a list; a reader who opened
+// a single plan is usually deciding whether to pick it up, which is exactly the
+// decision the status vocabulary misleads.
+func planStatusNote(p *sharedv1.Plan) string {
+	switch p.GetStatus() {
+	case sharedv1.PlanStatus_PLAN_STATUS_DRAFT:
+		return "status note: computed from the phase set — no phase has left todo. It does NOT mean the plan is unfinished or that someone is still authoring it; a finalized, validated, never-started plan reports draft. Check last activity, not status, to judge whether this work is owned."
+	case sharedv1.PlanStatus_PLAN_STATUS_ACTIVE:
+		return "status note: computed from the phase set — at least one phase left todo. It does NOT mean anyone is working on this now; a run abandoned mid-phase reports active indefinitely. Check last activity, not status, to judge whether this work is owned."
+	default:
+		return ""
+	}
+}
+
+// humanizeAge renders an RFC3339 timestamp as a compact "how long ago". An
+// unparseable or future timestamp yields "" rather than a misleading number.
+func humanizeAge(ts string) string {
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(ts))
+	if err != nil {
+		return ""
+	}
+	d := time.Since(parsed)
+	switch {
+	case d < 0:
+		return ""
+	case d < time.Hour:
+		return "under 1h ago"
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	default:
+		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	}
 }
 
 func planDetail(p *sharedv1.Plan) []string {
@@ -1062,7 +1130,10 @@ func planDetail(p *sharedv1.Plan) []string {
 		fmt.Sprintf("id: %s", p.Id),
 		fmt.Sprintf("slug: %s", p.Slug),
 		fmt.Sprintf("title: %s", p.Title),
-		fmt.Sprintf("status: %s", statusconv.PlanStatusLabel(p.Status)),
+		fmt.Sprintf("status: %s%s", statusconv.PlanStatusLabel(p.Status), planActivitySuffix(p)),
+	}
+	if note := planStatusNote(p); note != "" {
+		out = append(out, note)
 	}
 	if p.ContentHash != "" {
 		out = append(out, fmt.Sprintf("content-hash: %s", p.ContentHash))

@@ -154,9 +154,16 @@ type LogEntry struct {
 	SourceCommand string
 	// Evidence holds optional supporting locators (paths, command output, urls).
 	Evidence []string
-	// AttributionRunID is VROOLI_AGENT_MANAGER_RUN_ID when present; powers
+	// AttributionRunID is an explicitly supplied or verified run id; it powers
 	// attribution-keyed dedup.
 	AttributionRunID string
+	// VerificationStatus records the api-core provenance outcome for the
+	// write. Only verified entries carry AttributionRunID.
+	VerificationStatus string
+	// Harness observations identify the client channel without asserting agent
+	// authority or supplying a run id.
+	HarnessSessionID string
+	HarnessKind      string
 	// IdempotencyKey deduplicates retries; a retry with the same key returns the
 	// existing entry instead of creating a duplicate.
 	IdempotencyKey string

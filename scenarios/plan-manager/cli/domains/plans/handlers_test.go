@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -849,3 +851,49 @@ func errBoom() error { return &boomError{} }
 type boomError struct{}
 
 func (*boomError) Error() string { return "boom" }
+
+// TestPlanStatusIsReportedWithItsDecodeAndAge pins the fix for a specific
+// misread: plan status is computed from the phase-status set, but `draft` and
+// `active` are read as ownership claims. A finalized, never-started plan reports
+// `draft` and gets skipped as half-written; a run abandoned mid-phase reports
+// `active` and gets left alone as owned. Status must never be printed bare.
+func TestPlanStatusIsReportedWithItsDecodeAndAge(t *testing.T) {
+	stale := time.Now().Add(-42 * 24 * time.Hour).Format(time.RFC3339)
+
+	draft := &sharedv1.Plan{
+		Slug: "never-started", Title: "Never Started",
+		Status: sharedv1.PlanStatus_PLAN_STATUS_DRAFT, UpdatedAt: stale,
+	}
+	line := formatPlan(draft)
+	require.Contains(t, line, "draft")
+	require.Contains(t, line, "no phase started",
+		"draft must be decoded — it does not mean the plan is still being authored")
+	require.Contains(t, line, "42d ago", "recency is the signal status lacks")
+
+	active := &sharedv1.Plan{
+		Slug: "abandoned", Title: "Abandoned",
+		Status: sharedv1.PlanStatus_PLAN_STATUS_ACTIVE, UpdatedAt: stale,
+	}
+	line = formatPlan(active)
+	require.Contains(t, line, "some phase started",
+		"active must be decoded — it does not mean anyone is working on this now")
+	require.Contains(t, line, "42d ago")
+
+	// The detail view carries the full warning, because that reader is deciding
+	// whether to pick the plan up.
+	detail := planDetail(draft)
+	joined := strings.Join(detail, "\n")
+	require.Contains(t, joined, "does NOT mean")
+	require.Contains(t, joined, "Check last activity, not status")
+
+	// Terminal states carry no decode — there is nothing to misread.
+	complete := &sharedv1.Plan{Slug: "done", Title: "Done", Status: sharedv1.PlanStatus_PLAN_STATUS_COMPLETE, UpdatedAt: stale}
+	require.Empty(t, planActivitySuffix(complete))
+	require.Empty(t, planStatusNote(complete))
+
+	// An unparseable timestamp degrades to the decode alone rather than a
+	// fabricated age.
+	noTime := &sharedv1.Plan{Slug: "x", Title: "X", Status: sharedv1.PlanStatus_PLAN_STATUS_DRAFT}
+	require.Contains(t, planActivitySuffix(noTime), "no phase started")
+	require.NotContains(t, planActivitySuffix(noTime), "last activity")
+}

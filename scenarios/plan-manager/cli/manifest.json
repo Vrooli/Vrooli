@@ -331,7 +331,10 @@
           "flags": [
             {
               "name": "plan",
-              "description": "Scope to one plan's neighborhood"
+              "description": "Scope to one plan's neighborhood",
+              "bind": {
+                "field": "plan_id"
+              }
             }
           ],
           "binding": {
@@ -350,22 +353,89 @@
         {
           "name": "context-add",
           "description": "Add persisted relevant context to a finalized plan or phase",
-          "positionals": [{"name": "id", "required": true, "description": "Plan id or slug"}],
-          "flags": [
-            {"name": "workspace", "description": "Workspace root used to scope slug lookup"},
-            {"name": "phase", "description": "Optional phase id; omit for plan-wide context"},
-            {"name": "kind", "description": "Context kind", "values": ["skill", "doc", "command", "search", "code_ref", "req_ref", "note"]},
-            {"name": "label", "description": "Short human label"},
-            {"name": "reason", "description": "Why this setup item matters"},
-            {"name": "instruction", "description": "Instruction shown to future agents"},
-            {"name": "command", "description": "Command/search text"},
-            {"name": "target", "description": "Reference target or skill slug"},
-            {"name": "required", "description": "Whether the item is required", "bool": true},
-            {"name": "repeat", "description": "Repeat policy", "values": ["once_per_execution", "on_resume", "every_phase", "phase_entry", "as_needed"]},
-            {"name": "allow-quality-regression", "description": "Explicitly acknowledge an execution-grade quality regression", "bool": true}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "AddRelevantContext"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id; omit for plan-wide context"
+            },
+            {
+              "name": "kind",
+              "description": "Context kind",
+              "values": [
+                "skill",
+                "doc",
+                "command",
+                "search",
+                "code_ref",
+                "req_ref",
+                "note"
+              ]
+            },
+            {
+              "name": "label",
+              "description": "Short human label"
+            },
+            {
+              "name": "reason",
+              "description": "Why this setup item matters"
+            },
+            {
+              "name": "instruction",
+              "description": "Instruction shown to future agents"
+            },
+            {
+              "name": "command",
+              "description": "Command/search text"
+            },
+            {
+              "name": "target",
+              "description": "Reference target or skill slug"
+            },
+            {
+              "name": "required",
+              "description": "Whether the item is required",
+              "bool": true
+            },
+            {
+              "name": "repeat",
+              "description": "Repeat policy",
+              "values": [
+                "once_per_execution",
+                "on_resume",
+                "every_phase",
+                "phase_entry",
+                "as_needed"
+              ]
+            },
+            {
+              "name": "allow-quality-regression",
+              "description": "Explicitly acknowledge an execution-grade quality regression",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "AddRelevantContext"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "context-list",
@@ -384,7 +454,10 @@
             },
             {
               "name": "phase",
-              "description": "Optional phase id or order number; omit for plan-wide context"
+              "description": "Optional phase id or order number; omit for plan-wide context",
+              "bind": {
+                "field": "phase_id"
+              }
             }
           ],
           "binding": {
@@ -528,18 +601,63 @@
         {
           "name": "reference-add",
           "description": "Add a persisted code, doc, or requirement reference to a finalized plan or phase",
-          "positionals": [{"name": "id", "required": true, "description": "Plan id or slug"}],
-          "flags": [
-            {"name": "workspace", "description": "Workspace root used to scope slug lookup"},
-            {"name": "phase", "description": "Optional phase id; omit for plan-wide references"},
-            {"name": "kind", "description": "Reference kind", "values": ["code", "doc", "req"]},
-            {"name": "target", "description": "Reference target path or requirement id", "required": true},
-            {"name": "future", "description": "Mark this reference as intentionally future", "bool": true},
-            {"name": "note", "description": "Optional operator note"},
-            {"name": "allow-quality-regression", "description": "Explicitly acknowledge an execution-grade quality regression", "bool": true}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Plan id or slug"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "AddReference"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "flags": [
+            {
+              "name": "workspace",
+              "description": "Workspace root used to scope slug lookup"
+            },
+            {
+              "name": "phase",
+              "description": "Optional phase id; omit for plan-wide references"
+            },
+            {
+              "name": "kind",
+              "description": "Reference kind",
+              "values": [
+                "code",
+                "doc",
+                "req"
+              ]
+            },
+            {
+              "name": "target",
+              "description": "Reference target path or requirement id",
+              "required": true
+            },
+            {
+              "name": "future",
+              "description": "Mark this reference as intentionally future",
+              "bool": true
+            },
+            {
+              "name": "note",
+              "description": "Optional operator note"
+            },
+            {
+              "name": "allow-quality-regression",
+              "description": "Explicitly acknowledge an execution-grade quality regression",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "AddReference"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "reference-list",
@@ -558,7 +676,10 @@
             },
             {
               "name": "phase",
-              "description": "Optional phase id or order number; omit for plan-wide references"
+              "description": "Optional phase id or order number; omit for plan-wide references",
+              "bind": {
+                "field": "phase_id"
+              }
             }
           ],
           "binding": {
@@ -789,56 +910,184 @@
         {
           "name": "candidate-create",
           "description": "Store a whole-plan candidate revision without changing the canonical plan",
-          "positionals": [{"name": "plan", "required": true, "description": "Canonical plan id or slug"}],
-          "flags": [
-            {"name": "base-hash", "description": "Expected canonical plan content hash", "required": true},
-            {"name": "provenance", "description": "Proposal or workshop provenance", "required": true},
-            {"name": "candidate-json", "description": "Whole candidate shared.Plan JSON", "required": true},
-            {"name": "expires-at", "description": "Optional RFC3339 candidate expiry time"},
-            {"name": "workspace", "description": "Workspace root used to resolve the canonical plan"}
+          "positionals": [
+            {
+              "name": "plan",
+              "required": true,
+              "description": "Canonical plan id or slug"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "CreateCandidateRevision"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "flags": [
+            {
+              "name": "base-hash",
+              "description": "Expected canonical plan content hash",
+              "required": true
+            },
+            {
+              "name": "provenance",
+              "description": "Proposal or workshop provenance",
+              "required": true
+            },
+            {
+              "name": "candidate-json",
+              "description": "Whole candidate shared.Plan JSON",
+              "required": true
+            },
+            {
+              "name": "expires-at",
+              "description": "Optional RFC3339 candidate expiry time"
+            },
+            {
+              "name": "workspace",
+              "description": "Workspace root used to resolve the canonical plan"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "CreateCandidateRevision"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "candidate-get",
           "description": "Show one durable candidate revision",
-          "positionals": [{"name": "id", "required": true, "description": "Candidate revision id"}],
-          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "GetCandidateRevision"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Candidate revision id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "GetCandidateRevision"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "candidate-preview",
           "description": "Compute candidate diff, diagnostics, and rendered content without mutating the plan",
-          "positionals": [{"name": "id", "required": true, "description": "Candidate revision id"}],
-          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "PreviewCandidateRevision"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Candidate revision id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "PreviewCandidateRevision"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "candidate-validate",
           "description": "Validate a candidate revision without mutating the plan",
-          "positionals": [{"name": "id", "required": true, "description": "Candidate revision id"}],
-          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "ValidateCandidateRevision"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Candidate revision id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ValidateCandidateRevision"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "candidate-apply",
           "description": "Apply a validated candidate when the base hash matches and no execution is active",
-          "positionals": [{"name": "id", "required": true, "description": "Candidate revision id"}],
-          "flags": [
-            {"name": "base-hash", "description": "Expected canonical plan content hash", "required": true},
-            {"name": "acknowledge-quality-impact", "description": "Explicitly acknowledge the reviewed candidate quality impact", "bool": true, "required": true}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Candidate revision id"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "ApplyCandidateRevision"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "flags": [
+            {
+              "name": "base-hash",
+              "description": "Expected canonical plan content hash",
+              "required": true
+            },
+            {
+              "name": "acknowledge-quality-impact",
+              "description": "Explicitly acknowledge the reviewed candidate quality impact",
+              "bool": true,
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "ApplyCandidateRevision"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "candidate-discard",
           "description": "Discard an unapplied candidate revision",
-          "positionals": [{"name": "id", "required": true, "description": "Candidate revision id"}],
-          "flags": [{"name": "reason", "description": "Optional discard rationale"}],
-          "binding": {"kind": "connect-rpc", "service": "PlansService", "method": "DiscardCandidateRevision"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Candidate revision id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "description": "Optional discard rationale"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "DiscardCandidateRevision"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "reconcile",
@@ -1218,13 +1467,19 @@
             {
               "name": "plan",
               "required": true,
-              "description": "Plan id or slug"
+              "description": "Plan id or slug",
+              "bind": {
+                "field": "plan_id"
+              }
             }
           ],
           "flags": [
             {
               "name": "phase",
-              "description": "Scope to one phase id"
+              "description": "Scope to one phase id",
+              "bind": {
+                "field": "phase_id"
+              }
             }
           ],
           "binding": {
@@ -1247,13 +1502,19 @@
             {
               "name": "plan",
               "required": true,
-              "description": "Plan id or slug"
+              "description": "Plan id or slug",
+              "bind": {
+                "field": "plan_id"
+              }
             }
           ],
           "flags": [
             {
               "name": "phase",
-              "description": "Scope to one phase id"
+              "description": "Scope to one phase id",
+              "bind": {
+                "field": "phase_id"
+              }
             }
           ],
           "binding": {
@@ -1276,13 +1537,19 @@
             {
               "name": "plan",
               "required": true,
-              "description": "Plan id or slug"
+              "description": "Plan id or slug",
+              "bind": {
+                "field": "plan_id"
+              }
             }
           ],
           "flags": [
             {
               "name": "phase",
-              "description": "Scope to one phase id"
+              "description": "Scope to one phase id",
+              "bind": {
+                "field": "phase_id"
+              }
             }
           ],
           "binding": {
@@ -1305,13 +1572,19 @@
             {
               "name": "plan",
               "required": true,
-              "description": "Plan id or slug"
+              "description": "Plan id or slug",
+              "bind": {
+                "field": "plan_id"
+              }
             }
           ],
           "flags": [
             {
               "name": "phase",
-              "description": "Scope to one phase id"
+              "description": "Scope to one phase id",
+              "bind": {
+                "field": "phase_id"
+              }
             },
             {
               "name": "idempotency-key",
@@ -1319,11 +1592,17 @@
             },
             {
               "name": "execution",
-              "description": "Execution id that owns this evidence"
+              "description": "Execution id that owns this evidence",
+              "bind": {
+                "field": "execution_id"
+              }
             },
             {
               "name": "members",
-              "description": "Comma-separated selected captured members; must include the phase minimum"
+              "description": "Comma-separated selected captured members; must include the phase minimum",
+              "bind": {
+                "field": "member"
+              }
             },
             {
               "name": "test-runs",
@@ -1354,7 +1633,10 @@
             {
               "name": "operation",
               "required": true,
-              "description": "Validation operation id"
+              "description": "Validation operation id",
+              "bind": {
+                "field": "operation_id"
+              }
             }
           ],
           "binding": {
@@ -1377,7 +1659,10 @@
             {
               "name": "operation",
               "required": true,
-              "description": "Validation operation id"
+              "description": "Validation operation id",
+              "bind": {
+                "field": "operation_id"
+              }
             }
           ],
           "binding": {
@@ -1400,7 +1685,10 @@
             {
               "name": "operation",
               "required": true,
-              "description": "Validation operation id"
+              "description": "Validation operation id",
+              "bind": {
+                "field": "operation_id"
+              }
             }
           ],
           "binding": {
@@ -1423,7 +1711,10 @@
             {
               "name": "operation",
               "required": true,
-              "description": "Validation operation id"
+              "description": "Validation operation id",
+              "bind": {
+                "field": "operation_id"
+              }
             }
           ],
           "binding": {
@@ -1535,7 +1826,10 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id"
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "binding": {
@@ -1558,14 +1852,20 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id"
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "flags": [
             {
               "name": "section",
               "required": true,
-              "description": "Section key (e.g. purpose, scope, regression_anchor, phases)"
+              "description": "Section key (e.g. purpose, scope, regression_anchor, phases)",
+              "bind": {
+                "field": "section_key"
+              }
             }
           ],
           "binding": {
@@ -1656,14 +1956,20 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id or readable alias"
+              "description": "Authoring session id or readable alias",
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "flags": [
             {
               "name": "full",
               "description": "Show full plan details in human output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "binding": {
@@ -1686,7 +1992,10 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id"
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "binding": {
@@ -1709,7 +2018,10 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id"
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "binding": {
@@ -1901,13 +2213,19 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id"
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "flags": [
             {
               "name": "phase",
-              "description": "Optional phase id or order number; omit for global context"
+              "description": "Optional phase id or order number; omit for global context",
+              "bind": {
+                "field": "phase_id"
+              }
             }
           ],
           "binding": {
@@ -2136,12 +2454,18 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id"
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
             },
             {
               "name": "phase",
               "required": true,
-              "description": "Phase id or order number"
+              "description": "Phase id or order number",
+              "bind": {
+                "field": "phase_id"
+              }
             }
           ],
           "binding": {
@@ -2210,7 +2534,10 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id"
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "binding": {
@@ -2233,7 +2560,10 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id"
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "binding": {
@@ -2302,7 +2632,7 @@
           "flags": [
             {
               "name": "run-id",
-              "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
             }
           ],
           "binding": {
@@ -2325,7 +2655,10 @@
             {
               "name": "execution",
               "required": true,
-              "description": "Execution id"
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
             }
           ],
           "binding": {
@@ -2348,13 +2681,19 @@
             {
               "name": "execution",
               "required": true,
-              "description": "Execution id"
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
             }
           ],
           "flags": [
             {
               "name": "phase",
-              "description": "Optional phase id to inspect without moving the pointer"
+              "description": "Optional phase id to inspect without moving the pointer",
+              "bind": {
+                "field": "phase_id"
+              }
             }
           ],
           "binding": {
@@ -2383,7 +2722,10 @@
           "flags": [
             {
               "name": "phase",
-              "description": "Optional phase id to move the pointer to"
+              "description": "Optional phase id to move the pointer to",
+              "bind": {
+                "field": "phase_id"
+              }
             },
             {
               "name": "run-id",
@@ -2416,7 +2758,10 @@
           "flags": [
             {
               "name": "phase",
-              "description": "Optional phase id to move the pointer to"
+              "description": "Optional phase id to move the pointer to",
+              "bind": {
+                "field": "phase_id"
+              }
             },
             {
               "name": "run-id",
@@ -2440,14 +2785,35 @@
           "name": "abandon",
           "description": "Terminally abandon an accidental execution while preserving audit history",
           "positionals": [
-            {"name": "execution", "required": true, "description": "Execution id"}
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id"
+            }
           ],
           "flags": [
-            {"name": "reason", "required": true, "description": "Why this execution must be abandoned"},
-            {"name": "actor", "description": "Actor/provenance; defaults server-side"}
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Why this execution must be abandoned"
+            },
+            {
+              "name": "actor",
+              "description": "Actor/provenance; defaults server-side"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "ExecutionService", "method": "AbandonExecution"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "AbandonExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "baseline-sync",
@@ -2456,7 +2822,10 @@
             {
               "name": "execution",
               "required": true,
-              "description": "Execution id"
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
             }
           ],
           "binding": {
@@ -2479,19 +2848,28 @@
             {
               "name": "execution",
               "required": true,
-              "description": "Execution id"
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
             }
           ],
           "flags": [
             {
               "name": "phase",
               "description": "Phase id",
-              "required": true
+              "required": true,
+              "bind": {
+                "field": "phase_id"
+              }
             },
             {
               "name": "members",
               "description": "Comma-separated additional captured scenario members",
-              "required": true
+              "required": true,
+              "bind": {
+                "field": "member"
+              }
             },
             {
               "name": "reason",
@@ -2523,7 +2901,10 @@
             {
               "name": "execution",
               "required": true,
-              "description": "Execution id"
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
             }
           ],
           "flags": [
@@ -2538,11 +2919,17 @@
             },
             {
               "name": "members",
-              "description": "Comma-separated members for recapture"
+              "description": "Comma-separated members for recapture",
+              "bind": {
+                "field": "member"
+              }
             },
             {
               "name": "paths",
-              "description": "Comma-separated informational source paths"
+              "description": "Comma-separated informational source paths",
+              "bind": {
+                "field": "path"
+              }
             },
             {
               "name": "reason",
@@ -2570,14 +2957,20 @@
             {
               "name": "execution",
               "required": true,
-              "description": "Execution id"
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
             }
           ],
           "flags": [
             {
               "name": "paths",
               "description": "Comma-separated replacement source globs within the authored change boundary",
-              "required": true
+              "required": true,
+              "bind": {
+                "field": "path"
+              }
             },
             {
               "name": "reason",
@@ -2599,13 +2992,62 @@
           }
         },
         {
+          "name": "boundary-extend",
+          "description": "Append allow globs to the plan's change boundary so validation scope follows a needed edit the authored boundary did not anticipate. Append-only; acceptance_deny still refuses",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "paths",
+              "description": "Comma-separated repo-relative globs to add to acceptance_allow (e.g. packages/proto/schemas/plan-manager/**)",
+              "required": true,
+              "bind": {
+                "field": "path"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Which phase intent needs the edit, and why the authored boundary did not cover it",
+              "required": true
+            },
+            {
+              "name": "author",
+              "description": "Who recorded the extension",
+              "required": false
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "ExtendBoundary"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "next",
           "description": "Advance to the next actionable phase and return its context",
           "positionals": [
             {
               "name": "execution",
               "required": true,
-              "description": "Execution id"
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
             }
           ],
           "binding": {
@@ -2743,7 +3185,10 @@
             {
               "name": "execution",
               "required": true,
-              "description": "Execution id"
+              "description": "Execution id",
+              "bind": {
+                "field": "execution_id"
+              }
             }
           ],
           "binding": {
@@ -2766,7 +3211,10 @@
             {
               "name": "plan",
               "required": true,
-              "description": "Plan id or slug"
+              "description": "Plan id or slug",
+              "bind": {
+                "field": "plan_id"
+              }
             }
           ],
           "binding": {
@@ -2826,7 +3274,7 @@
             },
             {
               "name": "run-id",
-              "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
             }
           ],
           "binding": {
@@ -2891,7 +3339,7 @@
             },
             {
               "name": "run-id",
-              "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
             }
           ],
           "binding": {
@@ -2956,7 +3404,7 @@
             },
             {
               "name": "run-id",
-              "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
             },
             {
               "name": "signal-type",
@@ -3051,7 +3499,7 @@
             },
             {
               "name": "run-id",
-              "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
             },
             {
               "name": "kind",
@@ -3133,7 +3581,7 @@
             },
             {
               "name": "run-id",
-              "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+              "description": "Attribution run id supplied explicitly or resolved from the verified identity token"
             }
           ],
           "binding": {
