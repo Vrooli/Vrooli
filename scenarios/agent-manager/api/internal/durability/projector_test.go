@@ -133,3 +133,15 @@ func TestResolveBoundaryRefusesWithoutStore(t *testing.T) {
 		t.Fatal("expected an error when no boundary store is configured")
 	}
 }
+
+// A source that was never consulted is not a clean source. Reporting durable
+// here would mean "we found no pushback" when the truth is "we never looked".
+func TestProjectTreatsUnconsultedSourceAsUnknown(t *testing.T) {
+	epoch := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	got := Project(Boundary{Epoch: epoch}, Work{ID: "run-7", StartedAt: epoch.Add(time.Hour), Lane: LaneVerified}, []Evidence{
+		{Kind: "swarm-evidence-not-configured", Reference: "swarm-manager://durability/evidence", At: epoch, Lane: LaneUnlinked, Degraded: true},
+	})
+	if got.Verdict != VerdictUnknown || got.UnknownReason != ReasonEvidenceDegraded {
+		t.Fatalf("verdict = %#v", got)
+	}
+}

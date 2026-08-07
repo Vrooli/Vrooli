@@ -430,7 +430,8 @@ func (o *Orchestrator) BackfillRunSubjects(ctx context.Context) (*SubjectBackfil
 	return result, nil
 }
 
-// BackfillImportedRunLabels recovers labels from retained transcript files.
+// BackfillImportedRunLabels recovers labels for every unlabelled run: imported
+// runs from their retained transcript, native runs from their own task title.
 // It never invokes the generator: legacy backfills are limited to harness or
 // derived evidence, as required for a cost-free and auditable repair.
 func (o *Orchestrator) BackfillImportedRunLabels(ctx context.Context) (*LabelBackfillResult, error) {
@@ -445,7 +446,11 @@ func (o *Orchestrator) BackfillImportedRunLabels(ctx context.Context) (*LabelBac
 	transcriptPaths := indexExternalTranscriptPaths(runs)
 	result := &LabelBackfillResult{}
 	for _, run := range runs {
-		if run == nil || run.ExecutionMode.Normalized() != domain.ExecutionModeImported {
+		if run == nil {
+			continue
+		}
+		if run.ExecutionMode.Normalized() != domain.ExecutionModeImported {
+			o.backfillNativeRunLabel(ctx, updater, run, result)
 			continue
 		}
 		result.Scanned++
@@ -511,6 +516,33 @@ func (o *Orchestrator) BackfillImportedRunLabels(ctx context.Context) (*LabelBac
 		result.Updated++
 	}
 	return result, nil
+}
+
+// backfillNativeRunLabel labels runs Agent Manager executed itself. Unlike
+// imported runs — which all share one synthetic task — a native run owns its
+// task, so the task title is the best available name for it. The source is
+// derived because the label comes from the run's own record rather than from
+// session content or an author writing a run label.
+func (o *Orchestrator) backfillNativeRunLabel(ctx context.Context, updater repository.RunLabelUpdater, run *domain.Run, result *LabelBackfillResult) {
+	if strings.TrimSpace(run.Label) != "" {
+		return
+	}
+	result.Scanned++
+	task, err := o.tasks.Get(ctx, run.TaskID)
+	if err != nil || task == nil {
+		result.Failures++
+		return
+	}
+	label := shortenTranscriptLabel(task.Title)
+	if label == "" {
+		result.Missing++
+		return
+	}
+	if err := updater.UpdateRunLabel(ctx, run.ID, label, domain.RunLabelSourceDerived); err != nil {
+		result.Failures++
+		return
+	}
+	result.Updated++
 }
 
 func legacyFallbackLabel(run *domain.Run) string {

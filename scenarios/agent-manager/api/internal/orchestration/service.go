@@ -778,13 +778,15 @@ func (o *Orchestrator) Durability(ctx context.Context, id uuid.UUID) (durability
 	for _, episode := range episodes {
 		evidence = append(evidence, durability.Evidence{Kind: "friction", Reference: "agent-manager://runs/" + id.String() + "/episodes/" + episode.EpisodeID, At: started, Lane: lane})
 	}
-	if o.durabilityEvidence != nil {
-		observed, readErr := o.durabilityEvidence.ReadDurabilityEvidence(ctx, run)
-		if readErr != nil {
-			evidence = append(evidence, durability.Evidence{Kind: "swarm-evidence-unavailable", Reference: "swarm-manager://durability/evidence", At: started, Lane: durability.LaneUnlinked, Degraded: true})
-		} else {
-			evidence = append(evidence, observed...)
-		}
+	if o.durabilityEvidence == nil {
+		// An unconfigured source was never consulted. Staying silent here would
+		// let a run with no local friction report durable while the entire
+		// pushback and rework lane went unread.
+		evidence = append(evidence, durability.Evidence{Kind: "swarm-evidence-not-configured", Reference: "swarm-manager://durability/evidence", At: started, Lane: durability.LaneUnlinked, Degraded: true})
+	} else if observed, readErr := o.durabilityEvidence.ReadDurabilityEvidence(ctx, run); readErr != nil {
+		evidence = append(evidence, durability.Evidence{Kind: "swarm-evidence-unavailable", Reference: "swarm-manager://durability/evidence", At: started, Lane: durability.LaneUnlinked, Degraded: true})
+	} else {
+		evidence = append(evidence, observed...)
 	}
 	boundary, err := durability.ResolveBoundary(ctx, o.durabilityBoundary, systemNow())
 	if err != nil {
