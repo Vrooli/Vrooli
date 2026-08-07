@@ -884,6 +884,9 @@ func (db *DB) consolidateLegacyInvestigationProjections(ctx context.Context) err
 // CREATE TABLE shipped. Each is applied only when missing, so re-running is
 // safe and existing rows are untouched (the new columns take their DEFAULT).
 var runColumnMigrations = []columnMigration{
+	{column: "label", ddl: "ALTER TABLE runs ADD COLUMN label TEXT NOT NULL DEFAULT ''"},
+	{column: "label_source", ddl: "ALTER TABLE runs ADD COLUMN label_source TEXT NOT NULL DEFAULT ''"},
+	{column: "subject", ddl: "ALTER TABLE runs ADD COLUMN subject TEXT NOT NULL DEFAULT '[]'"},
 	{column: "execution_mode", ddl: "ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe'"},
 	{column: "web_console_session_id", ddl: "ALTER TABLE runs ADD COLUMN web_console_session_id TEXT DEFAULT ''"},
 	{column: "run_result", ddl: "ALTER TABLE runs ADD COLUMN run_result TEXT"},

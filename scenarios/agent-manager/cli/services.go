@@ -637,6 +637,11 @@ func (s *RunService) GetReport(id string) ([]byte, error) {
 	return s.api.Get("/api/v1/runs/"+id+"/report", nil)
 }
 
+// Durability retrieves the evidence-bounded durability projection for one run.
+func (s *RunService) Durability(id string) ([]byte, error) {
+	return s.api.Get("/api/v1/runs/"+id+"/durability", nil)
+}
+
 // Stats returns the existing filtered run summary projection.
 func (s *RunService) Stats(query url.Values) ([]byte, error) {
 	return s.api.Get("/api/v1/stats/summary", query)
@@ -973,6 +978,14 @@ func (s *RunService) ImportTranscript(payload []byte) ([]byte, error) {
 
 func (s *RunService) ImportSessionCorpus(payload []byte) ([]byte, error) {
 	return s.api.Request("POST", "/api/v1/runs/import-session-corpus", nil, payload)
+}
+
+func (s *RunService) BackfillLabels() ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/backfill-labels", nil, nil)
+}
+
+func (s *RunService) BackfillSubjects() ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/backfill-subjects", nil, nil)
 }
 
 func (s *RunService) ReplayInvocationFacts(id string) ([]byte, error) {

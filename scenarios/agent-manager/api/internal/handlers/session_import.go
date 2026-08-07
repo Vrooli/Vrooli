@@ -176,11 +176,15 @@ func (h *Handler) ImportRunnerSession(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "sessionKey", "runner session is no longer available")
 		return
 	}
-	sessionID, _ := readSessionIdentity(path)
+	sessionID, preview := readSessionIdentity(path)
 	if sessionID == "" {
 		sessionID = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	}
-	run, err := h.svc.ImportTranscript(r.Context(), orchestration.ImportTranscriptRequest{Path: path, RunnerType: source.RunnerType, Label: filepath.Base(path), SourceHarness: source.Harness, SourceSessionID: sessionID})
+	label := ""
+	if preview != "" {
+		label = sessionTitle(source.RunnerType, filepath.Base(path), preview)
+	}
+	run, err := h.svc.ImportTranscript(r.Context(), orchestration.ImportTranscriptRequest{Path: path, RunnerType: source.RunnerType, Label: label, LabelSource: domain.RunLabelSourceDerived, SourceHarness: source.Harness, SourceSessionID: sessionID})
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -339,7 +343,11 @@ func (h *Handler) ImportSessionCorpus(w http.ResponseWriter, r *http.Request) {
 			coverage.AlreadyImported++
 			continue
 		}
-		run, importErr := h.svc.ImportTranscript(r.Context(), orchestration.ImportTranscriptRequest{Path: path, RunnerType: candidate.source.RunnerType, Label: candidate.source.Label + "-corpus-" + candidate.month, SourceHarness: candidate.source.Harness, SourceSessionID: candidate.session.SessionID})
+		label := ""
+		if candidate.session.Preview != "" {
+			label = sessionTitle(candidate.source.RunnerType, filepath.Base(candidate.session.Key), candidate.session.Preview)
+		}
+		run, importErr := h.svc.ImportTranscript(r.Context(), orchestration.ImportTranscriptRequest{Path: path, RunnerType: candidate.source.RunnerType, Label: label, LabelSource: domain.RunLabelSourceDerived, SourceHarness: candidate.source.Harness, SourceSessionID: candidate.session.SessionID})
 		if importErr != nil {
 			coverage.Failed++
 			coverage.Skipped["import_failed"]++

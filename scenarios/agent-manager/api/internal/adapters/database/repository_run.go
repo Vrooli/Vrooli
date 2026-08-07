@@ -33,6 +33,9 @@ type runRow struct {
 	TaskID              uuid.UUID          `db:"task_id"`
 	AgentProfileID      NullableUUID       `db:"agent_profile_id"`
 	Tag                 string             `db:"tag"`
+	Label               string             `db:"label"`
+	LabelSource         string             `db:"label_source"`
+	Subject             sql.NullString     `db:"subject"`
 	WorkloadKind        string             `db:"workload_kind"`
 	WorkloadKey         string             `db:"workload_key"`
 	WorkloadInstance    string             `db:"workload_instance"`
@@ -45,7 +48,6 @@ type runRow struct {
 	StartedAt           NullableTime       `db:"started_at"`
 	EndedAt             NullableTime       `db:"ended_at"`
 	GoalID              sql.NullString     `db:"goal_id"`
-	GoalStatus          sql.NullString     `db:"goal_status"`
 	Phase               string             `db:"phase"`
 	LastCheckpointID    NullableUUID       `db:"last_checkpoint_id"`
 	LastHeartbeat       NullableTime       `db:"last_heartbeat"`
@@ -112,6 +114,9 @@ func (row *runRow) toDomain() *domain.Run {
 		TaskID:                   row.TaskID,
 		AgentProfileID:           row.AgentProfileID.ToPtr(),
 		Tag:                      row.Tag,
+		Label:                    row.Label,
+		LabelSource:              domain.RunLabelSource(row.LabelSource),
+		Subject:                  parseStringSliceJSON(row.Subject),
 		Workload:                 domain.WorkloadRef{Kind: domain.WorkloadKind(row.WorkloadKind), Key: row.WorkloadKey, Instance: row.WorkloadInstance},
 		Billing:                  decodeBillingSnapshot(row.BillingSnapshot),
 		SandboxID:                row.SandboxID.ToPtr(),
@@ -122,7 +127,6 @@ func (row *runRow) toDomain() *domain.Run {
 		StartedAt:                row.StartedAt.ToPtr(),
 		EndedAt:                  row.EndedAt.ToPtr(),
 		GoalID:                   row.GoalID.String,
-		GoalStatus:               row.GoalStatus.String,
 		Phase:                    domain.RunPhase(row.Phase),
 		LastCheckpointID:         row.LastCheckpointID.ToPtr(),
 		LastHeartbeat:            row.LastHeartbeat.ToPtr(),
@@ -192,6 +196,8 @@ func runFromDomain(r *domain.Run) *runRow {
 		TaskID:                   r.TaskID,
 		AgentProfileID:           NewNullableUUID(r.AgentProfileID),
 		Tag:                      r.Tag,
+		Label:                    r.Label,
+		LabelSource:              string(r.LabelSource),
 		WorkloadKind:             string(r.Workload.Kind),
 		WorkloadKey:              r.Workload.Key,
 		WorkloadInstance:         r.Workload.Instance,
@@ -204,7 +210,6 @@ func runFromDomain(r *domain.Run) *runRow {
 		StartedAt:                NewNullableTime(r.StartedAt),
 		EndedAt:                  NewNullableTime(r.EndedAt),
 		GoalID:                   sql.NullString{String: r.GoalID, Valid: true},
-		GoalStatus:               sql.NullString{String: r.GoalStatus, Valid: true},
 		Phase:                    string(r.Phase),
 		LastCheckpointID:         NewNullableUUID(r.LastCheckpointID),
 		LastHeartbeat:            NewNullableTime(r.LastHeartbeat),
@@ -282,6 +287,17 @@ func parseUUIDSliceJSON(raw sql.NullString) []uuid.UUID {
 		out = append(out, id)
 	}
 	return out
+}
+
+func parseStringSliceJSON(raw sql.NullString) []string {
+	if !raw.Valid || strings.TrimSpace(raw.String) == "" {
+		return nil
+	}
+	var values []string
+	if err := json.Unmarshal([]byte(raw.String), &values); err != nil {
+		return nil
+	}
+	return values
 }
 
 func marshalBillingSnapshot(value domain.BillingSnapshot) string {
@@ -375,9 +391,9 @@ func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 	return string(data)
 }
 
-const runColumns = `id, task_id, agent_profile_id, tag, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
+const runColumns = `id, task_id, agent_profile_id, tag, label, label_source, subject, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 	execution_mode, web_console_session_id, status,
-	started_at, ended_at, goal_id, goal_status, phase, last_checkpoint_id, last_heartbeat, progress_percent,
+	started_at, ended_at, goal_id, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 	finalization_status, finalization_error, finalized_at,
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
@@ -394,7 +410,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, workload_kind, workload_
 // approved_by, approved_at.
 // NOTE: last_heartbeat MUST be included — the reconciler depends on it
 // to detect stale runs. Without it, every run appears stale after creation.
-const listRunColumns = `id, task_id, agent_profile_id, tag, workload_kind, workload_key, workload_instance, billing_snapshot, run_mode,
+const listRunColumns = `id, task_id, agent_profile_id, tag, label, label_source, subject, workload_kind, workload_key, workload_instance, billing_snapshot, run_mode,
 	execution_mode, web_console_session_id, status,
 	started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
@@ -410,6 +426,9 @@ type listRunLiteRow struct {
 	TaskID              uuid.UUID      `db:"task_id"`
 	AgentProfileID      NullableUUID   `db:"agent_profile_id"`
 	Tag                 string         `db:"tag"`
+	Label               string         `db:"label"`
+	LabelSource         string         `db:"label_source"`
+	Subject             sql.NullString `db:"subject"`
 	WorkloadKind        string         `db:"workload_kind"`
 	WorkloadKey         string         `db:"workload_key"`
 	WorkloadInstance    string         `db:"workload_instance"`
@@ -464,6 +483,9 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		TaskID:                   row.TaskID,
 		AgentProfileID:           row.AgentProfileID.ToPtr(),
 		Tag:                      row.Tag,
+		Label:                    row.Label,
+		LabelSource:              domain.RunLabelSource(row.LabelSource),
+		Subject:                  parseStringSliceJSON(row.Subject),
 		Workload:                 domain.WorkloadRef{Kind: domain.WorkloadKind(row.WorkloadKind), Key: row.WorkloadKey, Instance: row.WorkloadInstance},
 		Billing:                  decodeBillingSnapshot(row.BillingSnapshot),
 		RunMode:                  domain.RunMode(row.RunMode),
@@ -519,9 +541,9 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	run.UpdatedAt = now
 
 	row := runFromDomain(run)
-	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
+	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, label, label_source, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 			execution_mode, web_console_session_id, status,
-			started_at, ended_at, goal_id, goal_status, phase, last_checkpoint_id, last_heartbeat, progress_percent,
+			started_at, ended_at, goal_id, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 			idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 			finalization_status, finalization_error, finalized_at,
 			resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
@@ -531,9 +553,9 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 			requested_model, actual_model, canary_arm,
 			created_at, updated_at)
-			VALUES (:id, :task_id, :agent_profile_id, :tag, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
+			VALUES (:id, :task_id, :agent_profile_id, :tag, :label, :label_source, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
 			:execution_mode, :web_console_session_id, :status,
-			:started_at, :ended_at, :goal_id, :goal_status, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
+			:started_at, :ended_at, :goal_id, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 			:idempotency_key, :summary, :run_result, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
 			:finalization_status, :finalization_error, :finalized_at,
 			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :commit_hash, :sandbox_config, :session_id,
@@ -660,7 +682,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 	row := runFromDomain(run)
 
 	query := `UPDATE runs SET task_id = :task_id, agent_profile_id = :agent_profile_id,
-			tag = :tag, sandbox_id = :sandbox_id, run_mode = :run_mode,
+			tag = :tag, label = :label, label_source = :label_source, sandbox_id = :sandbox_id, run_mode = :run_mode,
 			execution_mode = :execution_mode, web_console_session_id = :web_console_session_id, status = :status,
 		started_at = :started_at, ended_at = :ended_at, phase = :phase,
 		last_checkpoint_id = :last_checkpoint_id, last_heartbeat = :last_heartbeat,
@@ -688,6 +710,36 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 	_, err := r.db.NamedExecContext(ctx, query, row)
 	if err != nil {
 		return wrapDBError("update", "Run", run.ID.String(), err)
+	}
+	return nil
+}
+
+// UpdateRunLabel updates only the two label columns. It is used by the
+// historical transcript backfill and deliberately cannot mutate run identity,
+// attribution, status, or timestamps.
+func (r *runRepository) UpdateRunLabel(ctx context.Context, id uuid.UUID, label string, source domain.RunLabelSource) error {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return fmt.Errorf("run label is required")
+	}
+	if source == "" {
+		return fmt.Errorf("run label source is required")
+	}
+	const query = `UPDATE runs SET label = ?, label_source = ? WHERE id = ?`
+	if _, err := r.db.ExecContext(ctx, query, label, string(source), id); err != nil {
+		return wrapDBError("update_label", "Run", id.String(), err)
+	}
+	return nil
+}
+
+// UpdateRunSubject updates only the derived subject projection.
+func (r *runRepository) UpdateRunSubject(ctx context.Context, id uuid.UUID, subject []string) error {
+	encoded, err := json.Marshal(subject)
+	if err != nil {
+		return fmt.Errorf("marshal run subject: %w", err)
+	}
+	if _, err := r.db.ExecContext(ctx, `UPDATE runs SET subject = ? WHERE id = ?`, string(encoded), id); err != nil {
+		return wrapDBError("update_subject", "Run", id.String(), err)
 	}
 	return nil
 }

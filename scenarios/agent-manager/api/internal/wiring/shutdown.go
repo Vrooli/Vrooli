@@ -10,7 +10,7 @@ import (
 // Shutdown stops durable background workers before closing storage. Parked
 // runs and nudge work are recovered on the next bootstrap, so shutdown is
 // safe even when a worker is interrupted mid-operation.
-func Shutdown(db *database.DB, reconciler *orchestration.Reconciler, awaitRegistry *orchestration.AwaitRegistry, workflowNudger *orchestration.WorkflowNudger, drift ...*modelpolicydrift.Scheduler) {
+func Shutdown(db *database.DB, reconciler *orchestration.Reconciler, awaitRegistry *orchestration.AwaitRegistry, workflowNudger *orchestration.WorkflowNudger, transcriptImporter *orchestration.TranscriptImportScheduler, drift ...*modelpolicydrift.Scheduler) {
 	shutdownLog := obs.Component("shutdown")
 	if reconciler != nil {
 		if err := reconciler.Stop(); err != nil {
@@ -22,6 +22,9 @@ func Shutdown(db *database.DB, reconciler *orchestration.Reconciler, awaitRegist
 	}
 	if workflowNudger != nil {
 		workflowNudger.Stop()
+	}
+	if transcriptImporter != nil {
+		transcriptImporter.Stop()
 	}
 	for _, scheduler := range drift {
 		if scheduler != nil {

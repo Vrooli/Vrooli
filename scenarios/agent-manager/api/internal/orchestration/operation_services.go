@@ -8,6 +8,7 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/durability"
 	"agent-manager/internal/findings"
 	"agent-manager/internal/health"
 	"agent-manager/internal/invocationreadmodel"
@@ -47,6 +48,29 @@ type RunService interface {
 	ListStaleRuns(context.Context, time.Duration) ([]*domain.Run, error)
 	GetRunDiff(context.Context, uuid.UUID) (*sandbox.DiffResult, error)
 	ImportTranscript(context.Context, ImportTranscriptRequest) (*domain.Run, error)
+}
+
+// DurabilityEvidenceReader supplies observed pushback and rework from the
+// swarm ledger. The seam is optional so agent-manager remains useful when the
+// consumer is temporarily unavailable; missing evidence is reported as
+// unlinked rather than silently promoted to verified.
+type DurabilityEvidenceReader interface {
+	ReadDurabilityEvidence(context.Context, *domain.Run) ([]durability.Evidence, error)
+}
+
+type DurabilityService interface {
+	Durability(context.Context, uuid.UUID) (durability.Verdict, error)
+}
+
+// RunLabelMaintenanceService is optional so existing read-only test doubles
+// and integrations do not gain a broad mutation surface. Production
+// orchestrators implement it with the repository's label-only updater.
+type RunLabelMaintenanceService interface {
+	BackfillImportedRunLabels(context.Context) (*LabelBackfillResult, error)
+}
+
+type RunSubjectMaintenanceService interface {
+	BackfillRunSubjects(context.Context) (*SubjectBackfillResult, error)
 }
 
 type ApprovalService interface {
@@ -149,6 +173,7 @@ type HandlerServices struct {
 	IdentityService
 	RunReportService
 	InvocationFactService
+	DurabilityService
 	FindingsService
 	ProjectRootService
 }
@@ -173,6 +198,7 @@ func NewHandlerServices(orchestrator *Orchestrator) HandlerServices {
 		IdentityService:              orchestrator,
 		RunReportService:             orchestrator,
 		InvocationFactService:        orchestrator,
+		DurabilityService:            orchestrator,
 		FindingsService:              orchestrator,
 		ProjectRootService:           orchestrator,
 	}
@@ -195,6 +221,7 @@ var (
 	_ IdentityService              = (*Orchestrator)(nil)
 	_ RunReportService             = (*Orchestrator)(nil)
 	_ InvocationFactService        = (*Orchestrator)(nil)
+	_ DurabilityService            = (*Orchestrator)(nil)
 	_ FindingsService              = (*Orchestrator)(nil)
 	_ ProjectRootService           = (*Orchestrator)(nil)
 )

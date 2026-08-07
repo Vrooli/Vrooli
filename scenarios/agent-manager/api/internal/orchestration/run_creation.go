@@ -298,6 +298,8 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		TaskID:                   task.ID,
 		AgentProfileID:           profileID, // May be nil if inline config used
 		Tag:                      tag,       // Custom tag for identification
+		Label:                    strings.TrimSpace(task.Title),
+		LabelSource:              domain.RunLabelSourceDerived,
 		Workload:                 workload,
 		Billing:                  billing,
 		SourceRunIDs:             req.SourceRunIDs,
@@ -322,6 +324,9 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		CanaryArm:      resolvedConfig.PolicySnapshot.CanaryArm,
 		CreatedAt:      o.now(),
 		UpdatedAt:      o.now(),
+	}
+	if run.Label == "" {
+		run.Label = "Agent run"
 	}
 	// Apply Decision D7 precedence (spawner > parent inheritance > fresh
 	// UUID). When the spawn surface populates ConversationID directly,

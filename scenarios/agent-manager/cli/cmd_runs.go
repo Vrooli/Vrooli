@@ -32,6 +32,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runGet(args[1:])
 	case "report":
 		return a.runReport(args[1:])
+	case "recent":
+		return a.runRecent(args[1:])
 	case "cohort-report":
 		return a.runCohortReport(args[1:])
 	case "goal-cohort":
@@ -56,6 +58,10 @@ func (a *App) cmdRun(args []string) error {
 		return a.runImportTranscript(args[1:])
 	case "import-session-corpus":
 		return a.runImportSessionCorpus(args[1:])
+	case "backfill-labels":
+		return a.runBackfillLabels(args[1:])
+	case "backfill-subjects":
+		return a.runBackfillSubjects(args[1:])
 	case "mine-self-report-vocabulary":
 		return a.runMineSelfReportVocabulary(args[1:])
 	case "replay-invocation-facts":
@@ -132,12 +138,14 @@ Subcommands:
   list                        List runs (with optional filters)
   get <id>                    Get run details by UUID
   report <id>                 Show bounded investigation diagnostics
+	  recent                      Show recent work, lanes, coverage, and durability
 	  cohort-report --run-ids ids  Show ranked, bounded evidence across selected runs
 	  invocation-facts <id>        Drill into redacted normalized invocation evidence
 	  replay-invocation-facts <id> Rebuild durable invocation evidence from retained events
 	  refresh-invocation-facts <id> Refresh evidence only when events advanced
 	  replay-invocation-corpus    Rebuild or refresh a filtered run corpus
 	  import-session-corpus       Import a bounded, reproducible runner-session corpus
+	  backfill-labels              Recover labels from retained imported transcripts
 	  invocation-aggregate        Aggregate durable invocation facts
 	  invocation-cohort           Select run IDs from durable invocation facts
 	  invocation-metrics          Calculate durable friction metric counts
@@ -225,9 +233,16 @@ func (a *App) runList(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", "ID", "STATUS", "PHASE", "EXEC", "PROG", "SOURCE", "SESSION", "UPDATED")
-	fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", strings.Repeat("-", 36), strings.Repeat("-", 12), strings.Repeat("-", 18), strings.Repeat("-", 11), strings.Repeat("-", 4), strings.Repeat("-", 10), strings.Repeat("-", 18), strings.Repeat("-", 20))
+	fmt.Printf("%-36s  %-28s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", "ID", "LABEL", "STATUS", "PHASE", "EXEC", "PROG", "SOURCE", "SESSION", "UPDATED")
+	fmt.Printf("%-36s  %-28s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", strings.Repeat("-", 36), strings.Repeat("-", 28), strings.Repeat("-", 12), strings.Repeat("-", 18), strings.Repeat("-", 11), strings.Repeat("-", 4), strings.Repeat("-", 10), strings.Repeat("-", 18), strings.Repeat("-", 20))
 	for _, r := range runs {
+		label := r.Label
+		if label == "" {
+			label = "-"
+		}
+		if len(label) > 28 {
+			label = label[:25] + "..."
+		}
 		phase := formatEnumValue(r.Phase, "RUN_PHASE_", "_")
 		if len(phase) > 18 {
 			phase = phase[:15] + "..."
@@ -260,7 +275,7 @@ func (a *App) runList(args []string) error {
 		if len(session) > 18 {
 			session = session[:18]
 		}
-		fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", r.Id, status, phase, exec, progress, source, session, updated)
+		fmt.Printf("%-36s  %-28s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", r.Id, label, status, phase, exec, progress, source, session, updated)
 	}
 
 	return nil
@@ -304,6 +319,12 @@ func (a *App) runGet(args []string) error {
 
 	fmt.Printf("ID:              %s\n", run.Id)
 	fmt.Printf("Task ID:         %s\n", run.TaskId)
+	if run.Label != "" {
+		fmt.Printf("Label:           %s\n", run.Label)
+		if run.LabelSource != "" {
+			fmt.Printf("Label Source:    %s\n", run.LabelSource)
+		}
+	}
 	if run.AgentProfileId != nil {
 		fmt.Printf("Profile ID:      %s\n", run.GetAgentProfileId())
 	}

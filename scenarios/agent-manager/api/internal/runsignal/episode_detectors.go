@@ -13,10 +13,10 @@ type EpisodeDetector interface {
 }
 
 type EpisodeDetectorContext struct {
-	Facts       []InvocationFact
-	Events      []*domain.RunEvent
-	EventsByID  map[string]*domain.RunEvent
-	SelfReports []SelfReportSpan
+	Facts               []InvocationFact
+	Events              []*domain.RunEvent
+	EventsByID          map[string]*domain.RunEvent
+	SelfReports         []SelfReportSpan
 	PreferredPrimitives []PreferredPrimitive
 }
 
@@ -42,7 +42,9 @@ func EpisodeDetectors() []EpisodeDetector {
 		episodeDetector{"help-recovery", EpisodeClassifierVersion, "run-execution", adjacentEpisode("help-recovery", func(a, b InvocationFact) bool { return a.Outcome == "failure" && b.HelpRecovery })},
 		episodeDetector{"stall", EpisodeClassifierVersion, "run-execution", detectStalls},
 		episodeDetector{"poll-loop", EpisodeClassifierVersion, "recurring-workaround", detectPollLoops},
-		episodeDetector{"wrong-primitive", EpisodeClassifierVersion, "recurring-workaround", func(ctx EpisodeDetectorContext) []FrictionEpisode { return DetectWrongPrimitives(ctx.Facts, ctx.EventsByID, ctx.Events) }},
+		episodeDetector{"wrong-primitive", EpisodeClassifierVersion, "recurring-workaround", func(ctx EpisodeDetectorContext) []FrictionEpisode {
+			return DetectWrongPrimitives(ctx.Facts, ctx.EventsByID, ctx.Events)
+		}},
 		episodeDetector{"oscillation", EpisodeClassifierVersion, "recurring-workaround", detectOscillations},
 		episodeDetector{"edit-revert", EpisodeClassifierVersion, "recurring-workaround", detectEditReverts},
 		episodeDetector{"wait-misuse", EpisodeClassifierVersion, "toolchain", detectWaitMisuse},

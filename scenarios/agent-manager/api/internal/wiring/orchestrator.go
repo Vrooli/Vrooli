@@ -18,6 +18,7 @@ import (
 	"agent-manager/internal/adapters/webconsole"
 	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	durabilitysource "agent-manager/internal/durability"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
@@ -57,6 +58,7 @@ type OrchestratorDependencies struct {
 	Reconciler            *orchestration.Reconciler
 	AwaitRegistry         *orchestration.AwaitRegistry
 	WorkflowNudger        *orchestration.WorkflowNudger
+	TranscriptImporter    *orchestration.TranscriptImportScheduler
 	ModelHealthProbe      *healthstore.Probe
 	ModelPolicyDrift      *modelpolicydrift.Scheduler
 	RolePolicyState       *rolepolicy.State
@@ -206,15 +208,16 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		orchestration.WithWorkspaceSandboxEnsurer(workspaceEnsurer), orchestration.WithCheckpoints(repos.Checkpoints), orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithWorkflowRepository(repos.Workflows), orchestration.WithWorkflowExecutionRepository(repos.WorkflowExecutions), orchestration.WithBroadcaster(hub),
 		orchestration.WithTerminator(terminator), orchestration.WithStorageLabel("sqlite"), orchestration.WithRolePolicyState(roleState, roleResolver),
-		orchestration.WithStructuredExtractor(extractor), orchestration.WithHealthStore(healthStore), orchestration.WithInvestigationSettings(repos.InvestigationSettings),
+		orchestration.WithStructuredExtractor(extractor), orchestration.WithLabelGenerator(extractor), orchestration.WithHealthStore(healthStore), orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 		orchestration.WithPromptClient(promptmanager.NewHTTPClient()), orchestration.WithFlagValidator(flagValidator), orchestration.WithAttachmentStorage(uploads),
 		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithSpawnDispatcher(spawnDispatcher),
-		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithReceiptEvidenceStore(repos.ReceiptEvidence), orchestration.WithInvestigationLedgerStore(repos.InvestigationLedger), orchestration.WithInvocationReadModel(repos.InvocationReadModel),
+		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithReceiptEvidenceStore(repos.ReceiptEvidence), orchestration.WithInvestigationLedgerStore(repos.InvestigationLedger), orchestration.WithInvocationReadModel(repos.InvocationReadModel), orchestration.WithDurabilityBoundary(repos.DurabilityBoundary),
 	}
 	if interactiveSessions != nil {
 		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions), orchestration.WithWebConsoleUIBase(webconsole.ResolveUIBaseURL()))
 	}
 	orch := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, opts...)
+	orch.SetDurabilityEvidenceReader(durabilitysource.NewSwarmEvidenceClient())
 
 	reconcilerCfg := orchestration.DefaultReconcilerConfig()
 	if settingsStore != nil {
@@ -263,7 +266,19 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	modelPolicyDrift := modelpolicydrift.New(modelPolicyRoot, "", modelPolicyDriftInterval(), modelPolicyReporter{client: promptmanager.NewHTTPClient()})
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: orchestration.NewTranscriptImportScheduler(orch, transcriptImportInterval()), ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+}
+
+func transcriptImportInterval() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("AGENT_MANAGER_TRANSCRIPT_IMPORT_INTERVAL"))
+	if raw == "" {
+		return 6 * time.Hour
+	}
+	parsed, err := time.ParseDuration(raw)
+	if err != nil || parsed <= 0 {
+		return 6 * time.Hour
+	}
+	return parsed
 }
 
 func modelPolicyDriftInterval() time.Duration {

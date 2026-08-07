@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/durability"
 	"agent-manager/internal/findings"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/repository"
@@ -36,6 +37,7 @@ type Repositories struct {
 	ReceiptEvidence       runreport.ReceiptJoinStore
 	InvestigationLedger   runreport.LedgerStore
 	InvocationReadModel   invocationreadmodel.Store
+	DurabilityBoundary    durability.BoundaryStore
 }
 
 // NewRepositories creates all repository implementations using the given database connection.
@@ -57,6 +59,7 @@ func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 		ReceiptEvidence:       &receiptEvidenceRepository{db: db},
 		InvestigationLedger:   &receiptEvidenceRepository{db: db},
 		InvocationReadModel:   &invocationReadModelRepository{db: db},
+		DurabilityBoundary:    &durabilityBoundaryRepository{db: db},
 	}
 }
 

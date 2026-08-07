@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
@@ -31,7 +32,11 @@ func (h *Handler) ImportTranscriptHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		body.Path = h.storage.GetFilePath(attachment.StoragePath)
 	}
-	run, err := h.svc.ImportTranscript(r.Context(), orchestration.ImportTranscriptRequest{Path: body.Path, RunnerType: body.RunnerType, Label: body.Label})
+	labelSource := domain.RunLabelSource("")
+	if strings.TrimSpace(body.Label) != "" {
+		labelSource = domain.RunLabelSourceManual
+	}
+	run, err := h.svc.ImportTranscript(r.Context(), orchestration.ImportTranscriptRequest{Path: body.Path, RunnerType: body.RunnerType, Label: body.Label, LabelSource: labelSource})
 	if err != nil {
 		writeError(w, r, err)
 		return

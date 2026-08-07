@@ -202,6 +202,19 @@ type RunRepository interface {
 	GetByImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) (*domain.Run, error)
 }
 
+// RunLabelUpdater is an intentionally narrow maintenance seam. Label
+// backfills must not use RunRepository.Update because that would rewrite the
+// complete run row, including identity and attribution fields.
+type RunLabelUpdater interface {
+	UpdateRunLabel(ctx context.Context, id uuid.UUID, label string, source domain.RunLabelSource) error
+}
+
+// RunSubjectUpdater updates only the derived subject projection. Keeping this
+// seam separate prevents analytics projection from overwriting live run state.
+type RunSubjectUpdater interface {
+	UpdateRunSubject(ctx context.Context, id uuid.UUID, subject []string) error
+}
+
 // -----------------------------------------------------------------------------
 // EventRepository - RunEvent persistence
 // -----------------------------------------------------------------------------

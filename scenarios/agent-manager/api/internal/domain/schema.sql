@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_runs (
     run_id TEXT PRIMARY KEY,
     goal_id TEXT NOT NULL DEFAULT '',
     goal_status TEXT NOT NULL DEFAULT '',
+    subject TEXT NOT NULL DEFAULT '[]',
     occurred_at TEXT NOT NULL,
     created_at TEXT NOT NULL,
     started_at TEXT,

@@ -83,6 +83,42 @@ func (a *App) runImportSessionCorpus(args []string) error {
 	return nil
 }
 
+func (a *App) runBackfillLabels(args []string) error {
+	fs := flag.NewFlagSet("run backfill-labels", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, err := a.services.Runs.BackfillLabels()
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+	} else {
+		fmt.Println(string(body))
+	}
+	return nil
+}
+
+func (a *App) runBackfillSubjects(args []string) error {
+	fs := flag.NewFlagSet("run backfill-subjects", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, err := a.services.Runs.BackfillSubjects()
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+	} else {
+		fmt.Println(string(body))
+	}
+	return nil
+}
+
 // runMineSelfReportVocabulary is deliberately offline. It reads assistant
 // turns from transcript files and writes ranked review candidates; promotion
 // into the embedded rule pack remains a human, versioned decision.

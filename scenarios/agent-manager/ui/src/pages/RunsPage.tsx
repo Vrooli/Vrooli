@@ -140,7 +140,8 @@ const RunListRow = memo(function RunListRow({
   onResume,
   onDelete,
 }: RunListRowProps) {
-  return (
+	const runTitle = run.label || taskTitle;
+	return (
     <ListItem
       selected={selected}
       highlighted={highlighted}
@@ -171,7 +172,7 @@ const RunListRow = memo(function RunListRow({
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              aria-label={`Stop run ${taskTitle}`}
+              aria-label={`Stop run ${runTitle}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onStop(run.id);
@@ -185,7 +186,7 @@ const RunListRow = memo(function RunListRow({
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              aria-label={`Resume run ${taskTitle} from failure`}
+                aria-label={`Resume run ${runTitle} from failure`}
               title="Resume: continue this task with the prior transcript + diff as context"
               onClick={(e) => {
                 e.stopPropagation();
@@ -200,7 +201,7 @@ const RunListRow = memo(function RunListRow({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-              aria-label={`Delete run ${taskTitle}`}
+              aria-label={`Delete run ${runTitle}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(run);
@@ -213,7 +214,7 @@ const RunListRow = memo(function RunListRow({
       }
     >
       <ListItemTitle>
-        {taskTitle}
+        {runTitle}
         {run.executionMode === ExecutionMode.INTERACTIVE && (
           <span
             data-testid="interactive-badge"
@@ -555,7 +556,7 @@ export function RunsPage({
       result = result.filter((r) => {
         const taskTitle = getTaskTitle(r.taskId).toLowerCase();
         const profileName = getProfileName(r.agentProfileId).toLowerCase();
-        return taskTitle.includes(query) || profileName.includes(query) || r.id.toLowerCase().includes(query);
+		return (r.label || taskTitle).toLowerCase().includes(query) || taskTitle.includes(query) || profileName.includes(query) || r.id.toLowerCase().includes(query);
       });
     }
 

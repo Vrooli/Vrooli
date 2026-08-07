@@ -30,6 +30,7 @@ type ConsumeArgs struct {
 	OnAdvance    func(cursor, lastSeq int64) error
 	OnEvents     func(events []*domain.RunEvent)
 	OnSessionID  func(sessionID string) error
+	OnLabel      func(label string, source domain.RunLabelSource) error
 	OnTerminal   func(terminal *TranscriptTerminal) error
 	PollInterval time.Duration
 }
@@ -107,6 +108,11 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 		}
 		if result.SessionID != "" && args.OnSessionID != nil {
 			if err := args.OnSessionID(result.SessionID); err != nil {
+				return cursor, terminal, err
+			}
+		}
+		if result.Label != "" && args.OnLabel != nil {
+			if err := args.OnLabel(result.Label, result.LabelSource); err != nil {
 				return cursor, terminal, err
 			}
 		}

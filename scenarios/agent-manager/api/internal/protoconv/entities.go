@@ -211,6 +211,8 @@ func RunToProto(r *domain.Run) *pb.Run {
 		Id:                    UUIDToString(r.ID),
 		TaskId:                UUIDToString(r.TaskID),
 		Tag:                   r.Tag,
+		Label:                 r.Label,
+		LabelSource:           string(r.LabelSource),
 		SessionId:             r.SessionID,
 		RunMode:               RunModeToProto(r.RunMode),
 		ExecutionMode:         ExecutionModeToProto(r.ExecutionMode),
@@ -238,7 +240,6 @@ func RunToProto(r *domain.Run) *pb.Run {
 		ImportSourceHarness:   r.ImportSourceHarness,
 		ImportSourceSessionId: r.ImportSourceSessionID,
 		GoalId:                r.GoalID,
-		GoalStatus:            r.GoalStatus,
 	}
 
 	if r.AgentProfileID != nil {
@@ -297,6 +298,7 @@ func RunToProto(r *domain.Run) *pb.Run {
 	if r.Result != nil {
 		run.Result = RunResultToProto(r.Result)
 	}
+	run.Subject = append([]string(nil), r.Subject...)
 
 	if r.ResolvedConfig != nil {
 		run.ResolvedConfig = RunConfigToProto(r.ResolvedConfig)
@@ -392,7 +394,6 @@ func RunFromProto(r *pb.Run) *domain.Run {
 		ImportSourceHarness:   r.ImportSourceHarness,
 		ImportSourceSessionID: r.ImportSourceSessionId,
 		GoalID:                r.GoalId,
-		GoalStatus:            r.GoalStatus,
 	}
 
 	// Handle optional timestamps (pointer fields)
@@ -449,6 +450,7 @@ func RunFromProto(r *pb.Run) *domain.Run {
 	if r.Result != nil {
 		run.Result = RunResultFromProto(r.Result)
 	}
+	run.Subject = append([]string(nil), r.Subject...)
 
 	if r.ResolvedConfig != nil {
 		run.ResolvedConfig = RunConfigFromProto(r.ResolvedConfig)

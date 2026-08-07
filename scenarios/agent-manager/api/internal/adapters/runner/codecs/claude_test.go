@@ -1112,6 +1112,20 @@ func TestParseTranscriptLine_SessionID(t *testing.T) {
 	}
 }
 
+func TestParseTranscriptLine_AITitle(t *testing.T) {
+	c := NewClaudeForTest()
+	result := c.ParseTranscriptLine(uuid.New(), `{"type":"ai-title","aiTitle":"Improve agent manager tracking"}`)
+	if result.Err != nil {
+		t.Fatalf("ParseTranscriptLine: %v", result.Err)
+	}
+	if result.Label != "Improve agent manager tracking" || result.LabelSource != domain.RunLabelSourceHarness {
+		t.Fatalf("label=(%q,%q)", result.Label, result.LabelSource)
+	}
+	if len(result.Events) != 0 {
+		t.Fatalf("ai-title emitted events: %v", result.Events)
+	}
+}
+
 func TestClaudeTranscriptDoesNotDuplicateFinalAssistant(t *testing.T) {
 	c := NewClaudeForTest()
 	runID := uuid.New()

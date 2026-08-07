@@ -278,6 +278,7 @@ func (c *Claude) NewState() State { return &claudeState{} }
 type ClaudeStreamEvent struct {
 	Type      string          `json:"type"`
 	Subtype   string          `json:"subtype,omitempty"`
+	AiTitle   string          `json:"aiTitle,omitempty"`
 	Message   *ClaudeMessage  `json:"message,omitempty"`
 	Usage     *ClaudeUsage    `json:"usage,omitempty"`
 	ToolUse   *ClaudeToolUse  `json:"tool_use,omitempty"`
@@ -622,6 +623,10 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 			result.SessionID = streamEvent.SessionIDAlt
 			p.onDisk = true
 		}
+		if streamEvent.Type == "ai-title" && strings.TrimSpace(streamEvent.AiTitle) != "" {
+			result.Label = strings.TrimSpace(streamEvent.AiTitle)
+			result.LabelSource = domain.RunLabelSourceHarness
+		}
 		// On-disk interactive dialect: no `result` line ever arrives, so
 		// the terminal marker is the final assistant turn whose
 		// stop_reason is end_turn. stop_reason=tool_use means the turn is
@@ -886,6 +891,11 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 		}
 		return nil, nil
 
+	case "ai-title", "summary":
+		// Metadata records are consumed by ParseTranscriptLine (ai-title)
+		// or intentionally ignored (summary); neither is agent output.
+		return nil, nil
+
 	case "init", "start", "ping", "heartbeat":
 		return nil, nil
 
@@ -894,9 +904,9 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 	// UI/session metadata, not agent output, so they are dropped silently
 	// rather than logged as "unhandled" debug noise (design §3). Listing
 	// them here is safe for the stdout path — those runs never emit them.
-	case "mode", "permission-mode", "ai-title", "last-prompt",
+	case "mode", "permission-mode", "last-prompt",
 		"attachment", "file-history-snapshot", "queue-operation",
-		"frame-link", "summary":
+		"frame-link":
 		return nil, nil
 
 	case "":

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -42,7 +43,15 @@ type CommandExecutor interface {
 type commandExecutor struct{}
 
 func (commandExecutor) Run(ctx context.Context, command string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, command, args...).CombinedOutput()
+	cmd := exec.CommandContext(ctx, command, args...)
+	// Resource policy CLIs resolve their repository-owned catalog paths
+	// relative to the repository root. Agent Manager is lifecycle-launched from
+	// its scenario API directory, so preserve the control-plane root explicitly
+	// when it is available instead of making every resource rediscover it.
+	if root := strings.TrimSpace(os.Getenv("PROJECT_ROOT")); root != "" {
+		cmd.Dir = root
+	}
+	return cmd.CombinedOutput()
 }
 
 // ResourceRoleResolver resolves one role from the resource that owns the
@@ -227,7 +236,7 @@ func (r resourceRoleResponse) validate() error {
 		return errors.New("challenger requires a model and sample_rate between 0 and 1")
 	}
 	switch r.Enforcement.Permissions {
-	case "native", "hook_backed", "intent_only":
+	case "native", "hook_backed", "hook_unverified", "intent_only":
 	default:
 		return fmt.Errorf("enforcement.permissions %q is unsupported", r.Enforcement.Permissions)
 	}

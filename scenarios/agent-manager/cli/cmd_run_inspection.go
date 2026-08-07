@@ -111,6 +111,69 @@ func (a *App) runReport(args []string) error {
 	return nil
 }
 
+func (a *App) runRecent(args []string) error {
+	fs := flag.NewFlagSet("run recent", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	limit := fs.Int("limit", 10, "Maximum recent runs")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if *limit < 1 || *limit > 100 {
+		return fmt.Errorf("limit must be between 1 and 100")
+	}
+	_, runs, err := a.services.Runs.List(*limit, 0, "", "", "", "")
+	if err != nil {
+		return err
+	}
+	type item struct {
+		ID         string         `json:"id"`
+		Label      string         `json:"label,omitempty"`
+		Subject    []string       `json:"subject,omitempty"`
+		Durability map[string]any `json:"durability"`
+		Lane       string         `json:"lane"`
+	}
+	items := make([]item, 0, len(runs))
+	for _, run := range runs {
+		if run == nil || run.GetId() == "" {
+			continue
+		}
+		body, err := a.services.Runs.Durability(run.GetId())
+		if err != nil {
+			return err
+		}
+		var projection map[string]any
+		if err := json.Unmarshal(body, &projection); err != nil {
+			return fmt.Errorf("decode durability for %s: %w", run.GetId(), err)
+		}
+		// The work's own attribution lane comes from the projection. It is not
+		// the same question as coverage, which counts the lanes of individual
+		// evidence items: work with no evidence at all still has a lane.
+		lane, _ := projection["lane"].(string)
+		if lane == "" {
+			lane = "unlinked"
+		}
+		items = append(items, item{ID: run.GetId(), Label: run.GetLabel(), Subject: append([]string(nil), run.GetSubject()...), Durability: projection, Lane: lane})
+	}
+	out := map[string]any{"sampleSize": len(items), "items": items}
+	if *jsonOutput {
+		encoded, _ := json.Marshal(out)
+		cliutil.PrintJSON(encoded)
+		return nil
+	}
+	fmt.Printf("Recent work (sample size=%d)\n", len(items))
+	for _, current := range items {
+		verdict, _ := current.Durability["verdict"].(string)
+		if reason, _ := current.Durability["unknownReason"].(string); reason != "" {
+			verdict += "(" + reason + ")"
+		}
+		if state, _ := current.Durability["boundaryState"].(string); state != "" {
+			verdict = state
+		}
+		fmt.Printf("- %s %s lane=%s verdict=%s subject=%s\n", current.ID, current.Label, current.Lane, verdict, strings.Join(current.Subject, ","))
+	}
+	return nil
+}
+
 func (a *App) runStats(args []string) error {
 	fs := flag.NewFlagSet("run stats", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)

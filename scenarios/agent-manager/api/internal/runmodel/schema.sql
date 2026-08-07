@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS runs (
     task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
     agent_profile_id TEXT,
     tag TEXT,
+    label TEXT NOT NULL DEFAULT '',
+    label_source TEXT NOT NULL DEFAULT '',
+    subject TEXT NOT NULL DEFAULT '[]',
     workload_kind TEXT NOT NULL DEFAULT 'adhoc',
     workload_key TEXT DEFAULT '',
     workload_instance TEXT DEFAULT '',
@@ -159,6 +162,20 @@ CREATE TABLE IF NOT EXISTS investigation_settings (
     investigation_tag_allowlist TEXT NOT NULL DEFAULT '[]',
 
     updated_at TEXT DEFAULT (datetime('now'))
+);
+
+
+-- durability_boundary is the stored analysis epoch. Durability grades nothing
+-- before it, because run attribution was not captured before it. The row is
+-- written once, on first read, and never silently recomputed: an epoch that
+-- differed per process or per environment would make a deliberate scope limit
+-- look like missing data.
+CREATE TABLE IF NOT EXISTS durability_boundary (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    epoch TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    established_at TEXT NOT NULL DEFAULT (datetime('now')),
+    established_by TEXT NOT NULL DEFAULT ''
 );
 
 

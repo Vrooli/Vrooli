@@ -1,11 +1,38 @@
 package invocationreadmodel
 
 import (
+	"sort"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/runsignal"
 )
+
+// DeriveRunSubject turns bounded invocation dimensions into a stable, human
+// readable subject. It consumes only recorded tool-call facts; raw command
+// arguments and agent-authored completion fields are excluded.
+func DeriveRunSubject(facts []Fact, events []*domain.RunEvent) []string {
+	seen := make(map[string]struct{})
+	for _, fact := range facts {
+		for _, candidate := range []string{fact.Executable, fact.CommandPath} {
+			candidate = strings.Join(strings.Fields(candidate), " ")
+			if candidate == "" || candidate == "unknown" {
+				continue
+			}
+			seen[SubjectTool+candidate] = struct{}{}
+		}
+	}
+	for _, area := range DeriveRunAreas(events) {
+		seen[SubjectPath+area] = struct{}{}
+	}
+	result := make([]string, 0, len(seen))
+	for value := range seen {
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
+}
 
 // Project is the one adapter from durable run events to the analytical row
 // shape. Classification itself remains owned by runsignal.
@@ -164,6 +191,9 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 			workloadKind, workloadKey, workloadInstance = string(recovered.Kind), recovered.Key, recovered.Instance
 		}
 	}
+	// Keep the historical workload recovery calculation explicit even though
+	// the legacy RunFact shape still reads the original run instance.
+	_ = workloadInstance
 	if workloadKind == "" {
 		workloadKind = string(domain.WorkloadKindAdhoc)
 	}
@@ -277,7 +307,7 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 		// durable so cost aggregates can exclude it or report it explicitly.
 		costBasis = "unknown"
 	}
-	return RunFact{RunID: run.ID.String(), GoalID: run.GoalID, GoalStatus: run.GoalStatus, OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, WorkloadKind: workloadKind, WorkloadKey: workloadKey, WorkloadInstance: workloadInstance, TotalCostUSD: cost, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, Turns: turns, ToolCalls: toolCalls, TotalChargeMicroUSD: totalChargeMicroUSD, MeteredChargeMicroUSD: meteredChargeMicroUSD, UnpricedTokenCount: unpricedTokenCount, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: costBasis, TimeBasis: eventTimeBasis, ProjectedAt: projectedAt}
+	return RunFact{RunID: run.ID.String(), GoalID: run.GoalID, GoalStatus: "", OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, WorkloadKind: workloadKind, WorkloadKey: workloadKey, WorkloadInstance: run.Workload.Instance, TotalCostUSD: cost, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, Turns: turns, ToolCalls: toolCalls, TotalChargeMicroUSD: totalChargeMicroUSD, MeteredChargeMicroUSD: meteredChargeMicroUSD, UnpricedTokenCount: unpricedTokenCount, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: costBasis, TimeBasis: eventTimeBasis, ProjectedAt: projectedAt}
 }
 
 func hasEventTimestamp(events []*domain.RunEvent) bool {

@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/durability"
 	"agent-manager/internal/findings"
 	"agent-manager/internal/health"
 	"agent-manager/internal/identity"
@@ -667,6 +668,8 @@ type Orchestrator struct {
 	receiptEvidence     runreport.ReceiptJoinStore
 	investigationLedger runreport.LedgerStore
 	invocationReadModel invocationreadmodel.Store
+	durabilityEvidence  DurabilityEvidenceReader
+	durabilityBoundary  durability.BoundaryStore
 
 	// Orchestration settings store (file-backed, hot-reloadable).
 	orchestrationSettings *agentconfig.OrchestrationSettingsStore
@@ -714,6 +717,7 @@ type Orchestrator struct {
 	// structuredResults owns the deterministic-first typed-output projection.
 	// It is always present; its optional extractor is selected by portable role.
 	structuredResults phases.StructuredResultResolver
+	labelGenerator    structuredresult.Extractor
 	workflowEngine    *workflowruntime.Engine
 
 	// workflowNudger drives a parent execution forward when one of its runs (or
@@ -729,6 +733,64 @@ type Orchestrator struct {
 	// terminal. Always non-nil (set in New) so waits work even before the
 	// nudger is wired.
 	workflowWaiters *workflowWaitRegistry
+}
+
+// SetDurabilityEvidenceReader installs the swarm-owned read seam. It is a
+// setter because scenario discovery is resolved after the orchestrator is
+// constructed. A missing reader is represented as unlinked evidence.
+func (o *Orchestrator) SetDurabilityEvidenceReader(reader DurabilityEvidenceReader) {
+	o.durabilityEvidence = reader
+}
+
+// WithDurabilityBoundary installs the durable analysis-epoch store. Without it
+// Durability refuses to grade rather than inventing an epoch.
+func WithDurabilityBoundary(store durability.BoundaryStore) Option {
+	return func(o *Orchestrator) {
+		o.durabilityBoundary = store
+	}
+}
+
+// Durability projects a run's durable friction and optional swarm evidence.
+// It deliberately never reads Run.Result, Run.Status, or any other
+// self-authored completion field.
+func (o *Orchestrator) Durability(ctx context.Context, id uuid.UUID) (durability.Verdict, error) {
+	run, err := o.GetRun(ctx, id)
+	if err != nil {
+		return durability.Verdict{}, err
+	}
+	started := time.Time{}
+	if run.StartedAt != nil {
+		started = run.StartedAt.UTC()
+	} else if run.ImportedAt != nil {
+		started = run.ImportedAt.UTC()
+	}
+	lane := durability.LaneUnlinked
+	if run.IdentityTokenHash != "" {
+		lane = durability.LaneVerified
+	} else if run.ImportSourceSessionID != "" {
+		lane = durability.LaneObserved
+	}
+	evidence := make([]durability.Evidence, 0)
+	episodes, err := o.Episodes(ctx, id)
+	if err != nil {
+		return durability.Verdict{}, err
+	}
+	for _, episode := range episodes {
+		evidence = append(evidence, durability.Evidence{Kind: "friction", Reference: "agent-manager://runs/" + id.String() + "/episodes/" + episode.EpisodeID, At: started, Lane: lane})
+	}
+	if o.durabilityEvidence != nil {
+		observed, readErr := o.durabilityEvidence.ReadDurabilityEvidence(ctx, run)
+		if readErr != nil {
+			evidence = append(evidence, durability.Evidence{Kind: "swarm-evidence-unavailable", Reference: "swarm-manager://durability/evidence", At: started, Lane: durability.LaneUnlinked, Degraded: true})
+		} else {
+			evidence = append(evidence, observed...)
+		}
+	}
+	boundary, err := durability.ResolveBoundary(ctx, o.durabilityBoundary, systemNow())
+	if err != nil {
+		return durability.Verdict{}, err
+	}
+	return durability.Project(boundary, durability.Work{ID: id.String(), Subject: append([]string(nil), run.Subject...), StartedAt: started, Lane: lane}, evidence), nil
 }
 
 // systemNow is the production clock behind injected orchestration clocks.
@@ -913,6 +975,16 @@ func WithRolePolicyState(state *rolepolicy.State, resolver rolepolicy.Resolver) 
 func WithStructuredExtractor(extractor structuredresult.Extractor) Option {
 	return func(o *Orchestrator) {
 		o.structuredResults = structuredresult.Resolver{Extractor: extractor}
+	}
+}
+
+// WithLabelGenerator wires the constrained ai-gateway seam used only when an
+// imported transcript has neither a harness title nor a user prompt. It is
+// deliberately separate from structured result projection so title generation
+// cannot affect run outcomes.
+func WithLabelGenerator(generator structuredresult.Extractor) Option {
+	return func(o *Orchestrator) {
+		o.labelGenerator = generator
 	}
 }
 

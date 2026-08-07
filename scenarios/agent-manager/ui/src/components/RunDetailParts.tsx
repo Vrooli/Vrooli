@@ -378,14 +378,16 @@ interface RunDetailsContentProps {
 }
 
 export function RunDetailsContent({ run, taskTitle, profileName, durationMs, costTotals }: RunDetailsContentProps) {
-  return (
+	const runTitle = run.label || taskTitle;
+	return (
     <>
       {/* Run Overview */}
       <div className="rounded-lg border border-border bg-card/50 p-3 sm:p-4">
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground">Run Overview</p>
-          <h3 className="text-lg font-semibold">{taskTitle}</h3>
-          <p className="text-sm text-muted-foreground">{profileName}</p>
+			<h3 className="text-lg font-semibold">{runTitle}</h3>
+			<p className="text-sm text-muted-foreground">{profileName}</p>
+			{run.labelSource ? <p className="text-xs text-muted-foreground">Label source: {run.labelSource}</p> : null}
         </div>
 
         {run.errorMsg && (
@@ -806,4 +808,3 @@ export function CostBreakdown({ totals }: { totals: CostTotals }) {
     </div>
   );
 }
-

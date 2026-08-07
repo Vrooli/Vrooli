@@ -425,6 +425,11 @@ type SequencedEventSink interface {
 type TranscriptParseResult struct {
 	Events    []*domain.RunEvent
 	SessionID string
+	// Label and LabelSource are optional transcript metadata. They are emitted
+	// by providers that carry a durable title (for example Claude's ai-title)
+	// and are consumed by import orchestration.
+	Label       string
+	LabelSource domain.RunLabelSource
 	// Timestamp is the source timestamp for this transcript line.
 	Timestamp time.Time
 	Terminal  *TranscriptTerminal

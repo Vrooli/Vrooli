@@ -89,7 +89,11 @@ func (h *Handler) GetCrossScenarioLedger(ctx context.Context, req *connect.Reque
 // ImportTranscript is the typed mutation counterpart to the read-only
 // investigation surfaces. The orchestrator owns all parsing and persistence.
 func (h *Handler) ImportTranscript(ctx context.Context, req *connect.Request[domainpb.ImportTranscriptRequest]) (*connect.Response[domainpb.ImportTranscriptResponse], error) {
-	run, err := h.svc.ImportTranscript(ctx, orchestration.ImportTranscriptRequest{Path: req.Msg.GetPath(), RunnerType: domain.RunnerType(req.Msg.GetRunnerType()), Label: req.Msg.GetLabel()})
+	labelSource := domain.RunLabelSource("")
+	if req.Msg.GetLabel() != "" {
+		labelSource = domain.RunLabelSourceManual
+	}
+	run, err := h.svc.ImportTranscript(ctx, orchestration.ImportTranscriptRequest{Path: req.Msg.GetPath(), RunnerType: domain.RunnerType(req.Msg.GetRunnerType()), Label: req.Msg.GetLabel(), LabelSource: labelSource})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

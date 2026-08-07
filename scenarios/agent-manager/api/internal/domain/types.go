@@ -759,6 +759,19 @@ type ContextAttachment struct {
 // -----------------------------------------------------------------------------
 
 // Run represents a single execution attempt of a task using a specific agent profile.
+type RunLabelSource string
+
+const (
+	RunLabelSourceHarness   RunLabelSource = "harness"
+	RunLabelSourceDerived   RunLabelSource = "derived"
+	RunLabelSourceGenerated RunLabelSource = "generated"
+	RunLabelSourceManual    RunLabelSource = "manual"
+)
+
+// RunLabelSource records how the human-readable run label was obtained.
+// Empty is retained only for legacy rows; new runs must set both Label and
+// LabelSource.
+
 type Run struct {
 	ID             uuid.UUID  `json:"id" db:"id"`
 	TaskID         uuid.UUID  `json:"taskId" db:"task_id"`
@@ -766,9 +779,12 @@ type Run struct {
 
 	// Custom tag for identification (defaults to ID if not set)
 	// Used for agent tracking, log filtering, and external process identification
-	Tag      string          `json:"tag,omitempty" db:"tag"`
-	Workload WorkloadRef     `json:"workload,omitempty" db:"workload"`
-	Billing  BillingSnapshot `json:"billing,omitempty" db:"billing"`
+	Tag         string          `json:"tag,omitempty" db:"tag"`
+	Label       string          `json:"label,omitempty" db:"label"`
+	LabelSource RunLabelSource  `json:"labelSource,omitempty" db:"label_source"`
+	Subject     []string        `json:"subject,omitempty" db:"subject"`
+	Workload    WorkloadRef     `json:"workload,omitempty" db:"workload"`
+	Billing     BillingSnapshot `json:"billing,omitempty" db:"billing"`
 
 	// Sandbox integration
 	SandboxID     *uuid.UUID     `json:"sandboxId,omitempty" db:"sandbox_id"`
@@ -797,11 +813,9 @@ type Run struct {
 	StartedAt *time.Time `json:"startedAt,omitempty" db:"started_at"`
 	EndedAt   *time.Time `json:"endedAt,omitempty" db:"ended_at"`
 
-	// Goal accounting is populated when an imported harness exposes a
-	// structured goal-status attachment. Empty means the source did not expose
-	// goal accounting; it is never interpreted as success.
-	GoalID     string `json:"goalId,omitempty" db:"goal_id"`
-	GoalStatus string `json:"goalStatus,omitempty" db:"goal_status"`
+	// GoalID is retained as a stable historical cohort key. The degenerate
+	// self-reported goal status field is intentionally not part of Run.
+	GoalID string `json:"goalId,omitempty" db:"goal_id"`
 
 	// Progress tracking (for resumption and visibility)
 	Phase            RunPhase   `json:"phase" db:"phase"`

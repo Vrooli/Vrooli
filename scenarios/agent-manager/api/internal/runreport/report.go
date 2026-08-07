@@ -441,14 +441,6 @@ func deriveGoalProgress(run *domain.Run, events []*domain.RunEvent, episodes []r
 			progress.FirstMetTurnIndex++
 		}
 	}
-	if firstMetAt.IsZero() && strings.EqualFold(run.GoalStatus, "met") {
-		progress.FirstMetEventIndex = len(events) - 1
-		progress.FirstMetTurnIndex = 0
-		if run.EndedAt != nil && run.StartedAt != nil && !run.EndedAt.Before(*run.StartedAt) {
-			progress.TimeToFirstMet = run.EndedAt.Sub(*run.StartedAt)
-		}
-		metSeen = true
-	}
 	if !firstMetAt.IsZero() {
 		for _, event := range events {
 			if event == nil || event.Timestamp.After(firstMetAt) {

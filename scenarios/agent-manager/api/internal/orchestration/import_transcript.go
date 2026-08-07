@@ -16,8 +16,11 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/repository"
 	"agent-manager/internal/runsignal"
 	"agent-manager/internal/runstate"
+	"agent-manager/internal/structuredresult"
 	"agent-manager/internal/transcriptredact"
 
 	"github.com/google/uuid"
@@ -29,11 +32,204 @@ type ImportTranscriptRequest struct {
 	Path            string
 	RunnerType      domain.RunnerType
 	Label           string
+	LabelSource     domain.RunLabelSource
 	SourceHarness   string
 	SourceSessionID string
 }
 
 var importedTranscriptTaskID = uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/imported-transcripts"))
+
+type transcriptLabelEvidence struct {
+	HarnessTitle string
+	UserPrompt   string
+	Source       string
+}
+
+func readTranscriptLabelEvidence(source *os.File) (transcriptLabelEvidence, error) {
+	if _, err := source.Seek(0, io.SeekStart); err != nil {
+		return transcriptLabelEvidence{}, err
+	}
+	scanner := bufio.NewScanner(source)
+	scanner.Buffer(make([]byte, 64*1024), 16<<20)
+	var evidence transcriptLabelEvidence
+	const maxSourceBytes = 64 * 1024
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(evidence.Source) < maxSourceBytes {
+			remaining := maxSourceBytes - len(evidence.Source)
+			if len(line) > remaining {
+				line = line[:remaining]
+			}
+			evidence.Source += string(line) + "\n"
+		}
+		var value any
+		if json.Unmarshal(scanner.Bytes(), &value) != nil {
+			continue
+		}
+		if evidence.HarnessTitle == "" {
+			evidence.HarnessTitle = findTranscriptString(value, func(object map[string]any) (string, bool) {
+				typeName, _ := object["type"].(string)
+				if typeName != "ai-title" {
+					return "", false
+				}
+				title, _ := object["aiTitle"].(string)
+				return strings.TrimSpace(title), strings.TrimSpace(title) != ""
+			})
+		}
+		if evidence.UserPrompt == "" {
+			// Keep scanning past harness-injected preambles. Codex writes its
+			// instructions block as the first user-role record, so accepting
+			// the first user text verbatim labelled thousands of runs with the
+			// same AGENTS.md boilerplate instead of the operator's request.
+			if candidate := findTranscriptString(value, transcriptUserText); !isInjectedContextText(candidate) {
+				evidence.UserPrompt = candidate
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return transcriptLabelEvidence{}, err
+	}
+	return evidence, nil
+}
+
+func findTranscriptString(value any, match func(map[string]any) (string, bool)) string {
+	switch item := value.(type) {
+	case map[string]any:
+		if result, ok := match(item); ok {
+			return result
+		}
+		for _, child := range item {
+			if result := findTranscriptString(child, match); result != "" {
+				return result
+			}
+		}
+	case []any:
+		for _, child := range item {
+			if result := findTranscriptString(child, match); result != "" {
+				return result
+			}
+		}
+	}
+	return ""
+}
+
+// injectedContextFilePrefixes are instruction files harnesses inline into the
+// first user-role record. The marker is always at the start of the text.
+var injectedContextFilePrefixes = []string{
+	"# agents.md",
+	"# claude.md",
+	"agents.md instructions",
+	"claude.md instructions",
+}
+
+// isInjectedContextText reports whether a candidate user message is harness-
+// injected context (an instructions block, environment dump, or command
+// envelope) rather than something a person typed. Such text is unusable as a
+// run label: it is identical across every session the harness started.
+//
+// Empty text counts as injected so callers keep scanning for a real message.
+func isInjectedContextText(text string) bool {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return true
+	}
+	// Harness context blocks open with a tag: <user_instructions>,
+	// <environment_context>, <local-command-caveat>, <command-name>, ...
+	if strings.HasPrefix(trimmed, "<") {
+		if end := strings.IndexByte(trimmed, '>'); end > 1 && end <= 64 {
+			return true
+		}
+	}
+	lowered := strings.ToLower(trimmed)
+	for _, prefix := range injectedContextFilePrefixes {
+		if strings.HasPrefix(lowered, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func transcriptUserText(object map[string]any) (string, bool) {
+	if role, _ := object["role"].(string); !strings.EqualFold(strings.TrimSpace(role), "user") {
+		if typeName, _ := object["type"].(string); typeName != "user_message" {
+			return "", false
+		}
+	}
+	for _, key := range []string{"content", "message", "text", "prompt"} {
+		if text := normalizeTranscriptText(object[key]); text != "" {
+			return shortenTranscriptLabel(text), true
+		}
+	}
+	return "", false
+}
+
+func normalizeTranscriptText(value any) string {
+	switch item := value.(type) {
+	case string:
+		return strings.Join(strings.Fields(item), " ")
+	case []any:
+		parts := make([]string, 0, len(item))
+		for _, child := range item {
+			if text := normalizeTranscriptText(child); text != "" {
+				parts = append(parts, text)
+			}
+		}
+		return strings.Join(parts, " ")
+	case map[string]any:
+		for _, key := range []string{"text", "content", "value", "message"} {
+			if text := normalizeTranscriptText(item[key]); text != "" {
+				return text
+			}
+		}
+	}
+	return ""
+}
+
+func shortenTranscriptLabel(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) > 140 {
+		return value[:137] + "…"
+	}
+	return value
+}
+
+func (o *Orchestrator) resolveImportedLabel(ctx context.Context, req ImportTranscriptRequest, runnerType domain.RunnerType, evidence transcriptLabelEvidence) (string, domain.RunLabelSource) {
+	if evidence.HarnessTitle != "" {
+		return evidence.HarnessTitle, domain.RunLabelSourceHarness
+	}
+	if req.LabelSource == domain.RunLabelSourceManual && strings.TrimSpace(req.Label) != "" {
+		return shortenTranscriptLabel(req.Label), domain.RunLabelSourceManual
+	}
+	if req.LabelSource == domain.RunLabelSourceDerived && strings.TrimSpace(req.Label) != "" {
+		return shortenTranscriptLabel(req.Label), domain.RunLabelSourceDerived
+	}
+	if evidence.UserPrompt != "" {
+		return evidence.UserPrompt, domain.RunLabelSourceDerived
+	}
+
+	if o.labelGenerator != nil {
+		response, err := o.labelGenerator.Extract(ctx, structuredresult.ExtractRequest{
+			Source:      evidence.Source,
+			Schema:      json.RawMessage(`{"type":"string","minLength":1,"maxLength":160}`),
+			Instruction: "Create a concise human-readable title for this coding-agent session. Return only the title.",
+		})
+		if err == nil {
+			var generated string
+			if json.Unmarshal(response.Candidate, &generated) == nil && strings.TrimSpace(generated) != "" {
+				return shortenTranscriptLabel(generated), domain.RunLabelSourceGenerated
+			}
+		}
+	}
+
+	// A provider outage must not make historical evidence disappear. The
+	// source remains generated because this is the generated-label fallback,
+	// while the deterministic text makes the run usable until regeneration.
+	identifier := strings.TrimSpace(req.SourceSessionID)
+	if identifier == "" {
+		identifier = "unknown"
+	}
+	return fmt.Sprintf("%s session %s", runnerType, identifier), domain.RunLabelSourceGenerated
+}
 
 // ImportTranscript copies, parses, and persists an external transcript using
 // the same parser and event store as restart recovery.
@@ -76,9 +272,16 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	if provider, ok := parserRunner.(runner.GoalMarkerProvider); ok {
 		markerProvider = provider
 	}
-	goalID, goalStatus := transcriptGoalMetadata(source, markerProvider)
+	goalID, _ := transcriptGoalMetadata(source, markerProvider)
 	if _, err := source.Seek(0, io.SeekStart); err != nil {
 		return nil, fmt.Errorf("rewind transcript after goal scan: %w", err)
+	}
+	labelEvidence, err := readTranscriptLabelEvidence(source)
+	if err != nil {
+		return nil, fmt.Errorf("read transcript label evidence: %w", err)
+	}
+	if _, err := source.Seek(0, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("rewind transcript after label scan: %w", err)
 	}
 	root, err := o.resolveRunStateRoot(ctx)
 	if err != nil {
@@ -90,7 +293,8 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 		return nil, err
 	}
 	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "agent-manager-imported", RunMode: domain.RunModeInPlace, ExecutionMode: domain.ExecutionModeImported, Status: domain.RunStatusUnknown, ResolvedConfig: &domain.RunConfig{RunnerType: runnerType, ManifestIndexSnapshot: runsignal.CurrentCatalogSnapshot(), TranscriptCodec: string(runnerType), TranscriptCodecScore: detection.Score}, ImportSourceHarness: req.SourceHarness, ImportSourceSessionID: req.SourceSessionID, ImportedAt: &now}
-	run.GoalID, run.GoalStatus = goalID, goalStatus
+	run.Label, run.LabelSource = o.resolveImportedLabel(ctx, req, runnerType, labelEvidence)
+	run.GoalID = goalID
 	if strings.TrimSpace(req.Label) != "" {
 		run.Tag = "agent-manager-imported-" + strings.TrimSpace(req.Label)
 	}
@@ -122,7 +326,12 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	var terminal *runner.TranscriptTerminal
 	_, terminal, err = runner.Consume(ctx, runner.ConsumeArgs{RunID: run.ID, Transcript: snapshot.TranscriptPath, ParseFn: func(id uuid.UUID, line string) runner.TranscriptParseResult {
 		return parser.ParseTranscriptLine(id, line)
-	}, EventSink: importEventSink{ctx: ctx, runID: run.ID, store: o.events}, OnAdvance: func(cursor, seq int64) error { run.TranscriptCursor, run.TranscriptLastSeq = cursor, seq; return nil }, OnSessionID: func(id string) error { run.SessionID = id; return nil }})
+	}, EventSink: importEventSink{ctx: ctx, runID: run.ID, store: o.events}, OnAdvance: func(cursor, seq int64) error { run.TranscriptCursor, run.TranscriptLastSeq = cursor, seq; return nil }, OnSessionID: func(id string) error { run.SessionID = id; return nil }, OnLabel: func(label string, source domain.RunLabelSource) error {
+		if source == domain.RunLabelSourceHarness && strings.TrimSpace(label) != "" {
+			run.Label, run.LabelSource = strings.TrimSpace(label), source
+		}
+		return nil
+	}})
 	if err != nil {
 		return nil, fmt.Errorf("parse imported transcript: %w", err)
 	}
@@ -153,6 +362,246 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 		return nil, fmt.Errorf("project imported transcript: %w", err)
 	}
 	return o.attachRunActions(ctx, run), nil
+}
+
+// LabelBackfillResult reports a label-only repair of imported runs. The
+// updater seam intentionally changes no run identity or attribution columns.
+type LabelBackfillResult struct {
+	Scanned  int `json:"scanned"`
+	Updated  int `json:"updated"`
+	Skipped  int `json:"skipped"`
+	Missing  int `json:"missing"`
+	Failures int `json:"failures"`
+}
+
+type SubjectBackfillResult struct {
+	Scanned  int `json:"scanned"`
+	Updated  int `json:"updated"`
+	Skipped  int `json:"skipped"`
+	Missing  int `json:"missing"`
+	Failures int `json:"failures"`
+}
+
+// BackfillRunSubjects projects subjects directly from retained invocation
+// facts. It never replays or parses raw transcripts, and it updates only the
+// derived subject column so historical runs become queryable without
+// rewriting identity, result, or attribution fields.
+func (o *Orchestrator) BackfillRunSubjects(ctx context.Context) (*SubjectBackfillResult, error) {
+	updater, ok := o.runs.(repository.RunSubjectUpdater)
+	if !ok {
+		return nil, fmt.Errorf("run repository does not support subject-only updates")
+	}
+	if o.invocationReadModel == nil {
+		return nil, fmt.Errorf("invocation read model is not configured")
+	}
+	runs, err := o.runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 100000}})
+	if err != nil {
+		return nil, fmt.Errorf("list runs for subject backfill: %w", err)
+	}
+	result := &SubjectBackfillResult{}
+	for _, run := range runs {
+		if run == nil {
+			continue
+		}
+		result.Scanned++
+		facts, factsErr := o.invocationReadModel.Facts(ctx, run.ID.String())
+		if factsErr != nil {
+			result.Failures++
+			continue
+		}
+		// Areas come from retained tool-call events, which facts do not carry.
+		// A run whose events aged out still yields its tool subject.
+		events, eventsErr := o.events.Get(ctx, run.ID, event.GetOptions{})
+		if eventsErr != nil {
+			events = nil
+		}
+		subject := invocationreadmodel.DeriveRunSubject(facts, events)
+		if len(subject) == 0 {
+			result.Missing++
+			continue
+		}
+		if err := updater.UpdateRunSubject(ctx, run.ID, subject); err != nil {
+			result.Failures++
+			continue
+		}
+		result.Updated++
+	}
+	result.Skipped = result.Scanned - result.Updated - result.Missing - result.Failures
+	return result, nil
+}
+
+// BackfillImportedRunLabels recovers labels from retained transcript files.
+// It never invokes the generator: legacy backfills are limited to harness or
+// derived evidence, as required for a cost-free and auditable repair.
+func (o *Orchestrator) BackfillImportedRunLabels(ctx context.Context) (*LabelBackfillResult, error) {
+	updater, ok := o.runs.(repository.RunLabelUpdater)
+	if !ok {
+		return nil, fmt.Errorf("run repository does not support label-only updates")
+	}
+	runs, err := o.runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 100000}})
+	if err != nil {
+		return nil, fmt.Errorf("list imported runs for label backfill: %w", err)
+	}
+	transcriptPaths := indexExternalTranscriptPaths(runs)
+	result := &LabelBackfillResult{}
+	for _, run := range runs {
+		if run == nil || run.ExecutionMode.Normalized() != domain.ExecutionModeImported {
+			continue
+		}
+		result.Scanned++
+		transcriptPath := strings.TrimSpace(run.TranscriptPath)
+		if transcriptPath == "" || !fileExists(transcriptPath) {
+			transcriptPath = transcriptPaths[run.ImportSourceSessionID]
+		}
+		if transcriptPath == "" {
+			result.Missing++
+			if updateErr := updater.UpdateRunLabel(ctx, run.ID, legacyFallbackLabel(run), domain.RunLabelSourceDerived); updateErr != nil {
+				result.Failures++
+			} else {
+				result.Updated++
+			}
+			continue
+		}
+		file, openErr := os.Open(transcriptPath)
+		if openErr != nil {
+			result.Missing++
+			if updateErr := updater.UpdateRunLabel(ctx, run.ID, legacyFallbackLabel(run), domain.RunLabelSourceDerived); updateErr != nil {
+				result.Failures++
+			} else {
+				result.Updated++
+			}
+			continue
+		}
+		evidence, readErr := readTranscriptLabelEvidence(file)
+		_ = file.Close()
+		if readErr != nil {
+			result.Failures++
+			if updateErr := updater.UpdateRunLabel(ctx, run.ID, legacyFallbackLabel(run), domain.RunLabelSourceDerived); updateErr != nil {
+				result.Failures++
+			} else {
+				result.Updated++
+			}
+			continue
+		}
+		label, source := evidence.HarnessTitle, domain.RunLabelSourceHarness
+		if label == "" {
+			label, source = evidence.UserPrompt, domain.RunLabelSourceDerived
+		}
+		if label == "" {
+			// Nothing in the transcript names the work: no harness title and no
+			// user message that was not harness-injected context. Fall back to
+			// the same deterministic form the import path uses, and keep the
+			// source honest — this label was not derived from session content.
+			label = legacyFallbackLabel(run)
+			source = domain.RunLabelSourceGenerated
+		}
+		label = shortenTranscriptLabel(label)
+		if label == "" {
+			result.Missing++
+			continue
+		}
+		if run.Label == label && run.LabelSource == source {
+			result.Skipped++
+			continue
+		}
+		if updateErr := updater.UpdateRunLabel(ctx, run.ID, label, source); updateErr != nil {
+			result.Failures++
+			continue
+		}
+		result.Updated++
+	}
+	return result, nil
+}
+
+func legacyFallbackLabel(run *domain.Run) string {
+	if run == nil {
+		return "Imported run"
+	}
+	harness := strings.TrimSpace(run.ImportSourceHarness)
+	harness = strings.TrimPrefix(harness, "resource:")
+	if harness == "" {
+		harness = "external"
+	}
+	if session := strings.TrimSpace(run.ImportSourceSessionID); session != "" {
+		return shortenTranscriptLabel(fmt.Sprintf("%s session %s", harness, session))
+	}
+	return "Imported run " + run.ID.String()[:8]
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+// indexExternalTranscriptPaths recovers the source file for legacy imported
+// rows that predate transcript_path persistence. The index is built once per
+// backfill, not once per run, and only from the governed durable-data roots.
+func indexExternalTranscriptPaths(runs []*domain.Run) map[string]string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	roots := make(map[string]string)
+	for _, run := range runs {
+		if run == nil || run.ImportSourceSessionID == "" {
+			continue
+		}
+		switch {
+		case strings.Contains(run.ImportSourceHarness, "codex"):
+			roots[filepath.Join(home, ".codex", "sessions")] = "codex"
+		case strings.Contains(run.ImportSourceHarness, "claude"):
+			roots[filepath.Join(home, ".claude", "projects")] = "claude"
+		}
+	}
+	index := make(map[string]string)
+	for root := range roots {
+		_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil || entry == nil || entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") {
+				return walkErr
+			}
+			file, openErr := os.Open(path)
+			if openErr != nil {
+				return nil
+			}
+			sessionID := transcriptSessionID(file)
+			_ = file.Close()
+			if sessionID != "" {
+				index[sessionID] = path
+			}
+			return nil
+		})
+	}
+	return index
+}
+
+func transcriptSessionID(file *os.File) string {
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return ""
+	}
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 4096), 4<<20)
+	for lines := 0; scanner.Scan() && lines < 80; lines++ {
+		var value any
+		if json.Unmarshal(scanner.Bytes(), &value) != nil {
+			continue
+		}
+		if id := findTranscriptString(value, func(object map[string]any) (string, bool) {
+			if typeName, _ := object["type"].(string); typeName == "session_meta" {
+				if id, ok := object["id"].(string); ok && strings.TrimSpace(id) != "" {
+					return strings.TrimSpace(id), true
+				}
+			}
+			for _, key := range []string{"session_id", "sessionId", "thread_id", "threadId"} {
+				if id, ok := object[key].(string); ok && strings.TrimSpace(id) != "" {
+					return strings.TrimSpace(id), true
+				}
+			}
+			return "", false
+		}); id != "" {
+			return id
+		}
+	}
+	return ""
 }
 
 // rehydrateImportedTranscript restores the append-only source stream for an

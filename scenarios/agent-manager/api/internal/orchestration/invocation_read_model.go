@@ -299,6 +299,9 @@ func (o *Orchestrator) ReplayInvocationFacts(ctx context.Context, runID uuid.UUI
 	}
 	projectedAt := o.now()
 	facts, next := invocationreadmodel.ProjectWithResolvers(run, events, projectedAt, o.capabilityResolver(run), o.commandResolver(run))
+	if err := o.persistRunSubject(ctx, run, facts, events); err != nil {
+		return nil, err
+	}
 	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
 		episodes := invocationreadmodel.ProjectEpisodes(run, facts, events, projectedAt)
 		spans := invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt)
@@ -314,6 +317,25 @@ func (o *Orchestrator) ReplayInvocationFacts(ctx context.Context, runID uuid.UUI
 		return nil, fmt.Errorf("re-derive episodes: %w", err)
 	}
 	return &ReplayResult{RunID: runID.String(), Status: "replayed", FactCount: len(facts), EpisodeCount: len(report.Episodes), ClassifierVersion: next.ClassifierVersion}, nil
+}
+
+func (o *Orchestrator) persistRunSubject(ctx context.Context, run *domain.Run, facts []invocationreadmodel.Fact, events []*domain.RunEvent) error {
+	if o == nil || o.runs == nil || run == nil {
+		return nil
+	}
+	updater, ok := o.runs.(repository.RunSubjectUpdater)
+	if !ok {
+		return nil
+	}
+	subject := invocationreadmodel.DeriveRunSubject(facts, events)
+	if len(subject) == 0 {
+		return nil
+	}
+	if err := updater.UpdateRunSubject(ctx, run.ID, subject); err != nil {
+		return fmt.Errorf("persist run subject: %w", err)
+	}
+	run.Subject = subject
+	return nil
 }
 
 // RefreshInvocationFacts avoids a write unless source events advanced beyond
@@ -423,6 +445,9 @@ func (o *Orchestrator) projectInvocationReadModel(ctx context.Context, run *doma
 	projectedAt := o.now()
 	capabilityResolver := o.capabilityResolver(run)
 	facts, watermark := invocationreadmodel.ProjectWithResolvers(run, events, projectedAt, capabilityResolver, o.commandResolver(run))
+	if err := o.persistRunSubject(ctx, run, facts, events); err != nil {
+		return err
+	}
 	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
 		return projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectErrors(run, events, projectedAt), invocationreadmodel.ProjectEpisodes(run, facts, events, projectedAt), invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt), watermark, invocationreadmodel.ProjectRun(run, events, projectedAt, capabilityResolver))
 	}

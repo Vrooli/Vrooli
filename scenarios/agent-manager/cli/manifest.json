@@ -10,170 +10,714 @@
         {
           "name": "validate",
           "description": "Validate and canonicalize one workflow definition without writes",
-          "flags": [{"name":"file","required":true,"description":"Workflow definition JSON"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ValidateWorkflow"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["filesystem:read"]},
-          "architecture": {"primitive":"action"}
+          "flags": [
+            {
+              "name": "file",
+              "required": true,
+              "description": "Workflow definition JSON",
+              "bind": {
+                "field": "definition"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ValidateWorkflow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         },
         {
           "name": "plan",
           "description": "Dry-run all scenario workflow sources without catalog writes",
-          "flags": [{"name":"scenario","required":true,"description":"Owning scenario"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"PlanScenarioWorkflows"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Owning scenario"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "PlanScenarioWorkflows"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "reconcile-scenario",
           "description": "Atomically reconcile all valid scenario-owned workflow sources",
-          "flags": [{"name":"scenario","required":true,"description":"Owning scenario"},{"name":"dry-run","bool":true,"description":"Validate without writes"},{"name":"validate-only","bool":true,"description":"Validate sources only"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ReconcileScenarioWorkflows"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_mutation"}
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Owning scenario"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Validate without writes"
+            },
+            {
+              "name": "validate-only",
+              "bool": true,
+              "description": "Validate sources only"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ReconcileScenarioWorkflows"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "reload",
           "description": "Reload and atomically activate one scenario's valid workflow source set",
-          "flags": [{"name":"scenario","required":true,"description":"Owning scenario"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ReloadScenarioWorkflows"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_mutation"}
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Owning scenario"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ReloadScenarioWorkflows"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "list",
           "description": "List immutable workflow revisions for an owner",
-          "flags": [{"name":"owner","required":true,"description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"limit","description":"Maximum revisions"},{"name":"offset","description":"Revisions to skip"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ListWorkflowRevisions"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "flags": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owning scenario"
+            },
+            {
+              "name": "key",
+              "description": "Workflow key"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum revisions"
+            },
+            {
+              "name": "offset",
+              "description": "Revisions to skip"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ListWorkflowRevisions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "get",
           "description": "Get one immutable workflow revision by key or digest",
-          "flags": [{"name":"owner","required":true,"description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"digest","description":"Pinned revision digest"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"GetWorkflowRevision"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "flags": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owning scenario"
+            },
+            {
+              "name": "key",
+              "description": "Workflow key"
+            },
+            {
+              "name": "digest",
+              "description": "Pinned revision digest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetWorkflowRevision"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "explain",
           "description": "Explain a workflow revision and its authored provenance",
-          "flags": [{"name":"owner","required":true,"description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"digest","description":"Pinned revision digest"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ExplainWorkflow"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "flags": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owning scenario"
+            },
+            {
+              "name": "key",
+              "description": "Workflow key"
+            },
+            {
+              "name": "digest",
+              "description": "Pinned revision digest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ExplainWorkflow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "simulate",
           "description": "Statically plan node identities, strategies, waits, joins, and child workflows without side effects",
-          "flags": [{"name":"owner","required":true,"description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"digest","description":"Pinned revision digest"},{"name":"input-file","required":true,"description":"Workflow input JSON"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"SimulateWorkflow"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]},
-          "architecture": {"primitive":"action"}
+          "flags": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owning scenario"
+            },
+            {
+              "name": "key",
+              "description": "Workflow key",
+              "bind": {
+                "field": "workflow_key"
+              }
+            },
+            {
+              "name": "digest",
+              "description": "Pinned revision digest",
+              "bind": {
+                "field": "definition_digest"
+              }
+            },
+            {
+              "name": "input-file",
+              "required": true,
+              "description": "Workflow input JSON",
+              "bind": {
+                "field": "input"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "SimulateWorkflow"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         },
         {
           "name": "start",
           "description": "Start an idempotent execution pinned to one immutable workflow revision",
-          "flags": [{"name":"owner","required":true,"description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"digest","description":"Pinned revision digest"},{"name":"input-file","required":true,"description":"Workflow input JSON"},{"name":"idempotency-key","required":true,"description":"Replay-safe caller key"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"StartWorkflowExecution"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_mutation"}
+          "flags": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owning scenario"
+            },
+            {
+              "name": "key",
+              "description": "Workflow key"
+            },
+            {
+              "name": "digest",
+              "description": "Pinned revision digest"
+            },
+            {
+              "name": "input-file",
+              "required": true,
+              "description": "Workflow input JSON"
+            },
+            {
+              "name": "idempotency-key",
+              "required": true,
+              "description": "Replay-safe caller key"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "StartWorkflowExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "execution-list",
           "description": "List bounded metadata-only workflow execution history",
-          "flags": [{"name":"owner","description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"status","description":"Execution status"},{"name":"limit","description":"Maximum executions, bounded to 200"},{"name":"offset","description":"Executions to skip"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ListWorkflowExecutions"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "flags": [
+            {
+              "name": "owner",
+              "description": "Owning scenario"
+            },
+            {
+              "name": "key",
+              "description": "Workflow key",
+              "bind": {
+                "field": "workflow_key"
+              }
+            },
+            {
+              "name": "status",
+              "description": "Execution status"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum executions, bounded to 200"
+            },
+            {
+              "name": "offset",
+              "description": "Executions to skip"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ListWorkflowExecutions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "execution-runs",
           "description": "List durable node attempts and dispatched run identities for one workflow execution",
-          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ListWorkflowExecutionRuns"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "positionals": [
+            {
+              "name": "execution_id",
+              "required": true,
+              "description": "Workflow execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ListWorkflowExecutionRuns"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "execution-get",
           "description": "Inspect one execution with input and output redacted",
-          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"GetWorkflowExecution"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "positionals": [
+            {
+              "name": "execution_id",
+              "required": true,
+              "description": "Workflow execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetWorkflowExecution"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "execution-result",
           "description": "Inspect input and output only after explicit operator authorization",
-          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
-          "flags": [{"name":"explicitly-authorized","bool":true,"required":true,"description":"Confirm authorization to reveal payloads"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"GetWorkflowExecutionResult"},
-          "governance": {"effect":"read","run_eligible":false,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "execution_id",
+              "required": true,
+              "description": "Workflow execution UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "explicitly-authorized",
+              "bool": true,
+              "required": true,
+              "description": "Confirm authorization to reveal payloads"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetWorkflowExecutionResult"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "execution-advance",
           "description": "Reconcile one execution from its durable state without duplicating dispatched work",
-          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"AdvanceWorkflowExecution"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_mutation"}
+          "positionals": [
+            {
+              "name": "execution_id",
+              "required": true,
+              "description": "Workflow execution UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "AdvanceWorkflowExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "execution-wait",
           "description": "Block until an execution is terminal or the timeout elapses without polling; canceling the wait never cancels the execution",
-          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
-          "flags": [{"name":"timeout-seconds","description":"Server-side wait bound in seconds (0 blocks until terminal)"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"WaitWorkflowExecution"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "execution_id",
+              "required": true,
+              "description": "Workflow execution UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout-seconds",
+              "description": "Server-side wait bound in seconds (0 blocks until terminal)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "WaitWorkflowExecution"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "trace",
           "description": "Inspect metadata-only attempt and durable journal history",
-          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
-          "flags": [{"name":"after-sequence","description":"Only events after this sequence"},{"name":"limit","description":"Maximum journal events"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"GetWorkflowExecutionTrace"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "positionals": [
+            {
+              "name": "execution_id",
+              "required": true,
+              "description": "Workflow execution UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "after-sequence",
+              "description": "Only events after this sequence"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum journal events"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetWorkflowExecutionTrace"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "signal",
           "description": "Deliver one typed, idempotent signal to the exact durable wait",
-          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
-          "flags": [{"name":"signal","required":true,"description":"Expected signal name"},{"name":"payload-file","required":true,"description":"Typed JSON payload"},{"name":"idempotency-key","required":true,"description":"Replay-safe caller key"},{"name":"expected-version","description":"Optimistic concurrency version"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"SignalWorkflowExecution"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]},
-          "architecture": {"primitive":"proto_mutation"}
+          "positionals": [
+            {
+              "name": "execution_id",
+              "required": true,
+              "description": "Workflow execution UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "signal",
+              "required": true,
+              "description": "Expected signal name"
+            },
+            {
+              "name": "payload-file",
+              "required": true,
+              "description": "Typed JSON payload"
+            },
+            {
+              "name": "idempotency-key",
+              "required": true,
+              "description": "Replay-safe caller key"
+            },
+            {
+              "name": "expected-version",
+              "description": "Optimistic concurrency version"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "SignalWorkflowExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "cancel",
           "description": "Idempotently cancel an execution and propagate cancellation to active runs and children",
-          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
-          "flags": [{"name":"idempotency-key","required":true,"description":"Replay-safe caller key"},{"name":"expected-version","description":"Optimistic concurrency version"},{"name":"reason","description":"Operator reason"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"CancelWorkflowExecution"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_mutation"}
+          "positionals": [
+            {
+              "name": "execution_id",
+              "required": true,
+              "description": "Workflow execution UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "idempotency-key",
+              "required": true,
+              "description": "Replay-safe caller key"
+            },
+            {
+              "name": "expected-version",
+              "description": "Optimistic concurrency version"
+            },
+            {
+              "name": "reason",
+              "description": "Operator reason"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "CancelWorkflowExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "retry",
           "description": "Retry the failed node using its durable attempt lineage and retry budget",
-          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
-          "flags": [{"name":"idempotency-key","required":true,"description":"Replay-safe caller key"},{"name":"expected-version","description":"Optimistic concurrency version"},{"name":"reason","description":"Operator reason"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"RetryWorkflowExecution"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_mutation"}
+          "positionals": [
+            {
+              "name": "execution_id",
+              "required": true,
+              "description": "Workflow execution UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "idempotency-key",
+              "required": true,
+              "description": "Replay-safe caller key"
+            },
+            {
+              "name": "expected-version",
+              "description": "Optimistic concurrency version"
+            },
+            {
+              "name": "reason",
+              "description": "Operator reason"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "RetryWorkflowExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "resume",
           "description": "Resume a recoverable execution without creating duplicate node work",
-          "positionals": [{"name":"execution_id","required":true,"description":"Workflow execution UUID"}],
-          "flags": [{"name":"idempotency-key","required":true,"description":"Replay-safe caller key"},{"name":"expected-version","description":"Optimistic concurrency version"},{"name":"reason","description":"Operator reason"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ResumeWorkflowExecution"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_mutation"}
-		}
+          "positionals": [
+            {
+              "name": "execution_id",
+              "required": true,
+              "description": "Workflow execution UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "idempotency-key",
+              "required": true,
+              "description": "Replay-safe caller key"
+            },
+            {
+              "name": "expected-version",
+              "description": "Optimistic concurrency version"
+            },
+            {
+              "name": "reason",
+              "description": "Operator reason"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ResumeWorkflowExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
       ]
     },
     {
@@ -181,21 +725,216 @@
       "description": "Top-level local command dispatchers",
       "flat": true,
       "commands": [
-        {"name":"declarations","description":"Scenario declaration operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"events","description":"Typed operational event queries","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"findings","description":"Recurring investigation findings","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"health","description":"Health audit queries","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"maintenance","description":"Maintenance operations","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"ops","description":"Operational statistics","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"permission-policy","description":"Permission policy operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"profile","description":"Agent profile operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"role-policy","description":"Role policy operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"runner","description":"Runner operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"scenario-smoke","description":"Live scenario smoke validation","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"settings","description":"Settings operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"subscription","description":"Subscription billing period operations","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"task","description":"Task operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"workflow","description":"Workflow operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+        {
+          "name": "declarations",
+          "description": "Scenario declaration operations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "events",
+          "description": "Typed operational event queries",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "findings",
+          "description": "Recurring investigation findings",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "health",
+          "description": "Health audit queries",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "maintenance",
+          "description": "Maintenance operations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "ops",
+          "description": "Operational statistics",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "permission-policy",
+          "description": "Permission policy operations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "profile",
+          "description": "Agent profile operations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "role-policy",
+          "description": "Role policy operations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "runner",
+          "description": "Runner operations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "scenario-smoke",
+          "description": "Live scenario smoke validation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "settings",
+          "description": "Settings operations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "subscription",
+          "description": "Subscription billing period operations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "task",
+          "description": "Task operations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "workflow",
+          "description": "Workflow operations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
       ]
     },
     {
@@ -205,18 +944,64 @@
         {
           "name": "reconcile-scenario",
           "description": "Reconcile a scenario's unified declaration block (profiles + workflows)",
-          "flags": [{"name":"scenario","required":true,"description":"Owning scenario"},{"name":"dry-run","bool":true,"description":"Validate without writes"},{"name":"validate-only","bool":true,"description":"Validate sources only"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ReconcileScenarioDeclarations"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_mutation"}
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Owning scenario"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Validate without writes"
+            },
+            {
+              "name": "validate-only",
+              "bool": true,
+              "description": "Validate sources only"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ReconcileScenarioDeclarations"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "plan",
           "description": "Dry-run all scenario declaration sources without writes",
-          "flags": [{"name":"scenario","required":true,"description":"Owning scenario"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"PlanScenarioDeclarations"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Owning scenario"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "PlanScenarioDeclarations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         }
       ]
     },
@@ -227,10 +1012,31 @@
         {
           "name": "list",
           "description": "List agent profiles with a bounded total count",
-          "flags": [{"name":"limit","description":"Maximum profiles (1-100)"},{"name":"offset","description":"Profiles to skip"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ListProfiles"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum profiles (1-100)"
+            },
+            {
+              "name": "offset",
+              "description": "Profiles to skip"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ListProfiles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     },
@@ -241,10 +1047,35 @@
         {
           "name": "list",
           "description": "List tasks with optional status filtering and a bounded total count",
-          "flags": [{"name":"status","description":"Task status filter"},{"name":"limit","description":"Maximum tasks (1-100)"},{"name":"offset","description":"Tasks to skip"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ListTasks"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "flags": [
+            {
+              "name": "status",
+              "description": "Task status filter"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum tasks (1-100)"
+            },
+            {
+              "name": "offset",
+              "description": "Tasks to skip"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ListTasks"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     },
@@ -255,274 +1086,2294 @@
         {
           "name": "report",
           "description": "Show the bounded shared run investigation report",
-          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
-          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"GetRunReport"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetRunReport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "recent",
+          "description": "Show recent work with attribution lanes, coverage, and evidence-bounded durability",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum recent runs"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "cohort-report",
           "description": "Show a bounded ranked projection for an explicit comparable run cohort",
-          "flags": [{"name":"run-ids","required":true,"description":"Comma-separated run UUIDs"}],
-          "binding": {"kind":"connect-rpc","service":"EpisodesService","method":"GetSelfReportSpans"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "flags": [
+            {
+              "name": "run-ids",
+              "required": true,
+              "description": "Comma-separated run UUIDs",
+              "bind": {
+                "field": "run_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EpisodesService",
+            "method": "GetSelfReportSpans"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "cohort-compare",
           "description": "Compare episode fingerprints across two durable filter populations",
-          "flags": [{"name":"left-filter-json","required":true,"description":"Left invocation filter JSON"},{"name":"right-filter-json","required":true,"description":"Right invocation filter JSON"},{"name":"limit","description":"Maximum fingerprint signals"}],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "flags": [
+            {
+              "name": "left-filter-json",
+              "required": true,
+              "description": "Left invocation filter JSON"
+            },
+            {
+              "name": "right-filter-json",
+              "required": true,
+              "description": "Right invocation filter JSON"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum fingerprint signals"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "cohort",
           "description": "Define, list, inspect, and delete durable invocation cohorts",
-          "binding": {"kind":"local"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "cross-scenario",
           "description": "Report generic cross-scenario receipt and semantics evidence",
-          "binding": {"kind":"local"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "goal-cohort",
           "description": "Aggregate goal progression evidence across a durable cohort",
-          "flags": [{"name":"cohort","required":true,"description":"Durable cohort name"},{"name":"limit","description":"Maximum runs to score"}],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "flags": [
+            {
+              "name": "cohort",
+              "required": true,
+              "description": "Durable cohort name"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum runs to score"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "invocation-facts",
           "description": "Drill into redacted normalized invocation evidence for one run",
-          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
-		  "binding": {"kind":"connect-rpc","service":"EpisodesService","method":"GetCrossScenarioLedger"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EpisodesService",
+            "method": "GetCrossScenarioLedger"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "episodes",
           "description": "Show bounded friction episodes for one run",
-          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
-          "binding": {"kind":"connect-rpc","service":"EpisodesService","method":"GetEpisodes"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EpisodesService",
+            "method": "GetEpisodes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
-        {"name":"invocation-aggregate","description":"Aggregate durable invocation evidence by dimension","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"invocation-cohort","description":"Select a durable invocation cohort","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"invocation-metrics","description":"Calculate durable invocation metrics","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {
+          "name": "invocation-aggregate",
+          "description": "Aggregate durable invocation evidence by dimension",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "invocation-cohort",
+          "description": "Select a durable invocation cohort",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "invocation-metrics",
+          "description": "Calculate durable invocation metrics",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
         {
           "name": "messages-friction",
           "description": "Show deterministic self-reported friction spans",
-          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
-          "binding": {"kind":"connect-rpc","service":"EpisodesService","method":"ImportTranscript"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID",
+              "bind": {
+                "field": "runner_type"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EpisodesService",
+            "method": "ImportTranscript"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "episode-cohort",
           "description": "Fold friction episodes across a predicate-selected run cohort",
-          "flags": [{"name":"tag-prefix","description":"Tag prefix filter"},{"name":"limit","description":"Maximum selected runs"}],
-          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"EpisodeCohort"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"},
-          "measure": {"domain":"episode","intent":"Rank recurring friction episode fingerprints across the selected durable run cohort.","questions":["which friction episodes recur across agent runs","what recurring agent friction costs the most","show the episode recurrence rate"],"params":{"window":{"type":"time_window","default":"this_week"},"limit":{"default":"25"}},"result":{"kind":"table","value_field":"signals","unit":"episodes","summary_template":"recurring friction episodes ({window})"}}
+          "flags": [
+            {
+              "name": "tag-prefix",
+              "description": "Tag prefix filter"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum selected runs"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "EpisodeCohort"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "episode",
+            "intent": "Rank recurring friction episode fingerprints across the selected durable run cohort.",
+            "questions": [
+              "which friction episodes recur across agent runs",
+              "what recurring agent friction costs the most",
+              "show the episode recurrence rate"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              },
+              "limit": {
+                "default": "25"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "signals",
+              "unit": "episodes",
+              "summary_template": "recurring friction episodes ({window})"
+            }
+          }
         },
         {
           "name": "episode-trend",
           "description": "Trend durable episode fingerprints over time",
-          "flags": [{"name":"from","description":"RFC3339 inclusive time"},{"name":"to","description":"RFC3339 exclusive time"},{"name":"bucket","description":"Go duration bucket"},{"name":"limit","description":"Maximum buckets"}],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "flags": [
+            {
+              "name": "from",
+              "description": "RFC3339 inclusive time"
+            },
+            {
+              "name": "to",
+              "description": "RFC3339 exclusive time"
+            },
+            {
+              "name": "bucket",
+              "description": "Go duration bucket"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum buckets"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "publish-recurring-friction",
           "description": "File recurring deterministic friction to the meta-optimization inbox with an idempotent daily cap",
-          "flags": [{"name":"cap","description":"Daily filing cap"}],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "flags": [
+            {
+              "name": "cap",
+              "description": "Daily filing cap"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "ledger",
           "description": "Show per-run cross-scenario receipt calls",
-          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
-		  "flags": [{"name":"with-projections","bool":true,"description":"Include bounded opaque receipt projections"}],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "with-projections",
+              "bool": true,
+              "description": "Include bounded opaque receipt projections"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "import-transcript",
           "description": "Adopt an external harness transcript as a read-only run",
-          "positionals": [{"name":"path","required":true,"description":"Transcript path"}],
-          "flags": [{"name":"runner","description":"Optional runner type"},{"name":"label","description":"Optional import label"}],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"write","run_eligible":false,"permissions":["filesystem:read","network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "path",
+              "required": true,
+              "description": "Transcript path"
+            }
+          ],
+          "flags": [
+            {
+              "name": "runner",
+              "description": "Optional runner type"
+            },
+            {
+              "name": "label",
+              "description": "Optional import label"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
-        {"name":"import-session-corpus","description":"Import a bounded deterministic corpus from governed local runner session stores, with provenance and replay coverage.","flags":[{"name":"runners","description":"Comma-separated runner types"},{"name":"strategy","description":"deterministic-per-month, stratified, recent, or all"},{"name":"from","description":"RFC3339 inclusive update time"},{"name":"to","description":"RFC3339 exclusive update time"},{"name":"per-month","description":"Sessions per runner-month"},{"name":"limit","description":"Maximum selected sessions"}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:read","network:internal"]},"architecture":{"primitive":"operational"}},
-        {"name":"mine-self-report-vocabulary","description":"Mine bounded assistant struggle phrase candidates offline for human review.","flags":[{"name":"output","description":"Review JSON output path"},{"name":"limit","description":"Maximum ranked candidates"}],"binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":false,"permissions":["filesystem:read"]},"architecture":{"primitive":"operational"}},
-        {"name":"replay-invocation-facts","description":"Rebuild one run's durable invocation evidence from retained events.","positionals":[{"name":"run_id","required":true,"description":"Run UUID"}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]},"architecture":{"primitive":"operational"}},
-        {"name":"refresh-invocation-facts","description":"Refresh one run's durable invocation evidence only when events advanced.","positionals":[{"name":"run_id","required":true,"description":"Run UUID"}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]},"architecture":{"primitive":"operational"}},
-        {"name":"replay-invocation-corpus","description":"Rebuild or incrementally refresh a bounded filtered corpus of durable invocation evidence.","flags":[{"name":"from","description":"RFC3339 inclusive start"},{"name":"to","description":"RFC3339 exclusive end"},{"name":"status","description":"Run status"},{"name":"profile-id","description":"Agent profile UUID"},{"name":"tag-prefix","description":"Tag prefix"},{"name":"limit","description":"Maximum runs"},{"name":"refresh","bool":true,"description":"Refresh only runs with events newer than the watermark"}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]},"architecture":{"primitive":"operational"}},
+        {
+          "name": "import-session-corpus",
+          "description": "Import a bounded deterministic corpus from governed local runner session stores, with provenance and replay coverage.",
+          "flags": [
+            {
+              "name": "runners",
+              "description": "Comma-separated runner types"
+            },
+            {
+              "name": "strategy",
+              "description": "deterministic-per-month, stratified, recent, or all"
+            },
+            {
+              "name": "from",
+              "description": "RFC3339 inclusive update time"
+            },
+            {
+              "name": "to",
+              "description": "RFC3339 exclusive update time"
+            },
+            {
+              "name": "per-month",
+              "description": "Sessions per runner-month"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum selected sessions"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "backfill-labels",
+          "description": "Recover labels from retained imported transcripts without changing run attribution.",
+          "flags": [],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "backfill-subjects",
+          "description": "Project run subjects from retained invocation facts without rewriting run identity",
+          "flags": [],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "mine-self-report-vocabulary",
+          "description": "Mine bounded assistant struggle phrase candidates offline for human review.",
+          "flags": [
+            {
+              "name": "output",
+              "description": "Review JSON output path"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum ranked candidates"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "replay-invocation-facts",
+          "description": "Rebuild one run's durable invocation evidence from retained events.",
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "refresh-invocation-facts",
+          "description": "Refresh one run's durable invocation evidence only when events advanced.",
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "replay-invocation-corpus",
+          "description": "Rebuild or incrementally refresh a bounded filtered corpus of durable invocation evidence.",
+          "flags": [
+            {
+              "name": "from",
+              "description": "RFC3339 inclusive start"
+            },
+            {
+              "name": "to",
+              "description": "RFC3339 exclusive end"
+            },
+            {
+              "name": "status",
+              "description": "Run status"
+            },
+            {
+              "name": "profile-id",
+              "description": "Agent profile UUID"
+            },
+            {
+              "name": "tag-prefix",
+              "description": "Tag prefix"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum runs"
+            },
+            {
+              "name": "refresh",
+              "bool": true,
+              "description": "Refresh only runs with events newer than the watermark"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
         {
           "name": "result",
           "description": "Show final-output and structured-result provenance",
-          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "messages",
           "description": "Inspect recorded messages with bounded filters",
-          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
-          "flags": [{"name":"all","bool":true,"description":"Include evidence-only messages"},{"name":"range","description":"Inclusive event sequence range"},{"name":"grep","description":"Message text filter"}],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Include evidence-only messages"
+            },
+            {
+              "name": "range",
+              "description": "Inclusive event sequence range"
+            },
+            {
+              "name": "grep",
+              "description": "Message text filter"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "tools",
           "description": "Inspect tool calls and failures",
-          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
-          "flags": [{"name":"failed","bool":true,"description":"Only failed tool results"}],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "failed",
+              "bool": true,
+              "description": "Only failed tool results"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "receipts",
           "description": "Inspect observed receipt state and evidence",
-          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
         {
           "name": "events",
           "description": "Inspect per-run events or event statistics",
-          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
-          "flags": [{"name":"stats","bool":true,"description":"Show event-type counts"},{"name":"failed","bool":true,"description":"Only failed tool results"}],
-          "binding": {"kind":"local"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "stats",
+              "bool": true,
+              "description": "Show event-type counts"
+            },
+            {
+              "name": "failed",
+              "bool": true,
+              "description": "Only failed tool results"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
         },
-        {"name":"apply-investigation","description":"Apply investigation recommendations","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"approve","description":"Approve run changes","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"await-result","description":"Read an awaited result","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"continue","description":"Continue a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"create","description":"Create a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"delete","description":"Delete a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"diff","description":"Inspect sandbox diff","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"get","description":"Get a run","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"get-by-tag","description":"Get a run by tag","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"investigate","description":"Create an investigation","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"list","description":"List runs with bounded filters and a total count","flags":[{"name":"status","description":"Run status filter"},{"name":"task-id","description":"Task UUID filter"},{"name":"profile-id","description":"Profile UUID filter"},{"name":"tag-prefix","description":"Tag prefix filter"},{"name":"limit","description":"Maximum runs (1-100)"},{"name":"offset","description":"Runs to skip"}],"binding":{"kind":"connect-rpc","service":"AgentManagerService","method":"ListRuns"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
-        {"name":"park","description":"Park a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"quiesce","description":"Drain scenario runs","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"recover","description":"Recover a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"reject","description":"Reject run changes","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"sandbox-sync","description":"Synchronize sandbox state","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"stats","description":"Filtered aggregate run statistics","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"stop","description":"Stop a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"stop-all","description":"Stop matching runs","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"stop-by-tag","description":"Stop runs by tag","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"wake","description":"Wake a parked run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}}
+        {
+          "name": "apply-investigation",
+          "description": "Apply investigation recommendations",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "approve",
+          "description": "Approve run changes",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "await-result",
+          "description": "Read an awaited result",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "continue",
+          "description": "Continue a run",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a run",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a run",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "diff",
+          "description": "Inspect sandbox diff",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a run",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get-by-tag",
+          "description": "Get a run by tag",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "investigate",
+          "description": "Create an investigation",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List runs with bounded filters and a total count",
+          "flags": [
+            {
+              "name": "status",
+              "description": "Run status filter"
+            },
+            {
+              "name": "task-id",
+              "description": "Task UUID filter"
+            },
+            {
+              "name": "profile-id",
+              "description": "Profile UUID filter",
+              "bind": {
+                "field": "agent_profile_id"
+              }
+            },
+            {
+              "name": "tag-prefix",
+              "description": "Tag prefix filter"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum runs (1-100)"
+            },
+            {
+              "name": "offset",
+              "description": "Runs to skip"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ListRuns"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "park",
+          "description": "Park a run",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "quiesce",
+          "description": "Drain scenario runs",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "recover",
+          "description": "Recover a run",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reject",
+          "description": "Reject run changes",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "sandbox-sync",
+          "description": "Synchronize sandbox state",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stats",
+          "description": "Filtered aggregate run statistics",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Stop a run",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stop-all",
+          "description": "Stop matching runs",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stop-by-tag",
+          "description": "Stop runs by tag",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "wake",
+          "description": "Wake a parked run",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
       ]
     },
     {
       "name": "measures",
       "description": "Typed durable friction measures over Agent Manager invocation history",
       "commands": [
-        {"name":"external-tool-share","description":"Share of resolved tool calls that are external.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"ExternalToolShare"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of resolved tool invocations that target external tools, with unknown ownership reported separately.","questions":["what is the external-tool share this week","how often do agents use tools outside Vrooli","which fraction of tool calls are external"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"share","unit":"share","summary_template":"{share} external-tool share ({window})"}}},
-        {"name":"retry-rate","description":"Share of tool calls linked to a retry.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"RetryRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of durable tool invocations linked to a prior retry target.","questions":["what is the retry rate this week","how often are agent tool calls retried","show tool invocation retries"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} retry rate ({window})"}}},
-        {"name":"help-recovery-rate","description":"Share of calls following help recovery.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"HelpRecoveryRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of tool invocations that follow a help-recovery signal.","questions":["what is the help recovery rate","how often do agents recover after asking for help","show help recoveries this month"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} help-recovery rate ({window})"}}},
-        {"name":"repeated-work-rate","description":"Share of calls in repeated-work fingerprints.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"RepeatedWorkRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of tool invocations in repeated-work fingerprints.","questions":["what is the repeated work rate","how much tool work is repeated","show agent reread and repeated invocation rate"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} repeated-work rate ({window})"}}},
-        {"name":"tool-failure-rate","description":"Share of durable tool calls whose outcome failed.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"ToolFailureRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of durable tool invocations whose classified outcome failed.","questions":["what is the tool failure rate","how often do agent tool calls fail","show failed tool invocation share"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} tool failure rate ({window})"}}},
-        {"name":"run-success-rate","description":"Share of terminal runs that complete successfully.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"RunSuccessRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"run","intent":"Share of terminal runs that completed successfully.","questions":["what is the agent run success rate this week","how often do agent runs complete successfully"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} run success rate ({window})"}}},
-        {"name":"run-cycle-time","description":"Average completed run cycle time.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"RunCycleTime"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"run","intent":"Average completed run cycle time in milliseconds.","questions":["what is the average agent run cycle time","how long do completed agent runs take"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"average_duration_ms","unit":"milliseconds","summary_template":"{average_duration_ms} average run cycle time ({window})"}}},
-        {"name":"run-duration-statistics","description":"Complete durable run duration statistics.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"RunDurationStatistics"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"run","intent":"Complete durable run duration summary including SQLite-compatible percentile values.","questions":["show agent run duration percentiles","what are the p95 agent run durations"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"average_duration_ms","unit":"milliseconds","summary_template":"durable run duration statistics ({window})"}}},
-        {"name":"run-cost","description":"Total durable terminal run cost.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"RunCost"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"run","intent":"Total terminal run cost in USD with retained token usage.","questions":["what did agent runs cost this week","show total agent run cost"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"total_cost_usd","unit":"usd","summary_template":"{total_cost_usd} agent run cost ({window})"}}},
-        {"name":"run-volume","description":"Number of durable terminal run summaries.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"RunVolume"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"run","intent":"Number of terminal run summaries in the window.","questions":["how many agent runs completed this week","show agent run volume"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"total_runs","unit":"runs","summary_template":"{total_runs} agent run volume ({window})"}}},
-        {"name":"run-status-distribution","description":"Distribution of durable terminal runs by status.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"RunStatusDistribution"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"run","intent":"Distribution of durable terminal run summaries by status.","questions":["what is the agent run status distribution this week","how many agent runs are complete, failed, or cancelled"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"status","unit":"runs","summary_template":"run status distribution ({window})"}}},
-        {"name":"runner-breakdown","description":"Durable terminal-run performance by runner.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"RunnerBreakdown"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"run","intent":"Durable terminal-run performance grouped by runner.","questions":["agent run runner breakdown this week"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"value","unit":"runs","summary_template":"runner run breakdown ({window})"}}},
-        {"name":"model-breakdown","description":"Durable terminal-run performance by model.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"ModelBreakdown"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"run","intent":"Durable terminal-run performance grouped by model.","questions":["agent run model breakdown this week"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"value","unit":"runs","summary_template":"model run breakdown ({window})"}}},
-        {"name":"profile-breakdown","description":"Durable terminal-run performance by profile.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"ProfileBreakdown"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"run","intent":"Durable terminal-run performance grouped by profile.","questions":["agent run profile breakdown this week"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"value","unit":"runs","summary_template":"profile run breakdown ({window})"}}},
-        {"name":"terminal-run-trend","description":"Hourly durable terminal-run outcome trend.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"TerminalRunTrend"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"run","intent":"Hourly durable terminal-run outcomes, cost, and duration trends.","questions":["show the agent terminal run trend this week","how are agent run completions and failures trending"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"bucket","unit":"runs","summary_template":"terminal run trend ({window})"}}},
-        {"name":"tool-usage","description":"Durable tool invocation counts and outcomes.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"ToolUsage"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Durable tool invocation counts and classified outcomes by tool.","questions":["which tools do agents use most","agent tool usage this week"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"tool_name","unit":"calls","summary_template":"tool usage ({window})"}}},
-        {"name":"capability-usage","description":"Verified cross-scenario capability usage by target and operation.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CapabilityUsage"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Verified receipt-backed capability usage grouped by target scenario and operation.","questions":["which capabilities are used most","show verified cross-scenario capability usage"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"target_scenario","unit":"calls","summary_template":"verified capability usage ({window})"}}},
-        {"name":"capability-efficacy","description":"Verified capability fallback and abandonment rates.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"CapabilityEfficacy"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Verified receipt-backed capability success, fallback, and abandonment by target scenario and operation.","questions":["which capabilities require fallback","show capability abandonment rates"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"target_scenario","unit":"calls","summary_template":"capability efficacy ({window})"}}},
-        {"name":"error-patterns","description":"Durable error-code frequency and sample runs.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"ErrorPatterns"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Durable error-code frequency and recent sample runs.","questions":["what agent errors recur this week","show agent error patterns"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"error_code","unit":"errors","summary_template":"error patterns ({window})"}}},
-        {"name":"file-reread-rate","description":"Share of file-read calls that revisit a path.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"FileRereadRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of file-read calls that revisit a path already read in the same run.","questions":["what is the agent file reread rate","how often do agents reread files"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} file reread rate ({window})"}}},
-        {"name":"finding-recurrence-rate","description":"Share of investigation findings whose fingerprint recurs.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"FindingRecurrenceRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of persisted investigation findings whose fingerprint recurs in the same filtered finding corpus.","questions":["what is the recurring finding rate","which agent findings recur"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} finding recurrence rate ({window})"}}},
-        {"name":"select-cohort","description":"Select the durable runs behind a typed measure.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"SelectCohort"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
-        ,{"name":"workload-efficiency","description":"Consumption per successful workload completion.","binding":{"kind":"local"},"architecture":{"primitive":"action"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
-        ,{"name":"workload-breakdown","description":"Terminal run performance grouped by workload key.","binding":{"kind":"local"},"architecture":{"primitive":"action"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+        {
+          "name": "external-tool-share",
+          "description": "Share of resolved tool calls that are external.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ExternalToolShare"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Share of resolved tool invocations that target external tools, with unknown ownership reported separately.",
+            "questions": [
+              "what is the external-tool share this week",
+              "how often do agents use tools outside Vrooli",
+              "which fraction of tool calls are external"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "share",
+              "unit": "share",
+              "summary_template": "{share} external-tool share ({window})"
+            }
+          }
+        },
+        {
+          "name": "retry-rate",
+          "description": "Share of tool calls linked to a retry.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RetryRate"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Share of durable tool invocations linked to a prior retry target.",
+            "questions": [
+              "what is the retry rate this week",
+              "how often are agent tool calls retried",
+              "show tool invocation retries"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "share",
+              "summary_template": "{rate} retry rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "help-recovery-rate",
+          "description": "Share of calls following help recovery.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "HelpRecoveryRate"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Share of tool invocations that follow a help-recovery signal.",
+            "questions": [
+              "what is the help recovery rate",
+              "how often do agents recover after asking for help",
+              "show help recoveries this month"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "share",
+              "summary_template": "{rate} help-recovery rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "repeated-work-rate",
+          "description": "Share of calls in repeated-work fingerprints.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RepeatedWorkRate"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Share of tool invocations in repeated-work fingerprints.",
+            "questions": [
+              "what is the repeated work rate",
+              "how much tool work is repeated",
+              "show agent reread and repeated invocation rate"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "share",
+              "summary_template": "{rate} repeated-work rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "tool-failure-rate",
+          "description": "Share of durable tool calls whose outcome failed.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ToolFailureRate"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Share of durable tool invocations whose classified outcome failed.",
+            "questions": [
+              "what is the tool failure rate",
+              "how often do agent tool calls fail",
+              "show failed tool invocation share"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "share",
+              "summary_template": "{rate} tool failure rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "run-success-rate",
+          "description": "Share of terminal runs that complete successfully.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RunSuccessRate"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "run",
+            "intent": "Share of terminal runs that completed successfully.",
+            "questions": [
+              "what is the agent run success rate this week",
+              "how often do agent runs complete successfully"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "share",
+              "summary_template": "{rate} run success rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "run-cycle-time",
+          "description": "Average completed run cycle time.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RunCycleTime"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "run",
+            "intent": "Average completed run cycle time in milliseconds.",
+            "questions": [
+              "what is the average agent run cycle time",
+              "how long do completed agent runs take"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "average_duration_ms",
+              "unit": "milliseconds",
+              "summary_template": "{average_duration_ms} average run cycle time ({window})"
+            }
+          }
+        },
+        {
+          "name": "run-duration-statistics",
+          "description": "Complete durable run duration statistics.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RunDurationStatistics"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "run",
+            "intent": "Complete durable run duration summary including SQLite-compatible percentile values.",
+            "questions": [
+              "show agent run duration percentiles",
+              "what are the p95 agent run durations"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "average_duration_ms",
+              "unit": "milliseconds",
+              "summary_template": "durable run duration statistics ({window})"
+            }
+          }
+        },
+        {
+          "name": "run-cost",
+          "description": "Total durable terminal run cost.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RunCost"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "run",
+            "intent": "Total terminal run cost in USD with retained token usage.",
+            "questions": [
+              "what did agent runs cost this week",
+              "show total agent run cost"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "total_cost_usd",
+              "unit": "usd",
+              "summary_template": "{total_cost_usd} agent run cost ({window})"
+            }
+          }
+        },
+        {
+          "name": "run-volume",
+          "description": "Number of durable terminal run summaries.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RunVolume"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "run",
+            "intent": "Number of terminal run summaries in the window.",
+            "questions": [
+              "how many agent runs completed this week",
+              "show agent run volume"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "total_runs",
+              "unit": "runs",
+              "summary_template": "{total_runs} agent run volume ({window})"
+            }
+          }
+        },
+        {
+          "name": "run-status-distribution",
+          "description": "Distribution of durable terminal runs by status.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RunStatusDistribution"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "run",
+            "intent": "Distribution of durable terminal run summaries by status.",
+            "questions": [
+              "what is the agent run status distribution this week",
+              "how many agent runs are complete, failed, or cancelled"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "status",
+              "unit": "runs",
+              "summary_template": "run status distribution ({window})"
+            }
+          }
+        },
+        {
+          "name": "runner-breakdown",
+          "description": "Durable terminal-run performance by runner.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "RunnerBreakdown"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "run",
+            "intent": "Durable terminal-run performance grouped by runner.",
+            "questions": [
+              "agent run runner breakdown this week"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "value",
+              "unit": "runs",
+              "summary_template": "runner run breakdown ({window})"
+            }
+          }
+        },
+        {
+          "name": "model-breakdown",
+          "description": "Durable terminal-run performance by model.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ModelBreakdown"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "run",
+            "intent": "Durable terminal-run performance grouped by model.",
+            "questions": [
+              "agent run model breakdown this week"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "value",
+              "unit": "runs",
+              "summary_template": "model run breakdown ({window})"
+            }
+          }
+        },
+        {
+          "name": "profile-breakdown",
+          "description": "Durable terminal-run performance by profile.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ProfileBreakdown"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "run",
+            "intent": "Durable terminal-run performance grouped by profile.",
+            "questions": [
+              "agent run profile breakdown this week"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "value",
+              "unit": "runs",
+              "summary_template": "profile run breakdown ({window})"
+            }
+          }
+        },
+        {
+          "name": "terminal-run-trend",
+          "description": "Hourly durable terminal-run outcome trend.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "TerminalRunTrend"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "run",
+            "intent": "Hourly durable terminal-run outcomes, cost, and duration trends.",
+            "questions": [
+              "show the agent terminal run trend this week",
+              "how are agent run completions and failures trending"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "bucket",
+              "unit": "runs",
+              "summary_template": "terminal run trend ({window})"
+            }
+          }
+        },
+        {
+          "name": "tool-usage",
+          "description": "Durable tool invocation counts and outcomes.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ToolUsage"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Durable tool invocation counts and classified outcomes by tool.",
+            "questions": [
+              "which tools do agents use most",
+              "agent tool usage this week"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "tool_name",
+              "unit": "calls",
+              "summary_template": "tool usage ({window})"
+            }
+          }
+        },
+        {
+          "name": "capability-usage",
+          "description": "Verified cross-scenario capability usage by target and operation.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CapabilityUsage"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Verified receipt-backed capability usage grouped by target scenario and operation.",
+            "questions": [
+              "which capabilities are used most",
+              "show verified cross-scenario capability usage"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "target_scenario",
+              "unit": "calls",
+              "summary_template": "verified capability usage ({window})"
+            }
+          }
+        },
+        {
+          "name": "capability-efficacy",
+          "description": "Verified capability fallback and abandonment rates.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "CapabilityEfficacy"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Verified receipt-backed capability success, fallback, and abandonment by target scenario and operation.",
+            "questions": [
+              "which capabilities require fallback",
+              "show capability abandonment rates"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "target_scenario",
+              "unit": "calls",
+              "summary_template": "capability efficacy ({window})"
+            }
+          }
+        },
+        {
+          "name": "error-patterns",
+          "description": "Durable error-code frequency and sample runs.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ErrorPatterns"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Durable error-code frequency and recent sample runs.",
+            "questions": [
+              "what agent errors recur this week",
+              "show agent error patterns"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "error_code",
+              "unit": "errors",
+              "summary_template": "error patterns ({window})"
+            }
+          }
+        },
+        {
+          "name": "file-reread-rate",
+          "description": "Share of file-read calls that revisit a path.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "FileRereadRate"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Share of file-read calls that revisit a path already read in the same run.",
+            "questions": [
+              "what is the agent file reread rate",
+              "how often do agents reread files"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "share",
+              "summary_template": "{rate} file reread rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "finding-recurrence-rate",
+          "description": "Share of investigation findings whose fingerprint recurs.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "FindingRecurrenceRate"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Share of persisted investigation findings whose fingerprint recurs in the same filtered finding corpus.",
+            "questions": [
+              "what is the recurring finding rate",
+              "which agent findings recur"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "share",
+              "summary_template": "{rate} finding recurrence rate ({window})"
+            }
+          }
+        },
+        {
+          "name": "select-cohort",
+          "description": "Select the durable runs behind a typed measure.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "SelectCohort"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "workload-efficiency",
+          "description": "Consumption per successful workload completion.",
+          "binding": {
+            "kind": "local"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "workload-breakdown",
+          "description": "Terminal run performance grouped by workload key.",
+          "binding": {
+            "kind": "local"
+          },
+          "architecture": {
+            "primitive": "action"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
       ]
     }
   ],
   "omitted": [
-    {"service":"MeasuresService","method":"AllMeasureDefinitions","reason":"UI/runtime registry discovery endpoint; not exposed as a standalone CLI command."},
-    {"service":"MeasuresService","method":"ToolCommandBreakdown","reason":"UI drill-down endpoint; command telemetry is consumed through the Stats page rather than a standalone CLI command."},
-    {"service":"MeasuresService","method":"WorkloadBreakdown","reason":"CLI workload reporting is currently kept behind the local workload command while the UI consumes the typed Connect measure."},
-    {"service":"MeasuresService","method":"WorkloadEfficiency","reason":"CLI workload reporting is currently kept behind the local workload command while the UI consumes the typed Connect measure."},
-    {"service":"AgentManagerService","method":"ApproveRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"CancelTask","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"CreateProfile","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"CreateRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"CreateTask","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"DeleteProfile","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"DeleteRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"DeleteTask","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"DoctorPermissionPolicy","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"EnsureProfile","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"ExplainRolePolicy","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"GetPermissionPolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"GetPermissionPolicyStatus","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"GetProfile","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"GetRolePolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"GetRolePolicyStatus","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"GetRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"GetRunByTag","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"GetRunDiff","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"GetRunEvents","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"GetRunnerStatus","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"GetTask","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"Health","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"ListProfiles","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"ListRuns","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"ListTasks","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"PlanPermissionPolicy","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"ProbeRunner","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"PurgeData","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"QuiesceScenario","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"ReconcilePermissionPolicy","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"ReconcileScenarioProfiles","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"RecoverRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"RejectRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"ReloadPermissionPolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"ReloadRolePolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"StopAllRuns","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"StopRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"StopRunByTag","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"UpdateProfile","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"UpdateTask","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"ValidatePermissionPolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"AgentManagerService","method":"ValidateRolePolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."}
+    {
+      "service": "MeasuresService",
+      "method": "AllMeasureDefinitions",
+      "reason": "UI/runtime registry discovery endpoint; not exposed as a standalone CLI command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ToolCommandBreakdown",
+      "reason": "UI drill-down endpoint; command telemetry is consumed through the Stats page rather than a standalone CLI command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "WorkloadBreakdown",
+      "reason": "CLI workload reporting is currently kept behind the local workload command while the UI consumes the typed Connect measure."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "WorkloadEfficiency",
+      "reason": "CLI workload reporting is currently kept behind the local workload command while the UI consumes the typed Connect measure."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ApproveRun",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "CancelTask",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "CreateProfile",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "CreateRun",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "CreateTask",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "DeleteProfile",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "DeleteRun",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "DeleteTask",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "DoctorPermissionPolicy",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "EnsureProfile",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ExplainRolePolicy",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetPermissionPolicyCatalog",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetPermissionPolicyStatus",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetProfile",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRolePolicyCatalog",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRolePolicyStatus",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRun",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRunByTag",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRunDiff",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRunEvents",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetRunnerStatus",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "GetTask",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "Health",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ListProfiles",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ListRuns",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ListTasks",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "PlanPermissionPolicy",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ProbeRunner",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "PurgeData",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "QuiesceScenario",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ReconcilePermissionPolicy",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ReconcileScenarioProfiles",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "RecoverRun",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "RejectRun",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ReloadPermissionPolicyCatalog",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ReloadRolePolicyCatalog",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "StopAllRuns",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "StopRun",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "StopRunByTag",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "UpdateProfile",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "UpdateTask",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ValidatePermissionPolicyCatalog",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    },
+    {
+      "service": "AgentManagerService",
+      "method": "ValidateRolePolicyCatalog",
+      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
+    }
   ],
   "measures": {
     "domains": [
-      {"domain":"run","stateful":true,"reason":"Terminal run throughput is measured through the durable invocation read model rather than raw run-event transport."},
-      {"domain":"episode","stateful":true,"reason":"Episode recurrence is exposed by the bounded run episodes measure and will be aggregated by episode cohorts."}
+      {
+        "domain": "run",
+        "stateful": true,
+        "reason": "Terminal run throughput is measured through the durable invocation read model rather than raw run-event transport."
+      },
+      {
+        "domain": "episode",
+        "stateful": true,
+        "reason": "Episode recurrence is exposed by the bounded run episodes measure and will be aggregated by episode cohorts."
+      }
     ],
     "omitted": [
       {
@@ -533,25 +3384,77 @@
         "domain": "types",
         "reason": "The types schema contains shared enums and value objects, not independently persisted records. It has no historical count whose optimization would improve Agent Manager behavior."
       },
-      {"domain":"profile","reason":"Profiles are long-lived configuration records; this plan measures execution friction and throughput, not configuration inventory."},
-      {"domain":"task","reason":"Tasks are work definitions, not execution evidence; run throughput is measured on the durable terminal run projection."},
-      {"domain":"workflow","reason":"Workflow definitions and runtime bookkeeping are outside the friction and throughput measurement surface of this plan."},
-      {"domain":"agent_profiles","reason":"Profile rows are configuration inventory and are intentionally not counted as a historical optimization signal."},
-      {"domain":"artifacts","reason":"Artifacts are per-run outputs inspected through the run report; artifact row volume is not an outcome measure."},
-      {"domain":"idempotency_records","reason":"Idempotency records are transport safeguards, not domain outcomes."},
-      {"domain":"invocation_read_model_runs","reason":"This is the durable substrate backing the declared run throughput measures, not a separate business domain."},
-      {"domain":"manual_price_overrides","reason":"Manual pricing overrides are administrative configuration; cost is measured from durable terminal run facts."},
-      {"domain":"model_aliases","reason":"Model aliases are lookup configuration, not historical execution evidence."},
-      {"domain":"model_pricing","reason":"Pricing rows are lookup configuration; measured cost is captured on terminal runs."},
-      {"domain":"policies","reason":"Policy records are authorization configuration, not a friction or throughput outcome."},
-      {"domain":"run_findings","reason":"Finding recurrence is declared as a fingerprint aggregate; a raw finding-row inventory count would be a separate, misleading measure."},
-      {"domain":"workflow_executions","reason":"Workflow runtime lifecycle is outside this run-level friction analytics scope."},
-      {"domain":"workflow_journal","reason":"Workflow journals are append-only runtime diagnostics, not independently meaningful historical outcomes."},
-      {"domain":"workflow_node_attempts","reason":"Workflow node attempts are implementation detail for workflow orchestration, outside the run analytical corpus."},
-      {"domain":"workflow_revisions","reason":"Workflow revisions are versioned definitions, not execution outcomes."
+      {
+        "domain": "profile",
+        "reason": "Profiles are long-lived configuration records; this plan measures execution friction and throughput, not configuration inventory."
       },
-      {"domain":"price_book_revisions","reason":"Price-book revisions are immutable pricing provenance used by charge projection; their row inventory is not an operator outcome measure."},
-      {"domain":"subscription_periods","reason":"Subscription periods are billing allocation facts consumed by charge queries; their row inventory is not an operator outcome measure."
+      {
+        "domain": "task",
+        "reason": "Tasks are work definitions, not execution evidence; run throughput is measured on the durable terminal run projection."
+      },
+      {
+        "domain": "workflow",
+        "reason": "Workflow definitions and runtime bookkeeping are outside the friction and throughput measurement surface of this plan."
+      },
+      {
+        "domain": "agent_profiles",
+        "reason": "Profile rows are configuration inventory and are intentionally not counted as a historical optimization signal."
+      },
+      {
+        "domain": "artifacts",
+        "reason": "Artifacts are per-run outputs inspected through the run report; artifact row volume is not an outcome measure."
+      },
+      {
+        "domain": "idempotency_records",
+        "reason": "Idempotency records are transport safeguards, not domain outcomes."
+      },
+      {
+        "domain": "invocation_read_model_runs",
+        "reason": "This is the durable substrate backing the declared run throughput measures, not a separate business domain."
+      },
+      {
+        "domain": "manual_price_overrides",
+        "reason": "Manual pricing overrides are administrative configuration; cost is measured from durable terminal run facts."
+      },
+      {
+        "domain": "model_aliases",
+        "reason": "Model aliases are lookup configuration, not historical execution evidence."
+      },
+      {
+        "domain": "model_pricing",
+        "reason": "Pricing rows are lookup configuration; measured cost is captured on terminal runs."
+      },
+      {
+        "domain": "policies",
+        "reason": "Policy records are authorization configuration, not a friction or throughput outcome."
+      },
+      {
+        "domain": "run_findings",
+        "reason": "Finding recurrence is declared as a fingerprint aggregate; a raw finding-row inventory count would be a separate, misleading measure."
+      },
+      {
+        "domain": "workflow_executions",
+        "reason": "Workflow runtime lifecycle is outside this run-level friction analytics scope."
+      },
+      {
+        "domain": "workflow_journal",
+        "reason": "Workflow journals are append-only runtime diagnostics, not independently meaningful historical outcomes."
+      },
+      {
+        "domain": "workflow_node_attempts",
+        "reason": "Workflow node attempts are implementation detail for workflow orchestration, outside the run analytical corpus."
+      },
+      {
+        "domain": "workflow_revisions",
+        "reason": "Workflow revisions are versioned definitions, not execution outcomes."
+      },
+      {
+        "domain": "price_book_revisions",
+        "reason": "Price-book revisions are immutable pricing provenance used by charge projection; their row inventory is not an operator outcome measure."
+      },
+      {
+        "domain": "subscription_periods",
+        "reason": "Subscription periods are billing allocation facts consumed by charge queries; their row inventory is not an operator outcome measure."
       }
     ]
   }
