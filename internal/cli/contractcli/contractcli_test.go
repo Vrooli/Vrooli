@@ -8,7 +8,6 @@ import (
 
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/repocontractcheck"
 )
 
 func TestRenderValidateHumanIncludesFailedCheck(t *testing.T) {
@@ -20,8 +19,8 @@ func TestRenderValidateHumanIncludesFailedCheck(t *testing.T) {
 			Passed:  true,
 			Message: "ok",
 		},
-		Report: repocontractcheck.Report{
-			Checks: []repocontractcheck.CheckResult{{
+		Report: contractapp.Report{
+			Checks: []contractapp.CheckResult{{
 				Name:    "docs_alignment",
 				Passed:  false,
 				Message: "drift",

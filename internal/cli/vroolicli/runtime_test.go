@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -150,7 +149,7 @@ func TestOpenScenarioURLUsesPlatformLauncher(t *testing.T) {
 		return nil
 	}
 	app.LookPathFn = func(file string) (string, error) {
-		switch runtime.GOOS {
+		switch hostinventory.CurrentPlatform() {
 		case "linux":
 			if file == "xdg-open" {
 				return "/usr/bin/xdg-open", nil
@@ -166,7 +165,7 @@ func TestOpenScenarioURLUsesPlatformLauncher(t *testing.T) {
 		t.Fatalf("OpenScenarioURL() error = %v", err)
 	}
 
-	switch runtime.GOOS {
+	switch hostinventory.CurrentPlatform() {
 	case "linux":
 		if opened.Name != "/usr/bin/xdg-open" || strings.Join(opened.Args, "|") != url {
 			t.Fatalf("opened = %+v", opened)
@@ -183,7 +182,7 @@ func TestOpenScenarioURLUsesPlatformLauncher(t *testing.T) {
 }
 
 func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if hostinventory.CurrentPlatform() == "windows" {
 		t.Skip("detached-process validation uses a bash fixture")
 	}
 

@@ -109,17 +109,18 @@ var (
 
 func BaseStatus(requirement hostreqspec.ResolvedRequirement) ItemStatus {
 	return ItemStatus{
-		Name:           requirement.Name,
-		Kind:           requirement.Kind,
-		Required:       requirement.Required,
-		OperatorChoice: requirement.OperatorChoice,
-		Config:         requirement.Config,
-		Manual:         requirement.Manual,
-		SupportClass:   SupportSupported,
-		ExecutionState: ExecutionPending,
-		Reasons:        append([]string(nil), requirement.Reasons...),
-		Notes:          append([]string(nil), requirement.Notes...),
-		Provenance:     append([]hostreqspec.Provenance(nil), requirement.Provenance...),
+		Name:             requirement.Name,
+		Kind:             requirement.Kind,
+		Required:         requirement.Required,
+		OperatorChoice:   requirement.OperatorChoice,
+		Config:           requirement.Config,
+		ConfigNonDefault: requirement.ConfigNonDefault,
+		Manual:           requirement.Manual,
+		SupportClass:     SupportSupported,
+		ExecutionState:   ExecutionPending,
+		Reasons:          append([]string(nil), requirement.Reasons...),
+		Notes:            append([]string(nil), requirement.Notes...),
+		Provenance:       append([]hostreqspec.Provenance(nil), requirement.Provenance...),
 	}
 }
 

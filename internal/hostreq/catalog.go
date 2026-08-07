@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"runtime"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -90,7 +89,7 @@ func toolPrivilege(item hostreqkit.ToolManifest, platform string) hostreqspec.Pr
 	}
 	platform = strings.ToLower(strings.TrimSpace(platform))
 	if platform == "" {
-		platform = runtime.GOOS
+		platform = hostreqspec.CurrentPlatform()
 	}
 	if platform == "darwin" {
 		platform = "macos"

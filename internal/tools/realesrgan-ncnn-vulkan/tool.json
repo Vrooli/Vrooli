@@ -46,6 +46,9 @@
         "binPath": "realesrgan-ncnn-vulkan.exe",
         "layout": "dir"
       }
+    },
+    "unsupported": {
+      "linux/arm64": "Real-ESRGAN ncnn-vulkan publishes no Linux arm64 release artifact; building the missing upstream target is outside host provisioning scope."
     }
   },
   "bundling": "vendorable"

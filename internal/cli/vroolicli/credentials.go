@@ -28,7 +28,7 @@ import (
 // history, or status output.
 func (app *App) runCredentialsCommand(ctx *CommandContext, args []string) error {
 	if len(args) == 0 || commandtree.WantsHelp(args) {
-		fmt.Fprintln(ctx.Stdout, "Usage:\n  vrooli credentials doctor [--check-writes] [--format json]\n  vrooli credentials provision --identity <namespace/name> --field <field> < value\n  vrooli credentials status --identity <namespace/name> --field <field> [--format json]\n  vrooli credentials store <status|init|unlock|lock|rewrap|change-passphrase>\n  vrooli credentials recovery export --entry <identity>:<field> --output <bundle> < passphrase\n  vrooli credentials recovery verify --input <bundle> < passphrase\n  vrooli credentials recovery restore --input <bundle> < passphrase\n\nCredential values, store passphrases, and recovery passphrases are read only from standard input and never printed.\n`credentials store` manages the encrypted backend used on a host with no native credential store.")
+		fmt.Fprintln(ctx.Stdout, "Usage:\n  vrooli credentials doctor [--check-writes] [--format json]\n  vrooli credentials provision --identity <namespace/name> --field <field> < value\n  vrooli credentials status --identity <namespace/name> --field <field> [--format json]\n  vrooli credentials store <status|init|unlock|lock|rewrap|change-passphrase>\n  vrooli credentials keyring <status|inspect|repair|unlock>\n  vrooli credentials recovery export --entry <identity>:<field> --output <bundle> < passphrase\n  vrooli credentials recovery verify --input <bundle> < passphrase\n  vrooli credentials recovery restore --input <bundle> < passphrase\n\nCredential values, store passphrases, and recovery passphrases are read only from standard input and never printed.\n`credentials store` manages the encrypted backend used on a host with no native credential store.")
 		return nil
 	}
 	switch args[0] {
@@ -40,6 +40,8 @@ func (app *App) runCredentialsCommand(ctx *CommandContext, args []string) error 
 		return credentialStatus(ctx, args[1:])
 	case "store":
 		return credentialsStore(ctx, args[1:], os.Stdin)
+	case "keyring":
+		return credentialsKeyring(ctx, args[1:], os.Stdin)
 	case "recovery":
 		return recoveryCredentials(ctx, args[1:], os.Stdin)
 	default:

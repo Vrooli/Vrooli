@@ -172,8 +172,6 @@
     }
   ],
   "runtime": {
-    "image": "",
-    "container_name": "",
     "volumes": []
   },
   "managed_service": {

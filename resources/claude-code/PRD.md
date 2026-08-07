@@ -73,7 +73,7 @@ Claude Code provides an enterprise-grade AI coding agent with tool-using capabil
 
 ### Non-Functional Requirements
 - **Security**
-  - [x] API key management via Vault
+  - [x] API key management via the Vrooli credential authority
   - [x] Secure session storage with encryption
   - [x] Sandboxed code execution environment
   - [ ] Audit logging for all code modifications
@@ -100,7 +100,7 @@ Claude Code provides an enterprise-grade AI coding agent with tool-using capabil
 - **Provider**: Anthropic Claude (Anthropic-native — talks to the Anthropic API directly, no local model proxy or fallback)
 - **Dependencies**: 
   - Claude CLI (@anthropic-ai/claude-code)
-  - Vault (for secure key storage)
+  - Vrooli credential authority (for secure key storage and runtime injection)
 
 ### Provider Configuration
 ```yaml
@@ -166,7 +166,7 @@ fallback_provider:
 ```yaml
 environment_variables:
   # Primary provider
-  ANTHROPIC_API_KEY: Retrieved from Vault
+  ANTHROPIC_API_KEY: Injected from the Vrooli credential authority
   CLAUDE_SUBSCRIPTION_TIER: free|pro|teams|enterprise
   
   # Fallback configuration
@@ -225,7 +225,7 @@ config_files:
 ### Prerequisites
 1. Node.js v18+ installed
 2. Ollama resource installed and configured
-3. API keys configured in Vault (ANTHROPIC_API_KEY)
+3. API keys provisioned through the Vrooli credential authority (for example, `vrooli/claude-code:anthropic-api-key`)
 4. Network access to Anthropic API
 5. Sufficient disk space for sessions (~1GB)
 6. GPU recommended for Ollama performance (optional)
@@ -235,8 +235,9 @@ config_files:
 # 1. Install the resource
 vrooli resource install claude-code
 
-# 2. Configure API keys in Vault
-vrooli vault set ANTHROPIC_API_KEY "your-key-here"
+# 2. Provision the Anthropic API key through the credential authority
+printf '%s' "$ANTHROPIC_API_KEY" | vrooli credentials provision \
+  --identity vrooli/claude-code --field anthropic-api-key
 
 # 3. Install Ollama for fallback support
 vrooli resource install ollama
@@ -349,7 +350,7 @@ fallback_behavior:
 | Claude API rate limits | High | Medium | Automatic Ollama fallback with 95% success rate |
 | Ollama model quality | Medium | Low | Multiple model options, user can review output |
 | Network connectivity | Low | High | Local Ollama fallback, session persistence |
-| API key exposure | Low | Critical | Vault integration, secure storage |
+| API key exposure | Low | Critical | Credential-authority integration and process-scoped injection |
 | Tool execution errors | Medium | Medium | Sandboxing, dry-run options, rollback support |
 
 ### Operational Risks
@@ -428,7 +429,7 @@ fallback_behavior:
 - lib/common.sh - Core utility functions including rate detection
 
 ### Related Resources
-- **vault** - Secure API key storage
+- **Vrooli credential authority** - Secure API key storage and recovery
 - **n8n** - Workflow automation using Claude Code
 
 > Claude Code is Anthropic-native: it talks to the Anthropic API directly and

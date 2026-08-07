@@ -48,6 +48,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
+	"github.com/vrooli/vrooli/internal/structureprovider"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
 
@@ -952,6 +953,13 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			OutputFormat: projectOutputFormat,
 			Service: func(ctx *CommandContext) contractapp.Service {
 				return contractapp.NewDefaultService()
+			},
+			Validate: func(*CommandContext) (contractapp.ValidationOutput, error) {
+				root, err := contractapp.ResolveRoot()
+				if err != nil {
+					return contractapp.ValidationOutput{}, err
+				}
+				return structureprovider.NewDefault().Validate(context.Background(), root)
 			},
 		}),
 		topcli.CommandHygiene: hygienehandlers.Handler(hygienehandlers.HandlerDeps[*CommandContext]{

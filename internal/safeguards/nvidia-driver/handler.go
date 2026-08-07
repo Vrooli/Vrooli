@@ -136,18 +136,18 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "no validated NVIDIA package repair plan was available")
 		return status, nil
 	}
-	args := append([]string{"install", "-y", "--no-install-recommends"}, packages...)
-	if opts.DryRun {
-		status.ExecutionState = hostreqkit.ExecutionWouldApply
-		status.Notes = append(status.Notes, "dry-run: would run apt-get "+strings.Join(args, " "))
-		return status, nil
-	}
 	if RemoteDesktopActiveFn() && !opts.MaintenanceWindow {
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		status.BlockingReason = hostreqkit.BlockingNeedsMaintenanceWindow
 		status.Notes = append(status.Notes,
 			"active remote-desktop server detected; installing this module can immediately reconfigure DRM/VGA and disconnect the session",
 			"schedule a maintenance window with console or SSH recovery, then rerun `vrooli host safeguard nvidia_driver --maintenance-window --sudo-mode ask`")
+		return status, nil
+	}
+	args := append([]string{"install", "-y", "--no-install-recommends"}, packages...)
+	if opts.DryRun {
+		status.ExecutionState = hostreqkit.ExecutionWouldApply
+		status.Notes = append(status.Notes, "dry-run: would run apt-get "+strings.Join(args, " "))
 		return status, nil
 	}
 	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "apt-get", args, opts); err != nil {

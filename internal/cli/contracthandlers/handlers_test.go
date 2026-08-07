@@ -41,16 +41,14 @@ func TestValidateHandlerReturnsExitCodeOnFailedValidation(t *testing.T) {
 			return cliout.FormatJSON, nil
 		},
 		Service: func(testContext) contractapp.Service {
-			return contractapp.Service{
-				ResolveRootFn: func() (string, error) { return "/repo", nil },
-				ValidateFn: func(string) (contractapp.ValidationOutput, error) {
-					return contractapp.ValidationOutput{
-						Success: false,
-						Root:    "/repo",
-						Schema:  contractapp.ValidationCheck{Passed: false, Message: "failed"},
-					}, nil
-				},
-			}
+			return contractapp.Service{}
+		},
+		Validate: func(testContext) (contractapp.ValidationOutput, error) {
+			return contractapp.ValidationOutput{
+				Success: false,
+				Root:    "/repo",
+				Schema:  contractapp.ValidationCheck{Passed: false, Message: "failed"},
+			}, nil
 		},
 	})
 

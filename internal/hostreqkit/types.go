@@ -103,7 +103,11 @@ const (
 	BlockingManual BlockingReason = "manual"
 	// BlockingNeedsMaintenanceWindow marks a deliberately withheld live change
 	// while a remote desktop server is active.
-	BlockingNeedsMaintenanceWindow BlockingReason = "maintenance_window"
+	BlockingNeedsMaintenanceWindow      BlockingReason = "maintenance_window"
+	BlockingCredentialStoreLocked       BlockingReason = "credential_store_locked"
+	BlockingCredentialStoreUnresponsive BlockingReason = "credential_store_unresponsive"
+	BlockingCredentialStoreUnavailable  BlockingReason = "credential_store_unavailable"
+	BlockingCredentialStoreEmpty        BlockingReason = "credential_store_empty"
 )
 
 type ItemStatus struct {
@@ -116,6 +120,7 @@ type ItemStatus struct {
 	Required             bool                       `json:"required"`
 	OperatorChoice       hostreqspec.OperatorChoice `json:"operator_choice"`
 	Config               map[string]any             `json:"config,omitempty"`
+	ConfigNonDefault     bool                       `json:"config_non_default,omitempty"`
 	SelectedProvider     string                     `json:"selected_provider,omitempty"`
 	ObservedProvider     string                     `json:"observed_provider,omitempty"`
 	ObservedMode         string                     `json:"observed_mode,omitempty"`

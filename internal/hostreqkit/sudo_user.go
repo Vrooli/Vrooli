@@ -44,11 +44,13 @@
 package hostreqkit
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/user"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // InvokingUser returns the username of the operator whose intent we should
@@ -177,32 +179,6 @@ func RunAsInvokingUser(name string, args []string, opts EnsureOptions) error {
 	return RunCommandFn("sudo", wrapped, opts)
 }
 
-// RunAsInvokingUserWithSession runs a per-user command with the standard
-// Linux user-session environment restored when the caller is root via sudo.
-// systemctl --user and Secret Service clients need both values; -H alone only
-// fixes HOME and commonly leaves them pointed at root's (or no) session bus.
-// On non-root hosts the current XDG_RUNTIME_DIR is preserved when available.
-func RunAsInvokingUserWithSession(name string, args []string, opts EnsureOptions) error {
-	runtimeDir := strings.TrimSpace(os.Getenv("XDG_RUNTIME_DIR"))
-	if uid, _, ok := InvokingUserIDs(); ok {
-		runtimeDir = "/run/user/" + strconv.Itoa(uid)
-	} else if !RunningAsRootFn() {
-		if uid := currentUserIDFn(); uid != "" {
-			runtimeDir = "/run/user/" + uid
-		}
-	}
-	if runtimeDir == "" {
-		return RunAsInvokingUser(name, args, opts)
-	}
-	envArgs := []string{
-		"XDG_RUNTIME_DIR=" + runtimeDir,
-		"DBUS_SESSION_BUS_ADDRESS=unix:path=" + runtimeDir + "/bus",
-		name,
-	}
-	envArgs = append(envArgs, args...)
-	return RunAsInvokingUser("env", envArgs, opts)
-}
-
 // RunAsInvokingUserWithInput is the secret-safe form of RunAsInvokingUser.
 // The input is connected directly to the child process and is never placed in
 // an argument, environment variable, or temporary file.
@@ -213,4 +189,15 @@ func RunAsInvokingUserWithInput(name string, args []string, input string, opts E
 	}
 	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)
 	return RunCommandInputFn("sudo", wrapped, input, opts)
+}
+
+func runAsInvokingUserOutput(name string, args []string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	user := InvokingUser()
+	if !RunningAsRootFn() || user == "" || user == "root" {
+		return CombinedOutputContextFn(ctx, name, args...)
+	}
+	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)
+	return CombinedOutputContextFn(ctx, "sudo", wrapped...)
 }

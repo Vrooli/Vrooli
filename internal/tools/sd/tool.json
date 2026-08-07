@@ -32,6 +32,9 @@
         "layout": "dir",
         "binPath": "sd-cli.exe"
       }
+    },
+    "unsupported": {
+      "linux/arm64": "stable-diffusion.cpp publishes no Linux arm64 release artifact; building the missing upstream target is outside host provisioning scope."
     }
   },
   "bundling": "vendorable"

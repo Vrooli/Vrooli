@@ -229,7 +229,7 @@ func TestNilTargetPreservesLegacyScoring(t *testing.T) {
 }
 
 func TestTargetKindNameRoundTripsEveryDeclaredKind(t *testing.T) {
-	for _, name := range []string{"scenario", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs"} {
+	for _, name := range []string{"scenario", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs", "project"} {
 		kinds := descriptorTargetKinds([]string{name})
 		if len(kinds) != 1 {
 			t.Fatalf("descriptorTargetKinds(%q) = %v", name, kinds)

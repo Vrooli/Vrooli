@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/daemonreload"
 	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -259,8 +260,8 @@ func applyStaticFiles(host hostreqkit.Host, opts hostreqkit.EnsureOptions) error
 				return fmt.Errorf("install %s: %w", file.path, err)
 			}
 		}
-		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"daemon-reload"}, opts); err != nil {
-			return fmt.Errorf("systemctl daemon-reload: %w", err)
+		if _, err := daemonreload.Reload(context.Background(), daemonreload.CurrentRoot(), opts); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -319,8 +320,11 @@ func applyDesktopProtection(host hostreqkit.Host, opts hostreqkit.EnsureOptions)
 		}
 	}
 
-	// Final daemon-reload to pick up new slices
-	_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"daemon-reload"}, opts)
+	// Final daemon-reload to pick up new slices and repair any GPU containers
+	// affected by the reload.
+	if _, err := daemonreload.Reload(context.Background(), daemonreload.CurrentRoot(), opts); err != nil {
+		return err
+	}
 
 	return nil
 }

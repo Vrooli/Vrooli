@@ -151,6 +151,8 @@ func descriptorTargetKinds(names []string) []commonv1.ValidationTargetKind {
 			kind = commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE
 		case "docs":
 			kind = commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS
+		case "project":
+			kind = commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT
 		default:
 			continue
 		}

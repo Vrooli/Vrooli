@@ -190,8 +190,8 @@ func TestCredentialsDoctorJSONContractIncludesRecoveryFields(t *testing.T) {
 	if err := json.Unmarshal(raw["recovery"], &recovery); err != nil {
 		t.Fatal(err)
 	}
-	assertJSONKeys("recovery", recovery, "entry_count", "exported_at", "receipt_exists", "uncovered")
-	for _, key := range []string{"receipt_exists", "entry_count", "uncovered"} {
+	assertJSONKeys("recovery", recovery, "entry_count", "exported_at", "path", "receipt_exists", "uncovered")
+	for _, key := range []string{"receipt_exists", "entry_count", "path", "uncovered"} {
 		if len(recovery[key]) == 0 {
 			t.Fatalf("recovery.%s is empty", key)
 		}
@@ -306,12 +306,12 @@ func TestCredentialsBootstrapHelpListsOnlyTheFloor(t *testing.T) {
 		t.Fatal(err)
 	}
 	help := out.String()
-	for _, command := range []string{"doctor", "provision", "status", "store", "recovery"} {
+	for _, command := range []string{"doctor", "provision", "status", "store", "keyring", "recovery"} {
 		if !strings.Contains(help, "vrooli credentials "+command) {
 			t.Fatalf("help does not list floor command %q:\n%s", command, help)
 		}
 	}
-	for _, moved := range []string{"vrooli credentials list", "vrooli credentials keyring", "vrooli credentials delete"} {
+	for _, moved := range []string{"vrooli credentials list", "vrooli credentials delete"} {
 		if strings.Contains(help, moved) {
 			t.Fatalf("help still lists moved command %q:\n%s", moved, help)
 		}

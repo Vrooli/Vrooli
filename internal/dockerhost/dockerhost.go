@@ -1,12 +1,14 @@
 package dockerhost
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/daemonreload"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
@@ -195,8 +197,8 @@ func ValidateDaemonConfig(path string) (bool, string) {
 }
 
 func StartDockerService(opts hostreqkit.EnsureOptions) error {
-	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"daemon-reload"}, opts); err != nil {
-		return fmt.Errorf("systemctl daemon-reload: %w", err)
+	if _, err := daemonreload.Reload(context.Background(), daemonreload.CurrentRoot(), opts); err != nil {
+		return err
 	}
 	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"reset-failed", "docker"}, opts); err != nil {
 		return fmt.Errorf("systemctl reset-failed docker: %w", err)

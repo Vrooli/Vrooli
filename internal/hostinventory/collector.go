@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -14,6 +15,10 @@ import (
 type CommandRunner interface {
 	LookPath(file string) (string, error)
 	Run(ctx context.Context, name string, args ...string) ([]byte, error)
+}
+
+type EnvironmentCommandRunner interface {
+	RunWithEnv(ctx context.Context, env []string, name string, args ...string) ([]byte, error)
 }
 
 type FileReader interface {
@@ -48,7 +53,24 @@ type (
 func (osCommandRunner) LookPath(file string) (string, error) { return exec.LookPath(file) }
 
 func (osCommandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	return runOSCommand(ctx, nil, name, args...)
+}
+
+func (osCommandRunner) RunWithEnv(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
+	return runOSCommand(ctx, env, name, args...)
+}
+
+func runOSCommand(ctx context.Context, env []string, name string, args ...string) ([]byte, error) {
+	command := exec.CommandContext(ctx, name, args...)
+	if len(env) > 0 {
+		command.Env = append(os.Environ(), env...)
+	}
+	configureCommandProcessGroup(command)
+	// The context must cancel the whole process group, not only a wrapper
+	// process, or a wedged child can retain CombinedOutput's pipe indefinitely.
+	command.Cancel = func() error { return terminateCommandProcessGroup(command) }
+	command.WaitDelay = 250 * time.Millisecond
+	return command.CombinedOutput()
 }
 
 func (osFileReader) ReadFile(name string) ([]byte, error) { return os.ReadFile(name) }
@@ -73,6 +95,23 @@ func SystemCollector() Collector {
 
 func Collect(ctx context.Context) (Snapshot, error) {
 	return SystemCollector().Collect(ctx)
+}
+
+// CollectGPUFacts performs only the NVIDIA and Docker GPU probes needed to
+// decide whether a resource should receive its GPU runtime overlay. It avoids
+// unrelated platform probes (notably credential-store discovery) so a slow
+// desktop probe cannot make a healthy GPU resource fall back to a CPU image.
+func CollectGPUFacts(ctx context.Context) (Snapshot, error) {
+	return SystemCollector().CollectGPUFacts(ctx)
+}
+
+func (c Collector) CollectGPUFacts(ctx context.Context) (Snapshot, error) {
+	c = c.withDefaults()
+	now := c.Clock.Now()
+	snap := Snapshot{OS: c.GOOS, Arch: c.GOARCH, RuntimeTools: map[string]Tool{}, ProbeStatuses: map[string]string{}, FieldProvenance: map[string]Provenance{}}
+	c.collectNvidiaGPUs(ctx, &snap, now)
+	c.collectDockerGPU(ctx, &snap, now)
+	return snap, nil
 }
 
 func (c Collector) Collect(ctx context.Context) (Snapshot, error) {
@@ -258,6 +297,9 @@ func (c Collector) collectNvidiaGPUs(ctx context.Context, snap *Snapshot, observ
 		return
 	}
 	snap.GPUs = append(snap.GPUs, gpus...)
+	if snap.OS == "linux" {
+		snap.NvidiaDeviceNodes = linuxNvidiaDeviceNodes()
+	}
 	snap.Warnings = append(snap.Warnings, warnings...)
 	snap.ProbeStatuses["nvidia_gpu"] = "ok"
 	snap.FieldProvenance["gpus"] = Provenance{
@@ -268,6 +310,19 @@ func (c Collector) collectNvidiaGPUs(ctx context.Context, snap *Snapshot, observ
 		Command:    "nvidia-smi " + query + " --format=csv,noheader,nounits",
 	}
 	c.collectNvidiaGPUProcesses(ctx, snap, observedAt)
+}
+
+func linuxNvidiaDeviceNodes() []string {
+	paths, _ := filepath.Glob("/dev/nvidia*")
+	nodes := make([]string, 0, len(paths))
+	for _, path := range paths {
+		info, err := os.Stat(path)
+		if err == nil && info.Mode()&os.ModeCharDevice != 0 {
+			nodes = append(nodes, path)
+		}
+	}
+	sort.Strings(nodes)
+	return nodes
 }
 
 func (c Collector) collectNvidiaGPUProcesses(ctx context.Context, snap *Snapshot, observedAt time.Time) {

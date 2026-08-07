@@ -160,6 +160,45 @@ type RunningModel struct {
 	DetailsFamily string `json:"details_family,omitempty"`
 }
 
+type ProcessorState string
+
+const (
+	ProcessorGPU     ProcessorState = "gpu"
+	ProcessorCPU     ProcessorState = "cpu"
+	ProcessorUnknown ProcessorState = "unknown"
+)
+
+// ProcessorReport is derived from Ollama's live /api/ps response. It is the
+// resource-local execution truth; host GPU inventory is reported separately.
+type ProcessorReport struct {
+	Models      []RunningModel `json:"models"`
+	Processor   ProcessorState `json:"processor"`
+	HasCPUModel bool           `json:"has_cpu_model"`
+	HasGPUModel bool           `json:"has_gpu_model"`
+}
+
+func SummarizeProcessors(models []RunningModel) ProcessorReport {
+	report := ProcessorReport{Models: append([]RunningModel(nil), models...), Processor: ProcessorUnknown}
+	for _, model := range models {
+		processor := strings.ToLower(strings.TrimSpace(model.Processor))
+		switch {
+		case strings.Contains(processor, "gpu"):
+			report.HasGPUModel = true
+		case strings.Contains(processor, "cpu"):
+			report.HasCPUModel = true
+		}
+	}
+	switch {
+	case report.HasCPUModel && report.HasGPUModel:
+		report.Processor = ProcessorState("mixed")
+	case report.HasGPUModel:
+		report.Processor = ProcessorGPU
+	case report.HasCPUModel:
+		report.Processor = ProcessorCPU
+	}
+	return report
+}
+
 type psResponse struct {
 	Models []struct {
 		Name      string `json:"name"`

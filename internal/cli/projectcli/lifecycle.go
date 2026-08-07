@@ -387,6 +387,9 @@ func parseLifecycleOptions(command string, args []string, helpText string) (proj
 	if parsed.HasFlag("--include-optional") {
 		opts.IncludeOptional = true
 	}
+	if parsed.HasFlag("--maintenance-window") {
+		opts.MaintenanceWindow = true
+	}
 	return opts, nil
 }
 
@@ -426,6 +429,7 @@ func lifecycleOptionsSchema() commandtree.ArgSchema {
 		Options: []commandtree.OptionArg{
 			{Name: "--dry-run", Description: "Preview actions without mutating the host"},
 			{Name: "--sudo-mode", ValueName: "mode", Description: "Sudo policy (ask|skip|error)"},
+			{Name: "--maintenance-window", Description: "Acknowledge graphical/remote-session interruption risk"},
 			{Name: "--environment", Aliases: []string{"--env"}, ValueName: "name", Description: "Environment profile (development|production|minimal)"},
 			{Name: "--resources", ValueName: "value", Description: "Resource selection (enabled|none|comma,list)"},
 			{Name: "--scenarios", ValueName: "value", Description: "Scenario selection (none|all|comma,list)"},
@@ -492,6 +496,8 @@ func SetupHelpText() string {
 			"    `sudo` wrapper prompt for a password (interactive runs only).",
 			"  --include-optional applies optional safeguards too. By default optional items",
 			"    are listed but not installed (visible in the 'Optional' group).",
+			"  --maintenance-window acknowledges graphical/remote-session interruption risk",
+			"    for safeguards whose apply operation may interrupt the active session.",
 			"",
 			"Pass --verbose (global) to switch the apply / status output to the legacy per-item block format.",
 		},

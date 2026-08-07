@@ -12,13 +12,12 @@ vrooli resource twilio install
 
 ## Configuration
 1. Get your Twilio credentials from https://console.twilio.com
-2. Add credentials to `~/.config/vrooli/resources/twilio/credentials.json`:
-```json
-{
-  "account_sid": "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  "auth_token": "your_auth_token_here",
-  "default_from_number": "+1234567890"
-}
+2. Provision the credentials through the canonical Vrooli credential authority:
+```bash
+printf '%s' "$TWILIO_ACCOUNT_SID" | vrooli credentials provision \
+  --identity vrooli/twilio --field account-sid
+printf '%s' "$TWILIO_AUTH_TOKEN" | vrooli credentials provision \
+  --identity vrooli/twilio --field auth-token
 ```
 
 3. Configure phone numbers in `~/.config/vrooli/resources/twilio/phone-numbers.json`:
@@ -52,9 +51,6 @@ vrooli resource twilio send-sms "+1234567890" "Hello!" "+19876543210"
 
 ### Inject Data
 ```bash
-# Inject credentials
-vrooli resource twilio inject credentials.json
-
 # Inject phone numbers
 vrooli resource twilio inject phone-numbers.json
 
@@ -102,7 +98,7 @@ Scenarios can use Twilio for:
 - Voice call automation
 
 ## Best Practices
-1. Store credentials securely via Vault when available
+1. Store credentials through the Vrooli credential authority and keep recovery bundles separate from the host
 2. Use messaging services for bulk SMS
 3. Implement rate limiting for high-volume sends
 4. Handle delivery status callbacks

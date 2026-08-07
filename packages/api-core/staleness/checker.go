@@ -188,6 +188,44 @@ func (c *Checker) lifecycleFreshnessSpec(binaryPath, apiDir string, manifest cli
 }
 
 func inferManifestContextRoot(apiDir string, manifest cliutil.FreshnessManifest) (string, error) {
+	// Lifecycle manifests for repo-root Go replacements express inputs relative
+	// to the repository root. A scenario API commonly has its own go.mod too,
+	// so inferring the root from the first file (often just "go.mod") can select
+	// apiDir and compare the repository go.mod record with api/go.mod. Prefer the
+	// ancestor that resolves the largest portion of the manifest's declared
+	// input set; this distinguishes a repo-root manifest from a single-module
+	// API while remaining tolerant of a deleted input that should be reported as
+	// stale later by EvaluateFreshness.
+	if inputs := manifest.Inputs; len(inputs) > 0 {
+		bestRoot := ""
+		bestScore := -1
+		for dir := filepath.Clean(apiDir); ; dir = filepath.Dir(dir) {
+			score := 0
+			for _, input := range inputs {
+				input = strings.TrimSpace(input)
+				if input == "" || filepath.IsAbs(input) {
+					continue
+				}
+				if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(input))); err == nil {
+					score++
+				}
+			}
+			// Prefer the higher ancestor on ties. This handles manifests whose
+			// input list has only a shared go.mod and API-local files.
+			if score >= bestScore {
+				bestRoot = dir
+				bestScore = score
+			}
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+		}
+		if bestScore > 0 {
+			return bestRoot, nil
+		}
+	}
+
 	var sample string
 	for _, entry := range manifest.Files {
 		if rel := strings.TrimSpace(entry.Rel); rel != "" {

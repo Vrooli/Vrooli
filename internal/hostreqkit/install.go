@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 // RunningAsRootFn reports whether the current process has effective UID 0.
@@ -27,13 +28,14 @@ type ElevationFacts struct {
 }
 
 var ElevationFactsFn = func() ElevationFacts {
+	platform := hostreqspec.CurrentPlatform()
 	if RunningAsRootFn() {
-		return ElevationFacts{Platform: runtime.GOOS, Elevated: true, CanElevate: true, Mechanism: "root"}
+		return ElevationFacts{Platform: platform, Elevated: true, CanElevate: true, Mechanism: "root"}
 	}
 	if SudoAvailable() {
-		return ElevationFacts{Platform: runtime.GOOS, CanElevate: true, Mechanism: "sudo"}
+		return ElevationFacts{Platform: platform, CanElevate: true, Mechanism: "sudo"}
 	}
-	return ElevationFacts{Platform: runtime.GOOS, Mechanism: "none"}
+	return ElevationFacts{Platform: platform, Mechanism: "none"}
 }
 
 // ErrSudoSkipped marks privileged commands that were refused because the

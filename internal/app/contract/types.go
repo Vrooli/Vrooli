@@ -2,14 +2,26 @@ package contractapp
 
 import (
 	repocontract "github.com/vrooli/repo-contract-go"
-	"github.com/vrooli/vrooli/internal/repocontractcheck"
 )
 
+type CheckResult struct {
+	Name    string `json:"name"`
+	Passed  bool   `json:"passed"`
+	Message string `json:"message"`
+}
+
+type Report struct {
+	Root         string        `json:"root"`
+	ContractPath string        `json:"contract_path"`
+	Success      bool          `json:"success"`
+	Checks       []CheckResult `json:"checks"`
+}
+
 type ValidationOutput struct {
-	Success bool                     `json:"success"`
-	Root    string                   `json:"root"`
-	Schema  ValidationCheck          `json:"schema"`
-	Report  repocontractcheck.Report `json:"report"`
+	Success bool            `json:"success"`
+	Root    string          `json:"root"`
+	Schema  ValidationCheck `json:"schema"`
+	Report  Report          `json:"report"`
 }
 
 type ValidationCheck struct {

@@ -300,7 +300,9 @@ func groupItemsByOutcome(items []vrooliruntime.ItemStatus) outcomeGroups {
 			continue
 		case hostreqkit.BlockingNeedsReboot, hostreqkit.BlockingManual, hostreqkit.BlockingNeedsEnv,
 			hostreqkit.BlockingOperatorChoiceMissing, hostreqkit.BlockingOperatorDeclined,
-			hostreqkit.BlockingInvalidParameter:
+			hostreqkit.BlockingInvalidParameter, hostreqkit.BlockingCredentialStoreLocked,
+			hostreqkit.BlockingCredentialStoreUnresponsive, hostreqkit.BlockingCredentialStoreUnavailable,
+			hostreqkit.BlockingCredentialStoreEmpty:
 			groups.NeedsOperatorInput = append(groups.NeedsOperatorInput, item)
 			continue
 		}
@@ -468,7 +470,19 @@ func operatorChoiceLabel(choice hostreqspec.OperatorChoice) string {
 }
 
 func appendRequirementItems(dst []vrooliruntime.ItemStatus, items []vrooliruntime.ItemStatus) []vrooliruntime.ItemStatus {
-	return append(dst, items...)
+	dst = append(dst, items...)
+	for _, item := range items {
+		if item.Name != "remote_desktop_access" || item.SelectedProvider != "gnome-user-shared" || item.CredentialStoreState == "ready" {
+			continue
+		}
+		dependency := item
+		dependency.Name = "credential_store"
+		dependency.Command = ""
+		dependency.Notes = []string{"dependency of remote_desktop_access; credential-store state: " + item.CredentialStoreState}
+		dependency.Reasons = []string{"remote_desktop_access requires credential-store readiness"}
+		dst = append(dst, dependency)
+	}
+	return dst
 }
 
 func summarizeHost(host vrooliruntime.Host) string {

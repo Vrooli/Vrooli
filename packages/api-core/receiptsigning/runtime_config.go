@@ -15,9 +15,18 @@ const RuntimeConfigVersion = "vrooli.receipt-signing-runtime.v1"
 // scenario config directory. It contains routing and identity-file metadata,
 // never a signing key or a Vault token.
 type RuntimeConfig struct {
-	Version      string                     `json:"version"`
-	Mode         string                     `json:"mode"`
-	VaultTransit *VaultTransitRuntimeConfig `json:"vaultTransit,omitempty"`
+	Version             string                            `json:"version"`
+	Mode                string                            `json:"mode"`
+	CredentialAuthority *CredentialAuthorityRuntimeConfig `json:"credentialAuthority,omitempty"`
+	VaultTransit        *VaultTransitRuntimeConfig        `json:"vaultTransit,omitempty"`
+	LegacyVaultTransit  *VaultTransitRuntimeConfig        `json:"legacyVaultTransit,omitempty"`
+}
+
+const ModeCredentialAuthorityEd25519 = "credential-authority-ed25519"
+
+type CredentialAuthorityRuntimeConfig struct {
+	Identity string `json:"identity"`
+	Field    string `json:"field"`
 }
 
 type VaultTransitRuntimeConfig struct {
@@ -32,8 +41,19 @@ func (c RuntimeConfig) Validate() error {
 	}
 	switch c.Mode {
 	case "development":
+		if c.VaultTransit != nil || c.CredentialAuthority != nil || c.LegacyVaultTransit != nil {
+			return fmt.Errorf("development receipt signer must not contain provider configuration")
+		}
+		return nil
+	case ModeCredentialAuthorityEd25519:
+		if c.CredentialAuthority == nil {
+			return fmt.Errorf("credential authority receipt signer configuration is required")
+		}
+		if strings.TrimSpace(c.CredentialAuthority.Identity) == "" || strings.TrimSpace(c.CredentialAuthority.Field) == "" {
+			return fmt.Errorf("credential authority receipt signer requires identity and field")
+		}
 		if c.VaultTransit != nil {
-			return fmt.Errorf("development receipt signer must not contain Vault Transit configuration")
+			return fmt.Errorf("credential authority receipt signer must not contain active Vault Transit configuration")
 		}
 		return nil
 	case "vault-transit":
@@ -97,6 +117,9 @@ func NewSignerFromRuntimeConfig(config RuntimeConfig) (ReceiptSigner, bool, erro
 	}
 	if config.Mode == "development" {
 		return NewDevelopmentSigner(), false, nil
+	}
+	if config.Mode == ModeCredentialAuthorityEd25519 {
+		return nil, true, fmt.Errorf("credential authority signer must be constructed by its credential-authority runtime binding")
 	}
 	transit := config.VaultTransit
 	signer, err := NewVaultTransitSigner(VaultTransitConfig{Address: transit.Address, KeyName: transit.KeyName, Credentials: FileCredentialSource{Path: filepath.Clean(transit.CredentialFile)}, AllowedPurposes: []Purpose{PurposeExperimentAuditReceipt, PurposeExperimentHoldoutReceipt}})

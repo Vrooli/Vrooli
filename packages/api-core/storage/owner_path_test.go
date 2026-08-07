@@ -62,3 +62,45 @@ func TestEffectivePlatformsEntryNarrowsOwner(t *testing.T) {
 		t.Fatalf("effective platforms = %#v", got)
 	}
 }
+
+func TestResolveOwnerStoragePathAgreesWithResolverForEveryOwnerKindAndClass(t *testing.T) {
+	root := t.TempDir()
+	seams := PlatformSeams{UserHomeDir: func() (string, error) { return filepath.Join(root, "home"), nil }}
+	r, err := NewResolver(ResolverConfig{UserHomeDir: seams.UserHomeDir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	classes := []Class{ClassConfig, ClassData, ClassCache, ClassLogs, ClassState}
+	kinds := []OwnerKind{OwnerScenario, OwnerResource, OwnerTool, OwnerSafeguard}
+	for _, kind := range kinds {
+		for _, class := range classes {
+			owner := OwnerManifest{Kind: kind, ID: string(kind) + "-fixture", ManifestPath: filepath.Join(root, string(kind), "fixture.json")}
+			entry := StorageEntry{Name: string(class), Class: class, Subpath: "nested"}
+			want, err := r.ResolveOwner(root, owner, entry, PlatformLinux, seams)
+			if err != nil {
+				t.Fatalf("resolver %s/%s: %v", kind, class, err)
+			}
+			got, err := ResolveOwnerStoragePath(root, owner, entry, PlatformLinux, seams)
+			if err != nil {
+				t.Fatalf("compat resolver %s/%s: %v", kind, class, err)
+			}
+			if got != want {
+				t.Errorf("%s/%s: compatibility path %q differs from resolver %q", kind, class, got, want)
+			}
+		}
+	}
+}
+
+func TestResolverUsesLifecycleScenarioDataRootForCurrentScenario(t *testing.T) {
+	t.Setenv("SCENARIO_NAME", "demo")
+	t.Setenv("SCENARIO_DATA_DIR", "/tmp/vrooli-demo-data")
+	owner := OwnerManifest{Kind: OwnerScenario, ID: "demo"}
+	entry := StorageEntry{Class: ClassData, Subpath: "storage.db"}
+	path, err := ResolveOwnerStoragePath("/repo", owner, entry, PlatformLinux, PlatformSeams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "/tmp/vrooli-demo-data/storage.db" {
+		t.Fatalf("runtime data path = %q", path)
+	}
+}

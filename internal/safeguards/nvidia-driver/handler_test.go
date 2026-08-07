@@ -62,6 +62,23 @@ func TestApplyBlocksLiveDriverTransitionDuringRemoteDesktopSession(t *testing.T)
 	}
 }
 
+func TestDryRunMatchesRemoteDesktopGate(t *testing.T) {
+	restore := stub(t)
+	defer restore()
+	RemoteDesktopActiveFn = func() bool { return true }
+	status := hostreqkit.ItemStatus{ExecutionState: hostreqkit.ExecutionPending, PackageName: "nvidia-driver-580-open"}
+	comparison, err := hostreqkit.CompareDryRunAndApply(newHandler(), linuxHost(), status, hostreqkit.EnsureOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if comparison.DryRun.ExecutionState == hostreqkit.ExecutionWouldApply {
+		t.Fatalf("blocked dry-run reported would_apply: %#v", comparison.DryRun)
+	}
+	if comparison.DryRun.BlockingReason != hostreqkit.BlockingNeedsMaintenanceWindow || comparison.Apply.BlockingReason != hostreqkit.BlockingNeedsMaintenanceWindow {
+		t.Fatalf("gate outcomes = dry %#v apply %#v", comparison.DryRun, comparison.Apply)
+	}
+}
+
 func TestInspectNoNvidiaHardwareIsNotApplicable(t *testing.T) {
 	restore := stub(t)
 	defer restore()

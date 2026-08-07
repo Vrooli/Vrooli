@@ -127,6 +127,25 @@ func TestRuntimeConfigBuildsProductionSignerWithoutEmbeddingCredential(t *testin
 	}
 }
 
+func TestRuntimeConfigAcceptsCredentialAuthorityMetadataWithoutProviderSecrets(t *testing.T) {
+	t.Parallel()
+	config := RuntimeConfig{
+		Version: RuntimeConfigVersion,
+		Mode:    ModeCredentialAuthorityEd25519,
+		CredentialAuthority: &CredentialAuthorityRuntimeConfig{
+			Identity: "vrooli/prompt-manager/experiment-receipts",
+			Field:    "key-ring",
+		},
+	}
+	if err := config.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	config.VaultTransit = &VaultTransitRuntimeConfig{Address: "https://vault.example.test", KeyName: "legacy", CredentialFile: "/run/legacy-token"}
+	if err := config.Validate(); err == nil {
+		t.Fatal("Validate() accepted active Vault Transit configuration alongside credential authority")
+	}
+}
+
 func TestFileCredentialSourceRejectsBroadPermissions(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "credential")

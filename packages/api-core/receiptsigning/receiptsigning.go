@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	EnvelopeVersionV1              = "vrooli.receipt-signature.v1"
-	AlgorithmHMACSHA256Development = "hmac-sha256-development"
-	AlgorithmVaultTransit          = "vault-transit"
+	EnvelopeVersionV1                   = "vrooli.receipt-signature.v1"
+	AlgorithmHMACSHA256Development      = "hmac-sha256-development"
+	AlgorithmCredentialAuthorityEd25519 = "credential-authority-ed25519"
+	AlgorithmVaultTransit               = "vault-transit"
 
 	PurposeExperimentAuditReceipt   Purpose = "experiment-audit-receipt-v1"
 	PurposeExperimentHoldoutReceipt Purpose = "experiment-holdout-receipt-v1"
@@ -26,7 +27,8 @@ func (p Purpose) Valid() bool {
 }
 
 // SignatureEnvelope is stored alongside evidence, never instead of evidence.
-// KeyID is the Vault Transit key version or equivalent immutable verifier id.
+// KeyID is the immutable provider key/version identifier used to verify the
+// envelope. Providers must retain historical verifier material when rotating.
 type SignatureEnvelope struct {
 	Version   string  `json:"version"`
 	Purpose   Purpose `json:"purpose"`

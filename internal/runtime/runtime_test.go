@@ -4,13 +4,14 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	goruntime "runtime"
 	"sort"
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
@@ -31,8 +32,8 @@ const (
 
 func TestCurrentMatchesRuntimeGOOS(t *testing.T) {
 	host := Current()
-	if host.OS != goruntime.GOOS {
-		t.Fatalf("host.OS = %q, want %q", host.OS, goruntime.GOOS)
+	if host.OS != hostinventory.CurrentPlatform() {
+		t.Fatalf("host.OS = %q, want %q", host.OS, hostinventory.CurrentPlatform())
 	}
 }
 
@@ -138,6 +139,42 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 	}
 	if safeguard.ExecutionState != ExecutionWouldApply {
 		t.Fatalf("safeguard execution state = %q", safeguard.ExecutionState)
+	}
+}
+
+func TestOptionalSafeguardWithNonDefaultConfigIsApplyableWhenOptedIn(t *testing.T) {
+	status := ItemStatus{
+		Required:         false,
+		OperatorChoice:   hostreqspec.OperatorChoiceOptedIn,
+		ExecutionState:   hostreqkit.ExecutionPending,
+		ConfigNonDefault: true,
+	}
+	updated, skip := skipOptional(status, false)
+	if skip || updated.BlockingReason != hostreqkit.BlockingNone {
+		t.Fatalf("updated=%#v skip=%v; opted-in non-default config should apply", updated, skip)
+	}
+}
+
+func TestOptionalSafeguardWithDefaultConfigStaysSkippedWithoutIncludeOptional(t *testing.T) {
+	status := ItemStatus{
+		Required:       false,
+		OperatorChoice: hostreqspec.OperatorChoiceOptedIn,
+		ExecutionState: hostreqkit.ExecutionPending,
+	}
+	updated, skip := skipOptional(status, false)
+	if !skip || updated.BlockingReason != hostreqkit.BlockingOptionalSkipped {
+		t.Fatalf("updated=%#v skip=%v; opted-in defaults should remain skipped", updated, skip)
+	}
+	if _, skip := skipOptional(status, true); skip {
+		t.Fatal("--include-optional should reach the default-config apply path")
+	}
+}
+
+func TestOptionalSafeguardNotRecordedStaysSkipped(t *testing.T) {
+	status := ItemStatus{Required: false, ExecutionState: hostreqkit.ExecutionPending}
+	updated, skip := skipOptional(status, false)
+	if !skip || updated.BlockingReason != hostreqkit.BlockingOptionalSkipped {
+		t.Fatalf("updated=%#v skip=%v; not-recorded optional should remain skipped", updated, skip)
 	}
 }
 
@@ -569,7 +606,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	safeguardNames := reg.names(hostreq.KindSafeguard)
 	expectedSafeguards := []string{
 		"clock", "cloudflared_recovery_privileges", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
-		"edac_modules", "host_hardening", "kernel_config", "model_policy_drift", "nat_protection", "netconsole",
+		"edac_modules", "host_hardening", "kernel_config", "login_keyring_unlock", "model_policy_drift", "nat_protection", "netconsole",
 		"nvidia_driver",
 		"ollama_resource_controls",
 		"pstore_native", "pstore_observability", "pstore_ramoops", "remote_desktop_access", "remote_session_protection", "tcp_tuning",

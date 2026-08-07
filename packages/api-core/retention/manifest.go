@@ -111,11 +111,12 @@ type rawManifest struct {
 }
 
 type rawStorageEntry struct {
-	Rung   string          `json:"rung"`
-	Path   json.RawMessage `json:"path"`
-	Kind   string          `json:"kind"`
-	Class  string          `json:"class"`
-	Budget *struct {
+	Rung    string          `json:"rung"`
+	Path    json.RawMessage `json:"path"`
+	Kind    string          `json:"kind"`
+	Class   string          `json:"class"`
+	Subpath string          `json:"subpath"`
+	Budget  *struct {
 		MaxAge    string `json:"max_age"`
 		MaxBytes  string `json:"max_bytes"`
 		Rationale string `json:"rationale"`
@@ -194,6 +195,12 @@ func ParseManifest(data []byte) ([]Spec, error) {
 		if err != nil {
 			return nil, err
 		}
+		if spec.Target.Kind == "" {
+			// Explicit by-OS and host-owned paths remain governed by the
+			// storage-manager entry enforcer; the class-root retention engine
+			// cannot safely reinterpret them as a canonical class path.
+			continue
+		}
 		key := targetConflictKey(spec.Target)
 		if previous, exists := paths[key]; exists {
 			return nil, fmt.Errorf("storage declaration %q conflicts with %q at path %q", name, previous, spec.Target.RelPath())
@@ -206,9 +213,9 @@ func ParseManifest(data []byte) ([]Spec, error) {
 
 func targetConflictKey(target Target) string {
 	if target.Kind == TargetSQLiteTable {
-		return string(target.Kind) + ":" + target.RelPath() + ":" + target.Table
+		return string(target.Kind) + ":" + string(target.Class) + ":" + target.RelPath() + ":" + target.Table
 	}
-	return string(target.Kind) + ":" + target.RelPath()
+	return string(target.Kind) + ":" + string(target.Class) + ":" + target.RelPath()
 }
 
 func parseStorageEntry(name string, raw rawStorageEntry) (Spec, error) {
@@ -219,11 +226,21 @@ func parseStorageEntry(name string, raw rawStorageEntry) (Spec, error) {
 		return Spec{}, fmt.Errorf("storage entry %q: only dir entries can use builtin retention", name)
 	}
 	var path string
-	if err := json.Unmarshal(raw.Path, &path); err != nil {
-		return Spec{}, fmt.Errorf("storage entry %q path must be a relative string for retention: %w", name, err)
+	if len(raw.Path) > 0 && string(raw.Path) != "null" {
+		if err := json.Unmarshal(raw.Path, &path); err != nil {
+			// A by-OS path is an intentional host-managed exception. It is
+			// still visible to storage-manager's resolver/enforcer, but it is
+			// not a canonical class-root target for this package.
+			return Spec{}, nil
+		}
+	} else {
+		path = raw.Subpath
 	}
-	if path == "" || strings.HasPrefix(path, "/") || strings.Contains(path, "..") {
-		return Spec{}, fmt.Errorf("storage entry %q path must be relative", name)
+	if path == "" {
+		path = "."
+	}
+	if strings.HasPrefix(path, "/") || strings.Contains(path, "..") {
+		return Spec{}, nil
 	}
 	class := raw.Class
 	if class == "" {

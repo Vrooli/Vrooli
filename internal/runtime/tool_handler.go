@@ -225,7 +225,7 @@ func (h toolHandler) inspectFetch(host hostreqkit.Host, requirement hostreqspec.
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.InstallSupported = false
-		status.Notes = append(status.Notes, fmt.Sprintf("no %s/%s release target declared for %q", host.OS, runtimeArch(), h.manifest.Name))
+		status.Notes = append(status.Notes, h.unsupportedTargetNote(host))
 		return status
 	}
 	status.InstallSupported = true
@@ -238,6 +238,14 @@ func (h toolHandler) inspectFetch(host hostreqkit.Host, requirement hostreqspec.
 		status.Notes = append(status.Notes, h.manifest.InstallHint)
 	}
 	return status
+}
+
+func (h toolHandler) unsupportedTargetNote(host hostreqkit.Host) string {
+	key := host.OS + "/" + runtimeArch()
+	if reason, ok := h.manifest.Source.UnsupportedFor(host.OS, runtimeArch()); ok {
+		return fmt.Sprintf("%s is explicitly unsupported for %q: %s", key, h.manifest.Name, reason)
+	}
+	return fmt.Sprintf("no %s release target declared for %q", key, h.manifest.Name)
 }
 
 func (h toolHandler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
@@ -325,7 +333,7 @@ func (h toolHandler) applyFetch(host hostreqkit.Host, status hostreqkit.ItemStat
 	if !ok {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
-		status.Notes = append(status.Notes, fmt.Sprintf("no %s/%s release target declared for %q", host.OS, runtimeArch(), h.manifest.Name))
+		status.Notes = append(status.Notes, h.unsupportedTargetNote(host))
 		return status, nil
 	}
 	binDir, err := userLocalBinDir()
@@ -437,7 +445,7 @@ func writeLauncher(binDir, command, optDir, optBinPath string, runtimeEnv map[st
 	if err != nil {
 		return err
 	}
-	if runtime.GOOS == "windows" {
+	if currentPlatformOS() == "windows" {
 		path := filepath.Join(binDir, command+".bat")
 		lines := []string{"@echo off", fmt.Sprintf("set \"PATH=%s;%%PATH%%\"", dir)}
 		for _, key := range sortedEnvKeys(resolvedEnv) {
@@ -479,7 +487,7 @@ func writeExecutableFileAtomic(path string, contents []byte) (err error) {
 	if err := os.Rename(tmpPath, path); err != nil {
 		// Windows cannot replace an existing file with Rename. The install lock
 		// makes this fallback safe from competing managed installers.
-		if runtime.GOOS != "windows" || os.Remove(path) != nil {
+		if currentPlatformOS() != "windows" || os.Remove(path) != nil {
 			return err
 		}
 		if err := os.Rename(tmpPath, path); err != nil {
@@ -566,7 +574,7 @@ func resolveFetchCommand(candidates []string) (string, bool) {
 
 func localFetchCommandPath(binDir, command string) string {
 	path := filepath.Join(binDir, command)
-	if runtime.GOOS == "windows" {
+	if currentPlatformOS() == "windows" {
 		return path + ".bat"
 	}
 	return path
@@ -635,7 +643,7 @@ func (h toolHandler) runtimeEnvironmentSatisfied(host hostreqkit.Host, status *h
 		return false
 	}
 	entryInfo, err := os.Stat(entryPath)
-	if err != nil || entryInfo.IsDir() || runtime.GOOS != "windows" && entryInfo.Mode()&0o111 == 0 {
+	if err != nil || entryInfo.IsDir() || currentPlatformOS() != "windows" && entryInfo.Mode()&0o111 == 0 {
 		status.Installed = false
 		status.ExecutionState = hostreqkit.ExecutionPending
 		status.InstallSupported = true
@@ -652,7 +660,7 @@ func (h toolHandler) runtimeEnvironmentSatisfied(host hostreqkit.Host, status *h
 	}
 	contents := string(launcher)
 	expectedEntry := shellSingleQuote(entryPath)
-	if runtime.GOOS == "windows" {
+	if currentPlatformOS() == "windows" {
 		expectedEntry = fmt.Sprintf("\"%s\"", entryPath)
 	}
 	if !strings.Contains(contents, expectedEntry) {
@@ -683,7 +691,7 @@ func managedToolEntryPath(optDir, binPath string) (string, error) {
 }
 
 func launcherEnvironmentAssignment(key, value string) string {
-	if runtime.GOOS == "windows" {
+	if currentPlatformOS() == "windows" {
 		return fmt.Sprintf("set \"%s=%s\"", key, value)
 	}
 	return "export " + key + "=" + shellSingleQuote(value)

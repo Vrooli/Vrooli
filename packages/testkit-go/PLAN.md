@@ -606,10 +606,9 @@ This phase kept the lifecycle smoke/unit split intact while cleaning up the rema
 
 This phase validated the migration as a coherent whole instead of as isolated package cleanups.
 
-- the root-module migrated subset passed across `internal/process`, `internal/scenario`, `internal/lifecycle`, `internal/setup`, `internal/resources`, `internal/api`, `internal/project`, `internal/repocontractcheck`, `cmd/vrooli`, `cmd/vrooli-api`, and `packages/testkit-go`.
+- the root-module migrated subset passed across `internal/process`, `internal/scenario`, `internal/lifecycle`, `internal/setup`, `internal/resources`, `internal/api`, `internal/project`, `cmd/vrooli`, `cmd/vrooli-api`, and `packages/testkit-go`.
 - `packages/repo-contract-go` passed from its own module root, which is the correct invocation model for that package.
 - `make validate-repo-contract` passed.
-- `internal/repocontractcheck` fixture repos now include the minimum `docs/repo-contract.md` surface needed to isolate adoption-rule failures from docs-alignment failures.
 - the obsolete AGENTS-based repocontractcheck test was removed because no current validator rule enforces AGENTS guidance.
 - `internal/setup` and `internal/lifecycle` tests now assert the canonical `projectstate` marker paths rather than relying on legacy `data/.setup-complete` and sibling marker paths.
 
@@ -618,7 +617,7 @@ This phase validated the migration as a coherent whole instead of as isolated pa
 Validated successfully with:
 
 ```bash
-go test ./packages/testkit-go/... ./internal/process ./internal/scenario ./internal/lifecycle ./internal/setup ./internal/resources ./internal/api ./internal/project ./internal/repocontractcheck ./cmd/vrooli ./cmd/vrooli-api
+go test ./packages/testkit-go/... ./internal/process ./internal/scenario ./internal/lifecycle ./internal/setup ./internal/resources ./internal/api ./internal/project ./cmd/vrooli ./cmd/vrooli-api
 (cd packages/repo-contract-go && go test ./...)
 make validate-repo-contract
 ```
@@ -694,7 +693,7 @@ At the end of each phase, run the relevant subset. The final minimum validation 
 ```bash
 go test ./packages/testkit-go/...
 go test ./packages/repo-contract-go/...
-go test ./internal/process ./internal/scenario ./internal/lifecycle ./internal/setup ./internal/resources ./internal/api ./internal/project ./internal/repocontractcheck
+go test ./internal/process ./internal/scenario ./internal/lifecycle ./internal/setup ./internal/resources ./internal/api ./internal/project
 go test ./cmd/vrooli ./cmd/vrooli-api
 make validate-repo-contract
 ```

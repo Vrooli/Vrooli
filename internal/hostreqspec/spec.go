@@ -245,22 +245,26 @@ type Provenance struct {
 }
 
 type ResolvedRequirement struct {
-	Name           string                 `json:"name"`
-	Kind           Kind                   `json:"kind"`
-	Required       bool                   `json:"required"`
-	OperatorChoice OperatorChoice         `json:"operator_choice"`
-	Config         map[string]any         `json:"config,omitempty"`
-	ConfigError    string                 `json:"config_error,omitempty"`
-	Manual         bool                   `json:"manual"`
-	Privilege      Privilege              `json:"privilege"`
-	Bundling       Bundling               `json:"bundling"`
-	Reasons        []string               `json:"reasons,omitempty"`
-	When           []string               `json:"when,omitempty"`
-	Environments   []string               `json:"environments,omitempty"`
-	Platforms      []string               `json:"platforms,omitempty"`
-	Notes          []string               `json:"notes,omitempty"`
-	Provenance     []Provenance           `json:"provenance,omitempty"`
-	Requires       *CapabilityRequirement `json:"requires,omitempty"`
+	Name           string         `json:"name"`
+	Kind           Kind           `json:"kind"`
+	Required       bool           `json:"required"`
+	OperatorChoice OperatorChoice `json:"operator_choice"`
+	Config         map[string]any `json:"config,omitempty"`
+	ConfigError    string         `json:"config_error,omitempty"`
+	// ConfigUnconfigured is set when an optional safeguard declares required
+	// parameters but the operator has not supplied any configuration.
+	ConfigUnconfigured string                 `json:"config_unconfigured,omitempty"`
+	ConfigNonDefault   bool                   `json:"config_non_default,omitempty"`
+	Manual             bool                   `json:"manual"`
+	Privilege          Privilege              `json:"privilege"`
+	Bundling           Bundling               `json:"bundling"`
+	Reasons            []string               `json:"reasons,omitempty"`
+	When               []string               `json:"when,omitempty"`
+	Environments       []string               `json:"environments,omitempty"`
+	Platforms          []string               `json:"platforms,omitempty"`
+	Notes              []string               `json:"notes,omitempty"`
+	Provenance         []Provenance           `json:"provenance,omitempty"`
+	Requires           *CapabilityRequirement `json:"requires,omitempty"`
 }
 
 // ConfigString returns a declared string parameter and reports whether it was
@@ -305,6 +309,18 @@ func (r ResolvedRequirement) ConfigBool(name string) (bool, bool) {
 
 func CurrentPlatform() string {
 	return NormalizePlatform(runtime.GOOS)
+}
+
+// ContainsPlatform compares a declaration's platform vocabulary with a host
+// platform, accepting the legacy darwin spelling at the boundary.
+func ContainsPlatform(values []string, target string) bool {
+	target = NormalizePlatform(target)
+	for _, value := range values {
+		if NormalizePlatform(value) == target {
+			return true
+		}
+	}
+	return false
 }
 
 // NormalizePlatform converts operating-system identifiers at the declaration

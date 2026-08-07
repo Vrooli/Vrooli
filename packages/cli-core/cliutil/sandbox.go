@@ -35,18 +35,14 @@ var (
 // repo), and the agent's changes in the sandbox overlay would be invisible
 // to those tools.
 //
-// This package provides Go equivalents of the bash sandbox path resolution
-// functions in scripts/lib/scenario/runner.sh (sandbox::scenario_in_scope and
-// sandbox::resolve_merged_path). The logic must stay in sync with those bash
-// implementations.
+// This package provides the Go sandbox path-resolution implementation used by
+// scenario CLIs. The control-plane contract is the single source of truth.
 //
 // For more context on the sandbox lifecycle system, see:
 //   - scenarios/agent-manager/api/internal/orchestration/run_executor.go
 //     (SandboxEnvVars method — where the env vars are injected)
 //   - scenarios/workspace-sandbox/docs/ARCHITECTURE.md
 //     (scope vs acceptance design, overlay structure)
-//   - scripts/lib/scenario/runner.sh
-//     (bash implementation this code mirrors)
 // ---------------------------------------------------------------------------
 
 // SandboxEnv holds the sandbox environment variables extracted from os.Environ.
@@ -101,7 +97,7 @@ func (s SandboxEnv) NormalizedScope() string {
 // resolution — only in-scope scenarios are redirected, everything else
 // uses the real repo.
 //
-// Scope matching rules (mirrors scripts/lib/scenario/runner.sh):
+// Scope matching rules are shared with the Go-native scenario runner:
 //
 //	""  or "." or "/"        → whole repo is scoped, ALL scenarios match
 //	"scenarios"              → all scenarios are scoped

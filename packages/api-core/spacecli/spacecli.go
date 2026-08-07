@@ -62,7 +62,7 @@ func run(cfg Config, args []string) error {
 	}
 	fs := flag.NewFlagSet("space", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	projection := fs.String("projection", string(cfg.Projection), "projection (answer|validate|guide); must match this owner")
+	projection := fs.String("projection", string(cfg.Projection), "projection (answer|validate|guide|act); must match this owner")
 	asJSON := fs.Bool("json", false, "emit JSON")
 	if err := fs.Parse(args); err != nil {
 		return err

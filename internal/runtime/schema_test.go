@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/safeguards"
 	"github.com/vrooli/vrooli/internal/tools"
 )
@@ -41,6 +42,47 @@ func loadToolSchema(t *testing.T) *jsonschema.Schema {
 		t.Fatalf("compile tool schema: %v", err)
 	}
 	return schema
+}
+
+func TestReleaseManifestsDeclareLinuxArm64RouteOrUnsupportedReason(t *testing.T) {
+	for path, data := range embeddedToolManifests(t) {
+		var manifest hostreqkit.ToolManifest
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		if manifest.SourceType() != "release" || manifest.Source == nil || len(manifest.Source.Targets) == 0 {
+			continue
+		}
+		if _, ok := manifest.Source.TargetFor("linux", "arm64"); ok {
+			continue
+		}
+		if reason, ok := manifest.Source.UnsupportedFor("linux", "arm64"); !ok || strings.TrimSpace(reason) == "" {
+			t.Errorf("%s declares release targets but neither linux/arm64 nor an unsupported reason", path)
+		}
+	}
+}
+
+func embeddedToolManifests(t *testing.T) map[string][]byte {
+	t.Helper()
+	manifests := map[string][]byte{}
+	err := fs.WalkDir(tools.Manifests, ".", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() || d.Name() != "tool.json" {
+			return nil
+		}
+		data, err := fs.ReadFile(tools.Manifests, path)
+		if err != nil {
+			return err
+		}
+		manifests[path] = data
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk tool manifests: %v", err)
+	}
+	return manifests
 }
 
 func validateAgainst(t *testing.T, schema *jsonschema.Schema, raw string) error {

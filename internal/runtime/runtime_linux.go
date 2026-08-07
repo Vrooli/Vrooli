@@ -17,5 +17,5 @@ func currentHost() Host {
 }
 
 func detectPackageManager() string {
-	return hostreqkit.DetectFirstAvailable([]string{"apt-get", "dnf", "yum", "pacman", "apk", "brew"})
+	return hostreqkit.DetectFirstAvailable([]string{"apt-get", "dnf", "yum", "zypper", "pacman", "apk", "brew"})
 }

@@ -45,14 +45,17 @@ const (
 var inspectDockerHealthFn = dockerhost.InspectHealth
 
 type Options struct {
-	DryRun          bool
-	SudoMode        string
-	Environment     string
-	Resources       string
-	Scenarios       string
-	Yes             string
-	Verbose         bool
-	IncludeOptional bool
+	DryRun   bool
+	SudoMode string
+	// MaintenanceWindow acknowledges that a setup safeguard may interrupt
+	// an active graphical or remote-desktop session.
+	MaintenanceWindow bool
+	Environment       string
+	Resources         string
+	Scenarios         string
+	Yes               string
+	Verbose           bool
+	IncludeOptional   bool
 	// ResultPath writes the versioned terminal result to a separate JSON file.
 	// It never changes human setup output streams.
 	ResultPath string
@@ -211,13 +214,14 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	}
 	requirements = bootstrapAwareRequirements(requirements)
 	ensureOptions := vrooliruntime.EnsureOptions{
-		Environment:     opts.Environment,
-		SudoMode:        opts.SudoMode,
-		DryRun:          opts.DryRun,
-		AutoInstall:     true,
-		IncludeOptional: opts.IncludeOptional,
-		Stdout:          stdout,
-		Stderr:          stderr,
+		Environment:       opts.Environment,
+		SudoMode:          opts.SudoMode,
+		DryRun:            opts.DryRun,
+		AutoInstall:       true,
+		IncludeOptional:   opts.IncludeOptional,
+		MaintenanceWindow: opts.MaintenanceWindow,
+		Stdout:            stdout,
+		Stderr:            stderr,
 	}
 	if !opts.DryRun {
 		stage = "bootstrap"
@@ -532,6 +536,9 @@ func RunBuild(root, home string, stdout, stderr io.Writer) error {
 	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli"), "./cmd/vrooli", []string{"cmd/vrooli", "internal"}, gitCommit, buildTime, stdout, stderr); err != nil {
 		return err
 	}
+	if err := buildNestedModuleBinary(filepath.Join(root, "cmd", "vrooli-policy-runner"), filepath.Join(buildDir, "vrooli-policy-runner"), stdout, stderr); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -637,6 +644,29 @@ func buildProjectBinary(root, outputPath, target string, fingerprintPaths []stri
 		Name:   "go",
 		Args:   []string{"build", "-trimpath", "-ldflags", ldflags, "-o", outputPath, target},
 		Dir:    root,
+		Env:    env,
+		Stdout: stdout,
+		Stderr: stderr,
+		Stdin:  os.Stdin,
+	})
+}
+
+// buildNestedModuleBinary builds a binary whose source lives in its own Go
+// module beneath the repo root.
+//
+// vrooli-policy-runner is deliberately a separate module: it is the process
+// boundary for native coding-agent hooks, runs on every Bash tool call, and
+// must not drag in the main module's dependency graph. That isolation means it
+// cannot be built with `go build ./cmd/...` from the repo root, so it builds
+// from its own directory and does not receive the main module's buildinfo
+// ldflags (those -X symbols do not exist in this module).
+func buildNestedModuleBinary(moduleDir, outputPath string, stdout, stderr io.Writer) error {
+	env := append([]string(nil), os.Environ()...)
+	env = append(env, "CGO_ENABLED=0")
+	return shell.Run(shell.Spec{
+		Name:   "go",
+		Args:   []string{"build", "-trimpath", "-o", outputPath, "."},
+		Dir:    moduleDir,
 		Env:    env,
 		Stdout: stdout,
 		Stderr: stderr,

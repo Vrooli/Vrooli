@@ -41,12 +41,16 @@ type OwnerManifest struct {
 // kinds. Budget and durable data are retained alongside the location because
 // those declarations answer different questions and must not be conflated.
 type StorageEntry struct {
-	Name        string                 `json:"name"`
-	Platforms   []Platform             `json:"platforms,omitempty"`
-	Rung        Rung                   `json:"rung,omitempty"`
-	Path        PortablePath           `json:"path"`
+	Name      string     `json:"name"`
+	Platforms []Platform `json:"platforms,omitempty"`
+	Rung      Rung       `json:"rung,omitempty"`
+	// Path is retained only for explicit pinned/byOS declarations and for the
+	// incremental reader during the class migration. Class declarations use
+	// Class + Subpath and are expanded by Resolver.
+	Path        PortablePath           `json:"path,omitempty"`
 	Kind        string                 `json:"kind"`
 	Class       Class                  `json:"class,omitempty"`
+	Subpath     string                 `json:"subpath,omitempty"`
 	Format      string                 `json:"format,omitempty"`
 	Regenerable bool                   `json:"regenerable,omitempty"`
 	Sensitive   bool                   `json:"sensitive,omitempty"`
@@ -325,6 +329,7 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 				Platforms   []string               `json:"platforms"`
 				Rung        Rung                   `json:"rung"`
 				Path        json.RawMessage        `json:"path"`
+				Subpath     string                 `json:"subpath"`
 				Kind        string                 `json:"kind"`
 				Class       Class                  `json:"class"`
 				Format      string                 `json:"format"`
@@ -349,13 +354,16 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 				}
 			}
 			var portable PortablePath
-			if len(entry.Path) == 0 || string(entry.Path) == "null" {
-				findings = append(findings, ownerFinding(owner, "missing_storage_path", "storage entry "+name+" has no path"))
-				continue
-			}
-			if err := json.Unmarshal(entry.Path, &portable); err != nil {
-				findings = append(findings, ownerFinding(owner, "invalid_storage_path", "storage entry "+name+": "+err.Error()))
-				continue
+			classDeclaration := entry.Class != "" && (len(entry.Path) == 0 || string(entry.Path) == "null" || string(entry.Path) == `""`)
+			if !classDeclaration {
+				if len(entry.Path) == 0 || string(entry.Path) == "null" {
+					findings = append(findings, ownerFinding(owner, "missing_storage_path", "storage entry "+name+" has neither a class declaration nor a path"))
+					continue
+				}
+				if err := json.Unmarshal(entry.Path, &portable); err != nil {
+					findings = append(findings, ownerFinding(owner, "invalid_storage_path", "storage entry "+name+": "+err.Error()))
+					continue
+				}
 			}
 			if strings.TrimSpace(entry.Kind) == "" {
 				findings = append(findings, ownerFinding(owner, "missing_storage_kind", "storage entry "+name+" has no kind"))
@@ -369,18 +377,9 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 			if entry.Rung == RungRelocatable && entry.Relocation == nil {
 				findings = append(findings, ownerFinding(owner, "missing_relocation", "relocatable storage entry "+name+" has no relocation lever"))
 			}
-			storageEntry := StorageEntry{Name: name, Platforms: entryPlatforms, Rung: entry.Rung, Path: portable, Kind: entry.Kind, Class: entry.Class, Format: entry.Format, Regenerable: entry.Regenerable, Sensitive: entry.Sensitive, Relocation: entry.Relocation, Reclaim: entry.Reclaim, Budget: entry.Budget, Rationale: entry.Rationale}
+			storageEntry := StorageEntry{Name: name, Platforms: entryPlatforms, Rung: entry.Rung, Path: portable, Kind: entry.Kind, Class: entry.Class, Subpath: entry.Subpath, Format: entry.Format, Regenerable: entry.Regenerable, Sensitive: entry.Sensitive, Relocation: entry.Relocation, Reclaim: entry.Reclaim, Budget: entry.Budget, Rationale: entry.Rationale}
 			if platform != "" && platformIncluded(EffectivePlatforms(owner, storageEntry), platform) {
-				// Native scenario manifests intentionally use paths relative to
-				// the api-core storage class root. Portable host manifests use
-				// absolute paths or platform tokens. Defer relative resolution to
-				// the owner-aware storage resolver instead of misclassifying a
-				// valid scenario declaration as an invalid host path.
-				if owner.Kind == OwnerScenario && portable.ByOS == nil && !filepath.IsAbs(portable.Value) && !containsPortableToken(portable.Value) {
-					owner.StorageEntries = append(owner.StorageEntries, storageEntry)
-					continue
-				}
-				if _, resolveErr := ResolvePortablePath(name, portable, platform, seams); resolveErr != nil {
+				if _, resolveErr := ResolveOwnerStoragePath(filepath.Dir(filepath.Dir(path)), owner, storageEntry, platform, seams); resolveErr != nil {
 					if _, notApplicable := resolveErr.(*NotApplicable); !notApplicable {
 						findings = append(findings, ownerFinding(owner, "unresolvable_storage_path", "storage entry "+name+": "+resolveErr.Error()))
 					}

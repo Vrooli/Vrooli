@@ -150,6 +150,12 @@ func skipOptional(status ItemStatus, includeOptional bool) (ItemStatus, bool) {
 			status.BlockingReason = hostreqkit.BlockingOperatorChoiceMissing
 			return status, true
 		}
+	case hostreqspec.OperatorChoiceOptedIn:
+		if !includeOptional && !status.ConfigNonDefault {
+			status.BlockingReason = hostreqkit.BlockingOptionalSkipped
+			status.Notes = append(status.Notes, "optional safeguard is opted in but uses manifest defaults; supply non-default configuration or rerun with --include-optional")
+			return status, true
+		}
 	}
 	return status, false
 }
@@ -260,11 +266,14 @@ func inspectResolution(host Host, environment string, resolution hostreq.Resolut
 }
 
 func inspectRequirement(host Host, requirement hostreq.ResolvedRequirement) ItemStatus {
-	if len(requirement.Platforms) > 0 && !containsPlatform(requirement.Platforms, host.OS) {
+	if len(requirement.Platforms) > 0 && !hostreqspec.ContainsPlatform(requirement.Platforms, host.OS) {
 		return hostreqkit.NotApplicableRequirementStatus(requirement, fmt.Sprintf("declared for %s; current host is %s", strings.Join(requirement.Platforms, ", "), host.OS))
 	}
 	if strings.TrimSpace(requirement.ConfigError) != "" {
 		return hostreqkit.InvalidConfigStatus(requirement, requirement.ConfigError)
+	}
+	if strings.TrimSpace(requirement.ConfigUnconfigured) != "" {
+		return hostreqkit.NotApplicableRequirementStatus(requirement, requirement.ConfigUnconfigured)
 	}
 	h, err := lookupHandler(requirement.Kind, requirement.Name)
 	if err != nil {
@@ -274,16 +283,6 @@ func inspectRequirement(host Host, requirement hostreq.ResolvedRequirement) Item
 		return hostreqkit.UnsupportedRequirementStatus(requirement, "no native runtime handler registered")
 	}
 	return h.Inspect(host, requirement)
-}
-
-func containsPlatform(values []string, target string) bool {
-	target = hostreqspec.NormalizePlatform(target)
-	for _, value := range values {
-		if hostreqspec.NormalizePlatform(value) == target {
-			return true
-		}
-	}
-	return false
 }
 
 func applyRequirement(host Host, status ItemStatus, opts EnsureOptions) (ItemStatus, error) {

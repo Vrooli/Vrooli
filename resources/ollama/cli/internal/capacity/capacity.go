@@ -273,11 +273,12 @@ type HostSummary struct {
 }
 
 type OllamaState struct {
-	TagsAvailable bool     `json:"tags_available"`
-	PSAvailable   bool     `json:"ps_available"`
-	Installed     []string `json:"installed,omitempty"`
-	Loaded        []string `json:"loaded,omitempty"`
-	Warnings      []string `json:"warnings,omitempty"`
+	TagsAvailable bool                  `json:"tags_available"`
+	PSAvailable   bool                  `json:"ps_available"`
+	Processor     ensure.ProcessorState `json:"processor"`
+	Installed     []string              `json:"installed,omitempty"`
+	Loaded        []string              `json:"loaded,omitempty"`
+	Warnings      []string              `json:"warnings,omitempty"`
 }
 
 type manifestFile struct {
@@ -465,6 +466,7 @@ func (h *Handlers) ollamaState(ctx context.Context) OllamaState {
 		state.Warnings = append(state.Warnings, fmt.Sprintf("Ollama /api/ps unavailable: %v", err))
 	} else {
 		state.PSAvailable = true
+		state.Processor = ensure.SummarizeProcessors(running).Processor
 		for _, m := range running {
 			state.Loaded = append(state.Loaded, m.Name)
 		}
@@ -756,6 +758,7 @@ func renderText(w io.Writer, report Report) {
 	fmt.Fprintf(w, "Runtime: memory_limit=%.1f GB, parallel=%d, max_loaded_models=%d\n", report.Runtime.MemoryLimitGB, report.Runtime.NumParallel, report.Runtime.MaxLoadedModels)
 	fmt.Fprintf(w, "Host: %s/%s, cpu=%d, memory=%.1f GB, gpu_count=%d, max_gpu_vram=%.1f GB\n",
 		report.Host.OS, report.Host.Arch, report.Host.CPUCores, report.Host.MemoryTotalGB, report.Host.GPUCount, report.Host.MaxGPUVRAMGB)
+	fmt.Fprintf(w, "Ollama: processor=%s, loaded=%d, installed=%d\n", emptyDefault(string(report.Ollama.Processor), "unknown"), len(report.Ollama.Loaded), len(report.Ollama.Installed))
 	fmt.Fprintf(w, "Totals: disk=%.1f GB, all_ram=%.1f GB, resident_ram=%.1f GB, resident_vram=%.1f GB\n",
 		report.Totals.EstimatedDiskGB, report.Totals.EstimatedRAMGB, report.Totals.ResidentRAMGB, report.Totals.ResidentVRAMGB)
 	if len(report.Scenarios) > 0 {

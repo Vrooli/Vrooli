@@ -38,6 +38,9 @@ type ToolSource struct {
 	// no matching target falls back to its declared package, when present, and is
 	// otherwise cleanly unsupported.
 	Targets map[string]ToolSourceTarget `json:"targets,omitempty"`
+	// Unsupported records an explicit reason for an os/arch combination that
+	// has no upstream artifact or supported package-manager route.
+	Unsupported map[string]string `json:"unsupported,omitempty"`
 }
 
 // ToolSourceTarget is the fetch spec for one os/arch combination.
@@ -77,6 +80,15 @@ func (s *ToolSource) TargetFor(osName, arch string) (ToolSourceTarget, bool) {
 	}
 	target, ok := s.Targets[osName+"/"+arch]
 	return target, ok
+}
+
+// UnsupportedFor returns the explicit unsupported reason for an os/arch pair.
+func (s *ToolSource) UnsupportedFor(osName, arch string) (string, bool) {
+	if s == nil {
+		return "", false
+	}
+	reason, ok := s.Unsupported[osName+"/"+arch]
+	return reason, ok && reason != ""
 }
 
 type SafeguardManifest struct {

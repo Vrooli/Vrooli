@@ -14,7 +14,7 @@ import (
 
 var targetKindSet = map[TargetKind]struct{}{
 	TargetKindScenario: {}, TargetKindResource: {}, TargetKindTool: {}, TargetKindSafeguard: {},
-	TargetKindTeam: {}, TargetKindPackage: {}, TargetKindControlPlane: {}, TargetKindDocs: {},
+	TargetKindTeam: {}, TargetKindPackage: {}, TargetKindControlPlane: {}, TargetKindDocs: {}, TargetKindProject: {},
 }
 
 // EnumerateTargets discovers all concrete targets from the loaded contract.
@@ -56,6 +56,9 @@ func (c *Contract) EnumerateTargets(repoRoot string) ([]Target, error) {
 				}
 				if kind == TargetKindControlPlane || kind == TargetKindDocs {
 					id = rel
+				}
+				if kind == TargetKindProject {
+					id = "repo"
 				}
 				key := string(kind) + "\x1e" + id
 				if _, ok := seen[key]; ok {

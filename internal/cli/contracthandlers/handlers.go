@@ -15,6 +15,7 @@ type HandlerDeps[C any] struct {
 	Stdout       func(C) io.Writer
 	OutputFormat func(C) (cliout.Format, error)
 	Service      func(C) contractapp.Service
+	Validate     func(C) (contractapp.ValidationOutput, error)
 }
 
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
@@ -45,7 +46,7 @@ func validateHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return bindContractCommand(deps,
 		contractcli.ParseValidateRequest,
 		func(ctx C, _ contractcli.NoArgsRequest) (contractapp.ValidationOutput, error) {
-			return deps.Service(ctx).Validate()
+			return deps.Validate(ctx)
 		},
 		func(w io.Writer, format cliout.Format, output contractapp.ValidationOutput) error {
 			return contractcli.RenderValidate(w, format, output)

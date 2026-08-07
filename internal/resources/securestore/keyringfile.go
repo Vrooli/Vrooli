@@ -155,6 +155,19 @@ func DefaultKeyringDir() (string, error) {
 	return filepath.Join(home, ".local", "share", "keyrings"), nil
 }
 
+// IsPasswordlessKeyring reports whether a keyring file uses the plaintext
+// GKeyFile representation. This is the intentional high-risk state in which
+// GNOME Keyring can load the login collection without a master passphrase.
+// Encrypted keyrings are opaque here and return false without being treated as
+// malformed.
+func IsPasswordlessKeyring(path string) (bool, error) {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return false, fmt.Errorf("read keyring file: %w", err)
+	}
+	return strings.HasPrefix(string(contents), "[keyring]"), nil
+}
+
 // parseKeyringFile splits a keyring file into fields with their line spans.
 //
 // It returns an error when re-joining the parsed spans does not reproduce the

@@ -91,6 +91,7 @@ const (
 	TargetKindPackage      TargetKind = "package"
 	TargetKindControlPlane TargetKind = "control-plane"
 	TargetKindDocs         TargetKind = "docs"
+	TargetKindProject      TargetKind = "project"
 )
 
 // TargetSpec describes how one target kind is discovered. Roots are always

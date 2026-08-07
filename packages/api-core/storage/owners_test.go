@@ -67,6 +67,26 @@ func TestLoadOwnerInventoryPreservesExplicitEmptyDeclaration(t *testing.T) {
 	}
 }
 
+func TestLoadOwnerInventoryAcceptsClassDeclarationWithoutHostPath(t *testing.T) {
+	root := t.TempDir()
+	writeOwnerFixture(t, filepath.Join(root, "scenarios", "class-only", ".vrooli", "service.json"), `{"service":{"name":"class-only"},"storage":{"entries":{"data":{"rung":"owned","class":"data","subpath":"records","kind":"dir"}}}}`)
+	inventory, err := LoadOwnerInventory(InventoryOptions{RepoRoot: root, Platform: PlatformLinux, PlatformSeams: PlatformSeams{UserHomeDir: func() (string, error) { return filepath.Join(root, "home"), nil }}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := ownerByKind(inventory.Owners, OwnerScenario)
+	if owner == nil || len(owner.StorageEntries) != 1 {
+		t.Fatalf("class-only owner = %#v", owner)
+	}
+	entry := owner.StorageEntries[0]
+	if entry.Class != ClassData || entry.Subpath != "records" || entry.Path.Value != "" {
+		t.Fatalf("class-only entry = %#v", entry)
+	}
+	if len(inventory.Findings) != 0 {
+		t.Fatalf("class-only findings = %#v", inventory.Findings)
+	}
+}
+
 func TestLoadOwnerInventoryReportsMalformedManifestWithContext(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "resources", "broken", "resource.json")

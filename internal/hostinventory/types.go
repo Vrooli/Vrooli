@@ -28,6 +28,7 @@ type Snapshot struct {
 	Memory                  Memory                  `json:"memory"`
 	Swap                    Swap                    `json:"swap"`
 	GPUs                    []GPU                   `json:"gpus"`
+	NvidiaDeviceNodes       []string                `json:"nvidia_device_nodes,omitempty"`
 	GPUProcesses            []GPUProcess            `json:"gpu_processes,omitempty"`
 	RuntimeTools            map[string]Tool         `json:"runtime_tools,omitempty"`
 	DockerGPU               DockerGPU               `json:"docker_gpu"`
@@ -78,7 +79,8 @@ type RemoteDesktopCapability struct {
 
 // CredentialStoreCapability is the result of a real Secret Service read. A
 // successful D-Bus peer ping is deliberately not considered evidence that the
-// store can serve credentials.
+// store can serve credentials. State is one of ready, empty, locked,
+// unresponsive, unavailable, or unsupported.
 type CredentialStoreCapability struct {
 	Supported      bool   `json:"supported"`
 	Observed       bool   `json:"observed"`

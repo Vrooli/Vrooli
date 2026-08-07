@@ -37,6 +37,7 @@ func hostSnapshotResponse(s hostinventory.Snapshot) *cliv1.CliHostSnapshot {
 			FreeBytes:  int64(s.Swap.FreeBytes),
 		},
 		DockerGpu:         &cliv1.CliHostDockerGPU{NvidiaRuntime: s.DockerGPU.NvidiaRuntime},
+		NvidiaDeviceNodes: s.NvidiaDeviceNodes,
 		Warnings:          s.Warnings,
 		DisplayAttached:   s.DisplayAttached,
 		DisplayServer:     s.DisplayServer,

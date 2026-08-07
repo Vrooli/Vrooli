@@ -47,6 +47,8 @@ func TargetKindName(kind commonv1.ValidationTargetKind) string {
 		return "control-plane"
 	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS:
 		return "docs"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT:
+		return "project"
 	default:
 		return ""
 	}

@@ -251,7 +251,7 @@
     {
       "type": "http",
       "kind": "readiness",
-      "target": "http://127.0.0.1:8123/api/",
+      "target": "http://127.0.0.1:8123/manifest.json",
       "interval_seconds": 10,
       "timeout_seconds": 10
     }

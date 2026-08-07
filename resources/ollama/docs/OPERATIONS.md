@@ -24,3 +24,23 @@ Do not turn `cli/main.go` into the implementation surface. If the resource needs
 - The `runtime.memory_limit` cap (`12g`) is the OOM-kill ceiling that replaced the old host-systemd cgroup limits — keep it set.
 - Prefer shared `vrooli resource ...` lifecycle behavior before adding resource-local commands.
 - If `start` fails on a port conflict, a non-container host process owns `:11434`; the driver's preflight prints the remediation. Stop that process, then retry.
+
+## GPU access and processor diagnosis
+
+`vrooli resource status ollama --json --no-stale-check` includes the
+container-scoped `raw.gpu_state`, `raw.gpu_reason`, and `raw.processor` fields.
+The GPU state is based on opening `/dev/nvidiactl` inside the running container,
+not merely on host `nvidia-smi`. `revoked` is degraded and `unknown` is not
+healthy.
+
+To inspect the live Ollama `/api/ps` processor placement directly:
+
+```text
+resource-ollama health-gpu --json
+resource-ollama capacity plan --scenario <name> --json
+```
+
+The first command reports `gpu`, `cpu`, `mixed`, or `unknown` placement and
+returns a failure when the host has an NVIDIA GPU while a loaded model is on
+CPU. Capacity output keeps host GPU facts separate from the live processor
+observation. Repair container access with `vrooli resource restart ollama`.

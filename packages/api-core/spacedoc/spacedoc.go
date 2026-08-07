@@ -4,19 +4,20 @@ package spacedoc
 // and required by .vrooli/schemas/space-definition.schema.json.
 const SchemaVersion = "v1"
 
-// Projection identifies one of the three readiness projections.
+// Projection identifies one of the readiness projections.
 type Projection string
 
 const (
 	ProjectionAnswer   Projection = "answer"
 	ProjectionValidate Projection = "validate"
 	ProjectionGuide    Projection = "guide"
+	ProjectionAct      Projection = "act"
 )
 
-// Valid reports whether p is one of the three known projections.
+// Valid reports whether p is one of the known projections.
 func (p Projection) Valid() bool {
 	switch p {
-	case ProjectionAnswer, ProjectionValidate, ProjectionGuide:
+	case ProjectionAnswer, ProjectionValidate, ProjectionGuide, ProjectionAct:
 		return true
 	default:
 		return false

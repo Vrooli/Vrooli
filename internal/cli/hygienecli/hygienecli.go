@@ -19,7 +19,6 @@ type Request struct {
 	ContractOnly bool
 	PlansOnly    bool
 	DriftOnly    bool
-	PnpmOnly     bool
 	NoDrift      bool
 	NoFreshness  bool
 }
@@ -49,7 +48,6 @@ func CommandSpec() commandtree.Spec[string] {
 				{Name: "--plans-only", Description: "Run only plan lifecycle hygiene checks"},
 				{Name: "--contract-only", Description: "Run only repository contract hygiene checks"},
 				{Name: "--drift-only", Description: "Run only SDA-backed dependency freshness hygiene"},
-				{Name: "--pnpm-only", Description: "Run only the pnpm workspace config checks"},
 				{Name: "--no-drift", Description: "Skip SDA-backed dependency freshness hygiene"},
 				{Name: "--no-freshness", Description: "Skip the advisory test-freshness check (changed scenarios vs test-genie runs)"},
 				commandtree.JSONOption(),
@@ -92,16 +90,15 @@ func ParseRequest(args []string) (Request, error) {
 	plansOnly := parsed.HasFlag("--plans-only")
 	contractOnly := parsed.HasFlag("--contract-only")
 	driftOnly := parsed.HasFlag("--drift-only")
-	pnpmOnly := parsed.HasFlag("--pnpm-only")
 	noDrift := parsed.HasFlag("--no-drift")
 	onlyCount := 0
-	for _, set := range []bool{plansOnly, contractOnly, driftOnly, pnpmOnly} {
+	for _, set := range []bool{plansOnly, contractOnly, driftOnly} {
 		if set {
 			onlyCount++
 		}
 	}
 	if onlyCount > 1 {
-		return Request{}, fmt.Errorf("--plans-only, --contract-only, --drift-only, and --pnpm-only are mutually exclusive")
+		return Request{}, fmt.Errorf("--plans-only, --contract-only, and --drift-only are mutually exclusive")
 	}
 	if driftOnly && noDrift {
 		return Request{}, fmt.Errorf("--drift-only and --no-drift are mutually exclusive")
@@ -114,7 +111,6 @@ func ParseRequest(args []string) (Request, error) {
 		PlansOnly:    plansOnly,
 		ContractOnly: contractOnly,
 		DriftOnly:    driftOnly,
-		PnpmOnly:     pnpmOnly,
 		NoDrift:      noDrift,
 		NoFreshness:  parsed.HasFlag("--no-freshness"),
 	}, nil

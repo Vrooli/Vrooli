@@ -157,6 +157,53 @@ func ReadEnforcementReceipt(ownerID string) (EnforcementReceipt, error) {
 	return receipt, nil
 }
 
+// RecordEnforcementReceipt publishes durable evidence for a one-shot or
+// framework-owned enforcement cycle. It is shared by control-plane adapters
+// that enforce native storage entries directly rather than constructing a
+// component Manager.
+func RecordEnforcementReceipt(ownerID string, now time.Time, cycleErr error) error {
+	path, err := EnforcementReceiptPath(ownerID)
+	if err != nil {
+		return err
+	}
+	if now.IsZero() {
+		now = time.Now()
+	}
+	receipt := EnforcementReceipt{Owner: ownerID, LastCycleTime: now}
+	if previous, readErr := os.ReadFile(path); readErr == nil {
+		var prior EnforcementReceipt
+		if json.Unmarshal(previous, &prior) == nil {
+			receipt.LastEnforcementTime = prior.LastEnforcementTime
+		}
+	}
+	if cycleErr == nil {
+		receipt.LastEnforcementTime = &receipt.LastCycleTime
+	} else {
+		receipt.LastError = cycleErr.Error()
+	}
+	data, err := json.MarshalIndent(receipt, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".enforcement-receipt-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer func() { _ = os.Remove(tmpPath) }()
+	if _, err := tmp.Write(append(data, '\n')); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, path)
+}
+
 // OwnerKind identifies the manifest owner whose storage budgets are enforced.
 // The wire contract is shared by scenarios, resources, tools, and safeguards;
 // keeping the owner identity here prevents each owner type from inventing a

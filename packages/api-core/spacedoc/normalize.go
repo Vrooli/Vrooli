@@ -75,7 +75,8 @@ func classifyHeader(h string) string {
 	case l == "#" || l == "id":
 		return "id"
 	case strings.Contains(l, "question"), strings.Contains(l, "concern"),
-		strings.Contains(l, "swe task"), l == "task":
+		strings.Contains(l, "swe task"), strings.Contains(l, "operation"),
+		l == "task":
 		return "question"
 	case strings.Contains(l, "owner"), strings.Contains(l, "guiding skill"),
 		strings.Contains(l, "skill"):
@@ -100,6 +101,8 @@ func normalizeProjection(s string) Projection {
 		return ProjectionValidate
 	case "guide":
 		return ProjectionGuide
+	case "act":
+		return ProjectionAct
 	default:
 		return ""
 	}

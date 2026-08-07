@@ -191,6 +191,16 @@
       "command": ["resource-ollama", "health-ready"],
       "interval_seconds": 10,
       "timeout_seconds": 10
+    },
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "resource-ollama",
+        "health-gpu"
+      ],
+      "interval_seconds": 30,
+      "timeout_seconds": 10
     }
   ],
   "runtime": {

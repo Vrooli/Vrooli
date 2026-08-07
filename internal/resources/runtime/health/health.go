@@ -32,6 +32,12 @@ func RunChecks(ctx context.Context, checks []manifestpkg.ResourceHealthCheck, cf
 		return Result{}, nil
 	}
 	for _, check := range checks {
+		// Liveness checks are supplementary telemetry. They must not turn a
+		// reachable, CPU-degraded resource into an unready resource; callers
+		// that need the liveness verdict can invoke that command directly.
+		if strings.EqualFold(strings.TrimSpace(check.Kind), "liveness") {
+			continue
+		}
 		result, err := RunCheck(ctx, check, cfg)
 		if err != nil {
 			return result, err

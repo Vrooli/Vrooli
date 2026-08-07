@@ -101,35 +101,16 @@ func ResolvePortablePath(entryName string, path PortablePath, requested Platform
 	return resolvePortableTokens(platform, value, mergeSeams(DefaultSeams(platform, identity), seams))
 }
 
-// ResolveOwnerStoragePath resolves one declaration using the owner's native
-// manifest location for relative paths and portable tokens for host paths.
-// Scenario declarations are relative to the scenario directory. Other owner
-// declarations are relative to the directory that contains their manifest.
-// This keeps inventory, census, placement, and adoption consumers on one path
-// contract instead of each consumer inventing its own base directory.
+// ResolveOwnerStoragePath is the compatibility entry point for owner-aware
+// resolution. The Resolver is the only implementation of the decision; this
+// function exists so existing inventory and retention callers can migrate
+// without carrying a second path authority.
 func ResolveOwnerStoragePath(repoRoot string, owner OwnerManifest, entry StorageEntry, requested Platform, seams PlatformSeams) (string, error) {
-	platform := NormalizePlatform(string(requested))
-	if platform == "" {
-		return "", fmt.Errorf("unsupported storage platform %q", requested)
+	resolver, err := NewResolver(ResolverConfig{UserHomeDir: seams.UserHomeDir})
+	if err != nil {
+		return "", err
 	}
-	if !platformIncluded(EffectivePlatforms(owner, entry), platform) {
-		return "", &NotApplicable{Entry: entry.Name, Platform: platform}
-	}
-	value := strings.TrimSpace(entry.Path.Value)
-	if entry.Path.ByOS != nil || isAbsoluteFor(platform, value) || containsPortableToken(value) {
-		return ResolvePortablePath(entry.Name, entry.Path, platform, seams)
-	}
-	if value == "" {
-		return "", fmt.Errorf("storage path is empty")
-	}
-	base := filepath.Dir(owner.ManifestPath)
-	if owner.Kind == OwnerScenario {
-		base = filepath.Dir(base)
-	}
-	if !filepath.IsAbs(base) && strings.TrimSpace(repoRoot) != "" {
-		base = filepath.Join(repoRoot, base)
-	}
-	return filepath.Clean(filepath.Join(base, filepath.FromSlash(value))), nil
+	return resolver.ResolveOwner(repoRoot, owner, entry, requested, seams)
 }
 
 func containsPortableToken(value string) bool {

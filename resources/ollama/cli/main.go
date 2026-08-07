@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/capacity"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/capacitysync"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/config"
@@ -118,6 +121,46 @@ func healthReady(_ []string) error {
 	return nil
 }
 
+func healthGPU(args []string) error {
+	fs := flag.NewFlagSet("health-gpu", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "emit JSON")
+	fs.SetOutput(os.Stderr)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	models, err := ensure.NewClient().ListRunning(ctx)
+	if err != nil {
+		return err
+	}
+	report := ensure.SummarizeProcessors(models)
+	host, hostErr := hostinventory.Collect(ctx)
+	hostGPU := hostErr == nil && host.HasNvidiaGPU()
+	payload := map[string]any{
+		"processor":            report.Processor,
+		"models":               report.Models,
+		"has_cpu_model":        report.HasCPUModel,
+		"has_gpu_model":        report.HasGPUModel,
+		"host_nvidia_gpu":      hostGPU,
+		"host_inventory_error": "",
+	}
+	if hostErr != nil {
+		payload["host_inventory_error"] = hostErr.Error()
+	}
+	if *jsonOutput {
+		if err := json.NewEncoder(os.Stdout).Encode(payload); err != nil {
+			return err
+		}
+	} else {
+		fmt.Fprintf(os.Stdout, "processor: %s (models: %d, host_nvidia_gpu: %t)\n", report.Processor, len(models), hostGPU)
+	}
+	if hostGPU && report.HasCPUModel {
+		return fmt.Errorf("loaded Ollama model is executing on CPU while the host exposes an NVIDIA GPU")
+	}
+	return nil
+}
+
 func newApp() (*cliapp.ResourceApp, error) {
 	env := cliapp.StandardResourceEnv(appName, cliapp.ResourceEnvOptions{})
 	app, err := cliapp.NewResourceApp(cliapp.ResourceOptions{
@@ -134,7 +177,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	app.SetCommandsWithSubgroups(
-		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Health", Commands: []cliapp.Command{{Name: "health-ready", Description: "Succeed only when at least one model is installed", Run: healthReady}}}, ensure.CommandGroup(newAdmissionValidator()),
+		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Health", Commands: []cliapp.Command{{Name: "health-ready", Description: "Succeed only when at least one model is installed", Run: healthReady}, {Name: "health-gpu", Description: "Report the processor used by every loaded model", Run: healthGPU}}}, ensure.CommandGroup(newAdmissionValidator()),
 			cliapp.CommandGroup{Title: "Capacity", Commands: []cliapp.Command{capacitysync.Command(nil)}}),
 		[]cliapp.SubcommandGroup{gateway.Commands(nil), capacity.Commands(nil), policycmd.Commands(nil), models.Commands(nil)},
 	)

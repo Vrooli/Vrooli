@@ -29,6 +29,18 @@ func TestRunChecksHTTPHealthy(t *testing.T) {
 	}
 }
 
+func TestRunChecksSkipsLivenessTelemetry(t *testing.T) {
+	result, err := RunChecks(context.Background(), []manifestpkg.ResourceHealthCheck{
+		{Kind: "liveness", Type: "command", Command: []string{"not-a-real-command"}},
+	}, Config{})
+	if err != nil {
+		t.Fatalf("RunChecks: %v", err)
+	}
+	if !result.Healthy {
+		t.Fatalf("liveness telemetry must not make readiness unhealthy: %+v", result)
+	}
+}
+
 func TestRunCheckHTTPRendersEnvironmentTarget(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)

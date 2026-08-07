@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 const (
@@ -39,7 +39,7 @@ func (DefaultProvider) Current(ctx context.Context, home string) (Snapshot, erro
 		return Snapshot{}, ctx.Err()
 	default:
 	}
-	if runtime.GOOS == "linux" {
+	if hostreqspec.CurrentPlatform() == "linux" {
 		bootID, err := readTextFile(linuxBootIDPath)
 		if err == nil && bootID != "" {
 			return Snapshot{BootID: bootID, SessionID: bootID, Source: "linux_boot_id"}, nil

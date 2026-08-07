@@ -14,8 +14,10 @@
 package ollamaresourcecontrols
 
 import (
+	"context"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/daemonreload"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -131,9 +133,9 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"daemon-reload"}, opts); err != nil {
+	if _, err := daemonreload.Reload(context.Background(), daemonreload.CurrentRoot(), opts); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, "drop-in written but systemctl daemon-reload failed: "+err.Error())
+		status.Notes = append(status.Notes, "drop-in written but daemon-reload/ GPU repair failed: "+err.Error())
 		return status, nil
 	}
 

@@ -8,7 +8,6 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/repocontractcheck"
 )
 
 // TestRenderValidateJSONContract pins the `contract validate --json` wire shape.
@@ -17,11 +16,11 @@ func TestRenderValidateJSONContract(t *testing.T) {
 		Success: true,
 		Root:    "/repo",
 		Schema:  contractapp.ValidationCheck{Passed: true, Message: "ok"},
-		Report: repocontractcheck.Report{
+		Report: contractapp.Report{
 			Root:         "/repo",
 			ContractPath: "/repo/.vrooli/repo-contract.json",
 			Success:      true,
-			Checks: []repocontractcheck.CheckResult{
+			Checks: []contractapp.CheckResult{
 				{Name: "phase1_semantics", Passed: true, Message: "ok"},
 			},
 		},

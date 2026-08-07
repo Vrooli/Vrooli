@@ -351,31 +351,37 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 	}
 	var config map[string]any
 	var configError string
+	var configUnconfigured string
+	var configNonDefault bool
 	platforms := append([]string(nil), declaration.Platforms...)
 	if kind == KindSafeguard {
 		manifest := s.catalog.safeguards[key]
 		platforms = mergeUnique(platforms, manifest.Platforms)
-		config, configError = resolveSafeguardConfig(key, manifest, s.operatorState.config(kind, key))
+		recordedConfig := s.operatorState.config(kind, key)
+		config, configError, configUnconfigured = resolveSafeguardConfig(key, manifest, recordedConfig, declaration.Required)
+		configNonDefault = configDiffersFromDefaults(manifest, recordedConfig)
 	}
 	resolved, exists := target[key]
 	if !exists {
 		target[key] = &ResolvedRequirement{
-			Name:           key,
-			Kind:           kind,
-			Required:       declaration.Required,
-			Manual:         declaration.Manual,
-			Privilege:      privilege,
-			Bundling:       bundling,
-			Reasons:        uniqueStrings([]string{strings.TrimSpace(declaration.Reason)}),
-			When:           uniqueStrings(declaration.When),
-			Environments:   uniqueStrings(declaration.Environments),
-			Platforms:      uniqueStrings(platforms),
-			Notes:          uniqueStrings([]string{strings.TrimSpace(declaration.Notes)}),
-			Provenance:     []Provenance{provenance},
-			Requires:       declaration.Requires,
-			OperatorChoice: s.operatorState.choice(kind, key),
-			Config:         config,
-			ConfigError:    configError,
+			Name:               key,
+			Kind:               kind,
+			Required:           declaration.Required,
+			Manual:             declaration.Manual,
+			Privilege:          privilege,
+			Bundling:           bundling,
+			Reasons:            uniqueStrings([]string{strings.TrimSpace(declaration.Reason)}),
+			When:               uniqueStrings(declaration.When),
+			Environments:       uniqueStrings(declaration.Environments),
+			Platforms:          uniqueStrings(platforms),
+			Notes:              uniqueStrings([]string{strings.TrimSpace(declaration.Notes)}),
+			Provenance:         []Provenance{provenance},
+			Requires:           declaration.Requires,
+			OperatorChoice:     s.operatorState.choice(kind, key),
+			Config:             config,
+			ConfigError:        configError,
+			ConfigUnconfigured: configUnconfigured,
+			ConfigNonDefault:   configNonDefault,
 		}
 		return
 	}
@@ -397,6 +403,15 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 	resolved.Platforms = mergeUnique(resolved.Platforms, declaration.Platforms)
 	resolved.Notes = mergeUnique(resolved.Notes, []string{strings.TrimSpace(declaration.Notes)})
 	resolved.Provenance = append(resolved.Provenance, provenance)
+	if configError != "" {
+		resolved.ConfigError = configError
+	}
+	if configUnconfigured != "" {
+		resolved.ConfigUnconfigured = configUnconfigured
+	}
+	if configNonDefault {
+		resolved.ConfigNonDefault = true
+	}
 	sort.Slice(resolved.Provenance, func(i, j int) bool {
 		if resolved.Provenance[i].Kind == resolved.Provenance[j].Kind {
 			if resolved.Provenance[i].Name == resolved.Provenance[j].Name {

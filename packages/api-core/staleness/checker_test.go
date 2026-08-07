@@ -211,6 +211,36 @@ func TestChecker_LifecycleManagedManifestPreservesExactInputs(t *testing.T) {
 	}
 }
 
+func TestInferManifestContextRootPrefersRepoRootForRepoRelativeInputs(t *testing.T) {
+	repoRoot := t.TempDir()
+	apiDir := filepath.Join(repoRoot, "scenarios", "demo", "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(repoRoot, "packages", "api-core"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{
+		filepath.Join(repoRoot, "go.mod"),
+		filepath.Join(apiDir, "go.mod"),
+		filepath.Join(repoRoot, "packages", "api-core", "go.mod"),
+	} {
+		if err := os.WriteFile(path, []byte("module test\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	root, err := inferManifestContextRoot(apiDir, cliutil.FreshnessManifest{
+		Inputs: []string{"go.mod", "packages/api-core/go.mod", "scenarios/demo/api"},
+	})
+	if err != nil {
+		t.Fatalf("inferManifestContextRoot: %v", err)
+	}
+	if root != repoRoot {
+		t.Fatalf("context root = %q, want repo root %q", root, repoRoot)
+	}
+}
+
 func TestChecker_LifecycleManagedStaleManifestDefersRebuildToLifecycle(t *testing.T) {
 	repoRoot := t.TempDir()
 	apiDir := filepath.Join(repoRoot, "scenarios", "demo", "api")

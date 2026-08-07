@@ -21,20 +21,31 @@ func TestParseStatusRequestRejectsConflictingFilters(t *testing.T) {
 }
 
 func TestParseSetupOptionsAcceptsFlags(t *testing.T) {
-	opts, err := ParseSetupOptions([]string{"--environment", "minimal", "--resources", "none", "--yes", "yes", "--sudo-mode", "skip", "--result-file", "/tmp/setup-result.json", "--dry-run"})
+	opts, err := ParseSetupOptions([]string{"--environment", "minimal", "--resources", "none", "--yes", "yes", "--sudo-mode", "skip", "--result-file", "/tmp/setup-result.json", "--dry-run", "--maintenance-window"})
 	if err != nil {
 		t.Fatalf("ParseSetupOptions: %v", err)
 	}
 	want := projectsetup.Options{
-		Environment: "minimal",
-		Resources:   "none",
-		Yes:         "yes",
-		SudoMode:    "skip",
-		ResultPath:  "/tmp/setup-result.json",
-		DryRun:      true,
+		Environment:       "minimal",
+		Resources:         "none",
+		Yes:               "yes",
+		SudoMode:          "skip",
+		MaintenanceWindow: true,
+		ResultPath:        "/tmp/setup-result.json",
+		DryRun:            true,
 	}
 	if opts != want {
 		t.Fatalf("opts = %+v, want %+v", opts, want)
+	}
+}
+
+func TestParseSetupOptionsMaintenanceWindowDefaultsFalse(t *testing.T) {
+	opts, err := ParseSetupOptions(nil)
+	if err != nil {
+		t.Fatalf("ParseSetupOptions: %v", err)
+	}
+	if opts.MaintenanceWindow {
+		t.Fatal("MaintenanceWindow = true without --maintenance-window")
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	edacmodules "github.com/vrooli/vrooli/internal/safeguards/edac-modules"
 	hosthardening "github.com/vrooli/vrooli/internal/safeguards/host-hardening"
 	kernelconfig "github.com/vrooli/vrooli/internal/safeguards/kernel-config"
+	loginkeyringunlock "github.com/vrooli/vrooli/internal/safeguards/login-keyring-unlock"
 	modelpolicydrift "github.com/vrooli/vrooli/internal/safeguards/model-policy-drift"
 	natprotection "github.com/vrooli/vrooli/internal/safeguards/nat-protection"
 	"github.com/vrooli/vrooli/internal/safeguards/netconsole"
@@ -81,6 +82,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"edac_modules":                    edacmodules.NewHandler,
 	"host_hardening":                  hosthardening.NewHandler,
 	"kernel_config":                   kernelconfig.NewHandler,
+	"login_keyring_unlock":            loginkeyringunlock.NewHandler,
 	"nat_protection":                  natprotection.NewHandler,
 	"netconsole":                      netconsole.NewHandler,
 	"nvidia_driver":                   nvidiadriver.NewHandler,
