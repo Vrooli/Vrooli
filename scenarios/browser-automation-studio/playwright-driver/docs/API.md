@@ -49,9 +49,41 @@ Create a new browser automation session.
     "tracing": true,
     "tabs": false,
     "iframes": true
+  },
+  "electron_target": {  // optional; attach to a scenario-to-desktop target
+    "target_id": "target-opaque-id",
+    "cdp_endpoint": "http://127.0.0.1:43123",
+    "renderer_id": "renderer-opaque-id",
+    "renderer_url": "file:///controlled/index.html",
+    "renderer_title": "Controlled Desktop",
+    "context_id": "validation-context-id",
+    "cdp_transport": "loopback-authenticated"
+  },
+  "validation_context": {  // optional run/cell binding
+    "context_id": "validation-context-id",
+    "scenario_name": "example-app",
+    "artifact_digest": "sha256:...",
+    "target_id": "target-opaque-id",
+    "workflow_id": "workflow-id",
+    "profile_id": "normal"
   }
 }
 ```
+
+When `electron_target` is present, BAS connects to the already-running,
+scenario-to-desktop-owned Electron app. The endpoint must be an explicit
+numeric loopback HTTP endpoint with no credentials or query data. BAS verifies
+the renderer identity through `/json/list`, requires the target's context ID,
+reuses the normal workflow and
+instruction machinery, and detaches on session close without closing the
+desktop page or context. The desktop target remains responsible for process,
+profile, port, and artifact cleanup.
+
+When supplied, `validation_context` must match the target, artifact, scenario,
+workflow, and profile selected by the cell. Existing BAS `browser_profile`
+extra headers (including the `X-Vrooli-Test-Mode` marker installed by
+workflow-health) are applied to the attached browser context; BAS does not
+acquire or bypass the workflow-health isolation lease.
 
 **Response** (200 OK):
 ```json

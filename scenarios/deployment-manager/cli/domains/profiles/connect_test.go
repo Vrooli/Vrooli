@@ -16,12 +16,15 @@ type profileConnectService struct{}
 func (profileConnectService) ListProfiles(context.Context, *connect.Request[profilesv1.ListProfilesRequest]) (*connect.Response[profilesv1.ListProfilesResponse], error) {
 	return connect.NewResponse(&profilesv1.ListProfilesResponse{Profiles: []*profilesv1.Profile{{Id: "p1", Name: "demo", Scenario: "example"}}}), nil
 }
+
 func (profileConnectService) GetProfile(context.Context, *connect.Request[profilesv1.GetProfileRequest]) (*connect.Response[profilesv1.GetProfileResponse], error) {
 	return connect.NewResponse(&profilesv1.GetProfileResponse{Profile: &profilesv1.Profile{Id: "p1", Name: "demo", Scenario: "example"}}), nil
 }
+
 func (profileConnectService) CreateProfile(_ context.Context, request *connect.Request[profilesv1.CreateProfileRequest]) (*connect.Response[profilesv1.CreateProfileResponse], error) {
 	return connect.NewResponse(&profilesv1.CreateProfileResponse{Profile: &profilesv1.Profile{Id: "created", Name: request.Msg.GetName(), Scenario: request.Msg.GetScenario(), Tiers: request.Msg.GetTiers()}}), nil
 }
+
 func (profileConnectService) UpdateProfile(_ context.Context, request *connect.Request[profilesv1.UpdateProfileRequest]) (*connect.Response[profilesv1.UpdateProfileResponse], error) {
 	name := "updated"
 	if request.Msg.Name != nil {
@@ -29,9 +32,11 @@ func (profileConnectService) UpdateProfile(_ context.Context, request *connect.R
 	}
 	return connect.NewResponse(&profilesv1.UpdateProfileResponse{Profile: &profilesv1.Profile{Id: request.Msg.GetProfileId(), Name: name, Scenario: request.Msg.GetScenario()}}), nil
 }
+
 func (profileConnectService) DeleteProfile(_ context.Context, request *connect.Request[profilesv1.DeleteProfileRequest]) (*connect.Response[profilesv1.DeleteProfileResponse], error) {
 	return connect.NewResponse(&profilesv1.DeleteProfileResponse{ProfileId: request.Msg.GetProfileId()}), nil
 }
+
 func (profileConnectService) ListProfileVersions(context.Context, *connect.Request[profilesv1.ListProfileVersionsRequest]) (*connect.Response[profilesv1.ListProfileVersionsResponse], error) {
 	return connect.NewResponse(&profilesv1.ListProfileVersionsResponse{Versions: []*profilesv1.ProfileVersion{{Version: 1, Name: "old", Scenario: "example"}}}), nil
 }
@@ -120,3 +125,4 @@ func (f fakeProfileOperationContext) FlagDeclared(name string) bool {
 }
 func (f fakeProfileOperationContext) FlagProvided(name string) bool { return f.provided[name] }
 func (f fakeProfileOperationContext) Core() *cliapp.ScenarioApp     { return nil }
+func (f fakeProfileOperationContext) Schema() cliapp.ArgSchema      { return cliapp.ArgSchema{} }

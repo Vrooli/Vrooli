@@ -205,6 +205,7 @@ func (b *LinuxBackend) LaunchApp(ctx context.Context, display PlatformDisplay, a
 	default:
 		cmdName = appPath
 	}
+	cmdArgs = append(cmdArgs, opts.ExtraArgs...)
 
 	if opts.DarkMode {
 		cmdArgs = append(cmdArgs, "--force-dark-mode")

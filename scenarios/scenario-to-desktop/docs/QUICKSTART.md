@@ -1,76 +1,82 @@
-# Quick Start
+# Desktop quickstart
 
-## Bundled Desktop Apps (Recommended)
+Use the bundled path for a self-contained application. Use the thin-client path
+when a Tier 1 server remains the source of truth.
 
-The recommended approach creates bundled desktop applications. Offline use is
-claimed only after the selected dependency matrix and native journey evidence
-pass; cloud/remote dependencies remain network-dependent:
+## Bundled application
 
-```bash
-# Create a deployment profile for your scenario
-deployment-manager profile create my-profile my-scenario --tier 2
+1. Start the deployment services through the lifecycle manager:
 
-# Build the complete desktop app (binaries + Electron + installers)
-deployment-manager deploy-desktop --profile my-profile
-```
-
-This creates installers for Windows, macOS, and Linux. Package creation is not
-runtime proof for every target: native visual evidence is currently qualified
-on Linux, while other platforms remain package/compile claims unless executed.
-
-See [Hello Desktop Tutorial](../../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md) for a complete walkthrough.
-
----
-
-## Thin Client Mode (Alternative)
-
-Use thin client only when you need multiple users connecting to a shared server.
-
-### Using the UI
-
-1. **Start scenario-to-desktop**
    ```bash
-   cd scenarios/scenario-to-desktop
-   make start        # preferred; or: vrooli scenario start scenario-to-desktop
-   ```
-   Note the UI/API ports from `make logs` or `vrooli scenario status scenario-to-desktop`.
-
-2. **Open the web UI**
-   - Visit `http://localhost:<UI_PORT>` and go to **Scenario Inventory → Generate Desktop**.
-   - Select `Deployment Mode = Thin Client (external-server)`.
-   - Paste the Cloudflare/app-monitor proxy URL (or LAN URL) for the target scenario.
-
-3. **Generate installers**
-   - Select Windows/macOS/Linux; the service runs `npm install`, `npm run build`, and `npm run dist`.
-   - Telemetry is written inside the generated app at `deployment-telemetry.jsonl`.
-
-4. **Distribute & collect telemetry**
-   - Ask testers for the telemetry file and upload via the UI, or run:
-     ```bash
-     scenario-to-desktop telemetry ingest "my-scenario" --file "telemetry.jsonl"
-     ```
-
-5. **Stop services when done**
-   ```bash
-   make stop     # or: vrooli scenario stop scenario-to-desktop
+   vrooli scenario start deployment-manager
+   vrooli scenario start scenario-to-desktop
    ```
 
-### CLI pipeline path
+2. Create a deployment-manager profile:
 
-The interactive deployment-mode fields are configured in the UI. Use the CLI
-to start and inspect the resulting packaging pipeline:
+   ```bash
+   deployment-manager profile create my-profile my-scenario --tier 2
+   ```
+
+3. Review dependency fitness and target limitations:
+
+   ```bash
+   deployment-manager analyze my-scenario
+   deployment-manager fitness my-scenario --tier 2
+   ```
+
+4. Run the desktop pipeline:
+
+   ```bash
+   deployment-manager deploy-desktop \
+     --profile my-profile \
+     --platforms linux \
+     --timeout 20m
+   ```
+
+   Add the other target platforms only when their artifacts and native
+   validation environment are available.
+
+5. Inspect the generated artifact, runtime plan, and evidence before treating
+   the result as a release. Package creation is not proof of native runtime
+   behavior.
+
+The bundled path requires a target-compatible dependency plan. A required
+resource that is unsupported for the target must remain visible as a named
+limitation; it must not be silently omitted.
+
+## Thin client
+
+1. Start the target scenario through the Tier 1 lifecycle.
+2. Start `scenario-to-desktop`:
+
+   ```bash
+   vrooli scenario start scenario-to-desktop
+   ```
+
+3. In the scenario-to-desktop UI, select `external-server` and configure the
+   target scenario API URL. Use a LAN or explicitly managed app-monitor route.
+4. Generate the wrapper and platform package.
+5. Validate the route and real scenario interaction before distribution.
+
+The thin client contains the desktop shell and UI assets. It does not contain
+the Tier 1 API or resources and cannot operate offline.
+
+## Focused commands
 
 ```bash
-scenario-to-desktop pipeline run "my-scenario"
+# Start the scenario-owned service
+make start
+
+# Run the server-owned scenario suite
+vrooli scenario test scenario-to-desktop
+
+# Inspect the generated pipeline
+scenario-to-desktop pipeline active --help
 scenario-to-desktop pipeline list
 ```
 
-### Thin client preconditions
-- Target scenario is already running and reachable (LAN or Cloudflare).
-- UI build exists at `ui/dist` for the target scenario.
-- For Windows installers on Linux, follow `docs/guides/wine-installation.md`.
-
-### Check build artifacts (CLI)
-```bash
-scenario-to-desktop desktop-status
-```
+Use the [build guide](guides/build-and-packaging.md) for platform prerequisites,
+the [smoke-test reference](reference/smoke-test-pipeline.md) for evidence, and
+the [Deployment Hub](../../../docs/deployment/README.md) for ownership and
+target maturity.

@@ -1,77 +1,151 @@
-# Overview: Bundled Offline Desktop Apps
+# Scenario-to-desktop documentation
 
-## Recommended: Bundled Offline Mode (Default)
+`scenario-to-desktop` is Vrooli’s deployment Tier 2 ramp. It turns a scenario
+into an Electron desktop application and records the build, target decision,
+preflight, native journey, and publication evidence.
 
-**Bundled mode is the strongly recommended and default option for scenarios
-whose dependency plan is bundle-ready.** It packages the scenario services and
-runtime supervisor for offline use. It resolves every required resource from
-its `resource.json` target profile and stages declared bundled artifacts only
-from a signed release directory (`resource_artifact_root`); it never builds a
-resource on the end-user target. A conditional/degraded requirement is shown
-before runtime, while an unsupported route is a blocking error.
+This folder is the source of truth for desktop implementation. The project
+Deployment Hub defines the cross-target model; deployment-manager defines
+governance and release approval.
 
-### What bundled mode provides
-- Complete offline operation when every required capability has an offline
-  bundle route; cloud/remote resources remain network-dependent by design
-- Runtime supervisor that manages bundled scenario services plus a verified
-  `resource-deployment-plan.json` describing selected resource artifacts
-- Automatic service health monitoring and restart capabilities
-- Secret management and secure configuration
-- Dynamic port allocation to avoid conflicts
-- Full telemetry for deployment insights
-- Cross-platform installers (MSI/PKG/AppImage/DEB)
+## Start with the path you need
 
-### How to deploy bundled apps
-1) Create a deployment profile:
-   ```bash
-   deployment-manager profile create my-profile my-scenario --tier 2
-   ```
-2) Build everything (binaries, Electron wrapper, installers):
-   ```bash
-   deployment-manager deploy-desktop --profile my-profile
-   ```
-3) Distribute the installers to users after the selected dependency matrix and
-   native evidence gates pass. Only verified bundled capabilities are offline;
-   cloud/remote dependencies remain network-dependent.
+| Need | Start here |
+| --- | --- |
+| Understand the two desktop modes | [Deployment modes](concepts/deployment-modes.md) |
+| Build a first application | [Quickstart](QUICKSTART.md) |
+| Add menus, dialogs, tray, or notifications | [Desktop integration](guides/desktop-integration.md) |
+| Package or troubleshoot an artifact | [Build and packaging](guides/build-and-packaging.md) |
+| Build for another operating system | [Cross-platform builds](guides/cross-platform-builds.md) |
+| Configure updates | [Auto-updates](guides/AUTO_UPDATES.md) |
+| Diagnose a bundled AppImage | [Bundled-app logging](guides/logging-bundled-desktop.md) |
+| Validate an interactive desktop session | [Interactive desktop](guides/interactive-desktop.md) |
+| Understand the runtime supervisor | [Runtime README](../runtime/README.md) |
+| Inspect the API or CLI | [API contract](reference/api-contract.md) or [CLI reference](reference/cli-commands.md) |
+| Understand release evidence | [Smoke-test pipeline](reference/smoke-test-pipeline.md) and the [canonical evidence contract](../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md) |
 
-See [Hello Desktop Tutorial](../../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md) for a complete walkthrough.
+## Current support
 
-## Alternative: Thin Client Mode
+| Capability | Status |
+| --- | --- |
+| Electron wrapper generation | Implemented |
+| Thin client (`external-server`) | Supported when the configured Tier 1 API is reachable and validated |
+| Bundled private runtime | Implemented for eligible, verified dependency plans |
+| Resource fallback | Implemented where the deployment plan declares a compatible fallback |
+| Shared provider selection | Implemented as a broker/lease seam; release evidence is environment dependent |
+| Tier 2 peer communication | Unsupported; the resolver candidate is not a peer protocol |
+| Linux native launch and interaction evidence | Primary validated path when the host tools are available |
+| Windows/macOS native runtime evidence | Must be produced on the target; package or compile success is not runtime proof |
+| Cloud API mode | Stub; do not use |
 
-Thin client mode is available for scenarios where you want a lightweight desktop shell that connects to an existing server. Use this when:
-- You already have a Vrooli server running
-- Multiple users need to connect to the same backend
-- You want smaller installer sizes
-- You need real-time data sharing between users
+“Implemented” means the code path and contract exist. It does not mean that a
+scenario is eligible for every platform or that a release is promotable.
 
-### Thin client limitations
-- **Requires server** - API and resources must run elsewhere
-- **No offline mode** - requires network connection to server
-- **UI-only bundles** - copies `ui/dist` assets into the Electron wrapper
+## Desktop validation contract
 
-### Thin client workflow
-1) Start the target scenario: `vrooli scenario start <name>`
-2) Expose via app-monitor/Cloudflare or LAN
-3) In scenario-to-desktop UI, choose Thin Client mode and paste the proxy URL
-4) Build and distribute installers
+Desktop validation is a matrix of immutable cells: one generated artifact,
+one target, one existing BAS journey, and one environment profile. The
+scenario-to-desktop target owns Electron launch, renderer selection, loopback
+CDP security, lifecycle/native evidence, and cleanup. BAS remains the owner of
+semantic workflow execution and workflow artifacts; workflow-health and Test
+Genie remain the owners of journey classification and leased test storage.
 
-## Where this fits
+Each cell carries an explicit disposition (`pass`, `failed`, `degraded`,
+`unavailable`, `unsupported`, `refused`, or `not-run`) and linked layered
+evidence. Missing isolation, target identity, artifact binding, or required
+evidence cannot be represented as a pass. The durable wire contract is
+`scenario-to-desktop/v1/domain/validation.proto`.
 
-scenario-to-desktop is the Tier 2 ramp. It owns build, packaging, signing, publishing, and running the artifact on desktop targets. `deployment-manager` owns the approval gate and the release record, and this pipeline asks it for permission before publishing. See [API Contract](reference/api-contract.md#release-authority).
+The current implementation gap is intentionally explicit: the existing Linux
+native smoke path proves generated-app lifecycle and Hello Desktop behavior.
+The target package now provides an executable Electron session seam: it owns
+argv-safe loopback CDP launch arguments, an ephemeral port, an isolated
+user-data directory, scoped validation environment variables, exact renderer
+selection from `/json/list`, process-group cleanup, and the explicit
+`launch-electron-validation` live-desktop endpoint. It never falls back to the
+first renderer. Existing scenario BAS execution, matrix orchestration, and
+remote bridge desktop transport remain implementation work.
 
-## What's not yet automated
-- The smoke-test journey captures a deterministic startup and interaction evidence trail (recording, screenshots, window geometry, and a durable step list). It is not a replacement for arbitrary `bas/` workflow assets; those remain a separate browser validation concern.
-- `cloud-api` mode remains a stub for future SaaS deployments
-- Electron is the supported desktop framework.
-- Auto-updates, signing, and app-store submissions remain optional/manual
-- Resource artifact execution is limited to the declared bundled modes. Docker,
-  compose, and native-host-tool resources remain explicit host prerequisites
-  until their runtime adapter is selected by a resource profile.
+### Phase 1 target inventory
 
-## Related docs
-- Bundled desktop tutorial: `../../deployment-manager/docs/tutorials/hello-desktop-walkthrough.md`
-- Runtime supervisor details: `runtime/README.md`
-- Choosing deployment modes: `docs/concepts/deployment-modes.md`
-- Build/troubleshoot: `docs/guides/build-and-packaging.md`, `docs/guides/debugging-windows.md`, `docs/guides/wine-installation.md`
-- Bundled runtime logging: `docs/guides/logging-bundled-desktop.md`
-- Resource target/deployment contract: [../../../docs/resources/deployment-contract.md](../../../docs/resources/deployment-contract.md)
+| Target | Current evidence | Capability disposition | Next proof |
+|---|---|---|---|
+| Local Linux/Xvfb | Existing native live-desktop and smoke seams | Eligible for platform conformance; Electron CDP adapter pending | Launch a generated artifact, attach to the selected renderer, and link BAS plus desktop evidence |
+| Linux emulator | No owned emulator adapter or runtime evidence | Unavailable, never an implicit pass | Add an adapter only when its lifecycle and renderer identity are observable |
+| Bridge node | Typed `EvidenceTarget` and bridge dispatch seams exist | Unsupported for remote desktop evidence until bridge transport exists | Implement authenticated bridge-owned desktop transport and reachability evidence |
+| Windows/macOS | Packaging and platform enums exist; no target runtime evidence on this host | Unavailable for release claims | Capture target-native launch, update, native-surface, and shutdown evidence on each target |
+
+The initial representative journey is the existing scenario-to-desktop
+`hello-desktop-console-evidence` BAS case plus the platform lifecycle smoke
+journey. It proves the control-plane fixture and generated-app lifecycle while
+the adapter is developed; a real scenario BAS acceptance case will be added to
+the matrix only after workflow-health exposes its catalog and the leased
+storage boundary is verified.
+
+## Choose a mode
+
+### Bundled private runtime
+
+Use bundled mode when the application must run without a Tier 1 server. The
+bundle contains the UI, scenario services, and only the resource artifacts
+selected by the immutable deployment plan.
+
+Bundled mode can claim offline operation only when every required capability has
+a verified local route and the native journey proves it. A remote API, remote
+secret, cloud model, or host-only tool remains an explicit dependency.
+
+The desktop supervisor owns only private, verified services. It allocates ports,
+starts services in dependency order, applies migrations, resolves credentials,
+checks native readiness, records logs, and shuts services down cleanly.
+
+### External-server thin client
+
+Use this mode when the application connects to an existing Tier 1 server. The
+desktop shell calls the configured scenario API. Tier 1 owns the API, data,
+resources, credentials, and lifecycle.
+
+Thin client mode is not offline mode. It must show server-unavailable,
+authentication, and reconnecting states instead of silently using stale local
+assumptions.
+
+### Shared providers and peers
+
+Shared resource use requires an authenticated broker decision, user consent, a
+scoped lease, and an expiry. The desktop runtime does not receive a root
+credential or provider lifecycle authority.
+
+Another desktop runtime is currently only a provider candidate. Do not document
+Tier 2 peer communication as supported until discovery, identity,
+authentication, capability negotiation, scoped authority, retry/timeout,
+cancellation, replay protection, failure isolation, and shutdown are defined
+and evidenced.
+
+## Release truth
+
+The release pipeline separates these claims:
+
+- source compilation;
+- package creation;
+- artifact integrity and release trust;
+- host/dependency eligibility;
+- native runtime behavior;
+- communication behavior;
+- visual/user journey evidence;
+- promotion eligibility.
+
+A successful window launch or recording does not prove communication. Unsupported
+and unavailable are terminal evidence states, not degraded passes. See the
+[desktop evidence and communication contract](../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md).
+
+## Ownership boundaries
+
+- `deployment-manager` owns profiles, fitness, approval gates, and release records.
+- `scenario-dependency-analyzer` owns dependency graph and target-fitness inputs.
+- `scenario-to-desktop` owns Electron generation, packaging, runtime execution,
+  smoke journeys, and desktop publication handoff.
+- `secrets-manager` and the credential authority own credential declaration,
+  classification, storage, recovery, and diagnosis.
+- `vrooli-bridge` can provide trusted remote execution, but it does not yet
+  provide a desktop-session evidence-transfer protocol.
+
+For project-level context, read the [Deployment Hub](../../../docs/deployment/README.md).

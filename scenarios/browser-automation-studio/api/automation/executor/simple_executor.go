@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -191,6 +192,10 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 	viewportWidth, viewportHeight := extractViewport(req.Plan.Metadata)
 	frameStreamingConfig := extractFrameStreamingConfig(req.Plan.Metadata, req.Plan.ExecutionID)
 	fakeMicrophoneWav := extractFakeMicrophoneWav(req.Plan.Metadata)
+	electronTarget, validationContext, err := extractElectronValidation(req.Plan.Metadata)
+	if err != nil {
+		return err
+	}
 	spec := engine.SessionSpec{
 		ExecutionID:    req.Plan.ExecutionID,
 		WorkflowID:     req.Plan.WorkflowID,
@@ -206,6 +211,8 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 		BrowserProfile:    req.BrowserProfile,
 		StorageState:      req.StorageState,
 		FakeMicrophoneWav: fakeMicrophoneWav,
+		ElectronTarget:    electronTarget,
+		ValidationContext: validationContext,
 	}
 
 	var session engine.EngineSession
@@ -1323,6 +1330,51 @@ func extractFakeMicrophoneWav(metadata map[string]any) string {
 		return strings.TrimSpace(v)
 	}
 	return ""
+}
+
+// extractElectronValidation reads the target seam from execution metadata.
+// Plans are persisted as JSON-shaped metadata, so decode through JSON rather
+// than relying on map type assertions that only work for in-process callers.
+// A target without its run-bound context is rejected before session creation.
+func extractElectronValidation(metadata map[string]any) (*driver.ElectronTarget, *driver.ValidationContext, error) {
+	if metadata == nil {
+		return nil, nil, nil
+	}
+	rawTarget, targetOK := metadata["electron_target"]
+	if !targetOK {
+		rawTarget, targetOK = metadata["electronTarget"]
+	}
+	if !targetOK || rawTarget == nil {
+		return nil, nil, nil
+	}
+	rawContext, contextOK := metadata["validation_context"]
+	if !contextOK {
+		rawContext, contextOK = metadata["validationContext"]
+	}
+	if !contextOK || rawContext == nil {
+		return nil, nil, fmt.Errorf("electron target requires a validation context")
+	}
+
+	var target driver.ElectronTarget
+	if err := decodeExecutionMetadata(rawTarget, &target); err != nil {
+		return nil, nil, fmt.Errorf("decode electron target: %w", err)
+	}
+	var validationContext driver.ValidationContext
+	if err := decodeExecutionMetadata(rawContext, &validationContext); err != nil {
+		return nil, nil, fmt.Errorf("decode Electron validation context: %w", err)
+	}
+	if strings.TrimSpace(validationContext.IsolationLeaseID) == "" {
+		return nil, nil, fmt.Errorf("electron validation context requires an isolation lease")
+	}
+	return &target, &validationContext, nil
+}
+
+func decodeExecutionMetadata(raw any, dst any) error {
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(encoded, dst)
 }
 
 // extractFrameStreamingConfig extracts frame streaming configuration from plan metadata.

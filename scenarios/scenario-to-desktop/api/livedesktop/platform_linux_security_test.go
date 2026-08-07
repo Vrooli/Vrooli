@@ -72,3 +72,34 @@ func TestLinuxBackendOwnsPlatformProcessAndSafeCommandHelpers(t *testing.T) {
 		t.Fatal("display Stop was not reflected")
 	}
 }
+
+func TestLinuxBackendPassesElectronArgumentsWithoutShellExpansion(t *testing.T) {
+	backend := NewLinuxBackend(slog.Default())
+	marker := filepath.Join(t.TempDir(), "argv")
+	script := filepath.Join(t.TempDir(), "desktop-argv-fixture")
+	content := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$ARG_MARKER\"\nsleep 30\n"
+	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	display := &linuxDisplay{md: &screenrecording.ManagedDisplay{DisplayID: ":99", Width: 1280, Height: 720}}
+	process, err := backend.LaunchApp(context.Background(), display, script, LaunchOptions{
+		EnvVars:   map[string]string{"ARG_MARKER": marker},
+		ExtraArgs: []string{"--remote-debugging-port=9223", "--user-data-dir=/tmp/profile with spaces"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer backend.KillApp(process)
+
+	var got []byte
+	for deadline := time.Now().Add(time.Second); time.Now().Before(deadline); {
+		got, _ = os.ReadFile(marker)
+		if len(got) > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if string(got) != "--remote-debugging-port=9223\n--user-data-dir=/tmp/profile with spaces\n" {
+		t.Fatalf("argv = %q", got)
+	}
+}

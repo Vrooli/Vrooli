@@ -79,10 +79,10 @@ scenario root
 │   │
 │   └── build-tools/              # Template generator system
 │
-├── runtime/                      # Bundled runtime for offline apps (production-ready)
+├── runtime/                      # Bundled runtime for eligible offline apps
 │
 └── docs/                         # Documentation
-    ├── OVERVIEW.md               # Current vs roadmap
+    ├── OVERVIEW.md               # Scope, modes, and current support
     ├── QUICKSTART.md             # Getting started
     ├── concepts/                 # Architecture, glossary
     ├── reference/                # API, pipeline docs
@@ -300,7 +300,7 @@ const WINDOW_WIDTH = 1200;
 
 ## Deployment Modes
 
-### Mode 1: Bundled App (Recommended Default)
+### Mode 1: Bundled private runtime
 
 ```
 ┌───────────────────────────────────────────┐
@@ -313,17 +313,18 @@ const WINDOW_WIDTH = 1200;
 ```
 
 **How It Works:**
-1. Complete offline package (UI + API + runtime supervisor)
-2. No server required—everything runs locally
-3. Automatic service health monitoring and restart
-4. Uses deployment-manager orchestration
+1. The target plan selects the UI, API, runtime supervisor, and eligible resource artifacts.
+2. The desktop supervisor starts only verified private services.
+3. Services run locally when every required capability has a local route.
+4. Health, readiness, migrations, ports, secrets, logs, and shutdown are runtime-owned.
 
 **Use When:**
-- Users need offline operation (most scenarios)
-- Full independence from central server
-- Best end-user experience with no server dependencies
+- The dependency plan is eligible for the target OS and architecture.
+- Users need offline operation and all required capabilities are local.
+- The application must own its private runtime rather than use a shared server.
 
-**Status:** Production-ready, **strongly recommended default**
+**Status:** Implemented for eligible plans. Offline and promotion claims require
+target-specific dependency and native journey evidence.
 
 ### Mode 2: Thin Client (Alternative)
 
@@ -345,8 +346,8 @@ const WINDOW_WIDTH = 1200;
 - Real-time data sharing between users
 - You already have server infrastructure
 
-**Status:** Supported deployment mode for shared-server scenarios; live route
-evidence remains dependent on the configured Tier 1 fixture.
+**Status:** Supported deployment mode for shared-server scenarios. The server
+route and real scenario interaction must be validated for each release.
 
 ---
 

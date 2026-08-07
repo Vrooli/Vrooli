@@ -180,6 +180,11 @@ export class BrowserManager {
     return this.pool.getOrLaunch(key, () => this.launchBrowserInternal(key));
   }
 
+  /** Connect to a browser owned by a controlled desktop target. */
+  async connectOverCDP(endpoint: string): Promise<Browser> {
+    return playwrightProvider.chromium.connectOverCDP(endpoint);
+  }
+
   /**
    * Validate a per-session fake microphone WAV request.
    * The path must be absolute (the API layer resolves workflow-relative

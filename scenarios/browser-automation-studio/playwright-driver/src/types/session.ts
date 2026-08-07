@@ -86,6 +86,36 @@ export interface SessionSpec {
   service_worker_control?: ServiceWorkerControl;
   // Anti-detection and human-like behavior configuration
   browser_profile?: BrowserProfile;
+  /**
+   * Optional controlled Electron target supplied by scenario-to-desktop.
+   * Target-backed sessions attach to the existing renderer and never launch
+   * or terminate the desktop application.
+   */
+  electron_target?: ElectronTargetSpec;
+  /** Run-bound identity used to prove the Electron session belongs to one cell. */
+  validation_context?: ValidationContextSpec;
+}
+
+export interface ValidationContextSpec {
+  context_id: string;
+  scenario_name: string;
+  artifact_digest: string;
+  target_id: string;
+  workflow_id: string;
+  profile_id: string;
+  isolation_lease_id: string;
+}
+
+export interface ElectronTargetSpec {
+  target_id: string;
+  cdp_endpoint: string;
+  renderer_id: string;
+  renderer_url: string;
+  renderer_title?: string;
+  scenario_name: string;
+  artifact_digest: string;
+  context_id: string;
+  cdp_transport: 'loopback-authenticated' | 'bridge-authenticated';
 }
 
 /**
@@ -205,6 +235,8 @@ export interface SessionState {
   leaseId: string;
   leaseReleasedAt?: Date;
   browser: Browser;
+  /** True only for a session attached to a controlled external target. */
+  externalTarget?: boolean;
   /** Audio delivery evidence selected for this session. */
   audioStrategy?: AudioStrategy;
   audioCapability?: HostAudioCapability;
@@ -406,6 +438,8 @@ export interface StartSessionRequest {
    * Optional: Deterministic fake media devices (see SessionSpec.fake_media).
    */
   fake_media?: SessionSpec['fake_media'];
+  electron_target?: SessionSpec['electron_target'];
+  validation_context?: SessionSpec['validation_context'];
 }
 
 /**

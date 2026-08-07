@@ -10,11 +10,51 @@
         {
           "name": "list",
           "description": "List target verdicts for a profile and commit",
-          "positionals": [{"name": "profile_id", "required": true, "description": "Deployment profile identifier"}, {"name": "git_commit_hash", "required": true, "description": "Release commit hash"}],
-          "binding": {"kind": "connect-rpc", "service": "EvidenceService", "method": "ListTargetVerdicts"},
-          "architecture": {"primitive": "proto_list"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "measure": {"domain": "deployment_evidence_verdicts", "intent": "How many producer evidence verdicts are recorded in the requested page for an exact profile and commit.", "questions": ["how many evidence verdicts exist for this release", "show evidence verdict count"], "params": {"profile_id": {}, "git_commit_hash": {}}, "result": {"kind": "scalar", "value_field": "count", "unit": "verdicts", "summary_template": "{count} evidence verdicts"}}
+          "positionals": [
+            {
+              "name": "profile_id",
+              "required": true,
+              "description": "Deployment profile identifier"
+            },
+            {
+              "name": "git_commit_hash",
+              "required": true,
+              "description": "Release commit hash"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "ListTargetVerdicts"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "deployment_evidence_verdicts",
+            "intent": "How many producer evidence verdicts are recorded in the requested page for an exact profile and commit.",
+            "questions": [
+              "how many evidence verdicts exist for this release",
+              "show evidence verdict count"
+            ],
+            "params": {
+              "profile_id": {},
+              "git_commit_hash": {}
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "verdicts",
+              "summary_template": "{count} evidence verdicts"
+            }
+          }
         }
       ]
     },
@@ -22,12 +62,187 @@
       "name": "profiles",
       "description": "Generated Connect profile operations",
       "commands": [
-        {"name": "list", "description": "List deployment profiles", "binding": {"kind": "connect-rpc", "service": "ProfilesService", "method": "ListProfiles"}, "architecture": {"primitive": "proto_list"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "create", "description": "Create a deployment profile", "positionals": [{"name": "name", "required": true, "description": "Profile name"}, {"name": "scenario", "required": true, "description": "Scenario identifier"}], "flags": [{"name": "tier", "description": "Initial deployment tier", "default": "2"}], "binding": {"kind": "connect-rpc", "service": "ProfilesService", "method": "CreateProfile"}, "architecture": {"primitive": "proto_mutation"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "show", "description": "Get a deployment profile", "positionals": [{"name": "profile_id", "required": true, "description": "Profile identifier"}], "binding": {"kind": "connect-rpc", "service": "ProfilesService", "method": "GetProfile"}, "architecture": {"primitive": "proto_list"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "update", "description": "Update a deployment profile", "positionals": [{"name": "profile_id", "required": true, "description": "Profile identifier"}], "flags": [{"name": "name", "description": "Replacement profile name"}, {"name": "scenario", "description": "Replacement scenario identifier"}, {"name": "tier", "description": "Replacement deployment tier"}], "binding": {"kind": "connect-rpc", "service": "ProfilesService", "method": "UpdateProfile"}, "architecture": {"primitive": "proto_mutation"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "delete", "description": "Delete a deployment profile", "positionals": [{"name": "profile_id", "required": true, "description": "Profile identifier"}], "binding": {"kind": "connect-rpc", "service": "ProfilesService", "method": "DeleteProfile"}, "architecture": {"primitive": "proto_mutation"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "versions", "description": "List profile versions", "positionals": [{"name": "profile_id", "required": true, "description": "Profile identifier"}], "binding": {"kind": "connect-rpc", "service": "ProfilesService", "method": "ListProfileVersions"}, "architecture": {"primitive": "proto_list"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}}
+        {
+          "name": "list",
+          "description": "List deployment profiles",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProfilesService",
+            "method": "ListProfiles"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a deployment profile",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Profile name"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario identifier"
+            }
+          ],
+          "flags": [
+            {
+              "name": "tier",
+              "description": "Initial deployment tier",
+              "default": "2",
+              "bind": {
+                "field": "tiers"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProfilesService",
+            "method": "CreateProfile"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Get a deployment profile",
+          "positionals": [
+            {
+              "name": "profile_id",
+              "required": true,
+              "description": "Profile identifier"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProfilesService",
+            "method": "GetProfile"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a deployment profile",
+          "positionals": [
+            {
+              "name": "profile_id",
+              "required": true,
+              "description": "Profile identifier"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "Replacement profile name"
+            },
+            {
+              "name": "scenario",
+              "description": "Replacement scenario identifier"
+            },
+            {
+              "name": "tier",
+              "description": "Replacement deployment tier",
+              "bind": {
+                "field": "tiers"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProfilesService",
+            "method": "UpdateProfile"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a deployment profile",
+          "positionals": [
+            {
+              "name": "profile_id",
+              "required": true,
+              "description": "Profile identifier"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProfilesService",
+            "method": "DeleteProfile"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "versions",
+          "description": "List profile versions",
+          "positionals": [
+            {
+              "name": "profile_id",
+              "required": true,
+              "description": "Profile identifier"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProfilesService",
+            "method": "ListProfileVersions"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
       ]
     },
     {
@@ -35,65 +250,521 @@
       "flat": true,
       "description": "Existing operator commands retained while their domain transports are migrated to Connect-RPC.",
       "commands": [
-        {"name": "analyze", "description": "Analyze scenario dependencies", "positionals": [{"name": "scenario", "required": true, "description": "Scenario identifier"}], "flags": [{"name": "format", "description": "Output format (json|table)"}], "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "approvals", "description": "Manage deployment approval gates", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "build", "description": "Cross-compile service binaries", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "bundle", "description": "Manage bundle manifests", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "deploy", "description": "Deploy a profile", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "deploy-desktop", "description": "Run bundled desktop deployment", "flags": [{"name": "profile", "description": "Deployment profile identifier", "required": true}, {"name": "output", "description": "Bundle output directory"}, {"name": "platforms", "description": "Comma-separated target platforms"}, {"name": "skip-build", "description": "Skip binary compilation"}, {"name": "skip-validation", "description": "Skip profile validation"}, {"name": "skip-packaging", "description": "Skip Electron wrapper generation"}, {"name": "skip-installers", "description": "Skip platform installer builds"}, {"name": "mode", "description": "Deployment mode"}, {"name": "signing-config", "description": "Signing configuration JSON path"}, {"name": "timeout", "description": "Deployment timeout"}, {"name": "dry-run", "description": "Preview without executing"}], "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "deployment", "description": "Manage deployment records", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "estimate-cost", "description": "Estimate deployment costs", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "fitness", "description": "Calculate platform fitness", "positionals": [{"name": "scenario", "required": true, "description": "Scenario identifier"}], "flags": [{"name": "tier", "description": "Deployment tier", "default": "2"}, {"name": "format", "description": "Output format (json|table)"}], "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "logs", "description": "Fetch deployment logs", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "profile", "description": "Manage deployment profiles", "positionals": [{"name": "action", "required": true, "description": "Profile operation, such as create"}, {"name": "name", "required": true, "description": "Profile name"}, {"name": "scenario", "required": true, "description": "Scenario id"}], "flags": [{"name": "tier", "description": "Deployment tier"}], "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "releases", "description": "Manage desktop releases", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "secrets", "description": "Inspect secret templates", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "signing", "description": "Configure code signing", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "swaps", "description": "Manage dependency swaps", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "validate", "description": "Validate a deployment profile", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}},
-        {"name": "validations", "description": "Run visual validation workflows", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}}
+        {
+          "name": "analyze",
+          "description": "Analyze scenario dependencies",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario identifier"
+            }
+          ],
+          "flags": [
+            {
+              "name": "format",
+              "description": "Output format (json|table)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "approvals",
+          "description": "Manage deployment approval gates",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "build",
+          "description": "Cross-compile service binaries",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "bundle",
+          "description": "Manage bundle manifests",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deploy",
+          "description": "Deploy a profile",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deploy-desktop",
+          "description": "Run bundled desktop deployment",
+          "flags": [
+            {
+              "name": "profile",
+              "description": "Deployment profile identifier",
+              "required": true
+            },
+            {
+              "name": "output",
+              "description": "Bundle output directory"
+            },
+            {
+              "name": "platforms",
+              "description": "Comma-separated target platforms"
+            },
+            {
+              "name": "skip-build",
+              "description": "Skip binary compilation"
+            },
+            {
+              "name": "skip-validation",
+              "description": "Skip profile validation"
+            },
+            {
+              "name": "skip-packaging",
+              "description": "Skip Electron wrapper generation"
+            },
+            {
+              "name": "skip-installers",
+              "description": "Skip platform installer builds"
+            },
+            {
+              "name": "mode",
+              "description": "Deployment mode"
+            },
+            {
+              "name": "signing-config",
+              "description": "Signing configuration JSON path"
+            },
+            {
+              "name": "timeout",
+              "description": "Deployment timeout"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview without executing"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deployment",
+          "description": "Manage deployment records",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "estimate-cost",
+          "description": "Estimate deployment costs",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "fitness",
+          "description": "Calculate platform fitness",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario identifier"
+            }
+          ],
+          "flags": [
+            {
+              "name": "tier",
+              "description": "Deployment tier",
+              "default": "2"
+            },
+            {
+              "name": "format",
+              "description": "Output format (json|table)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "logs",
+          "description": "Fetch deployment logs",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "profile",
+          "description": "Manage deployment profiles",
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "Profile operation, such as create"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Profile name"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "tier",
+              "description": "Deployment tier"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "releases",
+          "description": "Manage desktop releases",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "secrets",
+          "description": "Inspect secret templates",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "signing",
+          "description": "Configure code signing",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "swaps",
+          "description": "Manage dependency swaps",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate a deployment profile",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "validations",
+          "description": "Run visual validation workflows",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
       ]
     }
   ],
   "omitted": [
-    {"service": "EvidenceService", "method": "ReportTargetVerdict", "reason": "Evidence is reported by scenario producers after a run; operators review it through the evidence surface."},
-    {"service": "EvidenceService", "method": "GetEvidenceReview", "reason": "Review is consumed by the operator UI and is not duplicated as a CLI command."},
-    {"service": "DependenciesService", "method": "Analyze", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "FitnessService", "method": "Score", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "DeploymentsService", "method": "Deploy", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "DeploymentsService", "method": "DeployDesktop", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "DeploymentsService", "method": "Status", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "SwapsService", "method": "List", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "SwapsService", "method": "Analyze", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "SwapsService", "method": "Cascade", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "SwapsService", "method": "Apply", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "SwapsService", "method": "ApplyToProfile", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "TelemetryService", "method": "List", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "TelemetryService", "method": "Upload", "reason": "Telemetry upload is a UI-only producer operation; the UI calls the generated Connect client."},
-    {"service": "MigrationService", "method": "Report", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "MigrationService", "method": "Status", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "ApprovalsService", "method": "List", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "ApprovalsService", "method": "Get", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "ApprovalsService", "method": "Create", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "ApprovalsService", "method": "Decide", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "ApprovalsService", "method": "CheckReleaseGate", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "ApprovalsService", "method": "SetRequiredPlatforms", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "ApprovalsService", "method": "GetRequiredPlatforms", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "LPBSService", "method": "GetConfig", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "LPBSService", "method": "SaveConfig", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "ReleasesService", "method": "List", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "ReleasesService", "method": "Get", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "ReleasesService", "method": "Reverify", "reason": "The current operator command remains local while the generated client migration is completed."},
-    {"service": "ReleasesService", "method": "Start", "reason": "The current operator command remains local while the generated client migration is completed."}
+    {
+      "service": "EvidenceService",
+      "method": "ReportTargetVerdict",
+      "reason": "Evidence is reported by scenario producers after a run; operators review it through the evidence surface."
+    },
+    {
+      "service": "EvidenceService",
+      "method": "GetEvidenceReview",
+      "reason": "Review is consumed by the operator UI and is not duplicated as a CLI command."
+    },
+    {
+      "service": "DependenciesService",
+      "method": "Analyze",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "FitnessService",
+      "method": "Score",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "DeploymentsService",
+      "method": "Deploy",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "DeploymentsService",
+      "method": "DeployDesktop",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "DeploymentsService",
+      "method": "Status",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "SwapsService",
+      "method": "List",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "SwapsService",
+      "method": "Analyze",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "SwapsService",
+      "method": "Cascade",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "SwapsService",
+      "method": "Apply",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "SwapsService",
+      "method": "ApplyToProfile",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "TelemetryService",
+      "method": "List",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "TelemetryService",
+      "method": "Upload",
+      "reason": "Telemetry upload is a UI-only producer operation; the UI calls the generated Connect client."
+    },
+    {
+      "service": "MigrationService",
+      "method": "Report",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "MigrationService",
+      "method": "Status",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "ApprovalsService",
+      "method": "List",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "ApprovalsService",
+      "method": "Get",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "ApprovalsService",
+      "method": "Create",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "ApprovalsService",
+      "method": "Decide",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "ApprovalsService",
+      "method": "CheckReleaseGate",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "ApprovalsService",
+      "method": "SetRequiredPlatforms",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "ApprovalsService",
+      "method": "GetRequiredPlatforms",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "LPBSService",
+      "method": "GetConfig",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "LPBSService",
+      "method": "SaveConfig",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "List",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "Get",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "Reverify",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    },
+    {
+      "service": "ReleasesService",
+      "method": "Start",
+      "reason": "The current operator command remains local while the generated client migration is completed."
+    }
   ],
   "measures": {
     "omitted": [
-      {"domain": "deployment_approvals", "reason": "Approval rows are release-gate workflow state; the supported analytical surface is the gate decision itself, not a historical count measure."},
-      {"domain": "deployment_evidence_refs", "reason": "Artifact references are child evidence metadata returned with their owning verdict; the supported analytical measure counts verdicts and does not double-count child artifacts."},
-      {"domain": "profile_lpbs_release_config", "reason": "LPBS release configuration is singleton operational configuration and has no independent historical measure."},
-      {"domain": "profile_versions", "reason": "Profile versions are retrieved as deployment artifacts; version history is evidence for a profile rather than an independent analytical measure."},
-      {"domain": "profiles", "reason": "Profiles are deployment configuration records; their operational lifecycle is exposed through profile and release operations rather than a standalone historical measure."},
-      {"domain": "releases", "reason": "Release rows are the deployment workflow record consumed through release status and evidence review; no separate count measure is exposed."}
+      {
+        "domain": "deployment_approvals",
+        "reason": "Approval rows are release-gate workflow state; the supported analytical surface is the gate decision itself, not a historical count measure."
+      },
+      {
+        "domain": "deployment_evidence_refs",
+        "reason": "Artifact references are child evidence metadata returned with their owning verdict; the supported analytical measure counts verdicts and does not double-count child artifacts."
+      },
+      {
+        "domain": "profile_lpbs_release_config",
+        "reason": "LPBS release configuration is singleton operational configuration and has no independent historical measure."
+      },
+      {
+        "domain": "profile_versions",
+        "reason": "Profile versions are retrieved as deployment artifacts; version history is evidence for a profile rather than an independent analytical measure."
+      },
+      {
+        "domain": "profiles",
+        "reason": "Profiles are deployment configuration records; their operational lifecycle is exposed through profile and release operations rather than a standalone historical measure."
+      },
+      {
+        "domain": "releases",
+        "reason": "Release rows are the deployment workflow record consumed through release status and evidence review; no separate count measure is exposed."
+      }
     ]
   }
 }

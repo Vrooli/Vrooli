@@ -21,12 +21,18 @@ export async function teardownSessionResources(session: SessionState): Promise<s
     await session.accessibilitySnapshotter?.capture(session.page).catch((error: unknown) => warn('accessibility snapshot capture failed', error, undefined, LogContext.TELEMETRY));
     await session.perfTracer?.stop(session.page).catch((error: unknown) => warn('performance tracer stop failed', error, undefined, LogContext.TELEMETRY));
     if (session.tracing && session.tracePath) await session.context.tracing.stop({ path: session.tracePath }).catch((error: unknown) => warn('tracing stop failed', error, 'tracing_stop'));
-    for (const [index, page] of session.pages.entries()) {
-      const video = page.video();
-      await page.close().catch((error: unknown) => warn('page close failed', error, 'page_close'));
-      if (video) { const result = await moveVideo(video, session, index); if (result) videoPaths.push(result); }
+    if (!session.externalTarget) {
+      for (const [index, page] of session.pages.entries()) {
+        const video = page.video();
+        await page.close().catch((error: unknown) => warn('page close failed', error, 'page_close'));
+        if (video) { const result = await moveVideo(video, session, index); if (result) videoPaths.push(result); }
+      }
+      await session.context.close().catch((error: unknown) => warn('context close failed', error, 'context_close'));
+    } else {
+      // The desktop target owns the renderer and process. Closing the CDP
+      // connection detaches BAS; scenario-to-desktop performs target cleanup.
+      await session.browser.close().catch((error: unknown) => warn('CDP detach failed', error, 'cdp_detach'));
     }
-    await session.context.close().catch((error: unknown) => warn('context close failed', error, 'context_close'));
     metrics.sessionDuration.observe(Date.now() - startedAt);
   } catch (error) {
     logger.error(scopedLog(LogContext.SESSION, 'close failed'), { sessionId: session.id, error: message(error), hint: 'Session cleanup may be incomplete; browser resources may leak' });

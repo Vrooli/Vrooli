@@ -75,6 +75,37 @@ Launch an application on the session's virtual display.
 
 **Response (200):** `{"status": "launched"}`
 
+## POST `/api/v1/livedesktop/sessions/{id}/launch-electron-validation`
+
+Launch the explicit validation target path. This endpoint is separate from
+ordinary interactive launch so a CDP debug surface is never enabled by
+accident. It requires the validation cell identity and an isolation lease;
+the target adapter allocates a loopback port, creates a private Electron
+profile, selects one renderer by identity, and owns cleanup when the session is
+stopped.
+
+**Request Body:**
+```json
+{
+  "app_path": "/path/to/electron-artifact",
+  "context_id": "validation-context-1",
+  "scenario_name": "my-scenario",
+  "artifact_digest": "sha256:...",
+  "target_id": "local-linux-xvfb",
+  "journey_id": "existing-bas-case",
+  "profile_id": "normal",
+  "isolation_lease_id": "lease-...",
+  "renderer_url_prefix": "http://127.0.0.1:4400"
+}
+```
+
+The response contains the target identity, including `cdp_endpoint`,
+`renderer_id`, `renderer_url`, `renderer_title`, `context_id`, `artifact_digest`, and `loopback_only`. The endpoint is an
+opaque internal attachment reference and must not be exposed beyond the
+validation orchestrator. Missing identity, unsafe endpoints, or ambiguous
+renderers return a refused/failed validation result rather than selecting a
+guess.
+
 ---
 
 ## DELETE `/api/v1/livedesktop/sessions/{id}`

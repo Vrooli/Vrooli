@@ -1,5 +1,11 @@
 # Known Issues & Problems
 
+The work ladder and current issues at the top are the maintained status. Older
+entries are retained as investigation history and may describe the state at
+the time they were written; they are not release-readiness claims. For the
+current desktop support contract, use [OVERVIEW.md](../OVERVIEW.md) and the
+[desktop evidence contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md).
+
 ## Work ladder
 
 - Rung: W1

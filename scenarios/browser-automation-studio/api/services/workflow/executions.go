@@ -14,6 +14,7 @@ import (
 	coredb "github.com/vrooli/api-core/database"
 	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
@@ -98,6 +99,11 @@ type ExecuteOptions struct {
 	// settles and writes the normalized accessibility.json
 	// (bas-accessibility-snapshot/v1) into the execution's artifact root.
 	RequiresAccessibility bool
+	// ElectronTarget attaches the workflow to a target-owned Electron
+	// renderer. ValidationContext must be provided with it; the context binds
+	// the workflow to its artifact, target, and leased test storage.
+	ElectronTarget    *autodriver.ElectronTarget
+	ValidationContext *autodriver.ValidationContext
 }
 
 // ExecuteWorkflowAPI starts a workflow execution using proto request/response types.
@@ -533,6 +539,22 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 			plan.Metadata = make(map[string]any)
 		}
 		plan.Metadata["requiresAccessibility"] = true
+	}
+	if opts != nil && opts.ElectronTarget != nil {
+		if opts.ValidationContext == nil || strings.TrimSpace(opts.ValidationContext.IsolationLeaseID) == "" {
+			execIndex.Status = database.ExecutionStatusFailed
+			execIndex.ErrorMessage = "Electron target requires a lease-bound validation context"
+			now := time.Now().UTC()
+			execIndex.CompletedAt = &now
+			execIndex.UpdatedAt = now
+			_ = s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, execIndex.Status, &execIndex.ErrorMessage, execIndex.CompletedAt, execIndex.UpdatedAt)
+			return
+		}
+		if plan.Metadata == nil {
+			plan.Metadata = make(map[string]any)
+		}
+		plan.Metadata["electron_target"] = opts.ElectronTarget
+		plan.Metadata["validation_context"] = opts.ValidationContext
 	}
 
 	// Inject frame streaming config into plan metadata if enabled.

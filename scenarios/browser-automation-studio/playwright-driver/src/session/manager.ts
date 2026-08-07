@@ -1,10 +1,11 @@
-import type { SessionSpec, SessionState, SessionPhase, SessionCloseResult } from '../types';
+import type { SessionSpec, SessionState, SessionPhase, SessionCloseResult, ElectronTargetSpec } from '../types';
 import path from 'node:path';
 import type { Config } from '../config';
 import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, LogContext } from '../utils';
 import { buildContext, type ActualViewport } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
-import { RecordingPipelineManager } from '../recording';
+import { RecordingPipelineManager, createRecordingContextInitializer } from '../recording';
+import { ServiceWorkerController } from '../service-worker';
 import { createInFlightGuard, type InFlightGuard } from '../infra';
 import { BrowserManager, type BrowserStatus } from './browser-manager';
 import { applySilentSinkToCurrentPage, generateSilentSinkPatch, type AudioStrategy } from './audio';
@@ -16,6 +17,7 @@ import { PerformanceTracer, injectWebVitalsObserver, AccessibilitySnapshotter } 
 import { countActiveSessions, inspectSession, listSessions, summarizeSessions, type SessionInfo, type SessionListEntry, type SessionSummary } from './session-inspection';
 import { resetSessionState } from './session-reset';
 import { teardownSessionResources } from './session-teardown';
+import { selectElectronPage, validateElectronTargetCapabilities, validateElectronTargetSpec, verifyElectronRenderer } from './electron-target';
 
 /**
  * SessionManager - Browser Session Lifecycle Management
@@ -261,6 +263,10 @@ export class SessionManager {
         `Maximum concurrent sessions reached: ${this.config.session.maxConcurrent}`,
         { maxSessions: this.config.session.maxConcurrent, currentSessions: this.sessions.size }
       );
+    }
+
+    if (spec.electron_target) {
+      return this.startElectronSessionInternal(spec, spec.electron_target);
     }
 
     // Create new session
@@ -516,6 +522,125 @@ export class SessionManager {
           error: getErrorMessage(closeError),
         });
       });
+      throw error;
+    }
+  }
+
+  /** Attach the normal workflow/session machinery to an owned desktop target. */
+  private async startElectronSessionInternal(
+    spec: SessionSpec,
+    target: ElectronTargetSpec
+  ): Promise<SessionCreationResult> {
+    validateElectronTargetSpec(target);
+    validateElectronTargetCapabilities(spec.required_capabilities);
+    const validationContext = spec.validation_context;
+    if (!validationContext) {
+      throw new Error('Electron validation context is required');
+    }
+    if (validationContext.context_id !== target.context_id) {
+      throw new Error('Electron validation context does not match target context');
+    }
+    if (validationContext.scenario_name !== target.scenario_name || validationContext.artifact_digest !== target.artifact_digest) {
+      throw new Error('Electron validation context does not match target identity');
+    }
+    if (validationContext.target_id !== target.target_id || validationContext.workflow_id !== spec.workflow_id) {
+      throw new Error('Electron validation context does not match session identity');
+    }
+    if (!validationContext.isolation_lease_id?.trim()) {
+      throw new Error('Electron validation context requires an isolation lease');
+    }
+    await verifyElectronRenderer(target);
+    const browser = await this.browserManager.connectOverCDP(target.cdp_endpoint);
+    let sessionId = '';
+    try {
+      const contexts = browser.contexts();
+      if (contexts.length !== 1) {
+        throw new Error(`Electron target must expose exactly one browser context; found ${contexts.length}`);
+      }
+      const context = contexts[0];
+      if (!context) throw new Error('Electron target browser context is missing');
+      const extraHeaders = spec.browser_profile?.extra_headers;
+      if (extraHeaders && Object.keys(extraHeaders).length > 0) {
+        await context.setExtraHTTPHeaders(extraHeaders);
+      }
+      const page = await selectElectronPage(context.pages(), target);
+      sessionId = uuidv4();
+      const createdAt = new Date();
+      const recordingInitializer = createRecordingContextInitializer({ logger });
+      await recordingInitializer.initialize(context);
+      const serviceWorkerController = new ServiceWorkerController(
+        spec.execution_id,
+        spec.service_worker_control || { mode: 'allow' }
+      );
+      await serviceWorkerController.enable(page);
+      const pipelineManager = new RecordingPipelineManager(page, context, recordingInitializer, {
+        sessionId,
+        logger,
+      });
+      const session: SessionState = {
+        id: sessionId,
+        ownerExecutionId: spec.execution_id,
+        leaseId: uuidv4(),
+        browser,
+        externalTarget: true,
+        audioStrategy: 'host_device',
+        context,
+        page,
+        spec,
+        createdAt,
+        lastUsedAt: new Date(),
+        tracing: false,
+        video: false,
+        phase: 'ready',
+        instructionCount: 0,
+        frameStack: [],
+        pages: [page],
+        currentPageIndex: 0,
+        pageIdMap: new Map(),
+        pageToIdMap: new WeakMap(),
+        activeMocks: new Map(),
+        executedInstructions: new Map(),
+        serviceWorkerController,
+        recordingInitializer,
+        pipelineManager,
+      };
+      const pageId = crypto.randomUUID();
+      session.pageIdMap.set(pageId, page);
+      session.pageToIdMap.set(page, pageId);
+      this.sessions.set(sessionId, session);
+      setupDiagnosticLogging(context, sessionId);
+      session.pipelineReadyPromise = pipelineManager
+        .initialize()
+        .then(() => pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 }))
+        .then((verification) => verification.scriptLoaded && verification.scriptReady && verification.inMainContext)
+        .catch((error: unknown) => {
+          logger.warn(scopedLog(LogContext.SESSION, 'external target recording init failed'), {
+            sessionId,
+            error: getErrorMessage(error),
+          });
+          return false;
+        });
+      await safeInvoke(this.instrumentation.onSessionStart?.bind(this.instrumentation), {
+        sessionId,
+        executionId: spec.execution_id,
+      });
+      metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
+      metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
+      const viewport = page.viewportSize() || spec.viewport;
+      return {
+        sessionId,
+        leaseId: session.leaseId,
+        reused: false,
+        createdAt,
+        actualViewport: {
+          width: viewport.width,
+          height: viewport.height,
+          source: 'requested',
+          reason: 'Using the controlled Electron renderer viewport',
+        },
+      };
+    } catch (error) {
+      await browser.close().catch(() => undefined);
       throw error;
     }
   }

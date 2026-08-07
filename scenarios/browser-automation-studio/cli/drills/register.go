@@ -3,7 +3,6 @@ package drills
 import (
 	"fmt"
 
-	"browser-automation-studio/cli/internal/protodispatch"
 	"github.com/vrooli/cli-core/cliapp"
 	drillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/drills"
 )
@@ -15,7 +14,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	if svc == nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("%s: FailureDrillService descriptor not found", GroupName)
 	}
-	bindings, err := protodispatch.Bindings(core, svc.FullName())
+	bindings, err := cliapp.ProtoBindings(core, svc.FullName(), cliapp.ProtoBindingOptions{})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("%s: %w", GroupName, err)
 	}

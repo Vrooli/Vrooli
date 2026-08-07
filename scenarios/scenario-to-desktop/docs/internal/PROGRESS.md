@@ -1,5 +1,9 @@
 # Progress Log
 
+This is implementation history, not a release-approval record. Current user
+support is summarized in [OVERVIEW.md](../OVERVIEW.md); required evidence and
+promotion rules are defined by the [desktop evidence contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md).
+
 ## Changelog
 
 | Date       | Author           | Change % | Description |

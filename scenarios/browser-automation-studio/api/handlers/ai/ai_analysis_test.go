@@ -168,3 +168,13 @@ func TestAIElementAnalyzer_FallbackOnBadJSON(t *testing.T) {
 	assert.NotEmpty(t, results, "fallback suggestion should be returned")
 	assert.Len(t, mockOllama.QueriesCalled, 1)
 }
+
+func TestOllamaSuggestionGeneratorAcceptsArrayResponse(t *testing.T) {
+	log := logrus.New()
+	generator := newOllamaSuggestionGenerator(log, WithOllamaClient(NewMockOllamaClient(`[{"action":"Search","confidence":0.95,"category":"actions"}]`)))
+
+	suggestions, err := generator.generateAISuggestions(context.Background(), []ElementInfo{{Text: "Search", TagName: "BUTTON"}}, PageContext{URL: "https://example.com"})
+	require.NoError(t, err)
+	require.Len(t, suggestions, 1)
+	assert.Equal(t, "Search", suggestions[0].Action)
+}

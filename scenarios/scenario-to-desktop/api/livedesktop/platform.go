@@ -89,7 +89,10 @@ type PlatformProcess interface {
 
 // LaunchOptions collects platform-agnostic launch parameters.
 type LaunchOptions struct {
-	EnvVars       map[string]string
+	EnvVars map[string]string
+	// ExtraArgs are target-owned executable arguments. They are passed as an
+	// argv slice so Electron validation flags cannot be shell-injected.
+	ExtraArgs     []string
 	DarkMode      bool
 	Locale        string
 	NetworkMode   string // "normal", "offline", "slow"

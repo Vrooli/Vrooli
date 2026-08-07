@@ -6,6 +6,9 @@ const message = (error: unknown): string => error instanceof Error ? error.messa
 
 /** Reset mutable browser state while retaining the session and its lease. */
 export async function resetSessionState(session: SessionState): Promise<void> {
+  if (session.externalTarget) {
+    throw new Error('resetting an external Electron target is refused; the target owner controls renderer navigation');
+  }
   const { id: sessionId } = session;
   const previousPhase = session.phase;
   session.phase = 'resetting';

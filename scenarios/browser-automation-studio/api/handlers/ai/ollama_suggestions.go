@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -66,12 +67,23 @@ func (g *ollamaSuggestionGenerator) generateAISuggestions(ctx context.Context, e
 		return nil, fmt.Errorf("failed to call ollama: %w", err)
 	}
 
-	// Parse the response
+	// Parse both the documented object shape and the array shape emitted by
+	// models that follow the element-analysis response convention. A valid
+	// array must not silently become an empty object response.
+	payload := strings.TrimSpace(suggestionsPayload)
+	if strings.HasPrefix(payload, "[") {
+		var suggestions []AISuggestion
+		if err := json.Unmarshal([]byte(payload), &suggestions); err == nil {
+			return suggestions, nil
+		} else {
+			g.log.WithError(err).Warn("Failed to parse Ollama suggestion array, trying fallback parsing")
+			return g.parseOllamaFallback(suggestionsPayload)
+		}
+	}
 	var ollamaResponse struct {
 		Suggestions []AISuggestion `json:"suggestions"`
 	}
-
-	if err := json.Unmarshal([]byte(suggestionsPayload), &ollamaResponse); err != nil {
+	if err := json.Unmarshal([]byte(payload), &ollamaResponse); err != nil {
 		// If JSON parsing fails, try to extract from the raw response
 		g.log.WithError(err).Warn("Failed to parse Ollama JSON response, trying fallback parsing")
 		return g.parseOllamaFallback(suggestionsPayload)

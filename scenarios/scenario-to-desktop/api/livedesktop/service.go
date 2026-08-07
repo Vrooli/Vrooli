@@ -14,8 +14,10 @@ import (
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/shared/packaging"
+	"scenario-to-desktop-api/target"
 
 	"github.com/google/uuid"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 )
 
 // Service orchestrates live desktop session lifecycle.
@@ -272,6 +274,62 @@ func (s *Service) LaunchApp(sessionID, appPath string) error {
 	return nil
 }
 
+// LaunchElectronValidation starts the explicit validation target path. Normal
+// live-desktop launches remain unchanged and do not expose CDP. The target
+// session owns the process, profile, port, renderer selection, and cleanup.
+func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPath string, opts target.ElectronLaunchOptions, renderer target.RendererExpectation) (*domainv1.ElectronTarget, error) {
+	session, err := s.store.Get(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if session.Display == nil || !session.Display.IsRunning() {
+		return nil, fmt.Errorf("session display is not running")
+	}
+	if appPath == "" {
+		appPath, err = s.findArtifact(session.ScenarioName)
+		if err != nil {
+			return nil, fmt.Errorf("auto-discover artifact: %w", err)
+		}
+	}
+	if opts.ScenarioName == "" {
+		opts.ScenarioName = session.ScenarioName
+	}
+	s.killAppProcess(session)
+	environment := make(map[string]string)
+	environment["DISPLAY"] = session.Display.DisplayID()
+	session.mu.Lock()
+	if session.DarkMode {
+		environment["GTK_THEME"] = "Adwaita:dark"
+	}
+	if session.Locale != "" {
+		environment["LANG"] = session.Locale
+		environment["LC_ALL"] = session.Locale
+	}
+	for key, value := range session.EnvVars {
+		if _, exists := environment[key]; !exists {
+			environment[key] = value
+		}
+	}
+	session.mu.Unlock()
+
+	electronSession, err := target.StartElectronSession(ctx, target.ElectronSessionOptions{
+		ArtifactPath: appPath,
+		Launch:       opts,
+		Renderer:     renderer,
+		Environment:  environment,
+	})
+	if err != nil {
+		return nil, err
+	}
+	session.mu.Lock()
+	session.ElectronValidation = electronSession
+	session.AppRunning = true
+	session.mu.Unlock()
+	_ = s.store.Update(session)
+	s.logger.Info("Electron validation target launched", "session_id", sessionID, "pid", electronSession.PID(), "renderer_id", electronSession.Target().GetRendererId())
+	return electronSession.Target(), nil
+}
+
 // ExecuteAction dispatches a control action against a session.
 func (s *Service) ExecuteAction(ctx context.Context, sessionID, action string, params json.RawMessage) (*ActionResult, error) {
 	session, err := s.store.Get(sessionID)
@@ -304,11 +362,18 @@ func (s *Service) killAppProcess(session *Session) {
 	session.mu.Lock()
 	proc := session.AppProcess
 	session.AppProcess = nil
+	electronSession := session.ElectronValidation
+	session.ElectronValidation = nil
 	session.AppRunning = false
 	session.mu.Unlock()
 
 	if proc != nil {
 		s.backend.KillApp(proc)
+	}
+	if electronSession != nil {
+		if err := electronSession.Close(context.Background()); err != nil {
+			s.logger.Warn("failed to clean up Electron validation target", "session_id", session.ID, "error", err)
+		}
 	}
 }
 

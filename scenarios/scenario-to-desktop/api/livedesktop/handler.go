@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	httputil "scenario-to-desktop-api/shared/http"
+	"scenario-to-desktop-api/target"
 )
 
 // Handler holds HTTP handlers for the livedesktop domain.
@@ -29,6 +30,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}", h.getSession).Methods("GET")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/heartbeat", h.heartbeat).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/launch", h.launchApp).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/launch-electron-validation", h.launchElectronValidation).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/artifact", h.findArtifact).Methods("GET")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/control", h.controlAction).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/livedesktop/sessions/{id}/metrics", h.getMetrics).Methods("GET")
@@ -101,6 +103,60 @@ func (h *Handler) launchApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, map[string]string{"status": "launched"})
+}
+
+func (h *Handler) launchElectronValidation(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		AppPath          string `json:"app_path"`
+		ContextID        string `json:"context_id"`
+		ScenarioName     string `json:"scenario_name"`
+		ArtifactDigest   string `json:"artifact_digest"`
+		TargetID         string `json:"target_id"`
+		JourneyID        string `json:"journey_id"`
+		ProfileID        string `json:"profile_id"`
+		IsolationLeaseID string `json:"isolation_lease_id"`
+		RendererID       string `json:"renderer_id"`
+		RendererURL      string `json:"renderer_url_prefix"`
+		RendererTitle    string `json:"renderer_title"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	info, err := h.service.LaunchElectronValidation(r.Context(), extractSessionID(r), body.AppPath, target.ElectronLaunchOptions{
+		ContextID:        body.ContextID,
+		ScenarioName:     body.ScenarioName,
+		ArtifactDigest:   body.ArtifactDigest,
+		TargetID:         body.TargetID,
+		JourneyID:        body.JourneyID,
+		ProfileID:        body.ProfileID,
+		IsolationLeaseID: body.IsolationLeaseID,
+	}, target.RendererExpectation{ID: body.RendererID, URLPrefix: body.RendererURL, Title: body.RendererTitle})
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "ambiguous") {
+			status = http.StatusBadRequest
+		}
+		httputil.WriteJSON(w, status, map[string]string{"error": err.Error()})
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"status": "attached",
+		"target": map[string]interface{}{
+			"target_id":       info.GetTargetId(),
+			"scenario_name":   info.GetScenarioName(),
+			"artifact_digest": info.GetArtifactDigest(),
+			"context_id":      info.GetContextId(),
+			"process_id":      info.GetProcessId(),
+			"cdp_endpoint":    info.GetCdpEndpoint(),
+			"cdp_transport":   info.GetCdpTransport(),
+			"loopback_only":   info.GetLoopbackOnly(),
+			"authenticated":   info.GetAuthenticated(),
+			"renderer_id":     info.GetRendererId(),
+			"renderer_url":    info.GetRendererUrl(),
+			"renderer_title":  info.GetRendererTitle(),
+		},
+	})
 }
 
 func (h *Handler) findArtifact(w http.ResponseWriter, r *http.Request) {

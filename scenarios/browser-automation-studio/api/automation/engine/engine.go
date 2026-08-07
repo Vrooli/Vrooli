@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
@@ -44,6 +45,9 @@ type SessionSpec struct {
 	// FakeMicrophoneWav is an absolute WAV path served as a deterministic fake
 	// microphone. Requires a dedicated browser instance (Chromium launch flag).
 	FakeMicrophoneWav string
+
+	ElectronTarget    *driver.ElectronTarget
+	ValidationContext *driver.ValidationContext
 }
 
 // AutomationEngine exposes engine capabilities and produces engine sessions.

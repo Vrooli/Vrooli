@@ -544,6 +544,24 @@ func TestExecuteAdhocWorkflow_OK(t *testing.T) {
 	require.Equal(t, "adhoc-1", resp.Msg.GetExecutionId())
 }
 
+func TestExecuteAdhocWorkflow_MapsElectronValidationOptions(t *testing.T) {
+	exec := &fakeExecutor{adhocResp: &basexecution.ExecuteAdhocResponse{ExecutionId: "adhoc-electron"}}
+	client, stop := newServerAndClient(t, Deps{Catalog: &fakeCatalog{}, Executor: exec, Validator: &fakeValidator{}})
+	defer stop()
+
+	_, err := client.ExecuteAdhocWorkflow(context.Background(), connect.NewRequest(&basexecution.ExecuteAdhocRequest{
+		FlowDefinition: &basworkflows.WorkflowDefinitionV2{},
+		Options: &basexecution.ExecuteWorkflowOptions{
+			ElectronTarget:    &basexecution.ElectronTarget{TargetId: "target-1", CdpEndpoint: "http://127.0.0.1:9222", RendererId: "renderer-1", ScenarioName: "sample", ArtifactDigest: "sha256:app", ContextId: "ctx-1", CdpTransport: "loopback-authenticated"},
+			ValidationContext: &basexecution.ValidationContext{ContextId: "ctx-1", ScenarioName: "sample", ArtifactDigest: "sha256:app", TargetId: "target-1", WorkflowId: "workflow-1", ProfileId: "normal", IsolationLeaseId: "lease-1"},
+		},
+	}))
+	require.NoError(t, err)
+	require.NotNil(t, exec.lastAdhocOpts)
+	require.Equal(t, "target-1", exec.lastAdhocOpts.ElectronTarget.TargetID)
+	require.Equal(t, "lease-1", exec.lastAdhocOpts.ValidationContext.IsolationLeaseID)
+}
+
 func TestExecuteAdhocWorkflow_PreservesTestModeContextFromConnectHeader(t *testing.T) {
 	t.Setenv(apihttp.TestModeForceEnableEnv, "1")
 	exec := &fakeExecutor{adhocResp: &basexecution.ExecuteAdhocResponse{ExecutionId: "adhoc-test-mode"}}

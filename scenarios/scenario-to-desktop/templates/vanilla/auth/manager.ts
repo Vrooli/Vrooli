@@ -406,13 +406,23 @@ export function createElectronSafeStorage(
  * Create a real Electron net-based HTTP client.
  */
 export function createElectronAuthHttpClient(
-    electronNet: typeof import("electron").net
+    electronNet: typeof import("electron").net,
+    defaultHeaders?: Record<string, string>,
+    allowedOrigins?: Set<string>
 ): import("./types").IAuthHttpClient {
     return {
         fetch: (url, options) => {
             const init: RequestInit = {};
             if (options?.method) init.method = options.method;
-            if (options?.headers) init.headers = options.headers;
+            let validationHeaders: Record<string, string> | undefined;
+            if (defaultHeaders) {
+                try {
+                    if (!allowedOrigins || allowedOrigins.has(new URL(url).origin)) validationHeaders = defaultHeaders;
+                } catch {
+                    validationHeaders = undefined;
+                }
+            }
+            init.headers = { ...validationHeaders, ...options?.headers };
             if (options?.body) init.body = options.body;
             return electronNet.fetch(url, init) as Promise<{
                 ok: boolean;

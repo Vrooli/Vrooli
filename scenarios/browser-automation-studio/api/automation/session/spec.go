@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
@@ -68,6 +69,12 @@ type Spec struct {
 
 	// Anti-detection and human-like behavior configuration
 	BrowserProfile *sessionprofilepersistence.BrowserProfile
+
+	// ElectronTarget and ValidationContext are required together for an
+	// Electron validation session. The driver attaches to the target; it does
+	// not own the desktop process.
+	ElectronTarget    *driver.ElectronTarget
+	ValidationContext *driver.ValidationContext
 }
 
 // RecordingCallbacks configures callbacks for recording sessions.

@@ -11,8 +11,8 @@
       "documents": [
         {
           "path": "OVERVIEW.md",
-          "title": "Current vs Roadmap",
-          "description": "Thin-client reality and bundling status",
+          "title": "Overview and support",
+          "description": "Desktop modes, ownership, and current support",
           "docType": "overview-md",
           "maturity": "active",
           "requiredBy": [
@@ -247,17 +247,6 @@
           "title": "Telemetry & Ops",
           "description": "deployment-telemetry.jsonl and auto-manage",
           "docType": "reference-telemetry-md",
-          "maturity": "active",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
-          "path": "../../../docs/deployment/scenarios/scenario-to-desktop.md",
-          "title": "Deployment Hub",
-          "description": "How desktop fits Tier 1/2 and deployment-manager",
-          "docType": "docs-deployment-scenarios-scenario-to-desktop-md",
           "maturity": "active",
           "requiredBy": [
             "implemented"

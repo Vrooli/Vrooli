@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "deployment-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "747b5785d9a83cbf6a9034bfa220d2b57abb9baee172334f44ce1774d343ff38",
+  "manifest_hash": "659dd7da7803f969d7346c8d8408ea4834a5c22a148ebe5a47b5c4ccec54936c",
   "commands": [
     {
       "path": "evidence list",

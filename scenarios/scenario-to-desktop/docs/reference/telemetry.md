@@ -1,26 +1,49 @@
-# Telemetry & Operations
+# Desktop telemetry
 
-Every generated desktop app records lifecycle events to help deployment-manager spot failures in the wild.
+Generated desktop applications record local lifecycle and deployment events in
+`deployment-telemetry.jsonl` under the application’s user-data directory.
 
-## What gets recorded
-- `app_start`, `dependency_unreachable`, `local_vrooli_start_failed`, `update_check`, and other lifecycle events.
-- Captured in `deployment-telemetry.jsonl` inside the OS-specific user data dir.
+## Event purpose
 
-## File locations
-- Windows: `%APPDATA%/<App Name>/deployment-telemetry.jsonl`
-- macOS: `~/Library/Application Support/<App Name>/deployment-telemetry.jsonl`
-- Linux: `~/.config/<App Name>/deployment-telemetry.jsonl`
+Telemetry may describe:
 
-## Collecting telemetry
+- application start and readiness;
+- dependency or server unavailability;
+- runtime/service exit;
+- migration and secret-status outcomes;
+- update checks, downloads, replacement, and errors;
+- GPU or host-capability decisions.
+
+Telemetry must not contain credential values, bearer tokens, private endpoints,
+generated operator configuration, or captured video bytes.
+
+## Local paths
+
+| Platform | Default location |
+| --- | --- |
+| Windows | `%APPDATA%/<App Name>/deployment-telemetry.jsonl` |
+| macOS | `~/Library/Application Support/<App Name>/deployment-telemetry.jsonl` |
+| Linux | `~/.config/<App Name>/deployment-telemetry.jsonl` |
+
+The bundled runtime may keep service logs and runtime telemetry below its
+application-data root. The install directory is not a mutable state directory.
+
+## Collection
+
+When an operator has consented to share a diagnostic file, ingest it with:
+
 ```bash
 scenario-to-desktop telemetry ingest "my-scenario" --file "telemetry.jsonl"
 ```
-- The API stores results at `deployment/telemetry/<scenario>.jsonl` beneath the resolved scenario-to-desktop logs root.
-- The UI has an upload card under Scenario Inventory.
 
-## Auto-manage Tier 1 (optional)
-- Set `auto_manage_vrooli: true` to let the desktop wrapper attempt `vrooli setup/start/stop` locally.
-- Keep it **off** when shipping thin clients that should point to an existing remote server.
+Collection is separate from release evidence. Governance receives metadata and
+references, not secret values or video bytes.
 
-## Forward-looking
-- Bundle manifests will add secret prompts, port allocation, and richer telemetry once the bundled runtime (see `runtime/README.md`) is wired into the generator.
+## Tier 1 management
+
+Auto-starting or stopping a local Tier 1 scenario is an explicit thin-client
+configuration. It is not part of bundled-runtime ownership and must never be
+enabled for a thin client that points at a separately managed server.
+
+See [the runtime reference](../../runtime/README.md), [logging guidance](../guides/logging-bundled-desktop.md),
+and the [desktop evidence contract](../../../../docs/reference/scenario-to-desktop-evidence-and-tier-contract.md).

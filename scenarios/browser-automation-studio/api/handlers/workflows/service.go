@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
+	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
@@ -434,7 +435,7 @@ func executeOptionsFromProto(opts *basexecution.ExecuteWorkflowOptions) *workflo
 	if !opts.GetRequiresVideo() &&
 		!opts.GetRequiresTrace() &&
 		!opts.GetRequiresHar() &&
-		!opts.GetFrameStreaming() {
+		!opts.GetFrameStreaming() && opts.GetElectronTarget() == nil && opts.GetValidationContext() == nil {
 		return nil
 	}
 	out := &workflowservice.ExecuteOptions{
@@ -448,6 +449,23 @@ func executeOptionsFromProto(opts *basexecution.ExecuteWorkflowOptions) *workflo
 	}
 	if opts.FrameStreamingFps != nil {
 		out.FrameStreamingFPS = int(opts.GetFrameStreamingFps())
+	}
+	if target := opts.GetElectronTarget(); target != nil {
+		out.ElectronTarget = &autodriver.ElectronTarget{
+			TargetID: target.GetTargetId(), CDPEndpoint: target.GetCdpEndpoint(),
+			RendererID: target.GetRendererId(), RendererURL: target.GetRendererUrl(),
+			RendererTitle: target.GetRendererTitle(), ScenarioName: target.GetScenarioName(),
+			ArtifactDigest: target.GetArtifactDigest(), ContextID: target.GetContextId(),
+			CDPTransport: target.GetCdpTransport(),
+		}
+	}
+	if validationContext := opts.GetValidationContext(); validationContext != nil {
+		out.ValidationContext = &autodriver.ValidationContext{
+			ContextID: validationContext.GetContextId(), ScenarioName: validationContext.GetScenarioName(),
+			ArtifactDigest: validationContext.GetArtifactDigest(), TargetID: validationContext.GetTargetId(),
+			WorkflowID: validationContext.GetWorkflowId(), ProfileID: validationContext.GetProfileId(),
+			IsolationLeaseID: validationContext.GetIsolationLeaseId(),
+		}
 	}
 	return out
 }

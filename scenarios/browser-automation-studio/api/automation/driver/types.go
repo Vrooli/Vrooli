@@ -101,6 +101,34 @@ type ArtifactPaths struct {
 	AccessibilityDir string `json:"accessibility_dir,omitempty"`
 }
 
+// ElectronTarget is an already-running, target-owned renderer that the
+// Playwright driver may attach to during a validation run. The target owns
+// process launch and cleanup; BAS only owns workflow execution.
+type ElectronTarget struct {
+	TargetID       string `json:"target_id"`
+	CDPEndpoint    string `json:"cdp_endpoint"`
+	RendererID     string `json:"renderer_id"`
+	RendererURL    string `json:"renderer_url"`
+	RendererTitle  string `json:"renderer_title,omitempty"`
+	ScenarioName   string `json:"scenario_name"`
+	ArtifactDigest string `json:"artifact_digest"`
+	ContextID      string `json:"context_id"`
+	CDPTransport   string `json:"cdp_transport"`
+}
+
+// ValidationContext binds a BAS session to one immutable validation cell and
+// its leased test storage. Electron execution must carry this context so a
+// target cannot be reused as an unscoped browser session.
+type ValidationContext struct {
+	ContextID        string `json:"context_id"`
+	ScenarioName     string `json:"scenario_name"`
+	ArtifactDigest   string `json:"artifact_digest"`
+	TargetID         string `json:"target_id"`
+	WorkflowID       string `json:"workflow_id"`
+	ProfileID        string `json:"profile_id"`
+	IsolationLeaseID string `json:"isolation_lease_id"`
+}
+
 // CreateSessionRequest is the unified request to create a browser session.
 // Used by both recording and execution modes.
 type CreateSessionRequest struct {
@@ -131,6 +159,11 @@ type CreateSessionRequest struct {
 
 	// Execution mode - deterministic fake media devices
 	FakeMedia *FakeMediaConfig `json:"fake_media,omitempty"`
+
+	// Electron validation mode attaches to an existing target instead of
+	// launching a second browser.
+	ElectronTarget    *ElectronTarget    `json:"electron_target,omitempty"`
+	ValidationContext *ValidationContext `json:"validation_context,omitempty"`
 }
 
 // FakeMediaConfig requests deterministic fake capture devices for a session.

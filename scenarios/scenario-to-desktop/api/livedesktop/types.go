@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"scenario-to-desktop-api/procmetrics"
+	"scenario-to-desktop-api/target"
 )
 
 // SessionState represents the lifecycle state of a live desktop session.
@@ -21,20 +22,24 @@ const (
 
 // Session holds the full state of a live desktop session.
 type Session struct {
-	ID            string             `json:"id"`
-	ScenarioName  string             `json:"scenario_name"`
-	State         SessionState       `json:"state"`
-	Display       PlatformDisplay    `json:"-"`
-	RemoteAccess  RemoteAccessHandle `json:"-"`
-	RemoteInfo    RemoteAccessInfo   `json:"-"`
-	AppProcess    PlatformProcess    `json:"-"`
-	VNCPort       int                `json:"vnc_port"`
-	WSPort        int                `json:"ws_port"`
-	CreatedAt     time.Time          `json:"created_at"`
-	LastHeartbeat time.Time          `json:"last_heartbeat"`
-	Error         string             `json:"error,omitempty"`
-	Width         int                `json:"width"`
-	Height        int                `json:"height"`
+	ID           string             `json:"id"`
+	ScenarioName string             `json:"scenario_name"`
+	State        SessionState       `json:"state"`
+	Display      PlatformDisplay    `json:"-"`
+	RemoteAccess RemoteAccessHandle `json:"-"`
+	RemoteInfo   RemoteAccessInfo   `json:"-"`
+	AppProcess   PlatformProcess    `json:"-"`
+	// ElectronValidation is target-owned and intentionally omitted from API
+	// session views. The validation launch endpoint returns its typed target
+	// identity to the internal orchestrator instead.
+	ElectronValidation *target.ElectronSession `json:"-"`
+	VNCPort            int                     `json:"vnc_port"`
+	WSPort             int                     `json:"ws_port"`
+	CreatedAt          time.Time               `json:"created_at"`
+	LastHeartbeat      time.Time               `json:"last_heartbeat"`
+	Error              string                  `json:"error,omitempty"`
+	Width              int                     `json:"width"`
+	Height             int                     `json:"height"`
 
 	Platform string `json:"platform"`
 

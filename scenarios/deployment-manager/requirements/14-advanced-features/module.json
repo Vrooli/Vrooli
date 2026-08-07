@@ -1,39 +1,589 @@
 {
-  "module_id": "advanced-features",
-  "title": "Advanced Features",
-  "priority": "P2",
-  "description": "Canary deployments, A/B testing, and advanced deployment strategies",
+  "_metadata": {
+    "last_validated_at": "2026-08-07T09:03:12-04:00"
+  },
   "requirements": [
-    {"id":"DM-P1-024","title":"Custom Swap Request Form","status":"planned","prd_ref":"OT-P1-024","domain":"swaps","description":"Capture a requested dependency swap and its justification","tags":["swaps","ui"],"validation":[{"type":"test","ref":"api/swaps/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-025","title":"Fast Issue Creation","status":"planned","prd_ref":"OT-P1-025","domain":"swaps","description":"Create an issue with all custom swap form data within three seconds","tags":["swaps","integration"],"validation":[{"type":"test","ref":"api/swaps/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-026","title":"Fast Swap Application","status":"planned","prd_ref":"OT-P1-026","domain":"swaps","description":"Apply a swap and recalculate fitness in under one second","tags":["swaps","performance"],"validation":[{"type":"test","ref":"api/swaps/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-027","title":"Keyboard Accessibility","status":"planned","prd_ref":"OT-P1-027","domain":"profiles","description":"Support keyboard navigation for every interactive deployment control","tags":["accessibility","ui"],"validation":[{"type":"test","ref":"api/profiles/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-028","title":"Screen Reader Fallback","status":"planned","prd_ref":"OT-P1-028","domain":"profiles","description":"Provide an accessible table fallback for the dependency graph","tags":["accessibility","ui"],"validation":[{"type":"test","ref":"api/profiles/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-029","title":"User-Friendly Error Messages","status":"planned","prd_ref":"OT-P1-029","domain":"profiles","description":"Show actionable errors without exposing stack traces","tags":["ux"],"validation":[{"type":"test","ref":"api/profiles/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-030","title":"Collapsible Technical Details","status":"planned","prd_ref":"OT-P1-030","domain":"profiles","description":"Keep logs and technical details behind an explicit details control","tags":["ux"],"validation":[{"type":"test","ref":"api/profiles/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-031","title":"Fast Dependency Data Fetches","status":"planned","prd_ref":"OT-P1-031","domain":"dependencies","description":"Fetch analyzer dependency data in under three seconds","tags":["dependencies","performance"],"validation":[{"type":"test","ref":"api/dependencies/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-032","title":"Stale Data Detection","status":"planned","prd_ref":"OT-P1-032","domain":"dependencies","description":"Offer a rescan when dependency data is more than seven days old","tags":["dependencies"],"validation":[{"type":"test","ref":"api/dependencies/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-033","title":"Bidirectional Secret Sync","status":"planned","prd_ref":"OT-P1-033","domain":"secrets","description":"Synchronize secret mappings with secrets-manager in both directions","tags":["secrets","integration"],"validation":[{"type":"test","ref":"api/secrets/secrets_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-034","title":"Secret Rotation Notifications","status":"planned","prd_ref":"OT-P1-034","domain":"secrets","description":"Mark affected deployments for redeployment after secret rotation","tags":["secrets","integration"],"validation":[{"type":"test","ref":"api/secrets/secrets_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-035","title":"Deployment Profile Metadata in Issues","status":"planned","prd_ref":"OT-P1-035","domain":"approvals","description":"Attach deployment profile identifiers to linked issue records","tags":["integration"],"validation":[{"type":"test","ref":"cli/approvals/commands_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P1-036","title":"Issue Closure Webhooks","status":"planned","prd_ref":"OT-P1-036","domain":"approvals","description":"Update deployment status when a linked issue closes","tags":["integration"],"validation":[{"type":"test","ref":"cli/approvals/commands_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-013","title":"Cost Breakdown by Resource","status":"planned","prd_ref":"OT-P2-013","domain":"telemetry","description":"Break cloud cost estimates down by resource","tags":["analytics"],"validation":[{"type":"test","ref":"api/telemetry/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-014","title":"Historical Cost Tracking","status":"planned","prd_ref":"OT-P2-014","domain":"telemetry","description":"Track actual deployment costs over time","tags":["analytics"],"validation":[{"type":"test","ref":"api/telemetry/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-015","title":"Advanced Metrics Dashboards","status":"planned","prd_ref":"OT-P2-015","domain":"telemetry","description":"Support custom metric dashboards and queries","tags":["analytics"],"validation":[{"type":"test","ref":"api/telemetry/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-016","title":"Deployment Comparison Views","status":"planned","prd_ref":"OT-P2-016","domain":"telemetry","description":"Compare metrics across deployments and environments","tags":["analytics"],"validation":[{"type":"test","ref":"api/telemetry/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-027","title":"Screen-Recorded Smoke Tests","status":"complete","prd_ref":"OT-P2-027","domain":"evidence","description":"Record desktop smoke tests for human release review","tags":["evidence","desktop"],"validation":[{"type":"test","ref":"api/internal/evidence/schema_test.go","phase":"unit","status":"implemented","notes":"Evidence persistence and schema conformance tests."}]},
-    {"id":"DM-P2-028","title":"Video Review UI","status":"complete","prd_ref":"OT-P2-028","domain":"evidence","description":"Review captured visual evidence with an approve or reject workflow","tags":["evidence","ui"],"validation":[{"type":"test","ref":"api/internal/evidence/schema_test.go","phase":"unit","status":"implemented","notes":"Evidence persistence and schema conformance tests."}]},
-    {"id":"DM-P2-029","title":"Validation CLI","status":"complete","prd_ref":"OT-P2-029","domain":"evidence","description":"Run and manage visual validation evidence through the CLI","tags":["evidence","cli"],"validation":[{"type":"test","ref":"api/internal/evidence/schema_test.go","phase":"unit","status":"implemented","notes":"Evidence persistence and schema conformance tests."}]},
-    {"id":"DM-P2-017","title":"Visual Dependency Graph Editor","status":"planned","prd_ref":"OT-P2-017","domain":"dependencies","description":"Edit dependency swaps through a visual graph editor","tags":["visualization"],"validation":[{"type":"test","ref":"api/dependencies/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-018","title":"Deployment Simulation Mode","status":"planned","prd_ref":"OT-P2-018","domain":"releases","description":"Preview deployment changes without executing a release","tags":["simulation"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-019","title":"Deployment Templates Library","status":"planned","prd_ref":"OT-P2-019","domain":"profiles","description":"Provide reusable templates for common deployment tiers","tags":["templates"],"validation":[{"type":"test","ref":"api/profiles/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-020","title":"Collaborative Deployment Approval","status":"planned","prd_ref":"OT-P2-020","domain":"approvals","description":"Support collaborative approval comments on deployment profiles","tags":["approvals"],"validation":[{"type":"test","ref":"cli/approvals/commands_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-021","title":"Tier Recommendation Engine","status":"planned","prd_ref":"OT-P2-021","domain":"fitness","description":"Recommend viable target tiers from scenario characteristics","tags":["recommendations"],"validation":[{"type":"test","ref":"api/fitness/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-022","title":"Cross-Tier Resource Sharing","status":"planned","prd_ref":"OT-P2-022","domain":"releases","description":"Coordinate shared backends across desktop, mobile, and SaaS targets","tags":["multi-tier"],"validation":[{"type":"test","ref":"api/releases/handlers_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-023","title":"Deployment Cost Comparison","status":"planned","prd_ref":"OT-P2-023","domain":"telemetry","description":"Compare estimated cost across viable target tiers","tags":["analytics"],"validation":[{"type":"test","ref":"api/telemetry/handler_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-024","title":"Secret Auto-Rotation Integration","status":"planned","prd_ref":"OT-P2-024","domain":"secrets","description":"Trigger redeployment when managed secrets rotate","tags":["secrets"],"validation":[{"type":"test","ref":"api/secrets/secrets_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-025","title":"Secret Compliance Scanning","status":"planned","prd_ref":"OT-P2-025","domain":"secrets","description":"Scan secrets for compliance against enterprise standards","tags":["secrets","compliance"],"validation":[{"type":"test","ref":"api/secrets/secrets_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]},
-    {"id":"DM-P2-026","title":"Just-In-Time Secret Provisioning","status":"planned","prd_ref":"OT-P2-026","domain":"secrets","description":"Provision release secrets on demand during deployment","tags":["secrets"],"validation":[{"type":"test","ref":"api/secrets/secrets_test.go","phase":"integration","status":"planned","notes":"Planned validation anchor; implementation evidence is not claimed."}]}
-  ],
-  "_metadata": {}
+    {
+      "id": "DM-P1-024",
+      "title": "Custom Swap Request Form",
+      "status": "planned",
+      "prd_ref": "OT-P1-024",
+      "description": "Capture a requested dependency swap and its justification",
+      "tags": [
+        "swaps",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/swaps/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-025",
+      "title": "Fast Issue Creation",
+      "status": "planned",
+      "prd_ref": "OT-P1-025",
+      "description": "Create an issue with all custom swap form data within three seconds",
+      "tags": [
+        "swaps",
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/swaps/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-026",
+      "title": "Fast Swap Application",
+      "status": "planned",
+      "prd_ref": "OT-P1-026",
+      "description": "Apply a swap and recalculate fitness in under one second",
+      "tags": [
+        "swaps",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/swaps/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-027",
+      "title": "Keyboard Accessibility",
+      "status": "planned",
+      "prd_ref": "OT-P1-027",
+      "description": "Support keyboard navigation for every interactive deployment control",
+      "tags": [
+        "accessibility",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/profiles/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-028",
+      "title": "Screen Reader Fallback",
+      "status": "planned",
+      "prd_ref": "OT-P1-028",
+      "description": "Provide an accessible table fallback for the dependency graph",
+      "tags": [
+        "accessibility",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/profiles/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-029",
+      "title": "User-Friendly Error Messages",
+      "status": "planned",
+      "prd_ref": "OT-P1-029",
+      "description": "Show actionable errors without exposing stack traces",
+      "tags": [
+        "ux"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/profiles/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-030",
+      "title": "Collapsible Technical Details",
+      "status": "planned",
+      "prd_ref": "OT-P1-030",
+      "description": "Keep logs and technical details behind an explicit details control",
+      "tags": [
+        "ux"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/profiles/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-031",
+      "title": "Fast Dependency Data Fetches",
+      "status": "planned",
+      "prd_ref": "OT-P1-031",
+      "description": "Fetch analyzer dependency data in under three seconds",
+      "tags": [
+        "dependencies",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/dependencies/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-032",
+      "title": "Stale Data Detection",
+      "status": "planned",
+      "prd_ref": "OT-P1-032",
+      "description": "Offer a rescan when dependency data is more than seven days old",
+      "tags": [
+        "dependencies"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/dependencies/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-033",
+      "title": "Bidirectional Secret Sync",
+      "status": "planned",
+      "prd_ref": "OT-P1-033",
+      "description": "Synchronize secret mappings with secrets-manager in both directions",
+      "tags": [
+        "secrets",
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/secrets/secrets_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-034",
+      "title": "Secret Rotation Notifications",
+      "status": "planned",
+      "prd_ref": "OT-P1-034",
+      "description": "Mark affected deployments for redeployment after secret rotation",
+      "tags": [
+        "secrets",
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/secrets/secrets_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-035",
+      "title": "Deployment Profile Metadata in Issues",
+      "status": "planned",
+      "prd_ref": "OT-P1-035",
+      "description": "Attach deployment profile identifiers to linked issue records",
+      "tags": [
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/approvals/commands_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P1-036",
+      "title": "Issue Closure Webhooks",
+      "status": "planned",
+      "prd_ref": "OT-P1-036",
+      "description": "Update deployment status when a linked issue closes",
+      "tags": [
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/approvals/commands_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-013",
+      "title": "Cost Breakdown by Resource",
+      "status": "planned",
+      "prd_ref": "OT-P2-013",
+      "description": "Break cloud cost estimates down by resource",
+      "tags": [
+        "analytics"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/telemetry/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-014",
+      "title": "Historical Cost Tracking",
+      "status": "planned",
+      "prd_ref": "OT-P2-014",
+      "description": "Track actual deployment costs over time",
+      "tags": [
+        "analytics"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/telemetry/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-015",
+      "title": "Advanced Metrics Dashboards",
+      "status": "planned",
+      "prd_ref": "OT-P2-015",
+      "description": "Support custom metric dashboards and queries",
+      "tags": [
+        "analytics"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/telemetry/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-016",
+      "title": "Deployment Comparison Views",
+      "status": "planned",
+      "prd_ref": "OT-P2-016",
+      "description": "Compare metrics across deployments and environments",
+      "tags": [
+        "analytics"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/telemetry/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-027",
+      "title": "Screen-Recorded Smoke Tests",
+      "status": "complete",
+      "prd_ref": "OT-P2-027",
+      "description": "Record desktop smoke tests for human release review",
+      "tags": [
+        "evidence",
+        "desktop"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/evidence/schema_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Evidence persistence and schema conformance tests."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-028",
+      "title": "Video Review UI",
+      "status": "complete",
+      "prd_ref": "OT-P2-028",
+      "description": "Review captured visual evidence with an approve or reject workflow",
+      "tags": [
+        "evidence",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/evidence/schema_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Evidence persistence and schema conformance tests."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-029",
+      "title": "Validation CLI",
+      "status": "complete",
+      "prd_ref": "OT-P2-029",
+      "description": "Run and manage visual validation evidence through the CLI",
+      "tags": [
+        "evidence",
+        "cli"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/evidence/schema_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Evidence persistence and schema conformance tests."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-017",
+      "title": "Visual Dependency Graph Editor",
+      "status": "planned",
+      "prd_ref": "OT-P2-017",
+      "description": "Edit dependency swaps through a visual graph editor",
+      "tags": [
+        "visualization"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/dependencies/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-018",
+      "title": "Deployment Simulation Mode",
+      "status": "planned",
+      "prd_ref": "OT-P2-018",
+      "description": "Preview deployment changes without executing a release",
+      "tags": [
+        "simulation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/releases/handlers_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-019",
+      "title": "Deployment Templates Library",
+      "status": "planned",
+      "prd_ref": "OT-P2-019",
+      "description": "Provide reusable templates for common deployment tiers",
+      "tags": [
+        "templates"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/profiles/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-020",
+      "title": "Collaborative Deployment Approval",
+      "status": "planned",
+      "prd_ref": "OT-P2-020",
+      "description": "Support collaborative approval comments on deployment profiles",
+      "tags": [
+        "approvals"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/approvals/commands_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-021",
+      "title": "Tier Recommendation Engine",
+      "status": "planned",
+      "prd_ref": "OT-P2-021",
+      "description": "Recommend viable target tiers from scenario characteristics",
+      "tags": [
+        "recommendations"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/fitness/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-022",
+      "title": "Cross-Tier Resource Sharing",
+      "status": "planned",
+      "prd_ref": "OT-P2-022",
+      "description": "Coordinate shared backends across desktop, mobile, and SaaS targets",
+      "tags": [
+        "multi-tier"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/releases/handlers_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-023",
+      "title": "Deployment Cost Comparison",
+      "status": "planned",
+      "prd_ref": "OT-P2-023",
+      "description": "Compare estimated cost across viable target tiers",
+      "tags": [
+        "analytics"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/telemetry/handler_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-024",
+      "title": "Secret Auto-Rotation Integration",
+      "status": "planned",
+      "prd_ref": "OT-P2-024",
+      "description": "Trigger redeployment when managed secrets rotate",
+      "tags": [
+        "secrets"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/secrets/secrets_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-025",
+      "title": "Secret Compliance Scanning",
+      "status": "planned",
+      "prd_ref": "OT-P2-025",
+      "description": "Scan secrets for compliance against enterprise standards",
+      "tags": [
+        "secrets",
+        "compliance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/secrets/secrets_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    },
+    {
+      "id": "DM-P2-026",
+      "title": "Just-In-Time Secret Provisioning",
+      "status": "planned",
+      "prd_ref": "OT-P2-026",
+      "description": "Provision release secrets on demand during deployment",
+      "tags": [
+        "secrets"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/secrets/secrets_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned validation anchor; implementation evidence is not claimed."
+        }
+      ]
+    }
+  ]
 }

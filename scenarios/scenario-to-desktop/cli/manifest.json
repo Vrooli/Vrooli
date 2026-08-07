@@ -42,7 +42,10 @@
             {
               "name": "build",
               "required": true,
-              "description": "Build ID"
+              "description": "Build ID",
+              "bind": {
+                "field": "build_id"
+              }
             }
           ]
         }
@@ -59,7 +62,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "config"
+              }
             }
           ],
           "binding": {
@@ -100,7 +106,10 @@
             {
               "name": "pipeline",
               "required": true,
-              "description": "Pipeline ID"
+              "description": "Pipeline ID",
+              "bind": {
+                "field": "pipeline_id"
+              }
             }
           ]
         },
@@ -316,7 +325,10 @@
             {
               "name": "job",
               "required": true,
-              "description": "Preflight job ID"
+              "description": "Preflight job ID",
+              "bind": {
+                "field": "job_id"
+              }
             }
           ]
         }
@@ -597,14 +609,20 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ],
           "flags": [
             {
               "name": "file",
               "required": true,
-              "description": "Telemetry JSONL file"
+              "description": "Telemetry JSONL file",
+              "bind": {
+                "field": "scenario_name"
+              }
             },
             {
               "name": "source",
@@ -648,7 +666,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ]
         },
@@ -673,7 +694,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ]
         },
@@ -698,7 +722,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ]
         },
@@ -723,7 +750,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ]
         },
@@ -763,7 +793,7 @@
           "binding": {
             "kind": "connect-rpc",
             "service": "EvidenceService",
-          "method": "ListEvidenceCaptures"
+            "method": "ListEvidenceCaptures"
           },
           "governance": {
             "effect": "read",
@@ -793,7 +823,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ]
         },
@@ -819,7 +852,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ]
         },
@@ -844,7 +880,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ]
         }
@@ -927,7 +966,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ]
         }
@@ -972,7 +1014,10 @@
             {
               "name": "pipeline",
               "required": true,
-              "description": "Pipeline ID"
+              "description": "Pipeline ID",
+              "bind": {
+                "field": "pipeline_id"
+              }
             }
           ]
         }
@@ -1226,12 +1271,18 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Remote deployment scenario"
+              "description": "Remote deployment scenario",
+              "bind": {
+                "field": "target"
+              }
             },
             {
               "name": "profile",
               "required": true,
-              "description": "Remote deployment profile"
+              "description": "Remote deployment profile",
+              "bind": {
+                "field": "target"
+              }
             },
             {
               "name": "label",
@@ -1329,7 +1380,13 @@
     }
   ],
   "measures": {
-    "domains": []
+    "domains": [],
+    "omitted": [
+      {
+        "domain": "validation",
+        "reason": "The Electron validation contract is wire-only at this stage; durable validation-cell storage and its operator CLI are not implemented yet."
+      }
+    ]
   },
   "omitted": [
     {

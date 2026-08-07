@@ -128,6 +128,8 @@ func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (
 		BrowserProfile:    spec.BrowserProfile,
 		StorageState:      spec.StorageState,
 		FakeMicrophoneWav: spec.FakeMicrophoneWav,
+		ElectronTarget:    spec.ElectronTarget,
+		ValidationContext: spec.ValidationContext,
 	}
 
 	// Add frame streaming config if enabled (for live execution preview)
