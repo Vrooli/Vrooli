@@ -11,6 +11,9 @@
   "findingSource": "coverage",
   "phaseClass": "capability",
   "runtimeClass": "execution",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
   "dimensions": [
     "tests"
   ],

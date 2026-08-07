@@ -758,20 +758,32 @@ type ContextAttachment struct {
 // Run - A concrete execution attempt
 // -----------------------------------------------------------------------------
 
-// Run represents a single execution attempt of a task using a specific agent profile.
-type RunLabelSource string
-
-const (
-	RunLabelSourceHarness   RunLabelSource = "harness"
-	RunLabelSourceDerived   RunLabelSource = "derived"
-	RunLabelSourceGenerated RunLabelSource = "generated"
-	RunLabelSourceManual    RunLabelSource = "manual"
-)
-
 // RunLabelSource records how the human-readable run label was obtained.
 // Empty is retained only for legacy rows; new runs must set both Label and
 // LabelSource.
+type RunLabelSource string
 
+const (
+	// RunLabelSourceHarness is the title the coding-agent harness itself wrote
+	// (claude's ai-title record, for example).
+	RunLabelSourceHarness RunLabelSource = "harness"
+	// RunLabelSourceDerived is taken verbatim from session content, such as the
+	// first non-injected user prompt.
+	RunLabelSourceDerived RunLabelSource = "derived"
+	// RunLabelSourceGenerated means an inference provider wrote the label from
+	// session content. It must never be applied to a deterministic fallback:
+	// consumers filter on it expecting prose about the work.
+	RunLabelSourceGenerated RunLabelSource = "generated"
+	// RunLabelSourcePlaceholder means nothing named the work — no harness
+	// title, no usable session content, and no successful generation. The label
+	// identifies the run but says nothing about it, so analysis that needs a
+	// subject must treat these as unlabelled rather than as generated prose.
+	RunLabelSourcePlaceholder RunLabelSource = "placeholder"
+	// RunLabelSourceManual is an operator-supplied label.
+	RunLabelSourceManual RunLabelSource = "manual"
+)
+
+// Run represents a single execution attempt of a task using a specific agent profile.
 type Run struct {
 	ID             uuid.UUID  `json:"id" db:"id"`
 	TaskID         uuid.UUID  `json:"taskId" db:"task_id"`

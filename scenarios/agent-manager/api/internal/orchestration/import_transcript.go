@@ -221,14 +221,15 @@ func (o *Orchestrator) resolveImportedLabel(ctx context.Context, req ImportTrans
 		}
 	}
 
-	// A provider outage must not make historical evidence disappear. The
-	// source remains generated because this is the generated-label fallback,
-	// while the deterministic text makes the run usable until regeneration.
+	// A provider outage must not make historical evidence disappear, so the run
+	// still gets a deterministic identifying label. The source is placeholder,
+	// not generated: no provider wrote this text and it says nothing about the
+	// work, so consumers can find these and regenerate them later.
 	identifier := strings.TrimSpace(req.SourceSessionID)
 	if identifier == "" {
 		identifier = "unknown"
 	}
-	return fmt.Sprintf("%s session %s", runnerType, identifier), domain.RunLabelSourceGenerated
+	return fmt.Sprintf("%s session %s", runnerType, identifier), domain.RunLabelSourcePlaceholder
 }
 
 // ImportTranscript copies, parses, and persists an external transcript using
@@ -496,9 +497,10 @@ func (o *Orchestrator) BackfillImportedRunLabels(ctx context.Context) (*LabelBac
 			// Nothing in the transcript names the work: no harness title and no
 			// user message that was not harness-injected context. Fall back to
 			// the same deterministic form the import path uses, and keep the
-			// source honest — this label was not derived from session content.
+			// source honest — this label was not derived from session content
+			// and no provider generated it.
 			label = legacyFallbackLabel(run)
-			source = domain.RunLabelSourceGenerated
+			source = domain.RunLabelSourcePlaceholder
 		}
 		label = shortenTranscriptLabel(label)
 		if label == "" {

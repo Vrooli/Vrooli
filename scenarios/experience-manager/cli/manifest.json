@@ -26,9 +26,7 @@
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -53,9 +51,7 @@
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "repo_root"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -149,9 +145,7 @@
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -188,9 +182,7 @@
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -231,9 +223,7 @@
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -278,9 +268,7 @@
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -329,9 +317,7 @@
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -375,17 +361,13 @@
             {
               "name": "file",
               "description": "JSON file containing an array of SpecVariant objects",
-              "bind": {
-                "field": "page"
-              }
+              "local_only": true
             },
             {
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -426,17 +408,13 @@
             {
               "name": "file",
               "description": "JSON file containing one SpecVariant object",
-              "bind": {
-                "field": "page"
-              }
+              "local_only": true
             },
             {
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -483,9 +461,7 @@
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -634,9 +610,7 @@
               "name": "session",
               "required": true,
               "description": "Authoring session id",
-              "bind": {
-                "field": "session_id"
-              }
+              "local_only": true
             }
           ],
           "flags": [
@@ -644,9 +618,7 @@
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "session_id"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -750,9 +722,7 @@
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -801,9 +771,7 @@
               "name": "json",
               "description": "Emit JSON output",
               "bool": true,
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {

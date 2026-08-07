@@ -133,9 +133,7 @@
             {
               "name": "view",
               "description": "all, isolation, no-backup, engines, or stages",
-              "bind": {
-                "field": "scenarios"
-              }
+              "local_only": true
             }
           ],
           "binding": {

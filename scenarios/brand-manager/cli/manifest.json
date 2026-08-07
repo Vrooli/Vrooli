@@ -401,9 +401,7 @@
               "name": "file",
               "required": true,
               "description": "Path to the local file to upload",
-              "bind": {
-                "field": "filename"
-              }
+              "local_only": true
             },
             {
               "name": "filename",
@@ -465,9 +463,7 @@
             {
               "name": "out",
               "description": "Output path (defaults to the stored filename in the working directory)",
-              "bind": {
-                "field": "id"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -666,10 +662,7 @@
             {
               "name": "prompt",
               "required": true,
-              "description": "Natural-language edit instruction",
-              "bind": {
-                "field": "priority"
-              }
+              "description": "Natural-language edit instruction"
             },
             {
               "name": "model",
@@ -1017,9 +1010,7 @@
             {
               "name": "json",
               "description": "Render the raw shared validation response as JSON",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {

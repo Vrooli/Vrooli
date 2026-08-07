@@ -542,6 +542,9 @@
   "freshnessRequirement": "when_applicable",
   "phaseClass": "architecture",
   "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
   "dimensions": [
     "proto-health"
   ]

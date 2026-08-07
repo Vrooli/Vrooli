@@ -696,6 +696,9 @@
   "freshnessRequirement": "never",
   "phaseClass": "architecture",
   "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
   "dimensions": [
     "contracts"
   ]

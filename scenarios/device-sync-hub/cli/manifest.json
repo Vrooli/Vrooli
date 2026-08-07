@@ -182,9 +182,7 @@
             {
               "name": "name",
               "description": "This device's human-facing name",
-              "bind": {
-                "field": "code"
-              }
+              "description": "This device's human-facing name"
             },
             {
               "name": "kind",
@@ -337,9 +335,7 @@
             {
               "name": "device-token",
               "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)",
-              "bind": {
-                "field": "target_device_id"
-              }
+              "local_only": true
             },
             {
               "name": "name",
@@ -377,9 +373,7 @@
             {
               "name": "device-token",
               "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)",
-              "bind": {
-                "field": "kind"
-              }
+              "local_only": true
             },
             {
               "name": "query",
@@ -417,9 +411,7 @@
             {
               "name": "device-token",
               "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)",
-              "bind": {
-                "field": "id"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -449,9 +441,7 @@
             {
               "name": "device-token",
               "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)",
-              "bind": {
-                "field": "id"
-              }
+              "local_only": true
             }
           ],
           "binding": {

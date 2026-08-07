@@ -873,16 +873,12 @@
             {
               "name": "draft",
               "description": "Treat the new version as draft/pre-release",
-              "bind": {
-                "field": "parity_report"
-              }
+              "local_only": true
             },
             {
               "name": "release",
               "description": "Treat the new version as latest release",
-              "bind": {
-                "field": "file_name"
-              }
+              "local_only": true
             },
             {
               "name": "file-name",
@@ -897,7 +893,8 @@
             },
             {
               "name": "parity-report",
-              "description": "JSON IngestParityReport file, or - for stdin"
+              "description": "JSON IngestParityReport file, or - for stdin",
+              "local_only": true
             },
             {
               "name": "acknowledge-parity-waiver",
@@ -1012,9 +1009,7 @@
               "name": "file",
               "required": true,
               "description": "Path to new file body, or - for stdin",
-              "bind": {
-                "field": "id"
-              }
+              "local_only": true
             }
           ],
           "flags": [

@@ -33,6 +33,9 @@
   "docs": {
     "path": "scenarios/test-genie/docs/phases/experience/README.md"
   },
+  "concurrency": {
+    "mode": "provider-serial"
+  },
   "maturity": {
     "version": "1.0.0",
     "capabilities": [

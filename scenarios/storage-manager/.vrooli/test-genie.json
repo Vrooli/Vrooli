@@ -683,6 +683,9 @@
   "freshnessRequirement": "never",
   "phaseClass": "architecture",
   "runtimeClass": "lifecycle",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
   "dimensions": [
     "storage"
   ]

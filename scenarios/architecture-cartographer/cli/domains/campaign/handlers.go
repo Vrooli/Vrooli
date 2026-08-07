@@ -271,7 +271,7 @@ func (h *handlers) resolve(ctx cliapp.RunContext) error {
 	id := ctx.Positional("campaign-id")
 	resp, err := h.client.ResolveItem(context.Background(), connect.NewRequest(&campaignv1.ResolveItemRequest{
 		CampaignId: id,
-		StableId:   ctx.Flag("finding"),
+		StableId:   ctx.Flag("stable_id"),
 		Note:       ctx.Flag("note"),
 	}))
 	if err != nil {
@@ -292,7 +292,7 @@ func (h *handlers) apply(ctx cliapp.RunContext) error {
 	id := ctx.Positional("campaign-id")
 	resp, err := h.client.ApplyItem(context.Background(), connect.NewRequest(&campaignv1.ApplyItemRequest{
 		CampaignId: id,
-		StableId:   ctx.Flag("finding"),
+		StableId:   ctx.Flag("stable_id"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("apply item in campaign %q", id), err, nil)

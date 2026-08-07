@@ -3,8 +3,10 @@ package orchestration_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,6 +28,14 @@ func (e *labelExtractor) Extract(context.Context, structuredresult.ExtractReques
 	e.calls++
 	value, _ := json.Marshal(e.label)
 	return structuredresult.ExtractResponse{Candidate: value, Provider: "test"}, nil
+}
+
+// failingLabelExtractor stands in for a provider outage.
+type failingLabelExtractor struct{ calls int }
+
+func (e *failingLabelExtractor) Extract(context.Context, structuredresult.ExtractRequest) (structuredresult.ExtractResponse, error) {
+	e.calls++
+	return structuredresult.ExtractResponse{}, errors.New("provider unavailable")
 }
 
 // TestImportTranscriptPersistsAgainstSQLite exercises the real repositories,
@@ -139,5 +149,62 @@ func TestImportTranscriptLabelsUseHarnessThenGeneratedPrecedence(t *testing.T) {
 	}
 	if !seenLabels["Known Claude title"] || !seenLabels["Generated Codex Session"] {
 		t.Fatalf("list labels=%v", seenLabels)
+	}
+}
+
+// A transcript that nothing names must be labelled `placeholder`, never
+// `generated`. Consumers filter on `generated` expecting provider-written prose
+// about the work; a deterministic session identifier is not that, and marking
+// it generated makes the label's own provenance untrue.
+func TestImportTranscriptLabelsUsePlaceholderWhenNothingNamesTheWork(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		generator structuredresult.Extractor
+	}{
+		{name: "no generator configured", generator: nil},
+		{name: "generator outage", generator: &failingLabelExtractor{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+			t.Cleanup(cleanup)
+			registry := runner.NewRegistry()
+			if err := registry.Register(runnercore.NewRunner(codecs.NewCodexForTest(), nil, nil)); err != nil {
+				t.Fatalf("register codex runner: %v", err)
+			}
+			options := []orchestration.Option{
+				orchestration.WithEvents(eventStore), orchestration.WithRunners(registry),
+				orchestration.WithRunStateRoot(t.TempDir()),
+				orchestration.WithConfig(orchestration.OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 1}),
+				orchestration.WithInvocationReadModel(repos.InvocationReadModel),
+			}
+			if tc.generator != nil {
+				options = append(options, orchestration.WithLabelGenerator(tc.generator))
+			}
+			svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, options...)
+
+			path := filepath.Join(t.TempDir(), "codex.jsonl")
+			if err := os.WriteFile(path, []byte("{\"type\":\"thread.started\",\"thread_id\":\"anon\"}\n{\"type\":\"turn.completed\"}\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			run, err := svc.ImportTranscript(context.Background(), orchestration.ImportTranscriptRequest{
+				Path: path, RunnerType: domain.RunnerTypeCodex, SourceHarness: "codex", SourceSessionID: "anon-session",
+			})
+			if err != nil {
+				t.Fatalf("import transcript: %v", err)
+			}
+			if run.LabelSource != domain.RunLabelSourcePlaceholder {
+				t.Fatalf("label source = %q, want placeholder (label %q)", run.LabelSource, run.Label)
+			}
+			if !strings.Contains(run.Label, "anon-session") {
+				t.Fatalf("placeholder label %q should identify the session", run.Label)
+			}
+			persisted, err := svc.GetRun(context.Background(), run.ID)
+			if err != nil {
+				t.Fatalf("get run: %v", err)
+			}
+			if persisted.LabelSource != domain.RunLabelSourcePlaceholder {
+				t.Fatalf("persisted label source = %q, want placeholder", persisted.LabelSource)
+			}
+		})
 	}
 }

@@ -806,17 +806,13 @@
               "name": "mode",
               "required": true,
               "description": "Failure mode assessed",
-              "bind": {
-                "field": "draft_id"
-              }
+              "local_only": true
             },
             {
               "name": "passed",
               "description": "Verdict passed",
               "bool": true,
-              "bind": {
-                "field": "draft_id"
-              }
+              "local_only": true
             },
             {
               "name": "evidence",
@@ -828,9 +824,7 @@
             {
               "name": "finding",
               "description": "Finding when blocked",
-              "bind": {
-                "field": "draft_id"
-              }
+              "local_only": true
             }
           ],
           "binding": {

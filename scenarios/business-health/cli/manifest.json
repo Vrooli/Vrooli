@@ -25,9 +25,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -64,9 +62,7 @@
             {
               "name": "format",
               "description": "Rendering: table (default) | summary | markdown",
-              "bind": {
-                "field": "path"
-              }
+              "local_only": true
             },
             {
               "name": "phase",
@@ -78,9 +74,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -117,9 +111,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -213,9 +205,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -283,9 +273,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenarios"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -461,12 +449,12 @@
           "description": "Search intent by natural-language text \u2014 'which scenario provides X', 'what is Y supposed to deliver'",
           "positionals": [
             {
-              "name": "text",
-              "required": true,
-              "description": "Natural-language query",
-              "bind": {
-                "field": "mode"
-              }
+      "name": "text",
+      "required": true,
+      "description": "Natural-language query",
+      "bind": {
+        "field": "query"
+      }
             }
           ],
           "flags": [

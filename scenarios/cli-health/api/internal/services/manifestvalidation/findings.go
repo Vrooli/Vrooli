@@ -28,6 +28,10 @@ const (
 	CodeBindingDuplicate     = "binding.duplicate"
 	CodeBindingArgUnmapped   = "binding.arg_unmapped"
 	CodeBindingAmbiguousSvc  = "binding.ambiguous_service"
+	CodeBindingFieldCollision = "binding.field_collision"
+	CodeBindingControlFlagBound = "binding.control_flag_bound"
+	CodeBindingRequiredFieldUnpopulated = "binding.required_field_unpopulated"
+	CodeBindingBindWhereRenameSuffices = "binding.bind_where_rename_suffices"
 	CodeProtoOrphanMethod    = "proto.orphan_method"
 	CodeOmissionOrphan       = "omission.orphan"
 

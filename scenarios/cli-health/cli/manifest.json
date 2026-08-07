@@ -54,12 +54,12 @@
           "description": "Search the indexed corpus by natural-language text",
           "positionals": [
             {
-              "name": "text",
-              "required": true,
-              "description": "Natural-language query",
-              "bind": {
-                "field": "mode"
-              }
+      "name": "text",
+      "required": true,
+      "description": "Natural-language query",
+      "bind": {
+        "field": "query"
+      }
             }
           ],
           "flags": [
@@ -121,9 +121,7 @@
             {
               "name": "command-ref",
               "description": "Command reference to validate",
-              "bind": {
-                "field": "command_text"
-              }
+              "local_only": true
             }
           ],
           "flags": [

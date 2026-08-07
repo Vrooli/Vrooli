@@ -377,16 +377,12 @@
             {
               "name": "outcome-kind",
               "description": "scenario, backlog, idea_pipeline, or knowledge_topic",
-              "bind": {
-                "field": "outcome"
-              }
+              "local_only": true
             },
             {
               "name": "outcome-target-id",
               "description": "Target identifier for the outcome link",
-              "bind": {
-                "field": "outcome"
-              }
+              "local_only": true
             }
           ],
           "binding": {

@@ -36,6 +36,18 @@ The manifest's `governance` block (`effect`, `run_eligible`,
 to derive action certainty automatically; scenarios that adopt the
 manifest don't need hand-classified action-safety lists.
 
+Manifest arguments normally resolve by name, alias, or one-level envelope
+descent. Use `bind.field` only when that resolution is not sufficient. CLI
+Health also checks the meaning of explicit binds: it reports competing
+arguments targeting one proto field, control-vocabulary flags (`json`,
+`format`, `wait`, and similar) bound into request data, presence-like required
+payload fields with no argument, and binds where renaming the argument would
+be enough. The first three are errors; the last is a warning. A genuine
+request-data control flag or explicit decoder bind may set a non-empty
+`bind_waiver` explanation, which suppresses the matching control or redundant-
+bind finding. The waiver is supported on both `positionals` and `flags` and is
+validated by the shared manifest schema.
+
 `binding.kind` is currently `connect-rpc` only. REST-exception
 commands, if a future domain needs them, should be appended to the
 loaded group outside the manifest path in the domain's `register.go`

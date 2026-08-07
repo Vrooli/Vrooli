@@ -34,9 +34,7 @@
               "name": "all",
               "default": "false",
               "description": "Apply to every discovered flow under --scenario",
-              "bind": {
-                "field": "flow_id"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -80,9 +78,7 @@
               "name": "all",
               "default": "false",
               "description": "Apply to every discovered flow under --scenario",
-              "bind": {
-                "field": "flow_id"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -126,17 +122,13 @@
               "name": "all",
               "default": "false",
               "description": "Apply to every discovered flow under --scenario",
-              "bind": {
-                "field": "flow_id"
-              }
+              "local_only": true
             },
             {
               "name": "yes",
               "default": "false",
               "description": "Skip the confirmation prompt for bulk clears",
-              "bind": {
-                "field": "scenario_id"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -170,8 +162,9 @@
               "description": "Repository root to scan (default: cwd)"
             },
             {
-              "name": "kind",
-              "description": "Filter by flow kind (e.g. temporal, navigation)"
+      "name": "kind",
+      "description": "Filter by flow kind (e.g. temporal, navigation)",
+      "local_only": true
             }
           ],
           "binding": {
@@ -206,9 +199,7 @@
             {
               "name": "kind",
               "description": "Filter by flow kind (e.g. temporal, navigation)",
-              "bind": {
-                "field": "flow_id"
-              }
+              "local_only": true
             }
           ],
           "binding": {

@@ -1162,11 +1162,9 @@
           ],
           "flags": [
             {
-              "name": "finding",
-              "description": "Finding stable id (afid:...)",
-              "bind": {
-                "field": "campaign_id"
-              }
+              "name": "stable_id",
+              "aliases": ["finding"],
+              "description": "Finding stable id (afid:...)"
             },
             {
               "name": "note",
@@ -1198,11 +1196,9 @@
           ],
           "flags": [
             {
-              "name": "finding",
-              "description": "Finding stable id (afid:...)",
-              "bind": {
-                "field": "campaign_id"
-              }
+              "name": "stable_id",
+              "aliases": ["finding"],
+              "description": "Finding stable id (afid:...)"
             }
           ],
           "binding": {
@@ -1286,10 +1282,7 @@
             {
               "name": "text",
               "required": true,
-              "description": "Natural-language query",
-              "bind": {
-                "field": "mode"
-              }
+              "description": "Natural-language query"
             }
           ],
           "flags": [
