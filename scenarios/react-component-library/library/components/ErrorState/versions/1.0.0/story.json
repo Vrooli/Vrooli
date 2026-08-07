@@ -1,1 +1,8 @@
-{"schemaVersion":1,"kind":"component","title":"ErrorState","args":{"fields":[{"path":"title","kind":"text","default":"Something went wrong"}]},"environment":{"fixtures":[]},"stories":[{"id":"error","name":"Retryable error","args":{"title":"Something went wrong"},"expect":[{"kind":"role","role":"alert"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "ErrorState",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "error", "name": "Retryable sync error", "harness": "Error", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "role", "role": "button", "name": "Try again" }] }]
+}

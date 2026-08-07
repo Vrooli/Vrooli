@@ -1,1 +1,8 @@
-{"schemaVersion":1,"kind":"component","title":"LoadingState","args":{"fields":[{"path":"label","kind":"text","default":"Loading…"}]},"environment":{"fixtures":[]},"stories":[{"id":"loading","name":"Loading","args":{"label":"Loading…"},"expect":[{"kind":"role","role":"status"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "LoadingState",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "loading", "name": "Loading workspace", "harness": "Loading", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "Loading workspace" }] }]
+}

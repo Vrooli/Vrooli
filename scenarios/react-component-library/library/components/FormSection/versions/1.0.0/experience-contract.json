@@ -1,0 +1,52 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:FormSection@1.0.0"
+  },
+  "component": {
+    "id": "forms.form-section",
+    "title": "FormSection",
+    "purpose": "A semantic section that keeps form hierarchy, validation context, and optional disclosure coherent."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A readable group of related fields."
+    },
+    {
+      "id": "validation",
+      "example": "validation",
+      "description": "A visible issue count keeps recovery context near the section."
+    },
+    {
+      "id": "collapsed",
+      "example": "collapsed",
+      "description": "Optional disclosure reduces secondary-task density."
+    }
+  ],
+  "claims": [
+    {
+      "id": "semantic-group",
+      "type": "custom",
+      "statement": "The section preserves heading, field grouping, and live validation context without requiring consumer layout glue.",
+      "tier": "machine",
+      "states": ["default", "validation"]
+    },
+    {
+      "id": "keyboard-collapse",
+      "type": "custom",
+      "statement": "Collapsible sections use a native button with an accurate expanded relationship and remain keyboard-operable.",
+      "tier": "machine",
+      "states": ["collapsed"]
+    },
+    {
+      "id": "responsive-rhythm",
+      "type": "custom",
+      "statement": "Section padding and field rhythm remain readable on narrow screens without horizontal overflow.",
+      "tier": "manual",
+      "states": ["default", "validation", "collapsed"]
+    }
+  ]
+}

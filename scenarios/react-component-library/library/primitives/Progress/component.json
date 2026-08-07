@@ -12,6 +12,9 @@
     { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
   ],
   "dependencies": [
-    { "libraryId": "react-component-library:useReducedMotion", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:useReducedMotion",
+      "version": "1.0.0"
+    }
   ]
 }

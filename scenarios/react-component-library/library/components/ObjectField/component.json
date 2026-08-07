@@ -1,0 +1,17 @@
+{
+  "libraryId": "react-component-library:ObjectField",
+  "catalogId": "forms.object-field",
+  "displayName": "ObjectField",
+  "description": "A section-backed nested object field that keeps child values, optionality, collapse, and nested errors together.",
+  "assetKind": "component",
+  "tags": ["form", "object", "nested", "validation", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:FormSection", "version": "1.0.0" }
+  ]
+}

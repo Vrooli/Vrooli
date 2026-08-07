@@ -1,0 +1,20 @@
+{
+  "libraryId": "react-component-library:RadioGroup",
+  "catalogId": "controls.radio-group",
+  "displayName": "RadioGroup",
+  "description": "A native radio group with controlled selection, keyboard-operable options, supporting context, disabled choices, and recoverable errors.",
+  "assetKind": "component",
+  "tags": ["controls", "selection", "forms", "accessibility", "token-bound"],
+  "slot": "ui-primitive",
+  "category": "controls",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.0"
+    }
+  ],
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

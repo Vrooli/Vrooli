@@ -1,0 +1,24 @@
+{
+  "libraryId": "react-component-library:VirtualList",
+  "catalogId": "data-display.virtual-list",
+  "latest": "1.0.0",
+  "displayName": "VirtualList",
+  "description": "A measured, accessible large-collection renderer with overscan, focus preservation, sticky rows, and scroll restoration.",
+  "assetKind": "component",
+  "tags": [
+    "data-display",
+    "virtualization",
+    "performance",
+    "accessibility",
+    "responsive",
+    "token-bound"
+  ],
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:List", "version": "1.0.0" }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "libraryId": "react-component-library:ConditionalField",
+  "catalogId": "forms.conditional-field",
+  "displayName": "ConditionalField",
+  "description": "A form field boundary driven by store values with explicit hide, disable, and reset behavior.",
+  "assetKind": "component",
+  "tags": ["form", "conditional", "state", "accessibility", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": []
+}

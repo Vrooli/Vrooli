@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "FilePreview",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Ready attachment", "harness": "Default", "args": {}, "expect": [{ "kind": "text", "value": "research-brief.pdf" }, { "kind": "role", "role": "button", "name": "Download" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "loading", "name": "Preparing preview", "harness": "Loading", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "Scanning for a safe preview" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "request-error", "name": "Typed fallback", "harness": "ErrorState", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "text", "value": "This format cannot be previewed here" }], "interactions": [{ "kind": "settle" }] }
+  ]
+}

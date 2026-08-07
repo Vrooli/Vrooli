@@ -46,3 +46,40 @@ func TestMergedEvidenceTreatsStalePersistedRowsAsAbsent(t *testing.T) {
 		}
 	}
 }
+
+func TestCurrentRevisionAcceptsRepositoryAndLibraryRoots(t *testing.T) {
+	repoRoot := t.TempDir()
+	scenarioRoot := filepath.Join(repoRoot, "scenarios", "react-component-library")
+	assetDir := filepath.Join(scenarioRoot, "catalog", "assets", "controls")
+	componentDir := filepath.Join(scenarioRoot, "library", "components", "Button")
+	versionDir := filepath.Join(componentDir, "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(assetDir, 0o755))
+	require.NoError(t, os.MkdirAll(versionDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(assetDir, "button.json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button"}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.button","latest":"1.0.0"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Button.tsx"), []byte("export const Button = () => null;"), 0o644))
+	fromRepository, err := CurrentRevision(repoRoot, "controls.button")
+	require.NoError(t, err)
+	fromLibrary, err := CurrentRevision(filepath.Join(scenarioRoot, "library"), "controls.button")
+	require.NoError(t, err)
+	require.Equal(t, fromRepository, fromLibrary)
+}
+
+func TestRecomputeEvidenceDoesNotFabricateTypesPass(t *testing.T) {
+	root := t.TempDir()
+	assetDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "controls")
+	componentDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button")
+	versionDir := filepath.Join(componentDir, "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(assetDir, 0o755))
+	require.NoError(t, os.MkdirAll(versionDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(assetDir, "button.json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button","name":"Button","kind":"component","targets":["react-vite"]},"api":{}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"), []byte(`{"gates":[{"id":"types","rung":"scaffolded","blocking":true,"appliesTo":["component"]}]}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.button","latest":"1.0.0"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Button.tsx"), []byte(`export const Button = () => null;`), 0o644))
+
+	evidence, err := RecomputeEvidence(root)
+	require.NoError(t, err)
+	require.Len(t, evidence, 1)
+	require.Equal(t, "types", evidence[0].Gate)
+	require.Equal(t, "fail", evidence[0].Result)
+}

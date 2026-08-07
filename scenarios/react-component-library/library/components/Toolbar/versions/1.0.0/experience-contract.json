@@ -1,0 +1,52 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Toolbar@1.0.0"
+  },
+  "component": {
+    "id": "controls.toolbar",
+    "title": "Toolbar",
+    "purpose": "Group related actions into a responsive, keyboard-operable command surface."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A horizontal action toolbar is available."
+    },
+    {
+      "id": "interactive",
+      "example": "interactive",
+      "description": "Toolbar actions report their result without losing focus grammar."
+    },
+    {
+      "id": "vertical",
+      "example": "vertical",
+      "description": "The same item model adapts to a vertical surface."
+    }
+  ],
+  "claims": [
+    {
+      "id": "toolbar-semantics",
+      "type": "custom",
+      "statement": "Toolbar exposes a named toolbar region and uses shared ControlBase/Toggle controls for action semantics.",
+      "tier": "automated",
+      "states": ["default", "interactive", "vertical"]
+    },
+    {
+      "id": "roving-focus",
+      "type": "custom",
+      "statement": "Arrow keys, Home, and End move focus among enabled items while disabled items are skipped.",
+      "tier": "automated",
+      "states": ["default", "interactive", "vertical"]
+    },
+    {
+      "id": "responsive-overflow",
+      "type": "custom",
+      "statement": "Horizontal toolbars preserve item geometry and allow bounded overflow on narrow surfaces.",
+      "tier": "manual",
+      "states": ["default", "interactive"]
+    }
+  ]
+}

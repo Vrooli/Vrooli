@@ -159,7 +159,13 @@ async function selectResolvedTheme(page, theme) {
   await page.waitForTimeout(100);
 }
 
-async function captureThemeTier(page, frameElements, componentID, storyIDs = [], sourceOverride = "") {
+async function captureThemeTier(
+  page,
+  frameElements,
+  componentID,
+  storyIDs = [],
+  sourceOverride = "",
+) {
   const captures = {};
   const outputDir = screenshotArtifactDir();
   if (outputDir) await mkdir(outputDir, { recursive: true });
@@ -189,11 +195,15 @@ async function captureThemeTier(page, frameElements, componentID, storyIDs = [],
     // iframe element attribute is repainted. Prefer that story-pinned URL so
     // isolated captures never reopen the empty initial harness.
     for (const frame of page.frames()) {
-      if (frame.url().includes(`/preview/${componentID}/harness.html`) && frame.url().includes("story=")) {
+      if (
+        frame.url().includes(`/preview/${componentID}/harness.html`) &&
+        frame.url().includes("story=")
+      ) {
         mountedSources.add(frame.url());
       }
     }
-    if (mountedSources.size === 0) throw new Error("no story-pinned preview source available for capture");
+    if (mountedSources.size === 0)
+      throw new Error("no story-pinned preview source available for capture");
     const sources = [...mountedSources];
     for (const kit of kits) {
       for (const viewport of viewports) {
@@ -236,9 +246,29 @@ async function captureThemeTier(page, frameElements, componentID, storyIDs = [],
                   .innerText()
                   .catch(() => "");
                 throw new Error(
-                  `isolated preview did not mount at ${capturePage.url()}${previewError ? `: ${previewError}` : ` (root=${(await capturePage.locator("#root").innerHTML().catch(() => "")).slice(0, 160)})`}`,
+                  `isolated preview did not mount at ${capturePage.url()}${
+                    previewError
+                      ? `: ${previewError}`
+                      : ` (root=${(
+                          await capturePage
+                            .locator("#root")
+                            .innerHTML()
+                            .catch(() => "")
+                        ).slice(0, 160)})`
+                  }`,
                   { cause: error },
                 );
+              }
+              const expectedStory = kitSource.searchParams.get("story");
+              if (expectedStory) {
+                const renderedStory = await capturePage
+                  .locator('meta[name="story-id"]')
+                  .getAttribute("content");
+                if (renderedStory !== expectedStory) {
+                  throw new Error(
+                    `isolated preview story mismatch: requested ${expectedStory}, rendered ${renderedStory || "<empty>"} at ${capturePage.url()}`,
+                  );
+                }
               }
               // The harness installs its theme bridge before the React module
               // resolves, but posting after the first mount makes this
@@ -562,8 +592,10 @@ async function assertAssetPreview(page, componentID, target = {}) {
     // before taking a Frame handle. A handle captured during that navigation
     // can remain valid while pointing at the empty predecessor document.
     await page.waitForFunction(
-      () => Array.from(document.querySelectorAll('[data-testid="components-editor-preview-frame"]'))
-        .some((frame) => (frame.getAttribute("src") || "").includes("story=")),
+      () =>
+        Array.from(
+          document.querySelectorAll('[data-testid="components-editor-preview-frame"]'),
+        ).some((frame) => (frame.getAttribute("src") || "").includes("story=")),
       null,
       { timeout: 10_000 },
     );
@@ -575,9 +607,15 @@ async function assertAssetPreview(page, componentID, target = {}) {
     const frameCount = await frameElements.count();
     const previewFrames = page
       .frames()
-      .filter((frame) => frame.url().includes(`/preview/${componentID}/harness.html`) && frame.url().includes("story="));
+      .filter(
+        (frame) =>
+          frame.url().includes(`/preview/${componentID}/harness.html`) &&
+          frame.url().includes("story="),
+      );
     if (previewFrames.length === 0) {
-      throw new Error(`expected a story-pinned preview frame, found ${frameCount} mounted frame(s)`);
+      throw new Error(
+        `expected a story-pinned preview frame, found ${frameCount} mounted frame(s)`,
+      );
     }
     const expectations = await componentStories(componentID);
     const frameResults = [];

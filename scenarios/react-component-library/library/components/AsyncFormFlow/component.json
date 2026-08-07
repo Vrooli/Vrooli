@@ -1,0 +1,31 @@
+{
+  "libraryId": "react-component-library:AsyncFormFlow",
+  "catalogId": "patterns.async-form-flow",
+  "latest": "1.0.0",
+  "displayName": "AsyncFormFlow",
+  "description": "A recoverable create-or-edit workflow with loading, validation, submission, server mapping, offline behavior, and next-step navigation.",
+  "assetKind": "component",
+  "tags": [
+    "forms",
+    "async",
+    "recovery",
+    "offline",
+    "navigation",
+    "responsive",
+    "token-bound"
+  ],
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:Form", "version": "1.0.0" },
+    { "libraryId": "react-component-library:FormActions", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:ValidationSummary",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:AsyncBoundary", "version": "1.0.0" }
+  ]
+}

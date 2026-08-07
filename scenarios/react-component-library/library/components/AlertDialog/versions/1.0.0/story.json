@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "AlertDialog",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Destructive confirmation", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "alertdialog", "name": "Remove this workspace?" }, { "kind": "role", "role": "button", "name": "Remove workspace" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "submitting", "name": "Submitting", "harness": "Submitting", "args": {}, "expect": [{ "kind": "role", "role": "alertdialog", "name": "Publish changes?" }, { "kind": "text", "value": "Working…" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "request-error", "name": "Request error", "harness": "RequestError", "args": {}, "expect": [{ "kind": "role", "role": "alertdialog", "name": "Publish changes?" }, { "kind": "role", "role": "alert" }, { "kind": "text", "value": "publishing service timed out" }], "interactions": [{ "kind": "settle" }] }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:GeneratedForm@1.0.0"
+  },
+  "component": {
+    "id": "forms.generated-form",
+    "title": "GeneratedForm",
+    "purpose": "A schema-driven form whose field graph, layout, validation, recovery, and derived values remain one coherent experience."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A real settings model composes sections, conditional fields, arrays, objects, and a calculated output."
+    },
+    {
+      "id": "validation",
+      "example": "validation",
+      "description": "Submit-time validation preserves input, associates errors, and points directly to recovery."
+    }
+  ],
+  "claims": [
+    {
+      "id": "shared-runtime",
+      "type": "custom",
+      "statement": "Generated fields compose the shared form, field, section, action, summary, conditional, computed, array, and object contracts rather than duplicating them.",
+      "tier": "machine",
+      "states": ["default", "validation"]
+    },
+    {
+      "id": "error-recovery",
+      "type": "custom",
+      "statement": "Validation preserves values, announces a summary, and leaves the failing field available for correction.",
+      "tier": "machine",
+      "states": ["validation"]
+    },
+    {
+      "id": "schema-responsive",
+      "type": "custom",
+      "statement": "The same field graph remains legible at narrow widths as sections and compound fields reflow.",
+      "tier": "manual",
+      "states": ["default", "validation"]
+    }
+  ]
+}

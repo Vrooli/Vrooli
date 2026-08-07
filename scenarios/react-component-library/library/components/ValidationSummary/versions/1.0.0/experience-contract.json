@@ -10,12 +10,38 @@
     "purpose": "Summarizes recoverable field errors while preserving direct keyboard paths back to each field."
   },
   "states": [
-    { "id": "errors", "example": "default", "description": "Multiple field errors with labeled recovery links." },
-    { "id": "empty", "example": "empty", "description": "No summary output when there are no errors." }
+    {
+      "id": "errors",
+      "example": "default",
+      "description": "Multiple field errors with labeled recovery links."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "No summary output when there are no errors."
+    }
   ],
   "claims": [
-    { "id": "alert-summary", "type": "custom", "statement": "Errors are exposed as an alert with a heading and field-specific links.", "tier": "automated", "states": ["errors"] },
-    { "id": "empty-layout", "type": "custom", "statement": "The component renders no summary surface when the error map is empty.", "tier": "automated", "states": ["empty"] },
-    { "id": "recovery-path", "type": "custom", "statement": "Each listed field provides a direct navigation path back to the field target.", "tier": "manual", "states": ["errors"] }
+    {
+      "id": "alert-summary",
+      "type": "custom",
+      "statement": "Errors are exposed as an alert with a heading and field-specific links.",
+      "tier": "automated",
+      "states": ["errors"]
+    },
+    {
+      "id": "empty-layout",
+      "type": "custom",
+      "statement": "The component renders no summary surface when the error map is empty.",
+      "tier": "automated",
+      "states": ["empty"]
+    },
+    {
+      "id": "recovery-path",
+      "type": "custom",
+      "statement": "Each listed field provides a direct navigation path back to the field target.",
+      "tier": "manual",
+      "states": ["errors"]
+    }
   ]
 }

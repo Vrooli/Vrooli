@@ -7,5 +7,7 @@
   "tags": ["feedback", "async", "token-bound"],
   "latest": "1.0.0",
   "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "dependencies": [
+    { "libraryId": "react-component-library:AsyncBoundary", "version": "1.0.0" }
+  ]
 }

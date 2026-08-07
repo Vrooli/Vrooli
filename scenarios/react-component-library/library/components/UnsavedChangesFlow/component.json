@@ -1,0 +1,21 @@
+{
+  "libraryId": "react-component-library:UnsavedChangesFlow",
+  "catalogId": "patterns.unsaved-changes-flow",
+  "latest": "1.0.0",
+  "displayName": "UnsavedChangesFlow",
+  "description": "A recoverable unsaved-work workflow that coordinates save, discard, continue, and private-draft preservation.",
+  "assetKind": "component",
+  "tags": ["recovery", "forms", "navigation", "accessibility", "token-bound"],
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:DirtyStateGuard",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:AlertDialog", "version": "1.0.0" }
+  ]
+}

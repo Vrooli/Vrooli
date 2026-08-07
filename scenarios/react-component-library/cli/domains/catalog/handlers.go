@@ -49,9 +49,6 @@ func (h *handlers) next(ctx cliapp.RunContext) error {
 
 func (h *handlers) gate(ctx cliapp.RunContext) error {
 	gate := ctx.Positional("gate")
-	if gate == "record" {
-		gate = "record:" + ctx.Positional("record-gate")
-	}
 	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate}))
 	if err != nil {
 		return cliapp.WrapAPIError("run catalog gate", err, nil)

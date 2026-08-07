@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "component": "react-component-library:Alert",
+  "claims": [
+    {
+      "id": "semantic-status",
+      "description": "Tone is expressed through role, label, icon, text, and border—not color alone."
+    },
+    {
+      "id": "recovery",
+      "description": "Actions remain native, reachable, and large enough for recovery work."
+    },
+    {
+      "id": "responsive",
+      "description": "Long copy and actions reflow without horizontal overflow."
+    },
+    {
+      "id": "forced-colors",
+      "description": "The alert remains legible when custom colors are removed by forced-colors mode."
+    }
+  ]
+}

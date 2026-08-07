@@ -1,0 +1,24 @@
+{
+  "states": [
+    { "id": "idle", "example": "idle", "description": "No drag is active." },
+    {
+      "id": "pointer",
+      "example": "pointer",
+      "description": "Pointer movement is tracked outside React layout state."
+    },
+    {
+      "id": "keyboard",
+      "example": "keyboard",
+      "description": "Keyboard movement shares the same position and outcome channel."
+    }
+  ],
+  "claims": [
+    {
+      "id": "scoped-state",
+      "type": "custom",
+      "statement": "Drag state is scoped to one interaction region and exposes cancellation as a first-class outcome.",
+      "tier": "machine",
+      "states": ["idle", "pointer", "keyboard"]
+    }
+  ]
+}

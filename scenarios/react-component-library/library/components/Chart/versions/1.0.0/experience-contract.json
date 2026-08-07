@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "component": "react-component-library:Chart",
+  "claims": [
+    {
+      "id": "accessible-equivalent",
+      "description": "Every plotted value has a keyboard-readable legend and a hidden tabular equivalent."
+    },
+    {
+      "id": "data-states",
+      "description": "Loading, empty, error, stale, refreshing, partial, and offline states retain honest semantics."
+    },
+    {
+      "id": "responsive",
+      "description": "The plot and value controls reflow without horizontal overflow on narrow screens."
+    },
+    {
+      "id": "non-color",
+      "description": "Selection and status remain communicated through text, labels, and shape/focus treatment."
+    },
+    {
+      "id": "engine-boundary",
+      "description": "The base chart owns accessible layout and state contracts while leaving rendering engines replaceable."
+    }
+  ]
+}

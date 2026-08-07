@@ -1,0 +1,28 @@
+{
+  "libraryId": "react-component-library:AsyncOptionsField",
+  "catalogId": "forms.async-options-field",
+  "displayName": "AsyncOptionsField",
+  "description": "A resilient searchable option field with debounced loading, cancellation, retry, pagination, and honest async states.",
+  "assetKind": "component",
+  "tags": [
+    "forms",
+    "async",
+    "combobox",
+    "accessibility",
+    "responsive",
+    "token-bound"
+  ],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:useAbortableTask",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:useRetry", "version": "1.0.0" }
+  ]
+}

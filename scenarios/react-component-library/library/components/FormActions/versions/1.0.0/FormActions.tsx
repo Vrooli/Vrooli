@@ -1,8 +1,13 @@
 /** @vrooliComponentSource forms.form-actions */
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { type FormPhase, type FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
+import {
+  type FormPhase,
+  type FormStore,
+} from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
-export interface FormActionsProps<TValues extends Record<string, unknown> = Record<string, unknown>> {
+export interface FormActionsProps<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> {
   store?: FormStore<TValues>;
   submitLabel?: ReactNode;
   pendingLabel?: ReactNode;
@@ -32,9 +37,12 @@ const styles = `
   @media (max-width: 34rem) { [data-rcl-form-actions] { align-items: stretch; flex-direction: column-reverse; } [data-rcl-form-action] { inline-size: 100%; } }
 `;
 
-const phaseBusy = (phase: FormPhase | undefined) => phase === "validating" || phase === "submitting" || phase === "saving";
+const phaseBusy = (phase: FormPhase | undefined) =>
+  phase === "validating" || phase === "submitting" || phase === "saving";
 
-function useFormPhase<TValues extends Record<string, unknown>>(store?: FormStore<TValues>) {
+function useFormPhase<TValues extends Record<string, unknown>>(
+  store?: FormStore<TValues>,
+) {
   const [, rerender] = useState(0);
   useEffect(() => {
     if (!store) return;
@@ -43,7 +51,9 @@ function useFormPhase<TValues extends Record<string, unknown>>(store?: FormStore
   return store?.get().phase;
 }
 
-export function FormActions<TValues extends Record<string, unknown> = Record<string, unknown>>({
+export function FormActions<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+>({
   store,
   submitLabel = "Save changes",
   pendingLabel = "Saving…",
@@ -61,13 +71,46 @@ export function FormActions<TValues extends Record<string, unknown> = Record<str
   const isDisabled = disabled || busy;
   return (
     <>
-      <style data-rcl-form-actions-styles dangerouslySetInnerHTML={{ __html: styles }} />
-      <div className={className} style={style} data-rcl-form-actions="true" data-align={align} data-phase={phase ?? "idle"}>
+      <style
+        data-rcl-form-actions-styles
+        dangerouslySetInnerHTML={{ __html: styles }}
+      />
+      <div
+        className={className}
+        style={style}
+        data-rcl-form-actions="true"
+        data-align={align}
+        data-phase={phase ?? "idle"}
+      >
         {children ?? (
           <>
-            {cancelLabel && <button type="button" data-rcl-form-action="cancel" onClick={onCancel} disabled={isDisabled}>{cancelLabel}</button>}
-            {resetLabel && <button type="reset" data-rcl-form-action="reset" disabled={isDisabled}>{resetLabel}</button>}
-            <button type="submit" data-rcl-form-action="submit" disabled={isDisabled} aria-busy={busy || undefined}>{busy ? pendingLabel : submitLabel}</button>
+            {cancelLabel && (
+              <button
+                type="button"
+                data-rcl-form-action="cancel"
+                onClick={onCancel}
+                disabled={isDisabled}
+              >
+                {cancelLabel}
+              </button>
+            )}
+            {resetLabel && (
+              <button
+                type="reset"
+                data-rcl-form-action="reset"
+                disabled={isDisabled}
+              >
+                {resetLabel}
+              </button>
+            )}
+            <button
+              type="submit"
+              data-rcl-form-action="submit"
+              disabled={isDisabled}
+              aria-busy={busy || undefined}
+            >
+              {busy ? pendingLabel : submitLabel}
+            </button>
           </>
         )}
       </div>

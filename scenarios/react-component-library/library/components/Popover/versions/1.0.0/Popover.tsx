@@ -131,6 +131,10 @@ function usePopoverContext() {
   return value;
 }
 
+export function usePopover() {
+  return usePopoverContext();
+}
+
 function PopoverPositioner({
   children,
   placement,
@@ -266,7 +270,7 @@ export function PopoverTrigger({
       id={context.triggerId}
       type={props.type ?? "button"}
       data-rcl-popover-trigger
-      aria-haspopup="dialog"
+      aria-haspopup={props["aria-haspopup"] ?? "dialog"}
       aria-expanded={context.open}
       aria-controls={context.open ? context.contentId : undefined}
       onClick={(event) => {
@@ -355,7 +359,7 @@ export function PopoverContent({
         }}
         id={context.contentId}
         elevation="floating"
-        role="dialog"
+        role={props.role ?? "dialog"}
         tabIndex={initialFocus === "content" ? -1 : undefined}
         aria-modal="false"
         data-rcl-popover-content
@@ -364,7 +368,8 @@ export function PopoverContent({
           (responsive ?? context.responsive) === "none" ? "none" : "sheet"
         }
         style={{
-          background: "var(--color-surface-raised, var(--app-surface, #fff))",
+          background:
+            "linear-gradient(var(--color-surface-raised, var(--app-surface, #fff)), var(--color-surface-raised, var(--app-surface, #fff))), var(--color-background, #fff)",
           border: "1px solid var(--color-border, #cbd5e1)",
           borderRadius: "var(--radius-panel, .75rem)",
           boxShadow: "var(--elev-floating, 0 18px 48px rgb(15 23 42 / 18%))",

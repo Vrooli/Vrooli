@@ -1,0 +1,31 @@
+{
+  "libraryId": "react-component-library:Chart",
+  "catalogId": "visualization.chart",
+  "displayName": "Chart",
+  "description": "A responsive, accessible chart surface with pluggable presentation, resilient data states, and keyboard-readable values.",
+  "assetKind": "component",
+  "tags": [
+    "visualization",
+    "data",
+    "accessibility",
+    "responsive",
+    "token-bound"
+  ],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:AsyncBoundary",
+      "version": "1.0.0"
+    },
+    { "libraryId": "react-component-library:useLocale", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:useElementRect",
+      "version": "1.0.0"
+    }
+  ]
+}

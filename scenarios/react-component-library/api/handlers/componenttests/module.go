@@ -5,7 +5,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
+	"path/filepath"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -30,7 +33,7 @@ func Module(db *sql.DB, assets components.Service, sourceRoot string, logger *lo
 // production always supplies the Chrome-backed executor above.
 func ModuleWithExecutor(db *sql.DB, assets components.Service, sourceRoot string, executor domain.StoryExecutor, logger *log.Logger) module.Module {
 	svc := domain.NewService(domain.Runner{Assets: assets, Stories: assets, Executor: executor}, domain.NewSQLiteRepository(db))
-	path, handler := componenttestsconnect.NewComponentTestsServiceHandler(&connectHandler{service: svc, logger: logger})
+	path, handler := componenttestsconnect.NewComponentTestsServiceHandler(&connectHandler{service: svc, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db), sourceRoot: sourceRoot})
 	sharedPath, shared := scenariovalidationconnect.NewScenarioValidationServiceHandler(&sharedHandler{service: svc, assets: assets, sourceRoot: sourceRoot, logger: logger, evidence: catalogcoverage.NewEvidenceStore(db)})
 	return module.Module{Name: "component-tests", Mount: func(r *mux.Router) {
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler})
@@ -39,13 +42,18 @@ func ModuleWithExecutor(db *sql.DB, assets components.Service, sourceRoot string
 }
 
 type connectHandler struct {
-	service *domain.Service
-	logger  *log.Logger
+	service    *domain.Service
+	logger     *log.Logger
+	evidence   *catalogcoverage.EvidenceStore
+	sourceRoot string
 }
 
 func (h *connectHandler) RunComponentTest(ctx context.Context, req *connect.Request[componenttestsv1.RunComponentTestRequest]) (*connect.Response[componenttestsv1.RunComponentTestResponse], error) {
 	report, err := h.service.Run(ctx, domain.Request{ComponentID: req.Msg.GetComponentId(), Version: req.Msg.GetVersion(), IncludeClosure: req.Msg.GetIncludeClosure()})
 	if err != nil {
+		return nil, h.error(err)
+	}
+	if err := h.recordContractEvidence(ctx, report); err != nil {
 		return nil, h.error(err)
 	}
 	return connect.NewResponse(&componenttestsv1.RunComponentTestResponse{Report: toProto(report)}), nil
@@ -56,7 +64,95 @@ func (h *connectHandler) RerunComponentTest(ctx context.Context, req *connect.Re
 	if err != nil {
 		return nil, h.error(err)
 	}
+	if err := h.recordContractEvidence(ctx, report); err != nil {
+		return nil, h.error(err)
+	}
 	return connect.NewResponse(&componenttestsv1.RerunComponentTestResponse{Report: toProto(report)}), nil
+}
+
+// recordContractEvidence is the narrow bridge between the durable browser
+// contract runner and catalog maturity. A declared story result can support
+// unit/interaction evidence; it cannot silently imply visual, accessibility,
+// responsive, or production evidence, which have their own capture paths.
+func (h *connectHandler) recordContractEvidence(ctx context.Context, report domain.Report) error {
+	return recordContractEvidence(ctx, h.evidence, h.sourceRoot, report)
+}
+
+func recordContractEvidence(ctx context.Context, evidenceStore *catalogcoverage.EvidenceStore, sourceRoot string, report domain.Report) error {
+	if evidenceStore == nil || strings.TrimSpace(sourceRoot) == "" {
+		return nil
+	}
+	implementations, err := catalogcoverage.LoadImplementations(sourceRoot)
+	if err != nil {
+		return fmt.Errorf("load implementations for component-test evidence: %w", err)
+	}
+	byLibraryID := make(map[string]string, len(implementations))
+	for _, implementation := range implementations {
+		if implementation.CatalogID == "" {
+			continue
+		}
+		byLibraryID["react-component-library:"+implementation.Name] = implementation.CatalogID
+	}
+	assets, err := catalogcoverage.LoadCatalog(filepath.Join(filepath.Dir(sourceRoot), "catalog"))
+	if err != nil {
+		return fmt.Errorf("load catalog for component-test evidence: %w", err)
+	}
+	targetByID := make(map[string]string, len(assets))
+	for _, asset := range assets {
+		target := "react-vite"
+		if len(asset.Targets) > 0 && strings.TrimSpace(asset.Targets[0]) != "" {
+			target = asset.Targets[0]
+		}
+		targetByID[asset.ID] = target
+	}
+	type aggregate struct {
+		passed  bool
+		blocked bool
+		seen    bool
+		version string
+	}
+	aggregates := map[string]*aggregate{}
+	for _, result := range report.Results {
+		if result.Stage != domain.StageDeclared {
+			continue
+		}
+		catalogID := byLibraryID[result.AssetLibraryID]
+		if catalogID == "" || targetByID[catalogID] == "" {
+			continue
+		}
+		item := aggregates[catalogID]
+		if item == nil {
+			item = &aggregate{passed: true, version: result.Version}
+			aggregates[catalogID] = item
+		}
+		item.seen = true
+		if result.Verdict != domain.VerdictPassed {
+			item.passed = false
+		}
+		if result.Verdict == domain.VerdictBlocked {
+			item.blocked = true
+		}
+	}
+	evidence := make([]catalogcoverage.GateEvidence, 0, len(aggregates)*2)
+	for catalogID, item := range aggregates {
+		if !item.seen {
+			continue
+		}
+		result := "fail"
+		if item.blocked {
+			result = "skipped"
+		} else if item.passed {
+			result = "pass"
+		}
+		revision, err := catalogcoverage.CurrentRevision(sourceRoot, catalogID)
+		if err != nil {
+			return fmt.Errorf("compute component-test evidence revision for %s: %w", catalogID, err)
+		}
+		for _, gate := range []string{"unit", "interaction"} {
+			evidence = append(evidence, catalogcoverage.GateEvidence{AssetID: catalogID, Target: targetByID[catalogID], Gate: gate, Result: result, SourceRevision: revision})
+		}
+	}
+	return evidenceStore.Save(ctx, evidence)
 }
 
 func (h *connectHandler) GetComponentTestReport(ctx context.Context, req *connect.Request[componenttestsv1.GetComponentTestReportRequest]) (*connect.Response[componenttestsv1.GetComponentTestReportResponse], error) {

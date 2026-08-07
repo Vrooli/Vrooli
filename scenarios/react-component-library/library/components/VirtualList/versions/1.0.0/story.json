@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "VirtualList",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Measured activity", "harness": "Default", "args": {}, "expect": [{ "kind": "text", "value": "Recent activity" }, { "kind": "text", "value": "120 records" }] },
+    { "id": "dense", "name": "Dense command history", "harness": "Dense", "args": {}, "expect": [{ "kind": "text", "value": "Command history" }] },
+    { "id": "empty", "name": "Empty collection", "harness": "Empty", "args": {}, "expect": [{ "kind": "text", "value": "No activity has arrived" }] },
+    { "id": "restored-scroll", "name": "Restored reading position", "harness": "RestoredScroll", "args": {}, "expect": [{ "kind": "text", "value": "Returning here preserves your reading position" }] }
+  ]
+}

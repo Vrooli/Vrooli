@@ -1,0 +1,52 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:AttachmentPreview@1.0.0"
+  },
+  "component": {
+    "id": "media.attachment-preview",
+    "title": "AttachmentPreview",
+    "purpose": "An honest, resilient attachment surface that keeps each file understandable through upload, scanning, success, and recovery."
+  },
+  "states": [
+    {
+      "id": "uploading",
+      "example": "uploading",
+      "description": "Per-file progress and cancellation keep an active transfer understandable."
+    },
+    {
+      "id": "success",
+      "example": "success",
+      "description": "A completed attachment keeps its preview and file actions."
+    },
+    {
+      "id": "recovery",
+      "example": "recovery",
+      "description": "A failed transfer names the problem and offers a real retry path."
+    }
+  ],
+  "claims": [
+    {
+      "id": "state-honesty",
+      "type": "custom",
+      "statement": "The attachment communicates upload, scanning, success, and request-error states without implying an adapter action occurred.",
+      "tier": "machine",
+      "states": ["uploading", "success", "recovery"]
+    },
+    {
+      "id": "independent-progress",
+      "type": "custom",
+      "statement": "Progress is associated with the individual file and remains accessible through a named progressbar.",
+      "tier": "machine",
+      "states": ["uploading"]
+    },
+    {
+      "id": "responsive-recovery",
+      "type": "custom",
+      "statement": "Actions and recovery copy reflow into a readable narrow layout without document overflow.",
+      "tier": "manual",
+      "states": ["uploading", "recovery"]
+    }
+  ]
+}

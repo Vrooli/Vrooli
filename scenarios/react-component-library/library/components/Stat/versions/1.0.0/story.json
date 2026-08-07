@@ -1,1 +1,12 @@
-{"schemaVersion":1,"kind":"component","title":"Stat","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"label":"Active","value":"42"},"expect":[{"kind":"text","value":"42"}]},{"id":"empty","name":"Empty","args":{"label":"Active","value":"42"}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Stat",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Growth metric", "harness": "Default", "args": {}, "expect": [{ "kind": "text", "value": "42" }] },
+    { "id": "negative", "name": "Negative trend", "harness": "Negative", "args": {}, "expect": [{ "kind": "text", "value": "-4.8%" }] },
+    { "id": "loading", "name": "Loading metric", "harness": "Loading", "args": {}, "expect": [{ "kind": "role", "role": "status" }] }
+  ]
+}

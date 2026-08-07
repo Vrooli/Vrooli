@@ -1,0 +1,50 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Toggle@1.0.0"
+  },
+  "component": {
+    "id": "controls.toggle",
+    "title": "Toggle",
+    "purpose": "Expose a persistent pressed state through the shared action-control grammar."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A toggle is available and off."
+    },
+    {
+      "id": "interactive",
+      "example": "interactive",
+      "description": "A controlled consumer receives pressed-state changes."
+    },
+    {
+      "id": "pressed",
+      "example": "pressed",
+      "description": "A toggle communicates its active mode."
+    },
+    {
+      "id": "disabled",
+      "example": "disabled",
+      "description": "An unavailable mode retains its label and state."
+    }
+  ],
+  "claims": [
+    {
+      "id": "pressed-semantics",
+      "type": "custom",
+      "statement": "Toggle uses a native button with aria-pressed and keeps the shared ControlBase focus, hover, press, and reduced-motion behavior.",
+      "tier": "automated",
+      "states": ["default", "interactive", "pressed", "disabled"]
+    },
+    {
+      "id": "controlled-state",
+      "type": "custom",
+      "statement": "Controlled consumers receive exactly one pressed-state callback per activation.",
+      "tier": "automated",
+      "states": ["interactive"]
+    }
+  ]
+}

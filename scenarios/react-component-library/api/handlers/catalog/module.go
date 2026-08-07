@@ -87,14 +87,13 @@ func (h *handler) ListNextWork(ctx context.Context, req *connect.Request[catalog
 
 func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.RunGateRequest]) (*connect.Response[catalogv1.RunGateResponse], error) {
 	gate := strings.TrimSpace(req.Msg.GetGate())
-	if strings.HasPrefix(gate, "record:") {
-		return h.record(ctx, strings.TrimPrefix(gate, "record:"))
-	}
 	var (
 		result gates.Result
 		err    error
 	)
 	switch gate {
+	case "types":
+		result, err = gates.ValidateTypes(h.repoRoot)
 	case "api":
 		result, err = gates.ValidateAPI(h.repoRoot)
 	case "tokens":
@@ -116,64 +115,6 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		response.Findings = append(response.Findings, &catalogv1.GateFinding{Code: finding.Code, Message: finding.Message, AssetId: finding.AssetID, Severity: "error"})
 	}
 	return connect.NewResponse(response), nil
-}
-
-func (h *handler) record(ctx context.Context, gate string) (*connect.Response[catalogv1.RunGateResponse], error) {
-	allowed := map[string]bool{"visual": true, "accessibility": true, "responsive": true, "rtl": true, "reduced-motion": true, "forced-colors": true, "performance": true, "unit": true, "interaction": true, "examples": true, "stress": true, "integration": true}
-	if !allowed[gate] {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown persisted catalog gate %q", gate))
-	}
-	if h.evidence == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("catalog evidence store is not configured"))
-	}
-	assets, err := catalogcoverage.LoadCatalog(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog"))
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	impls, err := catalogcoverage.LoadImplementations(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "library"))
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	byID := map[string]catalogcoverage.Implementation{}
-	for _, impl := range impls {
-		byID[impl.CatalogID] = impl
-	}
-	definitions, err := catalogcoverage.LoadGateDefinitions(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog", "config.json"))
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	var rows []catalogcoverage.GateEvidence
-	for _, asset := range assets {
-		if _, ok := byID[asset.ID]; !ok || !appliesGate(definitions, gate, asset.Kind) {
-			continue
-		}
-		target := "react-vite"
-		if len(asset.Targets) > 0 {
-			target = asset.Targets[0]
-		}
-		revision, err := catalogcoverage.CurrentRevision(h.repoRoot, asset.ID)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		rows = append(rows, catalogcoverage.GateEvidence{AssetID: asset.ID, Target: target, Gate: gate, Result: "pass", SourceRevision: revision})
-	}
-	if err := h.evidence.Save(ctx, rows); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&catalogv1.RunGateResponse{Gate: "record:" + gate, InspectedFiles: int32(len(rows))}), nil
-}
-
-func appliesGate(definitions []catalogcoverage.GateDefinition, gate, kind string) bool {
-	for _, definition := range definitions {
-		if definition.ID == gate {
-			for _, applied := range definition.AppliesTo {
-				if applied == kind {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
 
 func toProto(report *catalogcoverage.Report) *catalogv1.CoverageReport {

@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:useRetry",
+  "catalogId": "hooks.use-retry",
+  "displayName": "useRetry",
+  "description": "A cancellable retry controller with bounded attempts, abortable backoff, and failure classification.",
+  "assetKind": "hook",
+  "tags": ["runtime", "recovery", "async", "accessibility"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

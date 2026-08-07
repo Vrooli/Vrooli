@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "RadioGroup",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Default", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "radiogroup", "name": "Theme" }, { "kind": "role", "role": "radio", "name": "Use system setting" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "interactive", "name": "Controlled selection", "harness": "Interactive", "args": {}, "expect": [{ "kind": "role", "role": "radio", "name": "Dark" }, { "kind": "role", "role": "status", "name": "Selected theme" }, { "kind": "text", "value": "Selected: dark" }], "interactions": [{ "kind": "click", "target": { "role": "radio", "name": "Dark" } }, { "kind": "settle" }] },
+    { "id": "disabled", "name": "Disabled group", "harness": "Disabled", "args": {}, "expect": [{ "kind": "role", "role": "radiogroup", "name": "Theme" }], "interactions": [{ "kind": "settle" }] }
+  ]
+}

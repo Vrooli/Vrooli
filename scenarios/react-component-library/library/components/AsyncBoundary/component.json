@@ -7,5 +7,11 @@
   "tags": ["feedback", "async", "token-bound"],
   "latest": "1.0.0",
   "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "dependencies": [
+    { "libraryId": "react-component-library:useAnnounce", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:useNetworkStatus",
+      "version": "1.0.0"
+    }
+  ]
 }

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "AsyncOptionsField",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "combobox", "name": "Workspace" },
+        { "kind": "text", "value": "Search the right context" }
+      ]
+    },
+    {
+      "id": "selected",
+      "name": "Selected",
+      "harness": "Selected",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "combobox", "name": "Workspace" },
+        { "kind": "text", "value": "A selection that stays legible" }
+      ],
+      "interactions": [
+        { "kind": "click", "target": { "role": "combobox", "name": "Workspace" } },
+        { "kind": "key", "target": { "role": "combobox", "name": "Workspace" }, "text": "ArrowDown" },
+        { "kind": "key", "target": { "role": "combobox", "name": "Workspace" }, "text": "Enter" },
+        { "kind": "settle" }
+      ]
+    },
+    {
+      "id": "error-state",
+      "name": "Error State",
+      "harness": "ErrorState",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "combobox", "name": "Workspace" },
+        { "kind": "text", "value": "Workspace search is temporarily unavailable." }
+      ]
+    }
+  ]
+}

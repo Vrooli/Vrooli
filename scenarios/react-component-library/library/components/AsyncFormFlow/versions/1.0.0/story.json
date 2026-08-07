@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "AsyncFormFlow",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Create or edit", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "textbox", "name": "Full name" }, { "kind": "role", "role": "button", "name": "Save changes" }] },
+    { "id": "loading", "name": "Initial load", "harness": "Loading", "args": {}, "expect": [{ "kind": "text", "value": "Loading" }] },
+    { "id": "request-error", "name": "Server error mapping", "harness": "RequestError", "args": {}, "expect": [{ "kind": "role", "role": "textbox", "name": "Full name" }, { "kind": "role", "role": "button", "name": "Save changes" }] },
+    { "id": "offline", "name": "Offline recovery", "harness": "Offline", "args": {}, "expect": [{ "kind": "text", "value": "You’re offline" }] },
+    { "id": "empty", "name": "Empty create state", "harness": "Empty", "args": {}, "expect": [{ "kind": "text", "value": "No saved draft yet" }, { "kind": "role", "role": "button", "name": "Start fresh" }] },
+    { "id": "partial", "name": "Partial data", "harness": "Partial", "args": {}, "expect": [{ "kind": "role", "role": "textbox", "name": "Full name" }] },
+    { "id": "submitting", "name": "Submission progress", "harness": "Submitting", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Cancel request" }] },
+    { "id": "success", "name": "Successful handoff", "harness": "Success", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }] },
+    { "id": "retry", "name": "Retry after server error", "harness": "Retry", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }] }
+  ]
+}

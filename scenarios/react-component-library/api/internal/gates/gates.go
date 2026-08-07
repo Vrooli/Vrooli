@@ -4,14 +4,17 @@
 package gates
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Finding struct{ Code, AssetID, Message string }
@@ -118,6 +121,85 @@ func ValidateAPI(root string) (Result, error) {
 		}
 	}
 	return nonEmpty(result, "api"), nil
+}
+
+// ValidateTypes runs the same catalog conformance command declared by the
+// catalog registry. Types are intentionally not inferred from the presence of
+// source files: a released asset only earns this gate after the real
+// TypeScript/ESLint boundary has executed successfully.
+func ValidateTypes(root string) (Result, error) {
+	uiDir := filepath.Join(root, "scenarios", "react-component-library", "ui")
+	if _, err := os.Stat(filepath.Join(uiDir, "package.json")); err != nil {
+		if os.IsNotExist(err) {
+			return Result{Findings: []Finding{{
+				Code:    "catalog.types_zero_inputs",
+				AssetID: "catalog.runner",
+				Message: "catalog UI package is missing; the declared types runner could not execute",
+			}}}, nil
+		}
+		return Result{}, err
+	}
+
+	result := Result{Inspected: countCatalogSources(root)}
+	if result.Inspected == 0 {
+		return nonEmpty(result, "types"), nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	command := exec.CommandContext(ctx, "pnpm", "run", "catalog:check")
+	command.Dir = uiDir
+	output, err := command.CombinedOutput()
+	if ctx.Err() != nil {
+		result.Findings = append(result.Findings, Finding{
+			Code:    "catalog.types_timeout",
+			AssetID: "catalog.runner",
+			Message: "catalog conformance timed out before the declared types gate completed",
+		})
+		return result, nil
+	}
+	if err != nil {
+		message := strings.TrimSpace(string(output))
+		if len(message) > 4000 {
+			message = message[len(message)-4000:]
+		}
+		result.Findings = append(result.Findings, Finding{
+			Code:    "catalog.types_failed",
+			AssetID: "catalog.runner",
+			Message: "catalog conformance failed: " + message,
+		})
+	}
+	return result, nil
+}
+
+func countCatalogSources(root string) int {
+	count := 0
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		manifests, _ := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		for _, manifest := range manifests {
+			data, err := os.ReadFile(manifest)
+			if err != nil {
+				continue
+			}
+			var doc struct {
+				Latest string `json:"latest"`
+				Draft  string `json:"draft"`
+			}
+			if json.Unmarshal(data, &doc) != nil {
+				continue
+			}
+			versions := []string{doc.Latest}
+			if doc.Draft != "" && doc.Draft != doc.Latest {
+				versions = append(versions, doc.Draft)
+			}
+			for _, version := range versions {
+				matches, _ := filepath.Glob(filepath.Join(filepath.Dir(manifest), "versions", version, "*.ts"))
+				count += len(matches)
+				matches, _ = filepath.Glob(filepath.Join(filepath.Dir(manifest), "versions", version, "*.tsx"))
+				count += len(matches)
+			}
+		}
+	}
+	return count
 }
 
 func implementationSource(root, catalogID string) (string, string, bool, error) {

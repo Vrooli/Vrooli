@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Toggle",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Off", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Pin to dashboard" }, { "kind": "attribute", "selector": "[data-rcl-toggle]", "attribute": "aria-pressed", "value": "false" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "interactive", "name": "Controlled", "harness": "Interactive", "args": {}, "expect": [{ "kind": "role", "role": "status", "name": "Toggle state" }, { "kind": "text", "value": "Focus mode is on." }], "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Focus mode" } }, { "kind": "settle" }] },
+    { "id": "pressed", "name": "On", "harness": "Pressed", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Show grid" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "disabled", "name": "Disabled", "harness": "Disabled", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Auto-layout" }], "interactions": [{ "kind": "settle" }] }
+  ]
+}

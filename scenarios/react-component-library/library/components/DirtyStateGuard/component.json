@@ -1,0 +1,15 @@
+{
+  "libraryId": "react-component-library:DirtyStateGuard",
+  "catalogId": "forms.dirty-state-guard",
+  "displayName": "DirtyStateGuard",
+  "description": "Protects meaningful unsaved work with an accessible recovery prompt and an SSR-safe unload guard.",
+  "assetKind": "component",
+  "tags": ["forms", "recovery", "accessibility", "navigation", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": []
+}

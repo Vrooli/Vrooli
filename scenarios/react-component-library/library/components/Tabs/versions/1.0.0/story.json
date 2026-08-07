@@ -1,1 +1,36 @@
-{"schemaVersion":3,"kind":"component","title":"Tabs","args":{"fields":[]},"environment":{"fixtures":[]},"frame":{"asset":"navigation.page","region":"navigation","fixture":"fixtures.user-directory"},"stories":[{"id":"default","name":"Default","args":{"items":["Overview","Activity"],"active":"Overview","panels":{"Overview":"A focused overview of the workspace.","Activity":"Recent activity appears here."}},"expect":[{"kind":"role","role":"tablist","name":"Tabs"},{"kind":"role","role":"tabpanel"}]},{"id":"long-content","name":"Long content","args":{"items":["Overview","Activity","Automations","Integrations","Preferences"],"defaultActive":"Overview","panels":{"Overview":"A focused overview of the workspace.","Activity":"Recent activity appears here.","Automations":"Automation history.","Integrations":"Connected integrations.","Preferences":"Workspace preferences."}}}]}
+{
+  "schemaVersion": 2,
+  "kind": "component",
+  "title": "Tabs",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "tablist", "name": "Workspace sections" },
+        { "kind": "role", "role": "tabpanel" },
+        { "kind": "text", "value": "Arrow keys move between tabs" },
+        { "kind": "text", "value": "Recent activity appears here." }
+      ],
+      "interactions": [
+        { "kind": "click", "target": { "role": "tab", "name": "Activity" } },
+        { "kind": "settle" }
+      ]
+    },
+    {
+      "id": "long-content",
+      "name": "Long content",
+      "harness": "LongContent",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "tab", "name": "Preferences" },
+        { "kind": "role", "role": "tabpanel" }
+      ],
+      "interactions": [{ "kind": "settle" }]
+    }
+  ]
+}

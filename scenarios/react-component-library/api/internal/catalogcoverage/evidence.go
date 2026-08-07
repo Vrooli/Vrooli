@@ -103,7 +103,8 @@ func (s *EvidenceStore) List(ctx context.Context) ([]GateEvidence, error) {
 // CurrentRevision is a content hash for the catalog declaration and its
 // linked implementation. Persisted evidence with another revision is stale.
 func CurrentRevision(root, assetID string) (string, error) {
-	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
+	scenarioRoot := resolveScenarioRoot(root)
+	paths, err := filepath.Glob(filepath.Join(scenarioRoot, "catalog", "assets", "*", "*.json"))
 	if err != nil {
 		return "", err
 	}
@@ -131,7 +132,7 @@ func CurrentRevision(root, assetID string) (string, error) {
 	if !matched {
 		return "", fmt.Errorf("catalog asset %q not found", assetID)
 	}
-	manifestPaths, _ := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "component.json"))
+	manifestPaths, _ := filepath.Glob(filepath.Join(scenarioRoot, "library", "*", "component.json"))
 	sort.Strings(manifestPaths)
 	for _, path := range manifestPaths {
 		data, err := os.ReadFile(path)
@@ -159,6 +160,26 @@ func CurrentRevision(root, assetID string) (string, error) {
 		break
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// resolveScenarioRoot accepts the repository root used by API handlers, the
+// scenario root used by local tools, and the library root used by the
+// component service. Keeping this normalization at the revision boundary
+// prevents evidence from silently disappearing when those callers use their
+// own legitimate source-root abstraction.
+func resolveScenarioRoot(root string) string {
+	clean := filepath.Clean(root)
+	if filepath.Base(clean) == "library" {
+		return filepath.Dir(clean)
+	}
+	if _, err := os.Stat(filepath.Join(clean, "catalog")); err == nil {
+		return clean
+	}
+	candidate := filepath.Join(clean, "scenarios", "react-component-library")
+	if _, err := os.Stat(filepath.Join(candidate, "catalog")); err == nil {
+		return candidate
+	}
+	return clean
 }
 
 func versionSourcePaths(versionDir string) []string {
@@ -215,6 +236,9 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 		return nil, err
 	}
 	runners := map[string]gates.Result{}
+	if runners["types"], err = gates.ValidateTypes(root); err != nil {
+		return nil, err
+	}
 	if runners["api"], err = gates.ValidateAPI(root); err != nil {
 		return nil, err
 	}
@@ -245,22 +269,18 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 		}
 		for _, definition := range definitions {
 			gateName := definition.ID
-			if gateName == "types" {
-				out = append(out, GateEvidence{AssetID: asset.ID, Target: target, Gate: gateName, Result: "pass", SourceRevision: revision})
-				continue
-			}
-			if _, ok := runners[gateName]; !ok {
-				continue
-			}
 			if !containsKind(definition.AppliesTo, asset.Kind) {
 				continue
 			}
-			runner := runners[gateName]
+			runner, ok := runners[gateName]
+			if !ok {
+				continue
+			}
 			result := "pass"
-			if runner.Inspected == 0 {
-				result = "skipped"
-			} else if hasFinding(runner.Findings, asset.ID, implByAsset[asset.ID].Name, gateName) {
+			if hasFinding(runner.Findings, asset.ID, implByAsset[asset.ID].Name, gateName) {
 				result = "fail"
+			} else if runner.Inspected == 0 {
+				result = "skipped"
 			}
 			out = append(out, GateEvidence{AssetID: asset.ID, Target: target, Gate: gateName, Result: result, SourceRevision: revision})
 		}
@@ -270,7 +290,7 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 
 func hasFinding(findings []gates.Finding, assetID, implementation, gate string) bool {
 	for _, finding := range findings {
-		if finding.AssetID == assetID || finding.AssetID == implementation {
+		if finding.AssetID == "catalog.runner" || finding.AssetID == assetID || finding.AssetID == implementation {
 			return true
 		}
 	}

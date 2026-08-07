@@ -1,0 +1,17 @@
+{
+  "libraryId": "react-component-library:Toggle",
+  "catalogId": "controls.toggle",
+  "displayName": "Toggle",
+  "description": "A token-bound pressed-state control composed over ControlBase with controlled state, native button semantics, and motion-safe feedback.",
+  "assetKind": "component",
+  "tags": ["controls", "selection", "accessibility", "motion", "token-bound"],
+  "slot": "ui-primitive",
+  "category": "controls",
+  "dependencies": [
+    { "libraryId": "react-component-library:ControlBase", "version": "1.0.0" }
+  ],
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

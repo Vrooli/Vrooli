@@ -34,7 +34,16 @@ type sharedHandler struct {
 	evidence   *catalogcoverage.EvidenceStore
 }
 
-const componentValidationWorkers = 4
+// The catalog suite is transport-bound: Test Genie keeps the validation RPC
+// open while every released asset is exercised. Four workers made a healthy
+// 136-asset suite take just over two minutes, which crossed the connector's
+// response window and surfaced as an EOF even though the server completed.
+// Keep enough parallelism to finish below that boundary while retaining a
+// bounded worker pool so SQLite and the preview server are not overwhelmed.
+// The released catalog now has 149 assets; ten workers keeps the RPC below
+// Test Genie's transport window without turning validation into an unbounded
+// browser/database fan-out.
+const componentValidationWorkers = 10
 
 type assetValidationResult struct {
 	libraryID string
@@ -219,6 +228,13 @@ func appendCatalogFindings(assessment *commonv1.MaturityAssessment, findings []c
 func (h *sharedHandler) validateAsset(ctx context.Context, asset components.Component) assetValidationResult {
 	result := assetValidationResult{libraryID: asset.LibraryID}
 	report, runErr := h.service.Run(ctx, domain.Request{ComponentID: asset.ID, Version: asset.LatestVersion, IncludeClosure: true})
+	if runErr == nil {
+		if evidenceErr := recordContractEvidence(ctx, h.evidence, h.sourceRoot, report); evidenceErr != nil {
+			result.failed = true
+			result.detail = "record component-test evidence: " + evidenceErr.Error()
+			return result
+		}
+	}
 	coverageGaps := h.storyCoverageGaps(ctx, asset.ID, asset.LatestVersion)
 	if len(coverageGaps) > 0 {
 		result.failed = true

@@ -1,8 +1,16 @@
 /** @vrooliComponentSource forms.validation-summary */
-import { useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { type FormStore } from "../../../../services/FormStore/versions/1.0.0/FormStore";
 
-export interface ValidationSummaryProps<TValues extends Record<string, unknown> = Record<string, unknown>> {
+export interface ValidationSummaryProps<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+> {
   store?: FormStore<TValues>;
   errors?: Partial<Record<keyof TValues, string | undefined>>;
   fieldLabels?: Partial<Record<keyof TValues, ReactNode>>;
@@ -21,7 +29,9 @@ const styles = `
   [data-rcl-validation-summary-list] a:focus-visible { outline: 2px solid var(--color-focus, #2563eb); outline-offset: 3px; border-radius: .125rem; }
 `;
 
-function useFormSnapshot<TValues extends Record<string, unknown>>(store?: FormStore<TValues>) {
+function useFormSnapshot<TValues extends Record<string, unknown>>(
+  store?: FormStore<TValues>,
+) {
   const [, rerender] = useState(0);
   useEffect(() => {
     if (!store) return;
@@ -30,7 +40,9 @@ function useFormSnapshot<TValues extends Record<string, unknown>>(store?: FormSt
   return store?.get();
 }
 
-export function ValidationSummary<TValues extends Record<string, unknown> = Record<string, unknown>>({
+export function ValidationSummary<
+  TValues extends Record<string, unknown> = Record<string, unknown>,
+>({
   store,
   errors,
   fieldLabels,
@@ -42,25 +54,49 @@ export function ValidationSummary<TValues extends Record<string, unknown> = Reco
   const state = useFormSnapshot(store);
   const headingId = useId().replace(/:/g, "");
   const stateErrors = state
-    ? Object.fromEntries(
-        (Object.entries(state.fields) as Array<[keyof TValues, { error?: string }]>).filter(([, field]) => field.error).map(([field, value]) => [field, value.error]),
-      ) as Partial<Record<keyof TValues, string | undefined>>
+    ? (Object.fromEntries(
+        (
+          Object.entries(state.fields) as Array<
+            [keyof TValues, { error?: string }]
+          >
+        )
+          .filter(([, field]) => field.error)
+          .map(([field, value]) => [field, value.error]),
+      ) as Partial<Record<keyof TValues, string | undefined>>)
     : {};
   const fieldErrors = errors ?? stateErrors;
-  const entries = (Object.entries(fieldErrors) as Array<[keyof TValues, string | undefined]>).filter(([, message]) => Boolean(message));
+  const entries = (
+    Object.entries(fieldErrors) as Array<[keyof TValues, string | undefined]>
+  ).filter(([, message]) => Boolean(message));
   if (entries.length === 0) return null;
   return (
     <>
-      <style data-rcl-validation-summary-styles dangerouslySetInnerHTML={{ __html: styles }} />
-      <section className={className} style={style} data-rcl-validation-summary="true" role="alert" aria-labelledby={headingId}>
+      <style
+        data-rcl-validation-summary-styles
+        dangerouslySetInnerHTML={{ __html: styles }}
+      />
+      <section
+        className={className}
+        style={style}
+        data-rcl-validation-summary="true"
+        role="alert"
+        aria-labelledby={headingId}
+      >
         <div id={headingId} data-rcl-validation-summary-title>
-          <span data-rcl-validation-summary-mark aria-hidden="true">!</span>
+          <span data-rcl-validation-summary-mark aria-hidden="true">
+            !
+          </span>
           <span>{title}</span>
         </div>
         <ul data-rcl-validation-summary-list>
           {entries.map(([field, message]) => (
             <li key={String(field)}>
-              <a href={`#${String(field)}`} onClick={() => onFocusField?.(field)}>{fieldLabels?.[field] ?? String(field)}</a>
+              <a
+                href={`#${String(field)}`}
+                onClick={() => onFocusField?.(field)}
+              >
+                {fieldLabels?.[field] ?? String(field)}
+              </a>
               {": "} {message}
             </li>
           ))}

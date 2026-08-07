@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "ArrayField",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Ordered collection", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "list" }, { "kind": "text", "value": "Workspace principles" }] },
+    { "id": "empty", "name": "Empty invitation", "harness": "Empty", "args": {}, "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Add channel" } }, { "kind": "settle" }], "expect": [{ "kind": "role", "role": "list" }, { "kind": "role", "role": "textbox", "name": "Channel" }] }
+  ]
+}

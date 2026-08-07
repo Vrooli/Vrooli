@@ -10,12 +10,38 @@
     "purpose": "Gives form actions consistent priority, responsive layout, and pending-state semantics."
   },
   "states": [
-    { "id": "default", "example": "default", "description": "Primary, reset, and cancel actions with clear hierarchy." },
-    { "id": "pending", "example": "pending", "description": "Submission in progress with disabled actions and live busy state." }
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Primary, reset, and cancel actions with clear hierarchy."
+    },
+    {
+      "id": "pending",
+      "example": "pending",
+      "description": "Submission in progress with disabled actions and live busy state."
+    }
   ],
   "claims": [
-    { "id": "priority", "type": "custom", "statement": "The primary submit action is distinct from secondary and destructive-adjacent actions.", "tier": "automated", "states": ["default"] },
-    { "id": "pending-semantics", "type": "custom", "statement": "Pending submission disables actions and exposes a busy submit state.", "tier": "automated", "states": ["pending"] },
-    { "id": "responsive-layout", "type": "custom", "statement": "Actions become full-width and touch-friendly on narrow viewports.", "tier": "manual", "states": ["default", "pending"] }
+    {
+      "id": "priority",
+      "type": "custom",
+      "statement": "The primary submit action is distinct from secondary and destructive-adjacent actions.",
+      "tier": "automated",
+      "states": ["default"]
+    },
+    {
+      "id": "pending-semantics",
+      "type": "custom",
+      "statement": "Pending submission disables actions and exposes a busy submit state.",
+      "tier": "automated",
+      "states": ["pending"]
+    },
+    {
+      "id": "responsive-layout",
+      "type": "custom",
+      "statement": "Actions become full-width and touch-friendly on narrow viewports.",
+      "tier": "manual",
+      "states": ["default", "pending"]
+    }
   ]
 }

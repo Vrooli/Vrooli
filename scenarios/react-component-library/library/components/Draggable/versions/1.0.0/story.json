@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Draggable",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Direct manipulation", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "group", "name": "Project brief" }] },
+    { "id": "keyboard", "name": "Keyboard alternative", "harness": "Keyboard", "args": {}, "interactions": [{ "kind": "key", "target": { "role": "group", "name": "Project brief" }, "text": "Space" }, { "kind": "key", "target": { "role": "group", "name": "Project brief" }, "text": "ArrowRight" }, { "kind": "key", "target": { "role": "group", "name": "Project brief" }, "text": "Enter" }, { "kind": "settle" }], "expect": [{ "kind": "role", "role": "group", "name": "Project brief" }, { "kind": "text", "value": "Space to pick up" }] },
+    { "id": "bounds", "name": "Constrained movement", "harness": "Bounds", "args": {}, "interactions": [{ "kind": "key", "target": { "role": "group", "name": "Project brief" }, "text": "Space" }, { "kind": "key", "target": { "role": "group", "name": "Project brief" }, "text": "ArrowRight" }, { "kind": "key", "target": { "role": "group", "name": "Project brief" }, "text": "Escape" }, { "kind": "settle" }], "expect": [{ "kind": "role", "role": "group", "name": "Project brief" }] },
+    { "id": "disabled", "name": "Disabled", "harness": "Disabled", "args": {}, "expect": [{ "kind": "role", "role": "group", "name": "Project brief" }] }
+  ]
+}

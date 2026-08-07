@@ -22,7 +22,10 @@ export type FormSubmitHandler<TValues extends FormValues> = (
 ) => void | Promise<void>;
 
 export interface FormProps<TValues extends FormValues = FormValues>
-  extends Omit<FormHTMLAttributes<HTMLFormElement>, "onSubmit" | "onReset" | "title"> {
+  extends Omit<
+    FormHTMLAttributes<HTMLFormElement>,
+    "onSubmit" | "onReset" | "title"
+  > {
   mode?: FormMode;
   store?: FormStore<TValues>;
   onSubmit?: FormSubmitHandler<TValues>;
@@ -84,12 +87,14 @@ export function Form<TValues extends FormValues = FormValues>({
   "aria-labelledby": ariaLabelledBy,
   ...props
 }: FormProps<TValues>) {
-  const resolvedMode: FormMode = mode ?? (store ? "controlled" : "uncontrolled");
+  const resolvedMode: FormMode =
+    mode ?? (store ? "controlled" : "uncontrolled");
   const state = useFormState(store);
   const generatedStatusId = useId().replace(/:/g, "");
   const statusId = `${id ?? `rcl-form-${generatedStatusId}`}-status`;
   const phase = state?.phase ?? "idle";
-  const busy = phase === "validating" || phase === "submitting" || phase === "saving";
+  const busy =
+    phase === "validating" || phase === "submitting" || phase === "saving";
   const status = state?.error ?? phaseMessage[phase];
   const hasConflict = Boolean(state?.conflict);
 
@@ -114,7 +119,10 @@ export function Form<TValues extends FormValues = FormValues>({
 
   return (
     <>
-      <style data-rcl-form-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <style
+        data-rcl-form-styles
+        dangerouslySetInnerHTML={{ __html: styles }}
+      />
       <form
         {...props}
         id={id}
@@ -138,13 +146,21 @@ export function Form<TValues extends FormValues = FormValues>({
         )}
         {hasConflict && (
           <div data-rcl-form-conflict role="alert">
-            <span data-rcl-form-conflict-mark aria-hidden="true">!</span>
+            <span data-rcl-form-conflict-mark aria-hidden="true">
+              !
+            </span>
             <span>{state?.conflict?.message}</span>
           </div>
         )}
         <div data-rcl-form-body>{children}</div>
         <div data-rcl-form-footer>
-          <div id={statusId} data-rcl-form-status data-phase={phase} role="status" aria-live="polite">
+          <div
+            id={statusId}
+            data-rcl-form-status
+            data-phase={phase}
+            role="status"
+            aria-live="polite"
+          >
             {status}
           </div>
           {footer}

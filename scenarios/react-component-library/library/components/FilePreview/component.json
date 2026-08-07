@@ -1,0 +1,15 @@
+{
+  "libraryId": "react-component-library:FilePreview",
+  "catalogId": "media.file-preview",
+  "displayName": "FilePreview",
+  "description": "A safe, typed file summary with status, metadata, preview fallback, and keyboard-operable actions.",
+  "assetKind": "component",
+  "tags": ["media", "files", "status", "responsive", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": []
+}

@@ -1,0 +1,20 @@
+{
+  "libraryId": "react-component-library:Checkbox",
+  "catalogId": "controls.checkbox",
+  "displayName": "Checkbox",
+  "description": "A native checkbox with a composed label, description, mixed state, error semantics, and token-bound focus treatment.",
+  "assetKind": "component",
+  "tags": ["controls", "selection", "accessibility", "token-bound"],
+  "slot": "ui-primitive",
+  "category": "controls",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.0"
+    }
+  ],
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

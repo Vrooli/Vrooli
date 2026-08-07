@@ -1,0 +1,18 @@
+{
+  "libraryId": "react-component-library:UndoBanner",
+  "catalogId": "feedback.undo-banner",
+  "displayName": "UndoBanner",
+  "description": "A forgiving reversible-action surface with expiry, rollback progress, and recovery when undo fails.",
+  "assetKind": "component",
+  "tags": ["feedback", "recovery", "undo", "accessibility", "token-bound"],
+  "latest": "1.0.0",
+  "dependencies": [
+    { "libraryId": "react-component-library:Surface", "version": "1.0.0" },
+    { "libraryId": "react-component-library:Presence", "version": "1.0.0" }
+  ],
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ]
+}

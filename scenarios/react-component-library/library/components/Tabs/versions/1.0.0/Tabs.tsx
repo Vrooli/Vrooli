@@ -23,13 +23,14 @@ export interface TabsProps {
 const styleSheet = `
 [data-rcl-tabs] { position: relative; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 [data-rcl-tabs]::-webkit-scrollbar { display: none; }
-[data-rcl-tablist] { display: inline-flex; min-width: 100%; gap: var(--space-3xs); border-bottom: var(--border-hairline) solid var(--color-border); }
-[data-rcl-tab] { position: relative; min-height: var(--tap-target-min); border: 0; border-radius: var(--radius-control) var(--radius-control) 0 0; background: transparent; color: var(--color-muted-foreground); cursor: pointer; font: inherit; font-weight: 650; white-space: nowrap; transition: color var(--dur-quick) var(--ease-standard), background var(--dur-quick) var(--ease-standard); }
+[data-rcl-tablist] { position: relative; display: inline-flex; min-width: 100%; gap: var(--space-3xs); border-bottom: var(--border-hairline) solid var(--color-border); }
+[data-rcl-tab] { position: relative; min-height: var(--tap-target-min); padding-inline: var(--space-sm); border: 0; border-radius: var(--radius-control) var(--radius-control) 0 0; background: transparent; color: var(--color-muted-foreground); cursor: pointer; font: inherit; font-weight: 650; white-space: nowrap; transition: color var(--dur-quick) var(--ease-standard), background var(--dur-quick) var(--ease-standard); }
 [data-rcl-tab]:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
 [data-rcl-tab]:focus-visible { outline: var(--border-strong) solid var(--color-focus); outline-offset: calc(var(--space-3xs) * -1); }
 [data-rcl-tab][aria-selected="true"] { color: var(--color-primary); }
 [data-rcl-tab-indicator] { position: absolute; inset-block-end: 0; block-size: var(--border-strong); border-radius: var(--radius-pill); background: var(--color-primary); pointer-events: none; transition: transform var(--dur-moderate) var(--ease-standard), width var(--dur-moderate) var(--ease-standard); }
 @media (prefers-reduced-motion: reduce) { [data-rcl-tab], [data-rcl-tab-indicator] { transition: none; } }
+@media (max-width: 480px) { [data-rcl-tab] { padding-inline: var(--space-xs); } }
 `;
 
 export function Tabs({
@@ -44,10 +45,12 @@ export function Tabs({
   const [uncontrolledActive, setUncontrolledActive] = useState(
     defaultActive ?? items[0] ?? "",
   );
-  const resolvedMode: TabsMode = mode ?? (active === undefined ? "uncontrolled" : "controlled");
-  const selectedItem = resolvedMode === "controlled"
-    ? active ?? items[0] ?? ""
-    : uncontrolledActive;
+  const resolvedMode: TabsMode =
+    mode ?? (active === undefined ? "uncontrolled" : "controlled");
+  const selectedItem =
+    resolvedMode === "controlled"
+      ? (active ?? items[0] ?? "")
+      : uncontrolledActive;
   const selectedIndex = Math.max(0, items.indexOf(selectedItem));
   const resolvedItem = items[selectedIndex] ?? "";
   const tablistRef = useRef<HTMLDivElement>(null);
@@ -134,11 +137,11 @@ export function Tabs({
                 data-rcl-tab-trigger
                 data-rcl-tab
                 onClick={() => {
-                  if (resolvedMode === "uncontrolled") setUncontrolledActive(item);
+                  if (resolvedMode === "uncontrolled")
+                    setUncontrolledActive(item);
                   onChange?.(item);
                 }}
                 onKeyDown={handleKeyDown}
-                style={{ paddingInline: "var(--space-sm)" }}
               >
                 {item}
               </button>

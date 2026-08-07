@@ -46,7 +46,6 @@ function getFallbackHandle(): LiveAnnouncerHandle {
       node.dataset.vrooliLiveAnnouncer = "true";
       node.setAttribute("aria-live", "polite");
       node.setAttribute("aria-atomic", "true");
-      node.setAttribute("role", "status");
       node.style.position = "fixed";
       node.style.inlineSize = "1px";
       node.style.blockSize = "1px";

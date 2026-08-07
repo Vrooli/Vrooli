@@ -1,0 +1,16 @@
+{
+  "libraryId": "react-component-library:DragDropStore",
+  "catalogId": "services.drag-drop-store",
+  "displayName": "Drag Drop Store",
+  "description": "A scoped interaction store for active drag state, position, velocity, and keyboard movement.",
+  "assetKind": "service",
+  "tags": ["runtime", "drag-drop", "accessibility"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:createScopedStore",
+      "version": "1.0.0"
+    }
+  ]
+}

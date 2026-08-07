@@ -94,8 +94,10 @@ export function CollectionPage({
   onFilterSubmit?: (query: string) => void;
 }) {
   const [uncontrolledQuery, setUncontrolledQuery] = useState(defaultQuery);
-  const resolvedMode: CollectionPageMode = mode ?? (query === undefined ? "uncontrolled" : "controlled");
-  const resolvedQuery = resolvedMode === "controlled" ? query ?? "" : uncontrolledQuery;
+  const resolvedMode: CollectionPageMode =
+    mode ?? (query === undefined ? "uncontrolled" : "controlled");
+  const resolvedQuery =
+    resolvedMode === "controlled" ? (query ?? "") : uncontrolledQuery;
   const updateQuery = (next: string) => {
     if (resolvedMode === "uncontrolled") setUncontrolledQuery(next);
     onQueryChange?.(next);
@@ -133,10 +135,7 @@ export function CollectionPage({
               font: "inherit",
             }}
           />
-          <button
-            type="submit"
-            style={button}
-          >
+          <button type="submit" style={button}>
             Apply filters
           </button>
         </form>

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Toolbar",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Horizontal", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "toolbar", "name": "Editor toolbar" }, { "kind": "role", "role": "button", "name": "Bold" }], "interactions": [{ "kind": "settle" }] },
+    { "id": "interactive", "name": "Interactive", "harness": "Interactive", "args": {}, "expect": [{ "kind": "role", "role": "status", "name": "Last toolbar action" }, { "kind": "text", "value": "Last action: Bold" }], "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Bold" } }, { "kind": "settle" }] },
+    { "id": "vertical", "name": "Vertical", "harness": "Vertical", "args": {}, "expect": [{ "kind": "role", "role": "toolbar", "name": "Editor toolbar" }], "interactions": [{ "kind": "settle" }] }
+  ]
+}

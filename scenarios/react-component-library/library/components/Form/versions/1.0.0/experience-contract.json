@@ -10,13 +10,43 @@
     "purpose": "Coordinates a form's state, submission lifecycle, recovery messaging, and composable field content."
   },
   "states": [
-    { "id": "default", "example": "default", "description": "A composed form with clear hierarchy and action placement." },
-    { "id": "validation-error", "example": "error", "description": "A form that preserves field context while validation recovers." },
-    { "id": "offline", "example": "offline", "description": "A form that communicates resilient offline behavior." }
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A composed form with clear hierarchy and action placement."
+    },
+    {
+      "id": "validation-error",
+      "example": "error",
+      "description": "A form that preserves field context while validation recovers."
+    },
+    {
+      "id": "offline",
+      "example": "offline",
+      "description": "A form that communicates resilient offline behavior."
+    }
   ],
   "claims": [
-    { "id": "semantic-shell", "type": "custom", "statement": "The form exposes a named form landmark and live status region.", "tier": "automated", "states": ["default", "validation-error", "offline"] },
-    { "id": "lifecycle-state", "type": "custom", "statement": "Validation, save, error, success, and offline phases are represented in the DOM without replacing form content.", "tier": "automated", "states": ["default", "validation-error", "offline"] },
-    { "id": "composable-content", "type": "custom", "statement": "Fields and actions remain caller-owned content so the shell can compose with the rest of the library.", "tier": "manual", "states": ["default", "validation-error"] }
+    {
+      "id": "semantic-shell",
+      "type": "custom",
+      "statement": "The form exposes a named form landmark and live status region.",
+      "tier": "automated",
+      "states": ["default", "validation-error", "offline"]
+    },
+    {
+      "id": "lifecycle-state",
+      "type": "custom",
+      "statement": "Validation, save, error, success, and offline phases are represented in the DOM without replacing form content.",
+      "tier": "automated",
+      "states": ["default", "validation-error", "offline"]
+    },
+    {
+      "id": "composable-content",
+      "type": "custom",
+      "statement": "Fields and actions remain caller-owned content so the shell can compose with the rest of the library.",
+      "tier": "manual",
+      "states": ["default", "validation-error"]
+    }
   ]
 }

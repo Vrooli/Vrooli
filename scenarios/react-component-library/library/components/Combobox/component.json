@@ -1,0 +1,28 @@
+{
+  "libraryId": "react-component-library:Combobox",
+  "catalogId": "forms.combobox",
+  "latest": "1.0.0",
+  "displayName": "Combobox",
+  "description": "A native searchable selection field with local filtering, creation, keyboard navigation, and an async-options composition path.",
+  "assetKind": "component",
+  "tags": [
+    "forms",
+    "selection",
+    "combobox",
+    "async",
+    "keyboard",
+    "token-bound"
+  ],
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:Select", "version": "1.1.0" },
+    {
+      "libraryId": "react-component-library:AsyncOptionsField",
+      "version": "1.0.0"
+    }
+  ]
+}

@@ -175,7 +175,7 @@ const styleSheet = `
 }
 [data-rcl-control]:disabled {
   cursor: not-allowed;
-  opacity: var(--opacity-disabled);
+  opacity: max(var(--opacity-disabled), .68);
 }
 @media (prefers-reduced-motion: reduce) {
   [data-rcl-control] { transition: none; }

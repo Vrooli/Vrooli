@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "component": "react-component-library:UnsavedChangesFlow",
+  "claims": [
+    {
+      "id": "recovery",
+      "description": "Leaving with dirty work presents an explicit recovery decision."
+    },
+    {
+      "id": "preservation",
+      "description": "The flow can preserve a private draft without forcing data loss."
+    },
+    {
+      "id": "error-honesty",
+      "description": "Save errors remain visible and retryable while the work stays in place."
+    },
+    {
+      "id": "keyboard",
+      "description": "The composed alert dialog preserves focus order and native keyboard actions."
+    },
+    {
+      "id": "responsive",
+      "description": "The decision surface becomes a full-width mobile action stack."
+    }
+  ]
+}

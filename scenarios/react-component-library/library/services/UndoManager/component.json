@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:UndoManager",
+  "catalogId": "services.undo-manager",
+  "displayName": "Undo Manager",
+  "description": "A scoped reversible-action history service with expiry, rollback progress, and recovery.",
+  "assetKind": "service",
+  "tags": ["runtime", "feedback", "recovery", "accessibility"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

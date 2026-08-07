@@ -1,0 +1,19 @@
+{
+  "libraryId": "react-component-library:Alert",
+  "catalogId": "feedback.alert",
+  "displayName": "Alert",
+  "description": "A semantic local message surface for information, success, warning, or error with resilient actions and dismissal.",
+  "assetKind": "component",
+  "tags": ["feedback", "status", "recovery", "accessibility", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ],
+  "dependencies": [
+    { "libraryId": "react-component-library:Text", "version": "1.0.0" },
+    { "libraryId": "react-component-library:Stack", "version": "1.0.0" },
+    { "libraryId": "react-component-library:Icon", "version": "1.0.0" }
+  ]
+}
