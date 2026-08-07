@@ -14,13 +14,19 @@
             {
               "name": "text",
               "required": true,
-              "description": "Natural-language query"
+              "description": "Natural-language query",
+              "bind": {
+                "field": "types"
+              }
             }
           ],
           "flags": [
             {
               "name": "type",
-              "description": "Comma-separated leaf types to route to (e.g. command,doc,record)"
+              "description": "Comma-separated leaf types to route to (e.g. command,doc,record)",
+              "bind": {
+                "field": "types"
+              }
             },
             {
               "name": "all",
@@ -59,7 +65,11 @@
           },
           "semantics": {
             "kind": "query",
-            "verdict": {"path": "results", "pass": "nonempty", "fail": "empty"}
+            "verdict": {
+              "path": "results",
+              "pass": "nonempty",
+              "fail": "empty"
+            }
           }
         }
       ]
@@ -104,7 +114,7 @@
             },
             {
               "name": "type",
-              "description": "Filter by leaf type (command, doc, record, …)"
+              "description": "Filter by leaf type (command, doc, record, \u2026)"
             },
             {
               "name": "state",
@@ -190,7 +200,10 @@
           "flags": [
             {
               "name": "window",
-              "description": "Restrict aggregates to the last N days (0 or unset = all-time)"
+              "description": "Restrict aggregates to the last N days (0 or unset = all-time)",
+              "bind": {
+                "field": "window_days"
+              }
             }
           ],
           "binding": {
@@ -396,7 +409,10 @@
           "flags": [
             {
               "name": "provider",
-              "description": "Filter by provider_id (e.g. cli-health.commands)"
+              "description": "Filter by provider_id (e.g. cli-health.commands)",
+              "bind": {
+                "field": "provider_id"
+              }
             }
           ],
           "binding": {
@@ -463,7 +479,10 @@
             {
               "name": "assert",
               "bool": true,
-              "description": "Opt-in CI gate: exit non-zero if any case is below_expectation or unexpected_hit (the run is still stored)"
+              "description": "Opt-in CI gate: exit non-zero if any case is below_expectation or unexpected_hit (the run is still stored)",
+              "bind": {
+                "field": "suite_id"
+              }
             }
           ],
           "binding": {
@@ -578,7 +597,7 @@
         },
         {
           "name": "compare",
-          "description": "Compare two eval runs (per-case outcome + score delta) — the A/B surface",
+          "description": "Compare two eval runs (per-case outcome + score delta) \u2014 the A/B surface",
           "positionals": [
             {
               "name": "run_a",
@@ -704,7 +723,10 @@
           "flags": [
             {
               "name": "case",
-              "description": "Case id to promote; comma-separate multiple ids"
+              "description": "Case id to promote; comma-separate multiple ids",
+              "bind": {
+                "field": "case_ids"
+              }
             },
             {
               "name": "all",
@@ -741,37 +763,58 @@
             {
               "name": "root",
               "default": ".",
-              "description": "Repo root or descendant path; scanner walks up to find scenarios/"
+              "description": "Repo root or descendant path; scanner walks up to find scenarios/",
+              "bind": {
+                "field": "scenario"
+              }
             },
             {
               "name": "timeout",
               "default": "30s",
-              "description": "Per-scenario validation RPC timeout, e.g. 10s or 1m"
+              "description": "Per-scenario validation RPC timeout, e.g. 10s or 1m",
+              "bind": {
+                "field": "scenario"
+              }
             },
             {
               "name": "fleet-timeout",
               "default": "2m",
-              "description": "Whole-scan deadline; completed target evidence is retained when it expires"
+              "description": "Whole-scan deadline; completed target evidence is retained when it expires",
+              "bind": {
+                "field": "include_execution"
+              }
             },
             {
               "name": "concurrency",
               "default": "6",
-              "description": "Maximum concurrent validation RPCs"
+              "description": "Maximum concurrent validation RPCs",
+              "bind": {
+                "field": "scenario"
+              }
             },
             {
               "name": "retries",
               "default": "1",
-              "description": "Additional attempts for an unavailable validation RPC within the fleet deadline"
+              "description": "Additional attempts for an unavailable validation RPC within the fleet deadline",
+              "bind": {
+                "field": "scenario"
+              }
             },
             {
               "name": "fast",
               "bool": true,
-              "description": "Skip live eval evidence checks for a quick descriptor/state scan"
+              "description": "Skip live eval evidence checks for a quick descriptor/state scan",
+              "bind": {
+                "field": "path"
+              }
             },
             {
               "name": "include-evals",
               "bool": true,
-              "description": "Force full eval evidence checks; this is the default unless --fast is set"
+              "description": "Force full eval evidence checks; this is the default unless --fast is set",
+              "bind": {
+                "field": "include_execution"
+              }
             }
           ],
           "binding": {
@@ -808,17 +851,26 @@
             },
             {
               "name": "rule",
-              "description": "Comma-separated finding codes to fix; empty previews every safe mechanical fix"
+              "description": "Comma-separated finding codes to fix; empty previews every safe mechanical fix",
+              "bind": {
+                "field": "rule_ids"
+              }
             },
             {
               "name": "timeout",
               "default": "30s",
-              "description": "Fix RPC timeout, e.g. 10s or 1m"
+              "description": "Fix RPC timeout, e.g. 10s or 1m",
+              "bind": {
+                "field": "scenario"
+              }
             },
             {
               "name": "apply",
               "bool": true,
-              "description": "Write the previewed mechanical fixes; default is dry-run"
+              "description": "Write the previewed mechanical fixes; default is dry-run",
+              "bind": {
+                "field": "path"
+              }
             }
           ],
           "binding": {

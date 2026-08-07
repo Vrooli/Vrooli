@@ -21,13 +21,14 @@ type DB interface {
 }
 
 type Record struct {
-	Run         core.Run
-	ETA         time.Duration
-	Preliminary *scenariovalidationv1.ValidateScenarioResponse
-	Terminal    *scenariovalidationv1.ValidateScenarioResponse
-	ErrorCode   string
-	Error       string
-	Artifacts   []string
+	Run              core.Run
+	ETA              time.Duration
+	Preliminary      *scenariovalidationv1.ValidateScenarioResponse
+	Terminal         *scenariovalidationv1.ValidateScenarioResponse
+	ErrorCode        string
+	Error            string
+	Artifacts        []string
+	ExecutionBinding *scenariovalidationv1.DesktopValidationBinding
 }
 
 type Repository struct{ DB DB }
@@ -68,7 +69,11 @@ func (r Repository) Create(ctx context.Context, record Record) error {
 	if err != nil {
 		return fmt.Errorf("marshal preliminary result: %w", err)
 	}
-	_, err = r.DB.ExecContext(ctx, `INSERT INTO validation_runs (id, scenario, target_path, idempotency_key, parent_run_id, state, created_at, eta_seconds, preliminary_result, artifact_refs, cancellation_requested, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.Run.ID, record.Run.Target.Scenario, record.Run.Target.Path, record.Run.IdempotencyKey, record.Run.ParentRunID, string(record.Run.State), stamp(record.Run.CreatedAt), int64(record.ETA.Seconds()), preliminary, []byte("[]"), boolInt(record.Run.CancellationRequested), record.Run.Version)
+	binding, err := marshalBinding(record.ExecutionBinding)
+	if err != nil {
+		return fmt.Errorf("marshal execution binding: %w", err)
+	}
+	_, err = r.DB.ExecContext(ctx, `INSERT INTO validation_runs (id, scenario, target_path, idempotency_key, parent_run_id, state, created_at, eta_seconds, preliminary_result, artifact_refs, execution_binding, cancellation_requested, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.Run.ID, record.Run.Target.Scenario, record.Run.Target.Path, record.Run.IdempotencyKey, record.Run.ParentRunID, string(record.Run.State), stamp(record.Run.CreatedAt), int64(record.ETA.Seconds()), preliminary, []byte("[]"), binding, boolInt(record.Run.CancellationRequested), record.Run.Version)
 	return err
 }
 
@@ -95,14 +100,15 @@ func (r Repository) Update(ctx context.Context, record Record, expectedVersion i
 	return nil
 }
 
-const selectRun = `SELECT id, scenario, target_path, idempotency_key, parent_run_id, state, created_at, started_at, completed_at, eta_seconds, preliminary_result, terminal_result, error_code, error_message, artifact_refs, cancellation_requested, version FROM validation_runs`
+const selectRun = `SELECT id, scenario, target_path, idempotency_key, parent_run_id, state, created_at, started_at, completed_at, eta_seconds, preliminary_result, terminal_result, error_code, error_message, artifact_refs, execution_binding, cancellation_requested, version FROM validation_runs`
 
 func (r Repository) scan(row *sql.Row) (Record, error) {
 	var out Record
 	var state, created, started, completed string
 	var preliminary, terminal, artifacts []byte
 	var cancelled int
-	err := row.Scan(&out.Run.ID, &out.Run.Target.Scenario, &out.Run.Target.Path, &out.Run.IdempotencyKey, &out.Run.ParentRunID, &state, &created, &started, &completed, &out.ETA, &preliminary, &terminal, &out.ErrorCode, &out.Error, &artifacts, &cancelled, &out.Run.Version)
+	var binding []byte
+	err := row.Scan(&out.Run.ID, &out.Run.Target.Scenario, &out.Run.Target.Path, &out.Run.IdempotencyKey, &out.Run.ParentRunID, &state, &created, &started, &completed, &out.ETA, &preliminary, &terminal, &out.ErrorCode, &out.Error, &artifacts, &binding, &cancelled, &out.Run.Version)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Record{}, &core.LifecycleError{Code: core.ErrorNotFound, Operation: "get", Cause: err}
 	}
@@ -123,6 +129,9 @@ func (r Repository) scan(row *sql.Row) (Record, error) {
 		}
 	}
 	_ = json.Unmarshal(artifacts, &out.Artifacts)
+	if err := unmarshalBinding(binding, &out.ExecutionBinding); err != nil {
+		return Record{}, err
+	}
 	return out, nil
 }
 
@@ -131,7 +140,8 @@ func (r Repository) scanRows(rows *sql.Rows) (Record, error) {
 	var state, created, started, completed string
 	var preliminary, terminal, artifacts []byte
 	var cancelled int
-	err := rows.Scan(&out.Run.ID, &out.Run.Target.Scenario, &out.Run.Target.Path, &out.Run.IdempotencyKey, &out.Run.ParentRunID, &state, &created, &started, &completed, &out.ETA, &preliminary, &terminal, &out.ErrorCode, &out.Error, &artifacts, &cancelled, &out.Run.Version)
+	var binding []byte
+	err := rows.Scan(&out.Run.ID, &out.Run.Target.Scenario, &out.Run.Target.Path, &out.Run.IdempotencyKey, &out.Run.ParentRunID, &state, &created, &started, &completed, &out.ETA, &preliminary, &terminal, &out.ErrorCode, &out.Error, &artifacts, &binding, &cancelled, &out.Run.Version)
 	if err != nil {
 		return Record{}, err
 	}
@@ -149,6 +159,9 @@ func (r Repository) scanRows(rows *sql.Rows) (Record, error) {
 		}
 	}
 	_ = json.Unmarshal(artifacts, &out.Artifacts)
+	if err := unmarshalBinding(binding, &out.ExecutionBinding); err != nil {
+		return Record{}, err
+	}
 	return out, nil
 }
 
@@ -168,6 +181,25 @@ func unmarshal(data []byte, into **scenariovalidationv1.ValidateScenarioResponse
 		return err
 	}
 	*into = value
+	return nil
+}
+
+func marshalBinding(binding *scenariovalidationv1.DesktopValidationBinding) ([]byte, error) {
+	if binding == nil {
+		return nil, nil
+	}
+	return protojson.MarshalOptions{UseProtoNames: true}.Marshal(binding)
+}
+
+func unmarshalBinding(data []byte, into **scenariovalidationv1.DesktopValidationBinding) error {
+	if len(data) == 0 {
+		return nil
+	}
+	binding := &scenariovalidationv1.DesktopValidationBinding{}
+	if err := protojson.Unmarshal(data, binding); err != nil {
+		return err
+	}
+	*into = binding
 	return nil
 }
 

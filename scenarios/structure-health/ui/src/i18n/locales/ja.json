@@ -10,6 +10,7 @@
     "nav": {
       "dashboard": "ダッシュボード",
       "fleet": "フリート",
+      "validate": "検証",
       "settings": "設定"
     }
   },
@@ -34,7 +35,12 @@
     },
     "fleet": {
       "title": "フリート",
-      "description": "検出されたすべてのシナリオにわたる構造適合性。構造ゲートに失敗したシナリオ、最も多くのシナリオで違反したルール、検出されたプロファイル別の内訳を確認できます。"
+      "description": "検出されたすべてのリポジトリターゲットの構造適合性。構造ゲートに失敗したターゲット、違反の多いルール、プロファイル別の内訳を確認できます。"
+    },
+    "validation": {
+      "title": "検証ワークベンチ",
+      "description": "共有ターゲット種別コントラクトを通じて、管理対象リポジトリを検証します。",
+      "statPlaceholderLabel": "指標"
     }
   },
   "health": {
@@ -82,7 +88,7 @@
     "loading": "フリートをスキャン中…",
     "empty": "評価されたシナリオがありません。",
     "summary": {
-      "scenarios": "シナリオ",
+      "scenarios": "ターゲット",
       "passing": "合格",
       "missingFreshness": "鮮度チェックなし",
       "autofixable": "自動修正可能"
@@ -90,7 +96,7 @@
     "profiles": {
       "title": "プロファイル分布",
       "unrecognized": "未認識",
-      "countLabel": "{{count}} 件のシナリオ"
+      "countLabel": "{{count}} 件のターゲット"
     },
     "rules": {
       "title": "ルール適合性",
@@ -98,13 +104,13 @@
       "col": {
         "code": "ルール",
         "severity": "重大度",
-        "offenders": "シナリオ",
+        "offenders": "ターゲット",
         "findings": "検出数",
         "autofixable": "自動修正可能"
       }
     },
     "scenarios": {
-      "title": "違反シナリオ",
+      "title": "違反ターゲット",
       "passed": "合格",
       "failed": "不合格",
       "recognized": "認識済み",
@@ -112,6 +118,7 @@
       "missingFreshnessBadge": "鮮度チェックなし",
       "col": {
         "scenario": "シナリオ",
+        "target": "ターゲット",
         "verdict": "判定",
         "profile": "プロファイル",
         "errors": "エラー",
@@ -121,7 +128,24 @@
       }
     },
     "errors": {
-      "title": "未評価のシナリオ"
+      "title": "未評価のターゲット"
     }
+  },
+  "validation": {
+    "kind": "ターゲット種別",
+    "id": "ターゲット ID",
+    "idPlaceholder": "structure-health",
+    "root": "リポジトリルート",
+    "rootPlaceholder": "scenarios/structure-health",
+    "path": "解決済みパス（任意）",
+    "pathPlaceholder": "絶対パスを入力、または空欄",
+    "submit": "ターゲットを検証",
+    "loading": "検証中…",
+    "resultTitle": "検証結果",
+    "unknownStatus": "不明",
+    "noRoot": "リポジトリルートが返されませんでした",
+    "maturity": "成熟度: {{current}} · 次: {{next}}",
+    "findingsTitle": "検出事項",
+    "noFindings": "検出事項なし"
   }
 }

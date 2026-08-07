@@ -12,6 +12,8 @@ require (
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/vrooli/packages/proto v0.0.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core

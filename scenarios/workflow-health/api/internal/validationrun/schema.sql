@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS validation_runs (
   error_code TEXT NOT NULL DEFAULT '',
   error_message TEXT NOT NULL DEFAULT '',
   artifact_refs BLOB NOT NULL DEFAULT '[]',
+  execution_binding BLOB,
   cancellation_requested INTEGER NOT NULL DEFAULT 0,
   version INTEGER NOT NULL DEFAULT 1
 );

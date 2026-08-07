@@ -22,6 +22,7 @@ export const strings = {
     nav: {
       dashboard: "layout.nav.dashboard",
       fleet: "layout.nav.fleet",
+      validate: "layout.nav.validate",
       settings: "layout.nav.settings",
     },
   },
@@ -47,6 +48,11 @@ export const strings = {
     fleet: {
       title: "pages.fleet.title",
       description: "pages.fleet.description",
+    },
+    validation: {
+      title: "pages.validation.title",
+      description: "pages.validation.description",
+      statPlaceholderLabel: "pages.validation.statPlaceholderLabel",
     },
   },
   health: {
@@ -128,6 +134,7 @@ export const strings = {
       missingFreshnessBadge: "fleet.scenarios.missingFreshnessBadge",
       col: {
         scenario: "fleet.scenarios.col.scenario",
+        target: "fleet.scenarios.col.target",
         verdict: "fleet.scenarios.col.verdict",
         profile: "fleet.scenarios.col.profile",
         errors: "fleet.scenarios.col.errors",
@@ -139,6 +146,23 @@ export const strings = {
     errors: {
       title: "fleet.errors.title",
     },
+  },
+  validation: {
+    kind: "validation.kind",
+    id: "validation.id",
+    idPlaceholder: "validation.idPlaceholder",
+    root: "validation.root",
+    rootPlaceholder: "validation.rootPlaceholder",
+    path: "validation.path",
+    pathPlaceholder: "validation.pathPlaceholder",
+    submit: "validation.submit",
+    loading: "validation.loading",
+    resultTitle: "validation.resultTitle",
+    unknownStatus: "validation.unknownStatus",
+    noRoot: "validation.noRoot",
+    maturity: "validation.maturity",
+    findingsTitle: "validation.findingsTitle",
+    noFindings: "validation.noFindings",
   },
 } as const;
 

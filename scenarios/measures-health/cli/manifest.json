@@ -14,14 +14,20 @@
             {
               "name": "name",
               "required": true,
-              "description": "Scenario id (directory name under scenarios/)"
+              "description": "Scenario id (directory name under scenarios/)",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "flags": [
             {
               "name": "probe",
               "bool": true,
-              "description": "Run the behavioral adoption probe against live measure endpoints"
+              "description": "Run the behavioral adoption probe against live measure endpoints",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -66,7 +72,10 @@
             {
               "name": "question",
               "required": true,
-              "description": "Natural-language analytical question"
+              "description": "Natural-language analytical question",
+              "bind": {
+                "field": "query"
+              }
             }
           ],
           "flags": [

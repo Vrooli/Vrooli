@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "cli-health",
   "generator": "v1.0.0",
-  "manifest_hash": "e23b92354f2b0c34e36ccefdcfe846b3ad1127f048a53ed1734b2a6e74b53628",
+  "manifest_hash": "c3cdeee952550c14fc0097fdefdbd5a7f7bb73fc9f72aa9e01925722fd84bb89",
   "commands": [
     {
       "path": "command validate",

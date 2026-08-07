@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "typescript-code-graph",
-  "description": "TypeScript Code Graph CLI surface. Single source of truth for the `graph` and `rewrite` domains: schema-validated against cli-manifest/v1 and cross-validated against the TypeScriptCodeGraphService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. Mirrors the go-code-graph manifest shape — same proto service surface, different language target.",
+  "description": "TypeScript Code Graph CLI surface. Single source of truth for the `graph` and `rewrite` domains: schema-validated against cli-manifest/v1 and cross-validated against the TypeScriptCodeGraphService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. Mirrors the go-code-graph manifest shape \u2014 same proto service surface, different language target.",
   "groups": [
     {
       "name": "graph",
@@ -11,37 +11,69 @@
           "name": "extract",
           "description": "Extract a deterministic graph for a TypeScript project",
           "positionals": [
-            { "name": "path", "required": true, "description": "Path to TypeScript project root or tsconfig.json" }
+            {
+              "name": "path",
+              "required": true,
+              "description": "Path to TypeScript project root or tsconfig.json",
+              "bind": {
+                "field": "project_path"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "Extract" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TypeScriptCodeGraphService",
+            "method": "Extract"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
           }
         },
         {
           "name": "list-fixtures",
           "description": "List the golden determinism fixtures shipped with the scenario",
           "positionals": [],
-          "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "ListFixtures" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TypeScriptCodeGraphService",
+            "method": "ListFixtures"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
           }
         },
         {
           "name": "validate-fixture",
           "description": "Re-extract a fixture and byte-compare against its expected-graph.json",
           "positionals": [
-            { "name": "name", "required": true, "description": "Fixture directory name (see `graph list-fixtures`)" }
+            {
+              "name": "name",
+              "required": true,
+              "description": "Fixture directory name (see `graph list-fixtures`)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "ValidateFixture" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TypeScriptCodeGraphService",
+            "method": "ValidateFixture"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
           }
         }
       ]
@@ -54,32 +86,65 @@
           "name": "plan",
           "description": "Validate and normalize a list of rewrite operations",
           "positionals": [
-            { "name": "ops-file", "required": true, "description": "Path to JSON file describing operations" }
+            {
+              "name": "ops-file",
+              "required": true,
+              "description": "Path to JSON file describing operations",
+              "bind": {
+                "field": "operations"
+              }
+            }
           ],
           "flags": [
-            { "name": "project-path", "required": true, "description": "TypeScript project root or tsconfig.json the ops target" }
+            {
+              "name": "project-path",
+              "required": true,
+              "description": "TypeScript project root or tsconfig.json the ops target"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "RewritePlan" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TypeScriptCodeGraphService",
+            "method": "RewritePlan"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
           }
         },
         {
           "name": "apply",
           "description": "Execute a previously-planned set of operations",
           "positionals": [
-            { "name": "plan-id", "required": true, "description": "Plan id returned by `rewrite plan`" }
+            {
+              "name": "plan-id",
+              "required": true,
+              "description": "Plan id returned by `rewrite plan`"
+            }
           ],
           "flags": [
-            { "name": "project-path", "required": true, "description": "TypeScript project root or tsconfig.json the plan was authored against" }
+            {
+              "name": "project-path",
+              "required": true,
+              "description": "TypeScript project root or tsconfig.json the plan was authored against"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "RewriteApply" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TypeScriptCodeGraphService",
+            "method": "RewriteApply"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:write"]
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
           }
         }
       ]

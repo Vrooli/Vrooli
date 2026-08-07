@@ -20,7 +20,11 @@ require (
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
-require github.com/vrooli/cli-core v0.0.0 // indirect
+require (
+	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/vrooli/packages/proto v0.0.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
+)
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 

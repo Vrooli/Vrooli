@@ -10,6 +10,7 @@
     "nav": {
       "dashboard": "Dashboard",
       "fleet": "Fleet",
+      "validate": "Validate",
       "settings": "Settings"
     }
   },
@@ -34,7 +35,12 @@
     },
     "fleet": {
       "title": "Fleet",
-      "description": "Structure conformance across every discovered scenario. Spot which scenarios fail structure gating, which rules offend the most scenarios, and how the fleet breaks down by detected profile."
+      "description": "Structure conformance across every discovered repository target. Spot which targets fail structure gating, which rules offend the most targets, and how the fleet breaks down by detected profile."
+    },
+    "validation": {
+      "title": "Validation workbench",
+      "description": "Validate any governed repository target through the shared target-kind contract.",
+      "statPlaceholderLabel": "Metric"
     }
   },
   "health": {
@@ -85,7 +91,7 @@
     "loading": "Scanning the fleet…",
     "empty": "No scenarios were graded.",
     "summary": {
-      "scenarios": "Scenarios",
+      "scenarios": "Targets",
       "passing": "Passing",
       "missingFreshness": "Missing freshness",
       "autofixable": "Auto-fixable"
@@ -93,8 +99,8 @@
     "profiles": {
       "title": "Profile distribution",
       "unrecognized": "unrecognized",
-      "countLabel": "{{count}} scenarios",
-      "countLabel_one": "1 scenario"
+      "countLabel": "{{count}} targets",
+      "countLabel_one": "1 target"
     },
     "rules": {
       "title": "Rule conformance",
@@ -102,13 +108,13 @@
       "col": {
         "code": "Rule",
         "severity": "Severity",
-        "offenders": "Scenarios",
+        "offenders": "Targets",
         "findings": "Findings",
         "autofixable": "Auto-fixable"
       }
     },
     "scenarios": {
-      "title": "Scenario offenders",
+      "title": "Target offenders",
       "passed": "Pass",
       "failed": "Fail",
       "recognized": "recognized",
@@ -116,6 +122,7 @@
       "missingFreshnessBadge": "missing freshness",
       "col": {
         "scenario": "Scenario",
+        "target": "Target",
         "verdict": "Verdict",
         "profile": "Profile",
         "errors": "Errors",
@@ -125,7 +132,24 @@
       }
     },
     "errors": {
-      "title": "Ungraded scenarios"
+      "title": "Ungraded targets"
     }
+  },
+  "validation": {
+    "kind": "Target kind",
+    "id": "Target ID",
+    "idPlaceholder": "structure-health",
+    "root": "Repository root",
+    "rootPlaceholder": "scenarios/structure-health",
+    "path": "Resolved path (optional)",
+    "pathPlaceholder": "/absolute/path or leave blank",
+    "submit": "Validate target",
+    "loading": "Validating…",
+    "resultTitle": "Validation result",
+    "unknownStatus": "unknown",
+    "noRoot": "repository root not returned",
+    "maturity": "Maturity: {{current}} · next: {{next}}",
+    "findingsTitle": "Findings",
+    "noFindings": "No findings"
   }
 }

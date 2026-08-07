@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +34,55 @@ func TestOperatorStateRoundTripIsAtomicAndDoesNotNeedDatabase(t *testing.T) {
 	w = doGet(t, srv, "/api/v1/operator-state")
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"example"`) {
 		t.Fatalf("round trip = %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestOperatorStateRoundTripPreservesOpaqueSafeguardConfig(t *testing.T) {
+	oldPath, oldNow := operatorStatePath, operatorStateNow
+	t.Cleanup(func() { operatorStatePath, operatorStateNow = oldPath, oldNow })
+	path := filepath.Join(t.TempDir(), "operator-state.json")
+	operatorStatePath = func() (string, error) { return path, nil }
+	operatorStateNow = func() time.Time { return time.Date(2026, 7, 29, 0, 0, 0, 0, time.UTC) }
+
+	input := `{"version":"1.0.0","updated_at":"2026-07-29T00:00:00Z","host_safeguards":{"remote_desktop_access":{"opted_in":true,"config":{"experience":"direct-desktop","future_permission":true}}}}`
+	if err := os.WriteFile(path, []byte(input), 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	state, err := loadOperatorStateFor(context.Background())
+	if err != nil {
+		t.Fatalf("load operator state: %v", err)
+	}
+	if err := saveOperatorStateFor(context.Background(), state); err != nil {
+		t.Fatalf("save operator state: %v", err)
+	}
+
+	var got struct {
+		HostSafeguards map[string]struct {
+			Config map[string]any `json:"config"`
+		} `json:"host_safeguards"`
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read round-trip state: %v", err)
+	}
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("decode round-trip state: %v", err)
+	}
+	want := map[string]any{"experience": "direct-desktop", "future_permission": true}
+	if !reflect.DeepEqual(got.HostSafeguards["remote_desktop_access"].Config, want) {
+		t.Fatalf("config = %#v, want %#v", got.HostSafeguards["remote_desktop_access"].Config, want)
+	}
+}
+
+func TestOperatorStateRejectsInvalidSafeguardConfigBeforeWrite(t *testing.T) {
+	oldPath := operatorStatePath
+	t.Cleanup(func() { operatorStatePath = oldPath })
+	operatorStatePath = func() (string, error) { return filepath.Join(t.TempDir(), "operator-state.json"), nil }
+	srv := NewServer()
+	w := doRequest(t, srv, http.MethodPut, "/api/v1/operator-state", `{"host_safeguards":{"remote_desktop_access":{"opted_in":true,"config":{"experience":"not-a-real-experience"}}}}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("invalid config status = %d, want %d: %s", w.Code, http.StatusBadRequest, w.Body.String())
 	}
 }
 

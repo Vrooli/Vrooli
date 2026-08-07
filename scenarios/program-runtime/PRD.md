@@ -45,7 +45,7 @@ The problem it removes is arity and materialization. An agent that needs to insp
 ### 🟠 P1 – Should have post-launch
 
 - [x] OT-P1-001 | In-kernel capability discovery | The Program Runtime SHOULD expose capability discovery as an in-kernel call so a program resolves an operation by intent without the callable surface being preloaded into the submitting agent's context.
-- [ ] OT-P1-002 | Typed inference bindings | The Program Runtime SHOULD expose classify, extract, and judge operations resolved through ai-gateway, so a program performs bounded typed inference without spawning a delegated agent run.
+- [x] OT-P1-002 | Typed inference bindings | The Program Runtime SHOULD expose classify, extract, and judge operations resolved through ai-gateway, so a program performs bounded typed inference without spawning a delegated agent run.
 - [x] OT-P1-003 | Delegated agent runs from a program | The Program Runtime SHOULD let a program spawn an agent-manager run and collect its evidence, so unbounded agentic work stays distinguishable from bounded inference.
 - [x] OT-P1-004 | Sandbox composition | The Program Runtime SHOULD bind a session to a workspace-sandbox workspace so filesystem effects are isolated and reviewable.
 - [x] OT-P1-005 | Bounded session lifecycle | The Program Runtime SHOULD enforce idle reclamation and wall-clock and memory ceilings per session, and SHOULD report the reason when it reclaims a session.

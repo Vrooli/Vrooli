@@ -33,6 +33,7 @@ type methodInfo struct {
 	input   protoreflect.MessageDescriptor
 	output  protoreflect.MessageDescriptor
 	service protoreflect.FullName
+	source  string
 }
 
 // Registry is an immutable snapshot of the callable fleet surface. It is
@@ -42,8 +43,10 @@ type Registry struct {
 	unbound   []*bindingsv1.UnboundCapability
 	methods   map[string]methodInfo
 	required  map[string]map[string]bool
+	schemas   map[string]cliapp.ArgSchema
 	byID      map[string]*bindingsv1.Binding
 	operation map[string][]*bindingsv1.Binding
+	shared    []string
 }
 
 // Load resolves the canonical repository artifacts and builds a registry.
@@ -90,18 +93,18 @@ func LoadFiles(descriptorPath string, manifestPaths []string) (*Registry, error)
 		return nil, fmt.Errorf("load descriptor image: %w", err)
 	}
 	methods := make(map[string]methodInfo)
-	serviceMethods := make(map[string]methodInfo)
+	serviceMethods := make(map[string][]methodInfo)
 	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
 		services := fd.Services()
 		for i := 0; i < services.Len(); i++ {
 			svc := services.Get(i)
 			for j := 0; j < svc.Methods().Len(); j++ {
 				m := svc.Methods().Get(j)
-				info := methodInfo{input: m.Input(), output: m.Output(), service: svc.FullName()}
+				info := methodInfo{input: m.Input(), output: m.Output(), service: svc.FullName(), source: fd.Path()}
 				full := string(svc.FullName()) + "." + string(m.Name())
 				short := string(svc.Name()) + "." + string(m.Name())
 				methods[full] = info
-				serviceMethods[short] = info
+				serviceMethods[short] = append(serviceMethods[short], info)
 			}
 		}
 		return true
@@ -110,11 +113,13 @@ func LoadFiles(descriptorPath string, manifestPaths []string) (*Registry, error)
 	r := &Registry{
 		methods:   methods,
 		required:  make(map[string]map[string]bool),
+		schemas:   make(map[string]cliapp.ArgSchema),
 		byID:      make(map[string]*bindingsv1.Binding),
 		operation: make(map[string][]*bindingsv1.Binding),
 	}
+	r.shared = sharedContractPrefixes(filepath.Clean(filepath.Join(filepath.Dir(descriptorPath), "../../../..")))
 	for _, path := range manifestPaths {
-		if err := r.addManifest(path, serviceMethods); err != nil {
+		if err := r.addManifest(path, serviceMethods, r.shared); err != nil {
 			return nil, err
 		}
 	}
@@ -157,7 +162,11 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 	if err != nil {
 		return nil, fmt.Errorf("resolve %s: %w", binding.GetScenario(), err)
 	}
-	raw, err := json.Marshal(args)
+	canonical, err := r.canonicalArguments(id, args)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(canonical)
 	if err != nil {
 		return nil, fmt.Errorf("encode binding arguments: %w", err)
 	}
@@ -205,7 +214,7 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 	return result, nil
 }
 
-func (r *Registry) addManifest(path string, serviceMethods map[string]methodInfo) error {
+func (r *Registry) addManifest(path string, serviceMethods map[string][]methodInfo, sharedPrefixes []string) error {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
@@ -229,8 +238,8 @@ func (r *Registry) addManifest(path string, serviceMethods map[string]methodInfo
 				r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Group: group.Name, Command: command.Name, Service: b.Service, Method: b.Method, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_EXTERNAL_TOOL_ONLY, Detail: "manifest governance declares run_eligible=false"})
 				continue
 			}
-			info, ok := serviceMethods[b.Service+"."+b.Method]
-			if !ok {
+			info, err := resolveMethod(scenario, b.Service+"."+b.Method, serviceMethods, sharedPrefixes)
+			if err != nil {
 				r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Group: group.Name, Command: command.Name, Service: b.Service, Method: b.Method, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_OMITTED_RPC, Detail: "manifest binding does not resolve in the descriptor image"})
 				continue
 			}
@@ -251,16 +260,21 @@ func (r *Registry) addManifest(path string, serviceMethods map[string]methodInfo
 			r.methods[id] = info
 			req := make(map[string]bool)
 			for _, p := range command.Positionals {
-				if p.Required {
-					req[normalizeField(p.Name)] = true
+				if p.Required && !p.LocalOnly {
+					req[p.Name] = true
 				}
 			}
 			for _, f := range command.Flags {
-				if f.Required {
-					req[normalizeField(f.Name)] = true
+				if f.Required && !f.LocalOnly {
+					req[f.Name] = true
 				}
 			}
 			r.required[id] = req
+			schema, err := cliapp.ManifestArgs(command)
+			if err != nil {
+				return fmt.Errorf("manifest %s command %s/%s: %w", path, group.Name, command.Name, err)
+			}
+			r.schemas[id] = schema
 			for _, key := range []string{normalizeField(command.Name), normalizeField(group.Name + "/" + command.Name), normalizeField(b.Service + "." + b.Method), normalizeField(id)} {
 				r.operation[key] = append(r.operation[key], binding)
 			}
@@ -273,6 +287,61 @@ func (r *Registry) addManifest(path string, serviceMethods map[string]methodInfo
 		r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Command: exception.Command, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_EXTERNAL_TOOL_ONLY, Detail: exception.Reason})
 	}
 	return nil
+}
+
+type sharedContractDeclaration struct {
+	Contracts []struct {
+		Prefix string `json:"prefix"`
+	} `json:"contracts"`
+}
+
+func sharedContractPrefixes(repoRoot string) []string {
+	data, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "schemas", "shared-proto-contracts.json"))
+	if err != nil {
+		return nil
+	}
+	var declaration sharedContractDeclaration
+	if json.Unmarshal(data, &declaration) != nil {
+		return nil
+	}
+	out := make([]string, 0, len(declaration.Contracts))
+	for _, contract := range declaration.Contracts {
+		if strings.TrimSpace(contract.Prefix) != "" {
+			prefix := strings.TrimSuffix(filepath.ToSlash(contract.Prefix), "/") + "/"
+			out = append(out, prefix, "schemas/"+prefix, "packages/proto/schemas/"+prefix)
+		}
+	}
+	return out
+}
+
+func resolveMethod(scenario, key string, methods map[string][]methodInfo, sharedPrefixes []string) (methodInfo, error) {
+	candidates := methods[key]
+	var own, shared []methodInfo
+	for _, candidate := range candidates {
+		if strings.HasPrefix(filepath.ToSlash(candidate.source), scenario+"/") {
+			own = append(own, candidate)
+			continue
+		}
+		for _, prefix := range sharedPrefixes {
+			if strings.HasPrefix(filepath.ToSlash(candidate.source), prefix) {
+				shared = append(shared, candidate)
+				break
+			}
+		}
+	}
+	if len(own) == 1 {
+		return own[0], nil
+	}
+	if len(own) > 1 {
+		return methodInfo{}, fmt.Errorf("%s: ambiguous own-package service %q", scenario, key)
+	}
+	if len(shared) == 1 {
+		return shared[0], nil
+	}
+	if len(shared) > 1 {
+		return methodInfo{}, fmt.Errorf("%s: ambiguous shared service %q", scenario, key)
+	}
+	return methodInfo{}, fmt.Errorf("%s: service %q is not declared in its own package or shared contracts", scenario, key)
 }
 
 func (r *Registry) addUnbound(c *bindingsv1.UnboundCapability) { r.unbound = append(r.unbound, c) }
@@ -311,6 +380,187 @@ func (r *Registry) Binding(id string) (*bindingsv1.Binding, bool) {
 		return nil, false
 	}
 	return proto.Clone(b).(*bindingsv1.Binding), true
+}
+
+// Doctor returns the fleet callability census and every argument that still
+// cannot be projected onto its request descriptor. It intentionally derives
+// its results from the same resolver used by Execute.
+func (r *Registry) Doctor(scenario string) *bindingsv1.DoctorBindingsResponse {
+	response := &bindingsv1.DoctorBindingsResponse{}
+	for _, binding := range r.bindings {
+		if scenario != "" && binding.GetScenario() != scenario {
+			continue
+		}
+		response.Bindings++
+		analysis := r.analyze(binding.GetId())
+		if analysis.zeroArg {
+			response.ZeroArg++
+		}
+		if analysis.callable {
+			response.Callable++
+		} else if analysis.requiredBroken {
+			response.Uncallable++
+		} else {
+			response.Partial++
+		}
+		if !analysis.owned {
+			response.Misroutes++
+		}
+		response.Issues = append(response.Issues, analysis.issues...)
+	}
+	return response
+}
+
+// Describe returns the resolved request path for every manifest argument.
+func (r *Registry) Describe(id string) (*bindingsv1.DescribeBindingResponse, error) {
+	binding, ok := r.byID[id]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", errNoBinding, id)
+	}
+	info, ok := r.methods[id]
+	if !ok {
+		return nil, fmt.Errorf("binding %q has no descriptor method", id)
+	}
+	schema := r.schemas[id]
+	response := &bindingsv1.DescribeBindingResponse{
+		Binding:        proto.Clone(binding).(*bindingsv1.Binding),
+		ResolvedSource: info.source,
+		Callable:       true,
+	}
+	appendArgument := func(name string, required bool) {
+		argument := &bindingsv1.BindingArgument{Name: name, Required: required}
+		resolved, err := cliapp.ResolveArgField(info.input, name, schema)
+		if err != nil {
+			argument.Reason = err.Error()
+			response.Callable = false
+		} else {
+			argument.ProtoPath = resolvedPath(name, resolved.Path)
+			argument.Kind = resolved.Kind
+		}
+		response.Arguments = append(response.Arguments, argument)
+	}
+	appendLocalArgument := func(name string, required bool) {
+		response.Arguments = append(response.Arguments, &bindingsv1.BindingArgument{
+			Name: name, Required: required, Reason: "local-only CLI control",
+		})
+	}
+	for _, positional := range schema.Positionals {
+		if positional.LocalOnly {
+			appendLocalArgument(positional.Name, positional.Required)
+			continue
+		}
+		appendArgument(positional.Name, positional.Required)
+	}
+	for _, flag := range schema.Flags {
+		if flag.LocalOnly {
+			appendLocalArgument(flag.Name, flag.Required)
+			continue
+		}
+		appendArgument(flag.Name, flag.Required)
+	}
+	return response, nil
+}
+
+type bindingAnalysis struct {
+	callable       bool
+	requiredBroken bool
+	zeroArg        bool
+	owned          bool
+	issues         []*bindingsv1.BindingIssue
+}
+
+func (r *Registry) analyze(id string) bindingAnalysis {
+	binding := r.byID[id]
+	info := r.methods[id]
+	schema := r.schemas[id]
+	nonLocalArgs := 0
+	for _, positional := range schema.Positionals {
+		if !positional.LocalOnly {
+			nonLocalArgs++
+		}
+	}
+	for _, flag := range schema.Flags {
+		if !flag.LocalOnly {
+			nonLocalArgs++
+		}
+	}
+	analysis := bindingAnalysis{callable: true, zeroArg: nonLocalArgs == 0, owned: r.sourceBelongsTo(binding.GetScenario(), info.source)}
+	required := r.required[id]
+	check := func(name string) {
+		_, err := cliapp.ResolveArgField(info.input, name, schema)
+		if err == nil {
+			return
+		}
+		analysis.callable = false
+		if required[name] {
+			analysis.requiredBroken = true
+		}
+		analysis.issues = append(analysis.issues, &bindingsv1.BindingIssue{
+			Scenario: binding.GetScenario(), BindingId: id, Argument: name,
+			RequestType: string(info.input.FullName()), Reason: err.Error(),
+			CandidateFields: descriptorFieldNames(info.input),
+		})
+	}
+	for _, positional := range schema.Positionals {
+		if positional.LocalOnly {
+			continue
+		}
+		check(positional.Name)
+	}
+	for _, flag := range schema.Flags {
+		if flag.LocalOnly {
+			continue
+		}
+		check(flag.Name)
+	}
+	return analysis
+}
+
+func descriptorFieldNames(md protoreflect.MessageDescriptor) []string {
+	fields := md.Fields()
+	out := make([]string, 0, fields.Len())
+	for i := 0; i < fields.Len(); i++ {
+		field := fields.Get(i)
+		out = append(out, field.JSONName())
+		if field.Kind() == protoreflect.MessageKind && !field.IsList() && !field.IsMap() {
+			nested := field.Message().Fields()
+			for j := 0; j < nested.Len(); j++ {
+				out = append(out, field.JSONName()+"."+nested.Get(j).JSONName())
+			}
+		}
+	}
+	return out
+}
+
+func resolvedPath(argumentName string, path []protoreflect.FieldDescriptor) string {
+	parts := make([]string, 0, len(path))
+	for _, field := range path {
+		parts = append(parts, string(field.JSONName()))
+	}
+	if len(parts) == 2 {
+		return argumentName + " -> " + strings.Join(parts, ".")
+	}
+	return strings.Join(parts, ".")
+}
+
+func (r *Registry) sourceBelongsTo(scenario, source string) bool {
+	path := filepath.ToSlash(source)
+	for _, prefix := range []string{
+		scenario + "/",
+		"schemas/" + scenario + "/",
+		"packages/proto/schemas/" + scenario + "/",
+		"scenarios/" + scenario + "/",
+	} {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	for _, prefix := range r.shared {
+		if strings.HasPrefix(path, filepath.ToSlash(prefix)) {
+			return true
+		}
+	}
+	return false
 }
 
 // Authorize is the last governance check before dispatch. The registry owns
@@ -358,7 +608,11 @@ func (r *Registry) ValidateArguments(id string, args map[string]any) error {
 	if args == nil {
 		args = map[string]any{}
 	}
-	raw, err := json.Marshal(args)
+	canonical, err := r.canonicalArguments(id, args)
+	if err != nil {
+		return err
+	}
+	raw, err := json.Marshal(canonical)
 	if err != nil {
 		return fmt.Errorf("encode arguments: %w", err)
 	}
@@ -367,8 +621,8 @@ func (r *Registry) ValidateArguments(id string, args map[string]any) error {
 		return fmt.Errorf("invalid arguments for %s: %w", id, err)
 	}
 	for field := range r.required[id] {
-		fd := msg.Descriptor().Fields().ByName(protoreflect.Name(field))
-		if fd == nil || !msg.Has(fd) {
+		resolved, resolveErr := cliapp.ResolveArgField(info.input, field, r.schemas[id])
+		if resolveErr != nil || len(resolved.Path) == 0 || !hasResolvedField(msg, resolved.Path) {
 			return fmt.Errorf("missing required field %q", field)
 		}
 	}
@@ -379,6 +633,85 @@ func (r *Registry) ValidateArguments(id string, args map[string]any) error {
 		}
 	}
 	return nil
+}
+
+func hasResolvedField(root protoreflect.Message, path []protoreflect.FieldDescriptor) bool {
+	current := root
+	for _, field := range path {
+		if !current.Has(field) {
+			return false
+		}
+		if field.Kind() == protoreflect.MessageKind {
+			current = current.Get(field).Message()
+		}
+	}
+	return true
+}
+
+func (r *Registry) canonicalArguments(id string, args map[string]any) (map[string]any, error) {
+	info, ok := r.methods[id]
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", errNoBinding, id)
+	}
+	if args == nil {
+		args = map[string]any{}
+	}
+	schema := r.schemas[id]
+	out := make(map[string]any, len(args))
+	for name, value := range args {
+		if schemaArgLocalOnly(schema, name) {
+			continue
+		}
+		resolved, err := cliapp.ResolveArgField(info.input, name, schema)
+		if err != nil {
+			return nil, fmt.Errorf("argument %q: %w", name, err)
+		}
+		if len(resolved.Path) == 0 {
+			return nil, fmt.Errorf("argument %q has an empty proto path", name)
+		}
+		putResolvedArgument(out, resolved.Path, value)
+	}
+	return out, nil
+}
+
+func schemaArgLocalOnly(schema cliapp.ArgSchema, name string) bool {
+	for _, positional := range schema.Positionals {
+		if positional.LocalOnly && positional.Name == name {
+			return true
+		}
+	}
+	for _, flag := range schema.Flags {
+		if !flag.LocalOnly && !containsString(flag.Aliases, name) {
+			continue
+		}
+		if flag.Name == name || containsString(flag.Aliases, name) {
+			return flag.LocalOnly
+		}
+	}
+	return false
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func putResolvedArgument(out map[string]any, path []protoreflect.FieldDescriptor, value any) {
+	current := out
+	for _, field := range path[:len(path)-1] {
+		key := field.JSONName()
+		nested, ok := current[key].(map[string]any)
+		if !ok {
+			nested = make(map[string]any)
+			current[key] = nested
+		}
+		current = nested
+	}
+	current[path[len(path)-1].JSONName()] = value
 }
 
 // ResolveOperation accepts canonical binding IDs and the concise operation

@@ -34,7 +34,17 @@ var _ fleetconnect.FleetServiceHandler = (*Handler)(nil)
 // ScanFleet grades the requested scenarios (or every discovered scenario) and
 // returns the aggregated structure rollup.
 func (h *Handler) ScanFleet(ctx context.Context, req *connect.Request[fleetv1.ScanFleetRequest]) (*connect.Response[fleetv1.ScanFleetResponse], error) {
-	result, err := h.scanner.Scan(ctx, req.Msg.GetScenarios())
+	var result internalfleet.Result
+	var err error
+	if len(req.Msg.GetTargets()) > 0 {
+		targets := make([]internalfleet.Target, 0, len(req.Msg.GetTargets()))
+		for _, target := range req.Msg.GetTargets() {
+			targets = append(targets, internalfleet.Target{Kind: target.GetKind(), ID: target.GetId(), Root: target.GetPath()})
+		}
+		result, err = h.scanner.ScanTargets(ctx, targets)
+	} else {
+		result, err = h.scanner.Scan(ctx, req.Msg.GetScenarios())
+	}
 	if err != nil {
 		h.logger.Printf("fleet.ScanFleet: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -48,6 +58,8 @@ func resultToProto(in internalfleet.Result) *fleetv1.ScanFleetResponse {
 		PassingCount:          int32(in.PassingCount),
 		MissingFreshnessCount: int32(in.MissingFreshness),
 		AutofixableTotal:      int32(in.AutofixableTotal),
+		TargetCount:           int32(in.TargetCount),
+		PassingTargetCount:    int32(in.PassingTargetCount),
 	}
 	for _, e := range in.Entries {
 		out.Entries = append(out.Entries, &fleetv1.FleetScenarioEntry{
@@ -62,6 +74,9 @@ func resultToProto(in internalfleet.Result) *fleetv1.ScanFleetResponse {
 			MissingFreshnessCheck: e.MissingFreshness,
 			Surfaces:              e.Surfaces,
 			DegradedReason:        e.DegradedReason,
+			TargetKind:            e.TargetKind,
+			TargetId:              e.TargetID,
+			TargetPath:            e.TargetRoot,
 		})
 	}
 	for _, rc := range in.RuleConformance {

@@ -12,7 +12,7 @@ import (
 
 type eventRunner struct{}
 
-func (eventRunner) Execute(context.Context, string, string) (programs.Result, error) {
+func (eventRunner) Execute(context.Context, string, string, bool) (programs.Result, error) {
 	return programs.Result{Invocations: []programs.Invocation{{BindingID: "test-genie/runs/list", Effect: "read"}}}, errors.New("line 7: invalid field")
 }
 

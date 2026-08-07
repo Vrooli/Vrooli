@@ -67,8 +67,16 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 			report.Findings = append(report.Findings, isolationFinding("routed test isolation was not installed: "+err.Error()))
 		} else {
 			report.Isolation = lease.Evidence()
-			report.Isolation.Installed = true
-			isolationInstalled = true
+			// Electron validation binds the workflow to the provider-issued lease,
+			// so a coordinator that reports installation without a stable lease
+			// identity is not sufficient proof.
+			if opts.ElectronTarget != nil && strings.TrimSpace(report.Isolation.LeaseID) == "" {
+				report.Isolation.InstallError = "isolation coordinator did not provide a lease identity"
+				report.Findings = append(report.Findings, isolationFinding(report.Isolation.InstallError))
+			} else {
+				report.Isolation.Installed = true
+				isolationInstalled = true
+			}
 			if opts.ExtraHeaders == nil {
 				opts.ExtraHeaders = map[string]string{}
 			}
@@ -156,6 +164,13 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 			run.Artifact = artifact
 		}
 	}()
+	electronTarget, validationContext, electronErr := bindElectronValidation(asset, opts, isolationInstalled)
+	if electronErr != "" {
+		run.Refused = true
+		run.Status = "refused"
+		run.Error = electronErr
+		return run
+	}
 	if reason := refusalReason(asset, isolationInstalled); reason != "" {
 		run.Refused = true
 		run.Status = "refused"
@@ -196,12 +211,14 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 			ExtraHeaders:  opts.ExtraHeaders,
 		},
 		Options: ExecuteOptions{
-			CollectConsole: opts.CollectConsole,
-			CollectNetwork: opts.CollectNetwork,
-			CollectDOM:     opts.CollectDOM,
-			RequiresVideo:  opts.RequiresVideo,
-			RequiresTrace:  opts.RequiresTrace,
-			RequiresHAR:    opts.RequiresHAR,
+			CollectConsole:    opts.CollectConsole,
+			CollectNetwork:    opts.CollectNetwork,
+			CollectDOM:        opts.CollectDOM,
+			RequiresVideo:     opts.RequiresVideo,
+			RequiresTrace:     opts.RequiresTrace,
+			RequiresHAR:       opts.RequiresHAR,
+			ElectronTarget:    electronTarget,
+			ValidationContext: validationContext,
 		},
 	})
 	if err != nil {
@@ -226,6 +243,44 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 		}
 	}
 	return run
+}
+
+// bindElectronValidation makes the validation-cell identity concrete for one
+// catalog asset. A suite may select several existing BAS cases, but each BAS
+// execution must be independently attributable to its workflow and lease.
+func bindElectronValidation(asset workflows.WorkflowAsset, opts Options, isolationInstalled bool) (*ElectronTarget, *ValidationContext, string) {
+	if opts.ElectronTarget == nil {
+		return nil, nil, ""
+	}
+	if !isolationInstalled {
+		return nil, nil, "Electron workflow execution requires workflow-health-proven routed test isolation"
+	}
+	if opts.ValidationContext == nil || strings.TrimSpace(opts.ValidationContext.IsolationLeaseID) == "" {
+		return nil, nil, "Electron workflow execution requires a lease-bound validation context"
+	}
+	target := *opts.ElectronTarget
+	validation := *opts.ValidationContext
+	if strings.TrimSpace(target.TargetID) == "" || strings.TrimSpace(target.CDPEndpoint) == "" || strings.TrimSpace(target.RendererID) == "" || strings.TrimSpace(target.ScenarioName) == "" || strings.TrimSpace(target.ArtifactDigest) == "" || strings.TrimSpace(target.ContextID) == "" || strings.TrimSpace(target.CDPTransport) == "" {
+		return nil, nil, "Electron workflow execution requires complete target identity, CDP endpoint, renderer identity, artifact, context, and transport"
+	}
+	if strings.TrimSpace(validation.ContextID) == "" || strings.TrimSpace(validation.ScenarioName) == "" || strings.TrimSpace(validation.ArtifactDigest) == "" || strings.TrimSpace(validation.TargetID) == "" || strings.TrimSpace(validation.ProfileID) == "" {
+		return nil, nil, "Electron workflow execution requires complete validation-cell identity"
+	}
+	if validation.TargetID != "" && validation.TargetID != target.TargetID {
+		return nil, nil, "Electron target and validation context target identity do not match"
+	}
+	if validation.ContextID != "" && target.ContextID != "" && validation.ContextID != target.ContextID {
+		return nil, nil, "Electron target and validation context IDs do not match"
+	}
+	if validation.WorkflowID == "" {
+		validation.WorkflowID = asset.ID
+	} else if validation.WorkflowID != asset.ID {
+		return nil, nil, fmt.Sprintf("validation context workflow %q does not match selected asset %q", validation.WorkflowID, asset.ID)
+	}
+	if validation.ScenarioName != "" && target.ScenarioName != "" && validation.ScenarioName != target.ScenarioName {
+		return nil, nil, "Electron target and validation context scenario identities do not match"
+	}
+	return &target, &validation, ""
 }
 
 func selectAssets(catalog *workflows.ScenarioWorkflowCatalog, opts Options) []workflows.WorkflowAsset {

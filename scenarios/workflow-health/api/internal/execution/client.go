@@ -85,6 +85,25 @@ func (c *ConnectClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 			RequiresHar:   req.Options.RequiresHAR,
 		},
 	}
+	if req.Options.ElectronTarget != nil {
+		target := req.Options.ElectronTarget
+		basReq.Options.ElectronTarget = &basexecution.ElectronTarget{
+			TargetId: target.TargetID, CdpEndpoint: target.CDPEndpoint,
+			RendererId: target.RendererID, RendererUrl: target.RendererURL,
+			RendererTitle: target.RendererTitle, ScenarioName: target.ScenarioName,
+			ArtifactDigest: target.ArtifactDigest, ContextId: target.ContextID,
+			CdpTransport: target.CDPTransport,
+		}
+	}
+	if req.Options.ValidationContext != nil {
+		context := req.Options.ValidationContext
+		basReq.Options.ValidationContext = &basexecution.ValidationContext{
+			ContextId: context.ContextID, ScenarioName: context.ScenarioName,
+			ArtifactDigest: context.ArtifactDigest, TargetId: context.TargetID,
+			WorkflowId: context.WorkflowID, ProfileId: context.ProfileID,
+			IsolationLeaseId: context.IsolationLeaseID,
+		}
+	}
 	request := connect.NewRequest(basReq)
 	applyRequestHeaders(request.Header(), req.Parameters.ExtraHeaders)
 	resp, err := c.workflows.ExecuteAdhocWorkflow(ctx, request)

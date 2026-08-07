@@ -200,6 +200,62 @@ func (h *SharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(resp), nil
 }
 
+// ValidateTarget is the explicit generalized target seam for all repository
+// target kinds. The native engine and the shared assessment remain one path so
+// CLI, fleet, and Test Genie consumers cannot drift.
+func (h *SharedHandler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	if h == nil || h.handler == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("structure validation handler not wired"))
+	}
+	target := req.Msg.GetTarget()
+	if target == nil || target.GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target is required"))
+	}
+	targetKind := strings.TrimPrefix(strings.ToLower(target.GetKind().String()), "validation_target_kind_")
+	targetKind = strings.ReplaceAll(targetKind, "_", "-")
+	if targetKind == "unspecified" || targetKind == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target kind is required"))
+	}
+	if targetKind != "scenario" && targetKind != "resource" && targetKind != "tool" && targetKind != "safeguard" && targetKind != "package" && targetKind != "control-plane" && targetKind != "docs" && targetKind != "team" && targetKind != "project" {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("structure-health does not support target kind %s", target.GetKind().String()))
+	}
+	collector := metrics.Start(metrics.WithEnvironment(h.handler.env))
+	native, err := h.handler.svc.Validate(ctx, internalvalidation.Request{
+		Scenario:         target.GetId(),
+		Path:             req.Msg.GetPath(),
+		TargetKind:       targetKind,
+		TargetID:         target.GetId(),
+		TargetRoot:       target.GetRoot(),
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+	})
+	if err != nil {
+		collector.Stop()
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	execMetrics := collector.Stop()
+	nativeResp, err := responseToProto(native, h.handler.spec)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build native target response: %w", err))
+	}
+	sharedResp, err := assessment.BuildValidationResponse(
+		nativeResp.GetScenario(),
+		nativeResp.GetAssessment(),
+		nativeResp,
+		execMetrics,
+		statusOverride(nativeResp)...,
+	)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared target response: %w", err))
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target:       target,
+		Status:       sharedResp.GetStatus(),
+		Assessment:   sharedResp.GetAssessment(),
+		NativeDetail: sharedResp.GetNativeDetail(),
+		Metrics:      sharedResp.GetMetrics(),
+	}), nil
+}
+
 // PreviewFix exposes structure-health's deterministic fixes through the shared
 // scenario-validation Fix RPC (dry-run). It reuses the native engine so the
 // shared and native surfaces stay in lockstep.

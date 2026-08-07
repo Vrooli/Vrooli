@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "fleet",
-    "description": "Fleet structural intelligence (deterministic offender rollups).",
+    "description": "Typed all-kind structural intelligence (deterministic offender rollups across the nine repository target kinds).",
     "prd_ref": "PRD.md",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -14,8 +14,8 @@
       "prd_ref": "OT-P1-003",
       "category": "api",
       "criticality": "P1",
-      "description": "FleetService.ScanFleet rolls up offenders, profile/surface distribution, per-rule conformance, and auto-fixable coverage across discovered scenarios via deterministic structured queries — not a search-hub data provider.",
-      "tags": ["fleet", "rollup", "api"],
+      "description": "FleetService.ScanFleet rolls up offenders, profile/surface distribution, per-rule conformance, and auto-fixable coverage across typed repository targets via deterministic structured queries — not a search-hub data provider.",
+      "tags": ["fleet", "rollup", "api", "target-kind"],
       "validation": [
         {"type": "unit", "status": "planned", "notes": "fleet/fleet_test.go asserts the scan aggregates rollups and distributions and requires a validation engine."}
       ]
@@ -27,10 +27,38 @@
       "prd_ref": "OT-P1-003",
       "category": "api",
       "criticality": "P1",
-      "description": "A scenario that fails to scan is recorded as an error and the fleet scan continues over the remaining scenarios rather than aborting the whole rollup.",
-      "tags": ["fleet", "resilience", "api"],
+      "description": "A target that fails to scan is recorded as an error and the fleet scan continues over the remaining typed targets rather than aborting the whole rollup.",
+      "tags": ["fleet", "resilience", "api", "target-kind"],
       "validation": [
         {"type": "unit", "status": "planned", "notes": "fleet/fleet_test.go asserts a failing scenario is recorded and the scan continues."}
+      ]
+    },
+    {
+      "id": "SH-FLEET-003",
+      "title": "Enumerate and roll up all repository target kinds",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "api",
+      "criticality": "P1",
+      "description": "The fleet scanner enumerates scenario, resource, tool, safeguard, package, control-plane, docs, team, and project targets, preserves their kind/id/path identity, and exposes typed rollups through the FleetService RPC.",
+      "tags": ["fleet", "target-kind", "all-kind", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "fleet/fleet_test.go asserts all nine target kinds are enumerated and retained in deterministic order."},
+        {"type": "manual", "status": "planned", "notes": "A live ScanFleet request with one representative target per kind returns nine typed entries."}
+      ]
+    },
+    {
+      "id": "SH-FLEET-004",
+      "title": "Project authority and deterministic remediation are represented",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "api",
+      "criticality": "P1",
+      "description": "Project structural findings use the repository contract allowlist, map into the cross-kind maturity ladder, and expose deterministic project allowlist remediation through the shared dry-run-first autofix registry with idempotent apply behavior.",
+      "tags": ["project", "maturity", "autofix", "target-kind"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "autofix/autofix_test.go proves PROJECT_CONFIG_SURFACE preview, apply, and second-apply no-op behavior."},
+        {"type": "unit", "status": "planned", "notes": "The provider descriptor validation proves every emitted target-pack code has a maturity mapping and explicit remediation classification."}
       ]
     }
   ]

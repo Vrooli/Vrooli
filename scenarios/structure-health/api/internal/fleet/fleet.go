@@ -1,5 +1,5 @@
-// Package fleet rolls structure-health's per-scenario engine up across the whole
-// fleet into deterministic offender queries: per-scenario structure rollups,
+// Package fleet rolls structure-health's per-target engine up across the whole
+// fleet into deterministic offender queries: per-target structure rollups,
 // profile/surface distributions, per-rule conformance, and auto-fixable
 // coverage. The queries are exact and structured (no semantic search), so this
 // is intentionally NOT a search-hub data provider.
@@ -25,6 +25,20 @@ type Lister interface {
 	Scenarios() ([]string, error)
 }
 
+// TargetLister is implemented by listers that can enumerate every governed
+// target kind. Lister remains the compatibility seam for callers that only
+// know about scenarios.
+type TargetLister interface {
+	Targets() ([]Target, error)
+}
+
+// Target identifies one structure-health validation subject.
+type Target struct {
+	Kind string
+	ID   string
+	Root string
+}
+
 // FilesystemLister lists every directory under <RepoRoot>/scenarios that carries
 // a .vrooli/service.json (the canonical "this is a scenario" marker).
 type FilesystemLister struct {
@@ -33,22 +47,71 @@ type FilesystemLister struct {
 
 // Scenarios returns the sorted slugs of every discovered scenario.
 func (f FilesystemLister) Scenarios() ([]string, error) {
-	root := filepath.Join(f.RepoRoot, "scenarios")
-	entries, err := os.ReadDir(root)
+	targets, err := f.Targets()
 	if err != nil {
 		return nil, err
 	}
-	out := make([]string, 0, len(entries))
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
+	out := make([]string, 0)
+	for _, target := range targets {
+		if target.Kind == "scenario" {
+			out = append(out, target.ID)
 		}
-		if _, statErr := os.Stat(filepath.Join(root, e.Name(), ".vrooli", "service.json")); statErr != nil {
-			continue
-		}
-		out = append(out, e.Name())
 	}
 	sort.Strings(out)
+	return out, nil
+}
+
+// Targets enumerates all repository target kinds owned by structure-health.
+func (f FilesystemLister) Targets() ([]Target, error) {
+	var out []Target
+	appendChildren := func(kind, parent, marker string) error {
+		entries, err := os.ReadDir(filepath.Join(f.RepoRoot, parent))
+		if err != nil {
+			return err
+		}
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			root := filepath.Join(f.RepoRoot, parent, e.Name())
+			if marker != "" {
+				if _, err := os.Stat(filepath.Join(root, marker)); err != nil {
+					continue
+				}
+			}
+			out = append(out, Target{Kind: kind, ID: e.Name(), Root: root})
+		}
+		return nil
+	}
+	if err := appendChildren("scenario", "scenarios", filepath.Join(".vrooli", "service.json")); err != nil {
+		return nil, err
+	}
+	if err := appendChildren("resource", "resources", "resource.json"); err != nil {
+		return nil, err
+	}
+	if err := appendChildren("tool", filepath.Join("internal", "tools"), "tool.json"); err != nil {
+		return nil, err
+	}
+	if err := appendChildren("safeguard", filepath.Join("internal", "safeguards"), "safeguard.json"); err != nil {
+		return nil, err
+	}
+	if err := appendChildren("package", "packages", filepath.Join(".vrooli", "package.json")); err != nil {
+		return nil, err
+	}
+	for _, root := range []string{"cmd", "internal"} {
+		out = append(out, Target{Kind: "control-plane", ID: root, Root: filepath.Join(f.RepoRoot, root)})
+	}
+	out = append(out, Target{Kind: "docs", ID: "docs", Root: filepath.Join(f.RepoRoot, "docs")})
+	if err := appendChildren("team", "docs", "manifest.json"); err != nil {
+		return nil, err
+	}
+	out = append(out, Target{Kind: "project", ID: "repo", Root: f.RepoRoot})
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Kind != out[j].Kind {
+			return out[i].Kind < out[j].Kind
+		}
+		return out[i].ID < out[j].ID
+	})
 	return out, nil
 }
 
@@ -72,6 +135,9 @@ func New(engine Engine, lister Lister) *Scanner {
 // ScenarioEntry is one scenario's structure rollup.
 type ScenarioEntry struct {
 	Scenario          string
+	TargetKind        string
+	TargetID          string
+	TargetRoot        string
 	Passed            bool
 	ProfileID         string
 	ProfileRecognized bool
@@ -116,6 +182,8 @@ type Result struct {
 	MissingFreshness    int
 	AutofixableTotal    int
 	Errors              []ScanError
+	TargetCount         int
+	PassingTargetCount  int
 }
 
 // severityRank orders severities so the worst can be tracked.
@@ -139,6 +207,13 @@ func (s *Scanner) Scan(ctx context.Context, scenarios []string) (Result, error) 
 		return Result{}, errors.New("fleet: scanner not wired")
 	}
 	if len(scenarios) == 0 {
+		if lister, ok := s.Lister.(TargetLister); ok {
+			targets, err := lister.Targets()
+			if err != nil {
+				return Result{}, err
+			}
+			return s.scanTargets(ctx, targets)
+		}
 		if s.Lister == nil {
 			return Result{}, errors.New("fleet: no scenario lister wired")
 		}
@@ -151,22 +226,47 @@ func (s *Scanner) Scan(ctx context.Context, scenarios []string) (Result, error) 
 		scenarios = append([]string(nil), scenarios...)
 	}
 	sort.Strings(scenarios)
+	targets := make([]Target, 0, len(scenarios))
+	for _, scenario := range scenarios {
+		targets = append(targets, Target{Kind: "scenario", ID: scenario})
+	}
+	return s.scanTargets(ctx, targets)
+}
+
+// ScanTargets grades an explicit set of typed targets.
+func (s *Scanner) ScanTargets(ctx context.Context, targets []Target) (Result, error) {
+	if s == nil || s.Engine == nil {
+		return Result{}, errors.New("fleet: scanner not wired")
+	}
+	return s.scanTargets(ctx, append([]Target(nil), targets...))
+}
+
+func (s *Scanner) scanTargets(ctx context.Context, targets []Target) (Result, error) {
+	sort.Slice(targets, func(i, j int) bool {
+		if targets[i].Kind != targets[j].Kind {
+			return targets[i].Kind < targets[j].Kind
+		}
+		return targets[i].ID < targets[j].ID
+	})
 
 	var result Result
 	ruleAcc := map[string]*RuleConformance{}
 	profileAcc := map[string]*ProfileCount{}
 
-	for _, name := range scenarios {
-		resp, err := s.Engine.Validate(ctx, validation.Request{Scenario: name})
+	for _, target := range targets {
+		name := target.ID
+		resp, err := s.Engine.Validate(ctx, validation.Request{Scenario: name, TargetKind: target.Kind, TargetID: target.ID, TargetRoot: target.Root, Path: target.Root})
 		if err != nil {
-			result.Errors = append(result.Errors, ScanError{Scenario: name, Reason: err.Error()})
+			result.Errors = append(result.Errors, ScanError{Scenario: targetLabel(target), Reason: err.Error()})
 			continue
 		}
-		entry := rollup(name, resp)
+		entry := rollup(target, resp)
 		result.Entries = append(result.Entries, entry)
 		result.ScenarioCount++
+		result.TargetCount++
 		if entry.Passed {
 			result.PassingCount++
+			result.PassingTargetCount++
 		}
 		if entry.MissingFreshness {
 			result.MissingFreshness++
@@ -225,6 +325,13 @@ func (s *Scanner) Scan(ctx context.Context, scenarios []string) (Result, error) 
 	return result, nil
 }
 
+func targetLabel(target Target) string {
+	if target.Kind == "scenario" || target.Kind == "" {
+		return target.ID
+	}
+	return target.Kind + ":" + target.ID
+}
+
 func normalizeSeverity(sev string) string {
 	if sev == "warn" {
 		return "warning"
@@ -232,9 +339,12 @@ func normalizeSeverity(sev string) string {
 	return sev
 }
 
-func rollup(name string, resp validation.Response) ScenarioEntry {
+func rollup(target Target, resp validation.Response) ScenarioEntry {
 	entry := ScenarioEntry{
-		Scenario:          name,
+		Scenario:          target.ID,
+		TargetKind:        target.Kind,
+		TargetID:          target.ID,
+		TargetRoot:        target.Root,
 		ProfileID:         resp.Profile.ID,
 		ProfileRecognized: resp.Profile.Recognized,
 		TotalFindings:     len(resp.Findings),

@@ -24,6 +24,11 @@ type fakeLister struct{ names []string }
 
 func (f fakeLister) Scenarios() ([]string, error) { return f.names, nil }
 
+type fakeTargetLister struct{ targets []Target }
+
+func (f fakeTargetLister) Scenarios() ([]string, error) { return nil, nil }
+func (f fakeTargetLister) Targets() ([]Target, error)   { return f.targets, nil }
+
 func resp(profile string, recognized bool, findings ...validation.Finding) validation.Response {
 	return validation.Response{
 		Profile:  validation.DetectedProfile{ID: profile, Recognized: recognized},
@@ -125,4 +130,39 @@ func TestScanRequiresEngine(t *testing.T) {
 	if _, err := s2.Scan(context.Background(), nil); err == nil {
 		t.Fatal("expected error when no lister and no explicit scenarios")
 	}
+}
+
+func TestScanEnumeratesAllTargetKinds(t *testing.T) {
+	engine := targetEngine{}
+	targets := []Target{
+		{Kind: "project", ID: "repo", Root: "/repo"},
+		{Kind: "scenario", ID: "demo", Root: "/repo/scenarios/demo"},
+		{Kind: "resource", ID: "postgres", Root: "/repo/resources/postgres"},
+		{Kind: "tool", ID: "ffmpeg", Root: "/repo/internal/tools/ffmpeg"},
+		{Kind: "safeguard", ID: "tcp-tuning", Root: "/repo/internal/safeguards/tcp-tuning"},
+		{Kind: "package", ID: "api-core", Root: "/repo/packages/api-core"},
+		{Kind: "control-plane", ID: "internal", Root: "/repo/internal"},
+		{Kind: "docs", ID: "docs", Root: "/repo/docs"},
+		{Kind: "team", ID: "infra-health", Root: "/repo/docs/infra-health"},
+	}
+	s := New(engine, fakeTargetLister{targets: targets})
+	result, err := s.Scan(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("Scan: %v", err)
+	}
+	if result.TargetCount != len(targets) || result.ScenarioCount != len(targets) {
+		t.Fatalf("target count = %d/%d, want %d", result.TargetCount, result.ScenarioCount, len(targets))
+	}
+	if len(result.Entries) != len(targets) {
+		t.Fatalf("entries = %d, want %d", len(result.Entries), len(targets))
+	}
+	if result.Entries[0].TargetKind != "control-plane" || result.Entries[len(result.Entries)-1].TargetKind != "tool" {
+		t.Fatalf("entries not sorted by target kind: %+v", result.Entries)
+	}
+}
+
+type targetEngine struct{}
+
+func (targetEngine) Validate(_ context.Context, req validation.Request) (validation.Response, error) {
+	return resp("target", true), nil
 }

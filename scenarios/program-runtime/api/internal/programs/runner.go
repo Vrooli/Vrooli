@@ -12,10 +12,11 @@ import (
 )
 
 type kernelProcess struct {
-	command *exec.Cmd
-	stdin   *bufio.Writer
-	stdout  *bufio.Reader
-	mu      sync.Mutex
+	command     *exec.Cmd
+	stdin       *bufio.Writer
+	stdout      *bufio.Reader
+	bindingPath string
+	mu          sync.Mutex
 }
 
 type Invocation struct {
@@ -24,10 +25,11 @@ type Invocation struct {
 }
 
 type BindingSpec struct {
-	ID      string `json:"id"`
-	Group   string `json:"group"`
-	Command string `json:"command"`
-	Effect  string `json:"effect"`
+	ID       string `json:"id"`
+	Scenario string `json:"scenario"`
+	Group    string `json:"group"`
+	Command  string `json:"command"`
+	Effect   string `json:"effect"`
 }
 
 type Delegator interface {
@@ -71,12 +73,35 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 		return p, nil
 	}
 	cmd := exec.Command("python3", "-u", r.path)
+	bindingPath := ""
 	if len(r.bindings) > 0 {
 		encoded, err := json.Marshal(r.bindings)
 		if err != nil {
 			return nil, fmt.Errorf("encode kernel bindings: %w", err)
 		}
-		cmd.Env = append(os.Environ(), "PROGRAM_RUNTIME_BINDINGS="+string(encoded))
+		// The fleet registry is large enough to exceed the host's exec argument
+		// and environment limit. Pass the boot-time projection through a private
+		// temporary file and keep the per-request protocol on stdin.
+		file, err := os.CreateTemp("", "vrooli-program-runtime-bindings-*.json")
+		if err != nil {
+			return nil, fmt.Errorf("create kernel bindings file: %w", err)
+		}
+		bindingPath = file.Name()
+		if err := file.Chmod(0o600); err != nil {
+			_ = file.Close()
+			_ = os.Remove(bindingPath)
+			return nil, fmt.Errorf("protect kernel bindings file: %w", err)
+		}
+		if _, err := file.Write(encoded); err != nil {
+			_ = file.Close()
+			_ = os.Remove(bindingPath)
+			return nil, fmt.Errorf("write kernel bindings file: %w", err)
+		}
+		if err := file.Close(); err != nil {
+			_ = os.Remove(bindingPath)
+			return nil, fmt.Errorf("close kernel bindings file: %w", err)
+		}
+		cmd.Env = append(os.Environ(), "PROGRAM_RUNTIME_BINDINGS_FILE="+bindingPath)
 		cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_SESSION_ID="+sessionID)
 		if r.bridgeURL != "" {
 			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_BRIDGE_URL="+r.bridgeURL)
@@ -94,14 +119,17 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 		return nil, fmt.Errorf("open kernel stdout: %w", err)
 	}
 	if err := cmd.Start(); err != nil {
+		if bindingPath != "" {
+			_ = os.Remove(bindingPath)
+		}
 		return nil, fmt.Errorf("start kernel: %w", err)
 	}
-	p := &kernelProcess{command: cmd, stdin: bufio.NewWriter(stdin), stdout: bufio.NewReader(stdout)}
+	p := &kernelProcess{command: cmd, stdin: bufio.NewWriter(stdin), stdout: bufio.NewReader(stdout), bindingPath: bindingPath}
 	r.processes[sessionID] = p
 	return p, nil
 }
 
-func (r *SubprocessRunner) Execute(ctx context.Context, sessionID, source string) (Result, error) {
+func (r *SubprocessRunner) Execute(ctx context.Context, sessionID, source string, includeMaterialized bool) (Result, error) {
 	p, err := r.process(sessionID)
 	if err != nil {
 		return Result{}, err
@@ -111,23 +139,25 @@ func (r *SubprocessRunner) Execute(ctx context.Context, sessionID, source string
 	if err := ctx.Err(); err != nil {
 		return Result{}, err
 	}
-	if err := json.NewEncoder(p.stdin).Encode(map[string]string{"source": source}); err != nil {
+	request := map[string]any{"source": source, "include_materialized": includeMaterialized}
+	if err := json.NewEncoder(p.stdin).Encode(request); err != nil {
 		return Result{}, fmt.Errorf("write program: %w", err)
 	}
 	if err := p.stdin.Flush(); err != nil {
 		return Result{}, fmt.Errorf("flush program: %w", err)
 	}
 	var response struct {
-		OK           bool         `json:"ok"`
-		Stdout       string       `json:"stdout"`
-		Error        string       `json:"error"`
-		ContextBytes int64        `json:"context_bytes"`
-		Invocations  []Invocation `json:"invocations"`
+		OK               bool         `json:"ok"`
+		Stdout           string       `json:"stdout"`
+		Error            string       `json:"error"`
+		ContextBytes     int64        `json:"context_bytes"`
+		OutputLimitBytes int64        `json:"output_limit_bytes"`
+		Invocations      []Invocation `json:"invocations"`
 	}
 	if err := json.NewDecoder(p.stdout).Decode(&response); err != nil {
 		return Result{}, fmt.Errorf("read kernel response: %w", err)
 	}
-	result := Result{Stdout: response.Stdout, ContextBytes: response.ContextBytes, Invocations: response.Invocations}
+	result := Result{Stdout: response.Stdout, ContextBytes: response.ContextBytes, OutputLimitBytes: response.OutputLimitBytes, Invocations: response.Invocations}
 	if !response.OK {
 		return result, fmt.Errorf("%s", response.Error)
 	}
@@ -141,6 +171,9 @@ func (r *SubprocessRunner) Close() error {
 	for id, p := range r.processes {
 		if err := p.command.Process.Kill(); err != nil && first == nil {
 			first = err
+		}
+		if p.bindingPath != "" {
+			_ = os.Remove(p.bindingPath)
 		}
 		delete(r.processes, id)
 	}

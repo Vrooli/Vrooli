@@ -178,7 +178,10 @@
           "flags": [
             {
               "name": "override",
-              "description": "Force a specific model id"
+              "description": "Force a specific model id",
+              "bind": {
+                "field": "override_id"
+              }
             }
           ],
           "binding": {
@@ -207,12 +210,18 @@
           "flags": [
             {
               "name": "model",
-              "description": "Force a specific model id"
+              "description": "Force a specific model id",
+              "bind": {
+                "field": "model_id"
+              }
             },
             {
               "name": "byok",
               "bool": true,
-              "description": "Allow a paid BYOK cloud tier when no local backend is available"
+              "description": "Allow a paid BYOK cloud tier when no local backend is available",
+              "bind": {
+                "field": "allow_byok"
+              }
             },
             {
               "name": "quality-policy",
@@ -246,7 +255,10 @@
             {
               "name": "disable",
               "bool": true,
-              "description": "Disable the model instead of enabling it"
+              "description": "Disable the model instead of enabling it",
+              "bind": {
+                "field": "enabled"
+              }
             }
           ],
           "binding": {
@@ -308,7 +320,10 @@
             {
               "name": "wait",
               "bool": true,
-              "description": "Block once until the download job is terminal (no polling)"
+              "description": "Block once until the download job is terminal (no polling)",
+              "bind": {
+                "field": "id"
+              }
             }
           ],
           "binding": {
@@ -360,7 +375,10 @@
           "flags": [
             {
               "name": "operation",
-              "description": "An operation this model serves (repeat for several)"
+              "description": "An operation this model serves (repeat for several)",
+              "bind": {
+                "field": "local_path"
+              }
             },
             {
               "name": "backend",
@@ -436,11 +454,14 @@
             },
             {
               "name": "architecture",
-              "description": "Confirmed architecture (sd15|sdxl|flux|…); required when inference is none, overrides otherwise"
+              "description": "Confirmed architecture (sd15|sdxl|flux|\u2026); required when inference is none, overrides otherwise"
             },
             {
               "name": "operation",
-              "description": "An operation the model serves (repeat; defaults to the architecture's base ops)"
+              "description": "An operation the model serves (repeat; defaults to the architecture's base ops)",
+              "bind": {
+                "field": "operations"
+              }
             },
             {
               "name": "attest-commercial-rights",
@@ -522,7 +543,10 @@
           "flags": [
             {
               "name": "model",
-              "description": "Resolve compatibility from this model id"
+              "description": "Resolve compatibility from this model id",
+              "bind": {
+                "field": "model_id"
+              }
             },
             {
               "name": "architecture",
@@ -556,7 +580,10 @@
             {
               "name": "disable",
               "description": "Disable the adapter instead of enabling it",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "enabled"
+              }
             }
           ],
           "binding": {
@@ -602,7 +629,10 @@
             {
               "name": "wait",
               "description": "Block once until the download job is terminal (no polling)",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "id"
+              }
             }
           ],
           "binding": {
@@ -689,7 +719,7 @@
             },
             {
               "name": "architecture",
-              "description": "Confirmed compatible architecture (sd15|sdxl|flux|…); required when inference is none, overrides otherwise"
+              "description": "Confirmed compatible architecture (sd15|sdxl|flux|\u2026); required when inference is none, overrides otherwise"
             },
             {
               "name": "preprocessor",
@@ -770,7 +800,7 @@
     },
     {
       "name": "ops",
-      "description": "Run deterministic image operations (resize, crop, convert, …)",
+      "description": "Run deterministic image operations (resize, crop, convert, \u2026)",
       "commands": [
         {
           "name": "list",
@@ -814,11 +844,11 @@
     },
     {
       "name": "analyze",
-      "description": "Run image→data analysis operations (ocr, nsfw, probe)",
+      "description": "Run image\u2192data analysis operations (ocr, nsfw, probe)",
       "commands": [
         {
           "name": "list",
-          "description": "List image→data analysis operations",
+          "description": "List image\u2192data analysis operations",
           "binding": {
             "kind": "connect-rpc",
             "service": "AnalysisService",
@@ -866,7 +896,10 @@
             {
               "name": "id",
               "required": true,
-              "description": "Model id to pin"
+              "description": "Model id to pin",
+              "bind": {
+                "field": "model_id"
+              }
             }
           ],
           "binding": {
@@ -939,7 +972,10 @@
           "flags": [
             {
               "name": "file",
-              "description": "Path to a JSON file describing the Look (name + steps)"
+              "description": "Path to a JSON file describing the Look (name + steps)",
+              "bind": {
+                "field": "look"
+              }
             }
           ],
           "binding": {
@@ -961,7 +997,10 @@
           "flags": [
             {
               "name": "file",
-              "description": "Path to a JSON file describing the Look (id + name + steps)"
+              "description": "Path to a JSON file describing the Look (id + name + steps)",
+              "bind": {
+                "field": "look"
+              }
             }
           ],
           "binding": {
@@ -1090,7 +1129,10 @@
             {
               "name": "class",
               "required": false,
-              "description": "Region class: person|sky|foliage|background|object (empty = object)"
+              "description": "Region class: person|sky|foliage|background|object (empty = object)",
+              "bind": {
+                "field": "region_class"
+              }
             }
           ],
           "binding": {
@@ -1162,7 +1204,7 @@
     {
       "service": "AIService",
       "method": "Submit",
-      "reason": "AI op submission rides the REST multipart edge (POST /api/v1/ai/{operation}); image/mask bytes can't ride a Connect call, so the per-op submit commands (generate, img2img, …) are hand-appended in cli/domains/ai/register.go."
+      "reason": "AI op submission rides the REST multipart edge (POST /api/v1/ai/{operation}); image/mask bytes can't ride a Connect call, so the per-op submit commands (generate, img2img, \u2026) are hand-appended in cli/domains/ai/register.go."
     },
     {
       "service": "AnalysisService",

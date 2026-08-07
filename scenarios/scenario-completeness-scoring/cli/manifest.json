@@ -65,7 +65,10 @@
           "flags": [
             {
               "name": "sort",
-              "description": "Sort key: score, rung, last-scored, scenario, priority"
+              "description": "Sort key: score, rung, last-scored, scenario, priority",
+              "bind": {
+                "field": "sort_by"
+              }
             },
             {
               "name": "order",
@@ -73,7 +76,10 @@
             },
             {
               "name": "limit",
-              "description": "Page size"
+              "description": "Page size",
+              "bind": {
+                "field": "min_score"
+              }
             },
             {
               "name": "page-token",

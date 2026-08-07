@@ -1,6 +1,10 @@
 package intent
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 const sample = `{
   "service": {"name": "demo", "displayName": "Demo"},
@@ -45,5 +49,39 @@ func TestParse(t *testing.T) {
 	}
 	if in.Raw == nil {
 		t.Fatal("raw document must be retained")
+	}
+}
+
+func TestResolveReportsAbsentIntentForSourceOnlyKind(t *testing.T) {
+	resolution, err := Resolve("control-plane", t.TempDir())
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if resolution.Declared {
+		t.Fatal("source-only target must not report declared intent")
+	}
+	if resolution.Source != "none" {
+		t.Fatalf("source = %q, want none", resolution.Source)
+	}
+	if resolution.Value.Raw != nil || resolution.Value.Ports != nil {
+		t.Fatalf("absent intent must not be represented as a populated manifest: %#v", resolution.Value)
+	}
+}
+
+func TestResolveScenarioLoadsServiceJSON(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, filepath.FromSlash(ServiceJSONRelPath))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(sample), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resolution, err := Resolve("scenario", root)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if !resolution.Declared || resolution.Source != ServiceJSONRelPath || resolution.Value.Name != "demo" {
+		t.Fatalf("resolution = %#v", resolution)
 	}
 }

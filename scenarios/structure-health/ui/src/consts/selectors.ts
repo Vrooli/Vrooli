@@ -325,6 +325,7 @@ const literalSelectors = {
   pages: {
     dashboard: "page-dashboard",
     fleet: "page-fleet",
+    validation: "page-validation",
     settings: "page-settings",
   },
   fleet: {
@@ -344,6 +345,20 @@ const literalSelectors = {
     scenarios: "fleet-scenarios",
     scenariosEmpty: "fleet-scenarios-empty",
     errors: "fleet-errors",
+    targets: "fleet-targets",
+  },
+  validation: {
+    view: "validation-view",
+    kind: "validation-kind",
+    id: "validation-id",
+    root: "validation-root",
+    path: "validation-path",
+    submit: "validation-submit",
+    loading: "validation-loading",
+    error: "validation-error",
+    result: "validation-result",
+    findings: "validation-findings",
+    emptyFindings: "validation-findings-empty",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -377,6 +392,7 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "fleet",
+            "validate",
             "settings",
           ] as const,
         },
@@ -391,6 +407,7 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "fleet",
+            "validate",
             "settings",
           ] as const,
         },
@@ -398,6 +415,11 @@ const dynamicSelectorDefinitions = {
     }),
   },
   fleet: {
+    targetRow: defineDynamicSelector({
+      description: "Typed fleet target row by kind and id",
+      testIdPattern: "fleet-target-row-${kind}-${id}",
+      params: { kind: { type: "string" }, id: { type: "string" } },
+    }),
     scenarioRow: defineDynamicSelector({
       description: "Scenario offenders table row by scenario slug",
       testIdPattern: "fleet-scenario-row-${scenario}",

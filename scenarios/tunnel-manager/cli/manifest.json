@@ -268,7 +268,8 @@
           "flags": [
             {
               "name": "verify",
-              "description": "Run LIVE read-only Cloudflare probes (token verify, account/tunnel read, apex zone lookup + DNS:Edit) instead of the presence-only fast path"
+              "description": "Run LIVE read-only Cloudflare probes (token verify, account/tunnel read, apex zone lookup + DNS:Edit) instead of the presence-only fast path",
+              "local_only": true
             }
           ],
           "binding": {
@@ -403,7 +404,8 @@
             {
               "name": "dry-run",
               "bool": true,
-              "description": "Render the pending Bypass-app create/remove diff (to_create/to_remove) instead of the per-host table; mutates nothing"
+              "description": "Render the pending Bypass-app create/remove diff (to_create/to_remove) instead of the per-host table; mutates nothing",
+              "local_only": true
             }
           ],
           "binding": {

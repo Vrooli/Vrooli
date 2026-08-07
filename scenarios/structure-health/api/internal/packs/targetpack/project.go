@@ -1,0 +1,385 @@
+package targetpack
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"structure-health/internal/rules"
+)
+
+// projectContract is deliberately a small read model. The project pack reads
+// the repository contract as data; it does not become a second contract
+// loader. Keeping this model here also lets the project target report a
+// malformed contract as a finding with a location and remediation.
+type projectContract struct {
+	Schema   string `json:"$schema"`
+	Version  string `json:"version"`
+	Platform struct {
+		Mode                       string `json:"mode"`
+		LegacyProjectBashSupported bool   `json:"legacy_project_bash_supported"`
+	} `json:"platform"`
+	Root struct {
+		Markers struct {
+			RequiredDirs  []string `json:"required_dirs"`
+			RequiredFiles []string `json:"required_files"`
+		} `json:"markers"`
+	} `json:"root"`
+	Layout struct {
+		ProjectConfigDir       string   `json:"project_config_dir"`
+		ScenarioDir            string   `json:"scenario_dir"`
+		ResourceDir            string   `json:"resource_dir"`
+		TemplateDir            string   `json:"template_dir"`
+		PackageDir             string   `json:"package_dir"`
+		CommandDir             string   `json:"command_dir"`
+		InternalDir            string   `json:"internal_dir"`
+		DocsDir                string   `json:"docs_dir"`
+		ProjectConfigAllowlist []string `json:"project_config_allowlist"`
+	} `json:"layout"`
+	RuntimeHome struct {
+		DirName      string `json:"dir_name"`
+		EnvOverrides []any  `json:"env_overrides"`
+		Entries      map[string]struct {
+			Path        string `json:"path"`
+			Kind        string `json:"kind"`
+			Regenerable bool   `json:"regenerable"`
+			Sensitive   bool   `json:"sensitive"`
+		} `json:"entries"`
+		Scoped map[string]string `json:"scoped"`
+	} `json:"runtime_home"`
+	Scenario struct {
+		RequiredFiles  []string          `json:"required_files"`
+		WellKnownPaths map[string]string `json:"well_known_paths"`
+	} `json:"scenario"`
+	Resource struct {
+		Manifest       string            `json:"manifest"`
+		WellKnownPaths map[string]string `json:"well_known_paths"`
+	} `json:"resource"`
+	Globs struct {
+		Syntax        string `json:"syntax"`
+		RootRelative  bool   `json:"root_relative"`
+		CaseSensitive bool   `json:"case_sensitive"`
+		AllowAbsolute bool   `json:"allow_absolute"`
+		PathFormat    string `json:"path_format"`
+	} `json:"globs"`
+	Environment struct {
+		Variables map[string]string `json:"variables"`
+	} `json:"environment"`
+	Sandbox struct {
+		FullRepoScopes      []string `json:"full_repo_scopes"`
+		ScenarioScopePrefix string   `json:"scenario_scope_prefix"`
+	} `json:"sandbox"`
+	Profiles map[string]struct {
+		Parameters      []string `json:"parameters"`
+		Include         []string `json:"include"`
+		OptionalInclude []string `json:"optional_include"`
+		Exclude         []string `json:"exclude"`
+	} `json:"profiles"`
+}
+
+func evaluateProject(root string) []rules.Finding {
+	contractPath := filepath.Join(root, ".vrooli", "repo-contract.json")
+	raw, err := os.ReadFile(contractPath)
+	if err != nil {
+		return []rules.Finding{finding("PROJECT_CONTRACT_INVALID", "error", "repository contract is unreadable", ".vrooli/repo-contract.json", "Restore a readable .vrooli/repo-contract.json.")}
+	}
+	var contract projectContract
+	if err := json.Unmarshal(raw, &contract); err != nil {
+		return []rules.Finding{finding("PROJECT_CONTRACT_INVALID", "error", "repository contract is invalid JSON", ".vrooli/repo-contract.json", "Fix the repository contract JSON syntax.")}
+	}
+	var out []rules.Finding
+	appendProjectCheck(&out, projectPhase1Semantics(contract), "PROJECT_PHASE1_SEMANTICS", ".vrooli/repo-contract.json", "Restore the phase-1 repository contract semantics.")
+	appendProjectCheck(&out, projectCanonicalMarkers(contract), "PROJECT_CANONICAL_LAYOUT", ".vrooli/repo-contract.json", "Restore the canonical repository markers and paths.")
+	appendProjectCheck(&out, projectRuntimeHome(contract), "PROJECT_RUNTIME_HOME", ".vrooli/repo-contract.json", "Restore the runtime-home structural authority.")
+	appendProjectCheck(&out, projectLiveStructure(root, contract), "PROJECT_LIVE_STRUCTURE", ".", "Restore the required repository directories, files, and manifests.")
+	out = append(out, projectConfigSurface(root, contract)...)
+	appendProjectCheck(&out, projectExcludedLegacy(contract, string(raw), root), "PROJECT_EXCLUDED_LEGACY", ".vrooli/repo-contract.json", "Remove retired paths and legacy contract entries.")
+	appendProjectCheck(&out, projectProfileRoots(contract), "PROJECT_PROFILE_ROOTS", ".vrooli/repo-contract.json", "Keep profile includes inside canonical repository roots.")
+	appendProjectCheck(&out, projectBundleProfile(contract), "PROJECT_BUNDLE_PROFILE", ".vrooli/repo-contract.json", "Restore the mini_vrooli_bundle include, exclude, and parameter policy.")
+	appendProjectCheck(&out, projectDocsAlignment(root), "PROJECT_DOCS_ALIGNMENT", "docs/repo-contract.md", "Update docs/repo-contract.md to describe the enforced contract.")
+	appendProjectCheck(&out, projectResourceArtifacts(root), "PROJECT_RESOURCE_ARTIFACTS", ".vrooli/schemas/resource-definitions.json", "Regenerate resource schema artifacts and repair missing resource references.")
+	return out
+}
+
+func appendProjectCheck(out *[]rules.Finding, err error, code, location, remediation string) {
+	if err == nil {
+		return
+	}
+	*out = append(*out, finding(code, "error", err.Error(), location, remediation))
+}
+
+func projectPhase1Semantics(c projectContract) error {
+	if c.Schema != "schemas/repo-contract.schema.json" || c.Version != "1.2.0" {
+		return fmt.Errorf("phase-1 contract schema/version is invalid")
+	}
+	if c.Platform.Mode != "cross_platform_go_native" || c.Platform.LegacyProjectBashSupported {
+		return fmt.Errorf("platform is not cross-platform Go-native")
+	}
+	wantEnv := map[string]string{"repo_root": "VROOLI_ROOT", "source_root": "VROOLI_SOURCE_ROOT", "sandbox_id": "VROOLI_SANDBOX_ID", "sandbox_merged": "VROOLI_SANDBOX_MERGED", "sandbox_scope": "VROOLI_SANDBOX_SCOPE"}
+	if !stringMapEqual(c.Environment.Variables, wantEnv) {
+		return fmt.Errorf("environment.variables does not match the contract")
+	}
+	if c.Globs.Syntax != "doublestar" || !c.Globs.RootRelative || !c.Globs.CaseSensitive || c.Globs.AllowAbsolute || c.Globs.PathFormat != "slash_normalized" {
+		return fmt.Errorf("glob policy is invalid")
+	}
+	mini, ok := c.Profiles["mini_vrooli_bundle"]
+	if c.Sandbox.ScenarioScopePrefix != "scenarios/" || !ok || !stringSliceEqual(mini.Parameters, []string{"scenario", "resources[*]"}) || len(mini.Include) == 0 || len(mini.Exclude) == 0 {
+		return fmt.Errorf("sandbox or bundle parameter policy is invalid")
+	}
+	return nil
+}
+
+func projectCanonicalMarkers(c projectContract) error {
+	wantDirs := []string{".vrooli", "templates", "scenarios", "resources", "packages", "cmd", "internal"}
+	if !stringSliceEqual(c.Root.Markers.RequiredDirs, wantDirs) || !stringSliceEqual(c.Root.Markers.RequiredFiles, []string{"go.mod"}) {
+		return fmt.Errorf("root markers are not canonical")
+	}
+	wantLayout := []string{c.Layout.ProjectConfigDir, c.Layout.ScenarioDir, c.Layout.ResourceDir, c.Layout.TemplateDir, c.Layout.PackageDir, c.Layout.CommandDir, c.Layout.InternalDir, c.Layout.DocsDir}
+	if !stringSliceEqual(wantLayout, []string{".vrooli", "scenarios", "resources", "templates", "packages", "cmd", "internal", "docs"}) {
+		return fmt.Errorf("layout directories are not canonical")
+	}
+	wantScenario := map[string]string{"service": ".vrooli/service.json", "orientation": ".vrooli/orientation.json", "docs": "docs", "docs_manifest": "docs/manifest.json", "requirements": "requirements", "api": "api", "ui": "ui", "cli": "cli", "cli_manifest": "cli/manifest.json"}
+	if !stringSliceEqual(c.Scenario.RequiredFiles, []string{".vrooli/service.json"}) || !stringMapEqual(c.Scenario.WellKnownPaths, wantScenario) || c.Resource.Manifest != "resource.json" || !stringMapEqual(c.Resource.WellKnownPaths, map[string]string{"docs": "docs"}) {
+		return fmt.Errorf("scenario or resource well-known paths are not canonical")
+	}
+	return nil
+}
+
+func projectRuntimeHome(c projectContract) error {
+	if c.RuntimeHome.DirName != ".vrooli" || len(c.RuntimeHome.EnvOverrides) != 0 {
+		return fmt.Errorf("runtime_home dir or overrides are invalid")
+	}
+	want := map[string]struct {
+		path, kind             string
+		regenerable, sensitive bool
+	}{
+		"plans": {"plans", "dir", false, false}, "state": {"state", "dir", false, false}, "config": {"config", "dir", false, false}, "data": {"data", "dir", false, false}, "runtime_db": {"state/runtime.db", "file", false, false}, "secrets": {"secrets.json", "file", false, true}, "secrets_enc": {"secrets.enc.json", "file", false, true}, "bin": {"bin", "dir", true, false}, "cache": {"cache", "dir", true, false}, "logs": {"logs", "dir", true, false}, "metrics": {"metrics", "dir", true, false}, "processes": {"processes", "dir", true, false}, "build": {"build", "dir", true, false},
+	}
+	if len(c.RuntimeHome.Entries) != len(want) {
+		return fmt.Errorf("runtime_home entry count is invalid")
+	}
+	seen := map[string]string{}
+	for key, expected := range want {
+		got, ok := c.RuntimeHome.Entries[key]
+		if !ok || got.Path != expected.path || got.Kind != expected.kind || got.Regenerable != expected.regenerable || (expected.sensitive && !got.Sensitive) {
+			return fmt.Errorf("runtime_home entry %q is invalid", key)
+		}
+		if prior, duplicate := seen[got.Path]; duplicate {
+			return fmt.Errorf("runtime_home entries %q and %q share path %q", prior, key, got.Path)
+		}
+		seen[got.Path] = key
+	}
+	if !stringMapEqual(c.RuntimeHome.Scoped, map[string]string{"scenario_secrets": "scenarios/{scenario}/secrets.json", "project_state": "state/projects/{project_key}"}) {
+		return fmt.Errorf("runtime_home scoped paths are invalid")
+	}
+	return nil
+}
+
+func projectLiveStructure(root string, c projectContract) error {
+	for _, rel := range c.Root.Markers.RequiredDirs {
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil || !info.IsDir() {
+			return fmt.Errorf("required directory %q is missing", rel)
+		}
+	}
+	for _, rel := range c.Root.Markers.RequiredFiles {
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil || info.IsDir() {
+			return fmt.Errorf("required file %q is missing", rel)
+		}
+	}
+	if countFilesNamed(filepath.Join(root, c.Layout.ScenarioDir), ".vrooli/service.json") == 0 || countFilesNamed(filepath.Join(root, c.Layout.ResourceDir), c.Resource.Manifest) == 0 {
+		return fmt.Errorf("required scenario and resource manifests are missing")
+	}
+	return nil
+}
+
+func projectConfigSurface(root string, c projectContract) []rules.Finding {
+	dir := filepath.Join(root, c.Layout.ProjectConfigDir)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return []rules.Finding{finding("PROJECT_CONFIG_SURFACE", "error", "read project config dir: "+err.Error(), c.Layout.ProjectConfigDir, "Restore the project config directory.")}
+	}
+	allowed := make(map[string]bool, len(c.Layout.ProjectConfigAllowlist))
+	for _, name := range c.Layout.ProjectConfigAllowlist {
+		allowed[name] = true
+	}
+	var out []rules.Finding
+	for _, entry := range entries {
+		if !allowed[entry.Name()] {
+			out = append(out, finding("PROJECT_CONFIG_SURFACE", "error", fmt.Sprintf("project config contains unapproved entry %q", entry.Name()), filepath.ToSlash(filepath.Join(c.Layout.ProjectConfigDir, entry.Name())), "Remove the entry or add it deliberately to layout.project_config_allowlist."))
+		}
+	}
+	return out
+}
+
+func projectExcludedLegacy(c projectContract, raw, root string) error {
+	for _, item := range []string{".vrooli/resource.json", ".git\"", "pnpm-workspace.yaml", "$HOME/Vrooli", "APP_ROOT", ".vrooli/metadata.json"} {
+		if strings.Contains(raw, item) {
+			return fmt.Errorf("contract contains retired item %q", item)
+		}
+	}
+	for _, rel := range []string{"scripts/lib", "scripts/resources"} {
+		if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err == nil && info.IsDir() {
+			return fmt.Errorf("retired path %q exists", rel)
+		}
+	}
+	for _, value := range contractPaths(c) {
+		if strings.Contains(value, "\\") || strings.HasPrefix(value, "/") || hasParentSegment(value) {
+			return fmt.Errorf("contract path %q is not a safe repo-relative path", value)
+		}
+	}
+	return nil
+}
+
+func projectProfileRoots(c projectContract) error {
+	allowed := []string{c.Layout.ProjectConfigDir, c.Layout.CommandDir, c.Layout.InternalDir, c.Layout.PackageDir, c.Layout.ScenarioDir + "/", c.Layout.ResourceDir + "/", c.Layout.DocsDir, "go.mod", "go.sum", "go.work", "go.work.sum", "Makefile", "README.md", "LICENSE"}
+	for name, profile := range c.Profiles {
+		for _, include := range append(append([]string{}, profile.Include...), profile.OptionalInclude...) {
+			if !hasAllowedPrefix(include, allowed) {
+				return fmt.Errorf("profile %s contains non-canonical include root %q", name, include)
+			}
+		}
+	}
+	if !stringSliceEqual(c.Sandbox.FullRepoScopes, []string{"", ".", "/"}) {
+		return fmt.Errorf("sandbox.full_repo_scopes is not canonical")
+	}
+	return nil
+}
+
+func projectBundleProfile(c projectContract) error {
+	profile, ok := c.Profiles["mini_vrooli_bundle"]
+	if !ok || !stringSliceEqual(profile.Parameters, []string{"scenario", "resources[*]"}) {
+		return fmt.Errorf("mini_vrooli_bundle parameters are invalid")
+	}
+	for _, include := range []string{".vrooli", "cmd", "internal", "packages", "scenarios/{scenario}", "resources/{resources[*]}"} {
+		if !containsString(profile.Include, include) {
+			return fmt.Errorf("mini_vrooli_bundle include missing %q", include)
+		}
+	}
+	for _, excluded := range []string{"api", "src", "scripts", "platforms", "assets", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".env-example"} {
+		if containsString(profile.Include, excluded) || containsString(profile.OptionalInclude, excluded) {
+			return fmt.Errorf("mini_vrooli_bundle includes retired root %q", excluded)
+		}
+	}
+	for _, exclude := range []string{".git/**", "**/.git/**", "**/node_modules/**", "**/coverage/**", "**/data/**", ".vrooli/secrets.json", "**/.vrooli/secrets.json", "cli/**"} {
+		if !containsString(profile.Exclude, exclude) {
+			return fmt.Errorf("mini_vrooli_bundle exclude missing %q", exclude)
+		}
+	}
+	return nil
+}
+
+func projectDocsAlignment(root string) error {
+	raw, err := os.ReadFile(filepath.Join(root, "docs", "repo-contract.md"))
+	if err != nil {
+		return err
+	}
+	for _, snippet := range []string{"`vrooli contract validate`", "`vrooli contract show`", "`vrooli contract resolve scenario <name> --file service`", "`vrooli contract match-glob <pattern> <path>`", "`structure-health-contract`", "## Allowed `.vrooli/` Surface", "`~/.vrooli/secrets.json`", "## Landed Consumer Migrations", "`swarm-manager`"} {
+		if !strings.Contains(string(raw), snippet) {
+			return fmt.Errorf("docs/repo-contract.md is missing %q", snippet)
+		}
+	}
+	return nil
+}
+
+func projectResourceArtifacts(root string) error {
+	artifact := filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json")
+	if !fileExists(artifact) {
+		return fmt.Errorf("resource schema artifact is missing")
+	}
+	if _, _, ok := loadObject(artifact); !ok {
+		return fmt.Errorf("resource schema artifact is invalid JSON")
+	}
+	return nil
+}
+
+func countFilesNamed(root, name string) int {
+	count := 0
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		cleanPath := filepath.ToSlash(path)
+		if !entry.IsDir() && (cleanPath == filepath.ToSlash(name) || strings.HasSuffix(cleanPath, "/"+filepath.ToSlash(name))) {
+			count++
+		}
+		return nil
+	})
+	return count
+}
+
+func contractPaths(c projectContract) []string {
+	paths := append([]string{}, c.Root.Markers.RequiredDirs...)
+	paths = append(paths, c.Root.Markers.RequiredFiles...)
+	paths = append(paths, c.Schema, c.Layout.ProjectConfigDir, c.Layout.ScenarioDir, c.Layout.ResourceDir, c.Layout.PackageDir, c.Layout.CommandDir, c.Layout.InternalDir, c.Layout.DocsDir, c.Sandbox.ScenarioScopePrefix)
+	paths = append(paths, c.Scenario.RequiredFiles...)
+	for _, value := range c.Scenario.WellKnownPaths {
+		paths = append(paths, value)
+	}
+	paths = append(paths, c.Resource.Manifest)
+	for _, value := range c.Resource.WellKnownPaths {
+		paths = append(paths, value)
+	}
+	for _, profile := range c.Profiles {
+		paths = append(paths, profile.Include...)
+		paths = append(paths, profile.OptionalInclude...)
+		paths = append(paths, profile.Exclude...)
+	}
+	return paths
+}
+
+func hasParentSegment(value string) bool {
+	for _, segment := range strings.Split(filepath.ToSlash(value), "/") {
+		if segment == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAllowedPrefix(value string, prefixes []string) bool {
+	value = filepath.ToSlash(value)
+	for _, prefix := range prefixes {
+		prefix = filepath.ToSlash(prefix)
+		if value == prefix || strings.HasPrefix(value, strings.TrimSuffix(prefix, "/")+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func stringSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func stringMapEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, value := range b {
+		if a[key] != value {
+			return false
+		}
+	}
+	return true
+}
+
+func containsString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
+}

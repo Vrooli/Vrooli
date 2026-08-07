@@ -14,14 +14,20 @@
             {
               "name": "name",
               "required": true,
-              "description": "Scenario id (directory name under scenarios/)"
+              "description": "Scenario id (directory name under scenarios/)",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "flags": [
             {
               "name": "static-only",
               "bool": true,
-              "description": "Run static checks only (manifest, interop, standards, freshness); skip the BAS-driven runtime/render group and any auto-start"
+              "description": "Run static checks only (manifest, interop, standards, freshness); skip the BAS-driven runtime/render group and any auto-start",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -50,7 +56,10 @@
             {
               "name": "text",
               "required": true,
-              "description": "Natural-language query"
+              "description": "Natural-language query",
+              "bind": {
+                "field": "mode"
+              }
             }
           ],
           "flags": [
@@ -272,7 +281,10 @@
           "flags": [
             {
               "name": "request",
-              "description": "Path to an AnalyzeArtifactsRequest JSON file"
+              "description": "Path to an AnalyzeArtifactsRequest JSON file",
+              "bind": {
+                "field": "steps"
+              }
             }
           ],
           "binding": {
@@ -295,7 +307,10 @@
           "flags": [
             {
               "name": "request",
-              "description": "Path to a CompareArtifactsRequest JSON file"
+              "description": "Path to a CompareArtifactsRequest JSON file",
+              "bind": {
+                "field": "current"
+              }
             }
           ],
           "binding": {
@@ -335,7 +350,7 @@
     {
       "service": "InventoryService",
       "method": "ScanScenario",
-      "reason": "Scan is exposed transitively via ReindexService.Reindex (which calls the reconciler that internally runs ScanScenario per scenario). No standalone CLI surface — UI uses the Connect client directly for ad-hoc per-scenario inventory views."
+      "reason": "Scan is exposed transitively via ReindexService.Reindex (which calls the reconciler that internally runs ScanScenario per scenario). No standalone CLI surface \u2014 UI uses the Connect client directly for ad-hoc per-scenario inventory views."
     }
   ]
 }

@@ -4,13 +4,29 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "e271042a51bf9873885f32bb8b36fead868726f853026669fc53f5b522984f28",
+  "manifest_hash": "8b1bcfbe1c1894a517c33f6d69ec1aca30a73784e6ecf10d39714012d6bce772",
   "commands": [
     {
       "path": "bindings act",
       "group": "bindings",
       "command": "act",
       "binding": "BindingRegistryService.ResolveActCells",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings describe",
+      "group": "bindings",
+      "command": "describe",
+      "binding": "BindingRegistryService.DescribeBinding",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "bindings doctor",
+      "group": "bindings",
+      "command": "doctor",
+      "binding": "BindingRegistryService.DoctorBindings",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

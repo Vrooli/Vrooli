@@ -13,17 +13,17 @@ const FLEET_QUERY_KEY = ["fleet-scan"] as const;
 
 /**
  * FleetView is the structure-health fleet dashboard. It calls
- * `FleetService.ScanFleet` and renders the cross-scenario rollup:
+ * `FleetService.ScanFleet` and renders the typed all-kind rollup:
  *
  *   - headline counters (scenarios / passing / missing-freshness / auto-fixable)
  *   - profile distribution mini-list
  *   - per-rule conformance table (server order: most-offending first)
- *   - scenario offenders table (verdict, profile, error/warning/auto-fixable
+ *   - target offenders table (kind/id, verdict, profile, error/warning/auto-fixable
  *     counts, missing-freshness badge)
- *   - any ungraded scenarios with their reason
+ *   - any ungraded targets with their reason
  *
  * Verdicts read strictly off `entry.passed` so the visual semantics match the
- * gating contract (`passed=false` iff a scenario has any error-severity
+ * gating contract (`passed=false` iff a target has any error-severity
  * structure finding).
  */
 export function FleetView() {
@@ -87,8 +87,8 @@ export function FleetView() {
       {data && (entries.length > 0 || scanErrors.length > 0) && (
         <>
           <SummaryStats
-            scenarioCount={data.scenarioCount}
-            passingCount={data.passingCount}
+            targetCount={data.targetCount || data.scenarioCount}
+            passingTargetCount={data.passingTargetCount || data.passingCount}
             missingFreshnessCount={data.missingFreshnessCount}
             autofixableTotal={data.autofixableTotal}
           />
@@ -103,13 +103,13 @@ export function FleetView() {
 }
 
 function SummaryStats({
-  scenarioCount,
-  passingCount,
+  targetCount,
+  passingTargetCount,
   missingFreshnessCount,
   autofixableTotal,
 }: {
-  scenarioCount: number;
-  passingCount: number;
+  targetCount: number;
+  passingTargetCount: number;
   missingFreshnessCount: number;
   autofixableTotal: number;
 }) {
@@ -122,12 +122,12 @@ function SummaryStats({
       <Stat
         testId={selectors.fleet.summaryScenarios}
         label={t(strings.fleet.summary.scenarios)}
-        value={scenarioCount}
+        value={targetCount}
       />
       <Stat
         testId={selectors.fleet.summaryPassing}
         label={t(strings.fleet.summary.passing)}
-        value={passingCount}
+        value={passingTargetCount}
       />
       <Stat
         testId={selectors.fleet.summaryMissingFreshness}
@@ -288,6 +288,9 @@ function ScenarioOffendersTable({
 }: {
   entries: {
     scenario: string;
+    targetKind: string;
+    targetId: string;
+    targetPath: string;
     passed: boolean;
     profileId: string;
     profileRecognized: boolean;
@@ -318,6 +321,7 @@ function ScenarioOffendersTable({
   return (
     <section
       data-testid={selectors.fleet.scenarios}
+      data-target-kind-axis="all"
       aria-label={t(strings.fleet.scenarios.title)}
       className="rounded-panel border border-app-border bg-app-surface p-4"
     >
@@ -329,7 +333,7 @@ function ScenarioOffendersTable({
           <thead>
             <tr className="text-xs uppercase tracking-wide text-app-muted-foreground">
               <th scope="col" className="px-2 py-1 text-start font-medium">
-                {t(strings.fleet.scenarios.col.scenario)}
+                {t(strings.fleet.scenarios.col.target)}
               </th>
               <th scope="col" className="px-2 py-1 text-start font-medium">
                 {t(strings.fleet.scenarios.col.verdict)}
@@ -354,13 +358,29 @@ function ScenarioOffendersTable({
           <tbody>
             {entries.map((entry) => (
               <tr
-                key={entry.scenario}
-                data-testid={selectors.fleet.scenarioRow({ scenario: entry.scenario })}
+                key={`${entry.targetKind || "scenario"}:${entry.targetId || entry.scenario}`}
+                data-testid={
+                  entry.targetKind === "" || entry.targetKind === "scenario"
+                    ? selectors.fleet.scenarioRow({ scenario: entry.scenario })
+                    : undefined
+                }
                 data-passed={entry.passed}
                 className="border-t border-app-border"
               >
                 <td className="px-2 py-1.5">
-                  <span className="font-medium text-app-foreground">{entry.scenario}</span>
+                  <span
+                    data-testid={selectors.fleet.targetRow({
+                      kind: entry.targetKind || "scenario",
+                      id: entry.targetId || entry.scenario,
+                    })}
+                    className="sr-only"
+                  />
+                  <span className="font-medium text-app-foreground">
+                    <span className="me-2 rounded-control border border-app-border px-1.5 py-0.5 text-xs uppercase text-app-muted-foreground">
+                      {entry.targetKind || "scenario"}
+                    </span>
+                    {entry.targetId || entry.scenario}
+                  </span>
                   {entry.degradedReason && (
                     <span className="ms-2 text-xs text-app-warning" title={entry.degradedReason}>
                       ⚠ {entry.degradedReason}

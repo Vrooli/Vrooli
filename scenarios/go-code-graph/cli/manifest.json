@@ -11,16 +11,33 @@
           "name": "extract",
           "description": "Extract a deterministic graph for a Go module",
           "positionals": [
-            { "name": "path", "required": true, "description": "Path to Go module root" }
+            {
+              "name": "path",
+              "required": true,
+              "description": "Path to Go module root",
+              "bind": {
+                "field": "module_path"
+              }
+            }
           ],
           "flags": [
-            { "name": "include-vendor", "description": "Include vendor/ directories in extraction" }
+            {
+              "name": "include-vendor",
+              "description": "Include vendor/ directories in extraction"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "GoCodeGraphService", "method": "Extract" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoCodeGraphService",
+            "method": "Extract"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
           }
         },
         {
@@ -28,25 +45,43 @@
           "description": "List the golden determinism fixtures shipped with the scenario",
           "positionals": [],
           "flags": [],
-          "binding": { "kind": "connect-rpc", "service": "GoCodeGraphService", "method": "ListFixtures" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoCodeGraphService",
+            "method": "ListFixtures"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
           }
         },
         {
           "name": "validate-fixture",
           "description": "Re-extract a fixture and byte-compare against its expected-graph.json",
           "positionals": [
-            { "name": "name", "required": true, "description": "Fixture directory name (see `graph list-fixtures`)" }
+            {
+              "name": "name",
+              "required": true,
+              "description": "Fixture directory name (see `graph list-fixtures`)"
+            }
           ],
           "flags": [],
-          "binding": { "kind": "connect-rpc", "service": "GoCodeGraphService", "method": "ValidateFixture" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoCodeGraphService",
+            "method": "ValidateFixture"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
           }
         }
       ]
@@ -59,32 +94,65 @@
           "name": "plan",
           "description": "Validate and normalize a list of rewrite operations",
           "positionals": [
-            { "name": "ops-file", "required": true, "description": "Path to JSON file describing operations" }
+            {
+              "name": "ops-file",
+              "required": true,
+              "description": "Path to JSON file describing operations",
+              "bind": {
+                "field": "operations"
+              }
+            }
           ],
           "flags": [
-            { "name": "module-path", "required": true, "description": "Go module root the ops target" }
+            {
+              "name": "module-path",
+              "required": true,
+              "description": "Go module root the ops target"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "GoCodeGraphService", "method": "RewritePlan" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoCodeGraphService",
+            "method": "RewritePlan"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
           }
         },
         {
           "name": "apply",
           "description": "Execute a previously-planned set of operations",
           "positionals": [
-            { "name": "plan-id", "required": true, "description": "Plan id returned by `rewrite plan`" }
+            {
+              "name": "plan-id",
+              "required": true,
+              "description": "Plan id returned by `rewrite plan`"
+            }
           ],
           "flags": [
-            { "name": "module-path", "required": true, "description": "Go module root the plan was authored against" }
+            {
+              "name": "module-path",
+              "required": true,
+              "description": "Go module root the plan was authored against"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "GoCodeGraphService", "method": "RewriteApply" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoCodeGraphService",
+            "method": "RewriteApply"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:write"]
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
           }
         }
       ]

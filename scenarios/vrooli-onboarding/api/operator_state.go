@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/vrooli/internal/hostreq"
 )
 
 // OperatorState mirrors .vrooli/schemas/operator-state.schema.json. It owns
@@ -36,6 +37,10 @@ type EnabledChoice struct {
 }
 type OptInChoice struct {
 	OptedIn *bool `json:"opted_in,omitempty"`
+	// Config is intentionally an open map. Safeguard manifests own the schema,
+	// and onboarding must preserve keys introduced by a newer manifest even
+	// when this binary does not know their names yet.
+	Config map[string]any `json:"config,omitempty"`
 }
 
 var (
@@ -140,10 +145,26 @@ func (s *Server) handleOperatorState(w http.ResponseWriter, r *http.Request) {
 		if !decodeJSONBody(w, r, &state) {
 			return
 		}
+		if err := validateOperatorStateSafeguardConfigs(state); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
 		if err := saveOperatorStateFor(r.Context(), state); err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return
 		}
 		writeJSON(w, http.StatusOK, state)
 	}
+}
+
+func validateOperatorStateSafeguardConfigs(state OperatorState) error {
+	for name, choice := range state.HostSafeguards {
+		if len(choice.Config) == 0 {
+			continue
+		}
+		if err := hostreq.ValidateSafeguardConfig(name, choice.Config); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -25,6 +25,11 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.fleet)).toBeInTheDocument();
   });
 
+  it("renders the validation workbench at /validate", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/validate"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.validation)).toBeInTheDocument();
+  });
+
   it("renders the settings page at /settings", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();

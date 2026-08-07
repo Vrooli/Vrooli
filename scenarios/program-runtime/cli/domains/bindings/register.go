@@ -23,6 +23,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"BindingRegistryService.ListBindings":    cliapp.ProtoList(h.list, h.listReport),
 		"BindingRegistryService.ListUnbound":     cliapp.ProtoList(h.unbound, h.unboundReport),
 		"BindingRegistryService.ResolveActCells": cliapp.ProtoList(h.act, h.actReport),
+		"BindingRegistryService.DoctorBindings":  cliapp.ProtoList(h.doctor, h.doctorReport),
+		"BindingRegistryService.DescribeBinding": cliapp.ProtoList(h.describe, h.describeReport),
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("bindings: load from manifest: %w", err)
@@ -76,4 +78,44 @@ func (h *handlers) actReport(_ cliapp.OperationContext, r *bindingsv1.ResolveAct
 		items = append(items, fmt.Sprintf("%s — %s", c.GetId(), c.GetVerdict().String()))
 	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Act cells: %d (confidence=%s).", len(items), r.GetDenominatorConfidence())}, ResultsHeading: "Act", Results: items}
+}
+
+func (h *handlers) doctor(ctx cliapp.OperationContext) (*bindingsv1.DoctorBindingsResponse, error) {
+	r, err := h.client.DoctorBindings(context.Background(), connect.NewRequest(&bindingsv1.DoctorBindingsRequest{Scenario: ctx.Flag("scenario")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("doctor bindings", err, nil)
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) doctorReport(_ cliapp.OperationContext, r *bindingsv1.DoctorBindingsResponse) cliapp.ListReport {
+	items := make([]string, 0, len(r.GetIssues()))
+	for _, issue := range r.GetIssues() {
+		items = append(items, fmt.Sprintf("%s %s: %s (%s)", issue.GetBindingId(), issue.GetArgument(), issue.GetReason(), issue.GetRequestType()))
+	}
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Bindings: %d; callable: %d; uncallable: %d; partial: %d; zero-arg: %d; misroutes: %d.", r.GetBindings(), r.GetCallable(), r.GetUncallable(), r.GetPartial(), r.GetZeroArg(), r.GetMisroutes())},
+		ResultsHeading: "Unresolved arguments", Results: items,
+	}
+}
+
+func (h *handlers) describe(ctx cliapp.OperationContext) (*bindingsv1.DescribeBindingResponse, error) {
+	id := ctx.Positional("id")
+	r, err := h.client.DescribeBinding(context.Background(), connect.NewRequest(&bindingsv1.DescribeBindingRequest{Id: id}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("describe binding", err, nil)
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) describeReport(_ cliapp.OperationContext, r *bindingsv1.DescribeBindingResponse) cliapp.ListReport {
+	items := make([]string, 0, len(r.GetArguments()))
+	for _, argument := range r.GetArguments() {
+		path := argument.GetProtoPath()
+		if path == "" {
+			path = argument.GetReason()
+		}
+		items = append(items, fmt.Sprintf("%s -> %s [%s]", argument.GetName(), path, argument.GetKind()))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%s (callable=%t, source=%s)", r.GetBinding().GetId(), r.GetCallable(), r.GetResolvedSource())}, ResultsHeading: "Arguments", Results: items}
 }

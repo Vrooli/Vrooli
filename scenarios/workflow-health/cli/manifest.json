@@ -40,34 +40,122 @@
         {
           "name": "start",
           "description": "Start a durable workflow execution validation run",
-          "positionals": [{"name":"scenario","required":true,"description":"Scenario id to validate"}],
-          "flags": [{"name":"path","description":"Explicit scenario directory path"},{"name":"idempotency-key","description":"Stable key for replay-safe start"},{"name":"parent-run-id","description":"Optional Test Genie parent run identity"}],
-          "binding":{"kind":"connect-rpc","service":"DurableValidationRunService","method":"StartValidationRun"},
-          "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id to validate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Explicit scenario directory path"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Stable key for replay-safe start"
+            },
+            {
+              "name": "parent-run-id",
+              "description": "Optional Test Genie parent run identity"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DurableValidationRunService",
+            "method": "StartValidationRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
         },
         {
           "name": "get",
           "description": "Get persisted durable workflow validation state",
-          "positionals": [{"name":"run-id","required":true,"description":"Provider validation run id"}],
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Provider validation run id"
+            }
+          ],
           "flags": [],
-          "binding":{"kind":"connect-rpc","service":"DurableValidationRunService","method":"GetValidationRun"},
-          "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DurableValidationRunService",
+            "method": "GetValidationRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "wait",
           "description": "Wait once for a durable workflow validation terminal result",
-          "positionals": [{"name":"run-id","required":true,"description":"Provider validation run id"}],
-          "flags": [{"name":"timeout","description":"Optional Go duration caller wait limit"}],
-          "binding":{"kind":"connect-rpc","service":"DurableValidationRunService","method":"WaitValidationRun"},
-          "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Provider validation run id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout",
+              "description": "Optional Go duration caller wait limit"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DurableValidationRunService",
+            "method": "WaitValidationRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "abort",
           "description": "Explicitly abort a durable workflow validation run",
-          "positionals": [{"name":"run-id","required":true,"description":"Provider validation run id"}],
-          "flags": [{"name":"reason","description":"Optional operator cancellation reason"}],
-          "binding":{"kind":"connect-rpc","service":"DurableValidationRunService","method":"AbortValidationRun"},
-          "governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Provider validation run id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "description": "Optional operator cancellation reason"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DurableValidationRunService",
+            "method": "AbortValidationRun"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -92,12 +180,18 @@
             },
             {
               "name": "rule",
-              "description": "Comma-separated rule ids to fix"
+              "description": "Comma-separated rule ids to fix",
+              "bind": {
+                "field": "rule_ids"
+              }
             },
             {
               "name": "apply",
               "bool": true,
-              "description": "Apply the previewed fixes instead of reporting only"
+              "description": "Apply the previewed fixes instead of reporting only",
+              "bind": {
+                "field": "path"
+              }
             }
           ],
           "binding": {
@@ -131,7 +225,10 @@
             },
             {
               "name": "rule",
-              "description": "Comma-separated rule ids to fix"
+              "description": "Comma-separated rule ids to fix",
+              "bind": {
+                "field": "rule_ids"
+              }
             }
           ],
           "binding": {
@@ -176,7 +273,10 @@
             },
             {
               "name": "type",
-              "description": "Comma-separated leaf types: workflow.flow, workflow.test, workflow.fragment"
+              "description": "Comma-separated leaf types: workflow.flow, workflow.test, workflow.fragment",
+              "bind": {
+                "field": "types"
+              }
             },
             {
               "name": "include-fragments",

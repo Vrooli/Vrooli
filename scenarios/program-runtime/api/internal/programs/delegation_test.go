@@ -23,6 +23,13 @@ func TestSpawnsAgentManagerRunAndCollectsEvidence(t *testing.T) { // [REQ:PRT-P1
 			}
 			_, _ = w.Write([]byte(`{"execution":{"id":"` + executionID + `","status":"running"}}`))
 		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/wait"):
+			var request map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Fatalf("decode wait request: %v", err)
+			}
+			if request["executionId"] != executionID {
+				t.Fatalf("wait request=%v", request)
+			}
 			_, _ = w.Write([]byte(`{"execution":{"id":"` + executionID + `","status":"succeeded"}}`))
 		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/result"):
 			_, _ = w.Write([]byte(`{"execution":{"id":"` + executionID + `","status":"succeeded","output":{"summary":"delegated evidence"},"observations":[{"kind":"run","status":"succeeded"}]}}`))

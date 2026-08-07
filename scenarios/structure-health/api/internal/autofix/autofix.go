@@ -6,6 +6,7 @@
 package autofix
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,6 +35,7 @@ const (
 	RulePortBand             = "PORT_BAND_NONCONFORMANT"
 	RuleAPIBinaryName        = "API_BINARY_NAME_NONCONFORMANT"
 	RuleProductionServe      = "PRODUCTION_SERVE_NONCONFORMANT"
+	RuleProjectConfigSurface = "PROJECT_CONFIG_SURFACE"
 )
 
 var registry = autofixcore.NewRegistry(
@@ -46,6 +48,7 @@ var registry = autofixcore.NewRegistry(
 	autofixcore.Fixer{RuleID: RulePortBand, Preview: previewPortBand, CanFix: canFix(previewPortBand)},
 	autofixcore.Fixer{RuleID: RuleAPIBinaryName, Preview: previewAPIBinaryName, CanFix: canFix(previewAPIBinaryName)},
 	autofixcore.Fixer{RuleID: RuleProductionServe, Preview: previewProductionServe, CanFix: canFix(previewProductionServe)},
+	autofixcore.Fixer{RuleID: RuleProjectConfigSurface, Preview: previewProjectConfigSurface, CanFix: canFix(previewProjectConfigSurface)},
 )
 
 // Preview returns the proposed edits for the requested rules (all when empty).
@@ -106,9 +109,82 @@ func FixClassFor(code string) autofixcore.FixClass {
 	case RuleServiceNameMismatch, RuleHealthCheckMissing, RuleHealthCheckMalformed, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing,
 		RulePortBand, RuleAPIBinaryName, RuleProductionServe:
 		return autofixcore.FixClassAutofix
+	case RuleProjectConfigSurface:
+		return autofixcore.FixClassAutofix
 	default:
 		return autofixcore.FixClassDetectionOnly
 	}
+}
+
+// previewProjectConfigSurface declares currently observed project metadata in
+// the contract allowlist. It is intentionally an explicit apply operation:
+// preview is the default so an operator can inspect the exact contract change
+// before accepting a new project entry.
+func previewProjectConfigSurface(root string) ([]Candidate, error) {
+	projectConfig := filepath.Join(root, ".vrooli", "repo-contract.json")
+	raw, err := os.ReadFile(projectConfig)
+	if err != nil {
+		return nil, nil
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, nil
+	}
+	layout, ok := doc["layout"].(map[string]any)
+	if !ok {
+		return nil, nil
+	}
+	allowlist := stringSet(layout["project_config_allowlist"])
+	configDir, _ := layout["project_config_dir"].(string)
+	if strings.TrimSpace(configDir) == "" {
+		configDir = ".vrooli"
+	}
+	entries, err := os.ReadDir(filepath.Join(root, configDir))
+	if err != nil {
+		return nil, nil
+	}
+	var additions []string
+	for _, entry := range entries {
+		if !allowlist[entry.Name()] {
+			additions = append(additions, entry.Name())
+		}
+	}
+	if len(additions) == 0 {
+		return nil, nil
+	}
+	sort.Strings(additions)
+	for _, entry := range additions {
+		allowlist[entry] = true
+	}
+	updated := make([]string, 0, len(allowlist))
+	for entry := range allowlist {
+		updated = append(updated, entry)
+	}
+	sort.Strings(updated)
+	layout["project_config_allowlist"] = updated
+	after, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	after = append(after, '\n')
+	return []Candidate{{
+		RuleID:      RuleProjectConfigSurface,
+		FilePath:    projectConfig,
+		Description: fmt.Sprintf("Declare observed project config entries in layout.project_config_allowlist: %s.", strings.Join(additions, ", ")),
+		Before:      string(raw),
+		After:       string(after),
+	}}, nil
+}
+
+func stringSet(value any) map[string]bool {
+	out := map[string]bool{}
+	items, _ := value.([]any)
+	for _, item := range items {
+		if name, ok := item.(string); ok {
+			out[name] = true
+		}
+	}
+	return out
 }
 
 // canFix adapts a preview func into a CanFix predicate (the finding is fixable

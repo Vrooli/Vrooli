@@ -17,7 +17,10 @@ require (
 	modernc.org/sqlite v1.50.1
 )
 
-require github.com/vrooli/binaryfetch v0.0.0 // indirect
+require (
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
+	github.com/vrooli/binaryfetch v0.0.0 // indirect
+)
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
@@ -58,3 +61,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime

@@ -11,42 +11,120 @@
           "name": "validate",
           "description": "Decide a scenario's reachable capture tier from Code Facts and report missing Tier-1 perf-build infra",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug to validate"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to validate"
+            }
           ],
           "flags": [
-            {"name": "path", "description": "Filesystem path to validate instead of a scenario slug"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "path",
+              "description": "Filesystem path to validate instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "ValidateReadiness"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReadinessService",
+            "method": "ValidateReadiness"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "fix",
           "description": "Preview the format-preserving edits readiness would apply to move a scenario toward Tier 1 (dry-run)",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug to fix"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to fix"
+            }
           ],
           "flags": [
-            {"name": "path", "description": "Filesystem path to fix instead of a scenario slug"},
-            {"name": "rule", "description": "Restrict the fix to a finding code (repeatable)"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "path",
+              "description": "Filesystem path to fix instead of a scenario slug"
+            },
+            {
+              "name": "rule",
+              "description": "Restrict the fix to a finding code (repeatable)",
+              "bind": {
+                "field": "rule_ids"
+              }
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "PreviewReadinessFix"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReadinessService",
+            "method": "PreviewReadinessFix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "apply",
           "description": "Apply the format-preserving readiness edits to move a scenario toward Tier 1",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug to fix"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to fix"
+            }
           ],
           "flags": [
-            {"name": "path", "description": "Filesystem path to fix instead of a scenario slug"},
-            {"name": "rule", "description": "Restrict the fix to a finding code (repeatable)"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "path",
+              "description": "Filesystem path to fix instead of a scenario slug"
+            },
+            {
+              "name": "rule",
+              "description": "Restrict the fix to a finding code (repeatable)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "ApplyReadinessFix"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["filesystem:write", "network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReadinessService",
+            "method": "ApplyReadinessFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -56,17 +134,40 @@
       "commands": [
         {
           "name": "run",
-          "description": "Restart a scenario in profile build mode, drive a BAS perf capture (optionally a specific interaction), and restore the default build. Returns a trace artifact; hand it to `analysis analyze --trace <key>` to read the ⚛ component/web-vitals signals. Outcome 'unavailable' (no browser/BAS) is loud and distinct from 'skipped' (no UI).",
+          "description": "Restart a scenario in profile build mode, drive a BAS perf capture (optionally a specific interaction), and restore the default build. Returns a trace artifact; hand it to `analysis analyze --trace <key>` to read the \u269b component/web-vitals signals. Outcome 'unavailable' (no browser/BAS) is loud and distinct from 'skipped' (no UI).",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug to audit"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to audit"
+            }
           ],
           "flags": [
-            {"name": "path", "description": "Filesystem path of the scenario"},
-            {"name": "workflow", "description": "Perf-flow slug to drive a SPECIFIC interaction inside the trace window — resolves to <scenario>/bas/flows/<slug>.json (an assertion-free flow marked intent:performance; use literal [data-testid=...] selectors). Empty = default navigate+mount-settle. Example: --workflow scroll-dashboard. See the `performance` skill and bas/README.md for the authoring loop."},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "path",
+              "description": "Filesystem path of the scenario"
+            },
+            {
+              "name": "workflow",
+              "description": "Perf-flow slug to drive a SPECIFIC interaction inside the trace window \u2014 resolves to <scenario>/bas/flows/<slug>.json (an assertion-free flow marked intent:performance; use literal [data-testid=...] selectors). Empty = default navigate+mount-settle. Example: --workflow scroll-dashboard. See the `performance` skill and bas/README.md for the authoring loop."
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "AuditService", "method": "RunAudit"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditService",
+            "method": "RunAudit"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -78,14 +179,37 @@
           "name": "run",
           "description": "Run Lighthouse against a scenario's pages and report category scores plus threshold violations",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug to score"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to score"
+            }
           ],
           "flags": [
-            {"name": "path", "description": "Filesystem path of the scenario"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "path",
+              "description": "Filesystem path of the scenario"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "LighthouseService", "method": "RunLighthouse"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LighthouseService",
+            "method": "RunLighthouse"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -97,14 +221,38 @@
           "name": "run",
           "description": "Time go build and the UI build against thresholds and report per-surface timings",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug to benchmark"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to benchmark"
+            }
           ],
           "flags": [
-            {"name": "path", "description": "Filesystem path of the scenario"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "path",
+              "description": "Filesystem path of the scenario"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "BenchmarkService", "method": "RunBenchmark"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BenchmarkService",
+            "method": "RunBenchmark"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -116,28 +264,91 @@
           "name": "analyze",
           "description": "Parse a captured perf trace into a per-component table plus deterministic, located findings",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug the trace belongs to"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug the trace belongs to"
+            }
           ],
           "flags": [
-            {"name": "trace", "required": true, "description": "Storage key / path of the captured performance.json trace"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "trace",
+              "required": true,
+              "description": "Storage key / path of the captured performance.json trace",
+              "bind": {
+                "field": "trace_artifact"
+              }
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "AnalysisService", "method": "AnalyzeTrace"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AnalysisService",
+            "method": "AnalyzeTrace"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "compare",
           "description": "Diff two perf traces of the same interaction (component-commit delta + long-task delta)",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug the traces belong to"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug the traces belong to"
+            }
           ],
           "flags": [
-            {"name": "baseline", "required": true, "description": "Baseline (before) trace artifact"},
-            {"name": "candidate", "required": true, "description": "Candidate (after) trace artifact"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "baseline",
+              "required": true,
+              "description": "Baseline (before) trace artifact",
+              "bind": {
+                "field": "baseline_artifact"
+              }
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Candidate (after) trace artifact",
+              "bind": {
+                "field": "candidate_artifact"
+              }
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "AnalysisService", "method": "CompareTraces"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AnalysisService",
+            "method": "CompareTraces"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -149,56 +360,172 @@
           "name": "get",
           "description": "Read a scenario's declared performance budget",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
           ],
           "flags": [
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "BudgetService", "method": "GetBudget"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BudgetService",
+            "method": "GetBudget"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "set",
           "description": "Write/update a scenario's performance budget",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
           ],
           "flags": [
-            {"name": "flow", "description": "Write the per-flow axes (lcp/component-commit/frame/input/browser-work) to budget.flows[<slug>] for this interaction flow instead of the scenario aggregate; scenario-level axes and sibling flows are preserved"},
-            {"name": "go-build-max-ms", "description": "Maximum go build time in milliseconds"},
-            {"name": "ui-build-max-ms", "description": "Maximum UI build time in milliseconds"},
-            {"name": "bundle-max-bytes", "description": "Maximum bundle size in bytes"},
-            {"name": "lcp-max-ms", "description": "Maximum Largest Contentful Paint in milliseconds"},
-            {"name": "startup-max-ms", "description": "Maximum time-to-healthy in milliseconds"},
-            {"name": "component-commit-avg-max-ms", "description": "Maximum per-component average commit time in milliseconds"},
-            {"name": "component-commit-max-ms", "description": "Maximum per-component (slowest) commit time in milliseconds"},
-            {"name": "drawn-fps-min", "description": "Minimum drawn frame rate for interaction flows"},
-            {"name": "dropped-frame-rate-max", "description": "Maximum dropped-frame rate as a fraction, e.g. 0.20"},
-            {"name": "long-task-total-max-ms", "description": "Maximum total long-task duration in milliseconds"},
-            {"name": "long-task-max-ms", "description": "Maximum single long-task duration in milliseconds"},
-            {"name": "raster-total-max-ms", "description": "Maximum total RasterTask duration in milliseconds"},
-            {"name": "layout-total-max-ms", "description": "Maximum total Layout + UpdateLayoutTree duration in milliseconds"},
-            {"name": "paint-total-max-ms", "description": "Maximum total Paint duration in milliseconds"},
-            {"name": "input-event-count-min", "description": "Minimum input EventDispatch count for gesture workflows"},
-            {"name": "load-only", "bool": true, "description": "When used with --flow, mark this flow as load-only so missing frame/input evidence does not fail closed"},
-            {"name": "ratchet", "bool": true, "description": "Tighten-only: reject any future write that loosens this budget"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "flow",
+              "description": "Write the per-flow axes (lcp/component-commit/frame/input/browser-work) to budget.flows[<slug>] for this interaction flow instead of the scenario aggregate; scenario-level axes and sibling flows are preserved"
+            },
+            {
+              "name": "go-build-max-ms",
+              "description": "Maximum go build time in milliseconds"
+            },
+            {
+              "name": "ui-build-max-ms",
+              "description": "Maximum UI build time in milliseconds"
+            },
+            {
+              "name": "bundle-max-bytes",
+              "description": "Maximum bundle size in bytes"
+            },
+            {
+              "name": "lcp-max-ms",
+              "description": "Maximum Largest Contentful Paint in milliseconds"
+            },
+            {
+              "name": "startup-max-ms",
+              "description": "Maximum time-to-healthy in milliseconds"
+            },
+            {
+              "name": "component-commit-avg-max-ms",
+              "description": "Maximum per-component average commit time in milliseconds"
+            },
+            {
+              "name": "component-commit-max-ms",
+              "description": "Maximum per-component (slowest) commit time in milliseconds"
+            },
+            {
+              "name": "drawn-fps-min",
+              "description": "Minimum drawn frame rate for interaction flows"
+            },
+            {
+              "name": "dropped-frame-rate-max",
+              "description": "Maximum dropped-frame rate as a fraction, e.g. 0.20"
+            },
+            {
+              "name": "long-task-total-max-ms",
+              "description": "Maximum total long-task duration in milliseconds"
+            },
+            {
+              "name": "long-task-max-ms",
+              "description": "Maximum single long-task duration in milliseconds"
+            },
+            {
+              "name": "raster-total-max-ms",
+              "description": "Maximum total RasterTask duration in milliseconds"
+            },
+            {
+              "name": "layout-total-max-ms",
+              "description": "Maximum total Layout + UpdateLayoutTree duration in milliseconds"
+            },
+            {
+              "name": "paint-total-max-ms",
+              "description": "Maximum total Paint duration in milliseconds"
+            },
+            {
+              "name": "input-event-count-min",
+              "description": "Minimum input EventDispatch count for gesture workflows"
+            },
+            {
+              "name": "load-only",
+              "bool": true,
+              "description": "When used with --flow, mark this flow as load-only so missing frame/input evidence does not fail closed"
+            },
+            {
+              "name": "ratchet",
+              "bool": true,
+              "description": "Tighten-only: reject any future write that loosens this budget"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "BudgetService", "method": "SetBudget"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BudgetService",
+            "method": "SetBudget"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "check",
-          "description": "Check a scenario's latest measurements against its budget (the suite-run regression gate — a breach fails the test-genie Performance phase)",
+          "description": "Check a scenario's latest measurements against its budget (the suite-run regression gate \u2014 a breach fails the test-genie Performance phase)",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
           ],
           "flags": [
-            {"name": "flow", "description": "Check only this interaction flow's per-flow budget against its latest flow-tagged sample"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "flow",
+              "description": "Check only this interaction flow's per-flow budget against its latest flow-tagged sample"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "BudgetService", "method": "CheckBudget"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BudgetService",
+            "method": "CheckBudget"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -210,14 +537,37 @@
           "name": "get",
           "description": "Read the persisted performance samples for a scenario, newest first",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
           ],
           "flags": [
-            {"name": "limit", "description": "Maximum samples to return (0 = default)"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "limit",
+              "description": "Maximum samples to return (0 = default)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "TrendService", "method": "GetTrend"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TrendService",
+            "method": "GetTrend"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -230,13 +580,48 @@
           "description": "Grade the requested scenarios (or every discovered scenario) and roll up offender lists plus the capture-tier distribution",
           "positionals": [],
           "flags": [
-            {"name": "scenario", "description": "Restrict the scan to a scenario slug (repeatable)"},
-            {"name": "view", "description": "Offender view: all (default), no-budget, slowest, regressed, tiers"},
-            {"name": "limit", "description": "Cap the number of rows for the slowest view (0 = all)"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "scenario",
+              "description": "Restrict the scan to a scenario slug (repeatable)",
+              "bind": {
+                "field": "scenarios"
+              }
+            },
+            {
+              "name": "view",
+              "description": "Offender view: all (default), no-budget, slowest, regressed, tiers",
+              "bind": {
+                "field": "scenarios"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Cap the number of rows for the slowest view (0 = all)",
+              "bind": {
+                "field": "scenarios"
+              }
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenarios"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "FleetService", "method": "ScanFleet"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FleetService",
+            "method": "ScanFleet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -248,27 +633,70 @@
           "name": "measure",
           "description": "Restart a scenario and record its startup performance (time-to-healthy + resource envelope). This restarts the target scenario.",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug to benchmark"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to benchmark"
+            }
           ],
           "flags": [
-            {"name": "timeout", "description": "Max seconds to wait for the scenario to report healthy (0 = default)"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "timeout",
+              "description": "Max seconds to wait for the scenario to report healthy (0 = default)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "StartupService", "method": "BenchmarkStartup"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StartupService",
+            "method": "BenchmarkStartup"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "trend",
           "description": "Read a scenario's persisted startup-performance measurements, newest first",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug to read the trend for"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to read the trend for"
+            }
           ],
           "flags": [
-            {"name": "limit", "description": "Maximum measurements to return (0 = default)"},
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "limit",
+              "description": "Maximum measurements to return (0 = default)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "StartupService", "method": "GetStartupTrend"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StartupService",
+            "method": "GetStartupTrend"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -280,13 +708,30 @@
           "name": "run",
           "description": "For each interaction flow with a per-flow budget declared (performance.budgets.flows), drive a targeted audit, analyze the trace, persist a flow-tagged trend sample, and check the per-flow budget. Restarts the target scenario per budgeted flow.",
           "positionals": [
-            {"name": "scenario", "required": true, "description": "Scenario slug to sweep"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to sweep"
+            }
           ],
           "flags": [
-            {"name": "json", "description": "Emit JSON output"}
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "SweepService", "method": "RunSweep"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SweepService",
+            "method": "RunSweep"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     }
@@ -295,8 +740,20 @@
     "domains": []
   },
   "omitted": [
-    {"service": "ScenarioValidationService", "method": "ValidateScenario", "reason": "Shared cross-scenario validation surface for test-genie delegation (axes ①/③); the developer CLI uses `readiness validate`, which targets the scenario-native ReadinessService."},
-    {"service": "ScenarioValidationService", "method": "PreviewFix", "reason": "Shared cross-scenario fix-preview surface for test-genie delegation; the developer CLI uses `readiness fix`, which targets the scenario-native ReadinessService."},
-    {"service": "ScenarioValidationService", "method": "ApplyFix", "reason": "Shared cross-scenario fix-apply surface for test-genie delegation; the developer CLI uses `readiness apply`, which targets the scenario-native ReadinessService."}
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateScenario",
+      "reason": "Shared cross-scenario validation surface for test-genie delegation (axes \u2460/\u2462); the developer CLI uses `readiness validate`, which targets the scenario-native ReadinessService."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "PreviewFix",
+      "reason": "Shared cross-scenario fix-preview surface for test-genie delegation; the developer CLI uses `readiness fix`, which targets the scenario-native ReadinessService."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "Shared cross-scenario fix-apply surface for test-genie delegation; the developer CLI uses `readiness apply`, which targets the scenario-native ReadinessService."
+    }
   ]
 }

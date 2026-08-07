@@ -64,7 +64,10 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager) http.Handler
 			writeBridgeError(w, http.StatusNotFound, err.Error())
 			return
 		}
-		result, err := registry.Execute(r.Context(), request.BindingID, request.Args, mapKeys(session.Grants), request.Confirmed, &http.Client{Timeout: 10 * time.Second})
+		// A binding may be a bounded typed inference call. The registry's
+		// provider role timeout is authoritative, so the bridge must exceed the
+		// longest declared role rather than imposing a 10s transport ceiling.
+		result, err := registry.Execute(r.Context(), request.BindingID, request.Args, mapKeys(session.Grants), request.Confirmed, &http.Client{Timeout: 3 * time.Minute})
 		if err != nil {
 			writeBridgeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -141,6 +144,24 @@ func (s *service) ResolveActCells(ctx context.Context, req *connect.Request[bind
 	verdicts := s.registry.ResolveActCells(ctx, req.Msg.GetCells())
 	confidence := string(actspace.Confidence(verdicts))
 	return connect.NewResponse(&bindingsv1.ResolveActCellsResponse{Cells: verdicts, AuditedCells: int32(len(verdicts)), TotalCells: int32(len(req.Msg.GetCells())), DenominatorConfidence: confidence}), nil
+}
+
+func (s *service) DoctorBindings(_ context.Context, req *connect.Request[bindingsv1.DoctorBindingsRequest]) (*connect.Response[bindingsv1.DoctorBindingsResponse], error) {
+	if s.registry == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, context.Canceled)
+	}
+	return connect.NewResponse(s.registry.Doctor(req.Msg.GetScenario())), nil
+}
+
+func (s *service) DescribeBinding(_ context.Context, req *connect.Request[bindingsv1.DescribeBindingRequest]) (*connect.Response[bindingsv1.DescribeBindingResponse], error) {
+	if s.registry == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, context.Canceled)
+	}
+	response, err := s.registry.Describe(req.Msg.GetId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(response), nil
 }
 
 var _ bindingsconnect.BindingRegistryServiceHandler = (*service)(nil)

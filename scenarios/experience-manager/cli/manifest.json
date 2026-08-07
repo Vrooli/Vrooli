@@ -25,7 +25,10 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -49,7 +52,10 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "repo_root"
+              }
             }
           ],
           "binding": {
@@ -142,7 +148,10 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -178,7 +187,10 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -218,7 +230,10 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -262,7 +277,10 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -310,7 +328,10 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -353,12 +374,18 @@
             },
             {
               "name": "file",
-              "description": "JSON file containing an array of SpecVariant objects"
+              "description": "JSON file containing an array of SpecVariant objects",
+              "bind": {
+                "field": "page"
+              }
             },
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -398,12 +425,18 @@
             },
             {
               "name": "file",
-              "description": "JSON file containing one SpecVariant object"
+              "description": "JSON file containing one SpecVariant object",
+              "bind": {
+                "field": "page"
+              }
             },
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -449,7 +482,10 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -597,14 +633,20 @@
             {
               "name": "session",
               "required": true,
-              "description": "Authoring session id"
+              "description": "Authoring session id",
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "flags": [
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "session_id"
+              }
             }
           ],
           "binding": {
@@ -707,7 +749,10 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -747,12 +792,18 @@
             },
             {
               "name": "rules",
-              "description": "Comma-separated finding codes to restrict the preview to"
+              "description": "Comma-separated finding codes to restrict the preview to",
+              "bind": {
+                "field": "rule_ids"
+              }
             },
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bool": true
+              "bool": true,
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -809,8 +860,7 @@
           }
         }
       ]
-    }
-    ,
+    },
     {
       "name": "capabilities",
       "description": "Read derived provability for the fleet capability registry",
@@ -818,8 +868,19 @@
         {
           "name": "status",
           "description": "Report capability facets, provability, and blocking evidence",
-          "binding": { "kind": "connect-rpc", "service": "CapabilityStatusService", "method": "GetStatus" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CapabilityStatusService",
+            "method": "GetStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
         }
       ]
     }

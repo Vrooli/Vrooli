@@ -13,6 +13,7 @@ import (
 
 	"structure-health/internal/packs/auditrules"
 	"structure-health/internal/packs/scan"
+	"structure-health/internal/packs/targetpack"
 	"structure-health/internal/rules"
 
 	developsteps "structure-health/internal/packs/configpack/developsteps"
@@ -242,6 +243,13 @@ func Evaluate(profileID string, recognized bool, sc *scan.Context) []rules.Findi
 		}
 	}
 	return out
+}
+
+// EvaluateTarget runs the kind-keyed source-target packs. It is deliberately
+// separate from profile evaluation so scenario findings cannot leak into a
+// resource, tool, or safeguard verdict.
+func EvaluateTarget(kind, root, id string) []rules.Finding {
+	return targetpack.Evaluate(kind, root, id)
 }
 
 func toFinding(e entry, v auditrules.Violation, sc *scan.Context, enforce bool) rules.Finding {

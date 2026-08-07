@@ -13,6 +13,7 @@ import (
 	internalvalidation "structure-health/internal/validation"
 
 	"github.com/vrooli/maturity-go/assessment"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/validation"
 )
@@ -111,6 +112,49 @@ func TestSharedValidateScenarioStub(t *testing.T) {
 	}
 	if msg.GetNativeDetail() == nil {
 		t.Fatal("native_detail must be packed in shared response")
+	}
+}
+
+func TestSharedValidateTargetScenario(t *testing.T) {
+	shared := NewSharedHandler(newTestHandler())
+	resp, err := shared.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target: &commonv1.ValidationTarget{
+			Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO,
+			Id:   "demo",
+			Root: "scenarios/demo",
+		},
+		Path: "/tmp/demo",
+	}))
+	if err != nil {
+		t.Fatalf("shared ValidateTarget: %v", err)
+	}
+	if resp.Msg.GetTarget().GetId() != "demo" || resp.Msg.GetTarget().GetRoot() != "scenarios/demo" {
+		t.Fatalf("target identity = %#v", resp.Msg.GetTarget())
+	}
+	if resp.Msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
+		t.Fatalf("status must be concrete: %v", resp.Msg.GetStatus())
+	}
+	if resp.Msg.GetAssessment() == nil || resp.Msg.GetNativeDetail() == nil {
+		t.Fatal("target response must include assessment and native detail")
+	}
+}
+
+func TestSharedValidateTargetProject(t *testing.T) {
+	shared := NewSharedHandler(newTestHandler())
+	resp, err := shared.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target: &commonv1.ValidationTarget{
+			Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT,
+			Id:   "repo",
+		},
+	}))
+	if err != nil {
+		t.Fatalf("project target validation: %v", err)
+	}
+	if resp.Msg.GetTarget().GetId() != "repo" {
+		t.Fatalf("target identity = %#v", resp.Msg.GetTarget())
+	}
+	if resp.Msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
+		t.Fatalf("project response status must be concrete: %v", resp.Msg.GetStatus())
 	}
 }
 

@@ -26,6 +26,8 @@ const (
 	CodeBindingUnknownSvc    = "binding.unknown_service"
 	CodeBindingUnknownMethod = "binding.unknown_method"
 	CodeBindingDuplicate     = "binding.duplicate"
+	CodeBindingArgUnmapped   = "binding.arg_unmapped"
+	CodeBindingAmbiguousSvc  = "binding.ambiguous_service"
 	CodeProtoOrphanMethod    = "proto.orphan_method"
 	CodeOmissionOrphan       = "omission.orphan"
 

@@ -24,7 +24,10 @@
             },
             {
               "name": "json",
-              "description": "Emit JSON output"
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -53,11 +56,17 @@
           "flags": [
             {
               "name": "scenario",
-              "description": "Restrict the scan to one or more scenario slugs (repeatable / comma-separated); default scans every discovered scenario"
+              "description": "Restrict the scan to one or more scenario slugs (repeatable / comma-separated); default scans every discovered scenario",
+              "bind": {
+                "field": "scenarios"
+              }
             },
             {
               "name": "json",
-              "description": "Emit JSON output"
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenarios"
+              }
             }
           ],
           "binding": {

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Intent is the subset of service.json structure-health reconciles against code
@@ -23,6 +24,15 @@ type Intent struct {
 	Lifecycle   Lifecycle
 	Deps        Dependencies
 	Raw         map[string]any
+}
+
+// Resolution records whether a target kind has a declared intent document.
+// Presence is kept separate from the typed value so source-only targets do
+// not look like they declared an empty scenario manifest.
+type Resolution struct {
+	Value    Intent
+	Declared bool
+	Source   string
 }
 
 // Port is a declared port binding.
@@ -117,6 +127,25 @@ func Load(scenarioRoot string) (Intent, error) {
 		return Intent{}, fmt.Errorf("read %s: %w", path, err)
 	}
 	return Parse(raw)
+}
+
+// Resolve selects the declaration source for a target kind. Scenarios use the
+// historical service.json contract. Other kinds deliberately return an absent
+// declaration until their kind-specific packs define an authoritative source.
+func Resolve(targetKind, targetRoot string) (Resolution, error) {
+	kind := strings.ToLower(strings.TrimSpace(targetKind))
+	kind = strings.TrimPrefix(kind, "validation_target_kind_")
+	if kind == "" {
+		kind = "scenario"
+	}
+	if kind != "scenario" {
+		return Resolution{Source: "none"}, nil
+	}
+	in, err := Load(targetRoot)
+	if err != nil {
+		return Resolution{Source: ServiceJSONRelPath}, err
+	}
+	return Resolution{Value: in, Declared: true, Source: ServiceJSONRelPath}, nil
 }
 
 // Parse decodes service.json bytes into the typed Intent view.

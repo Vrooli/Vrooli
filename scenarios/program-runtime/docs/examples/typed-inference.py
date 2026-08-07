@@ -1,0 +1,28 @@
+"""Classify a small corpus concurrently through the governed ai facade."""
+
+import asyncio
+
+
+corpus = [
+    "The provider timed out during a retry.",
+    "The user supplied an invalid request field.",
+]
+
+
+async def classify(text):
+    return await vrooli.ai.classify(
+        text,
+        {"type": "string", "enum": ["infra", "user"]},
+        "Choose the primary failure class.",
+    )
+
+
+results = await asyncio.gather(*(classify(text) for text in corpus))
+print({"documents": len(results), "projections": [result.head(1) for result in results]})
+
+# Live output (2026-08-07):
+# {'documents': 2, 'projections': [[{'model': 'qwen3.5:4b', 'provider': 'ollama',
+#   'usage': {'inputTokens': '85', 'outputTokens': '5'}, 'validated': True,
+#   'valueJson': '"infra"'}], [{'model': 'qwen3.5:4b', 'provider': 'ollama',
+#   'usage': {'inputTokens': '86', 'outputTokens': '3'}, 'validated': True,
+#   'valueJson': '"user"'}]]}

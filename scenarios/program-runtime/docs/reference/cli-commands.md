@@ -110,6 +110,70 @@ Read values back without an argument:
 program-runtime configure api_base
 ```
 
+## Program Runtime commands
+
+The runtime surface is organized around governed bindings, persistent
+sessions, programs, and telemetry. These commands are the CLI counterpart to
+the Python namespace taught by the
+[`program-runtime` skill](../../../prompt-manager/store/skills/packs/core/program-runtime/SKILL.md).
+
+### `program-runtime bindings`
+
+Inspect the manifest-to-proto callable projection before writing a program:
+
+```bash
+program-runtime bindings list [--scenario <name>]
+program-runtime bindings unbound [--scenario <name>]
+program-runtime bindings doctor [--scenario <name>]
+program-runtime bindings describe <scenario>/<group>/<command>
+program-runtime bindings act [--cell <id>]
+```
+
+`doctor` reports the fleet callability census. `describe` reports each
+argument's resolved proto field; an envelope argument is shown as
+`role -> request.role`. These diagnostics use the same resolution ladder as
+the manifest-driven CLI dispatcher: explicit `bind`, exact name/alias, and
+one-level envelope auto-descent. Local-only controls are reported as such and
+are not sent to the RPC.
+
+### `program-runtime sessions`
+
+Create, inspect, grant, list, and reclaim persistent kernels. Destructive
+operations require an explicit grant and confirmation in the session:
+
+```bash
+program-runtime sessions create --name <name> [--grants <grant,...>]
+program-runtime sessions get <session-id>
+program-runtime sessions grant <session-id> --grants <grant,...>
+program-runtime sessions list
+program-runtime sessions delete <session-id> --reason "finished"
+```
+
+### `program-runtime programs`
+
+Submit a bounded Python program, inspect its result, and mine recurring
+failure shapes:
+
+```bash
+program-runtime programs submit \
+  --session-id <session-id> --source '<python>' --provenance agent
+program-runtime programs get <program-id>
+program-runtime programs list [--session-id <session-id>]
+program-runtime programs mine [--include-operator]
+```
+
+Program output remains bounded by default. `--include-materialized` permits
+explicit materialization but still applies the stated output limit.
+
+### `program-runtime telemetry`
+
+Read typed program lifecycle events and their provenance through the shared
+event bus. The command is diagnostic and does not change program state:
+
+```bash
+program-runtime telemetry events [--session-id <session-id>] [--kind <kind>]
+```
+
 ## Scenario commands — `<domain>`
 
 Each product domain exposes its commands as a subcommand group

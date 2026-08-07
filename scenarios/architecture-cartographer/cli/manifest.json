@@ -145,7 +145,10 @@
           "flags": [
             {
               "name": "keep",
-              "description": "Override the retention floor for this preview only"
+              "description": "Override the retention floor for this preview only",
+              "bind": {
+                "field": "keep_per_scenario"
+              }
             }
           ],
           "binding": {
@@ -462,7 +465,10 @@
           "flags": [
             {
               "name": "type",
-              "description": "Comma-separated conflict-type filter"
+              "description": "Comma-separated conflict-type filter",
+              "bind": {
+                "field": "types"
+              }
             },
             {
               "name": "page-size",
@@ -582,7 +588,10 @@
             {
               "name": "file",
               "required": true,
-              "description": "File to score: either a snapshot file id (e.g. \"file:api/...\") or a repo-relative path (e.g. \"api/internal/graph/service.go\")"
+              "description": "File to score: either a snapshot file id (e.g. \"file:api/...\") or a repo-relative path (e.g. \"api/internal/graph/service.go\")",
+              "bind": {
+                "field": "file_id"
+              }
             }
           ],
           "binding": {
@@ -610,7 +619,10 @@
             {
               "name": "file",
               "required": true,
-              "description": "File to explain: either a snapshot file id or a repo-relative path"
+              "description": "File to explain: either a snapshot file id or a repo-relative path",
+              "bind": {
+                "field": "file_id"
+              }
             }
           ],
           "binding": {
@@ -690,7 +702,10 @@
           "flags": [
             {
               "name": "kind",
-              "description": "Comma-separated EventKind filter (e.g. conflict_detected,override_recorded)"
+              "description": "Comma-separated EventKind filter (e.g. conflict_detected,override_recorded)",
+              "bind": {
+                "field": "kinds"
+              }
             },
             {
               "name": "since",
@@ -754,7 +769,10 @@
           "flags": [
             {
               "name": "outcome",
-              "description": "Comma-separated outcome filter (auto_placed,suggested,overridden,rejected)"
+              "description": "Comma-separated outcome filter (auto_placed,suggested,overridden,rejected)",
+              "bind": {
+                "field": "outcomes"
+              }
             },
             {
               "name": "page-size",
@@ -854,7 +872,10 @@
           "flags": [
             {
               "name": "conflict-id",
-              "description": "Comma-separated conflict ids to plan for (default: every conflict assigned to the domain)"
+              "description": "Comma-separated conflict ids to plan for (default: every conflict assigned to the domain)",
+              "bind": {
+                "field": "conflict_ids"
+              }
             }
           ],
           "binding": {
@@ -884,7 +905,10 @@
             {
               "name": "acknowledge",
               "bool": true,
-              "description": "Acknowledge that v0.1 RunApply is unimplemented (reserved for the v0.2 opt-in)"
+              "description": "Acknowledge that v0.1 RunApply is unimplemented (reserved for the v0.2 opt-in)",
+              "bind": {
+                "field": "acknowledge_v01_unimplemented"
+              }
             }
           ],
           "binding": {
@@ -1033,7 +1057,10 @@
             },
             {
               "name": "from-audit",
-              "description": "Path to a test-genie --json SuiteExecutionResult (or - for stdin) whose findings are ingested"
+              "description": "Path to a test-genie --json SuiteExecutionResult (or - for stdin) whose findings are ingested",
+              "bind": {
+                "field": "findings"
+              }
             }
           ],
           "binding": {
@@ -1136,7 +1163,10 @@
           "flags": [
             {
               "name": "finding",
-              "description": "Finding stable id (afid:...)"
+              "description": "Finding stable id (afid:...)",
+              "bind": {
+                "field": "campaign_id"
+              }
             },
             {
               "name": "note",
@@ -1169,7 +1199,10 @@
           "flags": [
             {
               "name": "finding",
-              "description": "Finding stable id (afid:...)"
+              "description": "Finding stable id (afid:...)",
+              "bind": {
+                "field": "campaign_id"
+              }
             }
           ],
           "binding": {
@@ -1198,7 +1231,10 @@
           "flags": [
             {
               "name": "from-audit",
-              "description": "Path to a fresh test-genie --json SuiteExecutionResult (or - for stdin)"
+              "description": "Path to a fresh test-genie --json SuiteExecutionResult (or - for stdin)",
+              "bind": {
+                "field": "findings"
+              }
             }
           ],
           "binding": {
@@ -1250,7 +1286,10 @@
             {
               "name": "text",
               "required": true,
-              "description": "Natural-language query"
+              "description": "Natural-language query",
+              "bind": {
+                "field": "mode"
+              }
             }
           ],
           "flags": [

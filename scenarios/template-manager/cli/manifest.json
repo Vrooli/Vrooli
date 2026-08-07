@@ -10,39 +10,139 @@
         {
           "name": "generate",
           "description": "Generate a scenario from a governed template",
-          "positionals": [{"name": "template", "required": true, "description": "Template id"}],
-          "flags": [
-            {"name": "id", "description": "Scenario id"},
-            {"name": "display-name", "description": "Scenario display name"},
-            {"name": "description", "description": "Scenario description"},
-            {"name": "dest", "description": "Destination path"},
-            {"name": "design", "description": "Design kit id"},
-            {"name": "var", "description": "Template variable KEY=VALUE"},
-            {"name": "force", "description": "Overwrite an existing destination"},
-            {"name": "dry-run", "description": "Preview generation without writing"},
-            {"name": "run-hooks", "description": "Run template post-generation hooks"}
+          "positionals": [
+            {
+              "name": "template",
+              "required": true,
+              "description": "Template id"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "TemplateLifecycleService", "method": "GenerateScenario"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "flags": [
+            {
+              "name": "id",
+              "description": "Scenario id"
+            },
+            {
+              "name": "display-name",
+              "description": "Scenario display name"
+            },
+            {
+              "name": "description",
+              "description": "Scenario description"
+            },
+            {
+              "name": "dest",
+              "description": "Destination path",
+              "bind": {
+                "field": "design"
+              }
+            },
+            {
+              "name": "design",
+              "description": "Design kit id"
+            },
+            {
+              "name": "var",
+              "description": "Template variable KEY=VALUE",
+              "bind": {
+                "field": "values"
+              }
+            },
+            {
+              "name": "force",
+              "description": "Overwrite an existing destination"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview generation without writing"
+            },
+            {
+              "name": "run-hooks",
+              "description": "Run template post-generation hooks"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "GenerateScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "orient",
           "description": "Show or finalize generated scenario orientation progress",
-          "positionals": [{"name": "scenario", "required": true, "description": "Scenario slug"}],
-          "flags": [{"name": "finalize", "description": "Remove orientation metadata after required checks pass"}],
-          "binding": {"kind": "connect-rpc", "service": "TemplateLifecycleService", "method": "OrientScenario"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
-          "architecture": {"primitive": "proto_list"}
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "finalize",
+              "description": "Remove orientation metadata after required checks pass"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "OrientScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "detemplate",
           "description": "Remove the template example domain from a generated scenario",
-          "positionals": [{"name": "scenario", "required": true, "description": "Scenario slug"}],
-          "flags": [{"name": "dry-run", "description": "Preview removals without writing"}],
-          "binding": {"kind": "connect-rpc", "service": "TemplateLifecycleService", "method": "DetemplateScenario"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Preview removals without writing"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "DetemplateScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         }
       ]
     },
@@ -54,40 +154,118 @@
           "name": "validate",
           "description": "Validate scenario templates",
           "flags": [
-            {"name": "template", "description": "Template id"},
-            {"name": "mode", "description": "Validation mode"},
-            {"name": "test-preset", "description": "test-genie preset for deep validation"},
-            {"name": "warning-policy", "description": "Warning policy"},
-            {"name": "retain-temp", "description": "Retain deep-validation workspace"}
+            {
+              "name": "template",
+              "description": "Template id"
+            },
+            {
+              "name": "mode",
+              "description": "Validation mode"
+            },
+            {
+              "name": "test-preset",
+              "description": "test-genie preset for deep validation"
+            },
+            {
+              "name": "warning-policy",
+              "description": "Warning policy"
+            },
+            {
+              "name": "retain-temp",
+              "description": "Retain deep-validation workspace"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "TemplateLifecycleService", "method": "ValidateTemplate"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "ValidateTemplate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "drift",
           "description": "Report template drift",
-          "positionals": [{"name": "scenario", "description": "Scenario slug"}],
-          "flags": [
-            {"name": "all", "description": "Audit all generated scenarios"},
-            {"name": "verbose", "description": "Include verbose drift details"}
+          "positionals": [
+            {
+              "name": "scenario",
+              "description": "Scenario slug"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "TemplateLifecycleService", "method": "DriftReport"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "flags": [
+            {
+              "name": "all",
+              "description": "Audit all generated scenarios"
+            },
+            {
+              "name": "verbose",
+              "description": "Include verbose drift details"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "DriftReport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "cleanup",
           "description": "Clean retained or stale deep-validation workspaces",
           "flags": [
-            {"name": "dry-run", "description": "Preview cleanup without deleting"},
-            {"name": "older-than", "description": "Age threshold"},
-            {"name": "include-retained", "description": "Include retained workspaces"},
-            {"name": "run", "description": "Run id"}
+            {
+              "name": "dry-run",
+              "description": "Preview cleanup without deleting"
+            },
+            {
+              "name": "older-than",
+              "description": "Age threshold"
+            },
+            {
+              "name": "include-retained",
+              "description": "Include retained workspaces"
+            },
+            {
+              "name": "run",
+              "description": "Run id",
+              "bind": {
+                "field": "run_id"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "TemplateLifecycleService", "method": "CleanupRuns"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TemplateLifecycleService",
+            "method": "CleanupRuns"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         }
       ]
     },
@@ -98,28 +276,76 @@
         {
           "name": "list",
           "description": "List design kits",
-          "binding": {"kind": "connect-rpc", "service": "DesignKitService", "method": "ListDesignKits"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DesignKitService",
+            "method": "ListDesignKits"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "show",
           "description": "Show one design kit",
-          "positionals": [{"name": "id", "required": true, "description": "Design kit id"}],
-          "binding": {"kind": "connect-rpc", "service": "DesignKitService", "method": "GetDesignKit"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Design kit id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DesignKitService",
+            "method": "GetDesignKit"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "validate",
           "description": "Validate design kits",
           "flags": [
-            {"name": "id", "description": "Design kit id"},
-            {"name": "all", "description": "Validate all kits"}
+            {
+              "name": "id",
+              "description": "Design kit id"
+            },
+            {
+              "name": "all",
+              "description": "Validate all kits"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "DesignKitService", "method": "ValidateDesignKits"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DesignKitService",
+            "method": "ValidateDesignKits"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     },
@@ -145,7 +371,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -168,7 +396,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -197,7 +427,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -221,7 +453,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -239,7 +473,10 @@
           "flags": [
             {
               "name": "template",
-              "description": "Template id to validate"
+              "description": "Template id to validate",
+              "bind": {
+                "field": "template_id"
+              }
             },
             {
               "name": "mode",
@@ -254,7 +491,9 @@
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_mutation"
@@ -266,7 +505,10 @@
           "flags": [
             {
               "name": "template",
-              "description": "Filter by template id"
+              "description": "Filter by template id",
+              "bind": {
+                "field": "template_id"
+              }
             }
           ],
           "binding": {
@@ -277,7 +519,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -301,7 +545,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -313,7 +559,10 @@
           "flags": [
             {
               "name": "template",
-              "description": "Filter by template id"
+              "description": "Filter by template id",
+              "bind": {
+                "field": "template_id"
+              }
             }
           ],
           "binding": {
@@ -324,7 +573,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -341,7 +592,9 @@
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_mutation"
@@ -364,7 +617,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -388,7 +643,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -405,7 +662,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -427,11 +686,17 @@
             },
             {
               "name": "dest",
-              "description": "Destination path"
+              "description": "Destination path",
+              "bind": {
+                "field": "destination"
+              }
             },
             {
               "name": "var",
-              "description": "Template variable KEY=VALUE"
+              "description": "Template variable KEY=VALUE",
+              "bind": {
+                "field": "values"
+              }
             },
             {
               "name": "force",
@@ -450,7 +715,10 @@
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:write"]
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
           },
           "architecture": {
             "primitive": "proto_mutation"
@@ -468,7 +736,10 @@
           "flags": [
             {
               "name": "template",
-              "description": "Filter by template id"
+              "description": "Filter by template id",
+              "bind": {
+                "field": "template_id"
+              }
             },
             {
               "name": "status",
@@ -483,7 +754,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"
@@ -507,7 +780,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "proto_list"

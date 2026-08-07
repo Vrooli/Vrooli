@@ -9,6 +9,7 @@ import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { FleetPage } from "../pages/FleetPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { ValidationPage } from "../pages/ValidationPage";
 import {
   dataRouterFutureFlags,
   routerProviderFutureFlags,
@@ -27,6 +28,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "fleet", element: <FleetPage /> },
+      { path: "validate", element: <ValidationPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

@@ -397,7 +397,7 @@ func TestPortBandFilterLeavesDevelopStepsUntouched(t *testing.T) {
 
 // [REQ:SH-FIX-003]
 func TestFixClassFor(t *testing.T) {
-	for _, code := range []string{RuleServiceNameMismatch, RuleHealthCheckMissing, RuleHealthCheckMalformed, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing, RulePortBand, RuleAPIBinaryName, RuleProductionServe} {
+	for _, code := range []string{RuleServiceNameMismatch, RuleHealthCheckMissing, RuleHealthCheckMalformed, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing, RulePortBand, RuleAPIBinaryName, RuleProductionServe, RuleProjectConfigSurface} {
 		if !FixClassFor(code).Autofixable() {
 			t.Fatalf("%s should be autofixable", code)
 		}
@@ -413,6 +413,36 @@ func TestFixClassFor(t *testing.T) {
 	}
 	if FixClassFor("SERVICE_JSON_MISSING").Autofixable() {
 		t.Fatal("SERVICE_JSON_MISSING should be detection_only")
+	}
+}
+
+func TestProjectConfigSurfacePreviewApplyIsDeterministic(t *testing.T) {
+	root := t.TempDir()
+	configDir := filepath.Join(root, ".vrooli")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	contract := `{"layout":{"project_config_dir":".vrooli","project_config_allowlist":["repo-contract.json"]}}` + "\n"
+	path := filepath.Join(configDir, "repo-contract.json")
+	if err := os.WriteFile(path, []byte(contract), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "operator-state.json"), []byte("{}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	candidates, err := Preview(root, []string{RuleProjectConfigSurface})
+	if err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if len(candidates) != 1 || !strings.Contains(candidates[0].After, `"operator-state.json"`) {
+		t.Fatalf("unexpected project candidate: %+v", candidates)
+	}
+	if applied, err := Apply(root, []string{RuleProjectConfigSurface}); err != nil || len(applied) != 1 {
+		t.Fatalf("apply = %+v, err = %v", applied, err)
+	}
+	if again, err := Apply(root, []string{RuleProjectConfigSurface}); err != nil || len(again) != 0 {
+		t.Fatalf("re-apply = %+v, err = %v", again, err)
 	}
 }
 

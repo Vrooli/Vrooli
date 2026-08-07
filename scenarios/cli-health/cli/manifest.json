@@ -10,21 +10,24 @@
         {
           "name": "scenario",
           "description": "Validate a single scenario by id",
-      "positionals": [
+          "positionals": [
             {
               "name": "name",
               "required": true,
-              "description": "Scenario id (directory name under scenarios/)"
-        }
-      ],
-      "flags": [
-        {
-          "name": "include-execution",
-          "bool": true,
-          "description": "Probe the installed CLI runtime and reconcile its help surface with the manifest"
-        }
-      ],
-      "binding": {
+              "description": "Scenario id (directory name under scenarios/)",
+              "bind": {
+                "field": "scenario"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "include-execution",
+              "bool": true,
+              "description": "Probe the installed CLI runtime and reconcile its help surface with the manifest"
+            }
+          ],
+          "binding": {
             "kind": "connect-rpc",
             "service": "ScenarioValidationService",
             "method": "ValidateScenario"
@@ -53,7 +56,10 @@
             {
               "name": "text",
               "required": true,
-              "description": "Natural-language query"
+              "description": "Natural-language query",
+              "bind": {
+                "field": "mode"
+              }
             }
           ],
           "flags": [
@@ -114,13 +120,19 @@
           "positionals": [
             {
               "name": "command-ref",
-              "description": "Command reference to validate"
+              "description": "Command reference to validate",
+              "bind": {
+                "field": "command_text"
+              }
             }
           ],
           "flags": [
             {
               "name": "command",
-              "description": "Command reference to validate"
+              "description": "Command reference to validate",
+              "bind": {
+                "field": "command_text"
+              }
             },
             {
               "name": "policy",
@@ -144,7 +156,10 @@
               "values": [
                 "never",
                 "on-miss"
-              ]
+              ],
+              "bind": {
+                "field": "refresh_policy"
+              }
             }
           ],
           "binding": {
@@ -175,7 +190,10 @@
           "flags": [
             {
               "name": "scenario",
-              "description": "Limit to a single scenario; empty means all"
+              "description": "Limit to a single scenario; empty means all",
+              "bind": {
+                "field": "scope"
+              }
             },
             {
               "name": "dry-run",

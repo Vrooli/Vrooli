@@ -168,6 +168,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 
 	cross := collector.Stage("cross-check")
 	findings = append(findings, crossCheck(m, surface, path)...)
+	findings = append(findings, argumentFindings(m, surface, path)...)
 	findings = append(findings, s.measureCheck(raw, path)...)
 	findings = append(findings, architectureStaticFindings(m, s.architectureEvidence(ctx, scenario), path)...)
 	cross.Gauge("findings", float64(len(findings)))

@@ -124,6 +124,46 @@ func TestExecuteAdhocStartsAsyncThenReturnsTerminalExecutionDetails(t *testing.T
 	}
 }
 
+func TestExecuteAdhocCarriesElectronTargetAndValidationContext(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.Handle(apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure, connect.NewUnaryHandler(
+		apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure,
+		func(_ context.Context, req *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error) {
+			target := req.Msg.GetOptions().GetElectronTarget()
+			if target.GetTargetId() != "target-1" || target.GetRendererId() != "renderer-1" || target.GetCdpTransport() != "loopback-authenticated" {
+				t.Fatalf("electron target = %+v", target)
+			}
+			validation := req.Msg.GetOptions().GetValidationContext()
+			if validation.GetIsolationLeaseId() != "lease-1" || validation.GetWorkflowId() != "workflow-1" {
+				t.Fatalf("validation context = %+v", validation)
+			}
+			return connect.NewResponse(&basexecution.ExecuteAdhocResponse{ExecutionId: "execution-electron", Status: basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING}), nil
+		},
+	))
+	mux.Handle(apiconnect.ExecutionsServiceGetExecutionProcedure, connect.NewUnaryHandler(
+		apiconnect.ExecutionsServiceGetExecutionProcedure,
+		func(_ context.Context, _ *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+			return connect.NewResponse(&basapi.GetExecutionResponse{Execution: &basexecution.Execution{
+				ExecutionId: "execution-electron", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED, CompletedAt: timestamppb.Now(),
+			}}), nil
+		},
+	))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	client := NewConnectClient(server.URL, server.Client())
+	client.timeout = time.Second
+	_, err := client.ExecuteAdhoc(context.Background(), ExecuteRequest{
+		Definition: map[string]any{"metadata": map[string]any{"name": "electron", "execution_mode": "observer"}, "nodes": []any{}},
+		Options: ExecuteOptions{
+			ElectronTarget:    &ElectronTarget{TargetID: "target-1", CDPEndpoint: "http://127.0.0.1:9222", RendererID: "renderer-1", RendererURL: "file:///app", ScenarioName: "sample", ArtifactDigest: "sha256:app", ContextID: "ctx-1", CDPTransport: "loopback-authenticated"},
+			ValidationContext: &ValidationContext{ContextID: "ctx-1", ScenarioName: "sample", ArtifactDigest: "sha256:app", TargetID: "target-1", WorkflowID: "workflow-1", ProfileID: "normal", IsolationLeaseID: "lease-1"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("ExecuteAdhoc: %v", err)
+	}
+}
+
 func TestTimelinePropagatesIsolationHeaders(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.Handle(apiconnect.ExecutionsServiceGetExecutionTimelineProcedure, connect.NewUnaryHandler(

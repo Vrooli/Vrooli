@@ -61,7 +61,7 @@ gap in the acting surface even when the underlying capability plainly exists.
 | **Discover** | | | | |
 | A1 | Find a capability by intent | `search-hub`, `prompt-manager` | COVERED | The Recall→Discover reflex; both expose Connect services. |
 | A2 | Enumerate the fleet (scenarios, resources) with state | `vrooli` project CLI | PARTIAL | `cli/v1/scenario_list.proto` exists; verify the manifest binding vs. a local command. |
-| A3 | Read a unit's command contract (commands, args, governance) | `cli-health` | PARTIAL | Only **58 of 128** scenarios ship `cli/manifest.json` — the single biggest bound on the whole Act surface. |
+| A3 | Read a unit's command contract (commands, args, governance) | `cli-health` | IN-REACH | The 58 manifest-bearing scenarios are now checked against the shared proto binding ladder; scenarios without manifests remain an explicit fleet coverage boundary. |
 | A4 | Resolve a unit's API base URL / port | `api-core/discovery` | PARTIAL | Library-level today, not an invocable operation; a program needs this as a call. |
 | **Inspect** | | | | |
 | A5 | Read lifecycle status for a unit | `vrooli` project CLI | COVERED | `scenario.status.show` is already a seed Action. |
@@ -81,7 +81,7 @@ gap in the acting surface even when the underlying capability plainly exists.
 | A17 | Read & write plans, backlog items, goals | `plan-manager`, `swarm-manager` | PARTIAL | Reachable, but `swarm-manager` is not yet reliable enough to depend on. |
 | A18 | Read & write requirements / PoRs | `prompt-manager`, per-scenario `requirements/` | PARTIAL | **Audited.** Prompt Manager is present but has no resolved governed binding for this compound owner; filesystem-shaped requirements remain partial. |
 | **Delegate & infer** | | | | |
-| A19 | Typed inference — classify / extract / judge | `ai-gateway` | PARTIAL | `routing execute` exists, but the structured-extract pipeline still lives in `agent-manager/internal/structuredresult` and is run-attached. Promoting it to ai-gateway is the fix. |
+| A19 | Typed inference — classify / extract / judge | `ai-gateway` | NOW | `program-runtime` exposes governed `vrooli.ai.classify`, `vrooli.ai.extract`, and `vrooli.ai.judge` facades over ai-gateway's locally validated inference RPC and catalog roles. |
 | A20 | Spawn a delegated agent run and collect its evidence | `agent-manager` | COVERED | Already consumed programmatically by MoM's `trials` domain. |
 | A21 | Read run transcripts, events, and friction findings | `agent-manager` | PARTIAL | Reachable, but ~65% of runs have unknown ownership, so results are not yet trustworthy. |
 | **Change** | | | | |
@@ -96,13 +96,13 @@ gap in the acting surface even when the underlying capability plainly exists.
 
 ## Numerator Contract (for `program-runtime`)
 
-When `program-runtime` ships, it owns both sides of this projection:
+`program-runtime` owns both sides of this projection:
 
 1. **Denominator** — this file, moved to `docs/spaces/act-space.md`, served by
    `api-core/spacecli` as `space --projection act --json`.
-2. **Numerator** — a registry RPC returning, per cell, whether a typed governed binding is live.
-   `meta-optimization-manager/api/internal/coverage/numeratorclient.go` has a placeholder `Act`
-   branch naming this obligation; replace it with the real client.
+2. **Numerator** — `BindingRegistryService.ResolveActCells`, which returns a
+   verdict only after checking the live callable registry and binding
+   completeness. `meta-optimization-manager` consumes this typed RPC.
 
 Suggested live-join rule, mirroring the sibling projections: a cell is `NOW` only when **every**
 operation it names resolves to a manifest-bound Connect method whose binding generates cleanly and

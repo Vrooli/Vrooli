@@ -11,6 +11,7 @@ export interface NavItem {
   key:
     | "dashboard"
     | "fleet"
+    | "validate"
     | "settings";
   /** Router path. */
   path: string;
@@ -23,5 +24,6 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
   { key: "fleet", path: "/fleet", labelKey: strings.layout.nav.fleet },
+  { key: "validate", path: "/validate", labelKey: strings.layout.nav.validate },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

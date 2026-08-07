@@ -37,11 +37,17 @@
             },
             {
               "name": "evidence-ref",
-              "description": "Comma-separated evidence references"
+              "description": "Comma-separated evidence references",
+              "bind": {
+                "field": "evidence_refs"
+              }
             },
             {
               "name": "slot",
-              "description": "Comma-separated channel:format:capacity slots"
+              "description": "Comma-separated channel:format:capacity slots",
+              "bind": {
+                "field": "slots"
+              }
             }
           ],
           "binding": {
@@ -125,12 +131,18 @@
             {
               "name": "campaign",
               "required": true,
-              "description": "Campaign id"
+              "description": "Campaign id",
+              "bind": {
+                "field": "campaign_id"
+              }
             },
             {
               "name": "post-type",
               "required": true,
-              "description": "Post type id"
+              "description": "Post type id",
+              "bind": {
+                "field": "post_type_id"
+              }
             },
             {
               "name": "body",
@@ -272,7 +284,10 @@
             {
               "name": "identity",
               "required": true,
-              "description": "Channel Manager identity id"
+              "description": "Channel Manager identity id",
+              "bind": {
+                "field": "identity_id"
+              }
             },
             {
               "name": "lane",
@@ -385,12 +400,18 @@
             {
               "name": "draft",
               "required": true,
-              "description": "Draft id"
+              "description": "Draft id",
+              "bind": {
+                "field": "draft_id"
+              }
             },
             {
               "name": "claim",
               "required": true,
-              "description": "Claim id"
+              "description": "Claim id",
+              "bind": {
+                "field": "claim_id"
+              }
             },
             {
               "name": "span-start",
@@ -472,10 +493,28 @@
         {
           "name": "list-draft",
           "description": "List claims cited by one draft",
-          "positionals": [{"name":"draft-id","required":true,"description":"Draft id"}],
-          "binding": {"kind":"connect-rpc","service":"ClaimsService","method":"ListDraftClaims"},
-          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "positionals": [
+            {
+              "name": "draft-id",
+              "required": true,
+              "description": "Draft id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ClaimsService",
+            "method": "ListDraftClaims"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     },
@@ -505,49 +544,145 @@
         {
           "name": "contamination",
           "description": "List published records citing a claim that became stale or refuted",
-          "positionals": [{"name": "claim-id", "required": true, "description": "Claim id"}],
-          "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "ListContaminatedPublishRecords"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "positionals": [
+            {
+              "name": "claim-id",
+              "required": true,
+              "description": "Claim id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LedgerService",
+            "method": "ListContaminatedPublishRecords"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "coverage",
           "description": "List publish coverage by campaign, lane, channel, and SKU",
-          "flags": [{"name": "stale-after-days", "required": true, "description": "Days without a publish before a cell is stale"}],
-          "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "ListCoverage"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "flags": [
+            {
+              "name": "stale-after-days",
+              "required": true,
+              "description": "Days without a publish before a cell is stale"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LedgerService",
+            "method": "ListCoverage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "remediations",
           "description": "List active or historical correction actions for published content",
           "flags": [
-            {"name": "publish-record-id", "description": "Optional publish record id"},
-            {"name": "open-only", "description": "Show only unresolved remediation actions", "bool": true}
+            {
+              "name": "publish-record-id",
+              "description": "Optional publish record id"
+            },
+            {
+              "name": "open-only",
+              "description": "Show only unresolved remediation actions",
+              "bool": true
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "ListRemediations"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LedgerService",
+            "method": "ListRemediations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "remediate",
           "description": "Record a corrective action for a contaminated published post",
           "flags": [
-            {"name": "publish-record-id", "required": true, "description": "Published record to correct"},
-            {"name": "kind", "required": true, "description": "correct_in_place, publish_correction, retract, or accept_and_annotate"},
-            {"name": "note", "description": "Operator rationale and evidence reference"}
+            {
+              "name": "publish-record-id",
+              "required": true,
+              "description": "Published record to correct"
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "description": "correct_in_place, publish_correction, retract, or accept_and_annotate"
+            },
+            {
+              "name": "note",
+              "description": "Operator rationale and evidence reference"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "CreateRemediation"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LedgerService",
+            "method": "CreateRemediation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "resolve-remediation",
           "description": "Resolve an open remediation while retaining its audit history",
-          "positionals": [{"name": "id", "required": true, "description": "Remediation id"}],
-          "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "ResolveRemediation"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Remediation id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LedgerService",
+            "method": "ResolveRemediation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         }
       ]
     },
@@ -574,7 +709,62 @@
             "primitive": "proto_list"
           }
         },
-        {"name":"register","description":"Register or activate a post type","flags":[{"name":"id","required":true,"description":"Post type id"},{"name":"paired-skill","required":true,"description":"Paired craft skill id"},{"name":"skill-exists","description":"Confirm paired skill exists","bool":true},{"name":"doc-v1","description":"Confirm canon document is v1","bool":true},{"name":"responsibilities-declared","description":"Confirm responsibilities are declared","bool":true},{"name":"failure-modes","required":true,"description":"Comma-separated declared craft and policy failure modes"},{"name":"activate","description":"Request activation","bool":true}],"binding":{"kind":"connect-rpc","service":"PosttypesService","method":"RegisterPostType"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}}
+        {
+          "name": "register",
+          "description": "Register or activate a post type",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Post type id"
+            },
+            {
+              "name": "paired-skill",
+              "required": true,
+              "description": "Paired craft skill id"
+            },
+            {
+              "name": "skill-exists",
+              "description": "Confirm paired skill exists",
+              "bool": true
+            },
+            {
+              "name": "doc-v1",
+              "description": "Confirm canon document is v1",
+              "bool": true
+            },
+            {
+              "name": "responsibilities-declared",
+              "description": "Confirm responsibilities are declared",
+              "bool": true
+            },
+            {
+              "name": "failure-modes",
+              "required": true,
+              "description": "Comma-separated declared craft and policy failure modes"
+            },
+            {
+              "name": "activate",
+              "description": "Request activation",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PosttypesService",
+            "method": "RegisterPostType"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
       ]
     },
     {
@@ -600,7 +790,65 @@
             "primitive": "proto_list"
           }
         },
-        {"name":"record","description":"Record a craft or policy verdict","flags":[{"name":"draft","required":true,"description":"Draft id"},{"name":"mode","required":true,"description":"Failure mode assessed"},{"name":"passed","description":"Verdict passed","bool":true},{"name":"evidence","description":"Re-runnable evidence"},{"name":"finding","description":"Finding when blocked"}],"binding":{"kind":"connect-rpc","service":"ReviewService","method":"RecordReviewRun"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}}
+        {
+          "name": "record",
+          "description": "Record a craft or policy verdict",
+          "flags": [
+            {
+              "name": "draft",
+              "required": true,
+              "description": "Draft id",
+              "bind": {
+                "field": "draft_id"
+              }
+            },
+            {
+              "name": "mode",
+              "required": true,
+              "description": "Failure mode assessed",
+              "bind": {
+                "field": "draft_id"
+              }
+            },
+            {
+              "name": "passed",
+              "description": "Verdict passed",
+              "bool": true,
+              "bind": {
+                "field": "draft_id"
+              }
+            },
+            {
+              "name": "evidence",
+              "description": "Re-runnable evidence",
+              "bind": {
+                "field": "verdicts"
+              }
+            },
+            {
+              "name": "finding",
+              "description": "Finding when blocked",
+              "bind": {
+                "field": "draft_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReviewService",
+            "method": "RecordReviewRun"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
       ]
     }
   ],
@@ -645,60 +893,60 @@
       "method": "IngestMetricSample",
       "reason": "Inbound authenticated Channel Manager delivery is an idempotent integration callback, not an operator CLI action."
     },
-  {
-    "service": "ClaimsService",
-    "method": "GetClaimCoverage",
-    "reason": "The coverage map is a structured editor-review presentation returned with its draft body; a standalone CLI rendering would lose the accessible span context."
-  },
-  {
-    "service": "ClaimsService",
-    "method": "ExtractClaimProposals",
-    "reason": "Extraction operates on the active editor body and its proposal list; the workbench preserves the review context needed before an operator decides."
-  },
-  {
-    "service": "ClaimsService",
-    "method": "ListClaimProposals",
-    "reason": "Proposal state is an editor-bound review surface, not a standalone operational command."
-  },
-  {
-    "service": "ClaimsService",
-    "method": "DecideClaimProposal",
-    "reason": "A proposal decision is made in the workbench beside the editable draft; a CLI command would lose that safety context."
-  },
-  {
-    "service": "ArtifactsService",
-    "method": "AttachReleasedAsset",
-    "reason": "Attachment placement and accessible alt text are editor-bound authoring decisions. The workbench keeps the draft and visual position visible."
-  },
-  {
-    "service": "ArtifactsService",
-    "method": "ListDraftAttachments",
-    "reason": "Attachment metadata is rendered in the draft authoring surface with its position and alt-text review context."
-  },
-  {
-    "service": "ArtifactsService",
-    "method": "CommissionAgentWork",
-    "reason": "Agent commissioning is an editor-bound operator action: the workbench preserves the selected draft, the restricted action, and the resulting provenance without encouraging detached autonomous runs."
-  },
-  {
-    "service": "ArtifactsService",
-    "method": "GetAgentWorkResult",
-    "reason": "Agent output is presented beside the selected editor so an operator can inspect it before adopting it; detached CLI output would lose that safety context."
-  },
-  {
-    "service": "ArtifactsService",
-    "method": "AdoptAgentSuggestion",
-    "reason": "Adoption is an explicit editor action that keeps the suggested body, editable draft, and Agent Manager provenance visible together."
-  },
-  {
-    "service": "SearchService",
-    "method": "Search",
-    "reason": "Search is an editor-assist surface whose source snippets and relevance context must remain beside the draft."
-  },
-  {
-    "service": "SearchService",
-    "method": "Status",
-    "reason": "Provider readiness is presented in the editorial workbench alongside search results and recovery guidance."
-  }
-]
+    {
+      "service": "ClaimsService",
+      "method": "GetClaimCoverage",
+      "reason": "The coverage map is a structured editor-review presentation returned with its draft body; a standalone CLI rendering would lose the accessible span context."
+    },
+    {
+      "service": "ClaimsService",
+      "method": "ExtractClaimProposals",
+      "reason": "Extraction operates on the active editor body and its proposal list; the workbench preserves the review context needed before an operator decides."
+    },
+    {
+      "service": "ClaimsService",
+      "method": "ListClaimProposals",
+      "reason": "Proposal state is an editor-bound review surface, not a standalone operational command."
+    },
+    {
+      "service": "ClaimsService",
+      "method": "DecideClaimProposal",
+      "reason": "A proposal decision is made in the workbench beside the editable draft; a CLI command would lose that safety context."
+    },
+    {
+      "service": "ArtifactsService",
+      "method": "AttachReleasedAsset",
+      "reason": "Attachment placement and accessible alt text are editor-bound authoring decisions. The workbench keeps the draft and visual position visible."
+    },
+    {
+      "service": "ArtifactsService",
+      "method": "ListDraftAttachments",
+      "reason": "Attachment metadata is rendered in the draft authoring surface with its position and alt-text review context."
+    },
+    {
+      "service": "ArtifactsService",
+      "method": "CommissionAgentWork",
+      "reason": "Agent commissioning is an editor-bound operator action: the workbench preserves the selected draft, the restricted action, and the resulting provenance without encouraging detached autonomous runs."
+    },
+    {
+      "service": "ArtifactsService",
+      "method": "GetAgentWorkResult",
+      "reason": "Agent output is presented beside the selected editor so an operator can inspect it before adopting it; detached CLI output would lose that safety context."
+    },
+    {
+      "service": "ArtifactsService",
+      "method": "AdoptAgentSuggestion",
+      "reason": "Adoption is an explicit editor action that keeps the suggested body, editable draft, and Agent Manager provenance visible together."
+    },
+    {
+      "service": "SearchService",
+      "method": "Search",
+      "reason": "Search is an editor-assist surface whose source snippets and relevance context must remain beside the draft."
+    },
+    {
+      "service": "SearchService",
+      "method": "Status",
+      "reason": "Provider readiness is presented in the editorial workbench alongside search results and recovery guidance."
+    }
+  ]
 }

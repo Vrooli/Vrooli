@@ -45,7 +45,7 @@ func (h *connectHandler) StartValidationRun(ctx context.Context, req *connect.Re
 	if err != nil {
 		return nil, err
 	}
-	record := workflowrun.Record{Run: core.Run{ID: uuid.NewString(), Target: target, IdempotencyKey: key, ParentRunID: req.Msg.GetParentRunId(), State: core.StateQueued, CreatedAt: time.Now().UTC(), Version: 1}, ETA: 2 * time.Minute, Preliminary: static.Msg}
+	record := workflowrun.Record{Run: core.Run{ID: uuid.NewString(), Target: target, IdempotencyKey: key, ParentRunID: req.Msg.GetParentRunId(), State: core.StateQueued, CreatedAt: time.Now().UTC(), Version: 1}, ETA: 2 * time.Minute, Preliminary: static.Msg, ExecutionBinding: req.Msg.GetDesktopBinding()}
 	if err := h.deps.Ledger.Create(ctx, record); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist validation run: %w", err))
 	}
@@ -126,7 +126,7 @@ func (h *connectHandler) launch(id string) {
 			return
 		}
 		h.signal(id)
-		report, err := h.run(ctx, record.Run.Target.Scenario, record.Run.Target.Path, execution.Options{IncludeExecution: true, RunID: id, Isolation: execution.NewRoutingIsolation()})
+		report, err := h.run(ctx, record.Run.Target.Scenario, record.Run.Target.Path, execution.Options{IncludeExecution: true, RunID: id, Isolation: execution.NewRoutingIsolation(), ElectronTarget: electronTarget(record.ExecutionBinding), ValidationContext: electronValidationContext(record.ExecutionBinding, id)})
 		if err != nil {
 			h.finish(record, core.EventFail, nil, nil, err)
 			return
@@ -138,6 +138,27 @@ func (h *connectHandler) launch(id string) {
 		}
 		h.finish(record, core.EventSucceed, terminal, artifactReferences(report), nil)
 	}()
+}
+
+func electronTarget(binding *scenariovalidationv1.DesktopValidationBinding) *execution.ElectronTarget {
+	if binding == nil {
+		return nil
+	}
+	return &execution.ElectronTarget{
+		TargetID: binding.GetTargetId(), CDPEndpoint: binding.GetCdpEndpoint(), RendererID: binding.GetRendererId(),
+		RendererURL: binding.GetRendererUrl(), RendererTitle: binding.GetRendererTitle(), ScenarioName: binding.GetScenarioName(),
+		ArtifactDigest: binding.GetArtifactDigest(), ContextID: binding.GetContextId(), CDPTransport: binding.GetCdpTransport(),
+	}
+}
+
+func electronValidationContext(binding *scenariovalidationv1.DesktopValidationBinding, runID string) *execution.ValidationContext {
+	if binding == nil {
+		return nil
+	}
+	return &execution.ValidationContext{
+		ContextID: binding.GetContextId(), ScenarioName: binding.GetScenarioName(), ArtifactDigest: binding.GetArtifactDigest(),
+		TargetID: binding.GetTargetId(), ProfileID: binding.GetProfileId(), IsolationLeaseID: runID,
+	}
 }
 
 func (h *connectHandler) finish(record workflowrun.Record, event core.Event, terminal *scenariovalidationv1.ValidateScenarioResponse, artifacts []string, runErr error) {

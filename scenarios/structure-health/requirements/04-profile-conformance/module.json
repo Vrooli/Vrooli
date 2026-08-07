@@ -45,6 +45,19 @@
       "validation": [
         {"type": "unit", "status": "planned", "notes": "packs/scan/scan_test.go asserts the rule-definition tree is skipped during the conformance scan."}
       ]
+    },
+    {
+      "id": "SH-PROF-004",
+      "title": "Expanded language and framework profiles remain contract-aware",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "api",
+      "criticality": "P2",
+      "description": "When Code Facts exposes reliable parse units for Rust, Python, Vue, or Svelte, structure-health can add first-class profile packs without regressing advisory relaxation for unknown profiles.",
+      "tags": ["profile", "future", "code-facts"],
+      "validation": [
+        {"type": "manual", "status": "planned", "notes": "Add a profile fixture and conformance pack when the corresponding Code Facts parse-unit contract is available."}
+      ]
     }
   ]
 }

@@ -8,9 +8,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
+
 	schema "vrooli-orchestrator-api/internal/profiles"
 
 	"github.com/gorilla/mux"
@@ -19,6 +20,7 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	resourceport "github.com/vrooli/vrooli/packages/resource-port"
 )
 
 const (
@@ -309,24 +311,18 @@ func (o *OrchestratorService) GetStatus(w http.ResponseWriter, r *http.Request) 
 
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(
-		"source ${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh && ports::get_resource_port %s",
-		resourceName,
-	))
-	output, err := cmd.Output()
-	if err != nil {
-		log.Printf("Warning: Failed to get port for %s, using default: %v", resourceName, err)
-		// Fallback to defaults
-		defaults := map[string]string{
-			"n8n":      "5678",
-			"postgres": "5433",
-		}
-		if port, ok := defaults[resourceName]; ok {
-			return port
-		}
-		return "8080" // Generic fallback
+	root := os.Getenv("VROOLI_ROOT")
+	if root == "" {
+		root = filepath.Join(os.Getenv("HOME"), "Vrooli")
 	}
-	return strings.TrimSpace(string(output))
+	portName := ""
+	if resourceName == "postgres" {
+		portName = "sql"
+	}
+	if port, err := resourceport.Resolve(root, resourceName, portName); err == nil {
+		return port
+	}
+	return "8080"
 }
 
 func main() {

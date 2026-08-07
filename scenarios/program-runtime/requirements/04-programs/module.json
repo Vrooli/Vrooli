@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Accept a program, execute it in its session, return only what it materializes, and retain the corpus. Owns handles, inference and delegation callables, and provenance.",
-    "last_validated_at": "2026-08-06T13:45:52-04:00",
+    "last_validated_at": "2026-08-06T22:08:55-04:00",
     "module": "programs",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -51,7 +51,7 @@
     {
       "id": "PRT-P1-002",
       "title": "Typed inference bindings",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "programs.inference",
       "criticality": "P1",
@@ -66,13 +66,13 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Target `kernel/tests/test_deferred_surfaces.py::test_inference_reports_ai_gateway_promotion_blocker` (tagged [REQ:PRT-P1-002]). Each deferred callable fails closed and names the required ai-gateway promotion rather than silently disappearing."
+          "notes": "Target `kernel/tests/test_execution_contract.py` plus the live program-runtime inference example. The kernel facade selects classify.fast, extract.structured, or judge.default and dispatches through the governed ai-gateway InferenceService.Run binding; provider/schema failures remain typed and bounded."
         },
         {
           "type": "manual",
           "phase": "unit",
-          "status": "pending",
-          "notes": "Recorded waiver: local schema validation cannot be exercised before the ai-gateway structured-extract promotion. This is the plan-approved blocker for PRT-P1-002; no direct provider path is permitted."
+          "status": "implemented",
+          "notes": "The former promotion waiver is retired. Native provider schema constraints and ai-gateway local schema validation are covered by the inference repository tests; live execution is additionally validated when the provider resource is available."
         }
       ]
     },

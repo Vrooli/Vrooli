@@ -171,7 +171,7 @@ func main() {
 	registryBindings := bindingRegistry.List("", "")
 	bindingSpecs := make([]programs.BindingSpec, 0, len(registryBindings))
 	for _, binding := range registryBindings {
-		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect()})
+		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect()})
 	}
 	bridgeURL := ""
 	agentBridgeURL := ""

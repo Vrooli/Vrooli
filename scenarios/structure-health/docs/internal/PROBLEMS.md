@@ -51,6 +51,20 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 _None yet._
 
+### 2026-08-06 — Work-ladder owner unavailable
+
+**Symptom:** The exact W0 named-mention search returned no swarm-manager goal for `structure-health`.
+
+**Root cause:** This implementation is governed by an active external plan rather than a registered swarm-manager goal, so the W0 contract comparison cannot be verified through the goal registry.
+
+**Workaround:** Treat the active implementation plan as the governing request and preserve this evidence until an owning goal is registered.
+
+**Real fix:** Register an owning swarm-manager goal and rerun the W0 contract comparison.
+
+**Owner:** Unassigned.
+
+**Refs:** `swarm-manager goals list --json` exact named-mention search; `scenario-work-ladder` W0 gate.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

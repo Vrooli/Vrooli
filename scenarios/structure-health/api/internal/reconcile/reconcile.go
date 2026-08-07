@@ -25,15 +25,23 @@ type SurfaceState struct {
 
 // Model is the reconciled view consumed by the validation rules.
 type Model struct {
-	Scenario string
-	RootPath string
-	Profile  profile.Profile
-	Intent   intent.Intent
-	Surfaces []SurfaceState
+	Scenario       string
+	TargetKind     string
+	RootPath       string
+	Profile        profile.Profile
+	Intent         intent.Intent
+	IntentDeclared bool
+	Surfaces       []SurfaceState
 }
 
 // Build reconciles intent against the detected profile.
 func Build(scenario, rootPath string, in intent.Intent, p profile.Profile) Model {
+	return BuildForTarget(scenario, "scenario", rootPath, in, true, p)
+}
+
+// BuildForTarget retains the original scenario model while carrying target
+// identity and declaration presence for generalized validation.
+func BuildForTarget(scenario, targetKind, rootPath string, in intent.Intent, declared bool, p profile.Profile) Model {
 	states := map[string]*SurfaceState{}
 	order := []string{}
 	get := func(id, kind string) *SurfaceState {
@@ -82,7 +90,7 @@ func Build(scenario, rootPath string, in intent.Intent, p profile.Profile) Model
 	}
 
 	sort.Strings(order)
-	out := Model{Scenario: scenario, RootPath: rootPath, Profile: p, Intent: in}
+	out := Model{Scenario: scenario, TargetKind: targetKind, RootPath: rootPath, Profile: p, Intent: in, IntentDeclared: declared}
 	for _, key := range order {
 		out.Surfaces = append(out.Surfaces, *states[key])
 	}

@@ -11,13 +11,26 @@
           "name": "scenario",
           "description": "Validate a single scenario by id",
           "positionals": [
-            { "name": "name", "required": true, "description": "Scenario id (directory name under scenarios/)" }
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ValidateScenario" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -30,13 +43,26 @@
           "name": "scenario",
           "description": "Describe a single scenario's proto files, services, messages, imports, adoption, and transport world",
           "positionals": [
-            { "name": "name", "required": true, "description": "Scenario id (directory name under scenarios/)" }
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ProtoHealthService", "method": "DescribeScenarioProtos" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProtoHealthService",
+            "method": "DescribeScenarioProtos"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -49,16 +75,29 @@
           "name": "scenario",
           "description": "Compare one scenario's current proto contracts against a baseline, git scope, ref, or SHA",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario id (directory name under scenarios/)" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)"
+            }
           ],
           "flags": [
-            { "name": "against", "description": "Scope to compare against: empty = newest git-control-tower baseline with merge-base fallback; also accepts HEAD, merge-base, master, baseline:<name>, git ref, or SHA" }
+            {
+              "name": "against",
+              "description": "Scope to compare against: empty = newest git-control-tower baseline with merge-base fallback; also accepts HEAD, merge-base, master, baseline:<name>, git ref, or SHA"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ImpactService", "method": "GetImpact" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ImpactService",
+            "method": "GetImpact"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]

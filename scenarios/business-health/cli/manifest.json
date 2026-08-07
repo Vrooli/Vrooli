@@ -24,7 +24,10 @@
             },
             {
               "name": "json",
-              "description": "Emit JSON output"
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -45,7 +48,7 @@
     },
     {
       "name": "matrix",
-      "description": "Traceability matrix (OT × requirement × validation × evidence)",
+      "description": "Traceability matrix (OT \u00d7 requirement \u00d7 validation \u00d7 evidence)",
       "commands": [
         {
           "name": "show",
@@ -60,15 +63,24 @@
           "flags": [
             {
               "name": "format",
-              "description": "Rendering: table (default) | summary | markdown"
+              "description": "Rendering: table (default) | summary | markdown",
+              "bind": {
+                "field": "path"
+              }
             },
             {
               "name": "phase",
-              "description": "Inspect validations restricted to one phase (unit | integration | business | performance)"
+              "description": "Inspect validations restricted to one phase (unit | integration | business | performance)",
+              "bind": {
+                "field": "path"
+              }
             },
             {
               "name": "json",
-              "description": "Emit JSON output"
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -104,7 +116,10 @@
           "flags": [
             {
               "name": "json",
-              "description": "Emit JSON output"
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -190,11 +205,17 @@
           "flags": [
             {
               "name": "rules",
-              "description": "Comma-separated finding codes to restrict the preview to"
+              "description": "Comma-separated finding codes to restrict the preview to",
+              "bind": {
+                "field": "rule_ids"
+              }
             },
             {
               "name": "json",
-              "description": "Emit JSON output"
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -213,7 +234,7 @@
         },
         {
           "name": "apply",
-          "description": "Apply the previewed deterministic fixes (explicit apply — the write half of the dry-run-by-default pair)",
+          "description": "Apply the previewed deterministic fixes (explicit apply \u2014 the write half of the dry-run-by-default pair)",
           "positionals": [
             {
               "name": "scenario",
@@ -261,7 +282,10 @@
             },
             {
               "name": "json",
-              "description": "Emit JSON output"
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenarios"
+              }
             }
           ],
           "binding": {
@@ -434,12 +458,15 @@
       "commands": [
         {
           "name": "query",
-          "description": "Search intent by natural-language text — 'which scenario provides X', 'what is Y supposed to deliver'",
+          "description": "Search intent by natural-language text \u2014 'which scenario provides X', 'what is Y supposed to deliver'",
           "positionals": [
             {
               "name": "text",
               "required": true,
-              "description": "Natural-language query"
+              "description": "Natural-language query",
+              "bind": {
+                "field": "mode"
+              }
             }
           ],
           "flags": [
@@ -494,7 +521,10 @@
           "flags": [
             {
               "name": "scenario",
-              "description": "Limit to a single scenario; empty means all"
+              "description": "Limit to a single scenario; empty means all",
+              "bind": {
+                "field": "scope"
+              }
             },
             {
               "name": "dry-run",

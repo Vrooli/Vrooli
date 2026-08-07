@@ -27,6 +27,9 @@ import (
 type Request struct {
 	Scenario         string
 	Path             string
+	TargetKind       string
+	TargetID         string
+	TargetRoot       string
 	IncludeExecution bool
 }
 
@@ -112,12 +115,19 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		},
 	}
 
-	in, ierr := intent.Load(facts.RootPath)
-	serviceJSONReadable := ierr == nil
-	if ierr != nil {
-		resp.DegradedReason = appendReason(resp.DegradedReason, fmt.Sprintf("service.json unreadable: %v", ierr))
+	targetKind := req.TargetKind
+	if targetKind == "" {
+		targetKind = facts.TargetKind
 	}
-	model := reconcile.Build(facts.Scenario, facts.RootPath, in, p)
+	if targetKind == "" {
+		targetKind = "scenario"
+	}
+	resolvedIntent, ierr := intent.Resolve(targetKind, facts.RootPath)
+	serviceJSONReadable := resolvedIntent.Declared
+	if ierr != nil {
+		resp.DegradedReason = appendReason(resp.DegradedReason, fmt.Sprintf("%s unreadable: %v", resolvedIntent.Source, ierr))
+	}
+	model := reconcile.BuildForTarget(facts.Scenario, targetKind, facts.RootPath, resolvedIntent.Value, resolvedIntent.Declared, p)
 	for _, st := range model.Surfaces {
 		resp.Surfaces = append(resp.Surfaces, SurfaceReconcile{
 			Surface:        st.Surface,
@@ -129,14 +139,19 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		})
 	}
 
-	findings := rules.Evaluate(rules.Input{Model: model, ServiceJSONReadable: serviceJSONReadable})
-	// Profile-keyed conformance packs (migrated scenario-auditor structure/
-	// config/ui rules). The default profile enforces; an unrecognized profile
-	// gets advisory findings only.
-	if sc, scanErr := scan.Build(facts.Scenario, facts.RootPath); scanErr == nil {
-		findings = append(findings, packs.Evaluate(p.ID, p.Recognized, sc)...)
+	var findings []rules.Finding
+	if targetKind == "scenario" {
+		findings = rules.Evaluate(rules.Input{Model: model, ServiceJSONReadable: serviceJSONReadable})
+		// Profile-keyed conformance packs (migrated scenario-auditor structure/
+		// config/ui rules). The default profile enforces; an unrecognized profile
+		// gets advisory findings only.
+		if sc, scanErr := scan.Build(facts.Scenario, facts.RootPath); scanErr == nil {
+			findings = append(findings, packs.Evaluate(p.ID, p.Recognized, sc)...)
+		} else {
+			resp.DegradedReason = appendReason(resp.DegradedReason, fmt.Sprintf("conformance scan failed: %v", scanErr))
+		}
 	} else {
-		resp.DegradedReason = appendReason(resp.DegradedReason, fmt.Sprintf("conformance scan failed: %v", scanErr))
+		findings = packs.EvaluateTarget(targetKind, facts.RootPath, facts.Scenario)
 	}
 	errCount, warnCount := 0, 0
 	for _, f := range findings {

@@ -21,7 +21,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "scenario"
+              }
             },
             {
               "name": "use-cache",
@@ -82,13 +85,13 @@
             }
           ],
           "binding": {
-          "kind": "local"
+            "kind": "local"
           },
           "governance": {
             "effect": "write",
             "run_eligible": true,
             "permissions": [
-          "filesystem:write"
+              "filesystem:write"
             ]
           }
         },
@@ -147,7 +150,10 @@
             },
             {
               "name": "package",
-              "description": "Filter by package name"
+              "description": "Filter by package name",
+              "bind": {
+                "field": "package_name"
+              }
             },
             {
               "name": "scenario",
@@ -161,7 +167,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -225,7 +234,10 @@
             },
             {
               "name": "package",
-              "description": "Filter by package name"
+              "description": "Filter by package name",
+              "bind": {
+                "field": "package_name"
+              }
             },
             {
               "name": "scenario",
@@ -233,7 +245,10 @@
             },
             {
               "name": "vulnerability",
-              "description": "Filter by vulnerability id"
+              "description": "Filter by vulnerability id",
+              "bind": {
+                "field": "vulnerability_id"
+              }
             },
             {
               "name": "minimum-severity",
@@ -247,7 +262,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -432,18 +450,27 @@
             {
               "name": "dependency",
               "description": "Dependency formatted as ecosystem/package",
-              "required": true
+              "required": true,
+              "bind": {
+                "field": "ecosystem"
+              }
             }
           ],
           "flags": [
             {
               "name": "vulnerability",
-              "description": "Security vulnerability id to explain"
+              "description": "Security vulnerability id to explain",
+              "bind": {
+                "field": "vulnerability_id"
+              }
             },
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "ecosystem"
+              }
             }
           ],
           "binding": {
@@ -480,7 +507,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "state"
+              }
             }
           ],
           "binding": {
@@ -531,7 +561,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "state"
+              }
             }
           ],
           "binding": {
@@ -554,14 +587,20 @@
             {
               "name": "dependency",
               "description": "Dependency formatted as ecosystem/package",
-              "required": true
+              "required": true,
+              "bind": {
+                "field": "ecosystem"
+              }
             }
           ],
           "flags": [
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "ecosystem"
+              }
             }
           ],
           "binding": {
@@ -591,7 +630,10 @@
             {
               "name": "all",
               "description": "Validate every discovered scenario",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "scenario"
+              }
             },
             {
               "name": "policy-mode",
@@ -600,7 +642,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -630,7 +675,10 @@
             },
             {
               "name": "package",
-              "description": "Filter by package name"
+              "description": "Filter by package name",
+              "bind": {
+                "field": "package_name"
+              }
             },
             {
               "name": "limit",
@@ -644,7 +692,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "section"
+              }
             }
           ],
           "binding": {
@@ -674,7 +725,10 @@
             },
             {
               "name": "package",
-              "description": "Filter by package name"
+              "description": "Filter by package name",
+              "bind": {
+                "field": "package_name"
+              }
             },
             {
               "name": "severity",
@@ -682,12 +736,18 @@
             },
             {
               "name": "class",
-              "description": "Filter by finding class"
+              "description": "Filter by finding class",
+              "bind": {
+                "field": "finding_class"
+              }
             },
             {
               "name": "limit",
               "description": "Maximum grouped findings in human output",
-              "default": "40"
+              "default": "40",
+              "bind": {
+                "field": "policy_mode"
+              }
             },
             {
               "name": "policy-mode",
@@ -696,7 +756,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -719,7 +782,10 @@
             {
               "name": "dependency",
               "description": "Dependency formatted as ecosystem/package",
-              "required": true
+              "required": true,
+              "bind": {
+                "field": "ecosystem"
+              }
             }
           ],
           "flags": [
@@ -730,7 +796,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "ecosystem"
+              }
             }
           ],
           "binding": {
@@ -753,7 +822,10 @@
             {
               "name": "package",
               "description": "<ecosystem>/<package>[@version]",
-              "required": true
+              "required": true,
+              "bind": {
+                "field": "package_name"
+              }
             }
           ],
           "flags": [
@@ -777,7 +849,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "version"
+              }
             }
           ],
           "binding": {
@@ -807,7 +882,10 @@
             {
               "name": "format",
               "description": "Output format",
-              "default": "json"
+              "default": "json",
+              "bind": {
+                "field": "limit"
+              }
             }
           ],
           "binding": {
@@ -842,7 +920,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "query"
+              }
             }
           ],
           "binding": {
@@ -883,7 +964,10 @@
             {
               "name": "json",
               "description": "Output raw JSON",
-              "default": "false"
+              "default": "false",
+              "bind": {
+                "field": "query"
+              }
             }
           ],
           "binding": {

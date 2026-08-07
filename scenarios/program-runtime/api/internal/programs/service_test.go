@@ -13,7 +13,9 @@ type fakeRunner struct {
 	err    error
 }
 
-func (r fakeRunner) Execute(context.Context, string, string) (Result, error) { return r.result, r.err }
+func (r fakeRunner) Execute(context.Context, string, string, bool) (Result, error) {
+	return r.result, r.err
+}
 
 func TestRetainsProgramSourceAndFailureDetail(t *testing.T) { // [REQ:PRT-P1-006]
 	s := NewService(Options{Runner: fakeRunner{err: errors.New("field title: invalid")}})

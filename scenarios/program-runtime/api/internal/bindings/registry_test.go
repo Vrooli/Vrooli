@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	"github.com/vrooli/repo-contract-go"
+	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 )
 
 func repoRoot(t *testing.T) string {
@@ -41,19 +41,19 @@ func TestNewManifestNeedsNoScenarioCode(t *testing.T) {
 	// [REQ:PRT-P0-001]
 	root := repoRoot(t)
 	fixture := filepath.Join(t.TempDir(), "manifest.json")
-	data := []byte(`{"name":"fixture-scenario","groups":[{"name":"fixture","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	data := []byte(`{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
 	require.NoError(t, os.WriteFile(fixture, data, 0o644))
 	r, err := LoadFiles(filepath.Join(root, "packages/proto/gen/descriptor/image.binpb"), []string{fixture})
 	require.NoError(t, err)
-	if got := len(r.List("fixture-scenario", "fixture")); got != 1 {
+	if got := len(r.List("document-manager", "notes")); got != 1 {
 		t.Fatalf("fixture produced %d bindings, want 1", got)
 	}
 }
 
 func TestRejectsUnknownFieldBeforeDispatch(t *testing.T) {
 	// [REQ:PRT-P0-002]
-	r := fixtureRegistry(t, `{"name":"fixture","groups":[{"name":"fixture","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
-	err := r.ValidateArguments("fixture/fixture/list", map[string]any{"not_a_field": "x"})
+	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	err := r.ValidateArguments("document-manager/notes/list", map[string]any{"not_a_field": "x"})
 	if err == nil || !strings.Contains(err.Error(), "not_a_field") {
 		t.Fatalf("unknown field error = %v, want offending field", err)
 	}
@@ -61,26 +61,26 @@ func TestRejectsUnknownFieldBeforeDispatch(t *testing.T) {
 
 func TestErrorNamesOffendingField(t *testing.T) {
 	// [REQ:PRT-P0-002]
-	r := fixtureRegistry(t, `{"name":"fixture","groups":[{"name":"fixture","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
-	err := r.ValidateArguments("fixture/fixture/list", map[string]any{"limit": "not-an-int"})
+	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	err := r.ValidateArguments("document-manager/notes/list", map[string]any{"limit": "not-an-int"})
 	if err == nil || !strings.Contains(err.Error(), "limit") {
 		t.Fatalf("mistyped field error = %v, want offending field", err)
 	}
 }
 
 func TestRejectsMistypedAndMissingRequiredFields(t *testing.T) { // [REQ:PRT-P0-002]
-	r := fixtureRegistry(t, `{"name":"fixture","groups":[{"name":"fixture","commands":[{"name":"list","flags":[{"name":"limit","required":true}],"binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
-	if err := r.ValidateArguments("fixture/fixture/list", map[string]any{"limit": "not-an-int"}); err == nil || !strings.Contains(err.Error(), "limit") {
+	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"list","flags":[{"name":"limit","required":true}],"binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	if err := r.ValidateArguments("document-manager/notes/list", map[string]any{"limit": "not-an-int"}); err == nil || !strings.Contains(err.Error(), "limit") {
 		t.Fatalf("mistyped field error = %v", err)
 	}
-	if err := r.ValidateArguments("fixture/fixture/list", nil); err == nil || !strings.Contains(err.Error(), "limit") {
+	if err := r.ValidateArguments("document-manager/notes/list", nil); err == nil || !strings.Contains(err.Error(), "limit") {
 		t.Fatalf("missing field error = %v", err)
 	}
 }
 
 func TestEveryUnboundCapabilityCarriesAReason(t *testing.T) { // [REQ:PRT-P1-007]
-	r := fixtureRegistry(t, `{"name":"fixture","groups":[{"name":"fixture","commands":[{"name":"local","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}]}],"omitted":[{"service":"MissingService","method":"List","reason":"not promoted"}]}`)
-	for _, capability := range r.Unbound("fixture") {
+	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"local","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}]}],"omitted":[{"service":"MissingService","method":"List","reason":"not promoted"}]}`)
+	for _, capability := range r.Unbound("document-manager") {
 		if capability.GetReason() == bindingsv1.UnboundReason_UNBOUND_REASON_UNSPECIFIED {
 			t.Fatalf("unbound capability lacks reason: %v", capability)
 		}
@@ -89,11 +89,11 @@ func TestEveryUnboundCapabilityCarriesAReason(t *testing.T) { // [REQ:PRT-P1-007
 
 func TestRunIneligibleCommandGeneratesNoBinding(t *testing.T) {
 	// [REQ:PRT-P0-005]
-	r := fixtureRegistry(t, `{"name":"fixture","groups":[{"name":"fixture","commands":[{"name":"private","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":false}}]}]}`)
-	if got := len(r.List("fixture", "")); got != 0 {
+	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"private","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":false}}]}]}`)
+	if got := len(r.List("document-manager", "")); got != 0 {
 		t.Fatalf("run-ineligible command produced %d bindings", got)
 	}
-	unbound := r.Unbound("fixture")
+	unbound := r.Unbound("document-manager")
 	if len(unbound) != 1 || unbound[0].GetReason().String() == "UNBOUND_REASON_UNSPECIFIED" {
 		t.Fatalf("run-ineligible command unbound record = %+v", unbound)
 	}

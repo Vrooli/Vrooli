@@ -10,6 +10,7 @@
     "nav": {
       "dashboard": "لوحة التحكم",
       "fleet": "الأسطول",
+      "validate": "تحقق",
       "settings": "الإعدادات"
     }
   },
@@ -34,7 +35,12 @@
     },
     "fleet": {
       "title": "الأسطول",
-      "description": "توافق البنية عبر كل سيناريو تم اكتشافه. تعرّف على السيناريوهات التي تفشل في بوابة البنية، والقواعد التي تخالفها معظم السيناريوهات، وكيفية توزّع الأسطول حسب الملف الشخصي المكتشف."
+      "description": "توافق البنية عبر كل هدف مستودع تم اكتشافه. تعرّف على الأهداف التي تفشل في بوابة البنية والقواعد الأكثر مخالفة وتوزّع الأسطول حسب الملف الشخصي المكتشف."
+    },
+    "validation": {
+      "title": "مساحة التحقق",
+      "description": "تحقق من أي هدف مستودع محكوم عبر عقدة نوع الهدف المشتركة.",
+      "statPlaceholderLabel": "مقياس"
     }
   },
   "health": {
@@ -85,7 +91,7 @@
     "loading": "جارٍ فحص الأسطول…",
     "empty": "لم يتم تقييم أي سيناريو.",
     "summary": {
-      "scenarios": "السيناريوهات",
+      "scenarios": "الأهداف",
       "passing": "ناجح",
       "missingFreshness": "بدون فحص حداثة",
       "autofixable": "قابل للإصلاح التلقائي"
@@ -93,8 +99,8 @@
     "profiles": {
       "title": "توزيع الملفات الشخصية",
       "unrecognized": "غير معروف",
-      "countLabel": "{{count}} سيناريوهات",
-      "countLabel_one": "سيناريو واحد"
+      "countLabel": "{{count}} أهداف",
+      "countLabel_one": "هدف واحد"
     },
     "rules": {
       "title": "توافق القواعد",
@@ -102,13 +108,13 @@
       "col": {
         "code": "القاعدة",
         "severity": "الخطورة",
-        "offenders": "السيناريوهات",
+        "offenders": "الأهداف",
         "findings": "النتائج",
         "autofixable": "قابل للإصلاح التلقائي"
       }
     },
     "scenarios": {
-      "title": "السيناريوهات المخالفة",
+      "title": "الأهداف المخالفة",
       "passed": "ناجح",
       "failed": "فاشل",
       "recognized": "معروف",
@@ -116,6 +122,7 @@
       "missingFreshnessBadge": "بدون فحص حداثة",
       "col": {
         "scenario": "السيناريو",
+        "target": "الهدف",
         "verdict": "الحكم",
         "profile": "الملف الشخصي",
         "errors": "الأخطاء",
@@ -125,7 +132,24 @@
       }
     },
     "errors": {
-      "title": "سيناريوهات غير مقيّمة"
+      "title": "أهداف غير مقيّمة"
     }
+  },
+  "validation": {
+    "kind": "نوع الهدف",
+    "id": "معرّف الهدف",
+    "idPlaceholder": "structure-health",
+    "root": "جذر المستودع",
+    "rootPlaceholder": "scenarios/structure-health",
+    "path": "المسار المحلل (اختياري)",
+    "pathPlaceholder": "اتركه فارغاً أو أدخل مساراً مطلقاً",
+    "submit": "تحقق من الهدف",
+    "loading": "جارٍ التحقق…",
+    "resultTitle": "نتيجة التحقق",
+    "unknownStatus": "غير معروف",
+    "noRoot": "لم يُرجع جذر المستودع",
+    "maturity": "النضج: {{current}} · التالي: {{next}}",
+    "findingsTitle": "النتائج",
+    "noFindings": "لا توجد نتائج"
   }
 }

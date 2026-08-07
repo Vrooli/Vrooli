@@ -11,40 +11,99 @@
           "name": "generate",
           "description": "Generate a shell command (--body-file PATH)",
           "flags": [
-            { "name": "body-file", "description": "Path to a JSON request body (required)" }
+            {
+              "name": "body-file",
+              "description": "Path to a JSON request body (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "Generate" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "Generate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "suggest",
           "description": "Get AI suggestions (--body-file PATH)",
           "flags": [
-            { "name": "body-file", "description": "Path to a JSON request body (required)" }
+            {
+              "name": "body-file",
+              "description": "Path to a JSON request body (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "Suggest" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "Suggest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "config-get",
           "description": "Show AI provider config",
-          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "GetConfig" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "GetConfig"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "config-set",
           "description": "Update AI provider config (--body-file PATH)",
           "flags": [
-            { "name": "body-file", "description": "Path to JSON body with provider config (required)" }
+            {
+              "name": "body-file",
+              "description": "Path to JSON body with provider config (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "UpdateConfig" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "UpdateConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "health",
           "description": "Check configured AI providers",
-          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "GetHealth" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AIService",
+            "method": "GetHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -56,10 +115,25 @@
           "name": "capabilities",
           "description": "Inspect runtime capabilities (use --liveness for a cheap probe)",
           "flags": [
-            { "name": "liveness", "bool": true, "description": "Use the cheap liveness probe instead of the full snapshot" }
+            {
+              "name": "liveness",
+              "bool": true,
+              "description": "Use the cheap liveness probe instead of the full snapshot",
+              "local_only": true
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "CapabilitiesService", "method": "Get" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CapabilitiesService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -71,31 +145,89 @@
           "name": "get",
           "description": "Get a session's conversation history",
           "flags": [
-            { "name": "session", "required": true, "description": "Session ID (required)" },
-            { "name": "since", "description": "Only return events with sequence > since" }
+            {
+              "name": "session",
+              "required": true,
+              "description": "Session ID (required)",
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "since",
+              "description": "Only return events with sequence > since",
+              "bind": {
+                "field": "since_sequence"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConversationService", "method": "Get" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "cursor-set",
           "description": "Update a session's read/listened cursor (--body-file PATH)",
           "flags": [
-            { "name": "session", "required": true, "description": "Session ID (required)" },
-            { "name": "body-file", "description": "Path to JSON body with cursor fields (required)" }
+            {
+              "name": "session",
+              "required": true,
+              "description": "Session ID (required)"
+            },
+            {
+              "name": "body-file",
+              "description": "Path to JSON body with cursor fields (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConversationService", "method": "UpdateCursor" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationService",
+            "method": "UpdateCursor"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "summarize",
           "description": "Summarize one assistant event for TTS",
           "flags": [
-            { "name": "session", "required": true, "description": "Session ID (required)" },
-            { "name": "event", "required": true, "description": "Event ID (required)" }
+            {
+              "name": "session",
+              "required": true,
+              "description": "Session ID (required)"
+            },
+            {
+              "name": "event",
+              "required": true,
+              "description": "Event ID (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ConversationService", "method": "SummarizeEvent" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConversationService",
+            "method": "SummarizeEvent"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -107,21 +239,63 @@
           "name": "resolve",
           "description": "Resolve a path into a preview target (kind, mime, size, preview id, blob url)",
           "flags": [
-            { "name": "session", "required": true, "description": "Session ID (required)" },
-            { "name": "path", "required": true, "description": "Path to resolve (required)" }
+            {
+              "name": "session",
+              "required": true,
+              "description": "Session ID (required)",
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Path to resolve (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "FilePreviewService", "method": "Resolve" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FilePreviewService",
+            "method": "Resolve"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "text",
           "description": "Read bounded UTF-8 text content for a resolved preview id",
           "flags": [
-            { "name": "session", "required": true, "description": "Session ID (required)" },
-            { "name": "preview-id", "required": true, "description": "Preview id from file-preview resolve (required)" }
+            {
+              "name": "session",
+              "required": true,
+              "description": "Session ID (required)",
+              "bind": {
+                "field": "session_id"
+              }
+            },
+            {
+              "name": "preview-id",
+              "required": true,
+              "description": "Preview id from file-preview resolve (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "FilePreviewService", "method": "GetTextContent" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FilePreviewService",
+            "method": "GetTextContent"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -133,10 +307,24 @@
           "name": "events",
           "description": "Show recent lifecycle events from the in-memory ring buffer",
           "flags": [
-            { "name": "limit", "default": "50", "description": "Maximum events to return (max 1000)" }
+            {
+              "name": "limit",
+              "default": "50",
+              "description": "Maximum events to return (max 1000)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "EventsService", "method": "List" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EventsService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -147,8 +335,18 @@
         {
           "name": "metrics",
           "description": "Show runtime metrics (active sessions, totals, TTS/voice counters)",
-          "binding": { "kind": "connect-rpc", "service": "MetricsService", "method": "Get" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MetricsService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -159,91 +357,251 @@
         {
           "name": "list",
           "description": "List active sessions",
-          "binding": { "kind": "connect-rpc", "service": "SessionsService", "method": "List" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "get",
           "description": "Show one session",
           "positionals": [
-            { "name": "session-id", "required": true, "description": "Session ID" }
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID",
+              "bind": {
+                "field": "id"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SessionsService", "method": "Get" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "create",
           "description": "Create a session (optionally --body-file PATH)",
           "flags": [
-            { "name": "shell", "description": "Shell to run (default: user shell)" },
-            { "name": "cols", "description": "Initial columns" },
-            { "name": "rows", "description": "Initial rows" },
-            { "name": "backend", "description": "Backend id (e.g. pty, tmux)" },
-            { "name": "origin", "description": "Provenance: ui|programmatic|remote (default: programmatic)" },
-            { "name": "owner", "description": "Free-form provenance tag, e.g. agent-manager" },
-            { "name": "label", "description": "Human-facing label for the sidebar" },
-            { "name": "launch-command", "description": "Command staged (or executed) in the new session" },
-            { "name": "execute-launch-command", "bool": true, "description": "Run the launch command immediately instead of only staging it" },
-            { "name": "body-file", "description": "Path to a JSON body (overrides individual flags)" }
+            {
+              "name": "shell",
+              "description": "Shell to run (default: user shell)"
+            },
+            {
+              "name": "cols",
+              "description": "Initial columns"
+            },
+            {
+              "name": "rows",
+              "description": "Initial rows"
+            },
+            {
+              "name": "backend",
+              "description": "Backend id (e.g. pty, tmux)"
+            },
+            {
+              "name": "origin",
+              "description": "Provenance: ui|programmatic|remote (default: programmatic)"
+            },
+            {
+              "name": "owner",
+              "description": "Free-form provenance tag, e.g. agent-manager"
+            },
+            {
+              "name": "label",
+              "description": "Human-facing label for the sidebar"
+            },
+            {
+              "name": "launch-command",
+              "description": "Command staged (or executed) in the new session"
+            },
+            {
+              "name": "execute-launch-command",
+              "bool": true,
+              "description": "Run the launch command immediately instead of only staging it"
+            },
+            {
+              "name": "body-file",
+              "description": "Path to a JSON body (overrides individual flags)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SessionsService", "method": "Create" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "Create"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "delete",
           "description": "Terminate a session",
           "positionals": [
-            { "name": "session-id", "required": true, "description": "Session ID" }
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SessionsService", "method": "Delete" },
-          "governance": { "effect": "destructive", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "Delete"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "policy-get",
           "description": "Show the expiration policy for a session",
           "positionals": [
-            { "name": "session-id", "required": true, "description": "Session ID" }
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID",
+              "bind": {
+                "field": "id"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SessionsService", "method": "GetPolicy" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "GetPolicy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "policy-set",
           "description": "Set the expiration policy (--mode, optional --duration)",
           "positionals": [
-            { "name": "session-id", "required": true, "description": "Session ID" }
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID"
+            }
           ],
           "flags": [
-            { "name": "mode", "description": "Policy mode (required)" },
-            { "name": "duration", "description": "Optional duration (e.g. 1h, 30m)" },
-            { "name": "body-file", "description": "Path to a JSON body (overrides --mode/--duration)" }
+            {
+              "name": "mode",
+              "description": "Policy mode (required)"
+            },
+            {
+              "name": "duration",
+              "description": "Optional duration (e.g. 1h, 30m)"
+            },
+            {
+              "name": "body-file",
+              "description": "Path to a JSON body (overrides --mode/--duration)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SessionsService", "method": "UpdatePolicy" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "UpdatePolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "list-recoverable",
           "description": "List orphaned persistent sessions awaiting recovery",
-          "binding": { "kind": "connect-rpc", "service": "SessionsService", "method": "ListRecoverable" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "ListRecoverable"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "recover",
           "description": "Recover an orphaned persistent session into a fresh pane",
           "positionals": [
-            { "name": "session-id", "required": true, "description": "Session ID" }
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SessionsService", "method": "Recover" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "Recover"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "dismiss",
           "description": "Permanently dismiss an orphaned session row (preserves on-disk state)",
           "positionals": [
-            { "name": "session-id", "required": true, "description": "Session ID" }
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SessionsService", "method": "DismissRecoverable" },
-          "governance": { "effect": "destructive", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "DismissRecoverable"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -254,17 +612,40 @@
         {
           "name": "session-defaults-get",
           "description": "Show default values applied to new sessions",
-          "binding": { "kind": "connect-rpc", "service": "SettingsService", "method": "GetSessionDefaults" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SettingsService",
+            "method": "GetSessionDefaults"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "session-defaults-set",
           "description": "Update default session settings (--body-file PATH)",
           "flags": [
-            { "name": "body-file", "description": "Path to a JSON body with session defaults (required)" }
+            {
+              "name": "body-file",
+              "description": "Path to a JSON body with session defaults (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SettingsService", "method": "UpdateSessionDefaults" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SettingsService",
+            "method": "UpdateSessionDefaults"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -275,32 +656,79 @@
         {
           "name": "effective",
           "description": "Show the effective shortcut list",
-          "binding": { "kind": "connect-rpc", "service": "ShortcutsService", "method": "GetEffective" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ShortcutsService",
+            "method": "GetEffective"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "list",
           "description": "List all shortcut profiles",
-          "binding": { "kind": "connect-rpc", "service": "ShortcutsService", "method": "ListProfiles" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ShortcutsService",
+            "method": "ListProfiles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "upsert",
           "description": "Create or update a shortcut profile (--body-file PATH)",
           "flags": [
-            { "name": "body-file", "description": "Path to a JSON profile body (required)" }
+            {
+              "name": "body-file",
+              "description": "Path to a JSON profile body (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ShortcutsService", "method": "UpsertProfile" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ShortcutsService",
+            "method": "UpsertProfile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "delete",
           "description": "Delete a shortcut profile",
           "positionals": [
-            { "name": "profile-id", "required": true, "description": "Profile ID" }
+            {
+              "name": "profile-id",
+              "required": true,
+              "description": "Profile ID"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ShortcutsService", "method": "DeleteProfile" },
-          "governance": { "effect": "destructive", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ShortcutsService",
+            "method": "DeleteProfile"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -311,73 +739,181 @@
         {
           "name": "layout-get",
           "description": "Show the current workspace layout",
-          "binding": { "kind": "connect-rpc", "service": "WorkspaceService", "method": "GetLayout" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "GetLayout"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "layout-save",
           "description": "Save a workspace layout (--body-file PATH)",
           "flags": [
-            { "name": "body-file", "description": "Path to a JSON layout body (required)" }
+            {
+              "name": "body-file",
+              "description": "Path to a JSON layout body (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "WorkspaceService", "method": "SaveLayout" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "SaveLayout"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "pane-update",
           "description": "Update a pane assignment (--body-file PATH)",
           "positionals": [
-            { "name": "session-id", "required": true, "description": "Session ID" }
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID"
+            }
           ],
           "flags": [
-            { "name": "body-file", "description": "Path to a JSON pane body (required)" }
+            {
+              "name": "body-file",
+              "description": "Path to a JSON pane body (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "WorkspaceService", "method": "UpdatePane" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "UpdatePane"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "pane-delete",
           "description": "Remove a pane assignment",
           "positionals": [
-            { "name": "session-id", "required": true, "description": "Session ID" }
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session ID"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "WorkspaceService", "method": "DeletePane" },
-          "governance": { "effect": "destructive", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "DeletePane"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "group-create",
           "description": "Create a workspace group (--body-file PATH)",
           "flags": [
-            { "name": "body-file", "description": "Path to a JSON group body (required)" }
+            {
+              "name": "body-file",
+              "description": "Path to a JSON group body (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "WorkspaceService", "method": "CreateGroup" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "CreateGroup"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "group-update",
           "description": "Update a workspace group (--body-file PATH)",
           "positionals": [
-            { "name": "group-id", "required": true, "description": "Group ID" }
+            {
+              "name": "group-id",
+              "required": true,
+              "description": "Group ID"
+            }
           ],
           "flags": [
-            { "name": "body-file", "description": "Path to a JSON group body (required)" }
+            {
+              "name": "body-file",
+              "description": "Path to a JSON group body (required)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "WorkspaceService", "method": "UpdateGroup" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "UpdateGroup"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "group-delete",
           "description": "Delete a workspace group",
           "positionals": [
-            { "name": "group-id", "required": true, "description": "Group ID" }
+            {
+              "name": "group-id",
+              "required": true,
+              "description": "Group ID"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "WorkspaceService", "method": "DeleteGroup" },
-          "governance": { "effect": "destructive", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WorkspaceService",
+            "method": "DeleteGroup"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     }
   ],
   "omitted": [
+    {
+      "service": "ConversationService",
+      "method": "GetRange",
+      "reason": "Conversation range retrieval is available through the web-console UI/API flow; no stable CLI command is exposed today."
+    },
+    {
+      "service": "ConversationService",
+      "method": "Search",
+      "reason": "Conversation search is available through the web-console UI/API flow; no stable CLI command is exposed today."
+    },
     {
       "service": "CapabilitiesService",
       "method": "Liveness",

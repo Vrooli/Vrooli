@@ -10,7 +10,9 @@ import sys
 def namespace_from_manifest(path: str | Path) -> dict[str, dict[str, str]]:
     manifest = json.loads(Path(path).read_text())
     return {
-        group["name"]: {command["name"]: command["name"] for command in group.get("commands", [])}
+        group["name"].replace("-", "_"): {
+            command["name"].replace("-", "_"): command["name"] for command in group.get("commands", [])
+        }
         for group in manifest.get("groups", [])
     }
 

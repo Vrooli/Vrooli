@@ -217,6 +217,39 @@ func TestRunScenarioFailedExecutionAddsFinding(t *testing.T) {
 	require.Contains(t, finding.Description, "button not found")
 }
 
+func TestRunScenarioRefusesElectronTargetWithoutProvenIsolation(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	client := &fakeBASClient{}
+	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{
+		IncludeExecution:  true,
+		ElectronTarget:    &ElectronTarget{TargetID: "target-1", CDPEndpoint: "http://127.0.0.1:9222", RendererID: "renderer-1"},
+		ValidationContext: &ValidationContext{ContextID: "ctx-1", IsolationLeaseID: "lease-1"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Summary.Refused)
+	require.Zero(t, client.executeCalls)
+	require.Contains(t, report.Runs[0].Error, "proven routed test isolation")
+}
+
+func TestRunScenarioBindsElectronValidationToSelectedAsset(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	client := &fakeBASClient{}
+	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{
+		IncludeExecution: true,
+		Isolation:        &fakeIsolation{evidence: IsolationEvidence{LeaseID: "lease-1"}},
+		ElectronTarget: &ElectronTarget{
+			TargetID: "target-1", CDPEndpoint: "http://127.0.0.1:9222", RendererID: "renderer-1",
+			ScenarioName: "sample", ArtifactDigest: "sha256:app", ContextID: "ctx-1", CDPTransport: "loopback-authenticated",
+		},
+		ValidationContext: &ValidationContext{ContextID: "ctx-1", ScenarioName: "sample", ArtifactDigest: "sha256:app", TargetID: "target-1", ProfileID: "normal", IsolationLeaseID: "lease-1"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Summary.Passed)
+	require.NotNil(t, client.lastRequest.Options.ElectronTarget)
+	require.Equal(t, report.Runs[0].Asset.ID, client.lastRequest.Options.ValidationContext.WorkflowID)
+	require.Equal(t, "lease-1", client.lastRequest.Options.ValidationContext.IsolationLeaseID)
+}
+
 func makeExecutionFixture(t *testing.T, mutating bool) string {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "sample")

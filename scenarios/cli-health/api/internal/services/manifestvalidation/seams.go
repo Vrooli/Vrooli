@@ -2,8 +2,11 @@ package manifestvalidation
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	measures "github.com/vrooli/measures-go"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // MeasureSchemaReader resolves the proto-derived param schema for a measure
@@ -54,6 +57,19 @@ type ProtoLoader interface {
 type ProtoSurface struct {
 	Services []ProtoService
 	Shared   []ProtoService
+	// Requests carries descriptor-backed request messages keyed by
+	// Service.Method. It is optional so lightweight validator seams can keep
+	// using service-only fixtures.
+	Requests          map[string]protoreflect.MessageDescriptor
+	RequestCandidates map[string][]ProtoRequestCandidate
+}
+
+// ProtoRequestCandidate keeps enough provenance to apply the same
+// own-package-first rule as program-runtime when short service names collide.
+type ProtoRequestCandidate struct {
+	Request protoreflect.MessageDescriptor
+	Source  string
+	Shared  bool
 }
 
 type ProtoService struct {
@@ -108,4 +124,37 @@ func (p ProtoSurface) HasService(service string) bool {
 		}
 	}
 	return false
+}
+
+// ResolveRequest applies own-package-first resolution to a short service and
+// method name. It returns an error naming all candidates when the declaration
+// is ambiguous rather than silently selecting descriptor iteration order.
+func (p ProtoSurface) ResolveRequest(service, method string) (protoreflect.MessageDescriptor, error) {
+	candidates := p.RequestCandidates[service+"."+method]
+	if len(candidates) == 0 {
+		return p.Requests[service+"."+method], nil
+	}
+	var own, shared []ProtoRequestCandidate
+	for _, candidate := range candidates {
+		if candidate.Shared {
+			shared = append(shared, candidate)
+		} else {
+			own = append(own, candidate)
+		}
+	}
+	selected := own
+	if len(selected) == 0 {
+		selected = shared
+	}
+	if len(selected) > 1 {
+		labels := make([]string, 0, len(selected))
+		for _, candidate := range selected {
+			labels = append(labels, candidate.Source)
+		}
+		return nil, fmt.Errorf("service %s.%s is ambiguous across %s", service, method, strings.Join(labels, ", "))
+	}
+	if len(selected) == 1 {
+		return selected[0].Request, nil
+	}
+	return nil, nil
 }

@@ -18,12 +18,13 @@ import (
 )
 
 type Runner interface {
-	Execute(context.Context, string, string) (Result, error)
+	Execute(context.Context, string, string, bool) (Result, error)
 }
 type Result struct {
 	Stdout            string
 	ContextBytes      int64
 	MaterializedBytes int64
+	OutputLimitBytes  int64
 	Invocations       []Invocation
 }
 
@@ -71,14 +72,18 @@ func (s *Service) Submit(ctx context.Context, sessionID, source string, provenan
 	}
 	s.appendEvent(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: p.CreatedAt, Kind: telemetryv1.EventKind_PROGRAM_SUBMITTED, ProgramId: p.Id, SessionId: p.SessionId, Provenance: p.Provenance.String()})
 	if s.runner != nil {
-		result, err := s.runner.Execute(ctx, sessionID, source)
+		result, err := s.runner.Execute(ctx, sessionID, source, includeMaterialized)
 		p.Stdout, p.ContextBytes = result.Stdout, result.ContextBytes
+		p.OutputLimitBytes = result.OutputLimitBytes
 		for _, invocation := range result.Invocations {
 			s.appendEvent(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: p.CreatedAt, Kind: telemetryv1.EventKind_BINDING_INVOKED, ProgramId: p.Id, SessionId: p.SessionId, BindingId: invocation.BindingID, Effect: invocation.Effect, Provenance: p.Provenance.String()})
 		}
-		if !includeMaterialized {
-			p.Stdout = boundedText(p.Stdout, 4096)
+		limit := 4096
+		if includeMaterialized {
+			limit = 65536
 		}
+		p.OutputLimitBytes = int64(limit)
+		p.Stdout = boundedText(p.Stdout, limit)
 		if err != nil {
 			p.Status = "failed"
 			p.FailureDetail = err.Error()

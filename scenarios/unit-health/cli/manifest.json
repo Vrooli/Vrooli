@@ -11,19 +11,52 @@
           "name": "scenario",
           "description": "Validate a scenario's test execution, coverage, architecture, quality, and local test maturity",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario slug to validate" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to validate"
+            }
           ],
           "flags": [
-            { "name": "path", "description": "Filesystem path to validate instead of a scenario slug" },
-            { "name": "workspace", "description": "Restrict validation to a workspace id (repeatable)" },
-            { "name": "execution", "bool": true, "description": "Execute planned test commands (default: plan only)" },
-            { "name": "json", "description": "Emit JSON output" }
+            {
+              "name": "path",
+              "description": "Filesystem path to validate instead of a scenario slug"
+            },
+            {
+              "name": "workspace",
+              "description": "Restrict validation to a workspace id (repeatable)",
+              "bind": {
+                "field": "workspaces"
+              }
+            },
+            {
+              "name": "execution",
+              "bool": true,
+              "description": "Execute planned test commands (default: plan only)",
+              "bind": {
+                "field": "include_execution"
+              }
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bind": {
+                "field": "scenario"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ValidationService", "method": "ValidateScenario" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ValidateScenario"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["filesystem:read", "network:internal"]
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
           }
         }
       ]

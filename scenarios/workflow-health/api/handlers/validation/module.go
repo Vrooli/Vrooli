@@ -116,7 +116,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Start a durable workflow validation run",
 		Description: "Persists a provider-owned execution run and returns promptly with static evidence and a reattachable handle.",
 		Category:    "validation",
-		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "idempotency_key": "string", "parent_run_id": "string"}},
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "idempotency_key": "string", "parent_run_id": "string", "desktop_binding": "scenario_validation.v1.DesktopValidationBinding"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"run": "scenario_validation.v1.ValidationRun"}},
 	},
 	{

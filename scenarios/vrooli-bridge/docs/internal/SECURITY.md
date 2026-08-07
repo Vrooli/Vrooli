@@ -112,13 +112,12 @@ accidentally move a secret to weaker custody.
   control plane, and a `401` on a token-bearing request clears the session and
   returns the console to the sign-in screen. There is deliberately no refresh
   flow: expiry means signing in again.
-- **Vault rejected for now — named upgrade path.** A dev-mode, root-token Vault
-  on the same host is not stronger than `0600` files and adds a hard runtime
-  dependency to onboarding; it becomes the upgrade path only once Vault grows
-  real policies, rotation, and an SSH-CA. Until then, resource-vault content KV
-  remains the right home for **durable named secrets** (the kopia precedent), and
-  third-party API tokens stay in env vars — but the bridge's own onboarding
-  credentials do **not** gain from routing through a root-token dev Vault.
+- **Credential authority is the ordinary boundary.** A dev-mode, root-token
+  Vault on the same host is not stronger than the native credential authority
+  or operator-controlled encrypted backup and adds a hard runtime dependency to
+  onboarding. Durable named secrets and third-party API tokens therefore use
+  the canonical credential authority; the bridge's own onboarding credentials
+  are never routed through a root-token Vault.
 
 **Known residue (accepted).** The SSH key-copy seam materializes the password as
 an **immutable Go string** to satisfy the `KeyCopier` interface, so that copy is

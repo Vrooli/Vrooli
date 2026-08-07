@@ -13,7 +13,10 @@
           "flags": [
             {
               "name": "name",
-              "description": "Filter by case-insensitive name substring"
+              "description": "Filter by case-insensitive name substring",
+              "bind": {
+                "field": "name_contains"
+              }
             },
             {
               "name": "limit",
@@ -282,7 +285,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario to brand"
+              "description": "Scenario to brand",
+              "bind": {
+                "field": "scenario_name"
+              }
             },
             {
               "name": "elements",
@@ -309,7 +315,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ],
           "binding": {
@@ -332,7 +341,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name"
+              "description": "Scenario name",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ],
           "binding": {
@@ -352,7 +364,7 @@
     },
     {
       "name": "assets",
-      "description": "Upload, fetch, and remove brand asset files (logo, favicon, icon, …)",
+      "description": "Upload, fetch, and remove brand asset files (logo, favicon, icon, \u2026)",
       "commands": [
         {
           "name": "list",
@@ -388,7 +400,10 @@
             {
               "name": "file",
               "required": true,
-              "description": "Path to the local file to upload"
+              "description": "Path to the local file to upload",
+              "bind": {
+                "field": "filename"
+              }
             },
             {
               "name": "filename",
@@ -449,7 +464,10 @@
           "flags": [
             {
               "name": "out",
-              "description": "Output path (defaults to the stored filename in the working directory)"
+              "description": "Output path (defaults to the stored filename in the working directory)",
+              "bind": {
+                "field": "id"
+              }
             }
           ],
           "binding": {
@@ -493,7 +511,7 @@
     },
     {
       "name": "generation",
-      "description": "Generate brand text facets (Ollama → OpenRouter) and brand images via image-tools",
+      "description": "Generate brand text facets (Ollama \u2192 OpenRouter) and brand images via image-tools",
       "commands": [
         {
           "name": "status",
@@ -575,7 +593,10 @@
             },
             {
               "name": "model",
-              "description": "image-tools model id override (optional)"
+              "description": "image-tools model id override (optional)",
+              "bind": {
+                "field": "model_override"
+              }
             },
             {
               "name": "seed",
@@ -584,7 +605,10 @@
             {
               "name": "byok",
               "bool": true,
-              "description": "Permit metered BYOK cloud fallback; defaults on unless fallback-policy=local_only"
+              "description": "Permit metered BYOK cloud fallback; defaults on unless fallback-policy=local_only",
+              "bind": {
+                "field": "allow_byok"
+              }
             },
             {
               "name": "quality-policy",
@@ -601,7 +625,10 @@
             {
               "name": "no-reclaim",
               "bool": true,
-              "description": "Do not reclaim cold-idle local resources for this generation"
+              "description": "Do not reclaim cold-idle local resources for this generation",
+              "bind": {
+                "field": "allow_reclaim"
+              }
             },
             {
               "name": "set-canonical",
@@ -639,11 +666,17 @@
             {
               "name": "prompt",
               "required": true,
-              "description": "Natural-language edit instruction"
+              "description": "Natural-language edit instruction",
+              "bind": {
+                "field": "priority"
+              }
             },
             {
               "name": "model",
-              "description": "image-tools model id override (optional)"
+              "description": "image-tools model id override (optional)",
+              "bind": {
+                "field": "model_override"
+              }
             },
             {
               "name": "seed",
@@ -652,7 +685,10 @@
             {
               "name": "byok",
               "bool": true,
-              "description": "Permit metered BYOK cloud fallback; defaults on unless fallback-policy=local_only"
+              "description": "Permit metered BYOK cloud fallback; defaults on unless fallback-policy=local_only",
+              "bind": {
+                "field": "allow_byok"
+              }
             },
             {
               "name": "quality-policy",
@@ -669,7 +705,10 @@
             {
               "name": "no-reclaim",
               "bool": true,
-              "description": "Do not reclaim cold-idle local resources for this edit"
+              "description": "Do not reclaim cold-idle local resources for this edit",
+              "bind": {
+                "field": "allow_reclaim"
+              }
             },
             {
               "name": "set-canonical",
@@ -706,12 +745,18 @@
             },
             {
               "name": "model",
-              "description": "image-tools model id override (optional)"
+              "description": "image-tools model id override (optional)",
+              "bind": {
+                "field": "model_override"
+              }
             },
             {
               "name": "byok",
               "bool": true,
-              "description": "Permit metered BYOK cloud fallback"
+              "description": "Permit metered BYOK cloud fallback",
+              "bind": {
+                "field": "allow_byok"
+              }
             },
             {
               "name": "set-canonical",
@@ -749,17 +794,26 @@
             {
               "name": "favicon",
               "bool": true,
-              "description": "Emit transparent favicon PNGs (16/32/196). If no include flag is set, all families are produced"
+              "description": "Emit transparent favicon PNGs (16/32/196). If no include flag is set, all families are produced",
+              "bind": {
+                "field": "include_favicon"
+              }
             },
             {
               "name": "apple-touch",
               "bool": true,
-              "description": "Emit an opaque Apple-touch icon (180)"
+              "description": "Emit an opaque Apple-touch icon (180)",
+              "bind": {
+                "field": "include_apple_touch"
+              }
             },
             {
               "name": "maskable",
               "bool": true,
-              "description": "Emit maskable launcher icons (192/512, solid background)"
+              "description": "Emit maskable launcher icons (192/512, solid background)",
+              "bind": {
+                "field": "include_maskable"
+              }
             }
           ],
           "binding": {
@@ -793,7 +847,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Target scenario name (its directory must exist)"
+              "description": "Target scenario name (its directory must exist)",
+              "bind": {
+                "field": "scenario_name"
+              }
             },
             {
               "name": "elements",
@@ -825,7 +882,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Target scenario name (its directory must exist)"
+              "description": "Target scenario name (its directory must exist)",
+              "bind": {
+                "field": "scenario_name"
+              }
             },
             {
               "name": "elements",
@@ -859,7 +919,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name to scan (its directory must exist)"
+              "description": "Scenario name to scan (its directory must exist)",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ],
           "binding": {
@@ -882,7 +945,10 @@
             {
               "name": "scenario",
               "required": true,
-              "description": "Scenario name to scan and import from (its directory must exist)"
+              "description": "Scenario name to scan and import from (its directory must exist)",
+              "bind": {
+                "field": "scenario_name"
+              }
             }
           ],
           "binding": {
@@ -950,7 +1016,10 @@
             },
             {
               "name": "json",
-              "description": "Render the raw shared validation response as JSON"
+              "description": "Render the raw shared validation response as JSON",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {

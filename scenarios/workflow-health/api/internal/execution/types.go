@@ -35,6 +35,10 @@ type Options struct {
 	RequiresTrace      bool
 	RequiresHAR        bool
 	Isolation          IsolationCoordinator
+	// ElectronTarget attaches selected existing workflow assets to a
+	// target-owned Electron renderer. ValidationContext is required with it.
+	ElectronTarget    *ElectronTarget
+	ValidationContext *ValidationContext
 }
 
 type Report struct {
@@ -135,12 +139,36 @@ type Parameters struct {
 }
 
 type ExecuteOptions struct {
-	CollectConsole bool
-	CollectNetwork bool
-	CollectDOM     bool
-	RequiresVideo  bool
-	RequiresTrace  bool
-	RequiresHAR    bool
+	CollectConsole    bool
+	CollectNetwork    bool
+	CollectDOM        bool
+	RequiresVideo     bool
+	RequiresTrace     bool
+	RequiresHAR       bool
+	ElectronTarget    *ElectronTarget
+	ValidationContext *ValidationContext
+}
+
+type ElectronTarget struct {
+	TargetID       string
+	CDPEndpoint    string
+	RendererID     string
+	RendererURL    string
+	RendererTitle  string
+	ScenarioName   string
+	ArtifactDigest string
+	ContextID      string
+	CDPTransport   string
+}
+
+type ValidationContext struct {
+	ContextID        string
+	ScenarioName     string
+	ArtifactDigest   string
+	TargetID         string
+	WorkflowID       string
+	ProfileID        string
+	IsolationLeaseID string
 }
 
 type ExecuteResult struct {

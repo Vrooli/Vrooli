@@ -10,10 +10,37 @@
         {
           "name": "scenario",
           "description": "Run storage analyzers against a scenario",
-          "positionals": [{ "name": "name", "required": true, "description": "Scenario id" }],
-          "flags": [{ "name": "platform", "description": "linux, macos, or windows" }],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ValidateScenario" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id",
+              "bind": {
+                "field": "scenario"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "platform",
+              "description": "linux, macos, or windows",
+              "bind": {
+                "field": "path"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -24,18 +51,67 @@
         {
           "name": "preview",
           "description": "Preview storage fixes without writing",
-          "positionals": [{ "name": "name", "required": true, "description": "Scenario id" }],
-          "flags": [{ "name": "rule", "description": "Finding code filter" }],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "PreviewFix" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id",
+              "bind": {
+                "field": "scenario"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Finding code filter",
+              "bind": {
+                "field": "rule_ids"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "apply",
           "description": "Apply deterministic storage fixes",
-          "positionals": [{ "name": "name", "required": true, "description": "Scenario id" }],
-          "flags": [{ "name": "rule", "description": "Finding code filter" }],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ApplyFix" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["filesystem:write", "network:internal"] }
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Finding code filter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -47,18 +123,56 @@
           "name": "scan",
           "description": "Scan storage posture across scenarios",
           "flags": [
-            { "name": "scenario", "description": "Scenario filter" },
-            { "name": "view", "description": "all, isolation, no-backup, engines, or stages" }
+            {
+              "name": "scenario",
+              "description": "Scenario filter",
+              "bind": {
+                "field": "scenarios"
+              }
+            },
+            {
+              "name": "view",
+              "description": "all, isolation, no-backup, engines, or stages",
+              "bind": {
+                "field": "scenarios"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "FleetService", "method": "ScanFleet" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FleetService",
+            "method": "ScanFleet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "inventory",
           "description": "Read the latest fleet snapshot",
-          "flags": [{ "name": "view", "description": "all, isolation, no-backup, engines, or stages" }],
-          "binding": { "kind": "connect-rpc", "service": "FleetService", "method": "GetInventory" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "view",
+              "description": "all, isolation, no-backup, engines, or stages",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FleetService",
+            "method": "GetInventory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -69,16 +183,52 @@
         {
           "name": "migrations",
           "description": "Analyze migration hygiene",
-          "flags": [{ "name": "scenario", "description": "Scenario filter" }],
-          "binding": { "kind": "connect-rpc", "service": "AdvisorService", "method": "AnalyzeMigrations" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Scenario filter",
+              "bind": {
+                "field": "scenarios"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisorService",
+            "method": "AnalyzeMigrations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "engines",
           "description": "Rank engine migration candidates",
-          "flags": [{ "name": "scenario", "description": "Scenario filter" }],
-          "binding": { "kind": "connect-rpc", "service": "AdvisorService", "method": "AdviseEngines" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Scenario filter",
+              "bind": {
+                "field": "scenarios"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdvisorService",
+            "method": "AdviseEngines"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -89,9 +239,22 @@
         {
           "name": "verify",
           "description": "Verify declarations for a target platform",
-          "flags": [{ "name": "platform", "description": "linux, macos, or windows (defaults to the host)" }],
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "platform",
+              "description": "linux, macos, or windows (defaults to the host)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -102,23 +265,64 @@
         {
           "name": "inspect",
           "description": "Compare declared and observed storage",
-          "positionals": [{ "name": "owner", "required": true, "description": "Owner id" }],
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owner id"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "suggest",
           "description": "Emit a measured storage.entries block",
-          "positionals": [{ "name": "owner", "required": true, "description": "Owner id" }],
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owner id"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "check",
           "description": "Report declaration coverage",
-          "flags": [{ "name": "kind", "description": "scenario, resource, tool, or safeguard" }],
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "kind",
+              "description": "scenario, resource, tool, or safeguard"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -329,56 +533,128 @@
         {
           "name": "status",
           "description": "Run a read-only storage census for the repository root",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "census",
           "description": "Run a read-only storage census",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "history",
           "description": "Show persisted census snapshots and growth observations",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "retention",
           "description": "Show retention budgets across every owner kind",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "placement",
           "description": "Show resolved cross-platform storage placement",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "placement-audit",
           "description": "Show placement migration audit events",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "adoption",
           "description": "Show declaration adoption coverage and suggestions",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "infra-health",
           "description": "Show persisted storage infra-health signal",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "inventory",
           "description": "List every storage owner and declaration",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     }
@@ -387,13 +663,37 @@
     "domains": []
   },
   "exceptions": [
-    { "command": "validate prove-isolation", "class": "external_delegation", "reason": "API-free static source proof is intentionally outside Connect-RPC dispatch." },
-    { "command": "validate resource", "class": "passthrough", "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds." },
-    { "command": "validate tool", "class": "passthrough", "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds." },
-    { "command": "validate safeguard", "class": "passthrough", "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds." },
-    { "command": "validate fleet", "class": "passthrough", "reason": "Fleet validation aggregates REST owner reports and is appended outside the Connect-RPC manifest binding path." }
+    {
+      "command": "validate prove-isolation",
+      "class": "external_delegation",
+      "reason": "API-free static source proof is intentionally outside Connect-RPC dispatch."
+    },
+    {
+      "command": "validate resource",
+      "class": "passthrough",
+      "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds."
+    },
+    {
+      "command": "validate tool",
+      "class": "passthrough",
+      "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds."
+    },
+    {
+      "command": "validate safeguard",
+      "class": "passthrough",
+      "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds."
+    },
+    {
+      "command": "validate fleet",
+      "class": "passthrough",
+      "reason": "Fleet validation aggregates REST owner reports and is appended outside the Connect-RPC manifest binding path."
+    }
   ],
   "omitted": [
-    { "service": "ScenarioValidationService", "method": "DescribeProvider", "reason": "Provider descriptors are consumed by the dashboard and Test Genie integration; the CLI does not duplicate them." }
+    {
+      "service": "ScenarioValidationService",
+      "method": "DescribeProvider",
+      "reason": "Provider descriptors are consumed by the dashboard and Test Genie integration; the CLI does not duplicate them."
+    }
   ]
 }

@@ -78,7 +78,10 @@ func (d *HTTPDelegator) Delegate(ctx context.Context, request DelegationRequest)
 		return nil, fmt.Errorf("start delegated run: response did not contain execution id")
 	}
 
-	wait, err := d.post(ctx, base+"/api/v1/workflow-executions/"+executionID+"/wait", map[string]any{"timeoutSeconds": 30})
+	wait, err := d.post(ctx, base+"/api/v1/workflow-executions/"+executionID+"/wait", map[string]any{
+		"executionId":    executionID,
+		"timeoutSeconds": 30,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("wait delegated run %s: %w", executionID, err)
 	}

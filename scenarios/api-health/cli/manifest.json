@@ -14,7 +14,10 @@
             {
               "name": "name",
               "required": true,
-              "description": "Scenario id (directory name under scenarios/)"
+              "description": "Scenario id (directory name under scenarios/)",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "flags": [
@@ -51,7 +54,10 @@
             {
               "name": "name",
               "required": true,
-              "description": "Scenario id (directory name under scenarios/)"
+              "description": "Scenario id (directory name under scenarios/)",
+              "bind": {
+                "field": "scenario"
+              }
             },
             {
               "name": "rule_ids",

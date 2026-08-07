@@ -123,7 +123,7 @@ func TestHandler_RequiresOwner(t *testing.T) {
 }
 
 func TestHandler_Create_MapsLocatorsAndDoesNotExposeTrustReferences(t *testing.T) {
-	svc := &fakeService{createOut: internalmachines.Machine{ID: "m1", Lifecycle: internalmachines.LifecycleActive, Version: 1, TrustRef: "vault://secret/client-key"}}
+	svc := &fakeService{createOut: internalmachines.Machine{ID: "m1", Lifecycle: internalmachines.LifecycleActive, Version: 1, TrustRef: "vrooli/bridge:client-key"}}
 	h := NewConnectHandler(Deps{Service: svc})
 	resp, err := h.CreateMachine(machineOwnerContext(), connect.NewRequest(&machinesv1.CreateMachineRequest{
 		Locators:         []*machinesv1.ConnectionLocator{{Kind: "hostname", Value: "Host.Example.", Ordinal: 2}},
@@ -134,7 +134,7 @@ func TestHandler_Create_MapsLocatorsAndDoesNotExposeTrustReferences(t *testing.T
 	require.Equal(t, internalmachines.Locator{Kind: "hostname", Value: "Host.Example.", Ordinal: 2}, svc.createInput.Locators[0])
 	require.Equal(t, "standard", svc.createInput.DesiredProfileID)
 	// The wire contract has no TrustRef: secret manager locations remain opaque.
-	require.NotContains(t, resp.Msg.Machine.String(), "vault://secret")
+	require.NotContains(t, resp.Msg.Machine.String(), "vrooli/bridge:client-key")
 }
 
 func TestHandler_Create_DryRunDoesNotPersistMachine(t *testing.T) {

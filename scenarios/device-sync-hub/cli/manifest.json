@@ -11,22 +11,61 @@
           "name": "login",
           "description": "Sign in as the owner and store the returned token",
           "flags": [
-            { "name": "email", "required": true, "description": "Owner account email" },
-            { "name": "password", "required": true, "description": "Owner account password" }
+            {
+              "name": "email",
+              "required": true,
+              "description": "Owner account email"
+            },
+            {
+              "name": "password",
+              "required": true,
+              "description": "Owner account password"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "IdentityService", "method": "Login" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IdentityService",
+            "method": "Login"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "register",
           "description": "Create the owner account and store the returned token",
           "flags": [
-            { "name": "email", "required": true, "description": "Owner account email" },
-            { "name": "password", "required": true, "description": "Owner account password" },
-            { "name": "username", "description": "Optional display name" }
+            {
+              "name": "email",
+              "required": true,
+              "description": "Owner account email"
+            },
+            {
+              "name": "password",
+              "required": true,
+              "description": "Owner account password"
+            },
+            {
+              "name": "username",
+              "description": "Optional display name"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "IdentityService", "method": "Register" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IdentityService",
+            "method": "Register"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -36,91 +75,247 @@
       "commands": [
         {
           "name": "setup",
-          "description": "Set up this hub's first device as the owner: claims the hub (first-owner-wins) and trusts this device directly — no pairing code. Run `auth login` first.",
+          "description": "Set up this hub's first device as the owner: claims the hub (first-owner-wins) and trusts this device directly \u2014 no pairing code. Run `auth login` first.",
           "flags": [
-            { "name": "name", "description": "This device's human-facing name" },
-            { "name": "kind", "description": "Coarse device kind (phone|laptop|tablet|server)" },
-            { "name": "platform", "description": "OS / platform string (e.g. linux, macos)" }
+            {
+              "name": "name",
+              "description": "This device's human-facing name",
+              "bind": {
+                "field": "profile"
+              }
+            },
+            {
+              "name": "kind",
+              "description": "Coarse device kind (phone|laptop|tablet|server)"
+            },
+            {
+              "name": "platform",
+              "description": "OS / platform string (e.g. linux, macos)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "SetupOwnerDevice" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "SetupOwnerDevice"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "list",
           "description": "List the owner's trusted devices (newest first)",
-          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "ListDevices" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "ListDevices"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "get",
           "description": "Get a device by id",
           "positionals": [
-            { "name": "id", "required": true, "description": "Device id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Device id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "GetDevice" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "GetDevice"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "pair",
           "description": "Issue a short-TTL, single-use pairing code for a new device to redeem (owner-authed)",
           "flags": [
-            { "name": "name", "description": "Optional label pre-assigned to the slot the redeeming device fills" }
+            {
+              "name": "name",
+              "description": "Optional label pre-assigned to the slot the redeeming device fills",
+              "bind": {
+                "field": "device_name"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "IssuePairingCode" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "IssuePairingCode"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "redeem",
           "description": "Redeem a pairing code as a NEW device; prints the one-time hub device token",
           "flags": [
-            { "name": "code", "required": true, "description": "Pairing code issued by the owner" },
-            { "name": "name", "description": "This device's human-facing name" },
-            { "name": "kind", "description": "Coarse device kind (phone|laptop|tablet|server)" },
-            { "name": "platform", "description": "OS / platform string (e.g. android, macos)" }
+            {
+              "name": "code",
+              "required": true,
+              "description": "Pairing code issued by the owner"
+            },
+            {
+              "name": "name",
+              "description": "This device's human-facing name",
+              "bind": {
+                "field": "code"
+              }
+            },
+            {
+              "name": "kind",
+              "description": "Coarse device kind (phone|laptop|tablet|server)"
+            },
+            {
+              "name": "platform",
+              "description": "OS / platform string (e.g. android, macos)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "RedeemPairingCode" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "RedeemPairingCode"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "request",
           "description": "Fallback join path: request pairing as a NEW device; prints an inert token that activates on owner approval",
           "flags": [
-            { "name": "name", "description": "This device's human-facing name" },
-            { "name": "kind", "description": "Coarse device kind (phone|laptop|tablet|server)" },
-            { "name": "platform", "description": "OS / platform string (e.g. android, macos)" }
+            {
+              "name": "name",
+              "description": "This device's human-facing name",
+              "bind": {
+                "field": "profile"
+              }
+            },
+            {
+              "name": "kind",
+              "description": "Coarse device kind (phone|laptop|tablet|server)"
+            },
+            {
+              "name": "platform",
+              "description": "OS / platform string (e.g. android, macos)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "RequestPairing" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "RequestPairing"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "approve",
           "description": "Approve a PENDING device, promoting it to TRUSTED (owner-authed)",
           "positionals": [
-            { "name": "device-id", "required": true, "description": "Pending device id (from the pairing-request banner)" }
+            {
+              "name": "device-id",
+              "required": true,
+              "description": "Pending device id (from the pairing-request banner)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "ApprovePairing" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "ApprovePairing"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "rename",
           "description": "Rename a device (owner-authed)",
           "positionals": [
-            { "name": "device-id", "required": true, "description": "Device id" }
+            {
+              "name": "device-id",
+              "required": true,
+              "description": "Device id"
+            }
           ],
           "flags": [
-            { "name": "name", "required": true, "description": "New human-facing name" }
+            {
+              "name": "name",
+              "required": true,
+              "description": "New human-facing name"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "RenameDevice" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "RenameDevice"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "revoke",
           "description": "Immediately sever a device's access: flip it to REVOKED and revoke its authenticator session (owner-authed)",
           "positionals": [
-            { "name": "device-id", "required": true, "description": "Device id" }
+            {
+              "name": "device-id",
+              "required": true,
+              "description": "Device id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "RevokeDevice" },
-          "governance": { "effect": "destructive", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevicesService",
+            "method": "RevokeDevice"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -132,55 +327,151 @@
           "name": "send-text",
           "description": "Send a text snippet to the trust group (or directed to one device)",
           "positionals": [
-            { "name": "text", "required": true, "description": "Snippet body" }
+            {
+              "name": "text",
+              "required": true,
+              "description": "Snippet body"
+            }
           ],
           "flags": [
-            { "name": "device-token", "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)" },
-            { "name": "name", "description": "Optional short label for the snippet" },
-            { "name": "retention", "description": "Lifetime policy (live|held|pinned; default applies global setting)" },
-            { "name": "target", "description": "Direct the snippet to a single device id (empty = broadcast)" }
+            {
+              "name": "device-token",
+              "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)",
+              "bind": {
+                "field": "target_device_id"
+              }
+            },
+            {
+              "name": "name",
+              "description": "Optional short label for the snippet"
+            },
+            {
+              "name": "retention",
+              "description": "Lifetime policy (live|held|pinned; default applies global setting)"
+            },
+            {
+              "name": "target",
+              "description": "Direct the snippet to a single device id (empty = broadcast)",
+              "bind": {
+                "field": "target_device_id"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "TransferService", "method": "CreateTextItem" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TransferService",
+            "method": "CreateTextItem"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "list",
           "description": "List the items this device may pull (broadcast, directed-to-it, or originated by it), newest first",
           "flags": [
-            { "name": "device-token", "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)" },
-            { "name": "query", "description": "Case-insensitive substring filter over item name / text" },
-            { "name": "kind", "description": "Filter by kind (text|file); omit for both" }
+            {
+              "name": "device-token",
+              "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)",
+              "bind": {
+                "field": "kind"
+              }
+            },
+            {
+              "name": "query",
+              "description": "Case-insensitive substring filter over item name / text"
+            },
+            {
+              "name": "kind",
+              "description": "Filter by kind (text|file); omit for both"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "TransferService", "method": "ListItems" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TransferService",
+            "method": "ListItems"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "get",
           "description": "Get a single item's metadata by id",
           "positionals": [
-            { "name": "id", "required": true, "description": "Item id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Item id"
+            }
           ],
           "flags": [
-            { "name": "device-token", "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)" }
+            {
+              "name": "device-token",
+              "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)",
+              "bind": {
+                "field": "id"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "TransferService", "method": "GetItem" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TransferService",
+            "method": "GetItem"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "delete",
           "description": "Delete an item and its blob (any trusted device of the owner may delete)",
           "positionals": [
-            { "name": "id", "required": true, "description": "Item id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Item id"
+            }
           ],
           "flags": [
-            { "name": "device-token", "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)" }
+            {
+              "name": "device-token",
+              "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)",
+              "bind": {
+                "field": "id"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "TransferService", "method": "DeleteItem" },
-          "governance": { "effect": "destructive", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TransferService",
+            "method": "DeleteItem"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     }
   ],
-  "measures": { "domains": [] },
+  "measures": {
+    "domains": []
+  },
   "omitted": []
 }
