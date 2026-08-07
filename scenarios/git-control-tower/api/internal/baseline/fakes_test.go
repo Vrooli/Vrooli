@@ -18,6 +18,7 @@ type fakeExecutor struct {
 	awaitResults []ExecResult
 	err          error // AwaitResult error (the run failed)
 	startErr     error // StartRun error (could not start the run)
+	startErrs    []error
 	calls        int
 	awaitCalls   int
 	// reusable / reusableHit / findErr script FindReusableRun (clean-tree reuse).
@@ -33,6 +34,16 @@ type fakeExecutor struct {
 func (f *fakeExecutor) StartRun(_ context.Context, _ string) (RunHandle, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if len(f.startErrs) > 0 {
+		index := f.calls
+		if index >= len(f.startErrs) {
+			index = len(f.startErrs) - 1
+		}
+		if err := f.startErrs[index]; err != nil {
+			f.calls++
+			return RunHandle{}, err
+		}
+	}
 	if f.startErr != nil {
 		return RunHandle{}, f.startErr
 	}

@@ -162,6 +162,84 @@ func TestCollectionCaptureMarksOnlyFailedMemberAndPreservesOtherStarts(t *testin
 	}
 }
 
+func TestCollectionCaptureAdmissionSaturationDefersMemberUntilSiblingCompletes(t *testing.T) {
+	svc, exec := collectionService(t)
+	exec.startErrs = []error{
+		nil,
+		errors.New("resource_exhausted: test-genie admission is saturated (caller queued run capacity)"),
+		nil,
+	}
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{
+			{Scenario: "first", BaselineName: "before", Required: true},
+			{Scenario: "deferred", BaselineName: "before", Required: true},
+		},
+	})
+	if err != nil || len(started.Pending) != 1 || started.Collection.Coverage().Pending != 2 {
+		t.Fatalf("capture = %#v err=%v", started, err)
+	}
+	if started.Collection.Members[0].Status == CollectionMemberFailed || started.Collection.Members[1].Status == CollectionMemberFailed {
+		t.Fatalf("admission saturation became terminal: %#v", started.Collection)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, started.Pending[0]); err != nil {
+		t.Fatal(err)
+	}
+	deferred, dispatched, err := svc.StartDeferredCollectionCapture(context.Background(), 1, started.Pending[0])
+	if err != nil || !dispatched || deferred.Pending.Run.RunID == "" {
+		t.Fatalf("deferred dispatch = %#v started=%v err=%v", deferred, dispatched, err)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, deferred); err != nil {
+		t.Fatal(err)
+	}
+	collection, err := svc.storage.LoadCollection(1, "agi", "before")
+	if err != nil || !collection.Coverage().Complete() {
+		t.Fatalf("deferred capture did not complete: %#v err=%v", collection, err)
+	}
+}
+
+func TestDeferredCollectionCaptureStopsAfterRequiredFailure(t *testing.T) {
+	svc, exec := collectionService(t)
+	exec.startErrs = []error{
+		nil,
+		errors.New("resource_exhausted: test-genie admission is saturated (caller queued run capacity)"),
+	}
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{
+			{Scenario: "failed", BaselineName: "before", Required: true},
+			{Scenario: "still-pending", BaselineName: "before", Required: true},
+		},
+	})
+	if err != nil || len(started.Pending) != 1 {
+		t.Fatalf("capture = %#v err=%v", started, err)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, started.Pending[0]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.storage.UpdateCollectionMember(1, "agi", "before", "failed", func(member *CollectionMember) error {
+		member.Status = CollectionMemberFailed
+		member.Error = "synthetic terminal failure"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	collection, err := svc.storage.LoadCollection(1, "agi", "before")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, dispatched, err := svc.StartDeferredCollectionCapture(context.Background(), 1, started.Pending[0]); err != nil || dispatched {
+		t.Fatalf("terminal failure dispatched deferred member: started=%v err=%v", dispatched, err)
+	}
+	collection, err = svc.storage.LoadCollection(1, "agi", "before")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exec.calls != 2 || collection.Members[1].RunID != "" || collection.Coverage().Pending != 1 {
+		t.Fatalf("deferred member started after terminal failure: calls=%d collection=%#v", exec.calls, collection)
+	}
+}
+
 func TestResumeCollectionCaptureReattachesDurablePendingMembers(t *testing.T) {
 	svc, exec := collectionService(t)
 	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{RepoID: 1, RepoDir: t.TempDir(), Name: "before", Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}}})
@@ -515,6 +593,53 @@ func TestCollectionDiffTerminalizesAfterBoundedDispatchFailures(t *testing.T) {
 	_, operation, standing, err := svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "bounded-dispatch")
 	if err != nil || operation.Members[0].Status != "failed" || standing.GetLifecycle() != "terminal" || !strings.Contains(operation.Members[0].Detail, "attempt 3") {
 		t.Fatalf("bounded dispatch did not terminalize: %#v standing=%#v err=%v", operation, standing, err)
+	}
+}
+
+func TestCollectionDiffAdmissionSaturationRemainsPendingUntilCapacityReturns(t *testing.T) {
+	svc, exec := collectionService(t)
+	captured, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{{Scenario: "plan-manager", BaselineName: "before", Required: true}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
+		t.Fatal(err)
+	}
+	exec.startErr = errors.New("resource_exhausted: test-genie admission is saturated (caller queued run capacity)")
+	request := StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "admission-saturation"}
+	started, err := svc.StartCollectionDiff(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	member := started.Operation.Members[0]
+	if member.Status != "pending" || member.DispatchAttempts != 0 || member.RunID != "" {
+		t.Fatalf("admission saturation should remain queued: %#v", member)
+	}
+
+	operation, err := svc.storage.LoadCollectionDiffOperation(1, "agi", "before", "admission-saturation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	operation.Members[0].DispatchLeaseExpiresAt = time.Now().Add(-time.Second)
+	if err := svc.storage.SaveCollectionDiffOperation(1, operation, Overwrite); err != nil {
+		t.Fatal(err)
+	}
+	exec.startErr = nil
+	_, operation, _, err = svc.GetCollectionDiffStatus(context.Background(), 1, "agi", "before", "admission-saturation")
+	if err != nil || operation.Members[0].Status != "ready" || exec.calls != 2 {
+		t.Fatalf("saturated dispatch did not recover after capacity returned: %#v calls=%d err=%v", operation, exec.calls, err)
+	}
+}
+
+func TestTransientAdmissionSaturationIncludesWaitTimeout(t *testing.T) {
+	if !isTransientAdmissionSaturation(errors.New("wait for test-genie admission: context deadline exceeded")) {
+		t.Fatal("admission wait timeout should be treated as transient backpressure")
+	}
+	if isTransientAdmissionSaturation(errors.New("test-genie binary is missing")) {
+		t.Fatal("unrelated dispatch failures must remain terminally bounded")
 	}
 }
 

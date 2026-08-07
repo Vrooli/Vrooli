@@ -27,6 +27,19 @@ type statusResponse struct {
 	} `json:"summary"`
 }
 
+type groupResponse struct {
+	Key    string   `json:"key"`
+	Kind   string   `json:"kind"`
+	ID     string   `json:"id"`
+	Label  string   `json:"label"`
+	Source string   `json:"source"`
+	Files  []string `json:"files"`
+}
+
+type groupsResponse struct {
+	Groups []groupResponse `json:"groups"`
+}
+
 type diffResponse struct {
 	RepoDir string `json:"repo_dir"`
 	Path    string `json:"path"`
@@ -97,6 +110,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
 			{Name: "status", NeedsAPI: true, Description: "Show repository status (branch + changed files)", Run: func(args []string) error { return runStatus(core, args) }},
+			{Name: "groups", NeedsAPI: true, Description: "Show resolved repository change groups", Run: func(args []string) error { return runGroups(core, args) }},
 			{Name: "diff", NeedsAPI: true, Description: "Show git diff (--path=FILE --staged)", Run: func(args []string) error { return runDiff(core, args) }},
 			{Name: "stage", NeedsAPI: true, Description: "Stage files (FILE... or --scope=scenario:name)", Run: func(args []string) error { return runStage(core, args) }},
 			{Name: "unstage", NeedsAPI: true, Description: "Unstage files (FILE... or --scope=scenario:name)", Run: func(args []string) error { return runUnstage(core, args) }},
@@ -104,6 +118,22 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "sync-status", NeedsAPI: true, Description: "Check push/pull status ([--fetch] [--remote=NAME])", Run: func(args []string) error { return runSyncStatus(core, args) }},
 		},
 	}
+}
+
+func runGroups(core *cliapp.ScenarioApp, _ []string) error {
+	body, err := core.Get("/repo/groups", nil)
+	if err != nil {
+		return err
+	}
+	var parsed groupsResponse
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	for _, group := range parsed.Groups {
+		fmt.Printf("%s kind=%s label=%s source=%s files=%d\n", group.Key, group.Kind, group.Label, group.Source, len(group.Files))
+	}
+	return nil
 }
 
 type diffFlags struct {

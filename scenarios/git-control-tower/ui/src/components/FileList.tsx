@@ -31,14 +31,13 @@ import { Button } from "./ui/button";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import { useIsMobile } from "../hooks";
 import type { DiffStats, RepoFileStats } from "../lib/api";
-import { resolveGroupForFile } from "../lib/grouping";
 import { ViewModeCycleButton } from "./ViewModeCycleButton";
 import { ProjectTreeView } from "./ProjectTreeView";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
 import { useDiffStats } from "../lib/hooks";
-import { MobileContext, type FileCategory, type FileListProps, normalizePrefix, summarizeFileStats, LineStats } from "./FileListTypes";
+import { MobileContext, type FileCategory, type FileListProps, summarizeFileStats, LineStats } from "./FileListTypes";
 import { FileSection } from "./FileSection";
 
 export type { GroupingRule, FileCategory, SelectedFileEntry, FileListProps } from "./FileListTypes";
@@ -73,6 +72,7 @@ function FileListImpl({
   fillHeight = true,
   fileViewMode = "flat",
   groupingRules = [],
+  resolvedGroups,
   groupingAvailable = false,
   onCycleViewMode,
   onStagePaths,
@@ -284,34 +284,8 @@ function FileListImpl({
     return selectedFiles.some((entry) => !entry.staged && (unstaged.has(entry.path) || untracked.has(entry.path)));
   }, [mobileSelectionMode, selectedFiles, files]);
 
-  const normalizedRules = useMemo(
-    () =>
-      groupingRules
-        .map((rule) => {
-          const rawPrefixes = Array.isArray(rule.prefixes)
-            ? rule.prefixes
-            : typeof rule.prefix === "string"
-              ? [rule.prefix]
-              : [];
-          const normalizedPrefixes = rawPrefixes
-            .map((prefix) => normalizePrefix(prefix))
-            .filter((prefix) => prefix);
-          if (normalizedPrefixes.length === 0) return null;
-          const fallbackLabel =
-            rawPrefixes.find((prefix) => prefix.trim()) ?? "";
-          return {
-            ...rule,
-            mode: rule.mode ?? "prefix",
-            normalizedPrefixes,
-            label: rule.label.trim() || fallbackLabel.trim(),
-          };
-        })
-        .filter((rule): rule is NonNullable<typeof rule> => Boolean(rule)),
-    [groupingRules],
-  );
-  // Use local normalizedRules check for actual grouping computation
-  const hasValidRules = normalizedRules.length > 0;
-  const groupingActive = fileViewMode === "grouped" && hasValidRules;
+  const groupingActive = fileViewMode === "grouped" &&
+    (resolvedGroups !== undefined ? resolvedGroups.length > 0 : groupingRules.length > 0);
   const totalStats = useMemo(() => {
     if (!files) return undefined;
     const stagedStats = summarizeFileStats(
@@ -482,133 +456,33 @@ function FileListImpl({
 
   const groupedSections = useMemo(() => {
     if (!groupingActive) return [];
-    // Build a map from rule ID to its definition order so groups sort
-    // by rule position rather than by first-encounter order (which shifts
-    // when files move between staged/unstaged).
-    const ruleIndexMap = new Map<string, number>();
-    normalizedRules.forEach((rule, idx) => ruleIndexMap.set(rule.id, idx));
-
-    const groupMap = new Map<
-      string,
-      {
-        id: string;
-        label: string;
-        displayPrefixes: Set<string>;
-        files: Record<FileCategory, string[]>;
-      }
-    >();
-    const ensureGroup = (id: string, label: string, displayPrefix: string) => {
-      const existing = groupMap.get(id);
-      const group = existing ?? {
-        id,
-        label,
-        displayPrefixes: new Set<string>(),
-        files: {
-          conflicts: [],
-          staged: [],
-          unstaged: [],
-          untracked: [],
-        },
-      };
-      if (!existing) {
-        groupMap.set(id, group);
-      }
-      if (displayPrefix) {
-        group.displayPrefixes.add(displayPrefix);
-      }
-      return group;
-    };
-    const otherGroup = {
-      id: "other",
-      label: "Other",
-      displayPrefixes: new Set<string>(),
-      files: {
-        conflicts: [] as string[],
-        staged: [] as string[],
-        unstaged: [] as string[],
-        untracked: [] as string[],
-      },
-    };
-
-    const addFile = (file: string, category: FileCategory) => {
-      for (const rule of normalizedRules) {
-        for (const normalizedPrefix of rule.normalizedPrefixes) {
-          if (!file.startsWith(normalizedPrefix)) continue;
-          if (rule.mode === "segment") {
-            const rest = file.slice(normalizedPrefix.length);
-            const segment = rest.split("/")[0];
-            const segmentLabel = segment || rule.label;
-            const segmentPrefix = segment
-              ? `${normalizedPrefix}${segment}/`
-              : normalizedPrefix;
-            const groupId = segment ? `${rule.id}:${segment}` : rule.id;
-            const group = ensureGroup(groupId, segmentLabel, segmentPrefix);
-            group.files[category].push(file);
-          } else {
-            const group = ensureGroup(rule.id, rule.label, normalizedPrefix);
-            group.files[category].push(file);
-          }
-          return;
-        }
-      }
-      otherGroup.files[category].push(file);
-    };
-
-    (files?.conflicts ?? []).forEach((file) => addFile(file, "conflicts"));
-    (files?.staged ?? []).forEach((file) => addFile(file, "staged"));
-    (files?.unstaged ?? []).forEach((file) => addFile(file, "unstaged"));
-    (files?.untracked ?? []).forEach((file) => addFile(file, "untracked"));
-
-    const filledGroups = Array.from(groupMap.values())
-      .filter((group) => {
-        return (
-          group.files.conflicts.length +
-            group.files.staged.length +
-            group.files.unstaged.length +
-            group.files.untracked.length >
-          0
-        );
-      })
-      .sort((a, b) => {
-        // Sort by rule definition order. For segment groups (id = "ruleId:segment"),
-        // use the parent rule's index, then sort alphabetically by segment.
-        const aRuleId = a.id.split(":")[0] ?? a.id;
-        const bRuleId = b.id.split(":")[0] ?? b.id;
-        const aIdx = ruleIndexMap.get(aRuleId) ?? Infinity;
-        const bIdx = ruleIndexMap.get(bRuleId) ?? Infinity;
-        if (aIdx !== bIdx) return aIdx - bIdx;
-        return a.label.localeCompare(b.label);
-      });
-    const hasOther =
-      otherGroup.files.conflicts.length +
-        otherGroup.files.staged.length +
-        otherGroup.files.unstaged.length +
-        otherGroup.files.untracked.length >
-      0;
-
-    const formattedGroups = filledGroups.map((group) => {
-      const prefixes = Array.from(group.displayPrefixes).filter(
-        (prefix) => prefix,
-      );
-      let displayPrefix = "";
-      if (prefixes.length === 1) {
-        const [firstPrefix] = prefixes;
-        displayPrefix = firstPrefix ?? "";
-      } else if (prefixes.length > 1) {
-        displayPrefix = `${prefixes.length} prefixes`;
-      }
-      return { ...group, displayPrefix };
-    });
-
-    if (!hasOther) return formattedGroups;
-    return [
-      ...formattedGroups,
-      {
-        ...otherGroup,
-        displayPrefix: "",
-      },
+    const categories: Array<[FileCategory, string[] | undefined]> = [
+      ["conflicts", files?.conflicts],
+      ["staged", files?.staged],
+      ["unstaged", files?.unstaged],
+      ["untracked", files?.untracked],
     ];
-  }, [files, groupingActive, normalizedRules]);
+    const categoryByPath = new Map<string, FileCategory>();
+    for (const [category, paths] of categories) {
+      for (const path of paths ?? []) categoryByPath.set(path, category);
+    }
+    return (resolvedGroups ?? []).map((group) => {
+      const groupedFiles: Record<FileCategory, string[]> = {
+        conflicts: [], staged: [], unstaged: [], untracked: [],
+      };
+      for (const path of group.files) {
+        const category = categoryByPath.get(path);
+        if (category) groupedFiles[category].push(path);
+      }
+      return {
+        id: group.key,
+        label: group.label,
+        kind: group.kind,
+        displayPrefix: group.root ?? "",
+        files: groupedFiles,
+      };
+    });
+  }, [files, groupingActive, resolvedGroups]);
 
   const handleCycleViewMode = onCycleViewMode ?? (() => {});
   const totalFilesCount =
@@ -875,7 +749,7 @@ function FileListImpl({
                             </div>
                           </button>
                           <div className={`flex items-center gap-2 text-slate-500 ${isMobile ? "text-sm" : "text-xs"}`}>
-                            {onOpenReview && group.displayPrefix && /^(scenarios|apps|services)\//.test(group.displayPrefix) ? (
+                            {onOpenReview && group.kind === "scenario" && group.displayPrefix ? (
                               <button
                                 type="button"
                                 className="h-7 px-2 inline-flex items-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors"
@@ -1006,7 +880,7 @@ function FileListImpl({
                                 isIgnoring={isIgnoring}
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
-                                groupingRules={groupingRules}
+                                resolvedGroups={resolvedGroups}
                                 onOpenMobileActions={handleOpenMobileActions}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                                 mobileSelectionMode={mobileSelectionMode}
@@ -1047,7 +921,7 @@ function FileListImpl({
                                 isIgnoring={isIgnoring}
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
-                                groupingRules={groupingRules}
+                                resolvedGroups={resolvedGroups}
                                 onOpenMobileActions={handleOpenMobileActions}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                                 mobileSelectionMode={mobileSelectionMode}
@@ -1092,7 +966,7 @@ function FileListImpl({
                                 isIgnoring={isIgnoring}
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
-                                groupingRules={groupingRules}
+                                resolvedGroups={resolvedGroups}
                                 onOpenMobileActions={handleOpenMobileActions}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                                 mobileSelectionMode={mobileSelectionMode}
@@ -1138,7 +1012,7 @@ function FileListImpl({
                                 isIgnoring={isIgnoring}
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
-                                groupingRules={groupingRules}
+                                resolvedGroups={resolvedGroups}
                                 onOpenMobileActions={handleOpenMobileActions}
                                 onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                                 mobileSelectionMode={mobileSelectionMode}
@@ -1185,7 +1059,7 @@ function FileListImpl({
                       isIgnoring={isIgnoring}
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
-                      groupingRules={groupingRules}
+                    resolvedGroups={resolvedGroups}
                       onOpenMobileActions={handleOpenMobileActions}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                       mobileSelectionMode={mobileSelectionMode}
@@ -1225,7 +1099,7 @@ function FileListImpl({
                       isIgnoring={isIgnoring}
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
-                      groupingRules={groupingRules}
+                    resolvedGroups={resolvedGroups}
                       onOpenMobileActions={handleOpenMobileActions}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                       mobileSelectionMode={mobileSelectionMode}
@@ -1267,7 +1141,7 @@ function FileListImpl({
                       isIgnoring={isIgnoring}
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
-                      groupingRules={groupingRules}
+                    resolvedGroups={resolvedGroups}
                       onOpenMobileActions={handleOpenMobileActions}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                       mobileSelectionMode={mobileSelectionMode}
@@ -1310,7 +1184,7 @@ function FileListImpl({
                       isIgnoring={isIgnoring}
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
-                      groupingRules={groupingRules}
+                    resolvedGroups={resolvedGroups}
                       onOpenMobileActions={handleOpenMobileActions}
                       onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                       mobileSelectionMode={mobileSelectionMode}
@@ -1396,7 +1270,9 @@ function FileListImpl({
 
             {/* Ignore action */}
             {(() => {
-              const group = groupingRules ? resolveGroupForFile(mobileActionFileInfo.path, groupingRules) : null;
+              const group = resolvedGroups?.find((candidate) =>
+                candidate.source !== "builtin" && candidate.files.includes(mobileActionFileInfo.path),
+              );
               if (group) {
                 return (
                   <>
@@ -1411,10 +1287,10 @@ function FileListImpl({
                     />
                     <BottomSheetAction
                       icon={<EyeOff className="h-5 w-5 text-amber-300" />}
-                      label={`Ignore (${group.groupLabel})`}
-                      description={`Add to ${group.groupDir}.gitignore`}
+                          label={`Ignore (${group.label})`}
+                          description={`Add to ${group.root ?? ""}.gitignore`}
                       onClick={() => {
-                        onIgnoreFile(mobileActionFileInfo.path, "group", group.groupDir);
+                            onIgnoreFile(mobileActionFileInfo.path, "group", group.root ?? "");
                         setMobileActionFile(null);
                       }}
                     />

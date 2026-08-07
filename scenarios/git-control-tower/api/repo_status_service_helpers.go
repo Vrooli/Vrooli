@@ -3,14 +3,18 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func GetRepoHistory(ctx context.Context, deps RepoHistoryDeps) (*RepoHistory, error) {
@@ -131,17 +135,35 @@ func parseHistoryDetails(out []byte) []RepoHistoryEntry {
 	return entries
 }
 
-func detectScopes(files RepoFilesStatus) map[string][]string {
+func detectScopes(repoDir string, files RepoFilesStatus) map[string][]string {
 	scopes := map[string][]string{}
+	index := targetIndexForRepo(repoDir)
 	for _, path := range append(append(append(files.Staged, files.Unstaged...), files.Untracked...), files.Conflicts...) {
-		key := scopeKeyForPath(path)
+		key := scopeKeyForPath(path, index)
 		scopes[key] = append(scopes[key], path)
 	}
 	for _, path := range files.Ignored {
-		key := scopeKeyForPath(path)
+		key := scopeKeyForPath(path, index)
 		scopes[key] = append(scopes[key], path)
 	}
 	return scopes
+}
+
+func targetIndexForRepo(repoDir string) *repocontract.TargetIndex {
+	contract, err := repocontract.LoadDefault(repoDir)
+	if err != nil {
+		var contractErr *repocontract.Error
+		if errors.As(err, &contractErr) && contractErr.Kind != repocontract.ErrNotFound {
+			log.Printf("DEBUG: repo contract unavailable for %q: %v", repoDir, err)
+		}
+		return nil
+	}
+	index, err := contract.NewTargetIndex(repoDir)
+	if err != nil {
+		log.Printf("DEBUG: repo contract target index unavailable for %q: %v", repoDir, err)
+		return nil
+	}
+	return index
 }
 
 // scopePrefixMap maps top-level directories to their scope prefix.
@@ -153,7 +175,12 @@ var scopePrefixMap = map[string]string{
 	"services":  "service:",
 }
 
-func scopeKeyForPath(path string) string {
+func scopeKeyForPath(path string, indexes ...*repocontract.TargetIndex) string {
+	if len(indexes) > 0 && indexes[0] != nil {
+		if target, ok := indexes[0].Lookup(path); ok {
+			return string(target.Kind) + ":" + target.ID
+		}
+	}
 	trimmed := strings.TrimLeft(path, "/")
 	parts := strings.Split(trimmed, "/")
 	if len(parts) >= 2 {

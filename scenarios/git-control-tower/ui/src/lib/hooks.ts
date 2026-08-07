@@ -57,6 +57,7 @@ export {
   useTestSSHConnection,
   useDeleteSSHKey,
   useGroupingRules,
+  useRepoGroups,
   useSaveGroupingRules,
   useGitignoreHealth,
   useGitignoreMove,

@@ -15,7 +15,7 @@
 
 ### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Health check endpoint | Validates database connectivity, git binary availability, repository access with structured JSON response
-- [ ] OT-P0-002 | Repository status API | Returns current branch, tracking status, staged/unstaged/untracked files, conflicts with scope detection
+- [ ] OT-P0-002 | Repository status API | Returns current branch, tracking status, staged/unstaged/untracked files, conflicts, and optional repo-contract target kind/ID scopes with a builtin fallback
 - [ ] OT-P0-003 | File diff endpoint | Returns git diff for any file path relative to HEAD
 - [ ] OT-P0-004 | Stage/unstage operations | Stage/unstage specific files or by scope (scenario/resource) via POST endpoints
 - [ ] OT-P0-005 | Commit composition API | Create commits with conventional commit message validation, returns commit hash

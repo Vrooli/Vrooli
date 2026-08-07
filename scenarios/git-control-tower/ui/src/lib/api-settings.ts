@@ -5,7 +5,7 @@
 
 import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl } from "./api-internals";
 import type { RepoListResponse, RepoActiveResponse, RepoOpenRequest, RepoCloneRequest, RepoActiveRequest, RepoMutationResponse, RepoRemoveResponse } from "./api-types-repo";
-import type { GroupingRulesConfig, GitignoreHealthResponse, GitignoreMoveRequest, GitignoreMoveResponse, TrackedBinariesResponse, UntrackBinaryRequest, UntrackBinaryResponse } from "./api-types-operations";
+import type { GroupingRulesConfig, RepoGroupsResponse, GitignoreHealthResponse, GitignoreMoveRequest, GitignoreMoveResponse, TrackedBinariesResponse, UntrackBinaryRequest, UntrackBinaryResponse } from "./api-types-operations";
 
 // ── Capabilities Types ─────────────────────────────────────────────────
 
@@ -205,6 +205,16 @@ export async function saveGroupingRules(config: GroupingRulesConfig, repoId?: st
     body: JSON.stringify(config),
   });
   return handleResponse<GroupingRulesConfig>(res);
+}
+
+export async function fetchRepoGroups(repoId?: string): Promise<RepoGroupsResponse> {
+  const url = buildApiUrl("/repo/groups", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "GET",
+    headers: buildRepoHeaders(repoId),
+    cache: "no-store",
+  });
+  return handleResponse<RepoGroupsResponse>(res);
 }
 
 // ── Gitignore Health API ───────────────────────────────────────────────

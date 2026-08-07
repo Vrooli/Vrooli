@@ -94,6 +94,33 @@ describe("Settings tab surfaces", () => {
     expect(onChangeRules).toHaveBeenLastCalledWith([]);
   });
 
+  it("shows contract groups as read-only rows", () => {
+    renderWithQueryClient(
+      <SettingsTabGrouping
+        groupingEnabled
+        onToggleGrouping={vi.fn()}
+        rules={[]}
+        onChangeRules={vi.fn()}
+        isMobile={false}
+        contractGroups={[{
+          key: "contract:scenario:demo",
+          kind: "scenario",
+          id: "demo",
+          label: "demo",
+          root: "scenarios/demo",
+          source: "contract",
+          files: ["scenarios/demo/api/main.go"],
+        }]}
+      />,
+    );
+
+    expect(screen.getByTestId("contract-groups")).toBeInTheDocument();
+    expect(screen.getByText("Contract-derived groups are read-only. Manual rules take precedence.")).toBeInTheDocument();
+    expect(screen.getByText("demo")).toBeInTheDocument();
+    expect(screen.getByText("scenarios/demo")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "demo" })).not.toBeInTheDocument();
+  });
+
   it("renders gitignore health actions and sends repo-scoped move requests", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = requestUrl(input);

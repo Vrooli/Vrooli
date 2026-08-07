@@ -6,8 +6,8 @@ import {
   BarChart3,
 } from "lucide-react";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
-import { resolveGroupForFile } from "../lib/grouping";
-import type { FileCategory, GroupingRule } from "./FileListTypes";
+import type { ChangeGroupAPI } from "../lib/api";
+import type { FileCategory } from "./FileListTypes";
 
 interface MobileActionFileInfo {
   path: string;
@@ -26,7 +26,7 @@ export interface FileListMobileActionsProps {
   onDiscardFile: (path: string, untracked: boolean) => void;
   onIgnoreFile: (path: string, level?: "project" | "group", groupDir?: string) => void;
   openFileMetrics: (path: string, category?: FileCategory) => void;
-  groupingRules: GroupingRule[];
+  resolvedGroups?: ChangeGroupAPI[];
 }
 
 export function FileListMobileActions({
@@ -38,7 +38,7 @@ export function FileListMobileActions({
   onDiscardFile,
   onIgnoreFile,
   openFileMetrics,
-  groupingRules,
+  resolvedGroups,
 }: FileListMobileActionsProps) {
   if (!mobileActionFileInfo) return null;
 
@@ -94,7 +94,9 @@ export function FileListMobileActions({
 
         {/* Ignore action */}
         {(() => {
-          const group = groupingRules ? resolveGroupForFile(mobileActionFileInfo.path, groupingRules) : null;
+          const group = resolvedGroups?.find((candidate) =>
+            candidate.source !== "builtin" && candidate.files.includes(mobileActionFileInfo.path),
+          );
           if (group) {
             return (
               <>
@@ -109,10 +111,10 @@ export function FileListMobileActions({
                 />
                 <BottomSheetAction
                   icon={<EyeOff className="h-5 w-5 text-amber-300" />}
-                  label={`Ignore (${group.groupLabel})`}
-                  description={`Add to ${group.groupDir}.gitignore`}
+                  label={`Ignore (${group.label})`}
+                  description={`Add to ${group.root ?? ""}.gitignore`}
                   onClick={() => {
-                    onIgnoreFile(mobileActionFileInfo.path, "group", group.groupDir);
+                    onIgnoreFile(mobileActionFileInfo.path, "group", group.root ?? "");
                     onClose();
                   }}
                 />

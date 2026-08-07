@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "name": "Repository Change Groups API",
+    "description": "Validates the read-only groups endpoint exposes resolved changed-file buckets",
+    "tags": ["e2e", "api", "groups"],
+    "requirements": [
+      "GCT-OT-P0-002B"
+    ],
+    "labels": {
+      "safety": "observer",
+      "mutates_repository": "false",
+      "requirements_json": "[\"GCT-OT-P0-002B\"]"
+    },
+    "reset": "none",
+    "execution_mode": "observer"
+  },
+  "settings": {},
+  "nodes": [
+    {
+      "id": "groups",
+      "type": "http_request",
+      "data": {
+        "label": "GET /api/v1/repo/groups",
+        "method": "GET",
+        "url": "{{API_URL}}/api/v1/repo/groups",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "assertions": [
+          {
+            "type": "status_code",
+            "expected": 200
+          },
+          {
+            "type": "json_path_exists",
+            "path": "$.groups"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": []
+}

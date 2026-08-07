@@ -16,6 +16,12 @@ func rulesJSON(t *testing.T, rules ...GroupingRule) string {
 	return string(data)
 }
 
+func TestNormalizePrefixEmptyIsEmpty(t *testing.T) {
+	if got := normalizePrefix(""); got != "" {
+		t.Fatalf("normalizePrefix(\"\") = %q, want empty string", got)
+	}
+}
+
 func TestAnalyzeHealth_PrefixMode_SingleGroup(t *testing.T) {
 	configPath := "/config/grouping-rules.json"
 	fs := NewFakeFileIO().

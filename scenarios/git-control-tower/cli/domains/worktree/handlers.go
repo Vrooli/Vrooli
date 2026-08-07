@@ -117,8 +117,8 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		Track:           ctx.BoolFlag("track"),
 	}
 	switch {
-	case ctx.Flag("branch") != "":
-		req.Source = &worktreev1.CreateWorktreeRequest_ExistingBranch{ExistingBranch: ctx.Flag("branch")}
+	case ctx.Flag("existing_branch") != "":
+		req.Source = &worktreev1.CreateWorktreeRequest_ExistingBranch{ExistingBranch: ctx.Flag("existing_branch")}
 	case ctx.Flag("new-branch") != "":
 		req.Source = &worktreev1.CreateWorktreeRequest_NewBranch{NewBranch: &worktreev1.NewBranchSpec{
 			Name:       ctx.Flag("new-branch"),

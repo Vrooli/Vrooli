@@ -56,7 +56,6 @@ function useGroupingLoaderLogic(
   );
   const [groupingRules, setGroupingRules] = useState<GroupingRule[]>([]);
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
-  const [groupingDefaultsPending, setGroupingDefaultsPending] = useState(false);
   const [saveCallCount, setSaveCallCount] = useState(0);
   const [lastSavedRules, setLastSavedRules] = useState<GroupingRule[]>([]);
 
@@ -76,11 +75,9 @@ function useGroupingLoaderLogic(
         mode: r.mode as "prefix" | "segment",
       }));
       setGroupingRules(normalizeGroupingRules(uiRules));
-      setGroupingDefaultsPending(apiRules.length === 0);
       setGroupingLoadedKey(repoKey);
     } else if (!groupingRulesQuery.isLoading) {
       setGroupingRules([]);
-      setGroupingDefaultsPending(true);
       setGroupingLoadedKey(repoKey);
     }
     // When isLoading=true and data=undefined, do NOT set groupingLoadedKey.
@@ -89,11 +86,12 @@ function useGroupingLoaderLogic(
   // --- Mirrors the save effect at App.tsx lines 1406-1421 ---
   useEffect(() => {
     if (!repoDir || groupingLoadedKey !== repoKey) return;
+    if (groupingRules.length === 0) return;
     setSaveCallCount((c) => c + 1);
     setLastSavedRules([...groupingRules]);
   }, [repoDir, repoKey, groupingLoadedKey, groupingRules]);
 
-  return { groupingRules, groupingLoadedKey, groupingDefaultsPending, saveCallCount, lastSavedRules };
+  return { groupingRules, groupingLoadedKey, saveCallCount, lastSavedRules };
 }
 
 // ---------------------------------------------------------------------------
@@ -208,7 +206,7 @@ describe("grouping loader race condition (regression)", () => {
     expect((result.current.lastSavedRules[0] as { label: string } | undefined)?.label).toBe("Scenarios");
   });
 
-  it("falls back to defaults when API returns empty and is done loading", () => {
+  it("keeps manual rules empty when API returns no stored rules", () => {
     const { result } = renderHook(() =>
       useGroupingLoaderLogic("/home/user/repo", {
         data: undefined,
@@ -218,7 +216,7 @@ describe("grouping loader race condition (regression)", () => {
 
     expect(result.current.groupingLoadedKey).not.toBeNull();
     expect(result.current.groupingRules).toEqual([]);
-    expect(result.current.groupingDefaultsPending).toBe(true);
+    expect(result.current.saveCallCount).toBe(0);
   });
 
   it("does not load when repoDir is undefined", () => {

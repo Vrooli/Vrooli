@@ -179,6 +179,20 @@ export interface GroupingRuleAPI {
   mode: string; // "prefix" | "segment"
 }
 
+export interface ChangeGroupAPI {
+  key: string;
+  kind?: string;
+  id?: string;
+  label: string;
+  root?: string;
+  source: "manual" | "contract" | "builtin" | string;
+  files: string[];
+}
+
+export interface RepoGroupsResponse {
+  groups: ChangeGroupAPI[];
+}
+
 // Gitignore health types
 export interface GitignoreHealthResponse {
   root_entry_count: number;

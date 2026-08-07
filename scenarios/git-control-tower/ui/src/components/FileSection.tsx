@@ -34,7 +34,7 @@ export function FileSection({
   isIgnoring,
   confirmingIgnore,
   onConfirmIgnore,
-  groupingRules,
+  resolvedGroups,
   onOpenMobileActions,
   onContextMenu,
   mobileSelectionMode,
@@ -144,7 +144,7 @@ export function FileSection({
               onConfirmIgnore={onConfirmIgnore}
               confirmingDiscard={confirmingDiscard}
               confirmingIgnore={confirmingIgnore}
-              groupingRules={groupingRules}
+              resolvedGroups={resolvedGroups}
               onOpenMobileActions={onOpenMobileActions}
               onContextMenu={onContextMenu}
               mobileSelectionMode={mobileSelectionMode}

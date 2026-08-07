@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -74,7 +75,10 @@ type baselineExecutor struct {
 
 const baselineAdmissionCaller = "git-control-tower:baseline"
 
-var baselineAdmissionRetryDelays = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
+var (
+	baselineAdmissionRetryDelays = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
+	baselineWaitRetryDelays      = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
+)
 
 func (e baselineExecutor) StartRun(ctx context.Context, scenario string) (baseline.RunHandle, error) {
 	cl, err := e.runs.client(ctx)
@@ -196,9 +200,11 @@ func (e baselineExecutor) AwaitResult(ctx context.Context, scenario, runID strin
 	if err != nil {
 		return baseline.ExecResult{}, err
 	}
-	waited, err := cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{
-		Scenario: scenario, RunId: runID,
-	}))
+	waited, err := waitForBaselineTerminal(ctx, func() (*connect.Response[runspb.WaitRunResponse], error) {
+		return cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{
+			Scenario: scenario, RunId: runID,
+		}))
+	})
 	if err != nil {
 		return baseline.ExecResult{}, err
 	}
@@ -235,6 +241,53 @@ func (e baselineExecutor) AwaitResult(ctx context.Context, scenario, runID strin
 		out.Phases = append(out.Phases, baseline.PhaseStatus{Name: p.GetName(), Status: p.GetStatus()})
 	}
 	return out, nil
+}
+
+// waitForBaselineTerminal reattaches when a durable WaitRun attachment returns
+// a live snapshot. WaitRun normally blocks until terminal, but its contract
+// also permits a non-terminal snapshot when the attachment is interrupted.
+// Treating that response as missing terminal evidence permanently fails a
+// baseline even though the server-owned run is still progressing.
+func waitForBaselineTerminal(ctx context.Context, wait func() (*connect.Response[runspb.WaitRunResponse], error)) (*connect.Response[runspb.WaitRunResponse], error) {
+	for attempt := 0; ; attempt++ {
+		response, err := wait()
+		if err != nil {
+			if isTransientBaselineWaitError(err) && attempt < len(baselineWaitRetryDelays) {
+				timer := time.NewTimer(baselineWaitRetryDelays[attempt])
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return nil, ctx.Err()
+				case <-timer.C:
+					continue
+				}
+			}
+			return nil, err
+		}
+		status := ""
+		if response != nil && response.Msg != nil && response.Msg.GetStatus() != nil {
+			status = response.Msg.GetStatus().GetStatus()
+		}
+		if isTerminalRunStatus(status) || (response != nil && response.Msg != nil && response.Msg.GetTerminalRun() != nil) {
+			return response, nil
+		}
+		if status != "" && status != "queued" && status != "in_progress" {
+			return response, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+	}
+}
+
+func isTransientBaselineWaitError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || strings.Contains(message, "unexpected eof")
 }
 
 // baselineRunsClient wraps test-genie's RunsService Connect-RPC for pin/unpin/

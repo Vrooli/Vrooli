@@ -15,7 +15,6 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useLongPress } from "../hooks";
-import { resolveGroupForFile } from "../lib/grouping";
 import { MobileContext, type FileRowProps } from "./FileListTypes";
 
 export const FileRow = memo(function FileRow({
@@ -44,7 +43,7 @@ export const FileRow = memo(function FileRow({
   onConfirmIgnore,
   confirmingDiscard,
   confirmingIgnore,
-  groupingRules,
+  resolvedGroups,
   onOpenMobileActions,
   onContextMenu,
   mobileSelectionMode,
@@ -163,7 +162,9 @@ export const FileRow = memo(function FileRow({
       )}
 
       {isConfirmingIgnore && onConfirmIgnore && onIgnore && (() => {
-        const group = groupingRules ? resolveGroupForFile(file, groupingRules) : null;
+        const group = resolvedGroups?.find((candidate) =>
+          candidate.source !== "builtin" && candidate.files.includes(file),
+        );
         return (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             {group ? (
@@ -179,11 +180,11 @@ export const FileRow = memo(function FileRow({
                 </button>
                 <button
                   className="px-1.5 py-0.5 text-xs bg-amber-500 hover:bg-amber-400 text-slate-900 rounded transition-colors"
-                  onClick={() => { onIgnore(file, "group", group.groupDir); onConfirmIgnore(null); }}
+                  onClick={() => { onIgnore(file, "group", group.root ?? ""); onConfirmIgnore(null); }}
                   disabled={isIgnoring}
                   data-testid="confirm-ignore-group"
                 >
-                  {group.groupLabel}
+                  {group.label}
                 </button>
                 <button
                   className="px-1.5 py-0.5 text-xs bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
@@ -355,4 +356,3 @@ export const FileRow = memo(function FileRow({
     </li>
   );
 });
-

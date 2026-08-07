@@ -23,6 +23,7 @@ import {
   testSSHConnection,
   deleteSSHKey,
   fetchGroupingRules,
+  fetchRepoGroups,
   saveGroupingRules,
   fetchGitignoreHealth,
   moveGitignoreEntry,
@@ -44,6 +45,7 @@ import type {
   SSHTestConnectionRequest,
   SSHDeleteKeyRequest,
   GroupingRulesConfig,
+  RepoGroupsResponse,
   GitignoreHealthResponse,
   TrackedBinariesResponse,
   UntrackBinaryRequest,
@@ -216,6 +218,15 @@ export function useGroupingRules(repoId?: string | null) {
     queryKey: queryKeys.groupingRules(repoId),
     queryFn: () => fetchGroupingRules(repoId ?? undefined),
     enabled: Boolean(repoId),
+  });
+}
+
+export function useRepoGroups(repoId?: string | null) {
+  return useQuery<RepoGroupsResponse, Error>({
+    queryKey: queryKeys.repoGroups(repoId),
+    queryFn: () => fetchRepoGroups(repoId ?? undefined),
+    enabled: Boolean(repoId),
+    refetchInterval: 5_000,
   });
 }
 

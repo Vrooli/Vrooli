@@ -11,7 +11,7 @@ import { SettingsTabStorage } from "./SettingsTabStorage";
 import { SettingsTabGrouping } from "./SettingsTabGrouping";
 import { SettingsTabPrecommit } from "./SettingsTabPrecommit";
 import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
-import type { SyncStatusResponse } from "../lib/api";
+import type { ChangeGroupAPI, SyncStatusResponse } from "../lib/api";
 import type { GroupingRule } from "./FileList";
 
 export type SettingsTab = "layout" | "grouping" | "credentials" | "integrations" | "precommit" | "health" | "storage";
@@ -32,6 +32,7 @@ interface SettingsModalProps {
   onToggleGrouping: () => void;
   groupingRules: GroupingRule[];
   onChangeGroupingRules: (rules: GroupingRule[]) => void;
+  contractGroups?: ChangeGroupAPI[];
   // Common
   onClose: () => void;
   initialTab?: SettingsTab;
@@ -61,6 +62,7 @@ export function SettingsModal({
   onToggleGrouping,
   groupingRules,
   onChangeGroupingRules,
+  contractGroups,
   onClose,
   initialTab = "layout"
 }: SettingsModalProps) {
@@ -150,6 +152,7 @@ export function SettingsModal({
               rules={groupingRules}
               onChangeRules={onChangeGroupingRules}
               isMobile={true}
+              contractGroups={contractGroups}
             />
           )}
 
@@ -282,6 +285,7 @@ export function SettingsModal({
               rules={groupingRules}
               onChangeRules={onChangeGroupingRules}
               isMobile={false}
+              contractGroups={contractGroups}
             />
           )}
 

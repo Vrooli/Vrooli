@@ -12,11 +12,17 @@ Run `git-control-tower <group> --help` or `git-control-tower <group>
 | Subcommand | Description |
 | --- | --- |
 | `status`       | Show repository status (branch + changed files) |
+| `groups`       | Show resolved change groups (manual, contract, and `Other`) |
 | `diff`         | Show git diff (`--path=FILE --staged`) |
 | `stage`        | Stage files (`FILE...` or `--scope=scenario:name`) |
 | `unstage`      | Unstage files (`FILE...` or `--scope=scenario:name`) |
 | `commit`       | Create a commit (`-m MESSAGE [--conventional]`) |
 | `sync-status`  | Check push/pull status (`[--fetch] [--remote=NAME]`) |
+
+`repo groups` is read-only. Manual rules take precedence over contract targets;
+unmatched paths are placed in `Other`. Contract groups are derived from the
+active repository's `.vrooli/repo-contract.json` and are never persisted as
+grouping rules.
 
 ## `branch` — Manage repository branches
 

@@ -123,6 +123,24 @@ const (
 	maxCollectionDiffDispatchAttempts = 3
 )
 
+// Test Genie can reject a caller temporarily when its durable-run admission
+// queue is full. That is backpressure, not a child-dispatch defect: terminally
+// failing the collection after three fast retries turns a busy test service
+// into a false regression. Keep the member pending and let the durable lease
+// retry it after capacity advances.
+func isTransientAdmissionSaturation(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	if strings.Contains(message, "resource_exhausted") &&
+		(strings.Contains(message, "admission") || strings.Contains(message, "queued run capacity")) {
+		return true
+	}
+	return strings.Contains(message, "wait for test-genie admission") &&
+		strings.Contains(message, "context deadline exceeded")
+}
+
 type StartCollectionDiffResult struct {
 	Collection CollectionManifest
 	Operation  CollectionDiffOperation
@@ -234,6 +252,19 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 			Name: member.BaselineName, Branch: branch, CreatedBy: req.CreatedBy, Reason: req.Reason,
 		})
 		if err != nil {
+			if isTransientAdmissionSaturation(err) {
+				// Keep the member pending. A collection capture can fill the
+				// caller's Test Genie queue before the final member is admitted;
+				// that is durable backpressure, not a terminal baseline failure.
+				collection, err = s.storage.UpdateCollectionMember(req.RepoID, branch, req.Name, member.Scenario, func(m *CollectionMember) error {
+					m.Error, m.UpdatedAt = "deferred: "+err.Error(), s.now().UTC()
+					return nil
+				})
+				if err != nil {
+					return StartCollectionCaptureResult{}, err
+				}
+				continue
+			}
 			collection, err = s.storage.UpdateCollectionMember(req.RepoID, branch, req.Name, member.Scenario, func(m *CollectionMember) error {
 				m.Status, m.Error, m.UpdatedAt = CollectionMemberFailed, err.Error(), s.now().UTC()
 				return nil
@@ -253,6 +284,56 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 		pending = append(pending, PendingCollectionCapture{CollectionName: req.Name, Branch: branch, Scenario: member.Scenario, Pending: started})
 	}
 	return StartCollectionCaptureResult{Collection: collection, Pending: pending, Resumed: resumed}, nil
+}
+
+// StartDeferredCollectionCapture admits one pending member after a sibling
+// child completes. Capture fanout can exhaust Test Genie's per-caller queue;
+// the member remains pending until a finalizer advances capacity and invokes
+// this server-owned handoff.
+func (s *Service) StartDeferredCollectionCapture(ctx context.Context, repoID int64, pending PendingCollectionCapture) (PendingCollectionCapture, bool, error) {
+	collection, err := s.storage.LoadCollection(repoID, pending.Branch, pending.CollectionName)
+	if err != nil {
+		return PendingCollectionCapture{}, false, err
+	}
+	// A required member failure terminalizes the collection. Do not keep
+	// draining deferred work after that point: doing so turns a failed capture
+	// into an unbounded stream of new Test Genie runs after callers have already
+	// detached or aborted the parent operation.
+	coverage := collection.Coverage()
+	if coverage.Failed > 0 || coverage.Skipped > 0 || coverage.Stale > 0 {
+		return PendingCollectionCapture{}, false, nil
+	}
+	for _, member := range collection.Members {
+		if member.Status != CollectionMemberPending || member.RunID != "" {
+			continue
+		}
+		started, startErr := s.StartCapture(ctx, CreateRequest{
+			RepoID: repoID, RepoDir: pending.Pending.Req.RepoDir, Scenario: member.Scenario,
+			Name: member.BaselineName, Branch: pending.Branch, CreatedBy: pending.Pending.Req.CreatedBy, Reason: pending.Pending.Req.Reason,
+		})
+		if startErr != nil {
+			if isTransientAdmissionSaturation(startErr) {
+				return PendingCollectionCapture{}, false, nil
+			}
+			_, updateErr := s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, member.Scenario, func(target *CollectionMember) error {
+				target.Status, target.Error, target.UpdatedAt = CollectionMemberFailed, startErr.Error(), s.now().UTC()
+				return nil
+			})
+			if updateErr != nil {
+				return PendingCollectionCapture{}, false, updateErr
+			}
+			return PendingCollectionCapture{}, false, startErr
+		}
+		_, updateErr := s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, member.Scenario, func(target *CollectionMember) error {
+			target.RunID, target.Error, target.UpdatedAt = started.Run.RunID, "", s.now().UTC()
+			return nil
+		})
+		if updateErr != nil {
+			return PendingCollectionCapture{}, false, updateErr
+		}
+		return PendingCollectionCapture{CollectionName: pending.CollectionName, Branch: pending.Branch, Scenario: member.Scenario, Pending: started}, true, nil
+	}
+	return PendingCollectionCapture{}, false, nil
 }
 
 // ExtendCollection adds only previously unknown scenarios to an existing
@@ -750,12 +831,17 @@ func (s *Service) dispatchCollectionDiff(ctx context.Context, req StartCollectio
 			outcomeStatus, outcomeDetail, outcomeRunID := member.Status, member.Detail, member.RunID
 			outcomeAttempts, outcomeLease := member.DispatchAttempts, member.DispatchLeaseExpiresAt
 			if err != nil {
-				outcomeAttempts++
-				outcomeDetail = "dispatch attempt " + fmt.Sprint(outcomeAttempts) + ": " + err.Error()
-				if outcomeAttempts >= maxCollectionDiffDispatchAttempts {
-					outcomeStatus = "failed"
-				} else {
+				if isTransientAdmissionSaturation(err) {
+					outcomeDetail = "dispatch deferred until Test Genie admission capacity is available: " + err.Error()
 					outcomeLease = now.Add(collectionDiffDispatchLease)
+				} else {
+					outcomeAttempts++
+					outcomeDetail = "dispatch attempt " + fmt.Sprint(outcomeAttempts) + ": " + err.Error()
+					if outcomeAttempts >= maxCollectionDiffDispatchAttempts {
+						outcomeStatus = "failed"
+					} else {
+						outcomeLease = now.Add(collectionDiffDispatchLease)
+					}
 				}
 			} else {
 				outcomeRunID, outcomeDetail, outcomeLease = started.RunID, "", time.Time{}

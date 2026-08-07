@@ -1,4 +1,4 @@
-import { fetchHealth, fetchBranches, createBranch, fetchGroupingRules, fetchRepoHistory } from "./api";
+import { fetchHealth, fetchBranches, createBranch, fetchGroupingRules, fetchRepoGroups, fetchRepoHistory } from "./api";
 import { jsonResponse, mockFetchJson, textResponse } from "../test-utils";
 
 // [REQ:GCT-OT-P0-001] Health check endpoint
@@ -47,6 +47,17 @@ test("fetchGroupingRules uses cache: no-store to bypass proxy caching", async ()
 
   await fetchGroupingRules("repo-1");
   expect(capturedInit?.cache).toBe("no-store");
+});
+
+test("fetchRepoGroups requests the read-only groups endpoint", async () => {
+  let capturedUrl = "";
+  globalThis.fetch = vi.fn(async (url: string | URL | Request) => {
+    capturedUrl = url instanceof Request ? url.url : url.toString();
+    return jsonResponse({ groups: [] });
+  }) as unknown as typeof fetch;
+
+  await fetchRepoGroups("repo-1");
+  expect(capturedUrl).toContain("/repo/groups");
 });
 
 test("fetchRepoHistory requests files and checks includes together", async () => {

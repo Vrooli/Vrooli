@@ -30,6 +30,20 @@ The CLI follows the cli-core pattern:
 - Honors a project-local `~/.config/git-control-tower/config.json` for
   persistent flags (none active by default).
 
+## Contract-derived change groups
+
+When the active repository has a readable `.vrooli/repo-contract.json`,
+git-control-tower derives changed-file groups from declared targets. The
+resolver checks stored manual rules first, contract targets second, and the
+builtin `Other` bucket last. Derived groups are read-only and are not written
+to `grouping-rules.json`.
+
+The shared target index uses a 10-second time-to-live and also invalidates when
+the contract file's modification time changes. A newly marked target can
+therefore appear in a change group within the TTL. A missing or unreadable
+contract is supported and silently uses the existing manual-rule/builtin
+fallback behavior.
+
 ## Baseline snapshot & visual diff behavior
 
 `baseline snapshot` **starts** one comprehensive, server-durable test-genie run

@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
+
+	"git-control-tower/internal/testutil/fixtures"
 )
 
 type fakeCommitCheckReader struct {
@@ -111,5 +115,62 @@ func TestScopeKeyForPath(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("scopeKeyForPath(%q) = %q, want %q", tt.path, got, tt.want)
 		}
+	}
+}
+
+func TestDetectScopesUsesContractTargetKindsAndIDs(t *testing.T) {
+	repoDir := t.TempDir()
+	fixtures.WriteRepoContract(t, repoDir)
+	fixtures.WriteFile(t, filepath.Join(repoDir, "internal", "tools", "compiler", "tool.json"), `{}`)
+
+	got := detectScopes(repoDir, RepoFilesStatus{Untracked: []string{
+		"internal/tools/compiler/main.go",
+		"internal/other.go",
+	}})
+	if got["tool:compiler"][0] != "internal/tools/compiler/main.go" {
+		t.Fatalf("tool scope = %#v, want compiler path", got["tool:compiler"])
+	}
+	if got["control-plane:internal"][0] != "internal/other.go" {
+		t.Fatalf("control-plane scope = %#v, want internal path", got["control-plane:internal"])
+	}
+	if _, ok := got["scenario:compiler"]; ok {
+		t.Fatal("contract target was incorrectly attributed by the fallback scenario vocabulary")
+	}
+}
+
+func TestDetectScopesNoContractMatchesFallbackMap(t *testing.T) {
+	files := RepoFilesStatus{
+		Staged:    []string{"scenarios/app/api/main.go", "apps/dashboard/src/App.tsx"},
+		Unstaged:  []string{"resources/postgres/config.yaml", "services/auth/handler.go"},
+		Untracked: []string{"packages/api-core/types.go", "README.md"},
+		Ignored:   []string{"docs/guide.md"},
+	}
+	got := detectScopes(t.TempDir(), files)
+	want := map[string][]string{
+		"scenario:app":      {"scenarios/app/api/main.go"},
+		"app:dashboard":     {"apps/dashboard/src/App.tsx"},
+		"resource:postgres": {"resources/postgres/config.yaml"},
+		"service:auth":      {"services/auth/handler.go"},
+		"package:api-core":  {"packages/api-core/types.go"},
+		"other":             {"README.md", "docs/guide.md"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("no-contract scopes = %#v, want %#v", got, want)
+	}
+}
+
+func TestDetectScopesCorruptContractMatchesAbsentContract(t *testing.T) {
+	files := RepoFilesStatus{Untracked: []string{"scenarios/app/main.go", "internal/tools/compiler/main.go"}}
+	absent := detectScopes(t.TempDir(), files)
+	corruptDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(corruptDir, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(corruptDir, ".vrooli", "repo-contract.json"), []byte("{not-json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	corrupt := detectScopes(corruptDir, files)
+	if !reflect.DeepEqual(corrupt, absent) {
+		t.Fatalf("corrupt-contract scopes = %#v, want absent-contract scopes %#v", corrupt, absent)
 	}
 }

@@ -45,6 +45,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/ignore", s.handleIgnore).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/grouping-rules", s.handleGetGroupingRules).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/grouping-rules", s.handleSaveGroupingRules).Methods("PUT")
+	s.router.HandleFunc("/api/v1/repo/groups", s.handleGetRepoGroups).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/gitignore/health", s.handleGitignoreHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/gitignore/move", s.handleGitignoreMove).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/tracked-binaries", s.handleTrackedBinaries).Methods("GET")

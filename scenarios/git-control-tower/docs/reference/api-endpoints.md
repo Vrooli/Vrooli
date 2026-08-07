@@ -1,6 +1,6 @@
 # API Reference: git-control-tower
 
-92 routes across 11 functional groups. Source of truth:
+93 routes across 11 functional groups. Source of truth:
 [CODE: api/routes.go].
 
 All endpoints are mounted under `http://localhost:<API_PORT>` (printed
@@ -55,6 +55,7 @@ audited via [CODE: api/audit_logger.go].
 | POST | `/api/v1/repo/approved-changes/preview` | Preview approved changes. |
 | GET  | `/api/v1/repo/grouping-rules`    | File grouping rules. |
 | PUT  | `/api/v1/repo/grouping-rules`    | Replace grouping rules. |
+| GET  | `/api/v1/repo/groups`             | Read-only changed-file groups: manual rules, contract targets, then `Other`. |
 | GET  | `/api/v1/repo/gitignore/health`  | .gitignore lint status. |
 | POST | `/api/v1/repo/gitignore/move`    | Move gitignore entries. |
 

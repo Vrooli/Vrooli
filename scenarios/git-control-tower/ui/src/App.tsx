@@ -64,6 +64,7 @@ import {
   useRemoveRepo,
   useRepoSelection,
   useGroupingRules,
+  useRepoGroups,
   useSaveGroupingRules,
   queryKeys,
   useHealthIssueCount,
@@ -139,8 +140,8 @@ export default function App() {
   const diffMinWidth = 320;
   const [fileViewMode, setFileViewMode] = useState<FileViewMode>("flat");
   const [groupingRules, setGroupingRules] = useState<GroupingRule[]>([]);
+  const [groupingRulesDirty, setGroupingRulesDirty] = useState(false);
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
-  const [groupingDefaultsPending, setGroupingDefaultsPending] = useState(false);
   const [layoutPreset, setLayoutPreset] = useState<LayoutPreset>("classic");
   const [primaryPanel, setPrimaryPanel] = useState<LayoutSection>("diff");
   const [layoutLoadedKey, setLayoutLoadedKey] = useState<string | null>(null);
@@ -467,6 +468,7 @@ export default function App() {
   const setActiveRepoMutation = useSetActiveRepo();
   const removeRepoMutation = useRemoveRepo();
   const groupingRulesQuery = useGroupingRules(repoId);
+  const repoGroupsQuery = useRepoGroups(repoId);
   const saveGroupingRulesMutation = useSaveGroupingRules(repoId);
 
   const isStaging = stageMutation.isPending || unstageMutation.isPending;
@@ -627,17 +629,6 @@ export default function App() {
     [approvedPendingPaths]
   );
 
-  const createGroupingRule = useCallback(
-    (label: string, prefix: string, mode: GroupingRule["mode"] = "prefix"): GroupingRule => {
-      return {
-        id: `group-${prefix}`,
-        label,
-        prefixes: [prefix],
-        mode: mode ?? "prefix"
-      };
-    },
-    []
-  );
   const normalizeGroupingRules = useCallback(
     (rawRules: GroupingRuleLike[]): GroupingRule[] => {
       return rawRules
@@ -665,9 +656,14 @@ export default function App() {
     []
   );
 
-  // Check if grouping rules are available (have valid prefixes)
+  const handleGroupingRulesChange = useCallback((rules: GroupingRule[]) => {
+    setGroupingRules(rules);
+    setGroupingRulesDirty(true);
+  }, []);
+
+  // Grouped view is available for stored manual rules or server-derived groups.
   const groupingAvailable = useMemo(() => {
-    return groupingRules.some((rule) => {
+    const hasManualRules = groupingRules.some((rule) => {
       const rawPrefixes = Array.isArray(rule?.prefixes)
         ? rule.prefixes
         : typeof rule?.prefix === "string"
@@ -675,7 +671,8 @@ export default function App() {
           : [];
       return rawPrefixes.some((prefix) => prefix.trim());
     });
-  }, [groupingRules]);
+    return hasManualRules || (repoGroupsQuery.data?.groups.length ?? 0) > 0;
+  }, [groupingRules, repoGroupsQuery.data?.groups.length]);
 
   const handleCycleViewMode = useCallback(() => {
     setFileViewMode((prev) => {
@@ -1665,7 +1662,7 @@ export default function App() {
         mode: r.mode as "prefix" | "segment",
       }));
       setGroupingRules(normalizeGroupingRules(uiRules));
-      setGroupingDefaultsPending(apiRules.length === 0);
+      setGroupingRulesDirty(false);
       setGroupingLoadedKey(repoKey);
     } else if (!groupingRulesQuery.isLoading) {
       // API returned no data and isn't loading - check localStorage for migration
@@ -1678,7 +1675,7 @@ export default function App() {
             ? normalizeGroupingRules(parsed.filter(isGroupingRuleLike))
             : [];
           setGroupingRules(normalized);
-          setGroupingDefaultsPending(false);
+          setGroupingRulesDirty(false);
           // Migrate to API
           if (normalized.length > 0) {
             const apiConfig: GroupingRulesConfig = {
@@ -1699,11 +1696,11 @@ export default function App() {
           }
         } catch {
           setGroupingRules([]);
-          setGroupingDefaultsPending(true);
+          setGroupingRulesDirty(false);
         }
       } else {
         setGroupingRules([]);
-        setGroupingDefaultsPending(true);
+        setGroupingRulesDirty(false);
       }
       setGroupingLoadedKey(repoKey);
     }
@@ -1751,6 +1748,10 @@ export default function App() {
     if (!repoDir || groupingLoadedKey !== repoKey) return;
     const viewModeKey = `gct.viewMode.${repoKey}`;
     localStorage.setItem(viewModeKey, fileViewMode);
+  }, [repoDir, repoKey, groupingLoadedKey, fileViewMode]);
+
+  useEffect(() => {
+    if (!repoDir || groupingLoadedKey !== repoKey || !groupingRulesDirty) return;
     // Save grouping rules to API (instead of localStorage)
     saveGroupingRulesMutation.mutate({
       enabled: groupingRules.length > 0,
@@ -1761,8 +1762,9 @@ export default function App() {
         mode: r.mode ?? "prefix",
       })),
     });
+    setGroupingRulesDirty(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repoDir, repoKey, groupingLoadedKey, fileViewMode, groupingRules]);
+  }, [repoDir, repoKey, groupingLoadedKey, groupingRulesDirty, groupingRules]);
 
   useEffect(() => {
     if (!repoDir || layoutLoadedKey !== repoKey) return;
@@ -1775,32 +1777,11 @@ export default function App() {
   }, [repoDir, repoKey, layoutLoadedKey, layoutPreset, primaryPanel, stackHeight]);
 
   useEffect(() => {
-    if (!groupingDefaultsPending || !repoDir) return;
-    const files = statusQuery.data?.files;
-    if (!files) return;
-    const allFiles = [
-      ...(files.staged ?? []),
-      ...(files.unstaged ?? []),
-      ...(files.untracked ?? []),
-      ...(files.conflicts ?? [])
-    ];
-    const hasScenarios = allFiles.some((path) => path.startsWith("scenarios/"));
-    const hasResources = allFiles.some((path) => path.startsWith("resources/"));
-    if (hasScenarios || hasResources) {
-      const defaults: GroupingRule[] = [];
-      if (hasScenarios) defaults.push(createGroupingRule("Scenarios", "scenarios/", "segment"));
-      if (hasResources) defaults.push(createGroupingRule("Resources", "resources/", "segment"));
-      setGroupingRules(defaults);
-    }
-    setGroupingDefaultsPending(false);
-  }, [groupingDefaultsPending, repoDir, statusQuery.data?.files, createGroupingRule]);
-
-  useEffect(() => {
-    // If in grouped mode but no rules available, fall back to flat
-    if (groupingRules.length === 0 && fileViewMode === "grouped") {
+    // If in grouped mode but no manual or server-derived groups are available, fall back to flat.
+    if (!groupingAvailable && fileViewMode === "grouped") {
       setFileViewMode("flat");
     }
-  }, [groupingRules, fileViewMode]);
+  }, [fileViewMode, groupingAvailable]);
 
   useEffect(() => {
     // Skip until URL initialization is complete (state batched together)
@@ -2163,6 +2144,7 @@ export default function App() {
             fillHeight={isMain || !changesCollapsed}
             fileViewMode={fileViewMode}
             groupingRules={groupingRules}
+            resolvedGroups={repoGroupsQuery.data?.groups}
             groupingAvailable={groupingAvailable}
             onCycleViewMode={handleCycleViewMode}
 
@@ -2440,6 +2422,7 @@ export default function App() {
             fillHeight={true}
             fileViewMode={fileViewMode}
             groupingRules={groupingRules}
+            resolvedGroups={repoGroupsQuery.data?.groups}
             groupingAvailable={groupingAvailable}
             onCycleViewMode={handleCycleViewMode}
 
@@ -2755,7 +2738,8 @@ export default function App() {
           groupingEnabled={fileViewMode === "grouped"}
           onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
           groupingRules={groupingRules}
-          onChangeGroupingRules={setGroupingRules}
+          contractGroups={repoGroupsQuery.data?.groups}
+          onChangeGroupingRules={handleGroupingRulesChange}
           onClose={() => setIsSettingsOpen(false)}
         />
         <UpstreamInfoModal
@@ -2971,7 +2955,8 @@ export default function App() {
         groupingEnabled={fileViewMode === "grouped"}
         onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
         groupingRules={groupingRules}
-        onChangeGroupingRules={setGroupingRules}
+        contractGroups={repoGroupsQuery.data?.groups}
+        onChangeGroupingRules={handleGroupingRulesChange}
         onClose={() => setIsSettingsOpen(false)}
       />
       <UpstreamInfoModal

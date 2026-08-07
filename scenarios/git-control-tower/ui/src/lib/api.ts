@@ -66,6 +66,8 @@ export type {
   IgnoreResponse,
   GroupingRulesConfig,
   GroupingRuleAPI,
+  ChangeGroupAPI,
+  RepoGroupsResponse,
   GitignoreHealthResponse,
   GitignoreSuggestion,
   GitignoreMoveRequest,
@@ -172,6 +174,7 @@ export type {
 export {
   fetchCapabilities,
   fetchGroupingRules,
+  fetchRepoGroups,
   saveGroupingRules,
   fetchGitignoreHealth,
   moveGitignoreEntry,

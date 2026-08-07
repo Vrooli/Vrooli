@@ -503,10 +503,18 @@ func (s *Server) finalizeCollectionCapture(ctx context.Context, repoID int64, pe
 		collection, err := s.svc.FinalizeCollectionCapture(tailCtx, repoID, pending)
 		if err != nil {
 			s.logger.Printf("baselines.CollectionCapture: finalizer failed collection=%s scenario=%s run=%s: %v", pending.CollectionName, pending.Scenario, pending.Pending.Run.RunID, err)
+		} else {
+			coverage := collection.Coverage()
+			s.logger.Printf("baselines.CollectionCapture: terminal commit collection=%s scenario=%s run=%s ready=%d pending=%d failed=%d", pending.CollectionName, pending.Scenario, pending.Pending.Run.RunID, coverage.Ready, coverage.Pending, coverage.Failed)
+		}
+		deferred, started, dispatchErr := s.svc.StartDeferredCollectionCapture(tailCtx, repoID, pending)
+		if dispatchErr != nil {
+			s.logger.Printf("baselines.CollectionCapture: deferred dispatch failed collection=%s after=%s: %v", pending.CollectionName, pending.Scenario, dispatchErr)
 			return
 		}
-		coverage := collection.Coverage()
-		s.logger.Printf("baselines.CollectionCapture: terminal commit collection=%s scenario=%s run=%s ready=%d pending=%d failed=%d", pending.CollectionName, pending.Scenario, pending.Pending.Run.RunID, coverage.Ready, coverage.Pending, coverage.Failed)
+		if started {
+			s.finalizeCollectionCapture(ctx, repoID, deferred)
+		}
 	}()
 }
 

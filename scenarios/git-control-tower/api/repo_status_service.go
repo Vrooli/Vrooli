@@ -46,7 +46,7 @@ func GetRepoStatus(ctx context.Context, deps RepoStatusDeps) (*RepoStatus, error
 		Conflicts: len(parsed.Files.Conflicts),
 		Ignored:   len(parsed.Files.Ignored),
 	}
-	parsed.Scopes = detectScopes(parsed.Files)
+	parsed.Scopes = detectScopes(repoDir, parsed.Files)
 
 	// Pre-detect binary files so we can exclude them from git diff --numstat.
 	// This is a critical performance optimization: git diff --numstat must read

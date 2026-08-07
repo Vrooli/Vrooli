@@ -31,6 +31,14 @@ Domain vocabulary used across the API, CLI, UI, and docs.
 - **Scope filter** — UI history filter by Vrooli scope (scenario or
   resource). Implemented in
   [CODE: ui/src/components/GitHistory.tsx#GitHistoryImpl].
+- **Change group** — a read-only bucket of changed files shown in the Changes
+  list. Groups resolve from manual rules first, declared contract targets
+  second, and `Other` last.
+- **Contract group** — a change group derived at read time from one target in
+  `.vrooli/repo-contract.json`; it is never stored in grouping rules.
+- **Target index** — the cached path-to-target lookup supplied by
+  `packages/repo-contract-go`; it uses longest-root matching and a bounded
+  ten-second freshness window.
 - **Working set** — files currently changed in the working tree; used
   by the "working-set only" history filter.
 - **Commit group** — a prefix-based grouping of commits sharing a

@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import { Plus, Minus } from "lucide-react";
-import type { DiffStats, RepoFilesStatus, RepoFileStats, FileViewMode } from "../lib/api";
+import type { ChangeGroupAPI, DiffStats, RepoFilesStatus, RepoFileStats, FileViewMode } from "../lib/api";
 
 export const MobileContext = createContext(false);
 
@@ -55,6 +55,7 @@ export interface FileListProps {
   fillHeight?: boolean;
   fileViewMode?: FileViewMode;
   groupingRules?: GroupingRule[];
+  resolvedGroups?: ChangeGroupAPI[];
   groupingAvailable?: boolean;
   onCycleViewMode?: () => void;
   onStagePaths?: (paths: string[]) => void;
@@ -117,7 +118,7 @@ export interface FileSectionProps {
   isIgnoring?: boolean;
   confirmingIgnore?: string | null;
   onConfirmIgnore?: (path: string | null) => void;
-  groupingRules?: GroupingRule[];
+  resolvedGroups?: ChangeGroupAPI[];
   onOpenMobileActions?: (file: string) => void;
   onContextMenu?: (file: string, event: React.MouseEvent) => void;
   mobileSelectionMode?: boolean;
@@ -153,7 +154,7 @@ export interface FileRowProps {
   onConfirmIgnore?: (path: string | null) => void;
   confirmingDiscard?: string | null;
   confirmingIgnore?: string | null;
-  groupingRules?: GroupingRule[];
+  resolvedGroups?: ChangeGroupAPI[];
   onOpenMobileActions?: (file: string) => void;
   onContextMenu?: (file: string, event: React.MouseEvent) => void;
   mobileSelectionMode?: boolean;
@@ -239,13 +240,6 @@ export function LineStats({
       {inner}
     </div>
   );
-}
-
-export function normalizePrefix(prefix: string) {
-  const trimmed = prefix.trim();
-  if (!trimmed) return "";
-  if (trimmed === "/") return "/";
-  return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
 }
 
 export function getStatusBadge(code: string | undefined, category: FileCategory) {

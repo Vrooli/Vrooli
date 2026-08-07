@@ -100,6 +100,25 @@ describe("FileList", () => {
     expect(props.onConfirmIgnore).toHaveBeenCalledWith("src/changed.ts");
   });
 
+  it("renders server-resolved groups without matching paths in the browser", () => {
+    renderFileList({
+      fileViewMode: "grouped",
+      resolvedGroups: [{
+        key: "contract:tool:compiler",
+        kind: "tool",
+        id: "compiler",
+        label: "compiler",
+        root: "internal/tools/compiler",
+        source: "contract",
+        files: ["src/changed.ts", "src/new.ts"],
+      }],
+    });
+
+    expect(screen.getByText("compiler")).toBeInTheDocument();
+    expect(screen.getByText("src/changed.ts")).toBeInTheDocument();
+    expect(screen.queryByText("Other")).not.toBeInTheDocument();
+  });
+
   it("spins only the touched row when its path is pending", () => {
     const { container } = renderFileList({
       pendingPaths: new Set(["src/changed.ts"]),
