@@ -1,0 +1,85 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Operators should create and update each scope's facet vocabulary, retention rules, residency budgets, and frontier target.",
+      "id": "SL-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Per-scope vocabulary",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Search clients should discover one provider per scope and receive scope-labelled results without duplicate corpus answers.",
+      "id": "SL-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Federated scope discovery",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The operator UI should provide a ledger list, scope detail, journal timeline, frontier explorer, vocabulary editor, and cross-scope search.",
+      "id": "SL-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Corpus-first operator surface",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The ledger should support a verified migration that preserves entry bodies and dependent derived data without deleting source rows.",
+      "id": "SL-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Append-only migration seam",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The ledger should measure recall cost and apply a bounded candidate strategy when corpus growth exceeds the recorded latency ceiling.",
+      "id": "SL-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Measured recall cost",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P1-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

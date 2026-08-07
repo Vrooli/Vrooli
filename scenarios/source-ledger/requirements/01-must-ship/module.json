@@ -1,0 +1,85 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "The ledger shall append every accepted entry and reject updates or deletes to journal rows.",
+      "id": "SL-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Append-only journal",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When a client supplies a scope, the ledger shall return only entries and derived nodes from that scope.",
+      "id": "SL-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Scope-isolated recall",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When compaction runs, the ledger shall preserve journal rows and maintain a scored frontier with rebuildable summaries and edges.",
+      "id": "SL-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Bounded compaction canopy",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The ledger shall expose scope-aware Connect, API, and CLI operations for append, recall, wake, frontier, and health.",
+      "id": "SL-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Stable programmatic surface",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The ledger shall keep one authoritative SQLite corpus with registered backup and restore evidence.",
+      "id": "SL-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Durable corpus authority",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P0-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

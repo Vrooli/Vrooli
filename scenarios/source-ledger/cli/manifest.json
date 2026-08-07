@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "source-ledger",
+  "description": "Source Ledger operator CLI surface. The first implementation slice exposes health and contract discovery while ledger domain commands are introduced at the service-boundary phase.",
+  "groups": [
+    {
+      "name": "health",
+      "description": "Inspect Source Ledger readiness",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show Source Ledger health and readiness",
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": [
+    { "service": "FacetsService", "method": "AssignFacet", "reason": "The moved engine API is validated first; the source-ledger operator CLI is introduced in the following adoption phase." },
+    { "service": "FacetsService", "method": "ListFacets", "reason": "The moved engine API is validated first; the source-ledger operator CLI is introduced in the following adoption phase." },
+    { "service": "FacetsService", "method": "ListPinCandidates", "reason": "Pin curation is deferred until the source-ledger operator surface is introduced." },
+    { "service": "FacetsService", "method": "ListPinProposals", "reason": "Pin proposal review is deferred until the source-ledger operator surface is introduced." },
+    { "service": "FacetsService", "method": "MarkSuperseded", "reason": "Supersession is deferred until the source-ledger operator surface is introduced." },
+    { "service": "FacetsService", "method": "ResolvePinProposal", "reason": "Pin proposal review is deferred until the source-ledger operator surface is introduced." },
+    { "service": "FacetsService", "method": "ResolveThread", "reason": "Thread resolution is deferred until the source-ledger operator surface is introduced." },
+    { "service": "FacetsService", "method": "SetPin", "reason": "Pin curation is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ForestService", "method": "RunCompactionPass", "reason": "Compaction is API-only until the source-ledger operator surface is introduced." },
+    { "service": "ForestService", "method": "GetFrontier", "reason": "Frontier inspection is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ForestService", "method": "GetNode", "reason": "Node inspection is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ForestService", "method": "RebuildForest", "reason": "Forest rebuild is API-only until the source-ledger operator surface is introduced." },
+    { "service": "JournalService", "method": "AppendEntry", "reason": "The moved engine API is validated first; the source-ledger operator CLI is introduced in the following adoption phase." },
+    { "service": "JournalService", "method": "GetEntry", "reason": "Entry inspection is deferred until the source-ledger operator surface is introduced." },
+    { "service": "JournalService", "method": "ListEntries", "reason": "Timeline browsing is deferred until the source-ledger operator surface is introduced." },
+    { "service": "JournalService", "method": "ProcessClassificationRetries", "reason": "Retry operations remain API-only until the source-ledger operator surface is introduced." },
+    { "service": "JournalService", "method": "ProcessEmbeddingRetries", "reason": "Retry operations remain API-only until the source-ledger operator surface is introduced." },
+    { "service": "RecallService", "method": "Recall", "reason": "The moved engine API is validated first; the source-ledger operator CLI is introduced in the following adoption phase." },
+    { "service": "RecallService", "method": "ListSiblingEvents", "reason": "Timeline browsing is deferred until the source-ledger operator surface is introduced." },
+    { "service": "RecallService", "method": "Wake", "reason": "The moved engine API is validated first; the source-ledger operator CLI is introduced in the following adoption phase." },
+    { "service": "RecallService", "method": "Zoom", "reason": "Tree exploration is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ClassificationRulesService", "method": "CreateRule", "reason": "Rule administration is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ClassificationRulesService", "method": "DryRunRule", "reason": "Rule administration is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ClassificationRulesService", "method": "EnableRule", "reason": "Rule administration is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ClassificationRulesService", "method": "ListRules", "reason": "Rule administration is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ClassificationRulesService", "method": "MeasureDistribution", "reason": "Rule administration is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ClassificationRulesService", "method": "RefacetCorpus", "reason": "Rule administration is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ClassificationRulesService", "method": "RevertRule", "reason": "Rule administration is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ScopesService", "method": "CreateScope", "reason": "Scope administration is deferred until the source-ledger operator surface is introduced." },
+    { "service": "ScopesService", "method": "ListScopes", "reason": "Scope administration is deferred until the source-ledger operator surface is introduced." }
+  ]
+}

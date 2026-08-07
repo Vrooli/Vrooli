@@ -1,0 +1,9 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "source-ledger",
+  "generator": "v1.0.0",
+  "manifest_hash": "959f8b8d5c7e260d6b3b53d180cdf28867988fac15fdff9575ad11c6df848e9c",
+  "commands": null
+}

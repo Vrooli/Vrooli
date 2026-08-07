@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {"id": "search", "title": "Cross-scope search", "routes": ["/search"], "purpose": "Search the federated corpus and label every result with its owning scope.", "prd_refs": ["OT-P1-002"]},
+  "states": [{"id": "default", "description": "Search is ready for a query."}, {"id": "loading", "description": "Search is running."}, {"id": "empty", "description": "No matching source material exists."}, {"id": "partial", "description": "Some scope providers returned no result."}, {"id": "request-error", "description": "Federated search is unavailable."}, {"id": "stale", "description": "Results are older than the latest provider snapshot."}],
+  "elements": [{"id": "search-input", "role": "textbox", "name": "Search the corpus"}, {"id": "search-results", "role": "list", "name": "Search results"}],
+  "claims": [{"id": "results-labelled", "type": "element-present", "statement": "Every result carries its owning scope label.", "tier": "machine", "elements": ["search-results"], "states": ["default", "partial", "stale"]}],
+  "bindings": {"elements": {"search-input": {"testid": "search-input"}, "search-results": {"testid": "search-results"}}}
+}

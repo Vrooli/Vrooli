@@ -1,0 +1,416 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.source_ledger.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.source_ledger.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "The capability descriptor is a plain operational JSON probe used by the control plane.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "facets_list",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/ListFacets",
+      "method": "POST",
+      "summary": "List seeded facets",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_assign",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/AssignFacet",
+      "method": "POST",
+      "summary": "Append a facet assignment",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_set_pin",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/SetPin",
+      "method": "POST",
+      "summary": "Set operator pin state",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_list_pin_proposals",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/ListPinProposals",
+      "method": "POST",
+      "summary": "List pin proposals",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_list_pin_candidates",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/ListPinCandidates",
+      "method": "POST",
+      "summary": "List ranked pin candidates",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_resolve_pin_proposal",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/ResolvePinProposal",
+      "method": "POST",
+      "summary": "Resolve pin proposal",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_mark_superseded",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/MarkSuperseded",
+      "method": "POST",
+      "summary": "Append supersession mark",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_resolve_thread",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/ResolveThread",
+      "method": "POST",
+      "summary": "Resolve a thread",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "forest_compact",
+      "path": "/vrooli.source_ledger.v1.forest.ForestService/RunCompactionPass",
+      "method": "POST",
+      "summary": "Run pressure-driven memory compaction",
+      "description": "",
+      "category": "forest"
+    },
+    {
+      "id": "forest_frontier",
+      "path": "/vrooli.source_ledger.v1.forest.ForestService/GetFrontier",
+      "method": "POST",
+      "summary": "List forest frontier",
+      "description": "",
+      "category": "forest"
+    },
+    {
+      "id": "forest_node",
+      "path": "/vrooli.source_ledger.v1.forest.ForestService/GetNode",
+      "method": "POST",
+      "summary": "Get one forest node",
+      "description": "",
+      "category": "forest"
+    },
+    {
+      "id": "forest_rebuild",
+      "path": "/vrooli.source_ledger.v1.forest.ForestService/RebuildForest",
+      "method": "POST",
+      "summary": "Rebuild derived forest",
+      "description": "",
+      "category": "forest"
+    },
+    {
+      "id": "recall_query",
+      "path": "/vrooli.source_ledger.v1.recall.RecallService/Recall",
+      "method": "POST",
+      "summary": "Recall semantic memory",
+      "description": "",
+      "category": "recall"
+    },
+    {
+      "id": "recall_wake",
+      "path": "/vrooli.source_ledger.v1.recall.RecallService/Wake",
+      "method": "POST",
+      "summary": "Render bounded wake context",
+      "description": "",
+      "category": "recall"
+    },
+    {
+      "id": "recall_zoom",
+      "path": "/vrooli.source_ledger.v1.recall.RecallService/Zoom",
+      "method": "POST",
+      "summary": "Zoom into a memory node",
+      "description": "",
+      "category": "recall"
+    },
+    {
+      "id": "recall_siblings",
+      "path": "/vrooli.source_ledger.v1.recall.RecallService/ListSiblingEvents",
+      "method": "POST",
+      "summary": "List sibling events",
+      "description": "",
+      "category": "recall"
+    },
+    {
+      "id": "journal_append",
+      "path": "/vrooli.source_ledger.v1.journal.JournalService/AppendEntry",
+      "method": "POST",
+      "summary": "Append an immutable memory entry",
+      "description": "",
+      "category": "journal",
+      "request": {
+        "type": "AppendEntryRequest"
+      },
+      "response": {
+        "type": "AppendEntryResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing body"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence failure"
+        }
+      ]
+    },
+    {
+      "id": "journal_get",
+      "path": "/vrooli.source_ledger.v1.journal.JournalService/GetEntry",
+      "method": "POST",
+      "summary": "Get an immutable memory entry",
+      "description": "",
+      "category": "journal",
+      "request": {
+        "type": "GetEntryRequest"
+      },
+      "response": {
+        "type": "GetEntryResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Entry does not exist"
+        }
+      ]
+    },
+    {
+      "id": "journal_list",
+      "path": "/vrooli.source_ledger.v1.journal.JournalService/ListEntries",
+      "method": "POST",
+      "summary": "List immutable memory entries",
+      "description": "",
+      "category": "journal",
+      "request": {
+        "type": "ListEntriesRequest"
+      },
+      "response": {
+        "type": "ListEntriesResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid limit"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence failure"
+        }
+      ]
+    },
+    {
+      "id": "journal_retry_classifications",
+      "path": "/vrooli.source_ledger.v1.journal.JournalService/ProcessClassificationRetries",
+      "method": "POST",
+      "summary": "Replay queued classification failures",
+      "description": "",
+      "category": "journal",
+      "request": {
+        "type": "ProcessClassificationRetriesRequest"
+      },
+      "response": {
+        "type": "ProcessClassificationRetriesResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid limit"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Retry persistence failure"
+        }
+      ]
+    },
+    {
+      "id": "journal_retry_embeddings",
+      "path": "/vrooli.source_ledger.v1.journal.JournalService/ProcessEmbeddingRetries",
+      "method": "POST",
+      "summary": "Replay queued embedding failures",
+      "description": "",
+      "category": "journal",
+      "request": {
+        "type": "ProcessEmbeddingRetriesRequest"
+      },
+      "response": {
+        "type": "ProcessEmbeddingRetriesResponse"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid limit"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Retry persistence failure"
+        }
+      ]
+    },
+    {
+      "id": "rules_list",
+      "path": "/vrooli.source_ledger.v1.rules.ClassificationRulesService/ListRules",
+      "method": "POST",
+      "summary": "List classification rules",
+      "description": "",
+      "category": "rules"
+    },
+    {
+      "id": "rules_create",
+      "path": "/vrooli.source_ledger.v1.rules.ClassificationRulesService/CreateRule",
+      "method": "POST",
+      "summary": "Create classification rule",
+      "description": "",
+      "category": "rules"
+    },
+    {
+      "id": "rules_dry_run",
+      "path": "/vrooli.source_ledger.v1.rules.ClassificationRulesService/DryRunRule",
+      "method": "POST",
+      "summary": "Dry-run classification rule",
+      "description": "",
+      "category": "rules"
+    },
+    {
+      "id": "rules_enable",
+      "path": "/vrooli.source_ledger.v1.rules.ClassificationRulesService/EnableRule",
+      "method": "POST",
+      "summary": "Enable classification rule",
+      "description": "",
+      "category": "rules"
+    },
+    {
+      "id": "rules_revert",
+      "path": "/vrooli.source_ledger.v1.rules.ClassificationRulesService/RevertRule",
+      "method": "POST",
+      "summary": "Revert rule assignments",
+      "description": "",
+      "category": "rules"
+    },
+    {
+      "id": "rules_refacet",
+      "path": "/vrooli.source_ledger.v1.rules.ClassificationRulesService/RefacetCorpus",
+      "method": "POST",
+      "summary": "Re-facet the immutable corpus",
+      "description": "",
+      "category": "rules",
+      "request": {
+        "type": "RefacetCorpusRequest"
+      },
+      "response": {
+        "type": "RefacetCorpusResponse"
+      }
+    },
+    {
+      "id": "rules_measure_distribution",
+      "path": "/vrooli.source_ledger.v1.rules.ClassificationRulesService/MeasureDistribution",
+      "method": "POST",
+      "summary": "Measure rule coverage and classifier tail",
+      "description": "",
+      "category": "rules",
+      "request": {
+        "type": "MeasureDistributionRequest"
+      },
+      "response": {
+        "type": "MeasureDistributionResponse"
+      }
+    },
+    {
+      "id": "scopes_create",
+      "path": "/vrooli.source_ledger.v1.scopes.ScopesService/CreateScope",
+      "method": "POST",
+      "summary": "Create a memory scope",
+      "description": "",
+      "category": "scopes"
+    },
+    {
+      "id": "scopes_list",
+      "path": "/vrooli.source_ledger.v1.scopes.ScopesService/ListScopes",
+      "method": "POST",
+      "summary": "List memory scopes",
+      "description": "",
+      "category": "scopes"
+    }
+  ]
+}
