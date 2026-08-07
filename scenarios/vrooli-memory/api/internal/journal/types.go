@@ -21,7 +21,7 @@ type (
 	RetryResult struct {
 		Processed, Deferred, AlreadyResolved int
 	}
-	Attribution      struct{ ActorID, ActorKind, SourceRuntime string }
+	Attribution      struct{ ActorID, ActorKind, SourceRuntime, VerificationStatus, HarnessSessionID, HarnessKind string }
 	ImportProvenance struct {
 		Harness, Path string
 		ImportedAt    time.Time

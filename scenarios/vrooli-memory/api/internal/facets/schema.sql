@@ -39,6 +39,12 @@ CREATE TABLE IF NOT EXISTS pins (
   actor_id TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS facet_recall_stats (
+  entry_id TEXT PRIMARY KEY,
+  recall_count INTEGER NOT NULL DEFAULT 0,
+  last_recalled_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS pin_reviews (
   id TEXT PRIMARY KEY,
   entry_id TEXT NOT NULL,
@@ -48,6 +54,7 @@ CREATE TABLE IF NOT EXISTS pin_reviews (
 
 CREATE TABLE IF NOT EXISTS merge_proposals (
   id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL DEFAULT 'agent-memory',
   rationale TEXT NOT NULL,
   entry_ids_json TEXT NOT NULL DEFAULT '[]',
   resolved_at TEXT

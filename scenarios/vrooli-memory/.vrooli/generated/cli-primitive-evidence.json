@@ -4,8 +4,16 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "vrooli-memory",
   "generator": "v1.0.0",
-  "manifest_hash": "b1b14f0d19eeb0f10098c6a7c9a184e0966d670fa82b237b333fe6f28f510ac7",
+  "manifest_hash": "80486b4b27f411ab9685071b2dd56dc420a1f015424e51377a8ae4f56fad98a9",
   "commands": [
+    {
+      "path": "facets candidates",
+      "group": "facets",
+      "command": "candidates",
+      "binding": "FacetsService.ListPinCandidates",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
     {
       "path": "facets correct",
       "group": "facets",
@@ -95,6 +103,16 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "harness hook",
+      "group": "harness",
+      "command": "hook"
+    },
+    {
+      "path": "harness hooks",
+      "group": "harness",
+      "command": "hooks"
+    },
+    {
       "path": "harness import",
       "group": "harness",
       "command": "import",
@@ -117,6 +135,14 @@
       "binding": "HarnessService.InstallPromptBlock",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "harness maintenance-status",
+      "group": "harness",
+      "command": "maintenance-status",
+      "binding": "HarnessService.GetMaintenanceStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "harness project",
@@ -207,6 +233,14 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "rules measure-distribution",
+      "group": "rules",
+      "command": "measure-distribution",
+      "binding": "ClassificationRulesService.MeasureDistribution",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "rules refacet",
       "group": "rules",
       "command": "refacet",
@@ -221,6 +255,22 @@
       "binding": "ClassificationRulesService.RevertRule",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "scopes create",
+      "group": "scopes",
+      "command": "create",
+      "binding": "ScopesService.CreateScope",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "scopes list",
+      "group": "scopes",
+      "command": "list",
+      "binding": "ScopesService.ListScopes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     }
   ]
 }

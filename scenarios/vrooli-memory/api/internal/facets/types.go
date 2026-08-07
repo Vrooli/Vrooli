@@ -20,6 +20,12 @@ type (
 		EntryIDs  []string
 		Rationale string
 	}
+	PinCandidate struct {
+		EntryID, Body  string
+		RecallCount    int
+		CreatedAt      time.Time
+		LastRecalledAt *time.Time
+	}
 )
 
 type ErrPinBudgetExceeded struct {

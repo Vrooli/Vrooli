@@ -52,6 +52,7 @@ export const strings = {
       title: "pages.operator.title",
       description: "pages.operator.description",
       frontierTitle: "pages.operator.frontierTitle",
+      frontierCount: "pages.operator.frontierCount",
       frontierEmpty: "pages.operator.frontierEmpty",
       correctionTitle: "pages.operator.correctionTitle",
       facetsEmpty: "pages.operator.facetsEmpty",

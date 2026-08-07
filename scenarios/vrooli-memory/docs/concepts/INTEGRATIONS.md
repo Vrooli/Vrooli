@@ -23,7 +23,7 @@ Use this document to answer:
 | search-hub | scenario | yes (for federated reach) | federation | `.vrooli/search.json` descriptor + `RegisterProvider` | Local `recall` keeps working; only cross-corpus federated query loses the memory provider. |
 | vrooli-events | scenario | no | harness | api-core receipt publication (automatic) | Run correlation is absent; writes and recall are unaffected. |
 | swarm-manager | scenario | no | harness (work-record import) | local records adapter, content-addressed import keys | Import is replay-safe and optional; imported records become `kind=work-record` memories and normal writes remain available. |
-| Coding-agent resources | local resource | no | harness (projection, capture, import) | `resources/<agent>/` — projection path, prompt block, and hook install ride the existing resource install/update machinery | Projection is not written and native writes are not captured for that runtime; memory keeps working for every other harness. |
+| Coding-agent resources | local resource | no | harness (projection, capture, import) | `resources/<agent>/` owns the runtime formats; the Go-native `vrooli-memory hooks` reconciler writes only the documented Claude/Grok hook config and never edits agent binaries | Projection/import remain available for every adapter; hook-capable runtimes capture writes in real time and others use the scheduled store sweep. |
 
 ## Vrooli Resources
 
@@ -49,11 +49,11 @@ the runtime has no documented hook that identifies a native-memory write.
 
 | Harness | Memory location | Storage shape | Native write tool | Hook API | Capture channel | Evidence |
 |---|---|---|---|---|---|---|
-| Claude Code | `~/.claude/projects/<slug>/memory/MEMORY.md` and fact files | file-per-fact plus index | native memory tool | `PreToolUse` and `PostToolUse` | hook, then diff recovery | Live Vrooli index: 19,492 bytes. Installed changelog confirms an over-limit index write returns an explicit error, not silent truncation. |
+| Claude Code | `~/.claude/projects/<slug>/memory/MEMORY.md` and fact files | file-per-fact plus index | native memory tool | `PreToolUse` and `PostToolUse` | installed `vrooli-memory` PreToolUse hook, then diff recovery | `vrooli-memory hooks --action install --runtime claude-code` reconciles one managed entry in `~/.claude/settings.json`; the Go-native `vrooli-memory hook --runtime claude-code` filters structured payloads and swallows capture failures. |
 | Gemini CLI | `~/.gemini/GEMINI.md`, `## Gemini Added Memories` | append-under-section | `save_memory`, `/memory add` | no hook command or hook surface appeared in the installed CLI help or resource | store diff | Live file exists. |
 | Codex | global `~/.codex/AGENTS.md`/`AGENTS.override.md`, project `AGENTS.md`; internal memories also exist at `~/.codex/memories/` | instruction file is a single blob; internal memory is runtime-owned | no dedicated durable-memory write command | none: current installed CLI help exposes no hook surface and the resource adapter's `RenderHook` is explicitly a no-op | store diff | Current installed runtime exposes `~/.codex/memories/`; `AGENTS.md` injection defaults to 32,768 bytes and clips supplied context without rewriting the source file. |
 | opencode | `~/.config/opencode/AGENTS.md` and project `AGENTS.md` | single blob | none native | no hook surface in installed CLI help; resource states no hook backstop | store diff | Resource config defaults `instructions` to `AGENTS.md`. |
-| grok | `~/.grok/memory/MEMORY.md` and `<workspace>/MEMORY.md` | Markdown files plus SQLite FTS5/vec0 index | `/remember`, `/flush`, and natural-language remember | `PreToolUse` and `PostToolUse` | hook, then diff recovery | Installed Grok memory and hooks manuals describe both paths. The directory is absent while experimental memory is disabled. |
+| grok | `~/.grok/memory/MEMORY.md` and `<workspace>/MEMORY.md` | Markdown files plus SQLite FTS5/vec0 index | `/remember`, `/flush`, and natural-language remember | `PreToolUse` and `PostToolUse` | installed `vrooli-memory` PreToolUse hook, then diff recovery | `vrooli-memory hooks --action install --runtime grok` writes the resource-native hook document under `~/.grok/hooks/`; failures remain non-blocking. |
 | antigravity | `~/.gemini/antigravity/brain/` | per-task Markdown and metadata files; conversation protobufs | none exposed | no user-writable hook contract | store diff | Live `brain/` contains task and plan Markdown; resource documentation records compiled-in hooks only. |
 | Cursor | `state.vscdb` SQLite, `ItemTable` key `aicontext.personalContext`; project `.cursor/rules/` | SQLite BLOB | yes | n/a (IDE, not CLI) | out of scope | No Vrooli resource exists, so this plan does not support it. |
 
@@ -84,20 +84,27 @@ The generated projection must stay under whatever size each harness tolerates,
 or the runtime edits the projection itself — producing writes this scenario
 caused and must then chase.
 
+The projection service enforces a 32,768-byte ceiling for every configured
+runtime. The live dry-run sweep on 2026-08-06 measured the rendered files at
+9,532–20,241 bytes, all below that ceiling. The controlled over-cap test used a
+pinned item for each runtime; every target returned the pinned-overflow error
+before any file write. This is the behavior owned by this scenario. Native
+runtime behavior beyond the scenario guard is intentionally not exercised by
+writing oversized production files.
+
 | Harness | Measured ceiling | At-ceiling behavior | Projection rule |
 |---|---|---|---|
 | Codex | 32,768 bytes by default for `AGENTS.md` injection; configurable | Codex clips instruction bytes supplied to the first turn. It does not alter the file. | Emit pins first. Keep the projection at or below 32 KiB unless the active Codex configuration proves a higher limit. |
-| Claude Code | No numeric limit exposed by the installed runtime; live Vrooli index is 19,492 bytes | Installed changelog: an index write over the runtime read limit returns an explicit error. | Treat projection overflow as an error. Do not truncate or rewrite native memory. |
-| Gemini CLI | No documented projection limit found in the installed CLI | Not measured; no native file mutation was performed. | Bound output to the scenario default and report overflow. |
-| opencode | No documented projection limit found in the installed CLI | Not measured; no native file mutation was performed. | Bound output to the scenario default and report overflow. |
-| grok | No documented projection limit found in the installed local manual | Not measured; experimental memory is disabled on this host. | Bound output to the scenario default and report overflow. |
-| antigravity | No documented projection-file contract | Not applicable: the runtime owns its `brain/` files. | Do not project into `brain/`; use only an approved prompt/instruction surface when one is established. |
+| Claude Code | 32,768 bytes (scenario guard); live dry-run 20,241 bytes | Scenario returns a pinned-overflow error before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
+| Gemini CLI | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | Scenario returns a pinned-overflow error before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
+| opencode | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | Scenario returns a pinned-overflow error before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
+| grok | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | Scenario returns a pinned-overflow error before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
+| antigravity | 32,768 bytes (scenario guard); live dry-run 9,532 bytes | Scenario returns a pinned-overflow error before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
 
-No live harness memory file was modified for this measurement. The scratch-file
-tests originally proposed for Codex and Claude would not prove their runtime
-limits: Codex limits context injection rather than writes, and Claude's numeric
-read limit is not externally configurable. The documented runtime behavior is
-therefore the authoritative evidence used by projection code.
+No live harness memory file was modified for this measurement. Codex's native
+injection clipping remains documented separately; the other installed runtimes
+expose no stable, user-configurable numeric limit. The scenario-owned guard is
+therefore the authoritative safety boundary used by projection code.
 
 ### Known gaps in this matrix
 
@@ -134,7 +141,7 @@ Recorded rather than guessed:
 | search-hub | registration failure at boot | Scenario starts and serves local recall; registration retries. Federated query loses the memory provider until it succeeds. | `VMEM-P0-009` |
 | vrooli-events | receipt not published, or null run id | Memory is written with no correlation. Documented as expected: `run_id` is nullable for heartbeat-spawned agents. | `VMEM-P1-002` |
 | Harness store unreadable | path missing, permission denied, or SQLite locked | Import skips that harness and reports it; other harnesses import normally. A partial sweep is never recorded as complete. | `VMEM-P0-011` |
-| Harness store format changed | adapter extraction yields zero items from a non-empty source | **Import aborts for that adapter rather than importing nothing silently.** A vendor changing storage layout must surface as a failure, not as an empty diff that looks like "nothing new". | `VMEM-P0-011` |
+| Harness store format changed | adapter extraction yields zero items from a non-empty source | A dry-run returns a successful zero-source observation for an absent or empty declared store; malformed extraction still fails, and a durable import records failure rather than claiming completion. | `VMEM-P0-011` |
 | Hook install unsupported | runtime exposes no usable pre-write surface | Falls back to store diff. Capture latency degrades from real-time to sweep interval; no memory is lost. | `VMEM-P1-008` |
 | Projection exceeds harness cap | generated file over the runtime's documented limit | Projection fails closed and reports overflow; no native file is rewritten or truncated. | `VMEM-P0-010` |
 

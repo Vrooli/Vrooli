@@ -42,6 +42,14 @@ type (
 	sourceItem struct{ Path, Body string }
 )
 
+func normalizedAbsolutePath(path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return filepath.Clean(path)
+	}
+	return filepath.Clean(abs)
+}
+
 func defaultAdapters(claudeRoot, home string) map[string]AdapterDescriptor {
 	return map[string]AdapterDescriptor{
 		"claude-code":           {HarnessID: "claude-code", Locations: []string{claudeRoot}, Format: MarkdownPerFile, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "claude-code"}},
@@ -54,7 +62,19 @@ func defaultAdapters(claudeRoot, home string) map[string]AdapterDescriptor {
 	}
 }
 
-func (d AdapterDescriptor) discover() ([]sourceItem, error) {
+// Runtimes returns every declared import adapter in stable order. Missing
+// stores are still returned so maintenance can report an honest per-runtime
+// failure instead of silently omitting an unconfigured harness.
+func (i *Importer) Runtimes() []string {
+	out := make([]string, 0, len(i.adapters))
+	for runtime := range i.adapters {
+		out = append(out, runtime)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (d AdapterDescriptor) discover(projectionTargets map[string]struct{}) ([]sourceItem, error) {
 	var items []sourceItem
 	var found bool
 	for _, location := range d.Locations {
@@ -74,6 +94,9 @@ func (d AdapterDescriptor) discover() ([]sourceItem, error) {
 				if entry.IsDir() || (!matchesFormat(path, d.Format) && d.HarnessID != "swarm-manager-records") {
 					return nil
 				}
+				if _, excluded := projectionTargets[normalizedAbsolutePath(path)]; excluded {
+					return nil
+				}
 				loaded, err := d.extractPath(path)
 				if err != nil {
 					return err
@@ -84,6 +107,9 @@ func (d AdapterDescriptor) discover() ([]sourceItem, error) {
 			if err != nil {
 				return nil, fmt.Errorf("walk harness store %q: %w", location, err)
 			}
+			continue
+		}
+		if _, excluded := projectionTargets[normalizedAbsolutePath(location)]; excluded {
 			continue
 		}
 		loaded, err := d.extractPath(location)
@@ -110,8 +136,9 @@ func (d AdapterDescriptor) extractPath(path string) ([]sourceItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
-	// A generated projection is output-only. Never make an import sweep read it
-	// back as a native harness memory source; that would create a feedback loop.
+	// Older whole-file projections predate managed markers. Keep their
+	// generated-only guard for relocated stores; current projections are
+	// removed by stripManagedWakeBlock below.
 	if strings.HasPrefix(string(b), generatedHeader) {
 		return nil, nil
 	}
@@ -119,7 +146,28 @@ func (d AdapterDescriptor) extractPath(path string) ([]sourceItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("extract %s: %w", path, err)
 	}
+	for n := range items {
+		items[n].Body = stripManagedWakeBlock(items[n].Body)
+	}
 	return items, nil
+}
+
+// stripManagedWakeBlock removes generated wake content while preserving all
+// surrounding native memory. A file can contain several managed blocks after
+// repeated migrations, so every complete marker pair is removed.
+func stripManagedWakeBlock(body string) string {
+	for {
+		start := strings.Index(body, wakeStart)
+		if start < 0 {
+			return body
+		}
+		afterStart := body[start+len(wakeStart):]
+		end := strings.Index(afterStart, wakeEnd)
+		if end < 0 {
+			return body
+		}
+		body = body[:start] + afterStart[end+len(wakeEnd):]
+	}
 }
 
 func matchesFormat(path string, format Format) bool {

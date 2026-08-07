@@ -20,6 +20,16 @@ func TestPromptBlockIsIdempotentAndDoesNotNameMemoryCommand(t *testing.T) { // [
 	require.NotContains(t, strings.ToLower(PromptBlock()), "vrooli-memory ")
 }
 
+func TestPromptBlockMismatchIsRepairedToTheCanonicalBlock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "CLAUDE.md")
+	content := "# Existing\n" + promptStart + "\n## stale wording\n" + promptEnd + "\n"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	require.NoError(t, InstallPromptBlock(path))
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "# Existing\n"+PromptBlock()+"\n", string(data))
+}
+
 func TestPromptTargetsAreSeparateFromProjectionFiles(t *testing.T) {
 	root := t.TempDir()
 	claude, err := PromptTarget("claude-code", root)

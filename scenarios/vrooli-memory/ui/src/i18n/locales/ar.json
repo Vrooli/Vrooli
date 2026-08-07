@@ -40,6 +40,7 @@
       "title": "مراجعة المشغّل",
       "description": "افحص جبهة الضغط وراجع مقترحات التثبيت قبل تغيير الذاكرة المشتركة.",
       "frontierTitle": "جبهة الضغط",
+      "frontierCount": "العقد المؤهلة {{eligible}} · الهدف {{target}}",
       "frontierEmpty": "الجبهة فارغة",
       "correctionTitle": "سياسة السمات",
       "facetsEmpty": "لا توجد تعريفات للسمات",

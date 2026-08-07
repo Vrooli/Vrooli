@@ -30,7 +30,7 @@ func intFlag(ctx cliapp.OperationContext, name string) int32 {
 }
 
 func (h *handlers) recallCall(ctx cliapp.OperationContext) (*recallv1.RecallResponse, error) {
-	resp, err := h.client.Recall(context.Background(), connect.NewRequest(&recallv1.RecallRequest{Query: ctx.Positional("query"), Limit: intFlag(ctx, "limit")}))
+	resp, err := h.client.Recall(context.Background(), connect.NewRequest(&recallv1.RecallRequest{Query: ctx.Positional("query"), Scope: ctx.Flag("scope"), Limit: intFlag(ctx, "limit")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("recall memory", err, nil)
 	}
@@ -38,7 +38,7 @@ func (h *handlers) recallCall(ctx cliapp.OperationContext) (*recallv1.RecallResp
 }
 
 func (h *handlers) wakeCall(ctx cliapp.OperationContext) (*recallv1.WakeResponse, error) {
-	resp, err := h.client.Wake(context.Background(), connect.NewRequest(&recallv1.WakeRequest{TokenBudget: intFlag(ctx, "budget")}))
+	resp, err := h.client.Wake(context.Background(), connect.NewRequest(&recallv1.WakeRequest{Scope: ctx.Flag("scope"), TokenBudget: intFlag(ctx, "budget")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("wake memory", err, nil)
 	}
@@ -46,7 +46,7 @@ func (h *handlers) wakeCall(ctx cliapp.OperationContext) (*recallv1.WakeResponse
 }
 
 func (h *handlers) siblingsCall(ctx cliapp.OperationContext) (*recallv1.ListSiblingEventsResponse, error) {
-	resp, err := h.client.ListSiblingEvents(context.Background(), connect.NewRequest(&recallv1.ListSiblingEventsRequest{EntryId: ctx.Positional("entry-id")}))
+	resp, err := h.client.ListSiblingEvents(context.Background(), connect.NewRequest(&recallv1.ListSiblingEventsRequest{Scope: ctx.Flag("scope"), EntryId: ctx.Positional("entry-id")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("list sibling events", err, nil)
 	}

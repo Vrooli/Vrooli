@@ -31,14 +31,14 @@ describe("api/operator", () => {
     mocks.assignFacet.mockResolvedValueOnce({});
     mocks.listPinProposals.mockResolvedValueOnce({ proposals: ["proposal"] });
     mocks.resolvePinProposal.mockResolvedValueOnce({});
-    mocks.getFrontier.mockResolvedValueOnce({ nodes: ["node"] });
+    mocks.getFrontier.mockResolvedValueOnce({ nodes: ["node"], eligibleCount: 1, target: 2 });
 
     await expect(listFacets()).resolves.toEqual(["facet"]);
     await setPin("entry", true);
     await assignFacet("entry", "episode");
     await expect(listPinProposals()).resolves.toEqual(["proposal"]);
     await resolvePinProposal("proposal", false);
-    await expect(getFrontier()).resolves.toEqual(["node"]);
+    await expect(getFrontier()).resolves.toEqual({ nodes: ["node"], eligibleCount: 1, target: 2 });
 
     expect(mocks.setPin).toHaveBeenCalledWith({ entryId: "entry", pinned: true });
     expect(mocks.assignFacet).toHaveBeenCalledWith({ entryId: "entry", facetId: "episode" });

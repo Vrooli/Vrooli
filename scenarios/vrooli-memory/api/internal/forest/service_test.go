@@ -184,6 +184,7 @@ func (e writtenEdges) childIDs() []string { return []string{e[0].ChildID, e[1].C
 type memoryRepo struct {
 	source *memorySource
 	edges  []writtenEdges
+	nodes  []Node
 }
 
 func (r *memoryRepo) CreateSummary(_ context.Context, s Summary, edges []Edge) (Summary, error) {
@@ -205,8 +206,10 @@ func (r *memoryRepo) CreateSummary(_ context.Context, s Summary, edges []Edge) (
 	return s, nil
 }
 func (r *memoryRepo) Frontier(context.Context) ([]Summary, error) { return nil, nil }
-func (r *memoryRepo) Nodes(context.Context, int) ([]Node, error)  { return nil, nil }
-func (r *memoryRepo) Rebuild(context.Context) error               { return nil }
+func (r *memoryRepo) Nodes(context.Context, int) ([]Node, error) {
+	return append([]Node(nil), r.nodes...), nil
+}
+func (r *memoryRepo) Rebuild(context.Context) error { return nil }
 
 type retryingInference struct {
 	errs  []error
@@ -259,6 +262,20 @@ func TestClusteringGroupsOnASecondaryFacetSpace(t *testing.T) { // [REQ:VMEM-P1-
 		"a and b agree perfectly on the entities space and must cluster there, even though c is closer to a on topic")
 }
 
+func TestRebuildRestoresLeafFrontierWithoutCallingInference(t *testing.T) {
+	now := time.Now().UTC()
+	source := &memorySource{candidates: []Candidate{{ID: "entry-1", Kind: "entry", FacetID: "episode", Compactable: true, Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour)}}}
+	repo := &memoryRepo{source: source}
+	inferenceClient := &retryingInference{errs: []error{errors.New("summarizer must not be called by rebuild")}}
+	svc := NewService(repo, source, inferenceClient, Config{Target: 1})
+
+	result, err := svc.Rebuild(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, result.EligibleFrontierBefore)
+	require.Equal(t, 1, result.EligibleFrontierAfter)
+	require.Equal(t, 0, inferenceClient.calls)
+}
+
 func TestPairScoringNeverComparesAcrossFacetSpaces(t *testing.T) { // [REQ:VMEM-P1-005]
 	// Identical vectors sit in different spaces. Comparing index 0 to index 1
 	// would score a perfect match that means nothing.
@@ -266,4 +283,25 @@ func TestPairScoringNeverComparesAcrossFacetSpaces(t *testing.T) { // [REQ:VMEM-
 	require.InDelta(t, 0.0, bestSpacePairScore([][]float64{{1, 0}}, [][]float64{{0, 1}}), 1e-9)
 	// A summary carries one space; a leaf carries three. The shorter side bounds.
 	require.InDelta(t, 1.0, bestSpacePairScore([][]float64{{1, 0}}, [][]float64{{1, 0}, {0, 1}, {1, 1}}), 1e-9)
+}
+
+func TestFrontierFiltersAndOrdersEligibleNodesByCompactionScore(t *testing.T) {
+	now := time.Now().UTC()
+	source := &memorySource{candidates: []Candidate{
+		{ID: "z-high", Kind: "entry", FacetID: "episode", Compactable: true, Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour)},
+		{ID: "a-mid", Kind: "entry", FacetID: "episode", Compactable: true, Vectors: [][]float64{{0, 1}}, CreatedAt: now.Add(-48 * time.Hour)},
+		{ID: "z-peer", Kind: "entry", FacetID: "episode", Compactable: true, Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour)},
+		{ID: "standing", Kind: "entry", FacetID: "standing-rule", Compactable: false, Vectors: [][]float64{{1, 1}}, CreatedAt: now.Add(-48 * time.Hour)},
+	}}
+	repo := &memoryRepo{source: source, nodes: []Node{{ID: "a-mid", FacetID: "episode"}, {ID: "standing", FacetID: "standing-rule"}, {ID: "z-peer", FacetID: "episode"}, {ID: "z-high", FacetID: "episode"}}}
+	svc := NewService(repo, source, &mocks.FakeInference{}, Config{Target: 2, FrontierLimit: 10})
+	svc.now = func() time.Time { return now }
+	result, err := svc.Frontier(context.Background(), 10)
+	require.NoError(t, err)
+	require.Equal(t, 3, result.EligibleCount)
+	require.Equal(t, 2, result.Target)
+	require.Equal(t, []string{"z-high", "z-peer", "a-mid"}, []string{result.Nodes[0].ID, result.Nodes[1].ID, result.Nodes[2].ID})
+	require.NotContains(t, []string{result.Nodes[0].ID, result.Nodes[1].ID, result.Nodes[2].ID}, "standing")
+	require.InDelta(t, 1, result.Nodes[0].CompactionScore, 1e-9)
+	require.InDelta(t, 0, result.Nodes[2].CompactionScore, 1e-9)
 }

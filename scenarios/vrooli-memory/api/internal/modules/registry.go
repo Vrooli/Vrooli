@@ -21,6 +21,7 @@ import (
 	"vrooli-memory/internal/forest"
 	"vrooli-memory/internal/harness"
 	"vrooli-memory/internal/journal"
+	"vrooli-memory/internal/maintenance"
 	"vrooli-memory/internal/module"
 
 	apidb "github.com/vrooli/api-core/database"
@@ -33,12 +34,13 @@ import (
 	journalH "vrooli-memory/handlers/journal"
 	recallH "vrooli-memory/handlers/recall"
 	rulesH "vrooli-memory/handlers/rules"
+	scopesH "vrooli-memory/handlers/scopes"
 	localdb "vrooli-memory/internal/database"
 )
 
 // MemoryDomainNames is the authoritative skeleton registry. Runtime mounting
 // follows as each domain receives a Connect handler in its implementation phase.
-var MemoryDomainNames = []string{"journal", "facets", "forest", "recall", "federation", "harness", "rules"}
+var MemoryDomainNames = []string{"journal", "facets", "forest", "recall", "federation", "harness", "rules", "scopes"}
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
 // stable order (system endpoints first, then domains alphabetically).
@@ -53,6 +55,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, harnessH.Endpoints...)
 	out = append(out, journalH.Endpoints...)
 	out = append(out, rulesH.Endpoints...)
+	out = append(out, scopesH.Endpoints...)
 	return out
 }
 
@@ -85,6 +88,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "harness", File: harnessH.ProtoFile},
 		{Module: "journal", File: journalH.ProtoFile},
 		{Module: "rules", File: rulesH.ProtoFile},
+		{Module: "scopes", File: scopesH.ProtoFile},
 	}
 }
 
@@ -103,5 +107,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(facets.Schema),
 		apidb.SchemaProviderFunc(forest.Schema),
 		apidb.SchemaProviderFunc(harness.Schema),
+		apidb.SchemaProviderFunc(maintenance.Schema),
 	}
 }

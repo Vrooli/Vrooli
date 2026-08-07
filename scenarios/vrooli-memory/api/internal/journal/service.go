@@ -4,7 +4,9 @@ import (
 	"context"
 	"strings"
 
+	"github.com/vrooli/api-core/provenance"
 	"vrooli-memory/internal/inference"
+	"vrooli-memory/internal/policy"
 )
 
 type Service struct {
@@ -30,6 +32,14 @@ func NewService(repo Repository, client inference.Client, facetResolvers ...Face
 }
 
 func (s *Service) Append(ctx context.Context, e Entry) (Entry, error) {
+	e.Scope = string(policy.NormalizeScope(e.Scope))
+	if strings.TrimSpace(e.Attribution.VerificationStatus) == "" {
+		_, _, _, status, _, _ := provenance.FromContext(ctx).WriteFields()
+		e.Attribution.VerificationStatus = status
+	}
+	// Direct callers may provide the scope on the entry rather than on the
+	// request context. Carry it into policy validation before any facet lookup.
+	ctx = policy.WithScope(ctx, e.Scope)
 	var retry []string
 	if e.FacetID != "" && s.facets != nil {
 		if err := s.facets.Validate(ctx, e.FacetID); err != nil {
@@ -89,10 +99,6 @@ func (s *Service) ListByRun(ctx context.Context, runID string, limit int) ([]Ent
 
 func (s *Service) FindByImportKey(ctx context.Context, key string) (Entry, bool, error) {
 	return s.repo.FindByImportKey(ctx, key)
-}
-
-func (s *Service) RepairImportProvenance(ctx context.Context, id string, importInfo ImportProvenance) error {
-	return s.repo.RepairImportProvenance(ctx, id, importInfo)
 }
 
 // ProcessClassificationRetries replays failed inference through an append-only
@@ -158,7 +164,7 @@ func (s *Service) ruleFacet(ctx context.Context, e Entry) (string, string, bool,
 	if s.facets == nil {
 		return "", "", false, nil
 	}
-	facet, ruleID, matched, err := s.facets.MatchRule(ctx, "agent-memory", e.Body, e.Attribution.SourceRuntime, e.Kind, e.Import.Path)
+	facet, ruleID, matched, err := s.facets.MatchRule(ctx, e.Scope, e.Body, e.Attribution.SourceRuntime, e.Kind, e.Import.Path)
 	if err != nil || !matched {
 		return "", "", matched, err
 	}

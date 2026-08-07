@@ -2,6 +2,7 @@ package harness
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"time"
@@ -9,28 +10,37 @@ import (
 	"connectrpc.com/connect"
 	harnessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness"
 	internalharness "vrooli-memory/internal/harness"
+	"vrooli-memory/internal/maintenance"
 )
 
 type connectHandler struct {
-	importer  *internalharness.Importer
-	projector *internalharness.Projector
-	logger    *log.Logger
+	importer    *internalharness.Importer
+	projector   *internalharness.Projector
+	logger      *log.Logger
+	maintenance *maintenance.Service
 }
 
-func NewConnectHandler(i *internalharness.Importer, p *internalharness.Projector, l *log.Logger) *connectHandler {
+func NewConnectHandler(i *internalharness.Importer, p *internalharness.Projector, l *log.Logger, m ...*maintenance.Service) *connectHandler {
 	if l == nil {
 		l = log.Default()
 	}
-	return &connectHandler{importer: i, projector: p, logger: l}
+	var service *maintenance.Service
+	if len(m) > 0 {
+		service = m[0]
+	}
+	return &connectHandler{importer: i, projector: p, logger: l, maintenance: service}
 }
 
 func (h *connectHandler) RunImport(ctx context.Context, req *connect.Request[harnessv1.RunImportRequest]) (*connect.Response[harnessv1.RunImportResponse], error) {
 	if req.Msg.GetDryRun() {
 		result, err := h.importer.Import(ctx, req.Msg.GetRuntime(), true)
 		if err != nil {
+			if internalharness.IsEmptyStoreError(err) {
+				return connect.NewResponse(&harnessv1.RunImportResponse{DryRun: true, Observation: err.Error()}), nil
+			}
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 		}
-		return connect.NewResponse(&harnessv1.RunImportResponse{ImportedCount: int32(result.Seen), DryRun: true}), nil
+		return connect.NewResponse(&harnessv1.RunImportResponse{ImportedCount: int32(result.Seen), DryRun: true, Observation: "sources found"}), nil
 	}
 	run, joined, err := h.importer.Start(ctx, req.Msg.GetRuntime())
 	if err != nil {
@@ -86,4 +96,29 @@ func (h *connectHandler) CaptureWrite(ctx context.Context, req *connect.Request[
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(&harnessv1.CaptureWriteResponse{EntryId: entry.ID}), nil
+}
+
+func (h *connectHandler) GetMaintenanceStatus(ctx context.Context, _ *connect.Request[harnessv1.GetMaintenanceStatusRequest]) (*connect.Response[harnessv1.GetMaintenanceStatusResponse], error) {
+	if h.maintenance == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("maintenance loop is not configured"))
+	}
+	run, err := h.maintenance.Latest(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(&harnessv1.GetMaintenanceStatusResponse{Run: maintenanceRunMessage(run)}), nil
+}
+
+func maintenanceRunMessage(run maintenance.Run) *harnessv1.MaintenanceRun {
+	format := func(t time.Time) string {
+		if t.IsZero() {
+			return ""
+		}
+		return t.Format(time.RFC3339Nano)
+	}
+	out := &harnessv1.MaintenanceRun{Id: run.ID, StartedAt: format(run.StartedAt), CompletedAt: format(run.CompletedAt)}
+	for _, item := range run.Outcomes {
+		out.Outcomes = append(out.Outcomes, &harnessv1.MaintenanceOutcome{Runtime: item.Runtime, ImportStatus: item.ImportStatus, ImportError: item.ImportError, ProjectionStatus: item.ProjectionStatus, ProjectionError: item.ProjectionError, StartedAt: format(item.StartedAt), CompletedAt: format(item.CompletedAt)})
+	}
+	return out
 }

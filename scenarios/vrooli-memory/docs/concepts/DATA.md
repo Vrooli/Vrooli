@@ -84,10 +84,13 @@ Each domain's schema file lives beside the code that interprets it. The
 ### Rebuild contract
 
 `forest` tables are a cache. A rebuild drops `summaries` and `tree_edges`, then
-replays compaction from `entries` + `facet_assignments`. This is the recovery
-path for a bad summarization generation and the reason
+restores the journal entries as leaf roots from `entries` +
+`facet_assignments`. This is the recovery path for a bad summarization
+generation and the reason
 `VMEM-P2-003` (drift monitoring) is deferrable rather than blocking — a
 corrupted tree is always recoverable, so drift costs quality, never data.
+The explicit compaction pass may subsequently add lossy summaries under its
+own inference budget; rebuild itself never depends on a model provider.
 
 The reverse never holds: `journal` cannot be rebuilt from `forest`. Any change
 that would let a derived table become authoritative for entry content is a

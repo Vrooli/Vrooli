@@ -18,29 +18,29 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Append-only journal | The system shall persist every memory write to an append-only journal whose entries are never rewritten and never deleted.
-- [ ] OT-P0-002 | Deliberate write verb | When an agent invokes the note verb, the system shall classify the entry's facet, derive its facet texts, embed them, and append the entry to the journal.
-- [ ] OT-P0-003 | Full-fidelity semantic recall | When a recall query is issued, the system shall search every journal leaf and every summary and shall never exclude a leaf on the grounds that it has been compacted.
+- [x] OT-P0-001 | Append-only journal | The system shall persist every memory write to an append-only journal whose entries are never rewritten and never deleted.
+- [x] OT-P0-002 | Deliberate write verb | When an agent invokes the note verb, the system shall classify the entry's facet, derive its facet texts, embed them, and append the entry to the journal.
+- [x] OT-P0-003 | Full-fidelity semantic recall | When a recall query is issued, the system shall search every journal leaf and every summary and shall never exclude a leaf on the grounds that it has been compacted.
 - [x] OT-P0-004 | Best-node retrieval with descendant collapse | When results span tree depths, the system shall return the best-scoring node at any depth and shall collapse descendants of nodes already returned.
 - [x] OT-P0-005 | Facet-routed retention policy | The system shall assign each memory exactly one facet and shall apply only that facet's declared retention policy, admitting only episode-facet entries to compaction.
-- [ ] OT-P0-006 | Guaranteed pinned recall | When wake output is produced, the system shall include every pinned standing-rule memory regardless of its similarity to any query or its position in the tree.
-- [ ] OT-P0-007 | Pressure-driven compaction | When the compaction-eligible frontier exceeds its target size, the system shall collapse the highest-scoring candidate cluster and shall repeat until that eligible frontier is under target.
+- [x] OT-P0-006 | Guaranteed pinned recall | When wake output is produced, the system shall include every pinned standing-rule memory regardless of its similarity to any query or its position in the tree.
+- [x] OT-P0-007 | Pressure-driven compaction | When the compaction-eligible frontier exceeds its target size, the system shall collapse the highest-scoring candidate cluster and shall repeat until that eligible frontier is under target.
 - [x] OT-P0-008 | Budgeted ambient recall | When wake is invoked, the system shall emit a view bounded by a configured line budget whose granularity is finest for the most recent material.
 - [x] OT-P0-009 | Federated retrieval registration | The system shall register its corpus as a search-hub provider so memory is reachable from federated query without any router change.
-- [ ] OT-P0-010 | Harness memory projection | The system shall write wake output to the harness memory file as a one-directional generated projection that it never reads back as input.
+- [x] OT-P0-010 | Harness memory projection | The system shall write wake output to the harness memory file as a one-directional generated projection that it never reads back as input.
 - [x] OT-P0-011 | Harness memory import | The system shall import existing harness memory stores idempotently across markdown, JSONL, and SQLite formats, so re-running an import over unchanged sources creates no duplicates.
 
 ### 🟠 P1 – Should have post-launch
 
 - [x] OT-P1-001 | Work-record memory kind | The system should accept a work-record memory kind carrying trigger, approach, evidence, and outcome, superseding the separate swarm-manager records write path.
-- [ ] OT-P1-002 | Run correlation and sibling events | When a memory is written inside an agent run, the system should store the receipt correlation and should expose a command that lists the other events from that run.
+- [x] OT-P1-002 | Run correlation and sibling events | When a memory is written inside an agent run, the system should store the receipt correlation and should expose a command that lists the other events from that run.
 - [x] OT-P1-003 | Tree descent | When an operator or agent zooms a summary, the system should render that node's immediate constituents and should allow repeated descent to the leaves.
 - [x] OT-P1-004 | Supersession-aware summarization | When a candidate cluster contains contradicting entries, the summarization prompt should resolve them by recency rather than conjoining both claims.
-- [ ] OT-P1-005 | Multi-space facet embedding | The system should embed several derived facet texts per memory so that clustering can group entries by more than one notion of relatedness.
-- [ ] OT-P1-006 | Operator review surface | The system should provide a UI for browsing the journal, inspecting the frontier, and correcting a memory's facet or pinned state.
+- [x] OT-P1-005 | Multi-space facet embedding | The system should embed several derived facet texts per memory so that clustering can group entries by more than one notion of relatedness.
+- [x] OT-P1-006 | Operator review surface | The system should provide a UI for browsing the journal, inspecting the frontier, and correcting a memory's facet or pinned state.
 - [x] OT-P1-007 | Harness prompt-block install | The system should install and update a prompt block that describes what is worth remembering, and shall not instruct the agent to call a specific memory command.
-- [ ] OT-P1-008 | Harness write capture | The system should capture native memory writes made through each harness's own tooling, via a pre-write hook where the runtime exposes one and store diff everywhere else.
-- [ ] OT-P1-010 | Pinned-set bounding | The system should bound the pinned set by operator curation — proposing merges of redundant pins, lapsing pins that are not reconfirmed, and prompting a trade-off when a new pin would exceed the configured budget.
+- [x] OT-P1-008 | Harness write capture | The system should capture native memory writes made through each harness's own tooling, via a pre-write hook where the runtime exposes one and store diff everywhere else.
+- [x] OT-P1-010 | Pinned-set bounding | The system should bound the pinned set by operator curation — proposing merges of redundant pins, lapsing pins that are not reconfirmed, and prompting a trade-off when a new pin would exceed the configured budget.
 
 ### 🟢 P2 – Future / expansion
 

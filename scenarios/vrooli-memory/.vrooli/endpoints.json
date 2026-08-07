@@ -77,6 +77,14 @@
       "category": "facets"
     },
     {
+      "id": "facets_list_pin_candidates",
+      "path": "/vrooli.vrooli_memory.v1.facets.FacetsService/ListPinCandidates",
+      "method": "POST",
+      "summary": "List ranked pin candidates",
+      "description": "",
+      "category": "facets"
+    },
+    {
       "id": "facets_resolve_pin_proposal",
       "path": "/vrooli.vrooli_memory.v1.facets.FacetsService/ResolvePinProposal",
       "method": "POST",
@@ -201,6 +209,14 @@
       "path": "/vrooli.vrooli_memory.v1.harness.HarnessService/CaptureWrite",
       "method": "POST",
       "summary": "Capture native memory write",
+      "description": "",
+      "category": "harness"
+    },
+    {
+      "id": "harness_maintenance_status",
+      "path": "/vrooli.vrooli_memory.v1.harness.HarnessService/GetMaintenanceStatus",
+      "method": "POST",
+      "summary": "Read last maintenance run",
       "description": "",
       "category": "harness"
     },
@@ -373,6 +389,50 @@
       "summary": "Revert rule assignments",
       "description": "",
       "category": "rules"
+    },
+    {
+      "id": "rules_refacet",
+      "path": "/vrooli.vrooli_memory.v1.rules.ClassificationRulesService/RefacetCorpus",
+      "method": "POST",
+      "summary": "Re-facet the immutable corpus",
+      "description": "",
+      "category": "rules",
+      "request": {
+        "type": "RefacetCorpusRequest"
+      },
+      "response": {
+        "type": "RefacetCorpusResponse"
+      }
+    },
+    {
+      "id": "rules_measure_distribution",
+      "path": "/vrooli.vrooli_memory.v1.rules.ClassificationRulesService/MeasureDistribution",
+      "method": "POST",
+      "summary": "Measure rule coverage and classifier tail",
+      "description": "",
+      "category": "rules",
+      "request": {
+        "type": "MeasureDistributionRequest"
+      },
+      "response": {
+        "type": "MeasureDistributionResponse"
+      }
+    },
+    {
+      "id": "scopes_create",
+      "path": "/vrooli.vrooli_memory.v1.scopes.ScopesService/CreateScope",
+      "method": "POST",
+      "summary": "Create a memory scope",
+      "description": "",
+      "category": "scopes"
+    },
+    {
+      "id": "scopes_list",
+      "path": "/vrooli.vrooli_memory.v1.scopes.ScopesService/ListScopes",
+      "method": "POST",
+      "summary": "List memory scopes",
+      "description": "",
+      "category": "scopes"
     }
   ]
 }

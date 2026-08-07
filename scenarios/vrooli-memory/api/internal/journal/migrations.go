@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	vectorcodec "vrooli-memory/internal/vector"
 )
@@ -12,6 +14,15 @@ import (
 // EnsureMigrations applies additive, idempotent upgrades that CREATE TABLE IF
 // NOT EXISTS cannot apply to an already-created SQLite table.
 func EnsureMigrations(ctx context.Context, db *sql.DB) error {
+	for _, statement := range []string{
+		"ALTER TABLE entries ADD COLUMN verification_status TEXT NOT NULL DEFAULT 'absent'",
+		"ALTER TABLE entries ADD COLUMN harness_session_id TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE entries ADD COLUMN harness_kind TEXT NOT NULL DEFAULT ''",
+	} {
+		if _, err := db.ExecContext(ctx, statement); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") && !strings.Contains(strings.ToLower(err.Error()), "no such table") {
+			return fmt.Errorf("journal compatibility migration: %w", err)
+		}
+	}
 	var exists int
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='entries'`).Scan(&exists); err != nil {
 		return fmt.Errorf("inspect entries table: %w", err)
@@ -48,6 +59,9 @@ func EnsureMigrations(ctx context.Context, db *sql.DB) error {
 				return fmt.Errorf("add entries.%s: %w", name, err)
 			}
 		}
+	}
+	if err := ensureAppendOnlyGuard(ctx, db); err != nil {
+		return err
 	}
 	if exists, err := tableExists(ctx, db, "embeddings"); err != nil {
 		return err
@@ -94,6 +108,57 @@ func EnsureMigrations(ctx context.Context, db *sql.DB) error {
 	}
 	return nil
 }
+
+// ensureAppendOnlyGuard installs the journal's immutable-row boundary on both
+// fresh and upgraded databases. The high-water mark is deliberately never
+// lowered: if the database has lost rows, startup must fail loudly.
+func ensureAppendOnlyGuard(ctx context.Context, db *sql.DB) error {
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS journal_high_water_mark (
+  id INTEGER PRIMARY KEY CHECK (id=1),
+  max_rowid INTEGER NOT NULL,
+  recorded_at TEXT NOT NULL
+)`); err != nil {
+		return fmt.Errorf("create journal high-water mark: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT OR IGNORE INTO journal_high_water_mark(id,max_rowid,recorded_at)
+SELECT 1,COALESCE(MAX(rowid),0),? FROM entries`, nowUTC()); err != nil {
+		return fmt.Errorf("initialize journal high-water mark: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TRIGGER IF NOT EXISTS entries_append_only_update
+BEFORE UPDATE ON entries
+BEGIN
+  SELECT RAISE(ABORT, 'journal entries are append-only');
+END`); err != nil {
+		return fmt.Errorf("create entries update guard: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TRIGGER IF NOT EXISTS entries_append_only_delete
+BEFORE DELETE ON entries
+BEGIN
+  SELECT RAISE(ABORT, 'journal entries are append-only');
+END`); err != nil {
+		return fmt.Errorf("create entries delete guard: %w", err)
+	}
+	return ValidateHighWaterMark(ctx, db)
+}
+
+// ValidateHighWaterMark verifies that no journal rows disappeared since the
+// last append. It is called during startup and is intentionally exported for
+// the backup/restore validation harness.
+func ValidateHighWaterMark(ctx context.Context, db *sql.DB) error {
+	var marked, current int64
+	if err := db.QueryRowContext(ctx, `SELECT max_rowid FROM journal_high_water_mark WHERE id=1`).Scan(&marked); err != nil {
+		return fmt.Errorf("read journal high-water mark: %w", err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT COALESCE(MAX(rowid),0) FROM entries`).Scan(&current); err != nil {
+		return fmt.Errorf("read journal maximum rowid: %w", err)
+	}
+	if current < marked {
+		return fmt.Errorf("journal high-water mark %d exceeds current maximum rowid %d", marked, current)
+	}
+	return nil
+}
+
+func nowUTC() string { return time.Now().UTC().Format(time.RFC3339Nano) }
 
 func tableExists(ctx context.Context, db *sql.DB, table string) (bool, error) {
 	var n int

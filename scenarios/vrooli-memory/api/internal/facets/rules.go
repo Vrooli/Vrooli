@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"vrooli-memory/internal/policy"
 )
 
 type Rule struct {
@@ -40,12 +41,31 @@ type DryRun struct {
 	CreatedAt                            time.Time
 }
 
+// DistributionMeasurement separates deterministic provenance coverage from
+// the distribution produced by the classifier for the remaining corpus. A
+// deterministic rule is reviewed by its own dry-run gate, so rule-matched
+// entries are intentionally excluded from the classifier ceiling.
+type DistributionMeasurement struct {
+	Scope                 string
+	Total                 int
+	RuleMatched           int
+	ClassifierTail        int
+	RuleCoverage          map[string]int
+	ClassifierTailByFacet map[string]int
+	CeilingPercent        float64
+	MaxTailFacet          string
+	MaxTailPercent        float64
+	WithinCeiling         bool
+}
+
+const ClassifierTailCeiling = 0.45
+
 func (r *SQLiteRepository) CreateRule(ctx context.Context, rule Rule) (Rule, error) {
 	if rule.ID == "" {
 		rule.ID = uuid.NewString()
 	}
 	if rule.Scope == "" {
-		rule.Scope = "agent-memory"
+		rule.Scope = string(policy.ScopeFromContext(ctx))
 	}
 	if err := r.Validate(ctx, rule.FacetID); err != nil {
 		return Rule{}, err
@@ -150,7 +170,7 @@ func (r *SQLiteRepository) DryRunRule(ctx context.Context, ruleID string) (DryRu
 		}
 		if matched {
 			dry.MatchCount++
-			if len(dry.Samples) < 10 {
+			if len(dry.Samples) < 20 {
 				dry.Samples = append(dry.Samples, input.Body)
 			}
 		}
@@ -164,6 +184,86 @@ func (r *SQLiteRepository) DryRunRule(ctx context.Context, ruleID string) (DryRu
 	}
 	_, err = r.db.ExecContext(ctx, `INSERT INTO classification_rule_dry_runs(id,rule_id,scope,corpus_fingerprint,match_count,samples_json,created_at) VALUES(?,?,?,?,?,?,?)`, dry.ID, dry.RuleID, dry.Scope, dry.CorpusFingerprint, dry.MatchCount, string(samples), dry.CreatedAt.Format(time.RFC3339Nano))
 	return dry, err
+}
+
+// MeasureDistribution measures the current corpus using the same enabled
+// deterministic rules that refacet uses. The latest assignment is used for
+// the classifier tail, preserving assignment history while reporting the
+// current operator-visible facet.
+func (r *SQLiteRepository) MeasureDistribution(ctx context.Context, scope string) (DistributionMeasurement, error) {
+	if scope == "" {
+		scope = "agent-memory"
+	}
+	rules, err := r.ListRules(ctx, scope)
+	if err != nil {
+		return DistributionMeasurement{}, err
+	}
+	measurement := DistributionMeasurement{
+		Scope:                 scope,
+		RuleCoverage:          make(map[string]int),
+		ClassifierTailByFacet: make(map[string]int),
+		CeilingPercent:        ClassifierTailCeiling,
+		WithinCeiling:         true,
+	}
+	rows, err := r.db.QueryContext(ctx, `
+SELECT e.body,e.source_runtime,e.kind,e.source_path,
+       COALESCE(a.facet_id,?)
+FROM entries e
+LEFT JOIN (
+  SELECT entry_id,facet_id,
+         ROW_NUMBER() OVER (PARTITION BY entry_id ORDER BY assigned_at DESC,id DESC) rn
+  FROM facet_assignments
+) a ON a.entry_id=e.id AND a.rn=1
+WHERE e.scope=?
+ORDER BY e.created_at,e.id`, UnclassifiedFacet, scope)
+	if err != nil {
+		return DistributionMeasurement{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		measurement.Total++
+		var input RuleInput
+		var facetID string
+		if err := rows.Scan(&input.Body, &input.SourceRuntime, &input.Kind, &input.SourcePath, &facetID); err != nil {
+			return DistributionMeasurement{}, err
+		}
+		matched := false
+		for _, rule := range rules {
+			if !rule.Enabled {
+				continue
+			}
+			ok, err := matches(rule, input)
+			if err != nil {
+				return DistributionMeasurement{}, err
+			}
+			if !ok {
+				continue
+			}
+			measurement.RuleMatched++
+			measurement.RuleCoverage[rule.ID]++
+			matched = true
+			break
+		}
+		if !matched {
+			measurement.ClassifierTail++
+			measurement.ClassifierTailByFacet[facetID]++
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return DistributionMeasurement{}, err
+	}
+	for facetID, count := range measurement.ClassifierTailByFacet {
+		if measurement.ClassifierTail == 0 {
+			continue
+		}
+		fraction := float64(count) / float64(measurement.ClassifierTail)
+		if fraction > measurement.MaxTailPercent || (fraction == measurement.MaxTailPercent && facetID < measurement.MaxTailFacet) {
+			measurement.MaxTailFacet = facetID
+			measurement.MaxTailPercent = fraction
+		}
+	}
+	measurement.WithinCeiling = measurement.MaxTailPercent <= measurement.CeilingPercent
+	return measurement, nil
 }
 
 func (r *SQLiteRepository) EnableRule(ctx context.Context, ruleID string) error {
@@ -230,7 +330,7 @@ func (r *SQLiteRepository) RevertRule(ctx context.Context, ruleID string) (int, 
 }
 
 func (r *SQLiteRepository) rule(ctx context.Context, id string) (Rule, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT id,scope,priority,facet_id,source_runtime,kind,source_path_glob,body_pattern,enabled,created_at,updated_at FROM classification_rules WHERE id=?`, id)
+	row := r.db.QueryRowContext(ctx, `SELECT id,scope,priority,facet_id,source_runtime,kind,source_path_glob,body_pattern,enabled,created_at,updated_at FROM classification_rules WHERE id=? AND scope=?`, id, policy.ScopeFromContext(ctx))
 	return scanRule(row)
 }
 

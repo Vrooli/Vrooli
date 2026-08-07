@@ -26,7 +26,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) noteCall(ctx cliapp.OperationContext) (*journalv1.AppendEntryResponse, error) {
-	resp, err := h.client.AppendEntry(context.Background(), connect.NewRequest(&journalv1.AppendEntryRequest{Body: ctx.Positional("body"), Kind: ctx.Flag("kind"), Trigger: ctx.Flag("trigger"), Approach: ctx.Flag("approach"), Evidence: ctx.Flag("evidence"), Outcome: ctx.Flag("outcome")}))
+	resp, err := h.client.AppendEntry(context.Background(), connect.NewRequest(&journalv1.AppendEntryRequest{Body: ctx.Positional("body"), Scope: ctx.Flag("scope"), Kind: ctx.Flag("kind"), Trigger: ctx.Flag("trigger"), Approach: ctx.Flag("approach"), Evidence: ctx.Flag("evidence"), Outcome: ctx.Flag("outcome")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("append memory", err, nil)
 	}
@@ -45,7 +45,7 @@ func (h *handlers) retryCall(ctx cliapp.OperationContext) (*journalv1.ProcessCla
 	if err != nil {
 		return nil, err
 	}
-	resp, err := h.client.ProcessClassificationRetries(context.Background(), connect.NewRequest(&journalv1.ProcessClassificationRetriesRequest{Limit: limit}))
+	resp, err := h.client.ProcessClassificationRetries(context.Background(), connect.NewRequest(&journalv1.ProcessClassificationRetriesRequest{Limit: limit, Scope: ctx.Flag("scope")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("process classification retries", err, nil)
 	}
@@ -64,7 +64,7 @@ func (h *handlers) retryEmbeddingsCall(ctx cliapp.OperationContext) (*journalv1.
 	if err != nil {
 		return nil, err
 	}
-	resp, err := h.client.ProcessEmbeddingRetries(context.Background(), connect.NewRequest(&journalv1.ProcessEmbeddingRetriesRequest{Limit: limit}))
+	resp, err := h.client.ProcessEmbeddingRetries(context.Background(), connect.NewRequest(&journalv1.ProcessEmbeddingRetriesRequest{Limit: limit, Scope: ctx.Flag("scope")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("process embedding retries", err, nil)
 	}

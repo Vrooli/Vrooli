@@ -6,6 +6,7 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"vrooli-memory/internal/policy"
 )
 
 type (
@@ -24,6 +25,7 @@ type (
 		source   Source
 		embedder QueryEmbedder
 		config   Config
+		registry *policy.Registry
 	}
 )
 
@@ -35,6 +37,32 @@ func NewService(source Source, embedder QueryEmbedder, config Config) *Service {
 		config.MaxEntryLines = DefaultMaxEntryLines
 	}
 	return &Service{source: source, embedder: embedder, config: config}
+}
+
+func (s *Service) SetPolicyRegistry(registry *policy.Registry) { s.registry = registry }
+
+func (s *Service) configFor(ctx context.Context) (Config, error) {
+	if config, ok := policy.ConfigFromContext(ctx); ok {
+		return configFromPolicy(config, s.config), nil
+	}
+	if s.registry != nil {
+		config, err := s.registry.Resolve(ctx, string(policy.ScopeFromContext(ctx)))
+		if err != nil {
+			return Config{}, err
+		}
+		return configFromPolicy(config, s.config), nil
+	}
+	return s.config, nil
+}
+
+func configFromPolicy(config policy.Config, fallback Config) Config {
+	fallback.FrontierTarget = config.FrontierTarget
+	fallback.WakeBudget = config.WakeBudget
+	fallback.MaxEntryLines = config.MaxEntryLines
+	if config.FacetBudgets != nil {
+		fallback.FacetBudgets = config.FacetBudgets
+	}
+	return fallback
 }
 
 func (s *Service) Recall(ctx context.Context, query string, limit int) ([]Hit, error) {
@@ -58,12 +86,16 @@ func (s *Service) Recall(ctx context.Context, query string, limit int) ([]Hit, e
 }
 
 func (s *Service) Wake(ctx context.Context, budget int) (Wake, error) {
+	config, err := s.configFor(ctx)
+	if err != nil {
+		return Wake{}, err
+	}
 	if budget <= 0 {
-		budget = s.config.WakeBudget
+		budget = config.WakeBudget
 	}
 	// Only the newest perFacetLimit memories of a facet can ever be emitted, so
 	// there is no reason to carry the rest of the frontier's bodies into memory.
-	nodes, err := s.source.AmbientNodes(ctx, s.perFacetLimit())
+	nodes, err := s.source.AmbientNodes(ctx, perFacetLimit(config))
 	if err != nil {
 		return Wake{}, err
 	}
@@ -82,7 +114,7 @@ func (s *Service) Wake(ctx context.Context, budget int) (Wake, error) {
 	out := Wake{Budget: budget}
 	used := 0
 	for _, n := range pinned {
-		hit := s.excerpt(n)
+		hit := excerpt(n, config.MaxEntryLines)
 		out.Hits = append(out.Hits, Hit{Node: hit})
 		used += lines(hit.Text)
 	}
@@ -90,9 +122,9 @@ func (s *Service) Wake(ctx context.Context, budget int) (Wake, error) {
 		out.Overflow = true
 		return out, nil
 	}
-	if len(s.config.FacetBudgets) == 0 {
+	if len(config.FacetBudgets) == 0 {
 		for _, n := range frontier {
-			hit := s.excerpt(n)
+			hit := excerpt(n, config.MaxEntryLines)
 			cost := lines(hit.Text)
 			if used+cost > budget {
 				break
@@ -115,7 +147,7 @@ func (s *Service) Wake(ctx context.Context, budget int) (Wake, error) {
 		// A facet's resident budget counts entries. Measuring it in lines made
 		// every facet whose newest memory was longer than its ceiling emit
 		// nothing at all, which is why ambient recall collapsed to one facet.
-		ceiling := s.config.FacetBudgets[facet]
+		ceiling := config.FacetBudgets[facet]
 		if ceiling <= 0 {
 			continue
 		}
@@ -124,7 +156,7 @@ func (s *Service) Wake(ctx context.Context, budget int) (Wake, error) {
 			if taken >= ceiling {
 				break
 			}
-			hit := s.excerpt(n)
+			hit := excerpt(n, config.MaxEntryLines)
 			cost := lines(hit.Text)
 			if used+cost > budget {
 				// Skip this memory rather than abandoning the facet: a later
@@ -142,9 +174,9 @@ func (s *Service) Wake(ctx context.Context, budget int) (Wake, error) {
 
 // perFacetLimit is the largest residency any facet declares. Pins are exempt
 // and always returned in full.
-func (s *Service) perFacetLimit() int {
+func perFacetLimit(config Config) int {
 	limit := 0
-	for _, ceiling := range s.config.FacetBudgets {
+	for _, ceiling := range config.FacetBudgets {
 		if ceiling > limit {
 			limit = ceiling
 		}
@@ -152,19 +184,21 @@ func (s *Service) perFacetLimit() int {
 	if limit <= 0 {
 		// Without declared residencies wake walks one recency-ordered list, so
 		// the line budget is the only bound that applies.
-		limit = s.config.WakeBudget
+		limit = config.WakeBudget
 	}
 	return limit
 }
 
+func (s *Service) perFacetLimit() int { return perFacetLimit(s.config) }
+
 // excerpt bounds one memory's contribution to the ambient view. The journal
 // keeps the full text; recall returns it in full. Wake is a fixed-size index
 // into memory, so it shows a bounded head and marks that it did.
-func (s *Service) excerpt(n Node) Node {
-	if s.config.MaxEntryLines <= 0 {
+func excerpt(n Node, maxEntryLines int) Node {
+	if maxEntryLines <= 0 {
 		return n
 	}
-	n.Text = excerptText(n.Text, s.config.MaxEntryLines)
+	n.Text = excerptText(n.Text, maxEntryLines)
 	return n
 }
 

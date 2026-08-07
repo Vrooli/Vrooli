@@ -1,6 +1,9 @@
 package facets
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 import "vrooli-memory/internal/inference"
 
@@ -56,6 +59,12 @@ func (s *Service) ListPinProposals(ctx context.Context) ([]PinProposal, error) {
 func (s *Service) ResolvePinProposal(ctx context.Context, id string, accept bool) error {
 	return s.repo.ResolvePinProposal(ctx, id, accept)
 }
+func (s *Service) RecordRecall(ctx context.Context, entryIDs []string) error {
+	return s.repo.RecordRecall(ctx, entryIDs)
+}
+func (s *Service) ListPinCandidates(ctx context.Context, limit int) ([]PinCandidate, error) {
+	return s.repo.ListPinCandidates(ctx, limit)
+}
 
 func (s *Service) CreateRule(ctx context.Context, rule Rule) (Rule, error) {
 	return s.repo.CreateRule(ctx, rule)
@@ -68,6 +77,9 @@ func (s *Service) ListRules(ctx context.Context, scope string) ([]Rule, error) {
 func (s *Service) DryRunRule(ctx context.Context, id string) (DryRun, error) {
 	return s.repo.DryRunRule(ctx, id)
 }
+func (s *Service) MeasureDistribution(ctx context.Context, scope string) (DistributionMeasurement, error) {
+	return s.repo.MeasureDistribution(ctx, scope)
+}
 func (s *Service) EnableRule(ctx context.Context, id string) error { return s.repo.EnableRule(ctx, id) }
 func (s *Service) RevertRule(ctx context.Context, id string) (int, error) {
 	return s.repo.RevertRule(ctx, id)
@@ -75,6 +87,8 @@ func (s *Service) RevertRule(ctx context.Context, id string) (int, error) {
 
 type RefacetResult struct {
 	Total, Assigned, RuleAssigned, Classified, Failed int
+	NextEntryID                                       string
+	Complete                                          bool
 }
 
 // RefacetCorpus replays the current policy over every immutable entry. Rule
@@ -82,6 +96,14 @@ type RefacetResult struct {
 // seam. Each result is appended as a new assignment with its decision actor,
 // making the operation auditable and reversible through rule revert.
 func (s *Service) RefacetCorpus(ctx context.Context, scope string) (RefacetResult, error) {
+	return s.RefacetCorpusBatch(ctx, scope, "", 0)
+}
+
+// RefacetCorpusBatch replays one bounded, ordered slice of the immutable
+// corpus. The cursor is an entry ID from the previous response, so callers
+// can resume after a client deadline without repeating the completed prefix.
+// A zero limit means the entire corpus for internal callers and tests.
+func (s *Service) RefacetCorpusBatch(ctx context.Context, scope, afterEntryID string, limit int) (RefacetResult, error) {
 	if scope == "" {
 		scope = "agent-memory"
 	}
@@ -89,8 +111,28 @@ func (s *Service) RefacetCorpus(ctx context.Context, scope string) (RefacetResul
 	if err != nil {
 		return RefacetResult{}, err
 	}
-	result := RefacetResult{Total: len(entries)}
-	for _, entry := range entries {
+	start := 0
+	if afterEntryID != "" {
+		for i, entry := range entries {
+			if entry.ID == afterEntryID {
+				start = i + 1
+				break
+			}
+		}
+		if start == 0 {
+			return RefacetResult{}, fmt.Errorf("refacet cursor %q is not in scope %q", afterEntryID, scope)
+		}
+	}
+	end := len(entries)
+	if limit > 0 && start+limit < end {
+		end = start + limit
+	}
+	batch := entries[start:end]
+	result := RefacetResult{Total: len(batch), Complete: end == len(entries)}
+	if !result.Complete && len(batch) > 0 {
+		result.NextEntryID = batch[len(batch)-1].ID
+	}
+	for _, entry := range batch {
 		facetID, actorID, matched, err := s.MatchRule(ctx, scope, entry.Body, entry.SourceRuntime, entry.Kind, entry.SourcePath)
 		if err != nil {
 			result.Failed++

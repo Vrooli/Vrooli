@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -37,8 +38,9 @@ type (
 		Pinned            bool
 	}
 	Config struct {
-		Target       int
-		RecencyFloor time.Duration
+		Target        int
+		FrontierLimit int
+		RecencyFloor  time.Duration
 		// SummaryInstruction is supplied by the policy scope, which is the only
 		// layer that knows what this corpus stores. The engine never names a
 		// facet, so a second scope replaces this string and nothing else.
@@ -49,6 +51,7 @@ type (
 		source    CandidateSource
 		inference inference.Client
 		config    Config
+		registry  *policy.Registry
 		now       func() time.Time
 		runMu     sync.Mutex
 	}
@@ -57,6 +60,9 @@ type (
 func NewService(repo Repository, source CandidateSource, client inference.Client, config Config) *Service {
 	if config.Target <= 0 {
 		config.Target = 16
+	}
+	if config.FrontierLimit <= 0 {
+		config.FrontierLimit = 100
 	}
 	if config.RecencyFloor <= 0 {
 		config.RecencyFloor = 24 * time.Hour
@@ -67,6 +73,24 @@ func NewService(repo Repository, source CandidateSource, client inference.Client
 	return &Service{repo: repo, source: source, inference: client, config: config, now: func() time.Time { return time.Now().UTC() }}
 }
 
+func (s *Service) SetPolicyRegistry(registry *policy.Registry) { s.registry = registry }
+
+func (s *Service) configFor(ctx context.Context) (Config, error) {
+	config := s.config
+	if resolved, ok := policy.ConfigFromContext(ctx); ok {
+		config.Target = resolved.FrontierTarget
+		return config, nil
+	}
+	if s.registry != nil {
+		resolved, err := s.registry.Resolve(ctx, string(policy.ScopeFromContext(ctx)))
+		if err != nil {
+			return Config{}, err
+		}
+		config.Target = resolved.FrontierTarget
+	}
+	return config, nil
+}
+
 // Run keeps the compactable portion of the mixed-depth frontier within its
 // pressure target. Leaves the policy layer declines to admit remain roots by
 // design: they are durable recall records, not candidates for lossy contextual
@@ -74,10 +98,14 @@ func NewService(repo Repository, source CandidateSource, client inference.Client
 func (s *Service) Run(ctx context.Context) (CompactionResult, error) {
 	s.runMu.Lock()
 	defer s.runMu.Unlock()
-	return s.runLocked(ctx)
+	config, err := s.configFor(ctx)
+	if err != nil {
+		return CompactionResult{}, err
+	}
+	return s.runLocked(ctx, config)
 }
 
-func (s *Service) runLocked(ctx context.Context) (CompactionResult, error) {
+func (s *Service) runLocked(ctx context.Context, config Config) (CompactionResult, error) {
 	candidates, err := s.eligible(ctx)
 	if err != nil {
 		return CompactionResult{}, err
@@ -85,7 +113,7 @@ func (s *Service) runLocked(ctx context.Context) (CompactionResult, error) {
 	result := CompactionResult{EligibleFrontierBefore: len(candidates), EligibleFrontierAfter: len(candidates)}
 	failedPairs := make(map[string]struct{})
 	var lastSummarizeErr error
-	for len(candidates) > s.config.Target {
+	for len(candidates) > config.Target {
 		best, pairKey, ok := bestPairExcluding(candidates, failedPairs)
 		if !ok {
 			if lastSummarizeErr != nil {
@@ -93,7 +121,7 @@ func (s *Service) runLocked(ctx context.Context) (CompactionResult, error) {
 			}
 			return result, fmt.Errorf("no eligible candidate pair remains while frontier is above target")
 		}
-		prompt := summaryPrompt(s.config.SummaryInstruction, best[0], best[1])
+		prompt := summaryPrompt(config.SummaryInstruction, best[0], best[1])
 		body, err := s.summarize(ctx, prompt)
 		if err != nil {
 			// A single malformed or provider-hostile cluster must not strand the
@@ -153,11 +181,102 @@ func (s *Service) Rebuild(ctx context.Context) (CompactionResult, error) {
 	if err := s.repo.Rebuild(ctx); err != nil {
 		return CompactionResult{}, err
 	}
-	return s.runLocked(ctx)
+	// Rebuild is a cache recovery operation, not an unbounded inference job.
+	// Clearing summaries and edges restores every journal entry as a forest
+	// root. The explicit compaction pass can then add summaries under its own
+	// cancellable/provider-aware budget. Keeping these operations separate
+	// ensures a provider outage can never leave the derived cache unavailable.
+	candidates, err := s.eligible(ctx)
+	if err != nil {
+		return CompactionResult{}, err
+	}
+	return CompactionResult{EligibleFrontierBefore: len(candidates), EligibleFrontierAfter: len(candidates)}, nil
 }
 
-func (s *Service) Frontier(ctx context.Context) ([]Node, error) {
-	return s.repo.Nodes(ctx, s.config.Target)
+func (s *Service) Frontier(ctx context.Context, limit int) (FrontierResult, error) {
+	config, err := s.configFor(ctx)
+	if err != nil {
+		return FrontierResult{}, err
+	}
+	eligible, err := s.eligible(ctx)
+	if err != nil {
+		return FrontierResult{}, err
+	}
+	if limit <= 0 {
+		limit = config.FrontierLimit
+	}
+	nodes, err := s.repo.Nodes(ctx, 0)
+	if err != nil {
+		return FrontierResult{}, err
+	}
+	eligibleIDs := make(map[string]struct{}, len(eligible))
+	scores := make(map[string]float64, len(eligible))
+	// Frontier scoring is intentionally the same all-space cohesion measure
+	// used by compaction, but it is independent for each candidate. Calculate
+	// those scores concurrently so the operator surface remains responsive as
+	// the append-only corpus grows; the final sort below remains deterministic.
+	workers := min(runtime.GOMAXPROCS(0), len(eligible))
+	if workers < 1 {
+		workers = 1
+	}
+	jobs := make(chan int)
+	var scoreMu sync.Mutex
+	var scoreWG sync.WaitGroup
+	for worker := 0; worker < workers; worker++ {
+		scoreWG.Add(1)
+		go func() {
+			defer scoreWG.Done()
+			for index := range jobs {
+				candidate := eligible[index]
+				score := frontierNodeScore(candidate, eligible)
+				scoreMu.Lock()
+				scores[candidate.ID] = score
+				scoreMu.Unlock()
+			}
+		}()
+	}
+	for index := range eligible {
+		jobs <- index
+	}
+	close(jobs)
+	scoreWG.Wait()
+	for _, candidate := range eligible {
+		eligibleIDs[candidate.ID] = struct{}{}
+	}
+	filtered := make([]Node, 0, len(eligible))
+	for _, node := range nodes {
+		if _, ok := eligibleIDs[node.ID]; !ok {
+			continue
+		}
+		node.CompactionScore = scores[node.ID]
+		filtered = append(filtered, node)
+	}
+	sort.SliceStable(filtered, func(i, j int) bool {
+		if filtered[i].CompactionScore != filtered[j].CompactionScore {
+			return filtered[i].CompactionScore > filtered[j].CompactionScore
+		}
+		return filtered[i].ID < filtered[j].ID
+	})
+	if limit < len(filtered) {
+		filtered = filtered[:limit]
+	}
+	return FrontierResult{Nodes: filtered, EligibleCount: len(eligible), Target: config.Target}, nil
+}
+
+// frontierNodeScore uses the same strongest-space cohesion score used by
+// bestPairExcluding during compaction. A node with no partner is retained at
+// the deterministic floor and sorted after every node that can be clustered.
+func frontierNodeScore(candidate Candidate, candidates []Candidate) float64 {
+	best := -1.0
+	for _, other := range candidates {
+		if other.ID == candidate.ID && other.Kind == candidate.Kind {
+			continue
+		}
+		if score := bestSpacePairScore(candidate.Vectors, other.Vectors); score > best {
+			best = score
+		}
+	}
+	return best
 }
 
 func (s *Service) eligible(ctx context.Context) ([]Candidate, error) {

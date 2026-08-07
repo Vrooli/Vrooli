@@ -26,6 +26,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/provenance"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/searchregister-go"
@@ -39,6 +40,7 @@ import (
 	journalH "vrooli-memory/handlers/journal"
 	recallH "vrooli-memory/handlers/recall"
 	rulesH "vrooli-memory/handlers/rules"
+	scopesH "vrooli-memory/handlers/scopes"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -179,6 +181,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("memory policy configuration failed: %v", err)
 	}
+	registry := policy.NewRegistry(db.Primary())
+	if err := registry.Ensure(context.Background(), policyConfig); err != nil {
+		log.Fatalf("scope registry initialization failed: %v", err)
+	}
 	definitions, err := facetService.List(context.Background())
 	if err != nil {
 		log.Fatalf("list facet policies: %v", err)
@@ -188,7 +194,7 @@ func main() {
 		facetBudgets[definition.ID] = definition.ResidentBudget
 	}
 	recallConfig := internalrecall.Config{FrontierTarget: policyConfig.FrontierTarget, WakeBudget: policyConfig.WakeBudget, MaxEntryLines: policyConfig.MaxEntryLines, FacetBudgets: facetBudgets}
-	resolver := policy.NewResolver(policy.AgentMemory, policyConfig, func(ctx context.Context) ([]policy.Facet, error) {
+	resolver := policy.NewRequestResolver(registry, func(ctx context.Context) ([]policy.Facet, error) {
 		definitions, err := facetService.List(ctx)
 		if err != nil {
 			return nil, err
@@ -214,20 +220,40 @@ func main() {
 	// recall. The shared registrar retries briefly in this background goroutine
 	// and re-upserts the descriptor/corpus safely on every scenario boot.
 	searchJSONPath := filepath.Join("..", ".vrooli", "search.json")
+	if scopes, err := registry.ResolveAll(context.Background()); err != nil {
+		log.Printf("scope provider reconciliation degraded: %v", err)
+	} else {
+		for _, scope := range scopes {
+			if scope.Scope == policy.AgentMemory {
+				continue
+			}
+			if err := federation.AppendScopeProvider(searchJSONPath, string(scope.Scope)); err != nil {
+				log.Printf("scope %q provider reconciliation degraded: %v", scope.Scope, err)
+			}
+		}
+	}
 	go searchregister.Register(context.Background(), searchregister.Config{
 		ScenarioID: "vrooli-memory", SearchFilePath: searchJSONPath, Logger: log.Default(),
 	})
+	registerScopeProvider := func(scope string) error {
+		if err := federation.AppendScopeProvider(searchJSONPath, scope); err != nil {
+			return err
+		}
+		go searchregister.Register(context.Background(), searchregister.Config{ScenarioID: "vrooli-memory", SearchFilePath: searchJSONPath, Logger: log.Default()})
+		return nil
+	}
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		healthH.Module(db, "vrooli-memory-api", "1.0.0"),
+		healthH.Module(db, "vrooli-memory-api", "1.0.0", db.Primary()),
 		journalH.Module(db, gatewayClient, facetService, log.Default()),
 		facetsH.Module(db, log.Default()),
-		forestH.Module(db, gatewayClient, recallConfig.FrontierTarget, log.Default()),
-		recallH.Module(db, gatewayClient, recallConfig, log.Default()),
+		forestH.Module(db, gatewayClient, recallConfig.FrontierTarget, registry, log.Default()),
+		recallH.Module(db, gatewayClient, recallConfig, registry, log.Default()),
 		federation.Module(),
-		harnessH.Module(db, fileRoots, gatewayClient, log.Default()),
+		harnessH.Module(db, fileRoots, gatewayClient, log.Default(), clock.System{}),
 		rulesH.Module(db, log.Default(), gatewayClient),
+		scopesH.Module(db, registry, registerScopeProvider, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -241,7 +267,7 @@ func main() {
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(rootMux)
+	handler := apihttp.TestModeMiddleware(provenance.Middleware(provenance.CLIUtilVerifier{})(rootMux))
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,

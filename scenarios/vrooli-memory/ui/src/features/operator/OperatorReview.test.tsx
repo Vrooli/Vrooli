@@ -19,7 +19,7 @@ describe("[REQ:VMEM-P1-006] OperatorReview", () => {
   afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
   it("renders the frontier and resolves pin proposals accessibly", async () => {
-    vi.mocked(getFrontier).mockResolvedValue([{ id: "summary", entryId: "entry", facetId: "episode", childIds: ["leaf"], depth: 1, span: 2 } as never]);
+    vi.mocked(getFrontier).mockResolvedValue({ nodes: [{ id: "summary", entryId: "entry", facetId: "episode", childIds: ["leaf"], depth: 1, span: 2 } as never], eligibleCount: 3, target: 2 });
     vi.mocked(listFacets).mockResolvedValue([{ id: "episode", label: "Episode" } as never]);
     vi.mocked(listPinProposals).mockResolvedValue([{ id: "proposal", entryIds: ["entry"], rationale: "Review this pin" } as never]);
     vi.mocked(resolvePinProposal).mockResolvedValue(undefined);
@@ -38,7 +38,7 @@ describe("[REQ:VMEM-P1-006] OperatorReview", () => {
   });
 
   it("renders empty and failed asynchronous surfaces", async () => {
-    vi.mocked(getFrontier).mockResolvedValue([]);
+    vi.mocked(getFrontier).mockResolvedValue({ nodes: [], eligibleCount: 0, target: 2 });
     vi.mocked(listFacets).mockResolvedValue([]);
     vi.mocked(listPinProposals).mockResolvedValue([]);
     renderWithProviders(<OperatorReview />);

@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 
 	"connectrpc.com/connect"
 
 	facetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/facets"
 	internalfacets "vrooli-memory/internal/facets"
+	"vrooli-memory/internal/policy"
 )
 
 type connectHandler struct {
@@ -23,7 +25,8 @@ func NewConnectHandler(s *internalfacets.Service, l *log.Logger) *connectHandler
 	return &connectHandler{service: s, logger: l}
 }
 
-func (h *connectHandler) ListFacets(ctx context.Context, _ *connect.Request[facetsv1.ListFacetsRequest]) (*connect.Response[facetsv1.ListFacetsResponse], error) {
+func (h *connectHandler) ListFacets(ctx context.Context, req *connect.Request[facetsv1.ListFacetsRequest]) (*connect.Response[facetsv1.ListFacetsResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	items, err := h.service.List(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -36,6 +39,7 @@ func (h *connectHandler) ListFacets(ctx context.Context, _ *connect.Request[face
 }
 
 func (h *connectHandler) AssignFacet(ctx context.Context, req *connect.Request[facetsv1.AssignFacetRequest]) (*connect.Response[facetsv1.AssignFacetResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	_, err := h.service.ReFacet(ctx, internalfacets.Assignment{EntryID: req.Msg.GetEntryId(), FacetID: req.Msg.GetFacetId()})
 	if err != nil {
 		var unknown internalfacets.ErrUnknownFacet
@@ -48,6 +52,7 @@ func (h *connectHandler) AssignFacet(ctx context.Context, req *connect.Request[f
 }
 
 func (h *connectHandler) SetPin(ctx context.Context, req *connect.Request[facetsv1.SetPinRequest]) (*connect.Response[facetsv1.SetPinResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	if err := h.service.SetPin(ctx, req.Msg.GetEntryId(), req.Msg.GetPinned()); err != nil {
 		var budget internalfacets.ErrPinBudgetExceeded
 		if errors.As(err, &budget) {
@@ -58,7 +63,8 @@ func (h *connectHandler) SetPin(ctx context.Context, req *connect.Request[facets
 	return connect.NewResponse(&facetsv1.SetPinResponse{}), nil
 }
 
-func (h *connectHandler) ListPinProposals(ctx context.Context, _ *connect.Request[facetsv1.ListPinProposalsRequest]) (*connect.Response[facetsv1.ListPinProposalsResponse], error) {
+func (h *connectHandler) ListPinProposals(ctx context.Context, req *connect.Request[facetsv1.ListPinProposalsRequest]) (*connect.Response[facetsv1.ListPinProposalsResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	items, err := h.service.ListPinProposals(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -70,7 +76,25 @@ func (h *connectHandler) ListPinProposals(ctx context.Context, _ *connect.Reques
 	return connect.NewResponse(response), nil
 }
 
+func (h *connectHandler) ListPinCandidates(ctx context.Context, req *connect.Request[facetsv1.ListPinCandidatesRequest]) (*connect.Response[facetsv1.ListPinCandidatesResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
+	items, err := h.service.ListPinCandidates(ctx, int(req.Msg.GetLimit()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &facetsv1.ListPinCandidatesResponse{}
+	for _, item := range items {
+		candidate := &facetsv1.PinCandidate{EntryId: item.EntryID, Body: item.Body, RecallCount: int32(item.RecallCount), CreatedAt: item.CreatedAt.Format(time.RFC3339Nano)}
+		if item.LastRecalledAt != nil {
+			candidate.LastRecalledAt = item.LastRecalledAt.Format(time.RFC3339Nano)
+		}
+		response.Candidates = append(response.Candidates, candidate)
+	}
+	return connect.NewResponse(response), nil
+}
+
 func (h *connectHandler) ResolvePinProposal(ctx context.Context, req *connect.Request[facetsv1.ResolvePinProposalRequest]) (*connect.Response[facetsv1.ResolvePinProposalResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	if err := h.service.ResolvePinProposal(ctx, req.Msg.GetProposalId(), req.Msg.GetAccept()); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -78,6 +102,7 @@ func (h *connectHandler) ResolvePinProposal(ctx context.Context, req *connect.Re
 }
 
 func (h *connectHandler) MarkSuperseded(ctx context.Context, req *connect.Request[facetsv1.MarkSupersededRequest]) (*connect.Response[facetsv1.MarkSupersededResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	if err := h.service.MarkSuperseded(ctx, req.Msg.GetEntryId(), req.Msg.GetReplacementEntryId()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -85,6 +110,7 @@ func (h *connectHandler) MarkSuperseded(ctx context.Context, req *connect.Reques
 }
 
 func (h *connectHandler) ResolveThread(ctx context.Context, req *connect.Request[facetsv1.ResolveThreadRequest]) (*connect.Response[facetsv1.ResolveThreadResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	if err := h.service.ResolveThread(ctx, req.Msg.GetEntryId()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

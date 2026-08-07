@@ -51,6 +51,22 @@ func TestProjectionRefusesToDropPinnedMemory(t *testing.T) {
 	require.ErrorContains(t, err, "pinned memory exceeds")
 }
 
+func TestProjectionRefusesPinnedOverflowForEveryConfiguredRuntime(t *testing.T) {
+	db := localdb.NewSQLite(t)
+	_, err := db.Exec(Schema())
+	require.NoError(t, err)
+	wake := recall.NewService(projectionSource{{ID: "pin", Text: "this pin cannot fit", Pinned: true, CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
+	p := NewProjector(db, wake)
+	for _, runtime := range p.Runtimes() {
+		target := p.targets[runtime]
+		target.Path = filepath.Join(t.TempDir(), runtime+".md")
+		target.Cap = len(generatedHeader) + 10
+		p.targets[runtime] = target
+		_, err := p.Project(context.Background(), runtime, true)
+		require.ErrorContains(t, err, "pinned memory exceeds", runtime)
+	}
+}
+
 func TestProjectionWritesToLeasedDataRootInTestMode(t *testing.T) {
 	db := localdb.NewSQLite(t)
 	_, err := db.Exec(Schema())

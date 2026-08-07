@@ -32,9 +32,34 @@ ports as outbound source ports. See the project-level port allocation reference
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 | `VROOLI_MEMORY_FRONTIER_TARGET` | `16` | Target number of compaction-eligible, unpinned frontier nodes before compaction considers a reduction. This is a compaction-pressure control, not a prompt-size limit. The full recall frontier also contains non-episode roots, which are deliberately not compacted. The value is calibrated from the initial 412-entry, single-harness import: it retains a 16-node working episode frontier while requiring only cohesive episode clusters to collapse. Must be a positive integer. Recalibrate after the first multi-harness import. |
-| `VROOLI_MEMORY_WAKE_BUDGET` | `40` | Maximum wake-context line budget for non-pinned frontier content. Pinned content is always retained and sets `overflow=true` when it alone exceeds this value. Must be a positive integer. |
+| `VROOLI_MEMORY_WAKE_BUDGET` | `96` | Maximum wake-context line budget for non-pinned frontier content in the `agent-memory` scope. Pinned content is always retained and sets `overflow=true` when it alone exceeds this value. Must be a positive integer. |
+| `VROOLI_MEMORY_MAX_ENTRY_LINES` | `2` | Maximum lines contributed by one ambient memory in the `agent-memory` scope. |
 | `facet_policies.resident_budget` | seeded per facet (`standing-rule=8`, `episode=12`, other resident facets=4) | Data-driven wake and standing-rule curation ceilings. Operators govern the value through the facet policy row; pin requests above the standing-rule ceiling create a trade-off proposal. |
-| `pins.review_at` | 30 days after pin/reconfirmation | Review deadline for a pin. Expiry lapses the pin without deleting the journal entry; reconfirmation updates the deadline without creating another journal row. |
+| `pins.review_at` | 90 days after pin/reconfirmation | Operator-selected quarterly review deadline for a pin. Expiry lapses the pin without deleting the journal entry; reconfirmation updates the deadline without creating another journal row. |
+| `VROOLI_MEMORY_MAINTENANCE_INTERVAL` | `6h` | In-process import-then-projection interval. A restart runs one immediate tick; `0` disables scheduled work. Each runtime operation is bounded at two minutes, and each run records start/end times and per-runtime outcomes. |
+
+## Scope registry
+
+`agent-memory` is created at startup from the three `VROOLI_MEMORY_*` defaults
+above. Other ledgers are durable rows in the `scopes` registry and keep their
+own frontier target, wake line budget, maximum entry excerpt, facet vocabulary,
+retention policies, and residency budgets. Environment variables never rewrite
+named scopes.
+
+Create a scope atomically through the CLI, supplying its vocabulary as JSON:
+
+```bash
+vrooli-memory scopes create marketing \
+  --label "Marketing ledger" --frontier-target 8 --wake-budget 32 \
+  --max-entry-lines 2 \
+  --facets-json '[{"id":"campaign","label":"Campaign","guidance":"Campaign decisions","retention_policy":"retain","resident_budget":8}]'
+vrooli-memory scopes list
+```
+
+Creation rejects residency totals that cannot fit within
+`wake_budget / max_entry_lines`, naming the required and available values.
+Each named scope also receives a derived `vrooli-memory.scope.<id>` search-hub
+provider whose recall request carries that scope explicitly.
 
 ## Compaction calibration
 

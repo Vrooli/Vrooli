@@ -8,6 +8,7 @@ package health
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 
 	"vrooli-memory/internal/database"
@@ -19,9 +20,10 @@ import (
 // are reported in the response envelope; Pinger backs the "database"
 // dependency check.
 type Deps struct {
-	Pinger  database.Pinger
-	Service string
-	Version string
+	Pinger        database.Pinger
+	Service       string
+	Version       string
+	MaintenanceDB *sql.DB
 }
 
 // NewHandler returns a handler that reports overall health, service
@@ -29,10 +31,32 @@ type Deps struct {
 // is registered as Critical: a failed ping flips the response to
 // status="unhealthy" with HTTP 503.
 func NewHandler(d Deps) http.HandlerFunc {
-	return apihealth.New(d.Service).
+	b := apihealth.New(d.Service).
 		Version(d.Version).
 		Check(apihealth.Func("database", func(ctx context.Context) error {
 			return d.Pinger.PingContext(ctx)
-		}), apihealth.Critical).
-		Handler()
+		}), apihealth.Critical)
+	if d.MaintenanceDB != nil {
+		b = b.Check(maintenanceCheck(d.MaintenanceDB), apihealth.Optional)
+	}
+	return b.Handler()
+}
+
+// maintenanceCheck deliberately remains optional: the process is healthy
+// while its first startup tick is still running. Once a run exists, its ID is
+// exposed in the standard dependency's database field so probes can prove
+// which durable run the health response reflects without changing the common
+// health wire contract.
+func maintenanceCheck(db *sql.DB) apihealth.Checker {
+	return apihealth.CheckerFunc(func(ctx context.Context) apihealth.CheckResult {
+		var id, completed string
+		err := db.QueryRowContext(ctx, `SELECT id,completed_at FROM maintenance_runs ORDER BY started_at DESC,id DESC LIMIT 1`).Scan(&id, &completed)
+		if err == sql.ErrNoRows {
+			return apihealth.CheckResult{Name: "maintenance", Connected: true, Database: "pending"}
+		}
+		if err != nil {
+			return apihealth.CheckResult{Name: "maintenance", Connected: false, Error: err}
+		}
+		return apihealth.CheckResult{Name: "maintenance", Connected: true, Database: id + " completed_at=" + completed}
+	})
 }

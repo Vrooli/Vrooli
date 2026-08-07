@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"context"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,15 +12,17 @@ import (
 	"github.com/vrooli/api-core/filerouting"
 	harnessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness"
 	harnessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness/harness_v1connect"
+	"vrooli-memory/internal/clock"
 	"vrooli-memory/internal/facets"
 	internalharness "vrooli-memory/internal/harness"
 	"vrooli-memory/internal/inference"
 	"vrooli-memory/internal/journal"
+	"vrooli-memory/internal/maintenance"
 	"vrooli-memory/internal/module"
 	internalrecall "vrooli-memory/internal/recall"
 )
 
-func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client inference.Client, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client inference.Client, logger *log.Logger, clocks ...clock.Clock) module.Module {
 	home, _ := os.UserHomeDir()
 	root := os.Getenv("VROOLI_MEMORY_CLAUDE_ROOT")
 	if root == "" {
@@ -31,7 +34,19 @@ func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client infere
 		panic(err)
 	}
 	wake := internalrecall.NewService(internalrecall.NewSQLiteSource(db.Primary()), inference.Embedder{Client: client}, config)
-	path, h := harnessconnect.NewHarnessServiceHandler(NewConnectHandler(internalharness.NewImporter(svc, root, db.Primary()), internalharness.NewProjector(db.Primary(), wake, roots), logger))
+	projector := internalharness.NewProjector(db.Primary(), wake, roots)
+	importer := internalharness.NewImporter(svc, root, projector.TargetPaths(), db.Primary())
+	interval, err := maintenance.IntervalFromOS()
+	if err != nil {
+		panic(err)
+	}
+	clk := clock.Clock(clock.System{})
+	if len(clocks) > 0 && clocks[0] != nil {
+		clk = clocks[0]
+	}
+	maintenanceService := maintenance.NewService(maintenance.NewSQLiteStore(db.Primary()), importer, projector, clk, interval)
+	path, h := harnessconnect.NewHarnessServiceHandler(NewConnectHandler(importer, projector, logger, maintenanceService))
+	maintenanceService.Start(context.Background())
 	return module.Module{Name: "harness", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}
 }
 

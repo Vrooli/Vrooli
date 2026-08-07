@@ -10,9 +10,6 @@ type Repository interface {
 	List(context.Context, int) ([]Entry, error)
 	ListByRun(context.Context, string, int) ([]Entry, error)
 	FindByImportKey(context.Context, string) (Entry, bool, error)
-	// RepairImportProvenance fills only missing provenance on an already
-	// content-addressed imported entry. It never changes memory content.
-	RepairImportProvenance(context.Context, string, ImportProvenance) error
 	// ClassificationRetries returns queued classification work without exposing
 	// any mutation surface for immutable journal entries.
 	ClassificationRetries(context.Context, int) ([]RetryItem, error)

@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/api-core/provenance"
 	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal"
 	internaljournal "vrooli-memory/internal/journal"
+	"vrooli-memory/internal/policy"
 )
 
 type connectHandler struct {
@@ -27,6 +28,7 @@ func NewConnectHandler(service *internaljournal.Service, logger *log.Logger) *co
 }
 
 func (h *connectHandler) AppendEntry(ctx context.Context, req *connect.Request[journalv1.AppendEntryRequest]) (*connect.Response[journalv1.AppendEntryResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	if strings.TrimSpace(req.Msg.GetBody()) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("body"))
 	}
@@ -46,6 +48,7 @@ func (h *connectHandler) AppendEntry(ctx context.Context, req *connect.Request[j
 }
 
 func (h *connectHandler) GetEntry(ctx context.Context, req *connect.Request[journalv1.GetEntryRequest]) (*connect.Response[journalv1.GetEntryResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	if strings.TrimSpace(req.Msg.GetId()) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("id"))
 	}
@@ -61,6 +64,7 @@ func (h *connectHandler) GetEntry(ctx context.Context, req *connect.Request[jour
 }
 
 func (h *connectHandler) ListEntries(ctx context.Context, req *connect.Request[journalv1.ListEntriesRequest]) (*connect.Response[journalv1.ListEntriesResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	limit := int(req.Msg.GetLimit())
 	if limit <= 0 {
 		limit = 100
@@ -83,6 +87,7 @@ func (h *connectHandler) ListEntries(ctx context.Context, req *connect.Request[j
 }
 
 func (h *connectHandler) ProcessClassificationRetries(ctx context.Context, req *connect.Request[journalv1.ProcessClassificationRetriesRequest]) (*connect.Response[journalv1.ProcessClassificationRetriesResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	limit := int(req.Msg.GetLimit())
 	if limit > 500 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("limit must be at most 500"))
@@ -96,6 +101,7 @@ func (h *connectHandler) ProcessClassificationRetries(ctx context.Context, req *
 }
 
 func (h *connectHandler) ProcessEmbeddingRetries(ctx context.Context, req *connect.Request[journalv1.ProcessEmbeddingRetriesRequest]) (*connect.Response[journalv1.ProcessEmbeddingRetriesResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	limit := int(req.Msg.GetLimit())
 	if limit > 500 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("limit must be at most 500"))
@@ -120,11 +126,14 @@ func entryFromAppend(in *journalv1.AppendEntryRequest, source provenance.Provena
 	// Correlation comes only from api-core's verified provenance. Request fields
 	// are deliberately ignored: a caller must not be able to forge an agent run
 	// or accidentally omit it while working inside one.
-	correlation := internaljournal.Correlation{}
-	if source.IsVerifiedAgent() {
-		correlation = internaljournal.Correlation{RunID: source.RunID, WorkflowExecutionID: source.WorkflowExecutionID, ActorKind: source.Actor}
+	actorID, actorKind, sourceRuntime, status, runID, workflowExecutionID := source.WriteFields()
+	harnessSessionID, harnessKind := source.ObservationFields()
+	return internaljournal.Entry{
+		Body: body, Scope: string(policy.NormalizeScope(in.GetScope())), FacetID: in.GetFacetId(), Kind: in.GetKind(),
+		Attribution: internaljournal.Attribution{ActorID: actorID, ActorKind: actorKind, SourceRuntime: sourceRuntime, VerificationStatus: status, HarnessSessionID: harnessSessionID, HarnessKind: harnessKind},
+		Correlation: internaljournal.Correlation{RunID: runID, WorkflowExecutionID: workflowExecutionID, ActorKind: actorKind},
+		ImportKey:   importKey(in.GetImportProvenance()),
 	}
-	return internaljournal.Entry{Body: body, FacetID: in.GetFacetId(), Kind: in.GetKind(), Attribution: attributionFromProto(in.GetAttribution()), Correlation: correlation, ImportKey: importKey(in.GetImportProvenance())}
 }
 
 func importKey(p *journalv1.ImportProvenance) string {
@@ -138,11 +147,11 @@ func attributionFromProto(a *journalv1.Attribution) internaljournal.Attribution 
 	if a == nil {
 		return internaljournal.Attribution{}
 	}
-	return internaljournal.Attribution{ActorID: a.GetActorId(), ActorKind: a.GetActorKind(), SourceRuntime: a.GetSourceRuntime()}
+	return internaljournal.Attribution{ActorID: a.GetActorId(), ActorKind: a.GetActorKind(), SourceRuntime: a.GetSourceRuntime(), VerificationStatus: a.GetVerificationStatus(), HarnessSessionID: a.GetHarnessSessionId(), HarnessKind: a.GetHarnessKind()}
 }
 
 func entryToProto(e internaljournal.Entry) *journalv1.Entry {
-	out := &journalv1.Entry{Id: e.ID, Body: e.Body, FacetId: e.FacetID, Kind: e.Kind, Attribution: &journalv1.Attribution{ActorId: e.Attribution.ActorID, ActorKind: e.Attribution.ActorKind, SourceRuntime: e.Attribution.SourceRuntime}, Correlation: &journalv1.Correlation{RunId: e.Correlation.RunID, WorkflowExecutionId: e.Correlation.WorkflowExecutionID, ActorKind: e.Correlation.ActorKind}, CreatedAt: timestamppb.New(e.CreatedAt)}
+	out := &journalv1.Entry{Id: e.ID, Body: e.Body, FacetId: e.FacetID, Kind: e.Kind, Attribution: &journalv1.Attribution{ActorId: e.Attribution.ActorID, ActorKind: e.Attribution.ActorKind, SourceRuntime: e.Attribution.SourceRuntime, VerificationStatus: e.Attribution.VerificationStatus, HarnessSessionId: e.Attribution.HarnessSessionID, HarnessKind: e.Attribution.HarnessKind}, Correlation: &journalv1.Correlation{RunId: e.Correlation.RunID, WorkflowExecutionId: e.Correlation.WorkflowExecutionID, ActorKind: e.Correlation.ActorKind}, CreatedAt: timestamppb.New(e.CreatedAt)}
 	for _, f := range e.FacetTexts {
 		out.FacetTexts = append(out.FacetTexts, &journalv1.FacetText{Kind: f.Kind, Text: f.Text, EmbeddingRef: f.EmbeddingRef})
 	}

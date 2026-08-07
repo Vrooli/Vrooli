@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -59,6 +60,7 @@ func NewProjector(db *sql.DB, wake *recall.Service, roots ...*filerouting.Routed
 		"codex":       {Runtime: "codex", Path: filepath.Join(home, ".codex", "AGENTS.md"), Cap: 32768},
 		"opencode":    {Runtime: "opencode", Path: filepath.Join(home, ".config", "opencode", "AGENTS.md"), Cap: 32768},
 		"grok":        {Runtime: "grok", Path: filepath.Join(home, ".grok", "memory", "MEMORY.md"), Cap: 32768},
+		"antigravity": {Runtime: "antigravity", Path: filepath.Join(home, ".gemini", "antigravity", "brain", "MEMORY.md"), Cap: 32768},
 	}}
 	if len(roots) > 0 {
 		p.roots = roots[0]
@@ -69,6 +71,27 @@ func NewProjector(db *sql.DB, wake *recall.Service, roots ...*filerouting.Routed
 func (p *Projector) Target(runtime string) (string, bool) {
 	t, ok := p.targets[runtime]
 	return t.Path, ok
+}
+
+// TargetPaths returns the configured projection paths in deterministic order.
+// Importers use this set to keep generated output one-directional.
+func (p *Projector) TargetPaths() []string {
+	paths := make([]string, 0, len(p.targets))
+	for _, target := range p.targets {
+		paths = append(paths, target.Path)
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+// Runtimes returns every configured projection target in stable order.
+func (p *Projector) Runtimes() []string {
+	out := make([]string, 0, len(p.targets))
+	for runtime := range p.targets {
+		out = append(out, runtime)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func (p *Projector) Project(ctx context.Context, runtime string, dryRun bool) (ProjectionResult, error) {

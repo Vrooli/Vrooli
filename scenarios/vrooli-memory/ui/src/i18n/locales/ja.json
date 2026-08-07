@@ -40,6 +40,7 @@
       "title": "オペレーター確認",
       "description": "圧縮フロンティアを確認し、共有メモリを変更する前にピン提案を審査します。",
       "frontierTitle": "圧縮フロンティア",
+      "frontierCount": "適格ノード {{eligible}} · 目標 {{target}}",
       "frontierEmpty": "フロンティアは空です",
       "correctionTitle": "ファセットポリシー",
       "facetsEmpty": "ファセット定義がありません",

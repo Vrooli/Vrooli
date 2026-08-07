@@ -19,12 +19,13 @@ import (
 
 type (
 	Importer struct {
-		journal    *journal.Service
-		claudeRoot string
-		adapters   map[string]AdapterDescriptor
-		runs       *runStore
-		mu         sync.Mutex
-		active     map[string]string
+		journal           *journal.Service
+		claudeRoot        string
+		adapters          map[string]AdapterDescriptor
+		projectionTargets map[string]struct{}
+		runs              *runStore
+		mu                sync.Mutex
+		active            map[string]string
 	}
 	ImportResult struct {
 		Runtime                  string
@@ -33,9 +34,13 @@ type (
 	}
 )
 
-func NewImporter(s *journal.Service, claudeRoot string, databases ...*sql.DB) *Importer {
+func NewImporter(s *journal.Service, claudeRoot string, projectionTargets []string, databases ...*sql.DB) *Importer {
 	home, _ := os.UserHomeDir()
-	i := &Importer{journal: s, claudeRoot: claudeRoot, adapters: defaultAdapters(claudeRoot, home), active: make(map[string]string)}
+	targets := make(map[string]struct{}, len(projectionTargets))
+	for _, target := range projectionTargets {
+		targets[normalizedAbsolutePath(target)] = struct{}{}
+	}
+	i := &Importer{journal: s, claudeRoot: claudeRoot, adapters: defaultAdapters(claudeRoot, home), projectionTargets: targets, active: make(map[string]string)}
 	if len(databases) > 0 && databases[0] != nil {
 		i.runs = newRunStore(databases[0])
 	}
@@ -48,7 +53,7 @@ func (i *Importer) Import(ctx context.Context, runtime string, dryRun bool) (Imp
 	if err != nil {
 		return result, err
 	}
-	items, err := adapter.discover()
+	items, err := adapter.discover(i.projectionTargets)
 	if err != nil {
 		return result, err
 	}
@@ -61,6 +66,18 @@ func (i *Importer) Import(ctx context.Context, runtime string, dryRun bool) (Imp
 		return result, fmt.Errorf("non-empty harness %q store yielded zero importable items", runtime)
 	}
 	return result, nil
+}
+
+// IsEmptyStoreError identifies an expected discovery result for a declared
+// adapter. Dry-run callers report this as an honest zero-source observation;
+// durable imports still surface it as a failed run so operators can see that
+// no work was performed.
+func IsEmptyStoreError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := err.Error()
+	return strings.Contains(message, "store is not present") || strings.Contains(message, "yielded zero importable items")
 }
 
 // Start creates a durable import run and returns immediately. Repeated starts
@@ -79,7 +96,7 @@ func (i *Importer) Start(ctx context.Context, runtime string) (ImportRun, bool, 
 	if err != nil {
 		return ImportRun{}, false, err
 	}
-	items, err := adapter.discover()
+	items, err := adapter.discover(i.projectionTargets)
 	if err != nil {
 		return ImportRun{}, false, err
 	}
@@ -205,7 +222,7 @@ func (i *Importer) adapter(runtime string) (AdapterDescriptor, error) {
 }
 
 func (i *Importer) importItem(ctx context.Context, adapter AdapterDescriptor, item sourceItem, dryRun bool, result *ImportResult) error {
-	body := strings.TrimSpace(item.Body)
+	body := strings.TrimSpace(stripManagedWakeBlock(item.Body))
 	if body == "" {
 		return nil
 	}
@@ -215,14 +232,9 @@ func (i *Importer) importItem(ctx context.Context, adapter AdapterDescriptor, it
 		return nil
 	}
 	key := importKey(adapter.HarnessID, item.Path, body)
-	if entry, found, err := i.journal.FindByImportKey(ctx, key); err != nil {
+	if _, found, err := i.journal.FindByImportKey(ctx, key); err != nil {
 		return err
 	} else if found {
-		if entry.Import.Harness == "" || entry.Import.Path == "" || entry.Import.ImportedAt.IsZero() {
-			if err := i.journal.RepairImportProvenance(ctx, entry.ID, journal.ImportProvenance{Harness: adapter.HarnessID, Path: item.Path}); err != nil {
-				return fmt.Errorf("repair import provenance for %s: %w", item.Path, err)
-			}
-		}
 		result.Existing++
 		return nil
 	}

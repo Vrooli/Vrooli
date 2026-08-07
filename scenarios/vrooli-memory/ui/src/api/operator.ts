@@ -33,7 +33,13 @@ export async function resolvePinProposal(proposalId: string, accept: boolean): P
   await facetsClient.resolvePinProposal({ proposalId, accept });
 }
 
-export async function getFrontier(): Promise<Node[]> {
+export interface FrontierData {
+  nodes: Node[];
+  eligibleCount: number;
+  target: number;
+}
+
+export async function getFrontier(): Promise<FrontierData> {
   const response = await forestClient.getFrontier({});
-  return response.nodes;
+  return { nodes: response.nodes, eligibleCount: response.eligibleCount, target: response.target };
 }

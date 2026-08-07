@@ -148,6 +148,29 @@ func TestRefacetCorpusPassesEntryKindToContextualClassifier(t *testing.T) {
 	require.Equal(t, "episode", assignments[0].FacetID)
 }
 
+func TestRefacetCorpusBatchResumesFromEntryCursor(t *testing.T) {
+	s, j := newService(t)
+	ctx := context.Background()
+	for _, body := range []string{"first", "second", "third"} {
+		_, err := j.Append(ctx, journal.Entry{Body: body, FacetID: "gotcha"}, nil)
+		require.NoError(t, err)
+	}
+	classifier := &mocks.FakeInference{ClassifyOut: "gotcha"}
+	first, err := NewService(s.repo, classifier).RefacetCorpusBatch(ctx, "agent-memory", "", 2)
+	require.NoError(t, err)
+	require.Equal(t, 2, first.Total)
+	require.Equal(t, 2, first.Assigned)
+	require.False(t, first.Complete)
+	require.NotEmpty(t, first.NextEntryID)
+
+	second, err := NewService(s.repo, classifier).RefacetCorpusBatch(ctx, "agent-memory", first.NextEntryID, 2)
+	require.NoError(t, err)
+	require.Equal(t, 1, second.Total)
+	require.Equal(t, 1, second.Assigned)
+	require.True(t, second.Complete)
+	require.Empty(t, second.NextEntryID)
+}
+
 func TestSupersessionLeavesOriginalEntryRetrievable(t *testing.T) { // [REQ:VMEM-P1-004]
 	s, j := newService(t)
 	ctx := context.Background()
@@ -196,6 +219,10 @@ func TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate(t *testi
 	_, err = s.repo.(*SQLiteRepository).db.ExecContext(ctx, `UPDATE pins SET review_at=? WHERE entry_id=?`, time.Now().Add(-time.Hour).UTC().Format(time.RFC3339Nano), ids[1])
 	require.NoError(t, err)
 	require.False(t, mustPinned(t, s, ctx, ids[1]))
+	require.NoError(t, s.SetPin(ctx, ids[8], true))
+	var reviewRows int
+	require.NoError(t, s.repo.(*SQLiteRepository).db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pin_reviews`).Scan(&reviewRows))
+	require.GreaterOrEqual(t, reviewRows, 9)
 }
 
 func mustPinned(t *testing.T, s *Service, ctx context.Context, id string) bool {

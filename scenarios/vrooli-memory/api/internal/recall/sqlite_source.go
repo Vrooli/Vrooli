@@ -17,6 +17,7 @@ type SQLiteSource struct{ db *sql.DB }
 func NewSQLiteSource(db *sql.DB) *SQLiteSource { return &SQLiteSource{db: db} }
 func (s *SQLiteSource) Nodes(ctx context.Context) ([]Node, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	scope := policy.ScopeFromContext(ctx)
 	rows, err := s.db.QueryContext(ctx, `
 WITH latest_assignment AS (
   -- One pass with a window function. The correlated form this replaced ran a
@@ -40,7 +41,7 @@ SELECT e.id,
 -- path guessed at append time and is never revised, so reading it here made
 -- corrected and late-classified memories invisible to wake.
 FROM entries e LEFT JOIN latest_assignment la ON la.entry_id=e.id
-WHERE NOT (EXISTS(SELECT 1 FROM facet_policies fp WHERE fp.facet_id=COALESCE(la.facet_id,e.facet_id) AND fp.retention_policy=?) AND EXISTS(SELECT 1 FROM marks m WHERE m.entry_id=e.id AND m.kind='resolved'))
+WHERE e.scope=? AND NOT (EXISTS(SELECT 1 FROM facet_policies fp WHERE fp.scope=? AND fp.facet_id=COALESCE(la.facet_id,e.facet_id) AND fp.retention_policy=?) AND EXISTS(SELECT 1 FROM marks m WHERE m.entry_id=e.id AND m.kind='resolved'))
 UNION ALL
 SELECT s.id,
        COALESCE((SELECT parent_id FROM tree_edges WHERE child_id=s.id AND child_kind='summary' ORDER BY parent_id LIMIT 1),''),
@@ -51,7 +52,8 @@ SELECT s.id,
        (SELECT COUNT(*) FROM tree_edges children WHERE children.parent_id=s.id),
        1
 FROM summaries s
-ORDER BY 6,1`, now, policy.ExpireOnResolution)
+WHERE s.scope=?
+ORDER BY 6,1`, now, scope, scope, policy.ExpireOnResolution, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -85,10 +87,11 @@ ORDER BY 6,1`, now, policy.ExpireOnResolution)
 func (s *SQLiteSource) vectorsByNode(ctx context.Context) (map[string][][]float64, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT ft.entry_id, em.vector_blob, em.vector_json
-FROM facet_texts ft JOIN embeddings em ON em.facet_text_id=ft.id
+FROM facet_texts ft JOIN embeddings em ON em.facet_text_id=ft.id JOIN entries e ON e.id=ft.entry_id
+WHERE e.scope=?
 UNION ALL
-SELECT sm.id, sm.vector_blob, sm.vector_json FROM summaries sm
-ORDER BY 1`)
+SELECT sm.id, sm.vector_blob, sm.vector_json FROM summaries sm WHERE sm.scope=?
+ORDER BY 1`, policy.ScopeFromContext(ctx), policy.ScopeFromContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +130,7 @@ func (s *SQLiteSource) AmbientNodes(ctx context.Context, perFacetLimit int) ([]N
 		perFacetLimit = 1
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	scope := policy.ScopeFromContext(ctx)
 	rows, err := s.db.QueryContext(ctx, `
 WITH latest_assignment AS (
   -- One pass with a window function. The correlated form this replaced ran a
@@ -143,18 +147,18 @@ SELECT e.id AS id,e.id AS entry_id,COALESCE(la.facet_id,e.facet_id) AS facet_id,
        0 AS depth,0 AS span,0 AS summary,
        ROW_NUMBER() OVER (PARTITION BY COALESCE(la.facet_id,e.facet_id) ORDER BY e.created_at DESC, e.id) AS rank
 FROM entries e LEFT JOIN latest_assignment la ON la.entry_id=e.id
-WHERE (NOT EXISTS(SELECT 1 FROM tree_edges WHERE child_id=e.id AND child_kind='entry')
+WHERE e.scope=? AND (NOT EXISTS(SELECT 1 FROM tree_edges WHERE child_id=e.id AND child_kind='entry')
        OR EXISTS(SELECT 1 FROM pins p WHERE p.entry_id=e.id AND (p.review_at IS NULL OR p.review_at>?)))
-  AND NOT (EXISTS(SELECT 1 FROM facet_policies fp WHERE fp.facet_id=COALESCE(la.facet_id,e.facet_id) AND fp.retention_policy=?)
+  AND NOT (EXISTS(SELECT 1 FROM facet_policies fp WHERE fp.scope=? AND fp.facet_id=COALESCE(la.facet_id,e.facet_id) AND fp.retention_policy=?)
            AND EXISTS(SELECT 1 FROM marks m WHERE m.entry_id=e.id AND m.kind='resolved'))
 UNION ALL
 SELECT s.id,s.id,s.facet_id,s.body,s.created_at,0,s.depth,
        (SELECT COUNT(*) FROM tree_edges children WHERE children.parent_id=s.id),1,
        ROW_NUMBER() OVER (PARTITION BY s.facet_id ORDER BY s.created_at DESC, s.id)
 FROM summaries s
-WHERE NOT EXISTS(SELECT 1 FROM tree_edges WHERE child_id=s.id AND child_kind='summary')
+WHERE s.scope=? AND NOT EXISTS(SELECT 1 FROM tree_edges WHERE child_id=s.id AND child_kind='summary')
 ) WHERE pinned=1 OR rank<=?
-ORDER BY created_at DESC,id`, now, now, policy.ExpireOnResolution, perFacetLimit)
+ORDER BY created_at DESC,id`, now, scope, now, scope, policy.ExpireOnResolution, scope, perFacetLimit)
 	if err != nil {
 		return nil, err
 	}

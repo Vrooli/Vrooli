@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	rulesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/rules"
 	internalfacets "vrooli-memory/internal/facets"
+	"vrooli-memory/internal/policy"
 )
 
 type connectHandler struct {
@@ -23,6 +24,7 @@ func NewConnectHandler(service *internalfacets.Service, logger *log.Logger) *con
 }
 
 func (h *connectHandler) ListRules(ctx context.Context, req *connect.Request[rulesv1.ListRulesRequest]) (*connect.Response[rulesv1.ListRulesResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	rules, err := h.service.ListRules(ctx, req.Msg.GetScope())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -36,6 +38,9 @@ func (h *connectHandler) ListRules(ctx context.Context, req *connect.Request[rul
 
 func (h *connectHandler) CreateRule(ctx context.Context, req *connect.Request[rulesv1.CreateRuleRequest]) (*connect.Response[rulesv1.CreateRuleResponse], error) {
 	in := req.Msg.GetRule()
+	if in != nil {
+		ctx = policy.WithScope(ctx, in.GetScope())
+	}
 	if in == nil || in.GetFacetId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("facet_id is required"))
 	}
@@ -47,6 +52,7 @@ func (h *connectHandler) CreateRule(ctx context.Context, req *connect.Request[ru
 }
 
 func (h *connectHandler) DryRunRule(ctx context.Context, req *connect.Request[rulesv1.DryRunRuleRequest]) (*connect.Response[rulesv1.DryRunRuleResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	dry, err := h.service.DryRunRule(ctx, req.Msg.GetRuleId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -55,6 +61,7 @@ func (h *connectHandler) DryRunRule(ctx context.Context, req *connect.Request[ru
 }
 
 func (h *connectHandler) EnableRule(ctx context.Context, req *connect.Request[rulesv1.EnableRuleRequest]) (*connect.Response[rulesv1.EnableRuleResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	if err := h.service.EnableRule(ctx, req.Msg.GetRuleId()); err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
@@ -62,6 +69,7 @@ func (h *connectHandler) EnableRule(ctx context.Context, req *connect.Request[ru
 }
 
 func (h *connectHandler) RevertRule(ctx context.Context, req *connect.Request[rulesv1.RevertRuleRequest]) (*connect.Response[rulesv1.RevertRuleResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	count, err := h.service.RevertRule(ctx, req.Msg.GetRuleId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -70,7 +78,12 @@ func (h *connectHandler) RevertRule(ctx context.Context, req *connect.Request[ru
 }
 
 func (h *connectHandler) RefacetCorpus(ctx context.Context, req *connect.Request[rulesv1.RefacetCorpusRequest]) (*connect.Response[rulesv1.RefacetCorpusResponse], error) {
-	result, err := h.service.RefacetCorpus(ctx, req.Msg.GetScope())
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
+	limit := int(req.Msg.GetLimit())
+	if limit <= 0 {
+		limit = 200
+	}
+	result, err := h.service.RefacetCorpusBatch(ctx, req.Msg.GetScope(), req.Msg.GetAfterEntryId(), limit)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -80,6 +93,36 @@ func (h *connectHandler) RefacetCorpus(ctx context.Context, req *connect.Request
 		RuleAssigned: int32(result.RuleAssigned),
 		Classified:   int32(result.Classified),
 		Failed:       int32(result.Failed),
+		NextEntryId:  result.NextEntryID,
+		Complete:     result.Complete,
+	}), nil
+}
+
+func (h *connectHandler) MeasureDistribution(ctx context.Context, req *connect.Request[rulesv1.MeasureDistributionRequest]) (*connect.Response[rulesv1.MeasureDistributionResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
+	measurement, err := h.service.MeasureDistribution(ctx, req.Msg.GetScope())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	ruleCoverage := make(map[string]int32, len(measurement.RuleCoverage))
+	for id, count := range measurement.RuleCoverage {
+		ruleCoverage[id] = int32(count)
+	}
+	tailByFacet := make(map[string]int32, len(measurement.ClassifierTailByFacet))
+	for id, count := range measurement.ClassifierTailByFacet {
+		tailByFacet[id] = int32(count)
+	}
+	return connect.NewResponse(&rulesv1.MeasureDistributionResponse{
+		Scope:                 measurement.Scope,
+		Total:                 int32(measurement.Total),
+		RuleMatched:           int32(measurement.RuleMatched),
+		ClassifierTail:        int32(measurement.ClassifierTail),
+		RuleCoverage:          ruleCoverage,
+		ClassifierTailByFacet: tailByFacet,
+		CeilingPercent:        measurement.CeilingPercent,
+		MaxTailFacet:          measurement.MaxTailFacet,
+		MaxTailPercent:        measurement.MaxTailPercent,
+		WithinCeiling:         measurement.WithinCeiling,
 	}), nil
 }
 

@@ -57,3 +57,33 @@ func TestResolverKeepsScopeExplicit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "future-facet", vocabulary[0].ID)
 }
+
+func TestScopeDefaultAndRequestContext(t *testing.T) {
+	ctx := context.Background()
+	require.Equal(t, AgentMemory, NormalizeScope(""))
+	require.Equal(t, AgentMemory, ScopeFromContext(ctx))
+	require.Equal(t, Scope("team:marketing-crew"), ScopeFromContext(WithScope(ctx, "team:marketing-crew")))
+}
+
+func TestRegistryRejectsUnsatisfiableResidencyAndResolvesPerScope(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:scope-registry?mode=memory&cache=shared")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.Exec(`CREATE TABLE facet_definitions (id TEXT PRIMARY KEY, scope TEXT NOT NULL, label TEXT NOT NULL, classification_guidance TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE facet_policies (facet_id TEXT PRIMARY KEY, scope TEXT NOT NULL, retention_policy TEXT NOT NULL, compaction_eligible INTEGER NOT NULL, resident_budget INTEGER NOT NULL);`)
+	require.NoError(t, err)
+	registry := NewRegistry(db)
+	require.NoError(t, registry.Ensure(context.Background(), Config{Scope: AgentMemory, FrontierTarget: 16, WakeBudget: 96, MaxEntryLines: 2}))
+	err = registry.Create(context.Background(), ScopeDefinition{ID: "marketing", Label: "Marketing ledger", Config: Config{FrontierTarget: 3, WakeBudget: 4, MaxEntryLines: 2}, Facets: []FacetDefinition{{ID: "campaign", Label: "Campaign", RetentionPolicy: "retain", ResidentBudget: 3}}})
+	require.ErrorContains(t, err, "require 3 entries")
+	require.ErrorContains(t, err, "wake budget 4")
+	require.NoError(t, registry.Create(context.Background(), ScopeDefinition{ID: "marketing", Label: "Marketing ledger", Config: Config{FrontierTarget: 3, WakeBudget: 12, MaxEntryLines: 2}, Facets: []FacetDefinition{{ID: "campaign", Label: "Campaign", RetentionPolicy: "retain", ResidentBudget: 3}}}))
+	resolved, err := registry.Resolve(context.Background(), "marketing")
+	require.NoError(t, err)
+	require.Equal(t, 3, resolved.FrontierTarget)
+	require.Equal(t, 12, resolved.WakeBudget)
+	require.Equal(t, 3, resolved.FacetBudgets["campaign"])
+	items, err := registry.List(context.Background())
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+}

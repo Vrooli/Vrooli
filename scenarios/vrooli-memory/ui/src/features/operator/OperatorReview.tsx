@@ -27,7 +27,7 @@ export function OperatorReview() {
     void client.invalidateQueries({ queryKey: ["recall"] });
   };
   const error = facets.error ?? frontier.error ?? proposals.error;
-  const frontierState: ExperienceSurfaceState = frontier.isLoading ? "loading" : frontier.error ? "error" : frontier.data?.length ? "ready" : "empty";
+  const frontierState: ExperienceSurfaceState = frontier.isLoading ? "loading" : frontier.error ? "error" : frontier.data?.nodes.length ? "ready" : "empty";
   const proposalState: ExperienceSurfaceState = proposals.isLoading ? "loading" : proposals.error ? "error" : proposals.data?.length ? "ready" : "empty";
 
   return (
@@ -40,10 +40,11 @@ export function OperatorReview() {
       <Card>
         <CardHeader><CardTitle>{t(strings.pages.operator.frontierTitle)}</CardTitle></CardHeader>
         <CardContent>
+          {frontier.data && <p className="mb-3 text-sm text-app-muted-foreground">{t(strings.pages.operator.frontierCount, { eligible: frontier.data.eligibleCount, target: frontier.data.target })}</p>}
           <ExperienceSurface surfaceId="frontier" state={frontierState} data-testid={selectors.operator.frontierList}>
-          {frontier.data?.length === 0 && <EmptyState title={t(strings.pages.operator.frontierEmpty)} />}
-          {frontier.data && frontier.data.length > 0 && <ul className="space-y-2">
-            {frontier.data.map((node) => <li key={node.id} className="rounded-control border border-app-border p-3">
+          {frontier.data?.nodes.length === 0 && <EmptyState title={t(strings.pages.operator.frontierEmpty)} />}
+          {frontier.data && frontier.data.nodes.length > 0 && <ul className="space-y-2">
+            {frontier.data.nodes.map((node) => <li key={node.id} className="rounded-control border border-app-border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium">{node.facetId || t(strings.pages.operator.unclassified)}</span>
                 <span className="text-sm text-app-muted-foreground">{node.childIds.length > 0 ? t(strings.pages.operator.summary, { depth: node.depth, span: node.childIds.length }) : t(strings.pages.operator.leaf, { depth: node.depth })}</span>

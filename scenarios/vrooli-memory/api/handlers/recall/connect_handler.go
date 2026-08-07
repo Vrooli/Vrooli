@@ -9,13 +9,16 @@ import (
 
 	recallv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall"
 
+	internalfacets "vrooli-memory/internal/facets"
 	internaljournal "vrooli-memory/internal/journal"
+	"vrooli-memory/internal/policy"
 	internalrecall "vrooli-memory/internal/recall"
 )
 
 type connectHandler struct {
 	service *internalrecall.Service
 	journal *internaljournal.Service
+	usage   *internalfacets.Service
 	logger  *log.Logger
 }
 
@@ -30,15 +33,36 @@ func NewConnectHandler(s *internalrecall.Service, l *log.Logger, journals ...*in
 	return h
 }
 
+func (h *connectHandler) SetUsageRecorder(usage *internalfacets.Service) { h.usage = usage }
+
 func (h *connectHandler) Recall(ctx context.Context, req *connect.Request[recallv1.RecallRequest]) (*connect.Response[recallv1.RecallResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	hits, err := h.service.Recall(ctx, req.Msg.GetQuery(), int(req.Msg.GetLimit()))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if h.usage != nil {
+		ids := make([]string, 0, len(hits))
+		seen := make(map[string]struct{}, len(hits))
+		for _, hit := range hits {
+			if hit.Node.EntryID == "" {
+				continue
+			}
+			if _, ok := seen[hit.Node.EntryID]; ok {
+				continue
+			}
+			seen[hit.Node.EntryID] = struct{}{}
+			ids = append(ids, hit.Node.EntryID)
+		}
+		if err := h.usage.RecordRecall(ctx, ids); err != nil {
+			h.logger.Printf("record recall usage: %v", err)
+		}
 	}
 	return connect.NewResponse(&recallv1.RecallResponse{Hits: hitsProto(hits)}), nil
 }
 
 func (h *connectHandler) Wake(ctx context.Context, req *connect.Request[recallv1.WakeRequest]) (*connect.Response[recallv1.WakeResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	wake, err := h.service.Wake(ctx, int(req.Msg.GetTokenBudget()))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -47,6 +71,7 @@ func (h *connectHandler) Wake(ctx context.Context, req *connect.Request[recallv1
 }
 
 func (h *connectHandler) Zoom(ctx context.Context, req *connect.Request[recallv1.ZoomRequest]) (*connect.Response[recallv1.ZoomResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	nodes, err := h.service.Zoom(ctx, req.Msg.GetNodeId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -59,6 +84,7 @@ func (h *connectHandler) Zoom(ctx context.Context, req *connect.Request[recallv1
 }
 
 func (h *connectHandler) ListSiblingEvents(ctx context.Context, req *connect.Request[recallv1.ListSiblingEventsRequest]) (*connect.Response[recallv1.ListSiblingEventsResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
 	if req.Msg.GetEntryId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("entry_id is required"))
 	}

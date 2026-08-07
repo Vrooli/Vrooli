@@ -17,6 +17,14 @@ import "time"
 type Clock interface {
 	// Now returns the current time.
 	Now() time.Time
+	// NewTicker returns a ticker used by long-lived maintenance loops.
+	NewTicker(time.Duration) Ticker
+}
+
+// Ticker is the clock-owned subset needed by scheduled work.
+type Ticker interface {
+	C() <-chan time.Time
+	Stop()
 }
 
 // System is the production Clock; methods delegate to the equivalent
@@ -25,6 +33,12 @@ type System struct{}
 
 // Now reports the current local time.
 func (System) Now() time.Time { return time.Now() }
+
+type systemTicker struct{ *time.Ticker }
+
+func (t systemTicker) C() <-chan time.Time { return t.Ticker.C }
+
+func (System) NewTicker(d time.Duration) Ticker { return systemTicker{time.NewTicker(d)} }
 
 // Compile-time guarantee that System satisfies Clock.
 var _ Clock = System{}

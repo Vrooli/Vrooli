@@ -12,7 +12,31 @@ import (
 	"vrooli-memory/internal/facets"
 	"vrooli-memory/internal/forest"
 	"vrooli-memory/internal/journal"
+	"vrooli-memory/internal/policy"
 )
+
+func TestRecallSourceIsolatedByScopeAndDefaultsToAgentMemory(t *testing.T) {
+	ctx := context.Background()
+	db, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:recall-scope?mode=memory&cache=shared"})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, apidb.EnsureSchemas(ctx, db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(forest.Schema)))
+	repo := journal.NewSQLiteRepository(db.Primary())
+	agent, err := repo.Append(ctx, journal.Entry{ID: "agent-entry", Scope: "agent-memory", Body: "agent", FacetID: "episode"}, nil)
+	require.NoError(t, err)
+	team, err := repo.Append(policy.WithScope(ctx, "team:marketing-crew"), journal.Entry{ID: "team-entry", Scope: "team:marketing-crew", Body: "team", FacetID: "episode"}, nil)
+	require.NoError(t, err)
+
+	defaultNodes, err := NewSQLiteSource(db.Primary()).Nodes(ctx)
+	require.NoError(t, err)
+	require.Len(t, defaultNodes, 1)
+	require.Equal(t, agent.ID, defaultNodes[0].ID)
+
+	teamNodes, err := NewSQLiteSource(db.Primary()).Nodes(policy.WithScope(ctx, "team:marketing-crew"))
+	require.NoError(t, err)
+	require.Len(t, teamNodes, 1)
+	require.Equal(t, team.ID, teamNodes[0].ID)
+}
 
 func TestSQLiteSourceReturnsLeavesAndDerivedSummaries(t *testing.T) {
 	ctx := context.Background()

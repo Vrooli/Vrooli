@@ -27,16 +27,35 @@ func newHandler(t *testing.T) *connectHandler {
 
 func TestAppendDerivesCorrelationOnlyFromVerifiedProvenance(t *testing.T) { // [REQ:VMEM-P1-002]
 	h := newHandler(t)
-	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-verified", WorkflowExecutionID: "workflow-verified"})
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-verified", WorkflowExecutionID: "workflow-verified", Invocation: provenance.Invocation{Scenario: "test-harness"}})
 	resp, err := h.AppendEntry(ctx, connect.NewRequest(&journalv1.AppendEntryRequest{Body: "correlated", Correlation: &journalv1.Correlation{RunId: "forged"}}))
 	require.NoError(t, err)
 	require.Equal(t, "run-verified", resp.Msg.GetEntry().GetCorrelation().GetRunId())
 	require.Equal(t, "workflow-verified", resp.Msg.GetEntry().GetCorrelation().GetWorkflowExecutionId())
 	require.Equal(t, provenance.ActorAgent, resp.Msg.GetEntry().GetCorrelation().GetActorKind())
+	require.Equal(t, "run-verified", resp.Msg.GetEntry().GetAttribution().GetActorId())
+	require.Equal(t, provenance.ActorAgent, resp.Msg.GetEntry().GetAttribution().GetActorKind())
+	require.Equal(t, "test-harness", resp.Msg.GetEntry().GetAttribution().GetSourceRuntime())
+	require.Equal(t, provenance.VerificationVerified, resp.Msg.GetEntry().GetAttribution().GetVerificationStatus())
 
 	uncorrelated, err := h.AppendEntry(context.Background(), connect.NewRequest(&journalv1.AppendEntryRequest{Body: "outside a run", Correlation: &journalv1.Correlation{RunId: "forged"}}))
 	require.NoError(t, err)
 	require.Empty(t, uncorrelated.Msg.GetEntry().GetCorrelation().GetRunId())
+	require.Equal(t, provenance.VerificationAbsent, uncorrelated.Msg.GetEntry().GetAttribution().GetVerificationStatus())
+	require.Empty(t, uncorrelated.Msg.GetEntry().GetAttribution().GetActorId())
+}
+
+func TestAppendPreservesHarnessObservationWithoutRunAttribution(t *testing.T) {
+	h := newHandler(t)
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Invocation: provenance.Invocation{HarnessSessionID: "claude-session-1", HarnessKind: "claude-code"}})
+	resp, err := h.AppendEntry(ctx, connect.NewRequest(&journalv1.AppendEntryRequest{Body: "observed channel"}))
+	require.NoError(t, err)
+	attribution := resp.Msg.GetEntry().GetAttribution()
+	require.Equal(t, "claude-session-1", attribution.GetHarnessSessionId())
+	require.Equal(t, "claude-code", attribution.GetHarnessKind())
+	require.Equal(t, provenance.VerificationAbsent, attribution.GetVerificationStatus())
+	require.Empty(t, resp.Msg.GetEntry().GetCorrelation().GetRunId())
+	require.Empty(t, attribution.GetActorId())
 }
 
 func TestConnectHandlerAppendGetAndList(t *testing.T) { // [REQ:VMEM-P0-002]

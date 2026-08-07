@@ -11,10 +11,12 @@ import (
 	internalforest "vrooli-memory/internal/forest"
 	"vrooli-memory/internal/inference"
 	"vrooli-memory/internal/module"
+	"vrooli-memory/internal/policy"
 )
 
-func Module(db *database.RoutedDB, client inference.Client, target int, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, client inference.Client, target int, registry *policy.Registry, logger *log.Logger) module.Module {
 	svc := internalforest.NewService(internalforest.NewSQLiteRepository(db.Primary()), internalforest.NewSQLiteCandidateSource(db.Primary()), client, internalforest.Config{Target: target})
+	svc.SetPolicyRegistry(registry)
 	path, h := forestconnect.NewForestServiceHandler(NewConnectHandler(svc, logger))
 	return module.Module{Name: "forest", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}
 }

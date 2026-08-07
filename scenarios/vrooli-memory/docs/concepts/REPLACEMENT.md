@@ -96,6 +96,17 @@ remember to pass. Attribution derived from the request cannot be forgotten.
 memories, preserving narrative and outcome. Docs and skills stop referencing
 `records create`. Tracked as `VMEM-P1-001`.
 
+### 4. The duplicate federated `swarm-manager.records` provider
+
+The absorbed work records remain in swarm-manager's relational storage for
+workflows that need them, but that storage is no longer a second answer in
+federated memory search. The `swarm-manager.records` Search Hub provider was
+removed from `scenarios/swarm-manager/.vrooli/search.json` and deregistered from
+the live provider registry on 2026-08-06. `vrooli-memory.memories` is now the
+single federated provider for those records; a known work-record query returned
+memory hits without the retired provider. This is provider retirement, not data
+deletion.
+
 ## What This Does **Not** Replace
 
 Being explicit here matters more than the absorption list, because an
@@ -158,11 +169,11 @@ Recorded honestly rather than argued away.
   (Codex, opencode) do not**: a rewritten `AGENTS.md` carries no per-item
   identity, so without a hook the best available import is whole-file
   granularity. Their hook APIs are unverified.
-- **A harness may silently truncate an oversized projection.** Codex documents a
-  32 KiB cap; Claude Code's current `MEMORY.md` is already 18,245 bytes. If the
-  runtime truncates rather than prompting, a pinned standing rule leaves context
-  with no signal. Pin-first ordering is the mitigation (D-017); actual at-cap
-  behaviour per runtime is unverified.
+- **Native runtime limits are not uniform.** Codex documents a 32 KiB injection
+  cap, while the other installed runtimes expose no stable numeric limit. The
+  scenario therefore applies a measured 32,768-byte guard to every projection,
+  emits pins first, and refuses a pinned overflow before writing. Native
+  over-cap files were not written as part of validation.
 - **opencode has no native memory feature.** It reads `AGENTS.md`; memory there
   is community plugins. "Unification" for opencode means projection-only until a
   plugin is in play — a weaker claim than for the other runtimes, and the docs

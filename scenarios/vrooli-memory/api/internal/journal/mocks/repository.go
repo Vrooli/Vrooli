@@ -72,17 +72,6 @@ func (r *Repository) FindByImportKey(_ context.Context, key string) (journal.Ent
 	return journal.Entry{}, false, nil
 }
 
-func (r *Repository) RepairImportProvenance(_ context.Context, id string, importInfo journal.ImportProvenance) error {
-	for i := range r.Appends {
-		if r.Appends[i].ID == id {
-			if r.Appends[i].Import.Harness == "" {
-				r.Appends[i].Import = importInfo
-			}
-		}
-	}
-	return nil
-}
-
 func (r *Repository) ClassificationRetries(context.Context, int) ([]journal.RetryItem, error) {
 	return append([]journal.RetryItem(nil), r.RetryItems...), nil
 }

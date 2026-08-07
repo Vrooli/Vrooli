@@ -16,10 +16,13 @@ type Repository interface {
 	ResolveThread(context.Context, string) error
 	ListPinProposals(context.Context) ([]PinProposal, error)
 	ResolvePinProposal(context.Context, string, bool) error
+	RecordRecall(context.Context, []string) error
+	ListPinCandidates(context.Context, int) ([]PinCandidate, error)
 	CreateRule(context.Context, Rule) (Rule, error)
 	ListRules(context.Context, string) ([]Rule, error)
 	MatchRule(context.Context, string, RuleInput) (Rule, bool, error)
 	DryRunRule(context.Context, string) (DryRun, error)
+	MeasureDistribution(context.Context, string) (DistributionMeasurement, error)
 	EnableRule(context.Context, string) error
 	RevertRule(context.Context, string) (int, error)
 	SeedExamples(context.Context) error

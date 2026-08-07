@@ -36,6 +36,9 @@ func EnsureMigrations(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("inspect merge proposals: %w", err)
 	}
 	if proposalExists != 0 {
+		if err := ensureColumn(ctx, db, "merge_proposals", "scope", `ALTER TABLE merge_proposals ADD COLUMN scope TEXT NOT NULL DEFAULT 'agent-memory'`); err != nil {
+			return err
+		}
 		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pragma_table_info('merge_proposals') WHERE name='entry_ids_json'`).Scan(&count); err != nil {
 			return fmt.Errorf("inspect proposal entries: %w", err)
 		}

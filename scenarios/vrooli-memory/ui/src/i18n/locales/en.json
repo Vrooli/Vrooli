@@ -40,6 +40,7 @@
       "title": "Operator review",
       "description": "Inspect the compaction frontier and review pin proposals before changing shared memory.",
       "frontierTitle": "Compaction frontier",
+      "frontierCount": "{{eligible}} eligible nodes · target {{target}}",
       "frontierEmpty": "The frontier is empty",
       "correctionTitle": "Facet policy",
       "facetsEmpty": "No facet definitions available",

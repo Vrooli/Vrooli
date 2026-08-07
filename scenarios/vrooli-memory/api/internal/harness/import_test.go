@@ -14,6 +14,7 @@ import (
 	localdb "vrooli-memory/internal/database"
 	"vrooli-memory/internal/facets"
 	"vrooli-memory/internal/journal"
+	"vrooli-memory/internal/recall"
 	"vrooli-memory/internal/testutil/mocks"
 )
 
@@ -28,7 +29,7 @@ func TestClaudeImportIsContentAddressedAndReadOnly(t *testing.T) { // [REQ:VMEM-
 	fr := facets.NewSQLiteRepository(db.Primary())
 	require.NoError(t, fr.Seed(context.Background()))
 	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
-	importer := NewImporter(svc, dir)
+	importer := NewImporter(svc, dir, nil)
 	first, err := importer.Import(context.Background(), "claude-code", false)
 	require.NoError(t, err)
 	require.Equal(t, 2, first.Imported)
@@ -48,6 +49,40 @@ func TestClaudeImportIsContentAddressedAndReadOnly(t *testing.T) { // [REQ:VMEM-
 	require.NoError(t, err)
 }
 
+func TestProjectionThenClaudeImportNeverImportsProjectionTarget(t *testing.T) {
+	dir := t.TempDir()
+	nativePath := filepath.Join(dir, "native.md")
+	targetPath := filepath.Join(dir, "MEMORY.md")
+	require.NoError(t, os.WriteFile(nativePath, []byte("native memory"), 0o600))
+
+	db, err := apidb.Open(context.Background(), apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:harness-projection-import?mode=memory&cache=shared"})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(Schema)))
+	fr := facets.NewSQLiteRepository(db.Primary())
+	require.NoError(t, fr.Seed(context.Background()))
+	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
+	wake := recall.NewService(projectionSource{{ID: "wake", Text: "generated wake text", CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
+	projector := NewProjector(db.Primary(), wake)
+	projector.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: targetPath, Cap: 4096}
+	_, err = projector.Project(context.Background(), "claude-code", false)
+	require.NoError(t, err)
+
+	importer := NewImporter(svc, dir, projector.TargetPaths())
+	result, err := importer.Import(context.Background(), "claude-code", true)
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Seen)
+	require.Equal(t, []string{nativePath}, result.Sources)
+	require.NotContains(t, result.Sources, targetPath)
+
+	result, err = importer.Import(context.Background(), "claude-code", false)
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Imported)
+	var projectionEntries int
+	require.NoError(t, db.Primary().QueryRow(`SELECT count(*) FROM entries WHERE source_path=?`, targetPath).Scan(&projectionEntries))
+	require.Zero(t, projectionEntries)
+}
+
 func TestStartPersistsProgressAndJoinsRepeatedRequest(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "one.md"), []byte("first memory"), 0o600))
@@ -58,7 +93,7 @@ func TestStartPersistsProgressAndJoinsRepeatedRequest(t *testing.T) {
 	fr := facets.NewSQLiteRepository(db.Primary())
 	require.NoError(t, fr.Seed(context.Background()))
 	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
-	importer := NewImporter(svc, dir, db.Primary())
+	importer := NewImporter(svc, dir, nil, db.Primary())
 	first, joined, err := importer.Start(context.Background(), "claude-code")
 	require.NoError(t, err)
 	require.False(t, joined)
@@ -87,7 +122,7 @@ func TestCaptureAndLaterImportConvergeOnOneEntry(t *testing.T) { // [REQ:VMEM-P1
 	fr := facets.NewSQLiteRepository(db.Primary())
 	require.NoError(t, fr.Seed(context.Background()))
 	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
-	importer := NewImporter(svc, dir)
+	importer := NewImporter(svc, dir, nil)
 	captured, err := importer.Capture(context.Background(), "claude-code", path, body)
 	require.NoError(t, err)
 	require.NotEmpty(t, captured.ID)
@@ -111,7 +146,7 @@ func TestSwarmManagerRecordsImportIsWorkRecordAndIdempotent(t *testing.T) { // [
 	fr := facets.NewSQLiteRepository(db.Primary())
 	require.NoError(t, fr.Seed(context.Background()))
 	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
-	importer := NewImporter(svc, t.TempDir())
+	importer := NewImporter(svc, t.TempDir(), nil)
 	importer.adapters["swarm-manager-records"] = AdapterDescriptor{HarnessID: "swarm-manager-records", Locations: []string{dir}, Format: JSONL, Extract: swarmRecord, Provenance: Provenance{SourceRuntime: "swarm-manager"}}
 
 	first, err := importer.Import(context.Background(), "swarm-manager-records", false)

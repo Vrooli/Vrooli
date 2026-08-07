@@ -74,8 +74,19 @@ func (h *handlers) promptCall(ctx cliapp.OperationContext) (*harnessv1.InstallPr
 	return resp.Msg, nil
 }
 
+func (h *handlers) maintenanceCall(ctx cliapp.OperationContext) (*harnessv1.GetMaintenanceStatusResponse, error) {
+	resp, err := h.client.GetMaintenanceStatus(context.Background(), connect.NewRequest(&harnessv1.GetMaintenanceStatusRequest{}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("read maintenance status", err, nil)
+	}
+	return resp.Msg, nil
+}
+
 func (h *handlers) importReport(_ cliapp.OperationContext, msg *harnessv1.RunImportResponse) cliapp.MutationReport {
 	if msg.DryRun {
+		if msg.Observation != "" && msg.ImportedCount == 0 {
+			return cliapp.MutationReport{Result: []string{fmt.Sprintf("Dry run found no importable memory sources; no journal entries were written. Observation: %s", msg.Observation)}}
+		}
 		return cliapp.MutationReport{Result: []string{fmt.Sprintf("Dry run validated %d importable memory source(s); no journal entries were written.", msg.ImportedCount)}}
 	}
 	if msg.Run == nil {
@@ -133,4 +144,21 @@ func (h *handlers) captureReport(_ cliapp.OperationContext, msg *harnessv1.Captu
 
 func (h *handlers) promptReport(_ cliapp.OperationContext, msg *harnessv1.InstallPromptBlockResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Memory prompt installed: %t.", msg.Installed)}}
+}
+
+func (h *handlers) maintenanceReport(_ cliapp.OperationContext, msg *harnessv1.GetMaintenanceStatusResponse) cliapp.ListReport {
+	if msg.Run == nil {
+		return cliapp.ListReport{Summary: []string{"No maintenance run has completed."}}
+	}
+	results := make([]string, 0, len(msg.Run.Outcomes))
+	for _, outcome := range msg.Run.Outcomes {
+		results = append(results, fmt.Sprintf("%s: import=%s projection=%s", outcome.Runtime, outcome.ImportStatus, outcome.ProjectionStatus))
+		if outcome.ImportError != "" {
+			results = append(results, "  import error: "+outcome.ImportError)
+		}
+		if outcome.ProjectionError != "" {
+			results = append(results, "  projection error: "+outcome.ProjectionError)
+		}
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Maintenance %s: started %s, completed %s.", msg.Run.Id, msg.Run.StartedAt, msg.Run.CompletedAt)}, ResultsHeading: "Runtime outcomes", Results: results}
 }

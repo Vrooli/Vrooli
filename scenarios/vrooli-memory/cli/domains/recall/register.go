@@ -23,13 +23,14 @@ func Commands(core *cliapp.ScenarioApp) []cliapp.Command {
 	return []cliapp.Command{
 		cliapp.Command{Name: "recall", Description: "Semantically recall memories", Args: cliapp.ArgSchema{
 			Positionals: []cliapp.Positional{{Name: "query", Required: true, Description: "Semantic query"}},
-			Flags:       []cliapp.Flag{{Name: "limit", Description: "Maximum hits"}},
+			Flags:       []cliapp.Flag{{Name: "scope", Description: "Ledger scope (default agent-memory)", Default: "agent-memory"}, {Name: "limit", Description: "Maximum hits"}},
 		}}.WithPrimitive(cliapp.ProtoList(h.recallCall, h.recallReport)),
 		cliapp.Command{Name: "wake", Description: "Render bounded ambient memory", Args: cliapp.ArgSchema{
-			Flags: []cliapp.Flag{{Name: "budget", Description: "Line budget"}},
+			Flags: []cliapp.Flag{{Name: "scope", Description: "Ledger scope (default agent-memory)", Default: "agent-memory"}, {Name: "budget", Description: "Line budget"}},
 		}}.WithPrimitive(cliapp.ProtoList(h.wakeCall, h.wakeReport)),
 		cliapp.Command{Name: "siblings", Description: "List memories from the same agent run", Args: cliapp.ArgSchema{
 			Positionals: []cliapp.Positional{{Name: "entry-id", Required: true, Description: "Memory entry id"}},
+			Flags:       []cliapp.Flag{{Name: "scope", Description: "Ledger scope (default agent-memory)", Default: "agent-memory"}},
 		}}.WithPrimitive(cliapp.ProtoList(h.siblingsCall, h.siblingsReport)),
 	}
 }

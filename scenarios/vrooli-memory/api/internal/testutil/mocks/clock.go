@@ -15,9 +15,17 @@ import (
 // Advance or SetNow — production wall-clock drift never enters tests
 // using it.
 type FakeClock struct {
-	mu  sync.Mutex
-	now time.Time
+	mu      sync.Mutex
+	now     time.Time
+	tickers []*FakeTicker
 }
+
+// FakeTicker is manually driven by tests; it never sleeps or advances itself.
+type FakeTicker struct{ ch chan time.Time }
+
+func (t *FakeTicker) C() <-chan time.Time { return t.ch }
+func (t *FakeTicker) Stop()               {}
+func (t *FakeTicker) Fire(at time.Time)   { t.ch <- at }
 
 // NewFakeClock constructs a FakeClock at start. If start is the zero
 // value, a stable default (2026-01-01T00:00:00Z) is used so tests that
@@ -48,6 +56,26 @@ func (c *FakeClock) SetNow(t time.Time) {
 	c.mu.Lock()
 	c.now = t
 	c.mu.Unlock()
+}
+
+// NewTicker returns a manually-driven ticker and records it for tests that
+// need to fire the scheduled loop without waiting on wall time.
+func (c *FakeClock) NewTicker(_ time.Duration) clock.Ticker {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	t := &FakeTicker{ch: make(chan time.Time, 1)}
+	c.tickers = append(c.tickers, t)
+	return t
+}
+
+// LastTicker returns the most recently created ticker.
+func (c *FakeClock) LastTicker() *FakeTicker {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.tickers) == 0 {
+		return nil
+	}
+	return c.tickers[len(c.tickers)-1]
 }
 
 // Compile-time guarantee that FakeClock satisfies clock.Clock.
