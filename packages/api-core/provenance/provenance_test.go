@@ -81,13 +81,31 @@ func TestMiddlewareUsesOnlyVerifiedClaimsForAgentProvenance(t *testing.T) {
 	req.Header.Set(cliutil.HeaderInvocationScenario, "plan-manager")
 	req.Header.Set(cliutil.HeaderInvocationCommand, "plans create")
 	req.Header.Set(cliutil.HeaderInvocationID, "cli-1")
+	req.Header.Set(cliutil.HeaderHarnessSessionID, "claude-session-1")
+	req.Header.Set(cliutil.HeaderHarnessKind, "claude-code")
 	handler.ServeHTTP(httptest.NewRecorder(), req)
 
-	if !got.IsVerifiedAgent() || got.RunID != "run-1" || got.Invocation.Command != "plans create" {
+	if !got.IsVerifiedAgent() || got.RunID != "run-1" || got.Invocation.Command != "plans create" || got.Invocation.HarnessSessionID != "claude-session-1" || got.Invocation.HarnessKind != "claude-code" {
 		t.Fatalf("provenance = %+v", got)
 	}
 	if forwarded != "valid" {
 		t.Fatalf("forwarded token = %q", forwarded)
+	}
+}
+
+func TestMiddlewareCapturesHarnessObservationWithoutAttribution(t *testing.T) {
+	var got Provenance
+	handler := Middleware(CLIUtilVerifier{})(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = FromContext(r.Context()) }))
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	req.Header.Set(cliutil.HeaderHarnessSessionID, "codex-thread-1")
+	req.Header.Set(cliutil.HeaderHarnessKind, "codex")
+	req.Header.Set(cliutil.HeaderInvocationScenario, "swarm-manager")
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+	if got.VerificationStatus != VerificationAbsent || got.IsVerifiedAgent() || got.RunID != "" {
+		t.Fatalf("observation provenance = %+v", got)
+	}
+	if got.Invocation.HarnessSessionID != "codex-thread-1" || got.Invocation.HarnessKind != "codex" {
+		t.Fatalf("observation fields = %+v", got.Invocation)
 	}
 }
 
@@ -111,6 +129,22 @@ func TestMiddlewarePreservesInvalidAndUnavailableStates(t *testing.T) {
 				t.Fatalf("provenance = %+v", got)
 			}
 		})
+	}
+}
+
+func TestMiddlewareMarksAbsentWithoutRejecting(t *testing.T) {
+	var got Provenance
+	handler := Middleware(VerifierFunc(func(string) (*cliutil.VerifyResult, error) {
+		t.Fatal("absent token must not invoke verifier")
+		return nil, nil
+	}))(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		got = FromContext(r.Context())
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/", nil))
+	if rec.Code != http.StatusOK || got.VerificationStatus != VerificationAbsent || got.IsVerifiedAgent() {
+		t.Fatalf("absent provenance = %+v, status=%d", got, rec.Code)
 	}
 }
 

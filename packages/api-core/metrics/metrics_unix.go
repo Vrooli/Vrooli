@@ -17,20 +17,26 @@ type rusageSample struct {
 	ok          bool
 }
 
-// sampleRusage reads getrusage(RUSAGE_SELF). ru_maxrss is kilobytes on Linux but
-// bytes on the BSDs/Darwin, so it is normalized to bytes by GOOS.
+// sampleRusage reads both the provider process and its reaped children. The
+// child counters are cumulative, just like self counters, so the collector's
+// window delta includes subprocesses such as go test and scanners. ru_maxrss
+// remains the provider process lifetime high-water mark: it is kilobytes on
+// Linux but bytes on the BSDs/Darwin, so it is normalized to bytes by GOOS.
 func sampleRusage() rusageSample {
-	var ru syscall.Rusage
-	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err != nil {
+	var self, children syscall.Rusage
+	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &self); err != nil {
 		return rusageSample{}
 	}
-	maxRSS := int64(ru.Maxrss)
+	if err := syscall.Getrusage(syscall.RUSAGE_CHILDREN, &children); err != nil {
+		return rusageSample{}
+	}
+	maxRSS := int64(self.Maxrss)
 	if runtime.GOOS == "linux" {
 		maxRSS *= 1024
 	}
 	return rusageSample{
-		cpuUserMs:   timevalMs(int64(ru.Utime.Sec), int64(ru.Utime.Usec)),
-		cpuSysMs:    timevalMs(int64(ru.Stime.Sec), int64(ru.Stime.Usec)),
+		cpuUserMs:   timevalMs(int64(self.Utime.Sec), int64(self.Utime.Usec)) + timevalMs(int64(children.Utime.Sec), int64(children.Utime.Usec)),
+		cpuSysMs:    timevalMs(int64(self.Stime.Sec), int64(self.Stime.Usec)) + timevalMs(int64(children.Stime.Sec), int64(children.Stime.Usec)),
 		maxRSSBytes: maxRSS,
 		ok:          true,
 	}

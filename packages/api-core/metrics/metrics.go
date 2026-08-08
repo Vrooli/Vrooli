@@ -232,7 +232,9 @@ func (s *Stage) End() *Stage {
 // resourceUsage builds a ResourceUsage from a start/end rusage pair, stamping
 // per-area Reliability. CPU/RSS are RELIABLE when single-flight and measurable,
 // BEST_EFFORT when another collector is concurrently active, UNAVAILABLE when
-// the platform cannot sample rusage. GPU is sampled only when a sampler is wired.
+// the platform cannot sample rusage. peak_rss_bytes is the provider process's
+// lifetime high-water mark, not a windowed peak. GPU is sampled only when a
+// sampler is wired.
 func (c *Collector) resourceUsage(start, end rusageSample) *commonv1.ResourceUsage {
 	usage := &commonv1.ResourceUsage{}
 	rel := c.cpuMemReliability(start, end)
