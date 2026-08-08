@@ -59,6 +59,9 @@ type ExecutionRequest struct {
 	// the resource default". Only providers whose CLI exposes the control
 	// honour it; see Adapter.SupportsTemperature.
 	Temperature *float64
+	// SchemaJSON is passed through the provider's native structured-output
+	// request field. The gateway still validates the returned value locally.
+	SchemaJSON string
 }
 
 type ExecutionResult struct {
@@ -261,6 +264,12 @@ func (a Adapter) ollamaExecutionCommand(req ExecutionRequest, role string, input
 		if req.Temperature != nil {
 			args = append(args, "--temperature", strconv.FormatFloat(*req.Temperature, 'g', -1, 64))
 		}
+		if strings.TrimSpace(req.SchemaJSON) != "" {
+			if !json.Valid([]byte(req.SchemaJSON)) {
+				return Command{}, &CommandError{Code: "invalid_request", Command: a.Provider, ExitCode: -1, Err: errors.New("schema_json must be valid JSON")}
+			}
+			args = append(args, "--format", req.SchemaJSON)
+		}
 		return Command{Name: a.CommandName, Args: args, Stdin: input, Timeout: timeout}, nil
 	default:
 		return Command{}, &CommandError{Code: "unsupported_kind", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("request kind %s is not executable", req.Kind.String())}
@@ -275,6 +284,13 @@ func (a Adapter) openRouterExecutionCommand(req ExecutionRequest, role string, i
 	args := []string{"generate", "--role", role, "--json"}
 	if req.MaxOutputTokens > 0 {
 		args = append(args, "--max-tokens", fmt.Sprintf("%d", req.MaxOutputTokens))
+	}
+	if strings.TrimSpace(req.SchemaJSON) != "" {
+		if !json.Valid([]byte(req.SchemaJSON)) {
+			return Command{}, &CommandError{Code: "invalid_request", Command: a.Provider, ExitCode: -1, Err: errors.New("schema_json must be valid JSON")}
+		}
+		format := fmt.Sprintf(`{"type":"json_schema","json_schema":{"name":"vrooli_typed_value","strict":true,"schema":%s}}`, req.SchemaJSON)
+		args = append(args, "--response-format", format)
 	}
 	return Command{Name: a.CommandName, Args: args, Stdin: input, Timeout: timeout}, nil
 }

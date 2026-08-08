@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
+	"google.golang.org/protobuf/proto"
 
 	"ai-gateway/cli/domains/internal/gatewayreq"
 
@@ -17,6 +18,38 @@ import (
 
 type handlers struct {
 	client routingconnect.RoutingServiceClient
+}
+
+func renderPreview(ctx cliapp.RunContext, message proto.Message) error {
+	response, ok := message.(*routingv1.PreviewRouteResponse)
+	if !ok {
+		return fmt.Errorf("route preview renderer received %T", message)
+	}
+	results := routeCandidateLines(response.GetCandidates())
+	results = append(results, reasonLines(response.GetPolicyReasons())...)
+	return cliapp.RenderProtoList(ctx, response, cliapp.ListReport{Summary: []string{fmt.Sprintf("Route preview valid=%t selected=%s fallback=%t.", response.GetValid(), response.GetSelectedProvider(), response.GetFallbackAllowed())}, ResultsHeading: "Route candidates", Results: results, RetrievalHints: []string{"`routing execute --role <role> --input <text>` — execute and record route evidence"}})
+}
+
+func renderExecute(ctx cliapp.RunContext, message proto.Message) error {
+	response, ok := message.(*routingv1.ExecuteRouteResponse)
+	if !ok {
+		return fmt.Errorf("route execution renderer received %T", message)
+	}
+	results := []string{formatEvidence(response.GetEvidence())}
+	if output := response.GetOutputText(); output != "" {
+		results = append(results, "output: "+output)
+	}
+	results = append(results, reasonLines(response.GetPolicyReasons())...)
+	return cliapp.RenderProtoMutation(ctx, response, cliapp.MutationReport{Result: []string{fmt.Sprintf("Route execution valid=%t.", response.GetValid())}, Changes: results, NextCommand: []string{"`routing evidence list` — inspect recent route evidence"}})
+}
+
+func renderMediaSubmit(ctx cliapp.RunContext, message proto.Message) error {
+	response, ok := message.(*routingv1.SubmitMediaResponse)
+	if !ok {
+		return fmt.Errorf("media submit renderer received %T", message)
+	}
+	execution := response.GetExecution()
+	return cliapp.RenderProtoMutation(ctx, response, cliapp.MutationReport{Result: []string{fmt.Sprintf("Submitted media execution %s.", execution.GetExecutionId())}, Changes: mediaLines(execution)})
 }
 
 func (h *handlers) mediaSubmit(ctx cliapp.RunContext) error {

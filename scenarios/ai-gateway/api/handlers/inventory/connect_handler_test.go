@@ -31,15 +31,15 @@ func TestListProviderRoles_ReturnsResourceInventory(t *testing.T) { // [REQ:AIGW
 }
 
 func TestListProviderRoles_IncludesGatewayInferenceRoles(t *testing.T) {
-	h := NewConnectHandler(Deps{InferenceRoles: []string{"classify.fast", "extract.structured"}})
+	h := NewConnectHandler(Deps{InferenceRoles: []string{"classify.fast", "extract.structured", "judge.default"}})
 	resp, err := h.ListProviderRoles(context.Background(), connect.NewRequest(&inventoryv1.ListProviderRolesRequest{Provider: "ai-gateway"}))
 	if err != nil {
 		t.Fatalf("ListProviderRoles() error = %v", err)
 	}
-	if len(resp.Msg.GetRoles()) != 2 {
-		t.Fatalf("roles = %+v, want two gateway roles", resp.Msg.GetRoles())
+	if len(resp.Msg.GetRoles()) != 3 {
+		t.Fatalf("roles = %+v, want three gateway roles", resp.Msg.GetRoles())
 	}
-	if resp.Msg.GetRoles()[0].GetRole() != "classify.fast" || resp.Msg.GetRoles()[1].GetRole() != "extract.structured" {
+	if resp.Msg.GetRoles()[0].GetRole() != "classify.fast" || resp.Msg.GetRoles()[1].GetRole() != "extract.structured" || resp.Msg.GetRoles()[2].GetRole() != "judge.default" {
 		t.Fatalf("roles = %+v, want sorted inference roles", resp.Msg.GetRoles())
 	}
 }

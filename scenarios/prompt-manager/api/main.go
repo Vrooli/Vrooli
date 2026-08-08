@@ -51,6 +51,7 @@ import (
 	"github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -114,10 +115,17 @@ func sqliteFileDSN(path string) (string, error) {
 
 func receiptSignerFromRuntimeConfig() (receiptsigning.ReceiptSigner, bool, error) {
 	type manifestTrustSigning struct {
-		Provider       string `json:"provider"`
-		Address        string `json:"address"`
-		KeyName        string `json:"key_name"`
-		CredentialFile string `json:"credential_file"`
+		Provider           string `json:"provider"`
+		Identity           string `json:"identity"`
+		Field              string `json:"field"`
+		Address            string `json:"address"`
+		KeyName            string `json:"key_name"`
+		CredentialFile     string `json:"credential_file"`
+		LegacyVaultTransit *struct {
+			Address        string `json:"address"`
+			KeyName        string `json:"key_name"`
+			CredentialFile string `json:"credential_file"`
+		} `json:"legacy_vault_transit"`
 	}
 	type manifest struct {
 		TrustSigning *manifestTrustSigning `json:"trust_signing"`
@@ -135,6 +143,20 @@ func receiptSignerFromRuntimeConfig() (receiptsigning.ReceiptSigner, bool, error
 		if service.TrustSigning != nil {
 			if service.TrustSigning.Provider == "development" {
 				return receiptsigning.NewDevelopmentSigner(), false, nil
+			}
+			if service.TrustSigning.Provider == receiptsigning.ModeCredentialAuthorityEd25519 {
+				config := receiptsigning.RuntimeConfig{
+					Version: receiptsigning.RuntimeConfigVersion,
+					Mode:    receiptsigning.ModeCredentialAuthorityEd25519,
+					CredentialAuthority: &receiptsigning.CredentialAuthorityRuntimeConfig{
+						Identity: service.TrustSigning.Identity,
+						Field:    service.TrustSigning.Field,
+					},
+				}
+				if legacy := service.TrustSigning.LegacyVaultTransit; legacy != nil {
+					config.LegacyVaultTransit = &receiptsigning.VaultTransitRuntimeConfig{Address: legacy.Address, KeyName: legacy.KeyName, CredentialFile: legacy.CredentialFile}
+				}
+				return credentialauthoritysigning.NewSignerFromRuntimeConfig(config)
 			}
 			if service.TrustSigning.Provider != "vault-transit" {
 				return nil, false, fmt.Errorf("unsupported trust signing lifecycle provider %q", service.TrustSigning.Provider)
@@ -163,7 +185,13 @@ func receiptSignerFromRuntimeConfig() (receiptsigning.ReceiptSigner, bool, error
 	if err != nil {
 		return nil, false, fmt.Errorf("load receipt signing runtime config: %w", err)
 	}
-	signer, production, err := receiptsigning.NewSignerFromRuntimeConfig(config)
+	var signer receiptsigning.ReceiptSigner
+	var production bool
+	if config.Mode == receiptsigning.ModeCredentialAuthorityEd25519 {
+		signer, production, err = credentialauthoritysigning.NewSignerFromRuntimeConfig(config)
+	} else {
+		signer, production, err = receiptsigning.NewSignerFromRuntimeConfig(config)
+	}
 	if err != nil {
 		return nil, false, fmt.Errorf("build receipt signer: %w", err)
 	}
@@ -249,7 +277,7 @@ func main() {
 	// api-core/storage (ProfileAuto). The three roots live on the Roots
 	// struct and are threaded through the FileStore constructor and any
 	// handler that needs a class-aware path.
-	configDir := filepath.Join("..", ".vrooli")
+	configDir := filepath.Join("..", "store")
 	if envDir := os.Getenv("STORE_DIR"); envDir != "" {
 		configDir = envDir
 	}
@@ -364,7 +392,8 @@ func main() {
 	experimentHandlers := skills.NewExperimentHandlers(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
 	// Lifecycle/Secrets Manager writes a standard runtime config into the
 	// scenario config directory. Absent config is explicitly development-only;
-	// production config selects scoped Vault Transit without an environment key.
+	// production config selects the credential-authority signer without an
+	// environment key.
 	receiptSigner, productionReceiptSigning, err := receiptSignerFromRuntimeConfig()
 	if err != nil {
 		panic(err)

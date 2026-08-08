@@ -209,9 +209,9 @@ func TestDevicesSetup_SendsProfileAndPrintsToken(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "name"}, {Name: "kind"}, {Name: "platform"}},
+		Flags: []cliapp.Flag{{Name: "device-name", Aliases: []string{"name"}}, {Name: "kind"}, {Name: "platform"}},
 	}, cliapptest.TestRunContextOptions{Flags: map[string]string{
-		"name": "Workstation", "kind": "laptop", "platform": "linux",
+		"device-name": "Workstation", "kind": "laptop", "platform": "linux",
 	}})
 
 	require.NoError(t, h.setup(ctx))
@@ -247,9 +247,9 @@ func TestDevicesRedeem_SendsProfileAndPrintsToken(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Flags: []cliapp.Flag{{Name: "code"}, {Name: "name"}, {Name: "kind"}, {Name: "platform"}},
+		Flags: []cliapp.Flag{{Name: "code"}, {Name: "device-name", Aliases: []string{"name"}}, {Name: "kind"}, {Name: "platform"}},
 	}, cliapptest.TestRunContextOptions{Flags: map[string]string{
-		"code": "ABCDE-FGHIJ", "name": "Tablet", "kind": "tablet", "platform": "android",
+		"code": "ABCDE-FGHIJ", "device-name": "Tablet", "kind": "tablet", "platform": "android",
 	}})
 
 	require.NoError(t, h.redeem(ctx))

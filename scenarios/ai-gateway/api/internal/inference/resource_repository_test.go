@@ -12,8 +12,8 @@ import (
 
 func TestResourceRepositoryResolvesProviderAndModelThroughResourcePolicy(t *testing.T) {
 	runner := &providermocks.FakeRunner{Results: map[string]providers.Result{
-		"resource-ollama policy resolve --role classify.routing --json":                                  {Stdout: `{"role":"classify.routing","model":"qwen3.5:4b","capabilities":["generate","classify"]}`},
-		"resource-ollama gateway generate --role classify.routing --json --prompt-stdin --temperature 0": {Stdout: `{"response":"\"real-bug\"","eval_count":4}`},
+		"resource-ollama policy resolve --role classify.routing --json":                                                                     {Stdout: `{"role":"classify.routing","model":"qwen3.5:4b","capabilities":["generate","classify"]}`},
+		"resource-ollama gateway generate --role classify.routing --json --prompt-stdin --temperature 0 --format {\"enum\":[\"real-bug\"]}": {Stdout: `{"response":"\"real-bug\"","eval_count":4}`},
 	}}
 	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
 		"classify.fast": {Candidates: []Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "test"}}},

@@ -325,6 +325,9 @@
   "freshnessRequirement": "never",
   "phaseClass": "quality",
   "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
   "dimensions": [
     "measures"
   ]

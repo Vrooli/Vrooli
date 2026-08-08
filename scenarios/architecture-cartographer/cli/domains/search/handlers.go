@@ -28,7 +28,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 
 // query calls the generated Connect SearchService.Search method.
 func (h *handlers) query(ctx cliapp.RunContext) error {
-	text := ctx.Positional("text")
+	text := ctx.Positional("query")
 	limit := int32(10)
 	if v := strings.TrimSpace(ctx.Flag("limit")); v != "" {
 		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {

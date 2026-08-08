@@ -122,7 +122,7 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 	case ctx.Flag("new-branch") != "":
 		req.Source = &worktreev1.CreateWorktreeRequest_NewBranch{NewBranch: &worktreev1.NewBranchSpec{
 			Name:       ctx.Flag("new-branch"),
-			StartPoint: ctx.Flag("start"),
+			StartPoint: ctx.Flag("start-point"),
 		}}
 	case ctx.Flag("commit") != "":
 		req.Source = &worktreev1.CreateWorktreeRequest_Commit{Commit: ctx.Flag("commit")}

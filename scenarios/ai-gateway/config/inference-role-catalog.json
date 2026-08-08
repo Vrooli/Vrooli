@@ -20,7 +20,7 @@
         }
       ]
     },
-    "extract.structured": {
+  "extract.structured": {
       "description": "Schema-constrained extraction with a mid-size local first candidate.",
       "timeout_ms": 120000,
       "candidates": [
@@ -36,8 +36,27 @@
           "resource_role": "extract.structured",
           "model": "policy-resolved",
           "reason": "Hosted structured-output fallback for schemas the local resource cannot reliably produce."
-        }
-      ]
-    }
+      }
+    ]
+  },
+  "judge.default": {
+    "description": "Deterministic rubric evaluation with a local-first candidate and hosted fallback.",
+    "timeout_ms": 120000,
+    "candidates": [
+      {
+        "provider": "ollama",
+        "resource_role": "classify.routing",
+        "model": "qwen3.5:4b",
+        "minimum_quantization": "Q4_K_M",
+        "reason": "Local judge keeps rubric decisions available without a network dependency."
+      },
+      {
+        "provider": "openrouter",
+        "resource_role": "extract.structured",
+        "model": "policy-resolved",
+        "reason": "Hosted structured-output fallback when the local judge is unavailable."
+      }
+    ]
   }
+}
 }

@@ -10,12 +10,50 @@ import (
 	"connectrpc.com/connect"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
 
 type handlers struct {
 	client inferenceconnect.InferenceServiceClient
+}
+
+func renderRun(ctx cliapp.RunContext, message proto.Message) error {
+	response, ok := message.(*inferencev1.RunResponse)
+	if !ok {
+		return fmt.Errorf("inference run renderer received %T", message)
+	}
+	usage := response.GetUsage()
+	results := []string{fmt.Sprintf("validated=%t provider=%s model=%s input_tokens=%d output_tokens=%d cost_micros=%d", response.GetValidated(), response.GetProvider(), response.GetModel(), usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros())}
+	if value := strings.TrimSpace(response.GetValueJson()); value != "" {
+		results = append(results, "value="+value)
+	}
+	if failure := response.GetError(); failure != nil {
+		results = append(results, fmt.Sprintf("error=%s construct=%s message=%s", failure.GetCode().String(), failure.GetConstruct(), failure.GetMessage()))
+	}
+	return cliapp.RenderProtoList(ctx, response, cliapp.ListReport{Summary: []string{fmt.Sprintf("Typed inference completed: validated=%t.", response.GetValidated())}, ResultsHeading: "Inference", Results: results})
+}
+
+func renderRunBatch(ctx cliapp.RunContext, message proto.Message) error {
+	response, ok := message.(*inferencev1.RunBatchResponse)
+	if !ok {
+		return fmt.Errorf("inference batch renderer received %T", message)
+	}
+	results := make([]string, 0, len(response.GetResults()))
+	for index, result := range response.GetResults() {
+		usage := result.GetUsage()
+		item := fmt.Sprintf("item=%d validated=%t provider=%s model=%s input_tokens=%d output_tokens=%d cost_micros=%d", index, result.GetValidated(), result.GetProvider(), result.GetModel(), usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros())
+		if value := strings.TrimSpace(result.GetValueJson()); value != "" {
+			item += " value=" + value
+		}
+		if failure := result.GetError(); failure != nil {
+			item += fmt.Sprintf(" error=%s construct=%s message=%s", failure.GetCode().String(), failure.GetConstruct(), failure.GetMessage())
+		}
+		results = append(results, item)
+	}
+	usage := response.GetUsage()
+	return cliapp.RenderProtoList(ctx, response, cliapp.ListReport{Summary: []string{fmt.Sprintf("Typed inference batch completed: items=%d input_tokens=%d output_tokens=%d cost_micros=%d.", len(response.GetResults()), usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros())}, ResultsHeading: "Inference batch", Results: results})
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {

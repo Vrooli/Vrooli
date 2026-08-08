@@ -1,4 +1,5 @@
 {
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
   "schemaVersion": "1.0.0",
   "scenario": "quality-health",
   "phase": "quality",
@@ -12,7 +13,7 @@
     "contract": "scenario-validation/v1"
   },
   "targets": {
-    "kinds": ["scenario", "package", "control-plane"],
+    "kinds": ["scenario", "package", "control-plane", "project"],
     "selection": "enumerate"
   },
   "applicability": {
@@ -400,6 +401,46 @@
         ],
         "fix_class": "manual",
         "reason": "Shell syntax fixes require human intent; quality-health detects, it does not rewrite scripts."
+      },
+      "QUALITY_PERSONAL_ABSOLUTE_PATHS": {
+        "capability_id": "go_quality",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Source must not encode operator-specific absolute paths or identities."
+      },
+      "QUALITY_NO_RUNTIME_HOME_LITERALS": {
+        "capability_id": "go_quality",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Runtime-home resolution must use the shared authority."
+      },
+      "QUALITY_ADOPTION_RULES_ALIGNMENT": {
+        "capability_id": "go_quality",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Repository-aware code must consume shared contract helpers."
+      },
+      "QUALITY_HOST_INVENTORY_AUTHORITY": {
+        "capability_id": "go_quality",
+        "local_level_impact": "L1",
+        "global_impact": "hardening_gap",
+        "dimension": "standards",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Host facts must come from internal/hostinventory."
       }
     },
     "fallback": {
@@ -415,6 +456,9 @@
   "freshnessRequirement": "never",
   "phaseClass": "architecture",
   "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
   "dimensions": [
     "standards"
   ]

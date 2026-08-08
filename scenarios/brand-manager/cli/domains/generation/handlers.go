@@ -150,7 +150,7 @@ func (h *handlers) editImage(ctx cliapp.RunContext) error {
 	resp, err := h.client.EditBrandImage(context.Background(), connect.NewRequest(&generationv1.EditBrandImageRequest{
 		BrandId:        ctx.Flag("brand-id"),
 		SourceAssetId:  ctx.Flag("source-asset-id"),
-		Instruction:    ctx.Flag("prompt"),
+		Instruction:    ctx.Flag("instruction"),
 		ModelOverride:  ctx.Flag("model"),
 		AllowByok:      ctx.BoolFlag("byok"),
 		QualityPolicy:  ctx.Flag("quality-policy"),

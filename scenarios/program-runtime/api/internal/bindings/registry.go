@@ -419,6 +419,7 @@ func (r *Registry) Doctor(scenario string) *bindingsv1.DoctorBindingsResponse {
 		response.ControlFlagsBound += int32(counts.controlFlagsBound)
 		response.RequiredFieldsUnpopulated += int32(counts.requiredFieldsUnpopulated)
 		response.BindsWhereRenameSuffices += int32(counts.bindsWhereRenameSuffices)
+		response.ScalarBoundToMessage += int32(counts.scalarBoundToMessage)
 	}
 	return response
 }

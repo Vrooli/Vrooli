@@ -43,6 +43,9 @@
   "docs": {
     "path": "scenarios/test-genie/docs/phases/ai-conformance/README.md"
   },
+  "concurrency": {
+    "mode": "provider-serial"
+  },
   "maturity": {
     "version": "2.0.0",
     "levels": [

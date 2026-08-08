@@ -660,7 +660,8 @@
               "description": "Existing brand asset id to edit"
             },
             {
-              "name": "prompt",
+              "name": "instruction",
+              "aliases": ["prompt"],
               "required": true,
               "description": "Natural-language edit instruction"
             },

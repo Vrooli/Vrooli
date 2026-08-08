@@ -51,6 +51,17 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/prompt-manager/experiment-receipts",
+        "field": "key-ring",
+        "label": "Prompt Manager experiment receipt signing key ring",
+        "description": "Versioned Ed25519 signing keys retained by the native Vrooli credential authority. The active private key is never stored in scenario files or environment variables.",
+        "required": false
+      }
+    ]
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -203,14 +214,6 @@
       }
     },
     "resources": {
-      "vault": {
-        "type": "vault",
-        "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Lifecycle-owned Vault Transit dependency for non-exportable experiment receipt signing. The production credential is supplied through the standard receipt-signing runtime config, never a scenario environment variable.",
-        "degraded_behavior": "Prompt Manager uses explicitly non-production receipt signing until an operator provisions the Vault Transit runtime configuration."
-      },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,

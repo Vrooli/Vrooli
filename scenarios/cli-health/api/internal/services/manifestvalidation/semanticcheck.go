@@ -47,9 +47,55 @@ func semanticFindings(m *cliapp.Manifest, surface ProtoSurface, manifestPath str
 			findings = append(findings, controlFlagFindings(mappings)...)
 			findings = append(findings, redundantBindFindings(request, mappings)...)
 			findings = append(findings, requiredFieldFindings(request, mappings, manifestPath, group.Name, command.Name)...)
+			findings = append(findings, scalarBoundToMessageFindings(mappings)...)
 		}
 	}
 	return findings
+}
+
+// scalarBoundToMessageFindings catches an argument that resolves cleanly onto a
+// structured field it cannot populate. Callability gates pass because the field
+// exists; protojson still cannot build a message from one CLI string, so the
+// call fails or drops the value at runtime. A structured decoder and a stated
+// bind_waiver are the two exits.
+func scalarBoundToMessageFindings(mappings []argumentMapping) []Finding {
+	var findings []Finding
+	for _, mapping := range mappings {
+		if len(mapping.Path) == 0 || strings.TrimSpace(mapping.BindWaiver) != "" {
+			continue
+		}
+		if mapping.Bind != nil && cliapp.StructuredDecodeKind(mapping.Bind.Kind) {
+			continue
+		}
+		target := mapping.Path[len(mapping.Path)-1]
+		if cliapp.ScalarDecodableField(target) {
+			continue
+		}
+		findings = append(findings, Finding{
+			Severity: SeverityError, Code: CodeBindingScalarBoundToMessage, Location: mapping.Location,
+			Message: fmt.Sprintf("argument %q targets structured proto field %q (%s) with no structured decoder",
+				mapping.Name, protoPath(mapping.Path), describeFieldShape(target)),
+			Suggestion: "add bind.kind json_file or json_inline, retarget the argument at a scalar field inside the message, or state a bind_waiver",
+		})
+	}
+	return findings
+}
+
+// describeFieldShape names why a field is structured, so the finding states
+// what the author must supply rather than only that something is wrong.
+func describeFieldShape(field protoreflect.FieldDescriptor) string {
+	switch {
+	case field.IsMap():
+		return "map"
+	case field.IsList() && field.Kind() == protoreflect.MessageKind:
+		return "repeated " + string(field.Message().FullName())
+	case field.IsList():
+		return "repeated " + field.Kind().String()
+	case field.Kind() == protoreflect.MessageKind, field.Kind() == protoreflect.GroupKind:
+		return string(field.Message().FullName())
+	default:
+		return field.Kind().String()
+	}
 }
 
 func collisionFindings(mappings []argumentMapping) []Finding {

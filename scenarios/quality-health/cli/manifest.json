@@ -20,23 +20,36 @@
           "flags": [
             {
               "name": "rule",
-              "description": "Restrict the audit to a contract or rule ID"
+              "description": "Restrict the audit to a contract or rule ID",
+              "bind": {
+                "field": "rule_ids"
+              }
             },
             {
               "name": "surface",
-              "description": "Restrict the audit to a discovered surface id or kind"
+              "description": "Restrict the audit to a discovered surface id or kind",
+              "bind": {
+                "field": "surfaces"
+              }
             },
             {
               "name": "commands",
-              "description": "Include command execution checks"
+              "description": "Include command execution checks",
+              "bind": {
+                "field": "include_command_execution"
+              }
             },
             {
               "name": "autofix-preview",
-              "description": "Include deterministic config-fix previews"
+              "description": "Include deterministic config-fix previews",
+              "bind": {
+                "field": "include_autofix_preview"
+              }
             },
             {
               "name": "json",
-              "description": "Emit JSON output"
+              "description": "Emit JSON output",
+              "local_only": true
             }
           ],
           "binding": {
@@ -63,10 +76,23 @@
           "name": "list",
           "description": "List Quality Health contracts",
           "flags": [
-            { "name": "language", "description": "Filter by language" },
-            { "name": "framework", "description": "Filter by framework" },
-            { "name": "surface-kind", "description": "Filter by surface kind" },
-            { "name": "json", "description": "Emit JSON output" }
+            {
+              "name": "language",
+              "description": "Filter by language"
+            },
+            {
+              "name": "framework",
+              "description": "Filter by framework"
+            },
+            {
+              "name": "surface-kind",
+              "description": "Filter by surface kind"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "local_only": true
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -76,7 +102,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -89,12 +117,29 @@
           "name": "finding",
           "description": "Explain a finding id or rule id",
           "positionals": [
-            { "name": "finding-id", "required": true, "description": "Finding id or rule id" }
+            {
+              "name": "finding-id",
+              "required": true,
+              "description": "Finding id or rule id"
+            }
           ],
           "flags": [
-            { "name": "scenario", "description": "Scenario slug for contextual next steps" },
-            { "name": "rule", "description": "Explicit rule id to explain" },
-            { "name": "json", "description": "Emit JSON output" }
+            {
+              "name": "scenario",
+              "description": "Scenario slug for contextual next steps"
+            },
+            {
+              "name": "rule",
+              "description": "Explicit rule id to explain",
+              "bind": {
+                "field": "rule_id"
+              }
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "local_only": true
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -104,7 +149,9 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -117,13 +164,29 @@
           "name": "run",
           "description": "Preview or apply safe config fixes",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario slug to repair" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to repair"
+            }
           ],
           "flags": [
-            { "name": "rule", "description": "Restrict fixes to a rule id" },
-            { "name": "dry-run", "description": "Preview fixes without applying them" },
-            { "name": "apply", "description": "Apply supported config fixes" },
-            { "name": "json", "description": "Emit JSON output" }
+            {
+              "name": "rule",
+              "description": "Restrict fixes to a rule id"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview fixes without applying them"
+            },
+            {
+              "name": "apply",
+              "description": "Apply supported config fixes"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -133,18 +196,32 @@
           "governance": {
             "effect": "write",
             "run_eligible": false,
-            "permissions": ["filesystem:read", "filesystem:write", "network:internal"]
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
           }
         },
         {
           "name": "apply",
           "description": "Apply supported safe config fixes",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario slug to repair" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to repair"
+            }
           ],
           "flags": [
-            { "name": "rule", "description": "Restrict fixes to a rule id" },
-            { "name": "json", "description": "Emit JSON output" }
+            {
+              "name": "rule",
+              "description": "Restrict fixes to a rule id"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -154,7 +231,11 @@
           "governance": {
             "effect": "write",
             "run_eligible": false,
-            "permissions": ["filesystem:read", "filesystem:write", "network:internal"]
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
           }
         }
       ]

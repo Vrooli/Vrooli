@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Professional operator UI and CLI surfaces.",
-    "last_validated_at": "2026-08-06T17:18:31-04:00",
+    "last_validated_at": "2026-08-07T03:02:46-04:00",
     "module": "operator-surface",
     "prd_ref": "OT-P0-006",
     "priority": "P0",
@@ -26,28 +26,28 @@
           "type": "test",
           "ref": "ui/src/pages/DashboardPage.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates the operator dashboard renders provider, evidence, and conformance panels."
         },
         {
           "type": "test",
           "ref": "ui/src/pages/RoutePreviewPage.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates the route preview operator workflow and result region."
         },
         {
           "type": "test",
           "ref": "ui/src/pages/ProvidersPage.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates provider inventory and smoke controls in the operator UI."
         },
         {
           "type": "test",
           "ref": "ui/src/pages/ConformancePage.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates conformance scan controls and results in the operator UI."
         },
         {
@@ -71,7 +71,7 @@
     {
       "id": "AIGW-OPERATOR-RESILIENCE-VIEWS",
       "title": "Operators can inspect breaker, capacity, fallback, and route metrics across API/CLI/UI",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "operator.resilience",
       "criticality": "P1",
@@ -86,21 +86,21 @@
           "type": "test",
           "ref": "api/internal/routing/breaker_service_test.go::TestListProviderHealthReportsEffectiveState",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "ListProviderHealth returns persisted breaker state with the effective state computed at read time."
         },
         {
           "type": "test",
           "ref": "ui/src/pages/RoutePreviewPage.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Route preview health column renders breaker and capacity verdicts."
         },
         {
           "type": "test",
           "ref": "cli/domains/measures/measures_manifest_test.go::TestManifestCoversMeasuresService",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI measures group covers every MeasuresService RPC; `routing health` is covered by the routing manifest coverage test."
         }
       ]
@@ -108,7 +108,7 @@
     {
       "id": "AIGW-CLI-OPERATIONS",
       "title": "CLI supports policy inspection, route preview, smoke tests, and conformance scans",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "operator.cli",
       "criticality": "P0",
@@ -123,28 +123,28 @@
           "type": "test",
           "ref": "cli/domains/gateway/gateway_manifest_test.go::TestManifestCoversGatewayService",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates generated CLI manifest coverage for gateway operations."
         },
         {
           "type": "test",
           "ref": "cli/domains/inventory/inventory_manifest_test.go::TestManifestCoversInventoryService",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates generated CLI manifest coverage for inventory operations."
         },
         {
           "type": "test",
           "ref": "cli/domains/routing/routing_manifest_test.go::TestManifestCoversRoutingService",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates generated CLI manifest coverage for routing operations."
         },
         {
           "type": "test",
           "ref": "cli/domains/conformance/conformance_manifest_test.go::TestManifestCoversConformanceService",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates generated CLI manifest coverage for conformance operations."
         }
       ]

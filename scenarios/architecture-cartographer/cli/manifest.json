@@ -1280,7 +1280,7 @@
           "description": "Search scenario domains by natural-language intent (e.g. \"how does authoring work in plan-manager\")",
           "positionals": [
             {
-              "name": "text",
+              "name": "query",
               "required": true,
               "description": "Natural-language query"
             }

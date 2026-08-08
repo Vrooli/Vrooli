@@ -32,6 +32,11 @@ const (
 	CodeBindingControlFlagBound = "binding.control_flag_bound"
 	CodeBindingRequiredFieldUnpopulated = "binding.required_field_unpopulated"
 	CodeBindingBindWhereRenameSuffices = "binding.bind_where_rename_suffices"
+	// CodeBindingScalarBoundToMessage fires when a single CLI value targets a
+	// structured proto field with no structured decoder. The argument resolves,
+	// so callability checks pass, but protojson cannot build the message from a
+	// bare scalar and the call fails or silently drops the value at runtime.
+	CodeBindingScalarBoundToMessage = "binding.scalar_bound_to_message"
 	CodeProtoOrphanMethod    = "proto.orphan_method"
 	CodeOmissionOrphan       = "omission.orphan"
 

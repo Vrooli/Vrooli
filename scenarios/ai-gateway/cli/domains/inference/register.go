@@ -9,11 +9,16 @@ import (
 const GroupName = "inference"
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
-	h := newHandlers(core)
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
-		"InferenceService.Run":      h.run,
-		"InferenceService.RunBatch": h.runBatch,
+	bindings, err := cliapp.ProtoBindings(core, "vrooli.ai_gateway.v1.inference.InferenceService", cliapp.ProtoBindingOptions{
+		Render: map[string]cliapp.Renderer{
+			"InferenceService.Run":      renderRun,
+			"InferenceService.RunBatch": renderRunBatch,
+		},
 	})
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("inference: build proto bindings: %w", err)
+	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("inference: load from manifest: %w", err)
 	}

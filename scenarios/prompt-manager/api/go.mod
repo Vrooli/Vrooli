@@ -12,6 +12,7 @@ require (
 	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/sync v0.20.0
 	google.golang.org/protobuf v1.36.11

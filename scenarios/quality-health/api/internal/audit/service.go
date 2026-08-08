@@ -12,6 +12,7 @@ import (
 	"quality-health/internal/autofix"
 	"quality-health/internal/commands"
 	"quality-health/internal/contracts"
+	"quality-health/internal/contractscan"
 	"quality-health/internal/rules"
 	"quality-health/internal/surfaces"
 
@@ -122,6 +123,9 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 	collector := metricsFrom(ctx)
 
 	now := s.now()
+	if strings.EqualFold(strings.TrimSpace(req.ValidationTargetKind), "project") {
+		return s.auditProject(ctx, req, collector, now)
+	}
 	disc := s.Discoverer
 	if disc == nil {
 		disc = surfaces.CodeFactsClient{Locator: s.Locator}
@@ -178,6 +182,30 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 		Status:     statusFromFindings(res.Findings[beforeScenario:]),
 		RuleIDs:    ruleIDs(allScenarioRules),
 	})
+	if req.ValidationTargetKind == "project" {
+		contractFindings, scanErr := contractscan.Scan(inv.RootPath)
+		if scanErr != nil {
+			return Response{}, scanErr
+		}
+		for _, finding := range contractFindings {
+			res.Findings = append(res.Findings, Finding{
+				ID:               finding.Code + ":" + finding.Location,
+				Scenario:         inv.Scenario,
+				TargetKind:       req.ValidationTargetKind,
+				SurfaceID:        "project",
+				SurfaceKind:      "project",
+				RuleID:           finding.Code,
+				Category:         "repository-contract",
+				Severity:         "error",
+				FilePath:         finding.Location,
+				Message:          finding.Message,
+				Remediation:      finding.Remediation,
+				FixClass:         rules.FixClassDetectionOnly,
+				AutofixAvailable: false,
+				CreatedAt:        now.UTC().Format(time.RFC3339),
+			})
+		}
+	}
 	evaluate.Gauge("findings", float64(len(res.Findings)))
 	evaluate.End()
 
@@ -197,6 +225,54 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 	res.Status = auditStatus(inv, res.Findings)
 	res.Summary = summary(res)
 	res.NextSteps = nextSteps(res)
+	return res, nil
+}
+
+func (s *Service) auditProject(ctx context.Context, req Request, collector *metrics.Collector, now time.Time) (Response, error) {
+	locator := s.Locator
+	if locator == nil {
+		locator = surfaces.DefaultLocator{}
+	}
+	scenario, _, root, err := locator.Locate(ctx, req.Scenario, req.Path)
+	if err != nil {
+		return Response{}, err
+	}
+	findings, err := contractscan.Scan(root)
+	if err != nil {
+		return Response{}, err
+	}
+	inv := surfaces.Inventory{
+		Scenario:             scenario,
+		TargetKind:           "path",
+		ValidationTargetKind: "project",
+		RootPath:             root,
+	}
+	res := Response{RunID: "qh-" + now.UTC().Format("20060102-150405"), Inventory: inv}
+	for _, finding := range findings {
+		res.Findings = append(res.Findings, Finding{
+			ID:          finding.Code + ":" + finding.Location,
+			Scenario:    inv.Scenario,
+			TargetKind:  "project",
+			SurfaceID:   "project",
+			SurfaceKind: "project",
+			RuleID:      finding.Code,
+			Category:    "repository-contract",
+			Severity:    "error",
+			FilePath:    finding.Location,
+			Message:     finding.Message,
+			Remediation: finding.Remediation,
+			FixClass:    rules.FixClassDetectionOnly,
+			CreatedAt:   now.UTC().Format(time.RFC3339),
+		})
+	}
+	sortFindings(res.Findings)
+	res.Maturity = maturity(inv, res.Findings, nil, nil)
+	res.Status = auditStatus(inv, res.Findings)
+	res.Summary = summary(res)
+	res.NextSteps = nextSteps(res)
+	if collector != nil {
+		collector.Gauge("findings", float64(len(res.Findings)))
+	}
 	return res, nil
 }
 

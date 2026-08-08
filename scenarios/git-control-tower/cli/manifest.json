@@ -99,7 +99,8 @@
               "description": "New branch name to create (mutually exclusive with --branch / --commit)"
             },
             {
-              "name": "start",
+              "name": "start-point",
+              "aliases": ["start"],
               "description": "Start point for --new-branch"
             },
             {

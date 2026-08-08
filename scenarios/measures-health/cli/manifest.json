@@ -25,9 +25,7 @@
               "name": "probe",
               "bool": true,
               "description": "Run the behavioral adoption probe against live measure endpoints",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {

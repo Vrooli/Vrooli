@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/receiptsigning"
+	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 )
 
 func TestGorillaMuxAdapterMountsTrailingSlashServicesAsPrefixes(t *testing.T) {
@@ -64,16 +64,12 @@ func TestDiscoverScenarioNames(t *testing.T) {
 	}
 }
 
-func TestReceiptSignerFromLifecycleDeclarationUsesVaultTransit(t *testing.T) {
+func TestReceiptSignerFromLifecycleDeclarationUsesCredentialAuthority(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	credential := filepath.Join(root, "identity-token")
-	if err := os.WriteFile(credential, []byte("workload-token"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	manifest := `{"trust_signing":{"provider":"vault-transit","resource":"vault","address":"https://vault.example.test","key_name":"prompt-manager-experiment-receipts","credential_file":"` + credential + `"}}`
+	manifest := `{"trust_signing":{"provider":"credential-authority-ed25519","identity":"vrooli/prompt-manager/experiment-receipts","field":"key-ring"}}`
 	if err := os.WriteFile(filepath.Join(root, ".vrooli", "service.json"), []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -83,10 +79,10 @@ func TestReceiptSignerFromLifecycleDeclarationUsesVaultTransit(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !production {
-		t.Fatal("lifecycle Vault Transit declaration did not require production signing")
+		t.Fatal("lifecycle credential-authority declaration did not require production signing")
 	}
-	if _, ok := signer.(*receiptsigning.VaultTransitSigner); !ok {
-		t.Fatalf("signer = %T, want VaultTransitSigner", signer)
+	if _, ok := signer.(*credentialauthoritysigning.Signer); !ok {
+		t.Fatalf("signer = %T, want credential-authority signer", signer)
 	}
 }
 

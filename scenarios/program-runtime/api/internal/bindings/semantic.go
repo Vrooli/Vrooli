@@ -21,6 +21,7 @@ type semanticCounts struct {
 	controlFlagsBound         int
 	requiredFieldsUnpopulated int
 	bindsWhereRenameSuffices  int
+	scalarBoundToMessage      int
 }
 
 type semanticArgument struct {
@@ -66,6 +67,14 @@ func (r *Registry) addSemanticCounts(scenario string, command cliapp.ManifestCom
 		field := semanticPath(argument.path)
 		byField[field]++
 		mappedTopLevel[argument.path[0].Name()] = struct{}{}
+		// A structured target with no structured decoder resolves cleanly and
+		// still cannot be populated from one CLI string, so callability checks
+		// never see it. Count it as its own dimension.
+		if strings.TrimSpace(argument.bindWaiver) == "" &&
+			!(argument.bind != nil && cliapp.StructuredDecodeKind(argument.bind.Kind)) &&
+			!cliapp.ScalarDecodableField(argument.path[len(argument.path)-1]) {
+			counts.scalarBoundToMessage++
+		}
 		if argument.bind != nil && strings.TrimSpace(argument.bind.Field) != "" {
 			if argument.isFlag && strings.TrimSpace(argument.bindWaiver) == "" {
 				if _, ok := semanticControlNames[normalizeRuntimeName(argument.name)]; ok {

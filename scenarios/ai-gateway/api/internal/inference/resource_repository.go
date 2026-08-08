@@ -58,6 +58,7 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			InputText:   prompt,
 			Timeout:     definition.Timeout(),
 			Temperature: &deterministicTemperature,
+			SchemaJSON:  request.SchemaJSON,
 		})
 		if err != nil {
 			failures = append(failures, candidate.Provider+": "+err.Error())

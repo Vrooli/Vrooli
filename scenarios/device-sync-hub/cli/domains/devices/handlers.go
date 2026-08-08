@@ -241,7 +241,7 @@ func (h *handlers) revoke(ctx cliapp.RunContext) error {
 // pairing paths.
 func profileFromFlags(ctx cliapp.RunContext) *devicesv1.DeviceProfile {
 	return &devicesv1.DeviceProfile{
-		DeviceName: strings.TrimSpace(ctx.Flag("name")),
+		DeviceName: strings.TrimSpace(ctx.Flag("device-name")),
 		Kind:       strings.TrimSpace(ctx.Flag("kind")),
 		Platform:   strings.TrimSpace(ctx.Flag("platform")),
 	}

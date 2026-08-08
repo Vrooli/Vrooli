@@ -78,11 +78,11 @@
           "description": "Set up this hub's first device as the owner: claims the hub (first-owner-wins) and trusts this device directly \u2014 no pairing code. Run `auth login` first.",
           "flags": [
             {
-              "name": "name",
+              "name": "device-name",
               "description": "This device's human-facing name",
-              "bind": {
-                "field": "profile"
-              }
+              "aliases": [
+                "name"
+              ]
             },
             {
               "name": "kind",
@@ -180,9 +180,11 @@
               "description": "Pairing code issued by the owner"
             },
             {
-              "name": "name",
+              "name": "device-name",
               "description": "This device's human-facing name",
-              "description": "This device's human-facing name"
+              "aliases": [
+                "name"
+              ]
             },
             {
               "name": "kind",
@@ -211,11 +213,11 @@
           "description": "Fallback join path: request pairing as a NEW device; prints an inert token that activates on owner approval",
           "flags": [
             {
-              "name": "name",
+              "name": "device-name",
               "description": "This device's human-facing name",
-              "bind": {
-                "field": "profile"
-              }
+              "aliases": [
+                "name"
+              ]
             },
             {
               "name": "kind",

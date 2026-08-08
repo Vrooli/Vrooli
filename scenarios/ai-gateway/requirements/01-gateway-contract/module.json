@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Provider-neutral request contracts for AI Gateway callers.",
-    "last_validated_at": "2026-08-06T17:18:31-04:00",
+    "last_validated_at": "2026-08-07T03:02:46-04:00",
     "module": "gateway-contract",
     "prd_ref": "OT-P0-001",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "AIGW-CONTRACT-TEXT",
       "title": "Text inference requests use role, profile, and constraints instead of concrete models",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "gateway.contract",
       "criticality": "P0",
@@ -26,14 +26,14 @@
           "type": "test",
           "ref": "api/internal/gateway/service_test.go::TestValidateAcceptsProviderNeutralRequest",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates provider-neutral text request parsing, defaults, and role/profile fields."
         },
         {
           "type": "test",
           "ref": "api/internal/gateway/service_test.go::TestValidateRejectsProviderSpecificMetadata",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates rejection of concrete provider/model/embedding metadata fields."
         }
       ]
@@ -41,7 +41,7 @@
     {
       "id": "AIGW-CONTRACT-EMBEDDING",
       "title": "Embedding requests carry role and schema metadata requirements",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "gateway.contract",
       "criticality": "P0",
@@ -56,7 +56,7 @@
           "type": "test",
           "ref": "api/internal/gateway/service_test.go::TestValidateRejectsProviderSpecificMetadata",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates that callers cannot smuggle implicit embedding dimensions through provider-specific metadata; full embedding metadata response support remains in progress."
         }
       ]
