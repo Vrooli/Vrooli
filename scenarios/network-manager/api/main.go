@@ -11,6 +11,7 @@ import (
 
 	"network-manager/internal/clock"
 	"network-manager/internal/modules"
+	"network-manager/internal/resolver"
 	"network-manager/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -117,6 +118,9 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
+	if err := resolver.Migrate(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}

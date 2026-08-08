@@ -91,7 +91,7 @@ func TestConfigureAdGuardHomePersistsSecretReferenceOnly(t *testing.T) {
 		Checks:           []string{"reachable"},
 	}}})
 
-	status, _, err := svc.ConfigureAdGuardHome(context.Background(), "http://adguard.local/", "admin", "secret://adguard/token", false)
+	status, _, err := svc.ConfigureAdGuardHome(context.Background(), "http://adguard.local/", "admin", "vrooli/adguard-home", false)
 	require.NoError(t, err)
 	require.Equal(t, "healthy", status.Status)
 	require.True(t, status.FilteringEnabled)
@@ -99,8 +99,8 @@ func TestConfigureAdGuardHomePersistsSecretReferenceOnly(t *testing.T) {
 
 	cfg, err := repo.GetBackend(context.Background(), AdGuardHomeBackend)
 	require.NoError(t, err)
-	require.Equal(t, "secret://adguard/token", cfg.TokenRef)
-	require.NotContains(t, cfg.TokenRef, "password")
+	require.Equal(t, "vrooli/adguard-home", cfg.CredentialRef)
+	require.NotContains(t, cfg.CredentialRef, "password")
 }
 
 func TestHealthMapsClientStates(t *testing.T) {
@@ -119,7 +119,7 @@ func TestHealthMapsClientStates(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := newFakeRepo()
-			_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", TokenRef: "secret://adguard/token"})
+			_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", CredentialRef: "vrooli/adguard-home"})
 			require.NoError(t, err)
 			svc := NewService(Config{Repo: repo, Client: tc.client})
 
@@ -143,14 +143,14 @@ func TestConfigureAdGuardHomeRequiresSecretReference(t *testing.T) {
 
 	_, _, err := svc.ConfigureAdGuardHome(context.Background(), "http://adguard.local", "admin", "", false)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "token_ref")
+	require.Contains(t, err.Error(), "credential_ref")
 }
 
 func TestConfigureAdGuardHomeDefaultsFromResourceExports(t *testing.T) {
 	// [REQ:NM-P0-002] Resource-managed AdGuard exports can satisfy the default backend shape without plaintext secrets.
 	t.Setenv("ADGUARD_HOME_BASE_URL", "http://localhost:3000")
 	t.Setenv("ADGUARD_HOME_USERNAME", "admin")
-	t.Setenv("ADGUARD_HOME_CREDENTIAL_REF", "secret/resources/adguard-home/admin")
+	t.Setenv("ADGUARD_HOME_CREDENTIAL_REF", "vrooli/adguard-home")
 	repo := newFakeRepo()
 	svc := NewService(Config{Repo: repo, Client: fakeAdGuardClient{checkStatus: ClientStatus{
 		Status:           "configured_unverified",
@@ -172,13 +172,13 @@ func TestConfigureAdGuardHomeDefaultsFromResourceExports(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "http://localhost:3000", cfg.BaseURL)
 	require.Equal(t, "admin", cfg.Username)
-	require.Equal(t, "secret/resources/adguard-home/admin", cfg.TokenRef)
+	require.Equal(t, "vrooli/adguard-home", cfg.CredentialRef)
 }
 
 func TestUpdateUpstreamsRequiresConfiguredClientSupport(t *testing.T) {
 	// [REQ:NM-P0-002] Persistent upstream writes fail closed when the adapter cannot apply them.
 	repo := newFakeRepo()
-	_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", TokenRef: "secret://adguard/token"})
+	_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", CredentialRef: "vrooli/adguard-home"})
 	require.NoError(t, err)
 	svc := NewService(Config{Repo: repo, Client: fakeAdGuardClient{updateErr: ErrClientUnsupported}})
 
@@ -193,7 +193,7 @@ func TestUpdateUpstreamsRequiresConfiguredClientSupport(t *testing.T) {
 
 func TestStatusReturnsClientError(t *testing.T) {
 	repo := newFakeRepo()
-	_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", TokenRef: "secret://adguard/token"})
+	_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", CredentialRef: "vrooli/adguard-home"})
 	require.NoError(t, err)
 	svc := NewService(Config{Repo: repo, Client: fakeAdGuardClient{checkErr: errors.New("boom")}})
 
@@ -204,7 +204,7 @@ func TestStatusReturnsClientError(t *testing.T) {
 func TestAdGuardRolloutKeepsRouterManualWhenOnlyClientEvidenceExists(t *testing.T) {
 	// [REQ:NM-P0-002] Client evidence must not be promoted to household-wide router enforcement.
 	repo := newFakeRepo()
-	_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", TokenRef: "secret://adguard/token"})
+	_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", CredentialRef: "vrooli/adguard-home"})
 	require.NoError(t, err)
 	svc := NewService(Config{
 		Repo: repo,
@@ -229,7 +229,7 @@ func TestAdGuardRolloutKeepsRouterManualWhenOnlyClientEvidenceExists(t *testing.
 func TestAdGuardRolloutBlocksRouterInstructionsWhenAdGuardUnhealthy(t *testing.T) {
 	// [REQ:NM-P0-002] Router rollout guidance stays blocked until AdGuard is healthy and filtering.
 	repo := newFakeRepo()
-	_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", TokenRef: "secret://adguard/token"})
+	_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", CredentialRef: "vrooli/adguard-home"})
 	require.NoError(t, err)
 	svc := NewService(Config{
 		Repo:         repo,

@@ -35,7 +35,7 @@ func TestResourceBackedAdGuardClientHealthy(t *testing.T) {
 		HTTP:    server.Client().Transport,
 	}
 
-	status, err := client.Check(context.Background(), BackendConfig{BaseURL: server.URL, TokenRef: "secret/resources/adguard-home/admin"})
+	status, err := client.Check(context.Background(), BackendConfig{BaseURL: server.URL, CredentialRef: "vrooli/adguard-home"})
 	require.NoError(t, err)
 	require.Equal(t, "healthy", status.Status)
 	require.True(t, status.FilteringEnabled)
@@ -70,7 +70,7 @@ func TestResourceBackedAdGuardClientReportsClientEvidence(t *testing.T) {
 		HTTP:    server.Client().Transport,
 	}
 
-	status, err := client.Check(context.Background(), BackendConfig{BaseURL: server.URL, TokenRef: "secret/resources/adguard-home/admin"})
+	status, err := client.Check(context.Background(), BackendConfig{BaseURL: server.URL, CredentialRef: "vrooli/adguard-home"})
 	require.NoError(t, err)
 	require.Equal(t, "healthy", status.Status)
 	require.Equal(t, "client_evidence_observed", status.EnforcementStatus)
@@ -92,7 +92,7 @@ func TestResourceBackedAdGuardClientMapsAuthFailure(t *testing.T) {
 		HTTP:    server.Client().Transport,
 	}
 
-	status, err := client.Check(context.Background(), BackendConfig{BaseURL: server.URL, TokenRef: "secret/resources/adguard-home/admin"})
+	status, err := client.Check(context.Background(), BackendConfig{BaseURL: server.URL, CredentialRef: "vrooli/adguard-home"})
 	require.NoError(t, err)
 	require.Equal(t, "auth_failed", status.Status)
 	require.Contains(t, status.Warnings, "AdGuard Home rejected the configured credentials.")
@@ -114,7 +114,7 @@ func TestResourceBackedAdGuardClientDegradesWhenQueryLogEnabled(t *testing.T) {
 		HTTP:    server.Client().Transport,
 	}
 
-	status, err := client.Check(context.Background(), BackendConfig{BaseURL: server.URL, TokenRef: "secret/resources/adguard-home/admin"})
+	status, err := client.Check(context.Background(), BackendConfig{BaseURL: server.URL, CredentialRef: "vrooli/adguard-home"})
 	require.NoError(t, err)
 	require.Equal(t, "degraded", status.Status)
 	require.Contains(t, status.Warnings, "Query log is enabled; Network Manager will not expose query-level DNS history.")
@@ -135,7 +135,7 @@ func TestResourceBackedAdGuardClientPreviewUpstreams(t *testing.T) {
 		HTTP:    server.Client().Transport,
 	}
 
-	changes, err := client.PreviewUpstreams(context.Background(), BackendConfig{BaseURL: server.URL, TokenRef: "secret/resources/adguard-home/admin"}, []string{"1.1.1.1", "9.9.9.9"})
+	changes, err := client.PreviewUpstreams(context.Background(), BackendConfig{BaseURL: server.URL, CredentialRef: "vrooli/adguard-home"}, []string{"1.1.1.1", "9.9.9.9"})
 	require.NoError(t, err)
 	require.Contains(t, changes, "Current upstreams: 1.1.1.1, 8.8.8.8")
 	require.Contains(t, changes, "Requested upstreams: 1.1.1.1, 9.9.9.9")
@@ -163,10 +163,10 @@ func TestServiceUsesResourceBackedClientWithSecretResolver(t *testing.T) {
 
 	repo := newFakeRepo()
 	_, err := repo.SaveBackend(context.Background(), BackendConfig{
-		Backend:  AdGuardHomeBackend,
-		BaseURL:  server.URL,
-		Username: "admin",
-		TokenRef: "secret/resources/adguard-home/admin",
+		Backend:       AdGuardHomeBackend,
+		BaseURL:       server.URL,
+		Username:      "admin",
+		CredentialRef: "vrooli/adguard-home",
 	})
 	require.NoError(t, err)
 	svc := NewService(Config{Repo: repo, Client: ResourceBackedAdGuardClient{

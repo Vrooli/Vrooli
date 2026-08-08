@@ -2,82 +2,56 @@ package resolver
 
 import (
 	"context"
-	"errors"
-	"os/exec"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
-func TestVaultSecretResolverReadsPasswordAndUsername(t *testing.T) {
-	// [REQ:NM-P0-002] AdGuard credentials are resolved through resource-vault from a secret reference.
-	var calls [][]string
-	resolver := &VaultSecretResolver{
-		Command:  "resource-vault",
-		LookPath: func(string) (string, error) { return "/usr/bin/resource-vault", nil },
-		Run: func(_ context.Context, name string, args ...string) (string, error) {
-			calls = append(calls, append([]string{name}, args...))
-			switch args[5] {
-			case "password":
-				return "secret-password\n", nil
-			case "username":
-				return "operator\n", nil
-			default:
-				return "", errors.New("unexpected key")
-			}
-		},
-	}
+type fakeCredentialStore struct {
+	values map[string]string
+}
 
-	creds, err := resolver.ResolveAdGuardCredentials(context.Background(), BackendConfig{
-		TokenRef: "secret/resources/adguard-home/admin",
-	})
+func (f fakeCredentialStore) Resolve(identity credentialauthority.Identity, field string) (string, error) {
+	value, ok := f.values[string(identity)+":"+field]
+	if !ok {
+		return "", credentialauthority.ErrUnconfigured
+	}
+	return value, nil
+}
+
+func TestCredentialAuthorityResolverReadsPasswordAndUsername(t *testing.T) {
+	resolver := &CredentialAuthorityResolver{Authority: fakeCredentialStore{values: map[string]string{
+		"vrooli/adguard-home:password": "secret-password",
+		"vrooli/adguard-home:username": "operator",
+	}}}
+
+	creds, err := resolver.ResolveAdGuardCredentials(context.Background(), BackendConfig{CredentialRef: "vrooli/adguard-home"})
 	require.NoError(t, err)
 	require.Equal(t, Credentials{Username: "operator", Password: "secret-password"}, creds)
-	require.Equal(t, [][]string{
-		{"resource-vault", "content", "get", "--path", "secret/resources/adguard-home/admin", "--key", "password", "--format", "raw"},
-		{"resource-vault", "content", "get", "--path", "secret/resources/adguard-home/admin", "--key", "username", "--format", "raw"},
-	}, calls)
 }
 
-func TestVaultSecretResolverUsesConfiguredUsername(t *testing.T) {
-	// [REQ:NM-P0-002] Stored resolver username avoids unnecessary secret reads while password remains secret-ref backed.
-	var keys []string
-	resolver := &VaultSecretResolver{
-		LookPath: func(string) (string, error) { return "/usr/bin/resource-vault", nil },
-		Run: func(_ context.Context, _ string, args ...string) (string, error) {
-			keys = append(keys, args[5])
-			return "secret-password\n", nil
-		},
-	}
+func TestCredentialAuthorityResolverUsesConfiguredUsername(t *testing.T) {
+	resolver := &CredentialAuthorityResolver{Authority: fakeCredentialStore{values: map[string]string{
+		"vrooli/adguard-home:password": "secret-password",
+	}}}
 
-	creds, err := resolver.ResolveAdGuardCredentials(context.Background(), BackendConfig{
-		Username: "admin",
-		TokenRef: "secret/resources/adguard-home/admin",
-	})
+	creds, err := resolver.ResolveAdGuardCredentials(context.Background(), BackendConfig{Username: "admin", CredentialRef: "vrooli/adguard-home"})
 	require.NoError(t, err)
 	require.Equal(t, Credentials{Username: "admin", Password: "secret-password"}, creds)
-	require.True(t, reflect.DeepEqual([]string{"password"}, keys))
 }
 
-func TestVaultSecretResolverFailsClosedForMissingPassword(t *testing.T) {
-	// [REQ:NM-P0-002] Missing AdGuard credentials fail closed rather than falling back to empty auth.
-	resolver := &VaultSecretResolver{
-		LookPath: func(string) (string, error) { return "/usr/bin/resource-vault", nil },
-		Run: func(context.Context, string, ...string) (string, error) {
-			return "", &vaultCLIError{Stderr: "No value found at secret/resources/adguard-home/admin/password", Err: exec.ErrNotFound}
-		},
-	}
+func TestCredentialAuthorityResolverFailsClosedForMissingPassword(t *testing.T) {
+	resolver := &CredentialAuthorityResolver{Authority: fakeCredentialStore{values: map[string]string{}}}
 
-	_, err := resolver.ResolveAdGuardCredentials(context.Background(), BackendConfig{TokenRef: "secret/resources/adguard-home/admin"})
+	_, err := resolver.ResolveAdGuardCredentials(context.Background(), BackendConfig{CredentialRef: "vrooli/adguard-home"})
 	require.ErrorIs(t, err, ErrSecretMissing)
 }
 
-func TestVaultSecretResolverRejectsNonSecretRef(t *testing.T) {
-	// [REQ:NM-P0-002] Plaintext-looking token refs are rejected before any vault lookup.
-	resolver := &VaultSecretResolver{}
+func TestCredentialAuthorityResolverRejectsInvalidRef(t *testing.T) {
+	resolver := &CredentialAuthorityResolver{Authority: fakeCredentialStore{}}
 
-	_, err := resolver.ResolveAdGuardCredentials(context.Background(), BackendConfig{TokenRef: "password123"})
-	require.ErrorContains(t, err, "unsupported secret reference")
+	_, err := resolver.ResolveAdGuardCredentials(context.Background(), BackendConfig{CredentialRef: "password123"})
+	require.ErrorContains(t, err, "credential logical identity must be namespaced")
 	require.NotContains(t, err.Error(), "password123")
 }

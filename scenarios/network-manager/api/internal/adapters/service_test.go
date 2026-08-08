@@ -124,7 +124,7 @@ func TestResolverAwareRegistryReportsConfiguredAdGuardResolver(t *testing.T) {
 		ResolverBackends: fakeResolverBackends{cfg: resolver.BackendConfig{
 			Backend:  resolver.AdGuardHomeBackend,
 			BaseURL:  "http://localhost:3000",
-			TokenRef: "secret/resources/adguard-home/admin",
+			CredentialRef: "vrooli/adguard-home",
 		}},
 	}
 

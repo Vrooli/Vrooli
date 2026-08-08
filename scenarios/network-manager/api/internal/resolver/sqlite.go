@@ -33,14 +33,14 @@ func (r *sqliteRepository) SaveBackend(ctx context.Context, cfg BackendConfig) (
 	}
 	cfg.UpdatedAt = now
 	if _, err := r.db.ExecContext(ctx, `
-INSERT INTO resolver_backends (backend, base_url, username, token_ref, created_at, updated_at)
+INSERT INTO resolver_backends (backend, base_url, username, credential_ref, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT(backend) DO UPDATE SET
   base_url = excluded.base_url,
   username = excluded.username,
-  token_ref = excluded.token_ref,
+  credential_ref = excluded.credential_ref,
   updated_at = excluded.updated_at
-`, cfg.Backend, cfg.BaseURL, cfg.Username, cfg.TokenRef, cfg.CreatedAt.UTC().Format(TimeFormat), cfg.UpdatedAt.UTC().Format(TimeFormat)); err != nil {
+`, cfg.Backend, cfg.BaseURL, cfg.Username, cfg.CredentialRef, cfg.CreatedAt.UTC().Format(TimeFormat), cfg.UpdatedAt.UTC().Format(TimeFormat)); err != nil {
 		return BackendConfig{}, fmt.Errorf("save resolver backend %q: %w", cfg.Backend, err)
 	}
 	return cfg, nil
@@ -48,7 +48,7 @@ ON CONFLICT(backend) DO UPDATE SET
 
 func (r *sqliteRepository) GetBackend(ctx context.Context, backend string) (BackendConfig, error) {
 	row := r.db.QueryRowContext(ctx, `
-SELECT backend, base_url, username, token_ref, created_at, updated_at
+SELECT backend, base_url, username, credential_ref, created_at, updated_at
 FROM resolver_backends
 WHERE backend = ?
 `, backend)
@@ -110,7 +110,7 @@ type backendScanner interface {
 func scanBackend(row backendScanner) (BackendConfig, error) {
 	var cfg BackendConfig
 	var createdAt, updatedAt string
-	if err := row.Scan(&cfg.Backend, &cfg.BaseURL, &cfg.Username, &cfg.TokenRef, &createdAt, &updatedAt); err != nil {
+	if err := row.Scan(&cfg.Backend, &cfg.BaseURL, &cfg.Username, &cfg.CredentialRef, &createdAt, &updatedAt); err != nil {
 		return BackendConfig{}, err
 	}
 	var err error

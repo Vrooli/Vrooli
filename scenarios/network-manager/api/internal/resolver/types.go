@@ -11,12 +11,12 @@ const TimeFormat = time.RFC3339Nano
 var ErrNotFound = errors.New("resolver backend not found")
 
 type BackendConfig struct {
-	Backend   string
-	BaseURL   string
-	Username  string
-	TokenRef  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Backend       string
+	BaseURL       string
+	Username      string
+	CredentialRef string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type Status struct {

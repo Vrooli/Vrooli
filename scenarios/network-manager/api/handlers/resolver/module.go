@@ -41,7 +41,7 @@ func (h *handler) GetResolverStatus(ctx context.Context, _ *connect.Request[reso
 }
 
 func (h *handler) ConfigureAdGuardHome(ctx context.Context, req *connect.Request[resolverv1.ConfigureAdGuardHomeRequest]) (*connect.Response[resolverv1.ConfigureAdGuardHomeResponse], error) {
-	status, steps, err := h.service.ConfigureAdGuardHome(ctx, req.Msg.GetBaseUrl(), req.Msg.GetUsername(), req.Msg.GetTokenRef(), req.Msg.GetDryRun())
+	status, steps, err := h.service.ConfigureAdGuardHome(ctx, req.Msg.GetBaseUrl(), req.Msg.GetUsername(), req.Msg.GetCredentialRef(), req.Msg.GetDryRun())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

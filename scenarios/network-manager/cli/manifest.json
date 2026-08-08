@@ -11,32 +11,96 @@
           "name": "run",
           "description": "Run a read-only network health snapshot",
           "flags": [
-            { "name": "profile", "description": "Scoring/deployment profile such as home or small-office" },
-            { "name": "dry-run", "bool": true, "description": "Return the planned snapshot flow without live probes" }
+            {
+              "name": "profile",
+              "description": "Scoring/deployment profile such as home or small-office"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Return the planned snapshot flow without live probes"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SnapshotService", "method": "RunSnapshot" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SnapshotService",
+            "method": "RunSnapshot"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "list",
           "description": "List stored snapshots",
-          "binding": { "kind": "connect-rpc", "service": "SnapshotService", "method": "ListSnapshots" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SnapshotService",
+            "method": "ListSnapshots"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "get",
           "description": "Get a snapshot by id",
-          "positionals": [{ "name": "id", "required": true, "description": "Snapshot id" }],
-          "binding": { "kind": "connect-rpc", "service": "SnapshotService", "method": "GetSnapshot" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Snapshot id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SnapshotService",
+            "method": "GetSnapshot"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "export",
           "description": "Export a snapshot report",
-          "positionals": [{ "name": "id", "required": true, "description": "Snapshot id" }],
-          "flags": [{ "name": "format", "description": "Report format (markdown or json)" }],
-          "binding": { "kind": "connect-rpc", "service": "SnapshotService", "method": "ExportSnapshotReport" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Snapshot id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "format",
+              "description": "Report format (markdown or json)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SnapshotService",
+            "method": "ExportSnapshotReport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -47,42 +111,112 @@
         {
           "name": "status",
           "description": "Show AdGuard Home and DNS backend status",
-          "binding": { "kind": "connect-rpc", "service": "ResolverService", "method": "GetResolverStatus" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResolverService",
+            "method": "GetResolverStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "configure-adguard",
           "description": "Configure the AdGuard Home backend",
           "flags": [
-            { "name": "base-url", "description": "AdGuard Home API base URL" },
-            { "name": "username", "description": "AdGuard Home username" },
-            { "name": "token-ref", "description": "Secret-store reference for the AdGuard Home token/password" },
-            { "name": "dry-run", "bool": true, "description": "Preview configuration without saving" }
+            {
+              "name": "base-url",
+              "description": "AdGuard Home API base URL"
+            },
+            {
+              "name": "username",
+              "description": "AdGuard Home username"
+            },
+            {
+              "name": "credential-ref",
+              "description": "Credential-authority identity for the AdGuard Home username/password"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Preview configuration without saving"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ResolverService", "method": "ConfigureAdGuardHome" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResolverService",
+            "method": "ConfigureAdGuardHome"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "upstreams",
           "description": "Preview or update resolver upstreams",
           "flags": [
-            { "name": "upstream", "description": "Upstream resolver URL/address; repeat by shell invocation once multi-value flags land" },
-            { "name": "dry-run", "bool": true, "description": "Preview without applying" }
+            {
+              "name": "upstream",
+              "description": "Upstream resolver URL/address; repeat by shell invocation once multi-value flags land"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Preview without applying"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ResolverService", "method": "UpdateUpstreams" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResolverService",
+            "method": "UpdateUpstreams"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "health",
           "description": "Run resolver health checks",
-          "binding": { "kind": "connect-rpc", "service": "ResolverService", "method": "CheckResolverHealth" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResolverService",
+            "method": "CheckResolverHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "rollout",
           "description": "Show AdGuard household rollout status and router next steps",
-          "binding": { "kind": "connect-rpc", "service": "ResolverService", "method": "GetAdGuardRollout" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ResolverService",
+            "method": "GetAdGuardRollout"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -94,98 +228,298 @@
           "name": "preview",
           "description": "Preview a filtering change",
           "flags": [
-            { "name": "target", "description": "Device, group, or resolver target" },
-            { "name": "action", "description": "Policy action to preview" },
-            { "name": "value", "description": "Policy value" }
+            {
+              "name": "target",
+              "description": "Device, group, or resolver target"
+            },
+            {
+              "name": "action",
+              "description": "Policy action to preview"
+            },
+            {
+              "name": "value",
+              "description": "Policy value",
+              "bind": {
+                "field": "values"
+              }
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "PreviewPolicyChange" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "PreviewPolicyChange"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "apply",
           "description": "Apply an approved policy preview",
-          "positionals": [{ "name": "preview_id", "required": true, "description": "Preview id" }],
-          "flags": [{ "name": "approved", "bool": true, "description": "Required approval acknowledgement" }],
-          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "ApplyPolicyChange" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "preview_id",
+              "required": true,
+              "description": "Preview id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "approved",
+              "bool": true,
+              "description": "Required approval acknowledgement"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "ApplyPolicyChange"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "rollback",
           "description": "Roll back a policy change",
-          "positionals": [{ "name": "id", "required": true, "description": "Policy change id" }],
-          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "RollbackPolicyChange" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Policy change id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "RollbackPolicyChange"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "pause",
           "description": "Pause filtering for a target",
           "flags": [
-            { "name": "target", "description": "Device or group target" },
-            { "name": "duration", "description": "Pause duration such as 30m" }
+            {
+              "name": "target",
+              "description": "Device or group target"
+            },
+            {
+              "name": "duration",
+              "description": "Pause duration such as 30m"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "PauseFiltering" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "PauseFiltering"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "resume",
           "description": "Resume filtering for a target",
-          "flags": [{ "name": "target", "description": "Device or group target" }],
-          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "ResumeFiltering" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "target",
+              "description": "Device or group target"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "ResumeFiltering"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "profiles",
           "description": "List household policy profiles",
-          "flags": [{ "name": "group", "description": "Filter profiles by device group" }],
-          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "ListPolicyProfiles" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "group",
+              "description": "Filter profiles by device group",
+              "bind": {
+                "field": "device_group"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "ListPolicyProfiles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "profile-set",
           "description": "Create or update a household policy profile",
           "flags": [
-            { "name": "id", "description": "Existing profile id to update" },
-            { "name": "name", "required": true, "description": "Profile name such as kids or guest" },
-            { "name": "group", "required": true, "description": "Device group this profile targets" },
-            { "name": "strength", "description": "Filtering strength: off, light, standard, or strict" },
-            { "name": "schedule", "description": "Schedule: always, disabled, or daily:HH:MM-HH:MM" },
-            { "name": "override", "description": "Override behavior: manual_required, parent_override, or temporary_pause" },
-            { "name": "status", "description": "Profile status: enabled or disabled" }
+            {
+              "name": "id",
+              "description": "Existing profile id to update"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Profile name such as kids or guest"
+            },
+            {
+              "name": "group",
+              "required": true,
+              "description": "Device group this profile targets"
+            },
+            {
+              "name": "strength",
+              "description": "Filtering strength: off, light, standard, or strict"
+            },
+            {
+              "name": "schedule",
+              "description": "Schedule: always, disabled, or daily:HH:MM-HH:MM"
+            },
+            {
+              "name": "override",
+              "description": "Override behavior: manual_required, parent_override, or temporary_pause"
+            },
+            {
+              "name": "status",
+              "description": "Profile status: enabled or disabled"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "UpsertPolicyProfile" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "UpsertPolicyProfile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "schedule",
           "description": "Evaluate a household policy schedule",
-          "positionals": [{ "name": "profile_id", "required": true, "description": "Policy profile id" }],
-          "flags": [
-            { "name": "target", "description": "Device, group, or network target" },
-            { "name": "now", "description": "RFC3339 timestamp for deterministic evaluation" }
+          "positionals": [
+            {
+              "name": "profile_id",
+              "required": true,
+              "description": "Policy profile id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "EvaluatePolicySchedule" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "target",
+              "description": "Device, group, or network target"
+            },
+            {
+              "name": "now",
+              "description": "RFC3339 timestamp for deterministic evaluation"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "EvaluatePolicySchedule"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "bypass-guidance",
           "description": "Diagnose IPv6 and encrypted DNS bypass guidance",
           "flags": [
-            { "name": "target", "description": "Device, group, or network target" },
-            { "name": "adapter-backed", "bool": true, "description": "Include adapter-backed preview actions when a capable adapter exists" }
+            {
+              "name": "target",
+              "description": "Device, group, or network target"
+            },
+            {
+              "name": "adapter-backed",
+              "bool": true,
+              "description": "Include adapter-backed preview actions when a capable adapter exists"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "DiagnoseEncryptedDnsBypass" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "DiagnoseEncryptedDnsBypass"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "doh-guidance",
           "description": "Generate browser and endpoint DoH policy guidance",
           "flags": [
-            { "name": "platform", "description": "Endpoint platform such as windows, macos, ios, android, or linux" },
-            { "name": "browser", "description": "Browser such as chrome, edge, firefox, or safari" },
-            { "name": "management-mode", "description": "Management mode such as mdm, group-policy, managed-browser, or manual" }
+            {
+              "name": "platform",
+              "description": "Endpoint platform such as windows, macos, ios, android, or linux"
+            },
+            {
+              "name": "browser",
+              "description": "Browser such as chrome, edge, firefox, or safari"
+            },
+            {
+              "name": "management-mode",
+              "description": "Management mode such as mdm, group-policy, managed-browser, or manual"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "GetEndpointDohGuidance" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "GetEndpointDohGuidance"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -196,31 +530,100 @@
         {
           "name": "refresh",
           "description": "Refresh device inventory",
-          "flags": [{ "name": "dry-run", "bool": true, "description": "Preview discovery without persisting" }],
-          "binding": { "kind": "connect-rpc", "service": "InventoryService", "method": "RefreshInventory" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Preview discovery without persisting"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InventoryService",
+            "method": "RefreshInventory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "list",
           "description": "List devices",
-          "flags": [{ "name": "group", "description": "Filter by group" }],
-          "binding": { "kind": "connect-rpc", "service": "InventoryService", "method": "ListDevices" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "group",
+              "description": "Filter by group"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InventoryService",
+            "method": "ListDevices"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "group",
           "description": "Assign a device to a group",
-          "positionals": [{ "name": "id", "required": true, "description": "Device id" }],
-          "flags": [{ "name": "group", "required": true, "description": "Target group" }],
-          "binding": { "kind": "connect-rpc", "service": "InventoryService", "method": "UpdateDeviceGroup" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Device id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "group",
+              "required": true,
+              "description": "Target group"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InventoryService",
+            "method": "UpdateDeviceGroup"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "explain",
           "description": "Explain a device identity",
-          "positionals": [{ "name": "id", "required": true, "description": "Device id" }],
-          "binding": { "kind": "connect-rpc", "service": "InventoryService", "method": "ExplainDeviceIdentity" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Device id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InventoryService",
+            "method": "ExplainDeviceIdentity"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -231,43 +634,135 @@
         {
           "name": "schedules",
           "description": "List monitoring schedules",
-          "flags": [{ "name": "include-disabled", "bool": true, "description": "Include disabled schedules" }],
-          "binding": { "kind": "connect-rpc", "service": "MonitoringService", "method": "ListMonitoringSchedules" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "include-disabled",
+              "bool": true,
+              "description": "Include disabled schedules"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MonitoringService",
+            "method": "ListMonitoringSchedules"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "schedule-set",
           "description": "Create or update a monitoring schedule",
           "flags": [
-            { "name": "id", "description": "Existing schedule id to update" },
-            { "name": "name", "required": true, "description": "Schedule name" },
-            { "name": "profile", "description": "Snapshot profile such as home or small-office" },
-            { "name": "baseline-snapshot-id", "required": true, "description": "Baseline snapshot id to compare against" },
-            { "name": "interval-minutes", "description": "Recurring interval in minutes, minimum 5" },
-            { "name": "latency-threshold-ms", "description": "Allowed DNS latency increase before alerting" },
-            { "name": "unavailable-threshold", "description": "Allowed increase in unavailable/failed probe count" },
-            { "name": "disabled", "bool": true, "description": "Save the schedule disabled" }
+            {
+              "name": "id",
+              "description": "Existing schedule id to update"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Schedule name"
+            },
+            {
+              "name": "profile",
+              "description": "Snapshot profile such as home or small-office"
+            },
+            {
+              "name": "baseline-snapshot-id",
+              "required": true,
+              "description": "Baseline snapshot id to compare against"
+            },
+            {
+              "name": "interval-minutes",
+              "description": "Recurring interval in minutes, minimum 5"
+            },
+            {
+              "name": "latency-threshold-ms",
+              "description": "Allowed DNS latency increase before alerting"
+            },
+            {
+              "name": "unavailable-threshold",
+              "description": "Allowed increase in unavailable/failed probe count"
+            },
+            {
+              "name": "disabled",
+              "bool": true,
+              "description": "Save the schedule disabled"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "MonitoringService", "method": "UpsertMonitoringSchedule" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MonitoringService",
+            "method": "UpsertMonitoringSchedule"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "run",
           "description": "Run a monitoring check for a schedule now",
-          "positionals": [{ "name": "schedule_id", "required": true, "description": "Monitoring schedule id" }],
-          "flags": [{ "name": "dry-run", "bool": true, "description": "Capture and compare without persisting the monitoring run or alerts" }],
-          "binding": { "kind": "connect-rpc", "service": "MonitoringService", "method": "RunMonitoringCheck" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "schedule_id",
+              "required": true,
+              "description": "Monitoring schedule id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Capture and compare without persisting the monitoring run or alerts"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MonitoringService",
+            "method": "RunMonitoringCheck"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "alerts",
           "description": "List monitoring regression alerts",
           "flags": [
-            { "name": "schedule-id", "description": "Filter alerts by schedule id" },
-            { "name": "open-only", "bool": true, "description": "Only show open alerts" }
+            {
+              "name": "schedule-id",
+              "description": "Filter alerts by schedule id"
+            },
+            {
+              "name": "open-only",
+              "bool": true,
+              "description": "Only show open alerts"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "MonitoringService", "method": "ListMonitoringAlerts" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MonitoringService",
+            "method": "ListMonitoringAlerts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -279,44 +774,139 @@
           "name": "run",
           "description": "Create an optimization run",
           "flags": [
-            { "name": "scoring-profile", "description": "Scoring profile such as balanced-reliability" },
-            { "name": "dry-run", "bool": true, "description": "Preview run setup" }
+            {
+              "name": "scoring-profile",
+              "description": "Scoring profile such as balanced-reliability"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Preview run setup"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "OptimizationService", "method": "CreateOptimizationRun" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OptimizationService",
+            "method": "CreateOptimizationRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "candidate",
           "description": "Run one optimization candidate",
-          "positionals": [{ "name": "run_id", "required": true, "description": "Run id" }],
-          "flags": [{ "name": "candidate-id", "required": true, "description": "Candidate id" }],
-          "binding": { "kind": "connect-rpc", "service": "OptimizationService", "method": "RunCandidate" },
-          "governance": { "effect": "read", "run_eligible": false, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "candidate-id",
+              "required": true,
+              "description": "Candidate id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OptimizationService",
+            "method": "RunCandidate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "score",
           "description": "Score candidates for a run",
-          "positionals": [{ "name": "run_id", "required": true, "description": "Run id" }],
-          "binding": { "kind": "connect-rpc", "service": "OptimizationService", "method": "ScoreCandidates" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OptimizationService",
+            "method": "ScoreCandidates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "approve",
           "description": "Approve a candidate apply",
-          "positionals": [{ "name": "run_id", "required": true, "description": "Run id" }],
-          "flags": [
-            { "name": "candidate-id", "required": true, "description": "Candidate id" },
-            { "name": "approved", "bool": true, "description": "Required approval acknowledgement" }
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "OptimizationService", "method": "ApproveCandidate" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "flags": [
+            {
+              "name": "candidate-id",
+              "required": true,
+              "description": "Candidate id"
+            },
+            {
+              "name": "approved",
+              "bool": true,
+              "description": "Required approval acknowledgement"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OptimizationService",
+            "method": "ApproveCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "rollback",
           "description": "Rollback an optimization run",
-          "positionals": [{ "name": "run_id", "required": true, "description": "Run id" }],
-          "binding": { "kind": "connect-rpc", "service": "OptimizationService", "method": "RollbackOptimization" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OptimizationService",
+            "method": "RollbackOptimization"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -327,21 +917,57 @@
         {
           "name": "capabilities",
           "description": "List adapter capabilities",
-          "binding": { "kind": "connect-rpc", "service": "AdapterService", "method": "ListCapabilities" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdapterService",
+            "method": "ListCapabilities"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "explain",
           "description": "Explain why an action is unsupported",
-          "positionals": [{ "name": "action", "required": true, "description": "Action name" }],
-          "binding": { "kind": "connect-rpc", "service": "AdapterService", "method": "ExplainUnsupportedAction" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "Action name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdapterService",
+            "method": "ExplainUnsupportedAction"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "platform",
           "description": "Show detected platform summary",
-          "binding": { "kind": "connect-rpc", "service": "AdapterService", "method": "GetPlatformSummary" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdapterService",
+            "method": "GetPlatformSummary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -352,26 +978,68 @@
         {
           "name": "retention",
           "description": "Show retention settings",
-          "binding": { "kind": "connect-rpc", "service": "PrivacyService", "method": "GetRetentionSettings" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PrivacyService",
+            "method": "GetRetentionSettings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "retention-set",
           "description": "Update retention settings",
           "flags": [
-            { "name": "query-log-days", "description": "DNS query-log retention days" },
-            { "name": "snapshot-days", "description": "Snapshot retention days" },
-            { "name": "experiment-days", "description": "Experiment retention days" },
-            { "name": "profile", "description": "Retention profile label" }
+            {
+              "name": "query-log-days",
+              "description": "DNS query-log retention days"
+            },
+            {
+              "name": "snapshot-days",
+              "description": "Snapshot retention days"
+            },
+            {
+              "name": "experiment-days",
+              "description": "Experiment retention days"
+            },
+            {
+              "name": "profile",
+              "description": "Retention profile label"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PrivacyService", "method": "UpdateRetentionSettings" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PrivacyService",
+            "method": "UpdateRetentionSettings"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "visibility",
           "description": "Show visibility settings",
-          "binding": { "kind": "connect-rpc", "service": "PrivacyService", "method": "GetVisibilitySettings" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PrivacyService",
+            "method": "GetVisibilitySettings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -382,22 +1050,64 @@
         {
           "name": "actions",
           "description": "List Home Automation actions",
-          "binding": { "kind": "connect-rpc", "service": "HomeIntegrationService", "method": "ListActions" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HomeIntegrationService",
+            "method": "ListActions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "invoke",
           "description": "Invoke a Home Automation action",
-          "positionals": [{ "name": "name", "required": true, "description": "Action name" }],
-          "flags": [{ "name": "approved", "bool": true, "description": "Approval acknowledgement for write actions" }],
-          "binding": { "kind": "connect-rpc", "service": "HomeIntegrationService", "method": "InvokeAction" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Action name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "approved",
+              "bool": true,
+              "description": "Approval acknowledgement for write actions"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HomeIntegrationService",
+            "method": "InvokeAction"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "events",
           "description": "List recent Home Automation events",
-          "binding": { "kind": "connect-rpc", "service": "HomeIntegrationService", "method": "ListRecentEvents" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HomeIntegrationService",
+            "method": "ListRecentEvents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     }

@@ -37,7 +37,7 @@ func (h handlers) configureAdGuard(ctx cliapp.RunContext) error {
 	req := &resolverv1.ConfigureAdGuardHomeRequest{
 		BaseUrl:  firstNonEmpty(ctx.Flag("base-url"), os.Getenv("ADGUARD_HOME_BASE_URL"), os.Getenv("ADGUARD_HOME_URL")),
 		Username: firstNonEmpty(ctx.Flag("username"), os.Getenv("ADGUARD_HOME_USERNAME")),
-		TokenRef: firstNonEmpty(ctx.Flag("token-ref"), os.Getenv("ADGUARD_HOME_CREDENTIAL_REF")),
+		CredentialRef: firstNonEmpty(ctx.Flag("credential-ref"), os.Getenv("ADGUARD_HOME_CREDENTIAL_REF")),
 		DryRun:   ctx.BoolFlag("dry-run"),
 	}
 	resp, err := h.client.ConfigureAdGuardHome(context.Background(), connect.NewRequest(req))

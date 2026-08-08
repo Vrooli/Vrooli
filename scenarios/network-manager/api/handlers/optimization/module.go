@@ -42,7 +42,7 @@ func newService(db domainoptimization.SQLExecutor) *domainoptimization.Service {
 			ResolverBackends: resolverRepo,
 		},
 	})
-	policyAdapter := domainpolicy.NewAdGuardResolverPolicyAdapter(resolverRepo, domainresolver.NewVaultSecretResolver())
+	policyAdapter := domainpolicy.NewAdGuardResolverPolicyAdapter(resolverRepo, domainresolver.NewCredentialAuthorityResolver())
 	return domainoptimization.NewService(domainoptimization.Config{
 		Repo:         domainoptimization.NewSQLiteRepository(db),
 		Capabilities: adapterService,

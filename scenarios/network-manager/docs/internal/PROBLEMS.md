@@ -20,6 +20,13 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ## Entries
 
+## Work ladder
+
+- Rung: W3
+- Evidence: AdGuard Home credential resolution now uses the canonical credential authority, the persisted/API field is `credential_ref`, the CLI flag is `--credential-ref`, and API/CLI tests pass. The idempotent `token_ref`→`credential_ref` SQLite migration is covered and has repaired the existing live database; the scenario restarts healthy. No Network Manager runtime code invokes `resource-vault`.
+- Blocker: the comprehensive run reached 13/19 phases but retains baseline UI, architecture/docs, workflow, and UI-test-policy findings unrelated to credential authority. Dependency metadata and domain-inventory evidence were repaired during this run.
+- Measured: 2026-08-06
+
 ### 2026-06-24 — AdGuard rollout affordance suite hit known embedded validator EOFs
 
 - Signal: `vrooli scenario test network-manager` completed 15/17 after the AdGuard rollout checklist slice. Embedded `phase-contracts` failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded `phase-storage` failed with `storage-manager validation RPC failed: unavailable: unexpected EOF`.

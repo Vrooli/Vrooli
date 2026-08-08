@@ -25,7 +25,7 @@ type AdGuardClientDiscoverySource struct {
 
 func NewAdGuardClientDiscoverySource(backends resolver.Repository, secrets resolver.SecretResolver) AdGuardClientDiscoverySource {
 	if secrets == nil {
-		secrets = resolver.NewVaultSecretResolver()
+		secrets = resolver.NewCredentialAuthorityResolver()
 	}
 	return AdGuardClientDiscoverySource{Backends: backends, Secrets: secrets, Timeout: 10 * time.Second}
 }
@@ -64,16 +64,16 @@ func (s AdGuardClientDiscoverySource) client(ctx context.Context) (*adGuardInven
 	if err != nil {
 		return nil, []string{"AdGuard Home resolver backend is not configured; no resolver client evidence was imported."}, err
 	}
-	if strings.TrimSpace(cfg.BaseURL) == "" || strings.TrimSpace(cfg.TokenRef) == "" {
-		return nil, []string{"AdGuard Home resolver backend is missing base_url or token_ref; no resolver client evidence was imported."}, fmt.Errorf("adguard backend incomplete")
+	if strings.TrimSpace(cfg.BaseURL) == "" || strings.TrimSpace(cfg.CredentialRef) == "" {
+		return nil, []string{"AdGuard Home resolver backend is missing base_url or credential_ref; no resolver client evidence was imported."}, fmt.Errorf("adguard backend incomplete")
 	}
 	secrets := s.Secrets
 	if secrets == nil {
-		secrets = resolver.NewVaultSecretResolver()
+		secrets = resolver.NewCredentialAuthorityResolver()
 	}
 	creds, err := secrets.ResolveAdGuardCredentials(ctx, cfg)
 	if err != nil {
-		return nil, []string{"AdGuard Home credential secret could not be resolved through resource-vault; no resolver client evidence was imported."}, err
+		return nil, []string{"AdGuard Home credential could not be resolved through the credential authority; no resolver client evidence was imported."}, err
 	}
 	timeout := s.Timeout
 	if timeout <= 0 {

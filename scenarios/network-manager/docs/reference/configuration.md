@@ -41,7 +41,7 @@ these exports when flags are omitted:
 |---|---|
 | `ADGUARD_HOME_BASE_URL` / `ADGUARD_HOME_URL` | Base URL for the resource-managed AdGuard Home instance. |
 | `ADGUARD_HOME_DNS_BIND_IP` | LAN address where the AdGuard resource publishes DNS port 53. This should be a DHCP-reserved/static server IP. |
-| `ADGUARD_HOME_CREDENTIAL_REF` | `resource-vault` KV path for the AdGuard Home admin credential. Network Manager stores this reference only and reads the `password` field at health/preview time. |
+| `ADGUARD_HOME_CREDENTIAL_REF` | Credential-authority identity for the AdGuard Home admin credential. Network Manager stores this reference only and reads the `password` field at health/preview time. |
 | `ADGUARD_HOME_USERNAME` | Optional username hint used when configuring the backend. If omitted, Network Manager tries the credential secret's `username` field, then falls back to `admin`. |
 | `NETWORK_MANAGER_PROFILE` | Deployment profile such as `home` or `small-office`. |
 
@@ -97,8 +97,8 @@ The canonical AdGuard credential shape is:
 resource-adguard-home bootstrap --base-url http://localhost:3000 --json
 ```
 
-The bootstrap command stores `username` and `password` at
-`secret/resources/adguard-home/admin` through `resource-vault content` and does
+The bootstrap command stores `username` and `password` under
+`vrooli/adguard-home` through the credential authority and does
 not print the generated password. Configure Network Manager with the reference
 only:
 
@@ -106,11 +106,11 @@ only:
 network-manager resolver configure-adguard \
   --base-url http://localhost:3000 \
   --username admin \
-  --token-ref secret/resources/adguard-home/admin \
+  --credential-ref vrooli/adguard-home \
   --json
 ```
 
-Only the `secret/resources/adguard-home/admin` reference is stored in Network
+Only the `vrooli/adguard-home` reference is stored in Network
 Manager's SQLite database. Live status should then report AdGuard resolver
 health as `healthy` when the resource is authenticated, protection is enabled,
 and query logging is disabled.

@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS resolver_backends (
     backend TEXT PRIMARY KEY,
     base_url TEXT NOT NULL,
     username TEXT NOT NULL,
-    token_ref TEXT NOT NULL,
+    credential_ref TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );

@@ -41,7 +41,7 @@ copyable router settings, and post-change validation commands.
 
 Current local state on this host: AdGuard Home is bootstrapped through
 `resource-adguard-home bootstrap`, credentials are stored at
-`secret/resources/adguard-home/admin`, resource API health is `healthy`,
+`vrooli/adguard-home`, resource API health is `healthy`,
 protection is enabled, query logging is disabled, and Network Manager resolver
 health reports `healthy` through the resource-backed client. Persistent
 global user-rule mutations and global protection pause/resume are now gated by
@@ -55,7 +55,7 @@ global DNS filtering optimization candidate now applies through the same
 AdGuard policy rollback adapter after approval.
 
 Network Manager resolves the referenced AdGuard credential through
-`resource-vault content get` when checking resolver health or previewing
+the credential authority when checking resolver health or previewing
 upstreams. Direct resolver upstream writes still return fail-closed; persistent
 policy changes go through PolicyService approval and rollback handling.
 

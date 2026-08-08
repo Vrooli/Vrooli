@@ -51,7 +51,7 @@ func (r ResolverAwareRegistry) Report(ctx context.Context) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	if cfg.BaseURL == "" || cfg.TokenRef == "" {
+	if cfg.BaseURL == "" || cfg.CredentialRef == "" {
 		return report, nil
 	}
 	for i := range report.Capabilities {

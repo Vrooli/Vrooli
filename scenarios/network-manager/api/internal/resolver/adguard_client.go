@@ -27,7 +27,7 @@ type ResourceBackedAdGuardClient struct {
 
 func NewResourceBackedAdGuardClient(secrets SecretResolver) ResourceBackedAdGuardClient {
 	if secrets == nil {
-		secrets = NewVaultSecretResolver()
+		secrets = NewCredentialAuthorityResolver()
 	}
 	return ResourceBackedAdGuardClient{Secrets: secrets, Timeout: 10 * time.Second}
 }
@@ -154,7 +154,7 @@ func (c ResourceBackedAdGuardClient) client(ctx context.Context, cfg BackendConf
 	if err != nil {
 		return nil, &clientErrorStatus{status: ClientStatus{
 			Status:   "auth_failed",
-			Warnings: []string{"AdGuard Home credential secret could not be resolved through resource-vault."},
+			Warnings: []string{"AdGuard Home credential could not be resolved through the credential authority."},
 			Checks:   []string{"Credential resolution failed before contacting AdGuard Home."},
 		}}
 	}

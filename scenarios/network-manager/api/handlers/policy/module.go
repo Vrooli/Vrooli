@@ -25,7 +25,7 @@ func Module(db domainpolicy.SQLExecutor) module.Module {
 	resolverRepo := domainresolver.NewSQLiteRepository(db)
 	service := domainpolicy.NewService(domainpolicy.Config{
 		Repo:    domainpolicy.NewSQLiteRepository(db),
-		Adapter: domainpolicy.NewAdGuardResolverPolicyAdapter(resolverRepo, domainresolver.NewVaultSecretResolver()),
+		Adapter: domainpolicy.NewAdGuardResolverPolicyAdapter(resolverRepo, domainresolver.NewCredentialAuthorityResolver()),
 	})
 	path, h := policyconnect.NewPolicyServiceHandler(&handler{service: service})
 	return module.Module{Name: "policy", Mount: func(r *mux.Router) {

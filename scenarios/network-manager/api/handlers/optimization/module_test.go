@@ -45,7 +45,7 @@ func TestModuleServiceUsesResolverAwareCapabilities(t *testing.T) {
 	_, err := domainresolver.NewSQLiteRepository(d).SaveBackend(context.Background(), domainresolver.BackendConfig{
 		Backend:  domainresolver.AdGuardHomeBackend,
 		BaseURL:  "http://adguard.local",
-		TokenRef: "secret/resources/adguard-home/admin",
+		CredentialRef: "vrooli/adguard-home",
 	})
 	require.NoError(t, err)
 	_, err = domainsnapshot.NewSQLiteRepository(d).Create(context.Background(), domainsnapshot.Snapshot{

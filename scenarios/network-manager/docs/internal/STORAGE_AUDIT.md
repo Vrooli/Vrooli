@@ -34,7 +34,7 @@
 
 ## Issues Found
 
-1. Inventory production discovery can import AdGuard Home configured and auto client evidence from `/control/clients` through the governed resolver backend and Vault-backed credential seam. It intentionally does not persist query-level DNS logs and keeps IP-only evidence low confidence.
+1. Inventory production discovery can import AdGuard Home configured and auto client evidence from `/control/clients` through the governed resolver backend and credential-authority seam. It intentionally does not persist query-level DNS logs and keeps IP-only evidence low confidence.
 2. Policy live resolver writes are supported only for global AdGuard user-defined rules and global protection pause/resume after approval and rollback-handle capture. Client/group-specific household profile enforcement remains advisory until AdGuard client identity mapping is explicitly approved for policy mutation semantics.
 3. Optimization persistent applies use the AdGuard policy rollback adapter for the supported global DNS filtering candidate and store optimization approval/rollback evidence in the optimization ledger. Non-AdGuard/router/client-specific candidates still return `manual_required` until their adapters prove safe mutation and rollback.
 4. Home Automation write actions intentionally return `approval_required` or `manual_required` until a governed Home Automation publisher and network adapter path can safely mutate resolver/router state.

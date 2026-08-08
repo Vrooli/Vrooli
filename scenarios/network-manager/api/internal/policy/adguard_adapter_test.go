@@ -112,7 +112,7 @@ func newTestAdGuardPolicyAdapter(t *testing.T, server *httptest.Server) AdGuardR
 		Backend:  resolver.AdGuardHomeBackend,
 		BaseURL:  server.URL,
 		Username: "admin",
-		TokenRef: "secret/resources/adguard-home/admin",
+		CredentialRef: "vrooli/adguard-home",
 	})
 	require.NoError(t, err)
 	return AdGuardResolverPolicyAdapter{

@@ -63,7 +63,7 @@ func (s *Service) ConfigureAdGuardHome(ctx context.Context, baseURL, username, t
 			BaseURL:           cfg.BaseURL,
 			EnforcementStatus: "unverified",
 			Warnings:          []string{"Dry run only; credentials were not stored and resolver state was not changed."},
-		}, []string{"Configuration shape is valid.", "Store the credential in the Vrooli secret system and pass only its token_ref."}, nil
+		}, []string{"Configuration shape is valid.", "Store the credential in the Vrooli credential authority and pass only its credential_ref."}, nil
 	}
 	saved, err := s.repo.SaveBackend(ctx, cfg)
 	if err != nil {
@@ -168,10 +168,10 @@ func (s *Service) statusFromClient(ctx context.Context, cfg BackendConfig) (Stat
 	return status, nil
 }
 
-func normalizeConfig(baseURL, username, tokenRef string) (BackendConfig, error) {
+func normalizeConfig(baseURL, username, credentialRef string) (BackendConfig, error) {
 	baseURL = firstNonEmpty(baseURL, os.Getenv("ADGUARD_HOME_BASE_URL"), os.Getenv("ADGUARD_HOME_URL"))
 	username = firstNonEmpty(username, os.Getenv("ADGUARD_HOME_USERNAME"))
-	tokenRef = firstNonEmpty(tokenRef, os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"))
+	credentialRef = firstNonEmpty(credentialRef, os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"))
 	if baseURL == "" {
 		return BackendConfig{}, fmt.Errorf("base_url is required")
 	}
@@ -179,10 +179,10 @@ func normalizeConfig(baseURL, username, tokenRef string) (BackendConfig, error) 
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return BackendConfig{}, fmt.Errorf("base_url must be an absolute URL")
 	}
-	if tokenRef == "" {
-		return BackendConfig{}, fmt.Errorf("token_ref is required; plaintext resolver tokens are not accepted")
+	if credentialRef == "" {
+		return BackendConfig{}, fmt.Errorf("credential_ref is required; plaintext resolver credentials are not accepted")
 	}
-	return BackendConfig{Backend: AdGuardHomeBackend, BaseURL: strings.TrimRight(baseURL, "/"), Username: username, TokenRef: tokenRef}, nil
+	return BackendConfig{Backend: AdGuardHomeBackend, BaseURL: strings.TrimRight(baseURL, "/"), Username: username, CredentialRef: credentialRef}, nil
 }
 
 func firstNonEmpty(values ...string) string {

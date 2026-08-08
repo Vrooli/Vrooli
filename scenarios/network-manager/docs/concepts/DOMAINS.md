@@ -8,7 +8,7 @@ Use this document to decide which domain owns each concept, table, proto operati
 
 ## Domain Inventory
 
-| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Refs |
+| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
 | snapshot | Produce comparable network health measurements. | Reporting / measurement | Snapshot runs and probe results. | API, CLI, UI | `NM-P0-001` | path:packages/proto/schemas/network-manager/v1/snapshot, path:api/handlers/snapshot, path:cli/domains/snapshot |
 | resolver | Manage DNS/filtering backends, AdGuard Home first. | Integration / policy | Resolver config, backend status, adapter capability reports. | API, CLI, UI | `NM-P0-002`, `NM-P1-005`, `NM-P2-001` | path:packages/proto/schemas/network-manager/v1/resolver, path:api/handlers/resolver, path:cli/domains/resolver |

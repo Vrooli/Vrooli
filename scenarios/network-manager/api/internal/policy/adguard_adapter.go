@@ -31,7 +31,7 @@ var _ ResolverPolicyAdapter = AdGuardResolverPolicyAdapter{}
 
 func NewAdGuardResolverPolicyAdapter(backends resolver.Repository, secrets resolver.SecretResolver) AdGuardResolverPolicyAdapter {
 	if secrets == nil {
-		secrets = resolver.NewVaultSecretResolver()
+		secrets = resolver.NewCredentialAuthorityResolver()
 	}
 	return AdGuardResolverPolicyAdapter{Backends: backends, Secrets: secrets, Timeout: 10 * time.Second}
 }
@@ -199,8 +199,8 @@ func (a AdGuardResolverPolicyAdapter) backend(ctx context.Context) (resolver.Bac
 	if err != nil {
 		return resolver.BackendConfig{}, err
 	}
-	if strings.TrimSpace(cfg.BaseURL) == "" || strings.TrimSpace(cfg.TokenRef) == "" {
-		return resolver.BackendConfig{}, fmt.Errorf("AdGuard Home backend is missing base_url or token_ref")
+	if strings.TrimSpace(cfg.BaseURL) == "" || strings.TrimSpace(cfg.CredentialRef) == "" {
+		return resolver.BackendConfig{}, fmt.Errorf("AdGuard Home backend is missing base_url or credential_ref")
 	}
 	return cfg, nil
 }
@@ -212,7 +212,7 @@ func (a AdGuardResolverPolicyAdapter) client(ctx context.Context) (*adGuardPolic
 	}
 	secrets := a.Secrets
 	if secrets == nil {
-		secrets = resolver.NewVaultSecretResolver()
+		secrets = resolver.NewCredentialAuthorityResolver()
 	}
 	creds, err := secrets.ResolveAdGuardCredentials(ctx, cfg)
 	if err != nil {
