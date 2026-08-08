@@ -83,5 +83,12 @@ func fleetLedgerToProto(l *selfhealth.FleetLedger) *runspb.FleetHealth {
 			Issues: int32(src.Issues),
 		})
 	}
+	for _, alert := range l.Alerts {
+		out.Alerts = append(out.Alerts, &runspb.FleetAlert{
+			Code: alert.Code, Severity: alert.Severity, Scenario: alert.Scenario,
+			Source: alert.Source, Message: alert.Message, EvidenceAgeDays: alert.EvidenceAgeDays,
+			Owner: alert.Owner, NextAction: alert.NextAction, RollbackPath: alert.RollbackPath,
+		})
+	}
 	return out
 }

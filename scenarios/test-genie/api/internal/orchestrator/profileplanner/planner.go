@@ -33,34 +33,67 @@ const (
 	StrategyBudgetSmoke        ProfileStrategy = "budget_smoke"
 )
 
+const (
+	FitModeAdditive = "additive"
+	FitModeMakespan = "makespan"
+
+	ReasonSelectedRequired         = "selected_required"
+	ReasonSelectedBudgetFit        = "selected_budget_fit"
+	ReasonSelectedUnknownCost      = "selected_unknown_cost"
+	ReasonBudgetExceededByRequired = "budget_exceeded_by_required"
+	ReasonOmittedBudget            = "omitted_budget_exceeded"
+	ReasonOmittedUnknown           = "omitted_unknown_estimate"
+	ReasonOmittedExplicitOnly      = "omitted_explicit_only"
+	ReasonOmittedNeverDefault      = "omitted_never_by_default"
+
+	historyPercentile        = 0.90
+	primaryScenarioSamples   = 5
+	maxScenarioSamplesPerKey = 20
+	maxGlobalSamplesPerKey   = 50
+)
+
 type Profile struct {
 	Name          string
 	BudgetSeconds int
 	Strategy      ProfileStrategy
+	// ConcurrencyGranted is true only when the scheduler has granted capacity
+	// for phases to overlap. Plan previews leave this false and therefore fit
+	// against additive wall-clock duration.
+	ConcurrencyGranted bool
 }
 
 type Candidate struct {
-	Name           string
-	DisplayName    string
-	TimeoutSeconds int
-	Policy         phasepolicy.Policy
-	Order          int
+	Name             string
+	DisplayName      string
+	TimeoutSeconds   int
+	Policy           phasepolicy.Policy
+	Order            int
+	ConcurrencyMode  string
+	ConcurrencyGroup string
 }
 
 type Sample struct {
-	ScenarioName    string
-	PhaseName       string
-	Status          string
+	ScenarioName string
+	PhaseName    string
+	Status       string
+	// DurationMilliseconds is the planner's explicit input unit. The execution
+	// repository performs the single storage-to-planner conversion.
+	DurationMilliseconds int64
+	// DurationSeconds supports fixture callers and legacy run projections. When
+	// both fields are present, milliseconds are authoritative.
 	DurationSeconds int
 	CompletedAt     time.Time
 }
 
 type Estimate struct {
-	DurationSeconds int
-	Source          EstimateSource
-	Confidence      EstimateConfidence
-	SampleSize      int
-	Unknown         bool
+	DurationSeconds     int
+	Source              EstimateSource
+	Confidence          EstimateConfidence
+	SampleSize          int
+	Unknown             bool
+	PointSampleCount    int
+	CensoredSampleCount int
+	ExcludedSampleCount int
 }
 
 type Decision struct {
@@ -71,78 +104,94 @@ type Decision struct {
 }
 
 type Plan struct {
-	Profile                  Profile
-	Selected                 []Decision
-	Omitted                  []Decision
-	EstimatedTotalSeconds    int
-	UnknownEstimateCount     int
-	SelectedUnknownEstimates int
+	Profile                       Profile
+	Selected                      []Decision
+	Omitted                       []Decision
+	EstimatedTotalSeconds         int
+	UnknownEstimateCount          int
+	SelectedUnknownEstimates      int
+	RequiredEstimatedTotalSeconds int
+	BudgetOverflowSeconds         int
+	BudgetExceededByRequired      bool
+	FitMode                       string
 }
 
-const (
-	// P90 avoids steering agents toward optimistic waits. The durable wait
-	// ceiling remains independent from this advisory estimate.
-	historyPercentile         = 0.90
-	primaryScenarioSamples    = 5
-	maxScenarioSamplesPerKey  = 20
-	maxGlobalSamplesPerKey    = 50
-	ReasonSelectedRequired    = "selected_required"
-	ReasonSelectedBudgetFit   = "selected_budget_fit"
-	ReasonOmittedBudget       = "omitted_budget_exceeded"
-	ReasonOmittedUnknown      = "omitted_unknown_estimate"
-	ReasonOmittedExplicitOnly = "omitted_explicit_only"
-	ReasonOmittedNeverDefault = "omitted_never_by_default"
-)
+type sampleBucket struct {
+	pointDurations []int
+	censoredCount  int
+	excludedCount  int
+}
+
+func (b sampleBucket) totalCount() int {
+	return len(b.pointDurations) + b.censoredCount + b.excludedCount
+}
 
 type Estimator struct {
 	scenarioName    string
-	scenarioBuckets map[string][]int
-	globalBuckets   map[string][]int
+	scenarioBuckets map[string]sampleBucket
+	globalBuckets   map[string]sampleBucket
 }
 
 // RunSample is a terminal full-run duration. It stays separate from phase
-// history because startup and serial orchestration costs cannot be recovered by
-// summing independent per-phase observations.
+// history because startup/orchestration costs cannot be recovered by summing
+// independent phase observations.
 type RunSample struct {
-	DurationSeconds int
-	TerminalOutcome string
-	CompletedAt     time.Time
+	DurationSeconds      int
+	DurationMilliseconds int64
+	TerminalOutcome      string
+	CompletedAt          time.Time
 }
 
 func NewEstimator(scenarioName string, samples []Sample) Estimator {
-	scenarioBuckets := make(map[string][]int)
-	globalBuckets := make(map[string][]int)
+	scenarioBuckets := make(map[string]sampleBucket)
+	globalBuckets := make(map[string]sampleBucket)
 	for _, sample := range samples {
 		key := normalize(sample.PhaseName)
 		if key == "" {
 			continue
 		}
-		duration := ageAdjustedDuration(sample.DurationSeconds, sample.CompletedAt)
-		if duration == 0 || !sampleCounts(sample) {
+		class := classifySample(sample)
+		isScenario := strings.EqualFold(strings.TrimSpace(sample.ScenarioName), strings.TrimSpace(scenarioName))
+		if isScenario {
+			bucket := scenarioBuckets[key]
+			if bucket.totalCount() < maxScenarioSamplesPerKey {
+				addSample(&bucket, sample, class)
+				scenarioBuckets[key] = bucket
+			}
 			continue
 		}
-		if strings.EqualFold(sample.ScenarioName, scenarioName) && len(scenarioBuckets[key]) < maxScenarioSamplesPerKey {
-			scenarioBuckets[key] = append(scenarioBuckets[key], duration)
-			continue
-		}
-		if len(globalBuckets[key]) < maxGlobalSamplesPerKey {
-			globalBuckets[key] = append(globalBuckets[key], duration)
+		bucket := globalBuckets[key]
+		if bucket.totalCount() < maxGlobalSamplesPerKey {
+			addSample(&bucket, sample, class)
+			globalBuckets[key] = bucket
 		}
 	}
-	return Estimator{
-		scenarioName:    scenarioName,
-		scenarioBuckets: scenarioBuckets,
-		globalBuckets:   globalBuckets,
+	return Estimator{scenarioName: scenarioName, scenarioBuckets: scenarioBuckets, globalBuckets: globalBuckets}
+}
+
+func addSample(bucket *sampleBucket, sample Sample, class sampleClass) {
+	duration := sampleDurationSeconds(sample)
+	switch class {
+	case samplePoint:
+		bucket.pointDurations = append(bucket.pointDurations, duration)
+	case sampleCensored:
+		bucket.censoredCount++
+	default:
+		bucket.excludedCount++
 	}
 }
 
 // EstimateComparableRun returns a conservative P90 from exact full-run
-// history. Failed and timed-out runs remain elapsed/censored slow evidence;
-// only zero-duration records are unusable.
+// history. Failed and timed-out runs remain elapsed evidence at run level;
+// phase-level censoring is handled separately by NewEstimator.
 func EstimateComparableRun(samples []RunSample) Estimate {
 	durations := make([]int, 0, len(samples))
 	for _, sample := range samples {
-		if duration := ageAdjustedDuration(sample.DurationSeconds, sample.CompletedAt); duration > 0 {
+		duration := sample.DurationSeconds
+		if sample.DurationMilliseconds > 0 {
+			duration = maxInt(0, int(math.Ceil(float64(sample.DurationMilliseconds)/1000)))
+		}
+		if duration > 0 {
 			durations = append(durations, duration)
 		}
 	}
@@ -150,10 +199,11 @@ func EstimateComparableRun(samples []RunSample) Estimate {
 		return Estimate{Source: EstimateSourceUnknown, Confidence: EstimateConfidenceLow, Unknown: true}
 	}
 	return Estimate{
-		DurationSeconds: percentileSeconds(durations, historyPercentile),
-		Source:          EstimateSourceScenarioHistory,
-		Confidence:      confidenceFor(EstimateSourceScenarioHistory, len(durations), 0),
-		SampleSize:      len(durations),
+		DurationSeconds:  percentileSeconds(durations, historyPercentile),
+		Source:           EstimateSourceScenarioHistory,
+		Confidence:       confidenceFor(EstimateSourceScenarioHistory, len(durations), 0, 0),
+		SampleSize:       len(durations),
+		PointSampleCount: len(durations),
 	}
 }
 
@@ -163,98 +213,180 @@ func (e Estimator) Estimate(phaseName string, timeoutSeconds int) Estimate {
 }
 
 func PlanProfile(profile Profile, candidates []Candidate, estimator Estimator) Plan {
-	ordered := append([]Candidate(nil), candidates...)
-	sort.SliceStable(ordered, func(i, j int) bool {
-		return candidateRank(ordered[i]) < candidateRank(ordered[j])
-	})
+	plan := Plan{Profile: profile, FitMode: FitModeAdditive}
+	if profile.ConcurrencyGranted {
+		plan.FitMode = FitModeMakespan
+	}
 
-	plan := Plan{Profile: profile}
+	ordered := append([]Candidate(nil), candidates...)
+	sort.SliceStable(ordered, func(i, j int) bool { return candidateRank(ordered[i]) < candidateRank(ordered[j]) })
+	decisions := make([]Decision, 0, len(ordered))
 	for _, candidate := range ordered {
 		estimate := estimator.Estimate(candidate.Name, candidate.TimeoutSeconds)
 		if estimate.Unknown {
 			plan.UnknownEstimateCount++
 		}
-
 		decision := Decision{Candidate: candidate, Estimate: estimate}
 		if omitReason := defaultOmitReason(candidate.Policy); omitReason != "" {
 			decision.Reasons = []string{omitReason}
+		}
+		decisions = append(decisions, decision)
+	}
+
+	// Required phases retain policy/rank order. Optional phases are a
+	// cost-ascending greedy fill, using the prior rank only as a tie-breaker.
+	sort.SliceStable(decisions, func(i, j int) bool {
+		ri := isRequired(decisions[i].Candidate.Policy)
+		rj := isRequired(decisions[j].Candidate.Policy)
+		if ri != rj {
+			return ri
+		}
+		if ri {
+			return candidateRank(decisions[i].Candidate) < candidateRank(decisions[j].Candidate)
+		}
+		if decisions[i].Estimate.DurationSeconds != decisions[j].Estimate.DurationSeconds {
+			return decisions[i].Estimate.DurationSeconds < decisions[j].Estimate.DurationSeconds
+		}
+		return candidateRank(decisions[i].Candidate) < candidateRank(decisions[j].Candidate)
+	})
+
+	for _, decision := range decisions {
+		if len(decision.Reasons) > 0 {
 			plan.Omitted = append(plan.Omitted, decision)
 			continue
 		}
-		if estimate.Unknown && !isRequired(candidate.Policy) {
-			decision.Reasons = []string{ReasonOmittedUnknown}
-			plan.Omitted = append(plan.Omitted, decision)
+		if isRequired(decision.Candidate.Policy) {
+			decision.Selected = true
+			decision.Reasons = []string{ReasonSelectedRequired}
+			plan.Selected = append(plan.Selected, decision)
+			plan.RequiredEstimatedTotalSeconds += decision.Estimate.DurationSeconds
+			if decision.Estimate.Unknown {
+				plan.SelectedUnknownEstimates++
+			}
+			continue
+		}
+		if decision.Estimate.Unknown {
+			// A missing history sample earns one bounded observation. This is
+			// deliberately selected even when its cost is not yet known.
+			decision.Selected = true
+			decision.Reasons = []string{ReasonSelectedUnknownCost}
+			plan.Selected = append(plan.Selected, decision)
+			plan.SelectedUnknownEstimates++
 			continue
 		}
 
-		required := isRequired(candidate.Policy)
-		nextTotal := plan.EstimatedTotalSeconds + estimate.DurationSeconds
-		if !required && profile.BudgetSeconds > 0 && nextTotal > profile.BudgetSeconds {
+		candidateTotal := estimatedPlanTotal(profile, append(append([]Decision(nil), plan.Selected...), decision))
+		if profile.BudgetSeconds > 0 && candidateTotal > profile.BudgetSeconds {
+			// A required overflow cannot be repaired by silently dropping cheap
+			// optional coverage. Keep an optional phase that fits the nominal
+			// budget on its own and expose the overflow condition on the plan.
+			if plan.RequiredEstimatedTotalSeconds > profile.BudgetSeconds && decision.Estimate.DurationSeconds <= profile.BudgetSeconds {
+				decision.Selected = true
+				decision.Reasons = []string{ReasonSelectedBudgetFit, ReasonBudgetExceededByRequired}
+				plan.Selected = append(plan.Selected, decision)
+				continue
+			}
 			decision.Reasons = []string{ReasonOmittedBudget}
 			plan.Omitted = append(plan.Omitted, decision)
 			continue
 		}
-
 		decision.Selected = true
-		if required {
-			decision.Reasons = []string{ReasonSelectedRequired}
-		} else {
-			decision.Reasons = []string{ReasonSelectedBudgetFit}
-		}
+		decision.Reasons = []string{ReasonSelectedBudgetFit}
 		plan.Selected = append(plan.Selected, decision)
-		plan.EstimatedTotalSeconds = nextTotal
-		if estimate.Unknown {
-			plan.SelectedUnknownEstimates++
-		}
+	}
+
+	plan.EstimatedTotalSeconds = estimatedPlanTotal(profile, plan.Selected)
+	if profile.BudgetSeconds > 0 && plan.RequiredEstimatedTotalSeconds > profile.BudgetSeconds {
+		plan.BudgetExceededByRequired = true
+		plan.BudgetOverflowSeconds = plan.RequiredEstimatedTotalSeconds - profile.BudgetSeconds
 	}
 	return plan
 }
 
-func estimatePhase(timeoutSeconds int, scenarioDurations, globalDurations []int) Estimate {
-	scenarioCount := len(scenarioDurations)
-	globalCount := len(globalDurations)
-	switch {
-	case scenarioCount >= primaryScenarioSamples:
-		return Estimate{
-			DurationSeconds: percentileSeconds(scenarioDurations, historyPercentile),
-			Source:          EstimateSourceScenarioHistory,
-			Confidence:      confidenceFor(EstimateSourceScenarioHistory, scenarioCount, globalCount),
-			SampleSize:      scenarioCount,
+func estimatedPlanTotal(profile Profile, decisions []Decision) int {
+	if !profile.ConcurrencyGranted {
+		total := 0
+		for _, decision := range decisions {
+			total += decision.Estimate.DurationSeconds
 		}
-	case scenarioCount > 0 && globalCount > 0:
-		globalWeight := minInt(globalCount, primaryScenarioSamples)
-		blended := weightedBlend(
-			percentileSeconds(scenarioDurations, historyPercentile), scenarioCount,
-			percentileSeconds(globalDurations, historyPercentile), globalWeight,
-		)
-		return Estimate{
-			DurationSeconds: blended,
-			Source:          EstimateSourceBlendedHistory,
-			Confidence:      confidenceFor(EstimateSourceBlendedHistory, scenarioCount, globalCount),
-			SampleSize:      scenarioCount + globalWeight,
+		return total
+	}
+	// Selection is cost-ordered, but the executor schedules in catalog order.
+	// Reconstruct that order before applying the scheduler's contiguous-batch
+	// makespan model.
+	scheduled := append([]Decision(nil), decisions...)
+	sort.SliceStable(scheduled, func(i, j int) bool {
+		return scheduled[i].Candidate.Order < scheduled[j].Candidate.Order
+	})
+	// The scheduler groups contiguous parallel-safe/provider-serial phases and
+	// runs exclusive phases as singleton chains. This is the same conservative
+	// grouping contract used by the executor; no capacity is opened here.
+	total := 0
+	batch := 0
+	providers := map[string]struct{}{}
+	flush := func() { total += batch; batch = 0; providers = map[string]struct{}{} }
+	for _, decision := range scheduled {
+		mode := strings.ToLower(strings.TrimSpace(decision.Candidate.ConcurrencyMode))
+		if mode != "parallel-safe" && mode != "provider-serial" {
+			flush()
+			total += decision.Estimate.DurationSeconds
+			continue
 		}
-	case scenarioCount > 0:
-		return Estimate{
-			DurationSeconds: percentileSeconds(scenarioDurations, historyPercentile),
-			Source:          EstimateSourceScenarioHistory,
-			Confidence:      confidenceFor(EstimateSourceScenarioHistory, scenarioCount, globalCount),
-			SampleSize:      scenarioCount,
+		if mode == "provider-serial" {
+			group := decision.Candidate.ConcurrencyGroup
+			if group == "" {
+				group = decision.Candidate.Name
+			}
+			if _, exists := providers[group]; exists {
+				flush()
+			}
+			providers[group] = struct{}{}
 		}
-	case globalCount > 0:
-		return Estimate{
-			DurationSeconds: percentileSeconds(globalDurations, historyPercentile),
-			Source:          EstimateSourceGlobalHistory,
-			Confidence:      confidenceFor(EstimateSourceGlobalHistory, scenarioCount, globalCount),
-			SampleSize:      globalCount,
-		}
-	default:
-		return Estimate{
-			DurationSeconds: clampNonNegative(timeoutSeconds),
-			Source:          EstimateSourceUnknown,
-			Confidence:      EstimateConfidenceLow,
-			Unknown:         true,
+		if decision.Estimate.DurationSeconds > batch {
+			batch = decision.Estimate.DurationSeconds
 		}
 	}
+	flush()
+	return total
+}
+
+func estimatePhase(timeoutSeconds int, scenario, global sampleBucket) Estimate {
+	scenarioCount := len(scenario.pointDurations)
+	globalCount := len(global.pointDurations)
+	censored := scenario.censoredCount + global.censoredCount
+	excluded := scenario.excludedCount + global.excludedCount
+	base := Estimate{CensoredSampleCount: censored, ExcludedSampleCount: excluded}
+	switch {
+	case scenarioCount >= primaryScenarioSamples:
+		base.DurationSeconds = percentileSeconds(scenario.pointDurations, historyPercentile)
+		base.Source, base.SampleSize = EstimateSourceScenarioHistory, scenarioCount
+		return finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount)
+	case scenarioCount > 0 && globalCount > 0:
+		globalWeight := minInt(globalCount, primaryScenarioSamples)
+		base.DurationSeconds = weightedBlend(percentileSeconds(scenario.pointDurations, historyPercentile), scenarioCount, percentileSeconds(global.pointDurations, historyPercentile), globalWeight)
+		base.Source, base.SampleSize = EstimateSourceBlendedHistory, scenarioCount+globalWeight
+		return finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount)
+	case scenarioCount > 0:
+		base.DurationSeconds = percentileSeconds(scenario.pointDurations, historyPercentile)
+		base.Source, base.SampleSize = EstimateSourceScenarioHistory, scenarioCount
+		return finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount)
+	case globalCount > 0:
+		base.DurationSeconds = percentileSeconds(global.pointDurations, historyPercentile)
+		base.Source, base.SampleSize = EstimateSourceGlobalHistory, globalCount
+		return finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount)
+	default:
+		base.DurationSeconds = clampNonNegative(timeoutSeconds)
+		base.Source, base.Confidence, base.Unknown = EstimateSourceUnknown, EstimateConfidenceLow, true
+		return base
+	}
+}
+
+func finishEstimate(estimate Estimate, point, censored, excluded int, source EstimateSource, global int) Estimate {
+	estimate.PointSampleCount = point
+	estimate.CensoredSampleCount = censored
+	estimate.ExcludedSampleCount = excluded
+	estimate.Confidence = confidenceFor(source, point, global, censored)
+	return estimate
 }
 
 func defaultOmitReason(policy phasepolicy.Policy) string {
@@ -276,8 +408,7 @@ func candidateRank(candidate Candidate) int {
 	if candidate.Policy.ProviderReadiness == phasepolicy.ProviderReadinessRequiredWhenApplicable {
 		rank += 100
 	}
-	if candidate.Policy.ProviderLifecycle == phasepolicy.ProviderLifecycleStartIfNeeded ||
-		candidate.Policy.ProviderLifecycle == phasepolicy.ProviderLifecycleRestartBeforeProbe {
+	if candidate.Policy.ProviderLifecycle == phasepolicy.ProviderLifecycleStartIfNeeded || candidate.Policy.ProviderLifecycle == phasepolicy.ProviderLifecycleRestartBeforeProbe {
 		rank += 100
 	}
 	if candidate.Order > 0 {
@@ -290,63 +421,72 @@ func isRequired(policy phasepolicy.Policy) bool {
 	if policy.IsZero() {
 		return true
 	}
-	return policy.ResultGating == phasepolicy.ResultGatingGating &&
-		policy.Unavailable == phasepolicy.UnavailableFail &&
-		policy.Selection == phasepolicy.SelectionDefaultWhenApplicable
+	return policy.ResultGating == phasepolicy.ResultGatingGating && policy.Unavailable == phasepolicy.UnavailableFail && policy.Selection == phasepolicy.SelectionDefaultWhenApplicable
 }
 
-func sampleCounts(sample Sample) bool {
+type sampleClass int
+
+const (
+	samplePoint sampleClass = iota
+	sampleCensored
+	sampleExcluded
+)
+
+func classifySample(sample Sample) sampleClass {
+	if sampleDurationSeconds(sample) <= 0 {
+		return sampleExcluded
+	}
 	switch normalize(sample.Status) {
-	case phasepolicy.StatusPassed, "success", "succeeded", "failed", "failure", "timeout", "timed_out", "errored", "aborted":
-		return true
+	case phasepolicy.StatusPassed, "success", "succeeded", "failed", "failure", "errored":
+		return samplePoint
+	case "timeout", "timed_out", "aborted":
+		return sampleCensored
 	default:
-		return false
+		return sampleExcluded
 	}
 }
 
-// ageAdjustedDuration retains sparse old history but raises its contribution by
-// up to 25% over the 30–90 day window. This prevents stale fast samples from
-// dominating estimates without silently discarding all historical evidence.
-func ageAdjustedDuration(seconds int, completedAt time.Time) int {
-	duration := clampNonNegative(seconds)
-	if duration == 0 || completedAt.IsZero() {
-		return duration
+func sampleDurationSeconds(sample Sample) int {
+	if sample.DurationMilliseconds > 0 {
+		return maxInt(0, int(math.Ceil(float64(sample.DurationMilliseconds)/1000)))
 	}
-	age := time.Since(completedAt)
-	if age <= 30*24*time.Hour {
-		return duration
-	}
-	if age > 90*24*time.Hour {
-		age = 90 * 24 * time.Hour
-	}
-	penalty := 1 + 0.25*float64(age-30*24*time.Hour)/float64(60*24*time.Hour)
-	return int(math.Ceil(float64(duration) * penalty))
+	return clampNonNegative(sample.DurationSeconds)
 }
 
-func confidenceFor(source EstimateSource, scenarioCount, globalCount int) EstimateConfidence {
+func confidenceFor(source EstimateSource, scenarioCount, globalCount, censored int) EstimateConfidence {
+	var confidence EstimateConfidence
 	switch source {
 	case EstimateSourceScenarioHistory:
 		switch {
 		case scenarioCount >= 10:
-			return EstimateConfidenceHigh
+			confidence = EstimateConfidenceHigh
 		case scenarioCount >= 3:
-			return EstimateConfidenceMedium
+			confidence = EstimateConfidenceMedium
 		default:
-			return EstimateConfidenceLow
+			confidence = EstimateConfidenceLow
 		}
 	case EstimateSourceBlendedHistory:
 		if scenarioCount >= 2 && globalCount >= 5 {
-			return EstimateConfidenceMedium
+			confidence = EstimateConfidenceMedium
+		} else {
+			confidence = EstimateConfidenceLow
 		}
-		return EstimateConfidenceLow
 	case EstimateSourceGlobalHistory:
 		if globalCount >= 12 {
+			confidence = EstimateConfidenceMedium
+		} else {
+			confidence = EstimateConfidenceLow
+		}
+	default:
+		confidence = EstimateConfidenceLow
+	}
+	if censored > 0 {
+		if confidence == EstimateConfidenceHigh {
 			return EstimateConfidenceMedium
 		}
 		return EstimateConfidenceLow
-	default:
-		return EstimateConfidenceLow
 	}
+	return confidence
 }
 
 func percentileSeconds(values []int, percentile float64) int {
@@ -382,17 +522,19 @@ func weightedBlend(left, leftWeight, right, rightWeight int) int {
 	return int(math.Round(float64(left*leftWeight+right*rightWeight) / float64(totalWeight)))
 }
 
-func normalize(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
-}
-
+func normalize(value string) string { return strings.ToLower(strings.TrimSpace(value)) }
 func clampNonNegative(value int) int {
 	if value < 0 {
 		return 0
 	}
 	return value
 }
-
+func maxInt(left, right int) int {
+	if left > right {
+		return left
+	}
+	return right
+}
 func minInt(left, right int) int {
 	if left < right {
 		return left

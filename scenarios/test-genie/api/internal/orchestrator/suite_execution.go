@@ -9,16 +9,15 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
-	"test-genie/internal/basprobe"
 	"test-genie/internal/captureprofile"
 	"test-genie/internal/executionevidence"
 	"test-genie/internal/orchestrator/phasepolicy"
@@ -34,10 +33,10 @@ import (
 	"test-genie/internal/shared"
 
 	"github.com/google/uuid"
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 
 	workspacepkg "test-genie/internal/orchestrator/workspace"
 
-	playbooksconfig "test-genie/internal/orchestrator/testconfig/config"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 
@@ -128,6 +127,20 @@ type SuiteOrchestrator struct {
 	newRuntime    func(name, scenarioDir string) *targetruntime.Manager
 	readiness     *providerreadiness.Manager
 	claims        *playbooksclaims.Service
+	capacity      PhaseCapacityBroker
+	costEstimator PhaseCostEstimator
+}
+
+// PhaseCapacityBroker is the narrow admission seam used by the scheduler.
+// Implementations own the shared host ledger; the orchestrator only decides
+// whether a measured phase may join a concurrent batch.
+type PhaseCapacityBroker interface {
+	Acquire(context.Context, string, int64, int64) (sharedcapacity.Lease, sharedcapacity.Verdict, error)
+}
+
+// PhaseCostEstimator supplies reliable historical sizing for admission.
+type PhaseCostEstimator interface {
+	PhaseCostEstimate(context.Context, string, string) (ramBytes, cpuMilli int64, reliable bool)
 }
 
 // SetClaims wires the playbooks-claims service used by the playbooks phase
@@ -137,6 +150,20 @@ func (o *SuiteOrchestrator) SetClaims(svc *playbooksclaims.Service) {
 		return
 	}
 	o.claims = svc
+}
+
+// SetCapacityBroker wires shared host-capacity admission into the scheduler.
+func (o *SuiteOrchestrator) SetCapacityBroker(broker PhaseCapacityBroker) {
+	if o != nil {
+		o.capacity = broker
+	}
+}
+
+// SetPhaseCostEstimator wires persisted cost history into scheduler sizing.
+func (o *SuiteOrchestrator) SetPhaseCostEstimator(estimator PhaseCostEstimator) {
+	if o != nil {
+		o.costEstimator = estimator
+	}
 }
 
 // SuiteExecutionRequest configures a single test execution run.
@@ -157,8 +184,8 @@ type SuiteExecutionRequest struct {
 	// index upsert idempotent under the pre-minted id.
 	RunID string `json:"runId,omitempty"`
 
-	// DiagnosticsPreset ("none"|"light"|"full"), when set, overrides the
-	// playbooks diagnostics config for this run (richer BAS artifact capture).
+	// DiagnosticsPreset ("none"|"light"|"full"), when set, records the
+	// requested diagnostic depth for provider-owned evidence capture.
 	DiagnosticsPreset string `json:"diagnosticsPreset,omitempty"`
 
 	// CaptureProfile is the capture-depth dial (orthogonal to the phase set).
@@ -186,7 +213,11 @@ type SuiteExecutionRequest struct {
 	AdmissionPhaseSetDigest      string `json:"admissionPhaseSetDigest,omitempty"`
 	AdmissionDescriptorDigest    string `json:"admissionDescriptorDigest,omitempty"`
 	AdmissionConfigurationDigest string `json:"admissionConfigurationDigest,omitempty"`
-	RequireGateQuality           bool   `json:"requireGateQuality,omitempty"`
+	// AdmissionResources is populated from selected phase descriptors so the
+	// durable run manager can serialize suites sharing a singleton service.
+	AdmissionResources                  []string         `json:"admissionResources,omitempty"`
+	RequireGateQuality                  bool             `json:"requireGateQuality,omitempty"`
+	PredictedPhaseDurationsMilliseconds map[string]int64 `json:"predictedPhaseDurationsMilliseconds,omitempty"`
 }
 
 // SuiteExecutionResult captures the outcome of a run.
@@ -314,9 +345,10 @@ type ExecutionEvent struct {
 	PhaseTotal int    `json:"phaseTotal,omitempty"`
 
 	// For phase_end events
-	Status          string `json:"status,omitempty"`
-	DurationSeconds int    `json:"durationSeconds,omitempty"`
-	Error           string `json:"error,omitempty"`
+	Status               string `json:"status,omitempty"`
+	DurationSeconds      int    `json:"durationSeconds,omitempty"`
+	DurationMilliseconds int64  `json:"durationMilliseconds,omitempty"`
+	Error                string `json:"error,omitempty"`
 	// PhasePresentation and FindingsSummary carry the provider-computed per-phase
 	// standing (Phase Capability Contract) on phase_end events, so a follower
 	// derives the standing from the same payload the terminal result carries. nil
@@ -495,16 +527,18 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 		}
 	}()
 
-	phaseResults, anyFailure := o.runSelectedPhasesWithEvents(
+	phaseResults, anyFailure := o.runSelectedPhasesWithRunID(
 		ctx,
 		env,
 		runCtx,
+		prepared.result.RunID,
 		prepared.runLogDir,
 		prepared.plan.Selected,
 		readiness.Blocked,
 		req.FailFast,
 		emit,
 		buildPhaseWarningMap(prepared.plan),
+		req.PredictedPhaseDurationsMilliseconds,
 	)
 
 	return o.finalizeExecution(ctx, req, prepared, phaseResults, anyFailure, emit), nil
@@ -536,7 +570,7 @@ func (o *SuiteOrchestrator) prepareTargetRuntime(
 		// Non-scenario targets are source trees, not deployable services. Their
 		// phases can inspect and validate files, but Test Genie must never try to
 		// start a scenario named after a package/resource/tool.
-		rc := resolveRunContext(env, targetruntime.URLs{}, resolveResources(ctx, defs))
+		rc := resolveRunContext(env, targetruntime.URLs{}, nil)
 		env.TargetRuntime = targetruntime.NewNoOp(fmt.Sprintf("target kind %q is source-only; lifecycle operations are not applicable", env.TargetKind))
 		return env, rc, targetruntime.Lease{}, nil, nil
 	}
@@ -562,42 +596,11 @@ func (o *SuiteOrchestrator) prepareTargetRuntime(
 		return env, runnability.RunContext{}, targetruntime.Lease{}, manager, err
 	}
 
-	// The run context is computed from the surfaces that ended up live (whether
-	// reused from a self-target or started for another target). The per-phase
-	// runnability gate reads it to decide RUN / RUN_DEGRADED / SKIP. The
-	// resource map is probed from the selected phases' declared requirements so
-	// BAS-dependent phases skip/degrade when BAS is unreachable rather than
-	// failing hard.
-	rc := resolveRunContext(env, targetruntime.URLs{}, resolveResources(ctx, defs))
+	// The run context is computed from the surfaces that ended up live. Provider
+	// phases own their dependency/readiness checks and return a provider verdict;
+	// Test Genie does not probe provider-specific scenarios on their behalf.
+	rc := resolveRunContext(env, targetruntime.URLs{}, nil)
 	return env, rc, lease, manager, nil
-}
-
-// resolveResources probes availability for the local resources the selected
-// phases declare as required, returning the name→available map the runnability
-// gate consumes. Each resource is probed at most once and only when some
-// selected phase needs it (so runs without that phase pay nothing).
-func resolveResources(ctx context.Context, defs []phases.Definition) map[string]bool {
-	required := make(map[string]struct{})
-	for _, def := range defs {
-		for _, r := range def.Capabilities.RequiredResources {
-			required[r] = struct{}{}
-		}
-	}
-	if len(required) == 0 {
-		return nil
-	}
-	resources := make(map[string]bool, len(required))
-	for name := range required {
-		switch name {
-		case runnability.ResourceBAS:
-			resources[name] = basprobe.ProbeBAS(ctx)
-		default:
-			// Unknown resource: leave unset (treated as unavailable) so a
-			// phase that requires it skips with a clear reason rather than
-			// silently passing the gate.
-		}
-	}
-	return resources
 }
 
 // bringUpTargetSurfaces resolves the target's UI/API URLs into env, honoring the
@@ -674,21 +677,23 @@ func resolveDiagnosticsPreset(req SuiteExecutionRequest) string {
 	return profile.DiagnosticsPreset()
 }
 
-// resolveRunDiagnostics maps the per-run diagnostics preset to the index's
-// serialized diagnostics shape. An empty/unknown preset records the cheap
-// default (console only), matching the playbooks config default.
+// resolveRunDiagnostics maps the per-run diagnostics preset to the generic
+// serialized diagnostics shape. Providers decide which of these capabilities
+// they can actually collect; Test Genie only records the requested contract.
 func resolveRunDiagnostics(preset string) sharedruns.DiagnosticsConfig {
-	d, ok := playbooksconfig.DiagnosticsPreset(strings.TrimSpace(preset))
-	if !ok {
-		d = playbooksconfig.DiagnosticsConfig{Console: true}
-	}
-	return sharedruns.DiagnosticsConfig{
-		Video:   d.Video,
-		Console: d.Console,
-		Network: d.Network,
-		HAR:     d.HAR,
-		Trace:   d.Trace,
-		DOM:     d.DOM,
+	switch strings.TrimSpace(strings.ToLower(preset)) {
+	case "none":
+		return sharedruns.DiagnosticsConfig{}
+	case "full":
+		return sharedruns.DiagnosticsConfig{
+			Video: true, Console: true, Network: true, HAR: true, Trace: true, DOM: true,
+		}
+	case "light", "":
+		return sharedruns.DiagnosticsConfig{Console: true}
+	default:
+		// Unknown presets fail soft to the cheapest useful evidence shape. The
+		// provider remains the authority for accepted preset names.
+		return sharedruns.DiagnosticsConfig{Console: true}
 	}
 }
 
@@ -1054,6 +1059,8 @@ func phaseArtifactPath(runID, phaseName string) string {
 	return sharedartifacts.RelativePhaseResultsPath(runID, name+".json")
 }
 
+// runSelectedPhasesWithEvents preserves the focused unit-test seam used by
+// callers that do not have a durable run id yet.
 func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 	ctx context.Context,
 	env workspacepkg.Environment,
@@ -1064,60 +1071,203 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 	failFast bool,
 	emit ExecutionEventCallback,
 	warnings map[string][]phases.Observation,
+	predicted ...map[string]int64,
+) ([]PhaseExecutionResult, bool) {
+	var predictions map[string]int64
+	if len(predicted) > 0 {
+		predictions = predicted[0]
+	}
+	return o.runSelectedPhasesWithRunID(ctx, env, runCtx, env.ScenarioName, runLogDir, defs, readiness, failFast, emit, warnings, predictions)
+}
+
+func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
+	ctx context.Context,
+	env workspacepkg.Environment,
+	runCtx runnability.RunContext,
+	runID string,
+	runLogDir string,
+	defs []phases.Definition,
+	readiness map[string]providerreadiness.Outcome,
+	failFast bool,
+	emit ExecutionEventCallback,
+	warnings map[string][]phases.Observation,
+	predicted map[string]int64,
 ) ([]PhaseExecutionResult, bool) {
 	if len(defs) == 0 {
 		return nil, false
 	}
+	if emit != nil {
+		underlyingEmit := emit
+		var emitMu sync.Mutex
+		emit = func(event ExecutionEvent) {
+			emitMu.Lock()
+			defer emitMu.Unlock()
+			underlyingEmit(event)
+		}
+	}
 	results := make([]PhaseExecutionResult, 0, len(defs))
 	anyFailure := false
 	total := len(defs)
-
-	for idx, phase := range defs {
-		// Emit phase start event
-		if emit != nil {
-			emit(ExecutionEvent{
-				Type:       EventPhaseStart,
-				Timestamp:  time.Now(),
-				Phase:      phase.Name.String(),
-				PhaseIndex: idx + 1,
-				PhaseTotal: total,
-			})
+	forceSerial := phaseSchedulerForcedSerial()
+	for start := 0; start < len(defs); {
+		parallelUnavailable := o.capacity == nil || o.costEstimator == nil
+		end := nextPhaseBatch(defs, start, forceSerial || parallelUnavailable)
+		batch := defs[start:end]
+		leases, admissionReason, admitted := o.admitPhaseBatch(ctx, env.ScenarioName, runID, batch)
+		if len(batch) > 1 && !admitted {
+			// An unknown estimate or a broker queue/deny is deliberately a serial
+			// fallback. Retry the remaining phases on later iterations so one
+			// unavailable phase cannot suppress unrelated safe work forever.
+			end = start + 1
+			batch = defs[start:end]
+			leases = nil
+		}
+		for offset, phase := range batch {
+			if emit != nil {
+				emit(ExecutionEvent{Type: EventPhaseStart, Timestamp: time.Now(), Phase: phase.Name.String(), PhaseIndex: start + offset + 1, PhaseTotal: total})
+			}
 		}
 
-		var phaseResult PhaseExecutionResult
-		if outcome, blocked := readiness[phase.Name.Key()]; blocked {
-			phaseResult = o.newProviderReadinessPhaseResult(phase, runLogDir, outcome)
-		} else if verdict := resolvePhaseVerdict(phase, runCtx); verdict.IsSkip() {
-			phaseResult = o.newSkippedPhaseResult(phase, runLogDir, verdict)
-		} else {
-			phaseResult = o.runPhaseWithEvents(ctx, env, runLogDir, phase, emit, mergeRunnabilityObservations(verdict, warnings[phase.Name.Key()]))
-			annotatePhaseRunnability(&phaseResult, verdict)
+		type phaseOutcome struct {
+			index  int
+			result PhaseExecutionResult
 		}
-
-		// Emit phase end event
-		if emit != nil {
-			emit(ExecutionEvent{
-				Type:              EventPhaseEnd,
-				Timestamp:         time.Now(),
-				Phase:             phase.Name.String(),
-				Status:            phaseResult.Status,
-				DurationSeconds:   phaseResult.DurationSeconds,
-				Error:             phaseResult.Error,
-				PhasePresentation: phaseResult.PhasePresentation,
-				FindingsSummary:   phaseResult.FindingsSummary,
-				Assessment:        phaseResult.Assessment,
-			})
+		outcomes := make(chan phaseOutcome, len(batch))
+		for offset, phase := range batch {
+			go func(offset int, phase phases.Definition) {
+				var result PhaseExecutionResult
+				phaseWarnings := append([]phases.Observation(nil), warnings[phase.Name.Key()]...)
+				if admissionReason != "" {
+					phaseWarnings = append(phaseWarnings, phases.NewWarningObservation("scheduler serial fallback: "+admissionReason))
+				}
+				if outcome, blocked := readiness[phase.Name.Key()]; blocked {
+					result = o.newProviderReadinessPhaseResult(phase, runLogDir, outcome)
+				} else if verdict := resolvePhaseVerdict(phase, runCtx); verdict.IsSkip() {
+					result = o.newSkippedPhaseResult(phase, runLogDir, verdict)
+				} else {
+					result = o.runPhaseWithEvents(ctx, env, runLogDir, phase, emit, mergeRunnabilityObservations(verdict, phaseWarnings))
+					annotatePhaseRunnability(&result, verdict)
+				}
+				result.PredictedDurationMilliseconds = predicted[strings.ToLower(strings.TrimSpace(phase.Name.String()))]
+				if result.PredictedDurationMilliseconds < 0 {
+					result.PredictedDurationMilliseconds = 0
+				}
+				if offset < len(leases) && leases[offset] != nil {
+					if err := leases[offset].Release(context.Background()); err != nil {
+						log.Printf("release phase capacity claim for %s: %v", phase.Name, err)
+					}
+				}
+				outcomes <- phaseOutcome{index: offset, result: result}
+			}(offset, phase)
 		}
-
-		if phaseResult.Status == phaseStatusFailed || phaseResult.Status == phaseStatusProviderUnavailable {
-			anyFailure = true
+		batchResults := make([]PhaseExecutionResult, len(batch))
+		for range batch {
+			outcome := <-outcomes
+			batchResults[outcome.index] = outcome.result
 		}
-		results = append(results, phaseResult)
-		if failFast && (phaseResult.Status == phaseStatusFailed || phaseResult.Status == phaseStatusProviderUnavailable) {
+		close(outcomes)
+		for offset, phaseResult := range batchResults {
+			phase := batch[offset]
+			if emit != nil {
+				emit(ExecutionEvent{Type: EventPhaseEnd, Timestamp: time.Now(), Phase: phase.Name.String(), Status: phaseResult.Status, DurationSeconds: phaseResult.DurationSeconds, DurationMilliseconds: phaseResult.DurationMilliseconds, Error: phaseResult.Error, PhasePresentation: phaseResult.PhasePresentation, FindingsSummary: phaseResult.FindingsSummary, Assessment: phaseResult.Assessment})
+			}
+			if phaseResult.Status == phaseStatusFailed || phaseResult.Status == phaseStatusProviderUnavailable {
+				anyFailure = true
+			}
+			results = append(results, phaseResult)
+		}
+		if failFast && anyPhaseFailure(batchResults) {
 			break
 		}
+		start = end
 	}
 	return results, anyFailure
+}
+
+func (o *SuiteOrchestrator) admitPhaseBatch(ctx context.Context, scenario, runID string, batch []phases.Definition) ([]sharedcapacity.Lease, string, bool) {
+	if len(batch) <= 1 || o.capacity == nil || o.costEstimator == nil {
+		return nil, "", true
+	}
+	leases := make([]sharedcapacity.Lease, len(batch))
+	for i, phase := range batch {
+		ramBytes, cpuMilli, reliable := o.costEstimator.PhaseCostEstimate(ctx, scenario, phase.Name.Key())
+		if !reliable || ramBytes <= 0 || cpuMilli <= 0 {
+			return nil, fmt.Sprintf("no reliable measured size for phase %s", phase.Name), false
+		}
+		ownerID := fmt.Sprintf("test-genie:%s:%s", strings.TrimSpace(runID), phase.Name.Key())
+		lease, verdict, err := o.capacity.Acquire(ctx, ownerID, ramBytes, cpuMilli)
+		if err != nil {
+			for _, acquired := range leases {
+				if acquired != nil {
+					_ = acquired.Release(context.Background())
+				}
+			}
+			return nil, err.Error(), false
+		}
+		if verdict.Kind != "grant" && verdict.Kind != "degrade" {
+			for _, acquired := range leases {
+				if acquired != nil {
+					_ = acquired.Release(context.Background())
+				}
+			}
+			reason := verdict.Reason
+			if reason == "" {
+				reason = verdict.Kind
+			}
+			return nil, reason, false
+		}
+		leases[i] = lease
+	}
+	return leases, "", true
+}
+
+func phaseSchedulerForcedSerial() bool {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("TEST_GENIE_PHASE_SCHEDULER_ENABLED")), "false") || strings.TrimSpace(os.Getenv("TEST_GENIE_PHASE_SCHEDULER_ENABLED")) == "0" {
+		return true
+	}
+	value := strings.ToLower(strings.TrimSpace(os.Getenv("TEST_GENIE_FORCE_SERIAL")))
+	return value == "1" || value == "true" || value == "yes" || value == "on"
+}
+
+func nextPhaseBatch(defs []phases.Definition, start int, forceSerial bool) int {
+	if forceSerial || start >= len(defs) || phaseConcurrencyMode(defs[start]) == "exclusive" {
+		return start + 1
+	}
+	providers := map[string]struct{}{}
+	for end := start; end < len(defs); end++ {
+		mode := phaseConcurrencyMode(defs[end])
+		if mode == "exclusive" {
+			return end
+		}
+		if mode == "provider-serial" {
+			provider := strings.TrimSpace(defs[end].ProviderScenario)
+			if provider == "" {
+				provider = defs[end].Name.Key()
+			}
+			if _, exists := providers[provider]; exists {
+				return end
+			}
+			providers[provider] = struct{}{}
+		}
+	}
+	return len(defs)
+}
+
+func phaseConcurrencyMode(def phases.Definition) string {
+	mode := strings.ToLower(strings.TrimSpace(def.Concurrency.Mode))
+	if mode == "parallel-safe" || mode == "provider-serial" {
+		return mode
+	}
+	return "exclusive"
+}
+
+func anyPhaseFailure(results []PhaseExecutionResult) bool {
+	for _, result := range results {
+		if result.Status == phaseStatusFailed || result.Status == phaseStatusProviderUnavailable {
+			return true
+		}
+	}
+	return false
 }
 
 // syncRequirementsIfNeeded synchronizes the PRD/requirements status from this
@@ -1436,10 +1586,11 @@ func (o *SuiteOrchestrator) completePhaseRun(
 	preObservations []phases.Observation,
 ) PhaseExecutionResult {
 	runErr := report.Err
-	duration := int(math.Ceil(time.Since(run.start).Seconds()))
-	if duration < 0 {
-		duration = 0
+	durationMs := time.Since(run.start).Milliseconds()
+	if durationMs < 0 {
+		durationMs = 0
 	}
+	duration := int((durationMs + 999) / 1000)
 
 	status := phaseStatusPassed
 	errMsg := ""
@@ -1470,19 +1621,20 @@ func (o *SuiteOrchestrator) completePhaseRun(
 	}
 
 	result := PhaseExecutionResult{
-		Name:              run.definition.Name.String(),
-		Status:            status,
-		DurationSeconds:   duration,
-		LogPath:           displayLogPath,
-		Error:             errMsg,
-		Classification:    classification,
-		Remediation:       remediation,
-		Observations:      report.Observations,
-		Findings:          report.Findings,
-		Assessment:        report.Assessment,
-		Metrics:           report.Metrics,
-		PhasePresentation: report.PhasePresentation,
-		FindingsSummary:   report.FindingsSummary,
+		Name:                 run.definition.Name.String(),
+		Status:               status,
+		DurationSeconds:      duration,
+		DurationMilliseconds: durationMs,
+		LogPath:              displayLogPath,
+		Error:                errMsg,
+		Classification:       classification,
+		Remediation:          remediation,
+		Observations:         report.Observations,
+		Findings:             report.Findings,
+		Assessment:           report.Assessment,
+		Metrics:              report.Metrics,
+		PhasePresentation:    report.PhasePresentation,
+		FindingsSummary:      report.FindingsSummary,
 	}
 	// Stamp the phase's finding-source token (empty for phases that emit no
 	// findings) so a downstream campaign reaudit can derive which sources
@@ -1501,11 +1653,12 @@ func (o *SuiteOrchestrator) completePhaseRun(
 
 func (o *SuiteOrchestrator) newPhaseSetupFailure(name phases.Name, runLogDir string, err error) PhaseExecutionResult {
 	return PhaseExecutionResult{
-		Name:            name.String(),
-		Status:          "failed",
-		DurationSeconds: 0,
-		LogPath:         phaseLogPath(runLogDir, name),
-		Error:           fmt.Sprintf("failed to create log file: %v", err),
+		Name:                 name.String(),
+		Status:               "failed",
+		DurationSeconds:      0,
+		DurationMilliseconds: 0,
+		LogPath:              phaseLogPath(runLogDir, name),
+		Error:                fmt.Sprintf("failed to create log file: %v", err),
 	}
 }
 
@@ -1657,17 +1810,19 @@ func updateLatestPointer(latestDir, linkName, target string) error {
 }
 
 type phaseResultView struct {
-	Name              string
-	Status            string
-	DurationSeconds   int
-	LogPath           string
-	LogAbs            string
-	Observations      []phases.Observation
-	FindingSource     string
-	Findings          []*architecturev1.ArchitectureFinding
-	Assessment        *commonv1.MaturityAssessment
-	PhasePresentation *commonv1.PhasePresentation
-	FindingsSummary   *runspb.PhaseFindingsSummary
+	Name                 string
+	Status               string
+	DurationSeconds      int
+	DurationMilliseconds int64
+	LogPath              string
+	LogAbs               string
+	Observations         []phases.Observation
+	FindingSource        string
+	Findings             []*architecturev1.ArchitectureFinding
+	Assessment           *commonv1.MaturityAssessment
+	PhasePresentation    *commonv1.PhasePresentation
+	FindingsSummary      *runspb.PhaseFindingsSummary
+	Metrics              *commonv1.ExecutionMetrics
 }
 
 func buildPhaseResultViews(runLogDir string, results []PhaseExecutionResult) []phaseResultView {
@@ -1682,17 +1837,19 @@ func buildPhaseResultViews(runLogDir string, results []PhaseExecutionResult) []p
 		}
 		name := phases.Name(result.Name)
 		views = append(views, phaseResultView{
-			Name:              result.Name,
-			Status:            result.Status,
-			DurationSeconds:   result.DurationSeconds,
-			LogPath:           result.LogPath,
-			LogAbs:            phaseLogPath(runLogDir, name),
-			Observations:      result.Observations,
-			FindingSource:     result.FindingSource,
-			Findings:          findings,
-			Assessment:        result.Assessment,
-			PhasePresentation: result.PhasePresentation,
-			FindingsSummary:   result.FindingsSummary,
+			Name:                 result.Name,
+			Status:               result.Status,
+			DurationSeconds:      result.DurationSeconds,
+			DurationMilliseconds: result.DurationMilliseconds,
+			LogPath:              result.LogPath,
+			LogAbs:               phaseLogPath(runLogDir, name),
+			Observations:         result.Observations,
+			FindingSource:        result.FindingSource,
+			Findings:             findings,
+			Assessment:           result.Assessment,
+			PhasePresentation:    result.PhasePresentation,
+			FindingsSummary:      result.FindingsSummary,
+			Metrics:              result.Metrics,
 		})
 	}
 	return views

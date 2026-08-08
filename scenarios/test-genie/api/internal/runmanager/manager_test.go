@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/vrooli/freshness-go/treedigest"
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	sharedartifacts "test-genie/internal/shared/artifacts"
@@ -611,10 +614,9 @@ func TestGlobalCapQueuesBeyondLimit(t *testing.T) {
 	if st, _ := m.Status("b", bID); st.Status != sharedruns.StatusQueued {
 		t.Fatalf("run b status = %q, want queued", st.Status)
 	}
-	// Only one suite has actually been driven.
-	if c := exec.driveCount(); c != 1 {
-		t.Fatalf("drive count = %d, want 1 (queued run must not drive)", c)
-	}
+	// The first drive starts asynchronously; wait for its observable start
+	// before asserting that the queued run has not been driven.
+	waitForDriveCount(t, exec, 1)
 	// The queued run is persisted for visibility in `runs list`.
 	rec, err := sharedruns.NewIndex(root + "/b").Find(bID)
 	if err != nil {
@@ -623,6 +625,42 @@ func TestGlobalCapQueuesBeyondLimit(t *testing.T) {
 	if rec.Status != sharedruns.StatusQueued {
 		t.Fatalf("durable status = %q, want queued", rec.Status)
 	}
+}
+
+func TestExclusiveBASResourceQueuesAcrossScenarios(t *testing.T) {
+	root := t.TempDir()
+	exec := newFakeExecutor("")
+	exec.blockOnCtx = true
+	m := New(exec, root)
+	m.maxConcurrentRuns = 2
+	defer m.Shutdown()
+
+	firstInput := inputWith("bas-owner", "comprehensive")
+	firstInput.Request.AdmissionResources = []string{"workflow-engine"}
+	firstID := startRun(t, m, StartOptions{Input: firstInput})
+	<-exec.started
+
+	secondInput := inputWith("bas-contender", "comprehensive")
+	secondInput.Request.AdmissionResources = []string{"workflow-engine"}
+	secondID := startRun(t, m, StartOptions{Input: secondInput})
+	if status, _ := m.Status("bas-contender", secondID); status.Status != sharedruns.StatusQueued {
+		t.Fatalf("contending BAS run status = %q, want queued", status.Status)
+	}
+	if got := exec.driveCount(); got != 1 {
+		t.Fatalf("driven suites = %d, want only the first while BAS is occupied", got)
+	}
+
+	if _, err := m.Abort("bas-owner", firstID); err != nil {
+		t.Fatalf("abort first BAS run: %v", err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if status, _ := m.Status("bas-contender", secondID); status.Status == sharedruns.StatusInProgress {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("contending BAS run never promoted after first run released")
 }
 
 func TestPreviewAdmissionIsNonBlockingAndBounded(t *testing.T) {
@@ -1009,6 +1047,58 @@ func TestFailedRunPersistsExecutorErrorForTerminalWaiters(t *testing.T) {
 	}
 	if status.Error != exec.returnErr.Error() {
 		t.Fatalf("terminal error = %q, want %q", status.Error, exec.returnErr)
+	}
+}
+
+func TestTerminalFailureResultCarriesStableSourceEvidence(t *testing.T) {
+	root := t.TempDir()
+	scenario := "demo"
+	scenarioDir := filepath.Join(root, scenario)
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
+		t.Fatalf("mkdir scenario: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "source.txt"), []byte("stable\n"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	digest, err := treedigest.Compute(scenarioDir)
+	if err != nil {
+		t.Fatalf("compute source digest: %v", err)
+	}
+	runID := "20260806-070000-371abe2e"
+	if err := sharedruns.NewIndex(scenarioDir).Append(sharedruns.RunRecord{
+		RunID:                    runID,
+		Scenario:                 scenario,
+		StartedAt:                time.Now().UTC(),
+		Status:                   sharedruns.StatusInProgress,
+		TreeDigest:               digest,
+		DescriptorSnapshotDigest: "ds:test",
+		PhaseSetDigest:           "ps:test",
+		PlannedPhases:            []string{"structure"},
+	}); err != nil {
+		t.Fatalf("seed run: %v", err)
+	}
+	request := orchestrator.SuiteExecutionRequest{
+		ScenarioName: scenario, RunID: runID, Preset: "comprehensive", CaptureProfile: "baseline",
+	}
+	ar := &activeRun{
+		runID: runID, scenario: scenario, startedAt: time.Now().UTC(),
+		input: execution.SuiteExecutionInput{Request: request},
+	}
+	m := &Manager{scenariosRoot: root}
+	result := m.terminalFailureResult(nil, ar, errors.New("target scenario failed health checks"))
+
+	if !result.SourceStable || result.SourceFingerprint != digest {
+		t.Fatalf("source evidence = stable:%t fingerprint:%q, want stable digest %q", result.SourceStable, result.SourceFingerprint, digest)
+	}
+	if result.SourceScope != "scenario:"+scenario {
+		t.Fatalf("source scope = %q, want scenario:%s", result.SourceScope, scenario)
+	}
+	wantConfig := orchestrator.ExecutionConfigurationFingerprint(request, "ds:test")
+	if result.ConfigurationFingerprint != wantConfig {
+		t.Fatalf("configuration fingerprint = %q, want %q", result.ConfigurationFingerprint, wantConfig)
+	}
+	if result.Verdict != "FAIL" || result.Success || result.FailureReason == "" {
+		t.Fatalf("terminal result = %+v, want durable failure", result)
 	}
 }
 

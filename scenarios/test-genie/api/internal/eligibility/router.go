@@ -18,7 +18,7 @@ import (
 	"test-genie/internal/orchestrator/workspace"
 )
 
-// Storage-health isolation finding codes the routing decision keys off of.
+// Storage-manager isolation finding codes the routing decision keys off of.
 // Both belong to storage-manager's L2 (isolation-safe) rung: their presence
 // means test-DB isolation cannot be statically proven, so the routed e2e path
 // is not eligible and the playbooks phase must refuse destructive flows
@@ -36,9 +36,9 @@ const (
 	CodeStorageIsolationUnverified = "STORAGE_ISOLATION_UNVERIFIED"
 )
 
-// storageHealthProviderScenario is the scenario whose ScenarioValidationService
+// storageManagerProviderScenario is the scenario whose ScenarioValidationService
 // owns the storage-isolation verdict.
-const storageHealthProviderScenario = "storage-manager"
+const storageManagerProviderScenario = "storage-manager"
 
 // defaultStorageCheckTimeout bounds the storage-manager validation RPC. storage
 // validation is a fast static analysis (no execution), so a tight bound keeps
@@ -81,9 +81,9 @@ type StorageValidationClient interface {
 	ValidateScenario(context.Context, *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error)
 }
 
-// ResolveStorageHealthURL resolves storage-manager's base URL. Tests override it.
-var ResolveStorageHealthURL = func(ctx context.Context) (string, error) {
-	return discovery.ResolveScenarioURLDefault(ctx, storageHealthProviderScenario)
+// ResolveStorageManagerURL resolves storage-manager's base URL. Tests override it.
+var ResolveStorageManagerURL = func(ctx context.Context) (string, error) {
+	return discovery.ResolveScenarioURLDefault(ctx, storageManagerProviderScenario)
 }
 
 // NewStorageValidationClient builds the storage-manager validation client. Tests
@@ -122,12 +122,12 @@ func (c *Checker) Check(ctx context.Context, scenario string, mapping workspace.
 	}
 	c.mu.Unlock()
 
-	baseURL, err := ResolveStorageHealthURL(ctx)
+	baseURL, err := ResolveStorageManagerURL(ctx)
 	if err != nil {
-		return Eligibility{}, fmt.Errorf("resolve %s URL: %w", storageHealthProviderScenario, err)
+		return Eligibility{}, fmt.Errorf("resolve %s URL: %w", storageManagerProviderScenario, err)
 	}
 	if strings.TrimSpace(baseURL) == "" {
-		return Eligibility{}, fmt.Errorf("%s base URL is empty", storageHealthProviderScenario)
+		return Eligibility{}, fmt.Errorf("%s base URL is empty", storageManagerProviderScenario)
 	}
 
 	resp, err := NewStorageValidationClient(c.timeout, baseURL).ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
@@ -135,10 +135,10 @@ func (c *Checker) Check(ctx context.Context, scenario string, mapping workspace.
 		Path:     strings.TrimSpace(mapping.PhysicalScenarioDir),
 	}))
 	if err != nil {
-		return Eligibility{}, fmt.Errorf("%s validation RPC failed: %w", storageHealthProviderScenario, err)
+		return Eligibility{}, fmt.Errorf("%s validation RPC failed: %w", storageManagerProviderScenario, err)
 	}
 	if resp == nil || resp.Msg == nil {
-		return Eligibility{}, fmt.Errorf("%s returned an empty validation response", storageHealthProviderScenario)
+		return Eligibility{}, fmt.Errorf("%s returned an empty validation response", storageManagerProviderScenario)
 	}
 
 	elig := decideFromAssessment(resp.Msg.GetAssessment())

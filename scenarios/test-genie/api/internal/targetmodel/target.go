@@ -140,6 +140,8 @@ func targetKind(kind repocontract.TargetKind) commonv1.ValidationTargetKind {
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE
 	case repocontract.TargetKindDocs:
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS
+	case repocontract.TargetKindProject:
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT
 	default:
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED
 	}

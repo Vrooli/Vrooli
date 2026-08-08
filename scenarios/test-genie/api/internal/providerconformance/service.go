@@ -426,7 +426,7 @@ func (s *Service) codeFactsLanguage(ctx context.Context, root string) (string, b
 }
 
 var validTargetKinds = map[string]struct{}{
-	"scenario": {}, "resource": {}, "tool": {}, "safeguard": {}, "team": {}, "package": {}, "control-plane": {}, "docs": {},
+	"scenario": {}, "resource": {}, "tool": {}, "safeguard": {}, "team": {}, "package": {}, "control-plane": {}, "docs": {}, "project": {},
 }
 
 func conformanceFindings(response *scenariovalidationv1.ValidateScenarioResponse, descriptor providerdescriptor.Descriptor) []Finding {
@@ -470,6 +470,8 @@ func validationTargetKindName(kind commonv1.ValidationTargetKind) string {
 		return "control-plane"
 	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS:
 		return "docs"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT:
+		return "project"
 	default:
 		return "unspecified"
 	}
@@ -493,6 +495,8 @@ func targetKindEnum(kind string) commonv1.ValidationTargetKind {
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE
 	case "docs":
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS
+	case "project":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT
 	default:
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED
 	}

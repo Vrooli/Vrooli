@@ -240,6 +240,15 @@ func runPlan(api *cliutil.APIClient, args []string, w io.Writer) error {
 			payload.Profile.BudgetSeconds,
 			payload.Summary.EstimatedDurationSeconds,
 		)
+		if payload.Summary.BudgetFitMode != "" {
+			fmt.Fprintf(w, "  budget fit: mode=%s\n", payload.Summary.BudgetFitMode)
+		}
+		if payload.Summary.BudgetExceededByRequired {
+			fmt.Fprintf(w, "  budget condition: required phases exceed budget by %ds (required=%ds)\n", payload.Summary.BudgetOverflowSeconds, payload.Summary.RequiredEstimatedDurationSeconds)
+			for _, condition := range payload.Summary.BudgetConditions {
+				fmt.Fprintf(w, "      - %s\n", condition)
+			}
+		}
 	}
 	for _, phase := range payload.Phases {
 		printPlannedPhase(w, phase)
@@ -261,6 +270,11 @@ type profilePlan struct {
 
 type planSummary struct {
 	EstimatedDurationSeconds int `json:"estimatedDurationSeconds"`
+	BudgetFitMode string `json:"budgetFitMode,omitempty"`
+	BudgetExceededByRequired bool `json:"budgetExceededByRequired,omitempty"`
+	RequiredEstimatedDurationSeconds int `json:"requiredEstimatedDurationSeconds,omitempty"`
+	BudgetOverflowSeconds int `json:"budgetOverflowSeconds,omitempty"`
+	BudgetConditions []string `json:"budgetConditions,omitempty"`
 }
 
 type plannedPhase struct {

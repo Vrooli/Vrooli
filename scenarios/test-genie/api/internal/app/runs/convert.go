@@ -250,6 +250,68 @@ type runProjection struct {
 	degraded      []string
 }
 
+// compareStablePreflightFailures compares the only durable evidence available
+// when both suite attempts terminate before the first phase can run. This is
+// intentionally narrower than treating empty phase sets as clean: both runs
+// must carry stable, scoped source/configuration evidence and the same
+// normalized lifecycle failure. A changed failure, missing provenance, or
+// phase-filtered request falls through to the normal not-comparable logic.
+func compareStablePreflightFailures(a, b runProjection) (*runspb.CompareRunsResponse, bool) {
+	if a.result == nil || b.result == nil || len(a.result.Phases) != 0 || len(b.result.Phases) != 0 {
+		return nil, false
+	}
+	if !sourceStable(a.result) || !sourceStable(b.result) {
+		return nil, false
+	}
+	if a.result.SourceScope == "" || a.result.SourceScope != b.result.SourceScope ||
+		a.result.SourceFingerprint == "" || a.result.SourceFingerprint != b.result.SourceFingerprint ||
+		a.result.ConfigurationFingerprint == "" || a.result.ConfigurationFingerprint != b.result.ConfigurationFingerprint ||
+		a.result.PhaseSetDigest == "" || a.result.PhaseSetDigest != b.result.PhaseSetDigest ||
+		a.result.DescriptorSnapshotDigest == "" || a.result.DescriptorSnapshotDigest != b.result.DescriptorSnapshotDigest {
+		return nil, false
+	}
+	failureA := stablePreflightFailureSummary(a.result.FailureReason)
+	failureB := stablePreflightFailureSummary(b.result.FailureReason)
+	if failureA == "" || failureA != failureB {
+		return nil, false
+	}
+
+	response := &runspb.CompareRunsResponse{
+		SchemaVersion: 2,
+		Behavior:      "preexisting",
+		Coverage:      "measured",
+		Compatibility: "compatible",
+		Provenance:    comparisonProvenance(a, b),
+		Diagnostics: []*runspb.ComparisonDiagnostic{{
+			Side: "comparison", Code: "stable_preflight_failure",
+			Detail:      "both runs terminated before phases with the same stable preflight failure; no phase-level evidence was available",
+			Remediation: "repair the shared scenario preflight failure before relying on phase-level coverage",
+		}},
+	}
+	response.Verdict = legacyVerdict(response)
+	return response, true
+}
+
+// stablePreflightFailureSummary removes run-specific logging context while
+// retaining the lifecycle error that must remain unchanged across the two
+// attempts. The final human-readable Error line is the stable contract emitted
+// by vrooli; setup logs and timestamps are deliberately excluded.
+func stablePreflightFailureSummary(reason string) string {
+	lines := strings.Split(strings.TrimSpace(reason), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if !strings.HasPrefix(line, "Error:") {
+			continue
+		}
+		line = strings.TrimSpace(strings.TrimPrefix(line, "Error:"))
+		if before, _, ok := strings.Cut(line, " (log:"); ok {
+			line = strings.TrimSpace(before)
+		}
+		return line
+	}
+	return ""
+}
+
 // loadRunProjection reads terminal truth from the canonical snapshot. Legacy
 // and invalid snapshots deliberately fall back only to the compact index and
 // carry an explicit degraded reason so absent heavy fields cannot look known.
@@ -371,7 +433,10 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 	appendRecordOrder(a.record)
 
 	out := make([]*runspb.PhaseDiff, 0, len(order))
-	response := &runspb.CompareRunsResponse{SchemaVersion: 2, Behavior: "unknown", Coverage: "measured", Compatibility: "compatible", Provenance: "verified"}
+	response := &runspb.CompareRunsResponse{
+		SchemaVersion: 2, Behavior: "unknown", Coverage: "measured", Compatibility: "compatible",
+		Provenance: comparisonProvenance(a, b),
+	}
 	for _, name := range order {
 		if phaseFilter != "" && name != phaseFilter {
 			continue
@@ -395,7 +460,7 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 		// A phase that was deliberately inapplicable on both sides is visible in
 		// the phase detail but contributes no behavioral measurement. It must not
 		// turn an otherwise comparable baseline into an unusable comparison.
-		if !bestEffortProviderOutageIsNeutral(recordA, okA, recordB, okB, descriptorA, descriptorB) && !symmetricNeutralAbsence(recordA, okA, recordB, okB, descriptorA, descriptorB) {
+		if !bestEffortProviderOutageIsNeutral(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB) && !symmetricNeutralAbsence(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB) && !providerReadinessGapNeutral(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB) {
 			response.Behavior = aggregateBehavior(response.Behavior, diff.Behavior)
 			response.Coverage = aggregateDimension(response.Coverage, diff.Coverage, "measured")
 			response.Compatibility = aggregateDimension(response.Compatibility, diff.Compatibility, "compatible")
@@ -403,6 +468,14 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 		}
 		response.Diagnostics = append(response.Diagnostics, diff.Diagnostics...)
 		out = append(out, diff)
+	}
+	// An empty phase set is not evidence of a clean comparison. The only
+	// supported zero-phase comparable case is handled before this function by
+	// compareStablePreflightFailures; all other empty requests remain
+	// explicitly unmeasured.
+	if len(out) == 0 {
+		response.Behavior = "unknown"
+		response.Coverage = "unmeasured"
 	}
 	// A run containing only neutral best-effort coverage gaps has no measured
 	// behavioral delta, but it is still safe to say no regression was observed.
@@ -471,7 +544,12 @@ func classifyPhaseComparison(diff *runspb.PhaseDiff, a, b runProjection, recordA
 		appendCoverageDiagnostic(diff, "current", recordB)
 		appendReadinessDiagnostic(diff, "current", b.result, diff.Phase)
 	}
-	if bestEffortProviderOutageResolved(recordA, okA, recordB, okB, descriptorA, descriptorB) {
+	if providerReadinessGapNeutral(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB) {
+		diff.Coverage, diff.Behavior, diff.Verdict = "measured", "preexisting", verdictPreexisting
+		add("comparison", "provider_gap_preexisting", "the same stable provider-readiness gap was present, or an advisory provider was unavailable, on both comparable runs")
+		return
+	}
+	if bestEffortProviderOutageResolved(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB) {
 		diff.Coverage, diff.Behavior, diff.Verdict = "current-only", "unknown", verdictClean
 		add("comparison", "provider_recovered", "baseline best-effort provider outage is resolved; current result is additional evidence, not a baseline comparison")
 		return
@@ -608,7 +686,7 @@ func legacyVerdict(response *runspb.CompareRunsResponse) string {
 	return verdictClean
 }
 
-func symmetricNeutralAbsence(recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
+func symmetricNeutralAbsence(a, b runProjection, recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
 	if descriptorInapplicable(descriptorA) && descriptorInapplicable(descriptorB) {
 		return true
 	}
@@ -626,16 +704,148 @@ func symmetricNeutralAbsence(recordA sharedruns.PhaseRecord, okA bool, recordB s
 	return okA && okB && recordA.Status == "provider_unavailable" && recordB.Status == "provider_unavailable" && providerUnavailableIsBestEffort(descriptorA) && providerUnavailableIsBestEffort(descriptorB)
 }
 
+// providerReadinessGapNeutral preserves explicit provider-readiness evidence
+// without letting an external provider outage invalidate otherwise measured
+// phase comparisons. It is deliberately limited to absent phase records,
+// stable shared source/configuration provenance, and either an advisory phase
+// whose provider was skipped best-effort or identical unavailable outcomes.
+func providerReadinessGapNeutral(a, b runProjection, recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
+	if a.result == nil || b.result == nil || !sourceStable(a.result) || !sourceStable(b.result) {
+		return false
+	}
+	// The source fingerprint is expected to differ when comparing a baseline
+	// against a changed implementation. It identifies the content being
+	// measured, not the comparability of an external provider-readiness gap.
+	// Keep the target scope stable so unrelated runs cannot inherit this
+	// neutralization. The full-run configuration fingerprint is intentionally not
+	// compared: it changes when an unrelated phase descriptor or source-level
+	// configuration changes, while the provider gap itself remains phase-local
+	// and is proven below by the captured descriptor and readiness identity.
+	if a.result.SourceScope == "" || a.result.SourceScope != b.result.SourceScope {
+		return false
+	}
+	phase := ""
+	if descriptorB != nil {
+		phase = descriptorB.Phase
+	} else if descriptorA != nil {
+		phase = descriptorA.Phase
+	}
+	if phase == "" {
+		return false
+	}
+	readinessA := readinessForPhase(a.result, phase)
+	readinessB := readinessForPhase(b.result, phase)
+	if len(readinessA) == 0 && len(readinessB) == 0 {
+		return false
+	}
+	if advisoryPhase(descriptorA) && advisoryPhase(descriptorB) && hasSkippedBestEffort(readinessB) && (!okB || !isMeasuredTerminalStatus(recordB.Status)) {
+		return true
+	}
+	if (okA && isMeasuredTerminalStatus(recordA.Status)) || (okB && isMeasuredTerminalStatus(recordB.Status)) {
+		return false
+	}
+	if len(readinessA) != len(readinessB) {
+		return false
+	}
+	for i := range readinessA {
+		if !equivalentProviderReadinessOutcome(readinessA[i], readinessB[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// equivalentProviderReadinessOutcome compares the stable identity of a
+// provider gap while ignoring lifecycle-wrapper noise. Lifecycle commands
+// include timestamps, run ids, pids, and log paths in their error text; those
+// values change on every attempt even when the underlying provider failure is
+// identical. The final Error line is the stable lifecycle contract and keeps
+// a changed failure distinguishable from the same failure repeated.
+func equivalentProviderReadinessOutcome(a, b providerreadiness.Outcome) bool {
+	return a.Phase == b.Phase &&
+		a.ProviderScenario == b.ProviderScenario &&
+		a.Status == b.Status &&
+		a.Ready == b.Ready &&
+		a.BestEffort == b.BestEffort &&
+		a.Started == b.Started &&
+		a.Restarted == b.Restarted &&
+		stableProviderReadinessError(a.ErrorString()) == stableProviderReadinessError(b.ErrorString())
+}
+
+func stableProviderReadinessError(raw string) string {
+	lines := strings.Split(strings.TrimSpace(raw), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if !strings.HasPrefix(line, "Error:") {
+			continue
+		}
+		line = strings.TrimSpace(strings.TrimPrefix(line, "Error:"))
+		if before, _, ok := strings.Cut(line, " (log:"); ok {
+			line = strings.TrimSpace(before)
+		}
+		return line
+	}
+	return strings.TrimSpace(raw)
+}
+
+func readinessForPhase(result *orchestrator.SuiteExecutionResult, phase string) []providerreadiness.Outcome {
+	if result == nil {
+		return nil
+	}
+	var outcomes []providerreadiness.Outcome
+	for _, outcome := range result.ProviderReadiness {
+		if outcome.Phase == phase {
+			outcomes = append(outcomes, outcome)
+		}
+	}
+	return outcomes
+}
+
+func hasSkippedBestEffort(outcomes []providerreadiness.Outcome) bool {
+	for _, outcome := range outcomes {
+		if outcome.SkipsWithoutFailure() {
+			return true
+		}
+	}
+	return false
+}
+
+func advisoryPhase(descriptor *sharedruns.PhaseDescriptorSnapshot) bool {
+	return descriptor != nil && (descriptor.Policy.ResultGating == "advisory" || descriptor.Policy.Unavailable == "advisory")
+}
+
 func providerUnavailableIsBestEffort(descriptor *sharedruns.PhaseDescriptorSnapshot) bool {
 	return descriptor != nil && descriptor.Policy.Unavailable == "skip_without_failing"
 }
 
-func bestEffortProviderOutageResolved(recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
-	return okA && okB && recordA.Status == "provider_unavailable" && isMeasuredTerminalStatus(recordB.Status) && providerUnavailableIsBestEffort(descriptorA) && providerUnavailableIsBestEffort(descriptorB)
+func bestEffortProviderOutageResolved(a, b runProjection, recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
+	if !okA || !okB || !isMeasuredTerminalStatus(recordB.Status) || !nonBlockingProviderPhase(descriptorA) || !nonBlockingProviderPhase(descriptorB) {
+		return false
+	}
+	if recordA.Status == "provider_unavailable" {
+		return true
+	}
+	if recordA.Status != "skipped" {
+		return false
+	}
+	if a.result == nil || b.result == nil || !sourceStable(a.result) || !sourceStable(b.result) || a.result.SourceScope == "" || a.result.SourceScope != b.result.SourceScope {
+		return false
+	}
+	phase := ""
+	if descriptorB != nil {
+		phase = descriptorB.Phase
+	} else if descriptorA != nil {
+		phase = descriptorA.Phase
+	}
+	return phase != "" && hasSkippedBestEffort(readinessForPhase(a.result, phase))
 }
 
-func bestEffortProviderOutageIsNeutral(recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
-	return bestEffortProviderOutageResolved(recordA, okA, recordB, okB, descriptorA, descriptorB)
+func bestEffortProviderOutageIsNeutral(a, b runProjection, recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA, descriptorB *sharedruns.PhaseDescriptorSnapshot) bool {
+	return bestEffortProviderOutageResolved(a, b, recordA, okA, recordB, okB, descriptorA, descriptorB)
+}
+
+func nonBlockingProviderPhase(descriptor *sharedruns.PhaseDescriptorSnapshot) bool {
+	return descriptor != nil && (providerUnavailableIsBestEffort(descriptor) || advisoryPhase(descriptor))
 }
 
 // descriptorInapplicable reports whether a captured phase descriptor recorded

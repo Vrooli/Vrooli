@@ -81,7 +81,15 @@ type Descriptor struct {
 	FreshnessRequirement  string                        `json:"freshnessRequirement,omitempty"`
 	PhaseClass            string                        `json:"phaseClass,omitempty"`
 	RuntimeClass          string                        `json:"runtimeClass,omitempty"`
+	Concurrency           Concurrency                   `json:"concurrency,omitempty"`
 	Dimensions            []string                      `json:"dimensions,omitempty"`
+}
+
+// Concurrency describes the provider-owned isolation contract for a phase.
+// An empty mode is resolved to exclusive by the scheduler.
+type Concurrency struct {
+	Mode   string `json:"mode,omitempty"`
+	Reason string `json:"reason,omitempty"`
 }
 
 // Observation represents a single test observation with optional rich formatting.
@@ -249,6 +257,7 @@ type Definition struct {
 	FreshnessRequirement string
 	PhaseClass           string
 	RuntimeClass         string
+	Concurrency          Concurrency
 	Dimensions           []string
 }
 
@@ -289,6 +298,7 @@ type Spec struct {
 	FreshnessRequirement string
 	PhaseClass           string
 	RuntimeClass         string
+	Concurrency          Concurrency
 	Dimensions           []string
 	// NonComparable opts a phase out of baseline/run comparison. The default is
 	// comparable; catalog entries opt out only when their result cannot produce
@@ -325,6 +335,7 @@ func (s Spec) ToDefinition() Definition {
 		FreshnessRequirement: s.FreshnessRequirement,
 		PhaseClass:           s.PhaseClass,
 		RuntimeClass:         s.RuntimeClass,
+		Concurrency:          s.Concurrency,
 		Dimensions:           append([]string(nil), s.Dimensions...),
 	}
 	if s.Delegated != nil {
@@ -335,13 +346,15 @@ func (s Spec) ToDefinition() Definition {
 
 // ExecutionResult captures per-phase outcome information.
 type ExecutionResult struct {
-	Name            string `json:"name"`
-	Status          string `json:"status"`
-	DurationSeconds int    `json:"durationSeconds"`
-	LogPath         string `json:"logPath"`
-	Error           string `json:"error,omitempty"`
-	Classification  string `json:"classification,omitempty"`
-	Remediation     string `json:"remediation,omitempty"`
+	Name                          string `json:"name"`
+	Status                        string `json:"status"`
+	DurationSeconds               int    `json:"durationSeconds"`
+	DurationMilliseconds          int64  `json:"durationMilliseconds,omitempty"`
+	PredictedDurationMilliseconds int64  `json:"predictedDurationMilliseconds,omitempty"`
+	LogPath                       string `json:"logPath"`
+	Error                         string `json:"error,omitempty"`
+	Classification                string `json:"classification,omitempty"`
+	Remediation                   string `json:"remediation,omitempty"`
 	// RunnabilityVerdict records the runnability gate's decision for this phase
 	// ("run", "run_degraded", or "skip") and RunnabilityReason its rationale.
 	// For a skipped phase these explain why it could not run in this
@@ -363,9 +376,9 @@ type ExecutionResult struct {
 	// Assessment is the unchanged provider maturity response for this phase.
 	Assessment *commonv1.MaturityAssessment `json:"assessment,omitempty"`
 	// Metrics is the delegated provider's reported execution metrics (timing,
-	// stages, resources, host environment), persisted only into immutable
-	// per-run phase evidence. Compact SQLite history records presence, never the
-	// payload. Absent for phases whose provider has not adopted the contract.
+	// stages, resources, host environment), persisted into immutable per-run
+	// phase evidence and a fixed-width SQLite rollup. Absent for phases whose
+	// provider has not adopted the contract.
 	Metrics *commonv1.ExecutionMetrics `json:"metrics,omitempty"`
 	// PhasePresentation is the compact per-phase maturity standing (Phase
 	// Capability Contract) projected from the provider's MaturityAssessment. It is

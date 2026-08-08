@@ -61,6 +61,9 @@ func TestFleetLedgerRanksMostErroredFirst(t *testing.T) {
 	if len(led.TopFindingSources) == 0 || led.TopFindingSources[0].Source != "standards" {
 		t.Fatalf("top finding source = %+v, want standards", led.TopFindingSources)
 	}
+	if len(led.Alerts) != 1 || led.Alerts[0].Code != "FLEET_SCENARIO_NOT_GREEN" || led.Alerts[0].NextAction == "" {
+		t.Fatalf("fleet alert = %+v, want actionable failed-scenario alert", led.Alerts)
+	}
 	if !led.CapturedAt.Equal(now) {
 		t.Fatalf("CapturedAt = %v, want as-of %v", led.CapturedAt, now)
 	}
@@ -86,6 +89,9 @@ func TestFleetLedgerNeverTestedFromRoster(t *testing.T) {
 	want := []string{"beta", "gamma"}
 	if len(led.NeverTestedInWindow) != 2 || led.NeverTestedInWindow[0] != want[0] || led.NeverTestedInWindow[1] != want[1] {
 		t.Fatalf("NeverTestedInWindow = %v, want %v (deduped, sorted)", led.NeverTestedInWindow, want)
+	}
+	if len(led.Alerts) != 2 || led.Alerts[0].Code != "FLEET_COVERAGE_GAP" || led.Alerts[0].RollbackPath == "" {
+		t.Fatalf("coverage alerts = %+v, want one actionable alert per gap", led.Alerts)
 	}
 }
 

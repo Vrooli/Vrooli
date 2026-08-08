@@ -190,7 +190,7 @@ SELECT
 	terminal_outcome,
 	started_at,
 	completed_at
-FROM suite_executions
+FROM suite_executions AS e
 WHERE id = ?
 `
 	row := r.db.QueryRowContext(ctx, q, id.String())
@@ -248,7 +248,7 @@ func (r *SuiteExecutionRepository) DeleteByRunID(ctx context.Context, runID stri
 	return tx.Commit()
 }
 
-func (r *SuiteExecutionRepository) ListPhaseSamples(ctx context.Context, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error) {
+func (r *SuiteExecutionRepository) ListPhaseSamples(ctx context.Context, scenario string, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error) {
 	if len(phaseNames) == 0 {
 		return nil, nil
 	}
@@ -275,20 +275,27 @@ func (r *SuiteExecutionRepository) ListPhaseSamples(ctx context.Context, phaseNa
 
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(normalized)), ",")
 	q := fmt.Sprintf(`
-SELECT e.scenario_name, p.phase_name, p.status, p.duration_seconds, e.completed_at
-FROM suite_execution_phases AS p
-JOIN suite_executions AS e ON e.id = p.execution_id
-WHERE p.phase_name IN (%s)
-  AND e.completed_at >= ?
+WITH ranked AS (
+  SELECT e.scenario_name, p.phase_name, p.status, p.duration_ms, p.duration_seconds, e.completed_at,
+         ROW_NUMBER() OVER (PARTITION BY e.scenario_name, LOWER(p.phase_name) ORDER BY e.completed_at DESC, e.id DESC) AS scenario_rank,
+         ROW_NUMBER() OVER (PARTITION BY LOWER(p.phase_name) ORDER BY e.completed_at DESC, e.id DESC) AS global_rank
+  FROM suite_execution_phases AS p
+  JOIN suite_executions AS e ON e.id = p.execution_id
+  WHERE LOWER(p.phase_name) IN (%s) AND e.completed_at >= ?
+)
+SELECT scenario_name, phase_name, status, duration_ms, duration_seconds, completed_at
+FROM ranked
+WHERE (scenario_name = ? AND scenario_rank <= 20)
+   OR (scenario_name <> ? AND global_rank <= 50)
 ORDER BY completed_at DESC
-LIMIT ?
 `, placeholders)
 
-	args := make([]any, 0, len(normalized)+2)
+	args := make([]any, 0, len(normalized)+3)
 	for _, phase := range normalized {
 		args = append(args, phase)
 	}
-	args = append(args, sqliteutil.FormatTimestamp(since), limit)
+	args = append(args, sqliteutil.FormatTimestamp(since), strings.TrimSpace(scenario), strings.TrimSpace(scenario))
+	_ = limit // Per-key caps are the authoritative history limits.
 
 	rows, err := r.db.QueryContext(ctx, q, args...)
 	if err != nil {
@@ -304,6 +311,7 @@ LIMIT ?
 			&sample.ScenarioName,
 			&sample.PhaseName,
 			&sample.Status,
+			&sample.DurationMilliseconds,
 			&sample.DurationSeconds,
 			&completedAt,
 		); err != nil {
@@ -332,10 +340,12 @@ func (r *SuiteExecutionRepository) ListPlanSamples(ctx context.Context, scenario
 	const q = `
 SELECT scenario_name, phase_set_digest, descriptor_snapshot_digest,
        configuration_fingerprint, COALESCE(terminal_outcome, ''),
-       started_at, completed_at
-FROM suite_executions
-WHERE scenario_name = ? AND completed_at >= ?
-ORDER BY completed_at DESC
+       started_at, completed_at,
+       COALESCE((SELECT SUM(COALESCE(NULLIF(p2.duration_ms, 0), p2.duration_seconds * 1000))
+                 FROM suite_execution_phases p2 WHERE p2.execution_id = e.id), 0)
+FROM suite_executions AS e
+WHERE e.scenario_name = ? AND e.completed_at >= ?
+ORDER BY e.completed_at DESC
 LIMIT ?`
 	rows, err := r.db.QueryContext(ctx, q, strings.TrimSpace(scenario), sqliteutil.FormatTimestamp(since), limit)
 	if err != nil {
@@ -348,7 +358,8 @@ LIMIT ?`
 		var startedAt, completedAt any
 		var phaseSetDigest, descriptorSnapshotDigest, configurationFingerprint sql.NullString
 		if err := rows.Scan(&sample.ScenarioName, &phaseSetDigest, &descriptorSnapshotDigest,
-			&configurationFingerprint, &sample.TerminalOutcome, &startedAt, &completedAt); err != nil {
+			&configurationFingerprint, &sample.TerminalOutcome, &startedAt, &completedAt,
+			&sample.PhaseDurationMilliseconds); err != nil {
 			return nil, err
 		}
 		if phaseSetDigest.Valid {

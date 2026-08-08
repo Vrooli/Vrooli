@@ -2,6 +2,8 @@ package execution
 
 import (
 	"context"
+	"math"
+	"sort"
 	"time"
 
 	"test-genie/internal/orchestrator"
@@ -13,10 +15,6 @@ import (
 const (
 	planHistoryWindow = 90 * 24 * time.Hour
 	maxHistoryRows    = 2000
-	// Comprehensive provider startup, dependency readiness, persistence, and
-	// terminal projection routinely exceed a minute. Keep two minutes explicit
-	// until exact comparable full-run evidence is available.
-	additiveOrchestrationOverheadSeconds = 120
 )
 
 // ExecutionPlanner exposes scenario-aware plan previews for API/UI/CLI surfaces.
@@ -29,7 +27,7 @@ type executionPlanBuilder interface {
 }
 
 type phaseSampleReader interface {
-	ListPhaseSamples(ctx context.Context, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error)
+	ListPhaseSamples(ctx context.Context, scenario string, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error)
 	ListPlanSamples(ctx context.Context, scenario string, since time.Time, limit int) ([]PlanDurationSample, error)
 }
 
@@ -75,7 +73,7 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 	var phaseSamples []PhaseDurationSample
 	if len(phaseNames) > 0 {
 		var err error
-		phaseSamples, err = s.samples.ListPhaseSamples(ctx, phaseNames, since, maxHistoryRows)
+		phaseSamples, err = s.samples.ListPhaseSamples(ctx, basePlan.ScenarioName, phaseNames, since, maxHistoryRows)
 		if err != nil {
 			return nil, err
 		}
@@ -93,6 +91,13 @@ func (s *ExecutionPlanService) Preview(ctx context.Context, req orchestrator.Sui
 		}
 		preview.Summary.BudgetSeconds = profilePlan.Profile.BudgetSeconds
 		preview.Summary.UnknownEstimateCount = profilePlan.UnknownEstimateCount
+		preview.Summary.RequiredEstimatedDurationSeconds = profilePlan.RequiredEstimatedTotalSeconds
+		preview.Summary.BudgetOverflowSeconds = profilePlan.BudgetOverflowSeconds
+		preview.Summary.BudgetExceededByRequired = profilePlan.BudgetExceededByRequired
+		preview.Summary.BudgetFitMode = profilePlan.FitMode
+		if profilePlan.BudgetExceededByRequired {
+			preview.Summary.BudgetConditions = []string{profileplanner.ReasonBudgetExceededByRequired}
+		}
 
 		for _, decision := range profilePlan.Selected {
 			phase, ok := findBasePlannedPhase(basePlan.Phases, decision.Candidate.Name)
@@ -155,12 +160,36 @@ func (s *ExecutionPlanService) applyRunLevelEstimate(ctx context.Context, req or
 	// A custom phase selection and a preset use the same fallback: selected
 	// phases are real, but their historical total is absent or non-comparable.
 	_ = req
-	preview.Summary.EstimatedDurationSeconds += additiveOrchestrationOverheadSeconds
-	preview.Summary.OrchestrationOverheadSeconds = additiveOrchestrationOverheadSeconds
+	overheadSeconds := measuredOrchestrationOverheadSeconds(planSamples)
+	preview.Summary.EstimatedDurationSeconds += overheadSeconds
+	preview.Summary.OrchestrationOverheadSeconds = overheadSeconds
 	preview.Summary.EstimateSource = EstimateSourceBlendedHistory
 	preview.Summary.EstimateConfidence = EstimateConfidenceLow
 	preview.Summary.EstimateMode = "additive_phase_history"
 	return preview, nil
+}
+
+// measuredOrchestrationOverheadSeconds estimates startup, readiness, cleanup,
+// and persistence time from completed runs. A phase sum can exceed wall time
+// when phases overlap, so only non-negative residuals are admitted; this keeps
+// parallel execution from turning overlap into negative orchestration cost.
+func measuredOrchestrationOverheadSeconds(samples []PlanDurationSample) int {
+	residuals := make([]int, 0, len(samples))
+	for _, sample := range samples {
+		if sample.StartedAt.IsZero() || sample.CompletedAt.IsZero() || sample.CompletedAt.Before(sample.StartedAt) {
+			continue
+		}
+		wallSeconds := int(math.Ceil(sample.CompletedAt.Sub(sample.StartedAt).Seconds()))
+		phaseSeconds := int(math.Ceil(float64(maxInt64(0, sample.PhaseDurationMilliseconds)) / 1000))
+		if residual := wallSeconds - phaseSeconds; residual >= 0 {
+			residuals = append(residuals, residual)
+		}
+	}
+	if len(residuals) == 0 {
+		return 0
+	}
+	sort.Ints(residuals)
+	return residuals[(len(residuals)-1)/2]
 }
 
 func comparableRunSamples(samples []PlanDurationSample, phaseSetDigest, descriptorDigest, configurationFingerprint string) []profileplanner.RunSample {
@@ -218,11 +247,12 @@ func plannerSamples(samples []PhaseDurationSample) []profileplanner.Sample {
 	out := make([]profileplanner.Sample, 0, len(samples))
 	for _, sample := range samples {
 		out = append(out, profileplanner.Sample{
-			ScenarioName:    sample.ScenarioName,
-			PhaseName:       sample.PhaseName,
-			Status:          sample.Status,
-			DurationSeconds: sample.DurationSeconds,
-			CompletedAt:     sample.CompletedAt,
+			ScenarioName:         sample.ScenarioName,
+			PhaseName:            sample.PhaseName,
+			Status:               sample.Status,
+			DurationMilliseconds: sample.DurationMilliseconds,
+			DurationSeconds:      sample.DurationSeconds,
+			CompletedAt:          sample.CompletedAt,
 		})
 	}
 	return out
@@ -232,11 +262,13 @@ func plannerCandidates(phases []orchestrator.PlannedPhase) []profileplanner.Cand
 	out := make([]profileplanner.Candidate, 0, len(phases))
 	for index, phase := range phases {
 		out = append(out, profileplanner.Candidate{
-			Name:           phase.Name,
-			DisplayName:    phase.DisplayName,
-			TimeoutSeconds: clampNonNegative(phase.TimeoutSeconds),
-			Policy:         phase.Policy,
-			Order:          index,
+			Name:             phase.Name,
+			DisplayName:      phase.DisplayName,
+			TimeoutSeconds:   clampNonNegative(phase.TimeoutSeconds),
+			Policy:           phase.Policy,
+			Order:            index,
+			ConcurrencyMode:  phase.ConcurrencyMode,
+			ConcurrencyGroup: phase.ConcurrencyGroup,
 		})
 	}
 	return out
@@ -244,32 +276,38 @@ func plannerCandidates(phases []orchestrator.PlannedPhase) []profileplanner.Cand
 
 func plannedPhaseWithEstimate(phase orchestrator.PlannedPhase, estimate profileplanner.Estimate) PlannedPhase {
 	return PlannedPhase{
-		Name:                     phase.Name,
-		DisplayName:              phase.DisplayName,
-		Description:              phase.Description,
-		Provider:                 phase.Provider,
-		Source:                   phase.Source,
-		Optional:                 phase.Optional,
-		EstimatedDurationSeconds: estimate.DurationSeconds,
-		TimeoutSeconds:           clampNonNegative(phase.TimeoutSeconds),
-		EstimateSource:           estimate.Source,
-		EstimateConfidence:       estimate.Confidence,
-		EstimateSampleSize:       estimate.SampleSize,
-		EstimateUnknown:          estimate.Unknown,
-		SelectionStatus:          phase.SelectionStatus,
-		ApplicabilityStatus:      phase.ApplicabilityStatus,
-		ApplicabilityReasons:     append([]applicability.Reason(nil), phase.ApplicabilityReasons...),
-		ProviderReadiness:        phase.ProviderReadiness,
-		Freshness:                phase.Freshness,
-		Policy:                   phase.Policy,
-		DocPath:                  phase.DocPath,
-		DescriptorPath:           phase.DescriptorPath,
-		FindingSource:            phase.FindingSource,
-		ProfileMembership:        append([]string(nil), phase.ProfileMembership...),
-		FreshnessRequirement:     phase.FreshnessRequirement,
-		PhaseClass:               phase.PhaseClass,
-		RuntimeClass:             phase.RuntimeClass,
-		Dimensions:               append([]string(nil), phase.Dimensions...),
+		Name:                        phase.Name,
+		DisplayName:                 phase.DisplayName,
+		Description:                 phase.Description,
+		Provider:                    phase.Provider,
+		Source:                      phase.Source,
+		Optional:                    phase.Optional,
+		EstimatedDurationSeconds:    estimate.DurationSeconds,
+		TimeoutSeconds:              clampNonNegative(phase.TimeoutSeconds),
+		EstimateSource:              estimate.Source,
+		EstimateConfidence:          estimate.Confidence,
+		EstimateSampleSize:          estimate.SampleSize,
+		EstimatePointSampleCount:    estimate.PointSampleCount,
+		EstimateCensoredSampleCount: estimate.CensoredSampleCount,
+		EstimateExcludedSampleCount: estimate.ExcludedSampleCount,
+		EstimateUnknown:             estimate.Unknown,
+		SelectionStatus:             phase.SelectionStatus,
+		ApplicabilityStatus:         phase.ApplicabilityStatus,
+		ApplicabilityReasons:        append([]applicability.Reason(nil), phase.ApplicabilityReasons...),
+		ProviderReadiness:           phase.ProviderReadiness,
+		Freshness:                   phase.Freshness,
+		Policy:                      phase.Policy,
+		DocPath:                     phase.DocPath,
+		DescriptorPath:              phase.DescriptorPath,
+		FindingSource:               phase.FindingSource,
+		ProfileMembership:           append([]string(nil), phase.ProfileMembership...),
+		FreshnessRequirement:        phase.FreshnessRequirement,
+		PhaseClass:                  phase.PhaseClass,
+		RuntimeClass:                phase.RuntimeClass,
+		ConcurrencyMode:             phase.ConcurrencyMode,
+		ConcurrencyGroup:            phase.ConcurrencyGroup,
+		Dimensions:                  append([]string(nil), phase.Dimensions...),
+		RequiredResources:           append([]string(nil), phase.RequiredResources...),
 	}
 }
 
@@ -296,7 +334,10 @@ func appendNotApplicablePhases(preview *ExecutionPlanPreview, phases []orchestra
 			FreshnessRequirement: phase.FreshnessRequirement,
 			PhaseClass:           phase.PhaseClass,
 			RuntimeClass:         phase.RuntimeClass,
+			ConcurrencyMode:      phase.ConcurrencyMode,
+			ConcurrencyGroup:     phase.ConcurrencyGroup,
 			Dimensions:           append([]string(nil), phase.Dimensions...),
+			RequiredResources:    append([]string(nil), phase.RequiredResources...),
 		})
 	}
 }

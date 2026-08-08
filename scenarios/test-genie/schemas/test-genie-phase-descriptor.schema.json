@@ -5,6 +5,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "$schema",
     "schemaVersion",
     "scenario",
     "phase",
@@ -20,6 +21,7 @@
     "maturity"
   ],
   "properties": {
+    "$schema": { "const": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json" },
     "schemaVersion": { "const": "1.0.0" },
     "scenario": { "type": "string", "minLength": 1 },
     "phase": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
@@ -82,6 +84,20 @@
         }
       }
     },
+    "targets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kinds", "selection"],
+      "properties": {
+        "kinds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["scenario", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs", "project"] }
+        },
+        "selection": { "const": "enumerate" }
+      }
+    },
     "applicability": {
       "type": "object",
       "additionalProperties": false,
@@ -126,6 +142,22 @@
         "requiredResources": { "type": "array", "items": { "type": "string" } }
       }
     },
+    "concurrency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["parallel-safe", "exclusive", "provider-serial"] },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "exclusive" } } },
+          "then": { "required": ["reason"] }
+        }
+      ],
+      "description": "Provider-owned concurrency safety. Undeclared defaults to exclusive."
+    },
     "docs": {
       "type": "object",
       "additionalProperties": false,
@@ -148,6 +180,7 @@
         "scenarioDependency": { "type": "string", "minLength": 1 },
         "serviceCapability": { "type": "string", "minLength": 1 },
         "serviceTag": { "type": "string", "minLength": 1 },
+        "targetKind": { "enum": ["scenario", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs", "project"] },
         "hasUI": { "type": "boolean" },
         "hasAPI": { "type": "boolean" },
         "testingConfigSection": { "type": "string", "minLength": 1 }

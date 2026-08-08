@@ -27,9 +27,8 @@ type Environment struct {
 	// threads it into every phase writer.
 	RunID string
 
-	// DiagnosticsPreset, when non-empty ("none"|"light"|"full"), overrides the
-	// playbooks diagnostics config for this run. Empty leaves testing.json in
-	// control.
+	// DiagnosticsPreset, when non-empty ("none"|"light"|"full"), records the
+	// requested provider-evidence depth for this run.
 	DiagnosticsPreset string
 
 	// CaptureProfile is the capture-depth dial. "" (default) keeps routine runs
@@ -58,9 +57,8 @@ type Environment struct {
 	UIURL         string // Base URL for the scenario UI (e.g., "http://localhost:3000")
 	APIURL        string // Base URL for the scenario API (e.g., "http://localhost:8080")
 	TargetRuntime TargetRuntime
-	// Claims governs single-slot concurrency for the playbooks phase. Nil
-	// means the orchestrator was wired without claim support — phases will
-	// refuse to run the playbooks path in that case (a wiring bug).
+	// Claims is retained for the legacy routed-run compatibility surface. The
+	// provider-delegated path owns its own execution and isolation contract.
 	Claims *playbooksclaims.Service
 }
 

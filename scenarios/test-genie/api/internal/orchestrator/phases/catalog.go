@@ -213,6 +213,7 @@ func (c *Catalog) Descriptors() []Descriptor {
 			FreshnessRequirement:  spec.FreshnessRequirement,
 			PhaseClass:            spec.PhaseClass,
 			RuntimeClass:          spec.RuntimeClass,
+			Concurrency:           spec.Concurrency,
 			Dimensions:            append([]string(nil), spec.Dimensions...),
 		})
 	}

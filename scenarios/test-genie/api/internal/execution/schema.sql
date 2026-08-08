@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS suite_execution_phases (
     ordinal INTEGER NOT NULL,
     phase_name TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT '',
+    duration_ms INTEGER NOT NULL DEFAULT 0 CHECK (duration_ms >= 0),
+    predicted_duration_ms INTEGER CHECK (predicted_duration_ms IS NULL OR predicted_duration_ms >= 0),
     duration_seconds INTEGER NOT NULL DEFAULT 0 CHECK (duration_seconds >= 0),
     error_text TEXT NOT NULL DEFAULT '',
     classification TEXT NOT NULL DEFAULT '',
@@ -60,6 +62,13 @@ CREATE TABLE IF NOT EXISTS suite_execution_phases (
     runnability_reason TEXT NOT NULL DEFAULT '',
     finding_source TEXT NOT NULL DEFAULT '',
     metrics_present INTEGER NOT NULL DEFAULT 0 CHECK (metrics_present IN (0, 1)),
+    wall_clock_ms INTEGER,
+    cpu_user_ms INTEGER,
+    cpu_sys_ms INTEGER,
+    peak_rss_bytes INTEGER,
+    cpu_reliability TEXT,
+    memory_reliability TEXT,
+    gpu_reliability TEXT,
     findings_blockers INTEGER NOT NULL DEFAULT 0,
     findings_errors INTEGER NOT NULL DEFAULT 0,
     findings_warnings INTEGER NOT NULL DEFAULT 0,
@@ -72,7 +81,10 @@ CREATE INDEX IF NOT EXISTS idx_suite_execution_phases_execution
     ON suite_execution_phases (execution_id, ordinal);
 
 CREATE INDEX IF NOT EXISTS idx_suite_execution_phases_name_duration
-    ON suite_execution_phases (phase_name, duration_seconds);
+    ON suite_execution_phases (phase_name, duration_ms);
+
+CREATE INDEX IF NOT EXISTS idx_suite_execution_phases_scenario_phase
+    ON suite_execution_phases (phase_name, execution_id);
 
 -- Preparation stages are the compact orchestration-timing projection. They
 -- deliberately live beside, not inside, suite_execution_phases so historical

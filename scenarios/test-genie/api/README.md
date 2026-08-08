@@ -254,6 +254,12 @@ turns selected stable finding and requirement IDs into one active job per
 scenario, delegates only the scoped task to Agent Manager, and records a
 server-owned verification rerun plus its stable-ID delta.
 
+`test-genie fleet status --json --roster` is also an operational evidence
+surface. It keeps untested scenarios explicit and emits typed alerts for
+failed server-owned evidence and coverage gaps. Security phase reliability
+includes repeated-failure and time-to-green statistics when run timestamps are
+available; unavailable timestamps never become a false zero-duration success.
+
 ## API Endpoints
 
 | Method | Path | Description |

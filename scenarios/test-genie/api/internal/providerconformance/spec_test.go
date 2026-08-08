@@ -36,6 +36,13 @@ func TestProviderConformanceSpecCoversEveryCode(t *testing.T) {
 		CodeContractInvalid,
 		CodeContractIdentityMismatch,
 		CodeMetricsMissing,
+		CodeDurableContractInvalid,
+		CodeDeclaredKindsUnsupported,
+		CodeSubjectOutsideDeclaredKinds,
+		CodeCapabilityCoverageGap,
+		CodeTargetGlobUnresolvable,
+		CodeExecutionRunnerMissing,
+		CodeRunningSpecVersionStale,
 	}
 	for _, code := range codes {
 		if _, ok := spec.Findings[code]; !ok {

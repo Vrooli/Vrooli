@@ -2,6 +2,7 @@ package selfhealth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -97,20 +98,23 @@ const (
 	ReasonMetricsMissing      = "metrics_missing"
 	ReasonFixContractInvalid  = "fix_contract_invalid"
 	ReasonDescribeNotAdopted  = "describe_provider_not_adopted"
+	ReasonConcurrencyMissing  = "concurrency_declaration_missing"
 )
 
 // ProviderConformance is one provider's adoption scorecard against the shared
 // ScenarioValidationService contract.
 type ProviderConformance struct {
-	Provider       string                    `json:"provider"`
-	Phase          string                    `json:"phase"`
-	Classification ConformanceClassification `json:"classification"`
-	ReasonCodes    []string                  `json:"reason_codes,omitempty"`
-	Reachable      bool                      `json:"reachable"`
-	ContractValid  bool                      `json:"contractValid"`
-	IdentityOK     bool                      `json:"identityOk"`
-	SpecValid      bool                      `json:"specValid"`
-	MetricsAdopted bool                      `json:"metricsAdopted"`
+	Provider            string                    `json:"provider"`
+	Phase               string                    `json:"phase"`
+	Classification      ConformanceClassification `json:"classification"`
+	ReasonCodes         []string                  `json:"reason_codes,omitempty"`
+	Reachable           bool                      `json:"reachable"`
+	ContractValid       bool                      `json:"contractValid"`
+	IdentityOK          bool                      `json:"identityOk"`
+	SpecValid           bool                      `json:"specValid"`
+	MetricsAdopted      bool                      `json:"metricsAdopted"`
+	MetricsReachable    bool                      `json:"metricsReachable"`
+	ConcurrencyDeclared bool                      `json:"concurrencyDeclared"`
 	// DescribeAdopted reports whether the provider answers DescribeProvider.
 	// A provider that does not forces readiness onto the legacy ValidateScenario
 	// probe, which for an inspection-only provider costs a full target analysis
@@ -198,6 +202,10 @@ type ConformanceScanner struct {
 	// FixProbe runs PreviewFix then ApplyFix only against an isolated fixture
 	// directory. Nil selects DefaultFixConformanceProbe.
 	FixProbe FixConformanceProbe
+	// StoredMetrics verifies that a reachable provider's metrics were actually
+	// written to the execution history. Live response presence alone is not
+	// durable adoption evidence.
+	StoredMetrics func(context.Context, string, string) bool
 }
 
 // Scan probes every delegated provider in bounded parallel and returns the
@@ -265,7 +273,12 @@ func (s ConformanceScanner) Scan(ctx context.Context) ConformanceReport {
 		go func(i int, j job) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			results[firstProbeResult+i] = ScanProviderWithFixProbe(ctx, probe, fixProbe, s.RepoRoot, j.target, j.phase, j.provider, j.timeout)
+			pr, _ := CheckProvider(ctx, probe, fixProbe, s.RepoRoot, j.target, j.phase, j.provider, j.timeout)
+			if pr.Reachable && s.StoredMetrics != nil {
+				pr.MetricsAdopted = s.StoredMetrics(ctx, j.provider, j.phase)
+				finishConformance(&pr)
+			}
+			results[firstProbeResult+i] = pr
 		}(i, j)
 	}
 	wg.Wait()
@@ -326,6 +339,7 @@ func CheckProvider(ctx context.Context, probe ConformanceProbe, fixProbe FixConf
 		pr.Autofix = assessment.ComputeAutofixCoverage(*spec)
 		pr.FixContractRequired = len(implementedFixRuleIDs(*spec)) > 0
 	}
+	pr.ConcurrencyDeclared = providerConcurrencyDeclared(repoRoot, provider)
 
 	resp, probeErr := probe(ctx, provider, target, timeout)
 	if probeErr != nil {
@@ -357,7 +371,8 @@ func CheckProvider(ctx context.Context, probe ConformanceProbe, fixProbe FixConf
 	// metrics_adopted is a hard requirement among reachable providers (Plan 3
 	// Part B). The provider fleet emits it through the shared
 	// ScenarioValidationService contract.
-	pr.MetricsAdopted = resp.GetMetrics() != nil
+	pr.MetricsReachable = resp.GetMetrics() != nil
+	pr.MetricsAdopted = pr.MetricsReachable
 
 	// DescribeProvider adoption is advisory for now: it lowers the adoption
 	// score and names the cost, but does not classify the provider as a
@@ -412,6 +427,9 @@ func finishConformance(pr *ProviderConformance) {
 		if !pr.MetricsAdopted {
 			pr.ReasonCodes = append(pr.ReasonCodes, ReasonMetricsMissing)
 		}
+		if !pr.ConcurrencyDeclared {
+			pr.ReasonCodes = append(pr.ReasonCodes, ReasonConcurrencyMissing)
+		}
 		if pr.FixContractRequired && !pr.FixContractValid {
 			pr.ReasonCodes = append(pr.ReasonCodes, ReasonFixContractInvalid)
 		}
@@ -421,6 +439,22 @@ func finishConformance(pr *ProviderConformance) {
 			pr.Classification = ConformanceViolation
 		}
 	}
+}
+
+func providerConcurrencyDeclared(repoRoot, provider string) bool {
+	if strings.TrimSpace(repoRoot) == "" || strings.TrimSpace(provider) == "" {
+		return true
+	}
+	raw, err := os.ReadFile(filepath.Join(repoRoot, "scenarios", provider, providerdescriptor.RelPath))
+	if err != nil {
+		return true
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return false
+	}
+	_, ok := payload["concurrency"]
+	return ok
 }
 
 func implementedFixRuleIDs(spec assessment.Spec) []string {

@@ -3,13 +3,14 @@ package testsqlite
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	goruntime "runtime"
 	"testing"
 
-	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/storage/sqlfiles"
 	"test-genie/internal/storage/sqlitedb"
+	"test-genie/internal/dbexec"
 
 	"github.com/vrooli/api-core/database"
 	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
@@ -52,17 +53,8 @@ func openRouted(t *testing.T, includeSeed bool) *database.RoutedDB {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 
-	if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "initialization", "sqlite", "schema.sql")); err != nil {
-		t.Fatalf("apply sqlite schema: %v", err)
-	}
-	// suite_executions is owned by the execution domain (its schema.sql), applied
-	// by path here to mirror the per-domain registry without importing the
-	// execution package (which would create an import cycle with its own tests).
-	if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "api", "internal", "execution", "schema.sql")); err != nil {
-		t.Fatalf("apply execution schema: %v", err)
-	}
-	if _, err := db.ExecContext(context.Background(), playbooksclaims.Schema()); err != nil {
-		t.Fatalf("apply playbooksclaims schema: %v", err)
+	if err := applyDomainSchemas(db); err != nil {
+		t.Fatalf("apply schema: %v", err)
 	}
 	_ = includeSeed
 	return db
@@ -83,20 +75,21 @@ func open(t *testing.T, includeSeed bool) *sql.DB {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 
-	if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "initialization", "sqlite", "schema.sql")); err != nil {
-		t.Fatalf("apply sqlite schema: %v", err)
-	}
-	// suite_executions is owned by the execution domain (its schema.sql), applied
-	// by path here to mirror the per-domain registry without importing the
-	// execution package (which would create an import cycle with its own tests).
-	if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "api", "internal", "execution", "schema.sql")); err != nil {
-		t.Fatalf("apply execution schema: %v", err)
-	}
-	if _, err := db.Exec(playbooksclaims.Schema()); err != nil {
-		t.Fatalf("apply playbooksclaims schema: %v", err)
+	if err := applyDomainSchemas(db); err != nil {
+		t.Fatalf("apply schema: %v", err)
 	}
 	_ = includeSeed
 	return db
+}
+
+func applyDomainSchemas(db dbexec.Executor) error {
+	root := filepath.Join(scenarioRoot(), "api", "internal")
+	for _, domain := range []string{"execution", "playbooksclaims", "remediation", "selfhealthsnapshots"} {
+		if err := sqlfiles.ExecFile(db, filepath.Join(root, domain, "schema.sql")); err != nil {
+			return fmt.Errorf("apply %s schema: %w", domain, err)
+		}
+	}
+	return nil
 }
 
 func scenarioRoot() string {

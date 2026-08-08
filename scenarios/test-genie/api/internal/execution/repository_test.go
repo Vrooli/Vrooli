@@ -319,7 +319,7 @@ func TestSuiteExecutionRepositoryListPhaseSamples(t *testing.T) {
 		t.Fatalf("seed execution: %v", err)
 	}
 
-	samples, err := repo.ListPhaseSamples(context.Background(), []string{"unit", "unit"}, now.Add(-time.Hour), 100)
+	samples, err := repo.ListPhaseSamples(context.Background(), "demo", []string{"unit", "unit"}, now.Add(-time.Hour), 100)
 	if err != nil {
 		t.Fatalf("expected list phase samples to succeed: %v", err)
 	}
@@ -328,5 +328,67 @@ func TestSuiteExecutionRepositoryListPhaseSamples(t *testing.T) {
 	}
 	if samples[0].ScenarioName != "demo" || samples[0].PhaseName != "unit" || samples[0].DurationSeconds != 42 {
 		t.Fatalf("unexpected sample: %#v", samples[0])
+	}
+}
+
+func TestSuiteExecutionRepositoryCostReportIncludesPredictionError(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	now := time.Now().UTC()
+	id := uuid.New()
+	if err := repo.Create(context.Background(), &SuiteExecutionRecord{
+		ID: id, ScenarioName: "demo", Success: true,
+		Phases:    []phases.ExecutionResult{{Name: "unit", Status: "passed", DurationMilliseconds: 10000, PredictedDurationMilliseconds: 8000}},
+		StartedAt: now.Add(-time.Second), CompletedAt: now,
+	}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE suite_execution_phases SET wall_clock_ms = 10000, cpu_user_ms = 100, peak_rss_bytes = 20, cpu_reliability = 'RELIABILITY_RELIABLE', memory_reliability = 'RELIABILITY_RELIABLE' WHERE execution_id = ?`, id.String()); err != nil {
+		t.Fatalf("seed reliable metrics: %v", err)
+	}
+	report, err := repo.CostReport(context.Background(), "demo", now.Add(-time.Hour), now.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("cost report: %v", err)
+	}
+	if len(report) != 1 || report[0].PredictionSampleCount != 1 || report[0].PredictionMeanAbsoluteErrorMs != 2000 || report[0].PredictionErrorTotalMs != 2000 {
+		t.Fatalf("unexpected prediction report: %#v", report)
+	}
+}
+
+func TestSuiteExecutionRepositoryCostReportSeparatesPassingAndFailingDurations(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	now := time.Now().UTC()
+	insert := func(status string, duration int64, offset time.Duration) {
+		t.Helper()
+		id := uuid.New()
+		if err := repo.Create(context.Background(), &SuiteExecutionRecord{
+			ID: id, ScenarioName: "demo", Success: status == "passed",
+			Phases:    []phases.ExecutionResult{{Name: "unit", Status: status, DurationMilliseconds: duration}},
+			StartedAt: now.Add(-offset - time.Second), CompletedAt: now.Add(-offset),
+		}); err != nil {
+			t.Fatalf("create %s: %v", status, err)
+		}
+		if _, err := db.Exec(`UPDATE suite_execution_phases SET wall_clock_ms = ?, cpu_reliability = 'RELIABILITY_RELIABLE', memory_reliability = 'RELIABILITY_RELIABLE' WHERE execution_id = ?`, duration, id.String()); err != nil {
+			t.Fatalf("seed %s metrics: %v", status, err)
+		}
+	}
+	insert("passed", 1000, time.Minute)
+	insert("passed", 3000, 2*time.Minute)
+	insert("failed", 9000, 3*time.Minute)
+
+	report, err := repo.CostReport(context.Background(), "demo", now.Add(-time.Hour), now.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("cost report: %v", err)
+	}
+	if len(report) != 1 {
+		t.Fatalf("expected one phase summary, got %#v", report)
+	}
+	summary := report[0]
+	if summary.PassingSampleCount != 2 || summary.FailingSampleCount != 1 {
+		t.Fatalf("unexpected status counts: %#v", summary)
+	}
+	if summary.PassingMedianWallClockMs != 1000 || summary.PassingP90WallClockMs != 3000 || summary.FailingMedianWallClockMs != 9000 || summary.FailingP90WallClockMs != 9000 {
+		t.Fatalf("unexpected status distributions: %#v", summary)
 	}
 }

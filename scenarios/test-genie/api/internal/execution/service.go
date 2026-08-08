@@ -147,17 +147,20 @@ func compactPhaseResults(results []phases.ExecutionResult) []phases.ExecutionRes
 	compact := make([]phases.ExecutionResult, 0, len(results))
 	for _, result := range results {
 		compact = append(compact, phases.ExecutionResult{
-			Name:               result.Name,
-			Status:             result.Status,
-			DurationSeconds:    result.DurationSeconds,
-			Error:              result.Error,
-			Classification:     result.Classification,
-			Remediation:        result.Remediation,
-			RunnabilityVerdict: result.RunnabilityVerdict,
-			RunnabilityReason:  result.RunnabilityReason,
-			FindingSource:      result.FindingSource,
-			PhasePresentation:  result.PhasePresentation,
-			FindingsSummary:    result.FindingsSummary,
+			Name:                          result.Name,
+			Status:                        result.Status,
+			DurationSeconds:               result.DurationSeconds,
+			DurationMilliseconds:          result.DurationMilliseconds,
+			PredictedDurationMilliseconds: result.PredictedDurationMilliseconds,
+			Error:                         result.Error,
+			Classification:                result.Classification,
+			Remediation:                   result.Remediation,
+			RunnabilityVerdict:            result.RunnabilityVerdict,
+			RunnabilityReason:             result.RunnabilityReason,
+			FindingSource:                 result.FindingSource,
+			PhasePresentation:             result.PhasePresentation,
+			FindingsSummary:               result.FindingsSummary,
+			Metrics:                       result.Metrics,
 		})
 	}
 	return compact

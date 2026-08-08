@@ -79,18 +79,16 @@ func TestStandardResolver_Matrix(t *testing.T) {
 			wantKind: runnability.VerdictRun,
 		},
 		{
-			// Smoke runs on the BAS workflow engine; when BAS is unreachable
-			// the gate skips smoke (resource unavailable) rather than failing it.
-			name:      "smoke skips when BAS unavailable",
-			caps:      runnability.PhaseCapabilities{Phase: "smoke", NeedsUI: true, RequiredResources: []string{runnability.ResourceBAS}},
-			rc:        runnability.RunContext{TargetIsSelf: false, LiveSurfaces: allLive, Resources: map[string]bool{runnability.ResourceBAS: false}},
+			name:      "provider resource skips only when explicitly supplied unavailable",
+			caps:      runnability.PhaseCapabilities{Phase: "provider", NeedsUI: true, RequiredResources: []string{"workflow-engine"}},
+			rc:        runnability.RunContext{TargetIsSelf: false, LiveSurfaces: allLive, Resources: map[string]bool{"workflow-engine": false}},
 			wantKind:  runnability.VerdictSkip,
-			reasonHas: runnability.ResourceBAS,
+			reasonHas: "workflow-engine",
 		},
 		{
-			name:     "smoke runs when BAS available",
-			caps:     runnability.PhaseCapabilities{Phase: "smoke", NeedsUI: true, RequiredResources: []string{runnability.ResourceBAS}},
-			rc:       runnability.RunContext{TargetIsSelf: false, LiveSurfaces: allLive, Resources: map[string]bool{runnability.ResourceBAS: true}},
+			name:     "provider resource runs when explicitly supplied available",
+			caps:     runnability.PhaseCapabilities{Phase: "provider", NeedsUI: true, RequiredResources: []string{"workflow-engine"}},
+			rc:       runnability.RunContext{TargetIsSelf: false, LiveSurfaces: allLive, Resources: map[string]bool{"workflow-engine": true}},
 			wantKind: runnability.VerdictRun,
 		},
 	}

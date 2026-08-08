@@ -13,33 +13,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestResolveInitializationFileSuccess(t *testing.T) {
-	got, err := resolveInitializationFile("schema.sql")
-	if err != nil {
-		t.Fatalf("resolveInitializationFile returned error: %v", err)
-	}
-
-	if filepath.Base(got) != "schema.sql" {
-		t.Fatalf("expected schema.sql path, got %s", got)
-	}
-	if _, err := os.Stat(got); err != nil {
-		t.Fatalf("expected resolved schema path to exist: %v", err)
-	}
-	if filepath.Base(filepath.Dir(got)) != initializationDialectDir {
-		t.Fatalf("expected sqlite initialization directory, got %s", filepath.Dir(got))
-	}
-	if filepath.Base(filepath.Dir(filepath.Dir(got))) != "initialization" {
-		t.Fatalf("expected initialization root in resolved path, got %s", got)
-	}
-}
-
-func TestResolveInitializationFileErrorWhenMissing(t *testing.T) {
-	_, err := resolveInitializationFile("missing.sql")
-	if err == nil {
-		t.Fatal("expected error when initialization file is missing")
-	}
-}
-
 func TestExecSQLFileRunsStatements(t *testing.T) {
 	db := openSQLite(t)
 

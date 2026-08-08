@@ -42,7 +42,11 @@
           },
           "semantics": {
             "kind": "query",
-            "verdict": {"path": "runs", "pass": "nonempty", "fail": "empty"}
+            "verdict": {
+              "path": "runs",
+              "pass": "nonempty",
+              "fail": "empty"
+            }
           }
         },
         {
@@ -79,7 +83,11 @@
           },
           "semantics": {
             "kind": "verify",
-            "verdict": {"path": "status", "pass": "passed", "fail": "failed"}
+            "verdict": {
+              "path": "status",
+              "pass": "passed",
+              "fail": "failed"
+            }
           }
         },
         {
@@ -132,7 +140,10 @@
             {
               "name": "by",
               "required": true,
-              "description": "Pin owner identifier"
+              "description": "Pin owner identifier",
+              "bind": {
+                "field": "pinned_by"
+              }
             },
             {
               "name": "reason",
@@ -174,7 +185,10 @@
             {
               "name": "by",
               "required": true,
-              "description": "Pin owner identifier"
+              "description": "Pin owner identifier",
+              "bind": {
+                "field": "pinned_by"
+              }
             }
           ],
           "positionals": [
@@ -218,12 +232,18 @@
             {
               "name": "left_run_id",
               "required": true,
-              "description": "Baseline run id"
+              "description": "Baseline run id",
+              "bind": {
+                "field": "run_id_a"
+              }
             },
             {
-              "name": "right_run_id",
-              "required": true,
-              "description": "Candidate run id"
+      "name": "right_run_id",
+      "required": true,
+      "description": "Candidate run id",
+      "bind": {
+        "field": "run_id_b"
+      }
             }
           ],
           "binding": {
@@ -243,12 +263,52 @@
           }
         },
         {
+          "name": "cost",
+          "description": "Show measured phase cost and reliability exclusions",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Optional scenario id"
+            },
+            {
+              "name": "window",
+              "description": "Look-back duration (for example 168h or 7d)",
+              "bind": {
+                "field": "window_seconds"
+              }
+            },
+            {
+              "name": "compare-window",
+              "description": "Optional preceding comparison duration",
+              "bind": {
+                "field": "compare_window_seconds"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetCostReport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
           "name": "freshness",
           "description": "Check whether a scenario changed since its last relevant run",
           "flags": [
             {
-              "name": "scenario",
-              "description": "Scenario id"
+      "name": "scenario",
+      "description": "Scenario id",
+      "local_only": true
             },
             {
               "name": "phases",
@@ -258,7 +318,10 @@
           "positionals": [
             {
               "name": "scenario_arg",
-              "description": "Scenario id"
+              "description": "Scenario id",
+              "bind": {
+                "field": "scenario"
+              }
             }
           ],
           "binding": {
@@ -345,7 +408,10 @@
             {
               "name": "roster",
               "bool": true,
-              "description": "Include fleet roster details"
+              "description": "Include fleet roster details",
+              "bind": {
+                "field": "include_roster"
+              }
             }
           ],
           "binding": {
@@ -430,26 +496,83 @@
           "name": "artifacts",
           "description": "List the typed, opaque artifact catalog for a run",
           "flags": [
-            {"name": "scenario", "required": true, "description": "Scenario id"},
-            {"name": "kinds", "description": "Optional comma-separated artifact kinds"},
-            {"name": "phase", "description": "Optional producing phase"}
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            },
+            {
+              "name": "kinds",
+              "description": "Optional comma-separated artifact kinds"
+            },
+            {
+              "name": "phase",
+              "description": "Optional producing phase",
+              "bind": {
+                "field": "producing_phase"
+              }
+            }
           ],
-          "positionals": [{"name": "run_id", "required": true, "description": "Run id"}],
-          "binding": {"kind": "connect-rpc", "service": "RunsService", "method": "ListRunArtifacts"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "ListRunArtifacts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "artifact",
           "description": "Show typed metadata and opaque access path for one run artifact",
-          "flags": [{"name": "scenario", "required": true, "description": "Scenario id"}],
-          "positionals": [
-            {"name": "run_id", "required": true, "description": "Run id"},
-            {"name": "artifact_id", "required": true, "description": "Opaque artifact id"}
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "RunsService", "method": "GetRunArtifact"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id"
+            },
+            {
+              "name": "artifact_id",
+              "required": true,
+              "description": "Opaque artifact id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetRunArtifact"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     },

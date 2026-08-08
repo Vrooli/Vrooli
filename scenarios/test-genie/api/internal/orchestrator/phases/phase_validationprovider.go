@@ -115,6 +115,7 @@ func ValidationProviderSpecFromDescriptor(descriptor providerdescriptor.Descript
 	spec.FreshnessRequirement = descriptor.FreshnessRequirement
 	spec.PhaseClass = descriptor.PhaseClass
 	spec.RuntimeClass = descriptor.RuntimeClass
+	spec.Concurrency = Concurrency{Mode: descriptor.Concurrency.Mode, Reason: descriptor.Concurrency.Reason}
 	spec.Dimensions = append([]string(nil), descriptor.Dimensions...)
 	spec.Capabilities = runnability.PhaseCapabilities{
 		Phase:                     name.String(),
@@ -123,8 +124,11 @@ func ValidationProviderSpecFromDescriptor(descriptor providerdescriptor.Descript
 		MutatesLifecycle:          descriptor.Runnability.MutatesLifecycle,
 		LifecycleDecisionDeferred: descriptor.Runnability.LifecycleDecisionDeferred,
 		DBIsolation:               parseDescriptorDBIsolation(descriptor.Runnability.DBIsolation),
-		RequiredResources:         append([]string(nil), descriptor.Runnability.RequiredResources...),
-		Optional:                  spec.Optional,
+		// Provider-delegated phases own dependency and readiness checks. Test
+		// Genie sends the uniform validation request and consumes the provider
+		// verdict; it must not interpret a provider's internal resource graph or
+		// probe any provider on its behalf.
+		Optional: spec.Optional,
 	}
 	return spec, nil
 }

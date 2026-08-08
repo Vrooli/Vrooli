@@ -58,7 +58,10 @@ func (s *Server) handlePreviewPhaseApplicability(w http.ResponseWriter, r *http.
 		return
 	}
 	preview, err := s.executionPlanner.Preview(r.Context(), orchestrator.SuiteExecutionRequest{
+		// Keep ScenarioName populated for legacy planner adapters while Target
+		// carries the contract-backed expression for generalized targets.
 		ScenarioName: target,
+		Target:       target,
 		Preset:       strings.TrimSpace(r.URL.Query().Get("preset")),
 	})
 	if err != nil {

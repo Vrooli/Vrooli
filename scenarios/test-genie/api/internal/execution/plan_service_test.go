@@ -29,7 +29,19 @@ type stubPhaseSampleReader struct {
 	err         error
 }
 
-func (s *stubPhaseSampleReader) ListPhaseSamples(ctx context.Context, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error) {
+func TestMeasuredOrchestrationOverheadUsesMedianResidual(t *testing.T) {
+	now := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	samples := []PlanDurationSample{
+		{StartedAt: now, CompletedAt: now.Add(20 * time.Second), PhaseDurationMilliseconds: 10000},
+		{StartedAt: now, CompletedAt: now.Add(30 * time.Second), PhaseDurationMilliseconds: 10000},
+		{StartedAt: now, CompletedAt: now.Add(40 * time.Second), PhaseDurationMilliseconds: 10000},
+	}
+	if got := measuredOrchestrationOverheadSeconds(samples); got != 20 {
+		t.Fatalf("measured overhead = %d, want median residual 20", got)
+	}
+}
+
+func (s *stubPhaseSampleReader) ListPhaseSamples(ctx context.Context, scenario string, phaseNames []string, since time.Time, limit int) ([]PhaseDurationSample, error) {
 	return s.samples, s.err
 }
 
@@ -67,8 +79,8 @@ func TestExecutionPlanServicePreviewUsesScenarioHistoryFirst(t *testing.T) {
 	if preview.Phases[0].EstimatedDurationSeconds != 32 {
 		t.Fatalf("expected scenario P90 phase estimate 32, got %d", preview.Phases[0].EstimatedDurationSeconds)
 	}
-	if preview.Summary.EstimatedDurationSeconds != 152 {
-		t.Fatalf("expected additive phase estimate plus overhead 152, got %d", preview.Summary.EstimatedDurationSeconds)
+	if preview.Summary.EstimatedDurationSeconds != 32 {
+		t.Fatalf("expected additive phase estimate without unmeasured overhead, got %d", preview.Summary.EstimatedDurationSeconds)
 	}
 	if got := preview.Phases[0].EstimateSource; got != EstimateSourceScenarioHistory {
 		t.Fatalf("expected scenario history source, got %s", got)
@@ -189,7 +201,7 @@ func TestExecutionPlanServicePreviewMismatchedComparableHistoryFallsBackAdditive
 	if err != nil {
 		t.Fatalf("preview failed: %v", err)
 	}
-	if preview.Summary.EstimateMode != "additive_phase_history" || preview.Summary.OrchestrationOverheadSeconds != 120 {
+	if preview.Summary.EstimateMode != "additive_phase_history" || preview.Summary.OrchestrationOverheadSeconds != 0 {
 		t.Fatalf("descriptor mismatch must fail closed into additive estimate: %#v", preview.Summary)
 	}
 }
@@ -220,7 +232,7 @@ func TestExecutionPlanServicePreviewMarksUnknownHistoryExplicitly(t *testing.T) 
 	if !preview.Phases[0].EstimateUnknown {
 		t.Fatalf("expected unknown estimate flag")
 	}
-	if preview.Summary.TimeoutSeconds != 900 || preview.Summary.EstimatedDurationSeconds != 1020 {
+	if preview.Summary.TimeoutSeconds != 900 || preview.Summary.EstimatedDurationSeconds != 900 {
 		t.Fatalf("unexpected summary: %#v", preview.Summary)
 	}
 }
@@ -322,14 +334,14 @@ func TestExecutionPlanServicePreviewPlansQuickFromComprehensiveCandidates(t *tes
 	if preview.Profile == nil || preview.Profile.Name != "quick" || preview.Profile.Strategy != string(profileplanner.StrategyBudgetFastFeedback) {
 		t.Fatalf("unexpected profile metadata: %#v", preview.Profile)
 	}
-	if got := phaseNames(preview.Phases); got != "structure,unit" {
-		t.Fatalf("selected phases = %s, want structure,unit", got)
+	if got := phaseNames(preview.Phases); got != "structure,unit,security" {
+		t.Fatalf("selected phases = %s, want structure,unit,security", got)
 	}
-	if got := phaseNames(preview.OmittedPhases); got != "performance,security" {
-		t.Fatalf("omitted phases = %s, want performance,security", got)
+	if got := phaseNames(preview.OmittedPhases); got != "performance" {
+		t.Fatalf("omitted phases = %s, want performance", got)
 	}
-	if got := omissionReason(preview.OmittedPhases, "security"); got != profileplanner.ReasonOmittedUnknown {
-		t.Fatalf("security omission reason = %q, want unknown estimate", got)
+	if got := selectionReason(preview.Phases, "security"); got != profileplanner.ReasonSelectedUnknownCost {
+		t.Fatalf("security selection reason = %q, want unknown cost", got)
 	}
 	if got := omissionReason(preview.OmittedPhases, "performance"); got != profileplanner.ReasonOmittedBudget {
 		t.Fatalf("performance omission reason = %q, want budget", got)
@@ -338,8 +350,8 @@ func TestExecutionPlanServicePreviewPlansQuickFromComprehensiveCandidates(t *tes
 	if preview.Summary.BudgetSeconds != quickProfile.BudgetSeconds {
 		t.Fatalf("budget = %d, want %d", preview.Summary.BudgetSeconds, quickProfile.BudgetSeconds)
 	}
-	if preview.Summary.EstimatedDurationSeconds != 190 {
-		t.Fatalf("estimated total = %d, want 190", preview.Summary.EstimatedDurationSeconds)
+	if preview.Summary.EstimatedDurationSeconds != 370 {
+		t.Fatalf("estimated total = %d, want 370", preview.Summary.EstimatedDurationSeconds)
 	}
 }
 
@@ -347,6 +359,15 @@ func omissionReason(phases []PlannedPhase, name string) string {
 	for _, phase := range phases {
 		if phase.Name == name && len(phase.OmissionReasons) > 0 {
 			return phase.OmissionReasons[0]
+		}
+	}
+	return ""
+}
+
+func selectionReason(phases []PlannedPhase, name string) string {
+	for _, phase := range phases {
+		if phase.Name == name && len(phase.SelectionReasons) > 0 {
+			return phase.SelectionReasons[0]
 		}
 	}
 	return ""

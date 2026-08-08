@@ -1,6 +1,7 @@
 package providerdescriptor
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/maturity-go/dimensions"
 
@@ -39,6 +41,7 @@ type Descriptor struct {
 	FreshnessRequirement string           `json:"freshnessRequirement,omitempty"`
 	PhaseClass           string           `json:"phaseClass,omitempty"`
 	RuntimeClass         string           `json:"runtimeClass,omitempty"`
+	Concurrency          Concurrency      `json:"concurrency,omitempty"`
 	Dimensions           []string         `json:"dimensions,omitempty"`
 	EvidenceKinds        []string         `json:"evidenceKinds,omitempty"`
 	Aliases              []string         `json:"aliases,omitempty"`
@@ -54,6 +57,12 @@ type Descriptor struct {
 	Path                 string           `json:"-"`
 	TimeoutValue         time.Duration    `json:"-"`
 	MaturitySpec         *assessment.Spec `json:"-"`
+	concurrencyDeclared  bool             `json:"-"`
+}
+
+type Concurrency struct {
+	Mode   string `json:"mode,omitempty"`
+	Reason string `json:"reason,omitempty"`
 }
 
 type Targets struct {
@@ -63,7 +72,7 @@ type Targets struct {
 
 var validTargetKinds = map[string]struct{}{
 	"scenario": {}, "resource": {}, "tool": {}, "safeguard": {},
-	"team": {}, "package": {}, "control-plane": {}, "docs": {},
+	"team": {}, "package": {}, "control-plane": {}, "docs": {}, "project": {},
 }
 
 func (t Targets) EffectiveKinds() []string {
@@ -87,6 +96,11 @@ func (d *Descriptor) UnmarshalJSON(raw []byte) error {
 	} else {
 		d.FindingSource = strings.TrimSpace(*aux.FindingSource)
 	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return err
+	}
+	_, d.concurrencyDeclared = fields["concurrency"]
 	return nil
 }
 
@@ -238,8 +252,9 @@ func Load(opts LoadOptions) LoadResult {
 
 	seen := map[string]string{}
 	descriptors := make([]Descriptor, 0, len(paths))
+	schemaPath := descriptorSchemaPath(opts.RepoRoot, paths)
 	for _, path := range paths {
-		descriptor, ds := loadOne(path, skillIDs)
+		descriptor, ds := loadOne(path, skillIDs, schemaPath)
 		diagnostics = append(diagnostics, ds...)
 		if len(ds) > 0 {
 			continue
@@ -292,11 +307,16 @@ func validateLineage(descriptors []Descriptor) []Diagnostic {
 	return diagnostics
 }
 
-func loadOne(path string, skillIDs map[string]struct{}) (Descriptor, []Diagnostic) {
+func loadOne(path string, skillIDs map[string]struct{}, schemaPath string) (Descriptor, []Diagnostic) {
 	var diagnostics []Diagnostic
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return Descriptor{}, []Diagnostic{{Path: path, Code: "read_failed", Message: err.Error()}}
+	}
+	if schemaPath != "" {
+		if err := validateDescriptorSchema(raw, schemaPath); err != nil {
+			return Descriptor{}, []Diagnostic{{Path: path, Code: "schema_validation_failed", Message: err.Error()}}
+		}
 	}
 	var descriptor Descriptor
 	if err := json.Unmarshal(raw, &descriptor); err != nil {
@@ -327,6 +347,53 @@ func loadOne(path string, skillIDs map[string]struct{}) (Descriptor, []Diagnosti
 		}
 	}
 	return descriptor, nil
+}
+
+func descriptorSchemaPath(repoRoot string, descriptorPaths []string) string {
+	if strings.TrimSpace(repoRoot) != "" {
+		path := filepath.Join(repoRoot, "scenarios", "test-genie", "schemas", "test-genie-phase-descriptor.schema.json")
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+		return ""
+	}
+	for _, descriptorPath := range descriptorPaths {
+		for dir := filepath.Dir(descriptorPath); ; dir = filepath.Dir(dir) {
+			candidate := filepath.Join(dir, "..", "test-genie", "schemas", "test-genie-phase-descriptor.schema.json")
+			if _, err := os.Stat(candidate); err == nil {
+				return filepath.Clean(candidate)
+			}
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+		}
+	}
+	return ""
+}
+
+func validateDescriptorSchema(raw []byte, schemaPath string) error {
+	schemaBytes, err := os.ReadFile(schemaPath)
+	if err != nil {
+		return fmt.Errorf("read descriptor schema %s: %w", schemaPath, err)
+	}
+	const schemaURL = "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json"
+	compiler := jsonschema.NewCompiler()
+	if err := compiler.AddResource(schemaURL, bytes.NewReader(schemaBytes)); err != nil {
+		return fmt.Errorf("compile descriptor schema: %w", err)
+	}
+	schema, err := compiler.Compile(schemaURL)
+	if err != nil {
+		return fmt.Errorf("compile descriptor schema: %w", err)
+	}
+	var payload any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return fmt.Errorf("decode descriptor: %w", err)
+	}
+	if err := schema.Validate(payload); err != nil {
+		return fmt.Errorf("descriptor does not match schema: %w", err)
+	}
+	return nil
 }
 
 type promptManagerPackOrder struct {
@@ -525,6 +592,11 @@ func normalizeOrchestrationDefaults(d *Descriptor) {
 	if strings.TrimSpace(d.RuntimeClass) == "" {
 		d.RuntimeClass = "static"
 	}
+	d.Concurrency.Mode = strings.TrimSpace(strings.ToLower(d.Concurrency.Mode))
+	d.Concurrency.Reason = strings.TrimSpace(d.Concurrency.Reason)
+	if d.Concurrency.Mode == "" {
+		d.Concurrency.Mode = "exclusive"
+	}
 	for i, profile := range d.ProfileMembership {
 		d.ProfileMembership[i] = phasekeys.NormalizeKey(profile)
 	}
@@ -566,6 +638,12 @@ func validateOrchestration(d *Descriptor) []Diagnostic {
 	}
 	if !oneOf(d.RuntimeClass, "static", "execution", "lifecycle") {
 		add("invalid_runtime_class", "runtimeClass must be static, execution, or lifecycle")
+	}
+	if !oneOf(d.Concurrency.Mode, "parallel-safe", "exclusive", "provider-serial") {
+		add("invalid_concurrency_mode", "concurrency.mode must be parallel-safe, exclusive, or provider-serial")
+	}
+	if d.concurrencyDeclared && d.Concurrency.Mode == "exclusive" && d.Concurrency.Reason == "" {
+		add("missing_concurrency_reason", "concurrency.reason is required when mode is exclusive")
 	}
 	if !oneOf(d.Comparison.Mode, "compatible", "changed-unreviewed", "invalidated", "superseded") {
 		add("invalid_comparison_mode", "comparison.mode must be compatible, changed-unreviewed, invalidated, or superseded")

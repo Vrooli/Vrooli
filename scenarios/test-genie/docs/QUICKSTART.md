@@ -53,6 +53,7 @@ Results are available via:
 - **Dashboard** - Visual results with phase breakdowns
 - **API** - `GET /api/v1/executions/{id}`
 - **CLI** - `test-genie runs list --scenario my-scenario`
+- **Measured cost** - `test-genie runs cost --scenario my-scenario --window 168h --json`
 
 ## Test Presets
 
@@ -68,6 +69,12 @@ See [Presets Reference](reference/presets.md) for details.
 ## Test Phases
 
 Test Genie uses a descriptor-backed testing architecture. Provider phase metadata, applicability, policy, runnability capabilities, docs path, and maturity mappings live in provider-owned `.vrooli/test-genie.json` descriptors.
+
+Provider descriptors also declare `concurrency.mode` (`parallel-safe`,
+`provider-serial`, or `exclusive`). Missing declarations default to exclusive
+serialization. Concurrent admission requires reliable persisted cost history
+and a grant from the shared host-capacity broker; unknown or denied work runs
+serially with a warning.
 
 ```
 Structure → Contracts → UI Health → API → Architecture → Dependencies → Quality → Docs → Performance → Unit → Storage → Workflow → Business → Tidiness → Security → Measures → Proto → Branding → Search

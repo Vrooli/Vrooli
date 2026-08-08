@@ -281,6 +281,9 @@ func normalizeKey(value string) string {
 
 func countPredicateFields(predicate providerdescriptor.Predicate) int {
 	count := 0
+	if strings.TrimSpace(predicate.TargetKind) != "" {
+		count++
+	}
 	if strings.TrimSpace(predicate.FileExists) != "" {
 		count++
 	}

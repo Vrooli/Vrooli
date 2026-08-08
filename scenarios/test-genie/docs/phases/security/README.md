@@ -65,7 +65,10 @@ cover scanner-infrastructure and response-header posture.
 
 ## The canonical fix
 
-- **Scanner secret/SAST/vulnerability findings** → remediate the specific finding: rotate/remove the leaked credential, fix the SAST defect, or upgrade the vulnerable dependency past the fixed version. These hard-gate the swarm-manager `security` dimension (R1 "Safe").
+- **Dependency vulnerability findings** → the owner is `scenario-dependency-analyzer`; request a governed upgrade/reproduction plan and keep lifecycle scripts disabled. Never edit a lockfile or resolve arbitrary versions as a generic auto-fix. These hard-gate the swarm-manager `security` dimension (R1 "Safe") when normalized as ERROR.
+- **Reachable Go vulnerability findings** → the owner is `scenario-dependency-analyzer` for module upgrades; Go standard-library findings remain manual and belong to the toolchain owner.
+- **Secret findings** → the owner is vault/credential operations: rotate/remove the credential and purge it from history. Security Health never copies the secret into evidence.
+- **SAST findings** → the owner is `security-health` with a manual source-review fix. Do not infer an auto-fix from scanner prose.
 - **`security-health.security-headers-missing`** → auto-fixable (`fixer_status: implemented`): centralize baseline security headers in one API-router middleware. Run `security-health fix preview|apply <scenario>`.
 - **`security-health.insecure-cors`** → manual: replace credentialed wildcard CORS with a scenario-specific origin + credential policy; a generic rewrite would be unsafe.
 - **`security-health.security-headers-legacy-xss`** → auto-fixable: drop the legacy `X-XSS-Protection` header.
@@ -81,6 +84,14 @@ security-health validate scenario <scenario>
 test-genie execute <scenario> --phases security
 test-genie runs findings --scenario <scenario>
 ```
+
+The fleet and security-phase ledgers expose evidence-bound friction: repeated
+failed security observations, successful transitions back to green, and
+time-to-green percentiles when completed-run timestamps prove them. A missing
+timestamp is omitted from the duration sample rather than treated as an
+instant repair. `test-genie fleet status --json --roster` also emits typed
+`FLEET_SCENARIO_NOT_GREEN` and `FLEET_COVERAGE_GAP` alerts with an owner, next
+action, and rollback path.
 
 ## What it runs
 

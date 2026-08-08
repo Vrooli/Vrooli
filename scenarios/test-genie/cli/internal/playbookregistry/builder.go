@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/basprobe/types"
+	"test-genie/cli/internal/playbookregistry/types"
 )
 
 // Builder creates playbook registry files by scanning scenario directories.

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "test-genie",
   "generator": "v1.0.0",
-  "manifest_hash": "dc721f25c692d2974e097a5a2b770878392b171c2a50888d08841e1e4259024d",
+  "manifest_hash": "78d6f171cf65027a4b4cf08b1acb28c3e064910e14e60416bbd69f8e3f6a0ad5",
   "commands": [
     {
       "path": "eligibility check",
@@ -98,6 +98,14 @@
       "group": "runs",
       "command": "compare",
       "binding": "RunsService.CompareRuns",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "runs cost",
+      "group": "runs",
+      "command": "cost",
+      "binding": "RunsService.GetCostReport",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

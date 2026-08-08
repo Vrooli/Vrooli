@@ -15,6 +15,7 @@ import (
 	"test-genie/internal/executionevidence"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/orchestrator/providerreadiness"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 
@@ -261,6 +262,73 @@ func TestCompareRunsDifferentGitSHAsRemainBehaviorallyComparable(t *testing.T) {
 	}
 }
 
+func TestCompareRunsStablePreflightFailureIsPreexisting(t *testing.T) {
+	svc, root := newTestService(t)
+	baseResult := &orchestrator.SuiteExecutionResult{
+		ScenarioName: "demo", Success: false, Verdict: "FAIL",
+		FailureReason:     "start target scenario demo: exit status 1\n  Error: scenario \"demo\" failed health checks\n",
+		SourceFingerprint: "src:demo", SourceScope: "scenario:demo", SourceStable: true,
+		ConfigurationFingerprint: "cfg:demo", PhaseSetDigest: "phases:demo", DescriptorSnapshotDigest: "desc:demo",
+		GateQuality: false,
+	}
+	currentResult := *baseResult
+	currentResult.FailureReason = "start target scenario demo: exit status 1\ntime=2026-01-01T00:00:00Z\n  Error: scenario \"demo\" failed health checks\n"
+
+	seedRecord(t, root, sharedruns.RunRecord{RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusFailed})
+	seedRecord(t, root, sharedruns.RunRecord{RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusFailed})
+	if err := sharedruns.NewIndex(filepath.Join(root, "demo")).Finalize("base", baseResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatalf("finalize baseline preflight result: %v", err)
+	}
+	if err := sharedruns.NewIndex(filepath.Join(root, "demo")).Finalize("cur", &currentResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatalf("finalize current preflight result: %v", err)
+	}
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if resp.Msg.GetVerdict() != verdictPreexisting || resp.Msg.GetBehavior() != "preexisting" || resp.Msg.GetCoverage() != "measured" {
+		t.Fatalf("stable preflight comparison = %+v", resp.Msg)
+	}
+	hasDiagnostic := false
+	for _, diagnostic := range resp.Msg.GetDiagnostics() {
+		if diagnostic.GetCode() == "stable_preflight_failure" {
+			hasDiagnostic = true
+			break
+		}
+	}
+	if len(resp.Msg.GetPhases()) != 0 || !hasDiagnostic {
+		t.Fatalf("stable preflight evidence = %+v", resp.Msg)
+	}
+}
+
+func TestCompareRunsChangedPreflightFailureRemainsNotComparable(t *testing.T) {
+	svc, root := newTestService(t)
+	baseResult := &orchestrator.SuiteExecutionResult{
+		ScenarioName: "demo", Success: false, Verdict: "FAIL", FailureReason: "  Error: scenario \"demo\" failed health checks\n",
+		SourceFingerprint: "src:demo", SourceScope: "scenario:demo", SourceStable: true,
+		ConfigurationFingerprint: "cfg:demo", PhaseSetDigest: "phases:demo", DescriptorSnapshotDigest: "desc:demo",
+	}
+	currentResult := *baseResult
+	currentResult.FailureReason = "  Error: scenario \"demo\" phase \"setup\" step \"build\" failed with exit code 1\n"
+	seedRecord(t, root, sharedruns.RunRecord{RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusFailed})
+	seedRecord(t, root, sharedruns.RunRecord{RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusFailed})
+	if err := sharedruns.NewIndex(filepath.Join(root, "demo")).Finalize("base", baseResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatalf("finalize baseline preflight result: %v", err)
+	}
+	if err := sharedruns.NewIndex(filepath.Join(root, "demo")).Finalize("cur", &currentResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatalf("finalize current preflight result: %v", err)
+	}
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if resp.Msg.GetVerdict() != verdictNotComparable {
+		t.Fatalf("changed preflight comparison = %+v", resp.Msg)
+	}
+}
+
 func TestCompareRunsUsesCapturedCatalogEvolutionAndTypedReasons(t *testing.T) { // [REQ:TESTGENIE-DESCRIPTOR-SNAPSHOT-P0]
 	svc, root := newTestService(t)
 	seedRecord(t, root, sharedruns.RunRecord{
@@ -397,6 +465,117 @@ func TestCompareRunsSymmetricBestEffortProviderUnavailableIsNeutralCoverageGap(t
 	assertComparisonReason(t, resp.Msg.GetPhases()[0], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_PROVIDER_UNAVAILABLE)
 }
 
+func TestCompareRunsSymmetricSkippedProviderGapIgnoresLifecycleNoise(t *testing.T) {
+	svc, root := newTestService(t)
+	for _, runID := range []string{"base", "cur"} {
+		seedRunRecord(t, root, sharedruns.RunRecord{
+			RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+			Phases: []sharedruns.PhaseRecord{{Name: "templates", Status: "skipped"}},
+		}, false)
+		descriptor := capturedPhase("templates", "Templates")
+		descriptor.ComparisonFingerprint = "templates:v1"
+		seedDescriptorSnapshot(t, root, runID, descriptor)
+	}
+
+	baseResult := &orchestrator.SuiteExecutionResult{
+		SourceFingerprint: "src:base", SourceScope: "scenario:demo", SourceStable: true,
+		ConfigurationFingerprint: "cfg:shared",
+		Phases:                   []orchestrator.PhaseExecutionResult{{Name: "templates", Status: "skipped"}},
+		ProviderReadiness: []providerreadiness.Outcome{{
+			Phase: "templates", ProviderScenario: "template-manager",
+			Status: providerreadiness.OutcomeSkippedBestEffort, BestEffort: true,
+			Message: "time=2026-08-06T17:30:12Z\nError: scenario \"template-manager\" phase \"setup\" step \"build-api\" failed with exit code 1 (log: /tmp/base.log)",
+		}},
+	}
+	currentResult := *baseResult
+	currentResult.SourceFingerprint = "src:current"
+	currentResult.ConfigurationFingerprint = "cfg:changed-by-unrelated-phase"
+	currentResult.ProviderReadiness = []providerreadiness.Outcome{{
+		Phase: "templates", ProviderScenario: "template-manager",
+		Status: providerreadiness.OutcomeSkippedBestEffort, BestEffort: true,
+		Message: "time=2026-08-06T17:31:44Z\npid: 12345\nError: scenario \"template-manager\" phase \"setup\" step \"build-api\" failed with exit code 1 (log: /tmp/current.log)",
+	}}
+	index := sharedruns.NewIndex(filepath.Join(root, "demo"))
+	if err := index.Finalize("base", baseResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatalf("finalize baseline: %v", err)
+	}
+	if err := index.Finalize("cur", &currentResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatalf("finalize current: %v", err)
+	}
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if got := resp.Msg.GetVerdict(); got != verdictClean {
+		t.Fatalf("overall verdict: want %s, got %s", verdictClean, got)
+	}
+	if got := resp.Msg.GetCoverage(); got != "measured" {
+		t.Fatalf("aggregate coverage: want measured, got %s", got)
+	}
+	phase := resp.Msg.GetPhases()[0]
+	if phase.GetCoverage() != "measured" || phase.GetBehavior() != "preexisting" || !hasComparisonDiagnostic(phase, "provider_gap_preexisting") {
+		t.Fatalf("symmetric skipped provider gap comparison = %+v", phase)
+	}
+}
+
+func TestCompareRunsAdvisoryProviderGapWithChangedSourceIsNeutral(t *testing.T) {
+	svc, root := newTestService(t)
+	baseDescriptor := capturedPhase("templates", "Templates")
+	baseDescriptor.ComparisonFingerprint = "templates:v1"
+	baseDescriptor.Policy.ResultGating = "advisory"
+	baseDescriptor.Policy.Unavailable = "advisory"
+	currentDescriptor := baseDescriptor
+
+	seedRunRecord(t, root, sharedruns.RunRecord{
+		RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{{Name: "templates", Status: "passed"}},
+	}, false)
+	seedDescriptorSnapshot(t, root, "base", baseDescriptor)
+	seedRunRecord(t, root, sharedruns.RunRecord{
+		RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{{Name: "templates", Status: "skipped"}},
+	}, false)
+	seedDescriptorSnapshot(t, root, "cur", currentDescriptor)
+
+	baseResult := &orchestrator.SuiteExecutionResult{
+		SourceFingerprint: "src:base", SourceScope: "scenario:demo", SourceStable: true,
+		ConfigurationFingerprint: "cfg:shared",
+		Phases:                   []orchestrator.PhaseExecutionResult{{Name: "templates", Status: "passed"}},
+	}
+	currentResult := &orchestrator.SuiteExecutionResult{
+		SourceFingerprint: "src:current", SourceScope: "scenario:demo", SourceStable: true,
+		ConfigurationFingerprint: "cfg:shared",
+		Phases:                   []orchestrator.PhaseExecutionResult{{Name: "templates", Status: "skipped"}},
+		ProviderReadiness: []providerreadiness.Outcome{{
+			Phase: "templates", ProviderScenario: "template-manager",
+			Status: providerreadiness.OutcomeSkippedBestEffort, BestEffort: true,
+		}},
+	}
+	index := sharedruns.NewIndex(filepath.Join(root, "demo"))
+	if err := index.Finalize("base", baseResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatalf("finalize baseline: %v", err)
+	}
+	if err := index.Finalize("cur", currentResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatalf("finalize current: %v", err)
+	}
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if got := resp.Msg.GetVerdict(); got != verdictClean {
+		t.Fatalf("overall verdict: want %s, got %s", verdictClean, got)
+	}
+	if got := resp.Msg.GetCoverage(); got != "measured" {
+		t.Fatalf("aggregate coverage: want measured, got %s", got)
+	}
+	phase := resp.Msg.GetPhases()[0]
+	if phase.GetCoverage() != "measured" || phase.GetBehavior() != "preexisting" || !hasComparisonDiagnostic(phase, "provider_gap_preexisting") {
+		t.Fatalf("advisory provider gap comparison = %+v", phase)
+	}
+}
+
 func TestCompareRunsResolvedBestEffortProviderOutageIsCurrentOnlyEvidence(t *testing.T) {
 	svc, root := newTestService(t)
 	seedRecord(t, root, sharedruns.RunRecord{RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, Phases: []sharedruns.PhaseRecord{{Name: "architecture", Status: "provider_unavailable"}}})
@@ -419,6 +598,64 @@ func TestCompareRunsResolvedBestEffortProviderOutageIsCurrentOnlyEvidence(t *tes
 	}
 	if !hasComparisonDiagnostic(resp.Msg.GetPhases()[0], "provider_recovered") {
 		t.Fatalf("resolved outage diagnostic missing: %#v", resp.Msg.GetPhases()[0].GetDiagnostics())
+	}
+}
+
+func TestCompareRunsResolvedAdvisorySkippedProviderGapIsCurrentOnlyEvidence(t *testing.T) {
+	svc, root := newTestService(t)
+	baseDescriptor := capturedPhase("templates", "Templates")
+	baseDescriptor.ComparisonFingerprint = "templates:v1"
+	baseDescriptor.Policy.ResultGating = "advisory"
+	baseDescriptor.Policy.Unavailable = "advisory"
+	currentDescriptor := baseDescriptor
+	for _, runID := range []string{"base", "cur"} {
+		status := "skipped"
+		if runID == "cur" {
+			status = "passed"
+		}
+		seedRunRecord(t, root, sharedruns.RunRecord{
+			RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+			Phases: []sharedruns.PhaseRecord{{Name: "templates", Status: status}},
+		}, false)
+	}
+	seedDescriptorSnapshot(t, root, "base", baseDescriptor)
+	seedDescriptorSnapshot(t, root, "cur", currentDescriptor)
+
+	baseResult := &orchestrator.SuiteExecutionResult{
+		SourceFingerprint: "src:base", SourceScope: "scenario:demo", SourceStable: true,
+		ConfigurationFingerprint: "cfg:base",
+		Phases:                   []orchestrator.PhaseExecutionResult{{Name: "templates", Status: "skipped"}},
+		ProviderReadiness: []providerreadiness.Outcome{{
+			Phase: "templates", ProviderScenario: "template-manager",
+			Status: providerreadiness.OutcomeSkippedBestEffort, BestEffort: true,
+		}},
+	}
+	currentResult := &orchestrator.SuiteExecutionResult{
+		SourceFingerprint: "src:current", SourceScope: "scenario:demo", SourceStable: true,
+		ConfigurationFingerprint: "cfg:current",
+		Phases:                   []orchestrator.PhaseExecutionResult{{Name: "templates", Status: "passed"}},
+	}
+	index := sharedruns.NewIndex(filepath.Join(root, "demo"))
+	if err := index.Finalize("base", baseResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatalf("finalize baseline: %v", err)
+	}
+	if err := index.Finalize("cur", currentResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatalf("finalize current: %v", err)
+	}
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	if got := resp.Msg.GetVerdict(); got != verdictClean {
+		t.Fatalf("overall verdict: want %s, got %s", verdictClean, got)
+	}
+	if got := resp.Msg.GetCoverage(); got != "measured" {
+		t.Fatalf("aggregate coverage: want measured, got %s", got)
+	}
+	phase := resp.Msg.GetPhases()[0]
+	if phase.GetCoverage() != "current-only" || !hasComparisonDiagnostic(phase, "provider_recovered") {
+		t.Fatalf("resolved advisory provider gap comparison = %+v", phase)
 	}
 }
 

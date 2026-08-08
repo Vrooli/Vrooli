@@ -28,6 +28,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/maturity-go/assessment"
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
 )
@@ -114,6 +115,12 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	}
 
 	executionRepo := execution.NewSuiteExecutionRepository(db)
+	if capacityBroker, capacityErr := sharedcapacity.NewBroker(context.Background(), ""); capacityErr != nil {
+		log.Printf("[test-genie] phase capacity broker unavailable; scheduler will serialize: %v", capacityErr)
+	} else {
+		runner.SetCapacityBroker(capacityBroker)
+		runner.SetPhaseCostEstimator(executionRepo)
+	}
 	executionHistory := execution.NewExecutionHistoryService(executionRepo)
 	executionPlanner := execution.NewExecutionPlanService(runner, executionRepo)
 	scenarioRepo := scenarios.NewScenarioDirectoryRepository(db)
@@ -154,6 +161,11 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	// lifecycle (start/follow/wait/abort/status) over Connect-RPC, delegating
 	// execution to the run manager.
 	runsService := apprun.NewService(cfg.ScenariosRoot, runManager, executionPlanner, executionRepo)
+	runsService.SetCostSource(executionRepo)
+	runsService.SetStoredMetricsProbe(func(ctx context.Context, phase string) bool {
+		present, err := executionRepo.HasPersistedMetrics(ctx, phase)
+		return err == nil && present
+	})
 	runsService.SetRetentionStore(executionRepo)
 
 	// Provider-conformance ScenarioValidationService: Test Genie's own

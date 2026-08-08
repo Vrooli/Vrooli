@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"test-genie/internal/execution"
@@ -153,7 +154,7 @@ func (s *Server) previewExecutionPlan(ctx context.Context, req orchestrator.Suit
 }
 
 func applyPreviewPhaseSelection(input *execution.SuiteExecutionInput, preview *execution.ExecutionPlanPreview) {
-	if input == nil || preview == nil || preview.Profile == nil || len(input.Request.Phases) > 0 {
+	if input == nil || preview == nil || len(input.Request.Phases) > 0 {
 		return
 	}
 	if len(preview.Phases) == 0 {
@@ -163,6 +164,10 @@ func applyPreviewPhaseSelection(input *execution.SuiteExecutionInput, preview *e
 	for _, phase := range preview.Phases {
 		if phase.Name != "" {
 			names = append(names, phase.Name)
+			if input.Request.PredictedPhaseDurationsMilliseconds == nil {
+				input.Request.PredictedPhaseDurationsMilliseconds = make(map[string]int64)
+			}
+			input.Request.PredictedPhaseDurationsMilliseconds[strings.ToLower(strings.TrimSpace(phase.Name))] = int64(phase.EstimatedDurationSeconds) * 1000
 		}
 	}
 	if len(names) > 0 {

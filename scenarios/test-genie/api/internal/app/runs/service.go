@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -51,6 +52,8 @@ type Service struct {
 	// ledgerSource feeds the GetSelfHealth reliability ledger (compute-on-read
 	// aggregation over persisted runs). Satisfied by *execution.SuiteExecutionRepository.
 	ledgerSource   ledgerSource
+	costSource     execution.CostSource
+	storedMetrics  func(context.Context, string) bool
 	retentionStore sharedruns.DetailStore
 	// snapshotReader is the optional persisted self-health trend store. When
 	// wired, GetSelfHealth fills the ledger's captured_at + trend delta against
@@ -110,6 +113,64 @@ func (s *Service) SetFleetSource(src fleetLedgerSource, roster func(ctx context.
 	s.fleetSource = src
 	s.fleetRoster = roster
 	return s
+}
+
+// SetCostSource wires the measured phase-cost read model.
+func (s *Service) SetCostSource(src execution.CostSource) *Service {
+	if s != nil {
+		s.costSource = src
+	}
+	return s
+}
+
+// SetStoredMetricsProbe wires the durable execution-history check used by
+// provider conformance. It prevents live response fields from being counted
+// as adoption when persistence silently drops them.
+func (s *Service) SetStoredMetricsProbe(probe func(context.Context, string) bool) *Service {
+	if s != nil {
+		s.storedMetrics = probe
+	}
+	return s
+}
+
+func (s *Service) GetCostReport(ctx context.Context, req *connect.Request[runspb.GetCostReportRequest]) (*connect.Response[runspb.GetCostReportResponse], error) {
+	if s.costSource == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cost report is unavailable"))
+	}
+	window := time.Duration(req.Msg.GetWindowSeconds()) * time.Second
+	if window <= 0 {
+		window = 7 * 24 * time.Hour
+	}
+	compareWindow := time.Duration(req.Msg.GetCompareWindowSeconds()) * time.Second
+	now := time.Now().UTC()
+	current, err := s.costSource.CostReport(ctx, req.Msg.GetScenario(), now.Add(-window), now)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	var previous []execution.CostSummary
+	if compareWindow > 0 {
+		previous, err = s.costSource.CostReport(ctx, req.Msg.GetScenario(), now.Add(-window-compareWindow), now.Add(-window))
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	prior := make(map[string]execution.CostSummary, len(previous))
+	for _, p := range previous {
+		prior[p.Scenario+"\x00"+p.Phase] = p
+	}
+	out := make([]*runspb.CostPhaseSummary, 0, len(current))
+	for _, c := range current {
+		row := &runspb.CostPhaseSummary{Scenario: c.Scenario, Phase: c.Phase, SampleCount: int32(c.SampleCount), PassingSampleCount: int32(c.PassingSampleCount), FailingSampleCount: int32(c.FailingSampleCount), ReliableSampleCount: int32(c.ReliableSampleCount), ExcludedSampleCount: int32(c.ExcludedSampleCount), TotalWallClockMs: c.TotalWallClockMs, MedianWallClockMs: c.MedianWallClockMs, P90WallClockMs: c.P90WallClockMs, PassingMedianWallClockMs: c.PassingMedianWallClockMs, PassingP90WallClockMs: c.PassingP90WallClockMs, FailingMedianWallClockMs: c.FailingMedianWallClockMs, FailingP90WallClockMs: c.FailingP90WallClockMs, TotalCpuUserMs: c.TotalCPUUserMs, MaxPeakRssBytes: c.MaxPeakRSSBytes, PredictionSampleCount: int32(c.PredictionSampleCount), PredictionErrorTotalMs: c.PredictionErrorTotalMs, PredictionMeanAbsoluteErrorMs: c.PredictionMeanAbsoluteErrorMs, PredictionMeanAbsoluteErrorPercent: c.PredictionMeanAbsoluteErrorPercent}
+		if p, ok := prior[c.Scenario+"\x00"+c.Phase]; ok {
+			row.ChangeWallClockMs = c.TotalWallClockMs - p.TotalWallClockMs
+			if p.TotalWallClockMs != 0 {
+				row.ChangePercent = float64(row.ChangeWallClockMs) / float64(p.TotalWallClockMs) * 100
+			}
+		}
+		out = append(out, row)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].TotalWallClockMs > out[j].TotalWallClockMs })
+	return connect.NewResponse(&runspb.GetCostReportResponse{Phases: out, WindowSeconds: int64(window.Seconds()), CompareWindowSeconds: int64(compareWindow.Seconds())}), nil
 }
 
 // NewService returns a Service. scenariosRoot resolves each request's scenario
@@ -292,7 +353,13 @@ func (s *Service) CompareRuns(ctx context.Context, req *connect.Request[runspb.C
 	if err != nil {
 		return nil, mapRunError(err)
 	}
-	resp := comparePhases(projectionA, projectionB, strings.TrimSpace(req.Msg.GetPhase()))
+	phaseFilter := strings.TrimSpace(req.Msg.GetPhase())
+	if phaseFilter == "" {
+		if resp, comparable := compareStablePreflightFailures(projectionA, projectionB); comparable {
+			return connect.NewResponse(resp), nil
+		}
+	}
+	resp := comparePhases(projectionA, projectionB, phaseFilter)
 	return connect.NewResponse(resp), nil
 }
 

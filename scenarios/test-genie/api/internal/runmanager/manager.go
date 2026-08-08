@@ -21,6 +21,7 @@ import (
 	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/targetmodel"
 
+	"github.com/vrooli/freshness-go/treedigest"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
@@ -156,6 +157,7 @@ type activeRun struct {
 	// the manager lock during admission.
 	admissionKey string
 	caller       string
+	resources    []string
 	startedAt    time.Time
 	cancel       context.CancelFunc
 	bc           *broadcaster
@@ -474,6 +476,7 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 		preset:       preset,
 		admissionKey: key,
 		caller:       caller,
+		resources:    exclusiveResources(opts.Input.Request.AdmissionResources),
 		startedAt:    now,
 		bc:           newBroadcaster(),
 		done:         make(chan struct{}),
@@ -527,7 +530,7 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	// of suites (across ALL scenarios, including the background fleet sweep),
 	// admit this one as queued rather than rejecting it. The dispatcher promotes
 	// it FIFO when a slot frees. Otherwise it starts immediately.
-	queued := m.runningCountLocked() >= m.maxConcurrentRuns
+	queued := m.runningCountLocked() >= m.maxConcurrentRuns || m.resourceConflictLocked(ar, nil)
 	if queued && m.queuedCountLocked() >= m.maxQueuedRuns {
 		m.mu.Unlock()
 		cancel()
@@ -653,11 +656,65 @@ func (m *Manager) oldestQueuedLocked(exclude []*activeRun) *activeRun {
 		if containsRun(exclude, ar) {
 			continue
 		}
+		if m.resourceConflictLocked(ar, exclude) {
+			continue
+		}
 		if oldest == nil || ar.startedAt.Before(oldest.startedAt) {
 			oldest = ar
 		}
 	}
 	return oldest
+}
+
+// Admission resources are opaque scheduler identities. The orchestrator does
+// not know which scenario or provider owns one; a declared identity simply
+// prevents overlapping runs from sharing it.
+func exclusiveResources(resources []string) []string {
+	seen := make(map[string]struct{}, len(resources))
+	out := make([]string, 0, len(resources))
+	for _, resource := range resources {
+		resource = strings.TrimSpace(resource)
+		if resource == "" {
+			continue
+		}
+		if _, exists := seen[resource]; exists {
+			continue
+		}
+		seen[resource] = struct{}{}
+		out = append(out, resource)
+	}
+	return out
+}
+
+func (m *Manager) resourceConflictLocked(candidate *activeRun, additional []*activeRun) bool {
+	if candidate == nil || len(candidate.resources) == 0 {
+		return false
+	}
+	for _, other := range m.runs {
+		if other == candidate || other.currentStatus() != sharedruns.StatusInProgress {
+			continue
+		}
+		if resourcesOverlap(candidate.resources, other.resources) {
+			return true
+		}
+	}
+	for _, other := range additional {
+		if other != nil && resourcesOverlap(candidate.resources, other.resources) {
+			return true
+		}
+	}
+	return false
+}
+
+func resourcesOverlap(left, right []string) bool {
+	for _, a := range left {
+		for _, b := range right {
+			if strings.EqualFold(a, b) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func containsRun(runs []*activeRun, target *activeRun) bool {
@@ -695,7 +752,7 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 	})
 	close(stopHB)
 	if err != nil {
-		result = terminalFailureResult(result, ar, err)
+		result = m.terminalFailureResult(result, ar, err)
 	}
 
 	aborted := ctx.Err() != nil
@@ -774,7 +831,7 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 // when preflight exits before the orchestrator can finalize phase evidence.
 // Without this boundary, WaitRun reports only a zero-phase FAIL after the run
 // retires, which is not actionable for lifecycle and host-requirement failures.
-func terminalFailureResult(result *orchestrator.SuiteExecutionResult, ar *activeRun, err error) *orchestrator.SuiteExecutionResult {
+func (m *Manager) terminalFailureResult(result *orchestrator.SuiteExecutionResult, ar *activeRun, err error) *orchestrator.SuiteExecutionResult {
 	if result == nil {
 		result = &orchestrator.SuiteExecutionResult{
 			RunID:        ar.runID,
@@ -797,7 +854,39 @@ func terminalFailureResult(result *orchestrator.SuiteExecutionResult, ar *active
 	result.Success = false
 	result.Verdict = "FAIL"
 	result.FailureReason = err.Error()
+	m.attachStablePreflightSourceEvidence(result, ar)
 	return result
+}
+
+// attachStablePreflightSourceEvidence preserves the source identity captured
+// before a target-runtime failure. A failed start is still valid baseline
+// evidence when the scenario tree is unchanged: it records a pre-existing
+// failure without pretending that any phase ran. The old early-return path
+// discarded this identity, causing Git Control Tower to retry a stable
+// lifecycle failure as if the source had changed.
+func (m *Manager) attachStablePreflightSourceEvidence(result *orchestrator.SuiteExecutionResult, ar *activeRun) {
+	if result == nil || ar == nil || result.SourceStable {
+		return
+	}
+	scenarioDir := m.scenarioDir(ar.scenario)
+	if custom := strings.TrimSpace(ar.input.Request.ScenarioPath); custom != "" {
+		scenarioDir = custom
+	}
+	record, err := sharedruns.NewIndex(scenarioDir).Find(ar.runID)
+	if err != nil || strings.TrimSpace(record.TreeDigest) == "" {
+		return
+	}
+	current, err := treedigest.Compute(scenarioDir)
+	if err != nil || current != record.TreeDigest {
+		return
+	}
+	result.SourceFingerprint = record.TreeDigest
+	result.SourceScope = "scenario:" + strings.TrimSpace(ar.scenario)
+	result.SourceStable = true
+	result.ConfigurationFingerprint = orchestrator.ExecutionConfigurationFingerprint(ar.input.Request, record.DescriptorSnapshotDigest)
+	result.DescriptorSnapshotDigest = record.DescriptorSnapshotDigest
+	result.PhaseSetDigest = record.PhaseSetDigest
+	result.PlannedPhases = append([]string(nil), record.PlannedPhases...)
 }
 
 // onOrchestratorEvent translates a low-level orchestrator event into the

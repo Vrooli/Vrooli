@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -59,6 +60,8 @@ func Run(apiClient *cliutil.APIClient, args []string) error {
 		return runUnpin(apiClient, args[1:], os.Stdout)
 	case "compare":
 		return runCompare(apiClient, args[1:], os.Stdout)
+	case "cost":
+		return runCost(apiClient, args[1:], os.Stdout)
 	case "freshness":
 		return runFreshness(apiClient, args[1:], os.Stdout)
 	case "wait":
@@ -124,6 +127,111 @@ func client(apiClient *cliutil.APIClient) (runs_v1connect.RunsServiceClient, err
 	return newClient(apiClient)
 }
 
+func costReportCall(apiClient *cliutil.APIClient) func(cliapp.OperationContext) (*runspb.GetCostReportResponse, error) {
+	return func(ctx cliapp.OperationContext) (*runspb.GetCostReportResponse, error) {
+		window, err := parseCostWindow(ctx.Flag("window"), 7*24*time.Hour)
+		if err != nil {
+			return nil, err
+		}
+		compareWindow, err := parseCostWindow(ctx.Flag("compare-window"), 0)
+		if err != nil {
+			return nil, err
+		}
+		cl, err := client(apiClient)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := cl.GetCostReport(context.Background(), connect.NewRequest(&runspb.GetCostReportRequest{
+			Scenario:             ctx.Flag("scenario"),
+			WindowSeconds:        int64(window.Seconds()),
+			CompareWindowSeconds: int64(compareWindow.Seconds()),
+		}))
+		if err != nil {
+			return nil, err
+		}
+		return resp.Msg, nil
+	}
+}
+
+func costReportReport(_ cliapp.OperationContext, msg *runspb.GetCostReportResponse) cliapp.ListReport {
+	results := make([]string, 0, len(msg.GetPhases()))
+	for _, phase := range msg.GetPhases() {
+		results = append(results, fmt.Sprintf("%s/%s samples=%d reliable=%d excluded=%d total=%dms median=%dms p90=%dms cpu=%dms peak_rss=%d change=%dms (%.1f%%) prediction=%d mae=%dms (%.1f%%)", phase.GetScenario(), phase.GetPhase(), phase.GetSampleCount(), phase.GetReliableSampleCount(), phase.GetExcludedSampleCount(), phase.GetTotalWallClockMs(), phase.GetMedianWallClockMs(), phase.GetP90WallClockMs(), phase.GetTotalCpuUserMs(), phase.GetMaxPeakRssBytes(), phase.GetChangeWallClockMs(), phase.GetChangePercent(), phase.GetPredictionSampleCount(), phase.GetPredictionMeanAbsoluteErrorMs(), phase.GetPredictionMeanAbsoluteErrorPercent()))
+	}
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Measured phase cost: %d phase(s), window=%ds, compare=%ds", len(results), msg.GetWindowSeconds(), msg.GetCompareWindowSeconds())},
+		ResultsHeading: "Phase cost",
+		Results:        results,
+	}
+}
+
+func runCost(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
+	fs := flag.NewFlagSet("runs cost", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	scenario := fs.String("scenario", "", "scenario")
+	windowText := fs.String("window", "168h", "look-back window (for example 168h or 7d)")
+	compareText := fs.String("compare-window", "0", "preceding comparison window (for example 168h)")
+	jsonOutput := fs.Bool("json", false, "JSON output")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	window, err := parseCostWindow(*windowText, 7*24*time.Hour)
+	if err != nil {
+		return err
+	}
+	compareWindow, err := parseCostWindow(*compareText, 0)
+	if err != nil {
+		return err
+	}
+	cl, err := client(apiClient)
+	if err != nil {
+		return err
+	}
+	resp, err := cl.GetCostReport(context.Background(), connect.NewRequest(&runspb.GetCostReportRequest{
+		Scenario: *scenario, WindowSeconds: int64(window.Seconds()), CompareWindowSeconds: int64(compareWindow.Seconds()),
+	}))
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		data, err := (protojson.MarshalOptions{UseProtoNames: false, EmitUnpopulated: false}).Marshal(resp.Msg)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(w, string(data))
+		return err
+	}
+	// The report renderer does not inspect operation inputs; a nil context is
+	// sufficient for this legacy direct-dispatch path.
+	report := costReportReport(nil, resp.Msg)
+	for _, line := range report.Summary {
+		fmt.Fprintln(w, line)
+	}
+	for _, line := range report.Results {
+		fmt.Fprintln(w, line)
+	}
+	return nil
+}
+
+func parseCostWindow(raw string, defaultWindow time.Duration) (time.Duration, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return defaultWindow, nil
+	}
+	if strings.HasSuffix(strings.ToLower(raw), "d") {
+		var days float64
+		if _, err := fmt.Sscanf(strings.TrimSpace(raw[:len(raw)-1]), "%f", &days); err != nil || days < 0 {
+			return 0, fmt.Errorf("invalid cost window %q", raw)
+		}
+		return time.Duration(days * float64(24*time.Hour)), nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d < 0 {
+		return 0, fmt.Errorf("invalid cost window %q", raw)
+	}
+	return d, nil
+}
+
 // Register returns the manifest-backed runs command group with cli-core
 // primitive evidence for single-call RPC commands. Long-lived follow/wait
 // commands remain in omitted manifest coverage until streaming primitives exist.
@@ -137,6 +245,7 @@ func Register(manifest []byte, apiClient *cliutil.APIClient) (cliapp.SubcommandG
 		"RunsService.PinRun":           cliapp.ProtoMutation(pinRunCall(apiClient), pinRunReport),
 		"RunsService.UnpinRun":         cliapp.ProtoMutation(unpinRunCall(apiClient), unpinRunReport),
 		"RunsService.CompareRuns":      cliapp.ProtoListOutcome(compareRunsCall(apiClient), compareRunsReport, compareExitFromResponse),
+		"RunsService.GetCostReport":    cliapp.ProtoList(costReportCall(apiClient), costReportReport),
 		"RunsService.CheckFreshness":   cliapp.ProtoListOutcome(checkFreshnessCall(apiClient), checkFreshnessReport, freshnessExit),
 		"RunsService.GetRunFindings":   cliapp.ProtoList(getRunFindingsCall(apiClient), getRunFindingsReport),
 		"RunsService.GetSelfHealth":    cliapp.ProtoOperational(selfHealthCall(apiClient), selfHealthReport),

@@ -88,10 +88,16 @@ func (s *Service) GetSelfHealth(ctx context.Context, req *connect.Request[runspb
 	if req.Msg.GetSkipConformance() {
 		sh.ConformanceFreshness = "skipped"
 	} else {
-		report := selfhealth.ConformanceScanner{
+		scanner := selfhealth.ConformanceScanner{
 			RepoRoot: s.repoRoot(),
 			Target:   selfhealth.DefaultScanTarget,
-		}.Scan(ctx)
+		}
+		if s.storedMetrics != nil {
+			scanner.StoredMetrics = func(probeCtx context.Context, _ string, phase string) bool {
+				return s.storedMetrics(probeCtx, phase)
+			}
+		}
+		report := scanner.Scan(ctx)
 		sh.Conformance = conformanceToProto(report)
 		sh.ConformanceFreshness = "live"
 	}
@@ -158,8 +164,10 @@ func conformanceToProto(report selfhealth.ConformanceReport) []*runspb.ProviderC
 			IdentityOk:          pr.IdentityOK,
 			SpecValid:           pr.SpecValid,
 			MetricsAdopted:      pr.MetricsAdopted,
+			MetricsReachable:    pr.MetricsReachable,
 			FixContractRequired: pr.FixContractRequired,
 			FixContractValid:    pr.FixContractValid,
+			ConcurrencyDeclared: pr.ConcurrencyDeclared,
 			AdoptionScore:       pr.AdoptionScore,
 			Violations:          pr.Violations,
 			Autofix:             autofixCoverageToProto(pr.Autofix),
@@ -244,6 +252,15 @@ func phaseReliabilityToProto(p selfhealth.PhaseReliability) *runspb.PhaseReliabi
 			Failures:    int32(ws.Failures),
 			FailureRate: ws.FailureRate,
 		})
+	}
+	if p.SecurityFriction.FailedAttempts > 0 || p.SecurityFriction.GreenTransitions > 0 {
+		out.SecurityFriction = &runspb.SecurityFriction{
+			FailedAttempts:     int32(p.SecurityFriction.FailedAttempts),
+			GreenTransitions:   int32(p.SecurityFriction.GreenTransitions),
+			RecurringFailures:  int32(p.SecurityFriction.RecurringFailures),
+			TimeToGreenSamples: int32(p.SecurityFriction.TimeToGreenSamples),
+			TimeToGreen:        durationToProto(p.SecurityFriction.TimeToGreen),
+		}
 	}
 	return out
 }

@@ -218,6 +218,38 @@ func TestRepositoryDescriptorsLoadWithoutRetiredMaturityFiles(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsFieldsForbiddenByDescriptorSchema(t *testing.T) {
+	root := t.TempDir()
+	schemaRoot := filepath.Join(filepath.Clean(filepath.Join("..", "..", "..", "..", "..", "..")), "scenarios", "test-genie", "schemas")
+	schema, err := os.ReadFile(filepath.Join(schemaRoot, "test-genie-phase-descriptor.schema.json"))
+	if err != nil {
+		t.Fatalf("read descriptor schema: %v", err)
+	}
+	destinationSchema := filepath.Join(root, "scenarios", "test-genie", "schemas", "test-genie-phase-descriptor.schema.json")
+	if err := os.MkdirAll(filepath.Dir(destinationSchema), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(destinationSchema, schema, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	descriptorPath := filepath.Join(root, "scenarios", "search-hub", ".vrooli", "test-genie.json")
+	if err := os.MkdirAll(filepath.Dir(descriptorPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := strings.Replace(validDescriptor("search-hub", "search"),
+		`"displayName":"Search",`, `"displayName":"Search","unexpected":true,`, 1)
+	body = strings.Replace(body, "{\n  \"schemaVersion\"", "{\n  \"$schema\":\"https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json\",\n  \"schemaVersion\"", 1)
+	if err := os.WriteFile(descriptorPath, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := Load(LoadOptions{RepoRoot: root})
+	if !hasDiagnostic(result.Diagnostics, "schema_validation_failed") {
+		t.Fatalf("diagnostics = %#v, want schema_validation_failed", result.Diagnostics)
+	}
+}
+
 func TestEvidenceProducingProvidersDeclareTypedKinds(t *testing.T) { // [REQ:TESTGENIE-TYPED-EVIDENCE-P0]
 	repoRoot := filepath.Clean(filepath.Join("..", "..", "..", "..", "..", ".."))
 	result := Load(LoadOptions{RepoRoot: repoRoot})

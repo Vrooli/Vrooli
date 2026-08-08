@@ -11,6 +11,7 @@ package selfhealth
 import (
 	"context"
 	"sort"
+	"strings"
 	"time"
 
 	"test-genie/internal/execution"
@@ -62,6 +63,24 @@ type DurationStats struct {
 	Avg     int `json:"avg"`
 }
 
+// SecurityFriction measures only the observable security-phase loop. A
+// failure followed by a later passed observation for the same scenario is a
+// green transition; repeated failures before that transition are recurrence.
+// The timestamps come from completed server-owned runs, so a missing run is
+// not treated as a zero-duration success.
+type SecurityFriction struct {
+	FailedAttempts     int           `json:"failedAttempts,omitempty"`
+	GreenTransitions   int           `json:"greenTransitions,omitempty"`
+	RecurringFailures  int           `json:"recurringFailures,omitempty"`
+	UnknownFindings    int           `json:"unknownFindings,omitempty"`
+	BlockedActions     int           `json:"blockedActions,omitempty"`
+	RepairAttempts     int           `json:"repairAttempts,omitempty"`
+	RepairSuccesses    int           `json:"repairSuccesses,omitempty"`
+	ProviderOutages    int           `json:"providerOutages,omitempty"`
+	TimeToGreenSamples int           `json:"timeToGreenSamples,omitempty"`
+	TimeToGreen        DurationStats `json:"timeToGreen,omitempty"`
+}
+
 // OutcomeCount is one bucket of the run-level terminal-outcome histogram.
 type OutcomeCount struct {
 	Outcome string `json:"outcome"`
@@ -93,6 +112,7 @@ type PhaseReliability struct {
 	Classifications   []LabeledCount        `json:"classifications,omitempty"`
 	Duration          DurationStats         `json:"duration"`
 	WorstScenarios    []ScenarioFailureRate `json:"worstScenarios,omitempty"`
+	SecurityFriction  SecurityFriction      `json:"securityFriction,omitempty"`
 }
 
 // ProviderReliability is the per-provider rollup across its phase(s).
@@ -196,19 +216,20 @@ func runAvailability(counts []execution.RunOutcomeCount) (int, float64) {
 
 // phaseAccumulator gathers per-phase signal during a single pass.
 type phaseAccumulator struct {
-	phase           string
-	provider        string
-	findingSource   string
-	total           int
-	passed          int
-	failed          int
-	skipped         int
-	degraded        int
-	metricsAdopted  int
-	skipReasons     map[string]int
-	classifications map[string]int
-	durations       []int
-	perScenario     map[string]*scenarioAcc
+	phase                string
+	provider             string
+	findingSource        string
+	total                int
+	passed               int
+	failed               int
+	skipped              int
+	degraded             int
+	metricsAdopted       int
+	skipReasons          map[string]int
+	classifications      map[string]int
+	durations            []int
+	perScenario          map[string]*scenarioAcc
+	securityObservations []execution.PhaseObservation
 }
 
 type scenarioAcc struct {
@@ -300,6 +321,10 @@ func (a *phaseAccumulator) observe(obs execution.PhaseObservation) {
 			}
 		}
 	}
+	if (strings.EqualFold(a.phase, "security") || strings.EqualFold(a.findingSource, "security")) &&
+		(obs.Status == "passed" || obs.Status == "failed") {
+		a.securityObservations = append(a.securityObservations, obs)
+	}
 }
 
 func (a *phaseAccumulator) finalize() PhaseReliability {
@@ -320,6 +345,7 @@ func (a *phaseAccumulator) finalize() PhaseReliability {
 		Classifications:   histogram(a.classifications),
 		Duration:          durationStats(a.durations),
 		WorstScenarios:    worstScenarios(a.perScenario),
+		SecurityFriction:  securityFriction(a.phase, a.findingSource, a.securityObservations),
 	}
 }
 
@@ -419,6 +445,68 @@ func worstScenarios(perScenario map[string]*scenarioAcc) []ScenarioFailureRate {
 		ranked = ranked[:maxWorstScenariosPerPhase]
 	}
 	return ranked
+}
+
+func securityFriction(phase, findingSource string, observations []execution.PhaseObservation) SecurityFriction {
+	if !strings.EqualFold(phase, "security") && !strings.EqualFold(findingSource, "security") {
+		return SecurityFriction{}
+	}
+	byScenario := make(map[string][]execution.PhaseObservation)
+	for _, obs := range observations {
+		if strings.TrimSpace(obs.ScenarioName) == "" {
+			continue
+		}
+		byScenario[obs.ScenarioName] = append(byScenario[obs.ScenarioName], obs)
+	}
+	var timeToGreen []int
+	var friction SecurityFriction
+	for _, entries := range byScenario {
+		sort.SliceStable(entries, func(i, j int) bool { return entries[i].CompletedAt.Before(entries[j].CompletedAt) })
+		failedSinceGreen := false
+		var failedAt time.Time
+		for _, obs := range entries {
+			classification := strings.ToLower(strings.TrimSpace(obs.Classification + " " + obs.RunnabilityReason))
+			if strings.Contains(classification, "unknown") {
+				friction.UnknownFindings++
+			}
+			if strings.Contains(classification, "block") || strings.Contains(classification, "deny") {
+				friction.BlockedActions++
+			}
+			if strings.Contains(classification, "repair") || strings.Contains(classification, "remediat") {
+				friction.RepairAttempts++
+				if obs.Status == "passed" {
+					friction.RepairSuccesses++
+				}
+			}
+			if strings.Contains(classification, "provider") && (strings.Contains(classification, "unavailable") || strings.Contains(classification, "outage") || strings.Contains(classification, "stale")) {
+				friction.ProviderOutages++
+			}
+			switch obs.Status {
+			case "failed":
+				friction.FailedAttempts++
+				if failedSinceGreen {
+					friction.RecurringFailures++
+				}
+				failedSinceGreen = true
+				if failedAt.IsZero() {
+					failedAt = obs.CompletedAt
+				}
+			case "passed":
+				if !failedSinceGreen {
+					continue
+				}
+				friction.GreenTransitions++
+				if !failedAt.IsZero() && !obs.CompletedAt.IsZero() && obs.CompletedAt.After(failedAt) {
+					timeToGreen = append(timeToGreen, int(obs.CompletedAt.Sub(failedAt).Round(time.Second)/time.Second))
+				}
+				failedSinceGreen = false
+				failedAt = time.Time{}
+			}
+		}
+	}
+	friction.TimeToGreenSamples = len(timeToGreen)
+	friction.TimeToGreen = durationStats(timeToGreen)
+	return friction
 }
 
 func histogram(counts map[string]int) []LabeledCount {

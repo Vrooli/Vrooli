@@ -137,6 +137,7 @@ func testGenieDescriptor(provider, phase string, spec assessment.Spec) map[strin
 			"needsAPI":          false,
 			"requiredResources": []string{},
 		},
+		"concurrency": map[string]any{"mode": "provider-serial"},
 		"docs": map[string]any{
 			"path": "scenarios/test-genie/docs/phases/" + phase + "/README.md",
 		},

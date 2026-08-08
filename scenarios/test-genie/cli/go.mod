@@ -4,8 +4,6 @@ go 1.25.0
 
 require (
 	connectrpc.com/connect v1.19.2
-	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/lib/pq v1.10.9
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/maturity-go v0.0.0
@@ -63,7 +61,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/vrooli/freshness-go v0.0.0 // indirect
-	github.com/vrooli/vrooli-cli-go v0.0.0 // indirect
+	github.com/vrooli/vrooli v0.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
@@ -104,3 +102,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace intent-go => ../../../packages/intent-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime

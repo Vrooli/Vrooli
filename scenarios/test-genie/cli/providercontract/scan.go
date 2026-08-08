@@ -44,6 +44,8 @@ type ProviderReport struct {
 	// is coherent. The JSON key remains `spec_valid` for CLI compatibility.
 	SpecValid           bool          `json:"spec_valid"`
 	MetricsAdopted      bool          `json:"metrics_adopted"`
+	MetricsReachable    bool          `json:"metrics_reachable"`
+	ConcurrencyDeclared bool          `json:"concurrency_declared"`
 	FixContractRequired bool          `json:"fix_contract_required"`
 	FixContractValid    bool          `json:"fix_contract_valid"`
 	AdoptionScore       float64       `json:"adoption_score"`
@@ -175,6 +177,8 @@ func Scan(ctx context.Context, args ScanArgs) ScanReport {
 			IdentityOK:          pr.IdentityOK,
 			SpecValid:           pr.SpecValid,
 			MetricsAdopted:      pr.MetricsAdopted,
+			MetricsReachable:    pr.MetricsReachable,
+			ConcurrencyDeclared: pr.ConcurrencyDeclared,
 			FixContractRequired: pr.FixContractRequired,
 			FixContractValid:    pr.FixContractValid,
 			AdoptionScore:       pr.AdoptionScore,
@@ -227,9 +231,9 @@ func restartScanProviders(ctx context.Context, timeout time.Duration, subject st
 func printScanReport(report ScanReport) {
 	fmt.Printf("Provider contract scan (target=%s)\n", report.Target)
 	for _, pr := range report.Providers {
-		fmt.Printf("  %-14s → %-28s state=%-11s adoption=%.0f%% reach=%s contract=%s identity=%s spec=%s metrics=%s fixes=%s\n",
+		fmt.Printf("  %-14s → %-28s state=%-11s adoption=%.0f%% reach=%s contract=%s identity=%s spec=%s metrics=%s concurrency=%s fixes=%s\n",
 			pr.Phase, pr.Provider, pr.Classification, pr.AdoptionScore*100,
-			yesno(pr.Reachable), yesno(pr.ContractValid), yesno(pr.IdentityOK), yesno(pr.SpecValid), yesno(pr.MetricsAdopted), fixContractStatus(pr))
+			yesno(pr.Reachable), yesno(pr.ContractValid), yesno(pr.IdentityOK), yesno(pr.SpecValid), yesno(pr.MetricsAdopted), yesno(pr.ConcurrencyDeclared), fixContractStatus(pr))
 		if len(pr.ReasonCodes) > 0 {
 			fmt.Printf("      reasons: %s\n", strings.Join(pr.ReasonCodes, ", "))
 		}

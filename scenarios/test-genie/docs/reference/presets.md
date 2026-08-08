@@ -75,7 +75,7 @@ test-genie execute my-scenario --preset comprehensive
 | Storage | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-manager. | 2m |
 | Workflow | Validates BAS workflow assets and safe execution through workflow-health. | 15m |
 | Business | Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health. | 2m |
-| Experience | Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager. | 2m |
+| Experience | Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager. | 10m |
 | Tidiness | Validates file and function quality checks through tidiness-manager. | 2m |
 | Security | Validates secrets, Go SAST, Go vulnerability data, and JavaScript dependencies through security-health. | 3m |
 | Measures | Validates measures coverage and per-measure tiering through measures-health. | 3m |

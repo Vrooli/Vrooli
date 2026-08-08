@@ -1,2 +1,0 @@
--- SQLite schema for Test Genie operational storage. Persisted domain tables
--- are owned by their packages and applied through runtime's domain registry.

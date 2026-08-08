@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 
 	"test-genie/internal/storage/sqlitedb"
@@ -134,4 +135,12 @@ func migrateLegacyDatabase(dst string) error {
 		return fmt.Errorf("migrate legacy test-genie database: %w", err)
 	}
 	return nil
+}
+
+func scenarioRoot() (string, error) {
+	_, file, _, ok := goruntime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("resolve runtime source path")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..")), nil
 }

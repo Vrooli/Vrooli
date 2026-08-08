@@ -36,7 +36,13 @@ type PlannedPhase struct {
 	FreshnessRequirement string                 `json:"freshnessRequirement,omitempty"`
 	PhaseClass           string                 `json:"phaseClass,omitempty"`
 	RuntimeClass         string                 `json:"runtimeClass,omitempty"`
+	ConcurrencyMode      string                 `json:"concurrencyMode,omitempty"`
+	ConcurrencyGroup     string                 `json:"concurrencyGroup,omitempty"`
 	Dimensions           []string               `json:"dimensions,omitempty"`
+	// RequiredResources is the provider/resource footprint of this phase. It
+	// is surfaced during admission so singleton external services can be
+	// serialized without making unrelated suites globally single-threaded.
+	RequiredResources []string `json:"requiredResources,omitempty"`
 }
 
 // ExecutionPlanPreview captures the actual selected phase plan for a request.
@@ -174,7 +180,10 @@ func (o *SuiteOrchestrator) plannedPhasePreview(def phases.Definition, plan *pha
 		FreshnessRequirement: def.FreshnessRequirement,
 		PhaseClass:           def.PhaseClass,
 		RuntimeClass:         def.RuntimeClass,
+		ConcurrencyMode:      def.Concurrency.Mode,
+		ConcurrencyGroup:     def.ProviderScenario,
 		Dimensions:           append([]string(nil), def.Dimensions...),
+		RequiredResources:    append([]string(nil), def.Capabilities.RequiredResources...),
 	}
 	if notice, ok := planApplicabilityNotice(plan, def.Name.Key()); ok {
 		phasePreview.ApplicabilityStatus = notice.Result.Status

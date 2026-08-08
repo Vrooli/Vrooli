@@ -92,17 +92,17 @@ func (s *stubValidationClient) ValidateScenario(_ context.Context, _ *connect.Re
 
 func withStubClient(t *testing.T, stub *stubValidationClient) {
 	t.Helper()
-	origResolve := ResolveStorageHealthURL
+	origResolve := ResolveStorageManagerURL
 	origClient := NewStorageValidationClient
 	t.Cleanup(func() {
-		ResolveStorageHealthURL = origResolve
+		ResolveStorageManagerURL = origResolve
 		NewStorageValidationClient = origClient
 	})
-	ResolveStorageHealthURL = func(context.Context) (string, error) { return "http://stub", nil }
+	ResolveStorageManagerURL = func(context.Context) (string, error) { return "http://stub", nil }
 	NewStorageValidationClient = func(time.Duration, string) StorageValidationClient { return stub }
 }
 
-func TestChecker_QueriesStorageHealthAndCaches(t *testing.T) {
+func TestChecker_QueriesStorageManagerAndCaches(t *testing.T) {
 	stub := &stubValidationClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
 		Assessment: assessmentWith(&commonv1.AssessmentFinding{Code: CodeRoutedSeamsUnwired, Severity: "SEVERITY_ERROR"}),
 	}}

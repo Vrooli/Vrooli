@@ -45,6 +45,21 @@ type FleetFindingSource struct {
 	Issues int    `json:"issues"`
 }
 
+// FleetAlert is an actionable, typed view of a fleet condition. Alerts never
+// imply clean when evidence is missing; coverage gaps are warnings until a
+// server-owned run supplies fresh evidence.
+type FleetAlert struct {
+	Code            string  `json:"code"`
+	Severity        string  `json:"severity"`
+	Scenario        string  `json:"scenario,omitempty"`
+	Source          string  `json:"source,omitempty"`
+	Message         string  `json:"message"`
+	EvidenceAgeDays float64 `json:"evidenceAgeDays,omitempty"`
+	Owner           string  `json:"owner"`
+	NextAction      string  `json:"nextAction"`
+	RollbackPath    string  `json:"rollbackPath"`
+}
+
 // FleetLedger is the assembled fleet-wide health snapshot, computed-on-read over
 // stored runs. CapturedAt is the as-of stamp for the WHOLE rollup; each scenario
 // additionally carries its own LastRunAt so a stale datum can never read as
@@ -60,6 +75,7 @@ type FleetLedger struct {
 	Scenarios           []FleetScenarioHealth `json:"scenarios"`
 	TopFindingSources   []FleetFindingSource  `json:"topFindingSources"`
 	NeverTestedInWindow []string              `json:"neverTestedInWindow"`
+	Alerts              []FleetAlert          `json:"alerts"`
 }
 
 // FleetBuilder assembles fleet ledgers from a fleet observation source.
@@ -147,6 +163,15 @@ func (b *FleetBuilder) Build(ctx context.Context, roster []string) (*FleetLedger
 		ledger.Scenarios = append(ledger.Scenarios, health)
 		ledger.TotalRuns += roll.Runs
 		ledger.TotalIssues += health.Issues
+		if health.FailedRuns > 0 || health.Issues > 0 {
+			ledger.Alerts = append(ledger.Alerts, FleetAlert{
+				Code: "FLEET_SCENARIO_NOT_GREEN", Severity: "error", Scenario: name,
+				Message:         "The scenario has failed server-owned evidence in the active window.",
+				EvidenceAgeDays: health.AgeDays, Owner: "test-genie",
+				NextAction:   "Run `vrooli scenario test " + name + "` and inspect the failing phase evidence.",
+				RollbackPath: "Keep the prior provider/profile active; do not promote remediation until verification passes.",
+			})
+		}
 	}
 
 	// Rank most-errored first: failure rate, then absolute failures, then issue
@@ -183,12 +208,27 @@ func (b *FleetBuilder) Build(ctx context.Context, roster []string) (*FleetLedger
 			}
 			seen[name] = struct{}{}
 			ledger.NeverTestedInWindow = append(ledger.NeverTestedInWindow, name)
+			ledger.Alerts = append(ledger.Alerts, FleetAlert{
+				Code: "FLEET_COVERAGE_GAP", Severity: "warning", Scenario: name,
+				Message: "No server-owned evidence exists for this roster scenario in the active window.",
+				Owner:   "test-genie", NextAction: "Schedule or run a server-owned Test Genie suite before treating the target as clean.",
+				RollbackPath: "Leave the target in its prior effective policy mode until fresh evidence is available.",
+			})
 		}
 		sort.Strings(ledger.NeverTestedInWindow)
 		ledger.ScenariosTotal = ledger.ScenariosTested + len(ledger.NeverTestedInWindow)
 	} else {
 		ledger.ScenariosTotal = ledger.ScenariosTested
 	}
+	sort.SliceStable(ledger.Alerts, func(i, j int) bool {
+		if ledger.Alerts[i].Severity != ledger.Alerts[j].Severity {
+			return ledger.Alerts[i].Severity == "error"
+		}
+		if ledger.Alerts[i].Scenario != ledger.Alerts[j].Scenario {
+			return ledger.Alerts[i].Scenario < ledger.Alerts[j].Scenario
+		}
+		return ledger.Alerts[i].Code < ledger.Alerts[j].Code
+	})
 
 	return ledger, nil
 }

@@ -34,6 +34,33 @@ func Migrate(ctx context.Context, db dbexec.Executor) error {
 			}
 		}
 	}
+	for _, column := range []struct {
+		name string
+		ddl  string
+	}{
+		{name: "duration_ms", ddl: "INTEGER NOT NULL DEFAULT 0"},
+		{name: "predicted_duration_ms", ddl: "INTEGER"},
+		{name: "wall_clock_ms", ddl: "INTEGER"},
+		{name: "cpu_user_ms", ddl: "INTEGER"},
+		{name: "cpu_sys_ms", ddl: "INTEGER"},
+		{name: "peak_rss_bytes", ddl: "INTEGER"},
+		{name: "cpu_reliability", ddl: "TEXT"},
+		{name: "memory_reliability", ddl: "TEXT"},
+		{name: "gpu_reliability", ddl: "TEXT"},
+	} {
+		hasColumn, err := columnExists(ctx, db, "suite_execution_phases", column.name)
+		if err != nil {
+			return fmt.Errorf("introspect suite_execution_phases: %w", err)
+		}
+		if !hasColumn {
+			if _, err := db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE suite_execution_phases ADD COLUMN %s %s", column.name, column.ddl)); err != nil {
+				return fmt.Errorf("add suite_execution_phases.%s: %w", column.name, err)
+			}
+		}
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE suite_execution_phases SET duration_ms = duration_seconds * 1000 WHERE duration_ms = 0 AND duration_seconds > 0`); err != nil {
+		return fmt.Errorf("backfill suite_execution_phases.duration_ms: %w", err)
+	}
 	if _, err := db.ExecContext(ctx, `UPDATE suite_executions SET target_kind = 'scenario' WHERE target_kind IS NULL OR target_kind = ''`); err != nil {
 		return fmt.Errorf("backfill suite_executions.target_kind: %w", err)
 	}

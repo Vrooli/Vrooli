@@ -193,6 +193,34 @@ func TestBuildLedgerEmptyAndMetricsAbsent(t *testing.T) {
 	}
 }
 
+func TestSecurityFrictionTracksRecurrenceAndTimeToGreen(t *testing.T) {
+	base := time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC)
+	failed := obs("demo", "failed", "security", "failed", 8, false)
+	failed.CompletedAt = base
+	recur := obs("demo", "failed", "security", "failed", 9, false)
+	recur.CompletedAt = base.Add(2 * time.Minute)
+	passed := obs("demo", "passed", "security", "passed", 7, true)
+	passed.CompletedAt = base.Add(5 * time.Minute)
+
+	l, err := NewBuilder(fakeSource{observations: []execution.PhaseObservation{failed, recur, passed}}, 0).
+		Build(context.Background(), map[string]PhaseMeta{"security": {FindingSource: "security", Delegated: true}})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	security := phaseByName(t, l, "security")
+	friction := security.SecurityFriction
+	if friction.FailedAttempts != 2 || friction.RecurringFailures != 1 || friction.GreenTransitions != 1 {
+		t.Fatalf("friction counts = %+v", friction)
+	}
+	if friction.TimeToGreenSamples != 1 || friction.TimeToGreen.P50 != 300 || friction.TimeToGreen.P95 != 300 {
+		t.Fatalf("time to green = %+v", friction.TimeToGreen)
+	}
+
+	if got := phaseByName(t, l, "security").SecurityFriction; got.TimeToGreenSamples != 1 {
+		t.Fatalf("security friction should remain attached to security phase: %+v", got)
+	}
+}
+
 func TestWorstScenariosRanking(t *testing.T) {
 	var observations []execution.PhaseObservation
 	// scenario "bad": 3 executed, 2 failed → 0.667

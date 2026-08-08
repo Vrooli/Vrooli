@@ -21,7 +21,7 @@ by the Test Genie lifecycle; start it with `make start` when needed.
 | Command | Purpose |
 |---|---|
 | `execute <target>` | Start a descriptor-planned, server-owned execution for a scenario or repository target. |
-| `runs` | Wait for, follow, inspect, abort, compare, or browse durable executions. |
+| `runs` | Wait for, follow, inspect, abort, compare, cost, or browse durable executions. |
 | `remediate <scenario>` | Create one evidence-bound remediation job from a completed execution. |
 | `phases` | Inspect the live descriptor-backed phase catalog and execution plan. |
 | `requirements` | Inspect and synchronize requirement evidence. |
@@ -54,7 +54,7 @@ typed next action.
 
 Use `test-genie runs abort my-scenario <run-id>` only when you intend to cancel
 the execution. The `runs` command also provides `status`, `follow`, `list`,
-`show`, `compare`, and freshness/history operations; refer to `test-genie runs
+`show`, `compare`, `cost`, and freshness/history operations; refer to `test-genie runs
 --help` for exact syntax.
 
 For a pending run, `runs status` is a nonblocking snapshot that prints one
@@ -117,6 +117,7 @@ test-genie health
 test-genie status
 test-genie provider-contract scan --json
 test-genie fleet status --json
+test-genie runs cost --scenario my-scenario --window 168h --compare-window 168h --json
 ```
 
 These commands report existing evidence and provider posture; they do not

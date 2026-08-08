@@ -23,6 +23,7 @@ func TestResolveCanonicalTargets(t *testing.T) {
 		{expression: "package:api-core", kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE, id: "api-core", root: "packages/api-core"},
 		{expression: "module:packages/api-core", kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE, id: "api-core", root: "packages/api-core"},
 		{expression: "docs:docs", kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS, id: "docs", root: "docs"},
+		{expression: "project:repo", kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT, id: "repo", root: "."},
 	} {
 		got, err := Resolve(root, test.expression)
 		if err != nil {

@@ -33,7 +33,7 @@ func TestPlanProfileSelectsRequiredAndBudgetFit(t *testing.T) {
 	}
 }
 
-func TestPlanProfileOmitsUnknownOptionalCandidates(t *testing.T) {
+func TestPlanProfileSelectsUnknownOptionalCandidatesToEarnHistory(t *testing.T) {
 	estimator := NewEstimator("demo", nil)
 	plan := PlanProfile(Profile{
 		Name:          "quick",
@@ -52,17 +52,89 @@ func TestPlanProfileOmitsUnknownOptionalCandidates(t *testing.T) {
 		}, Order: 2},
 	}, estimator)
 
-	if got := decisionNames(plan.Selected); got != "structure" {
-		t.Fatalf("selected = %s, want structure", got)
+	if got := decisionNames(plan.Selected); got != "structure,security" {
+		t.Fatalf("selected = %s, want structure,security", got)
 	}
-	if got := reasonFor(plan.Omitted, "security"); got != ReasonOmittedUnknown {
-		t.Fatalf("security reason = %q, want unknown", got)
+	if got := reasonFor(plan.Selected, "security"); got != ReasonSelectedUnknownCost {
+		t.Fatalf("security reason = %q, want selected unknown cost", got)
 	}
 	if got := reasonFor(plan.Omitted, "manual"); got != ReasonOmittedExplicitOnly {
 		t.Fatalf("manual reason = %q, want explicit-only", got)
 	}
-	if plan.UnknownEstimateCount != 3 || plan.SelectedUnknownEstimates != 1 {
+	if plan.UnknownEstimateCount != 3 || plan.SelectedUnknownEstimates != 2 {
 		t.Fatalf("unexpected unknown counts: %#v", plan)
+	}
+}
+
+func TestEstimatorExcludesCensoredSamplesFromPointEstimate(t *testing.T) {
+	estimator := NewEstimator("demo", []Sample{
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationSeconds: 8},
+		{ScenarioName: "demo", PhaseName: "unit", Status: "failed", DurationSeconds: 10},
+		{ScenarioName: "demo", PhaseName: "unit", Status: "timeout", DurationSeconds: 900},
+		{ScenarioName: "demo", PhaseName: "unit", Status: "skipped", DurationSeconds: 700},
+	})
+	estimate := estimator.Estimate("unit", 120)
+	if estimate.DurationSeconds != 10 || estimate.CensoredSampleCount != 1 || estimate.ExcludedSampleCount != 1 {
+		t.Fatalf("censored sample changed estimate or counts: %#v", estimate)
+	}
+	if estimate.Confidence != EstimateConfidenceLow {
+		t.Fatalf("censored bucket confidence = %q, want low", estimate.Confidence)
+	}
+}
+
+func TestEstimatorMillisecondsAndSecondsProduceSameBudgetSelection(t *testing.T) {
+	seconds := NewEstimator("demo", []Sample{
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationSeconds: 40},
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationSeconds: 41},
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationSeconds: 42},
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationSeconds: 43},
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationSeconds: 44},
+	})
+	milliseconds := NewEstimator("demo", []Sample{
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationMilliseconds: 40000},
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationMilliseconds: 41000},
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationMilliseconds: 42000},
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationMilliseconds: 43000},
+		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationMilliseconds: 44000},
+	})
+	candidates := []Candidate{{Name: "unit", TimeoutSeconds: 120, Policy: phasepolicy.BestEffortProviderPolicy()}}
+	left := PlanProfile(Profile{Name: "quick", BudgetSeconds: 100}, candidates, seconds)
+	right := PlanProfile(Profile{Name: "quick", BudgetSeconds: 100}, candidates, milliseconds)
+	if decisionNames(left.Selected) != decisionNames(right.Selected) || left.EstimatedTotalSeconds != right.EstimatedTotalSeconds {
+		t.Fatalf("unit conversion changed selection: seconds=%#v milliseconds=%#v", left, right)
+	}
+}
+
+func TestPlanProfileReportsRequiredOverflowAndKeepsCheapOptionalCoverage(t *testing.T) {
+	estimator := NewEstimator("demo", []Sample{
+		{ScenarioName: "demo", PhaseName: "required", Status: "passed", DurationSeconds: 190},
+		{ScenarioName: "demo", PhaseName: "cheap", Status: "passed", DurationSeconds: 2},
+		{ScenarioName: "demo", PhaseName: "expensive", Status: "passed", DurationSeconds: 200},
+	})
+	plan := PlanProfile(Profile{Name: "quick", BudgetSeconds: 180}, []Candidate{
+		{Name: "required", Policy: phasepolicy.RequiredProviderPolicy()},
+		{Name: "expensive", Policy: phasepolicy.BestEffortProviderPolicy(), Order: 1},
+		{Name: "cheap", Policy: phasepolicy.BestEffortProviderPolicy(), Order: 2},
+	}, estimator)
+	if !plan.BudgetExceededByRequired || plan.BudgetOverflowSeconds != 10 {
+		t.Fatalf("missing required overflow: %#v", plan)
+	}
+	if reasonFor(plan.Selected, "cheap") == "" || reasonFor(plan.Omitted, "expensive") != ReasonOmittedBudget {
+		t.Fatalf("unexpected overflow selection: %#v", plan)
+	}
+}
+
+func TestPlanProfileUsesMakespanWhenConcurrencyGranted(t *testing.T) {
+	estimator := NewEstimator("demo", []Sample{
+		{ScenarioName: "demo", PhaseName: "one", Status: "passed", DurationSeconds: 60},
+		{ScenarioName: "demo", PhaseName: "two", Status: "passed", DurationSeconds: 50},
+	})
+	plan := PlanProfile(Profile{Name: "quick", BudgetSeconds: 70, ConcurrencyGranted: true}, []Candidate{
+		{Name: "one", Policy: phasepolicy.BestEffortProviderPolicy(), ConcurrencyMode: "parallel-safe"},
+		{Name: "two", Policy: phasepolicy.BestEffortProviderPolicy(), ConcurrencyMode: "parallel-safe"},
+	}, estimator)
+	if plan.FitMode != FitModeMakespan || plan.EstimatedTotalSeconds != 60 || len(plan.Selected) != 2 {
+		t.Fatalf("unexpected makespan plan: %#v", plan)
 	}
 }
 

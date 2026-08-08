@@ -103,8 +103,8 @@ func assertProviderMatchesDescriptor(t *testing.T, catalog *Catalog, phase Name,
 	if provider.FindingSource != spec.FindingSource {
 		t.Fatalf("%s finding source = %v, want %v", phase, spec.FindingSource, provider.FindingSource)
 	}
-	if provider.IncludeExecution != includeExecutionPhase(phase) {
-		t.Fatalf("%s provider IncludeExecution = %v, want %v", phase, provider.IncludeExecution, includeExecutionPhase(phase))
+	if provider.IncludeExecution != descriptor.Validation.Execution {
+		t.Fatalf("%s provider IncludeExecution = %v, want descriptor execution=%v", phase, provider.IncludeExecution, descriptor.Validation.Execution)
 	}
 }
 
@@ -122,21 +122,6 @@ func declaresMaturityLadder(descriptor providerdescriptor.Descriptor) bool {
 		}
 	}
 	return false
-}
-
-// includeExecutionPhase pins which delegates request execution-mode validation:
-// Unit executes the suite, Measures runs its checks, Performance benchmarks the
-// Go + UI build and Lighthouse-if-UI, Contracts runs cli-health's runtime CLI
-// probe, Search runs live corpus validation, UIHealth drives the BAS render
-// handshake, Workflow executes BAS validation cases, and Component Tests runs
-// React Component Library contracts. Every other delegate is inspection-only.
-func includeExecutionPhase(phase Name) bool {
-	switch phase {
-	case Unit, Measures, Performance, Contracts, Search, UIHealth, Workflow, Name("component-tests"):
-		return true
-	default:
-		return false
-	}
 }
 
 func TestValidationProviderTransportDoesNotRegressToPerPhaseRunners(t *testing.T) {

@@ -113,6 +113,7 @@ func targetExpression(target *commonv1.ValidationTarget) string {
 		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE:       "package",
 		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE: "control-plane",
 		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS:          "docs",
+		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT:       "project",
 	}
 	name := names[target.GetKind()]
 	if name == "" {
@@ -147,17 +148,39 @@ func (s *Service) prepareAdmission(ctx context.Context, req *orchestrator.SuiteE
 		if errors.As(err, &vErr) {
 			return 0, false, connect.NewError(connect.CodeInvalidArgument, err)
 		}
-		return 0, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("resolve execution identity"))
+		return 0, false, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("resolve execution identity: %w", err))
 	}
 	if preview == nil {
-		return 0, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("resolve execution identity"))
+		return 0, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("resolve execution identity: planner returned no preview"))
 	}
 	req.AdmissionTreeDigest = digest
 	req.AdmissionPhaseSetDigest = preview.PhaseSetDigest
 	req.AdmissionDescriptorDigest = preview.DescriptorSnapshotDigest
 	req.AdmissionConfigurationDigest = preview.ConfigurationFingerprint
+	var resources []string
+	for _, phase := range preview.Phases {
+		resources = append(resources, phase.RequiredResources...)
+	}
+	req.AdmissionResources = uniqueStrings(resources)
 	total := preview.Summary.EstimatedDurationSeconds
 	return total, total > 0, nil
+}
+
+func uniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 // admissionScenarioDir must use the same physical source selected by the

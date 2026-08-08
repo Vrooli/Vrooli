@@ -565,6 +565,7 @@ func targetProto(expression string) *commonv1.ValidationTarget {
 		"package":       commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE,
 		"control-plane": commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE,
 		"docs":          commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS,
+		"project":       commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT,
 	}
 	kind, ok := names[strings.ToLower(strings.TrimSpace(parts[0]))]
 	if !ok {

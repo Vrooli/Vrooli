@@ -100,7 +100,7 @@
           "examples": [
             [
               "ui/tsconfig.json",
-              "initialization/sqlite/schema.sql"
+              "api/internal/<domain>/schema.sql"
             ]
           ]
         },
@@ -134,10 +134,7 @@
             ]
           },
           "examples": [
-            [
-              "ui",
-              "initialization"
-            ]
+            ["ui"]
           ]
         },
         "ui_smoke": {
