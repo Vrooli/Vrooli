@@ -6,6 +6,12 @@ import (
 	"testing"
 
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protodesc"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/dynamicpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -49,6 +55,47 @@ func TestPrintProtoJSON_RoundTripsThroughProtojson(t *testing.T) {
 	}
 	if got.Value != "hello world" {
 		t.Errorf("round-trip lost value: got %q, want %q", got.Value, "hello world")
+	}
+}
+
+func TestRenderProtoListWithUnpopulatedJSON_EmitsZeroFields(t *testing.T) {
+	label := descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL
+	typeInt32 := descriptorpb.FieldDescriptorProto_TYPE_INT32
+	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
+		Name:    proto.String("test.proto"),
+		Package: proto.String("cliapp.test"),
+		Syntax:  proto.String("proto3"),
+		MessageType: []*descriptorpb.DescriptorProto{{
+			Name: proto.String("Counter"),
+			Field: []*descriptorpb.FieldDescriptorProto{{
+				Name:   proto.String("count"),
+				Number: proto.Int32(1),
+				Label:  &label,
+				Type:   &typeInt32,
+			}},
+		}},
+	}, protoregistry.GlobalFiles)
+	if err != nil {
+		t.Fatalf("build test descriptor: %v", err)
+	}
+	messageDescriptor := file.Messages().ByName(protoreflect.Name("Counter"))
+	payload := dynamicpb.NewMessage(messageDescriptor)
+	var out bytes.Buffer
+	ctx := NewTestRunContext(TestRunContextOptions{JSON: true, Stdout: &out})
+	if err := RenderProtoListWithJSONOptions(ctx, payload, ListReport{}, protojson.MarshalOptions{
+		UseProtoNames:   true,
+		Multiline:       true,
+		Indent:          "  ",
+		EmitUnpopulated: true,
+	}); err != nil {
+		t.Fatalf("RenderProtoListWithJSONOptions: %v", err)
+	}
+	// protojson deliberately varies the space after a key so callers cannot
+	// depend on byte-exact output; the amount shifts with the binary's import
+	// graph. Normalize whitespace so this asserts the field is emitted rather
+	// than how it happens to be spaced in this build.
+	if !strings.Contains(strings.Join(strings.Fields(out.String()), " "), `"count": 0`) {
+		t.Fatalf("expected explicit zero fields, got: %s", out.String())
 	}
 }
 

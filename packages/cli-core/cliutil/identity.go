@@ -14,6 +14,11 @@ import (
 const (
 	EnvIdentityToken = "VROOLI_AGENT_IDENTITY_TOKEN"
 
+	// These harness signals identify an execution channel only. They are
+	// observations and must never be used as agent identity proof.
+	EnvClaudeCodeSessionID = "CLAUDE_CODE_SESSION_ID"
+	EnvCodexThreadID       = "CODEX_THREAD_ID"
+
 	// HeaderAgentIdentityToken carries the opaque Agent Manager token. APIs must
 	// verify it server-side before treating any request as agent-attributed.
 	HeaderAgentIdentityToken = "X-Agent-Identity-Token"
@@ -24,6 +29,8 @@ const (
 	HeaderInvocationScenario = "X-Vrooli-Invocation-Scenario"
 	HeaderInvocationCommand  = "X-Vrooli-Invocation-Command"
 	HeaderInvocationID       = "X-Vrooli-Invocation-Id"
+	HeaderHarnessSessionID   = "X-Vrooli-Harness-Session-Id"
+	HeaderHarnessKind        = "X-Vrooli-Harness-Kind"
 )
 
 var detectAgentManagerPort = DetectPortFromVrooli("agent-manager", "API_PORT")
@@ -84,6 +91,13 @@ func InvocationHeaders(scenario, command string) func() map[string]string {
 		}
 		if token := strings.TrimSpace(os.Getenv(EnvIdentityToken)); token != "" {
 			headers[HeaderAgentIdentityToken] = token
+		}
+		if sessionID := strings.TrimSpace(os.Getenv(EnvClaudeCodeSessionID)); sessionID != "" {
+			headers[HeaderHarnessSessionID] = sessionID
+			headers[HeaderHarnessKind] = "claude-code"
+		} else if threadID := strings.TrimSpace(os.Getenv(EnvCodexThreadID)); threadID != "" {
+			headers[HeaderHarnessSessionID] = threadID
+			headers[HeaderHarnessKind] = "codex"
 		}
 		return headers
 	}

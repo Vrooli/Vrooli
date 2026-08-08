@@ -76,10 +76,14 @@ func (k CallerKind) String() string {
 var agentContextEnvKeys = []string{
 	"VROOLI_SANDBOX_ID",
 	"VROOLI_SANDBOX_MERGED",
-	"VROOLI_AGENT_MANAGER_RUN_ID",
 	"VROOLI_SWARM_MANAGER_SESSION_ID",
 	"VROOLI_AGENT_IDENTITY_TOKEN",
 }
+
+// The legacy agent-manager run-id environment signal was removed by the
+// trustworthy-agent-work-attribution-and-durability-signal plan because an
+// environment value is a forgeable attribution claim. The signed identity
+// token remains the strict agent-manager signal.
 
 // IsAgentControlledContext reports whether the current process is running
 // inside a Vrooli-spawned agent context (strict). Unchanged since
@@ -111,7 +115,7 @@ type agentSignal struct {
 var knownAgentSignals = []agentSignal{
 	// Vrooli-spawned (mirrors agentContextEnvKeys / IsAgentControlledContext).
 	{Name: "vrooli-sandbox", Kind: CallerKindVrooliAgent, Match: envAnyNonEmpty("VROOLI_SANDBOX_ID", "VROOLI_SANDBOX_MERGED")},
-	{Name: "vrooli-agent-manager", Kind: CallerKindVrooliAgent, Match: envAnyNonEmpty("VROOLI_AGENT_MANAGER_RUN_ID", "VROOLI_AGENT_IDENTITY_TOKEN")},
+	{Name: "vrooli-agent-manager", Kind: CallerKindVrooliAgent, Match: envAnyNonEmpty("VROOLI_AGENT_IDENTITY_TOKEN")},
 	{Name: "vrooli-swarm-manager", Kind: CallerKindVrooliAgent, Match: envAnyNonEmpty("VROOLI_SWARM_MANAGER_SESSION_ID")},
 
 	// External agent runtimes — confirmed via self-vs-parent env diff.

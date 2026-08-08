@@ -33,7 +33,8 @@ type contractDoc struct {
 
 // Contract is an immutable view of the loaded repo contract.
 type Contract struct {
-	doc contractDoc
+	doc          contractDoc
+	unknownKinds []string
 }
 
 type Platform struct {
@@ -195,6 +196,15 @@ func (c *Contract) Targets() TargetSpecSet {
 		}
 	}
 	return out
+}
+
+// UnknownKinds returns the target kinds skipped while loading the contract.
+// Unknown kinds remain non-fatal so known target kinds continue to work.
+func (c *Contract) UnknownKinds() []string {
+	if c == nil {
+		return nil
+	}
+	return slices.Clone(c.unknownKinds)
 }
 
 func (c *Contract) EnvironmentVariables() map[string]string {

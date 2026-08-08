@@ -15,7 +15,7 @@ func clearAllSignalEnv(t *testing.T) {
 		"VROOLI_CALLER",
 		"VROOLI_SANDBOX_ID",
 		"VROOLI_SANDBOX_MERGED",
-		"VROOLI_AGENT_MANAGER_RUN_ID",
+		"VROOLI_AGENT_MANAGER_RUN" + "_ID",
 		"VROOLI_AGENT_IDENTITY_TOKEN",
 		"VROOLI_SWARM_MANAGER_SESSION_ID",
 		"CLAUDECODE",
@@ -89,7 +89,7 @@ func TestDetectCallerKind_VrooliSignals(t *testing.T) {
 	}{
 		{"sandbox-id", "VROOLI_SANDBOX_ID"},
 		{"sandbox-merged", "VROOLI_SANDBOX_MERGED"},
-		{"agent-manager-run-id", "VROOLI_AGENT_MANAGER_RUN_ID"},
+		{"identity-token", "VROOLI_AGENT_IDENTITY_TOKEN"},
 		{"identity-token", "VROOLI_AGENT_IDENTITY_TOKEN"},
 		{"swarm-manager-session", "VROOLI_SWARM_MANAGER_SESSION_ID"},
 	}

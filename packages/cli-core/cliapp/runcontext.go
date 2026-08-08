@@ -32,6 +32,10 @@ var ErrHelpRequested = errors.New("help requested")
 // typo in a handler ("titel" vs "title") fails fast at the first invocation
 // rather than silently returning empty strings.
 type OperationContext interface {
+	// Schema returns the immutable argument declaration used to parse this
+	// invocation. Generic manifest-driven handlers use it to resolve every
+	// declared argument against a proto request descriptor.
+	Schema() ArgSchema
 	// Flag returns the value of a valued flag. If the flag was not provided,
 	// returns the schema's Default.
 	Flag(name string) string
@@ -210,6 +214,8 @@ func (r *runContext) RenderOperational(report OperationalReport) error {
 }
 
 func (r *runContext) Core() *ScenarioApp { return r.core }
+
+func (r *runContext) Schema() ArgSchema { return r.schema }
 
 // FlagBindEntry pairs a declared flag's name with its parsed bind metadata
 // and whether the user supplied the flag (BoolFlag-style "provided" signal).

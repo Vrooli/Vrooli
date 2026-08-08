@@ -84,10 +84,13 @@ func (e ManifestException) CommandArchitecture() CommandArchitecture {
 }
 
 type ManifestPositional struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Required    bool   `json:"required,omitempty"`
-	Repeated    bool   `json:"repeated,omitempty"`
+	Name        string            `json:"name"`
+	Description string            `json:"description,omitempty"`
+	Required    bool              `json:"required,omitempty"`
+	Repeated    bool              `json:"repeated,omitempty"`
+	LocalOnly   bool              `json:"local_only,omitempty"`
+	Bind        *ManifestFlagBind `json:"bind,omitempty"`
+	BindWaiver  string            `json:"bind_waiver,omitempty"`
 }
 
 type ManifestFlag struct {
@@ -97,12 +100,14 @@ type ManifestFlag struct {
 	Required    bool     `json:"required,omitempty"`
 	Default     string   `json:"default,omitempty"`
 	Bool        bool     `json:"bool,omitempty"`
+	LocalOnly   bool     `json:"local_only,omitempty"`
 	// Values, when non-empty, declares the closed vocabulary the flag
 	// accepts; ValueAliases maps accepted synonyms to a declared value.
 	// See Flag.Values / Flag.ValueAliases for the runtime contract.
 	Values       []string          `json:"values,omitempty"`
 	ValueAliases map[string]string `json:"value_aliases,omitempty"`
 	Bind         *ManifestFlagBind `json:"bind,omitempty"`
+	BindWaiver   string            `json:"bind_waiver,omitempty"`
 }
 
 // ManifestFlagBind, when set, declares how the flag's parsed value maps
@@ -334,7 +339,11 @@ func loadFromManifest(raw []byte, groupName string, bindings map[string]boundHan
 func ManifestArgs(c ManifestCommand) (ArgSchema, error) {
 	args := ArgSchema{}
 	for _, p := range c.Positionals {
-		args.Positionals = append(args.Positionals, Positional(p))
+		pos := Positional{Name: p.Name, Description: p.Description, Required: p.Required, Repeated: p.Repeated, LocalOnly: p.LocalOnly}
+		if p.Bind != nil {
+			pos.Bind = FlagBind{Field: p.Bind.Field, Kind: p.Bind.Kind}
+		}
+		args.Positionals = append(args.Positionals, pos)
 	}
 	for _, f := range c.Flags {
 		flag := Flag{
@@ -344,6 +353,7 @@ func ManifestArgs(c ManifestCommand) (ArgSchema, error) {
 			Required:     f.Required,
 			Default:      f.Default,
 			Bool:         f.Bool,
+			LocalOnly:    f.LocalOnly,
 			Values:       f.Values,
 			ValueAliases: f.ValueAliases,
 		}

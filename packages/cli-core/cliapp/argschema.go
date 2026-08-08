@@ -25,6 +25,12 @@ type Positional struct {
 	Description string
 	Required    bool
 	Repeated    bool
+	// LocalOnly marks a parsed CLI control that is intentionally not part of
+	// the Connect request.
+	LocalOnly bool
+	// Bind projects this positional onto a proto request field when its
+	// declared name is not sufficient to describe the wire representation.
+	Bind FlagBind
 }
 
 // Flag declares a flag (long form, optional aliases). Bool flags accept
@@ -39,6 +45,9 @@ type Flag struct {
 	Required    bool
 	Default     string
 	Bool        bool
+	// LocalOnly marks a parsed CLI control that is intentionally not part of
+	// the Connect request.
+	LocalOnly bool
 	// Values, when non-empty, is the closed vocabulary this flag accepts.
 	// The parser rejects any supplied value that is neither a member of
 	// Values nor a key of ValueAliases, and helpgen renders the choices.
@@ -95,6 +104,9 @@ func (s ArgSchema) Validate() error {
 		if p.Required && i > 0 && !s.Positionals[i-1].Required {
 			return fmt.Errorf("positional %q is Required after optional positional %q", name, s.Positionals[i-1].Name)
 		}
+		if err := validateBind(p.Bind, "positional "+name, false); err != nil {
+			return err
+		}
 	}
 
 	for i, f := range s.Flags {
@@ -128,19 +140,27 @@ func (s ArgSchema) Validate() error {
 		if err := validateFlagValues(f, name); err != nil {
 			return err
 		}
-		if !f.Bind.IsZero() {
-			if strings.TrimSpace(f.Bind.Field) == "" {
-				return fmt.Errorf("flag %q has bind with empty field", name)
-			}
-			switch f.Bind.Kind {
-			case "", "raw_string", "json_inline", "json_file":
-			default:
-				return fmt.Errorf("flag %q bind.kind %q not in {raw_string,json_inline,json_file}", name, f.Bind.Kind)
-			}
-			if f.Bool && f.Bind.Kind != "" && f.Bind.Kind != "raw_string" {
-				return fmt.Errorf("flag %q is Bool; bind.kind must be empty or raw_string", name)
-			}
+		if err := validateBind(f.Bind, "flag "+name, f.Bool); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func validateBind(bind FlagBind, owner string, boolFlag bool) error {
+	if bind.IsZero() {
+		return nil
+	}
+	if strings.TrimSpace(bind.Field) == "" {
+		return fmt.Errorf("%s has bind with empty field", owner)
+	}
+	switch bind.Kind {
+	case "", "raw_string", "json_inline", "json_file":
+	default:
+		return fmt.Errorf("%s bind.kind %q not in {raw_string,json_inline,json_file}", owner, bind.Kind)
+	}
+	if boolFlag && bind.Kind != "" && bind.Kind != "raw_string" {
+		return fmt.Errorf("%s is Bool; bind.kind must be empty or raw_string", owner)
 	}
 	return nil
 }

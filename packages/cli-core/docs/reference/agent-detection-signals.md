@@ -31,7 +31,7 @@ collect the evidence so the next person can re-verify.
 | Runtime | Match rule | Confirmation |
 |---|---|---|
 | **Vrooli sandbox** | `VROOLI_SANDBOX_ID` or `VROOLI_SANDBOX_MERGED` set | Agent-manager `phases/env.go::SandboxEnvVars()` is the canonical setter. |
-| **Vrooli agent-manager run** | `VROOLI_AGENT_MANAGER_RUN_ID` or `VROOLI_AGENT_IDENTITY_TOKEN` set | Agent-manager `phases/env.go::IdentityEnvVars()`. |
+| **Vrooli agent-manager run** | `VROOLI_AGENT_IDENTITY_TOKEN` set | Agent-manager `phases/env.go::IdentityEnvVars()`. The signed token is the only run-attribution signal; an environment-provided run id is not trusted. |
 | **Vrooli swarm-manager session** | `VROOLI_SWARM_MANAGER_SESSION_ID` set | Swarm-manager session bootstrap. |
 | **Claude Code** | `CLAUDECODE=1` (presence; corroborating: `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_EXECPATH`) | Live self-inspection 2026-05-21 inside an active Claude Code session: vars present in tool-shell env, absent from the `claude` runtime's parent env. |
 | **Codex CLI** | `CODEX_CI=1` AND `CODEX_THREAD_ID` non-empty | Agent-manager run `da1ab31b-13fe-44d1-910e-cde0f8d8fb26` (2026-05-21). The two-var AND rule rules out CI shells that happen to set `CODEX_CI=1` for unrelated reasons. |

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
 )
@@ -15,6 +17,120 @@ import (
 var targetKindSet = map[TargetKind]struct{}{
 	TargetKindScenario: {}, TargetKindResource: {}, TargetKindTool: {}, TargetKindSafeguard: {},
 	TargetKindTeam: {}, TargetKindPackage: {}, TargetKindControlPlane: {}, TargetKindDocs: {}, TargetKindProject: {},
+}
+
+// DefaultTargetIndexTTL bounds target discovery staleness after filesystem changes.
+const DefaultTargetIndexTTL = 10 * time.Second
+
+var (
+	targetIndexNow   = time.Now
+	targetIndexStat  = os.Stat
+	targetIndexTTL   = DefaultTargetIndexTTL
+	targetIndexMu    sync.Mutex
+	targetIndexCache = map[string]targetIndexCacheEntry{}
+)
+
+type targetIndexCacheEntry struct {
+	index       *TargetIndex
+	contractMod time.Time
+	expiresAt   time.Time
+}
+
+// TargetIndex resolves repository-relative paths to concrete targets.
+type TargetIndex struct {
+	targets []Target
+}
+
+// NewTargetIndex creates an immutable path resolver from concrete targets.
+func NewTargetIndex(targets []Target) *TargetIndex {
+	copyTargets := append([]Target(nil), targets...)
+	sort.SliceStable(copyTargets, func(i, j int) bool {
+		leftRoot := normalizedTargetRoot(copyTargets[i].Root)
+		rightRoot := normalizedTargetRoot(copyTargets[j].Root)
+		if len(leftRoot) != len(rightRoot) {
+			return len(leftRoot) > len(rightRoot)
+		}
+		if leftRoot != rightRoot {
+			return leftRoot < rightRoot
+		}
+		if copyTargets[i].Kind != copyTargets[j].Kind {
+			return copyTargets[i].Kind < copyTargets[j].Kind
+		}
+		return copyTargets[i].ID < copyTargets[j].ID
+	})
+	return &TargetIndex{targets: copyTargets}
+}
+
+// Lookup returns the longest-root target containing path.
+func (i *TargetIndex) Lookup(path string) (Target, bool) {
+	if i == nil {
+		return Target{}, false
+	}
+	path = normalizedTargetPath(path)
+	for _, target := range i.targets {
+		root := normalizedTargetRoot(target.Root)
+		if root == "" || path == root || strings.HasPrefix(path, root+"/") {
+			return target, true
+		}
+	}
+	return Target{}, false
+}
+
+// NewTargetIndex returns a cached path resolver for the repository. The cache
+// refreshes when the contract mtime changes or the TTL expires.
+func (c *Contract) NewTargetIndex(repoRoot string) (*TargetIndex, error) {
+	if c == nil {
+		return nil, &Error{Kind: ErrInvalidInput, Message: "contract is required"}
+	}
+	root, err := filepath.Abs(strings.TrimSpace(repoRoot))
+	if err != nil || strings.TrimSpace(repoRoot) == "" {
+		return nil, &Error{Kind: ErrInvalidInput, Message: "repo root is required", Err: err}
+	}
+	now := targetIndexNow()
+	contractInfo, statErr := targetIndexStat(filepath.Join(root, filepath.FromSlash(defaultContractRelPath)))
+	var contractMod time.Time
+	if statErr == nil {
+		contractMod = contractInfo.ModTime()
+	}
+
+	targetIndexMu.Lock()
+	defer targetIndexMu.Unlock()
+	if cached, ok := targetIndexCache[root]; ok && cached.contractMod.Equal(contractMod) && now.Before(cached.expiresAt) {
+		return cached.index, nil
+	}
+	targets, err := c.EnumerateTargets(root)
+	if err != nil {
+		return nil, err
+	}
+	index := NewTargetIndex(targets)
+	targetIndexCache[root] = targetIndexCacheEntry{
+		index:       index,
+		contractMod: contractMod,
+		expiresAt:   now.Add(targetIndexTTL),
+	}
+	return index, nil
+}
+
+// Lookup resolves a repository-relative path using the cached target index.
+func (c *Contract) Lookup(repoRoot, path string) (Target, bool, error) {
+	index, err := c.NewTargetIndex(repoRoot)
+	if err != nil {
+		return Target{}, false, err
+	}
+	target, ok := index.Lookup(path)
+	return target, ok, nil
+}
+
+func normalizedTargetPath(path string) string {
+	path = filepath.ToSlash(filepath.Clean(strings.TrimSpace(path)))
+	if path == "." {
+		return ""
+	}
+	return strings.TrimPrefix(path, "./")
+}
+
+func normalizedTargetRoot(root string) string {
+	return normalizedTargetPath(root)
 }
 
 // EnumerateTargets discovers all concrete targets from the loaded contract.

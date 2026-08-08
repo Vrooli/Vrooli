@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -31,7 +32,15 @@ func Load(path string) (*Contract, error) {
 		return nil, err
 	}
 
-	return &Contract{doc: deepCopyContractDoc(doc)}, nil
+	unknownKinds := make([]string, 0)
+	for kind := range doc.Targets.Kinds {
+		if _, ok := targetKindSet[TargetKind(kind)]; !ok {
+			unknownKinds = append(unknownKinds, kind)
+		}
+	}
+	sort.Strings(unknownKinds)
+
+	return &Contract{doc: deepCopyContractDoc(doc), unknownKinds: unknownKinds}, nil
 }
 
 // LoadDefault reads the canonical contract from the provided repo root.
@@ -107,7 +116,7 @@ func validateContractDoc(doc contractDoc) error {
 	}
 	for kind, spec := range doc.Targets.Kinds {
 		if _, ok := targetKindSet[TargetKind(kind)]; !ok {
-			return &Error{Kind: ErrInvalidContract, Message: "targets.kinds contains unsupported kind", Details: kind}
+			continue
 		}
 		if len(spec.Roots) == 0 {
 			return &Error{Kind: ErrInvalidContract, Message: "targets kind has no roots", Details: kind}

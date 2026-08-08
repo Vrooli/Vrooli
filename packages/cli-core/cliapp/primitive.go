@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -68,12 +69,37 @@ func ProtoList[Resp proto.Message](
 	call func(ctx OperationContext) (Resp, error),
 	report func(ctx OperationContext, resp Resp) ListReport,
 ) PrimitiveHandler {
+	return protoListWithJSONOptions(call, report, protoJSONOptions)
+}
+
+// ProtoListEmitUnpopulatedJSON is ProtoList with explicit zero-valued proto
+// fields in its machine-readable output. It is intended for diagnostic
+// responses where the presence of a zero is meaningful evidence (for example,
+// a clean semantic census), while preserving the normal human report path.
+func ProtoListEmitUnpopulatedJSON[Resp proto.Message](
+	call func(ctx OperationContext) (Resp, error),
+	report func(ctx OperationContext, resp Resp) ListReport,
+) PrimitiveHandler {
+	options := protojson.MarshalOptions{
+		UseProtoNames:   true,
+		Multiline:       true,
+		Indent:          "  ",
+		EmitUnpopulated: true,
+	}
+	return protoListWithJSONOptions(call, report, options)
+}
+
+func protoListWithJSONOptions[Resp proto.Message](
+	call func(ctx OperationContext) (Resp, error),
+	report func(ctx OperationContext, resp Resp) ListReport,
+	options protojson.MarshalOptions,
+) PrimitiveHandler {
 	return PrimitiveHandler{primitive: PrimitiveProtoList, Run: func(ctx RunContext) error {
 		resp, err := call(ctx)
 		if err != nil {
 			return err
 		}
-		return RenderProtoList(ctx, resp, report(ctx, resp))
+		return RenderProtoListWithJSONOptions(ctx, resp, report(ctx, resp), options)
 	}}
 }
 

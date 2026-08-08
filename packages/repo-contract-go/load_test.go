@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestLoadLiveContract(t *testing.T) {
@@ -60,6 +62,25 @@ func TestLoadSupportsFilesystemReadSeam(t *testing.T) {
 
 	_, err := Load("/tmp/fake.json")
 	assertErrorKind(t, err, ErrNotFound)
+}
+
+func TestLoadSkipsUnknownTargetKindsAndReportsThem(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	doc := validContractDoc(t)
+	doc.Targets.Kinds["custom"] = TargetSpec{Roots: []string{"custom/*"}}
+	writeContractFile(t, fixture.Root, doc)
+
+	contract, err := LoadDefault(fixture.Root)
+	if err != nil {
+		t.Fatalf("LoadDefault() error = %v", err)
+	}
+	if got := contract.UnknownKinds(); len(got) != 1 || got[0] != "custom" {
+		t.Fatalf("UnknownKinds() = %#v, want [custom]", got)
+	}
+	if _, err := contract.EnumerateTargets(fixture.Root); err != nil {
+		t.Fatalf("EnumerateTargets() error = %v", err)
+	}
 }
 
 func TestLoadRejectsInvalidFixtures(t *testing.T) {

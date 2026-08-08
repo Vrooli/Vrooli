@@ -186,6 +186,10 @@ group, err := cliapp.LoadFromManifestPrimitives(manifestBytes, "search", binding
   report contract. `ProtoListOutcome` is a read whose exit code is derived from
   the response payload (renders, then returns a payload-derived error identically
   in both modes). These are the normal command classes.
+- `ProtoListEmitUnpopulatedJSON` — the diagnostic `ProtoList` variant for
+  responses where explicit zero-valued fields are meaningful evidence. It
+  keeps the operation and human report path identical while opting that
+  command into protojson's `EmitUnpopulated` policy.
 - `durable_run` — a server-owned start → follow/wait → reattach run. Build it with
   `cliapp.RunDurable` (a mode-blind `Start` plus per-mode renderers), so human,
   `--json`, and `--jsonl` share one run path and the mode selects only the

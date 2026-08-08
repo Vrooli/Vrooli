@@ -2,6 +2,13 @@
 
 The **delivery tier** is how a Vrooli bundle reaches the user. Tiers are orthogonal to the [catalog](../catalogs/CATALOG.md): a given bundle can be sold at any active tier, and pricing sits at the intersection (see [PRICING.md](PRICING.md)).
 
+> **Do not confuse this commercial vocabulary with the technical deployment
+> vocabulary.** In the Deployment Hub, deployment Tier 1 is the full local
+> Vrooli stack and deployment Tier 2 is the desktop-app target. In this
+> monetization plan, commercial Tier 1 is the bundle-app product and commercial
+> Tier 2 is the self-hosted full-runtime product. Use the qualifier when a
+> document crosses those boundaries.
+
 ## Tier lifecycle
 
 Like SKUs, tiers flow through a status lifecycle:

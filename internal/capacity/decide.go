@@ -32,18 +32,6 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 		return Verdict{Kind: VerdictDeny, Reason: err.Error()}
 	}
 
-	// CPU is not byte-modeled in V1: grant the request with an honest warning.
-	if req.ResourceKind == ResourceKindCPU {
-		top := candidates[0]
-		return Verdict{
-			Kind:         VerdictGrant,
-			GrantedBytes: top.amount,
-			Step:         top.label,
-			Reason:       "cpu arbitration is advisory in V1",
-			Warnings:     []string{"cpu capacity is not enforced in V1; granted as requested"},
-		}
-	}
-
 	total, observedUsed, ok, resolveWarn := resolveCapacity(req, snapshot)
 	if !ok {
 		return Verdict{Kind: VerdictDeny, Reason: resolveWarn}
@@ -179,6 +167,14 @@ func resolveCapacity(req CapacityRequest, snapshot hostinventory.Snapshot) (tota
 			}
 		}
 		return total, used, true, ""
+	case ResourceKindCPU:
+		if snapshot.CPU.Cores <= 0 {
+			return 0, 0, false, "host CPU capacity is unknown"
+		}
+		// CPU claims use millicores as the generic amount unit: one logical
+		// core is 1000 units. This keeps the frozen claim schema unchanged while
+		// allowing the same ledger and admission algorithm to enforce CPU.
+		return int64(snapshot.CPU.Cores) * 1000, 0, true, ""
 	default:
 		return 0, 0, false, fmt.Sprintf("unknown resource kind %q", req.ResourceKind)
 	}

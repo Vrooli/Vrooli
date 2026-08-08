@@ -21,7 +21,11 @@ var protoJSONOptions = protojson.MarshalOptions{
 // the wire format every Connect-RPC client speaks, so the same `jq` queries
 // work against `cli foo list --json` and a direct `curl` of the API.
 func PrintProtoJSON(w io.Writer, msg proto.Message) error {
-	body, err := protoJSONOptions.Marshal(msg)
+	return printProtoJSONWithOptions(w, msg, protoJSONOptions)
+}
+
+func printProtoJSONWithOptions(w io.Writer, msg proto.Message, options protojson.MarshalOptions) error {
+	body, err := options.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("marshal proto json: %w", err)
 	}
@@ -44,8 +48,15 @@ func PrintProtoJSON(w io.Writer, msg proto.Message) error {
 // wrapper. Those are human affordances; machine consumers parse the typed
 // payload directly.
 func RenderProtoList(ctx RunContext, payload proto.Message, human ListReport) error {
+	return RenderProtoListWithJSONOptions(ctx, payload, human, protoJSONOptions)
+}
+
+// RenderProtoListWithJSONOptions is the diagnostic variant of RenderProtoList
+// that lets a command opt into a precise protojson policy without allowing
+// operation code to branch on --json.
+func RenderProtoListWithJSONOptions(ctx RunContext, payload proto.Message, human ListReport, options protojson.MarshalOptions) error {
 	if ctx.JSON() {
-		return PrintProtoJSON(ctx.Stdout(), payload)
+		return printProtoJSONWithOptions(ctx.Stdout(), payload, options)
 	}
 	return ctx.RenderList(human)
 }

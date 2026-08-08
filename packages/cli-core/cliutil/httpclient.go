@@ -228,6 +228,26 @@ func (h *HTTPClient) Timeout() time.Duration {
 	return h.client.Timeout
 }
 
+// CloneWithTimeout returns a copy of the client that uses timeout instead of the
+// default. Every other field is carried over — base options, token, dry-run, and
+// both header sources — so a long-running maintenance call keeps the same
+// transport contract and provenance headers as ordinary commands. The
+// underlying *http.Client is replaced rather than mutated, because it is shared
+// with any other client built from the same options.
+func (h *HTTPClient) CloneWithTimeout(timeout time.Duration) *HTTPClient {
+	if h == nil || timeout <= 0 {
+		return h
+	}
+	clone := *h
+	clone.client = &http.Client{Timeout: timeout}
+	if h.client != nil {
+		transport := *h.client
+		transport.Timeout = timeout
+		clone.client = &transport
+	}
+	return &clone
+}
+
 // Do performs an HTTP request with JSON encoding and standard error handling.
 func (h *HTTPClient) Do(method, path string, query url.Values, body interface{}) ([]byte, error) {
 	return h.DoWithContext(context.Background(), method, path, query, body)

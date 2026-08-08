@@ -226,15 +226,16 @@ func TestDecideNoGPUDenies(t *testing.T) {
 	}
 }
 
-func TestDecideCPUIsAdvisoryGrant(t *testing.T) {
+func TestDecideCPURequiresKnownCapacity(t *testing.T) {
 	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
-	req := CapacityRequest{OwnerID: "x", ResourceKind: ResourceKindCPU, PreferredBytes: 0}
-	v := Decide(req, hostinventory.Snapshot{}, nil, DefaultPolicy(), now)
+	req := CapacityRequest{OwnerID: "x", ResourceKind: ResourceKindCPU, PreferredBytes: 500, FloorBytes: 500}
+	v := Decide(req, hostinventory.Snapshot{CPU: hostinventory.CPU{Cores: 4}}, nil, DefaultPolicy(), now)
 	if v.Kind != VerdictGrant {
-		t.Errorf("cpu kind = %q, want grant (advisory)", v.Kind)
+		t.Errorf("cpu kind = %q, want grant with known capacity", v.Kind)
 	}
-	if len(v.Warnings) == 0 {
-		t.Error("cpu grant should warn it is not enforced in V1")
+	unknown := Decide(req, hostinventory.Snapshot{}, nil, DefaultPolicy(), now)
+	if unknown.Kind != VerdictDeny {
+		t.Errorf("unknown cpu kind = %q, want deny", unknown.Kind)
 	}
 }
 
