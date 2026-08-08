@@ -47,6 +47,7 @@ type Registry struct {
 	byID      map[string]*bindingsv1.Binding
 	operation map[string][]*bindingsv1.Binding
 	shared    []string
+	semantic  map[string]semanticCounts
 }
 
 // Load resolves the canonical repository artifacts and builds a registry.
@@ -116,6 +117,7 @@ func LoadFiles(descriptorPath string, manifestPaths []string) (*Registry, error)
 		schemas:   make(map[string]cliapp.ArgSchema),
 		byID:      make(map[string]*bindingsv1.Binding),
 		operation: make(map[string][]*bindingsv1.Binding),
+		semantic:  make(map[string]semanticCounts),
 	}
 	r.shared = sharedContractPrefixes(filepath.Clean(filepath.Join(filepath.Dir(descriptorPath), "../../../..")))
 	for _, path := range manifestPaths {
@@ -275,6 +277,7 @@ func (r *Registry) addManifest(path string, serviceMethods map[string][]methodIn
 				return fmt.Errorf("manifest %s command %s/%s: %w", path, group.Name, command.Name, err)
 			}
 			r.schemas[id] = schema
+			r.addSemanticCounts(scenario, command, info.input, schema)
 			for _, key := range []string{normalizeField(command.Name), normalizeField(group.Name + "/" + command.Name), normalizeField(b.Service + "." + b.Method), normalizeField(id)} {
 				r.operation[key] = append(r.operation[key], binding)
 			}
@@ -407,6 +410,15 @@ func (r *Registry) Doctor(scenario string) *bindingsv1.DoctorBindingsResponse {
 			response.Misroutes++
 		}
 		response.Issues = append(response.Issues, analysis.issues...)
+	}
+	for name, counts := range r.semantic {
+		if scenario != "" && scenario != name {
+			continue
+		}
+		response.FieldCollisions += int32(counts.fieldCollisions)
+		response.ControlFlagsBound += int32(counts.controlFlagsBound)
+		response.RequiredFieldsUnpopulated += int32(counts.requiredFieldsUnpopulated)
+		response.BindsWhereRenameSuffices += int32(counts.bindsWhereRenameSuffices)
 	}
 	return response
 }

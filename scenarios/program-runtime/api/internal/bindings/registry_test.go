@@ -50,6 +50,20 @@ func TestNewManifestNeedsNoScenarioCode(t *testing.T) {
 	}
 }
 
+func TestDoctorReportsSemanticBindingCounts(t *testing.T) {
+	root := repoRoot(t)
+	fixture := filepath.Join(t.TempDir(), "manifest.json")
+	manifest := `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"create","flags":[{"name":"title","bind":{"field":"title"}},{"name":"body","bind":{"field":"title"}},{"name":"json","bind":{"field":"title"}}],"binding":{"kind":"connect-rpc","service":"NotesService","method":"CreateNote"},"governance":{"effect":"write","run_eligible":true}}]}]}`
+	require.NoError(t, os.WriteFile(fixture, []byte(manifest), 0o644))
+	r, err := LoadFiles(filepath.Join(root, "packages/proto/gen/descriptor/image.binpb"), []string{fixture})
+	require.NoError(t, err)
+	doctor := r.Doctor("document-manager")
+	require.Equal(t, int32(1), doctor.GetFieldCollisions())
+	require.Equal(t, int32(1), doctor.GetControlFlagsBound())
+	require.Equal(t, int32(0), doctor.GetRequiredFieldsUnpopulated())
+	require.Equal(t, int32(2), doctor.GetBindsWhereRenameSuffices())
+}
+
 func TestRejectsUnknownFieldBeforeDispatch(t *testing.T) {
 	// [REQ:PRT-P0-002]
 	r := fixtureRegistry(t, `{"name":"document-manager","groups":[{"name":"notes","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"NotesService","method":"ListNotes"},"governance":{"effect":"read","run_eligible":true}}]}]}`)

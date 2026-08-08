@@ -426,6 +426,10 @@
   "freshnessRequirement": "never",
   "phaseClass": "runtime",
   "runtimeClass": "execution",
+  "concurrency": {
+    "mode": "exclusive",
+    "reason": "Concurrent load changes build time and Lighthouse measurements."
+  },
   "dimensions": [
     "performance"
   ],

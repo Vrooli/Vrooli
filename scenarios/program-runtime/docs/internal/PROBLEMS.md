@@ -7,6 +7,14 @@ re-discovering the same constraint.
 This file ships empty in newly generated scenarios. Append entries as
 they appear.
 
+### 2026-08-07 — Clean doctor counts disappeared from JSON
+
+Proto3 omits scalar zero values by default. That made a clean
+`program-runtime bindings doctor --json` response look incomplete even though
+the human report showed zero semantic findings. The bindings doctor now uses
+cli-core's `ProtoListEmitUnpopulatedJSON` renderer variant, preserving the
+renderer-separated operation while emitting all four semantic counters.
+
 ## What belongs here
 
 - **Known bugs** that are real but not yet worth fixing
@@ -48,6 +56,65 @@ Use this shape so entries are scannable. Append newest at the bottom.
 ```
 
 ## Entries
+
+### 2026-08-07 — CLI renderer received the wrong protobuf type
+
+**Symptom:** Migrated `ai-gateway` commands failed in human mode because a
+renderer expecting a generated response received a dynamic protobuf message.
+
+**Root cause:** The generic dispatcher decoded the wire response dynamically
+but did not convert it to the registered concrete generated type before the
+renderer override.
+
+**Workaround:** None required after the dispatcher conversion; the real
+dispatcher path is covered by the cli-core renderer test and live captures.
+
+**Real fix:** `ProtoBindings` now converts through the global protobuf registry
+before invoking a renderer.
+
+**Owner:** cli-core.
+
+**Refs:** `packages/cli-core/cliapp/protobindings.go`,
+`packages/cli-core/cliapp/protobindings_render_test.go`.
+
+### 2026-08-07 — Manifest binding resolution was semantically gameable
+
+**Symptom:** A binding could resolve to a proto field while multiple arguments
+overwrote one another, control flags were sent as payload, or required audio
+payloads remained empty.
+
+**Root cause:** The original gate measured only whether an argument reached any
+field, not whether the field matched the argument's meaning.
+
+**Workaround:** None; affected manifests were repaired and the fleet gate now
+reports semantic counts.
+
+**Real fix:** cli-health now applies deterministic collision, control-flag,
+required-payload, and redundant-bind rules. The fleet ended at 0/0/0 errors
+and 3 explicitly waived redundant-bind warnings.
+
+**Owner:** cli-health / program-runtime.
+
+**Refs:** `scenarios/cli-health/api/internal/services/manifestvalidation/semanticcheck.go`,
+`scenarios/program-runtime/api/internal/bindings/semantic.go`,
+`scenarios/program-runtime/tmp/repair-baseline/semantic_census.py`.
+
+### 2026-08-07 — Async context could suppress binding requests
+
+**Symptom:** A bare binding call in a program containing top-level `await`
+returned an un-awaited coroutine and issued no request.
+
+**Root cause:** `BridgeBinding.__call__` switched between synchronous execution
+and coroutine creation based on whether an event loop was running.
+
+**Workaround:** Parallel work uses `vrooli.gather` with zero-argument callables.
+
+**Real fix:** Calls are eager and return awaitable `Handle` objects; `gather`
+uses worker threads for explicit parallel fan-out.
+
+**Owner:** program-runtime.
+
+**Refs:** `kernel/host/engine.py`, `kernel/tests/test_execution_contract.py`.
 
 ### 2026-08-06 — Template Manager detemplate service unavailable
 
@@ -136,4 +203,4 @@ a migration handoff with a planned retirement path back into
 - Rung: W0
 - Evidence: `swarm-manager goals list --json` with the required named-mention filter returned no goal whose name, title, or description contains `program-runtime`; the plan-manager objective is a separate execution artifact and is not a swarm-manager goal.
 - Blocker: The contract cannot be compared against an approved named scenario goal, so W0 is unverifiable under the Scenario Work Ladder.
-- Measured: 2026-08-06
+- Measured: 2026-08-07

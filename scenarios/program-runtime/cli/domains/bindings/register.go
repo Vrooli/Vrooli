@@ -23,7 +23,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"BindingRegistryService.ListBindings":    cliapp.ProtoList(h.list, h.listReport),
 		"BindingRegistryService.ListUnbound":     cliapp.ProtoList(h.unbound, h.unboundReport),
 		"BindingRegistryService.ResolveActCells": cliapp.ProtoList(h.act, h.actReport),
-		"BindingRegistryService.DoctorBindings":  cliapp.ProtoList(h.doctor, h.doctorReport),
+		"BindingRegistryService.DoctorBindings":  cliapp.ProtoListEmitUnpopulatedJSON(h.doctor, h.doctorReport),
 		"BindingRegistryService.DescribeBinding": cliapp.ProtoList(h.describe, h.describeReport),
 	})
 	if err != nil {
@@ -94,7 +94,7 @@ func (h *handlers) doctorReport(_ cliapp.OperationContext, r *bindingsv1.DoctorB
 		items = append(items, fmt.Sprintf("%s %s: %s (%s)", issue.GetBindingId(), issue.GetArgument(), issue.GetReason(), issue.GetRequestType()))
 	}
 	return cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Bindings: %d; callable: %d; uncallable: %d; partial: %d; zero-arg: %d; misroutes: %d.", r.GetBindings(), r.GetCallable(), r.GetUncallable(), r.GetPartial(), r.GetZeroArg(), r.GetMisroutes())},
+		Summary:        []string{fmt.Sprintf("Bindings: %d; callable: %d; uncallable: %d; partial: %d; zero-arg: %d; misroutes: %d; semantic collisions: %d; control binds: %d; required fields: %d; redundant binds: %d.", r.GetBindings(), r.GetCallable(), r.GetUncallable(), r.GetPartial(), r.GetZeroArg(), r.GetMisroutes(), r.GetFieldCollisions(), r.GetControlFlagsBound(), r.GetRequiredFieldsUnpopulated(), r.GetBindsWhereRenameSuffices())},
 		ResultsHeading: "Unresolved arguments", Results: items,
 	}
 }

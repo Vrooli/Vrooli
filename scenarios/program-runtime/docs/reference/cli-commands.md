@@ -129,12 +129,19 @@ program-runtime bindings describe <scenario>/<group>/<command>
 program-runtime bindings act [--cell <id>]
 ```
 
-`doctor` reports the fleet callability census. `describe` reports each
-argument's resolved proto field; an envelope argument is shown as
-`role -> request.role`. These diagnostics use the same resolution ladder as
-the manifest-driven CLI dispatcher: explicit `bind`, exact name/alias, and
-one-level envelope auto-descent. Local-only controls are reported as such and
-are not sent to the RPC.
+`doctor` reports the fleet callability census plus semantic manifest-binding
+counts: field collisions, control flags bound into request data, required
+payload fields without a CLI argument, and binds where renaming would be
+enough. `describe` reports each argument's resolved proto field; an envelope
+argument is shown as `role -> request.role`. These diagnostics use the same
+resolution ladder as the manifest-driven CLI dispatcher: explicit `bind`,
+exact name/alias, and one-level envelope auto-descent. Local-only controls are
+reported as such and are not sent to the RPC. Semantic counts are exposed in
+JSON as `field_collisions`, `control_flags_bound`,
+`required_fields_unpopulated`, and `binds_where_rename_suffices`.
+The diagnostic command intentionally emits zero-valued counters in JSON, so
+a clean result still contains all four keys and can be compared mechanically
+with the independent census.
 
 ### `program-runtime sessions`
 

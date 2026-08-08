@@ -1967,9 +1967,7 @@
               "name": "full",
               "description": "Show full plan details in human output",
               "bool": true,
-              "bind": {
-                "field": "session_id"
-              }
+              "local_only": true
             }
           ],
           "binding": {

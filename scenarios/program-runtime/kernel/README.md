@@ -10,6 +10,8 @@ Run the unit tests with `python3 -m pytest kernel/tests` when pytest is present.
 The public namespace is `vrooli.<scenario>.<group>.<command>` with hyphens
 normalized to underscores. `vrooli.ai.classify`, `extract`, and `judge` are
 typed facades over the governed ai-gateway inference binding. Top-level
-`await` is supported, and independent calls may be combined with
-`asyncio.gather`. Default output is capped; `Handle.materialize(limit)` is the
-explicit bounded escape hatch for row data.
+`await` is supported, but every binding call executes eagerly and returns an
+awaitable `Handle`, so bare and awaited calls use one convention. Use
+`vrooli.gather` with zero-argument callables for independent parallel fan-out.
+Default output is capped; `Handle.materialize(limit)` is the explicit bounded
+escape hatch for row data.

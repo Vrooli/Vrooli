@@ -61,7 +61,7 @@ gap in the acting surface even when the underlying capability plainly exists.
 | **Discover** | | | | |
 | A1 | Find a capability by intent | `search-hub`, `prompt-manager` | COVERED | The Recall→Discover reflex; both expose Connect services. |
 | A2 | Enumerate the fleet (scenarios, resources) with state | `vrooli` project CLI | PARTIAL | `cli/v1/scenario_list.proto` exists; verify the manifest binding vs. a local command. |
-| A3 | Read a unit's command contract (commands, args, governance) | `cli-health` | IN-REACH | The 58 manifest-bearing scenarios are now checked against the shared proto binding ladder; scenarios without manifests remain an explicit fleet coverage boundary. |
+| A3 | Read a unit's command contract (commands, args, governance) | `cli-health` | NOW | The 58 manifest-bearing scenarios are checked against the shared proto binding ladder; the live registry supports this contract, while scenarios without manifests remain an explicit fleet coverage boundary. |
 | A4 | Resolve a unit's API base URL / port | `api-core/discovery` | PARTIAL | Library-level today, not an invocable operation; a program needs this as a call. |
 | **Inspect** | | | | |
 | A5 | Read lifecycle status for a unit | `vrooli` project CLI | COVERED | `scenario.status.show` is already a seed Action. |
@@ -81,7 +81,7 @@ gap in the acting surface even when the underlying capability plainly exists.
 | A17 | Read & write plans, backlog items, goals | `plan-manager`, `swarm-manager` | PARTIAL | Reachable, but `swarm-manager` is not yet reliable enough to depend on. |
 | A18 | Read & write requirements / PoRs | `prompt-manager`, per-scenario `requirements/` | PARTIAL | **Audited.** Prompt Manager is present but has no resolved governed binding for this compound owner; filesystem-shaped requirements remain partial. |
 | **Delegate & infer** | | | | |
-| A19 | Typed inference — classify / extract / judge | `ai-gateway` | NOW | `program-runtime` exposes governed `vrooli.ai.classify`, `vrooli.ai.extract`, and `vrooli.ai.judge` facades over ai-gateway's locally validated inference RPC and catalog roles. |
+| A19 | Typed inference — classify / extract / judge | `ai-gateway` | NOW | `program-runtime` exposes governed `vrooli.ai.classify`, `vrooli.ai.extract`, and `vrooli.ai.judge` facades over ai-gateway's locally validated inference RPC and catalog roles; the live cell explanation confirms the status. |
 | A20 | Spawn a delegated agent run and collect its evidence | `agent-manager` | COVERED | Already consumed programmatically by MoM's `trials` domain. |
 | A21 | Read run transcripts, events, and friction findings | `agent-manager` | PARTIAL | Reachable, but ~65% of runs have unknown ownership, so results are not yet trustworthy. |
 | **Change** | | | | |
@@ -103,6 +103,18 @@ gap in the acting surface even when the underlying capability plainly exists.
 2. **Numerator** — `BindingRegistryService.ResolveActCells`, which returns a
    verdict only after checking the live callable registry and binding
    completeness. `meta-optimization-manager` consumes this typed RPC.
+
+## Live audit snapshot — 2026-08-07
+
+The post-repair live registry recomputation reports **20 NOW, 7 IN-REACH, and
+1 MISSING** across all 28 Act cells: coverage ratio **0.7142857143**. This is
+unchanged from `repair-baseline/coverage-before.json`, so the semantic repair
+changed the trustworthiness of the binding census without changing the Act
+denominator result. The denominator remains `PARTIAL`: all 28 rows were audited
+against the live registry, but external, unbound, or partly represented owners
+retain conservative statuses with explicit reasons. `focus next --limit 60`
+reports eight Act gaps, exactly matching the seven in-reach cells plus the one
+missing cell. Live explanations confirm A3 and A19 as `NOW`.
 
 Suggested live-join rule, mirroring the sibling projections: a cell is `NOW` only when **every**
 operation it names resolves to a manifest-bound Connect method whose binding generates cleanly and

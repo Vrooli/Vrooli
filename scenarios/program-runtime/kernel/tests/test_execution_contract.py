@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 from host.engine import Handle, SessionKernel
 
@@ -33,15 +34,39 @@ def test_public_scenario_namespace_and_discovery():
     assert "demo_service" in discovered["stdout"]
 
 
-def test_async_binding_calls_are_awaitable():
+def test_bare_binding_call_executes_after_top_level_await():
     class FakeBinding:
         def __call__(self):
-            async def result():
-                await asyncio.sleep(0)
-                return "done"
-
-            return result()
+            return Handle([{"ok": True}])
 
     kernel = SessionKernel({"demo": {"work": FakeBinding()}})
-    result = kernel.execute("await vrooli.demo.work()")
+    result = kernel.execute("import asyncio\nawait asyncio.sleep(0)\nresult = vrooli.demo.work()\nprint(result.count())")
     assert result["ok"]
+    assert "1" in result["stdout"]
+    assert len(result["invocations"]) == 1
+
+
+def test_await_returns_the_same_eager_handle():
+    class FakeBinding:
+        def __call__(self):
+            return Handle([{"ok": True}])
+
+    kernel = SessionKernel({"demo": {"work": FakeBinding()}})
+    result = kernel.execute("handle = vrooli.demo.work()\nawaited = await handle\nprint(handle is awaited)")
+    assert result["ok"]
+    assert "True" in result["stdout"]
+
+
+def test_gather_runs_binding_callables_in_parallel():
+    class FakeBinding:
+        def __call__(self, delay=0.05):
+            time.sleep(delay)
+            return Handle([{"delay": delay}])
+
+    kernel = SessionKernel({"demo": {"work": FakeBinding()}})
+    started = time.perf_counter()
+    result = kernel.execute("results = vrooli.gather(*[lambda: vrooli.demo.work(delay=0.05) for _ in range(10)])\nprint(len(results))")
+    elapsed = time.perf_counter() - started
+    assert result["ok"]
+    assert "10" in result["stdout"]
+    assert elapsed < 0.35

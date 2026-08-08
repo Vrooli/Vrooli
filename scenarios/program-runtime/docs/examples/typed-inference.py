@@ -1,23 +1,19 @@
 """Classify a small corpus concurrently through the governed ai facade."""
 
-import asyncio
-
-
 corpus = [
     "The provider timed out during a retry.",
     "The user supplied an invalid request field.",
 ]
 
 
-async def classify(text):
-    return await vrooli.ai.classify(
+results = vrooli.gather(*[
+    lambda text=text: vrooli.ai.classify(
         text,
         {"type": "string", "enum": ["infra", "user"]},
         "Choose the primary failure class.",
     )
-
-
-results = await asyncio.gather(*(classify(text) for text in corpus))
+    for text in corpus
+])
 print({"documents": len(results), "projections": [result.head(1) for result in results]})
 
 # Live output (2026-08-07):

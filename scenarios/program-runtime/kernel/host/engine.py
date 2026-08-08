@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import ast
 import asyncio
+import concurrent.futures
 import io
 import json
 import os
@@ -46,6 +47,12 @@ class Handle:
 
     def materialize(self, limit: int | None = None) -> list[Any]:
         return list(self._rows if limit is None else self._rows[: max(0, limit)])
+
+    def __await__(self):
+        async def return_self():
+            return self
+
+        return return_self().__await__()
 
 
 class Namespace:
@@ -97,6 +104,15 @@ class Namespace:
                     if all(term in label for term in terms):
                         candidates.append({"scenario": scenario, "group": group, "command": command})
         return Handle(candidates, "vrooli.discover")
+
+    def gather(self, *calls: Any) -> list[Handle]:
+        """Run zero-argument binding callables concurrently and preserve order."""
+        if not calls:
+            return []
+        if any(not callable(call) for call in calls):
+            raise TypeError("vrooli.gather accepts zero-argument callables")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(calls)) as executor:
+            return list(executor.map(lambda call: call(), calls))
 
     def callable_namespace(self) -> list[str]:
         paths: list[str] = []
@@ -255,14 +271,7 @@ class BridgeBinding:
         confirmed = bool(kwargs.pop("_confirm", False))
         if not self.bridge_url:
             raise RuntimeError("program-runtime binding bridge is unavailable")
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            return self._invoke(kwargs, confirmed)
-        return self._invoke_async(kwargs, confirmed)
-
-    async def _invoke_async(self, kwargs: dict[str, Any], confirmed: bool) -> Handle:
-        return await asyncio.to_thread(self._invoke, kwargs, confirmed)
+        return self._invoke(kwargs, confirmed)
 
     def _invoke(self, kwargs: dict[str, Any], confirmed: bool) -> Handle:
         request = json.dumps({"session_id": self.session_id, "binding_id": self.binding_id, "args": kwargs, "confirmed": confirmed}).encode()

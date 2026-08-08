@@ -25,9 +25,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -69,9 +67,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -193,9 +189,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -235,9 +229,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -282,9 +274,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -331,9 +321,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -370,9 +358,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -509,9 +495,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -551,9 +535,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -590,23 +572,17 @@
             {
               "name": "view",
               "description": "Offender view: all (default), no-budget, slowest, regressed, tiers",
-              "bind": {
-                "field": "scenarios"
-              }
+              "local_only": true
             },
             {
               "name": "limit",
               "description": "Cap the number of rows for the slowest view (0 = all)",
-              "bind": {
-                "field": "scenarios"
-              }
+              "local_only": true
             },
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenarios"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -680,9 +656,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {

@@ -14,8 +14,8 @@ result = vrooli.agent.run(
 )
 print(result.head(1))
 
-# Live validation (program `prog_d693e30f-fcfd-4e1d-b4fc-2207707b1616`) returned
-# a succeeded workflow with execution
-# `3c0f9202-8f38-4178-ac4b-45f640c8fdbe`, one challenged evidence finding, and
-# zero gaming findings. This workflow is intentionally bounded and terminal;
-# it does not mutate files or wait for an operator approval signal.
+# Live validation (program `prog_f0dc97b1-3a76-4903-9cd9-f89c4ec50096`) returned
+# a succeeded workflow with execution `887dac2a-ee8e-4482-981f-d2f1fb7dfe75`,
+# one challenged evidence finding, and zero gaming findings. This workflow is
+# intentionally bounded and terminal; it does not mutate files or wait for an
+# operator approval signal.

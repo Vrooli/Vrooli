@@ -1,14 +1,13 @@
 """Run independent read bindings concurrently and report bounded counts."""
 
-import asyncio
 import time
 
 
 started = time.perf_counter()
-results = await asyncio.gather(
-    vrooli.agent_manager.measures.run_volume(),
-    vrooli.ai_gateway.measures.total(),
-    vrooli.program_runtime.programs.mine(include_operator=False),
+results = vrooli.gather(
+    lambda: vrooli.agent_manager.measures.run_volume(),
+    lambda: vrooli.ai_gateway.measures.total(),
+    lambda: vrooli.program_runtime.programs.mine(include_operator=False),
 )
 print(
     {
@@ -18,4 +17,4 @@ print(
 )
 
 # Live output (2026-08-07):
-# {'elapsed_seconds': 0.111, 'result_counts': [1, 1, 1]}
+# {'elapsed_seconds': 0.147, 'result_counts': [1, 1, 1]}
