@@ -12,10 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
-	"vrooli-memory/internal/recall"
+	sourcerecall "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
+	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
 )
 
 const (
@@ -47,12 +49,12 @@ type ProjectionResult struct {
 
 type Projector struct {
 	db      *sql.DB
-	wake    *recall.Service
+	wake    sourceconnect.RecallServiceClient
 	roots   *filerouting.RoutedRoots
 	targets map[string]projectionTarget
 }
 
-func NewProjector(db *sql.DB, wake *recall.Service, roots ...*filerouting.RoutedRoots) *Projector {
+func NewProjector(db *sql.DB, wake sourceconnect.RecallServiceClient, roots ...*filerouting.RoutedRoots) *Projector {
 	home, _ := os.UserHomeDir()
 	p := &Projector{db: db, wake: wake, targets: map[string]projectionTarget{
 		"claude-code": {Runtime: "claude-code", Path: filepath.Join(home, ".claude", "projects", "-home-matthalloran8-Vrooli", "memory", "MEMORY.md"), Cap: 32768},
@@ -99,22 +101,19 @@ func (p *Projector) Project(ctx context.Context, runtime string, dryRun bool) (P
 	if !ok {
 		return ProjectionResult{}, fmt.Errorf("unsupported projection runtime %q", runtime)
 	}
-	wake, err := p.wake.Wake(ctx, 0)
+	wakeResponse, err := p.wake.Wake(ctx, connect.NewRequest(&sourcerecall.WakeRequest{Scope: "agent-memory"}))
 	if err != nil {
 		return ProjectionResult{}, err
 	}
 	content := generatedHeader + "# Unified Vrooli Memory\n\n"
-	for _, hit := range wake.Hits {
-		chunk := "- " + strings.TrimSpace(hit.Node.Text) + "\n\n"
+	for _, hit := range wakeResponse.Msg.GetHits() {
+		chunk := "- " + strings.TrimSpace(hit.GetText()) + "\n\n"
 		if len(content)+len(chunk) > t.Cap {
-			if hit.Node.Pinned {
-				return ProjectionResult{}, fmt.Errorf("pinned memory exceeds %d-byte projection cap for %s", t.Cap, runtime)
-			}
 			return p.finish(ctx, t, content, true, dryRun)
 		}
 		content += chunk
 	}
-	return p.finish(ctx, t, content, wake.Overflow, dryRun)
+	return p.finish(ctx, t, content, wakeResponse.Msg.GetOverflow(), dryRun)
 }
 
 func (p *Projector) finish(ctx context.Context, t projectionTarget, content string, overflow, dryRun bool) (ProjectionResult, error) {

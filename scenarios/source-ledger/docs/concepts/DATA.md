@@ -5,7 +5,9 @@
 The SQLite journal is the one corpus authority. `entries` and its provenance
 columns are append-only. A write either commits the complete source entry and
 its journal high-water mark or commits nothing. Corrections append facet
-assignments; they do not rewrite the entry body.
+assignments; they do not rewrite the entry body. The production authority is
+`scenarios/source-ledger/data/source-ledger.db`; `vrooli-memory` retains only
+the harness integration tables after the phase-15 cutover.
 
 The database is non-regenerable and must be registered with
 `data-backup-manager`. A restore is valid only when entry counts and per-row
@@ -75,7 +77,12 @@ proto packages will become the wire-level schema source of truth.
 ## Migrations And Compatibility
 
 Migration must preserve entry identity, body hashes, provenance, and append-only
-guards before any consumer cutover.
+guards before any consumer cutover. The one-shot
+`api/cmd/migrate-memory-corpus` command copies the engine-owned tables in one
+transaction and deliberately leaves `harness_projections`,
+`harness_import_runs`, and `journal_retry_queue` in `vrooli-memory`. The
+source-ledger target is registered with `data-backup-manager` as a
+non-regenerable SQLite target before the migration.
 
 ## Import / Export
 

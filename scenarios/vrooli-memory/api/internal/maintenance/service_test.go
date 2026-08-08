@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"vrooli-memory/internal/forest"
 	"vrooli-memory/internal/harness"
 	"vrooli-memory/internal/testutil/mocks"
 )
@@ -171,11 +170,11 @@ func TestIntervalFromEnv(t *testing.T) {
 
 type fakeCompactor struct {
 	calls  []int
-	result forest.CompactionResult
+	result CompactionResult
 	err    error
 }
 
-func (f *fakeCompactor) RunBounded(_ context.Context, limit int) (forest.CompactionResult, error) {
+func (f *fakeCompactor) RunBounded(_ context.Context, limit int) (CompactionResult, error) {
 	f.calls = append(f.calls, limit)
 	return f.result, f.err
 }
@@ -183,7 +182,7 @@ func (f *fakeCompactor) RunBounded(_ context.Context, limit int) (forest.Compact
 func TestRunOnceCompactsAfterProjectionSoAmbientMemoryIsNeverBlocked(t *testing.T) {
 	order := []string{}
 	store := newMemoryStore()
-	compactor := &fakeCompactor{result: forest.CompactionResult{CompactedCount: 3, EligibleFrontierBefore: 100, EligibleFrontierAfter: 97}}
+	compactor := &fakeCompactor{result: CompactionResult{CompactedCount: 3, EligibleFrontierBefore: 100, EligibleFrontierAfter: 97}}
 	service := NewService(store,
 		&fakeImporter{runtimes: []string{"a"}, order: &order, err: map[string]error{}},
 		&fakeProjector{runtimes: []string{"a"}, order: &order, err: map[string]error{}},

@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -10,7 +11,11 @@ const GroupName = "harness"
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	g, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
+	filteredManifest, err := manifestForRPCCommands(manifest)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("harness: filter local commands: %w", err)
+	}
+	g, err := cliapp.LoadFromManifestPrimitives(filteredManifest, GroupName, map[string]cliapp.PrimitiveHandler{
 		"HarnessService.RunImport":            cliapp.ProtoMutation(h.importCall, h.importReport),
 		"HarnessService.GetImportStatus":      cliapp.ProtoList(h.statusCall, h.statusReport),
 		"HarnessService.RefreshProjection":    cliapp.ProtoMutation(h.projectCall, h.projectReport),
@@ -26,6 +31,46 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		cliapp.Command{Name: "hooks", Description: "Install or remove native memory capture hooks", Run: h.hooks},
 	)
 	return g, nil
+}
+
+// manifestForRPCCommands leaves local hook commands in the public manifest
+// for discovery, but excludes them from cli-core's RPC binding loader. The
+// hooks are appended as native commands below because they intentionally do
+// not have a Connect-RPC binding.
+func manifestForRPCCommands(raw []byte) ([]byte, error) {
+	var document map[string]any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		return nil, err
+	}
+	groups, ok := document["groups"].([]any)
+	if !ok {
+		return raw, nil
+	}
+	for _, rawGroup := range groups {
+		group, ok := rawGroup.(map[string]any)
+		if !ok || group["name"] != GroupName {
+			continue
+		}
+		commands, ok := group["commands"].([]any)
+		if !ok {
+			continue
+		}
+		filtered := make([]any, 0, len(commands))
+		for _, rawCommand := range commands {
+			command, ok := rawCommand.(map[string]any)
+			if !ok {
+				filtered = append(filtered, rawCommand)
+				continue
+			}
+			binding, _ := command["binding"].(map[string]any)
+			if binding["kind"] == "local" {
+				continue
+			}
+			filtered = append(filtered, rawCommand)
+		}
+		group["commands"] = filtered
+	}
+	return json.Marshal(document)
 }
 
 // Commands exposes the durable import contract at the scenario CLI root so

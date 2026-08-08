@@ -95,7 +95,7 @@ func (h *connectHandler) CaptureWrite(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	return connect.NewResponse(&harnessv1.CaptureWriteResponse{EntryId: entry.ID}), nil
+	return connect.NewResponse(&harnessv1.CaptureWriteResponse{EntryId: entry.GetId()}), nil
 }
 
 func (h *connectHandler) GetMaintenanceStatus(ctx context.Context, _ *connect.Request[harnessv1.GetMaintenanceStatusRequest]) (*connect.Response[harnessv1.GetMaintenanceStatusResponse], error) {

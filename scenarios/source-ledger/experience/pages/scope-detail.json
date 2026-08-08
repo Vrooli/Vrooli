@@ -2,7 +2,7 @@
   "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
   "schemaVersion": "1.0.0",
-  "page": {"id": "scope-detail", "title": "Scope detail", "routes": ["/scopes/:scope"], "purpose": "Inspect a scope's journal timeline, bounded frontier, policy, and maintenance state.", "prd_refs": ["OT-P0-002", "OT-P0-003"]},
+  "page": {"id": "scope-detail", "title": "Scope detail", "routes": ["/scopes/:scope"], "runtimeRoutes": ["/scopes/agent-memory"], "purpose": "Inspect a scope's journal timeline, bounded frontier, policy, and maintenance state.", "prd_refs": ["OT-P0-002", "OT-P0-003"]},
   "states": [
     {"id": "default", "description": "Timeline and frontier are visible with source-versus-derived labels."},
     {"id": "loading", "description": "Scope data is loading."},

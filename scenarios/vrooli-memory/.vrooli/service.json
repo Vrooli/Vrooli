@@ -213,19 +213,12 @@
   "dependencies": {
     "resources": {},
     "scenarios": {
-      "ai-gateway": {
+      "source-ledger": {
         "enabled": true,
         "required": true,
         "startup_policy": "try_start",
-        "description": "Classifies journal entries, derives facet texts, embeds recall nodes, and summarizes compaction candidates through the governed inference gateway.",
-        "degraded_behavior": "Journal append persists the memory unclassified and queues enrichment; compaction pauses until inference is available."
-      },
-      "search-hub": {
-        "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Registers Vrooli Memory as a federated semantic-search provider.",
-        "degraded_behavior": "Local recall remains available; only federated cross-corpus discovery is unavailable until registration succeeds."
+        "description": "Owns the append-only source ledger and all semantic recall, facet, forest, and classification engine state.",
+        "degraded_behavior": "Harness projection and durable local run status remain readable, while recall and source-backed writes return typed unavailable errors until source-ledger recovers."
       },
       "vrooli-events": {
         "enabled": true,

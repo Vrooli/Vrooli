@@ -13,29 +13,20 @@ import (
 	harnessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness"
 	harnessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness/harness_v1connect"
 	"vrooli-memory/internal/clock"
-	"vrooli-memory/internal/facets"
 	internalharness "vrooli-memory/internal/harness"
-	"vrooli-memory/internal/inference"
-	"vrooli-memory/internal/journal"
+	"vrooli-memory/internal/ledgerclient"
 	"vrooli-memory/internal/maintenance"
 	"vrooli-memory/internal/module"
-	internalrecall "vrooli-memory/internal/recall"
 )
 
-func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client inference.Client, logger *log.Logger, compactor maintenance.Compactor, clocks ...clock.Clock) module.Module {
+func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client *ledgerclient.Client, logger *log.Logger, compactor maintenance.Compactor, clocks ...clock.Clock) module.Module {
 	home, _ := os.UserHomeDir()
 	root := os.Getenv("VROOLI_MEMORY_CLAUDE_ROOT")
 	if root == "" {
 		root = filepath.Join(home, ".claude", "projects", "-home-matthalloran8-Vrooli", "memory")
 	}
-	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), client, facets.NewService(facets.NewSQLiteRepository(db.Primary())))
-	config, err := internalrecall.ConfigFromEnv(os.LookupEnv)
-	if err != nil {
-		panic(err)
-	}
-	wake := internalrecall.NewService(internalrecall.NewSQLiteSource(db.Primary()), inference.Embedder{Client: client}, config)
-	projector := internalharness.NewProjector(db.Primary(), wake, roots)
-	importer := internalharness.NewImporter(svc, root, projector.TargetPaths(), db.Primary())
+	projector := internalharness.NewProjector(db.Primary(), client.Recall, roots)
+	importer := internalharness.NewImporter(client.Journal, root, projector.TargetPaths(), db.Primary())
 	interval, err := maintenance.IntervalFromOS()
 	if err != nil {
 		panic(err)

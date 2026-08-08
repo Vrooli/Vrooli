@@ -24,7 +24,7 @@ export function AppShell() {
         <Sidebar />
         <main
           data-testid={selectors.layout.main}
-          className="min-w-0 flex-1 overflow-auto px-4 py-4 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:p-6"
+          className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:p-6"
         >
           <Outlet />
         </main>

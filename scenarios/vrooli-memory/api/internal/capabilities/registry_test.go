@@ -6,7 +6,7 @@ import (
 )
 
 func TestKnownDependenciesExposeRecoveryContract(t *testing.T) {
-	want := map[string]bool{"ai-gateway": true, "search-hub": true, "vrooli-events": true, "swarm-manager": true}
+	want := map[string]bool{"source-ledger": true, "vrooli-events": true, "swarm-manager": true}
 	if len(Known) != len(want) {
 		t.Fatalf("Known = %#v", Known)
 	}

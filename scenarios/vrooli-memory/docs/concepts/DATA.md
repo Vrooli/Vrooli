@@ -56,7 +56,7 @@ such as BlobStore.
 | Supersession / expiry mark | facets | SQLite | `api/internal/facets/schema.sql` | Never deleted. | Marks an entry superseded or a thread resolved. The superseded entry itself is retained — marks are additive, like everything else. |
 | Summary node | forest | SQLite | `api/internal/forest/schema.sql` | Rebuildable. | Summary text, span (`lo`–`hi`), depth, generation count. Safe to drop and recompute from the journal. |
 | Tree edge | forest | SQLite | `api/internal/forest/schema.sql` | Rebuildable. | Parent/child links. Frontier membership is derived from these (a node with no parent is on the frontier). |
-| Provider descriptor | federation | JSON file | `.vrooli/search.json` | Versioned in git. | Scenario-owned SSOT for routing description, result mapping, and tuning. Search-hub may write tuning back through the config endpoint. |
+| Provider descriptor | source-ledger federation | JSON file | `scenarios/source-ledger/.vrooli/search.json` | Versioned in git; scope additions are materialized atomically. | Source-ledger-owned SSOT for per-scope routing description, result mapping, and tuning. |
 | Projection state | harness | SQLite | `api/internal/harness/schema.sql` | Overwritten. | Last projection hash and target paths. The projected file itself is a generated artifact, not data. |
 
 **Retention summary.** Only two things in this scenario are ever destroyed:
@@ -78,7 +78,7 @@ Each domain's schema file lives beside the code that interprets it. The
 | facet_assignments, pins, pin_reviews, merge_proposals, marks | facets | `api/internal/facets/schema.sql` | facets policy engine; read by forest (candidacy) and recall (wake) |
 | summaries, tree_edges | forest | `api/internal/forest/schema.sql` | forest compaction pass; read by recall |
 | projections | harness | `api/internal/harness/schema.sql` | harness projection writer |
-| `.vrooli/search.json` | federation | scenario root | boot self-registration; search-hub sweep write-back |
+| `scenarios/source-ledger/.vrooli/search.json` | source-ledger federation | source-ledger scenario root | boot and scope-creation self-registration |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 ### Rebuild contract

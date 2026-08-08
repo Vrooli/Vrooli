@@ -17,10 +17,7 @@
 package modules
 
 import (
-	"vrooli-memory/internal/facets"
-	"vrooli-memory/internal/forest"
 	"vrooli-memory/internal/harness"
-	"vrooli-memory/internal/journal"
 	"vrooli-memory/internal/maintenance"
 	"vrooli-memory/internal/module"
 
@@ -40,7 +37,7 @@ import (
 
 // MemoryDomainNames is the authoritative skeleton registry. Runtime mounting
 // follows as each domain receives a Connect handler in its implementation phase.
-var MemoryDomainNames = []string{"journal", "facets", "forest", "recall", "federation", "harness", "rules", "scopes"}
+var MemoryDomainNames = []string{"journal", "facets", "forest", "recall", "harness", "rules", "scopes"}
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
 // stable order (system endpoints first, then domains alphabetically).
@@ -103,9 +100,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(journal.Schema),
-		apidb.SchemaProviderFunc(facets.Schema),
-		apidb.SchemaProviderFunc(forest.Schema),
 		apidb.SchemaProviderFunc(harness.Schema),
 		apidb.SchemaProviderFunc(maintenance.Schema),
 	}

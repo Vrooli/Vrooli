@@ -17,7 +17,8 @@
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P1-001] tag) once the behavior exists.",
           "status": "planned",
-          "type": "manual"
+          "type": "manual",
+          "notes": "Scaffolded stub: replace with a test-typed validation once vocabulary mutation is backed by the scope administration API."
         }
       ]
     },
@@ -41,13 +42,14 @@
       "description": "The operator UI should provide a ledger list, scope detail, journal timeline, frontier explorer, vocabulary editor, and cross-scope search.",
       "id": "SL-P1-003",
       "prd_ref": "OT-P1-003",
-      "status": "planned",
+      "status": "implemented",
       "title": "Corpus-first operator surface",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P1-003] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "notes": "Source Ledger live operator pages cover the corpus list, scope detail, timeline, frontier, vocabulary editor, and cross-scope search.",
+          "status": "implemented",
+          "type": "test",
+          "ref": "ui/src/pages/LedgerPages.tsx::LedgerDashboardPage,ScopeDetailPage,VocabularyPage,SearchPage"
         }
       ]
     },

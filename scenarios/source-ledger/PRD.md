@@ -28,7 +28,7 @@
 
 - [ ] OT-P1-001 | Per-scope vocabulary | Operators should create and update each scope's facet vocabulary, retention rules, residency budgets, and frontier target.
 - [ ] OT-P1-002 | Federated scope discovery | Search clients should discover one provider per scope and receive scope-labelled results without duplicate corpus answers.
-- [ ] OT-P1-003 | Corpus-first operator surface | The operator UI should provide a ledger list, scope detail, journal timeline, frontier explorer, vocabulary editor, and cross-scope search.
+- [x] OT-P1-003 | Corpus-first operator surface | The operator UI should provide a ledger list, scope detail, journal timeline, frontier explorer, vocabulary editor, and cross-scope search.
 - [ ] OT-P1-004 | Append-only migration seam | The ledger should support a verified migration that preserves entry bodies and dependent derived data without deleting source rows.
 - [ ] OT-P1-005 | Measured recall cost | The ledger should measure recall cost and apply a bounded candidate strategy when corpus growth exceeds the recorded latency ceiling.
 

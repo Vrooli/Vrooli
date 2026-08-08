@@ -15,13 +15,16 @@ func TestSearchDescriptorParsesAndMapsRecallHits(t *testing.T) { // [REQ:VMEM-P0
 	require.NoError(t, err)
 	var provider aisearch.ProviderConfig
 	for _, candidate := range file.Providers {
-		if candidate.ProviderID == "vrooli-memory.memories" {
+		if candidate.ProviderID == "source-ledger.agent-memory" {
 			provider = candidate
 			break
 		}
 	}
 	require.NotEmpty(t, provider.ProviderID)
-	require.Equal(t, "vrooli-memory.memories", provider.ProviderID)
+	require.Equal(t, "source-ledger.agent-memory", provider.ProviderID)
+	require.Equal(t, "source-ledger", provider.ProviderGroup)
+	require.Contains(t, string(provider.Endpoint), "source-ledger")
+	require.NotContains(t, string(provider.Endpoint), "vrooli-memory")
 	require.NotEmpty(t, provider.Tests.Cases)
 
 	descriptors, err := searchregister.Descriptors(file)

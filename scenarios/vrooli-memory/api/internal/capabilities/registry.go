@@ -22,22 +22,13 @@ type Checker interface {
 
 var Known = []Definition{
 	{
-		ID:              "ai-gateway",
-		Description:     "Governed inference gateway for classification, facet derivation, embeddings, and compaction summaries.",
+		ID:              "source-ledger",
+		Description:     "Source of truth for the append-only journal and all derived semantic memory engines.",
 		DependencyKind:  "scenario",
-		DependencySlug:  "ai-gateway",
+		DependencySlug:  "source-ledger",
 		ActionKind:      "scenario_start",
-		ActionLabel:     "Start AI Gateway",
-		OperatorCommand: "vrooli scenario start ai-gateway --json",
-	},
-	{
-		ID:              "search-hub",
-		Description:     "Optional federated semantic-search provider for cross-corpus memory discovery.",
-		DependencyKind:  "scenario",
-		DependencySlug:  "search-hub",
-		ActionKind:      "scenario_start",
-		ActionLabel:     "Start Search Hub",
-		OperatorCommand: "vrooli scenario start search-hub --json",
+		ActionLabel:     "Start Source Ledger",
+		OperatorCommand: "vrooli scenario start source-ledger --json",
 	},
 	{
 		ID:              "vrooli-events",

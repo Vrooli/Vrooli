@@ -212,7 +212,22 @@
   },
   "dependencies": {
     "resources": {},
-    "scenarios": {}
+    "scenarios": {
+      "ai-gateway": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Provides governed classification, embedding, and summary inference for source-ledger enrichment and compaction.",
+        "degraded_behavior": "The append-only ledger remains durable, while enrichment and compaction pause until ai-gateway is available."
+      },
+      "search-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional federated search registration for source-ledger corpus discovery.",
+        "degraded_behavior": "Source-ledger recall remains available; only external search registration is unavailable."
+      }
+    }
   },
   "credentials": {},
   "environment": {

@@ -2,60 +2,26 @@ package recall
 
 import (
 	"context"
+	"errors"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-
-	recallv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall"
-	internaljournal "vrooli-memory/internal/journal"
-	"vrooli-memory/internal/journal/mocks"
-	internalrecall "vrooli-memory/internal/recall"
+	memoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall"
+	sourcev1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
+	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
+	"vrooli-memory/internal/ledgerclient"
 )
 
-type handlerSource []internalrecall.Node
+type unavailableRecall struct{}
+func (unavailableRecall) Recall(context.Context,*connect.Request[sourcev1.RecallRequest])(*connect.Response[sourcev1.RecallResponse],error){return nil,&ledgerclient.UnavailableError{Operation:"recall",Err:errors.New("source-ledger stopped")}}
+func (unavailableRecall) Wake(context.Context,*connect.Request[sourcev1.WakeRequest])(*connect.Response[sourcev1.WakeResponse],error){return nil,connect.NewError(connect.CodeUnimplemented,errors.New("unused"))}
+func (unavailableRecall) Zoom(context.Context,*connect.Request[sourcev1.ZoomRequest])(*connect.Response[sourcev1.ZoomResponse],error){return nil,connect.NewError(connect.CodeUnimplemented,errors.New("unused"))}
+func (unavailableRecall) ListSiblingEvents(context.Context,*connect.Request[sourcev1.ListSiblingEventsRequest])(*connect.Response[sourcev1.ListSiblingEventsResponse],error){return nil,connect.NewError(connect.CodeUnimplemented,errors.New("unused"))}
+var _ sourceconnect.RecallServiceClient = unavailableRecall{}
 
-func (s handlerSource) Nodes(context.Context) ([]internalrecall.Node, error) { return s, nil }
-
-func (s handlerSource) AmbientNodes(context.Context, int) ([]internalrecall.Node, error) {
-	return s, nil
-}
-
-type handlerEmbedder struct{ vector []float64 }
-
-func (e handlerEmbedder) EmbedQuery(context.Context, string) ([]float64, error) { return e.vector, nil }
-
-func TestWakeReportsOverflowAndRecallExposesZoomableNodeID(t *testing.T) {
-	now := time.Now()
-	svc := internalrecall.NewService(handlerSource{
-		{ID: "pinned", EntryID: "entry-pinned", Pinned: true, Text: "one\ntwo", CreatedAt: now, Vectors: [][]float64{{0, 1}}},
-		{ID: "summary-1", EntryID: "summary-1", FacetID: "episode", Frontier: true, Text: "summary", CreatedAt: now.Add(time.Second), Vectors: [][]float64{{1, 0}}, Depth: 1, Span: 2, Summary: true},
-	}, handlerEmbedder{vector: []float64{1, 0}}, internalrecall.Config{WakeBudget: 1})
-	h := NewConnectHandler(svc, nil)
-
-	wake, err := h.Wake(context.Background(), connect.NewRequest(&recallv1.WakeRequest{}))
-	require.NoError(t, err)
-	require.True(t, wake.Msg.GetOverflow())
-	require.Len(t, wake.Msg.GetHits(), 1)
-	require.Equal(t, "pinned", wake.Msg.GetHits()[0].GetNodeId())
-
-	recall, err := h.Recall(context.Background(), connect.NewRequest(&recallv1.RecallRequest{Query: "summary", Limit: 1}))
-	require.NoError(t, err)
-	require.Len(t, recall.Msg.GetHits(), 1)
-	require.Equal(t, "summary-1", recall.Msg.GetHits()[0].GetNodeId())
-	require.True(t, recall.Msg.GetHits()[0].GetSummary())
-	require.EqualValues(t, 2, recall.Msg.GetHits()[0].GetSpan())
-}
-
-func TestListSiblingEventsUsesOnlyTheStoredRunCorrelation(t *testing.T) { // [REQ:VMEM-P1-002]
-	entry := internaljournal.Entry{ID: "entry-1", Body: "first", Correlation: internaljournal.Correlation{RunID: "run-1"}}
-	sibling := internaljournal.Entry{ID: "entry-2", Body: "second", Correlation: internaljournal.Correlation{RunID: "run-1"}}
-	repo := &mocks.Repository{GetOut: entry, ListOut: []internaljournal.Entry{entry, sibling}}
-	journal := internaljournal.NewService(repo, nil)
-	h := NewConnectHandler(internalrecall.NewService(handlerSource{}, handlerEmbedder{}, internalrecall.Config{}), nil, journal)
-	resp, err := h.ListSiblingEvents(context.Background(), connect.NewRequest(&recallv1.ListSiblingEventsRequest{EntryId: entry.ID}))
-	require.NoError(t, err)
-	require.Len(t, resp.Msg.GetEntries(), 1)
-	require.Equal(t, sibling.ID, resp.Msg.GetEntries()[0].GetEntryId())
+func TestRecallReturnsTypedUnavailableWhenSourceLedgerIsDown(t *testing.T) {
+	h := NewConnectHandler(unavailableRecall{}, nil)
+	_, err := h.Recall(context.Background(), connect.NewRequest(&memoryv1.RecallRequest{Query:"durable memory", Scope:"agent-memory"}))
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
 }

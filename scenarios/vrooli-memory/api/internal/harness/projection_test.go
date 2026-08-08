@@ -2,149 +2,89 @@ package harness
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
-	"time"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/filerouting"
-	"github.com/vrooli/api-core/storage"
-	"vrooli-memory/internal/recall"
+	sourcerecall "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
+	recallconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
+	"vrooli-memory/internal/ledgerclient"
 	localdb "vrooli-memory/internal/testutil/db"
 )
 
-type projectionSource []recall.Node
-
-func (s projectionSource) Nodes(context.Context) ([]recall.Node, error) { return s, nil }
-
-func (s projectionSource) AmbientNodes(context.Context, int) ([]recall.Node, error) { return s, nil }
-
-func TestProjectionIsPinFirstDryRunAndDoesNotWrite(t *testing.T) { // [REQ:VMEM-P0-010]
-	db := localdb.NewSQLite(t)
-	_, err := db.Exec(Schema())
-	require.NoError(t, err)
-	now := time.Now()
-	wake := recall.NewService(projectionSource{{ID: "frontier", Text: "later context", Frontier: true, CreatedAt: now.Add(time.Second)}, {ID: "pin", Text: "never forget", Pinned: true, CreatedAt: now}}, nil, recall.Config{WakeBudget: 40})
-	p := NewProjector(db, wake)
-	p.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: t.TempDir() + "/MEMORY.md", Cap: 1024}
-	r, err := p.Project(context.Background(), "claude-code", true)
-	require.NoError(t, err)
-	require.True(t, r.DryRun)
-	require.Contains(t, r.Content, generatedHeader)
-	require.Less(t, strings.Index(r.Content, "never forget"), strings.Index(r.Content, "later context"))
-	var count int
-	require.NoError(t, db.QueryRow(`SELECT count(*) FROM harness_projections`).Scan(&count))
-	require.Zero(t, count)
+type fakeRecall struct {
+	hits []*sourcerecall.RecallHit
+	err  error
 }
 
-func TestProjectionRefusesToDropPinnedMemory(t *testing.T) {
-	db := localdb.NewSQLite(t)
-	_, err := db.Exec(Schema())
-	require.NoError(t, err)
-	wake := recall.NewService(projectionSource{{ID: "pin", Text: "this pin cannot fit", Pinned: true, CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
-	p := NewProjector(db, wake)
-	p.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: t.TempDir() + "/MEMORY.md", Cap: len(generatedHeader) + 10}
-	_, err = p.Project(context.Background(), "claude-code", true)
-	require.ErrorContains(t, err, "pinned memory exceeds")
-}
-
-func TestProjectionRefusesPinnedOverflowForEveryConfiguredRuntime(t *testing.T) {
-	db := localdb.NewSQLite(t)
-	_, err := db.Exec(Schema())
-	require.NoError(t, err)
-	wake := recall.NewService(projectionSource{{ID: "pin", Text: "this pin cannot fit", Pinned: true, CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
-	p := NewProjector(db, wake)
-	for _, runtime := range p.Runtimes() {
-		target := p.targets[runtime]
-		target.Path = filepath.Join(t.TempDir(), runtime+".md")
-		target.Cap = len(generatedHeader) + 10
-		p.targets[runtime] = target
-		_, err := p.Project(context.Background(), runtime, true)
-		require.ErrorContains(t, err, "pinned memory exceeds", runtime)
+func (f *fakeRecall) Wake(context.Context, *connect.Request[sourcerecall.WakeRequest]) (*connect.Response[sourcerecall.WakeResponse], error) {
+	if f.err != nil {
+		return nil, f.err
 	}
+	return connect.NewResponse(&sourcerecall.WakeResponse{Hits: f.hits}), nil
+}
+func (*fakeRecall) Recall(context.Context, *connect.Request[sourcerecall.RecallRequest]) (*connect.Response[sourcerecall.RecallResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+func (*fakeRecall) Zoom(context.Context, *connect.Request[sourcerecall.ZoomRequest]) (*connect.Response[sourcerecall.ZoomResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+func (*fakeRecall) ListSiblingEvents(context.Context, *connect.Request[sourcerecall.ListSiblingEventsRequest]) (*connect.Response[sourcerecall.ListSiblingEventsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
 }
 
-func TestProjectionWritesToLeasedDataRootInTestMode(t *testing.T) {
+var _ recallconnect.RecallServiceClient = (*fakeRecall)(nil)
+
+func newProjectionTest(t *testing.T, wake recallconnect.RecallServiceClient, path string) (*Projector, *sql.DB) {
+	t.Helper()
 	db := localdb.NewSQLite(t)
 	_, err := db.Exec(Schema())
 	require.NoError(t, err)
-
-	routes := filerouting.New(storage.Paths{DataDir: filepath.Join(t.TempDir(), "primary-data")})
-	leased, err := routes.InstallLeasedTestRoots("projection-test", time.Minute, true)
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, routes.ClearTestRoots("projection-test")) })
-
-	wake := recall.NewService(projectionSource{{ID: "entry", Text: "leased projection", Pinned: true, CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
-	p := NewProjector(db, wake, routes)
-	p.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: filepath.Join(t.TempDir(), "MEMORY.md"), Cap: 1024}
-
-	result, err := p.Project(database.WithTestMode(context.Background()), "claude-code", false)
-	require.NoError(t, err)
-	require.Equal(t, filepath.Join(leased.DataDir, "harness-projections", "claude-code", "MEMORY.md"), result.Path)
-	content, err := os.ReadFile(result.Path)
-	require.NoError(t, err)
-	require.Contains(t, string(content), "leased projection")
-	require.Equal(t, int64(1), routes.LeaseStats().TestRootWrites)
-	require.Zero(t, routes.LeaseStats().PrimaryWritesDuringTestMode)
-}
-
-func TestProjectionPreservesBytesOutsideManagedWakeBlock(t *testing.T) { // [REQ:VMEM-P1-007] [REQ:VMEM-P0-010]
-	db := localdb.NewSQLite(t)
-	_, err := db.Exec(Schema())
-	require.NoError(t, err)
-	path := filepath.Join(t.TempDir(), "MEMORY.md")
-	curated := "# Curated\n\nKeep this pointer exactly.\n"
-	require.NoError(t, os.WriteFile(path, []byte(curated+wakeStart+"\nold\n"+wakeEnd+"\n## Tail\n"), 0o600))
-	wake := recall.NewService(projectionSource{{ID: "entry", Text: "new generated memory", Frontier: true, CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
 	p := NewProjector(db, wake)
 	p.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: path, Cap: 4096}
-	_, err = p.Project(context.Background(), "claude-code", false)
+	return p, db
+}
+
+func TestProjectionWritesManagedBlockFromSourceWake(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "MEMORY.md")
+	p, db := newProjectionTest(t, &fakeRecall{hits: []*sourcerecall.RecallHit{{Text: "remote durable memory"}}}, path)
+	defer db.Close()
+	result, err := p.Project(context.Background(), "claude-code", false)
 	require.NoError(t, err)
+	require.Contains(t, result.Content, "remote durable memory")
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
-	text := string(got)
-	require.Contains(t, text, curated)
-	require.Contains(t, text, "## Tail")
-	require.Contains(t, text, "new generated memory")
-	require.NotContains(t, text, "old\n")
+	require.Contains(t, string(got), wakeStart)
 }
 
-func TestProjectionRejectsMalformedManagedWakeBlockWithoutWriting(t *testing.T) {
-	db := localdb.NewSQLite(t)
-	_, err := db.Exec(Schema())
-	require.NoError(t, err)
+func TestProjectionLeavesLastSuccessfulBlockUntouchedDuringOutage(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "MEMORY.md")
-	original := "curated\n" + wakeStart + "\nmissing end\n"
+	original := generatedHeader + "# Unified Vrooli Memory\n\n" + wakeStart + "\n- last successful wake\n\n" + wakeEnd + "\n"
 	require.NoError(t, os.WriteFile(path, []byte(original), 0o600))
-	wake := recall.NewService(projectionSource{{ID: "entry", Text: "generated", Frontier: true, CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
-	p := NewProjector(db, wake)
-	p.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: path, Cap: 4096}
-	_, err = p.Project(context.Background(), "claude-code", false)
-	var malformed ErrMalformedManagedBlock
-	require.ErrorAs(t, err, &malformed)
+	p, db := newProjectionTest(t, &fakeRecall{err: &ledgerclient.UnavailableError{Operation: "wake", Err: errors.New("source stopped")}}, path)
+	defer db.Close()
+	_, err := p.Project(context.Background(), "claude-code", false)
+	require.Error(t, err)
 	got, readErr := os.ReadFile(path)
 	require.NoError(t, readErr)
 	require.Equal(t, original, string(got))
 }
 
-func TestProjectionAddsManagedWakeBlockWithoutOverwritingExistingFile(t *testing.T) {
-	db := localdb.NewSQLite(t)
-	_, err := db.Exec(Schema())
-	require.NoError(t, err)
+func TestProjectionPreservesCuratedBytes(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "MEMORY.md")
-	original := "# Existing\n"
+	original := "# Curated\n\n" + wakeStart + "\nold\n" + wakeEnd + "\n## Tail\n"
 	require.NoError(t, os.WriteFile(path, []byte(original), 0o600))
-	wake := recall.NewService(projectionSource{{ID: "entry", Text: "generated", Frontier: true, CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
-	p := NewProjector(db, wake)
-	p.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: path, Cap: 4096}
-	_, err = p.Project(context.Background(), "claude-code", false)
+	p, db := newProjectionTest(t, &fakeRecall{hits: []*sourcerecall.RecallHit{{Text: "new generated memory"}}}, path)
+	defer db.Close()
+	_, err := p.Project(context.Background(), "claude-code", false)
 	require.NoError(t, err)
-	got, err := os.ReadFile(path)
-	require.NoError(t, err)
-	require.True(t, strings.HasPrefix(string(got), original))
-	require.Contains(t, string(got), wakeStart)
-	require.Contains(t, string(got), wakeEnd)
+	got, _ := os.ReadFile(path)
+	require.Contains(t, string(got), "# Curated")
+	require.Contains(t, string(got), "## Tail")
+	require.Contains(t, string(got), "new generated memory")
+	require.NotContains(t, string(got), "old\n")
 }

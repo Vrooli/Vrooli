@@ -42,31 +42,50 @@ func (s *Service) Append(ctx context.Context, e Entry) (Entry, error) {
 	// Direct callers may provide the scope on the entry rather than on the
 	// request context. Carry it into policy validation before any facet lookup.
 	ctx = policy.WithScope(ctx, e.Scope)
+	// Import keys are content-addressed. Resolve them before classification or
+	// embedding so replaying a large source file is cheap and cannot create
+	// duplicate inference work.
+	if e.ImportKey != "" {
+		if existing, found, err := s.repo.FindByImportKey(ctx, e.ImportKey); err != nil {
+			return Entry{}, err
+		} else if found {
+			existing.Existing = true
+			return existing, nil
+		}
+	}
 	var retry []string
 	if e.FacetID != "" && s.facets != nil {
 		if err := s.facets.Validate(ctx, e.FacetID); err != nil {
 			return Entry{}, err
 		}
 	}
-	facet, actorID, matched, err := s.ruleFacet(ctx, e)
-	if err != nil {
-		return Entry{}, err
+	// An explicit facet is a caller-owned deterministic mapping (for example,
+	// a provenance adapter importing a typed JSONL file). Never replace it with
+	// a classifier guess. Automatic classification is only for entries that do
+	// not carry a validated facet.
+	actorID := "explicit"
+	if strings.TrimSpace(e.FacetID) == "" {
+		facet, ruleActor, matched, err := s.ruleFacet(ctx, e)
+		if err != nil {
+			return Entry{}, err
+		}
+		if !matched {
+			facet, err = s.classify(ctx, e.Body, e.Kind)
+			ruleActor = "classifier"
+		}
+		if err != nil || strings.TrimSpace(facet) == "" {
+			e.FacetID = UnclassifiedFacet
+			actorID = "classifier"
+			retry = append(retry, "classify")
+		} else {
+			e.FacetID = strings.TrimSpace(facet)
+			actorID = ruleActor
+		}
 	}
-	if !matched {
-		facet, err = s.classify(ctx, e.Body, e.Kind)
-		actorID = "classifier"
-	}
-	if err != nil || strings.TrimSpace(facet) == "" {
-		e.FacetID = UnclassifiedFacet
-		actorID = "classifier"
-		retry = append(retry, "classify")
-	} else {
-		e.FacetID = strings.TrimSpace(facet)
-		if s.facets != nil {
-			if err := s.facets.Validate(ctx, e.FacetID); err != nil {
-				e.FacetID = UnclassifiedFacet
-				retry = append(retry, "classify")
-			}
+	if s.facets != nil {
+		if err := s.facets.Validate(ctx, e.FacetID); err != nil {
+			e.FacetID = UnclassifiedFacet
+			retry = append(retry, "classify")
 		}
 	}
 	e.FacetTexts = []FacetText{{Kind: "topic", Text: e.Body}, {Kind: "rule", Text: "Implication: " + e.Body}, {Kind: "entities", Text: "Entities: " + e.Body}}

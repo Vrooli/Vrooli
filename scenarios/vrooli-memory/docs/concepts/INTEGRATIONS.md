@@ -17,10 +17,11 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | journal, facets, forest, harness | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes (harness state only) | harness projections, import runs, retry state | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. The journal corpus is now authoritative in source-ledger; this database is retained for harness-local state during cutover and rollback. |
+| source-ledger | scenario | yes for live wake/recall after phase 16 | journal, recall, forest, facets | generated Connect clients with startup-resolved base URL | Interactive recall fails with a typed unavailable error when the ledger is down; the last successful managed projection remains on disk and continues to provide ambient memory. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
-| ai-gateway | scenario | yes | journal (classify, embed), forest (summarize) | scenario CLI/API | **Writes degrade, never fail.** An entry is appended unclassified and queued; compaction pauses until inference is available. |
-| search-hub | scenario | yes (for federated reach) | federation | `.vrooli/search.json` descriptor + `RegisterProvider` | Local `recall` keeps working; only cross-corpus federated query loses the memory provider. |
+| ai-gateway | scenario | yes (through source-ledger after phase 16) | journal (classify, embed), forest (summarize) | scenario CLI/API | **Writes degrade, never fail.** An entry is appended unclassified and queued; compaction pauses until inference is available. |
+| search-hub | scenario | transitive through source-ledger | source-ledger federation | source-ledger `.vrooli/search.json` + bounded `RegisterProvider` | Local `recall` and wake keep working; only cross-corpus federation loses the source-ledger providers. |
 | vrooli-events | scenario | no | harness | api-core receipt publication (automatic) | Run correlation is absent; writes and recall are unaffected. |
 | swarm-manager | scenario | no | harness (work-record import) | local records adapter, content-addressed import keys | Import is replay-safe and optional; imported records become `kind=work-record` memories and normal writes remain available. |
 | Coding-agent resources | local resource | no | harness (projection, capture, import) | `resources/<agent>/` owns the runtime formats; the Go-native `vrooli-memory hooks` reconciler writes only the documented Claude/Grok hook config and never edits agent binaries | Projection/import remain available for every adapter; hook-capable runtimes capture writes in real time and others use the scheduled store sweep. |
@@ -120,8 +121,9 @@ Recorded rather than guessed:
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| ai-gateway | required | Facet classification, facet-text derivation, embedding, and compaction summarization. | Scenario CLI/API. Model policy stays in the gateway. |
-| search-hub | required | Federated retrieval. Memory registers a provider descriptor; the router holds no memory content and no vectors. | `.vrooli/search.json` validated against `.vrooli/schemas/search.schema.json`; boot self-registration. |
+| source-ledger | required | Sole authority for journal, facets, forest, recall, rules, and scopes. `vrooli-memory` uses generated Go Connect clients and retains only harness-specific import/projection/maintenance state. | Source-ledger Connect API; startup discovery resolves the endpoint once. Recall fails with typed `unavailable` when the authority is down, while the last successful projection remains readable. |
+| ai-gateway | transitive through source-ledger | Facet classification, facet-text derivation, embedding, and compaction summarization remain source-ledger responsibilities. | Source-ledger owns the gateway dependency and model policy. |
+| search-hub | transitive through source-ledger | Federated retrieval and per-scope provider registration remain source-ledger responsibilities. | Source-ledger owns the Search Hub descriptor and registration; this consumer has no provider descriptor. |
 | vrooli-events | automatic | Run correlation for memories written inside an agent run. **No integration work** — `api-core/server.go` wraps every handler in `eventbus.AutomaticRuntime`, so receipts carrying run id, workflow execution id, actor kind, and identity token are published for every endpoint already. | Memory stores correlation ids only and never copies run payloads. |
 | swarm-manager | import adapter | Work records are absorbed as a memory kind (`VMEM-P1-001`). The adapter is idempotent and records source provenance; the `records create` write path is retired from agent-facing docs. | Read-only source sweep; failures are reported without claiming completion. |
 
@@ -138,7 +140,7 @@ Recorded rather than guessed:
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
 | ai-gateway (classify) | call error or timeout | Entry is appended with an unclassified facet and enqueued for retry. **A write is never lost to an inference failure.** | `VMEM-P0-002` |
 | ai-gateway (summarize) | call error or timeout | Compaction pass aborts cleanly; the frontier stays over target until inference returns. No partial summary is written. | `VMEM-P0-007` |
-| search-hub | registration failure at boot | Scenario starts and serves local recall; registration retries. Federated query loses the memory provider until it succeeds. | `VMEM-P0-009` |
+| search-hub | source-ledger registration failure at boot or scope creation | Memory starts and serves local recall; source-ledger retries registration. Federated query loses only the affected source-ledger provider until registration succeeds. | `VMEM-P0-009` |
 | vrooli-events | receipt not published, or null run id | Memory is written with no correlation. Documented as expected: `run_id` is nullable for heartbeat-spawned agents. | `VMEM-P1-002` |
 | Harness store unreadable | path missing, permission denied, or SQLite locked | Import skips that harness and reports it; other harnesses import normally. A partial sweep is never recorded as complete. | `VMEM-P0-011` |
 | Harness store format changed | adapter extraction yields zero items from a non-empty source | A dry-run returns a successful zero-source observation for an absent or empty declared store; malformed extraction still fails, and a durable import records failure rather than claiming completion. | `VMEM-P0-011` |

@@ -23,7 +23,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers/journal/connect_handler_test.go::TestWorkRecordRequiresEveryNarrativeField",
+          "ref": "api/handlers/recall/connect_handler_test.go::TestWorkRecordRequiresEveryNarrativeField",
           "phase": "unit",
           "status": "implemented",
           "notes": "A work-record note missing a required field is rejected with a field-specific error."
@@ -58,14 +58,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers/journal/connect_handler_test.go::TestAppendDerivesCorrelationOnlyFromVerifiedProvenance",
+          "ref": "api/handlers/recall/connect_handler_test.go::TestAppendDerivesCorrelationOnlyFromVerifiedProvenance",
           "phase": "unit",
           "status": "implemented",
           "notes": "A write carrying run correlation persists the ids and no copied run payload."
         },
         {
           "type": "test",
-          "ref": "api/handlers/journal/connect_handler_test.go::TestAppendDerivesCorrelationOnlyFromVerifiedProvenance",
+          "ref": "api/handlers/recall/connect_handler_test.go::TestAppendDerivesCorrelationOnlyFromVerifiedProvenance",
           "phase": "unit",
           "status": "implemented",
           "notes": "A write with absent correlation (operator shell, null run id) succeeds and stores no correlation."
@@ -95,14 +95,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers/forest/connect_handler_test.go::TestNodesProtoPreservesForestNodeIdentity",
+          "ref": "api/handlers/recall/connect_handler_test.go::TestNodesProtoPreservesForestNodeIdentity",
           "phase": "unit",
           "status": "implemented",
           "notes": "Zoom on a depth-2 node returns its immediate children, not its transitive leaves."
         },
         {
           "type": "test",
-          "ref": "api/handlers/forest/connect_handler_test.go::TestNodesProtoPreservesForestNodeIdentity",
+          "ref": "api/handlers/recall/connect_handler_test.go::TestNodesProtoPreservesForestNodeIdentity",
           "phase": "unit",
           "status": "implemented",
           "notes": "Rendered summary nodes carry an explicit summary label with span and depth; leaves do not."
@@ -125,14 +125,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/forest/service_test.go::TestSummaryPromptPreservesTailAndForbidsInventedResolution",
+          "ref": "api/internal/harness/projection_test.go::TestSummaryPromptPreservesTailAndForbidsInventedResolution",
           "phase": "unit",
           "status": "implemented",
           "notes": "A cluster containing a claim and its later negation summarizes to the later claim only."
         },
         {
           "type": "test",
-          "ref": "api/internal/forest/service_test.go::TestSummaryPromptPreservesTailAndForbidsInventedResolution",
+          "ref": "api/internal/harness/projection_test.go::TestSummaryPromptPreservesTailAndForbidsInventedResolution",
           "phase": "unit",
           "status": "implemented",
           "notes": "A cluster of compatible claims summarizes without dropping the distinct claims it can fit in budget."
@@ -160,42 +160,42 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/journal/service_test.go::TestAppendPreservesWriteOrderAndFacetEmbeddings",
+          "ref": "api/internal/harness/import_test.go::TestAppendPreservesWriteOrderAndFacetEmbeddings",
           "phase": "unit",
           "status": "implemented",
           "notes": "A memory produces one embedding per derived facet text, each retrievable and attributable to its source text."
         },
         {
           "type": "test",
-          "ref": "api/internal/inference/client_test.go::TestEmbedderUsesDistinctGatewayTasks",
+          "ref": "api/internal/ledgerclient/client_test.go::TestEmbedderUsesDistinctGatewayTasks",
           "phase": "unit",
           "status": "implemented",
           "notes": "Clustering-purpose embeddings request the clustering task prefix; retrieval-purpose embeddings request the document prefix."
         },
         {
           "type": "test",
-          "ref": "api/internal/journal/service_test.go::TestFacetTextsKeepDistinctClusteringSpaces",
+          "ref": "api/internal/harness/import_test.go::TestFacetTextsKeepDistinctClusteringSpaces",
           "phase": "integration",
           "status": "implemented",
           "notes": "Two memories related only on one facet co-cluster in that facet's space and not in the others."
         },
         {
           "type": "test",
-          "ref": "api/internal/forest/service_test.go::TestClusteringGroupsOnASecondaryFacetSpace",
+          "ref": "api/internal/harness/projection_test.go::TestClusteringGroupsOnASecondaryFacetSpace",
           "phase": "unit",
           "status": "implemented",
           "notes": "Clustering groups two memories that agree on the entities space while disagreeing on topic, which is the purpose clause: more than one notion of relatedness."
         },
         {
           "type": "test",
-          "ref": "api/internal/forest/service_test.go::TestPairScoringNeverComparesAcrossFacetSpaces",
+          "ref": "api/internal/harness/projection_test.go::TestPairScoringNeverComparesAcrossFacetSpaces",
           "phase": "unit",
           "status": "implemented",
           "notes": "Spaces are paired by index and the shorter side bounds the comparison, so a summary's single space never scores against a leaf's entities framing."
         },
         {
           "type": "test",
-          "ref": "api/internal/recall/service_test.go::TestRecallScoresAcrossEveryFacetSpace",
+          "ref": "api/internal/harness/projection_test.go::TestRecallScoresAcrossEveryFacetSpace",
           "phase": "unit",
           "status": "implemented",
           "notes": "Recall takes the best space, so a query matching a secondary framing outranks a partial primary match."
@@ -209,7 +209,7 @@
       "prd_ref": "OT-P1-006",
       "category": "ui",
       "criticality": "P1",
-      "description": "A UI for browsing the journal as a timeline, inspecting the frontier so the compaction staircase is legible, and correcting a memory's facet or pinned state. Correction is the operator's control over what the fleet believes; a misclassified standing rule is the highest-consequence error the system can make, so re-facet and pin/unpin are first-class actions rather than admin afterthoughts.",
+      "description": "The fleet exposes harness state in vrooli-memory while Source Ledger owns the corpus-first operator surface: journal timeline, frontier, facet review, vocabulary, and cross-scope search. Coding-harness operators retain projection, import, capture, and maintenance visibility without a duplicate journal UI.",
       "tags": [
         "ui",
         "operator",
@@ -218,24 +218,24 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/features/journal/JournalTimeline.test.tsx::JournalTimeline",
+          "ref": "../source-ledger/ui/src/pages/LedgerPages.tsx::ScopeDetailPage",
           "phase": "ui",
           "status": "implemented",
-          "notes": "Journal timeline renders loading, empty, partial, and error states."
+          "notes": "Source Ledger scope detail renders the journal timeline and bounded frontier/facet views."
         },
         {
           "type": "test",
-          "ref": "ui/src/features/recall/RecallPanel.test.tsx::RecallPanel",
+          "ref": "../source-ledger/ui/src/pages/LedgerPages.tsx::SearchPage",
           "phase": "ui",
           "status": "implemented",
-          "notes": "Frontier explorer distinguishes leaves from summaries and shows each summary's span and depth."
+          "notes": "Source Ledger cross-scope search labels results with their owning scope."
         },
         {
           "type": "test",
-          "ref": "ui/src/features/operator/OperatorReview.test.tsx::OperatorReview",
+          "ref": "../source-ledger/ui/src/pages/LedgerPages.tsx::VocabularyPage",
           "phase": "ui",
           "status": "implemented",
-          "notes": "Re-facet and pin/unpin actions round-trip to the API and reflect in the rendered state."
+          "notes": "Source Ledger vocabulary editor exposes per-scope retention policy controls; vrooli-memory dashboard retains harness state only."
         }
       ]
     },
@@ -336,35 +336,35 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
+          "ref": "api/internal/harness/import_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
           "status": "implemented",
           "notes": "Near-duplicate pinned entries surface as a merge proposal and are never collapsed without operator confirmation."
         },
         {
           "type": "test",
-          "ref": "api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
+          "ref": "api/internal/harness/import_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
           "status": "implemented",
           "notes": "A pin whose review date passes without reconfirmation becomes unpinned, remains in the journal, and remains retrievable by recall."
         },
         {
           "type": "test",
-          "ref": "api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
+          "ref": "api/internal/harness/import_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
           "status": "implemented",
           "notes": "Reconfirming a pin extends its review date without creating a duplicate journal entry."
         },
         {
           "type": "test",
-          "ref": "api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
+          "ref": "api/internal/harness/import_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
           "status": "implemented",
           "notes": "A pin request that would exceed the budget returns the weakest current pins as a trade-off proposal rather than silently pinning or silently refusing."
         },
         {
           "type": "test",
-          "ref": "api/handlers/facets/connect_handler_test.go::TestAssignFacetRejectsUnknownFacetAndSetsPin",
+          "ref": "api/handlers/recall/connect_handler_test.go::TestAssignFacetRejectsUnknownFacetAndSetsPin",
           "phase": "integration",
           "status": "implemented",
           "notes": "Lapse and merge both change wake output while leaving every affected journal entry intact and searchable."

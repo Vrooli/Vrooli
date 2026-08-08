@@ -5,12 +5,25 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"source-ledger/internal/module"
 )
 
 var descriptorMu sync.Mutex
+
+// ProviderIDForScope returns the stable Search Hub leaf owned by source-ledger
+// for a scope. agent-memory keeps the fleet-facing name used by the plan; all
+// other scopes are namespaced beneath source-ledger.scope so two ledgers can
+// never claim the same provider group.
+func ProviderIDForScope(scope string) string {
+	scope = strings.TrimSpace(scope)
+	if scope == "agent-memory" {
+		return "source-ledger.agent-memory"
+	}
+	return "source-ledger.scope." + scope
+}
 
 // AppendScopeProvider materializes a search-hub descriptor for a newly
 // registered scope. The committed agent-memory provider is the template; each
@@ -31,7 +44,7 @@ func AppendScopeProvider(path, scope string) error {
 	if !ok || len(providers) == 0 {
 		return fmt.Errorf("search descriptor has no provider template")
 	}
-	providerID := "vrooli-memory.scope." + scope
+	providerID := ProviderIDForScope(scope)
 	for _, rawProvider := range providers {
 		if provider, ok := rawProvider.(map[string]any); ok && provider["provider_id"] == providerID {
 			return nil
@@ -50,7 +63,7 @@ func AppendScopeProvider(path, scope string) error {
 		return err
 	}
 	provider["provider_id"] = providerID
-	provider["provider_group"] = "vrooli-memory"
+	provider["provider_group"] = "source-ledger"
 	provider["description"] = "Scoped durable memory ledger for " + scope + "."
 	delete(provider, "tests")
 	if endpoint, ok := provider["endpoint"].(map[string]any); ok {
@@ -64,8 +77,28 @@ func AppendScopeProvider(path, scope string) error {
 		return err
 	}
 	encoded = append(encoded, '\n')
-	if err := os.WriteFile(filepath.Clean(path), encoded, 0o644); err != nil {
+	// Replace the descriptor atomically so search-register never observes a
+	// partially-written document while a new scope is being created.
+	dir := filepath.Dir(filepath.Clean(path))
+	tmp, err := os.CreateTemp(dir, ".search.json.*")
+	if err != nil {
+		return fmt.Errorf("create temporary search descriptor: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if err := tmp.Chmod(0o644); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("set search descriptor permissions: %w", err)
+	}
+	if _, err := tmp.Write(encoded); err != nil {
+		_ = tmp.Close()
 		return fmt.Errorf("write search descriptor: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close search descriptor: %w", err)
+	}
+	if err := os.Rename(tmpName, filepath.Clean(path)); err != nil {
+		return fmt.Errorf("replace search descriptor: %w", err)
 	}
 	return nil
 }

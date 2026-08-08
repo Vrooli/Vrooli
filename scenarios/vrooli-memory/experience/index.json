@@ -7,30 +7,12 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "vrooli-memory",
-  "description": "Operator experience contract for writing, inspecting, and recalling shared durable memory.",
+  "description": "Harness-facing experience contract for projection, import, capture, and maintenance state; Source Ledger owns corpus inspection and recall.",
   "pages": [
     {
       "id": "dashboard",
       "path": "pages/dashboard.json",
       "title": "Dashboard",
-      "status": "active"
-    },
-    {
-      "id": "journal",
-      "path": "pages/journal.json",
-      "title": "Journal",
-      "status": "active"
-    },
-    {
-      "id": "recall",
-      "path": "pages/recall.json",
-      "title": "Recall",
-      "status": "active"
-    },
-    {
-      "id": "operator",
-      "path": "pages/operator.json",
-      "title": "Operator review",
       "status": "active"
     },
     {

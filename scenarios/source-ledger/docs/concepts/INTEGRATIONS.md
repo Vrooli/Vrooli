@@ -21,9 +21,13 @@ for live recall while existing projected wake blocks remain intact.
 
 ## Discovery and Registration
 
-Resolve the source-ledger endpoint once at consumer startup through Vrooli
-discovery. Cache the result for requests. Register one search-hub provider per
-scope with an explicit scope in its request template.
+Source Ledger owns the federated descriptor at `.vrooli/search.json`. At boot
+it materializes one provider for every scope in the policy registry, then
+self-registers all descriptors with Search Hub. A newly-created scope updates
+the descriptor and triggers the same bounded registration path. The stable
+agent scope is `source-ledger.agent-memory`; other scopes use
+`source-ledger.scope.<scope-id>`. Every request template carries its scope
+explicitly, so federation cannot cross ledgers accidentally.
 
 ## Security and Data Rules
 
@@ -33,9 +37,9 @@ scope-aware, and subject to the journal high-water-mark guard.
 
 ## Architecture Maturity
 
-Integration intent is recorded before implementation: search-hub and governed
-inference are planned scenario dependencies, while backup registration is
-introduced at corpus migration when a non-regenerable ledger database exists.
+Search Hub and governed inference are live optional integrations. Backup
+registration remains a separate production-readiness surface for the
+non-regenerable ledger database.
 
 ## Contracts And Data Flow
 
@@ -48,8 +52,9 @@ This document records planned dependencies and their degraded behavior.
 
 ## Dependency Inventory
 
-Governed inference, search-hub, and data-backup-manager are planned integration
-surfaces; none is started by the contract-only scaffold.
+Governed inference and Search Hub are active runtime surfaces. Data-backup-
+manager remains the owner of the backup drill and is not required for normal
+append or recall.
 
 ## Vrooli Resources
 

@@ -44,7 +44,7 @@ func (h *connectHandler) AppendEntry(ctx context.Context, req *connect.Request[j
 		h.logger.Printf("journal.AppendEntry: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&journalv1.AppendEntryResponse{Entry: entryToProto(created)}), nil
+	return connect.NewResponse(&journalv1.AppendEntryResponse{Entry: entryToProto(created), Existing: created.Existing}), nil
 }
 
 func (h *connectHandler) GetEntry(ctx context.Context, req *connect.Request[journalv1.GetEntryRequest]) (*connect.Response[journalv1.GetEntryResponse], error) {

@@ -102,10 +102,10 @@ The absorbed work records remain in swarm-manager's relational storage for
 workflows that need them, but that storage is no longer a second answer in
 federated memory search. The `swarm-manager.records` Search Hub provider was
 removed from `scenarios/swarm-manager/.vrooli/search.json` and deregistered from
-the live provider registry on 2026-08-06. `vrooli-memory.memories` is now the
-single federated provider for those records; a known work-record query returned
-memory hits without the retired provider. This is provider retirement, not data
-deletion.
+the live provider registry on 2026-08-06. Federation is now owned by
+source-ledger: `source-ledger.agent-memory` and the other per-scope providers
+are the single federated answer for ledger records. This is provider retirement,
+not data deletion.
 
 ## What This Does **Not** Replace
 

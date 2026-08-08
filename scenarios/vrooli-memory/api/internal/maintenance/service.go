@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"vrooli-memory/internal/clock"
-	"vrooli-memory/internal/forest"
 	"vrooli-memory/internal/harness"
+	"vrooli-memory/internal/ledgerclient"
 
 	"github.com/google/uuid"
 )
@@ -44,7 +44,8 @@ type (
 		Status, Error                                    string
 		Compacted, FrontierBefore, FrontierAfter, Target int
 	}
-	Run struct {
+	CompactionResult = ledgerclient.CompactionResult
+	Run              struct {
 		ID                     string
 		StartedAt, CompletedAt time.Time
 		Outcomes               []Outcome
@@ -60,7 +61,7 @@ type (
 	// Compactor is the forest seam. The maintenance loop never reaches into
 	// the forest repository directly.
 	Compactor interface {
-		RunBounded(context.Context, int) (forest.CompactionResult, error)
+		RunBounded(context.Context, int) (CompactionResult, error)
 	}
 	Importer interface {
 		Runtimes() []string

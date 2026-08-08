@@ -12,6 +12,7 @@ import (
 	"source-ledger/internal/capabilities"
 	"source-ledger/internal/clock"
 	"source-ledger/internal/facets"
+	"source-ledger/internal/federation"
 	"source-ledger/internal/forest"
 	"source-ledger/internal/inference"
 	"source-ledger/internal/journal"
@@ -28,6 +29,8 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
+	searchregister "github.com/vrooli/searchregister-go"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
 	_ "modernc.org/sqlite"
 
@@ -141,6 +144,42 @@ func main() {
 	if err := registry.Ensure(ctx, policyConfig); err != nil {
 		log.Fatalf("scope registry initialization failed: %v", err)
 	}
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		log.Fatalf("resolve repository root for search federation: %v", err)
+	}
+	searchJSONPath := filepath.Join(repoRoot, "scenarios", "source-ledger", ".vrooli", "search.json")
+	registerScopeProvider := func(scope string) error {
+		if err := federation.AppendScopeProvider(searchJSONPath, scope); err != nil {
+			return err
+		}
+		// A scope created after boot must become visible in Search Hub as well as
+		// in the durable descriptor. Registration is best-effort and bounded by
+		// searchregister-go; local ledger writes remain authoritative.
+		go searchregister.Register(context.Background(), searchregister.Config{
+			ScenarioID:     "source-ledger",
+			SearchFilePath: searchJSONPath,
+			Logger:         log.Default(),
+		})
+		return nil
+	}
+	// The policy registry is the source of truth for scopes. Materialize every
+	// already-known scope before self-registration reads search.json, then use
+	// the same seam for scopes created through the API later in this process.
+	scopeDefinitions, err := registry.List(ctx)
+	if err != nil {
+		log.Fatalf("list scopes for search federation: %v", err)
+	}
+	for _, definition := range scopeDefinitions {
+		if err := registerScopeProvider(definition.ID); err != nil {
+			log.Fatalf("materialize search provider for scope %q: %v", definition.ID, err)
+		}
+	}
+	go searchregister.Register(ctx, searchregister.Config{
+		ScenarioID:     "source-ledger",
+		SearchFilePath: searchJSONPath,
+		Logger:         log.Default(),
+	})
 	resolver := policy.NewRequestResolver(registry, func(ctx context.Context) ([]policy.Facet, error) {
 		definitions, err := facetService.List(ctx)
 		if err != nil {
@@ -183,7 +222,7 @@ func main() {
 		forestH.Module(forestService, log.Default()),
 		recallH.Module(db, gatewayClient, recallConfig, registry, log.Default()),
 		rulesH.Module(db, log.Default(), gatewayClient),
-		scopesH.Module(db, registry, func(string) error { return nil }, log.Default()),
+		scopesH.Module(db, registry, registerScopeProvider, log.Default()),
 	)
 
 	rootMux := http.NewServeMux()

@@ -42,7 +42,8 @@
               "description": "Facet vocabulary as a JSON array",
               "bind": {
                 "field": "scope"
-              }
+              },
+              "bind_waiver": "facets-json is CLI-local JSON decoded by the custom ScopesService.CreateScope handler into Scope.Facets"
             }
           ],
           "binding": {
@@ -360,8 +361,8 @@
             "primitive": "proto_mutation"
           }
         },
-        {
-          "name": "maintenance-status",
+    {
+      "name": "maintenance-status",
           "description": "Show the last automatic import and projection run",
           "binding": {
             "kind": "connect-rpc",
@@ -375,10 +376,22 @@
               "network:internal"
             ]
           },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        }
+      "architecture": {
+        "primitive": "proto_list"
+      }
+    },
+    {
+      "name": "hook",
+      "description": "Capture a native memory write from a harness hook",
+      "binding": { "kind": "local" },
+      "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+    },
+    {
+      "name": "hooks",
+      "description": "Install or remove native memory capture hooks",
+      "binding": { "kind": "local" },
+      "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:write"] }
+    }
       ]
     },
     {

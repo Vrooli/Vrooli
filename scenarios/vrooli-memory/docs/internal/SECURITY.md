@@ -21,7 +21,7 @@ Use this document to answer:
 | Facet texts and embeddings | high | journal | Derived from entry prose; an embedding is not a safe redaction of its source. |
 | Summary nodes | high | forest | Compressed entry content. Same sensitivity as the leaves they summarize. |
 | Attribution + run correlation | low | journal | Identifiers only. No run payloads are copied — `vrooli-events` remains the one truth about a run. |
-| Provider descriptor (`.vrooli/search.json`) | low | federation | Routing metadata and tuning; contains no memory content. Versioned in git. |
+| Provider descriptor (`scenarios/source-ledger/.vrooli/search.json`) | low | source-ledger federation | Routing metadata and tuning; contains no memory content. Versioned in the authority scenario. |
 
 **Consequence of D-005 (no access-control partitioning).** Unified read across
 all scenarios is a deliberate product decision, and it means any scenario that

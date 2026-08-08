@@ -28,11 +28,15 @@
 
 ## Federation
 
-1. Policy registry creates or updates a scope.
-2. Federation derives the provider ID from the scope ID.
-3. Search Hub registers one provider descriptor for that scope.
-4. A federated query returns scope-labelled results with no duplicate
-   `vrooli-memory` provider for the ledger corpus.
+1. Source Ledger reads the policy registry during boot and materializes one
+   descriptor per existing scope.
+2. Federation derives a stable provider ID from the scope ID
+   (`source-ledger.agent-memory` for the fleet memory scope and
+   `source-ledger.scope.<scope-id>` otherwise).
+3. Search Hub self-registration upserts every descriptor; creating a scope
+   repeats the descriptor and registration steps without restarting the API.
+4. A federated query returns scope-labelled results with no legacy
+   `vrooli-memory` provider or duplicate ledger hit.
 
 ## Architecture Maturity
 

@@ -4,7 +4,7 @@
  * (header + landmark nav + main + bottom landmark nav). Feature cards keep
  * their own a11y tests.
  */
-import { afterEach, beforeEach, describe, it } from "vitest";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
@@ -12,12 +12,17 @@ import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
 
 describe("AppShell accessibility", () => {
+  let fetchSpy: { mockRestore: () => void } | undefined;
+
   beforeEach(async () => {
     await setLocale("en");
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise<Response>(() => undefined));
   });
 
   afterEach(() => {
     cleanup();
+    fetchSpy?.mockRestore();
+    fetchSpy = undefined;
   });
 
   it("renders the shell without axe violations in English", async () => {

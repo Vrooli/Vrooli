@@ -1,4 +1,4 @@
-import { BookOpen, Home, Search, Settings } from "lucide-react";
+import { Home, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { BottomNav as CanonicalBottomNav, type BottomNavItem } from "../components/ui/bottom-nav";
@@ -42,10 +42,6 @@ export function BottomNav() {
 function iconForItem(item: NavItem) {
   const iconClass = "h-5 w-5";
   switch (item.key) {
-    case "journal":
-      return <BookOpen aria-hidden className={iconClass} />;
-    case "recall":
-      return <Search aria-hidden className={iconClass} />;
     case "settings":
       return <Settings aria-hidden className={iconClass} />;
     case "dashboard":

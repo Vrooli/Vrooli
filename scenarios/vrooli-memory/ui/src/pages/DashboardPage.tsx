@@ -20,24 +20,25 @@ export function DashboardPage() {
       <h2 id="dashboard-heading" className="text-2xl font-semibold">
         {t(strings.pages.dashboard.title)}
       </h2>
-      <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <p className="text-app-muted-foreground">Harness state only. Journal, recall, frontier, and vocabulary operations live in Source Ledger.</p>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <HealthCard />
-        <MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} />
-        <MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} />
+        <HarnessCard title="Projection status" value="Managed block ready" />
+        <HarnessCard title="Import runs" value="Available per runtime" />
+        <HarnessCard title="Capture & maintenance" value="Monitored" />
       </div>
     </section>
   );
 }
 
-function MetricPlaceholder({ label }: { label: string }) {
+function HarnessCard({ title, value }: { title: string; value: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm uppercase text-app-muted-foreground">{label}</CardTitle>
+        <CardTitle className="text-sm uppercase text-app-muted-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-2xl font-semibold">--</p>
+        <p className="text-lg font-semibold">{value}</p>
       </CardContent>
     </Card>
   );

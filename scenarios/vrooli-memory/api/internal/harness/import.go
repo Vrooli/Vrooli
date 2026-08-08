@@ -12,14 +12,15 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
-	"vrooli-memory/internal/journal"
+	"connectrpc.com/connect"
+	sourcejournal "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
+	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 )
 
 type (
 	Importer struct {
-		journal           *journal.Service
+		journal           sourceconnect.JournalServiceClient
 		claudeRoot        string
 		adapters          map[string]AdapterDescriptor
 		projectionTargets map[string]struct{}
@@ -34,7 +35,7 @@ type (
 	}
 )
 
-func NewImporter(s *journal.Service, claudeRoot string, projectionTargets []string, databases ...*sql.DB) *Importer {
+func NewImporter(s sourceconnect.JournalServiceClient, claudeRoot string, projectionTargets []string, databases ...*sql.DB) *Importer {
 	home, _ := os.UserHomeDir()
 	targets := make(map[string]struct{}, len(projectionTargets))
 	for _, target := range projectionTargets {
@@ -238,21 +239,22 @@ func (i *Importer) importItem(ctx context.Context, adapter AdapterDescriptor, it
 		return nil
 	}
 	key := importKey(adapter.HarnessID, item.Path, body)
-	if _, found, err := i.journal.FindByImportKey(ctx, key); err != nil {
-		return err
-	} else if found {
-		result.Existing++
-		return nil
-	}
 	kind := "import"
 	if adapter.HarnessID == "swarm-manager-records" {
 		kind = "work-record"
 	}
-	entry, err := i.journal.Append(ctx, journal.Entry{Body: body, Kind: kind, ImportKey: key, Attribution: journal.Attribution{ActorKind: "harness-import", SourceRuntime: adapter.Provenance.SourceRuntime}, Import: journal.ImportProvenance{Harness: adapter.HarnessID, Path: item.Path, ImportedAt: time.Now().UTC()}})
+	request := &sourcejournal.AppendEntryRequest{Body: body, Kind: kind, Scope: "agent-memory", ImportProvenance: &sourcejournal.ImportProvenance{Runtime: adapter.HarnessID, SourceLocator: item.Path, ContentHash: key}}
+	if kind == "work-record" {
+		request.Trigger = "harness import"
+		request.Approach = "import durable harness record into source-ledger"
+		request.Evidence = item.Path
+		request.Outcome = body
+	}
+	entry, err := i.journal.AppendEntry(ctx, connect.NewRequest(request))
 	if err != nil {
 		return fmt.Errorf("import %s: %w", item.Path, err)
 	}
-	if entry.Existing {
+	if entry.Msg.GetExisting() {
 		result.Existing++
 	} else {
 		result.Imported++
@@ -267,15 +269,19 @@ func importKey(runtime, path, body string) string {
 
 // Capture appends a native harness write using the same content-addressed key
 // as a later store sweep. A hook and import therefore converge on one entry.
-func (i *Importer) Capture(ctx context.Context, runtime, path, body string) (journal.Entry, error) {
-	adapter, err := i.adapter(runtime)
+func (i *Importer) Capture(ctx context.Context, runtime, path, body string) (*sourcejournal.Entry, error) {
+	_, err := i.adapter(runtime)
 	if err != nil {
-		return journal.Entry{}, err
+		return nil, err
 	}
 	body = strings.TrimSpace(body)
 	path = strings.TrimSpace(path)
 	if body == "" || path == "" {
-		return journal.Entry{}, fmt.Errorf("capture requires content and source path")
+		return nil, fmt.Errorf("capture requires content and source path")
 	}
-	return i.journal.Append(ctx, journal.Entry{Body: body, Kind: "capture", ImportKey: importKey(runtime, path, body), Attribution: journal.Attribution{ActorKind: "harness-capture", SourceRuntime: adapter.Provenance.SourceRuntime}, Import: journal.ImportProvenance{Harness: runtime, Path: path, ImportedAt: time.Now().UTC()}})
+	resp, err := i.journal.AppendEntry(ctx, connect.NewRequest(&sourcejournal.AppendEntryRequest{Body: body, Kind: "capture", Scope: "agent-memory", ImportProvenance: &sourcejournal.ImportProvenance{Runtime: runtime, SourceLocator: path, ContentHash: importKey(runtime, path, body)}}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg.GetEntry(), nil
 }

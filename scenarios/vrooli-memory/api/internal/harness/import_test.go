@@ -5,162 +5,60 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
-	_ "modernc.org/sqlite"
-
-	localdb "vrooli-memory/internal/database"
-	"vrooli-memory/internal/facets"
-	"vrooli-memory/internal/journal"
-	"vrooli-memory/internal/recall"
-	"vrooli-memory/internal/testutil/mocks"
+	sourcejournal "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
+	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 )
 
-func TestClaudeImportIsContentAddressedAndReadOnly(t *testing.T) { // [REQ:VMEM-P0-011]
+type fakeJournal struct {
+	entries []*sourcejournal.Entry
+	keys    map[string]string
+}
+
+func (f *fakeJournal) AppendEntry(_ context.Context, req *connect.Request[sourcejournal.AppendEntryRequest]) (*connect.Response[sourcejournal.AppendEntryResponse], error) {
+	if f.keys == nil {
+		f.keys = map[string]string{}
+	}
+	key := req.Msg.GetImportProvenance().GetRuntime() + ":" + req.Msg.GetImportProvenance().GetSourceLocator() + ":" + req.Msg.GetImportProvenance().GetContentHash()
+	if id := f.keys[key]; id != "" {
+		return connect.NewResponse(&sourcejournal.AppendEntryResponse{Entry: &sourcejournal.Entry{Id: id}, Existing: true}), nil
+	}
+	id := "entry-" + string(rune(len(f.entries)+'1'))
+	f.keys[key] = id
+	f.entries = append(f.entries, &sourcejournal.Entry{Id: id, Body: req.Msg.GetBody(), Kind: req.Msg.GetKind(), ImportProvenance: req.Msg.GetImportProvenance()})
+	return connect.NewResponse(&sourcejournal.AppendEntryResponse{Entry: f.entries[len(f.entries)-1]}), nil
+}
+func (*fakeJournal) GetEntry(context.Context, *connect.Request[sourcejournal.GetEntryRequest]) (*connect.Response[sourcejournal.GetEntryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+func (*fakeJournal) ListEntries(context.Context, *connect.Request[sourcejournal.ListEntriesRequest]) (*connect.Response[sourcejournal.ListEntriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+func (*fakeJournal) ProcessClassificationRetries(context.Context, *connect.Request[sourcejournal.ProcessClassificationRetriesRequest]) (*connect.Response[sourcejournal.ProcessClassificationRetriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+func (*fakeJournal) ProcessEmbeddingRetries(context.Context, *connect.Request[sourcejournal.ProcessEmbeddingRetriesRequest]) (*connect.Response[sourcejournal.ProcessEmbeddingRetriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+
+var _ journalconnect.JournalServiceClient = (*fakeJournal)(nil)
+
+func TestImportAndCaptureAreRemoteAndContentAddressed(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "one.md"), []byte("first memory"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "two.md"), []byte("second memory"), 0o600))
-	db, err := apidb.Open(context.Background(), apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:harness-import?mode=memory&cache=shared"})
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, db.Close()) })
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(Schema)))
-	fr := facets.NewSQLiteRepository(db.Primary())
-	require.NoError(t, fr.Seed(context.Background()))
-	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
-	importer := NewImporter(svc, dir, nil)
+	client := &fakeJournal{}
+	importer := NewImporter(client, dir, nil)
 	first, err := importer.Import(context.Background(), "claude-code", false)
 	require.NoError(t, err)
-	require.Equal(t, 2, first.Imported)
-	entries, err := svc.List(context.Background(), 10)
-	require.NoError(t, err)
-	require.Len(t, entries, 2)
-	for _, entry := range entries {
-		require.Equal(t, "claude-code", entry.Import.Harness)
-		require.NotEmpty(t, entry.Import.Path)
-		require.False(t, entry.Import.ImportedAt.IsZero())
-	}
+	require.Equal(t, 1, first.Imported)
 	second, err := importer.Import(context.Background(), "claude-code", false)
 	require.NoError(t, err)
-	require.Zero(t, second.Imported)
-	require.Equal(t, 2, second.Existing)
-	_, err = os.ReadFile(filepath.Join(dir, "one.md"))
-	require.NoError(t, err)
-}
-
-func TestProjectionThenClaudeImportNeverImportsProjectionTarget(t *testing.T) {
-	dir := t.TempDir()
-	nativePath := filepath.Join(dir, "native.md")
-	targetPath := filepath.Join(dir, "MEMORY.md")
-	require.NoError(t, os.WriteFile(nativePath, []byte("native memory"), 0o600))
-
-	db, err := apidb.Open(context.Background(), apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:harness-projection-import?mode=memory&cache=shared"})
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, db.Close()) })
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(Schema)))
-	fr := facets.NewSQLiteRepository(db.Primary())
-	require.NoError(t, fr.Seed(context.Background()))
-	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
-	wake := recall.NewService(projectionSource{{ID: "wake", Text: "generated wake text", CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
-	projector := NewProjector(db.Primary(), wake)
-	projector.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: targetPath, Cap: 4096}
-	_, err = projector.Project(context.Background(), "claude-code", false)
-	require.NoError(t, err)
-
-	importer := NewImporter(svc, dir, projector.TargetPaths())
-	result, err := importer.Import(context.Background(), "claude-code", true)
-	require.NoError(t, err)
-	require.Equal(t, 1, result.Seen)
-	require.Equal(t, []string{nativePath}, result.Sources)
-	require.NotContains(t, result.Sources, targetPath)
-
-	result, err = importer.Import(context.Background(), "claude-code", false)
-	require.NoError(t, err)
-	require.Equal(t, 1, result.Imported)
-	var projectionEntries int
-	require.NoError(t, db.Primary().QueryRow(`SELECT count(*) FROM entries WHERE source_path=?`, targetPath).Scan(&projectionEntries))
-	require.Zero(t, projectionEntries)
-}
-
-func TestStartPersistsProgressAndJoinsRepeatedRequest(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "one.md"), []byte("first memory"), 0o600))
-	db, err := apidb.Open(context.Background(), apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:harness-runs?mode=memory&cache=shared"})
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, db.Close()) })
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(Schema)))
-	fr := facets.NewSQLiteRepository(db.Primary())
-	require.NoError(t, fr.Seed(context.Background()))
-	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
-	importer := NewImporter(svc, dir, nil, db.Primary())
-	first, joined, err := importer.Start(context.Background(), "claude-code")
-	require.NoError(t, err)
-	require.False(t, joined)
-	second, joined, err := importer.Start(context.Background(), "claude-code")
-	require.NoError(t, err)
-	require.True(t, joined)
-	require.Equal(t, first.ID, second.ID)
-	require.Eventually(t, func() bool {
-		run, err := importer.Status(context.Background(), first.ID, "")
-		return err == nil && run.Status == ImportRunCompleted && run.ProcessedSources == 1 && run.ImportedCount == 1
-	}, time.Second, 10*time.Millisecond)
-	run, err := importer.Status(context.Background(), "", "claude-code")
-	require.NoError(t, err)
-	require.Equal(t, first.ID, run.ID)
-}
-
-func TestCaptureAndLaterImportConvergeOnOneEntry(t *testing.T) { // [REQ:VMEM-P1-008]
-	dir := t.TempDir()
-	path := filepath.Join(dir, "native.md")
-	const body = "native durable memory"
-	require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
-	db, err := apidb.Open(context.Background(), apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:harness-capture-dedup?mode=memory&cache=shared"})
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, db.Close()) })
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(Schema)))
-	fr := facets.NewSQLiteRepository(db.Primary())
-	require.NoError(t, fr.Seed(context.Background()))
-	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
-	importer := NewImporter(svc, dir, nil)
-	captured, err := importer.Capture(context.Background(), "claude-code", path, body)
-	require.NoError(t, err)
-	require.NotEmpty(t, captured.ID)
-	result, err := importer.Import(context.Background(), "claude-code", false)
-	require.NoError(t, err)
-	require.Zero(t, result.Imported)
-	require.Equal(t, 1, result.Existing)
-	entries, err := svc.List(context.Background(), 10)
-	require.NoError(t, err)
-	require.Len(t, entries, 1)
-}
-
-func TestSwarmManagerRecordsImportIsWorkRecordAndIdempotent(t *testing.T) { // [REQ:VMEM-P1-001]
-	dir := t.TempDir()
-	record := `{"id":"rec-1","trigger":"need a durable memory","approach":"implemented the import","evidence":"focused tests pass","outcome":"ready for validation"}`
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "rec-1.json"), []byte(record), 0o600))
-	db, err := apidb.Open(context.Background(), apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:swarm-record-import?mode=memory&cache=shared"})
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, db.Close()) })
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(Schema)))
-	fr := facets.NewSQLiteRepository(db.Primary())
-	require.NoError(t, fr.Seed(context.Background()))
-	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
-	importer := NewImporter(svc, t.TempDir(), nil)
-	importer.adapters["swarm-manager-records"] = AdapterDescriptor{HarnessID: "swarm-manager-records", Locations: []string{dir}, Format: JSONL, Extract: swarmRecord, Provenance: Provenance{SourceRuntime: "swarm-manager"}}
-
-	first, err := importer.Import(context.Background(), "swarm-manager-records", false)
-	require.NoError(t, err)
-	require.Equal(t, 1, first.Imported)
-	entries, err := svc.List(context.Background(), 10)
-	require.NoError(t, err)
-	require.Len(t, entries, 1)
-	require.Equal(t, "work-record", entries[0].Kind)
-
-	second, err := importer.Import(context.Background(), "swarm-manager-records", false)
-	require.NoError(t, err)
-	require.Zero(t, second.Imported)
 	require.Equal(t, 1, second.Existing)
+	_, err = importer.Capture(context.Background(), "claude-code", filepath.Join(dir, "one.md"), "first memory")
+	require.NoError(t, err)
+	require.Len(t, client.entries, 1)
 }
 
 func TestImportWorkerCountIsBoundedAndConfigurable(t *testing.T) {

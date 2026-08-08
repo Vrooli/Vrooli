@@ -1,9 +1,0 @@
-{
-  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
-  "kind": "experience-page",
-  "schemaVersion": "1.1.0",
-  "page": {"id": "recall", "title": "Recall", "routes": ["/recall"], "purpose": "Search bounded shared memory and distinguish summaries from source memories.", "prd_refs": ["OT-P0-002"]},
-  "states": [{"id": "default", "description": "The normal recall route before or after a bounded query is entered."}],
-  "regions": [{"id": "results", "purpose": "Render ranked recall hits and explicit asynchronous states.", "component": {"library": {"component": "experience-surface", "version": "1.0.0"}}, "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}}],
-  "bindings": {"regions": {"results": {"testid": "recall-surface"}}}
-}

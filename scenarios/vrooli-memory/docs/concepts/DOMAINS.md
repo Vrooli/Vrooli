@@ -119,12 +119,13 @@ belong in [`DATA.md`](DATA.md).
 
 ### federation
 
-- Purpose: register memory as a search-hub provider and serve the control surface.
+- Purpose: document the consumer boundary; source-ledger owns federated
+  provider registration and serves the control surface.
 - Primary archetype: integration.
-- Owns: `.vrooli/search.json` descriptor authorship, boot self-registration, and
-  the token-gated `SearchControlService` handlers (reindex, config write-back).
-- Does not own: routing. The router holds no memory content and no vectors; it
-  routes on the descriptor's natural-language description alone.
+- Owns: no provider descriptor. Search Hub metadata, per-scope descriptors,
+  boot registration, and scope-creation registration belong to source-ledger.
+- Does not own: routing or Search Control operations. The router holds no
+  memory content and no vectors; it routes on source-ledger metadata.
 - Requirements: `VMEM-P0-009`, `VMEM-P2-004`.
 
 ### harness

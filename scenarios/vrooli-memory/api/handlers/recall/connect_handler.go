@@ -1,120 +1,88 @@
 package recall
 
 import (
-	"context"
-	"fmt"
-	"log"
-
 	"connectrpc.com/connect"
-
-	recallv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall"
-
-	internalfacets "vrooli-memory/internal/facets"
-	internaljournal "vrooli-memory/internal/journal"
-	"vrooli-memory/internal/policy"
-	internalrecall "vrooli-memory/internal/recall"
+	"context"
+	sourcev1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
+	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
+	memoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall"
+	memoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall/recall_v1connect"
+	"log"
+	"vrooli-memory/internal/ledgerclient"
 )
 
 type connectHandler struct {
-	service *internalrecall.Service
-	journal *internaljournal.Service
-	usage   *internalfacets.Service
-	logger  *log.Logger
+	client sourceconnect.RecallServiceClient
+	logger *log.Logger
 }
 
-func NewConnectHandler(s *internalrecall.Service, l *log.Logger, journals ...*internaljournal.Service) *connectHandler {
-	if l == nil {
-		l = log.Default()
+func NewConnectHandler(client sourceconnect.RecallServiceClient, logger *log.Logger) *connectHandler {
+	if logger == nil {
+		logger = log.Default()
 	}
-	h := &connectHandler{service: s, logger: l}
-	if len(journals) > 0 {
-		h.journal = journals[0]
-	}
-	return h
+	return &connectHandler{client: client, logger: logger}
 }
-
-func (h *connectHandler) SetUsageRecorder(usage *internalfacets.Service) { h.usage = usage }
-
-func (h *connectHandler) Recall(ctx context.Context, req *connect.Request[recallv1.RecallRequest]) (*connect.Response[recallv1.RecallResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	hits, err := h.service.Recall(ctx, req.Msg.GetQuery(), int(req.Msg.GetLimit()))
-	if err != nil {
+func (h *connectHandler) Recall(ctx context.Context, in *connect.Request[memoryv1.RecallRequest]) (*connect.Response[memoryv1.RecallResponse], error) {
+	req := connect.NewRequest(&sourcev1.RecallRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	if h.usage != nil {
-		ids := make([]string, 0, len(hits))
-		seen := make(map[string]struct{}, len(hits))
-		for _, hit := range hits {
-			if hit.Node.EntryID == "" {
-				continue
-			}
-			if _, ok := seen[hit.Node.EntryID]; ok {
-				continue
-			}
-			seen[hit.Node.EntryID] = struct{}{}
-			ids = append(ids, hit.Node.EntryID)
-		}
-		if err := h.usage.RecordRecall(ctx, ids); err != nil {
-			h.logger.Printf("record recall usage: %v", err)
-		}
-	}
-	return connect.NewResponse(&recallv1.RecallResponse{Hits: hitsProto(hits)}), nil
-}
-
-func (h *connectHandler) Wake(ctx context.Context, req *connect.Request[recallv1.WakeRequest]) (*connect.Response[recallv1.WakeResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	wake, err := h.service.Wake(ctx, int(req.Msg.GetTokenBudget()))
+	ledgerclient.ForwardHeaders(in.Header(), req.Header())
+	resp, err := h.client.Recall(ctx, req)
 	if err != nil {
+		return nil, ledgerclient.RPCError("recall", err)
+	}
+	out := &memoryv1.RecallResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&recallv1.WakeResponse{Hits: hitsProto(wake.Hits), Overflow: wake.Overflow}), nil
+	return connect.NewResponse(out), nil
 }
-
-func (h *connectHandler) Zoom(ctx context.Context, req *connect.Request[recallv1.ZoomRequest]) (*connect.Response[recallv1.ZoomResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	nodes, err := h.service.Zoom(ctx, req.Msg.GetNodeId())
-	if err != nil {
+func (h *connectHandler) Wake(ctx context.Context, in *connect.Request[memoryv1.WakeRequest]) (*connect.Response[memoryv1.WakeResponse], error) {
+	req := connect.NewRequest(&sourcev1.WakeRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	hits := make([]internalrecall.Hit, len(nodes))
-	for i, n := range nodes {
-		hits[i] = internalrecall.Hit{Node: n}
-	}
-	return connect.NewResponse(&recallv1.ZoomResponse{Constituents: hitsProto(hits)}), nil
-}
-
-func (h *connectHandler) ListSiblingEvents(ctx context.Context, req *connect.Request[recallv1.ListSiblingEventsRequest]) (*connect.Response[recallv1.ListSiblingEventsResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	if req.Msg.GetEntryId() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("entry_id is required"))
-	}
-	if h.journal == nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("journal source unavailable"))
-	}
-	entry, err := h.journal.Get(ctx, req.Msg.GetEntryId())
+	ledgerclient.ForwardHeaders(in.Header(), req.Header())
+	resp, err := h.client.Wake(ctx, req)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+		return nil, ledgerclient.RPCError("wake", err)
 	}
-	if entry.Correlation.RunID == "" {
-		return connect.NewResponse(&recallv1.ListSiblingEventsResponse{}), nil
-	}
-	entries, err := h.journal.ListByRun(ctx, entry.Correlation.RunID, 500)
-	if err != nil {
+	out := &memoryv1.WakeResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	response := &recallv1.ListSiblingEventsResponse{}
-	for _, sibling := range entries {
-		if sibling.ID != entry.ID {
-			response.Entries = append(response.Entries, &recallv1.RecallHit{EntryId: sibling.ID, FacetId: sibling.FacetID, Text: sibling.Body})
-		}
+	return connect.NewResponse(out), nil
+}
+func (h *connectHandler) Zoom(ctx context.Context, in *connect.Request[memoryv1.ZoomRequest]) (*connect.Response[memoryv1.ZoomResponse], error) {
+	req := connect.NewRequest(&sourcev1.ZoomRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(response), nil
+	resp, err := h.client.Zoom(ctx, req)
+	if err != nil {
+		return nil, ledgerclient.RPCError("zoom", err)
+	}
+	out := &memoryv1.ZoomResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
+}
+func (h *connectHandler) ListSiblingEvents(ctx context.Context, in *connect.Request[memoryv1.ListSiblingEventsRequest]) (*connect.Response[memoryv1.ListSiblingEventsResponse], error) {
+	req := connect.NewRequest(&sourcev1.ListSiblingEventsRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	resp, err := h.client.ListSiblingEvents(ctx, req)
+	if err != nil {
+		return nil, ledgerclient.RPCError("list sibling events", err)
+	}
+	out := &memoryv1.ListSiblingEventsResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
-func hitsProto(hits []internalrecall.Hit) []*recallv1.RecallHit {
-	out := make([]*recallv1.RecallHit, 0, len(hits))
-	for _, h := range hits {
-		out = append(out, &recallv1.RecallHit{EntryId: h.Node.EntryID, FacetId: h.Node.FacetID, Text: h.Node.Text, Score: h.Score, Depth: int32(h.Node.Depth), NodeId: h.Node.ID, Summary: h.Node.Summary, Span: int32(h.Node.Span)})
-	}
-	return out
-}
+var _ memoryconnect.RecallServiceHandler = (*connectHandler)(nil)

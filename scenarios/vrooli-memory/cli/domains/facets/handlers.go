@@ -72,7 +72,7 @@ func (h *handlers) proposalsReport(_ cliapp.OperationContext, m *facetsv1.ListPi
 func (h *handlers) candidatesCall(ctx cliapp.OperationContext) (*facetsv1.ListPinCandidatesResponse, error) {
 	limit := int32(20)
 	if raw := ctx.Flag("limit"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
+		parsed, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil || parsed <= 0 || parsed > 100 {
 			return nil, fmt.Errorf("limit must be an integer from 1 to 100")
 		}

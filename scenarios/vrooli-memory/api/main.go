@@ -10,29 +10,19 @@ import (
 	"strings"
 
 	"vrooli-memory/internal/clock"
-	"vrooli-memory/internal/facets"
-	"vrooli-memory/internal/federation"
-	"vrooli-memory/internal/forest"
-	"vrooli-memory/internal/inference"
-	"vrooli-memory/internal/journal"
+	"vrooli-memory/internal/ledgerclient"
 	"vrooli-memory/internal/maintenance"
 	"vrooli-memory/internal/modules"
-	"vrooli-memory/internal/policy"
-	internalrecall "vrooli-memory/internal/recall"
 	"vrooli-memory/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
-	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/provenance"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
-	"github.com/vrooli/searchregister-go"
-	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
-	_ "modernc.org/sqlite"
 
 	facetsH "vrooli-memory/handlers/facets"
 	forestH "vrooli-memory/handlers/forest"
@@ -146,27 +136,8 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if err := journal.EnsureMigrations(context.Background(), db.Primary()); err != nil {
-		log.Fatalf("journal schema migration failed: %v", err)
-	}
-	if err := forest.EnsureMigrations(context.Background(), db.Primary()); err != nil {
-		log.Fatalf("forest schema migration failed: %v", err)
-	}
-	if err := policy.EnsureMigrations(context.Background(), db.Primary()); err != nil {
-		log.Fatalf("policy schema migration failed: %v", err)
-	}
-	if err := facets.EnsureMigrations(context.Background(), db.Primary()); err != nil {
-		log.Fatalf("facet schema migration failed: %v", err)
-	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
-	}
-	facetService := facets.NewService(facets.NewSQLiteRepository(db.Primary()))
-	if err := facetService.Seed(context.Background()); err != nil {
-		log.Fatalf("seed facet definitions: %v", err)
-	}
-	if err := facetService.SeedExamples(context.Background()); err != nil {
-		log.Fatalf("seed facet classification examples: %v", err)
 	}
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
@@ -174,91 +145,21 @@ func main() {
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 
-	gatewayURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "ai-gateway")
+	ledger, err := ledgerclient.New(context.Background())
 	if err != nil {
-		log.Fatalf("resolve ai-gateway endpoint: %v", err)
+		log.Fatalf("source-ledger client configuration failed: %v", err)
 	}
-	policyConfig, err := policy.Resolve(os.LookupEnv)
-	if err != nil {
-		log.Fatalf("memory policy configuration failed: %v", err)
-	}
-	registry := policy.NewRegistry(db.Primary())
-	if err := registry.Ensure(context.Background(), policyConfig); err != nil {
-		log.Fatalf("scope registry initialization failed: %v", err)
-	}
-	definitions, err := facetService.List(context.Background())
-	if err != nil {
-		log.Fatalf("list facet policies: %v", err)
-	}
-	facetBudgets := make(map[string]int, len(definitions))
-	for _, definition := range definitions {
-		facetBudgets[definition.ID] = definition.ResidentBudget
-	}
-	recallConfig := internalrecall.Config{FrontierTarget: policyConfig.FrontierTarget, WakeBudget: policyConfig.WakeBudget, MaxEntryLines: policyConfig.MaxEntryLines, FacetBudgets: facetBudgets}
-	resolver := policy.NewRequestResolver(registry, func(ctx context.Context) ([]policy.Facet, error) {
-		definitions, err := facetService.List(ctx)
-		if err != nil {
-			return nil, err
-		}
-		out := make([]policy.Facet, 0, len(definitions))
-		for _, definition := range definitions {
-			out = append(out, policy.Facet{ID: definition.ID, Label: definition.Label, Guidance: definition.ClassificationGuidance, Examples: definition.ClassificationExamples})
-		}
-		return out, nil
-	})
-	gatewayClient := inference.NewGatewayClient(routingconnect.NewRoutingServiceClient(http.DefaultClient, gatewayURL), func(ctx context.Context) ([]inference.VocabularyEntry, error) {
-		definitions, err := resolver.Vocabulary(ctx)
-		if err != nil {
-			return nil, err
-		}
-		ids := make([]inference.VocabularyEntry, 0, len(definitions))
-		for _, definition := range definitions {
-			ids = append(ids, inference.VocabularyEntry{ID: definition.ID, Label: definition.Label, Guidance: definition.Guidance, Examples: definition.Examples})
-		}
-		return ids, nil
-	})
-	// Federation is best-effort: a stopped search-hub must never block local
-	// recall. The shared registrar retries briefly in this background goroutine
-	// and re-upserts the descriptor/corpus safely on every scenario boot.
-	searchJSONPath := filepath.Join("..", ".vrooli", "search.json")
-	if scopes, err := registry.ResolveAll(context.Background()); err != nil {
-		log.Printf("scope provider reconciliation degraded: %v", err)
-	} else {
-		for _, scope := range scopes {
-			if scope.Scope == policy.AgentMemory {
-				continue
-			}
-			if err := federation.AppendScopeProvider(searchJSONPath, string(scope.Scope)); err != nil {
-				log.Printf("scope %q provider reconciliation degraded: %v", scope.Scope, err)
-			}
-		}
-	}
-	go searchregister.Register(context.Background(), searchregister.Config{
-		ScenarioID: "vrooli-memory", SearchFilePath: searchJSONPath, Logger: log.Default(),
-	})
-	registerScopeProvider := func(scope string) error {
-		if err := federation.AppendScopeProvider(searchJSONPath, scope); err != nil {
-			return err
-		}
-		go searchregister.Register(context.Background(), searchregister.Config{ScenarioID: "vrooli-memory", SearchFilePath: searchJSONPath, Logger: log.Default()})
-		return nil
-	}
-
-	// One compaction service, shared by the operator RPC and the scheduled
-	// maintenance pass, so the two can never compact concurrently.
-	forestService := forestH.NewService(db, gatewayClient, recallConfig.FrontierTarget, registry)
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "vrooli-memory-api", "1.0.0", maintenance.NewSQLiteStore(db.Primary()), db.Primary()),
-		journalH.Module(db, gatewayClient, facetService, log.Default()),
-		facetsH.Module(db, log.Default()),
-		forestH.Module(forestService, log.Default()),
-		recallH.Module(db, gatewayClient, recallConfig, registry, log.Default()),
-		federation.Module(),
-		harnessH.Module(db, fileRoots, gatewayClient, log.Default(), forestService, clock.System{}),
-		rulesH.Module(db, log.Default(), gatewayClient),
-		scopesH.Module(db, registry, registerScopeProvider, log.Default()),
+		journalH.Module(ledger, log.Default()),
+		facetsH.Module(ledger, log.Default()),
+		forestH.Module(ledger, log.Default()),
+		recallH.Module(ledger, log.Default()),
+		harnessH.Module(db, fileRoots, ledger, log.Default(), ledger, clock.System{}),
+		rulesH.Module(ledger, log.Default()),
+		scopesH.Module(ledger, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

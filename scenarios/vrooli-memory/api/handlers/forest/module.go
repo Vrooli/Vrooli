@@ -5,26 +5,17 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
-	"github.com/vrooli/api-core/database"
 	forestv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/forest"
 	forestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/forest/forest_v1connect"
-	internalforest "vrooli-memory/internal/forest"
-	"vrooli-memory/internal/inference"
+	"vrooli-memory/internal/ledgerclient"
 	"vrooli-memory/internal/module"
-	"vrooli-memory/internal/policy"
 )
 
 // NewService builds the compaction service. The composition root owns the
 // single instance because the scheduled maintenance pass and the operator RPC
 // must share one run mutex; two instances would compact concurrently.
-func NewService(db *database.RoutedDB, client inference.Client, target int, registry *policy.Registry) *internalforest.Service {
-	svc := internalforest.NewService(internalforest.NewSQLiteRepository(db.Primary()), internalforest.NewSQLiteCandidateSource(db.Primary()), client, internalforest.Config{Target: target})
-	svc.SetPolicyRegistry(registry)
-	return svc
-}
-
-func Module(svc *internalforest.Service, logger *log.Logger) module.Module {
-	path, h := forestconnect.NewForestServiceHandler(NewConnectHandler(svc, logger))
+func Module(client *ledgerclient.Client, logger *log.Logger) module.Module {
+	path, h := forestconnect.NewForestServiceHandler(NewConnectHandler(client.Forest, logger))
 	return module.Module{Name: "forest", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}
 }
 

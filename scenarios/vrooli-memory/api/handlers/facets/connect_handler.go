@@ -1,118 +1,157 @@
 package facets
 
 import (
-	"context"
-	"errors"
-	"log"
-	"time"
-
 	"connectrpc.com/connect"
-
-	facetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/facets"
-	internalfacets "vrooli-memory/internal/facets"
-	"vrooli-memory/internal/policy"
+	"context"
+	sourcev1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets"
+	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets/facets_v1connect"
+	memoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/facets"
+	memoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/facets/facets_v1connect"
+	"log"
+	"vrooli-memory/internal/ledgerclient"
 )
 
 type connectHandler struct {
-	service *internalfacets.Service
-	logger  *log.Logger
+	client sourceconnect.FacetsServiceClient
+	logger *log.Logger
 }
 
-func NewConnectHandler(s *internalfacets.Service, l *log.Logger) *connectHandler {
-	if l == nil {
-		l = log.Default()
+func NewConnectHandler(client sourceconnect.FacetsServiceClient, logger *log.Logger) *connectHandler {
+	if logger == nil {
+		logger = log.Default()
 	}
-	return &connectHandler{service: s, logger: l}
+	return &connectHandler{client: client, logger: logger}
 }
 
-func (h *connectHandler) ListFacets(ctx context.Context, req *connect.Request[facetsv1.ListFacetsRequest]) (*connect.Response[facetsv1.ListFacetsResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	items, err := h.service.List(ctx)
-	if err != nil {
+func (h *connectHandler) ListFacets(ctx context.Context, in *connect.Request[memoryv1.ListFacetsRequest]) (*connect.Response[memoryv1.ListFacetsResponse], error) {
+	return h.callListFacets(ctx, in)
+}
+func (h *connectHandler) callListFacets(ctx context.Context, in *connect.Request[memoryv1.ListFacetsRequest]) (*connect.Response[memoryv1.ListFacetsResponse], error) {
+	req := connect.NewRequest(&sourcev1.ListFacetsRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := &facetsv1.ListFacetsResponse{}
-	for _, d := range items {
-		out.Facets = append(out.Facets, &facetsv1.Facet{Id: d.ID, Label: d.Label, RetentionPolicy: d.RetentionPolicy})
+	ledgerclient.ForwardHeaders(in.Header(), req.Header())
+	resp, err := h.client.ListFacets(ctx, req)
+	if err != nil {
+		return nil, ledgerclient.RPCError("list facets", err)
+	}
+	out := &memoryv1.ListFacetsResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(out), nil
 }
 
-func (h *connectHandler) AssignFacet(ctx context.Context, req *connect.Request[facetsv1.AssignFacetRequest]) (*connect.Response[facetsv1.AssignFacetResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	_, err := h.service.ReFacet(ctx, internalfacets.Assignment{EntryID: req.Msg.GetEntryId(), FacetID: req.Msg.GetFacetId()})
+func (h *connectHandler) AssignFacet(ctx context.Context, in *connect.Request[memoryv1.AssignFacetRequest]) (*connect.Response[memoryv1.AssignFacetResponse], error) {
+	return h.assignFacet(ctx, in)
+}
+func (h *connectHandler) assignFacet(ctx context.Context, in *connect.Request[memoryv1.AssignFacetRequest]) (*connect.Response[memoryv1.AssignFacetResponse], error) {
+	req := connect.NewRequest(&sourcev1.AssignFacetRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	ledgerclient.ForwardHeaders(in.Header(), req.Header())
+	resp, err := h.client.AssignFacet(ctx, req)
 	if err != nil {
-		var unknown internalfacets.ErrUnknownFacet
-		if errors.As(err, &unknown) {
-			return nil, connect.NewError(connect.CodeInvalidArgument, err)
-		}
+		return nil, ledgerclient.RPCError("assign facet", err)
+	}
+	out := &memoryv1.AssignFacetResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&facetsv1.AssignFacetResponse{}), nil
+	return connect.NewResponse(out), nil
 }
-
-func (h *connectHandler) SetPin(ctx context.Context, req *connect.Request[facetsv1.SetPinRequest]) (*connect.Response[facetsv1.SetPinResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	if err := h.service.SetPin(ctx, req.Msg.GetEntryId(), req.Msg.GetPinned()); err != nil {
-		var budget internalfacets.ErrPinBudgetExceeded
-		if errors.As(err, &budget) {
-			return nil, connect.NewError(connect.CodeResourceExhausted, err)
-		}
+func (h *connectHandler) SetPin(ctx context.Context, in *connect.Request[memoryv1.SetPinRequest]) (*connect.Response[memoryv1.SetPinResponse], error) {
+	req := connect.NewRequest(&sourcev1.SetPinRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&facetsv1.SetPinResponse{}), nil
-}
-
-func (h *connectHandler) ListPinProposals(ctx context.Context, req *connect.Request[facetsv1.ListPinProposalsRequest]) (*connect.Response[facetsv1.ListPinProposalsResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	items, err := h.service.ListPinProposals(ctx)
+	ledgerclient.ForwardHeaders(in.Header(), req.Header())
+	resp, err := h.client.SetPin(ctx, req)
 	if err != nil {
+		return nil, ledgerclient.RPCError("set pin", err)
+	}
+	out := &memoryv1.SetPinResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	response := &facetsv1.ListPinProposalsResponse{}
-	for _, item := range items {
-		response.Proposals = append(response.Proposals, &facetsv1.PinProposal{Id: item.ID, EntryIds: item.EntryIDs, Rationale: item.Rationale})
-	}
-	return connect.NewResponse(response), nil
+	return connect.NewResponse(out), nil
 }
-
-func (h *connectHandler) ListPinCandidates(ctx context.Context, req *connect.Request[facetsv1.ListPinCandidatesRequest]) (*connect.Response[facetsv1.ListPinCandidatesResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	items, err := h.service.ListPinCandidates(ctx, int(req.Msg.GetLimit()))
+func (h *connectHandler) ListPinProposals(ctx context.Context, in *connect.Request[memoryv1.ListPinProposalsRequest]) (*connect.Response[memoryv1.ListPinProposalsResponse], error) {
+	req := connect.NewRequest(&sourcev1.ListPinProposalsRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	resp, err := h.client.ListPinProposals(ctx, req)
 	if err != nil {
+		return nil, ledgerclient.RPCError("list pin proposals", err)
+	}
+	out := &memoryv1.ListPinProposalsResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	response := &facetsv1.ListPinCandidatesResponse{}
-	for _, item := range items {
-		candidate := &facetsv1.PinCandidate{EntryId: item.EntryID, Body: item.Body, RecallCount: int32(item.RecallCount), CreatedAt: item.CreatedAt.Format(time.RFC3339Nano)}
-		if item.LastRecalledAt != nil {
-			candidate.LastRecalledAt = item.LastRecalledAt.Format(time.RFC3339Nano)
-		}
-		response.Candidates = append(response.Candidates, candidate)
-	}
-	return connect.NewResponse(response), nil
+	return connect.NewResponse(out), nil
 }
-
-func (h *connectHandler) ResolvePinProposal(ctx context.Context, req *connect.Request[facetsv1.ResolvePinProposalRequest]) (*connect.Response[facetsv1.ResolvePinProposalResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	if err := h.service.ResolvePinProposal(ctx, req.Msg.GetProposalId(), req.Msg.GetAccept()); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	return connect.NewResponse(&facetsv1.ResolvePinProposalResponse{}), nil
-}
-
-func (h *connectHandler) MarkSuperseded(ctx context.Context, req *connect.Request[facetsv1.MarkSupersededRequest]) (*connect.Response[facetsv1.MarkSupersededResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	if err := h.service.MarkSuperseded(ctx, req.Msg.GetEntryId(), req.Msg.GetReplacementEntryId()); err != nil {
+func (h *connectHandler) ListPinCandidates(ctx context.Context, in *connect.Request[memoryv1.ListPinCandidatesRequest]) (*connect.Response[memoryv1.ListPinCandidatesResponse], error) {
+	req := connect.NewRequest(&sourcev1.ListPinCandidatesRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&facetsv1.MarkSupersededResponse{}), nil
-}
-
-func (h *connectHandler) ResolveThread(ctx context.Context, req *connect.Request[facetsv1.ResolveThreadRequest]) (*connect.Response[facetsv1.ResolveThreadResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	if err := h.service.ResolveThread(ctx, req.Msg.GetEntryId()); err != nil {
+	resp, err := h.client.ListPinCandidates(ctx, req)
+	if err != nil {
+		return nil, ledgerclient.RPCError("list pin candidates", err)
+	}
+	out := &memoryv1.ListPinCandidatesResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&facetsv1.ResolveThreadResponse{}), nil
+	return connect.NewResponse(out), nil
 }
+func (h *connectHandler) ResolvePinProposal(ctx context.Context, in *connect.Request[memoryv1.ResolvePinProposalRequest]) (*connect.Response[memoryv1.ResolvePinProposalResponse], error) {
+	req := connect.NewRequest(&sourcev1.ResolvePinProposalRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	resp, err := h.client.ResolvePinProposal(ctx, req)
+	if err != nil {
+		return nil, ledgerclient.RPCError("resolve pin proposal", err)
+	}
+	out := &memoryv1.ResolvePinProposalResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
+}
+func (h *connectHandler) MarkSuperseded(ctx context.Context, in *connect.Request[memoryv1.MarkSupersededRequest]) (*connect.Response[memoryv1.MarkSupersededResponse], error) {
+	req := connect.NewRequest(&sourcev1.MarkSupersededRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	resp, err := h.client.MarkSuperseded(ctx, req)
+	if err != nil {
+		return nil, ledgerclient.RPCError("mark superseded", err)
+	}
+	out := &memoryv1.MarkSupersededResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
+}
+func (h *connectHandler) ResolveThread(ctx context.Context, in *connect.Request[memoryv1.ResolveThreadRequest]) (*connect.Response[memoryv1.ResolveThreadResponse], error) {
+	req := connect.NewRequest(&sourcev1.ResolveThreadRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	resp, err := h.client.ResolveThread(ctx, req)
+	if err != nil {
+		return nil, ledgerclient.RPCError("resolve thread", err)
+	}
+	out := &memoryv1.ResolveThreadResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
+}
+
+var _ memoryconnect.FacetsServiceHandler = (*connectHandler)(nil)

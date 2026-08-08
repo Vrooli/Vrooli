@@ -6,9 +6,8 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
-import { DashboardPage } from "../pages/DashboardPage";
+import { LedgerDashboardPage, ScopeDetailPage, SearchPage, VocabularyPage } from "../pages/LedgerPages";
 import { SettingsPage } from "../pages/SettingsPage";
-import { ContractPlaceholderPage } from "../pages/ContractPlaceholderPage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -21,10 +20,10 @@ export const routes: RouteObject[] = [
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: "scopes/:scope", element: <ContractPlaceholderPage title="Scope detail" description="The Source Ledger scope surface is defined by the experience contract and is implemented at the service-boundary phase." /> },
-      { path: "scopes/:scope/vocabulary", element: <ContractPlaceholderPage title="Vocabulary" description="Scope vocabulary controls are defined by the Source Ledger contract and are implemented at the service-boundary phase." /> },
-      { path: "search", element: <ContractPlaceholderPage title="Cross-scope search" description="Federated search is defined by the Source Ledger contract and is implemented at the federation phase." /> },
+      { index: true, element: <LedgerDashboardPage /> },
+      { path: "scopes/:scope", element: <ScopeDetailPage /> },
+      { path: "scopes/:scope/vocabulary", element: <VocabularyPage /> },
+      { path: "search", element: <SearchPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

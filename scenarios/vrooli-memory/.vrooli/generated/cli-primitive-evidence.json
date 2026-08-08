@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "vrooli-memory",
   "generator": "v1.0.0",
-  "manifest_hash": "80486b4b27f411ab9685071b2dd56dc420a1f015424e51377a8ae4f56fad98a9",
+  "manifest_hash": "ceab05847e2f381bc9e4381df80fea7260b41956a1bc47e50525e0755094a976",
   "commands": [
     {
       "path": "facets candidates",
@@ -105,12 +105,14 @@
     {
       "path": "harness hook",
       "group": "harness",
-      "command": "hook"
+      "command": "hook",
+      "binding": "."
     },
     {
       "path": "harness hooks",
       "group": "harness",
-      "command": "hooks"
+      "command": "hooks",
+      "binding": "."
     },
     {
       "path": "harness import",

@@ -2,151 +2,132 @@ package journal
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"strings"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"github.com/vrooli/api-core/provenance"
-	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal"
-	internaljournal "vrooli-memory/internal/journal"
-	"vrooli-memory/internal/policy"
+	sourcev1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
+	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
+	memoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal"
+	memoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal/journal_v1connect"
+	"vrooli-memory/internal/ledgerclient"
 )
 
 type connectHandler struct {
-	service *internaljournal.Service
-	logger  *log.Logger
+	client sourceconnect.JournalServiceClient
+	logger *log.Logger
 }
 
-func NewConnectHandler(service *internaljournal.Service, logger *log.Logger) *connectHandler {
+func NewConnectHandler(client sourceconnect.JournalServiceClient, logger *log.Logger) *connectHandler {
 	if logger == nil {
 		logger = log.Default()
 	}
-	return &connectHandler{service: service, logger: logger}
+	return &connectHandler{client: client, logger: logger}
 }
 
-func (h *connectHandler) AppendEntry(ctx context.Context, req *connect.Request[journalv1.AppendEntryRequest]) (*connect.Response[journalv1.AppendEntryResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	if strings.TrimSpace(req.Msg.GetBody()) == "" {
+func (h *connectHandler) AppendEntry(ctx context.Context, in *connect.Request[memoryv1.AppendEntryRequest]) (*connect.Response[memoryv1.AppendEntryResponse], error) {
+	if strings.TrimSpace(in.Msg.GetBody()) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("body"))
 	}
-	if req.Msg.GetKind() == "work-record" {
-		for _, field := range []struct{ name, value string }{{"trigger", req.Msg.GetTrigger()}, {"approach", req.Msg.GetApproach()}, {"evidence", req.Msg.GetEvidence()}, {"outcome", req.Msg.GetOutcome()}} {
+	if in.Msg.GetKind() == "work-record" {
+		for _, field := range []struct{ name, value string }{{"trigger", in.Msg.GetTrigger()}, {"approach", in.Msg.GetApproach()}, {"evidence", in.Msg.GetEvidence()}, {"outcome", in.Msg.GetOutcome()}} {
 			if strings.TrimSpace(field.value) == "" {
 				return nil, connect.NewError(connect.CodeInvalidArgument, errRequired(field.name))
 			}
 		}
 	}
-	created, err := h.service.Append(ctx, entryFromAppend(req.Msg, provenance.FromContext(ctx)))
-	if err != nil {
-		h.logger.Printf("journal.AppendEntry: %v", err)
+	req := connect.NewRequest(&sourcev1.AppendEntryRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&journalv1.AppendEntryResponse{Entry: entryToProto(created)}), nil
+	ledgerclient.ForwardHeaders(in.Header(), req.Header())
+	resp, err := h.client.AppendEntry(ctx, req)
+	if err != nil {
+		h.logger.Printf("source-ledger AppendEntry: %v", err)
+		return nil, ledgerclient.RPCError("append entry", err)
+	}
+	out := &memoryv1.AppendEntryResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
-func (h *connectHandler) GetEntry(ctx context.Context, req *connect.Request[journalv1.GetEntryRequest]) (*connect.Response[journalv1.GetEntryResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	if strings.TrimSpace(req.Msg.GetId()) == "" {
+func (h *connectHandler) GetEntry(ctx context.Context, in *connect.Request[memoryv1.GetEntryRequest]) (*connect.Response[memoryv1.GetEntryResponse], error) {
+	if strings.TrimSpace(in.Msg.GetId()) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("id"))
 	}
-	entry, err := h.service.Get(ctx, req.Msg.GetId())
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, connect.NewError(connect.CodeNotFound, err)
-		}
-		h.logger.Printf("journal.GetEntry: %v", err)
+	req := connect.NewRequest(&sourcev1.GetEntryRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&journalv1.GetEntryResponse{Entry: entryToProto(entry)}), nil
+	ledgerclient.ForwardHeaders(in.Header(), req.Header())
+	resp, err := h.client.GetEntry(ctx, req)
+	if err != nil {
+		h.logger.Printf("source-ledger GetEntry: %v", err)
+		return nil, ledgerclient.RPCError("get entry", err)
+	}
+	out := &memoryv1.GetEntryResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
-func (h *connectHandler) ListEntries(ctx context.Context, req *connect.Request[journalv1.ListEntriesRequest]) (*connect.Response[journalv1.ListEntriesResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	limit := int(req.Msg.GetLimit())
-	if limit <= 0 {
-		limit = 100
-	}
-	if limit > 500 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("limit must be at most 500"))
-	}
-	entries, err := h.service.List(ctx, limit)
-	if err != nil {
-		h.logger.Printf("journal.ListEntries: %v", err)
+func (h *connectHandler) ListEntries(ctx context.Context, in *connect.Request[memoryv1.ListEntriesRequest]) (*connect.Response[memoryv1.ListEntriesResponse], error) {
+	req := connect.NewRequest(&sourcev1.ListEntriesRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	resp := &journalv1.ListEntriesResponse{Entries: make([]*journalv1.Entry, 0, len(entries))}
-	for _, entry := range entries {
-		if req.Msg.GetFacetId() == "" || entry.FacetID == req.Msg.GetFacetId() {
-			resp.Entries = append(resp.Entries, entryToProto(entry))
-		}
+	ledgerclient.ForwardHeaders(in.Header(), req.Header())
+	resp, err := h.client.ListEntries(ctx, req)
+	if err != nil {
+		h.logger.Printf("source-ledger ListEntries: %v", err)
+		return nil, ledgerclient.RPCError("list entries", err)
 	}
-	return connect.NewResponse(resp), nil
+	out := &memoryv1.ListEntriesResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
-func (h *connectHandler) ProcessClassificationRetries(ctx context.Context, req *connect.Request[journalv1.ProcessClassificationRetriesRequest]) (*connect.Response[journalv1.ProcessClassificationRetriesResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	limit := int(req.Msg.GetLimit())
-	if limit > 500 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("limit must be at most 500"))
-	}
-	result, err := h.service.ProcessClassificationRetries(ctx, limit)
-	if err != nil {
-		h.logger.Printf("journal.ProcessClassificationRetries: %v", err)
+func (h *connectHandler) ProcessClassificationRetries(ctx context.Context, in *connect.Request[memoryv1.ProcessClassificationRetriesRequest]) (*connect.Response[memoryv1.ProcessClassificationRetriesResponse], error) {
+	req := connect.NewRequest(&sourcev1.ProcessClassificationRetriesRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&journalv1.ProcessClassificationRetriesResponse{Processed: int32(result.Processed), Deferred: int32(result.Deferred), AlreadyResolved: int32(result.AlreadyResolved)}), nil
+	ledgerclient.ForwardHeaders(in.Header(), req.Header())
+	resp, err := h.client.ProcessClassificationRetries(ctx, req)
+	if err != nil {
+		return nil, ledgerclient.RPCError("process classification retries", err)
+	}
+	out := &memoryv1.ProcessClassificationRetriesResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
-func (h *connectHandler) ProcessEmbeddingRetries(ctx context.Context, req *connect.Request[journalv1.ProcessEmbeddingRetriesRequest]) (*connect.Response[journalv1.ProcessEmbeddingRetriesResponse], error) {
-	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	limit := int(req.Msg.GetLimit())
-	if limit > 500 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("limit must be at most 500"))
-	}
-	result, err := h.service.ProcessEmbeddingRetries(ctx, limit)
-	if err != nil {
-		h.logger.Printf("journal.ProcessEmbeddingRetries: %v", err)
+func (h *connectHandler) ProcessEmbeddingRetries(ctx context.Context, in *connect.Request[memoryv1.ProcessEmbeddingRetriesRequest]) (*connect.Response[memoryv1.ProcessEmbeddingRetriesResponse], error) {
+	req := connect.NewRequest(&sourcev1.ProcessEmbeddingRetriesRequest{})
+	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&journalv1.ProcessEmbeddingRetriesResponse{Processed: int32(result.Processed), Deferred: int32(result.Deferred), AlreadyResolved: int32(result.AlreadyResolved)}), nil
+	ledgerclient.ForwardHeaders(in.Header(), req.Header())
+	resp, err := h.client.ProcessEmbeddingRetries(ctx, req)
+	if err != nil {
+		return nil, ledgerclient.RPCError("process embedding retries", err)
+	}
+	out := &memoryv1.ProcessEmbeddingRetriesResponse{}
+	if err := ledgerclient.Translate(resp.Msg, out); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(out), nil
 }
 
 type errRequired string
 
 func (e errRequired) Error() string { return string(e) + " is required" }
 
-func entryFromAppend(in *journalv1.AppendEntryRequest, source provenance.Provenance) internaljournal.Entry {
-	body := in.GetBody()
-	if in.GetKind() == "work-record" {
-		body += "\n\nTrigger: " + in.GetTrigger() + "\nApproach: " + in.GetApproach() + "\nEvidence: " + in.GetEvidence() + "\nOutcome: " + in.GetOutcome()
-	}
-	// Correlation comes only from api-core's verified provenance. Request fields
-	// are deliberately ignored: a caller must not be able to forge an agent run
-	// or accidentally omit it while working inside one.
-	actorID, actorKind, sourceRuntime, status, runID, workflowExecutionID := source.WriteFields()
-	harnessSessionID, harnessKind := source.ObservationFields()
-	return internaljournal.Entry{
-		Body: body, Scope: string(policy.NormalizeScope(in.GetScope())), FacetID: in.GetFacetId(), Kind: in.GetKind(),
-		Attribution: internaljournal.Attribution{ActorID: actorID, ActorKind: actorKind, SourceRuntime: sourceRuntime, VerificationStatus: status, HarnessSessionID: harnessSessionID, HarnessKind: harnessKind},
-		Correlation: internaljournal.Correlation{RunID: runID, WorkflowExecutionID: workflowExecutionID, ActorKind: actorKind},
-		ImportKey:   importKey(in.GetImportProvenance()),
-	}
-}
-
-func importKey(p *journalv1.ImportProvenance) string {
-	if p == nil {
-		return ""
-	}
-	return p.GetRuntime() + ":" + p.GetSourceLocator() + ":" + p.GetContentHash()
-}
-
-func entryToProto(e internaljournal.Entry) *journalv1.Entry {
-	out := &journalv1.Entry{Id: e.ID, Body: e.Body, FacetId: e.FacetID, Kind: e.Kind, Attribution: &journalv1.Attribution{ActorId: e.Attribution.ActorID, ActorKind: e.Attribution.ActorKind, SourceRuntime: e.Attribution.SourceRuntime, VerificationStatus: e.Attribution.VerificationStatus, HarnessSessionId: e.Attribution.HarnessSessionID, HarnessKind: e.Attribution.HarnessKind}, Correlation: &journalv1.Correlation{RunId: e.Correlation.RunID, WorkflowExecutionId: e.Correlation.WorkflowExecutionID, ActorKind: e.Correlation.ActorKind}, CreatedAt: timestamppb.New(e.CreatedAt)}
-	for _, f := range e.FacetTexts {
-		out.FacetTexts = append(out.FacetTexts, &journalv1.FacetText{Kind: f.Kind, Text: f.Text, EmbeddingRef: f.EmbeddingRef})
-	}
-	return out
-}
+var _ memoryconnect.JournalServiceHandler = (*connectHandler)(nil)

@@ -92,6 +92,21 @@ func TestAppendPassesValidatedEntryKindToContextualClassifier(t *testing.T) {
 	require.Equal(t, "episode", entry.FacetID)
 }
 
+func TestAppendPreservesExplicitFacetForDeterministicImports(t *testing.T) {
+	repo := journalDB(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), repo.db, apidb.SchemaProviderFunc(facets.Schema)))
+	facetRepo := facets.NewSQLiteRepository(repo.db)
+	require.NoError(t, facetRepo.Seed(context.Background()))
+	svc := NewService(repo, &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(facetRepo))
+
+	entry, err := svc.Append(context.Background(), Entry{Body: `{"decision":"keep"}`, Scope: "agent-memory", FacetID: "standing-rule"})
+	require.NoError(t, err)
+	require.Equal(t, "standing-rule", entry.FacetID)
+	stored, err := repo.Get(context.Background(), entry.ID)
+	require.NoError(t, err)
+	require.Equal(t, "standing-rule", stored.FacetID)
+}
+
 func TestRepositoryExposesNoMutationMethods(t *testing.T) { // [REQ:VMEM-P0-001]
 	typ := reflect.TypeOf((*Repository)(nil)).Elem()
 	for i := 0; i < typ.NumMethod(); i++ {

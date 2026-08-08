@@ -103,22 +103,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Real fix (done):** `extractPath` drops sources that are empty after marker removal and reports that it did so; that case returns a completed import with zero items. See D-038.
 
-### 2026-08-05 — Recall still scores every node linearly (wake half RESOLVED)
-
-**Symptom:** `Recall` scores every leaf and summary in Go on every query. Cost is linear in corpus size.
-
-**Resolved on 2026-08-05 (wake half):** `Wake` now uses `AmbientNodes`, which loads no embeddings, excludes absorbed leaves, and caps rows per facet at the largest declared residency via a window function. Separately, the `latest_assignment` CTE in both sources was rewritten from a per-row correlated subquery to a single-pass window function — 0.333s to 0.002s on 3.2k assignments, a cost every wake and recall paid before touching a memory. Measured end to end: wake 2.58s to 0.76s (CLI floor is ~0.7s), recall 3.35s to 0.85s while now scoring three embedding spaces instead of one.
-
-**Root cause of what remains:** recall has no ANN index and no SQL-side candidate prefilter, so all 8,181 vectors are decoded and cosined per query.
-
-**Workaround:** Acceptable at current size — it degrades smoothly rather than cliffing.
-
-**Real fix:** An ANN index, or a SQL-side prefilter that narrows candidates before scoring.
-
-**Owner:** unassigned
-
-**Refs:** `internal/recall/service.go`, `internal/recall/sqlite_source.go`.
-
 ### 2026-08-05 — The journal database carries about 60% dead pages
 
 **Symptom:** `data/vrooli-memory.db` is 152 MB on disk while 23,233 of its 38,891 pages sit on the freelist.

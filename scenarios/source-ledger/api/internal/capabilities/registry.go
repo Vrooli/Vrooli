@@ -27,6 +27,20 @@ const (
 
 var Known = []Def{
 	{
+		ID: "ai-gateway", Name: "AI Gateway",
+		Description:    "Governed inference gateway for classification, embeddings, and compaction summaries.",
+		DependencyKind: capabilityregistry.DependencyScenario, DependencySlug: "ai-gateway",
+		ActionKind: ActionKindScenarioStart, ActionLabel: "Start AI Gateway",
+		OperatorCommand: "vrooli scenario start ai-gateway --json",
+	},
+	{
+		ID: "search-hub", Name: "Search Hub",
+		Description:    "Optional federated search registration for source-ledger corpus discovery.",
+		DependencyKind: capabilityregistry.DependencyScenario, DependencySlug: "search-hub",
+		ActionKind: ActionKindScenarioStart, ActionLabel: "Start Search Hub",
+		OperatorCommand: "vrooli scenario start search-hub --json",
+	},
+	{
 		ID: "audio-tools", Name: "Audio Tools",
 		Description:    "Optional shared voice input and audio output for this scenario.",
 		DependencyKind: capabilityregistry.DependencyScenario, DependencySlug: "audio-tools",
@@ -36,12 +50,12 @@ var Known = []Def{
 	},
 }
 
-type ScenarioChecker struct{}
+type ScenarioChecker struct{ Slug string }
 
-func (ScenarioChecker) Check(context.Context) (capabilityregistry.Status, string) {
-	output, err := exec.Command("vrooli", "scenario", "status", "audio-tools", "--json").Output()
+func (c ScenarioChecker) Check(context.Context) (capabilityregistry.Status, string) {
+	output, err := exec.Command("vrooli", "scenario", "status", c.Slug, "--json").Output()
 	if err != nil {
-		return capabilityregistry.StatusUnavailable, "audio-tools is unavailable; start it with the operator action"
+		return capabilityregistry.StatusUnavailable, c.Slug + " is unavailable; start it with the operator action"
 	}
 	var payload struct {
 		Scenario struct {
@@ -49,16 +63,18 @@ func (ScenarioChecker) Check(context.Context) (capabilityregistry.Status, string
 		} `json:"scenario"`
 	}
 	if err := json.Unmarshal(output, &payload); err != nil {
-		return capabilityregistry.StatusUnavailable, "audio-tools status was not valid JSON"
+		return capabilityregistry.StatusUnavailable, c.Slug + " status was not valid JSON"
 	}
 	if strings.EqualFold(payload.Scenario.Status, "running") || strings.EqualFold(payload.Scenario.Status, "healthy") {
-		return capabilityregistry.StatusAvailable, "audio-tools is healthy"
+		return capabilityregistry.StatusAvailable, c.Slug + " is healthy"
 	}
-	return capabilityregistry.StatusUnavailable, "audio-tools is not running; start it with the operator action"
+	return capabilityregistry.StatusUnavailable, c.Slug + " is not running; start it with the operator action"
 }
 
 func NewRegistry() *Registry {
 	return capabilityregistry.New(Known, map[string]capabilityregistry.Checker{
-		"audio-tools": ScenarioChecker{},
+		"ai-gateway":  ScenarioChecker{Slug: "ai-gateway"},
+		"search-hub":  ScenarioChecker{Slug: "search-hub"},
+		"audio-tools": ScenarioChecker{Slug: "audio-tools"},
 	}, 5*time.Second)
 }
