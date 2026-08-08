@@ -23,12 +23,41 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/api/v1/validation/matrices", h.create).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/validation/matrices", h.list).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/validation/catalog", h.catalog).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/validation/profiles", h.profiles).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/validation/matrices/{run_id}", h.get).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/validation/matrices/{run_id}/compare/{prior_run_id}", h.compare).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/validation/matrices/{run_id}/start", h.start).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/validation/matrices/{run_id}/wait", h.wait).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/validation/matrices/{run_id}/abort", h.abort).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/validation/matrices/{run_id}/rerun", h.rerun).Methods(http.MethodPost)
+}
+
+func (h *Handler) profiles(w http.ResponseWriter, _ *http.Request) {
+	type profileResponse struct {
+		Value                int32    `json:"value"`
+		Name                 string   `json:"name"`
+		Label                string   `json:"label"`
+		Category             string   `json:"category"`
+		Executable           bool     `json:"executable"`
+		RequiredCapabilities []string `json:"required_capabilities,omitempty"`
+	}
+	contracts := ProfileContracts()
+	profiles := make([]profileResponse, 0, len(contracts))
+	for _, contract := range contracts {
+		capabilities := make([]string, 0, len(contract.RequiredCapabilities))
+		for _, capability := range contract.RequiredCapabilities {
+			capabilities = append(capabilities, capability.String())
+		}
+		profiles = append(profiles, profileResponse{
+			Value:                int32(contract.Profile),
+			Name:                 contract.Profile.String(),
+			Label:                contract.Label,
+			Category:             contract.Category,
+			Executable:           contract.Executable,
+			RequiredCapabilities: capabilities,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"profiles": profiles})
 }
 
 func (h *Handler) catalog(w http.ResponseWriter, r *http.Request) {

@@ -39,7 +39,7 @@ func (f fakeRuns) WaitRun(_ context.Context, request *connect.Request[runsv1.Wai
 
 func TestDiscoverMapsBridgeIdentityAndCapabilities(t *testing.T) {
 	client := NewClientForTesting(fakeRegistry{nodes: []*registryv1.Node{
-		{Id: "node-1", Name: "Linux runner", Os: "linux", Arch: "amd64", Online: true, Status: registryv1.NodeStatus_NODE_STATUS_ONLINE, Capabilities: []string{"electron-cdp", "native-window", "process-metrics"}},
+		{Id: "node-1", Name: "Linux runner", Os: "linux", Arch: "amd64", Online: true, Status: registryv1.NodeStatus_NODE_STATUS_ONLINE, Capabilities: []string{"electron-cdp", "native-window", "process-metrics"}, Scopes: []string{"scenario test*"}},
 		{Id: "node-2", Name: "Offline runner", Online: false, Status: registryv1.NodeStatus_NODE_STATUS_OFFLINE},
 	}}, nil, nil)
 
@@ -56,8 +56,14 @@ func TestDiscoverMapsBridgeIdentityAndCapabilities(t *testing.T) {
 	if !targets[0].Descriptor.GetAvailable() || targets[0].NodeID != "node-1" {
 		t.Fatalf("online node was not available: %#v", targets[0])
 	}
+	if targets[0].Health.Status != "healthy" || targets[0].BridgeTrust == nil || !targets[0].BridgeTrust.DispatchAuthorized {
+		t.Fatalf("online node health/trust = %#v/%#v", targets[0].Health, targets[0].BridgeTrust)
+	}
 	if targets[1].Descriptor.GetAvailable() {
 		t.Fatal("offline node was reported available")
+	}
+	if targets[1].Health.Status != "offline" || targets[1].BridgeTrust == nil || targets[1].BridgeTrust.DispatchAuthorized {
+		t.Fatalf("offline node health/trust = %#v/%#v", targets[1].Health, targets[1].BridgeTrust)
 	}
 }
 

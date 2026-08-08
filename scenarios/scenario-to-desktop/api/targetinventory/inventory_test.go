@@ -24,6 +24,9 @@ func TestLocalProbeReportsReadyLinuxCapabilities(t *testing.T) {
 	if result.Descriptor == nil || !result.Descriptor.GetAvailable() {
 		t.Fatalf("expected ready target: %+v", result)
 	}
+	if result.Health.Status != "healthy" || result.BridgeTrust != nil {
+		t.Fatalf("local target health/trust = %#v/%#v", result.Health, result.BridgeTrust)
+	}
 	for _, capability := range []domainv1.ValidationTargetCapability{
 		domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_ELECTRON_CDP,
 		domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_NATIVE_WINDOW,
@@ -45,6 +48,9 @@ func TestLocalProbeReportsUnavailableEvidencePrerequisites(t *testing.T) {
 	}
 	if result.Descriptor.GetReason() == "" {
 		t.Fatal("unavailable target should explain missing prerequisites")
+	}
+	if result.Health.Status != "unavailable" {
+		t.Fatalf("health = %q, want unavailable", result.Health.Status)
 	}
 }
 

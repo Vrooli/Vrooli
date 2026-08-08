@@ -77,16 +77,17 @@ remote bridge desktop transport remain implementation work.
 
 | Target | Current evidence | Capability disposition | Next proof |
 |---|---|---|---|
-| Local Linux/Xvfb | Native live-desktop/smoke evidence and real Electron CDP provider run | Eligible for platform conformance and Electron workflow execution | Persist the provider-neutral workflow reference in the combined release cell |
+| Local Linux/Xvfb | Native live-desktop/smoke evidence and real Electron CDP provider run | Eligible for platform conformance and Electron workflow execution | Combined cell evidence is persisted with the provider-neutral workflow reference |
 | Linux emulator | No owned emulator adapter or runtime evidence | Unavailable, never an implicit pass | Add an adapter only when its lifecycle and renderer identity are observable |
 | Bridge node | Typed `EvidenceTarget` and bridge dispatch seams exist | Unsupported for remote desktop evidence until bridge transport exists | Implement authenticated bridge-owned desktop transport and reachability evidence |
 | Windows/macOS | Packaging and platform enums exist; no target runtime evidence on this host | Unavailable for release claims | Capture target-native launch, update, native-surface, and shutdown evidence on each target |
 
 The initial representative journey remains the existing
-`hello-desktop-console-evidence` provider case plus the platform lifecycle smoke
-journey. The real Electron run and routed mutation proof are complete; the
-remaining handoff is to persist their provider-owned reference alongside the
-platform capture in one matrix cell.
+`browser-automation-studio:bas/cases/01-foundation/01-projects/new-project-dialog-open.json`
+case plus the platform lifecycle smoke journey. The real Electron run, routed
+mutation proof, and provider-owned reference are complete in one matrix cell.
+The provider reference is an opaque workflow execution reference; Test Genie
+does not inspect or execute BAS internals.
 
 ## Choose a mode
 

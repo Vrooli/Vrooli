@@ -2,6 +2,7 @@ package validationmatrix
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -54,6 +55,30 @@ func TestCreateUsesProviderOwnedCatalogSnapshot(t *testing.T) {
 	}
 	if len(run.Selection.Journeys) != 1 || len(run.Selection.Targets) != 1 || len(run.Cells) != 1 {
 		t.Fatalf("provider catalog was not snapshotted: %+v", run.Selection)
+	}
+}
+
+func TestCreatePreservesExplicitOperatorSelectionWhenCatalogIsAvailable(t *testing.T) {
+	store, err := NewFileStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection := baseSelection()
+	selection.Journeys = []JourneySelection{{JourneyID: "selected", DisplayName: "Selected journey", Required: true}}
+	service := NewService(store, Executors{}, WithCatalogResolver(catalogFunc(func(_ context.Context, _ string) (CatalogSnapshot, error) {
+		catalog := baseSelection()
+		catalog.Journeys = []JourneySelection{
+			{JourneyID: "selected", DisplayName: "Selected journey", Required: true},
+			{JourneyID: "omitted", DisplayName: "Omitted provider journey", Required: false},
+		}
+		return CatalogSnapshot{Journeys: catalog.Journeys}, nil
+	})))
+	run, err := service.Create(selection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Selection.Journeys) != 1 || run.Selection.Journeys[0].JourneyID != "selected" {
+		t.Fatalf("explicit selection was replaced by provider catalog: %+v", run.Selection.Journeys)
 	}
 }
 
@@ -206,7 +231,7 @@ func TestComputeApplicabilityTruthTable(t *testing.T) {
 		{"eligible", target, []domainv1.ValidationTargetCapability{capability}, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSPECIFIED},
 		{"missing capability", &domainv1.ValidationTargetDescriptor{TargetId: "local", Available: true}, []domainv1.ValidationTargetCapability{capability}, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED},
 		{"unavailable", &domainv1.ValidationTargetDescriptor{TargetId: "remote", Available: false}, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE},
-		{"offline unsupported", target, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_OFFLINE, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSPECIFIED},
+		{"offline unsupported until adapter exists", target, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_OFFLINE, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED},
 		{"unspecified profile", target, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_UNSPECIFIED, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_NOT_RUN},
 	}
 	for _, test := range tests {
@@ -216,6 +241,53 @@ func TestComputeApplicabilityTruthTable(t *testing.T) {
 				t.Fatalf("ComputeApplicability() = %v, %v; want true, %v", applicable, disposition, test.disposition)
 			}
 		})
+	}
+}
+
+func TestProfileContractsFailClosedForMissingCapabilities(t *testing.T) {
+	contracts := ProfileContracts()
+	if len(contracts) < 20 {
+		t.Fatalf("profile contract catalog has %d entries; expected the complete profile inventory", len(contracts))
+	}
+
+	for _, contract := range contracts {
+		if contract.Profile == domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL {
+			continue
+		}
+		applicable, disposition, reason := ComputeApplicability(
+			&domainv1.ValidationTargetDescriptor{TargetId: "local", Available: true},
+			nil,
+			contract.Profile,
+		)
+		if !applicable || disposition != domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED {
+			t.Errorf("profile %s = applicable=%v disposition=%s; want applicable=true unsupported", contract.Profile, applicable, disposition)
+		}
+		if reason == nil || !strings.Contains(*reason, "required capability") {
+			t.Errorf("profile %s reason = %v; want the missing capability", contract.Profile, reason)
+		}
+	}
+}
+
+func TestProfileContractsAcceptAdvertisedCapabilities(t *testing.T) {
+	for _, contract := range ProfileContracts() {
+		capabilities := append([]domainv1.ValidationTargetCapability(nil), contract.RequiredCapabilities...)
+		applicable, disposition, reason := ComputeApplicability(
+			&domainv1.ValidationTargetDescriptor{TargetId: "capable", Available: true, Capabilities: capabilities},
+			nil,
+			contract.Profile,
+		)
+		wantDisposition := domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED
+		if contract.Executable {
+			wantDisposition = domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSPECIFIED
+		}
+		if !applicable || disposition != wantDisposition {
+			t.Errorf("profile %s = applicable=%v disposition=%s; want applicable=true %s", contract.Profile, applicable, disposition, wantDisposition)
+		}
+		if contract.Executable && reason != nil {
+			t.Errorf("profile %s reason = %v; want nil", contract.Profile, reason)
+		} else if !contract.Executable && (reason == nil || !strings.Contains(*reason, "no executable adapter")) {
+			t.Errorf("profile %s reason = %v; want no executable adapter", contract.Profile, reason)
+		}
 	}
 }
 

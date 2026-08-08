@@ -182,6 +182,13 @@ func nodeTarget(node *registryv1.Node) targetinventory.Target {
 	return targetinventory.Target{
 		Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "bridge:" + node.Id, DisplayName: node.Name, Capabilities: capabilities, Available: available, Reason: stringPtr(reason)},
 		Kind:       "bridge", NodeID: node.Id, OS: node.Os, Architecture: node.Arch, Mode: "remote", Reason: reason,
+		Health: targetinventory.TargetHealth{Status: bridgeHealth(node, available), Reason: reason},
+		BridgeTrust: &targetinventory.BridgeTrust{
+			Registered:         node.Status != registryv1.NodeStatus_NODE_STATUS_REVOKED,
+			Online:             node.Online,
+			DispatchAuthorized: hasDispatchScope(node.Scopes),
+			Reason:             bridgeTrustReason(node),
+		},
 	}
 }
 
@@ -192,7 +199,45 @@ func bridgeEvidence(nodeID, runID string) *domainv1.LayeredEvidence {
 }
 
 func unavailableTarget(reason string) targetinventory.Target {
-	return targetinventory.Target{Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "bridge:unavailable", DisplayName: "Bridge fleet", Available: false, Reason: stringPtr(reason)}, Kind: "bridge", Mode: "remote", Reason: reason}
+	return targetinventory.Target{
+		Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "bridge:unavailable", DisplayName: "Bridge fleet", Available: false, Reason: stringPtr(reason)},
+		Kind:       "bridge", Mode: "remote", Reason: reason,
+		Health:      targetinventory.TargetHealth{Status: "unavailable", Reason: reason},
+		BridgeTrust: &targetinventory.BridgeTrust{Reason: "bridge node identity was not verified"},
+	}
+}
+
+func bridgeHealth(node *registryv1.Node, available bool) string {
+	if node == nil || node.Status == registryv1.NodeStatus_NODE_STATUS_REVOKED {
+		return "revoked"
+	}
+	if available {
+		return "healthy"
+	}
+	if node.Online {
+		return "degraded"
+	}
+	return "offline"
+}
+
+func hasDispatchScope(scopes []string) bool {
+	for _, scope := range scopes {
+		normalized := strings.ToLower(strings.TrimSpace(scope))
+		if normalized == "scenario test" || normalized == "scenario test*" {
+			return true
+		}
+	}
+	return false
+}
+
+func bridgeTrustReason(node *registryv1.Node) string {
+	if node == nil || node.Status == registryv1.NodeStatus_NODE_STATUS_REVOKED {
+		return "bridge node is revoked or missing"
+	}
+	if !hasDispatchScope(node.Scopes) {
+		return "registered identity has no scenario-test dispatch scope"
+	}
+	return "registered identity and scenario-test dispatch scope verified"
 }
 
 func stringPtr(value string) *string { return &value }

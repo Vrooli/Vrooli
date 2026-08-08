@@ -112,6 +112,10 @@
       "testId": "validation-target-card",
       "selector": "[data-testid=\"validation-target-card\"]"
     },
+    "validation.inventoryLoading": {
+      "testId": "validation-inventory-loading",
+      "selector": "[data-testid=\"validation-inventory-loading\"]"
+    },
     "validation.error": {
       "testId": "validation-target-inventory-error",
       "selector": "[data-testid=\"validation-target-inventory-error\"]"
@@ -180,9 +184,33 @@
       "testId": "validation-compare-run",
       "selector": "[data-testid=\"validation-compare-run\"]"
     },
+    "validation.gateSummary": {
+      "testId": "validation-gate-summary",
+      "selector": "[data-testid=\"validation-gate-summary\"]"
+    },
+    "validation.targetSwimlane": {
+      "testId": "validation-target-swimlane",
+      "selector": "[data-testid=\"validation-target-swimlane\"]"
+    },
+    "validation.cellSelect": {
+      "testId": "validation-cell-select",
+      "selector": "[data-testid=\"validation-cell-select\"]"
+    },
+    "validation.evidenceInspect": {
+      "testId": "validation-evidence-inspect",
+      "selector": "[data-testid=\"validation-evidence-inspect\"]"
+    },
+    "validation.evidenceReview": {
+      "testId": "validation-evidence-review",
+      "selector": "[data-testid=\"validation-evidence-review\"]"
+    },
     "validation.matrixError": {
       "testId": "validation-matrix-error",
       "selector": "[data-testid=\"validation-matrix-error\"]"
+    },
+    "validation.runLoading": {
+      "testId": "validation-run-loading",
+      "selector": "[data-testid=\"validation-run-loading\"]"
     },
     "validation.matrixCell": {
       "testId": "validation-matrix-cell",

@@ -398,7 +398,14 @@ func (s *Service) executeCell(ctx context.Context, runID string, record *CellRec
 	if !ok {
 		return
 	}
-	request := CellRequest{RunID: run.RunID, MatrixID: run.Matrix.GetMatrixId(), ArtifactDigest: run.Matrix.GetArtifactDigest(), Cell: record.Cell}
+	request := CellRequest{
+		RunID:          run.RunID,
+		MatrixID:       run.Matrix.GetMatrixId(),
+		ArtifactDigest: run.Matrix.GetArtifactDigest(),
+		Cell:           record.Cell,
+		Journey:        journeySelection(run.Selection.Journeys, record.Cell.GetJourneyId()),
+		Target:         targetSelection(run.Selection.Targets, record.Cell.GetTargetId()),
+	}
 	for {
 		record.Attempts++
 		if !s.updateCell(runID, record, func(current *CellRecord) {
@@ -452,6 +459,25 @@ func (s *Service) executeCell(ctx context.Context, runID string, record *CellRec
 		})
 		return
 	}
+}
+
+func journeySelection(journeys []JourneySelection, id string) JourneySelection {
+	for _, journey := range journeys {
+		if journey.JourneyID == id {
+			return journey
+		}
+	}
+	return JourneySelection{JourneyID: id}
+}
+
+func targetSelection(targets []TargetSelection, id string) *domainv1.ValidationTargetDescriptor {
+	for _, target := range targets {
+		if target.Descriptor != nil && target.Descriptor.GetTargetId() == id {
+			clone := *target.Descriptor
+			return &clone
+		}
+	}
+	return nil
 }
 
 func (s *Service) updateCell(runID string, record *CellRecord, mutate func(*CellRecord)) bool {
@@ -510,24 +536,24 @@ func ComputeApplicability(target *domainv1.ValidationTargetDescriptor, required 
 	if target == nil || !target.GetAvailable() {
 		return true, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, stringPtr("target is unavailable")
 	}
-	profileRequired := profileCapability(profile)
-	if profileRequired != domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_UNSPECIFIED {
-		required = append(append([]domainv1.ValidationTargetCapability(nil), required...), profileRequired)
+	if contract, known := profileContract(profile); known {
+		required = append(append([]domainv1.ValidationTargetCapability(nil), required...), contract.RequiredCapabilities...)
+		if missing := firstMissingCapability(target.GetCapabilities(), required); missing != domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_UNSPECIFIED {
+			return true, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED, stringPtr("target lacks required capability " + missing.String())
+		}
+		if !contract.Executable {
+			return true, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED, stringPtr("environment profile " + profile.String() + " has no executable adapter")
+		}
+	} else if profile != domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_UNSPECIFIED {
+		return true, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED, stringPtr("environment profile has no target contract")
 	}
-	if !hasCapabilities(target.GetCapabilities(), required) {
-		return true, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED, stringPtr("target lacks a required capability")
+	if missing := firstMissingCapability(target.GetCapabilities(), required); missing != domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_UNSPECIFIED {
+		return true, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED, stringPtr("target lacks required capability " + missing.String())
 	}
 	if profile == domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_UNSPECIFIED {
 		return true, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_NOT_RUN, stringPtr("environment profile is unspecified")
 	}
 	return true, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSPECIFIED, nil
-}
-
-func profileCapability(profile domainv1.ValidationEnvironmentProfile) domainv1.ValidationTargetCapability {
-	if profile == domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_OFFLINE {
-		return domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_OFFLINE_NETWORK
-	}
-	return domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_UNSPECIFIED
 }
 
 func initialCellState(cell *domainv1.ValidationCell) CellState {
@@ -538,16 +564,20 @@ func initialCellState(cell *domainv1.ValidationCell) CellState {
 }
 
 func hasCapabilities(have, required []domainv1.ValidationTargetCapability) bool {
+	return firstMissingCapability(have, required) == domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_UNSPECIFIED
+}
+
+func firstMissingCapability(have, required []domainv1.ValidationTargetCapability) domainv1.ValidationTargetCapability {
 	set := make(map[domainv1.ValidationTargetCapability]struct{}, len(have))
 	for _, capability := range have {
 		set[capability] = struct{}{}
 	}
 	for _, capability := range required {
 		if _, ok := set[capability]; !ok {
-			return false
+			return capability
 		}
 	}
-	return true
+	return domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_UNSPECIFIED
 }
 
 func syncMatrixCells(run *MatrixRun) {

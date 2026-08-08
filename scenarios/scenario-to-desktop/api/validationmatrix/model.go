@@ -105,10 +105,10 @@ func (s MatrixSelection) WithCatalog(ctx context.Context, catalog CatalogResolve
 		return MatrixSelection{}, fmt.Errorf("resolve validation catalog: %w", err)
 	}
 	resolved := cloneSelection(s)
-	if snapshot.Journeys != nil {
+	if len(resolved.Journeys) == 0 && snapshot.Journeys != nil {
 		resolved.Journeys = snapshot.Journeys
 	}
-	if snapshot.Targets != nil {
+	if len(resolved.Targets) == 0 && snapshot.Targets != nil {
 		resolved.Targets = snapshot.Targets
 	}
 	return resolved, nil
@@ -173,6 +173,8 @@ type CellRequest struct {
 	MatrixID       string
 	ArtifactDigest string
 	Cell           *domainv1.ValidationCell
+	Journey        JourneySelection
+	Target         *domainv1.ValidationTargetDescriptor
 }
 
 type CellResult struct {

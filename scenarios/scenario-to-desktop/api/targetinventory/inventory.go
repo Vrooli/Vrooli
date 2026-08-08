@@ -23,6 +23,20 @@ type Target struct {
 	Architecture string                               `json:"architecture"`
 	Mode         string                               `json:"mode"`
 	Reason       string                               `json:"reason,omitempty"`
+	Health       TargetHealth                         `json:"health"`
+	BridgeTrust  *BridgeTrust                         `json:"bridge_trust,omitempty"`
+}
+
+type TargetHealth struct {
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
+}
+
+type BridgeTrust struct {
+	Registered         bool   `json:"registered"`
+	Online             bool   `json:"online"`
+	DispatchAuthorized bool   `json:"dispatch_authorized"`
+	Reason             string `json:"reason,omitempty"`
 }
 
 type Inventory struct {
@@ -92,6 +106,8 @@ func (p LocalProbe) Probe(context.Context) Target {
 		Architecture: runtime.GOARCH,
 		Mode:         "native",
 		Reason:       reason,
+		Health:       TargetHealth{Status: map[bool]string{true: "healthy", false: "unavailable"}[available], Reason: reason},
+		BridgeTrust:  nil,
 	}
 }
 

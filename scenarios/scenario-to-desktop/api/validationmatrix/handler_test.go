@@ -74,3 +74,35 @@ func TestHandlerExposesProviderOwnedCatalogSnapshot(t *testing.T) {
 		t.Fatalf("unexpected catalog response: %+v", catalog)
 	}
 }
+
+func TestHandlerExposesTypedProfileContracts(t *testing.T) {
+	store, err := NewFileStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	router := mux.NewRouter()
+	NewHandler(NewService(store, Executors{})).RegisterRoutes(router)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/validation/profiles", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("profiles status=%d body=%s", response.Code, response.Body.String())
+	}
+	var payload struct {
+		Profiles []struct {
+			Name                 string   `json:"name"`
+			RequiredCapabilities []string `json:"required_capabilities"`
+		} `json:"profiles"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Profiles) < 20 {
+		t.Fatalf("profile catalog has %d entries; expected complete inventory", len(payload.Profiles))
+	}
+	for _, profile := range payload.Profiles {
+		if profile.Name == "VALIDATION_ENVIRONMENT_PROFILE_HIGH_LATENCY" && len(profile.RequiredCapabilities) != 1 {
+			t.Fatalf("high latency profile lacks typed capability contract: %+v", profile)
+		}
+	}
+}

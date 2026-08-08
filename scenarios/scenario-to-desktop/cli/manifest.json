@@ -65,7 +65,8 @@
               "description": "Scenario name",
               "bind": {
                 "field": "config"
-              }
+              },
+              "bind_waiver": "The pipeline primitive intentionally converts the positional scenario into PipelineConfig.scenario_name before invoking PipelineService.Run."
             }
           ],
           "binding": {

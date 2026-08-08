@@ -60,11 +60,12 @@ through a real Electron renderer; the leased fixture POST reached the host API
 with HTTP 200, and the target artifact, authenticated CDP identity, and
 renderer-to-host propagation were recorded in the BAS timeline.
 
-**Next Step**: Persist the provider-neutral workflow execution reference beside
-the platform journey and recording in the signed evidence manifest. The
-reference must bind the same validation run, artifact digest, target, and cell;
-missing or mismatched provider artifacts must fail closed. Keep `OT-P0-010`
-unchecked until the combined release-cell artifact exists.
+**Current state**: The representative local Linux matrix cell now persists the
+provider-neutral workflow execution reference beside the platform journey and
+recording. The reference binds the validation run, artifact digest, target, and
+cell; missing or mismatched provider artifacts fail closed. Keep `OT-P0-010`
+scoped to the remaining per-target signed-manifest journeys until those
+separate release-level captures exist.
 
 Test Genie is not part of this handoff: it remains a generic validation runner,
 while the semantic workflow provider owns execution and artifact production.
