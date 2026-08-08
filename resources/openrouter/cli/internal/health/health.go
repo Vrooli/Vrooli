@@ -76,7 +76,7 @@ func Probe(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, 
 }
 
 // Generate performs a direct OpenRouter chat completion request.
-func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt string, temperature float64, maxTokens int) ([]byte, error) {
+func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt string, temperature float64, maxTokens int, responseFormat json.RawMessage) ([]byte, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
@@ -90,12 +90,14 @@ func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 			Role    string `json:"role"`
 			Content string `json:"content"`
 		} `json:"messages"`
-		Temperature float64 `json:"temperature"`
-		MaxTokens   int     `json:"max_tokens,omitempty"`
+		Temperature    float64         `json:"temperature"`
+		MaxTokens      int             `json:"max_tokens,omitempty"`
+		ResponseFormat json.RawMessage `json:"response_format,omitempty"`
 	}{
-		Model:       model,
-		Temperature: temperature,
-		MaxTokens:   maxTokens,
+		Model:          model,
+		Temperature:    temperature,
+		MaxTokens:      maxTokens,
+		ResponseFormat: responseFormat,
 	}
 	payload.Messages = []struct {
 		Role    string `json:"role"`

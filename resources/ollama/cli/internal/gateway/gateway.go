@@ -156,6 +156,7 @@ func (h *Handlers) Generate(args []string) error {
 	fromStdin := fs.Bool("prompt-stdin", false, "Read prompt from stdin")
 	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
 	temperature := fs.Float64("temperature", -1, "Sampling temperature; omitted when < 0")
+	format := fs.String("format", "", "Ollama JSON format (json or a JSON Schema object)")
 	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"response\":\"...\",\"eval_count\":0} on stdout")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -171,6 +172,16 @@ func (h *Handlers) Generate(args []string) error {
 	if err := validateContextWindow(text, *maxTokens, selected); err != nil {
 		return err
 	}
+	var formatJSON json.RawMessage
+	if strings.TrimSpace(*format) != "" {
+		if strings.TrimSpace(*format) == "json" {
+			formatJSON = json.RawMessage(`"json"`)
+		} else if !json.Valid([]byte(*format)) {
+			return fmt.Errorf("--format must be json or valid JSON Schema")
+		} else {
+			formatJSON = json.RawMessage(*format)
+		}
+	}
 
 	ctx, release, err := h.acquire(context.Background())
 	if err != nil {
@@ -182,7 +193,7 @@ func (h *Handlers) Generate(args []string) error {
 	// model thinking explicitly so thinking-capable models do not spend the
 	// caller's output budget on hidden reasoning and return an empty response.
 	think := false
-	req := ensure.GenerateRequest{Model: selected.Ref, Prompt: text, Think: &think}
+	req := ensure.GenerateRequest{Model: selected.Ref, Prompt: text, Think: &think, Format: formatJSON}
 	if *maxTokens > 0 {
 		req.NumPredict = maxTokens
 	}

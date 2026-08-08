@@ -269,13 +269,14 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	fs := flag.NewFlagSet("generate", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var (
-		role        string
-		model       string
-		promptFlag  string
-		promptFile  string
-		jsonOutput  bool
-		temperature float64
-		maxTokens   int
+		role           string
+		model          string
+		promptFlag     string
+		promptFile     string
+		jsonOutput     bool
+		temperature    float64
+		maxTokens      int
+		responseFormat string
 	)
 	fs.StringVar(&role, "role", "", "OpenRouter policy role to resolve (e.g. chat.default)")
 	fs.StringVar(&model, "model", "", "Concrete OpenRouter model slug (advanced override; prefer --role)")
@@ -284,6 +285,7 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	fs.BoolVar(&jsonOutput, "json", false, "Print raw OpenRouter response JSON")
 	fs.Float64Var(&temperature, "temperature", 0.7, "Sampling temperature")
 	fs.IntVar(&maxTokens, "max-tokens", 0, "Maximum completion tokens")
+	fs.StringVar(&responseFormat, "response-format", "", "OpenAI-compatible response_format JSON object")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			printGenerateUsage(stdout)
@@ -317,7 +319,14 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 		return err
 	}
 
-	body, err := health.Generate(context.Background(), http.DefaultClient, runtime, creds, model, prompt, temperature, maxTokens)
+	var responseFormatJSON json.RawMessage
+	if strings.TrimSpace(responseFormat) != "" {
+		if !json.Valid([]byte(responseFormat)) {
+			return fmt.Errorf("--response-format must be valid JSON")
+		}
+		responseFormatJSON = json.RawMessage(responseFormat)
+	}
+	body, err := health.Generate(context.Background(), http.DefaultClient, runtime, creds, model, prompt, temperature, maxTokens, responseFormatJSON)
 	if err != nil {
 		return err
 	}
@@ -527,7 +536,7 @@ func printListModelsUsage(stdout io.Writer) {
 
 func printGenerateUsage(stdout io.Writer) {
 	fmt.Fprintln(stdout, "Usage:")
-	fmt.Fprintln(stdout, "  resource-openrouter generate [--role <role>] [--temperature <value>] [--max-tokens <n>] [--json] [--prompt <text>]")
+	fmt.Fprintln(stdout, "  resource-openrouter generate [--role <role>] [--temperature <value>] [--max-tokens <n>] [--response-format <json>] [--json] [--prompt <text>]")
 	fmt.Fprintln(stdout, "  resource-openrouter generate --model <slug> ...   (advanced override; prefer --role)")
 	fmt.Fprintln(stdout, "  resource-openrouter generate <prompt text>")
 	fmt.Fprintln(stdout)

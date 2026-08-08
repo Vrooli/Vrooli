@@ -401,11 +401,13 @@ func (c *Client) Unload(ctx context.Context, model string) error {
 // always false at this layer — callers wanting NDJSON should add a separate
 // streaming entrypoint when needed.
 type GenerateRequest struct {
-	Model       string   `json:"model"`
-	Prompt      string   `json:"prompt"`
-	Think       *bool    `json:"think,omitempty"`
-	NumPredict  *int     `json:"num_predict,omitempty"`
-	Temperature *float64 `json:"temperature,omitempty"`
+	Model  string `json:"model"`
+	Prompt string `json:"prompt"`
+	Think  *bool  `json:"think,omitempty"`
+	// Format accepts Ollama's "json" shorthand or a JSON Schema object.
+	Format      json.RawMessage `json:"format,omitempty"`
+	NumPredict  *int            `json:"num_predict,omitempty"`
+	Temperature *float64        `json:"temperature,omitempty"`
 }
 
 // GenerateResponse captures the buffered (stream=false) shape.
@@ -425,16 +427,18 @@ func (c *Client) Generate(ctx context.Context, in GenerateRequest) (GenerateResp
 		options["temperature"] = *in.Temperature
 	}
 	requestBody := struct {
-		Model   string         `json:"model"`
-		Prompt  string         `json:"prompt"`
-		Stream  bool           `json:"stream"`
-		Think   *bool          `json:"think,omitempty"`
-		Options map[string]any `json:"options,omitempty"`
+		Model   string          `json:"model"`
+		Prompt  string          `json:"prompt"`
+		Stream  bool            `json:"stream"`
+		Think   *bool           `json:"think,omitempty"`
+		Format  json.RawMessage `json:"format,omitempty"`
+		Options map[string]any  `json:"options,omitempty"`
 	}{
 		Model:   in.Model,
 		Prompt:  in.Prompt,
 		Stream:  false,
 		Think:   in.Think,
+		Format:  in.Format,
 		Options: options,
 	}
 	if len(options) == 0 {
