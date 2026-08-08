@@ -140,9 +140,7 @@
               "name": "yes",
               "bool": true,
               "description": "Confirm deletion",
-              "bind": {
-                "field": "slug"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -174,9 +172,7 @@
               "name": "yes",
               "bool": true,
               "description": "Confirm regeneration",
-              "bind": {
-                "field": "slug"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -249,27 +245,21 @@
           "description": "Create or replace a manifest",
           "flags": [
             {
-              "name": "skill",
+              "name": "skill_id",
+              "aliases": ["skill"],
               "required": true,
-              "description": "Skill id",
-              "bind": {
-                "field": "manifest"
-              }
+              "description": "Skill id"
             },
             {
-              "name": "golden",
+              "name": "golden_slug",
+              "aliases": ["golden"],
               "required": true,
-              "description": "Golden slug",
-              "bind": {
-                "field": "manifest"
-              }
+              "description": "Golden slug"
             },
             {
-              "name": "allow",
-              "description": "Comma-separated list of allowed path globs",
-              "bind": {
-                "field": "manifest"
-              }
+              "name": "allowed_paths",
+              "aliases": ["allow"],
+              "description": "Comma-separated list of allowed path globs"
             },
             {
               "name": "wildcard-allowed",
@@ -277,26 +267,20 @@
               "description": "Allow any path (allowed_paths becomes advisory)"
             },
             {
-              "name": "convergence",
+              "name": "convergence_target",
+              "aliases": ["convergence"],
               "default": "none",
-              "description": "Convergence target: none | empty-diff",
-              "bind": {
-                "field": "manifest"
-              }
+              "description": "Convergence target: none | empty-diff"
             },
             {
-              "name": "template-version",
-              "description": "Pinned template version",
-              "bind": {
-                "field": "manifest"
-              }
+              "name": "template_version_pinned",
+              "aliases": ["template-version"],
+              "description": "Pinned template version"
             },
             {
-              "name": "skill-version",
-              "description": "Pinned skill version",
-              "bind": {
-                "field": "manifest"
-              }
+              "name": "skill_version_pinned",
+              "aliases": ["skill-version"],
+              "description": "Pinned skill version"
             }
           ],
           "binding": {
@@ -385,16 +369,17 @@
             {
               "name": "skill",
               "description": "Skill id (mutually exclusive with --tool)",
-              "bind": {
-                "field": "page_size"
-              }
+              "local_only": true
             },
             {
               "name": "tool",
               "description": "Tool name (mutually exclusive with --skill)",
-              "bind": {
-                "field": "tuple_kind"
-              }
+              "local_only": true
+            },
+            {
+              "name": "subject_id",
+              "aliases": ["subject"],
+              "description": "Subject id for programmatic invocation"
             },
             {
               "name": "golden",
@@ -648,16 +633,17 @@
             {
               "name": "skill",
               "description": "Skill id (mutually exclusive with --tool)",
-              "bind": {
-                "field": "tuple_kind"
-              }
+              "local_only": true
             },
             {
               "name": "tool",
               "description": "Tool name (mutually exclusive with --skill)",
-              "bind": {
-                "field": "tuple_kind"
-              }
+              "local_only": true
+            },
+            {
+              "name": "subject_id",
+              "aliases": ["subject"],
+              "description": "Subject id for programmatic invocation"
             },
             {
               "name": "golden",
@@ -676,17 +662,13 @@
               "name": "wait",
               "bool": true,
               "description": "Poll until the run reaches terminal status",
-              "bind": {
-                "field": "tuple_kind"
-              }
+              "local_only": true
             },
             {
               "name": "wait-timeout",
               "default": "300",
               "description": "Seconds to poll when --wait is set",
-              "bind": {
-                "field": "subject_id"
-              }
+              "local_only": true
             }
           ],
           "binding": {

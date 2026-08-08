@@ -25,7 +25,7 @@ describe('Electron-backed SessionManager sessions', () => {
     const manager = new SessionManager(createTestConfig());
     const result = await manager.startSession({
       execution_id: 'electron-exec',
-      workflow_id: 'desktop-workflow',
+      workflow_id: 'adhoc-index-uuid',
       viewport: { width: 1280, height: 720 },
       reuse_mode: 'fresh',
       browser_profile: { extra_headers: { 'X-Vrooli-Test-Mode': '1' } },
@@ -35,8 +35,19 @@ describe('Electron-backed SessionManager sessions', () => {
         renderer_id: 'renderer-1',
         renderer_url: 'file:///controlled/index.html',
         renderer_title: 'Controlled Desktop',
+        scenario_name: 'controlled-scenario',
+        artifact_digest: 'sha256:controlled',
         context_id: 'ctx-1',
         cdp_transport: 'loopback-authenticated',
+      },
+      validation_context: {
+        context_id: 'ctx-1',
+        scenario_name: 'controlled-scenario',
+        artifact_digest: 'sha256:controlled',
+        target_id: 'target-1',
+        workflow_id: 'secrets-manager:bas/cases/01-foundation/dashboard-smoke.json',
+        profile_id: 'normal',
+        isolation_lease_id: 'lease-1',
       },
     });
 

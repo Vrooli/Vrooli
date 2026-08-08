@@ -31,7 +31,7 @@ func NewService(client BASClient) *Service {
 	}
 }
 
-func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts Options) (Report, error) {
+func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts Options) (report Report, err error) {
 	if s == nil {
 		return Report{}, fmt.Errorf("execution service is nil")
 	}
@@ -43,7 +43,7 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 	if err != nil {
 		return Report{}, err
 	}
-	report := Report{
+	report = Report{
 		Scenario:  static.Scenario,
 		TargetDir: static.TargetPath,
 		Static:    static,
@@ -60,12 +60,15 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 		return report, fmt.Errorf("BAS client is required when execution is enabled")
 	}
 	isolationInstalled := false
+	executionCtx := ctx
+	var isolationLease IsolationLease
 	if opts.Isolation != nil && !opts.DryRun {
 		lease, err := opts.Isolation.Acquire(ctx, scenario, firstNonEmpty(opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().UnixNano())))
 		if err != nil {
 			report.Isolation.InstallError = err.Error()
 			report.Findings = append(report.Findings, isolationFinding("routed test isolation was not installed: "+err.Error()))
 		} else {
+			isolationLease = lease
 			report.Isolation = lease.Evidence()
 			// Electron validation binds the workflow to the provider-issued lease,
 			// so a coordinator that reports installation without a stable lease
@@ -77,12 +80,27 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 				report.Isolation.Installed = true
 				isolationInstalled = true
 			}
+			runCtx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			if health, ok := lease.(leaseHealth); ok {
+				go func() {
+					select {
+					case <-health.Done():
+						cancel()
+					case <-runCtx.Done():
+					}
+				}()
+			}
 			if opts.ExtraHeaders == nil {
 				opts.ExtraHeaders = map[string]string{}
 			}
 			opts.ExtraHeaders["X-Vrooli-Test-Mode"] = "1"
 			defer func() {
 				report.Isolation = lease.Close(context.Background())
+				if heartbeatErr := isolationHealthError(lease); heartbeatErr != nil {
+					report.Isolation.HeartbeatError = heartbeatErr.Error()
+					report.Findings = append(report.Findings, isolationFinding("routed test isolation heartbeat failed: "+heartbeatErr.Error()))
+				}
 				if report.Isolation.ClearError != "" {
 					report.Findings = append(report.Findings, isolationFinding("routed test isolation cleanup failed: "+report.Isolation.ClearError))
 				}
@@ -91,6 +109,7 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 				}
 				validation.SortFindings(report.Findings)
 			}()
+			executionCtx = runCtx
 		}
 	}
 	// Resolve the target to an absolute path before it feeds workflow reads or
@@ -102,7 +121,7 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 	}
 	writer := artifacts.NewWriter(targetDir, firstNonEmpty(opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().Unix())))
 	for _, asset := range selected {
-		run := s.runAsset(ctx, writer, asset, targetDir, opts, isolationInstalled)
+		run := s.runAsset(executionCtx, writer, asset, targetDir, opts, isolationInstalled, isolationLease)
 		report.Runs = append(report.Runs, run)
 		switch {
 		case run.Refused:
@@ -133,7 +152,19 @@ func isolationFinding(description string) validation.Finding {
 	}
 }
 
-func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset workflows.WorkflowAsset, targetDir string, opts Options, isolationInstalled bool) (run WorkflowRun) {
+type leaseHealth interface {
+	Done() <-chan struct{}
+	Err() error
+}
+
+func isolationHealthError(lease IsolationLease) error {
+	if health, ok := lease.(leaseHealth); ok {
+		return health.Err()
+	}
+	return nil
+}
+
+func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset workflows.WorkflowAsset, targetDir string, opts Options, isolationInstalled bool, lease IsolationLease) (run WorkflowRun) {
 	started := s.now()
 	run = WorkflowRun{Asset: asset, StartedAt: started}
 	defer func() {
@@ -164,6 +195,12 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 			run.Artifact = artifact
 		}
 	}()
+	if heartbeatErr := isolationHealthError(lease); heartbeatErr != nil {
+		run.Refused = true
+		run.Status = "refused"
+		run.Error = "isolation lease health failed: " + heartbeatErr.Error()
+		return run
+	}
 	electronTarget, validationContext, electronErr := bindElectronValidation(asset, opts, isolationInstalled)
 	if electronErr != "" {
 		run.Refused = true
@@ -223,7 +260,16 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 	})
 	if err != nil {
 		run.Status = "failed"
-		run.Error = err.Error()
+		if heartbeatErr := isolationHealthError(lease); heartbeatErr != nil {
+			run.Error = "isolation lease health failed: " + heartbeatErr.Error()
+		} else {
+			run.Error = err.Error()
+		}
+		return run
+	}
+	if heartbeatErr := isolationHealthError(lease); heartbeatErr != nil {
+		run.Status = "failed"
+		run.Error = "isolation lease health failed: " + heartbeatErr.Error()
 		return run
 	}
 	run.ExecutionID = result.ExecutionID

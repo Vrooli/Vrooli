@@ -68,6 +68,26 @@ func TestCORSMiddleware(t *testing.T) {
 		}
 	})
 
+	t.Run("validation renderer origin and headers are admitted", func(t *testing.T) {
+		middleware := CORSMiddleware(CORSConfig{UIPort: "3000"})
+		wrapped := middleware(handler)
+		req := httptest.NewRequest(http.MethodOptions, "/api/v1/test-fixtures/desktop-evidence", nil)
+		req.Header.Set("Origin", "http://127.0.0.1:24100")
+		req.Header.Set("X-Vrooli-Test-Mode", "1")
+		req.Header.Set("Access-Control-Request-Headers", "x-vrooli-test-mode,x-vrooli-validation-context")
+		rr := httptest.NewRecorder()
+
+		wrapped.ServeHTTP(rr, req)
+
+		if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "http://127.0.0.1:24100" {
+			t.Errorf("expected validation renderer origin, got %q", got)
+		}
+		allowed := rr.Header().Get("Access-Control-Allow-Headers")
+		if !strings.Contains(allowed, "X-Vrooli-Test-Mode") || !strings.Contains(allowed, "X-Vrooli-Validation-Context") {
+			t.Errorf("validation headers not admitted: %q", allowed)
+		}
+	})
+
 	t.Run("OPTIONS request returns OK", func(t *testing.T) {
 		middleware := CORSMiddleware(CORSConfig{
 			AllowedOrigin: "https://example.com",

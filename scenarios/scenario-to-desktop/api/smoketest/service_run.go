@@ -2,6 +2,7 @@ package smoketest
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -472,6 +473,7 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 	}()
 
 	journey := s.runDesktopJourney(ctx, smokeTestID, scenarioName, platform, rec)
+	attachWorkflowReference(&journey)
 	journeyID := s.persistJourney(journey)
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.JourneyCaptureID = journeyID
@@ -502,6 +504,98 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 		})
 	}
 	return &journey
+}
+
+// attachWorkflowReference consumes the provider-neutral handoff produced by
+// the semantic workflow owner. The desktop runner does not discover or run a
+// provider; it only binds an optional reference to the target/cell identity
+// supplied by the validation orchestrator.
+func attachWorkflowReference(journey *JourneyResult) {
+	if journey == nil {
+		return
+	}
+	journey.TargetID = strings.TrimSpace(os.Getenv("S2D_VALIDATION_TARGET_ID"))
+	journey.CellID = strings.TrimSpace(os.Getenv("S2D_VALIDATION_CELL_ID"))
+	path := strings.TrimSpace(os.Getenv("S2D_WORKFLOW_EVIDENCE_REFERENCE"))
+	if path == "" {
+		return
+	}
+	journey.WorkflowRequired = true
+	data, err := os.ReadFile(path)
+	if err != nil {
+		journey.Disposition = JourneyDispositionFailed
+		journey.DegradedReason = fmt.Sprintf("workflow evidence reference unavailable: %v", err)
+		appendWorkflowChapter(journey, nil, journey.DegradedReason)
+		return
+	}
+	var reference WorkflowExecutionReference
+	if err := json.Unmarshal(data, &reference); err != nil {
+		journey.Disposition = JourneyDispositionFailed
+		journey.DegradedReason = fmt.Sprintf("workflow evidence reference is invalid: %v", err)
+		appendWorkflowChapter(journey, nil, journey.DegradedReason)
+		return
+	}
+	// The provider may finish before the desktop smoke run receives its
+	// server-generated ID. In that case the orchestrator leaves the shared run
+	// identity empty and this target-owned ingestion seam binds it exactly once
+	// to the desktop journey. Provider execution identity remains separate.
+	if strings.TrimSpace(reference.RunID) == "" {
+		reference.RunID = journey.SmokeTestID
+	}
+	if strings.TrimSpace(reference.TargetID) == "" {
+		reference.TargetID = journey.TargetID
+	}
+	if strings.TrimSpace(reference.CellID) == "" {
+		reference.CellID = journey.CellID
+	}
+	journey.WorkflowReference = &reference
+	if !strings.EqualFold(reference.Disposition, JourneyDispositionPass) && !strings.EqualFold(reference.Disposition, "passed") {
+		journey.Disposition = JourneyDispositionFailed
+	}
+	appendWorkflowChapter(journey, &reference, "")
+}
+
+func appendWorkflowChapter(journey *JourneyResult, reference *WorkflowExecutionReference, reason string) {
+	if journey == nil {
+		return
+	}
+	start := journey.CompletedAt
+	if start.IsZero() {
+		start = time.Now().UTC()
+	}
+	monotonicStart := int64(0)
+	if len(journey.Steps) > 0 {
+		monotonicStart = journey.Steps[len(journey.Steps)-1].MonotonicEndMs + 1
+	}
+	end := start.Add(time.Millisecond)
+	monotonicEnd := monotonicStart + 1
+	disposition := JourneyStepFailed
+	observed := "unavailable"
+	assertionID := "workflow-reference"
+	if reference != nil {
+		observed = reference.Disposition
+		assertionID = "workflow-execution:" + reference.ExecutionID
+		switch strings.ToLower(strings.TrimSpace(reference.Disposition)) {
+		case JourneyDispositionPass, "passed":
+			disposition = JourneyStepPassed
+		case JourneyDispositionDegraded:
+			disposition = JourneyStepDegraded
+		case JourneyDispositionUnavailable, JourneyDispositionUnsupported, JourneyDispositionNotRun:
+			disposition = JourneyStepUnavailable
+		}
+	}
+	step := JourneyStep{
+		ID: "workflow", Name: "semantic_workflow", Purpose: "Prove the provider-owned scenario workflow passes in the generated desktop target.",
+		Action: "workflow_execution", Disposition: disposition, AssertionID: assertionID,
+		ExpectedState: "provider workflow passed", ObservedState: observed, Error: reason,
+		StartedAt: start, CompletedAt: end, MonotonicStartMs: monotonicStart, MonotonicEndMs: monotonicEnd,
+	}
+	if reference != nil {
+		step.Evidence = append(step.Evidence, reference.Artifacts...)
+	}
+	journey.Steps = append(journey.Steps, step)
+	journey.Events = append(journey.Events, JourneyEvent{Type: "workflow_completed", StepID: step.ID, Observed: observed, StartedAt: start, CompletedAt: end, MonotonicStartMs: monotonicStart, MonotonicEndMs: monotonicEnd, Reason: reason})
+	journey.CompletedAt = end
 }
 
 // reportJourneyEvidence is deliberately called after finalizeRecording. A

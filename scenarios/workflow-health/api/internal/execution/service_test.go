@@ -3,8 +3,10 @@ package execution
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -250,6 +252,59 @@ func TestRunScenarioBindsElectronValidationToSelectedAsset(t *testing.T) {
 	require.Equal(t, "lease-1", client.lastRequest.Options.ValidationContext.IsolationLeaseID)
 }
 
+func TestRunScenarioStopsWhenIsolationHeartbeatFails(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	client := &fakeBASClient{waitForContext: true, started: make(chan struct{})}
+	isolation := &fakeIsolation{
+		evidence:   IsolationEvidence{LeaseID: "lease-1"},
+		healthDone: make(chan struct{}),
+		healthErr:  fmt.Errorf("heartbeat unavailable"),
+	}
+	close(isolation.healthDone)
+
+	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{
+		IncludeExecution: true,
+		Isolation:        isolation,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Summary.Refused)
+	require.True(t, report.Runs[0].Refused)
+	require.Contains(t, report.Runs[0].Error, "heartbeat unavailable")
+	require.Contains(t, report.Isolation.HeartbeatError, "heartbeat unavailable")
+	require.Contains(t, report.Findings, validation.Finding{
+		Code:        validation.CodeExecutionRefused,
+		Severity:    validation.SeverityError,
+		Title:       "Routed test isolation unavailable",
+		Description: "routed test isolation heartbeat failed: heartbeat unavailable",
+		Remediation: "Wire database.RoutedDB, test-mode middleware, and devrouting file roots on the target scenario.",
+	})
+}
+
+func TestRunScenarioCancelsBASWhenIsolationHeartbeatFailsDuringExecution(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	isolation := &fakeIsolation{evidence: IsolationEvidence{LeaseID: "lease-1"}, healthDone: make(chan struct{})}
+	client := &fakeBASClient{
+		waitForContext: true,
+		cancelled:      make(chan struct{}),
+		onExecute: func() {
+			isolation.failHealth(fmt.Errorf("heartbeat lost during execution"))
+		},
+	}
+
+	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{
+		IncludeExecution: true,
+		Isolation:        isolation,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Summary.Failed)
+	require.Contains(t, report.Runs[0].Error, "heartbeat lost during execution")
+	select {
+	case <-client.cancelled:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("BAS execution was not canceled after the isolation heartbeat failed")
+	}
+}
+
 func makeExecutionFixture(t *testing.T, mutating bool) string {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "sample")
@@ -294,13 +349,17 @@ func writeFixtureJSON(t *testing.T, path string, value any) {
 }
 
 type fakeBASClient struct {
-	validateCalls int
-	executeCalls  int
-	timelineCalls int
-	validate      *ValidationResult
-	result        *ExecuteResult
-	timeline      *bastimeline.ExecutionTimeline
-	lastRequest   ExecuteRequest
+	validateCalls  int
+	executeCalls   int
+	timelineCalls  int
+	validate       *ValidationResult
+	result         *ExecuteResult
+	timeline       *bastimeline.ExecutionTimeline
+	lastRequest    ExecuteRequest
+	waitForContext bool
+	started        chan struct{}
+	cancelled      chan struct{}
+	onExecute      func()
 }
 
 type fakeIsolation struct {
@@ -308,6 +367,10 @@ type fakeIsolation struct {
 	acquireErr error
 	acquired   bool
 	closed     bool
+	healthDone chan struct{}
+	healthErr  error
+	healthMu   sync.Mutex
+	healthOnce sync.Once
 }
 
 func (f *fakeIsolation) Acquire(context.Context, string, string) (IsolationLease, error) {
@@ -325,6 +388,21 @@ func (f *fakeIsolation) Close(context.Context) IsolationEvidence {
 	return f.evidence
 }
 
+func (f *fakeIsolation) Done() <-chan struct{} { return f.healthDone }
+
+func (f *fakeIsolation) Err() error {
+	f.healthMu.Lock()
+	defer f.healthMu.Unlock()
+	return f.healthErr
+}
+
+func (f *fakeIsolation) failHealth(err error) {
+	f.healthMu.Lock()
+	f.healthErr = err
+	f.healthMu.Unlock()
+	f.healthOnce.Do(func() { close(f.healthDone) })
+}
+
 func (f *fakeBASClient) ValidateResolved(context.Context, map[string]any) (*ValidationResult, error) {
 	f.validateCalls++
 	if f.validate != nil {
@@ -333,9 +411,26 @@ func (f *fakeBASClient) ValidateResolved(context.Context, map[string]any) (*Vali
 	return &ValidationResult{Valid: true}, nil
 }
 
-func (f *fakeBASClient) ExecuteAdhoc(_ context.Context, req ExecuteRequest) (*ExecuteResult, error) {
+func (f *fakeBASClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error) {
 	f.executeCalls++
 	f.lastRequest = req
+	if f.onExecute != nil {
+		f.onExecute()
+	}
+	if f.waitForContext {
+		if f.started != nil {
+			close(f.started)
+		}
+		select {
+		case <-ctx.Done():
+			if f.cancelled != nil {
+				close(f.cancelled)
+			}
+			return nil, ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+			return &ExecuteResult{ExecutionID: "exec", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED}, nil
+		}
+	}
 	if f.result != nil {
 		return f.result, nil
 	}

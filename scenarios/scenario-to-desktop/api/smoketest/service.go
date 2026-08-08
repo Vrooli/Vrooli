@@ -190,6 +190,7 @@ type EvidenceManifestInput struct {
 	StartedAt               time.Time
 	CompletedAt             time.Time
 	Journey                 *JourneyResult
+	WorkflowReference       *WorkflowExecutionReference
 	Captures                []captures.Capture
 	GovernanceReported      bool
 	ProtocolTracePath       string

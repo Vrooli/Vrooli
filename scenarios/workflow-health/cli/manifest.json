@@ -186,12 +186,10 @@
               }
             },
             {
-              "name": "apply",
-              "bool": true,
-              "description": "Apply the previewed fixes instead of reporting only",
-              "bind": {
-                "field": "path"
-              }
+      "name": "apply",
+      "bool": true,
+      "description": "Apply the previewed fixes instead of reporting only",
+      "local_only": true
             }
           ],
           "binding": {

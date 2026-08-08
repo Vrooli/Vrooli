@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -138,6 +140,92 @@ func TestDesktopJourney_RegisteredFixtureProducesReviewableTimeline(t *testing.T
 	}
 	if waiter.waitCount != len(result.Steps) || waiter.settleCount != len(result.Steps) {
 		t.Fatalf("wait/settle calls = %d/%d, want %d/%d", waiter.waitCount, waiter.settleCount, len(result.Steps), len(result.Steps))
+	}
+}
+
+func TestDesktopJourney_DefaultsToPlatformOnlyFixtureForNonHelloScenario(t *testing.T) {
+	driver := &journeyTestDriver{geometry: &procmetrics.WindowGeometry{Width: 1280, Height: 720}}
+	waiter := &journeyTestWaiter{}
+	service := &DefaultService{
+		journeyDriver:  driver,
+		journeyClock:   RealClock{},
+		journeyWaiter:  waiter,
+		journeyCapture: &journeyTestCapture{},
+	}
+	result := service.runDesktopJourney(context.Background(), "smoke-2", "scenario-to-desktop", "linux", recordingState{
+		captureID: "recording-2", displayID: ":99", displayWidth: 1280, displayHeight: 720, windowManager: "openbox", titlebar: true,
+	})
+
+	if result.Disposition != journeyPass {
+		t.Fatalf("disposition = %q, want pass: %+v", result.Disposition, result)
+	}
+	if result.Capability != "desktop.launch.baseline" || result.PlanID != "desktop.launch.baseline.v2" {
+		t.Fatalf("non-Hello scenario selected the wrong platform fixture: %+v", result)
+	}
+	if len(result.Steps) != 7 {
+		t.Fatalf("platform-only fixture steps = %d, want 7", len(result.Steps))
+	}
+	for _, step := range result.Steps {
+		if step.Action == "semantic_greet" {
+			t.Fatal("platform-only fixture must not invoke Hello Desktop semantic validation")
+		}
+	}
+}
+
+func TestWorkflowExecutionReferenceRequiresSharedValidationIdentity(t *testing.T) {
+	reference := WorkflowExecutionReference{
+		Provider: "workflow-provider", AssetID: "asset-1", ExecutionID: "execution-1",
+		RunID: "run-1", ArtifactDigest: "sha256:artifact", TargetID: "target-1",
+		CellID: "cell-1", Disposition: JourneyDispositionPass,
+		Artifacts: []EvidenceReference{{ID: "workflow-trace", Kind: "trace", URI: "evidence/workflow-trace.json", Checksum: "sha256:trace", Redacted: true}},
+	}
+	if err := reference.ValidateLink("run-1", "sha256:artifact", "target-1", "cell-1"); err != nil {
+		t.Fatalf("valid workflow reference rejected: %v", err)
+	}
+	if err := reference.ValidateLink("other-run", "sha256:artifact", "target-1", "cell-1"); err == nil {
+		t.Fatal("workflow reference with a different run must be rejected")
+	}
+	missingArtifacts := reference
+	missingArtifacts.Artifacts = nil
+	if err := missingArtifacts.ValidateLink("run-1", "sha256:artifact", "target-1", "cell-1"); err == nil {
+		t.Fatal("passing workflow reference without artifacts must be rejected")
+	}
+}
+
+func TestAttachWorkflowReferenceBindsDesktopRunIdentity(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "workflow-reference.json")
+	data := `{"provider":"workflow-health","asset_id":"asset-1","execution_id":"execution-1","artifact_digest":"sha256:artifact","target_id":"target-1","cell_id":"cell-1","disposition":"pass","artifacts":[{"id":"summary","kind":"workflow-summary","uri":"coverage/summary.json","checksum":"sha256:summary","redacted":true}]}`
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("S2D_VALIDATION_TARGET_ID", "target-1")
+	t.Setenv("S2D_VALIDATION_CELL_ID", "cell-1")
+	t.Setenv("S2D_WORKFLOW_EVIDENCE_REFERENCE", path)
+
+	journey := JourneyResult{SmokeTestID: "desktop-run-1", TargetID: "target-1", CellID: "cell-1", Disposition: JourneyDispositionPass}
+	attachWorkflowReference(&journey)
+	if journey.WorkflowReference == nil || journey.WorkflowReference.RunID != journey.SmokeTestID {
+		t.Fatalf("workflow reference was not bound to desktop run: %+v", journey.WorkflowReference)
+	}
+}
+
+func TestAppendWorkflowChapterKeepsJourneyTimelineOrdered(t *testing.T) {
+	start := time.Date(2026, 8, 7, 15, 0, 0, 0, time.UTC)
+	journey := JourneyResult{
+		SchemaVersion: JourneySchemaVersion, EvidenceVersion: "journey-evidence.v2", SmokeTestID: "run-1",
+		ScenarioName: "fixture", Capability: "desktop.launch.baseline", PlanID: "desktop.launch.baseline.v2",
+		CreatedAt: start, CompletedAt: start.Add(time.Second), Steps: []JourneyStep{{ID: "launch", StartedAt: start, CompletedAt: start.Add(time.Second), MonotonicStartMs: 0, MonotonicEndMs: 10}},
+	}
+	ref := &WorkflowExecutionReference{Provider: "workflow-provider", AssetID: "asset-1", ExecutionID: "execution-1", RunID: "run-1", ArtifactDigest: "sha256:artifact", TargetID: "target-1", CellID: "cell-1", Disposition: JourneyDispositionPass, Artifacts: []EvidenceReference{{ID: "workflow-trace", Kind: "trace", URI: "evidence/workflow-trace.json", Checksum: "sha256:trace", Redacted: true}}}
+	appendWorkflowChapter(&journey, ref, "")
+	if err := ValidateJourneyTimeline(journey); err != nil {
+		t.Fatalf("combined journey should remain ordered: %v", err)
+	}
+	if got := journey.Steps[len(journey.Steps)-1]; got.ID != "workflow" || got.Action != "workflow_execution" || got.Disposition != JourneyStepPassed {
+		t.Fatalf("unexpected workflow chapter: %+v", got)
+	}
+	if len(journey.Events) != 1 || journey.Events[0].Type != "workflow_completed" {
+		t.Fatalf("workflow completion event missing: %+v", journey.Events)
 	}
 }
 

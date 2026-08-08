@@ -721,9 +721,7 @@
               "name": "all",
               "bool": true,
               "description": "Include already-decided requests",
-              "bind": {
-                "field": "include_decided"
-              }
+              "local_only": true
             }
           ],
           "binding": {

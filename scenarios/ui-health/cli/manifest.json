@@ -22,12 +22,10 @@
           ],
           "flags": [
             {
-              "name": "static-only",
-              "bool": true,
-              "description": "Run static checks only (manifest, interop, standards, freshness); skip the BAS-driven runtime/render group and any auto-start",
-              "bind": {
-                "field": "scenario"
-              }
+      "name": "static-only",
+      "bool": true,
+      "description": "Run static checks only (manifest, interop, standards, freshness); skip the BAS-driven runtime/render group and any auto-start",
+      "local_only": true
             }
           ],
           "binding": {
@@ -54,12 +52,12 @@
           "description": "Search the indexed corpus by natural-language text",
           "positionals": [
             {
-              "name": "text",
-              "required": true,
-              "description": "Natural-language query",
-              "bind": {
-                "field": "mode"
-              }
+      "name": "text",
+      "required": true,
+      "description": "Natural-language query",
+      "bind": {
+        "field": "query"
+      }
             }
           ],
           "flags": [

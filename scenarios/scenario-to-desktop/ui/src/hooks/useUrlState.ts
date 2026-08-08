@@ -10,7 +10,8 @@ export type ViewMode =
   | "inventory"
   | "docs"
   | "records"
-  | "signing";
+  | "signing"
+  | "validation";
 
 interface UrlParams {
   view?: ViewMode;

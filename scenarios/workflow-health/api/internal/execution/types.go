@@ -58,6 +58,7 @@ type IsolationEvidence struct {
 	Installed                       bool
 	LeaseID                         string
 	InstallError                    string
+	HeartbeatError                  string
 	ClearError                      string
 	TestPoolRequests                int64
 	PrimaryDuringTestModeRequests   int64

@@ -617,12 +617,10 @@
           ],
           "flags": [
             {
-              "name": "file",
-              "required": true,
-              "description": "Telemetry JSONL file",
-              "bind": {
-                "field": "scenario_name"
-              }
+      "name": "file",
+      "required": true,
+      "description": "Telemetry JSONL file",
+      "local_only": true
             },
             {
               "name": "source",
@@ -1269,20 +1267,16 @@
           ],
           "flags": [
             {
-              "name": "scenario",
-              "required": true,
-              "description": "Remote deployment scenario",
-              "bind": {
-                "field": "target"
-              }
+      "name": "scenario",
+      "required": true,
+      "description": "Remote deployment scenario",
+      "local_only": true
             },
             {
-              "name": "profile",
-              "required": true,
-              "description": "Remote deployment profile",
-              "bind": {
-                "field": "target"
-              }
+      "name": "profile",
+      "required": true,
+      "description": "Remote deployment profile",
+      "local_only": true
             },
             {
               "name": "label",

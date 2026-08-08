@@ -85,10 +85,34 @@ type Artifact struct {
 }
 
 type Target struct {
+	ID         string `json:"id,omitempty"`
 	Ramp       string `json:"ramp"`
 	Platform   string `json:"platform"`
 	OS         string `json:"os"`
 	DeviceKind string `json:"device_kind"`
+}
+
+type WorkflowArtifactReference struct {
+	ID        string `json:"id"`
+	Kind      string `json:"kind"`
+	URI       string `json:"uri"`
+	MediaType string `json:"media_type,omitempty"`
+	Checksum  string `json:"checksum"`
+	Redacted  bool   `json:"redacted"`
+}
+
+// WorkflowReference is provider-neutral evidence linkage. It intentionally
+// carries references, not provider-specific execution clients or semantics.
+type WorkflowReference struct {
+	Provider       string                      `json:"provider"`
+	AssetID        string                      `json:"asset_id"`
+	ExecutionID    string                      `json:"execution_id"`
+	RunID          string                      `json:"run_id"`
+	ArtifactDigest string                      `json:"artifact_digest"`
+	TargetID       string                      `json:"target_id"`
+	CellID         string                      `json:"cell_id"`
+	Disposition    string                      `json:"disposition"`
+	Artifacts      []WorkflowArtifactReference `json:"artifacts,omitempty"`
 }
 
 type Runner struct {
@@ -108,16 +132,18 @@ type Provenance struct {
 }
 
 type TimelineSummary struct {
-	Version          string   `json:"version"`
-	JourneyRef       string   `json:"journey_ref"`
-	Capability       string   `json:"capability,omitempty"`
-	ProviderTier     string   `json:"provider_tier,omitempty"`
-	SafeRouteClass   string   `json:"safe_route_class,omitempty"`
-	FallbackDecision string   `json:"fallback_decision,omitempty"`
-	ChapterIDs       []string `json:"chapter_ids"`
-	EventCount       int      `json:"event_count"`
-	Ordered          bool     `json:"ordered"`
-	RedactionStatus  string   `json:"redaction_status"`
+	Version          string             `json:"version"`
+	JourneyRef       string             `json:"journey_ref"`
+	Capability       string             `json:"capability,omitempty"`
+	ProviderTier     string             `json:"provider_tier,omitempty"`
+	SafeRouteClass   string             `json:"safe_route_class,omitempty"`
+	FallbackDecision string             `json:"fallback_decision,omitempty"`
+	ChapterIDs       []string           `json:"chapter_ids"`
+	EventCount       int                `json:"event_count"`
+	Ordered          bool               `json:"ordered"`
+	RedactionStatus  string             `json:"redaction_status"`
+	WorkflowRequired bool               `json:"workflow_required,omitempty"`
+	Workflow         *WorkflowReference `json:"workflow,omitempty"`
 }
 
 // PerformanceEvidence is independent from capability gates. Missing data is
@@ -143,12 +169,39 @@ type Manifest struct {
 	Profile       Profile             `json:"profile"`
 	State         RunState            `json:"state"`
 	Target        Target              `json:"target"`
+	CellID        string              `json:"cell_id,omitempty"`
 	Runner        Runner              `json:"runner"`
 	Provenance    Provenance          `json:"provenance"`
 	Timeline      TimelineSummary     `json:"timeline"`
 	Gates         []GateResult        `json:"gates"`
 	Artifacts     []Artifact          `json:"artifacts"`
 	Performance   PerformanceEvidence `json:"performance"`
+}
+
+func validateWorkflowReference(ref WorkflowReference, runID, artifactDigest, targetID, cellID string) error {
+	for name, value := range map[string]string{
+		"provider": ref.Provider, "asset_id": ref.AssetID, "execution_id": ref.ExecutionID,
+		"run_id": ref.RunID, "artifact_digest": ref.ArtifactDigest, "target_id": ref.TargetID,
+		"cell_id": ref.CellID, "disposition": ref.Disposition,
+	} {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("workflow reference %s is required", name)
+		}
+	}
+	if ref.RunID != runID || ref.ArtifactDigest != artifactDigest || ref.TargetID != targetID || ref.CellID != cellID {
+		return fmt.Errorf("workflow reference is not bound to the desktop validation identity")
+	}
+	if strings.EqualFold(ref.Disposition, "pass") || strings.EqualFold(ref.Disposition, "passed") {
+		if len(ref.Artifacts) == 0 {
+			return fmt.Errorf("passing workflow reference requires artifacts")
+		}
+		for index, artifact := range ref.Artifacts {
+			if strings.TrimSpace(artifact.ID) == "" || strings.TrimSpace(artifact.Kind) == "" || strings.TrimSpace(artifact.URI) == "" || strings.TrimSpace(artifact.Checksum) == "" || !artifact.Redacted {
+				return fmt.Errorf("workflow artifact %d is missing identity or checksum", index)
+			}
+		}
+	}
+	return nil
 }
 
 var transitionTable = map[RunState][]RunState{
@@ -229,6 +282,17 @@ func (m Manifest) Validate() error {
 		}
 		if m.Timeline.RedactionStatus != "verified" {
 			return fmt.Errorf("timeline redaction is not verified")
+		}
+		if m.Timeline.WorkflowRequired && m.Timeline.Workflow == nil {
+			return fmt.Errorf("required workflow reference is missing")
+		}
+		if m.Timeline.Workflow != nil {
+			if err := validateWorkflowReference(*m.Timeline.Workflow, m.RunID, m.Provenance.ArtifactDigest, m.Target.ID, m.CellID); err != nil {
+				return err
+			}
+			if m.Timeline.WorkflowRequired && !strings.EqualFold(m.Timeline.Workflow.Disposition, "pass") && !strings.EqualFold(m.Timeline.Workflow.Disposition, "passed") {
+				return fmt.Errorf("required workflow reference disposition is %q", m.Timeline.Workflow.Disposition)
+			}
 		}
 	}
 

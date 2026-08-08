@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-desktop",
   "generator": "v1.0.0",
-  "manifest_hash": "b80bd98a142e19140854d2416f64e2e8edf5e63cbaf62e7b792ab39c6f0ac193",
+  "manifest_hash": "94ff0b68ba89804ae9a012c4aff905b62bfb170db877fbe8f8bd1a19fce9397c",
   "commands": [
     {
       "path": "build get",

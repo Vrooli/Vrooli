@@ -82,23 +82,33 @@ export async function verifyElectronRenderer(target: ElectronTargetSpec): Promis
   }
   const renderer = matches[0];
   if (!renderer) throw new Error('Electron renderer identity is missing');
-  if (renderer.url !== target.renderer_url) {
-    throw new Error('Electron renderer URL changed after target admission');
-  }
-  if (target.renderer_title !== undefined && renderer.title !== target.renderer_title) {
-    throw new Error('Electron renderer title changed after target admission');
+  if (!isAllowedRendererNavigation(target.renderer_url, renderer.url)) {
+    throw new Error('Electron renderer navigated outside the admitted origin');
   }
 }
 
 export async function selectElectronPage(pages: Page[], target: ElectronTargetSpec): Promise<Page> {
   const matches = pages.filter((page) => page.url() === target.renderer_url);
   if (matches.length !== 1) {
+    if (matches.length === 0 && pages.length === 1) {
+      const onlyPage = pages[0];
+      if (onlyPage && isAllowedRendererNavigation(target.renderer_url, onlyPage.url())) {
+        return onlyPage;
+      }
+    }
     throw new Error(`Electron renderer page identity is ${matches.length === 0 ? 'missing' : 'ambiguous'}`);
   }
   const page = matches[0];
   if (!page) throw new Error('Electron renderer page identity is missing');
-  if (target.renderer_title !== undefined && await page.title() !== target.renderer_title) {
-    throw new Error('Electron renderer page title changed after target admission');
-  }
   return page;
+}
+
+function isAllowedRendererNavigation(admittedURL: string, currentURL: string): boolean {
+  try {
+    const admitted = new URL(admittedURL);
+    const current = new URL(currentURL);
+    return admitted.protocol === current.protocol && admitted.host === current.host;
+  } catch {
+    return false;
+  }
 }

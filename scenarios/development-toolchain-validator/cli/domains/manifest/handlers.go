@@ -70,10 +70,10 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) upsert(ctx cliapp.RunContext) error {
-	skill := ctx.Flag("skill")
-	golden := ctx.Flag("golden")
-	allowedPaths := splitNonEmpty(ctx.Flag("allow"))
-	convergence := parseConvergence(ctx.Flag("convergence"))
+	skill := ctx.Flag("skill_id")
+	golden := ctx.Flag("golden_slug")
+	allowedPaths := splitNonEmpty(ctx.Flag("allowed_paths"))
+	convergence := parseConvergence(ctx.Flag("convergence_target"))
 	wildcard := ctx.BoolFlag("wildcard-allowed")
 
 	m := &manifestv1.Manifest{
@@ -82,8 +82,8 @@ func (h *handlers) upsert(ctx cliapp.RunContext) error {
 		AllowedPaths:          allowedPaths,
 		WildcardAllowed:       wildcard,
 		ConvergenceTarget:     convergence,
-		TemplateVersionPinned: ctx.Flag("template-version"),
-		SkillVersionPinned:    ctx.Flag("skill-version"),
+		TemplateVersionPinned: ctx.Flag("template_version_pinned"),
+		SkillVersionPinned:    ctx.Flag("skill_version_pinned"),
 	}
 	resp, err := h.client.UpsertManifest(context.Background(), connect.NewRequest(&manifestv1.UpsertManifestRequest{Manifest: m}))
 	if err != nil {

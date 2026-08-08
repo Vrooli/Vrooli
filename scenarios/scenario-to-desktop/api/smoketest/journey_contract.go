@@ -150,9 +150,57 @@ type JourneyEvent struct {
 }
 
 type EvidenceReference struct {
-	ID       string `json:"id"`
-	Kind     string `json:"kind"`
-	Checksum string `json:"checksum,omitempty"`
+	ID        string `json:"id"`
+	Kind      string `json:"kind"`
+	URI       string `json:"uri,omitempty"`
+	MediaType string `json:"media_type,omitempty"`
+	Checksum  string `json:"checksum,omitempty"`
+	Redacted  bool   `json:"redacted,omitempty"`
+}
+
+// WorkflowExecutionReference is the provider-neutral handoff for a semantic
+// scenario validation. The provider owns the execution and its artifacts; the
+// desktop producer only records the identities needed to bind both layers to
+// one validation cell.
+type WorkflowExecutionReference struct {
+	Provider       string              `json:"provider"`
+	AssetID        string              `json:"asset_id"`
+	ExecutionID    string              `json:"execution_id"`
+	RunID          string              `json:"run_id"`
+	ArtifactDigest string              `json:"artifact_digest"`
+	TargetID       string              `json:"target_id"`
+	CellID         string              `json:"cell_id"`
+	Disposition    string              `json:"disposition"`
+	Artifacts      []EvidenceReference `json:"artifacts,omitempty"`
+}
+
+// ValidateLink verifies that provider-owned evidence is bound to the same
+// durable validation identity as the desktop evidence. A passing workflow
+// must expose at least one checksummed artifact reference.
+func (r WorkflowExecutionReference) ValidateLink(runID, artifactDigest, targetID, cellID string) error {
+	for name, value := range map[string]string{
+		"provider": r.Provider, "asset_id": r.AssetID, "execution_id": r.ExecutionID,
+		"run_id": r.RunID, "artifact_digest": r.ArtifactDigest, "target_id": r.TargetID,
+		"cell_id": r.CellID, "disposition": r.Disposition,
+	} {
+		if strings.TrimSpace(value) == "" {
+			return fmt.Errorf("workflow reference %s is required", name)
+		}
+	}
+	if r.RunID != runID || r.ArtifactDigest != artifactDigest || r.TargetID != targetID || r.CellID != cellID {
+		return fmt.Errorf("workflow reference is not bound to the desktop validation identity")
+	}
+	if strings.EqualFold(r.Disposition, JourneyDispositionPass) {
+		if len(r.Artifacts) == 0 {
+			return fmt.Errorf("passing workflow reference requires artifacts")
+		}
+		for index, artifact := range r.Artifacts {
+			if strings.TrimSpace(artifact.ID) == "" || strings.TrimSpace(artifact.Kind) == "" || strings.TrimSpace(artifact.URI) == "" || strings.TrimSpace(artifact.Checksum) == "" || !artifact.Redacted {
+				return fmt.Errorf("workflow artifact %d is missing identity or checksum", index)
+			}
+		}
+	}
+	return nil
 }
 
 // DesktopDriver is the consumer-owned seam for platform actions. The runner
@@ -418,10 +466,27 @@ func init() {
 type baselineFixture struct{}
 
 func (baselineFixture) Capability() string { return "desktop.launch.baseline" }
-func (baselineFixture) Plan(input JourneyInput) JourneyPlan {
-	return helloDesktopFixture{}.Plan(input)
+func (baselineFixture) Plan(JourneyInput) JourneyPlan {
+	windowReady := defaultReadiness("target_window_visible", "wait for the usable application window")
+	settle := defaultSettle("visual_settle", "allow the application surface to settle for human review")
+	return JourneyPlan{
+		SchemaVersion: "2",
+		ID:            "desktop.launch.baseline.v2",
+		Capability:    "desktop.launch.baseline",
+		Purpose:       "Prove an arbitrary generated desktop application launches, accepts basic window/input actions, and shuts down cleanly.",
+		Profile:       "normal-review",
+		Steps: []JourneyStepSpec{
+			{ID: "activate", Purpose: "Bring the generated application window to the foreground.", Action: "window_activate", Capture: true, Readiness: windowReady, Settle: settle},
+			{ID: "maximize", Purpose: "Prove the application can occupy the review display.", Action: "window_maximize", Capture: true, Readiness: windowReady, Settle: settle, Assertion: &AssertionSpec{ID: "window.maximized", Expected: "window covers at least 90% of the display"}},
+			{ID: "pointer_click", Purpose: "Prove pointer input reaches the generated application.", Action: "pointer_click", Capture: true, Readiness: windowReady, Settle: settle},
+			{ID: "key_press", Purpose: "Prove keyboard input reaches the generated application.", Action: "key_press", Capture: true, Readiness: windowReady, Settle: settle},
+			{ID: "resize", Purpose: "Prove the window can be resized without losing the application surface.", Action: "window_resize", Capture: true, Readiness: windowReady, Settle: settle},
+			{ID: "move", Purpose: "Prove the window can be moved on the review display.", Action: "window_move", Capture: true, Readiness: windowReady, Settle: settle},
+			{ID: "quit", Purpose: "Prove the application accepts a clean shutdown request.", Action: "quit_app", Capture: true, Readiness: windowReady, Settle: defaultSettle("shutdown_settle", "allow the process and window manager to settle after shutdown")},
+		},
+	}
 }
-func (baselineFixture) Actions() map[string]JourneyAction { return helloDesktopFixture{}.Actions() }
+func (baselineFixture) Actions() map[string]JourneyAction { return nil }
 
 type communicationFixture struct {
 	capability string

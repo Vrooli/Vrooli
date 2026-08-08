@@ -22,7 +22,15 @@ type handlers struct {
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{client: scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL), durable: scenariovalidationconnect.NewDurableValidationRunServiceClient(httpClient, baseURL)}
+	// Durable waits are server-owned and may intentionally block for the
+	// caller-supplied timeout. Keep the ordinary validation client on the
+	// scenario default, but give the durable client no client-side deadline so
+	// the server can honor that contract.
+	durableHTTPClient, durableBaseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
+	return &handlers{
+		client:  scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL),
+		durable: scenariovalidationconnect.NewDurableValidationRunServiceClient(durableHTTPClient, durableBaseURL),
+	}
 }
 
 func (h *handlers) scenario(ctx cliapp.RunContext) error {

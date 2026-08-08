@@ -22,9 +22,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             },
             {
               "name": "use-cache",
@@ -168,9 +166,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -263,9 +259,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -468,9 +462,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "ecosystem"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -508,9 +500,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "state"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -562,9 +552,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "state"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -598,9 +586,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "ecosystem"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -631,9 +617,7 @@
               "name": "all",
               "description": "Validate every discovered scenario",
               "default": "false",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             },
             {
               "name": "policy-mode",
@@ -643,9 +627,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -693,9 +675,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "section"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -745,9 +725,7 @@
               "name": "limit",
               "description": "Maximum grouped findings in human output",
               "default": "40",
-              "bind": {
-                "field": "policy_mode"
-              }
+              "local_only": true
             },
             {
               "name": "policy-mode",
@@ -757,9 +735,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -797,9 +773,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "ecosystem"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -850,9 +824,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "version"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -883,9 +855,7 @@
               "name": "format",
               "description": "Output format",
               "default": "json",
-              "bind": {
-                "field": "limit"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -921,9 +891,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "query"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -965,9 +933,7 @@
               "name": "json",
               "description": "Output raw JSON",
               "default": "false",
-              "bind": {
-                "field": "query"
-              }
+              "local_only": true
             }
           ],
           "binding": {

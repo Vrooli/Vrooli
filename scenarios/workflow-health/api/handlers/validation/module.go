@@ -44,6 +44,7 @@ func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB) module.M
 		Name: "validation",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler}, connectx.ServiceMount{Path: durablePath, Handler: durableHandler})
+			r.HandleFunc("/api/v1/validation/catalog", handler.CatalogHTTP).Methods("GET")
 		},
 		Endpoints: Endpoints,
 	}

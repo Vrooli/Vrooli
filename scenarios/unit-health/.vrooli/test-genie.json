@@ -593,6 +593,9 @@
   "freshnessRequirement": "when_applicable",
   "phaseClass": "runtime",
   "runtimeClass": "execution",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
   "dimensions": [
     "tests",
     "coverage"

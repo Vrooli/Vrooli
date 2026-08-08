@@ -75,11 +75,9 @@
               "description": "Sort order: asc or desc"
             },
             {
-              "name": "limit",
-              "description": "Page size",
-              "bind": {
-                "field": "min_score"
-              }
+              "name": "page_size",
+              "aliases": ["limit"],
+              "description": "Page size"
             },
             {
               "name": "page-token",

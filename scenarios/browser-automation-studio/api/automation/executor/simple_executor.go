@@ -364,6 +364,10 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 		}
 		instruction = e.interpolateInstruction(instruction, execState)
 		instrStepType = InstructionStepType(instruction) // Refresh after interpolation
+		instruction, err = rewriteElectronScenarioNavigation(instruction, spec.ElectronTarget)
+		if err != nil {
+			return session, err
+		}
 
 		if strings.EqualFold(strings.TrimSpace(instrStepType), "workflowcall") {
 			return session, fmt.Errorf("workflowCall nodes are no longer supported; use subflow instead")

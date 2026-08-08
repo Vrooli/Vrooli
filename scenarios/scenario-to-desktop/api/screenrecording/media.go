@@ -24,6 +24,12 @@ type MediaInspection struct {
 	UsefulFrame bool
 }
 
+// minimumUsefulApplicationLuma is deliberately close to the supported Xvfb
+// desktop background (~50 Y). The generated apps can use a dark theme, so a
+// large absolute brightness cutoff rejects real application frames. A small
+// measured delta still rejects an otherwise uniform desktop.
+const minimumUsefulApplicationLuma = 52
+
 type ffprobeResult struct {
 	Streams []struct {
 		CodecName  string `json:"codec_name"`
@@ -85,9 +91,10 @@ func InspectVideo(ctx context.Context, path string) (MediaInspection, error) {
 
 	// signalstats metadata is emitted for frames sampled every two seconds across
 	// the recording. Sampling the full duration matters because Electron startup
-	// can leave the first few seconds on a dark Xvfb desktop. The threshold is
-	// above the uniform Xvfb background (about 50 Y) and below a real app window
-	// with visible content, so a cursor alone cannot satisfy the gate.
+	// can leave the first few seconds on a dark Xvfb desktop. The app-owned
+	// display background is about 50 Y on the supported Xvfb profile; requiring
+	// a materially brighter sampled frame (rather than the old 80-Y cutoff)
+	// accepts dark application themes while still rejecting the uniform desktop.
 	filter := "select='not(mod(n,30))',signalstats,metadata=print:file=-"
 	frameCmd := mediaCommand(ctx, "ffmpeg", "-v", "error", "-i", path, "-vf", filter, "-frames:v", "20", "-f", "null", "-")
 	frameOutput, err := frameCmd.CombinedOutput()
@@ -130,5 +137,5 @@ func usefulFrames(output string) bool {
 			maxAverage = parsed
 		}
 	}
-	return maxAverage >= 80
+	return maxAverage >= minimumUsefulApplicationLuma
 }

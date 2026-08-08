@@ -16,9 +16,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"scenario-to-desktop-api/agentmanager"
+	"scenario-to-desktop-api/bridgevalidation"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/captures"
@@ -39,8 +41,11 @@ import (
 	"scenario-to-desktop-api/storagemigrate"
 	"scenario-to-desktop-api/storagepaths"
 	"scenario-to-desktop-api/system"
+	"scenario-to-desktop-api/targetinventory"
 	"scenario-to-desktop-api/tasks"
 	"scenario-to-desktop-api/telemetry"
+	"scenario-to-desktop-api/validationcatalog"
+	"scenario-to-desktop-api/validationmatrix"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -79,18 +84,20 @@ type Server struct {
 	fileRoots       *filerouting.RoutedRoots
 
 	// Domain handlers (screaming architecture)
-	buildHandler     *build.Handler
-	telemetryHandler *telemetry.Handler
-	recordsHandler   *records.Handler
-	scenarioHandler  *scenario.Handler
-	systemHandler    *system.Handler
-	pipelineHandler  *pipeline.Handler
-	stateHandler     *state.Handler
-	stateService     *state.Service
-	deployHandler    *deploy.Handler
-	signingHandler   *signing.Handler
-	preflightService preflightdomain.Service
-	configAnalyzer   generation.ScenarioAnalyzer
+	buildHandler            *build.Handler
+	telemetryHandler        *telemetry.Handler
+	recordsHandler          *records.Handler
+	scenarioHandler         *scenario.Handler
+	systemHandler           *system.Handler
+	pipelineHandler         *pipeline.Handler
+	validationMatrixHandler *validationmatrix.Handler
+	targetInventoryHandler  *targetinventory.Handler
+	stateHandler            *state.Handler
+	stateService            *state.Service
+	deployHandler           *deploy.Handler
+	signingHandler          *signing.Handler
+	preflightService        preflightdomain.Service
+	configAnalyzer          generation.ScenarioAnalyzer
 
 	// Task orchestration service
 	taskSvc *tasks.Service
@@ -323,6 +330,13 @@ func NewServer(port int) *Server {
 		smokeTestStore:       smokeTestStore,
 	}
 	pipelineOrchestrator, pipelineHandler, deployHandler := initPipelineStack(pipelineDeps)
+	bridgeClient := bridgevalidation.NewClientFromEnv()
+	validationMatrixHandler := initValidationMatrixDomain(storePaths, logger, smokeTestService, smokeTestStore, liveDesktopService, capturesService, bridgeClient)
+	bridgeSources := make([]targetinventory.BridgeSource, 0, 1)
+	if bridgeClient != nil {
+		bridgeSources = append(bridgeSources, bridgeClient)
+	}
+	targetInventoryHandler := targetinventory.NewHandler(targetinventory.LocalProbe{}, bridgeSources...)
 
 	// ===== Task Orchestration Service =====
 	dataRoot, err := storePaths.DataRoot()
@@ -344,18 +358,20 @@ func NewServer(port int) *Server {
 		fileRoots:       fileRoots,
 
 		// Domain handlers
-		buildHandler:     buildHandler,
-		telemetryHandler: telemetryHandler,
-		recordsHandler:   recordsHandler,
-		scenarioHandler:  scenarioHandler,
-		systemHandler:    systemHandler,
-		pipelineHandler:  pipelineHandler,
-		stateHandler:     stateHandler,
-		stateService:     stateService,
-		deployHandler:    deployHandler,
-		signingHandler:   signingHandler,
-		preflightService: preflightService,
-		configAnalyzer:   configAnalyzer,
+		buildHandler:            buildHandler,
+		telemetryHandler:        telemetryHandler,
+		recordsHandler:          recordsHandler,
+		scenarioHandler:         scenarioHandler,
+		systemHandler:           systemHandler,
+		pipelineHandler:         pipelineHandler,
+		validationMatrixHandler: validationMatrixHandler,
+		targetInventoryHandler:  targetInventoryHandler,
+		stateHandler:            stateHandler,
+		stateService:            stateService,
+		deployHandler:           deployHandler,
+		signingHandler:          signingHandler,
+		preflightService:        preflightService,
+		configAnalyzer:          configAnalyzer,
 		// Live desktop handler
 		liveDesktopHandler: liveDesktopHandler,
 		liveDesktopService: liveDesktopService,
@@ -497,6 +513,33 @@ func newPipelineFileStore(storePaths *storagepaths.Locator, logger *slog.Logger)
 	return store
 }
 
+func initValidationMatrixDomain(storePaths *storagepaths.Locator, logger *slog.Logger, smokeService smoketest.Service, smokeStore smoketest.Store, artifactFinder validationArtifactFinder, captureService *captures.Service, bridgeExecutor validationmatrix.BridgeExecutor) *validationmatrix.Handler {
+	dataDir, err := storePaths.EnsureValidationMatrixDir()
+	if err != nil {
+		logger.Warn("validation matrix storage directory unavailable", "error", err)
+		return nil
+	}
+	store, err := validationmatrix.NewFileStore(dataDir)
+	if err != nil {
+		logger.Warn("validation matrix store unavailable", "error", err)
+		return nil
+	}
+	var options []validationmatrix.ServiceOption
+	options = append(options, validationmatrix.WithCatalogResolver(validationcatalog.NewWorkflowHealthResolver()))
+	if deploymentURL := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_URL")); deploymentURL != "" {
+		profileID := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_PROFILE_ID"))
+		gitCommit := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_GIT_COMMIT"))
+		if profileID != "" && gitCommit != "" {
+			options = append(options, validationmatrix.WithReleaseReporter(validationmatrix.NewDeploymentReporterFromURL(deploymentURL, profileID, gitCommit, nil)))
+		}
+	}
+	service := validationmatrix.NewService(store, validationmatrix.Executors{Local: validationMatrixLocalExecutor{smokeService: smokeService, smokeStore: smokeStore, findArtifact: artifactFinder, captures: captureService}, Bridge: bridgeExecutor}, options...)
+	if recovered := service.RecoverStale(); recovered > 0 {
+		logger.Info("recovered stale validation matrix runs", "count", recovered)
+	}
+	return validationmatrix.NewHandler(service)
+}
+
 func newPipelineIndexStore(storePaths *storagepaths.Locator, logger *slog.Logger) *pipeline.ScenarioIndexStore {
 	dataDir, err := storePaths.EnsurePipelineIndexDir()
 	if err != nil {
@@ -574,6 +617,9 @@ func (s *Server) registerDomainHandlers() {
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 	capabilities.NewHandler(capabilities.NewRegistry()).RegisterRoutes(s.router)
+	if s.targetInventoryHandler != nil {
+		s.targetInventoryHandler.RegisterRoutes(s.router)
+	}
 	s.registerConnectHandlers()
 
 	// ===== Domain Handlers (Screaming Architecture) =====
@@ -588,6 +634,9 @@ func (s *Server) registerDomainHandlers() {
 	// Signing is served exclusively by the generated SigningService.
 
 	// Pipeline orchestration is served exclusively by the generated PipelineService.
+	if s.validationMatrixHandler != nil {
+		s.validationMatrixHandler.RegisterRoutes(s.router)
+	}
 
 	// Live desktop: /api/v1/livedesktop/*
 	if s.liveDesktopHandler != nil {

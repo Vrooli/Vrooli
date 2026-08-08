@@ -40,9 +40,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {

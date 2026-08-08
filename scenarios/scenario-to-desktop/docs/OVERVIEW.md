@@ -56,9 +56,16 @@ evidence. Missing isolation, target identity, artifact binding, or required
 evidence cannot be represented as a pass. The durable wire contract is
 `scenario-to-desktop/v1/domain/validation.proto`.
 
-The current implementation gap is intentionally explicit: the existing Linux
-native smoke path proves generated-app lifecycle and Hello Desktop behavior.
-The target package now provides an executable Electron session seam: it owns
+The producer-side journey sidecar and manifest use a provider-neutral
+`WorkflowExecutionReference` for semantic workflow evidence. It records the
+provider's asset/execution and checksummed artifact references, then requires
+the same validation run, artifact digest, target, and cell identities before a
+combined cell can pass. Test Genie remains generic and does not discover,
+launch, or interpret a semantic workflow provider.
+
+The Linux native smoke path now proves generated-app lifecycle and platform
+behavior for both Hello Desktop and arbitrary generated scenarios. The target
+package provides an executable Electron session seam: it owns
 argv-safe loopback CDP launch arguments, an ephemeral port, an isolated
 user-data directory, scoped validation environment variables, exact renderer
 selection from `/json/list`, process-group cleanup, and the explicit
@@ -70,17 +77,16 @@ remote bridge desktop transport remain implementation work.
 
 | Target | Current evidence | Capability disposition | Next proof |
 |---|---|---|---|
-| Local Linux/Xvfb | Existing native live-desktop and smoke seams | Eligible for platform conformance; Electron CDP adapter pending | Launch a generated artifact, attach to the selected renderer, and link BAS plus desktop evidence |
+| Local Linux/Xvfb | Native live-desktop/smoke evidence and real Electron CDP provider run | Eligible for platform conformance and Electron workflow execution | Persist the provider-neutral workflow reference in the combined release cell |
 | Linux emulator | No owned emulator adapter or runtime evidence | Unavailable, never an implicit pass | Add an adapter only when its lifecycle and renderer identity are observable |
 | Bridge node | Typed `EvidenceTarget` and bridge dispatch seams exist | Unsupported for remote desktop evidence until bridge transport exists | Implement authenticated bridge-owned desktop transport and reachability evidence |
 | Windows/macOS | Packaging and platform enums exist; no target runtime evidence on this host | Unavailable for release claims | Capture target-native launch, update, native-surface, and shutdown evidence on each target |
 
-The initial representative journey is the existing scenario-to-desktop
-`hello-desktop-console-evidence` BAS case plus the platform lifecycle smoke
-journey. It proves the control-plane fixture and generated-app lifecycle while
-the adapter is developed; a real scenario BAS acceptance case will be added to
-the matrix only after workflow-health exposes its catalog and the leased
-storage boundary is verified.
+The initial representative journey remains the existing
+`hello-desktop-console-evidence` provider case plus the platform lifecycle smoke
+journey. The real Electron run and routed mutation proof are complete; the
+remaining handoff is to persist their provider-owned reference alongside the
+platform capture in one matrix cell.
 
 ## Choose a mode
 

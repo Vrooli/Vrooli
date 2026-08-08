@@ -65,6 +65,10 @@ type JourneyResult struct {
 	WindowManager                string                      `json:"window_manager,omitempty"`
 	Titlebar                     bool                        `json:"titlebar"`
 	RecordingStartedBeforeLaunch bool                        `json:"recording_started_before_launch"`
+	TargetID                     string                      `json:"target_id,omitempty"`
+	CellID                       string                      `json:"cell_id,omitempty"`
+	WorkflowRequired             bool                        `json:"workflow_required,omitempty"`
+	WorkflowReference            *WorkflowExecutionReference `json:"workflow_reference,omitempty"`
 	ProviderObservation          *JourneyProviderObservation `json:"provider_observation,omitempty"`
 	Disposition                  string                      `json:"disposition"`
 	DegradedReason               string                      `json:"degraded_reason,omitempty"`
@@ -652,7 +656,7 @@ func ValidateJourneyTimeline(journey JourneyResult) error {
 }
 
 func reviewFromJourney(journey JourneyResult) *JourneyReview {
-	review := &JourneyReview{SchemaVersion: journey.EvidenceVersion, Capability: journey.Capability, PlanID: journey.PlanID, Profile: journey.Profile, Disposition: journey.Disposition, Reason: journey.DegradedReason, EventCount: len(journey.Events), Chapters: make([]JourneyChapter, 0, len(journey.Steps))}
+	review := &JourneyReview{SchemaVersion: journey.EvidenceVersion, Capability: journey.Capability, PlanID: journey.PlanID, Profile: journey.Profile, Disposition: journey.Disposition, Reason: journey.DegradedReason, EventCount: len(journey.Events), WorkflowRequired: journey.WorkflowRequired, WorkflowReference: journey.WorkflowReference, Chapters: make([]JourneyChapter, 0, len(journey.Steps))}
 	if provider := journey.ProviderObservation; provider != nil {
 		review.DeploymentMode = provider.DeploymentMode
 		review.ProviderTier = provider.ProviderTier

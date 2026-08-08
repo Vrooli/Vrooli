@@ -184,8 +184,8 @@
         },
         {
           "name": "install-playwright-driver-deps",
-          "run": "cd playwright-driver && pnpm install --ignore-workspace",
-          "description": "Install Playwright driver dependencies"
+          "run": "cd playwright-driver && pnpm install --force --ignore-workspace",
+          "description": "Install Playwright driver dependencies and refresh generated local proto types"
         },
         {
           "name": "build-playwright-driver",

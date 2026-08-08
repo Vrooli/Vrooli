@@ -12,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"workflow-health/internal/artifacts"
 	"workflow-health/internal/execution"
 	internalvalidation "workflow-health/internal/validation"
 	workflowrun "workflow-health/internal/validationrun"
@@ -221,6 +222,7 @@ func nativeDetail(report providerReport) (*structpb.Struct, error) {
 				"installed":                            report.Isolation.Installed,
 				"lease_id":                             report.Isolation.LeaseID,
 				"install_error":                        report.Isolation.InstallError,
+				"heartbeat_error":                      report.Isolation.HeartbeatError,
 				"clear_error":                          report.Isolation.ClearError,
 				"test_pool_requests":                   report.Isolation.TestPoolRequests,
 				"primary_during_test_mode_requests":    report.Isolation.PrimaryDuringTestModeRequests,
@@ -270,11 +272,27 @@ func runSummaries(runs []execution.WorkflowRun) []any {
 			"dry_run":      run.DryRun,
 			"error":        run.Error,
 			"artifact": map[string]any{
-				"dir":      run.Artifact.Dir,
-				"workflow": run.Artifact.Workflow,
-				"latest":   run.Artifact.Latest,
-				"timeline": run.Artifact.Timeline,
+				"dir":        run.Artifact.Dir,
+				"workflow":   run.Artifact.Workflow,
+				"latest":     run.Artifact.Latest,
+				"timeline":   run.Artifact.Timeline,
+				"references": artifactReferenceMaps(run.Artifact.References),
 			},
+		})
+	}
+	return out
+}
+
+func artifactReferenceMaps(references []artifacts.Reference) []any {
+	out := make([]any, 0, len(references))
+	for _, reference := range references {
+		out = append(out, map[string]any{
+			"id":         reference.ID,
+			"kind":       reference.Kind,
+			"uri":        reference.URI,
+			"media_type": reference.MediaType,
+			"checksum":   reference.Checksum,
+			"redacted":   reference.Redacted,
 		})
 	}
 	return out

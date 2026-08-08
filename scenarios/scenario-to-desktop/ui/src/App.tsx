@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Book, List, Monitor, Zap, Folder, Shield } from "lucide-react";
+import { Book, List, Monitor, Zap, Folder, Shield, CheckCircle2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { useIsMobile } from "./hooks/useMediaQuery";
 import { GeneratorPage } from "./pages";
@@ -26,6 +26,7 @@ import { cn } from "./lib/utils";
 import { RecordsManager } from "./components/scenario-inventory/RecordsManager";
 import { selectors } from "./consts/selectors";
 import { StatusBadge } from "./components/ui/status-badge";
+import { ValidationWorkspace } from "./components/validation";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -167,6 +168,7 @@ function AppContent() {
       { mode: "generator", icon: Zap, label: "Generate" },
       { mode: "records", icon: Folder, label: "Apps" },
       { mode: "signing", icon: Shield, label: "Signing" },
+      { mode: "validation", icon: CheckCircle2, label: "Validate" },
       { mode: "docs", icon: Book, label: "Docs" },
     ],
     [],
@@ -265,6 +267,10 @@ function AppContent() {
                 openGeneratorForScenario(scenarioName);
               }}
             />
+          </SectionErrorBoundary>
+        ) : viewMode === "validation" ? (
+          <SectionErrorBoundary name="Validation workspace">
+            <ValidationWorkspace />
           </SectionErrorBoundary>
         ) : (
           <SectionErrorBoundary name="Desktop App Generator">

@@ -12,6 +12,10 @@
       "testId": "scenario-to-desktop-tab-signing",
       "selector": "[data-testid=\"scenario-to-desktop-tab-signing\"]"
     },
+    "app.validationTab": {
+      "testId": "scenario-to-desktop-tab-validation",
+      "selector": "[data-testid=\"scenario-to-desktop-tab-validation\"]"
+    },
     "generator.scenarioPicker": {
       "testId": "generator-scenario-picker",
       "selector": "[data-testid=\"generator-scenario-picker\"]"
@@ -95,6 +99,94 @@
     "liveDesktop.error": {
       "testId": "live-desktop-error",
       "selector": "[data-testid=\"live-desktop-error\"]"
+    },
+    "validation.root": {
+      "testId": "validation-workspace",
+      "selector": "[data-testid=\"validation-workspace\"]"
+    },
+    "validation.refreshTargets": {
+      "testId": "validation-refresh-targets",
+      "selector": "[data-testid=\"validation-refresh-targets\"]"
+    },
+    "validation.targetCard": {
+      "testId": "validation-target-card",
+      "selector": "[data-testid=\"validation-target-card\"]"
+    },
+    "validation.error": {
+      "testId": "validation-target-inventory-error",
+      "selector": "[data-testid=\"validation-target-inventory-error\"]"
+    },
+    "validation.scenarioName": {
+      "testId": "validation-scenario-name",
+      "selector": "[data-testid=\"validation-scenario-name\"]"
+    },
+    "validation.artifactDigest": {
+      "testId": "validation-artifact-digest",
+      "selector": "[data-testid=\"validation-artifact-digest\"]"
+    },
+    "validation.deploymentMode": {
+      "testId": "validation-deployment-mode",
+      "selector": "[data-testid=\"validation-deployment-mode\"]"
+    },
+    "validation.releaseProfile": {
+      "testId": "validation-release-profile",
+      "selector": "[data-testid=\"validation-release-profile\"]"
+    },
+    "validation.journeyId": {
+      "testId": "validation-journey-id",
+      "selector": "[data-testid=\"validation-journey-id\"]"
+    },
+    "validation.discoverCatalog": {
+      "testId": "validation-discover-catalog",
+      "selector": "[data-testid=\"validation-discover-catalog\"]"
+    },
+    "validation.catalogJourney": {
+      "testId": "validation-catalog-journey",
+      "selector": "[data-testid=\"validation-catalog-journey\"]"
+    },
+    "validation.createMatrix": {
+      "testId": "validation-create-matrix",
+      "selector": "[data-testid=\"validation-create-matrix\"]"
+    },
+    "validation.startRun": {
+      "testId": "validation-start-run",
+      "selector": "[data-testid=\"validation-start-run\"]"
+    },
+    "validation.waitRun": {
+      "testId": "validation-wait-run",
+      "selector": "[data-testid=\"validation-wait-run\"]"
+    },
+    "validation.abortRun": {
+      "testId": "validation-abort-run",
+      "selector": "[data-testid=\"validation-abort-run\"]"
+    },
+    "validation.rerunFailed": {
+      "testId": "validation-rerun-failed",
+      "selector": "[data-testid=\"validation-rerun-failed\"]"
+    },
+    "validation.rerunSelected": {
+      "testId": "validation-rerun-selected",
+      "selector": "[data-testid=\"validation-rerun-selected\"]"
+    },
+    "validation.reattachRun": {
+      "testId": "validation-reattach-run",
+      "selector": "[data-testid=\"validation-reattach-run\"]"
+    },
+    "validation.comparePriorRun": {
+      "testId": "validation-compare-prior-run",
+      "selector": "[data-testid=\"validation-compare-prior-run\"]"
+    },
+    "validation.compareRun": {
+      "testId": "validation-compare-run",
+      "selector": "[data-testid=\"validation-compare-run\"]"
+    },
+    "validation.matrixError": {
+      "testId": "validation-matrix-error",
+      "selector": "[data-testid=\"validation-matrix-error\"]"
+    },
+    "validation.matrixCell": {
+      "testId": "validation-matrix-cell",
+      "selector": "[data-testid=\"validation-matrix-cell\"]"
     }
   }
 }

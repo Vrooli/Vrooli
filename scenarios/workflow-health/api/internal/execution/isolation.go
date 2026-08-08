@@ -89,7 +89,14 @@ func (r *RoutingIsolation) Acquire(ctx context.Context, scenario, leaseID string
 		return nil, fmt.Errorf("target scenario did not install leased file roots; run storage-manager validation and wire RoutedRoots")
 	}
 	leaseCtx, cancel := context.WithCancel(context.Background())
-	lease := &routingLease{client: client, leaseID: leaseID, cleanup: cleanup, cancel: cancel, evidence: IsolationEvidence{Installed: true, LeaseID: leaseID}}
+	lease := &routingLease{
+		client:     client,
+		leaseID:    leaseID,
+		cleanup:    cleanup,
+		cancel:     cancel,
+		healthDone: make(chan struct{}),
+		evidence:   IsolationEvidence{Installed: true, LeaseID: leaseID},
+	}
 	go lease.heartbeat(leaseCtx, ttl)
 	return lease, nil
 }
@@ -122,18 +129,29 @@ func storageHealthRequiresFileRoots(ctx context.Context, scenario string) (bool,
 }
 
 type routingLease struct {
-	client   routingClient
-	leaseID  string
-	cleanup  func()
-	cancel   context.CancelFunc
-	mu       sync.Mutex
-	evidence IsolationEvidence
+	client     routingClient
+	leaseID    string
+	cleanup    func()
+	cancel     context.CancelFunc
+	healthDone chan struct{}
+	healthOnce sync.Once
+	mu         sync.Mutex
+	healthErr  error
+	evidence   IsolationEvidence
 }
 
 func (l *routingLease) Evidence() IsolationEvidence {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.evidence
+}
+
+func (l *routingLease) Done() <-chan struct{} { return l.healthDone }
+
+func (l *routingLease) Err() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.healthErr
 }
 
 func (l *routingLease) heartbeat(ctx context.Context, ttl time.Duration) {
@@ -150,10 +168,13 @@ func (l *routingLease) heartbeat(ctx context.Context, ttl time.Duration) {
 		case <-ticker.C:
 			if _, err := l.client.HeartbeatTestPool(ctx, connect.NewRequest(&routingv1.HeartbeatTestPoolRequest{LeaseId: l.leaseID})); err != nil {
 				l.mu.Lock()
+				l.healthErr = err
+				l.evidence.HeartbeatError = err.Error()
 				if l.evidence.ClearError == "" {
 					l.evidence.ClearError = "lease heartbeat failed: " + err.Error()
 				}
 				l.mu.Unlock()
+				l.healthOnce.Do(func() { close(l.healthDone) })
 				return
 			}
 		}

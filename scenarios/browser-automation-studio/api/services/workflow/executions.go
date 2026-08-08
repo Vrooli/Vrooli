@@ -448,7 +448,11 @@ func detachedExecutionContext(parent context.Context) context.Context {
 func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *sessionprofilepersistence.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, restoreTabs bool, openTabs []sessionprofilepersistence.TabState, navigationWaitUntil string, continueOnError *bool) {
 	defer s.cancelExecutionByID(executionID)
 
-	persistenceCtx := ctx
+	// Execution cancellation must stop the runner, but it must not cancel the
+	// persistence context used to publish the terminal status and evidence.
+	// Otherwise StopExecution leaves the durable record stuck in `running` and
+	// callers cannot distinguish a cancelled execution from a hung one.
+	persistenceCtx := context.WithoutCancel(ctx)
 	if coredb.IsTestMode(persistenceCtx) {
 		// Development routing installs an empty, lease-owned database. Seed the
 		// minimum scenario fixture inside that pool so browser validations exercise

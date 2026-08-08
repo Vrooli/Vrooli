@@ -44,22 +44,30 @@ appropriate, and an update to this record.
 
 ## Current Issues
 
-### Per-target BAS desktop-console evidence remains unproven
+### Per-target BAS desktop-console evidence (PARTIALLY RESOLVED)
 
 **Severity**: High
 **Date Discovered**: 2026-07-30
 
-**Problem**: The signed desktop-evidence manifest contains one BAS timeline for
-the routed deterministic fixture. It does not contain separate Hello Desktop
-and Secrets Manager console journeys through inventory, generation, build,
-smoke, and launch. The fixture timeline also records a POST 404 while its later
-UI assertion reports success, so it cannot be accepted as end-to-end
-production-flow evidence.
+**Problem**: The signed desktop-evidence manifest still does not contain
+separate Hello Desktop and Secrets Manager console journeys through inventory,
+generation, build, smoke, and launch. Those remain required for release-level
+per-target evidence.
 
-**Next Step**: Add two leased, target-specific console workflows that assert
-the real generated artifact, build result, smoke report, and launch result;
-retain their durable BAS timelines and add both to the signed evidence manifest.
-Keep `OT-P0-010` unchecked until those artifacts exist.
+The earlier fixture POST 404 is resolved. Workflow Health run
+`b585ca68-05f8-4857-89a9-65181630d9ad` executed all nine existing BAS cases
+through a real Electron renderer; the leased fixture POST reached the host API
+with HTTP 200, and the target artifact, authenticated CDP identity, and
+renderer-to-host propagation were recorded in the BAS timeline.
+
+**Next Step**: Persist the provider-neutral workflow execution reference beside
+the platform journey and recording in the signed evidence manifest. The
+reference must bind the same validation run, artifact digest, target, and cell;
+missing or mismatched provider artifacts must fail closed. Keep `OT-P0-010`
+unchecked until the combined release-cell artifact exists.
+
+Test Genie is not part of this handoff: it remains a generic validation runner,
+while the semantic workflow provider owns execution and artifact production.
 
 ### UI Coverage Floor (RESOLVED)
 
@@ -88,13 +96,13 @@ evidence that the old blocking test policy is satisfied or ignored.
 desktop-console mutation without risking normal file-backed scenario state.
 
 **Resolution**: `bas/cases/04-evidence/leased-desktop-evidence.json` now runs
-through Test Genie's routed lease and creates a deterministic fixture AppImage
-plus smoke report only in leased storage. The API rejects non-test or
-lease-less requests. Workflow-health run
-`c2346078-db30-4316-b0dc-709046f3446e` executed all seven cases; the fixture
-asserted `leased writes: 3`, with zero primary-root writes reported by the
-lease. Its durable BAS timeline is
-`coverage/workflow-health/runs/c2346078-db30-4316-b0dc-709046f3446e/scenario-to-desktop-bas-cases-04-evidence-leased-desktop-evidence.json/timeline.json`.
+through the provider-owned routed lease and creates a deterministic fixture
+AppImage plus smoke report only in leased storage. The API rejects non-test or
+lease-less requests. Workflow Health run
+`b585ca68-05f8-4857-89a9-65181630d9ad` executed all nine cases; the fixture
+asserted `leased writes: 3`, with zero primary requests and writes reported by
+the lease. Its durable BAS timeline is
+`coverage/workflow-health/runs/b585ca68-05f8-4857-89a9-65181630d9ad/scenario-to-desktop-bas-cases-04-evidence-leased-desktop-evidence.json/timeline.json`.
 
 **Remaining scope**: The fixture validates the routed console mutation seam;
 it does not stand in for a release AppImage or a live-desktop VNC success

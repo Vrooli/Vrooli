@@ -25,9 +25,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -64,9 +62,7 @@
             {
               "name": "json",
               "description": "Emit JSON output",
-              "bind": {
-                "field": "scenarios"
-              }
+              "local_only": true
             }
           ],
           "binding": {

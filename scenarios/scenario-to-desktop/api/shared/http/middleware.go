@@ -38,6 +38,16 @@ func CORSMiddleware(config CORSConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			allowedOrigin := config.AllowedOrigin
+			validationOrigin := r.Header.Get("Origin")
+			validationRequest := r.Header.Get("X-Vrooli-Test-Mode") == "1" &&
+				(validationOrigin == "http://localhost" || validationOrigin == "http://127.0.0.1" ||
+					strings.HasPrefix(validationOrigin, "http://localhost:") || strings.HasPrefix(validationOrigin, "http://127.0.0.1:"))
+			if validationRequest {
+				// Bundled validation renderers use an ephemeral loopback port. The
+				// marker is emitted only by the target-owned validation seam, so the
+				// exact loopback origin can be admitted without opening remote CORS.
+				allowedOrigin = validationOrigin
+			}
 
 			if allowedOrigin == "" {
 				// SECURITY: In development, UI_PORT must be provided by lifecycle system
@@ -81,7 +91,7 @@ func CORSMiddleware(config CORSConfig) func(http.Handler) http.Handler {
 
 			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Build-ID")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Build-ID, X-Vrooli-Test-Mode, X-Vrooli-Validation-Context")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 			if r.Method == "OPTIONS" {

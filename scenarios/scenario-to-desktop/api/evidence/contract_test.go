@@ -99,3 +99,42 @@ func TestProtocolManifestDoesNotRequireVisualArtifacts(t *testing.T) {
 		t.Fatalf("protocol manifest should validate without visual artifacts: %v", err)
 	}
 }
+
+func TestVisualManifestRejectsMissingRequiredWorkflowReference(t *testing.T) {
+	manifest := validManifest(ProfileVisual, StatePassed)
+	manifest.Timeline.WorkflowRequired = true
+	if err := manifest.Validate(); err == nil || !strings.Contains(err.Error(), "required workflow reference") {
+		t.Fatalf("expected missing workflow reference to fail, got %v", err)
+	}
+}
+
+func TestVisualManifestAcceptsWorkflowReferenceBoundToCell(t *testing.T) {
+	manifest := validManifest(ProfileVisual, StatePassed)
+	manifest.Target.ID = "target-linux-xvfb"
+	manifest.CellID = "cell-1"
+	manifest.Timeline.WorkflowRequired = true
+	manifest.Timeline.Workflow = &WorkflowReference{
+		Provider: "workflow-provider", AssetID: "asset-1", ExecutionID: "execution-1",
+		RunID: "run-1", ArtifactDigest: "sha256:artifact", TargetID: "target-linux-xvfb",
+		CellID: "cell-1", Disposition: "pass",
+		Artifacts: []WorkflowArtifactReference{{ID: "workflow-video", Kind: "video", URI: "evidence/workflow-video.mp4", Checksum: "sha256:workflow", Redacted: true}},
+	}
+	if err := manifest.Validate(); err != nil {
+		t.Fatalf("linked workflow reference should validate: %v", err)
+	}
+}
+
+func TestVisualManifestRejectsRequiredFailedWorkflow(t *testing.T) {
+	manifest := validManifest(ProfileVisual, StatePassed)
+	manifest.Target.ID = "target-linux-xvfb"
+	manifest.CellID = "cell-1"
+	manifest.Timeline.WorkflowRequired = true
+	manifest.Timeline.Workflow = &WorkflowReference{
+		Provider: "workflow-provider", AssetID: "asset-1", ExecutionID: "execution-1",
+		RunID: "run-1", ArtifactDigest: "sha256:artifact", TargetID: "target-linux-xvfb",
+		CellID: "cell-1", Disposition: "failed",
+	}
+	if err := manifest.Validate(); err == nil || !strings.Contains(err.Error(), "disposition") {
+		t.Fatalf("expected required failed workflow to fail, got %v", err)
+	}
+}

@@ -543,7 +543,12 @@ export class SessionManager {
     if (validationContext.scenario_name !== target.scenario_name || validationContext.artifact_digest !== target.artifact_digest) {
       throw new Error('Electron validation context does not match target identity');
     }
-    if (validationContext.target_id !== target.target_id || validationContext.workflow_id !== spec.workflow_id) {
+    // The provider workflow identity identifies the selected catalog asset,
+    // while spec.workflow_id identifies BAS's internal execution/index record.
+    // Adhoc executions deliberately use different values for those domains;
+    // the target, scenario, artifact, context, and lease invariants above are
+    // the shared validation-cell identity.
+    if (validationContext.target_id !== target.target_id || !validationContext.workflow_id?.trim()) {
       throw new Error('Electron validation context does not match session identity');
     }
     if (!validationContext.isolation_lease_id?.trim()) {

@@ -124,6 +124,11 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 	}
 
 	instruction := planStepToInstruction(step)
+	var rewriteErr error
+	instruction, rewriteErr = rewriteElectronScenarioNavigation(instruction, spec.ElectronTarget)
+	if rewriteErr != nil {
+		return contracts.StepOutcome{}, session, rewriteErr
+	}
 	stepIndex := instruction.Index
 
 	session, err := e.ensureNavigation(ctx, req, execCtx, eng, spec, session, instruction.NodeID, PlanStepType(step))

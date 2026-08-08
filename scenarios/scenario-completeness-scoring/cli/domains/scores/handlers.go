@@ -74,7 +74,7 @@ func (h *handlers) trend(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
-	limit, err := parseOptionalInt32Flag(ctx, "limit")
+	limit, err := parseOptionalInt32Flag(ctx, "page_size")
 	if err != nil {
 		return err
 	}

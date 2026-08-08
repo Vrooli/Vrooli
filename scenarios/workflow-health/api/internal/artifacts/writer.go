@@ -1,8 +1,10 @@
 package artifacts
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,10 +15,25 @@ import (
 )
 
 type RunArtifact struct {
-	Dir      string `json:"dir"`
-	Workflow string `json:"workflow"`
-	Timeline string `json:"timeline,omitempty"`
-	Latest   string `json:"latest"`
+	Dir        string      `json:"dir"`
+	Workflow   string      `json:"workflow"`
+	Timeline   string      `json:"timeline,omitempty"`
+	Latest     string      `json:"latest"`
+	References []Reference `json:"references,omitempty"`
+}
+
+// Reference is the provider-neutral metadata for one durable artifact. The
+// latest summary is a redacted derivative: it contains no workflow payload,
+// request data, or credentials, only execution identity and outcome fields.
+// Consumers can safely link it into a combined evidence manifest without
+// depending on Workflow Health's internal artifact layout.
+type Reference struct {
+	ID        string `json:"id"`
+	Kind      string `json:"kind"`
+	URI       string `json:"uri"`
+	MediaType string `json:"media_type,omitempty"`
+	Checksum  string `json:"checksum"`
+	Redacted  bool   `json:"redacted"`
 }
 
 type WorkflowLatest struct {
@@ -83,7 +100,32 @@ func (w *Writer) WriteWorkflow(assetID, assetPath string, timeline *bastimeline.
 		return out, fmt.Errorf("write latest: %w", err)
 	}
 	out.Latest = rel(w.scenarioDir, path)
+	checksum, err := checksumFile(path)
+	if err != nil {
+		return out, fmt.Errorf("checksum latest: %w", err)
+	}
+	out.References = []Reference{{
+		ID:        assetID + ":latest",
+		Kind:      "workflow-summary",
+		URI:       out.Latest,
+		MediaType: "application/json",
+		Checksum:  "sha256:" + checksum,
+		Redacted:  true,
+	}}
 	return out, nil
+}
+
+func checksumFile(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 func Counts(timeline *bastimeline.ExecutionTimeline) TimelineCounts {

@@ -114,6 +114,10 @@ func (l *Locator) PipelineIndexDir() (string, error) {
 	return l.path(storage.ClassState, "indexes")
 }
 
+func (l *Locator) ValidationMatrixDir() (string, error) {
+	return l.path(storage.ClassState, "validation-matrices")
+}
+
 func (l *Locator) LiveDesktopDir() (string, error) {
 	return l.path(storage.ClassState, "livedesktop")
 }
@@ -156,6 +160,14 @@ func (l *Locator) EnsurePipelineStateDir() (string, error) {
 
 func (l *Locator) EnsurePipelineIndexDir() (string, error) {
 	path, err := l.PipelineIndexDir()
+	if err != nil {
+		return "", err
+	}
+	return ensurePath(path)
+}
+
+func (l *Locator) EnsureValidationMatrixDir() (string, error) {
+	path, err := l.ValidationMatrixDir()
 	if err != nil {
 		return "", err
 	}

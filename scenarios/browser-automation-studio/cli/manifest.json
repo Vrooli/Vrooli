@@ -47,9 +47,7 @@
             {
               "name": "out",
               "description": "Server-relative output directory for artifact files",
-              "bind": {
-                "field": "out_dir"
-              }
+              "local_only": true
             },
             {
               "name": "label",
@@ -64,9 +62,7 @@
               "name": "dry-run",
               "bool": true,
               "description": "Send X-Dry-Run header; server validates without producing artifacts",
-              "bind": {
-                "field": "out_dir"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -263,9 +259,7 @@
             {
               "name": "output",
               "description": "Write schema to file instead of stdout",
-              "bind": {
-                "field": "node_types"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -313,9 +307,7 @@
             {
               "name": "format",
               "description": "Output format: text (default), json, markdown",
-              "bind": {
-                "field": "types"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -1119,7 +1111,8 @@
               "description": "Wait for completion before responding",
               "bind": {
                 "field": "wait_for_completion"
-              }
+              },
+              "bind_waiver": "wait is a server request option controlling synchronous workflow execution"
             },
             {
               "name": "parameters-file",
@@ -1192,7 +1185,8 @@
               "description": "Wait for completion before responding",
               "bind": {
                 "field": "wait_for_completion"
-              }
+              },
+              "bind_waiver": "wait is a server request option controlling synchronous workflow execution"
             },
             {
               "name": "name",
@@ -2986,7 +2980,8 @@
               "bind": {
                 "field": "browser_profile",
                 "kind": "json_inline"
-              }
+              },
+              "bind_waiver": "browser-profile is a JSON request payload and needs json_inline decoding"
             }
           ],
           "binding": {
@@ -3044,7 +3039,8 @@
               "bind": {
                 "field": "declaration_json",
                 "kind": "raw_string"
-              }
+              },
+              "bind_waiver": "declaration-json is an inline JSON request payload and needs raw_string preservation"
             }
           ],
           "binding": {
@@ -3089,10 +3085,7 @@
             {
               "name": "name",
               "required": true,
-              "description": "Drill enum name",
-              "bind": {
-                "field": "name"
-              }
+              "description": "Drill enum name"
             }
           ],
           "binding": {

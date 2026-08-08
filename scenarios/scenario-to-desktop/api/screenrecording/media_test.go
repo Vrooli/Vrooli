@@ -9,13 +9,13 @@ import (
 )
 
 func TestUsefulFramesRejectsStaticDesktop(t *testing.T) {
-	if usefulFrames("lavfi.signalstats.YAVG=50\nlavfi.signalstats.YAVG=54\n") {
+	if usefulFrames("lavfi.signalstats.YAVG=50.0045\nlavfi.signalstats.YAVG=51.2\n") {
 		t.Fatal("static dark desktop must not be useful evidence")
 	}
 }
 
 func TestUsefulFramesAcceptsVisibleApplication(t *testing.T) {
-	if !usefulFrames("lavfi.signalstats.YAVG=50\nlavfi.signalstats.YAVG=165\n") {
+	if !usefulFrames("lavfi.signalstats.YAVG=50.0045\nlavfi.signalstats.YAVG=54.2\n") {
 		t.Fatal("visible application frame should be useful evidence")
 	}
 }

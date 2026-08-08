@@ -110,7 +110,29 @@ export function createLaunchTraceRecorder(config: LaunchTraceConfig): LaunchTrac
     async function persist(value: LaunchTrace): Promise<void> {
         if (!config.tracePath?.trim()) return;
         await fs.mkdir(path.dirname(config.tracePath), { recursive: true });
-        await fs.writeFile(config.tracePath, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+        // Never expose a truncated JSON trace if the short-lived Electron
+        // process is interrupted during a write. The evidence reader must see
+        // either the previous complete snapshot or no snapshot at all.
+        const temporaryPath = path.join(
+            path.dirname(config.tracePath),
+            `.${path.basename(config.tracePath)}.${process.pid}.${randomUUID()}.tmp`,
+        );
+        try {
+            await fs.writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+            try {
+                await fs.rename(temporaryPath, config.tracePath);
+            } catch (error) {
+                // Windows cannot rename over an existing file. Preserve the
+                // same complete-snapshot guarantee there by replacing the
+                // old snapshot only after the temporary write succeeded.
+                const code = (error as NodeJS.ErrnoException).code;
+                if (code !== "EEXIST" && code !== "EPERM") throw error;
+                await fs.rm(config.tracePath, { force: true });
+                await fs.rename(temporaryPath, config.tracePath);
+            }
+        } finally {
+            await fs.rm(temporaryPath, { force: true });
+        }
     }
 
     return {

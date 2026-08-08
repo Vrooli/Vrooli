@@ -17,6 +17,7 @@ import (
 	"scenario-to-desktop-api/target"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/discovery"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 )
 
@@ -294,9 +295,25 @@ func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPa
 	if opts.ScenarioName == "" {
 		opts.ScenarioName = session.ScenarioName
 	}
+	if strings.TrimSpace(opts.ScenarioName) == "" {
+		return nil, fmt.Errorf("Electron validation scenario name is required")
+	}
+	apiPort, err := discovery.ResolveScenarioPort(ctx, opts.ScenarioName, "API_PORT")
+	if err != nil {
+		return nil, fmt.Errorf("resolve Electron validation scenario API: %w", err)
+	}
 	s.killAppProcess(session)
 	environment := make(map[string]string)
 	environment["DISPLAY"] = session.Display.DisplayID()
+	// The bundled app owns its renderer and local service process, while the
+	// provider-owned routed lease is installed on the selected scenario API.
+	// Give the generated Electron main process the target-owned endpoint so its
+	// validation-only proxy can carry app-owned API requests to that leased
+	// service without exposing the lease identifier.
+	environment["VROOLI_VALIDATION_API_URL"] = fmt.Sprintf("http://127.0.0.1:%d", apiPort)
+	if strings.TrimSpace(renderer.URLPrefix) != "" {
+		environment["VROOLI_VALIDATION_RENDERER_URL"] = renderer.URLPrefix
+	}
 	session.mu.Lock()
 	if session.DarkMode {
 		environment["GTK_THEME"] = "Adwaita:dark"

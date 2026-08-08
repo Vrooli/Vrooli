@@ -184,20 +184,22 @@ type PerformancePhase struct {
 }
 
 type JourneyReview struct {
-	SchemaVersion    string           `json:"schema_version"`
-	Capability       string           `json:"capability"`
-	PlanID           string           `json:"plan_id"`
-	Profile          string           `json:"profile"`
-	Disposition      string           `json:"disposition"`
-	Reason           string           `json:"reason,omitempty"`
-	EventCount       int              `json:"event_count"`
-	DeploymentMode   string           `json:"deployment_mode,omitempty"`
-	ProviderTier     string           `json:"provider_tier,omitempty"`
-	ServiceIdentity  string           `json:"service_identity,omitempty"`
-	Readiness        string           `json:"readiness,omitempty"`
-	FallbackDecision string           `json:"fallback_decision,omitempty"`
-	SafeRouteClass   string           `json:"safe_route_class,omitempty"`
-	Chapters         []JourneyChapter `json:"chapters"`
+	SchemaVersion     string                      `json:"schema_version"`
+	Capability        string                      `json:"capability"`
+	PlanID            string                      `json:"plan_id"`
+	Profile           string                      `json:"profile"`
+	Disposition       string                      `json:"disposition"`
+	Reason            string                      `json:"reason,omitempty"`
+	EventCount        int                         `json:"event_count"`
+	DeploymentMode    string                      `json:"deployment_mode,omitempty"`
+	ProviderTier      string                      `json:"provider_tier,omitempty"`
+	ServiceIdentity   string                      `json:"service_identity,omitempty"`
+	Readiness         string                      `json:"readiness,omitempty"`
+	FallbackDecision  string                      `json:"fallback_decision,omitempty"`
+	SafeRouteClass    string                      `json:"safe_route_class,omitempty"`
+	WorkflowRequired  bool                        `json:"workflow_required,omitempty"`
+	WorkflowReference *WorkflowExecutionReference `json:"workflow_reference,omitempty"`
+	Chapters          []JourneyChapter            `json:"chapters"`
 }
 
 type JourneyChapter struct {

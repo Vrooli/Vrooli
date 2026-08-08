@@ -70,11 +70,13 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 		Profile:       profile,
 		State:         StateFailed,
 		Target: Target{
+			ID:         input.Journey.TargetID,
 			Ramp:       "scenario-to-desktop",
 			Platform:   strings.ToLower(strings.TrimSpace(input.Platform)),
 			OS:         "linux",
 			DeviceKind: "host",
 		},
+		CellID: input.Journey.CellID,
 		Runner: Runner{
 			ID:           "linux-xvfb-openbox",
 			Kind:         "native",
@@ -94,11 +96,27 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 		return fmt.Errorf("validate journey timeline: %w", err)
 	}
 	manifest.Timeline = TimelineSummary{
-		Version:         input.Journey.EvidenceVersion,
-		Capability:      input.Journey.Capability,
-		EventCount:      len(input.Journey.Events),
-		Ordered:         true,
-		RedactionStatus: "verified",
+		Version:          input.Journey.EvidenceVersion,
+		Capability:       input.Journey.Capability,
+		EventCount:       len(input.Journey.Events),
+		Ordered:          true,
+		RedactionStatus:  "verified",
+		WorkflowRequired: input.Journey.WorkflowRequired,
+	}
+	workflowReference := input.WorkflowReference
+	if workflowReference == nil {
+		workflowReference = input.Journey.WorkflowReference
+	}
+	if workflowReference != nil {
+		manifest.Timeline.Workflow = &WorkflowReference{
+			Provider: workflowReference.Provider, AssetID: workflowReference.AssetID,
+			ExecutionID: workflowReference.ExecutionID, RunID: workflowReference.RunID,
+			ArtifactDigest: workflowReference.ArtifactDigest, TargetID: workflowReference.TargetID,
+			CellID: workflowReference.CellID, Disposition: workflowReference.Disposition,
+		}
+		for _, artifact := range workflowReference.Artifacts {
+			manifest.Timeline.Workflow.Artifacts = append(manifest.Timeline.Workflow.Artifacts, WorkflowArtifactReference{ID: artifact.ID, Kind: artifact.Kind, URI: artifact.URI, MediaType: artifact.MediaType, Checksum: artifact.Checksum, Redacted: artifact.Redacted})
+		}
 	}
 	if input.Journey.ProviderObservation != nil {
 		manifest.Timeline.ProviderTier = input.Journey.ProviderObservation.ProviderTier

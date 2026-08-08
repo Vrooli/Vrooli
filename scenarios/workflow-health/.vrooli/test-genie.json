@@ -390,6 +390,9 @@
   "freshnessRequirement": "never",
   "phaseClass": "runtime",
   "runtimeClass": "execution",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
   "dimensions": [
     "visual"
   ],

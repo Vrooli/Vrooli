@@ -211,12 +211,47 @@ const SERVER_URL = APP_CONFIG.SERVER_TYPE === "external"
     ? APP_CONFIG.SERVER_PATH
     : `http://localhost:${APP_CONFIG.SERVER_PORT}`;
 const desktopValidationContext = readDesktopValidationContext(process.env);
-const desktopValidationOrigins = validationOrigins([APP_CONFIG.APP_URL, APP_CONFIG.API_ENDPOINT, APP_CONFIG.SERVER_PATH, SERVER_URL]);
+const desktopValidationAPIURL = process.env.VROOLI_VALIDATION_API_URL?.trim() ?? "";
+const desktopValidationRendererURL = process.env.VROOLI_VALIDATION_RENDERER_URL?.trim() ?? "";
+// Chromium may expose the local renderer as 127.0.0.1 even when the generated
+// app configuration names localhost. Treat that loopback alias as the same
+// target-owned renderer origin; do not broaden this to arbitrary hosts.
+const desktopValidationOrigins = validationOrigins([
+    APP_CONFIG.APP_URL,
+    APP_CONFIG.API_ENDPOINT,
+    APP_CONFIG.SERVER_PATH,
+    SERVER_URL,
+    `http://127.0.0.1:${APP_CONFIG.SERVER_PORT}`,
+    desktopValidationRendererURL,
+    desktopValidationAPIURL,
+]);
 
 function installDesktopValidationPropagation(): void {
     if (!desktopValidationContext) return;
     const headers = validationHeaders(desktopValidationContext);
-    session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ["http://*/*", "https://*/*"] }, (details, callback) => {
+    let validationAPI: URL | null = null;
+    try {
+        validationAPI = desktopValidationAPIURL ? new URL(desktopValidationAPIURL) : null;
+    } catch {
+        validationAPI = null;
+    }
+    if (validationAPI) {
+        session.defaultSession.webRequest.onBeforeRequest({ urls: ["<all_urls>"] }, (details, callback) => {
+            try {
+                const requestURL = new URL(details.url);
+                if (requestURL.pathname.startsWith("/api/") && isOwnedValidationURL(details.url, desktopValidationOrigins) && requestURL.origin !== validationAPI?.origin) {
+                    requestURL.protocol = validationAPI.protocol;
+                    requestURL.host = validationAPI.host;
+                    callback({ cancel: false, redirectURL: requestURL.toString() });
+                    return;
+                }
+            } catch {
+                // Invalid URLs are left to Chromium's normal request handling.
+            }
+            callback({ cancel: false });
+        });
+    }
+    session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ["<all_urls>"] }, (details, callback) => {
         if (isOwnedValidationURL(details.url, desktopValidationOrigins)) {
             details.requestHeaders = { ...details.requestHeaders, ...headers };
         }
@@ -261,8 +296,6 @@ const launchProfiler: LaunchProfiler = createLaunchProfiler(profileMode, process
 let profilerStartError = "";
 let demoTraceFinalizing = false;
 let demoRecordingEnded = false;
-void launchTrace.emit("recorder_started", "smoke-orchestrator", "trace");
-void launchTrace.emit(isSmokeTestDemo ? "demo_spawn" : "protocol_started", "electron", "main");
 
 // Stability check configuration
 const POST_SUCCESS_STABILITY_DELAY_MS = 2000;
@@ -1260,6 +1293,11 @@ async function runSmokeTest(): Promise<void> {
 // ===== APP LIFECYCLE =====
 
 app.whenReady().then(async () => {
+    // Persist the initial markers before any launch work begins. These writes
+    // used to be fire-and-forget at module load, which could leave a demo
+    // trace empty when the short-lived Electron process was terminated.
+    await launchTrace.emit("recorder_started", "smoke-orchestrator", "trace");
+    await launchTrace.emit(isSmokeTestDemo ? "demo_spawn" : "protocol_started", "electron", "main");
     await launchTrace.emit("electron_ready", "electron", "main");
     if (isSmokeTest) { await runSmokeTest(); return; }
     if (APP_CONFIG.ENABLE_SINGLE_INSTANCE) {
