@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/protoint"
 	"audio-tools/internal/qualification"
 	"audio-tools/internal/stt"
 	"audio-tools/internal/stt/egress"
@@ -284,7 +285,7 @@ func (h reportRunner) segmenterSession(meter *MeteredProvider, cfg stt.StreamCon
 		deps.SpeakerExtraction = h.deps.NewSpeakerExtraction()
 	}
 	seg := segmenter.New(deps)
-	start := sttchain.StreamStart{InputFormat: "pcm_s16le", InputSampleRate: int32(clip.SampleRate), EngineID: engineID}
+	start := sttchain.StreamStart{InputFormat: "pcm_s16le", InputSampleRate: protoint.FromInt(clip.SampleRate), EngineID: engineID}
 	return func(ctx context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
 		return seg.Run(ctx, start, cfg, chunks, events)
 	}

@@ -19,7 +19,8 @@ import (
 // holds the connection OPEN without reading any further frames. Once the OS
 // socket buffer fills, the provider's next blocking WriteMessage stalls. The
 // server closes only when its request context is cancelled (srv.Close()).
-func newStalledReaderServer() *httptest.Server {
+func newStalledReaderServer() (*httptest.Server, <-chan struct{}) {
+	started := make(chan struct{})
 	up := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := up.Upgrade(w, r, nil)
@@ -33,9 +34,10 @@ func newStalledReaderServer() *httptest.Server {
 		if _, _, err := conn.ReadMessage(); err != nil {
 			return
 		}
+		close(started)
 		<-r.Context().Done()
 	})
-	return httptest.NewServer(h)
+	return httptest.NewServer(h), started
 }
 
 // TestKyutaiProvider_CancelUnderWriteBackpressureCompletesTeardown is the
@@ -55,7 +57,7 @@ func newStalledReaderServer() *httptest.Server {
 // bounded wait below fires) and PASSES once the writeMu-across-blocking-write
 // coupling is retired.
 func TestKyutaiProvider_CancelUnderWriteBackpressureCompletesTeardown(t *testing.T) {
-	srv := newStalledReaderServer()
+	srv, serverStarted := newStalledReaderServer()
 	defer srv.Close()
 
 	p := sttchain.NewKyutaiProvider("http://example.invalid")
@@ -72,10 +74,10 @@ func TestKyutaiProvider_CancelUnderWriteBackpressureCompletesTeardown(t *testing
 	big := make([]byte, 8<<20) // 8 MiB
 	chunks <- sttchain.AudioChunk{Audio: big}
 
-	// Let the pump enter the blocked 8 MiB write while holding writeMu before
-	// we cancel — this pins the deadlock ordering (pump holds the lock, the
-	// cancel watcher's sendEnd then blocks acquiring it) rather than racing it.
-	time.Sleep(300 * time.Millisecond)
+	// Wait for the server to consume the start frame before sending the large
+	// payload. This synchronizes the backpressure setup without a scheduler-
+	// dependent sleep.
+	<-serverStarted
 	cancel()
 
 	// Drain the events channel. The contract: cancelling always completes

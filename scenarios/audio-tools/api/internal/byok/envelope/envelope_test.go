@@ -15,7 +15,7 @@ func TestFromHTTP(t *testing.T) {
 			h.Set(HeaderProvider, p)
 		}
 		if k != "" {
-			h.Set(HeaderKey, k)
+			h.Set(HeaderBYOKKey, k)
 		}
 		if l != "" {
 			h.Set(HeaderLPBSToken, l)
@@ -81,7 +81,7 @@ func TestFromHTTP(t *testing.T) {
 func TestFromConnectRequest(t *testing.T) {
 	req := connect.NewRequest(&struct{}{})
 	req.Header().Set(HeaderProvider, "openrouter")
-	req.Header().Set(HeaderKey, "sk-from-connect")
+	req.Header().Set(HeaderBYOKKey, "sk-from-connect")
 	req.Header().Set(HeaderLPBSToken, "tok")
 	req.Header().Set(HeaderUserIdentity, "user-7")
 	got := FromConnectRequest(req)

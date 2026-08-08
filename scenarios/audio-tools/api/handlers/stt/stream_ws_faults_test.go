@@ -21,9 +21,9 @@ func faultRequest(value string, testMode bool) *http.Request {
 
 func TestStreamTestFaultFromRequest_RequiresBothGates(t *testing.T) {
 	for _, tc := range []struct {
-		name          string
+		name            string
 		isolationActive bool
-		testMode      bool
+		testMode        bool
 	}{
 		{name: "isolation inactive", isolationActive: false, testMode: true},
 		{name: "request test mode absent", isolationActive: true, testMode: false},
@@ -45,6 +45,10 @@ func TestStreamTestFaultFromRequest_ParsesSupportedDeterministicFaults(t *testin
 	require.NoError(t, err)
 	require.Equal(t, 3, closeAfter.closeAfterChunks)
 
+	recoverableCloseAfter, err := streamTestFaultFromRequest(faultRequest("close_after_chunk_recoverable:1", true), true)
+	require.NoError(t, err)
+	require.Equal(t, 1, recoverableCloseAfter.closeAfterChunksRecoverable)
+
 	closeAfterCommit, err := streamTestFaultFromRequest(faultRequest("close_after_commit:2", true), true)
 	require.NoError(t, err)
 	require.Equal(t, 2, closeAfterCommit.closeAfterCommits)
@@ -63,6 +67,8 @@ func TestStreamTestFaultFromRequest_ParsesSupportedDeterministicFaults(t *testin
 	require.True(t, suppressedAck.suppressProcessedAck)
 
 	_, err = streamTestFaultFromRequest(faultRequest("close_after_chunk:0", true), true)
+	require.Error(t, err)
+	_, err = streamTestFaultFromRequest(faultRequest("close_after_chunk_recoverable:0", true), true)
 	require.Error(t, err)
 	_, err = streamTestFaultFromRequest(faultRequest("close_after_commit:0", true), true)
 	require.Error(t, err)

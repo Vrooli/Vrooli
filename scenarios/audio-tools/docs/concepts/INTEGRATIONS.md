@@ -35,7 +35,7 @@ Per-request credentials travel in metadata headers `X-Audio-BYOK-{Provider,Key}`
 
 | Consumer | Mechanism | Status |
 |---|---|---|
-| `web-console` | Connect-RPC via `scenarios/web-console/api/integrations/audiotools/` adapter; UI via `@audio-tools/embed` workspace import re-exported through `ui/src/domains/audio/index.ts` | Phase H — integrations adapter + Remote* audioports built; main.go wiring switch pending. |
+| `web-console` | Connect-RPC via `scenarios/web-console/api/integrations/audiotools/` adapter; UI via the shared browser capture package and web-console's transport adapter | Shared browser integration migration. |
 | `swarm-manager` | Future (covered by its own execute item) | Not started. |
 | `agent-manager` | Future | Not started. |
 | `phone-agent` | Future (twilio-voice transport in audio-tools) | Not started. |

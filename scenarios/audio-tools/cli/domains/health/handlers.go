@@ -9,6 +9,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
+	"audio-tools/cli/domains/labels"
+
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
 	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
@@ -112,41 +114,15 @@ func formatCapabilities(caps []*hsv1.CapabilityHealth) []string {
 }
 
 func capabilityLabel(c diagv1.Capability) string {
-	switch c {
-	case diagv1.Capability_CAPABILITY_STT:
-		return "stt"
-	case diagv1.Capability_CAPABILITY_TTS:
-		return "tts"
-	case diagv1.Capability_CAPABILITY_SUMMARIZE:
-		return "summarize"
-	case diagv1.Capability_CAPABILITY_TRANSCODE:
-		return "transcode"
-	}
-	return "unknown"
+	return labels.Enum(c, "CAPABILITY_", "unknown", labels.LowerWords)
 }
 
 func tierLabel(t commonv1.ProviderTier) string {
-	switch t {
-	case commonv1.ProviderTier_PROVIDER_TIER_LOCAL:
-		return "local"
-	case commonv1.ProviderTier_PROVIDER_TIER_BYOK:
-		return "byok"
-	case commonv1.ProviderTier_PROVIDER_TIER_VROOLI:
-		return "vrooli"
-	}
-	return "-"
+	return labels.Enum(t, "PROVIDER_TIER_", "-", labels.LowerWords)
 }
 
 func stateLabel(s sharedv1.ProviderState) string {
-	switch s {
-	case sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE:
-		return "AVAILABLE"
-	case sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE:
-		return "UNAVAILABLE"
-	case sharedv1.ProviderState_PROVIDER_STATE_UNKNOWN:
-		return "UNKNOWN"
-	}
-	return "-"
+	return labels.Enum(s, "PROVIDER_STATE_", "-", strings.ToUpper)
 }
 
 func truncate(s string, n int) string {

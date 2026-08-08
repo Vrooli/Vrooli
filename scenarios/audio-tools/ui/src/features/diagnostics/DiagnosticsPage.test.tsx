@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { strings } from "../../consts/strings";
 
-// TranscribeTryIt pulls in VoiceStreamProvider + MediaRecorder on construct.
+// TranscribeTryIt pulls in the streaming provider + MediaRecorder on construct.
 // DiagnosticsPage tests focus on the page-level shell — the transcribe
 // panel is fully covered in TranscribeTryIt.test.tsx.
 vi.mock("./TranscribeTryIt", () => ({

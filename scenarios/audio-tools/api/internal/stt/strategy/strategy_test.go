@@ -55,8 +55,7 @@ func chunksFrom(audio []byte) <-chan sttchain.AudioChunk {
 // threshold, so this is the canonical shape for behaviour tests that
 // expect one Whisper call per scripted text.
 func chunksOfWindows(n, windowMs, tailBytes int) <-chan sttchain.AudioChunk {
-	const sampleRate, sampleBytes = 16000, 2
-	wb := sampleRate * windowMs / 1000 * sampleBytes
+	wb := testaudio.PCMByteCount(testaudio.SampleRateHz, windowMs)
 	ch := make(chan sttchain.AudioChunk, n+1)
 	for i := 0; i < n; i++ {
 		ch <- sttchain.AudioChunk{Audio: make([]byte, wb)}
@@ -73,19 +72,12 @@ func chunksOfWindows(n, windowMs, tailBytes int) <-chan sttchain.AudioChunk {
 // default 250 silence threshold). Filled with constant amplitude
 // 1000.
 func voicedFrame(sampleRate, frameMs int) []byte {
-	bs := sampleRate * frameMs / 1000 * 2
-	out := make([]byte, bs)
-	for i := 0; i < bs; i += 2 {
-		// little-endian int16 = 1000
-		out[i] = 0xE8
-		out[i+1] = 0x03
-	}
-	return out
+	return testaudio.VoicedSamplesAtRate(sampleRate, frameMs, 1000)
 }
 
 // silentFrame returns frameMs PCM of zeros — RMS=0, classified silent.
 func silentFrame(sampleRate, frameMs int) []byte {
-	return make([]byte, sampleRate*frameMs/1000*2)
+	return testaudio.SilenceSamplesAtRate(sampleRate, frameMs)
 }
 
 // voicedThenSilent returns one chunk consisting of `voicedMs` of
@@ -93,7 +85,7 @@ func silentFrame(sampleRate, frameMs int) []byte {
 // will see the voiced frames, then the silence frames, and trigger a
 // VAD boundary when silenceMs ≥ the configured silence threshold.
 func voicedThenSilent(sampleRate, voicedMs, silenceMs int) []byte {
-	const frameMs = 20
+	const frameMs = testaudio.DefaultFrameMs
 	var out []byte
 	for ms := 0; ms < voicedMs; ms += frameMs {
 		out = append(out, voicedFrame(sampleRate, frameMs)...)
@@ -191,7 +183,7 @@ func TestPassthrough_SynthesisesMissingDone(t *testing.T) {
 func TestVADSegmenter_SilenceEmitsNoSegments(t *testing.T) {
 	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
 	strat := &strategy.VADSegmenter{Provider: prov}
-	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.Silence()))
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.Silence1s()))
 
 	// All-silence input never sees a voiced frame, so flushSegment skips.
 	// Expect: zero Segment events, one terminal Done.
@@ -209,13 +201,13 @@ func TestVADSegmenter_SilenceEmitsNoSegments(t *testing.T) {
 	require.Equal(t, 0, prov.Calls)
 }
 
-func TestVADSegmenter_SpeechLikeEmitsAtLeastOneSegment(t *testing.T) {
+func TestVADSegmenter_SpeechTonePauseTone3sEmitsAtLeastOneSegment(t *testing.T) {
 	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
 	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
 		return &sttchain.Result{Text: "segment", Tier: sttchain.TierLocal, ProviderID: "whisper", ModelID: "base", Latency: time.Millisecond}, nil
 	}
 	strat := &strategy.VADSegmenter{Provider: prov}
-	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.SpeechLike()))
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.SpeechTonePauseTone3s()))
 
 	var segments, dones int
 	for _, ev := range got {
@@ -264,7 +256,7 @@ func TestOverlapAgree_SilenceProducesOnlyDone(t *testing.T) {
 	}
 	// Small audio (under WindowMs at default 16kHz/2s) — no windows fire,
 	// final tail transcribe sees no committed text. Done is terminal.
-	got := runStrategy(t, context.Background(), &strategy.OverlapAgree{Provider: prov}, sttchain.StreamStart{}, chunksFrom(testaudio.Silence()))
+	got := runStrategy(t, context.Background(), &strategy.OverlapAgree{Provider: prov}, sttchain.StreamStart{}, chunksFrom(testaudio.Silence1s()))
 	require.NotEmpty(t, got)
 	require.Equal(t, sttchain.StreamEventDone, got[len(got)-1].Kind)
 }

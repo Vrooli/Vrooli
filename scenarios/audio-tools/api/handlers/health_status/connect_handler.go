@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/capabilities"
+	"audio-tools/internal/protoint"
 
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
 	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
@@ -86,7 +87,7 @@ func ttlSeconds(d time.Duration) int32 {
 	if d <= 0 {
 		return 0
 	}
-	return int32(d / time.Second)
+	return protoint.FromInt64(int64(d / time.Second))
 }
 
 // buildCapabilities expands the registry State slice into per-capability
@@ -98,9 +99,9 @@ func ttlSeconds(d time.Duration) int32 {
 //   - serving: requires routing visibility, not yet plumbed.
 //   - latency_ms: registry.State doesn't carry per-check latency yet.
 func buildCapabilities(states []capabilities.State) []*hsv1.CapabilityHealth {
-	type key = diagv1.Capability
-	byCap := make(map[key][]*sharedv1.ProviderHealth)
-	order := make([]key, 0, 4)
+	type capabilityIdentifier = diagv1.Capability
+	byCap := make(map[capabilityIdentifier][]*sharedv1.ProviderHealth)
+	order := make([]capabilityIdentifier, 0, 4)
 
 	for _, st := range states {
 		// Skip the rollup pseudo-entry — it's a scenario advertisement,
@@ -108,7 +109,7 @@ func buildCapabilities(states []capabilities.State) []*hsv1.CapabilityHealth {
 		if st.Def.ID == "audio-tools" {
 			continue
 		}
-		seen := make(map[key]struct{})
+		seen := make(map[capabilityIdentifier]struct{})
 		for _, feat := range st.Def.Features {
 			cap, ok := capabilities.CapabilityForFeature(feat)
 			if !ok {

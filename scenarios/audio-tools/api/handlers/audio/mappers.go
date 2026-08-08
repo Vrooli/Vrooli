@@ -80,17 +80,13 @@ func audioFormatFromString(s string) commonv1.AudioFormat {
 // normalizationMethodString maps the audio-domain NormalizationMethod
 // enum to the ffmpeg-filter selector string the internal pipeline uses.
 // UNSPECIFIED maps to "" so the pipeline applies its EBU_R128 default.
-func normalizationMethodString(m audiov1.NormalizationMethod) string {
-	switch m {
-	case audiov1.NormalizationMethod_NORMALIZATION_METHOD_EBU_R128:
-		return "ebu_r128"
-	case audiov1.NormalizationMethod_NORMALIZATION_METHOD_RMS:
-		return "rms"
-	case audiov1.NormalizationMethod_NORMALIZATION_METHOD_PEAK:
-		return "peak"
-	}
-	return ""
+var normalizationMethods = map[audiov1.NormalizationMethod]string{
+	audiov1.NormalizationMethod_NORMALIZATION_METHOD_EBU_R128: "ebu_r128",
+	audiov1.NormalizationMethod_NORMALIZATION_METHOD_RMS:      "rms",
+	audiov1.NormalizationMethod_NORMALIZATION_METHOD_PEAK:     "peak",
 }
+
+func normalizationMethodString(m audiov1.NormalizationMethod) string { return normalizationMethods[m] }
 
 // atoiOr parses s as a decimal integer; on empty input or parse error
 // it returns def.

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"os"
 	"time"
 
 	"audio-tools/cli/domains"
+	"audio-tools/cli/internal/envx"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -27,7 +29,7 @@ type App struct {
 func NewApp() (*App, error) {
 	app := &App{}
 	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
-		groups, err := domains.SubcommandGroups(core, manifestBytes)
+		groups, err := domains.SubcommandGroupsWithClock(core, manifestBytes, time.Now, envx.Get, os.Getwd)
 		if err != nil {
 			// Manifest parse / binding wiring is a programmer error caught
 			// at NewApp time; surface it as a panic so misconfigured builds

@@ -126,14 +126,14 @@ func TestFingerprintDeterministicAndRedacted(t *testing.T) {
 }
 
 func TestLoadOrCreateKeyEnvWins(t *testing.T) {
-	hexKey := "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
-	t.Setenv(KeyEnvVar, hexKey)
+	fixtureHex := "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+	t.Setenv(KeyEnvVar, fixtureHex)
 	dir := t.TempDir()
 	got, err := LoadOrCreateKey(filepath.Join(dir, "key.hex"))
 	if err != nil {
 		t.Fatalf("LoadOrCreateKey: %v", err)
 	}
-	want, _ := hex.DecodeString(hexKey)
+	want, _ := hex.DecodeString(fixtureHex)
 	if !bytes.Equal(got, want) {
 		t.Fatalf("env-supplied key not returned")
 	}

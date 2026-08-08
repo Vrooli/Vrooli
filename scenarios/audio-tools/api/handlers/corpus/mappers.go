@@ -2,6 +2,7 @@ package corpus
 
 import (
 	intcorpus "audio-tools/internal/corpus"
+	"audio-tools/internal/protoint"
 	"audio-tools/internal/protomap"
 
 	corpusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/corpus"
@@ -35,7 +36,7 @@ func clipToProto(c intcorpus.Clip) *corpusv1.Clip {
 		ReferenceText: c.ReferenceText,
 		Tags:          tags,
 		DurationMs:    c.DurationMs,
-		SampleRateHz:  int32(c.SampleRateHz),
+		SampleRateHz:  protoint.FromInt(c.SampleRateHz),
 		Format:        c.Format,
 		BlobKey:       c.BlobKey,
 		Source:        sourceToProto(c.Source),

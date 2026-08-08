@@ -54,6 +54,19 @@ func TestFakeProvider_Smoke(t *testing.T) {
 	require.Equal(t, "explicit", res.Text)
 }
 
+func TestFakeProviderBuilder_OverridesDefaultsPerTest(t *testing.T) {
+	p := NewFakeProviderBuilder(sttchain.TierBYOK).
+		WithTraits(sttchain.ProviderTraits{Batch: true}).
+		WithResult(&sttchain.Result{Text: "scripted"}).
+		Build()
+
+	require.Equal(t, sttchain.TierBYOK, p.Type())
+	require.True(t, p.Traits().Batch)
+	got, err := p.Transcribe(context.Background(), sttchain.Request{})
+	require.NoError(t, err)
+	require.Equal(t, "scripted", got.Text)
+}
+
 func TestFakeBatchExecutor_Smoke(t *testing.T) {
 	e := &FakeBatchExecutor{}
 	res, err := e.Execute(context.Background(), sttchain.Request{})

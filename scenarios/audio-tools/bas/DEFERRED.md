@@ -66,13 +66,13 @@ replace, the following functional cases:
    `3676aa0c-5fce-4159-bf93-17319d2e5d30`, 2026-07-12). The legacy
    `BAS_FAKE_MICROPHONE_FILE` env knob remains only as the default-browser
    fallback for dedicated qualification drivers. Audio Tools now has double-gated deterministic WebSocket
-   faults (`provider_busy`, `close_after_chunk:N`, `close_after_commit:N`,
+   faults (`provider_busy`, `close_after_chunk:N`, `close_after_chunk_recoverable:N`, `close_after_commit:N`,
    `pause_reads_after_chunk:N:MS`, `delay_processed_ack_ms:MS`, and
-   `suppress_processed_ack`), but BAS
-   now has authored requirement-bound `deterministic-provider-busy` and
-   `deterministic-incomplete-coverage` cases. The latter is a bounded terminal
-   acknowledgement-withholding proof; it is not reconnect/replay, restart, or
-   full provider-resource qualification.
+   `suppress_processed_ack`), and BAS now has authored requirement-bound
+   `deterministic-provider-busy`, `deterministic-incomplete-coverage`, and
+   `deterministic-reconnect-recovery` cases. The reconnect case is a bounded
+   one-shot browser replay proof; it is not restart or full provider-resource
+   qualification.
    Browser page-profile headers do not reach a page-created WebSocket handshake,
    so the case instead uses explicit test URL parameters guarded by the active
    server-owned routed-isolation lease. BAS execution
@@ -96,7 +96,7 @@ replace, the following functional cases:
 1. A non-media UI flow lands with no `ui/src/**/*.test.tsx` coverage.
 2. A user-reported diagnostics/configuration regression slips past unit tests →
    land it as a `cases/<surface>/` case to prevent recurrence.
-3. A consumer adopts `@audio-tools/embed` → land its requirement-bound
+3. A consumer adopts the shared browser-capture package → land its requirement-bound
    product-path case, not only `flows/embed-<consumer>-smoke.json`.
 4. A newly added fault seam → land a deterministic case with coverage, terminal,
    recovery, and diagnostic assertions.

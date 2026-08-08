@@ -2,9 +2,7 @@ package report
 
 import (
 	"context"
-	"errors"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -24,35 +22,6 @@ import (
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 )
 
-type memoryBlobs struct {
-	mu sync.Mutex
-	m  map[string][]byte
-}
-
-func (b *memoryBlobs) Put(_ context.Context, key string, data []byte, _ string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.m[key] = append([]byte(nil), data...)
-	return nil
-}
-
-func (b *memoryBlobs) Get(_ context.Context, key string) ([]byte, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	data, ok := b.m[key]
-	if !ok {
-		return nil, errors.New("blob missing")
-	}
-	return append([]byte(nil), data...), nil
-}
-
-func (b *memoryBlobs) Delete(_ context.Context, key string) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	delete(b.m, key)
-	return nil
-}
-
 func experimentCorpus(t *testing.T) *intcorpus.Service {
 	t.Helper()
 	database := db.NewSQLite(t)
@@ -60,7 +29,7 @@ func experimentCorpus(t *testing.T) *intcorpus.Service {
 		t.Fatalf("apply corpus schema: %v", err)
 	}
 	clk := mocks.NewFakeClock(time.Date(2026, 7, 23, 0, 0, 0, 0, time.UTC))
-	return intcorpus.NewService(intcorpus.NewSQLiteRepository(database, clk), &memoryBlobs{m: map[string][]byte{}}, clk)
+	return intcorpus.NewService(intcorpus.NewSQLiteRepository(database, clk), mocks.NewFakeBlobStore(), clk)
 }
 
 func TestRunExperimentReport_DefaultRecipeExecutesCorpusThroughProvider(t *testing.T) {

@@ -11,6 +11,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
+	"audio-tools/cli/domains/labels"
+
 	plv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/provider_lifecycle"
 	plconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/provider_lifecycle/provider_lifecycle_v1connect"
 )
@@ -18,13 +20,19 @@ import (
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client plconnect.ProviderLifecycleServiceClient
+	now    func() time.Time
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	return newHandlersWithClock(core, func() time.Time { return time.Unix(0, 0) })
+}
+
+func newHandlersWithClock(core *cliapp.ScenarioApp, now func() time.Time) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
 		client: plconnect.NewProviderLifecycleServiceClient(httpClient, baseURL),
+		now:    now,
 	}
 }
 
@@ -33,7 +41,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("provider list", err, nil)
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, listReport(resp.Msg.GetProviders()))
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, listReport(resp.Msg.GetProviders(), h.now))
 }
 
 func (h *handlers) start(ctx cliapp.RunContext) error {
@@ -104,9 +112,9 @@ func (h *handlers) logs(ctx cliapp.RunContext) error {
 	return nil
 }
 
-func listReport(providers []*plv1.LocalProvider) cliapp.MutationReport {
+func listReport(providers []*plv1.LocalProvider, now func() time.Time) cliapp.MutationReport {
 	rep := cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Local providers  (snapshot %s)", time.Now().UTC().Format(time.RFC3339))},
+		Result: []string{fmt.Sprintf("Local providers  (snapshot %s)", now().UTC().Format(time.RFC3339))},
 	}
 	if len(providers) == 0 {
 		rep.Result = append(rep.Result, "(no local providers registered)")
@@ -142,31 +150,14 @@ func actionReport(verb, target string, dryRun bool, message string) cliapp.Mutat
 }
 
 func processStateLabel(s plv1.ProcessState) string {
-	switch s {
-	case plv1.ProcessState_PROCESS_STATE_RUNNING:
-		return "RUNNING"
-	case plv1.ProcessState_PROCESS_STATE_STOPPED:
-		return "STOPPED"
-	case plv1.ProcessState_PROCESS_STATE_UNKNOWN:
-		return "UNKNOWN"
-	}
-	return "-"
+	return labels.Enum(s, "PROCESS_STATE_", "-", strings.ToUpper)
 }
 
 func actionsLabel(actions []plv1.Action) string {
 	parts := make([]string, 0, len(actions))
 	for _, a := range actions {
-		switch a {
-		case plv1.Action_ACTION_START:
-			parts = append(parts, "start")
-		case plv1.Action_ACTION_STOP:
-			parts = append(parts, "stop")
-		case plv1.Action_ACTION_RESTART:
-			parts = append(parts, "restart")
-		case plv1.Action_ACTION_PULL_MODEL:
-			parts = append(parts, "pull-model")
-		case plv1.Action_ACTION_VIEW_LOGS:
-			parts = append(parts, "logs")
+		if label := labels.Enum(a, "ACTION_", "", labels.LowerWords); label != "" {
+			parts = append(parts, label)
 		}
 	}
 	return strings.Join(parts, ",")

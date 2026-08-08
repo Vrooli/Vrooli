@@ -41,7 +41,7 @@ func NewBYOKProvider(registry map[string]BYOKAdapter) *BYOKProvider {
 func (p *BYOKProvider) Type() ProviderTier { return TierBYOK }
 
 func (p *BYOKProvider) IsAvailable(ctx context.Context) bool {
-	return len(p.registry) > 0
+	return tiered.RegistryConfigured(p.registry)
 }
 
 func (p *BYOKProvider) Transcribe(ctx context.Context, req Request) (*Result, error) {
@@ -55,7 +55,7 @@ func (p *BYOKProvider) Transcribe(ctx context.Context, req Request) (*Result, er
 		})
 }
 
-func (p *BYOKProvider) Model() string { return "byok-dispatched" }
+func (p *BYOKProvider) Model() string { return tiered.DispatchedModel() }
 
 // Traits reports the BYOK tier as streaming-capable when at least one
 // registered adapter declares streaming support. The actual per-request

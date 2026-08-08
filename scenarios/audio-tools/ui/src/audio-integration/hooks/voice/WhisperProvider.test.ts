@@ -8,6 +8,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { makeMediaStream } from "../../test-support/browser";
 
 // ─── Module mocks (hoisted) ───────────────────────────────────────────────────
 const transcribeMock = vi.fn();
@@ -55,12 +56,6 @@ class FakeMediaRecorder {
 
 // ─── Fake MediaStream / Track ─────────────────────────────────────────────────
 
-function makeStream(readyState: "live" | "ended" = "live"): MediaStream {
-  return {
-    getTracks: () => [{ readyState, stop: vi.fn() }],
-  } as unknown as MediaStream;
-}
-
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 /** Suppress console.warn emitted when transcription fails (test-setup kills stray warns). */
@@ -82,7 +77,7 @@ describe("WhisperProvider", () => {
     FakeMediaRecorder.lastInstance = null;
     vi.clearAllMocks();
     vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
-    getUserMediaMock = vi.fn().mockResolvedValue(makeStream());
+    getUserMediaMock = vi.fn().mockResolvedValue(makeMediaStream());
     vi.stubGlobal("navigator", {
       mediaDevices: { getUserMedia: getUserMediaMock },
     });
@@ -118,7 +113,7 @@ describe("WhisperProvider", () => {
   // ── start with pre-warmed stream ─────────────────────────────────────────────
 
   it("start() uses pre-warmed stream when all tracks are live", async () => {
-    const preWarmed = makeStream("live");
+    const preWarmed = makeMediaStream("live");
     const p = new WhisperProvider();
     await p.start(preWarmed);
     expect(getUserMediaMock).not.toHaveBeenCalled();
@@ -127,7 +122,7 @@ describe("WhisperProvider", () => {
   });
 
   it("start() ignores pre-warmed stream with ended tracks and falls through to getUserMedia", async () => {
-    const endedStream = makeStream("ended");
+    const endedStream = makeMediaStream("ended");
     const p = new WhisperProvider();
     await p.start(endedStream);
     expect(getUserMediaMock).toHaveBeenCalled();
@@ -157,7 +152,7 @@ describe("WhisperProvider", () => {
     // Manually seed a fake lastTurn (simulates previous turn)
     // @ts-expect-error — accessing private for test
     p.lastTurn = { blob: new Blob(["x"]), mimeType: "audio/webm", durationMs: 1000, capturedAt: 0 };
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     expect(p.getLastTurnAudio()).toBeNull();
   });
 
@@ -169,7 +164,7 @@ describe("WhisperProvider", () => {
     p.onResult = onResult;
     transcribeMock.mockResolvedValueOnce("  hello world  ");
 
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const mr = FakeMediaRecorder.lastInstance!;
     mr.pushChunk(new Blob(["audio-data"]));
     await mr.fireStop();
@@ -184,7 +179,7 @@ describe("WhisperProvider", () => {
     p.onResult = onResult;
     transcribeMock.mockResolvedValueOnce("   ");
 
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const mr = FakeMediaRecorder.lastInstance!;
     mr.pushChunk(new Blob(["data"]));
     await mr.fireStop();
@@ -196,7 +191,7 @@ describe("WhisperProvider", () => {
     const p = new WhisperProvider();
     transcribeMock.mockResolvedValueOnce("text");
 
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const mr = FakeMediaRecorder.lastInstance!;
     mr.pushChunk(new Blob(["data"]));
     await mr.fireStop();
@@ -211,7 +206,7 @@ describe("WhisperProvider", () => {
     const p = new WhisperProvider();
     transcribeMock.mockResolvedValueOnce("text");
 
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const mr = FakeMediaRecorder.lastInstance!;
     mr.pushChunk(new Blob(["data"]));
     await mr.fireStop();
@@ -226,7 +221,7 @@ describe("WhisperProvider", () => {
     const onResult = vi.fn();
     p.onResult = onResult;
 
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const mr = FakeMediaRecorder.lastInstance!;
     // No chunks pushed → blob is empty
     await mr.fireStop();
@@ -244,7 +239,7 @@ describe("WhisperProvider", () => {
     p.onError = onError;
     transcribeMock.mockRejectedValueOnce(new Error("network"));
 
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const mr = FakeMediaRecorder.lastInstance!;
     mr.pushChunk(new Blob(["data"]));
     await mr.fireStop();
@@ -257,7 +252,7 @@ describe("WhisperProvider", () => {
     p.language = "fr";
     transcribeMock.mockResolvedValueOnce("bonjour");
 
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const mr = FakeMediaRecorder.lastInstance!;
     mr.pushChunk(new Blob(["data"]));
     await mr.fireStop();
@@ -285,7 +280,7 @@ describe("WhisperProvider", () => {
 
   it("stop() calls mediaRecorder.stop() when recording", async () => {
     const p = new WhisperProvider();
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     p.stop();
     expect(FakeMediaRecorder.lastInstance!.stop).toHaveBeenCalled();
   });
@@ -310,7 +305,7 @@ describe("WhisperProvider", () => {
 
   it("dispose() stops recorder if recording", async () => {
     const p = new WhisperProvider();
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     p.dispose();
     expect(FakeMediaRecorder.lastInstance!.stop).toHaveBeenCalled();
     expect(p.getStream()).toBeNull();
@@ -320,13 +315,13 @@ describe("WhisperProvider", () => {
   it("dispose() stops stream tracks and clears lastTurn even when not recording", async () => {
     const p = new WhisperProvider();
     transcribeMock.mockResolvedValueOnce("hi");
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const mr = FakeMediaRecorder.lastInstance!;
     mr.pushChunk(new Blob(["data"]));
     await mr.fireStop(); // now state is inactive
 
     // @ts-expect-error — private field patched for test setup
-    p.stream = makeStream(); // simulate stream still set
+    p.stream = makeMediaStream(); // simulate stream still set
 
     p.dispose();
     expect(p.getStream()).toBeNull();
@@ -343,7 +338,7 @@ describe("WhisperProvider", () => {
   it("uses opus mimeType when supported", async () => {
     FakeMediaRecorder.isTypeSupported.mockReturnValue(true);
     const p = new WhisperProvider();
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     // The FakeMediaRecorder constructor is called — verify it was constructed
     expect(FakeMediaRecorder.lastInstance).not.toBeNull();
   });
@@ -351,7 +346,7 @@ describe("WhisperProvider", () => {
   it("falls back to audio/webm when opus is unsupported", async () => {
     FakeMediaRecorder.isTypeSupported.mockReturnValue(false);
     const p = new WhisperProvider();
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     expect(FakeMediaRecorder.lastInstance).not.toBeNull();
   });
 });

@@ -5,7 +5,7 @@ import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import { API_BASE } from "./api/base";
-import { AudioToolsProvider, createAudioToolsClient } from "./audio-integration";
+import { AudioToolsProvider, createAudioToolsClient, registerVoiceTransport } from "./audio-integration";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { onProfilerRender } from "./lib/profiler";
@@ -42,6 +42,8 @@ installChunkReloadGuard();
 const audioToolsClient = createAudioToolsClient({
   baseUrl: API_BASE,
 });
+
+registerVoiceTransport();
 
 const rootEl = document.getElementById("root");
 if (!rootEl) {

@@ -14,6 +14,7 @@ import (
 
 	intexp "audio-tools/internal/experiment"
 	"audio-tools/internal/logx"
+	"audio-tools/internal/protoint"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
@@ -193,7 +194,7 @@ func (h *connectHandler) estimateExperimentSeconds(ctx context.Context, recipe *
 	if total > int64(experimentMaxEstimatedSeconds) {
 		return 0, experimentDurationLimitError(total)
 	}
-	return int32(total), nil
+	return protoint.FromInt64(total), nil
 }
 
 func experimentDurationLimitError(seconds int64) error {
@@ -202,7 +203,7 @@ func experimentDurationLimitError(seconds int64) error {
 
 func estimatedRecipeDurationSeconds(recipe *experimentv1.ExperimentRecipe) int32 {
 	if recipe.GetRealizedDurationMs() > 0 {
-		return int32((recipe.GetRealizedDurationMs() + 999) / 1000)
+		return protoint.FromInt64((recipe.GetRealizedDurationMs() + 999) / 1000)
 	}
 	longForm := recipe.GetLongForm()
 	if longForm == nil {

@@ -29,7 +29,7 @@ import {
   strategyPreferenceLabel,
   summarizeLevelFromString,
   timestampToISO,
-} from "./protomap";
+} from "@vrooli/audio-capture-browser";
 
 // ---------------------------------------------------------------------------
 // providerTierLabel

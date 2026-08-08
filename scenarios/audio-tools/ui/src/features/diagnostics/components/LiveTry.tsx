@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Mic, Square } from "lucide-react";
-import { VoiceStreamProvider, MicReadinessIndicator } from "../../../audio-integration";
-import { Button } from "../../../components/ui/button";
+import { PcmVoiceStreamProvider, MicReadinessIndicator } from "../../../audio-integration";
+import { VoiceInputButton } from "../../../audio-integration/SharedVoiceInputButton";
 import type { ProviderTrace } from "../../../services/diagnostics";
 import { useTranslation } from "../../../i18n";
 import { strings } from "../../../consts/strings";
@@ -11,27 +10,27 @@ interface Props {
   onTrace: (t: ProviderTrace) => void;
 }
 
-// LiveTry streams audio via WebSocket through VoiceStreamProvider — the
+// LiveTry streams audio via WebSocket through PcmVoiceStreamProvider — the
 // same path consumer scenarios adopt by copying audio-integration/. The lazy
 // construction is deliberate: SSR and the first render must never touch
 // MediaRecorder / AudioContext.
 export function LiveTry({ onTrace }: Props) {
   const { t } = useTranslation();
-  const providerRef = useRef<VoiceStreamProvider | null>(null);
+  const providerRef = useRef<PcmVoiceStreamProvider | null>(null);
   const [recording, setRecording] = useState(false);
   const [partial, setPartial] = useState("");
   const [finalText, setFinalText] = useState("");
   const [error, setError] = useState<string>("");
   const micPermission = useMicPermission();
 
-  function ensureProvider(): VoiceStreamProvider {
+  function ensureProvider(): PcmVoiceStreamProvider {
     if (providerRef.current === null) {
-      const p = new VoiceStreamProvider();
+      const p = new PcmVoiceStreamProvider();
       p.onResult = (text) => {
         setPartial("");
         setFinalText(text);
         setRecording(false);
-        // VoiceStreamProvider does not surface a typed ProviderTrace event
+        // PcmVoiceStreamProvider does not surface a typed ProviderTrace event
         // in the current proto shape; emit a placeholder so the trace card
         // still reflects that a live run completed.
         onTrace({ providerTier: "local", providerId: "voice-stream", modelId: "whisper", latencyMs: 0 });
@@ -72,19 +71,12 @@ export function LiveTry({ onTrace }: Props) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
-        <Button onClick={() => (recording ? stop() : void start())} aria-pressed={recording}>
-          {recording ? (
-            <>
-              <Square className="h-4 w-4" aria-hidden="true" />
-              {t(strings.diagnostics.liveStop)}
-            </>
-          ) : (
-            <>
-              <Mic className="h-4 w-4" aria-hidden="true" />
-              {t(strings.diagnostics.liveStart)}
-            </>
-          )}
-        </Button>
+        <VoiceInputButton
+          state={recording ? "recording" : error ? "error" : "idle"}
+          aria-label={recording ? t(strings.diagnostics.liveStop) : t(strings.diagnostics.liveStart)}
+          onStart={() => void start()}
+          onStop={stop}
+        />
         <MicReadinessIndicator state={micPermission} />
       </div>
       {error ? <p className="text-sm text-app-danger">{error}</p> : null}

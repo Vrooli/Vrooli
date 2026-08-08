@@ -101,7 +101,7 @@ func TestSummarize_MissingBYOKProviderMapsToInvalidArgument(t *testing.T) {
 	c := newServer(t, chain)
 	req := connect.NewRequest(&summv1.SummarizeRequest{Text: "x", Level: summv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT})
 	// Set BYOK key but no provider — chain returns ErrMissingBYOKProvider.
-	req.Header().Set(envelope.HeaderKey, "sk-1")
+	req.Header().Set(envelope.HeaderBYOKKey, "sk-1")
 	_, err := c.Summarize(context.Background(), req)
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))

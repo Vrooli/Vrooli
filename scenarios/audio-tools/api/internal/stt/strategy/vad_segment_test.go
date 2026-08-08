@@ -33,7 +33,7 @@ func TestVADSegmenter_EmitsVadStateOnTransition(t *testing.T) {
 		return &sttchain.Result{Text: "segment", Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "fake", Latency: time.Millisecond}, nil
 	}
 	strat := &strategy.VADSegmenter{Provider: prov}
-	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.SpeechLike()))
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.SpeechTonePauseTone3s()))
 
 	ticks := vadStateEvents(got)
 	require.NotEmpty(t, ticks, "expected at least one vad-state tick on a speech→silence run")
@@ -61,7 +61,7 @@ func TestVADSegmenter_EmitsVadStateOnTransition(t *testing.T) {
 func TestVADSegmenter_NoVadStateBeforeFirstVoice(t *testing.T) {
 	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
 	strat := &strategy.VADSegmenter{Provider: prov}
-	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.Silence()))
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.Silence1s()))
 
 	ticks := vadStateEvents(got)
 	require.Empty(t, ticks, "pure-silence input must not emit any vad-state ticks before first voiced frame")
@@ -98,10 +98,10 @@ func TestVADSegmenter_VadStateBeforeFlushReachesTimeout(t *testing.T) {
 	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
 		return &sttchain.Result{Text: "seg", Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "fake"}, nil
 	}
-	// 700 ms is the default; the SpeechLike fixture has exactly 700 ms of
+	// 700 ms is the default; the SpeechTonePauseTone3s fixture has exactly 700 ms of
 	// silence between two tones, so the first silence run is what we want.
 	strat := &strategy.VADSegmenter{Provider: prov}
-	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.SpeechLike()))
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(testaudio.SpeechTonePauseTone3s()))
 
 	// Find the last silence tick that came before the first Segment event.
 	var lastSilenceBeforeSeg *sttchain.VadStateEvent

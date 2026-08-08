@@ -13,6 +13,8 @@
 package provider
 
 import (
+	"time"
+
 	"github.com/vrooli/cli-core/cliapp"
 
 	"audio-tools/cli/internal/climanifest"
@@ -24,7 +26,21 @@ const GroupName = "provider"
 // Register builds the provider subcommand group from the embedded
 // manifest and wires Connect-RPC bindings to handlers.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
-	h := newHandlers(core)
+	return register(core, manifest, nil)
+}
+
+// RegisterWithClock is the runtime composition seam for the timestamp shown
+// by provider list. Tests retain Register/newHandlers with a deterministic
+// epoch clock; the application root supplies the process clock.
+func RegisterWithClock(core *cliapp.ScenarioApp, manifest []byte, now func() time.Time) (cliapp.SubcommandGroup, error) {
+	return register(core, manifest, now)
+}
+
+func register(core *cliapp.ScenarioApp, manifest []byte, now func() time.Time) (cliapp.SubcommandGroup, error) {
+	if now == nil {
+		now = func() time.Time { return time.Unix(0, 0) }
+	}
+	h := newHandlersWithClock(core, now)
 	bindings := map[string]func(cliapp.RunContext) error{
 		"ProviderLifecycleService.ListLocalProviders": h.list,
 		"ProviderLifecycleService.StartProvider":      h.start,

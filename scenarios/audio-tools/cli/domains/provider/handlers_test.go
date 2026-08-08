@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -77,7 +78,7 @@ func TestList_HumanOutputRendersTable(t *testing.T) {
 			}, nil
 		},
 	})
-	h := newHandlers(app)
+	h := newHandlersWithClock(app, func() time.Time { return time.Date(2026, 8, 4, 12, 0, 0, 0, time.UTC) })
 	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
 	require.NoError(t, h.list(ctx))
 	out := buf.String()
@@ -86,6 +87,7 @@ func TestList_HumanOutputRendersTable(t *testing.T) {
 	require.Contains(t, out, "RUNNING")
 	require.Contains(t, out, "STOPPED")
 	require.Contains(t, out, "pull-model")
+	require.Contains(t, out, "2026-08-04T12:00:00Z")
 }
 
 func TestStart_InvokesStartRPC(t *testing.T) {

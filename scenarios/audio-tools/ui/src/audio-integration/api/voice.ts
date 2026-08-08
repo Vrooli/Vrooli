@@ -23,7 +23,7 @@ import {
   timestampToISO,
   type StreamingModeLabel,
   type StrategyPreferenceLabel,
-} from "./protomap";
+} from "@vrooli/audio-capture-browser";
 
 import type { SpeakerConfig, SpeakerProfile, StreamConfig as StreamConfigMsg, WakeWordConfig as WakeWordConfigMsg, WakeWordTemplate as WakeWordTemplateMsg } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
 
@@ -210,7 +210,7 @@ export function createVoiceApi(client: AudioToolsClient) {
       const wsBase = apiBaseToWsBase(client.baseUrl.replace(/\/$/, ""));
       // The embed streams raw 16 kHz mono signed-16-bit PCM, so it declares
       // `format=pcm_s16le` to take the server's ffmpeg-free fast-path (the
-      // audioformat substrate's identity decoder). See VoiceStreamProvider
+      // audioformat substrate's identity decoder). See PcmVoiceStreamProvider
       // + handlers/stt/stream_ws.go::buildStreamStart.
       const params = new URLSearchParams({ format: "pcm_s16le" });
 		// Browser automation cannot set arbitrary WebSocket handshake headers.

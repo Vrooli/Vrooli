@@ -32,7 +32,7 @@ func TestTranscribe_FallbackHeader_SetWhenLowerTierServes(t *testing.T) {
 	})
 	c := newSTTRuntimeClient(t, Deps{Chain: chain})
 	req := connect.NewRequest(&sttv1.TranscribeRequest{Audio: []byte("x")})
-	req.Header().Set(envelope.HeaderKey, "sk-1")
+	req.Header().Set(envelope.HeaderBYOKKey, "sk-1")
 	req.Header().Set(envelope.HeaderProvider, "openrouter")
 	req.Header().Set(envelope.HeaderLPBSToken, "tok")
 	res, err := c.Transcribe(context.Background(), req)

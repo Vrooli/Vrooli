@@ -53,8 +53,11 @@ func (c streamingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	}
 	client := c.client
 	if client == nil {
-		client = http.DefaultClient
+		return nil, errors.New("streaming HTTP client is not configured")
 	}
+	// The CLI deliberately connects to the operator-selected scenario API base;
+	// the shared cli-core preflight validates that base before commands run.
+	// #nosec G704 -- this is the configured scenario endpoint, not a request URL derived from input.
 	return client.Do(req)
 }
 
@@ -63,7 +66,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{
 		core:   core,
 		client: sttconnect.NewSTTServiceClient(httpClient, baseURL),
-		stream: newStreamingSTTClient(core, baseURL),
+		stream: NewStreamingSTTClient(core, baseURL),
 		admin:  sttconnect.NewSTTAdminServiceClient(httpClient, baseURL),
 	}
 }
@@ -82,7 +85,11 @@ func applyBoolFlag(ctx cliapp.RunContext, flag, path string, mask *fieldmaskpb.F
 	return nil
 }
 
-func newStreamingSTTClient(core *cliapp.ScenarioApp, baseURL string) sttconnect.STTServiceClient {
+// NewStreamingSTTClient builds the HTTP/2-capable STT client used by commands
+// that send a long-lived request stream. Keeping this transport seam here lets
+// validation and normal STT commands share the same auth, timeout, and clear
+// missing-client behavior.
+func NewStreamingSTTClient(core *cliapp.ScenarioApp, baseURL string) sttconnect.STTServiceClient {
 	var timeout time.Duration
 	if core != nil {
 		if core.HTTPClient != nil {
@@ -514,7 +521,7 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 		mask.Paths = append(mask.Paths, "engine_id")
 	}
 	if v := ctx.Flag("vad-silence-ms"); v != "" {
-		n, err := strconv.Atoi(v)
+		n, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--vad-silence-ms must be integer: %q", v)
 		}
@@ -522,7 +529,7 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 		mask.Paths = append(mask.Paths, "vad_silence_ms")
 	}
 	if v := ctx.Flag("overlap-window-ms"); v != "" {
-		n, err := strconv.Atoi(v)
+		n, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--overlap-window-ms must be integer: %q", v)
 		}
@@ -530,7 +537,7 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 		mask.Paths = append(mask.Paths, "overlap_window_ms")
 	}
 	if v := ctx.Flag("overlap-commit-runs"); v != "" {
-		n, err := strconv.Atoi(v)
+		n, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--overlap-commit-runs must be integer: %q", v)
 		}
@@ -538,7 +545,7 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 		mask.Paths = append(mask.Paths, "overlap_commit_runs")
 	}
 	if v := ctx.Flag("overlap-max-stall-rejects"); v != "" {
-		n, err := strconv.Atoi(v)
+		n, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--overlap-max-stall-rejects must be integer: %q", v)
 		}

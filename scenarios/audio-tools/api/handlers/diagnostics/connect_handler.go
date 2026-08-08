@@ -1,6 +1,7 @@
 package diagnostics
 
 import (
+	"audio-tools/internal/protoint"
 	"context"
 	"errors"
 	"fmt"
@@ -131,9 +132,9 @@ func runToProto(run diagnostics.Run) *diagv1.RunSuiteResult {
 		Steps:            make([]*diagv1.SuiteStepResult, 0, len(run.Steps)),
 		Overall: &diagv1.SuiteOverall{
 			Status:     statusToProto(run.Overall),
-			PassCount:  int32(run.PassCount),
-			FailCount:  int32(run.FailCount),
-			TotalCount: int32(run.TotalCount),
+			PassCount:  protoint.FromInt(run.PassCount),
+			FailCount:  protoint.FromInt(run.FailCount),
+			TotalCount: protoint.FromInt(run.TotalCount),
 		},
 	}
 	for _, s := range run.Steps {

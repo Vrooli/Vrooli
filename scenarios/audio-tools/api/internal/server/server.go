@@ -56,10 +56,23 @@ func New(d Deps, modules ...modulekit.Module) *Server {
 	}
 	s := &Server{deps: d, router: mux.NewRouter()}
 	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))
+	s.router.Use(securityHeadersMiddleware)
 	for _, m := range modules {
 		m.Mount(s.router)
 	}
 	return s
+}
+
+// securityHeadersMiddleware applies the baseline response headers at the
+// composition root so every first-party API route inherits the same policy.
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Handler returns the production HTTP handler wrapped with the recovery

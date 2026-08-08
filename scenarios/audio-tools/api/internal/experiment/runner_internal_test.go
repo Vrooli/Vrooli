@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"sync"
 	"testing"
 	"time"
 
@@ -15,38 +14,6 @@ import (
 	"audio-tools/internal/testutil/db"
 	"audio-tools/internal/testutil/mocks"
 )
-
-type internalMemBlobs struct {
-	mu   sync.Mutex
-	data map[string][]byte
-}
-
-func (m *internalMemBlobs) Put(_ context.Context, key string, data []byte, _ string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.data == nil {
-		m.data = map[string][]byte{}
-	}
-	m.data[key] = append([]byte(nil), data...)
-	return nil
-}
-
-func (m *internalMemBlobs) Get(_ context.Context, key string) ([]byte, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	data, ok := m.data[key]
-	if !ok {
-		return nil, errors.New("missing blob")
-	}
-	return append([]byte(nil), data...), nil
-}
-
-func (m *internalMemBlobs) Delete(_ context.Context, key string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.data, key)
-	return nil
-}
 
 func newInternalSchemaDB(t *testing.T) *sql.DB {
 	t.Helper()
@@ -61,7 +28,7 @@ func newInternalSchemaDB(t *testing.T) *sql.DB {
 func TestManager_EvictsTerminalEntriesAndFallsBackToDB(t *testing.T) {
 	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
 	repo := NewSQLiteRepository(newInternalSchemaDB(t), clk)
-	svc := NewService(repo, &internalMemBlobs{})
+	svc := NewService(repo, mocks.NewFakeBlobStore())
 	mgr := NewManager(Config{
 		Service: svc,
 		Clock:   clk,
@@ -102,7 +69,7 @@ func (failRecoverRepo) ListNonTerminal(context.Context) ([]Experiment, error) {
 }
 
 func TestManager_StartRecoverFailureDoesNotExposeStarted(t *testing.T) {
-	svc := NewService(failRecoverRepo{}, &internalMemBlobs{})
+	svc := NewService(failRecoverRepo{}, mocks.NewFakeBlobStore())
 	mgr := NewManager(Config{
 		Service: svc,
 		Runner: func(context.Context, Experiment, func(int, string)) (RunResult, error) {

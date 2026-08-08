@@ -18,8 +18,9 @@ import (
 // transport — Connect unary, Connect bidi, and multipart REST.
 const (
 	HeaderProvider     = "X-Audio-BYOK-Provider"
-	HeaderKey          = "X-Audio-BYOK-Key"
-	HeaderLPBSToken    = "X-Audio-LPBS-Token"
+	HeaderBYOKKey      = "X-Audio-BYOK-Key" // #nosec G101 -- this is a public wire-header name, not a credential value.
+	HeaderKey          = HeaderBYOKKey
+	HeaderLPBSToken    = "X-Audio-LPBS-Token" // #nosec G101 -- this is a public wire-header name, not a credential value.
 	HeaderUserIdentity = "X-Audio-User-Identity"
 )
 
@@ -37,7 +38,7 @@ type Envelope struct {
 func FromHTTP(h http.Header) Envelope {
 	return Envelope{
 		Provider:     strings.TrimSpace(h.Get(HeaderProvider)),
-		Key:          strings.TrimSpace(h.Get(HeaderKey)),
+		Key:          strings.TrimSpace(h.Get(HeaderBYOKKey)),
 		LPBSToken:    strings.TrimSpace(h.Get(HeaderLPBSToken)),
 		UserIdentity: strings.TrimSpace(h.Get(HeaderUserIdentity)),
 	}

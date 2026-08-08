@@ -12,6 +12,7 @@ import (
 	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/protoint"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 	intsumm "audio-tools/internal/summarize"
@@ -81,15 +82,15 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 	row.ProviderTier = string(res.Tier)
 	row.ProviderID = res.ProviderID
 	row.ModelID = res.ModelID
-	row.PromptTokens = int32(res.PromptTokens)
-	row.OutputTokens = int32(res.OutputTokens)
+	row.PromptTokens = protoint.FromInt64(int64(res.PromptTokens))
+	row.OutputTokens = protoint.FromInt64(int64(res.OutputTokens))
 	if h.deps.Usage != nil {
 		h.deps.Usage.Enqueue(row)
 	}
 	resp.Msg = &summv1.SummarizeResponse{
 		Text:         res.Text,
-		PromptTokens: int32(res.PromptTokens),
-		OutputTokens: int32(res.OutputTokens),
+		PromptTokens: protoint.FromInt64(int64(res.PromptTokens)),
+		OutputTokens: protoint.FromInt64(int64(res.OutputTokens)),
 		ProviderTier: protomap.ProviderTierToProto(string(res.Tier)),
 		ProviderId:   res.ProviderID,
 		ModelId:      res.ModelID,

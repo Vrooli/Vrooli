@@ -11,6 +11,58 @@
   ],
   "groups": [
     {
+      "name": "validation",
+      "description": "Expensive out-of-band audio validation and evidence freshness",
+      "commands": [
+        {
+          "name": "run-expensive",
+          "description": "Run the hour-scale TTS and continuous synthetic-dictation qualification and record evidence",
+          "flags": [
+            {
+              "name": "duration-minutes",
+              "description": "Qualification duration; must be at least 60 minutes"
+            },
+            {
+              "name": "evidence-path",
+              "description": "Optional evidence JSON path (defaults to the scenario requirements evidence directory)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "check-freshness",
+          "description": "Fail when any out-of-band audio validation is missing or stale",
+          "flags": [
+            {
+              "name": "requirements-path",
+              "description": "Optional requirements directory (defaults to the scenario requirements directory)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "stt",
       "description": "Speech-to-text operations",
       "commands": [
@@ -21,7 +73,11 @@
             {
               "name": "file",
               "required": true,
-              "description": "Audio file path"
+              "description": "Audio file path",
+              "bind": {
+                "field": "audio",
+                "kind": "json_file"
+              }
             },
             {
               "name": "language",
@@ -52,7 +108,8 @@
             {
               "name": "file",
               "required": true,
-              "description": "Audio file path"
+              "description": "Audio file path",
+              "local_only": true
             },
             {
               "name": "language",
@@ -60,7 +117,8 @@
             },
             {
               "name": "chunk-bytes",
-              "description": "Chunk size to feed the stream in bytes (default 32768)"
+              "description": "Chunk size to feed the stream in bytes (default 32768)",
+              "local_only": true
             }
           ],
           "binding": {
@@ -115,7 +173,10 @@
             {
               "name": "engine",
               "required": true,
-              "description": "Engine id to assess (see `stt engines`)"
+              "description": "Engine id to assess (see `stt engines`)",
+              "bind": {
+                "field": "from_engine_id"
+              }
             }
           ],
           "binding": {
@@ -341,7 +402,10 @@
             {
               "name": "profile",
               "required": true,
-              "description": "Profile id"
+              "description": "Profile id",
+              "bind": {
+                "field": "profile_id"
+              }
             }
           ],
           "binding": {
@@ -410,11 +474,16 @@
             },
             {
               "name": "format",
-              "description": "Output format mp3|wav|opus|flac (default mp3)"
+              "description": "Output format mp3|wav|opus|flac (default mp3)",
+              "bind": {
+                "field": "response_format"
+              },
+              "bind_waiver": "format selects the requested TTS audio encoding and is genuine request data"
             },
             {
               "name": "out",
-              "description": "Output file path (default stdout)"
+              "description": "Output file path (default stdout)",
+              "local_only": true
             }
           ],
           "binding": {
@@ -449,11 +518,16 @@
             },
             {
               "name": "format",
-              "description": "Output format mp3|wav|opus|flac (default mp3)"
+              "description": "Output format mp3|wav|opus|flac (default mp3)",
+              "bind": {
+                "field": "response_format"
+              },
+              "bind_waiver": "format selects the requested TTS audio encoding and is genuine request data"
             },
             {
               "name": "out",
-              "description": "Output file path (default stdout)"
+              "description": "Output file path (default stdout)",
+              "local_only": true
             }
           ],
           "binding": {
@@ -547,12 +621,17 @@
             {
               "name": "input",
               "required": true,
-              "description": "Input audio path"
+              "description": "Input audio path",
+              "bind": {
+                "field": "audio",
+                "kind": "json_file"
+              }
             },
             {
               "name": "output",
               "required": true,
-              "description": "Output path"
+              "description": "Output path",
+              "local_only": true
             }
           ],
           "binding": {
@@ -717,7 +796,10 @@
           "flags": [
             {
               "name": "capability",
-              "description": "Comma-separated subset (stt,tts,summarize,transcode); empty runs all"
+              "description": "Comma-separated subset (stt,tts,summarize,transcode); empty runs all",
+              "bind": {
+                "field": "capabilities"
+              }
             }
           ],
           "binding": {
@@ -762,7 +844,8 @@
             {
               "name": "refresh",
               "bool": true,
-              "description": "Bypass the cache and re-run every checker before printing"
+              "description": "Bypass the cache and re-run every checker before printing",
+              "local_only": true
             }
           ],
           "binding": {
@@ -951,7 +1034,10 @@
           "flags": [
             {
               "name": "tag",
-              "description": "Only clips whose tags contain this substring"
+              "description": "Only clips whose tags contain this substring",
+              "bind": {
+                "field": "tag_contains"
+              }
             },
             {
               "name": "limit",

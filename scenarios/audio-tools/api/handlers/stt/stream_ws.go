@@ -19,6 +19,7 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/protoint"
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/stt/segmenter"
@@ -56,8 +57,8 @@ func decodeWSV2AudioFrame(frame []byte) (sttchain.AudioChunk, error) {
 	}
 	chunk := sttchain.AudioChunk{
 		Sequence:    binary.BigEndian.Uint64(frame[4:12]),
-		StartSample: int64(binary.BigEndian.Uint64(frame[12:20])),
-		EndSample:   int64(binary.BigEndian.Uint64(frame[20:28])),
+		StartSample: protoint.FromUint64(binary.BigEndian.Uint64(frame[12:20])),
+		EndSample:   protoint.FromUint64(binary.BigEndian.Uint64(frame[20:28])),
 		Digest:      append([]byte(nil), frame[28:60]...),
 		Audio:       append([]byte(nil), frame[wsV2AudioHeaderBytes:]...),
 	}
@@ -245,7 +246,7 @@ func StreamWSHandler(d Deps) http.Handler {
 			return
 		}
 		if fault.enabled() && d.Logger != nil {
-			d.Logger.Printf("voice-ws: deterministic qualification fault armed providerBusy=%t closeAfterChunks=%d closeAfterCommits=%d pauseAfterChunks=%d pauseReadsFor=%s delayProcessedAckFor=%s suppressProcessedAck=%t", fault.providerBusy, fault.closeAfterChunks, fault.closeAfterCommits, fault.pauseAfterChunks, fault.pauseReadsFor, fault.delayProcessedAckFor, fault.suppressProcessedAck)
+			d.Logger.Printf("voice-ws: deterministic qualification fault armed providerBusy=%t closeAfterChunks=%d recoverableCloseAfterChunks=%d closeAfterCommits=%d pauseAfterChunks=%d pauseReadsFor=%s delayProcessedAckFor=%s suppressProcessedAck=%t", fault.providerBusy, fault.closeAfterChunks, fault.closeAfterChunksRecoverable, fault.closeAfterCommits, fault.pauseAfterChunks, fault.pauseReadsFor, fault.delayProcessedAckFor, fault.suppressProcessedAck)
 		}
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -349,7 +350,7 @@ func StreamWSHandler(d Deps) http.Handler {
 							readerErr <- err
 							return
 						}
-						if result == session.ReceivedDuplicate {
+						if shouldSkipReceivedDuplicate(result, resumed) {
 							continue
 						}
 						chunk = parsed
@@ -375,6 +376,16 @@ func StreamWSHandler(d Deps) http.Handler {
 						writer.close(wsWriterDrainTimeout)
 						cancel()
 						readerErr <- errors.New("deterministic stream fault: closed after configured chunk")
+						return
+					}
+					if !resumed && fault.closeAfterChunksRecoverable > 0 && receivedChunks >= fault.closeAfterChunksRecoverable {
+						// This is a one-shot transport interruption after the server has
+						// durably received the chunk. The resumed handler feeds the retained
+						// duplicate back into its fresh segmenter, while the browser replays
+						// the same journal entry against the same session.
+						writer.close(wsWriterDrainTimeout)
+						cancel()
+						readerErr <- errors.New("deterministic stream fault: recoverable close after configured chunk")
 						return
 					}
 					if fault.pauseAfterChunks > 0 && receivedChunks == fault.pauseAfterChunks {
@@ -628,7 +639,7 @@ func emitStreamDeliveryTelemetry(d Deps, segments int, tailFinalDelivered bool, 
 		EmittedAt:      now,
 		Capability:     "stt",
 		Operation:      "stream_session",
-		OutputTokens:   int32(segments), // segments committed this session
+		OutputTokens:   protoint.FromInt(segments), // segments committed this session
 		FallbackReason: outcome,
 	}
 	if !graceful {
@@ -638,6 +649,10 @@ func emitStreamDeliveryTelemetry(d Deps, segments int, tailFinalDelivered bool, 
 		row.Error = "tail_drain_" + outcome
 	}
 	d.Usage.Enqueue(row)
+}
+
+func shouldSkipReceivedDuplicate(result session.ReceiveResult, resumed bool) bool {
+	return result == session.ReceivedDuplicate && !resumed
 }
 
 // buildStreamStart maps the WS request's query params + auth envelope to

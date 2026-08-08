@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/logx"
+	"audio-tools/internal/protoint"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/stt/egress"
 	"audio-tools/internal/stt/ingress"
@@ -221,7 +222,7 @@ func (h *connectHandler) GetSpeakerStatus(ctx context.Context, _ *connect.Reques
 		ResourceReady:     true,
 		ProfileConfigured: len(cfg.ProfileIDs) > 0,
 		ProfileExists:     len(profiles) > 0,
-		ProfileCount:      int32(len(profiles)),
+		ProfileCount:      protoint.FromInt(len(profiles)),
 		Profiles:          profiles,
 		CheckedAt:         protomap.TimeToProto(h.deps.Clock.Now().UTC()),
 	}

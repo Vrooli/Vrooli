@@ -29,16 +29,16 @@ func NewVrooliProvider(client VrooliClient) *VrooliProvider {
 
 func (p *VrooliProvider) Type() ProviderTier { return TierVrooli }
 
-func (p *VrooliProvider) IsAvailable(ctx context.Context) bool {
-	return p != nil && p.LPBSProvider != nil && p.LPBSProvider.IsAvailable(ctx)
+func (p *VrooliProvider) LPBSState() *tiered.LPBSProvider[VrooliClient] {
+	if p == nil {
+		return nil
+	}
+	return p.LPBSProvider
 }
 
-func (p *VrooliProvider) Model() string {
-	if p == nil || p.LPBSProvider == nil {
-		return ""
-	}
-	return p.LPBSProvider.Model()
-}
+func (p *VrooliProvider) IsAvailable(ctx context.Context) bool { return tiered.SafeIsAvailable(p, ctx) }
+
+func (p *VrooliProvider) Model() string { return tiered.SafeModel(p) }
 
 func (p *VrooliProvider) Summarize(ctx context.Context, req Request) (*Result, error) {
 	return tiered.ExecuteLPBS(p != nil && p.LPBSProvider != nil && p.Configured(), req.LPBSToken,

@@ -65,7 +65,7 @@ func TestSummarize_FallbackHeader_SetWhenLowerTierServes(t *testing.T) {
 	c := newServerForFallback(t, chain)
 	req := connect.NewRequest(&summv1.SummarizeRequest{Text: "long text", Level: summv1.SummarizeLevel_SUMMARIZE_LEVEL_LIGHT})
 	// Wire both BYOK and Vrooli creds so both tiers are eligible.
-	req.Header().Set(envelope.HeaderKey, "sk-1")
+	req.Header().Set(envelope.HeaderBYOKKey, "sk-1")
 	req.Header().Set(envelope.HeaderProvider, "openrouter")
 	req.Header().Set(envelope.HeaderLPBSToken, "tok")
 	res, err := c.Summarize(context.Background(), req)

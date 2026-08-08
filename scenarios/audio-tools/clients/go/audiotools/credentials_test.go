@@ -43,7 +43,7 @@ func TestCredentialsInterceptor_PopulatesHeadersFromContext(t *testing.T) {
 	_, _ = client.CallUnary(ctx, connect.NewRequest(&stubReq{}))
 
 	require.Equal(t, "openai-whisper", got.Get(HeaderProvider))
-	require.Equal(t, "sk-abc", got.Get(HeaderKey))
+	require.Equal(t, "sk-abc", got.Get(HeaderBYOKKey))
 	require.Equal(t, "lpbs-tok", got.Get(HeaderLPBSToken))
 	require.Equal(t, "user-42", got.Get(HeaderUserIdentity))
 }
@@ -61,7 +61,7 @@ func TestCredentialsInterceptor_AbsentContextWritesNoHeaders(t *testing.T) {
 	_, _ = client.CallUnary(context.Background(), connect.NewRequest(&healthv1.Response{}))
 
 	require.Empty(t, got.Get(HeaderProvider))
-	require.Empty(t, got.Get(HeaderKey))
+	require.Empty(t, got.Get(HeaderBYOKKey))
 	require.Empty(t, got.Get(HeaderLPBSToken))
 	require.Empty(t, got.Get(HeaderUserIdentity))
 }
@@ -81,7 +81,7 @@ func TestCredentialsInterceptor_PartialCredentialsOnlySetsPopulated(t *testing.T
 	_, _ = client.CallUnary(ctx, connect.NewRequest(&healthv1.Response{}))
 
 	require.Empty(t, got.Get(HeaderProvider))
-	require.Empty(t, got.Get(HeaderKey))
+	require.Empty(t, got.Get(HeaderBYOKKey))
 	require.Equal(t, "tok-only", got.Get(HeaderLPBSToken))
 	require.Empty(t, got.Get(HeaderUserIdentity))
 }

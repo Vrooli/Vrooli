@@ -6,12 +6,12 @@ import { renderWithProviders } from "../../test-utils";
 import { TranscribeTryIt } from "./TranscribeTryIt";
 import { strings } from "../../consts/strings";
 
-// VoiceStreamProvider pulls in MediaRecorder + WebSocket on construction.
+// The streaming provider pulls in MediaRecorder + WebSocket on construction.
 // Stub the audio-integration module so the unit test focuses on the
 // three-mode UX rather than the streaming wire protocol (covered by Phase
 // F integration tests).
 vi.mock("../../audio-integration", () => ({
-  VoiceStreamProvider: class {
+  PcmVoiceStreamProvider: class {
     onResult: ((text: string) => void) | null = null;
     onError: ((message: string) => void) | null = null;
     onPartial: ((text: string) => void) | null = null;

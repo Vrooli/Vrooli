@@ -6,8 +6,10 @@
 // mocked so the listener's own control flow (start/stop/dispose, the RAF tick,
 // speech onset, capture completion, match vs no-match) is exercised directly.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { makeMediaStream } from "../../../test-support/browser";
 
 import { PassiveListener } from "./passiveListener";
+import type { PassiveListenerOpts, PassiveListenerSeams } from "./passiveListener";
 import type { AudioFeatures, MatchResult, WakeWordEngine, WakeWordTemplate } from "./types";
 
 // ── Mock the audio + VAD seams ──────────────────────────────────────────────
@@ -63,13 +65,6 @@ vi.mock("../audioUtils", () => ({
 let rafCb: (() => void) | null = null;
 let nowVal = 0;
 
-function fakeStream(): MediaStream {
-  const tracks = [{ stop: vi.fn(), readyState: "live" }];
-  return {
-    getTracks: () => tracks,
-  } as unknown as MediaStream;
-}
-
 class FakeAudioContext {
   state = "running";
   sampleRate = 16_000;
@@ -98,6 +93,28 @@ function makeTemplate(): WakeWordTemplate {
   };
 }
 
+const testSeams: PassiveListenerSeams = {
+  createRingBuffer: (_seconds, sampleRate) => ({
+    sampleRate,
+    mark: () => ringMark,
+    extractSinceMark: () => extractResult,
+  } as unknown as ReturnType<PassiveListenerSeams["createRingBuffer"]>),
+  createCapturePipeline: (() => ({
+    analyser: {
+      fftSize: 2048,
+      getFloatTimeDomainData: (arr: Float32Array) => arr.fill(0.5),
+    },
+    nodes: [{ disconnect: vi.fn() }],
+  })) as unknown as PassiveListenerSeams["createCapturePipeline"],
+  downsample: (buf) => buf,
+  createVadRefs: () => vadState as unknown as ReturnType<PassiveListenerSeams["createVadRefs"]>,
+  vadTick: (vad) => vadTickImpl(vad as unknown as FakeVad) as unknown as ReturnType<PassiveListenerSeams["vadTick"]>,
+};
+
+function makeListener(options: Omit<PassiveListenerOpts, "seams">): PassiveListener {
+  return new PassiveListener({ ...options, seams: testSeams });
+}
+
 beforeEach(() => {
   rafCb = null;
   nowVal = 0;
@@ -105,7 +122,7 @@ beforeEach(() => {
   extractResult = new Float32Array(800);
   vadTickImpl = () => null;
   vadState.state = "calibrating";
-  getUserMediaImpl = () => Promise.resolve(fakeStream());
+  getUserMediaImpl = () => Promise.resolve(makeMediaStream());
   vi.spyOn(performance, "now").mockImplementation(() => nowVal);
   (globalThis as unknown as { requestAnimationFrame: (cb: () => void) => number }).requestAnimationFrame = (cb) => {
     rafCb = cb;
@@ -132,7 +149,7 @@ function runTick(): void {
 
 describe("PassiveListener", () => {
   it("acquires the mic and starts the loop on start()", async () => {
-    const listener = new PassiveListener({
+    const listener = makeListener({
       engine: makeEngine({ score: 0.9, isMatch: true }),
       template: makeTemplate(),
       onWakeWordDetected: vi.fn(),
@@ -147,7 +164,7 @@ describe("PassiveListener", () => {
 
   it("reuses an injected AudioContext instead of creating one", async () => {
     const ctx = new FakeAudioContext() as unknown as AudioContext;
-    const listener = new PassiveListener({
+    const listener = makeListener({
       engine: makeEngine({ score: 0.9, isMatch: true }),
       template: makeTemplate(),
       onWakeWordDetected: vi.fn(),
@@ -164,7 +181,7 @@ describe("PassiveListener", () => {
   it("resumes a suspended AudioContext", async () => {
     const ctx = new FakeAudioContext();
     ctx.state = "suspended";
-    const listener = new PassiveListener({
+    const listener = makeListener({
       engine: makeEngine({ score: 0.9, isMatch: true }),
       template: makeTemplate(),
       onWakeWordDetected: vi.fn(),
@@ -179,7 +196,7 @@ describe("PassiveListener", () => {
   it("reports an error when getUserMedia fails", async () => {
     getUserMediaImpl = () => Promise.reject(new Error("denied"));
     const onError = vi.fn();
-    const listener = new PassiveListener({
+    const listener = makeListener({
       engine: makeEngine({ score: 0.9, isMatch: true }),
       template: makeTemplate(),
       onWakeWordDetected: vi.fn(),
@@ -191,7 +208,7 @@ describe("PassiveListener", () => {
   });
 
   it("start() is idempotent while already running", async () => {
-    const listener = new PassiveListener({
+    const listener = makeListener({
       engine: makeEngine({ score: 0.9, isMatch: true }),
       template: makeTemplate(),
       onWakeWordDetected: vi.fn(),
@@ -207,7 +224,7 @@ describe("PassiveListener", () => {
   it("fires onWakeWordDetected when a captured segment matches", async () => {
     const onWakeWordDetected = vi.fn();
     const engine = makeEngine({ score: 0.95, isMatch: true });
-    const listener = new PassiveListener({
+    const listener = makeListener({
       engine,
       template: makeTemplate(),
       onWakeWordDetected,
@@ -238,7 +255,7 @@ describe("PassiveListener", () => {
   it("does not fire on a failed match and records a debounce time", async () => {
     const onWakeWordDetected = vi.fn();
     const engine = makeEngine({ score: 0.1, isMatch: false });
-    const listener = new PassiveListener({
+    const listener = makeListener({
       engine,
       template: makeTemplate(),
       onWakeWordDetected,
@@ -266,7 +283,7 @@ describe("PassiveListener", () => {
   it("skips capture when the speech segment is too short", async () => {
     const engine = makeEngine({ score: 0.95, isMatch: true });
     const onWakeWordDetected = vi.fn();
-    const listener = new PassiveListener({
+    const listener = makeListener({
       engine,
       template: makeTemplate(),
       onWakeWordDetected,
@@ -294,7 +311,7 @@ describe("PassiveListener", () => {
 
   it("throttles ticks that arrive within the throttle window", async () => {
     const engine = makeEngine({ score: 0.95, isMatch: true });
-    const listener = new PassiveListener({
+    const listener = makeListener({
       engine,
       template: makeTemplate(),
       onWakeWordDetected: vi.fn(),
@@ -312,15 +329,15 @@ describe("PassiveListener", () => {
   });
 
   it("stop() halts the loop and dispose() tears down stream + owned context", async () => {
-    const listener = new PassiveListener({
+    const trackStop = vi.fn();
+    getUserMediaImpl = () => Promise.resolve(makeMediaStream("live", trackStop));
+    const listener = makeListener({
       engine: makeEngine({ score: 0.9, isMatch: true }),
       template: makeTemplate(),
       onWakeWordDetected: vi.fn(),
       onError: vi.fn(),
     });
     await listener.start();
-    const stream = listener.getStream();
-    const tracks = stream!.getTracks();
     const ownedCtx = listener.getAudioContext() as unknown as FakeAudioContext;
 
     listener.stop();
@@ -328,7 +345,7 @@ describe("PassiveListener", () => {
     expect(() => runTick()).not.toThrow();
 
     listener.dispose();
-    expect((tracks[0] as unknown as { stop: ReturnType<typeof vi.fn> }).stop).toHaveBeenCalled();
+    expect(trackStop).toHaveBeenCalled();
     expect(ownedCtx.close).toHaveBeenCalled(); // owned context is closed
     expect(listener.getStream()).toBeNull();
   });
@@ -337,7 +354,7 @@ describe("PassiveListener", () => {
     extractResult = new Float32Array(0);
     const engine = makeEngine({ score: 0.95, isMatch: true });
     const onWakeWordDetected = vi.fn();
-    const listener = new PassiveListener({
+    const listener = makeListener({
       engine,
       template: makeTemplate(),
       onWakeWordDetected,

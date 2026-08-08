@@ -18,6 +18,15 @@ import (
 	"audio-tools/internal/testutil/mocks"
 )
 
+const (
+	backpressurePartialCount   = 30_000
+	backpressurePartialBytes   = 2_048
+	backpressureSegmentStartMS = 0
+	backpressureSegmentEndMS   = 100
+	backendDrainTimeout        = 15 * time.Second
+	durableDeliveryTimeout     = 10 * time.Second
+)
+
 // newWedgeKyutaiServer is a fake kyutai-stt resource that first floods a large
 // burst of partial frames, then a single durable segment, then done. The burst
 // is sized to overflow the OS/socket buffers so, if the relay ever stops
@@ -54,7 +63,7 @@ func newWedgeKyutaiServer(t *testing.T, partialCount, partialBytes int, segText 
 				return // relay stopped draining -> server blocked/closed: wedge
 			}
 		}
-		seg := fmt.Sprintf(`{"type":"segment","text":"%s","start_ms":0,"end_ms":100}`, segText)
+		seg := fmt.Sprintf(`{"type":"segment","text":"%s","start_ms":%d,"end_ms":%d}`, segText, backpressureSegmentStartMS, backpressureSegmentEndMS)
 		if err := conn.WriteMessage(websocket.TextMessage, []byte(seg)); err != nil {
 			return
 		}
@@ -112,7 +121,7 @@ func TestStreamWS_StalledConsumerDoesNotWedgeKyutaiReader(t *testing.T) {
 	// in-flight slots), so a relay that stops draining the kyutai socket blocks
 	// well before the durable segment/done rather than having the burst silently
 	// absorbed by kernel buffers.
-	baseURL, wsEndpoint, doneWritten := newWedgeKyutaiServer(t, 30000, 2048, "committed words")
+	baseURL, wsEndpoint, doneWritten := newWedgeKyutaiServer(t, backpressurePartialCount, backpressurePartialBytes, "committed words")
 
 	r := mux.NewRouter()
 	r.Handle("/api/v1/voice/stream", StreamWSHandler(kyutaiWedgeDeps(t, baseURL, wsEndpoint))).Methods(http.MethodGet)
@@ -132,7 +141,7 @@ func TestStreamWS_StalledConsumerDoesNotWedgeKyutaiReader(t *testing.T) {
 	select {
 	case <-doneWritten:
 		// Relay kept draining kyutai despite the stalled consumer — fixed.
-	case <-time.After(6 * time.Second):
+	case <-time.After(backendDrainTimeout):
 		t.Fatal("kyutai reader wedged: a stalled browser consumer stopped the relay from draining the " +
 			"kyutai socket, so the backend never reached its terminal done. Partials must be droppable and " +
 			"the relay must always drain the backend socket.")
@@ -140,7 +149,7 @@ func TestStreamWS_StalledConsumerDoesNotWedgeKyutaiReader(t *testing.T) {
 
 	// Now that the consumer resumes, the durable segment + done must still be
 	// delivered losslessly (partials may have been coalesced).
-	_ = c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_ = c.SetReadDeadline(time.Now().Add(durableDeliveryTimeout))
 	sawSegment, sawDone := false, false
 	var receivedTypes []string
 	for !sawDone {

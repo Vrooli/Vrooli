@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+
+	"audio-tools/internal/protoint"
 )
 
 const bytesPerSample = 2
@@ -54,8 +56,8 @@ func OverlayAtSNR(signal, overlay []byte, targetSNRDB float64) ([]byte, Stats, e
 	var overlayPower float64
 	var clipped int
 	for i := 0; i < samples; i++ {
-		base := int16(binary.LittleEndian.Uint16(signal[i*2:]))
-		rawOverlay := int16(binary.LittleEndian.Uint16(overlay[(i%(len(overlay)/2))*2:]))
+		base := protoint.PCMInt16(binary.LittleEndian.Uint16(signal[i*2:]))
+		rawOverlay := protoint.PCMInt16(binary.LittleEndian.Uint16(overlay[(i%(len(overlay)/2))*2:]))
 		scaledOverlay := float64(rawOverlay) * gain
 		overlayPower += scaledOverlay * scaledOverlay
 		mixed := int(math.Round(float64(base) + scaledOverlay))
@@ -67,7 +69,7 @@ func OverlayAtSNR(signal, overlay []byte, targetSNRDB float64) ([]byte, Stats, e
 			mixed = minInt16
 			clipped++
 		}
-		binary.LittleEndian.PutUint16(out[i*2:], uint16(int16(mixed)))
+		binary.LittleEndian.PutUint16(out[i*2:], protoint.PCMUint16(int16(mixed)))
 	}
 	actualOverlayRMS := math.Sqrt(overlayPower / float64(samples))
 	actualSNR := math.Inf(1)
@@ -105,7 +107,7 @@ func rms(pcm []byte, samples int, loop bool) float64 {
 		if loop {
 			idx %= available
 		}
-		v := int16(binary.LittleEndian.Uint16(pcm[idx*2:]))
+		v := protoint.PCMInt16(binary.LittleEndian.Uint16(pcm[idx*2:]))
 		power += float64(v) * float64(v)
 	}
 	return math.Sqrt(power / float64(samples))

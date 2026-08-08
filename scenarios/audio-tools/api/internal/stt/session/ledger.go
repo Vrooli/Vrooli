@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+
+	"audio-tools/internal/protoint"
 )
 
 var (
@@ -122,7 +124,7 @@ func (l *Ledger) Receive(chunk Chunk) (ReceiveResult, error) {
 		}
 		return ReceivedDuplicate, nil
 	}
-	if chunk.Sequence != uint64(l.receivedSequence+1) {
+	if chunk.Sequence != protoint.ToUint64(l.receivedSequence+1) {
 		return "", ErrGap
 	}
 	if l.retainedBytes+len(chunk.Audio) > l.cfg.MaxBytes {
@@ -132,7 +134,7 @@ func (l *Ledger) Receive(chunk Chunk) (ReceiveResult, error) {
 	copyAudio := append([]byte(nil), chunk.Audio...)
 	chunk.Audio = copyAudio
 	l.received[chunk.Sequence] = retainedChunk{Chunk: chunk, digest: digest}
-	l.receivedSequence = int64(chunk.Sequence)
+	l.receivedSequence = protoint.FromUint64(chunk.Sequence)
 	l.retainedBytes += len(chunk.Audio)
 	return ReceivedNew, nil
 }
@@ -140,21 +142,21 @@ func (l *Ledger) Receive(chunk Chunk) (ReceiveResult, error) {
 func (l *Ledger) AcknowledgeProcessed(sequence uint64) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if sequence > uint64(l.receivedSequence) {
+	if sequence > protoint.ToUint64(l.receivedSequence) {
 		return ErrUnknownChunk
 	}
-	if int64(sequence) <= l.processedSequence {
+	if protoint.FromUint64(sequence) <= l.processedSequence {
 		return nil
 	}
-	for next := l.processedSequence + 1; next <= int64(sequence); next++ {
-		chunk, ok := l.received[uint64(next)]
+	for next := l.processedSequence + 1; next <= protoint.FromUint64(sequence); next++ {
+		chunk, ok := l.received[protoint.ToUint64(next)]
 		if !ok {
 			return ErrUnknownChunk
 		}
-		delete(l.received, uint64(next))
+		delete(l.received, protoint.ToUint64(next))
 		l.retainedBytes -= len(chunk.Audio)
 	}
-	l.processedSequence = int64(sequence)
+	l.processedSequence = protoint.FromUint64(sequence)
 	return nil
 }
 
@@ -222,7 +224,7 @@ func (l *Ledger) PersistedState() PersistedState {
 		ReceivedSequence: l.receivedSequence, ProcessedSequence: l.processedSequence, TerminalReason: l.terminal,
 	}
 	for sequence := l.processedSequence + 1; sequence <= l.receivedSequence; sequence++ {
-		if chunk, ok := l.received[uint64(sequence)]; ok {
+		if chunk, ok := l.received[protoint.ToUint64(sequence)]; ok {
 			copy := chunk.Chunk
 			copy.Audio = append([]byte(nil), copy.Audio...)
 			state.Received = append(state.Received, copy)
@@ -263,7 +265,7 @@ func Restore(state PersistedState) (*Ledger, error) {
 func (l *Ledger) snapshotLocked() Snapshot {
 	s := Snapshot{SessionID: l.cfg.SessionID, ReceivedSequence: l.receivedSequence, ProcessedSequence: l.processedSequence, TerminalReason: l.terminal}
 	for sequence := l.processedSequence + 1; sequence <= l.receivedSequence; sequence++ {
-		if chunk, ok := l.received[uint64(sequence)]; ok {
+		if chunk, ok := l.received[protoint.ToUint64(sequence)]; ok {
 			chunk.Audio = append([]byte(nil), chunk.Audio...)
 			s.Replay = append(s.Replay, chunk.Chunk)
 		}

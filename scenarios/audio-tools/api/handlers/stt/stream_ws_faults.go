@@ -23,17 +23,18 @@ const (
 )
 
 type streamTestFault struct {
-	providerBusy         bool
-	closeAfterChunks     int
-	closeAfterCommits    int
-	pauseAfterChunks     int
-	pauseReadsFor        time.Duration
-	delayProcessedAckFor time.Duration
-	suppressProcessedAck bool
+	providerBusy                bool
+	closeAfterChunks            int
+	closeAfterChunksRecoverable int
+	closeAfterCommits           int
+	pauseAfterChunks            int
+	pauseReadsFor               time.Duration
+	delayProcessedAckFor        time.Duration
+	suppressProcessedAck        bool
 }
 
 func (f streamTestFault) enabled() bool {
-	return f.providerBusy || f.closeAfterChunks > 0 || f.closeAfterCommits > 0 || f.pauseAfterChunks > 0 || f.delayProcessedAckFor > 0 || f.suppressProcessedAck
+	return f.providerBusy || f.closeAfterChunks > 0 || f.closeAfterChunksRecoverable > 0 || f.closeAfterCommits > 0 || f.pauseAfterChunks > 0 || f.delayProcessedAckFor > 0 || f.suppressProcessedAck
 }
 
 // streamTestFaultFromRequest accepts only deterministic faults with a bounded
@@ -65,6 +66,14 @@ func streamTestFaultFromRequest(r *http.Request, isolationActive bool) (streamTe
 			return streamTestFault{}, fmt.Errorf("%s must be a positive chunk count no greater than 10000", streamTestFaultHeader)
 		}
 		return streamTestFault{closeAfterChunks: count}, nil
+	}
+	const recoverableCloseAfterChunkPrefix = "close_after_chunk_recoverable:"
+	if strings.HasPrefix(raw, recoverableCloseAfterChunkPrefix) {
+		count, err := strconv.Atoi(strings.TrimPrefix(raw, recoverableCloseAfterChunkPrefix))
+		if err != nil || count <= 0 || count > 10_000 {
+			return streamTestFault{}, fmt.Errorf("%s must be a positive chunk count no greater than 10000", streamTestFaultHeader)
+		}
+		return streamTestFault{closeAfterChunksRecoverable: count}, nil
 	}
 	const closeAfterCommitPrefix = "close_after_commit:"
 	if strings.HasPrefix(raw, closeAfterCommitPrefix) {

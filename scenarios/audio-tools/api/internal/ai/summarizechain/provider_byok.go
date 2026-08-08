@@ -26,7 +26,9 @@ func NewBYOKProvider(registry map[string]BYOKAdapter) *BYOKProvider {
 
 func (p *BYOKProvider) Type() ProviderTier { return TierBYOK }
 
-func (p *BYOKProvider) IsAvailable(ctx context.Context) bool { return len(p.registry) > 0 }
+func (p *BYOKProvider) IsAvailable(ctx context.Context) bool {
+	return tiered.RegistryConfigured(p.registry)
+}
 
 func (p *BYOKProvider) Summarize(ctx context.Context, req Request) (*Result, error) {
 	return tiered.ExecuteBYOK(p.registry, req.BYOKKey, req.BYOKProvider, "summarizechain", ErrMissingBYOKProvider, ErrUnknownBYOKProvider,
@@ -39,4 +41,4 @@ func (p *BYOKProvider) Summarize(ctx context.Context, req Request) (*Result, err
 		})
 }
 
-func (p *BYOKProvider) Model() string { return "byok-dispatched" }
+func (p *BYOKProvider) Model() string { return tiered.DispatchedModel() }

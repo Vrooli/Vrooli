@@ -12,7 +12,7 @@ import {
 import {
   streamingModeLabel,
   strategyPreferenceLabel,
-} from "./protomap";
+} from "@vrooli/audio-capture-browser";
 import { createVoiceApi } from "./voice";
 import type { AudioToolsClient } from "../client";
 

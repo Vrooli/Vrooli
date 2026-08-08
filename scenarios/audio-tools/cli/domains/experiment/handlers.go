@@ -105,14 +105,14 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		if err != nil {
 			return err
 		}
-		req.Limit = int32(n)
+		req.Limit = n
 	}
 	if v := strings.TrimSpace(ctx.Flag("offset")); v != "" {
 		n, err := parseIntFlag("offset", v)
 		if err != nil {
 			return err
 		}
-		req.Offset = int32(n)
+		req.Offset = n
 	}
 	resp, err := h.client.ListExperiments(context.Background(), connect.NewRequest(req))
 	if err != nil {

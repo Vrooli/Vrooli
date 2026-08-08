@@ -13,7 +13,7 @@ import {
   responseFormatFromString,
   responseFormatLabel,
   summarizeLevelFromString,
-} from "./protomap";
+} from "@vrooli/audio-capture-browser";
 import type { Config as TTSConfigMsg } from "@vrooli/proto-types/audio-tools/v1/tts/tts_pb";
 import type { SummarizeConfig as SummarizeConfigMsg } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
 import { SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";

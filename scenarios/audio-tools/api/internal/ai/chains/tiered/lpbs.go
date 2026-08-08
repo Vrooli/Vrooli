@@ -36,6 +36,35 @@ func (p *LPBSProvider[Client]) Model() string {
 	return p.model(p.Client)
 }
 
+// LPBSStateCarrier exposes the shared state held by a domain provider.
+// Implementations must return nil for a nil receiver.
+type LPBSStateCarrier[Client any] interface {
+	LPBSState() *LPBSProvider[Client]
+}
+
+// SafeIsAvailable keeps provider-level nil receiver contracts intact when a
+// domain provider embeds LPBSProvider. A promoted method cannot protect a nil
+// outer provider because selecting the embedded field dereferences it first.
+func SafeIsAvailable[Client any](carrier LPBSStateCarrier[Client], ctx context.Context) bool {
+	if carrier == nil {
+		return false
+	}
+	provider := carrier.LPBSState()
+	return provider != nil && provider.IsAvailable(ctx)
+}
+
+// SafeModel is the nil-safe counterpart to SafeIsAvailable for model labels.
+func SafeModel[Client any](carrier LPBSStateCarrier[Client]) string {
+	if carrier == nil {
+		return ""
+	}
+	provider := carrier.LPBSState()
+	if provider == nil {
+		return ""
+	}
+	return provider.Model()
+}
+
 // ExecuteLPBS centralizes the common Vrooli/LPBS guard sequence: an absent
 // client and absent credential are terminal configuration errors, while the
 // capability-specific call and result decoration remain injected.
@@ -53,3 +82,13 @@ func ExecuteLPBS[Response any](configured bool, token string, notConfigured, tok
 	decorate(response)
 	return response, nil
 }
+
+// RegistryConfigured keeps the small registry-backed provider adapters from
+// repeating the same availability check in every capability package.
+func RegistryConfigured[Adapter any](registry map[string]Adapter) bool {
+	return len(registry) > 0
+}
+
+// DispatchedModel is the stable model label for a provider selected from a
+// per-request adapter registry.
+func DispatchedModel() string { return "byok-dispatched" }

@@ -71,10 +71,10 @@ describe("dtwDistance", () => {
   it("normalizes by (n + m) so that cost scales with path length", () => {
     const seq1 = makeSeq(5, 1, 0.0);
     const seq2 = makeSeq(5, 1, 1.0);
-    const d5 = dtwDistance(seq1, seq2);
+    const d5 = dtwDistance(seq1, seq2, undefined, 0);
     const seq3 = makeSeq(10, 1, 0.0);
     const seq4 = makeSeq(10, 1, 1.0);
-    const d10 = dtwDistance(seq3, seq4);
+    const d10 = dtwDistance(seq3, seq4, undefined, 0);
     // Normalized values should be finite and positive for both
     expect(isFinite(d5)).toBe(true);
     expect(isFinite(d10)).toBe(true);

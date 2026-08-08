@@ -186,7 +186,7 @@ belong in [`DATA.md`](DATA.md).
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| adoption | Out-of-process integration health for scenarios consuming `@audio-tools/embed`. | OT-P1-013 ramp. |
+| adoption | Out-of-process integration health for scenarios consuming the shared browser capture package. | OT-P1-013 ramp. |
 | twilio-transport | Twilio media-stream WS bridge. | OT-P2-001 / `execute/audio-tools-twilio-media-stream-transport`. |
 
 ## Non-Domains

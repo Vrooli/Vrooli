@@ -59,7 +59,7 @@ func Build(spec Spec, clips []Clip) (inteval.Clip, Realization, error) {
 		gapMs = DefaultGapMs
 	}
 
-	rng := rand.New(rand.NewSource(seed))
+	rng := rand.New(rand.NewSource(seed)) // #nosec G404 -- seeded math/rand selects deterministic long-form corpus samples.
 	var selected []Clip
 	target := time.Duration(spec.TargetDurationSeconds) * time.Second
 	total := time.Duration(0)

@@ -43,15 +43,15 @@ func splitCSV(s string) []string {
 	return out
 }
 
-func parseIntFlag(name, value string) (int, error) {
-	n, err := strconv.Atoi(value)
+func parseIntFlag(name, value string) (int32, error) {
+	n, err := strconv.ParseInt(value, 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("--%s must be an integer: %q", name, value)
 	}
-	return n, nil
+	return int32(n), nil
 }
 
-func parseNonNegativeIntFlag(name, value string) (int, error) {
+func parseNonNegativeIntFlag(name, value string) (int32, error) {
 	n, err := parseIntFlag(name, value)
 	if err != nil {
 		return 0, err
@@ -91,7 +91,7 @@ func parseIntCSVFlag(name, value string) ([]int32, error) {
 	parts := splitCSV(value)
 	out := make([]int32, 0, len(parts))
 	for _, part := range parts {
-		n, err := strconv.Atoi(part)
+		n, err := strconv.ParseInt(part, 10, 32)
 		if err != nil {
 			return nil, fmt.Errorf("--%s must be comma-separated integers: %q", name, value)
 		}

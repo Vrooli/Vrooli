@@ -104,7 +104,7 @@ func TestStreamingParity(t *testing.T) {
 	}{
 		{
 			name:  "speech_like_buffered_fallback",
-			audio: testaudio.SpeechLike(),
+			audio: testaudio.SpeechTonePauseTone3s(),
 			want: []EventProjection{
 				{Kind: sttchain.StreamEventSegment, Text: "hello world"},
 				{Kind: sttchain.StreamEventDone, Text: "hello world"},
@@ -112,7 +112,7 @@ func TestStreamingParity(t *testing.T) {
 		},
 		{
 			name:  "silence_buffered_fallback",
-			audio: testaudio.Silence(),
+			audio: testaudio.Silence1s(),
 			want: []EventProjection{
 				{Kind: sttchain.StreamEventSegment, Text: "hello world"},
 				{Kind: sttchain.StreamEventDone, Text: "hello world"},

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Mic, RotateCcw, Square, X } from "lucide-react";
+import { RotateCcw, X } from "lucide-react";
 
-import { VoiceStreamProvider, MicReadinessIndicator } from "../../../audio-integration";
+import { PcmVoiceStreamProvider, MicReadinessIndicator } from "../../../audio-integration";
+import { VoiceInputButton } from "../../../audio-integration/SharedVoiceInputButton";
 import { Button } from "../../../components/ui/button";
 import { useTranslation } from "../../../i18n";
 import { strings } from "../../../consts/strings";
@@ -25,13 +26,13 @@ interface Props {
 
 type RecorderState = "idle" | "preparing" | "recording" | "transcribing" | "captured" | "failed" | "cancelled";
 
-// DictationRecorder reuses VoiceStreamProvider — the same WebSocket capture
+// DictationRecorder reuses PcmVoiceStreamProvider — the same WebSocket capture
 // path the diagnostics LiveTry uses — to record one turn, surface the batch
 // transcript, and hand the retained PCM (via getLastTurnAudio) up for
 // corpus storage. It never touches MediaRecorder directly.
 export function DictationRecorder({ onCaptured }: Props) {
   const { t } = useTranslation();
-  const providerRef = useRef<VoiceStreamProvider | null>(null);
+  const providerRef = useRef<PcmVoiceStreamProvider | null>(null);
   const rafRef = useRef<number>(0);
   const audioNodesRef = useRef<AudioNode[]>([]);
   const audioLevelRef = useRef(0);
@@ -130,9 +131,9 @@ export function DictationRecorder({ onCaptured }: Props) {
     }
   };
 
-  function ensureProvider(): VoiceStreamProvider {
+  function ensureProvider(): PcmVoiceStreamProvider {
     if (providerRef.current === null) {
-      const p = new VoiceStreamProvider();
+      const p = new PcmVoiceStreamProvider();
       p.onResult = (text) => {
         setPartial("");
         setFinalText(text);
@@ -203,7 +204,6 @@ export function DictationRecorder({ onCaptured }: Props) {
     stopLevelMonitor();
   };
 
-  const active = state === "preparing" || state === "recording" || state === "transcribing";
   const exportDiagnostic = () => {
     const exported = providerRef.current?.exportDiagnostic();
     if (!exported || typeof document === "undefined") return;
@@ -234,25 +234,15 @@ export function DictationRecorder({ onCaptured }: Props) {
     <div className="flex flex-col gap-3">
       <p className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.recordHint)}</p>
       <div className="flex items-center gap-3">
-        <Button
-          type="button"
+        <VoiceInputButton
           data-testid={selectors.dictationStudio.recordStart}
-          onClick={() => (state === "recording" ? stop() : void start())}
-          aria-pressed={active}
+          state={state === "recording" ? "recording" : state === "preparing" ? "preparing" : state === "transcribing" ? "transcribing" : state === "failed" ? "error" : "idle"}
+          level={audioLevel}
+          aria-label={state === "recording" ? t(strings.dictationStudio.recordStop) : t(strings.dictationStudio.recordStart)}
           disabled={state === "preparing" || state === "transcribing"}
-        >
-          {state === "recording" ? (
-            <>
-              <Square className="h-4 w-4" aria-hidden="true" />
-              {t(strings.dictationStudio.recordStop)}
-            </>
-          ) : (
-            <>
-              <Mic className="h-4 w-4" aria-hidden="true" />
-              {t(strings.dictationStudio.recordStart)}
-            </>
-          )}
-        </Button>
+          onStart={() => void start()}
+          onStop={stop}
+        />
         {state === "transcribing" ? (
           <Button
             type="button"
@@ -352,7 +342,7 @@ export function DictationRecorder({ onCaptured }: Props) {
           <p className="mb-1 text-xs uppercase tracking-wide text-app-muted-foreground">
             {t(strings.dictationStudio.finalLabel)}
           </p>
-          <p className="whitespace-pre-wrap font-mono text-sm">{finalText}</p>
+          <p className="whitespace-pre-wrap font-mono text-sm" data-testid={selectors.dictationStudio.finalTranscript}>{finalText}</p>
         </div>
       ) : null}
     </div>

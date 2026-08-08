@@ -13,8 +13,8 @@ import (
 // envelope package.
 const (
 	HeaderProvider     = "X-Audio-BYOK-Provider"
-	HeaderKey          = "X-Audio-BYOK-Key"
-	HeaderLPBSToken    = "X-Audio-LPBS-Token"
+	HeaderBYOKKey      = "X-Audio-BYOK-Key"   // #nosec G101 -- this is a public wire-header name, not a credential value.
+	HeaderLPBSToken    = "X-Audio-LPBS-Token" // #nosec G101 -- this is a public wire-header name, not a credential value.
 	HeaderUserIdentity = "X-Audio-User-Identity"
 )
 
@@ -102,7 +102,7 @@ func applyHeaders(h interface{ Set(string, string) }, c Credentials) {
 		h.Set(HeaderProvider, c.BYOKProvider)
 	}
 	if c.BYOKKey != "" {
-		h.Set(HeaderKey, c.BYOKKey)
+		h.Set(HeaderBYOKKey, c.BYOKKey)
 	}
 	if c.LPBSToken != "" {
 		h.Set(HeaderLPBSToken, c.LPBSToken)

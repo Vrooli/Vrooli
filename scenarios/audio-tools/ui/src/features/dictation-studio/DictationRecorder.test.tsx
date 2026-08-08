@@ -28,7 +28,7 @@ const originalRequestAnimationFrame = window.requestAnimationFrame;
 const originalCancelAnimationFrame = window.cancelAnimationFrame;
 
 vi.mock("../../audio-integration", () => ({
-  VoiceStreamProvider: class {
+  PcmVoiceStreamProvider: class {
     onResult: ((s: string) => void) | null = null;
     onError: ((s: string) => void) | null = null;
     onPartial: ((s: string) => void) | null = null;

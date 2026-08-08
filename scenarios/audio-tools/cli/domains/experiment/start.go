@@ -36,28 +36,28 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		if err != nil {
 			return err
 		}
-		req.Recipe.RealtimeRepeats = int32(n)
+		req.Recipe.RealtimeRepeats = n
 	}
 	if v := strings.TrimSpace(ctx.Flag("latency-tail-seconds")); v != "" {
 		n, err := parseIntFlag("latency-tail-seconds", v)
 		if err != nil {
 			return err
 		}
-		req.Recipe.LatencyTailSeconds = int32(n)
+		req.Recipe.LatencyTailSeconds = n
 	}
 	if v := strings.TrimSpace(ctx.Flag("chunk-ms")); v != "" {
 		n, err := parseIntFlag("chunk-ms", v)
 		if err != nil {
 			return err
 		}
-		req.Recipe.ChunkMs = int32(n)
+		req.Recipe.ChunkMs = n
 	}
 	if v := strings.TrimSpace(ctx.Flag("dropped-span-threshold")); v != "" {
 		n, err := parseIntFlag("dropped-span-threshold", v)
 		if err != nil {
 			return err
 		}
-		req.Recipe.DroppedSpanThresholdWords = int32(n)
+		req.Recipe.DroppedSpanThresholdWords = n
 	}
 	if v := strings.TrimSpace(ctx.Flag("overlap-max-window-ms")); v != "" {
 		n, err := parseNonNegativeIntFlag("overlap-max-window-ms", v)
@@ -67,7 +67,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		ensureDefaultStrategies(req.Recipe)
 		for _, s := range req.Recipe.Strategies {
 			if strategyUsesOverlap(s.GetKind()) {
-				s.OverlapMaxWindowMs = int32(n)
+				s.OverlapMaxWindowMs = n
 			}
 		}
 	}
@@ -79,7 +79,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		ensureDefaultStrategies(req.Recipe)
 		for _, s := range req.Recipe.Strategies {
 			if strategyUsesOverlap(s.GetKind()) {
-				s.OverlapMaxStallRejects = int32(n)
+				s.OverlapMaxStallRejects = n
 			}
 		}
 	}
@@ -91,7 +91,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		ensureDefaultStrategies(req.Recipe)
 		for _, s := range req.Recipe.Strategies {
 			if strategyUsesOverlap(s.GetKind()) {
-				s.OverlapWindowMs = int32(n)
+				s.OverlapWindowMs = n
 			}
 		}
 	}
@@ -103,7 +103,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		ensureDefaultStrategies(req.Recipe)
 		for _, s := range req.Recipe.Strategies {
 			if strategyUsesOverlap(s.GetKind()) {
-				s.OverlapCommitRuns = int32(n)
+				s.OverlapCommitRuns = n
 			}
 		}
 	}
@@ -115,7 +115,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		ensureDefaultStrategies(req.Recipe)
 		for _, s := range req.Recipe.Strategies {
 			if strategyUsesVADSilence(s.GetKind()) {
-				s.VadSilenceMs = int32(n)
+				s.VadSilenceMs = n
 			}
 		}
 	}
@@ -141,7 +141,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 			return err
 		}
 		longForm.Enabled = true
-		longForm.TargetDurationSeconds = int32(n)
+		longForm.TargetDurationSeconds = n
 	}
 	if v := strings.TrimSpace(ctx.Flag("gap-ms")); v != "" {
 		n, err := parseIntFlag("gap-ms", v)
@@ -149,7 +149,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 			return err
 		}
 		longForm.Enabled = true
-		longForm.GapMs = int32(n)
+		longForm.GapMs = n
 	}
 	if v := strings.TrimSpace(ctx.Flag("tag-contains")); v != "" {
 		longForm.Enabled = true
@@ -243,7 +243,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		if err != nil {
 			return err
 		}
-		req.EstimatedSeconds = int32(n)
+		req.EstimatedSeconds = n
 	}
 	// Echo the strategies that will actually run (the server applies the same
 	// default trio at run time when none are given) so `start --json` is honest.

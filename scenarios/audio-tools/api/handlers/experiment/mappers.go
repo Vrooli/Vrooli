@@ -7,6 +7,7 @@ import (
 	"time"
 
 	intexp "audio-tools/internal/experiment"
+	"audio-tools/internal/protoint"
 	"audio-tools/internal/qualification"
 
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
@@ -74,7 +75,7 @@ func eventToProto(ev intexp.ProgressEvent) *experimentv1.ExperimentEvent {
 	return &experimentv1.ExperimentEvent{
 		ExperimentId: ev.ExperimentID,
 		Status:       statusToProto(ev.Status),
-		Progress:     int32(ev.Progress),
+		Progress:     protoint.FromInt64(int64(ev.Progress)),
 		Message:      ev.Message,
 		At:           timestamppb.New(ev.At),
 	}

@@ -284,7 +284,7 @@ func TestStreamWS_TestOnlySuppressProcessedAckFault(t *testing.T) {
 	wsURL.Scheme = "ws"
 	headers := http.Header{}
 	headers.Set(envelope.HeaderProvider, "fake")
-	headers.Set(envelope.HeaderKey, "secret")
+	headers.Set(envelope.HeaderBYOKKey, "secret")
 	headers.Set(streamTestModeHeader, "1")
 	headers.Set(streamTestFaultHeader, "suppress_processed_ack")
 	c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), headers)
@@ -356,7 +356,7 @@ func TestStreamWS_TestOnlyCloseAfterCommitFault(t *testing.T) {
 	wsURL.Scheme = "ws"
 	headers := http.Header{}
 	headers.Set(envelope.HeaderProvider, "fake")
-	headers.Set(envelope.HeaderKey, "secret")
+	headers.Set(envelope.HeaderBYOKKey, "secret")
 	headers.Set(streamTestModeHeader, "1")
 	headers.Set(streamTestFaultHeader, "close_after_commit:1")
 	c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), headers)
@@ -433,7 +433,7 @@ func TestStreamWS_BinaryPCMAndDoneProducePromptSegmentFinal(t *testing.T) {
 	wsURL.Scheme = "ws"
 	h := http.Header{}
 	h.Set(envelope.HeaderProvider, "fake")
-	h.Set(envelope.HeaderKey, "secret")
+	h.Set(envelope.HeaderBYOKKey, "secret")
 	c, resp, err := websocket.DefaultDialer.Dial(wsURL.String(), h)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
@@ -508,7 +508,7 @@ func TestStreamWS_V2ReplayReemitsCommittedSegmentWithStableIdentity(t *testing.T
 	wsURL.Scheme = "ws"
 	headers := http.Header{}
 	headers.Set(envelope.HeaderProvider, "fake")
-	headers.Set(envelope.HeaderKey, "secret")
+	headers.Set(envelope.HeaderBYOKKey, "secret")
 
 	readTerminal := func(c *websocket.Conn) []wsMessage {
 		t.Helper()

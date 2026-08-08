@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"audio-tools/internal/ai/sttchain"
+	"audio-tools/internal/stt/segmenter/testaudio"
 )
 
 // scriptedSession emits a caller-controlled ordered list of committed segments
@@ -57,7 +58,7 @@ func TestRunReport_SafetyGatesFailOnInjectedFaults(t *testing.T) {
 
 	// Retraction fixture uses a short reference so the single dropped word stays
 	// well under the dropped-span threshold — isolating the retraction gate.
-	retractClip := []Clip{{ID: "r1", PCM: silentPCM(16000, 1000), SampleRate: 16000, Reference: "alpha bravo charlie"}}
+	retractClip := []Clip{{ID: "r1", PCM: testaudio.SilenceSamplesAtRate(16000, 1000), SampleRate: 16000, Reference: "alpha bravo charlie"}}
 	// Commit "...charlie" then finalize dropping it: a previously committed token
 	// is removed, which the retraction gate forbids absolutely.
 	retract := gateSpec("retract", []string{"alpha bravo charlie"}, "alpha bravo")
@@ -70,7 +71,7 @@ func TestRunReport_SafetyGatesFailOnInjectedFaults(t *testing.T) {
 
 	// Dropped-span + clean share a reference long enough to host a 4-word drop.
 	reference := "alpha bravo charlie delta echo foxtrot golf"
-	longClip := []Clip{{ID: "d1", PCM: silentPCM(16000, 1000), SampleRate: 16000, Reference: reference}}
+	longClip := []Clip{{ID: "d1", PCM: testaudio.SilenceSamplesAtRate(16000, 1000), SampleRate: 16000, Reference: reference}}
 	dropped := gateSpec("dropped", []string{"alpha bravo golf"}, "alpha bravo golf") // omits 4 contiguous mid words
 	clean := gateSpec("clean", []string{reference}, reference)
 	dRep := byLabel(RunReport(context.Background(), longClip, []StrategySpec{dropped, clean}, opts))

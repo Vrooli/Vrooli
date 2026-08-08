@@ -1,6 +1,6 @@
 // audioWav — extract raw signed-16-bit little-endian PCM from a WAV blob.
 //
-// VoiceStreamProvider.getLastTurnAudio() retains the completed turn as a
+// PcmVoiceStreamProvider.getLastTurnAudio() retains the completed turn as a
 // canonical 16 kHz mono WAV (it wraps the captured PCM via
 // encodeWavFromPcm16). The corpus stores raw PCM with a `format` hint, so we
 // strip the RIFF container back down to its `data` chunk and read the real

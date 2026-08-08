@@ -12,6 +12,8 @@ import (
 	"audio-tools/cli/domains/summarize"
 	"audio-tools/cli/domains/tts"
 	"audio-tools/cli/domains/usage"
+	"audio-tools/cli/domains/validation"
+	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -33,6 +35,18 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // calls cliapp.LoadFromManifest with its group name and a bindings map
 // wiring "<Service>.<Method>" → the handler in that domain's handlers.go.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
+	return subcommandGroups(core, manifest, nil, nil, nil, nil)
+}
+
+// SubcommandGroupsWithClock is the runtime entrypoint. Long-running
+// qualification commands receive the process clock from the composition root;
+// tests can use SubcommandGroups without acquiring a wall-clock dependency.
+func SubcommandGroupsWithClock(core *cliapp.ScenarioApp, manifest []byte, now func() time.Time, getenv func(string) string, getwd func() (string, error)) ([]cliapp.SubcommandGroup, error) {
+	return subcommandGroups(core, manifest, now, time.NewTicker, getenv, getwd)
+}
+
+func subcommandGroups(core *cliapp.ScenarioApp, manifest []byte, now func() time.Time, newTicker func(time.Duration) *time.Ticker, getenv func(string) string, getwd func() (string, error)) ([]cliapp.SubcommandGroup, error) {
+	validationGroup := validation.Register(core, now, newTicker, getenv, getwd)
 	sttGroup, err := stt.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -65,7 +79,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	providerGroup, err := provider.Register(core, manifest)
+	providerGroup, err := provider.RegisterWithClock(core, manifest, now)
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +92,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	return []cliapp.SubcommandGroup{
+		validationGroup,
 		sttGroup,
 		ttsGroup,
 		summarizeGroup,

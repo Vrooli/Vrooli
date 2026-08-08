@@ -4,6 +4,7 @@
 package summarize
 
 import (
+	"audio-tools/internal/protoint"
 	"errors"
 
 	"connectrpc.com/connect"
@@ -18,10 +19,10 @@ import (
 func toProtoSummarizeConfig(c intsumm.SummarizeConfig) *summv1.SummarizeConfig {
 	return &summv1.SummarizeConfig{
 		Enabled:        c.Enabled,
-		CharThreshold:  int32(c.CharThreshold),
+		CharThreshold:  protoint.FromInt(c.CharThreshold),
 		Level:          protomap.SummarizeLevelToProto(c.Level),
 		Model:          c.Model,
-		TimeoutSeconds: int32(c.TimeoutSeconds),
+		TimeoutSeconds: protoint.FromInt(c.TimeoutSeconds),
 	}
 }
 

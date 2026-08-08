@@ -26,6 +26,9 @@ importers:
       '@vrooli/api-base':
         specifier: file:../../../packages/api-base
         version: file:../../../packages/api-base(@bufbuild/protobuf@2.12.0)(express@4.22.1)(ws@8.20.0)
+      '@vrooli/audio-capture-browser':
+        specifier: file:../../../packages/audio-capture-browser
+        version: file:../../../packages/audio-capture-browser(react@18.3.1)
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
@@ -1005,6 +1008,11 @@ packages:
     peerDependencies:
       express: ^4.18.2
       ws: ^8.16.0
+
+  '@vrooli/audio-capture-browser@file:../../../packages/audio-capture-browser':
+    resolution: {directory: ../../../packages/audio-capture-browser, type: directory}
+    peerDependencies:
+      react: ^18.0.0
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
@@ -3995,6 +4003,10 @@ snapshots:
       ws: 8.20.0
     transitivePeerDependencies:
       - '@bufbuild/protobuf'
+
+  '@vrooli/audio-capture-browser@file:../../../packages/audio-capture-browser(react@18.3.1)':
+    dependencies:
+      react: 18.3.1
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 

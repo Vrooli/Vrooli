@@ -1,326 +1,56 @@
-// Package capabilities models the capability registry: the set of optional
-// resources (Whisper, Kokoro, Ollama, etc.) audio-tools can route through
-// and whether each is currently reachable. The HTTP transport lives in
-// handlers/capabilities; this package owns the in-process state and the
-// Checker contract. Consumer scenarios (e.g., web-console) read the
-// registry via the public API to decide which voice features to enable.
+// Package capabilities provides audio-tools' scenario-specific catalogue and
+// checker wiring over the shared capability-registry-go state machine.
 package capabilities
 
 import (
-	"context"
-	"sync"
 	"time"
 
 	"audio-tools/internal/clock"
+	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 )
 
-type DependencyKind string
+type DependencyKind = capabilityregistry.DependencyKind
+type Status = capabilityregistry.Status
+type PlatformSupport = capabilityregistry.PlatformSupport
+type PlatformVerdict = capabilityregistry.PlatformVerdict
+type Def = capabilityregistry.Def
+type State = capabilityregistry.State
+type Checker = capabilityregistry.Checker
+type ResultChecker = capabilityregistry.ResultChecker
+type CheckResult = capabilityregistry.CheckResult
+type Registry = capabilityregistry.Registry
 
 const (
-	DependencyScenario DependencyKind = "scenario"
-	DependencyResource DependencyKind = "resource"
+	DependencyScenario        = capabilityregistry.DependencyScenario
+	DependencyResource        = capabilityregistry.DependencyResource
+	StatusAvailable           = capabilityregistry.StatusAvailable
+	StatusUnavailable         = capabilityregistry.StatusUnavailable
+	StatusUnknown             = capabilityregistry.StatusUnknown
+	ActionKindNone            = capabilityregistry.ActionKindNone
+	ActionKindOperatorCommand = capabilityregistry.ActionKindOperatorCommand
+	ActionKindScenarioStart   = capabilityregistry.ActionKindScenarioStart
+	ActionKindScenarioRestart = capabilityregistry.ActionKindScenarioRestart
+	ActionKindOwnerGuidance   = capabilityregistry.ActionKindOwnerGuidance
+	PlatformSupported         = capabilityregistry.PlatformSupported
+	PlatformDegraded          = capabilityregistry.PlatformDegraded
+	PlatformUnsupported       = capabilityregistry.PlatformUnsupported
 )
 
-type Status string
-
-const (
-	StatusAvailable   Status = "available"
-	StatusUnavailable Status = "unavailable"
-	StatusUnknown     Status = "unknown"
-)
-
-type Def struct {
-	ID             string          `json:"id"`
-	Name           string          `json:"name"`
-	Description    string          `json:"description"`
-	DependencyKind DependencyKind  `json:"dependencyKind"`
-	DependencySlug string          `json:"dependencySlug"`
-	Features       []string        `json:"features"`
-	Platform       PlatformVerdict `json:"platform"`
-}
-
-type State struct {
-	Def
-	Status    Status `json:"status"`
-	Message   string `json:"message,omitempty"`
-	CheckedAt string `json:"checkedAt,omitempty"`
-}
-
-// seam: Checker is the capability-probe seam (SEAMS.md row
-// "capabilities.Checker"). Production wires per-capability concrete
-// checkers; tests wire a per-test fake.
-type Checker interface {
-	Check(ctx context.Context) (Status, string)
-}
-
-// Known is the built-in capability catalogue that audio-tools advertises
-// to consumers. Callers may pass a different slice to NewRegistry (tests
-// do); production wiring in main.go uses this value.
 var Known = []Def{
-	{
-		ID:             "whisper-stt",
-		Name:           "Whisper STT",
-		Description:    "Speech-to-text transcription via Whisper",
-		DependencyKind: DependencyResource,
-		DependencySlug: "whisper",
-		Features:       []string{"voice-input", "voice-streaming"},
-	},
-	{
-		ID:             "kyutai-stt",
-		Name:           "Kyutai Streaming STT",
-		Description:    "Real-time speech-to-text via Kyutai",
-		DependencyKind: DependencyResource,
-		DependencySlug: "kyutai-stt",
-		Features:       []string{"voice-input", "voice-streaming-realtime"},
-	},
-	{
-		ID:             "speaker-verification",
-		Name:           "Speaker Verification",
-		Description:    "Local speaker verification for enrolled voice filtering",
-		DependencyKind: DependencyResource,
-		DependencySlug: "speaker-verification",
-		Features:       []string{"voice-speaker-verification", "voice-enrollment"},
-	},
-	{
-		ID:             "kokoro-tts",
-		Name:           "Kokoro TTS",
-		Description:    "Text-to-speech synthesis via Kokoro",
-		DependencyKind: DependencyResource,
-		DependencySlug: "kokoro",
-		Features:       []string{"voice-output"},
-	},
-	{
-		ID:             "ollama",
-		Name:           "Ollama",
-		Description:    "Local LLM inference for AI command generation",
-		DependencyKind: DependencyResource,
-		DependencySlug: "ollama",
-		Features:       []string{"ai-command-generation"},
-	},
-	{
-		ID:             "openrouter",
-		Name:           "OpenRouter",
-		Description:    "Cloud LLM API for AI command generation",
-		DependencyKind: DependencyResource,
-		DependencySlug: "openrouter",
-		Features:       []string{"ai-command-generation"},
-	},
-	// Connected scenarios — the single source of truth for cross-scenario
-	// integrations audio-tools publishes for consumers to discover and
-	// adopt. Each entry declares what features it would unlock once
-	// available. The local Whisper and Kokoro resource entries above remain
-	// registered for direct-dependency consumers; downstream scenarios that
-	// adopt audio-tools wholesale resolve those features via the audio-tools
-	// entry instead.
-	{
-		ID:             "audio-tools",
-		Name:           "Audio Tools",
-		Description:    "Shared audio capability scenario: STT, TTS, summarization, provider routing, BYOK/LPBS/local tiers, adoptable UI",
-		DependencyKind: DependencyScenario,
-		DependencySlug: "audio-tools",
-		Features: []string{
-			"voice-input",
-			"voice-streaming",
-			"voice-speaker-verification",
-			"voice-enrollment",
-			"voice-output",
-			"tts-summarization",
-			"tts-cache",
-			"tts-paragraph-split",
-			"audio-provider-routing",
-		},
-	},
-}
-
-type Registry struct {
-	defs             []Def
-	checkers         map[string]Checker
-	livenessCheckers map[string]Checker
-
-	mu       sync.RWMutex
-	cached   []State
-	cachedAt time.Time
-	cacheTTL time.Duration
-	clk      clock.Clock
+	{ID: "whisper-stt", Name: "Whisper STT", Description: "Speech-to-text transcription via Whisper", DependencyKind: DependencyResource, DependencySlug: "whisper", Features: []string{"voice-input", "voice-streaming"}},
+	{ID: "kyutai-stt", Name: "Kyutai Streaming STT", Description: "Real-time speech-to-text via Kyutai", DependencyKind: DependencyResource, DependencySlug: "kyutai-stt", Features: []string{"voice-input", "voice-streaming-realtime"}},
+	{ID: "speaker-verification", Name: "Speaker Verification", Description: "Local speaker verification for enrolled voice filtering", DependencyKind: DependencyResource, DependencySlug: "speaker-verification", Features: []string{"voice-speaker-verification", "voice-enrollment"}},
+	{ID: "kokoro-tts", Name: "Kokoro TTS", Description: "Text-to-speech synthesis via Kokoro", DependencyKind: DependencyResource, DependencySlug: "kokoro", Features: []string{"voice-output"}},
+	{ID: "ollama", Name: "Ollama", Description: "Local LLM inference for AI command generation", DependencyKind: DependencyResource, DependencySlug: "ollama", Features: []string{"ai-command-generation"}},
+	{ID: "openrouter", Name: "OpenRouter", Description: "Cloud LLM API for AI command generation", DependencyKind: DependencyResource, DependencySlug: "openrouter", Features: []string{"ai-command-generation"}},
+	{ID: "audio-tools", Name: "Audio Tools", Description: "Shared audio capability scenario: STT, TTS, summarization, provider routing, BYOK/LPBS/local tiers, adoptable UI", DependencyKind: DependencyScenario, DependencySlug: "audio-tools", Features: []string{"voice-input", "voice-streaming", "voice-speaker-verification", "voice-enrollment", "voice-output", "tts-summarization", "tts-cache", "tts-paragraph-split", "audio-provider-routing"}, ActionKind: ActionKindScenarioStart, OperatorCommand: "vrooli scenario start audio-tools"},
+	{ID: "landing-page-business-suite", Name: "Landing Page Business Suite", Description: "Optional LPBS audio routing tier", DependencyKind: DependencyScenario, DependencySlug: "landing-page-business-suite", Features: []string{"audio-provider-routing"}, ActionKind: ActionKindScenarioStart, OperatorCommand: "vrooli scenario start landing-page-business-suite"},
 }
 
 func NewRegistry(defs []Def, checkers map[string]Checker, cacheTTL time.Duration) *Registry {
-	return NewRegistryWithClock(defs, checkers, cacheTTL, clock.System{})
+	return capabilityregistry.New(defs, checkers, cacheTTL)
 }
 
-// NewRegistryWithClock is the clock-injected constructor used by tests
-// that want deterministic TTL expiry without sleeping.
 func NewRegistryWithClock(defs []Def, checkers map[string]Checker, cacheTTL time.Duration, clk clock.Clock) *Registry {
-	if clk == nil {
-		clk = clock.System{}
-	}
-	return &Registry{
-		defs:     defs,
-		checkers: checkers,
-		cacheTTL: cacheTTL,
-		clk:      clk,
-	}
-}
-
-func (r *Registry) now() time.Time {
-	if r.clk == nil {
-		return clock.System{}.Now()
-	}
-	return r.clk.Now()
-}
-
-// SetLivenessCheckers registers lightweight health-only checkers used by
-// ResolveLiveness. These skip expensive verification (e.g. test transcription)
-// and only perform a fast HTTP liveness check.
-func (r *Registry) SetLivenessCheckers(lc map[string]Checker) {
-	r.livenessCheckers = lc
-}
-
-func (r *Registry) Resolve(ctx context.Context) []State {
-	r.mu.RLock()
-	if r.cached != nil && r.now().Sub(r.cachedAt) < r.cacheTTL {
-		result := make([]State, len(r.cached))
-		copy(result, r.cached)
-		r.mu.RUnlock()
-		return result
-	}
-	r.mu.RUnlock()
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.cached != nil && r.now().Sub(r.cachedAt) < r.cacheTTL {
-		result := make([]State, len(r.cached))
-		copy(result, r.cached)
-		return result
-	}
-
-	now := r.now().UTC()
-	states := make([]State, len(r.defs))
-	for i, def := range r.defs {
-		state := State{
-			Def:       def,
-			Status:    StatusUnknown,
-			CheckedAt: now.Format(time.RFC3339),
-		}
-		if def.Platform.Support == PlatformUnsupported {
-			state.Status = StatusUnavailable
-			state.Message = "unavailable by design"
-			if def.Platform.Reason != "" {
-				state.Message += ": " + def.Platform.Reason
-			}
-			states[i] = state
-			continue
-		}
-		if checker, ok := r.checkers[def.ID]; ok {
-			state.Status, state.Message = checker.Check(ctx)
-		}
-		states[i] = state
-	}
-
-	r.cached = states
-	r.cachedAt = now
-
-	result := make([]State, len(states))
-	copy(result, states)
-	return result
-}
-
-// ResolveForce mirrors Resolve but always re-runs every checker and
-// rewrites the cache, ignoring the TTL. Used by RefreshProviderHealth
-// and by Phase-2 lifecycle actions to surface state-transitions
-// immediately rather than waiting for the next TTL boundary.
-func (r *Registry) ResolveForce(ctx context.Context) []State {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	now := r.now().UTC()
-	states := make([]State, len(r.defs))
-	for i, def := range r.defs {
-		state := State{
-			Def:       def,
-			Status:    StatusUnknown,
-			CheckedAt: now.Format(time.RFC3339),
-		}
-		if def.Platform.Support == PlatformUnsupported {
-			state.Status = StatusUnavailable
-			state.Message = "unavailable by design"
-			if def.Platform.Reason != "" {
-				state.Message += ": " + def.Platform.Reason
-			}
-			states[i] = state
-			continue
-		}
-		if checker, ok := r.checkers[def.ID]; ok {
-			state.Status, state.Message = checker.Check(ctx)
-		}
-		states[i] = state
-	}
-
-	r.cached = states
-	r.cachedAt = now
-
-	result := make([]State, len(states))
-	copy(result, states)
-	return result
-}
-
-// CacheTTL returns the registry's configured TTL. Handlers that drive
-// client refresh intervals from the TTL read it through this getter.
-func (r *Registry) CacheTTL() time.Duration { return r.cacheTTL }
-
-// ResolveLiveness returns capability states using fast liveness-only checks.
-// If the full-check cache is still fresh, it returns that directly (no extra
-// work). When the cache is stale, it uses lightweight liveness checkers instead
-// of the full checkers (which may include expensive operations like test
-// transcription). The liveness results are NOT written to the main cache to
-// avoid masking a broken-but-live service.
-func (r *Registry) ResolveLiveness(ctx context.Context) []State {
-	r.mu.RLock()
-	if r.cached != nil && r.now().Sub(r.cachedAt) < r.cacheTTL {
-		result := make([]State, len(r.cached))
-		copy(result, r.cached)
-		r.mu.RUnlock()
-		return result
-	}
-	r.mu.RUnlock()
-
-	checkers := r.livenessCheckers
-	if len(checkers) == 0 {
-		return r.Resolve(ctx)
-	}
-
-	now := r.now().UTC()
-	states := make([]State, len(r.defs))
-	for i, def := range r.defs {
-		state := State{
-			Def:       def,
-			Status:    StatusUnknown,
-			CheckedAt: now.Format(time.RFC3339),
-		}
-		if def.Platform.Support == PlatformUnsupported {
-			state.Status = StatusUnavailable
-			state.Message = "unavailable by design"
-			if def.Platform.Reason != "" {
-				state.Message += ": " + def.Platform.Reason
-			}
-			states[i] = state
-			continue
-		}
-		if checker, ok := checkers[def.ID]; ok {
-			state.Status, state.Message = checker.Check(ctx)
-		}
-		states[i] = state
-	}
-
-	return states
-}
-
-func (r *Registry) IsAvailable(ctx context.Context, capabilityID string) bool {
-	for _, s := range r.Resolve(ctx) {
-		if s.ID == capabilityID {
-			return s.Status == StatusAvailable
-		}
-	}
-	return false
+	return capabilityregistry.NewWithClock(defs, checkers, cacheTTL, func() time.Time { return clk.Now() })
 }

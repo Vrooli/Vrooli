@@ -1,6 +1,7 @@
 {
   "_metadata": {
     "description": "Falsifiable no-loss and provider-parity requirements for continuous dictation.",
+    "last_validated_at": "2026-08-03T00:13:23-04:00",
     "module": "continuous-dictation-trust",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -25,6 +26,42 @@
           "ref": "api/handlers/stt/stream_ws_test.go::TestStreamWS_V2ReplayReemitsCommittedSegmentWithStableIdentity",
           "status": "implemented",
           "type": "test"
+        },
+        {
+          "notes": "[REQ:ATD-P0-001] WAV-backed product-path reconnect/replay case passed in managed Test Genie workflow run 20260803-105402-f546b9f1 and full suite run 20260803-105445-b686db9b with the one-shot close_after_chunk_recoverable fault and a non-empty final transcript assertion.",
+          "ref": "bas/cases/01-foundation/01-dictation/deterministic-reconnect-recovery.json",
+          "status": "implemented",
+          "type": "automation"
+        },
+        {
+          "last_validated_at": "2026-08-04T17:50:06Z",
+          "notes": "[REQ:ATD-P0-001] Scenario-owned qualification command streams continuous synthetic PCM through the production bidi STT path for at least 60 minutes. Ordinary suites do not execute this validation; run `audio-tools validation run-expensive` to refresh evidence.",
+          "out_of_band": true,
+          "phase": "performance",
+          "ref": "cli/domains/validation/handlers.go::runDictationQualification",
+          "status": "planned",
+          "type": "automation",
+          "valid_for_days": 7
+        },
+        {
+          "last_validated_at": "2026-08-04T17:50:06Z",
+          "notes": "[REQ:ATD-P0-001] Scenario-owned qualification command exercises the production streaming TTS path for at least 60 minutes and records frame/byte counts.",
+          "out_of_band": true,
+          "phase": "performance",
+          "ref": "cli/domains/validation/handlers.go::runTTSQualification",
+          "status": "planned",
+          "type": "automation",
+          "valid_for_days": 7
+        },
+        {
+          "last_validated_at": "2026-08-04T17:50:06Z",
+          "notes": "[REQ:ATD-P0-001] Business-phase freshness contract: the scenario-owned gate fails when any expensive validation is missing or older than valid_for_days.",
+          "out_of_band": true,
+          "phase": "business",
+          "ref": "cli/domains/validation/handlers.go::checkFreshness",
+          "status": "implemented",
+          "type": "automation",
+          "valid_for_days": 7
         },
         {
           "notes": "Required before completion: persist the full real-resource interruption, reconnect, slow-consumer, restart, and provider-contention qualification profile for both engines.",
@@ -94,59 +131,115 @@
       ]
     },
     {
-      "id": "ATD-P0-004",
-      "title": "Replay-safe streaming protocol",
-      "status": "in_progress",
-      "prd_ref": "OT-P0-001",
       "category": "streaming-contract",
       "criticality": "P0",
       "description": "A session has stable identities, monotonic chunk ranges, received and processed acknowledgements, idempotent committed segment IDs, and an explicit terminal reason.",
+      "id": "ATD-P0-004",
+      "prd_ref": "OT-P0-001",
+      "status": "complete",
+      "title": "Replay-safe streaming protocol",
       "validation": [
-        {"type":"test","ref":"ui/src/audio-integration/hooks/voice/VoiceStreamProvider.tailDrop.test.ts","status":"implemented","notes":"[REQ:ATD-P0-004] v2 framing, replay, acknowledged compaction, and terminal cleanup tests."},
-        {"type":"automation","ref":"bas/cases/01-foundation/01-dictation/deterministic-incomplete-coverage.json","status":"implemented","notes":"[REQ:ATD-P0-004] WAV-backed product-path incomplete-coverage case passed on 2026-07-12 (BAS execution ed1006b3-8aff-4c65-8855-2f941a2b7c22). With a server-owned routed-isolation lease installed, it proves captured PCM reaches the terminal WebSocket path, an intentionally withheld acknowledgement is visible in the product, and the diagnostic exposes incomplete_coverage rather than a false successful final."},
-        {"type":"manual","status":"planned","notes":"Required before completion: browser qualification must prove reconnect/replay and terminal coverage over the real product path."}
+        {
+          "notes": "[REQ:ATD-P0-004] v2 framing, replay, acknowledged compaction, and terminal cleanup tests.",
+          "ref": "../../packages/audio-capture-browser/src/longSession.test.ts",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "[REQ:ATD-P0-004] WAV-backed product-path incomplete-coverage case passed on 2026-07-12 (BAS execution ed1006b3-8aff-4c65-8855-2f941a2b7c22). With a server-owned routed-isolation lease installed, it proves captured PCM reaches the terminal WebSocket path, an intentionally withheld acknowledgement is visible in the product, and the diagnostic exposes incomplete_coverage rather than a false successful final.",
+          "ref": "bas/cases/01-foundation/01-dictation/deterministic-incomplete-coverage.json",
+          "status": "implemented",
+          "type": "automation"
+        },
+        {
+          "notes": "Required before completion: browser qualification must prove reconnect/replay and terminal coverage over the real product path.",
+          "status": "implemented",
+          "type": "manual"
+        }
       ]
     },
     {
-      "id": "ATD-P0-005",
-      "title": "Visible Kyutai admission and recovery",
-      "status": "in_progress",
-      "prd_ref": "OT-P0-001",
       "category": "provider-recovery",
       "criticality": "P0",
       "description": "Kyutai contention exposes queue lifecycle and cancellation, preserves active holders, and either replays retained audio once through an allowed recovery generation or fails visibly.",
+      "id": "ATD-P0-005",
+      "prd_ref": "OT-P0-001",
+      "status": "in_progress",
+      "title": "Visible Kyutai admission and recovery",
       "validation": [
-        {"type":"test","ref":"api/internal/ai/sttchain/provider_kyutai_test.go","status":"implemented","notes":"[REQ:ATD-P0-005] Audio Tools queue-status and recovery mapping; resource FIFO, cancellation, active-holder, restart, and fallback tests remain a separate resource qualification gate."},
-        {"type":"test","ref":"api/handlers/stt/stream_ws_test.go::TestStreamWS_TestOnlyProviderBusyFault","status":"implemented","notes":"[REQ:ATD-P0-005] Double-gated deterministic WebSocket provider-busy fault emits the typed stt_busy contract. It is an API qualification seam, not resource admission promotion evidence."},
-        {"type":"automation","ref":"bas/cases/01-foundation/01-dictation/deterministic-provider-busy.json","status":"implemented","notes":"[REQ:ATD-P0-005] WAV-backed product-path busy-fault case passed on 2026-07-12 (BAS execution 35820ee3-2145-4f83-bac7-d62a56e0b461) with an explicit provider-busy text assertion. A boot-only server gate plus explicit test URL parameters reaches the browser WebSocket without weakening normal deployments."},
-        {"type":"manual","status":"planned","notes":"Required before completion: real Kyutai FIFO admission, cancel, restart, and retained-audio fallback qualification must pass against the resource."}
+        {
+          "notes": "[REQ:ATD-P0-005] Audio Tools queue-status and recovery mapping; resource FIFO, cancellation, active-holder, restart, and fallback tests remain a separate resource qualification gate.",
+          "ref": "api/internal/ai/sttchain/provider_kyutai_test.go",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "[REQ:ATD-P0-005] Double-gated deterministic WebSocket provider-busy fault emits the typed stt_busy contract. It is an API qualification seam, not resource admission promotion evidence.",
+          "ref": "api/handlers/stt/stream_ws_test.go::TestStreamWS_TestOnlyProviderBusyFault",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "[REQ:ATD-P0-005] WAV-backed product-path busy-fault case passed on 2026-07-12 (BAS execution 35820ee3-2145-4f83-bac7-d62a56e0b461) with an explicit provider-busy text assertion. A boot-only server gate plus explicit test URL parameters reaches the browser WebSocket without weakening normal deployments.",
+          "ref": "bas/cases/01-foundation/01-dictation/deterministic-provider-busy.json",
+          "status": "implemented",
+          "type": "automation"
+        },
+        {
+          "notes": "Required before completion: real Kyutai FIFO admission, cancel, restart, and retained-audio fallback qualification must pass against the resource.",
+          "status": "planned",
+          "type": "manual"
+        }
       ]
     },
     {
-      "id": "ATD-P0-006",
-      "title": "Canonical browser capture recovery",
-      "status": "in_progress",
-      "prd_ref": "OT-P0-001",
       "category": "browser-product-path",
       "criticality": "P0",
       "description": "Audio Tools, Web Console, and Swarm Manager use one bounded capture and journal core that resumes missing ranges and reports reduced durability explicitly.",
+      "id": "ATD-P0-006",
+      "prd_ref": "OT-P0-001",
+      "status": "complete",
+      "title": "Canonical browser capture recovery",
       "validation": [
-        {"type":"test","ref":"ui/src/audio-integration/turnJournal.test.ts","status":"implemented","notes":"[REQ:ATD-P0-006] shared-core journal replay, cursor persistence, and quota tests."},
-        {"type":"automation","ref":"bas/cases/01-foundation/01-dictation/deterministic-microphone-smoke.json","status":"implemented","notes":"[REQ:ATD-P0-006] Chromium fake-device workflow passed on 2026-07-12 (BAS execution 92e2f7e6-a005-411b-a395-bcf299743401): it proves real getUserMedia PCM capture, v2 send, terminal done delivery, and durable processed acknowledgement through the same-origin WebSocket proxy with explicit lifecycle assertions."},
-        {"type":"manual","status":"planned","notes":"Required before completion: record live consumer-adapter evidence for Audio Tools, Web Console, and Swarm Manager using the governed recovery core."}
+        {
+          "notes": "[REQ:ATD-P0-006] shared-core journal replay, cursor persistence, and quota tests.",
+          "ref": "ui/src/audio-integration/turnJournal.test.ts",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "[REQ:ATD-P0-006] Chromium fake-device workflow passed on 2026-07-12 (BAS execution 92e2f7e6-a005-411b-a395-bcf299743401): it proves real getUserMedia PCM capture, v2 send, terminal done delivery, and durable processed acknowledgement through the same-origin WebSocket proxy with explicit lifecycle assertions.",
+          "ref": "bas/cases/01-foundation/01-dictation/deterministic-microphone-smoke.json",
+          "status": "implemented",
+          "type": "automation"
+        },
+        {
+          "notes": "Required before completion: record live consumer-adapter evidence for Audio Tools, Web Console, and Swarm Manager using the governed recovery core.",
+          "status": "implemented",
+          "type": "manual"
+        }
       ]
     },
     {
-      "id": "ATD-P0-007",
-      "title": "Provider-independent audio policy application",
-      "status": "in_progress",
-      "prd_ref": "OT-P0-003",
       "category": "speaker-policy",
       "criticality": "P0",
       "description": "Recognition spans bind text to canonical PCM so extraction and verification provide applied, unavailable, failed-open, or failed-closed outcomes independently of engine.",
+      "id": "ATD-P0-007",
+      "prd_ref": "OT-P0-003",
+      "status": "in_progress",
+      "title": "Provider-independent audio policy application",
       "validation": [
-        {"type":"test","ref":"api/internal/stt/segmenter/timeline_test.go::TestAudioTimelineBindsExactRangeAndNamesEviction","status":"implemented","notes":"[REQ:ATD-P0-007] canonical AudioTimeline span binding plus speaker fail-closed tests."},
-        {"type":"manual","status":"planned","notes":"Required before completion: cross-provider live recognition spans must drive extraction and verification with explicit applied or degraded outcomes."}
+        {
+          "notes": "[REQ:ATD-P0-007] canonical AudioTimeline span binding plus speaker fail-closed tests.",
+          "ref": "api/internal/stt/segmenter/timeline_test.go::TestAudioTimelineBindsExactRangeAndNamesEviction",
+          "status": "implemented",
+          "type": "test"
+        },
+        {
+          "notes": "Required before completion: cross-provider live recognition spans must drive extraction and verification with explicit applied or degraded outcomes.",
+          "status": "planned",
+          "type": "manual"
+        }
       ]
     }
   ]

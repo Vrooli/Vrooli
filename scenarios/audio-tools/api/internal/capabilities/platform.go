@@ -9,21 +9,6 @@ import (
 	"strings"
 )
 
-// PlatformSupport is the manifest-derived availability contract for a resource
-// on one host operating system. Unsupported resources are not probed.
-type PlatformSupport string
-
-const (
-	PlatformSupported   PlatformSupport = "supported"
-	PlatformDegraded    PlatformSupport = "degraded"
-	PlatformUnsupported PlatformSupport = "unsupported"
-)
-
-type PlatformVerdict struct {
-	Support PlatformSupport
-	Reason  string
-}
-
 // ResourcePlatformResolver reads resource.json declarations. It deliberately
 // owns no compatibility table: resources remain the platform SSOT.
 type ResourcePlatformResolver struct {

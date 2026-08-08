@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"audio-tools/internal/audioformat"
+	"audio-tools/internal/protoint"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 	sttpipeline "audio-tools/internal/stt/pipeline"
@@ -34,7 +35,7 @@ func (h *connectHandler) ListSpeakerProfiles(ctx context.Context, _ *connect.Req
 	for _, p := range rows {
 		out = append(out, speakerProfileToProto(p))
 	}
-	return connect.NewResponse(&sttv1.ListSpeakerProfilesResponse{Profiles: out, Count: int32(len(out))}), nil
+	return connect.NewResponse(&sttv1.ListSpeakerProfilesResponse{Profiles: out, Count: protoint.FromInt(len(out))}), nil
 }
 
 // speakerProfileToProto projects a stored profile to the wire shape, surfacing
@@ -42,9 +43,9 @@ func (h *connectHandler) ListSpeakerProfiles(ctx context.Context, _ *connect.Req
 // EmbeddingDim falls back to the locally stored embedding length only when the
 // cached dim is zero (older rows enrolled before the metadata column existed).
 func speakerProfileToProto(p store.SpeakerProfile) *sttv1.SpeakerProfile {
-	embeddingDim := int32(p.EmbeddingDim)
+	embeddingDim := protoint.FromInt64(int64(p.EmbeddingDim))
 	if embeddingDim == 0 {
-		embeddingDim = int32(len(p.Embedding))
+		embeddingDim = protoint.FromInt(len(p.Embedding))
 	}
 	return &sttv1.SpeakerProfile{
 		Id:                 p.ID,
@@ -53,8 +54,8 @@ func speakerProfileToProto(p store.SpeakerProfile) *sttv1.SpeakerProfile {
 		UpdatedAt:          protomap.TimeToProto(p.CreatedAt),
 		ModelName:          p.ModelName,
 		EmbeddingDim:       embeddingDim,
-		SampleRate:         int32(p.SampleRate),
-		ClipCount:          int32(p.ClipCount),
+		SampleRate:         protoint.FromInt64(int64(p.SampleRate)),
+		ClipCount:          protoint.FromInt64(int64(p.ClipCount)),
 		TotalVoicedSeconds: p.TotalVoicedSeconds,
 	}
 }
@@ -137,14 +138,14 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 		Enrollment: &sttv1.SpeakerEnrollment{
 			ProfileId:          id,
 			DisplayName:        m.GetDisplayName(),
-			EmbeddingDim:       int32(enroll.EmbeddingDim),
-			SampleRate:         int32(enroll.SampleRate),
+			EmbeddingDim:       protoint.FromInt64(int64(enroll.EmbeddingDim)),
+			SampleRate:         protoint.FromInt64(int64(enroll.SampleRate)),
 			ModelName:          enroll.ModelName,
 			CreatedAt:          protomap.TimeToProto(h.deps.Clock.Now().UTC()),
 			ClipId:             enroll.ClipID,
 			Label:              enroll.Label,
 			VoicedSeconds:      enroll.VoicedSeconds,
-			ClipCount:          int32(enroll.ClipCount),
+			ClipCount:          protoint.FromInt64(int64(enroll.ClipCount)),
 			TotalVoicedSeconds: enroll.TotalVoicedSeconds,
 		},
 		Config: cfg.toProto(),
@@ -244,7 +245,7 @@ func speakerClipToProto(c sttpipeline.SpeakerProfileClip) *sttv1.SpeakerProfileC
 		VoicedSeconds: c.VoicedSeconds,
 		AudioSeconds:  c.AudioSeconds,
 		CreatedAt:     protomap.TimeToProto(created),
-		EmbeddingDim:  int32(c.EmbeddingDim),
+		EmbeddingDim:  protoint.FromInt64(int64(c.EmbeddingDim)),
 	}
 }
 
@@ -264,7 +265,7 @@ func (h *connectHandler) ListSpeakerProfileClips(ctx context.Context, req *conne
 	return connect.NewResponse(&sttv1.ListSpeakerProfileClipsResponse{
 		ProfileId: id,
 		Clips:     clips,
-		Count:     int32(len(clips)),
+		Count:     protoint.FromInt(len(clips)),
 	}), nil
 }
 
@@ -316,7 +317,7 @@ func (h *connectHandler) DeleteSpeakerProfileClip(ctx context.Context, req *conn
 		ProfileId:          res.ProfileID,
 		ClipId:             res.ClipID,
 		DeletedProfile:     res.DeletedProfile,
-		ClipCount:          int32(res.ClipCount),
+		ClipCount:          protoint.FromInt64(int64(res.ClipCount)),
 		TotalVoicedSeconds: res.TotalVoicedSeconds,
 	}), nil
 }

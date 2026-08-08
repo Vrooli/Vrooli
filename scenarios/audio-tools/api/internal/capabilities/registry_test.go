@@ -7,7 +7,29 @@ import (
 
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/capabilities/mocks"
+	"audio-tools/internal/clock"
 )
+
+func TestRegistry_SharedContractAndMappings(t *testing.T) {
+	reg := capabilities.NewRegistryWithClock(
+		[]capabilities.Def{{ID: "cap", Name: "Capability", Description: "test", DependencyKind: capabilities.DependencyResource, DependencySlug: "cap"}},
+		map[string]capabilities.Checker{"cap": mocks.NewFakeChecker(capabilities.StatusAvailable, "ok")}, time.Minute, clock.System{},
+	)
+	if _, err := reg.Describe(context.Background()); err != nil {
+		t.Fatalf("Describe: %v", err)
+	}
+	if reg.CacheTTL() != time.Minute {
+		t.Fatalf("unexpected cache ttl: %s", reg.CacheTTL())
+	}
+	for _, id := range []string{"whisper-stt", "kokoro-tts", "speaker-verification", "ollama", "openrouter", "unknown"} {
+		_ = capabilities.TierForProviderID(id)
+		_, _ = capabilities.ResourceSlugForProviderID(id)
+		_ = capabilities.IsLocalProvider(id)
+	}
+	for _, feature := range []string{"voice-input", "voice-output", "ai-command-generation", "unknown"} {
+		_, _ = capabilities.CapabilityForFeature(feature)
+	}
+}
 
 func TestRegistry_Resolve(t *testing.T) {
 	defs := []capabilities.Def{

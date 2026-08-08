@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"audio-tools/internal/byokstore"
+	"audio-tools/internal/protoint"
 	"audio-tools/internal/store"
 
 	"github.com/vrooli/api-core/database"
@@ -38,8 +39,8 @@ func BuildStores(db *database.RoutedDB, env Env) (Stores, error) {
 		OllamaURL:           env.OllamaURL,
 		LPBSBaseURL:         env.LPBSBaseURL,
 		LPBSAppBundleKey:    env.LPBSAppBundleKey,
-		AvailTTLBYOKSeconds: int32(env.AvailTTLBYOK / time.Second),
-		AvailTTLVrooliSecs:  int32(env.AvailTTLVrooli / time.Second),
+		AvailTTLBYOKSeconds: protoint.FromInt64(int64(env.AvailTTLBYOK / time.Second)),
+		AvailTTLVrooliSecs:  protoint.FromInt64(int64(env.AvailTTLVrooli / time.Second)),
 	})
 
 	byokRepo := store.NewBYOKStore(db)

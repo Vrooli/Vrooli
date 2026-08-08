@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+
+	"audio-tools/internal/protoint"
 )
 
 // Encode converts canonical engine PCM (16-bit LE, mono, 16 kHz) to the
@@ -73,7 +75,7 @@ func encodeWAV(pcm []byte) []byte {
 		byteRate      = CanonicalSampleRate * CanonicalChannels * CanonicalBytesPerSample
 		blockAlign    = CanonicalChannels * CanonicalBytesPerSample
 	)
-	dataLen := uint32(len(pcm))
+	dataLen := protoint.FromIntToUint32(len(pcm))
 	out := make([]byte, 0, 44+len(pcm))
 	out = append(out, "RIFF"...)
 	out = binary.LittleEndian.AppendUint32(out, 36+dataLen) // chunk size

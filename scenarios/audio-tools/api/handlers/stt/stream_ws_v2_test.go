@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"audio-tools/internal/stt/session"
 )
 
 // [REQ:ATD-P0-004] Browser v2 chunk identity is parsed without inference.
@@ -57,4 +59,10 @@ func TestDecodeWSV2AudioFrameRejectsDigestMismatch(t *testing.T) {
 	copy(frame[60:], []byte{1, 2})
 	_, err := decodeWSV2AudioFrame(frame)
 	require.ErrorContains(t, err, "digest mismatch")
+}
+
+func TestReceivedDuplicateIsSkippedOnlyOnInitialConnection(t *testing.T) {
+	require.True(t, shouldSkipReceivedDuplicate(session.ReceivedDuplicate, false))
+	require.False(t, shouldSkipReceivedDuplicate(session.ReceivedDuplicate, true), "a resumed duplicate must re-enter the fresh segmenter")
+	require.False(t, shouldSkipReceivedDuplicate(session.ReceivedNew, false))
 }

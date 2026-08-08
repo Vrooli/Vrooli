@@ -1156,7 +1156,7 @@
             "consumer-guide",
             "audio-integration"
           ],
-          "description": "Canonical procedure a new scenario follows to adopt audio-tools: declare dependency, wire API-side integration adapter, copy audio-integration/ folder into UI, mount provider, write adapters around generic core hooks.",
+            "description": "Canonical procedure a new scenario follows to adopt audio-tools: declare the dependency, implement the transport seam, import the shared browser-capture package, mount the provider, and add a themed microphone surface.",
           "audience": [
             "developers",
             "agents"
@@ -1375,28 +1375,6 @@
           "requiredBy": [
             "validated"
           ]
-        },
-        {
-          "path": "reference/adoption.md",
-          "docType": "reference-adoption",
-          "title": "Adoption",
-          "aliases": [
-            "adoption",
-            "embed"
-          ],
-          "description": "How a consumer scenario embeds audio-tools (CLI, API client, react embed).",
-          "audience": [
-            "developers",
-            "agents"
-          ],
-          "canonicalFor": [
-            "adoption"
-          ],
-          "maturity": "draft",
-          "requiredBy": [
-            "generated"
-          ],
-          "completion": "required"
         }
       ]
     },

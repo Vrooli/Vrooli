@@ -29,6 +29,37 @@ func NewFakeProvider(tier sttchain.ProviderTier, traits sttchain.ProviderTraits)
 	return &FakeProvider{Tier: tier, Traits_: traits}
 }
 
+// FakeProviderBuilder gives provider tests an overridable default without
+// repeating an inline construction literal at every call site. Build returns
+// a fresh fake, so one test cannot accidentally share call counts with another.
+type FakeProviderBuilder struct {
+	provider FakeProvider
+}
+
+func NewFakeProviderBuilder(tier sttchain.ProviderTier) *FakeProviderBuilder {
+	return &FakeProviderBuilder{provider: FakeProvider{Tier: tier}}
+}
+
+func (b *FakeProviderBuilder) WithTraits(traits sttchain.ProviderTraits) *FakeProviderBuilder {
+	b.provider.Traits_ = traits
+	return b
+}
+
+func (b *FakeProviderBuilder) WithResult(result *sttchain.Result) *FakeProviderBuilder {
+	b.provider.Result = result
+	return b
+}
+
+func (b *FakeProviderBuilder) WithError(err error) *FakeProviderBuilder {
+	b.provider.Err = err
+	return b
+}
+
+func (b *FakeProviderBuilder) Build() *FakeProvider {
+	provider := b.provider
+	return &provider
+}
+
 func (p *FakeProvider) Type() sttchain.ProviderTier      { return p.Tier }
 func (p *FakeProvider) IsAvailable(context.Context) bool { return true }
 func (p *FakeProvider) Model() string                    { return "fake" }

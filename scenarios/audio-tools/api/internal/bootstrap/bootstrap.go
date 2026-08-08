@@ -89,6 +89,7 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 		return summCfg.Model
 	}}
 	openRouterChecker := &capabilities.OpenRouterChecker{APIKey: env.OpenRouterAPIKey, BaseURL: env.OpenRouterURL, Doer: doer}
+	lpbsChecker := &capabilities.ScenarioChecker{Slug: "landing-page-business-suite"}
 	defs := append([]capabilities.Def(nil), capabilities.Known...)
 	platforms := capabilities.NewResourcePlatformResolver(capabilities.ResourcesFS(), "")
 	for i := range defs {
@@ -97,12 +98,13 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 		}
 	}
 	capsCheckers := map[string]capabilities.Checker{
-		"whisper-stt":          whisperChecker,
-		"kyutai-stt":           &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: doer},
-		"kokoro-tts":           kokoroChecker,
-		"speaker-verification": speakerChecker,
-		"ollama":               ollamaChecker,
-		"openrouter":           openRouterChecker,
+		"whisper-stt":                 whisperChecker,
+		"kyutai-stt":                  &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: doer},
+		"kokoro-tts":                  kokoroChecker,
+		"speaker-verification":        speakerChecker,
+		"ollama":                      ollamaChecker,
+		"openrouter":                  openRouterChecker,
+		"landing-page-business-suite": lpbsChecker,
 		"audio-tools": capabilities.AggregateChecker{Checkers: []capabilities.Checker{
 			whisperChecker, speakerChecker, kokoroChecker, ollamaChecker,
 		}},

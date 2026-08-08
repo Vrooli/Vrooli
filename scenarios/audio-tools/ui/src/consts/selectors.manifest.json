@@ -24,6 +24,14 @@
       "testId": "error-boundary-retry",
       "selector": "[data-testid=\"error-boundary-retry\"]"
     },
+    "diagnostics.suiteRun": {
+      "testId": "suite-run",
+      "selector": "[data-testid=\"suite-run\"]"
+    },
+    "diagnostics.suiteLastRun": {
+      "testId": "suite-last-run",
+      "selector": "[data-testid=\"suite-last-run\"]"
+    },
     "streamConfig.enginePicker": {
       "testId": "stream-config-engine-picker",
       "selector": "[data-testid=\"stream-config-engine-picker\"]"
@@ -111,6 +119,10 @@
     "dictationStudio.exportDiagnostic": {
       "testId": "dictation-export-diagnostic",
       "selector": "[data-testid=\"dictation-export-diagnostic\"]"
+    },
+    "dictationStudio.finalTranscript": {
+      "testId": "dictation-final-transcript",
+      "selector": "[data-testid=\"dictation-final-transcript\"]"
     },
     "dictationStudio.transcriptEditor": {
       "testId": "dictation-transcript-editor",

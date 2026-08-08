@@ -2,10 +2,10 @@
 //
 // PCM capture seam for the streaming voice path. The browser taps the mic
 // MediaStream and delivers raw Float32 PCM frames at the AudioContext's
-// native rate. VoiceStreamProvider owns the policy (downsample, encode,
+// native rate. PcmVoiceStreamProvider owns the policy (downsample, encode,
 // send/buffer/drop); this module owns only the Web Audio wiring.
 //
-// The factory is injectable so VoiceStreamProvider can be unit-tested by
+// The factory is injectable so PcmVoiceStreamProvider can be unit-tested by
 // pushing synthetic frames without a real AudioContext (which jsdom does
 // not provide). Production wires createScriptProcessorPcmCapture.
 

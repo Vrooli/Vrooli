@@ -10,6 +10,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
+	"audio-tools/cli/domains/labels"
+
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
 	diagconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics/diagnostics_v1connect"
@@ -182,43 +184,15 @@ func orDash(s string) string {
 }
 
 func overallLabel(s diagv1.SuiteOverall_Status) string {
-	switch s {
-	case diagv1.SuiteOverall_STATUS_PASS:
-		return "PASS"
-	case diagv1.SuiteOverall_STATUS_PARTIAL:
-		return "PARTIAL"
-	case diagv1.SuiteOverall_STATUS_FAIL:
-		return "FAIL"
-	case diagv1.SuiteOverall_STATUS_NEVER:
-		return "NEVER"
-	}
-	return "UNKNOWN"
+	return labels.Enum(s, "STATUS_", "UNKNOWN", strings.ToUpper)
 }
 
 func capabilityLabel(c diagv1.Capability) string {
-	switch c {
-	case diagv1.Capability_CAPABILITY_STT:
-		return "stt"
-	case diagv1.Capability_CAPABILITY_TTS:
-		return "tts"
-	case diagv1.Capability_CAPABILITY_SUMMARIZE:
-		return "summarize"
-	case diagv1.Capability_CAPABILITY_TRANSCODE:
-		return "transcode"
-	}
-	return "unknown"
+	return labels.Enum(c, "CAPABILITY_", "unknown", labels.LowerWords)
 }
 
 func providerTierLabel(t commonv1.ProviderTier) string {
-	switch t {
-	case commonv1.ProviderTier_PROVIDER_TIER_LOCAL:
-		return "local"
-	case commonv1.ProviderTier_PROVIDER_TIER_BYOK:
-		return "byok"
-	case commonv1.ProviderTier_PROVIDER_TIER_VROOLI:
-		return "vrooli"
-	}
-	return "-"
+	return labels.Enum(t, "PROVIDER_TIER_", "-", labels.LowerWords)
 }
 
 func truncate(s string, n int) string {

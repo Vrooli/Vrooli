@@ -1,3 +1,2 @@
-export type { TTSProvider, TTSSpeakOptions, TTSVoiceInfo, TTSBackend } from "./types";
-export { KokoroProvider } from "./KokoroProvider";
-export { BrowserTTSProvider } from "./BrowserTTSProvider";
+export type { TTSProvider, TTSSpeakOptions, TTSVoiceInfo, TTSBackend } from "@vrooli/audio-capture-browser";
+export { KokoroProvider, BrowserTTSProvider } from "@vrooli/audio-capture-browser";

@@ -1,6 +1,6 @@
 // audio-integration Connect client factory + React context.
 //
-// This folder is the canonical copy-paste reference for adopters of
+// This folder is the governed adapter reference for adopters of
 // audio-tools. Consumers must construct a client explicitly and mount it
 // via <AudioToolsProvider client={...}>; there are no window globals and
 // no zero-config fallback.
@@ -9,7 +9,7 @@
 // intentionally co-locates the provider component with the create-client
 // factory, the context hooks, and a module-level active-client registry
 // used by sibling api/*.ts modules. Splitting them into separate files
-// would force every adopter (this is the canonical copy-paste reference)
+// would force every adopter (this is the governed adapter reference)
 // to wire two imports for one capability. HMR for this file is
 // acceptable to break; consumers wrap their tree once at boot.
 /* eslint-disable react-refresh/only-export-components */

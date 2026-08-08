@@ -540,6 +540,23 @@ func TestStreamConfig_GetDefaultsWithoutStore(t *testing.T) {
 	require.Equal(t, int32(250), res.Msg.GetConfig().GetFlushIntervalMs())
 }
 
+func TestResolveStreamPipelineConfigProjectsPersistedLevers(t *testing.T) {
+	repo := staticStreamConfig{raw: `{"streaming_mode":"off","strategy_preference":"overlap","engine_id":"kyutai","vad_silence_ms":800,"overlap_window_ms":2400,"overlap_commit_runs":3,"overlap_max_stall_rejects":0,"hallucination_filter_enabled":false,"vad_filter_enabled":false,"no_speech_threshold":0.4,"logprob_threshold":-2.5,"denoise_enabled":true}`}
+	cfg := ResolveStreamPipelineConfig(context.Background(), repo)
+	require.Equal(t, intstt.StreamingMode("off"), cfg.Mode)
+	require.Equal(t, intstt.StrategyPreference("overlap"), cfg.StrategyPreference)
+	require.Equal(t, "kyutai", cfg.EngineID)
+	require.Equal(t, 800, cfg.VADSilenceMs)
+	require.Equal(t, 2400, cfg.OverlapWindowMs)
+	require.Equal(t, 3, cfg.OverlapCommitRuns)
+	require.Equal(t, 0, cfg.OverlapMaxStallRejects)
+	require.False(t, cfg.HallucinationFilterEnabled)
+	require.False(t, cfg.VADFilterEnabled)
+	require.Equal(t, 0.4, cfg.NoSpeechThreshold)
+	require.Equal(t, -2.5, cfg.LogProbThreshold)
+	require.True(t, cfg.DenoiseEnabled)
+}
+
 func TestStreamConfig_UpdateRoundTrip(t *testing.T) {
 	scs := newStreamCfgStoreT(t)
 	c := newSTTClient(t, Deps{StreamConfig: scs})

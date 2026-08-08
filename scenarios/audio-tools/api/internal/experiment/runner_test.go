@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -14,43 +13,11 @@ import (
 	"audio-tools/internal/testutil/mocks"
 )
 
-type memBlobs struct {
-	mu   sync.Mutex
-	data map[string][]byte
-}
-
-func (m *memBlobs) Put(_ context.Context, key string, data []byte, _ string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.data == nil {
-		m.data = map[string][]byte{}
-	}
-	m.data[key] = append([]byte(nil), data...)
-	return nil
-}
-
-func (m *memBlobs) Get(_ context.Context, key string) ([]byte, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	data, ok := m.data[key]
-	if !ok {
-		return nil, errors.New("missing blob")
-	}
-	return append([]byte(nil), data...), nil
-}
-
-func (m *memBlobs) Delete(_ context.Context, key string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.data, key)
-	return nil
-}
-
 func newManager(t *testing.T, runner experiment.Runner) (*experiment.Manager, experiment.Repository, *mocks.FakeClock) {
 	t.Helper()
 	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
 	repo := experiment.NewSQLiteRepository(newSchemaDB(t), clk)
-	svc := experiment.NewService(repo, &memBlobs{})
+	svc := experiment.NewService(repo, mocks.NewFakeBlobStore())
 	mgr := experiment.NewManager(experiment.Config{Service: svc, Runner: runner, Clock: clk})
 	require.NoError(t, mgr.Start(context.Background()))
 	t.Cleanup(mgr.Close)
@@ -218,7 +185,7 @@ func TestManager_StartMarksOrphansFailed(t *testing.T) {
 	running, err := repo.CreateExperiment(ctx, experiment.Experiment{Name: "running", Status: experiment.StatusRunning})
 	require.NoError(t, err)
 
-	svc := experiment.NewService(repo, &memBlobs{})
+	svc := experiment.NewService(repo, mocks.NewFakeBlobStore())
 	mgr := experiment.NewManager(experiment.Config{
 		Service: svc,
 		Clock:   clk,
@@ -256,7 +223,7 @@ func (failRunRepo) CompleteSucceeded(context.Context, experiment.Experiment, []e
 func TestManager_RunPersistFailureMarksFailed(t *testing.T) {
 	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
 	repo := failRunRepo{experiment.NewSQLiteRepository(newSchemaDB(t), clk)}
-	svc := experiment.NewService(repo, &memBlobs{})
+	svc := experiment.NewService(repo, mocks.NewFakeBlobStore())
 	mgr := experiment.NewManager(experiment.Config{Service: svc, Clock: clk, Runner: func(context.Context, experiment.Experiment, func(int, string)) (experiment.RunResult, error) {
 		return experiment.RunResult{
 			Report: []byte(`{"ok":true}`),
@@ -286,7 +253,7 @@ func TestService_DeleteExperimentDeletesTerminalRowsAndBlob(t *testing.T) {
 	ctx := context.Background()
 	clk := mocks.NewFakeClock(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
 	repo := experiment.NewSQLiteRepository(newSchemaDB(t), clk)
-	blobs := &memBlobs{}
+	blobs := mocks.NewFakeBlobStore()
 	svc := experiment.NewService(repo, blobs)
 	exp, err := repo.CreateExperiment(ctx, experiment.Experiment{Name: "delete-me"})
 	require.NoError(t, err)

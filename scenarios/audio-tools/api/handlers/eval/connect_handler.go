@@ -2,6 +2,7 @@ package eval
 
 import (
 	inteval "audio-tools/internal/eval"
+	"audio-tools/internal/protoint"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 )
@@ -57,18 +58,18 @@ func strategyReportToProto(s inteval.StrategyReport) *evalv1.StrategyReport {
 		Strategy:                 string(s.Strategy),
 		Label:                    s.Label,
 		Wer:                      s.WER,
-		Substitutions:            int32(s.EditCounts.Substitutions),
-		Insertions:               int32(s.EditCounts.Insertions),
-		Deletions:                int32(s.EditCounts.Deletions),
-		RefWords:                 int32(s.RefWords),
-		WhisperCalls:             int32(s.WhisperCalls),
+		Substitutions:            protoint.FromInt64(int64(s.EditCounts.Substitutions)),
+		Insertions:               protoint.FromInt64(int64(s.EditCounts.Insertions)),
+		Deletions:                protoint.FromInt64(int64(s.EditCounts.Deletions)),
+		RefWords:                 protoint.FromInt64(int64(s.RefWords)),
+		WhisperCalls:             protoint.FromInt64(int64(s.WhisperCalls)),
 		WhisperAudioSeconds:      s.WhisperAudioSeconds,
 		Rtf:                      s.RTF,
 		FinalizationLatencyP50Ms: s.FinalizationLatencyP50Ms,
 		FinalizationLatencyP95Ms: s.FinalizationLatencyP95Ms,
-		PartialRevisions:         int32(s.PartialRevisions),
-		CommitCount:              int32(s.CommitCount),
-		SpeakerRejectionCount:    int32(s.SpeakerRejectionCount),
+		PartialRevisions:         protoint.FromInt64(int64(s.PartialRevisions)),
+		CommitCount:              protoint.FromInt64(int64(s.CommitCount)),
+		SpeakerRejectionCount:    protoint.FromInt64(int64(s.SpeakerRejectionCount)),
 		WerDeltaVsWinner:         s.WERDeltaVsWinner,
 		P95DeltaMsVsWinner:       s.P95DeltaMsVsWinner,
 		CallMultiplierVsWinner:   s.CallMultiplierVsWinner,
@@ -96,26 +97,26 @@ func strategyReportToProto(s inteval.StrategyReport) *evalv1.StrategyReport {
 			Reference:                c.Reference,
 			Hypothesis:               c.Hypothesis,
 			Wer:                      c.WER.Rate(),
-			WhisperCalls:             int32(c.WhisperCalls),
+			WhisperCalls:             protoint.FromInt64(int64(c.WhisperCalls)),
 			WhisperAudioSeconds:      c.WhisperAudioSeconds,
 			Rtf:                      c.RTF,
-			SegmentCount:             int32(c.SegmentCount),
-			PartialRevisions:         int32(c.PartialRevisions),
+			SegmentCount:             protoint.FromInt64(int64(c.SegmentCount)),
+			PartialRevisions:         protoint.FromInt64(int64(c.PartialRevisions)),
 			FinalizationLatencyP50Ms: c.FinalizationLatencyP50Ms(),
 			FinalizationLatencyP95Ms: c.FinalizationLatencyP95Ms(),
 			Error:                    errStr,
-			Substitutions:            int32(c.WER.Substitutions),
-			Insertions:               int32(c.WER.Insertions),
-			Deletions:                int32(c.WER.Deletions),
-			RefWords:                 int32(c.WER.RefWords),
-			HypWords:                 int32(c.WER.HypWords),
+			Substitutions:            protoint.FromInt64(int64(c.WER.Substitutions)),
+			Insertions:               protoint.FromInt64(int64(c.WER.Insertions)),
+			Deletions:                protoint.FromInt64(int64(c.WER.Deletions)),
+			RefWords:                 protoint.FromInt64(int64(c.WER.RefWords)),
+			HypWords:                 protoint.FromInt64(int64(c.WER.HypWords)),
 			NormalizedReference:      c.NormalizedReference,
 			NormalizedHypothesis:     c.NormalizedHypothesis,
 			EditOperations:           editOperationsToProto(c.EditOperations),
 			CommitTimeline:           commitTimelineToProto(c.CommitTimeline),
 			TimeToFirstCommitMs:      c.TimeToFirstCommitMs,
-			CommitCount:              int32(c.CommitCount),
-			SpeakerRejectionCount:    int32(c.SpeakerRejectionCount),
+			CommitCount:              protoint.FromInt64(int64(c.CommitCount)),
+			SpeakerRejectionCount:    protoint.FromInt64(int64(c.SpeakerRejectionCount)),
 			AudioDurationMs:          c.AudioDurationMs,
 			Safety:                   safetyGateToProto(c.Safety),
 		})
@@ -157,12 +158,12 @@ func scalingAnalysisToProto(in inteval.ScalingAnalysis) *evalv1.ScalingAnalysis 
 			Wer:                            point.WER,
 			FinalizationLatencyP50Ms:       point.FinalizationLatencyP50Ms,
 			FinalizationLatencyP95Ms:       point.FinalizationLatencyP95Ms,
-			FinalizationLatencySampleCount: int32(point.FinalizationLatencySampleCount),
+			FinalizationLatencySampleCount: protoint.FromInt64(int64(point.FinalizationLatencySampleCount)),
 			TimeToFirstCommitMs:            point.TimeToFirstCommitMs,
-			CommitCount:                    int32(point.CommitCount),
-			PartialRevisions:               int32(point.PartialRevisions),
-			MaxDroppedSpanWords:            int32(point.MaxDroppedSpanWords),
-			WhisperCalls:                   int32(point.WhisperCalls),
+			CommitCount:                    protoint.FromInt64(int64(point.CommitCount)),
+			PartialRevisions:               protoint.FromInt64(int64(point.PartialRevisions)),
+			MaxDroppedSpanWords:            protoint.FromInt64(int64(point.MaxDroppedSpanWords)),
+			WhisperCalls:                   protoint.FromInt64(int64(point.WhisperCalls)),
 			WhisperAudioSeconds:            point.WhisperAudioSeconds,
 			ProviderLatencyMs:              point.ProviderLatencyMs,
 			Rtf:                            point.RTF,
@@ -178,7 +179,7 @@ func scalingModelFitToProto(in inteval.ScalingModelFit) *evalv1.ScalingModelFit 
 		SlopePerSecond:   in.SlopePerSecond,
 		Intercept:        in.Intercept,
 		RSquared:         in.RSquared,
-		SampleCount:      int32(in.SampleCount),
+		SampleCount:      protoint.FromInt64(int64(in.SampleCount)),
 		Reason:           in.Reason,
 		Exponent:         in.Exponent,
 		ExponentRSquared: in.ExponentR2,
@@ -205,8 +206,8 @@ func editOperationsToProto(in []inteval.EditOperation) []*evalv1.EditOperation {
 			Kind:            op.Kind,
 			ReferenceToken:  op.ReferenceToken,
 			HypothesisToken: op.HypothesisToken,
-			ReferenceIndex:  int32(op.ReferenceIndex),
-			HypothesisIndex: int32(op.HypothesisIndex),
+			ReferenceIndex:  protoint.FromInt64(int64(op.ReferenceIndex)),
+			HypothesisIndex: protoint.FromInt64(int64(op.HypothesisIndex)),
 		})
 	}
 	return out
@@ -229,8 +230,8 @@ func safetyGateToProto(in inteval.SafetyGateReport) *evalv1.SafetyGateReport {
 		Passed:                    in.Passed,
 		RetractionFree:            in.RetractionFree,
 		DroppedSpanFree:           in.DroppedSpanFree,
-		MaxDroppedSpanWords:       int32(in.MaxDroppedSpanWords),
-		DroppedSpanThresholdWords: int32(in.DroppedSpanThresholdWords),
+		MaxDroppedSpanWords:       protoint.FromInt64(int64(in.MaxDroppedSpanWords)),
+		DroppedSpanThresholdWords: protoint.FromInt64(int64(in.DroppedSpanThresholdWords)),
 		Reasons:                   append([]string(nil), in.Reasons...),
 	}
 	for _, ev := range in.RetractionEvents {
@@ -245,10 +246,10 @@ func safetyGateToProto(in inteval.SafetyGateReport) *evalv1.SafetyGateReport {
 
 func stageAttributionToProto(in inteval.StageAttribution) *evalv1.StageAttribution {
 	return &evalv1.StageAttribution{
-		IngressLostWords:   int32(in.IngressLostWords),
-		StrategyLostWords:  int32(in.StrategyLostWords),
-		EgressLostWords:    int32(in.EgressLostWords),
-		EgressRejectEvents: int32(in.EgressRejectEvents),
+		IngressLostWords:   protoint.FromInt64(int64(in.IngressLostWords)),
+		StrategyLostWords:  protoint.FromInt64(int64(in.StrategyLostWords)),
+		EgressLostWords:    protoint.FromInt64(int64(in.EgressLostWords)),
+		EgressRejectEvents: protoint.FromInt64(int64(in.EgressRejectEvents)),
 		Notes:              append([]string(nil), in.Notes...),
 	}
 }
@@ -260,11 +261,11 @@ func lengthCurvesToProto(in []inteval.LengthBucketCurve) []*evalv1.LengthBucketC
 			Bucket:                   curve.Bucket,
 			MinDurationMs:            curve.MinDurationMs,
 			MaxDurationMs:            curve.MaxDurationMs,
-			ClipCount:                int32(curve.ClipCount),
+			ClipCount:                protoint.FromInt64(int64(curve.ClipCount)),
 			Wer:                      curve.WER,
 			FinalizationLatencyP95Ms: curve.FinalizationLatencyP95Ms,
 			MeanTimeToFirstCommitMs:  curve.MeanTimeToFirstCommitMs,
-			MaxDroppedSpanWords:      int32(curve.MaxDroppedSpanWords),
+			MaxDroppedSpanWords:      protoint.FromInt64(int64(curve.MaxDroppedSpanWords)),
 		})
 	}
 	return out

@@ -1,6 +1,22 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "audio-tools",
@@ -128,12 +144,12 @@
       "steps": [
         {
           "name": "build-api",
-        "run": "go -C api mod download && go -C api build -o audio-tools-api .",
+          "run": "go -C api mod download && go -C api build -o audio-tools-api .",
           "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-        "run": "corepack pnpm --dir ui install --ignore-workspace",
+          "run": "corepack pnpm --dir ui install --ignore-workspace",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -141,7 +157,7 @@
         },
         {
           "name": "build-ui",
-        "run": "corepack pnpm --dir ui --ignore-workspace run build",
+          "run": "corepack pnpm --dir ui --ignore-workspace run build",
           "description": "Build production UI bundle"
         }
       ]
@@ -151,7 +167,7 @@
       "steps": [
         {
           "name": "start-api",
-        "run": "go -C api run .",
+          "run": "go -C api run .",
           "description": "Start Go API through the managed Go module lifecycle",
           "background": true,
           "condition": {
@@ -160,7 +176,7 @@
         },
         {
           "name": "start-ui",
-        "run": "node ui/server.js",
+          "run": "node ui/server.js",
           "description": "Serve production UI bundle",
           "background": true,
           "condition": {
@@ -233,7 +249,8 @@
     "scenarios": {
       "landing-page-business-suite": {
         "required": false,
-        "notes": "LPBS tier; disabled by AUDIO_AI_ENABLE_VROOLI=false until execute/lpbs-audio-gateway-endpoints lands"
+        "startup_policy": "try_start",
+        "degraded_behavior": "LPBS-backed audio routing remains unavailable while landing-page-business-suite is stopped; local and BYOK providers continue to serve supported requests."
       }
     }
   },

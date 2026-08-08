@@ -333,6 +333,7 @@ const literalSelectors = {
     turnProcessedStatus: "dictation-turn-processed-status",
     turnProcessedReady: "dictation-turn-processed-ready",
     exportDiagnostic: "dictation-export-diagnostic",
+    finalTranscript: "dictation-final-transcript",
     transcriptEditor: "dictation-transcript-editor",
     tagInput: "dictation-tag-input",
     saveClip: "dictation-save-clip",

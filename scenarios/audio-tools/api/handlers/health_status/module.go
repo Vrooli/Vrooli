@@ -6,6 +6,8 @@
 package health_status
 
 import (
+	"net/http"
+
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
@@ -33,8 +35,28 @@ func Module(d Deps) modulekit.Module {
 		Name: "health_status",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})
+			r.HandleFunc("/api/v1/capabilities/describe", describe(d.Registry)).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
+	}
+}
+
+func describe(registry *capabilities.Registry) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if registry == nil {
+			http.Error(w, "capabilities registry not configured", http.StatusServiceUnavailable)
+			return
+		}
+		// The registry description is the machine-readable contract consumed by
+		// dependency conformance. It is deliberately served beside the existing
+		// typed health RPC so operators and validators read the same source.
+		data, err := registry.Describe(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(data)
 	}
 }
 
@@ -44,25 +66,17 @@ func Schema() string { return "" }
 
 // Endpoints lists the Connect procedures for codegen / docs.
 var Endpoints = []modulekit.EndpointDescriptor{
-	{
-		ID:       "health_status.get_provider_health",
-		Path:     "/vrooli.audio_tools.v1.health_status.HealthStatusService/GetProviderHealth",
-		Method:   "POST",
-		Summary:  "Return the cached per-capability provider-health rollup",
+	healthEndpoint("get_provider_health", "GetProviderHealth", "Return the cached per-capability provider-health rollup"),
+	healthEndpoint("refresh_provider_health", "RefreshProviderHealth", "Re-run every provider checker and return the fresh rollup"),
+	healthEndpoint("stream_provider_health", "StreamProviderHealth", "Server-streaming feed of provider-health rollups (one event per registry tick)"),
+}
+
+func healthEndpoint(id, method, summary string) modulekit.EndpointDescriptor {
+	return modulekit.EndpointDescriptor{
+		ID:       "health_status." + id,
+		Path:     "/vrooli.audio_tools.v1.health_status.HealthStatusService/" + method,
+		Method:   http.MethodPost,
+		Summary:  summary,
 		Category: "health_status",
-	},
-	{
-		ID:       "health_status.refresh_provider_health",
-		Path:     "/vrooli.audio_tools.v1.health_status.HealthStatusService/RefreshProviderHealth",
-		Method:   "POST",
-		Summary:  "Re-run every provider checker and return the fresh rollup",
-		Category: "health_status",
-	},
-	{
-		ID:       "health_status.stream_provider_health",
-		Path:     "/vrooli.audio_tools.v1.health_status.HealthStatusService/StreamProviderHealth",
-		Method:   "POST",
-		Summary:  "Server-streaming feed of provider-health rollups (one event per registry tick)",
-		Category: "health_status",
-	},
+	}
 }

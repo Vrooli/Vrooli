@@ -8,7 +8,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { DICTATION_SCRIPTS } from "./scripts";
 
-// Stub the recorder so the page test never touches VoiceStreamProvider; the
+// Stub the recorder so the page test never touches the streaming provider; the
 // button hands the page a fixed captured clip.
 vi.mock("./DictationRecorder", () => ({
   DictationRecorder: ({ onCaptured }: { onCaptured: (clip: unknown) => void }) => (

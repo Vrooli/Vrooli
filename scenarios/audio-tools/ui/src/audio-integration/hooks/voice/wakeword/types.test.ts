@@ -46,8 +46,8 @@ describe("wake-word tunable constants", () => {
     expect(DTW_BAND_RATIO).toBe(0.2);
   });
 
-  it("DEFAULT_WAKE_WORD_THRESHOLD is 0.65", () => {
-    expect(DEFAULT_WAKE_WORD_THRESHOLD).toBe(0.65);
+  it("DEFAULT_WAKE_WORD_THRESHOLD is 0.7", () => {
+    expect(DEFAULT_WAKE_WORD_THRESHOLD).toBe(0.7);
   });
 
   it("MIN_ENROLLMENT_SAMPLES is 3", () => {

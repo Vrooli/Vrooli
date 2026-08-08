@@ -134,7 +134,7 @@ func runConnectBidi(t *testing.T, audio []byte) []eventProjection {
 // the two transports from silently drifting; it is the test the plan
 // names "TestStreamingParity".
 func TestStreamingParity_ConnectBidi(t *testing.T) {
-	audio := testaudio.SpeechLike()
+	audio := testaudio.SpeechTonePauseTone3s()
 	want := []eventProjection{
 		{Kind: sttchain.StreamEventSegment, Text: "hello world"},
 		{Kind: sttchain.StreamEventDone, Text: "hello world"},

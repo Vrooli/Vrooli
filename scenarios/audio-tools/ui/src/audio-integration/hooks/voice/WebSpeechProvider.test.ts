@@ -11,6 +11,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { makeMediaStream } from "../../test-support/browser";
 import { WebSpeechProvider } from "./WebSpeechProvider";
 
 // ─── Fake SpeechRecognition ───────────────────────────────────────────────────
@@ -55,12 +56,6 @@ interface FakeSpeechRecognitionEvent {
 
 // ─── Fake MediaStream / Track ─────────────────────────────────────────────────
 
-function makeStream(readyState: "live" | "ended" = "live"): MediaStream {
-  return {
-    getTracks: () => [{ readyState, stop: vi.fn() }],
-  } as unknown as MediaStream;
-}
-
 // ─── suite ────────────────────────────────────────────────────────────────────
 
 describe("WebSpeechProvider", () => {
@@ -69,7 +64,7 @@ describe("WebSpeechProvider", () => {
   beforeEach(() => {
     FakeSpeechRecognition.lastInstance = null;
     vi.clearAllMocks();
-    getUserMediaMock = vi.fn().mockResolvedValue(makeStream());
+    getUserMediaMock = vi.fn().mockResolvedValue(makeMediaStream());
     vi.stubGlobal("SpeechRecognition", FakeSpeechRecognition);
     vi.stubGlobal("webkitSpeechRecognition", undefined);
     vi.stubGlobal("navigator", {
@@ -85,7 +80,7 @@ describe("WebSpeechProvider", () => {
 
   it("getLastTurnAudio() always returns null (no audio bytes from Web Speech)", async () => {
     const p = new WebSpeechProvider();
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     expect(p.getLastTurnAudio()).toBeNull();
     p.stop();
   });
@@ -125,7 +120,7 @@ describe("WebSpeechProvider", () => {
     vi.stubGlobal("webkitSpeechRecognition", FakeSpeechRecognition);
 
     const p = new WebSpeechProvider();
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     expect(FakeSpeechRecognition.lastInstance).not.toBeNull();
     p.stop();
   });
@@ -133,7 +128,7 @@ describe("WebSpeechProvider", () => {
   // ── start — pre-warmed stream ─────────────────────────────────────────────────
 
   it("start() uses pre-warmed stream when all tracks are live", async () => {
-    const preWarmed = makeStream("live");
+    const preWarmed = makeMediaStream("live");
     const p = new WebSpeechProvider();
     await p.start(preWarmed);
     expect(getUserMediaMock).not.toHaveBeenCalled();
@@ -142,7 +137,7 @@ describe("WebSpeechProvider", () => {
   });
 
   it("start() falls back to getUserMedia when pre-warmed stream has ended tracks", async () => {
-    const endedStream = makeStream("ended");
+    const endedStream = makeMediaStream("ended");
     const p = new WebSpeechProvider();
     await p.start(endedStream);
     expect(getUserMediaMock).toHaveBeenCalled();
@@ -174,7 +169,7 @@ describe("WebSpeechProvider", () => {
   it("start() configures recognition with correct settings", async () => {
     const p = new WebSpeechProvider();
     p.lang = "fr-FR";
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const r = FakeSpeechRecognition.lastInstance!;
     expect(r.continuous).toBe(true);
     expect(r.interimResults).toBe(true);
@@ -189,7 +184,7 @@ describe("WebSpeechProvider", () => {
     const p = new WebSpeechProvider();
     const onResult = vi.fn();
     p.onResult = onResult;
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const r = FakeSpeechRecognition.lastInstance!;
     r.fireResult([{ transcript: "  hello world  ", isFinal: true }]);
     expect(onResult).toHaveBeenCalledWith("hello world");
@@ -200,7 +195,7 @@ describe("WebSpeechProvider", () => {
     const p = new WebSpeechProvider();
     const onResult = vi.fn();
     p.onResult = onResult;
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     FakeSpeechRecognition.lastInstance!.fireResult([{ transcript: "   ", isFinal: true }]);
     expect(onResult).not.toHaveBeenCalled();
     p.stop();
@@ -212,7 +207,7 @@ describe("WebSpeechProvider", () => {
     const p = new WebSpeechProvider();
     const onPartial = vi.fn();
     p.onPartial = onPartial;
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     FakeSpeechRecognition.lastInstance!.fireResult([{ transcript: "in progress", isFinal: false }]);
     expect(onPartial).toHaveBeenCalledWith("in progress");
     p.stop();
@@ -224,7 +219,7 @@ describe("WebSpeechProvider", () => {
     const onPartial = vi.fn();
     p.onResult = onResult;
     p.onPartial = onPartial;
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     FakeSpeechRecognition.lastInstance!.fireResult([
       { transcript: "hello", isFinal: true },
       { transcript: "world", isFinal: false },
@@ -240,7 +235,7 @@ describe("WebSpeechProvider", () => {
     const p = new WebSpeechProvider();
     const onResult = vi.fn();
     p.onResult = onResult;
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const r = FakeSpeechRecognition.lastInstance!;
 
     // First event: one final result at index 0
@@ -270,7 +265,7 @@ describe("WebSpeechProvider", () => {
     const p = new WebSpeechProvider();
     const onError = vi.fn();
     p.onError = onError;
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     FakeSpeechRecognition.lastInstance!.onerror?.({ error: "network", message: "" });
     expect(onError).toHaveBeenCalledWith("Speech recognition error: network");
     p.stop();
@@ -280,7 +275,7 @@ describe("WebSpeechProvider", () => {
     const p = new WebSpeechProvider();
     const onError = vi.fn();
     p.onError = onError;
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     FakeSpeechRecognition.lastInstance!.onerror?.({ error: "aborted", message: "" });
     expect(onError).not.toHaveBeenCalled();
     p.stop();
@@ -290,7 +285,7 @@ describe("WebSpeechProvider", () => {
 
   it("onend auto-restarts recognition when not stopped", async () => {
     const p = new WebSpeechProvider();
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const r = FakeSpeechRecognition.lastInstance!;
     const startCallsBefore = r.start.mock.calls.length;
     r.onend?.();
@@ -300,7 +295,7 @@ describe("WebSpeechProvider", () => {
 
   it("onend does NOT restart when provider is stopped", async () => {
     const p = new WebSpeechProvider();
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const r = FakeSpeechRecognition.lastInstance!;
     p.stop();
     const startCallsAfterStop = r.start.mock.calls.length;
@@ -310,7 +305,7 @@ describe("WebSpeechProvider", () => {
 
   it("onend does NOT restart when recognition is null (after dispose)", async () => {
     const p = new WebSpeechProvider();
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const r = FakeSpeechRecognition.lastInstance!;
     p.dispose();
     const startCalls = r.start.mock.calls.length;
@@ -342,7 +337,7 @@ describe("WebSpeechProvider", () => {
 
   it("dispose() delegates to stop()", async () => {
     const p = new WebSpeechProvider();
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     p.dispose();
     expect(FakeSpeechRecognition.lastInstance!.stop).toHaveBeenCalled();
     expect(p.getStream()).toBeNull();
@@ -355,7 +350,7 @@ describe("WebSpeechProvider", () => {
     const p = new WebSpeechProvider();
     const onResult = vi.fn();
     p.onResult = onResult;
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const r = FakeSpeechRecognition.lastInstance!;
     // isFinal=true but no transcript property → `?? ""` → trim → empty → not dispatched
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
@@ -374,7 +369,7 @@ describe("WebSpeechProvider", () => {
     const p = new WebSpeechProvider();
     const onPartial = vi.fn();
     p.onPartial = onPartial;
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const r = FakeSpeechRecognition.lastInstance!;
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     r.onresult?.({
@@ -390,7 +385,7 @@ describe("WebSpeechProvider", () => {
 
   it("onend catches and silently ignores start() throws during auto-restart", async () => {
     const p = new WebSpeechProvider();
-    await p.start(makeStream());
+    await p.start(makeMediaStream());
     const r = FakeSpeechRecognition.lastInstance!;
     // Make next start() throw to exercise the catch block in onend
     r.start.mockImplementationOnce(() => {

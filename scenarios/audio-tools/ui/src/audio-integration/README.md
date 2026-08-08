@@ -1,34 +1,16 @@
 # audio-integration
 
-Canonical copy-paste reference for scenarios that consume audio-tools (STT,
-TTS, summarization) from a React UI.
+This directory is a scenario-local compatibility surface for audio-tools.
+It is currently triplicated across audio-tools, web-console, and swarm-manager;
+it is not a shared implementation. A comparison on 2026-08-02 found no files
+with matching contents among the 34 files shared with web-console.
 
-This folder is the **source of truth**. It also exists verbatim under
-`scenarios/web-console/ui/src/audio-integration/`. Other adopters copy it
-byte-for-byte into `<their-scenario>/ui/src/audio-integration/`.
+New adopters must follow
+[`docs/guides/adopting-audio-tools.md`](../../../docs/guides/adopting-audio-tools.md)
+and consume the shared `@vrooli/audio-capture-browser` package. The shared
+package extraction was completed in Phase 4 of the audio-tools reliability
+plan.
 
-## Adoption
-
-1. Declare a dependency on the `audio-tools` scenario in your
-   `.vrooli/service.json`.
-2. Add a discovery endpoint to your API that returns audio-tools' base URL
-   (use `api-core/discovery.ResolveScenarioURLDefault`).
-3. Copy this folder verbatim into your UI: `<scenario>/ui/src/audio-integration/`.
-4. At UI bootstrap, fetch the discovery endpoint, build a client, and mount
-   the provider:
-
-   ```tsx
-   const client = createAudioToolsClient({ baseUrl });
-   <AudioToolsProvider client={client} unavailableReason={reasonOrUndefined}>
-     <App />
-   </AudioToolsProvider>
-   ```
-
-5. Inside React components, use `useAudioToolsClient()` and the exported
-   hooks/providers (e.g. `VoiceStreamProvider`, `KokoroProvider`).
-
-## Rules
-
-- **No cross-scenario imports.** This folder is duplicated, not shared.
-- **No window globals.** All wiring flows through React context.
-- **No no-arg `createAudioToolsClient()`.** The `baseUrl` is required.
+Scenario-specific transport and API adapters remain outside the shared browser
+package. Do not copy this directory into another scenario or treat it as an
+implementation to copy.

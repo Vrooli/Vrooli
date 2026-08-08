@@ -8,6 +8,7 @@
 // they are replaced with controllable fakes.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { makeMediaStream } from "../../../test-support/browser";
 
 import { useWakeWordTest, type UseWakeWordTestOpts } from "./useWakeWordTest";
 import type { AudioFeatures, MatchResult, WakeWordEngine } from "./types";
@@ -57,12 +58,6 @@ class FakeAudioContext {
   }
 }
 
-function fakeStream(): MediaStream {
-  return {
-    getTracks: () => [{ stop: vi.fn(), readyState: "live" }],
-  } as unknown as MediaStream;
-}
-
 let getUserMediaImpl: () => Promise<MediaStream>;
 
 function makeEngine(result: MatchResult): WakeWordEngine {
@@ -92,7 +87,7 @@ beforeEach(() => {
   decodeShouldReject = false;
   FakeMediaRecorder.instances = [];
   vi.spyOn(performance, "now").mockImplementation(() => nowVal);
-  getUserMediaImpl = () => Promise.resolve(fakeStream());
+  getUserMediaImpl = () => Promise.resolve(makeMediaStream());
   Object.defineProperty(navigator, "mediaDevices", {
     configurable: true,
     value: { getUserMedia: vi.fn(() => getUserMediaImpl()) },

@@ -146,19 +146,28 @@ func Probe(ctx context.Context, audio []byte) (Metadata, error) {
 		m.DurationSeconds, _ = strconv.ParseFloat(doc.Format.Duration, 64)
 	}
 	if doc.Format.BitRate != "" {
-		v, _ := strconv.Atoi(doc.Format.BitRate)
+		v, err := strconv.ParseInt(doc.Format.BitRate, 10, 32)
+		if err != nil {
+			return Metadata{}, fmt.Errorf("parse format bitrate: %w", err)
+		}
 		m.Bitrate = int32(v)
 	}
 	if len(doc.Streams) > 0 {
 		s := doc.Streams[0]
 		if s.SampleRate != "" {
-			v, _ := strconv.Atoi(s.SampleRate)
+			v, err := strconv.ParseInt(s.SampleRate, 10, 32)
+			if err != nil {
+				return Metadata{}, fmt.Errorf("parse sample rate: %w", err)
+			}
 			m.SampleRate = int32(v)
 		}
 		m.Channels = s.Channels
 		m.Codec = s.CodecName
 		if m.Bitrate == 0 && s.BitRate != "" {
-			v, _ := strconv.Atoi(s.BitRate)
+			v, err := strconv.ParseInt(s.BitRate, 10, 32)
+			if err != nil {
+				return Metadata{}, fmt.Errorf("parse stream bitrate: %w", err)
+			}
 			m.Bitrate = int32(v)
 		}
 	}

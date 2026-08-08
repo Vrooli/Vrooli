@@ -11,6 +11,7 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
+	"audio-tools/internal/stt/segmenter/testaudio"
 	"audio-tools/internal/stt/strategy"
 )
 
@@ -41,14 +42,10 @@ func controlledSession(meter *MeteredProvider, finalText string) Session {
 	}
 }
 
-func silentPCM(sampleRate int, ms int) []byte {
-	return make([]byte, sampleRate*2*ms/1000)
-}
-
 func TestRunReport_AggregatesQualityAndCompute(t *testing.T) {
 	clips := []Clip{
-		{ID: "c1", PCM: silentPCM(16000, 1000), SampleRate: 16000, Reference: "the quick brown fox"},
-		{ID: "c2", PCM: silentPCM(16000, 2000), SampleRate: 16000, Reference: "hello world"},
+		{ID: "c1", PCM: testaudio.SilenceSamplesAtRate(testaudio.SampleRateHz, 1000), SampleRate: testaudio.SampleRateHz, Reference: "the quick brown fox"},
+		{ID: "c2", PCM: testaudio.SilenceSamplesAtRate(testaudio.SampleRateHz, 2000), SampleRate: testaudio.SampleRateHz, Reference: "hello world"},
 	}
 
 	perfect := StrategySpec{
@@ -93,8 +90,8 @@ func TestRunReport_AggregatesQualityAndCompute(t *testing.T) {
 
 func TestRunReport_EmitsPerClipProgress(t *testing.T) {
 	clips := []Clip{
-		{ID: "c1", PCM: silentPCM(16000, 1000), SampleRate: 16000, Reference: "one"},
-		{ID: "c2", PCM: silentPCM(16000, 1000), SampleRate: 16000, Reference: "two"},
+		{ID: "c1", PCM: testaudio.SilenceSamplesAtRate(16000, 1000), SampleRate: 16000, Reference: "one"},
+		{ID: "c2", PCM: testaudio.SilenceSamplesAtRate(16000, 1000), SampleRate: 16000, Reference: "two"},
 	}
 	spec := StrategySpec{
 		Kind: sttchain.StrategyBuffered, Label: "batch",
@@ -126,7 +123,7 @@ func TestRunReport_EmitsPerClipProgress(t *testing.T) {
 // OverlapAgree strategy end-to-end (replay -> strategy -> events -> WER),
 // metering the backend calls, without needing a live Whisper.
 func TestRunReport_RealOverlapAgreePath(t *testing.T) {
-	clip := Clip{ID: "c1", PCM: silentPCM(16000, 500), SampleRate: 16000, Reference: "hello world"}
+	clip := Clip{ID: "c1", PCM: testaudio.SilenceSamplesAtRate(16000, 500), SampleRate: 16000, Reference: "hello world"}
 
 	spec := StrategySpec{
 		Kind: sttchain.StrategyOverlapAgree, Label: "overlap-agree",
@@ -155,7 +152,7 @@ func TestRunReport_RealOverlapAgreePath(t *testing.T) {
 // Now is a deterministic monotone counter, so the test never actually
 // sleeps and stays reproducible.
 func TestRunReport_RealtimeProducesLatencySamples(t *testing.T) {
-	clip := Clip{ID: "c1", PCM: silentPCM(16000, 300), SampleRate: 16000, Reference: "hello world"}
+	clip := Clip{ID: "c1", PCM: testaudio.SilenceSamplesAtRate(16000, 300), SampleRate: 16000, Reference: "hello world"}
 	spec := StrategySpec{
 		Kind: sttchain.StrategyOverlapAgree, Label: "overlap-agree",
 		BuildSession: func(clip Clip) (Session, *MeteredProvider) {
@@ -177,7 +174,7 @@ func TestRunReport_RealtimeProducesLatencySamples(t *testing.T) {
 func TestReplay_ContextDeadlineReturnsWhenSessionDoesNotCloseEvents(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
-	clip := Clip{ID: "deadline", PCM: silentPCM(16000, 100), SampleRate: 16000}
+	clip := Clip{ID: "deadline", PCM: testaudio.SilenceSamplesAtRate(16000, 100), SampleRate: 16000}
 	result := make(chan StreamResult, 1)
 	go func() {
 		result <- Replay(ctx, clip, ReplayOptions{ChunkMs: 100}, func(ctx context.Context, _ <-chan sttchain.AudioChunk, _ chan<- sttchain.StreamEvent) error {
@@ -197,7 +194,7 @@ func TestReplay_ContextDeadlineReturnsWhenSessionDoesNotCloseEvents(t *testing.T
 }
 
 func TestReplay_RealtimeTailPacesOnlyFinalWindow(t *testing.T) {
-	clip := Clip{ID: "c1", PCM: silentPCM(16000, 2000), SampleRate: 16000, Reference: "hello world"}
+	clip := Clip{ID: "c1", PCM: testaudio.SilenceSamplesAtRate(16000, 2000), SampleRate: 16000, Reference: "hello world"}
 	var sleeps []time.Duration
 	session := func(ctx context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
 		for range chunks {
@@ -237,10 +234,10 @@ func TestReplay_RealtimeTailPacesOnlyFinalWindow(t *testing.T) {
 
 func TestRunReport_RealtimeRepeatsRunConcurrentlyWithinBound(t *testing.T) {
 	clips := []Clip{
-		{ID: "c1", PCM: silentPCM(16000, 100), SampleRate: 16000, Reference: "one"},
-		{ID: "c2", PCM: silentPCM(16000, 100), SampleRate: 16000, Reference: "two"},
-		{ID: "c3", PCM: silentPCM(16000, 100), SampleRate: 16000, Reference: "three"},
-		{ID: "c4", PCM: silentPCM(16000, 100), SampleRate: 16000, Reference: "four"},
+		{ID: "c1", PCM: testaudio.SilenceSamplesAtRate(16000, 100), SampleRate: 16000, Reference: "one"},
+		{ID: "c2", PCM: testaudio.SilenceSamplesAtRate(16000, 100), SampleRate: 16000, Reference: "two"},
+		{ID: "c3", PCM: testaudio.SilenceSamplesAtRate(16000, 100), SampleRate: 16000, Reference: "three"},
+		{ID: "c4", PCM: testaudio.SilenceSamplesAtRate(16000, 100), SampleRate: 16000, Reference: "four"},
 	}
 	spec := StrategySpec{
 		Kind: sttchain.StrategyBuffered, Label: "batch",

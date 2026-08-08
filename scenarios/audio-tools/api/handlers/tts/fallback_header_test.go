@@ -33,7 +33,7 @@ func TestTTS_Synthesize_FallbackHeader_SetWhenLowerTierServes(t *testing.T) {
 	})
 	c := newServer(t, ttsH.Deps{Chain: chain})
 	req := connect.NewRequest(&ttsv1.SynthesizeRequest{Text: "hi", Voice: "voice.feminine.warm"})
-	req.Header().Set(envelope.HeaderKey, "sk-1")
+	req.Header().Set(envelope.HeaderBYOKKey, "sk-1")
 	req.Header().Set(envelope.HeaderProvider, "openrouter")
 	req.Header().Set(envelope.HeaderLPBSToken, "tok")
 	res, err := c.Synthesize(context.Background(), req)

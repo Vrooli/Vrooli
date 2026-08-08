@@ -10,6 +10,7 @@ import (
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/clock"
 	"audio-tools/internal/logx"
+	"audio-tools/internal/protoint"
 	voice "audio-tools/internal/stt/pipeline"
 )
 
@@ -402,7 +403,7 @@ func frameRMS(frame []byte) float64 {
 	var sum float64
 	n := len(frame) / 2
 	for i := 0; i < n; i++ {
-		s := int16(binary.LittleEndian.Uint16(frame[i*2:]))
+		s := protoint.PCMInt16(binary.LittleEndian.Uint16(frame[i*2:]))
 		f := float64(s)
 		sum += f * f
 	}

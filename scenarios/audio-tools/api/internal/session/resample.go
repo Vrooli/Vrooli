@@ -3,6 +3,8 @@ package session
 import (
 	"encoding/binary"
 	"fmt"
+
+	"audio-tools/internal/protoint"
 )
 
 // mu-law decode table for the 256 possible mu-law byte values.
@@ -42,13 +44,13 @@ func MuLawToPCM16(in []byte) []byte {
 	out := make([]int16, len(pcm8k)*2)
 	for i := 0; i < len(pcm8k)-1; i++ {
 		out[i*2] = pcm8k[i]
-		out[i*2+1] = int16((int32(pcm8k[i]) + int32(pcm8k[i+1])) / 2)
+		out[i*2+1] = protoint.FromInt32ToInt16((int32(pcm8k[i]) + int32(pcm8k[i+1])) / 2)
 	}
 	out[(len(pcm8k)-1)*2] = pcm8k[len(pcm8k)-1]
 	out[(len(pcm8k)-1)*2+1] = pcm8k[len(pcm8k)-1]
 	buf := make([]byte, len(out)*2)
 	for i, s := range out {
-		binary.LittleEndian.PutUint16(buf[i*2:], uint16(s))
+		binary.LittleEndian.PutUint16(buf[i*2:], protoint.PCMUint16(s))
 	}
 	return buf
 }
@@ -83,12 +85,12 @@ func PCM16To8kMuLaw(in []byte) ([]byte, error) {
 	samples := len(in) / 2
 	pcm := make([]int16, samples)
 	for i := 0; i < samples; i++ {
-		pcm[i] = int16(binary.LittleEndian.Uint16(in[i*2:]))
+		pcm[i] = protoint.PCMInt16(binary.LittleEndian.Uint16(in[i*2:]))
 	}
 	out := make([]byte, samples/2)
 	for i := 0; i < samples/2; i++ {
 		avg := (int32(pcm[i*2]) + int32(pcm[i*2+1])) / 2
-		out[i] = muLawEncode(int16(avg))
+		out[i] = muLawEncode(protoint.FromInt32ToInt16(avg))
 	}
 	return out, nil
 }

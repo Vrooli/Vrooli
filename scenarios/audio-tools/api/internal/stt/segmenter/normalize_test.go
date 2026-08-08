@@ -132,7 +132,7 @@ func TestSegmenterNormalizesWebMThroughVAD(t *testing.T) {
 	seg := New(Deps{Chain: chain, Selector: selector, Engine: engine})
 	events := make(chan sttchain.StreamEvent, 64)
 	start := sttchain.StreamStart{InputFormat: "webm"}
-	go func() { _ = seg.Run(ctx, start, stt.Defaults(), feed(testaudio.SpeechLike(), 3), events) }()
+	go func() { _ = seg.Run(ctx, start, stt.Defaults(), feed(testaudio.SpeechTonePauseTone3s(), 3), events) }()
 
 	segments, final, _ := collect(t, events)
 	require.Len(t, proc.Calls, 1, "a decode process must be started for webm input")
@@ -156,7 +156,7 @@ func TestSegmenterPCMFastPathNoDecodeProcess(t *testing.T) {
 	seg := New(Deps{Chain: chain, Selector: selector, Engine: engine})
 	events := make(chan sttchain.StreamEvent, 64)
 	start := sttchain.StreamStart{InputFormat: "pcm_s16le"}
-	go func() { _ = seg.Run(ctx, start, stt.Defaults(), feed(testaudio.SpeechLike(), 3), events) }()
+	go func() { _ = seg.Run(ctx, start, stt.Defaults(), feed(testaudio.SpeechTonePauseTone3s(), 3), events) }()
 
 	_, final, _ := collect(t, events)
 	require.Empty(t, proc.Calls, "PCM fast-path must not start a decode process")
@@ -180,7 +180,7 @@ func TestSegmenterNoFfmpegFallsBackToBuffered(t *testing.T) {
 	seg := New(Deps{Chain: chain, Selector: selector, Engine: engine})
 	events := make(chan sttchain.StreamEvent, 64)
 	start := sttchain.StreamStart{InputFormat: "webm"}
-	go func() { _ = seg.Run(ctx, start, stt.Defaults(), feed(testaudio.SpeechLike(), 3), events) }()
+	go func() { _ = seg.Run(ctx, start, stt.Defaults(), feed(testaudio.SpeechTonePauseTone3s(), 3), events) }()
 
 	_, final, fellBack := collect(t, events)
 	require.Empty(t, proc.Calls, "no decode process when ffmpeg is absent")

@@ -61,13 +61,19 @@
 | `handlers/experiment.ExperimentManager` | Interface | `handlers/experiment/connect_handler.go` | Connect handler consumer-side seam over `internal/experiment.Manager` (`Submit/Get/Wait/List/Cancel/Subscribe`); handler tests can substitute a fake manager without starting the worker |
 | `ui experiment client` | Generated Connect client wrapper | `ui/src/services/experiment.ts` | Dictation Studio lab console consumes `ExperimentService` for start/wait/cancel/list/report/compare. Component tests mock this module, so UI tests prove lifecycle wiring without live Whisper/Kokoro/speaker resources or a running API |
 | `StreamDiagnosticRecorder` | Bounded metadata-only browser record | `packages/audio-capture-browser/src/streamDiagnostic.ts` | Browser dictation transports publish protocol state, coverage cursors, durability, status/error codes, and terminal reason to product UI. It intentionally cannot retain audio or transcript text, so support export is privacy-safe. |
+| `ATV2 protocol fixture` | Cross-language conformance fixture | `handlers/stt/stream_ws.go` constants and `protocol_fixture_test.go` | `packages/audio-capture-browser/src/protocol.ts` and `streamMessages.ts`; the Go steward test names the regeneration command when the browser fixture drifts. |
+| `testaudio` PCM fixture builders | Test-only fixture package | `internal/stt/segmenter/testaudio/testaudio.go` | STT strategies, segmenter parity, eval replay and handler tests; owns sample width/rate arithmetic and named content-duration fixtures. |
+| `sttchain` fake provider builder | Test-only provider fake | `internal/ai/sttchain/mocks/provider.go` | Provider, strategy and segmenter tests; defaults are overridable per test and every build returns a fresh fake. |
+| Browser `MediaStream` fixture | Test-only browser fake | `ui/src/audio-integration/test-support/browser.ts` | Web Speech, Whisper and wake-word tests; centralizes the minimal stream/track shape and accepts an injected stop callback. |
+| CLI provider report clock | Function seam | `cli/domains/provider/handlers.go` | Provider list report; production injects `time.Now`, tests inject a fixed clock so output is deterministic. |
 
 ## Cross-scenario boundaries
 
 | Direction | Mechanism |
 |---|---|
 | consumer → audio-tools (API) | Connect-RPC + multipart REST exceptions + browser-voice WS |
-| consumer UI → audio-tools UI | `@audio-tools/embed` workspace package re-exported via consumer's `domains/audio/index.ts` |
+| consumer UI → audio-tools UI | `@vrooli/audio-capture-browser` package plus each consumer's transport adapter |
+| audio-tools → browser audio package | Server-owned JSON fixture for ATV2 header and WebSocket message constants; regenerate with `AUDIO_PROTOCOL_UPDATE_FIXTURE=1 go test ./handlers/stt` |
 | audio-tools → LPBS (flag-off) | HTTP POST per capability |
 | audio-tools → BYOK third parties | HTTP POST per adapter (recorded fixtures via go-vcr) |
 
@@ -640,7 +646,7 @@ an actionable diff showing exactly which entries diverged.
 - **Boundary:** `handlers/discovery` in web-console serves
   `DiscoveryService.GetAudioToolsEndpoint`. The browser bootstrap reads
   this once and writes `window.__AUDIO_TOOLS_URL__` before React mounts;
-  AudioToolsProvider then constructs the @audio-tools/embed client.
+  AudioToolsProvider then constructs the shared browser capture client.
 - **Why:** prevents client-side composition of scenario URLs (mirrors
   the `feedback_scenario_url_resolution` rule).
 
@@ -712,9 +718,8 @@ Lives in `ui/src/audio-integration/hooks/voice/autoStopDecision.ts`.
   `source: "client-fallback"`; else continue. No averaging, no min/max.
 - **Why a seam**: the previous inline stop was client-VAD-only, so the mic
   ring (server-driven) often disagreed with the actual stop. Lifting the
-  decision out makes the SSOT explicit and testable, and keeps the three
-  audio-integration copies (audio-tools/ui, web-console/ui, swarm-manager/ui)
-  byte-identical per duplicate-before-extract.
+  decision out makes the SSOT explicit and testable. The helper now lives in
+  the shared browser package and is consumed through typed scenario adapters.
 - **Consumed by**: `useVoiceCore.ts` only. Persistent-mode stop logic is
   intentionally untouched.
 
@@ -722,53 +727,34 @@ Lives in `ui/src/audio-integration/hooks/voice/autoStopDecision.ts`.
 helper; do not introduce a parallel snapshot store. The 250 ms staleness
 threshold is exported once as `SERVER_VAD_STALE_MS` and consumed by both.
 
-#### Cross-scenario drift guard
+#### Shared-package import guard
 
-Three voice helper files are intentionally duplicated across
-`audio-tools/ui`, `web-console/ui`, and `swarm-manager/ui` per
-`feedback_duplicate_before_extract`:
-
-- `ui/src/audio-integration/hooks/voice/autoStopDecision.ts`
-- `ui/src/audio-integration/hooks/voice/autoStopDecision.test.ts`
-- `ui/src/audio-integration/hooks/useServerVadStateStore.ts`
-
-A vitest guard at
-`scenarios/audio-tools/ui/src/audio-integration/hooks/voice/voiceCopyDrift.test.ts`
-runs as part of `vrooli scenario test audio-tools`, reads each file from the
-other two scenarios, and asserts byte-equality against the audio-tools copy
-(audio-tools is the authoritative SSOT for voice substrate). If you change
-any file in the set, copy the new bytes to the other two scenarios; if you
-add a new shared file, append it to the `SYNCED_FILES` constant in the guard.
-`VoiceStreamProvider.ts` is not in the synced set. Audio Tools uses its v2
-canonical-PCM provider directly; Web Console and Swarm Manager use
-`PcmVoiceStreamProvider` host adapters over the governed
-`packages/audio-capture-browser` protocol/journal core. The package now owns
-the protocol frame format, journal, session identity, diagnostics, and v2
-WebSocket message/acknowledgement dispatch. Host adapters still own microphone
-leases, same-origin URL routing, and host UX; extracting the remaining common
-transport lifecycle is tracked by the provider-parity plan and must not be
-misrepresented as complete. The legacy MediaRecorder providers remain only as
-unselected compatibility code and must not be used to claim streaming-path
-coverage.
+The voice substrate is implemented once under
+`packages/audio-capture-browser/src/voice/` and consumed by the three typed
+scenario adapters. The former byte-equality drift guard was deleted with the
+last duplicated substrate files; byte equality is no longer the contract.
+The scenario boundary tests instead assert that each production
+`useVoiceCore.ts` is a thin adapter and that the live PCM provider resolves
+from `@vrooli/audio-capture-browser`. Scenario API calls, provider classes,
+audio cues, and transport URLs remain host-owned in `voiceCoreServices.ts`.
 
 ### `voice/pcmCapture.PcmCaptureFactory` (embed PCM capture seam)
 
 The browser-streaming provider captures microphone audio as raw PCM rather
 than MediaRecorder/WebM, so it can declare `format=pcm_s16le` and hit the
 server's ffmpeg-free fast-path. Lives in
-`ui/src/audio-integration/hooks/voice/pcmCapture.ts`.
+`packages/audio-capture-browser/src/pcmCapture.ts`.
 
 - **Interface**: `PcmCaptureFactory = (stream, onFrame) => PcmCapture`. The
   factory wires the Web Audio graph and invokes `onFrame(Float32Array,
   sampleRate)` per delivered frame; `PcmCapture.stop()` tears the graph down.
-- **Production wiring**: `createScriptProcessorPcmCapture` taps the shared
-  AudioContext via a `ScriptProcessorNode` (same proven pattern as
-  `audioUtils.createPassiveCapturePipeline`; AudioWorklet migration is a
-  tracked PROBLEMS.md follow-up).
-- **Test seam**: `VoiceStreamProvider.captureFactory` defaults to the
-  production factory; `VoiceStreamProvider.tailDrop.test.ts` injects a fake
-  that records the `onFrame` callback and lets the test push synthetic
-  frames — no real AudioContext (jsdom has none).
+- **Production wiring**: `PcmVoiceStreamProvider` uses the package's canonical
+  capture factory, which taps the shared AudioContext via a ScriptProcessor
+  fallback (the AudioWorklet migration remains a tracked PROBLEMS.md
+  follow-up).
+- **Test seam**: the package long-session harness injects a fake capture factory
+  that records the `onFrame` callback and lets tests push synthetic frames —
+  no real AudioContext (jsdom has none).
 - **Why a seam**: isolates the only un-unit-testable part (live Web Audio
   wiring) from the provider's send/buffer/drop/retain policy, and lets the
   AudioWorklet migration swap one factory without touching the provider or

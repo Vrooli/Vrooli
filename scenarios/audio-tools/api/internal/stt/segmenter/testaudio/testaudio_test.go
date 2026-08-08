@@ -19,12 +19,12 @@ func TestSilenceSamples(t *testing.T) {
 	}
 }
 
-func TestSpeechLike(t *testing.T) {
-	b := SpeechLike()
+func TestSpeechTonePauseTone3s(t *testing.T) {
+	b := SpeechTonePauseTone3s()
 	require.Greater(t, len(b), 0)
 }
 
-func TestSilence(t *testing.T) {
-	b := Silence()
+func TestSilence1s(t *testing.T) {
+	b := Silence1s()
 	require.Equal(t, SampleRateHz*1000/1000*2, len(b))
 }

@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"strings"
 
+	"audio-tools/internal/protoint"
+
 	audiomix "audio-tools/internal/audio/mix"
 	inteval "audio-tools/internal/eval"
 )
@@ -197,7 +199,7 @@ func GenerateNoise(kind string, length int, seed int64, salt string) []byte {
 	if kind == "" {
 		kind = "white"
 	}
-	rng := rand.New(rand.NewSource(seed + int64(hashString(kind+"|"+salt))))
+	rng := rand.New(rand.NewSource(seed + int64(hashString(kind+"|"+salt)))) // #nosec G404 -- seeded math/rand selects deterministic experiment corpus samples.
 	out := make([]byte, length)
 	samples := length / 2
 	for i := 0; i < samples; i++ {
@@ -216,7 +218,7 @@ func GenerateNoise(kind string, length int, seed int64, salt string) []byte {
 		default:
 			v = rng.Intn(24000) - 12000
 		}
-		binary.LittleEndian.PutUint16(out[i*2:], uint16(int16(v)))
+		binary.LittleEndian.PutUint16(out[i*2:], protoint.PCMUint16(protoint.FromIntToInt16(v)))
 	}
 	return out
 }
