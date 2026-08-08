@@ -3,7 +3,7 @@
   "name": "knowledge-observatory-doc-healing",
   "profileKey": "knowledge-observatory/doc-healing",
   "description": "Portable profile for documentation healing with reviewable sandboxed changes",
-  "roleRef": "code.smart",
+  "roleRef": "code.default",
   "maxTurns": 20,
   "timeout": "600s",
   "allowedTools": ["read", "write", "edit", "shell", "glob", "grep"],

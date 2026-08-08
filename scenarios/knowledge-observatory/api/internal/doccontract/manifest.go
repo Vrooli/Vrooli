@@ -336,6 +336,14 @@ func NormalizeIdentifier(value string) string {
 
 func docIdentifiers(doc Document) []string {
 	ids := []string{doc.DocType, doc.Title, path.Base(doc.ScenarioPath)}
+	// A scenario can legitimately have both the scenario-root README and the
+	// documentation hub at docs/README.md. Their basenames are identical, but
+	// they are different canonical documents; using the basename as an
+	// identifier for the docs-index creates a false duplicate and causes the
+	// validator to report one as misplaced.
+	if doc.DocType == "docs-index" {
+		ids = []string{doc.DocType, doc.Title}
+	}
 	ids = append(ids, doc.Aliases...)
 	return ids
 }

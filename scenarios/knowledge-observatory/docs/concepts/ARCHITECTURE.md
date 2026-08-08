@@ -404,7 +404,7 @@ Scenario name ──► Validate current doc health
                  dashboard_metrics (materialized view)
 ```
 
-[CODE: initialization/postgres/schema.sql]
+[CODE: api/internal/<domain>/schema.sql]
 
 ---
 

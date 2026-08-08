@@ -1,6 +1,33 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      },
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "knowledge-observatory",
@@ -18,7 +45,7 @@
       "knowledge-health",
       "graph-visualization",
       "go-api",
-      "postgres-storage",
+      "sqlite-storage",
       "qdrant-vectors",
       "dashboard-ui"
     ],
@@ -112,11 +139,6 @@
           "description": "Build Go API binary (knowledge-observatory-api) in api/ directory"
         },
         {
-          "name": "setup-database",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize PostgreSQL schema and seed knowledge-observatory data"
-        },
-        {
           "name": "install-ui-deps",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm install --ignore-workspace; else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
@@ -194,22 +216,6 @@
         "enabled": true,
         "required": true,
         "description": "Primary vector database containing all semantic knowledge to monitor and search"
-      },
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Knowledge metadata, quality metrics, search history, and configuration storage",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
       },
       "ollama": {
         "type": "ollama",

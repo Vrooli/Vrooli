@@ -59,14 +59,14 @@ The database-computed `avg_quality` and the API-returned overall score will dive
 Align the schema generated column with the code formula, or vice versa. The code formula (`- redundancy / 3`) is likely correct since high redundancy is undesirable.
 
 [CODE: api/metrics.go]
-[CODE: initialization/postgres/schema.sql]
+[CODE: api/internal/<domain>/schema.sql]
 
 ---
 
 ## 2026-01-26: Schema Re-apply Emits Index/Trigger Errors
 
 ### Problem
-Running `make test` applies `initialization/postgres/schema.sql` and logs errors for indexes and triggers that already exist.
+Running `make test` applies `api/internal/<domain>/schema.sql` and logs errors for indexes and triggers that already exist.
 
 ### Root Cause
 The schema used non-idempotent `CREATE INDEX` and `CREATE TRIGGER` statements without guards.

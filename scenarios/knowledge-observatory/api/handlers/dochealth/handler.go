@@ -155,6 +155,31 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	return connect.NewResponse(resp), nil
 }
 
+// ValidateTarget is the generalized target contract. Documentation checks are
+// useful for scenario contracts and for positional/team documentation roots;
+// the legacy scenario RPC remains the compatibility alias.
+func (h *Handler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	target := req.Msg.GetTarget()
+	if target == nil || target.GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target is required"))
+	}
+	legacy, err := h.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario:         target.GetId(),
+		Path:             target.GetRoot(),
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target:       target,
+		Status:       legacy.Msg.GetStatus(),
+		Assessment:   legacy.Msg.GetAssessment(),
+		NativeDetail: legacy.Msg.GetNativeDetail(),
+		Metrics:      legacy.Msg.GetMetrics(),
+	}), nil
+}
+
 // PreviewFix reports the deterministic doc-placement moves knowledge-observatory
 // could apply for the scenario without writing anything (shared Fix RPC).
 //

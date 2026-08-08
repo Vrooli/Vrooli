@@ -603,7 +603,7 @@ func (s *Server) deletePointsByIDBatch(ctx context.Context, collection string, i
 }
 
 func (s *Server) queryCollectionIngestHistory(ctx context.Context, collection string) (*collectionIngestHistoryHealth, error) {
-	if s == nil || s.db == nil {
+	if s == nil || s.stores == nil {
 		return nil, nil
 	}
 	collection = strings.TrimSpace(collection)
@@ -611,46 +611,22 @@ func (s *Server) queryCollectionIngestHistory(ctx context.Context, collection st
 		return nil, nil
 	}
 
-	row := &collectionIngestHistoryHealth{}
-	var lastFailure sqlNullTime
-	err := s.db.QueryRowContext(ctx, `
-SELECT
-	COUNT(*)::int,
-	COUNT(*) FILTER (WHERE status = 'success')::int,
-	COUNT(*) FILTER (WHERE status = 'failure')::int,
-	COUNT(*) FILTER (WHERE status = 'failure' AND created_at >= NOW() - INTERVAL '24 hours')::int,
-	MAX(created_at) FILTER (WHERE status = 'failure')
-FROM knowledge_observatory.ingest_history
-WHERE collection_name = $1
-`, collection).Scan(&row.TotalAttempts, &row.SuccessCount, &row.FailureCount, &row.FailureCountLast24H, &lastFailure)
+	health, err := s.stores.Ingest.HealthForCollection(ctx, collection)
 	if err != nil {
 		return nil, err
 	}
+
+	row := &collectionIngestHistoryHealth{
+		TotalAttempts:       health.TotalAttempts,
+		SuccessCount:        health.SuccessCount,
+		FailureCount:        health.FailureCount,
+		FailureCountLast24H: health.FailureCountLast24H,
+	}
 	row.FailureRate = ratio(row.FailureCount, row.TotalAttempts)
-	if lastFailure.Valid {
-		row.LastFailureAt = lastFailure.Time.UTC().Format(time.RFC3339)
+	if health.LastFailureAt != nil {
+		row.LastFailureAt = health.LastFailureAt.Format(time.RFC3339)
 	}
 	return row, nil
-}
-
-type sqlNullTime struct {
-	Time  time.Time
-	Valid bool
-}
-
-func (n *sqlNullTime) Scan(value interface{}) error {
-	if value == nil {
-		n.Valid = false
-		return nil
-	}
-	switch t := value.(type) {
-	case time.Time:
-		n.Time = t
-		n.Valid = true
-		return nil
-	default:
-		return fmt.Errorf("unsupported time scan type %T", value)
-	}
 }
 
 func payloadString(payload map[string]interface{}, key string) string {
