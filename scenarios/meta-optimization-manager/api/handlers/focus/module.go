@@ -4,6 +4,8 @@
 package focus
 
 import (
+	"context"
+	"fmt"
 	"log"
 
 	"meta-optimization-manager/internal/clock"
@@ -15,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/spacedoc"
 
 	focusconnect "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/focus/focus_v1connect"
 )
@@ -26,11 +29,23 @@ import (
 // the production edge, never imported into internal/focus.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
 	trialsRepo := internaltrials.NewSQLiteRepository(db, clk)
+	spaceReader := internalcoverage.NewSpaceReader()
+	actJoiner := internalcoverage.NewNumeratorJoiner()
 	svc := internalfocus.NewService(internalfocus.Deps{
 		Source: internalfocus.NewMultiGapSource([]internalfocus.NamedGapSource{
-			{Name: "coverage", Source: internalfocus.NewSpaceGapSource(internalcoverage.NewSpaceReader())},
+			{Name: "coverage", Source: internalfocus.NewSpaceGapSourceWithLiveJoin(spaceReader, func(ctx context.Context, p internalcoverage.Projection, def *spacedoc.SpaceDefinition) (map[string]spacedoc.CellStatus, error) {
+				if p != internalcoverage.ProjectionAct {
+					return nil, nil
+				}
+				join := actJoiner.Join(ctx, p, def.Cells)
+				if !join.Available {
+					return nil, fmt.Errorf("Act numerator unavailable: %s", join.Reason)
+				}
+				return join.Statuses, nil
+			})},
 			{Name: "trials", Source: internalfocus.NewEmpiricalGapSource(trialsRepo)},
 			{Name: "agent-manager", Source: internalfocus.NewAgentManagerGapSource(internalfocus.NewAgentManagerFindingReader())},
+			{Name: "durability", Source: internalfocus.NewDurabilityGapSource(internalfocus.NewAgentManagerDurabilityReader())},
 		}),
 		Repo: internalfocus.NewSQLiteRepository(db, clk),
 	})

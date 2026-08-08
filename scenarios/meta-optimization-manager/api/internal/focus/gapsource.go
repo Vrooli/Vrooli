@@ -85,13 +85,22 @@ func sourceAvailabilityGap(name string, axis Axis, err error) Gap {
 }
 
 type spaceGapSource struct {
-	reader SpaceReader
+	reader   SpaceReader
+	liveFunc func(context.Context, Projection, *spacedoc.SpaceDefinition) (map[string]spacedoc.CellStatus, error)
 }
 
 func (*spaceGapSource) Axis() Axis { return AxisCoverage }
 
 // NewSpaceGapSource constructs the production GapSource over a SpaceReader.
 func NewSpaceGapSource(r SpaceReader) GapSource { return &spaceGapSource{reader: r} }
+
+// NewSpaceGapSourceWithLiveJoin applies an optional live numerator to the
+// denominator before deriving gaps. The function is intentionally injected so
+// focus does not own another cross-scenario transport client; production wires
+// the coverage owner's typed joiner at the handler boundary.
+func NewSpaceGapSourceWithLiveJoin(r SpaceReader, liveFunc func(context.Context, Projection, *spacedoc.SpaceDefinition) (map[string]spacedoc.CellStatus, error)) GapSource {
+	return &spaceGapSource{reader: r, liveFunc: liveFunc}
+}
 
 var _ GapSource = (*spaceGapSource)(nil)
 
@@ -107,8 +116,18 @@ func (s *spaceGapSource) DerivedGaps(ctx context.Context) ([]Gap, error) {
 			errs = append(errs, fmt.Errorf("%s: %w", p, err))
 			continue // degrade: a down owner drops only its derived gaps
 		}
+		live := map[string]spacedoc.CellStatus{}
+		if s.liveFunc != nil {
+			if statuses, liveErr := s.liveFunc(ctx, p, def); liveErr == nil {
+				live = statuses
+			}
+		}
 		for _, c := range def.Cells {
-			if c.Status == spacedoc.StatusNow {
+			status := c.Status
+			if liveStatus, ok := live[c.ID]; ok {
+				status = liveStatus
+			}
+			if status == spacedoc.StatusNow {
 				continue // a NOW cell is not a gap
 			}
 			out = append(out, Gap{
@@ -116,7 +135,7 @@ func (s *spaceGapSource) DerivedGaps(ctx context.Context) ([]Gap, error) {
 				Axis:         AxisCoverage,
 				Projection:   p,
 				Title:        c.Question,
-				Status:       c.Status,
+				Status:       status,
 				SourceCellID: c.ID,
 				Notes:        append([]string(nil), c.Notes...),
 			})

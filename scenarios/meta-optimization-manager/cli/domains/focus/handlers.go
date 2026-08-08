@@ -210,8 +210,10 @@ func projectionFlag(ctx cliapp.RunContext) (sharedv1.Projection, error) {
 		return sharedv1.Projection_PROJECTION_VALIDATE, nil
 	case "guide":
 		return sharedv1.Projection_PROJECTION_GUIDE, nil
+	case "act":
+		return sharedv1.Projection_PROJECTION_ACT, nil
 	default:
-		return 0, fmt.Errorf("unknown projection %q (use answer|validate|guide)", ctx.Flag("projection"))
+		return 0, fmt.Errorf("unknown projection %q (use answer|validate|guide|act)", ctx.Flag("projection"))
 	}
 }
 

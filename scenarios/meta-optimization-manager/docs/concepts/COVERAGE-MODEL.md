@@ -20,7 +20,7 @@ Software engineering by a (local) agent is **understand → change → verify**,
 | **Answer** | Can the project be *understood* — are architectural questions answerable? | `search-hub` | `search-hub providers list` |
 | **Validate** | Can a change be *verified* + auto-fixed? | `test-genie` | `test-genie health` / `fleet status` |
 | **Guide** | Is there a *skill* to guide each SWE task? | `prompt-manager` | `prompt-manager graph health` |
-| **Act** | Is each operation *programmatically invocable* by an agent? | `program-runtime` | program-runtime binding registry *(pending)* |
+| **Act** | Is each operation *programmatically invocable* by an agent? | `program-runtime` | program-runtime binding registry (`ResolveActCells`) |
 
 The *change* itself — code synthesis — is the local model's own job; it is not a projection. **Act is not code synthesis**: it measures whether the surrounding system exposes each operation as something an agent can invoke from a program, which is supply the project owns, exactly like a search provider or a test phase. Readiness is ultimately proven **empirically** by the `trials` domain, not declared from coverage.
 
@@ -89,7 +89,7 @@ stalling the board.
 | **Answer** | search-hub `RegistryService.ListProviders` | A declared provider match yields `NOW`. An authored-`NOW` cell whose provider is absent downgrades to `IN-REACH`; other unresolved cells keep authored status. |
 | **Validate** | test-genie `RunsService.GetSelfHealth` | A provider is `NOW` only when it exists in the catalog, has no ledger `failureRate > 0`, and has no `autofix.pending > 0`; red ledger or pending autofix yields `IN-REACH`. |
 | **Guide** | prompt-manager `GraphService.GetHealthScores` | Resolve the Guide row's skill ids against the graph health scores. `NOW` requires **all** referenced skills to be present and at/above `guideHealthyScore`; any partially resolved or unhealthy row is `IN-REACH`; fully unresolved rows keep authored status. |
-| **Act** | *(pending — program-runtime)* | Not yet implemented. The join returns `UNAVAILABLE` with an honest reason, so authored denominator statuses stand unmodified. |
+| **Act** | `program-runtime` | `BindingRegistryService.ResolveActCells` returns live callable verdicts. If the owner is unavailable, the join returns `UNAVAILABLE` with an honest reason and preserves authored statuses. |
 
 ### Load-bearing constants
 

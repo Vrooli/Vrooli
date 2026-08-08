@@ -22,11 +22,12 @@ another scenario, plus upstream-generator convergence:
 | **Answer** | "Can the project answer architectural questions?" | `search-hub` | `search-hub` provider registry |
 | **Validate** | "Is the right thing tested and auto-fixed?" | `test-genie` | `test-genie health` + `fleet status` |
 | **Guide** | "Is there a skill for each SWE task?" | `prompt-manager` | `prompt-manager graph health` |
-| **Act** | "Can an agent programmatically invoke each operation?" | `program-runtime` | binding registry *(pending — owner not built yet)* |
+| **Act** | "Can an agent programmatically invoke each operation?" | `program-runtime` | `BindingRegistryService.ResolveActCells` |
 
 Answer/Validate/Guide measure **knowledge** supply; Act measures **effect** supply.
-Act is wired end-to-end and reports an honest `UNAVAILABLE` until `program-runtime`
-ships — never `0%`, never silently dropped.
+Act is wired end-to-end and reports live callable verdicts with denominator
+confidence; an unavailable runtime is still surfaced as `UNAVAILABLE`, never as
+`0%` and never silently dropped.
 
 Coverage = `now / total` per projection, **computed live and never stored** (only
 short-TTL snapshots are cached). Every coverage number is paired with a
