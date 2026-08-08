@@ -20,14 +20,20 @@ class FacetText(_message.Message):
     def __init__(self, kind: _Optional[str] = ..., text: _Optional[str] = ..., embedding_ref: _Optional[str] = ...) -> None: ...
 
 class Attribution(_message.Message):
-    __slots__ = ("actor_id", "actor_kind", "source_runtime")
+    __slots__ = ("actor_id", "actor_kind", "source_runtime", "verification_status", "harness_session_id", "harness_kind")
     ACTOR_ID_FIELD_NUMBER: _ClassVar[int]
     ACTOR_KIND_FIELD_NUMBER: _ClassVar[int]
     SOURCE_RUNTIME_FIELD_NUMBER: _ClassVar[int]
+    VERIFICATION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_KIND_FIELD_NUMBER: _ClassVar[int]
     actor_id: str
     actor_kind: str
     source_runtime: str
-    def __init__(self, actor_id: _Optional[str] = ..., actor_kind: _Optional[str] = ..., source_runtime: _Optional[str] = ...) -> None: ...
+    verification_status: str
+    harness_session_id: str
+    harness_kind: str
+    def __init__(self, actor_id: _Optional[str] = ..., actor_kind: _Optional[str] = ..., source_runtime: _Optional[str] = ..., verification_status: _Optional[str] = ..., harness_session_id: _Optional[str] = ..., harness_kind: _Optional[str] = ...) -> None: ...
 
 class Correlation(_message.Message):
     __slots__ = ("run_id", "workflow_execution_id", "actor_kind")

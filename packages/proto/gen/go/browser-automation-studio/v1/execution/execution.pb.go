@@ -974,9 +974,16 @@ type ExecuteWorkflowOptions struct {
 	SeedMode string `protobuf:"bytes,7,opt,name=seed_mode,json=seedMode,proto3" json:"seed_mode,omitempty"`
 	// Optional seed-scenario identifier. Defaults to "browser-automation-studio"
 	// when seed_mode is set without an explicit scenario.
-	SeedScenario  string `protobuf:"bytes,8,opt,name=seed_scenario,json=seedScenario,proto3" json:"seed_scenario,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SeedScenario string `protobuf:"bytes,8,opt,name=seed_scenario,json=seedScenario,proto3" json:"seed_scenario,omitempty"`
+	// Target-owned Electron renderer to attach for desktop validation. When
+	// present, BAS never launches or owns the desktop process; it attaches to
+	// the renderer identified by the target adapter.
+	ElectronTarget *ElectronTarget `protobuf:"bytes,9,opt,name=electron_target,json=electronTarget,proto3" json:"electron_target,omitempty"`
+	// Immutable validation-cell identity required with electron_target. BAS
+	// refuses target execution without the leased isolation binding.
+	ValidationContext *ValidationContext `protobuf:"bytes,10,opt,name=validation_context,json=validationContext,proto3" json:"validation_context,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ExecuteWorkflowOptions) Reset() {
@@ -1065,6 +1072,225 @@ func (x *ExecuteWorkflowOptions) GetSeedScenario() string {
 	return ""
 }
 
+func (x *ExecuteWorkflowOptions) GetElectronTarget() *ElectronTarget {
+	if x != nil {
+		return x.ElectronTarget
+	}
+	return nil
+}
+
+func (x *ExecuteWorkflowOptions) GetValidationContext() *ValidationContext {
+	if x != nil {
+		return x.ValidationContext
+	}
+	return nil
+}
+
+// ElectronTarget describes an already-running renderer owned by a desktop
+// target adapter. The endpoint must be loopback-only or authenticated by the
+// target transport; BAS does not open or expose a debugging port.
+type ElectronTarget struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TargetId       string                 `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	CdpEndpoint    string                 `protobuf:"bytes,2,opt,name=cdp_endpoint,json=cdpEndpoint,proto3" json:"cdp_endpoint,omitempty"`
+	RendererId     string                 `protobuf:"bytes,3,opt,name=renderer_id,json=rendererId,proto3" json:"renderer_id,omitempty"`
+	RendererUrl    string                 `protobuf:"bytes,4,opt,name=renderer_url,json=rendererUrl,proto3" json:"renderer_url,omitempty"`
+	RendererTitle  string                 `protobuf:"bytes,5,opt,name=renderer_title,json=rendererTitle,proto3" json:"renderer_title,omitempty"`
+	ScenarioName   string                 `protobuf:"bytes,6,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	ArtifactDigest string                 `protobuf:"bytes,7,opt,name=artifact_digest,json=artifactDigest,proto3" json:"artifact_digest,omitempty"`
+	ContextId      string                 `protobuf:"bytes,8,opt,name=context_id,json=contextId,proto3" json:"context_id,omitempty"`
+	CdpTransport   string                 `protobuf:"bytes,9,opt,name=cdp_transport,json=cdpTransport,proto3" json:"cdp_transport,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ElectronTarget) Reset() {
+	*x = ElectronTarget{}
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ElectronTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ElectronTarget) ProtoMessage() {}
+
+func (x *ElectronTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ElectronTarget.ProtoReflect.Descriptor instead.
+func (*ElectronTarget) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ElectronTarget) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *ElectronTarget) GetCdpEndpoint() string {
+	if x != nil {
+		return x.CdpEndpoint
+	}
+	return ""
+}
+
+func (x *ElectronTarget) GetRendererId() string {
+	if x != nil {
+		return x.RendererId
+	}
+	return ""
+}
+
+func (x *ElectronTarget) GetRendererUrl() string {
+	if x != nil {
+		return x.RendererUrl
+	}
+	return ""
+}
+
+func (x *ElectronTarget) GetRendererTitle() string {
+	if x != nil {
+		return x.RendererTitle
+	}
+	return ""
+}
+
+func (x *ElectronTarget) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *ElectronTarget) GetArtifactDigest() string {
+	if x != nil {
+		return x.ArtifactDigest
+	}
+	return ""
+}
+
+func (x *ElectronTarget) GetContextId() string {
+	if x != nil {
+		return x.ContextId
+	}
+	return ""
+}
+
+func (x *ElectronTarget) GetCdpTransport() string {
+	if x != nil {
+		return x.CdpTransport
+	}
+	return ""
+}
+
+// ValidationContext binds one BAS execution to an immutable validation cell
+// and its routed test-storage lease.
+type ValidationContext struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ContextId        string                 `protobuf:"bytes,1,opt,name=context_id,json=contextId,proto3" json:"context_id,omitempty"`
+	ScenarioName     string                 `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	ArtifactDigest   string                 `protobuf:"bytes,3,opt,name=artifact_digest,json=artifactDigest,proto3" json:"artifact_digest,omitempty"`
+	TargetId         string                 `protobuf:"bytes,4,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	WorkflowId       string                 `protobuf:"bytes,5,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	ProfileId        string                 `protobuf:"bytes,6,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	IsolationLeaseId string                 `protobuf:"bytes,7,opt,name=isolation_lease_id,json=isolationLeaseId,proto3" json:"isolation_lease_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ValidationContext) Reset() {
+	*x = ValidationContext{}
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidationContext) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidationContext) ProtoMessage() {}
+
+func (x *ValidationContext) ProtoReflect() protoreflect.Message {
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidationContext.ProtoReflect.Descriptor instead.
+func (*ValidationContext) Descriptor() ([]byte, []int) {
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ValidationContext) GetContextId() string {
+	if x != nil {
+		return x.ContextId
+	}
+	return ""
+}
+
+func (x *ValidationContext) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *ValidationContext) GetArtifactDigest() string {
+	if x != nil {
+		return x.ArtifactDigest
+	}
+	return ""
+}
+
+func (x *ValidationContext) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *ValidationContext) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *ValidationContext) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *ValidationContext) GetIsolationLeaseId() string {
+	if x != nil {
+		return x.IsolationLeaseId
+	}
+	return ""
+}
+
 // ExecutionMetadata captures optional labels for adhoc runs.
 type ExecutionMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1078,7 +1304,7 @@ type ExecutionMetadata struct {
 
 func (x *ExecutionMetadata) Reset() {
 	*x = ExecutionMetadata{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1090,7 +1316,7 @@ func (x *ExecutionMetadata) String() string {
 func (*ExecutionMetadata) ProtoMessage() {}
 
 func (x *ExecutionMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[7]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1103,7 +1329,7 @@ func (x *ExecutionMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionMetadata.ProtoReflect.Descriptor instead.
 func (*ExecutionMetadata) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{7}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ExecutionMetadata) GetName() string {
@@ -1143,7 +1369,7 @@ type ExecuteAdhocResponse struct {
 
 func (x *ExecuteAdhocResponse) Reset() {
 	*x = ExecuteAdhocResponse{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1155,7 +1381,7 @@ func (x *ExecuteAdhocResponse) String() string {
 func (*ExecuteAdhocResponse) ProtoMessage() {}
 
 func (x *ExecuteAdhocResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[8]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1168,7 +1394,7 @@ func (x *ExecuteAdhocResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteAdhocResponse.ProtoReflect.Descriptor instead.
 func (*ExecuteAdhocResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{8}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ExecuteAdhocResponse) GetExecutionId() string {
@@ -1234,7 +1460,7 @@ type ExecutionScreenshot struct {
 
 func (x *ExecutionScreenshot) Reset() {
 	*x = ExecutionScreenshot{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1246,7 +1472,7 @@ func (x *ExecutionScreenshot) String() string {
 func (*ExecutionScreenshot) ProtoMessage() {}
 
 func (x *ExecutionScreenshot) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[9]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1259,7 +1485,7 @@ func (x *ExecutionScreenshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionScreenshot.ProtoReflect.Descriptor instead.
 func (*ExecutionScreenshot) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{9}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ExecutionScreenshot) GetScreenshot() *domain.TimelineScreenshot {
@@ -1313,7 +1539,7 @@ type GetScreenshotsResponse struct {
 
 func (x *GetScreenshotsResponse) Reset() {
 	*x = GetScreenshotsResponse{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1325,7 +1551,7 @@ func (x *GetScreenshotsResponse) String() string {
 func (*GetScreenshotsResponse) ProtoMessage() {}
 
 func (x *GetScreenshotsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[10]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1338,7 +1564,7 @@ func (x *GetScreenshotsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScreenshotsResponse.ProtoReflect.Descriptor instead.
 func (*GetScreenshotsResponse) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{10}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetScreenshotsResponse) GetExecutionId() string {
@@ -1389,7 +1615,7 @@ type ExecutionExportPreview struct {
 
 func (x *ExecutionExportPreview) Reset() {
 	*x = ExecutionExportPreview{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1401,7 +1627,7 @@ func (x *ExecutionExportPreview) String() string {
 func (*ExecutionExportPreview) ProtoMessage() {}
 
 func (x *ExecutionExportPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[11]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1414,7 +1640,7 @@ func (x *ExecutionExportPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionExportPreview.ProtoReflect.Descriptor instead.
 func (*ExecutionExportPreview) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{11}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ExecutionExportPreview) GetExecutionId() string {
@@ -1488,7 +1714,7 @@ type ExecutorMetrics struct {
 
 func (x *ExecutorMetrics) Reset() {
 	*x = ExecutorMetrics{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[12]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1500,7 +1726,7 @@ func (x *ExecutorMetrics) String() string {
 func (*ExecutorMetrics) ProtoMessage() {}
 
 func (x *ExecutorMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[12]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1513,7 +1739,7 @@ func (x *ExecutorMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutorMetrics.ProtoReflect.Descriptor instead.
 func (*ExecutorMetrics) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{12}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ExecutorMetrics) GetMemoryBytes() int64 {
@@ -1562,7 +1788,7 @@ type PerformanceMetrics struct {
 
 func (x *PerformanceMetrics) Reset() {
 	*x = PerformanceMetrics{}
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1574,7 +1800,7 @@ func (x *PerformanceMetrics) String() string {
 func (*PerformanceMetrics) ProtoMessage() {}
 
 func (x *PerformanceMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[13]
+	mi := &file_browser_automation_studio_v1_execution_execution_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1587,7 +1813,7 @@ func (x *PerformanceMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PerformanceMetrics.ProtoReflect.Descriptor instead.
 func (*PerformanceMetrics) Descriptor() ([]byte, []int) {
-	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{13}
+	return file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PerformanceMetrics) GetNetworkRequests() int32 {
@@ -1814,7 +2040,7 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
 	"parameters\x18\x06 \x01(\v21.browser_automation_studio.v1.ExecutionParametersR\n" +
 	"parameters\x12N\n" +
-	"\aoptions\x18\a \x01(\v24.browser_automation_studio.v1.ExecuteWorkflowOptionsR\aoptionsJ\x04\b\x02\x10\x03J\x04\b\x05\x10\x06\"\xb0\x03\n" +
+	"\aoptions\x18\a \x01(\v24.browser_automation_studio.v1.ExecuteWorkflowOptionsR\aoptionsJ\x04\b\x02\x10\x03J\x04\b\x05\x10\x06\"\xe7\x04\n" +
 	"\x16ExecuteWorkflowOptions\x12%\n" +
 	"\x0erequires_video\x18\x01 \x01(\bR\rrequiresVideo\x12%\n" +
 	"\x0erequires_trace\x18\x02 \x01(\bR\rrequiresTrace\x12!\n" +
@@ -1823,9 +2049,35 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\x17frame_streaming_quality\x18\x05 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01H\x00R\x15frameStreamingQuality\x88\x01\x01\x12>\n" +
 	"\x13frame_streaming_fps\x18\x06 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\x1e(\x01H\x01R\x11frameStreamingFps\x88\x01\x01\x12\x1b\n" +
 	"\tseed_mode\x18\a \x01(\tR\bseedMode\x12#\n" +
-	"\rseed_scenario\x18\b \x01(\tR\fseedScenarioB\x1a\n" +
+	"\rseed_scenario\x18\b \x01(\tR\fseedScenario\x12U\n" +
+	"\x0felectron_target\x18\t \x01(\v2,.browser_automation_studio.v1.ElectronTargetR\x0eelectronTarget\x12^\n" +
+	"\x12validation_context\x18\n" +
+	" \x01(\v2/.browser_automation_studio.v1.ValidationContextR\x11validationContextB\x1a\n" +
 	"\x18_frame_streaming_qualityB\x16\n" +
-	"\x14_frame_streaming_fps\"I\n" +
+	"\x14_frame_streaming_fps\"\xcd\x02\n" +
+	"\x0eElectronTarget\x12\x1b\n" +
+	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12!\n" +
+	"\fcdp_endpoint\x18\x02 \x01(\tR\vcdpEndpoint\x12\x1f\n" +
+	"\vrenderer_id\x18\x03 \x01(\tR\n" +
+	"rendererId\x12!\n" +
+	"\frenderer_url\x18\x04 \x01(\tR\vrendererUrl\x12%\n" +
+	"\x0erenderer_title\x18\x05 \x01(\tR\rrendererTitle\x12#\n" +
+	"\rscenario_name\x18\x06 \x01(\tR\fscenarioName\x12'\n" +
+	"\x0fartifact_digest\x18\a \x01(\tR\x0eartifactDigest\x12\x1d\n" +
+	"\n" +
+	"context_id\x18\b \x01(\tR\tcontextId\x12#\n" +
+	"\rcdp_transport\x18\t \x01(\tR\fcdpTransport\"\x8b\x02\n" +
+	"\x11ValidationContext\x12\x1d\n" +
+	"\n" +
+	"context_id\x18\x01 \x01(\tR\tcontextId\x12#\n" +
+	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12'\n" +
+	"\x0fartifact_digest\x18\x03 \x01(\tR\x0eartifactDigest\x12\x1b\n" +
+	"\ttarget_id\x18\x04 \x01(\tR\btargetId\x12\x1f\n" +
+	"\vworkflow_id\x18\x05 \x01(\tR\n" +
+	"workflowId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x06 \x01(\tR\tprofileId\x12,\n" +
+	"\x12isolation_lease_id\x18\a \x01(\tR\x10isolationLeaseId\"I\n" +
 	"\x11ExecutionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\"\xd4\x02\n" +
@@ -1904,7 +2156,7 @@ func file_browser_automation_studio_v1_execution_execution_proto_rawDescGZIP() [
 	return file_browser_automation_studio_v1_execution_execution_proto_rawDescData
 }
 
-var file_browser_automation_studio_v1_execution_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_browser_automation_studio_v1_execution_execution_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_browser_automation_studio_v1_execution_execution_proto_goTypes = []any{
 	(*ArtifactCollectionConfig)(nil),       // 0: browser_automation_studio.v1.ArtifactCollectionConfig
 	(*ExecutionParameters)(nil),            // 1: browser_automation_studio.v1.ExecutionParameters
@@ -1913,70 +2165,74 @@ var file_browser_automation_studio_v1_execution_execution_proto_goTypes = []any{
 	(*Execution)(nil),                      // 4: browser_automation_studio.v1.Execution
 	(*ExecuteAdhocRequest)(nil),            // 5: browser_automation_studio.v1.ExecuteAdhocRequest
 	(*ExecuteWorkflowOptions)(nil),         // 6: browser_automation_studio.v1.ExecuteWorkflowOptions
-	(*ExecutionMetadata)(nil),              // 7: browser_automation_studio.v1.ExecutionMetadata
-	(*ExecuteAdhocResponse)(nil),           // 8: browser_automation_studio.v1.ExecuteAdhocResponse
-	(*ExecutionScreenshot)(nil),            // 9: browser_automation_studio.v1.ExecutionScreenshot
-	(*GetScreenshotsResponse)(nil),         // 10: browser_automation_studio.v1.GetScreenshotsResponse
-	(*ExecutionExportPreview)(nil),         // 11: browser_automation_studio.v1.ExecutionExportPreview
-	(*ExecutorMetrics)(nil),                // 12: browser_automation_studio.v1.ExecutorMetrics
-	(*PerformanceMetrics)(nil),             // 13: browser_automation_studio.v1.PerformanceMetrics
-	nil,                                    // 14: browser_automation_studio.v1.ExecutionParameters.VariablesEntry
-	nil,                                    // 15: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry
-	nil,                                    // 16: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry
-	nil,                                    // 17: browser_automation_studio.v1.ExecutionParameters.EnvEntry
-	nil,                                    // 18: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
-	nil,                                    // 19: browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
-	(*base.BrowserProfile)(nil),            // 20: browser_automation_studio.v1.BrowserProfile
-	(actions.NavigateWaitEvent)(0),         // 21: browser_automation_studio.v1.NavigateWaitEvent
-	(base.ExecutionStatus)(0),              // 22: browser_automation_studio.v1.ExecutionStatus
-	(base.TriggerType)(0),                  // 23: browser_automation_studio.v1.TriggerType
-	(*timestamppb.Timestamp)(nil),          // 24: google.protobuf.Timestamp
-	(*workflows.WorkflowDefinitionV2)(nil), // 25: browser_automation_studio.v1.WorkflowDefinitionV2
-	(*domain.TimelineScreenshot)(nil),      // 26: browser_automation_studio.v1.TimelineScreenshot
-	(base.ExportStatus)(0),                 // 27: browser_automation_studio.v1.ExportStatus
-	(*v1.JsonObject)(nil),                  // 28: common.v1.JsonObject
-	(*v1.JsonValue)(nil),                   // 29: common.v1.JsonValue
+	(*ElectronTarget)(nil),                 // 7: browser_automation_studio.v1.ElectronTarget
+	(*ValidationContext)(nil),              // 8: browser_automation_studio.v1.ValidationContext
+	(*ExecutionMetadata)(nil),              // 9: browser_automation_studio.v1.ExecutionMetadata
+	(*ExecuteAdhocResponse)(nil),           // 10: browser_automation_studio.v1.ExecuteAdhocResponse
+	(*ExecutionScreenshot)(nil),            // 11: browser_automation_studio.v1.ExecutionScreenshot
+	(*GetScreenshotsResponse)(nil),         // 12: browser_automation_studio.v1.GetScreenshotsResponse
+	(*ExecutionExportPreview)(nil),         // 13: browser_automation_studio.v1.ExecutionExportPreview
+	(*ExecutorMetrics)(nil),                // 14: browser_automation_studio.v1.ExecutorMetrics
+	(*PerformanceMetrics)(nil),             // 15: browser_automation_studio.v1.PerformanceMetrics
+	nil,                                    // 16: browser_automation_studio.v1.ExecutionParameters.VariablesEntry
+	nil,                                    // 17: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry
+	nil,                                    // 18: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry
+	nil,                                    // 19: browser_automation_studio.v1.ExecutionParameters.EnvEntry
+	nil,                                    // 20: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
+	nil,                                    // 21: browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
+	(*base.BrowserProfile)(nil),            // 22: browser_automation_studio.v1.BrowserProfile
+	(actions.NavigateWaitEvent)(0),         // 23: browser_automation_studio.v1.NavigateWaitEvent
+	(base.ExecutionStatus)(0),              // 24: browser_automation_studio.v1.ExecutionStatus
+	(base.TriggerType)(0),                  // 25: browser_automation_studio.v1.TriggerType
+	(*timestamppb.Timestamp)(nil),          // 26: google.protobuf.Timestamp
+	(*workflows.WorkflowDefinitionV2)(nil), // 27: browser_automation_studio.v1.WorkflowDefinitionV2
+	(*domain.TimelineScreenshot)(nil),      // 28: browser_automation_studio.v1.TimelineScreenshot
+	(base.ExportStatus)(0),                 // 29: browser_automation_studio.v1.ExportStatus
+	(*v1.JsonObject)(nil),                  // 30: common.v1.JsonObject
+	(*v1.JsonValue)(nil),                   // 31: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_execution_execution_proto_depIdxs = []int32{
-	14, // 0: browser_automation_studio.v1.ExecutionParameters.variables:type_name -> browser_automation_studio.v1.ExecutionParameters.VariablesEntry
-	15, // 1: browser_automation_studio.v1.ExecutionParameters.initial_params:type_name -> browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry
-	16, // 2: browser_automation_studio.v1.ExecutionParameters.initial_store:type_name -> browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry
-	17, // 3: browser_automation_studio.v1.ExecutionParameters.env:type_name -> browser_automation_studio.v1.ExecutionParameters.EnvEntry
+	16, // 0: browser_automation_studio.v1.ExecutionParameters.variables:type_name -> browser_automation_studio.v1.ExecutionParameters.VariablesEntry
+	17, // 1: browser_automation_studio.v1.ExecutionParameters.initial_params:type_name -> browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry
+	18, // 2: browser_automation_studio.v1.ExecutionParameters.initial_store:type_name -> browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry
+	19, // 3: browser_automation_studio.v1.ExecutionParameters.env:type_name -> browser_automation_studio.v1.ExecutionParameters.EnvEntry
 	0,  // 4: browser_automation_studio.v1.ExecutionParameters.artifact_config:type_name -> browser_automation_studio.v1.ArtifactCollectionConfig
-	20, // 5: browser_automation_studio.v1.ExecutionParameters.browser_profile:type_name -> browser_automation_studio.v1.BrowserProfile
-	21, // 6: browser_automation_studio.v1.ExecutionParameters.navigation_wait_until:type_name -> browser_automation_studio.v1.NavigateWaitEvent
-	18, // 7: browser_automation_studio.v1.ExecutionResult.extracted_data:type_name -> browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
-	19, // 8: browser_automation_studio.v1.ExecutionResult.screenshot_artifacts:type_name -> browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
-	22, // 9: browser_automation_studio.v1.Execution.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	23, // 10: browser_automation_studio.v1.Execution.trigger_type:type_name -> browser_automation_studio.v1.TriggerType
-	24, // 11: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
-	24, // 12: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
-	24, // 13: browser_automation_studio.v1.Execution.last_heartbeat_at:type_name -> google.protobuf.Timestamp
-	24, // 14: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
-	24, // 15: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
+	22, // 5: browser_automation_studio.v1.ExecutionParameters.browser_profile:type_name -> browser_automation_studio.v1.BrowserProfile
+	23, // 6: browser_automation_studio.v1.ExecutionParameters.navigation_wait_until:type_name -> browser_automation_studio.v1.NavigateWaitEvent
+	20, // 7: browser_automation_studio.v1.ExecutionResult.extracted_data:type_name -> browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry
+	21, // 8: browser_automation_studio.v1.ExecutionResult.screenshot_artifacts:type_name -> browser_automation_studio.v1.ExecutionResult.ScreenshotArtifactsEntry
+	24, // 9: browser_automation_studio.v1.Execution.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	25, // 10: browser_automation_studio.v1.Execution.trigger_type:type_name -> browser_automation_studio.v1.TriggerType
+	26, // 11: browser_automation_studio.v1.Execution.started_at:type_name -> google.protobuf.Timestamp
+	26, // 12: browser_automation_studio.v1.Execution.completed_at:type_name -> google.protobuf.Timestamp
+	26, // 13: browser_automation_studio.v1.Execution.last_heartbeat_at:type_name -> google.protobuf.Timestamp
+	26, // 14: browser_automation_studio.v1.Execution.created_at:type_name -> google.protobuf.Timestamp
+	26, // 15: browser_automation_studio.v1.Execution.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 16: browser_automation_studio.v1.Execution.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
 	2,  // 17: browser_automation_studio.v1.Execution.result:type_name -> browser_automation_studio.v1.ExecutionResult
 	3,  // 18: browser_automation_studio.v1.Execution.trigger_metadata:type_name -> browser_automation_studio.v1.TriggerMetadata
-	25, // 19: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
-	7,  // 20: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
+	27, // 19: browser_automation_studio.v1.ExecuteAdhocRequest.flow_definition:type_name -> browser_automation_studio.v1.WorkflowDefinitionV2
+	9,  // 20: browser_automation_studio.v1.ExecuteAdhocRequest.metadata:type_name -> browser_automation_studio.v1.ExecutionMetadata
 	1,  // 21: browser_automation_studio.v1.ExecuteAdhocRequest.parameters:type_name -> browser_automation_studio.v1.ExecutionParameters
 	6,  // 22: browser_automation_studio.v1.ExecuteAdhocRequest.options:type_name -> browser_automation_studio.v1.ExecuteWorkflowOptions
-	22, // 23: browser_automation_studio.v1.ExecuteAdhocResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
-	24, // 24: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
-	26, // 25: browser_automation_studio.v1.ExecutionScreenshot.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
-	24, // 26: browser_automation_studio.v1.ExecutionScreenshot.timestamp:type_name -> google.protobuf.Timestamp
-	9,  // 27: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.ExecutionScreenshot
-	27, // 28: browser_automation_studio.v1.ExecutionExportPreview.status:type_name -> browser_automation_studio.v1.ExportStatus
-	28, // 29: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> common.v1.JsonObject
-	29, // 30: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry.value:type_name -> common.v1.JsonValue
-	29, // 31: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry.value:type_name -> common.v1.JsonValue
-	29, // 32: browser_automation_studio.v1.ExecutionParameters.EnvEntry.value:type_name -> common.v1.JsonValue
-	29, // 33: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
-	34, // [34:34] is the sub-list for method output_type
-	34, // [34:34] is the sub-list for method input_type
-	34, // [34:34] is the sub-list for extension type_name
-	34, // [34:34] is the sub-list for extension extendee
-	0,  // [0:34] is the sub-list for field type_name
+	7,  // 23: browser_automation_studio.v1.ExecuteWorkflowOptions.electron_target:type_name -> browser_automation_studio.v1.ElectronTarget
+	8,  // 24: browser_automation_studio.v1.ExecuteWorkflowOptions.validation_context:type_name -> browser_automation_studio.v1.ValidationContext
+	24, // 25: browser_automation_studio.v1.ExecuteAdhocResponse.status:type_name -> browser_automation_studio.v1.ExecutionStatus
+	26, // 26: browser_automation_studio.v1.ExecuteAdhocResponse.completed_at:type_name -> google.protobuf.Timestamp
+	28, // 27: browser_automation_studio.v1.ExecutionScreenshot.screenshot:type_name -> browser_automation_studio.v1.TimelineScreenshot
+	26, // 28: browser_automation_studio.v1.ExecutionScreenshot.timestamp:type_name -> google.protobuf.Timestamp
+	11, // 29: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.ExecutionScreenshot
+	29, // 30: browser_automation_studio.v1.ExecutionExportPreview.status:type_name -> browser_automation_studio.v1.ExportStatus
+	30, // 31: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> common.v1.JsonObject
+	31, // 32: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry.value:type_name -> common.v1.JsonValue
+	31, // 33: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry.value:type_name -> common.v1.JsonValue
+	31, // 34: browser_automation_studio.v1.ExecutionParameters.EnvEntry.value:type_name -> common.v1.JsonValue
+	31, // 35: browser_automation_studio.v1.ExecutionResult.ExtractedDataEntry.value:type_name -> common.v1.JsonValue
+	36, // [36:36] is the sub-list for method output_type
+	36, // [36:36] is the sub-list for method input_type
+	36, // [36:36] is the sub-list for extension type_name
+	36, // [36:36] is the sub-list for extension extendee
+	0,  // [0:36] is the sub-list for field type_name
 }
 
 func init() { file_browser_automation_studio_v1_execution_execution_proto_init() }
@@ -1990,17 +2246,17 @@ func file_browser_automation_studio_v1_execution_execution_proto_init() {
 	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[3].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[4].OneofWrappers = []any{}
 	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[6].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[8].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[9].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[12].OneofWrappers = []any{}
-	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[13].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[10].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[11].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[14].OneofWrappers = []any{}
+	file_browser_automation_studio_v1_execution_execution_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_browser_automation_studio_v1_execution_execution_proto_rawDesc), len(file_browser_automation_studio_v1_execution_execution_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -259,6 +259,74 @@ class GetRunStatusRequest(_message.Message):
     run_id: str
     def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
 
+class GetCostReportRequest(_message.Message):
+    __slots__ = ("scenario", "window_seconds", "compare_window_seconds")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    COMPARE_WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    window_seconds: int
+    compare_window_seconds: int
+    def __init__(self, scenario: _Optional[str] = ..., window_seconds: _Optional[int] = ..., compare_window_seconds: _Optional[int] = ...) -> None: ...
+
+class CostPhaseSummary(_message.Message):
+    __slots__ = ("scenario", "phase", "sample_count", "reliable_sample_count", "excluded_sample_count", "total_wall_clock_ms", "median_wall_clock_ms", "p90_wall_clock_ms", "total_cpu_user_ms", "max_peak_rss_bytes", "change_wall_clock_ms", "change_percent", "prediction_sample_count", "prediction_error_total_ms", "prediction_mean_absolute_error_ms", "prediction_mean_absolute_error_percent", "passing_sample_count", "failing_sample_count", "passing_median_wall_clock_ms", "passing_p90_wall_clock_ms", "failing_median_wall_clock_ms", "failing_p90_wall_clock_ms")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    RELIABLE_SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
+    MEDIAN_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
+    P90_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_CPU_USER_MS_FIELD_NUMBER: _ClassVar[int]
+    MAX_PEAK_RSS_BYTES_FIELD_NUMBER: _ClassVar[int]
+    CHANGE_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
+    CHANGE_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    PREDICTION_SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PREDICTION_ERROR_TOTAL_MS_FIELD_NUMBER: _ClassVar[int]
+    PREDICTION_MEAN_ABSOLUTE_ERROR_MS_FIELD_NUMBER: _ClassVar[int]
+    PREDICTION_MEAN_ABSOLUTE_ERROR_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    PASSING_SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    FAILING_SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PASSING_MEDIAN_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
+    PASSING_P90_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
+    FAILING_MEDIAN_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
+    FAILING_P90_WALL_CLOCK_MS_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    phase: str
+    sample_count: int
+    reliable_sample_count: int
+    excluded_sample_count: int
+    total_wall_clock_ms: int
+    median_wall_clock_ms: int
+    p90_wall_clock_ms: int
+    total_cpu_user_ms: int
+    max_peak_rss_bytes: int
+    change_wall_clock_ms: int
+    change_percent: float
+    prediction_sample_count: int
+    prediction_error_total_ms: int
+    prediction_mean_absolute_error_ms: int
+    prediction_mean_absolute_error_percent: float
+    passing_sample_count: int
+    failing_sample_count: int
+    passing_median_wall_clock_ms: int
+    passing_p90_wall_clock_ms: int
+    failing_median_wall_clock_ms: int
+    failing_p90_wall_clock_ms: int
+    def __init__(self, scenario: _Optional[str] = ..., phase: _Optional[str] = ..., sample_count: _Optional[int] = ..., reliable_sample_count: _Optional[int] = ..., excluded_sample_count: _Optional[int] = ..., total_wall_clock_ms: _Optional[int] = ..., median_wall_clock_ms: _Optional[int] = ..., p90_wall_clock_ms: _Optional[int] = ..., total_cpu_user_ms: _Optional[int] = ..., max_peak_rss_bytes: _Optional[int] = ..., change_wall_clock_ms: _Optional[int] = ..., change_percent: _Optional[float] = ..., prediction_sample_count: _Optional[int] = ..., prediction_error_total_ms: _Optional[int] = ..., prediction_mean_absolute_error_ms: _Optional[int] = ..., prediction_mean_absolute_error_percent: _Optional[float] = ..., passing_sample_count: _Optional[int] = ..., failing_sample_count: _Optional[int] = ..., passing_median_wall_clock_ms: _Optional[int] = ..., passing_p90_wall_clock_ms: _Optional[int] = ..., failing_median_wall_clock_ms: _Optional[int] = ..., failing_p90_wall_clock_ms: _Optional[int] = ...) -> None: ...
+
+class GetCostReportResponse(_message.Message):
+    __slots__ = ("phases", "window_seconds", "compare_window_seconds")
+    PHASES_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    COMPARE_WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    phases: _containers.RepeatedCompositeFieldContainer[CostPhaseSummary]
+    window_seconds: int
+    compare_window_seconds: int
+    def __init__(self, phases: _Optional[_Iterable[_Union[CostPhaseSummary, _Mapping]]] = ..., window_seconds: _Optional[int] = ..., compare_window_seconds: _Optional[int] = ...) -> None: ...
+
 class DiagnosticsInfo(_message.Message):
     __slots__ = ("video", "console", "network", "har", "trace", "dom")
     VIDEO_FIELD_NUMBER: _ClassVar[int]
@@ -1190,7 +1258,7 @@ class CatalogPhase(_message.Message):
     def __init__(self, name: _Optional[str] = ..., optional: _Optional[bool] = ..., source: _Optional[str] = ..., delegated: _Optional[bool] = ..., provider: _Optional[str] = ..., finding_source: _Optional[str] = ...) -> None: ...
 
 class ProviderConformance(_message.Message):
-    __slots__ = ("provider", "phase", "reachable", "contract_valid", "identity_ok", "spec_valid", "metrics_adopted", "adoption_score", "violations", "autofix", "classification", "reason_codes", "fix_contract_required", "fix_contract_valid")
+    __slots__ = ("provider", "phase", "reachable", "contract_valid", "identity_ok", "spec_valid", "metrics_adopted", "adoption_score", "violations", "autofix", "classification", "reason_codes", "fix_contract_required", "fix_contract_valid", "concurrency_declared", "metrics_reachable")
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
     REACHABLE_FIELD_NUMBER: _ClassVar[int]
@@ -1205,6 +1273,8 @@ class ProviderConformance(_message.Message):
     REASON_CODES_FIELD_NUMBER: _ClassVar[int]
     FIX_CONTRACT_REQUIRED_FIELD_NUMBER: _ClassVar[int]
     FIX_CONTRACT_VALID_FIELD_NUMBER: _ClassVar[int]
+    CONCURRENCY_DECLARED_FIELD_NUMBER: _ClassVar[int]
+    METRICS_REACHABLE_FIELD_NUMBER: _ClassVar[int]
     provider: str
     phase: str
     reachable: bool
@@ -1219,7 +1289,9 @@ class ProviderConformance(_message.Message):
     reason_codes: _containers.RepeatedScalarFieldContainer[str]
     fix_contract_required: bool
     fix_contract_valid: bool
-    def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., reachable: _Optional[bool] = ..., contract_valid: _Optional[bool] = ..., identity_ok: _Optional[bool] = ..., spec_valid: _Optional[bool] = ..., metrics_adopted: _Optional[bool] = ..., adoption_score: _Optional[float] = ..., violations: _Optional[_Iterable[str]] = ..., autofix: _Optional[_Union[AutofixCoverage, _Mapping]] = ..., classification: _Optional[str] = ..., reason_codes: _Optional[_Iterable[str]] = ..., fix_contract_required: _Optional[bool] = ..., fix_contract_valid: _Optional[bool] = ...) -> None: ...
+    concurrency_declared: bool
+    metrics_reachable: bool
+    def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., reachable: _Optional[bool] = ..., contract_valid: _Optional[bool] = ..., identity_ok: _Optional[bool] = ..., spec_valid: _Optional[bool] = ..., metrics_adopted: _Optional[bool] = ..., adoption_score: _Optional[float] = ..., violations: _Optional[_Iterable[str]] = ..., autofix: _Optional[_Union[AutofixCoverage, _Mapping]] = ..., classification: _Optional[str] = ..., reason_codes: _Optional[_Iterable[str]] = ..., fix_contract_required: _Optional[bool] = ..., fix_contract_valid: _Optional[bool] = ..., concurrency_declared: _Optional[bool] = ..., metrics_reachable: _Optional[bool] = ...) -> None: ...
 
 class AutofixCoverage(_message.Message):
     __slots__ = ("total", "fixable_universe", "implemented", "pending", "manual", "declared", "declaration_complete", "implementation_rate")

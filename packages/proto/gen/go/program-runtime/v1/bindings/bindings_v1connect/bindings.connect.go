@@ -42,6 +42,12 @@ const (
 	// BindingRegistryServiceResolveActCellsProcedure is the fully-qualified name of the
 	// BindingRegistryService's ResolveActCells RPC.
 	BindingRegistryServiceResolveActCellsProcedure = "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ResolveActCells"
+	// BindingRegistryServiceDoctorBindingsProcedure is the fully-qualified name of the
+	// BindingRegistryService's DoctorBindings RPC.
+	BindingRegistryServiceDoctorBindingsProcedure = "/vrooli.program_runtime.v1.bindings.BindingRegistryService/DoctorBindings"
+	// BindingRegistryServiceDescribeBindingProcedure is the fully-qualified name of the
+	// BindingRegistryService's DescribeBinding RPC.
+	BindingRegistryServiceDescribeBindingProcedure = "/vrooli.program_runtime.v1.bindings.BindingRegistryService/DescribeBinding"
 )
 
 // BindingRegistryServiceClient is a client for the
@@ -50,6 +56,8 @@ type BindingRegistryServiceClient interface {
 	ListBindings(context.Context, *connect.Request[bindings.ListBindingsRequest]) (*connect.Response[bindings.ListBindingsResponse], error)
 	ListUnbound(context.Context, *connect.Request[bindings.ListUnboundRequest]) (*connect.Response[bindings.ListUnboundResponse], error)
 	ResolveActCells(context.Context, *connect.Request[bindings.ResolveActCellsRequest]) (*connect.Response[bindings.ResolveActCellsResponse], error)
+	DoctorBindings(context.Context, *connect.Request[bindings.DoctorBindingsRequest]) (*connect.Response[bindings.DoctorBindingsResponse], error)
+	DescribeBinding(context.Context, *connect.Request[bindings.DescribeBindingRequest]) (*connect.Response[bindings.DescribeBindingResponse], error)
 }
 
 // NewBindingRegistryServiceClient constructs a client for the
@@ -82,6 +90,18 @@ func NewBindingRegistryServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(bindingRegistryServiceMethods.ByName("ResolveActCells")),
 			connect.WithClientOptions(opts...),
 		),
+		doctorBindings: connect.NewClient[bindings.DoctorBindingsRequest, bindings.DoctorBindingsResponse](
+			httpClient,
+			baseURL+BindingRegistryServiceDoctorBindingsProcedure,
+			connect.WithSchema(bindingRegistryServiceMethods.ByName("DoctorBindings")),
+			connect.WithClientOptions(opts...),
+		),
+		describeBinding: connect.NewClient[bindings.DescribeBindingRequest, bindings.DescribeBindingResponse](
+			httpClient,
+			baseURL+BindingRegistryServiceDescribeBindingProcedure,
+			connect.WithSchema(bindingRegistryServiceMethods.ByName("DescribeBinding")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -90,6 +110,8 @@ type bindingRegistryServiceClient struct {
 	listBindings    *connect.Client[bindings.ListBindingsRequest, bindings.ListBindingsResponse]
 	listUnbound     *connect.Client[bindings.ListUnboundRequest, bindings.ListUnboundResponse]
 	resolveActCells *connect.Client[bindings.ResolveActCellsRequest, bindings.ResolveActCellsResponse]
+	doctorBindings  *connect.Client[bindings.DoctorBindingsRequest, bindings.DoctorBindingsResponse]
+	describeBinding *connect.Client[bindings.DescribeBindingRequest, bindings.DescribeBindingResponse]
 }
 
 // ListBindings calls vrooli.program_runtime.v1.bindings.BindingRegistryService.ListBindings.
@@ -107,12 +129,24 @@ func (c *bindingRegistryServiceClient) ResolveActCells(ctx context.Context, req 
 	return c.resolveActCells.CallUnary(ctx, req)
 }
 
+// DoctorBindings calls vrooli.program_runtime.v1.bindings.BindingRegistryService.DoctorBindings.
+func (c *bindingRegistryServiceClient) DoctorBindings(ctx context.Context, req *connect.Request[bindings.DoctorBindingsRequest]) (*connect.Response[bindings.DoctorBindingsResponse], error) {
+	return c.doctorBindings.CallUnary(ctx, req)
+}
+
+// DescribeBinding calls vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding.
+func (c *bindingRegistryServiceClient) DescribeBinding(ctx context.Context, req *connect.Request[bindings.DescribeBindingRequest]) (*connect.Response[bindings.DescribeBindingResponse], error) {
+	return c.describeBinding.CallUnary(ctx, req)
+}
+
 // BindingRegistryServiceHandler is an implementation of the
 // vrooli.program_runtime.v1.bindings.BindingRegistryService service.
 type BindingRegistryServiceHandler interface {
 	ListBindings(context.Context, *connect.Request[bindings.ListBindingsRequest]) (*connect.Response[bindings.ListBindingsResponse], error)
 	ListUnbound(context.Context, *connect.Request[bindings.ListUnboundRequest]) (*connect.Response[bindings.ListUnboundResponse], error)
 	ResolveActCells(context.Context, *connect.Request[bindings.ResolveActCellsRequest]) (*connect.Response[bindings.ResolveActCellsResponse], error)
+	DoctorBindings(context.Context, *connect.Request[bindings.DoctorBindingsRequest]) (*connect.Response[bindings.DoctorBindingsResponse], error)
+	DescribeBinding(context.Context, *connect.Request[bindings.DescribeBindingRequest]) (*connect.Response[bindings.DescribeBindingResponse], error)
 }
 
 // NewBindingRegistryServiceHandler builds an HTTP handler from the service implementation. It
@@ -140,6 +174,18 @@ func NewBindingRegistryServiceHandler(svc BindingRegistryServiceHandler, opts ..
 		connect.WithSchema(bindingRegistryServiceMethods.ByName("ResolveActCells")),
 		connect.WithHandlerOptions(opts...),
 	)
+	bindingRegistryServiceDoctorBindingsHandler := connect.NewUnaryHandler(
+		BindingRegistryServiceDoctorBindingsProcedure,
+		svc.DoctorBindings,
+		connect.WithSchema(bindingRegistryServiceMethods.ByName("DoctorBindings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	bindingRegistryServiceDescribeBindingHandler := connect.NewUnaryHandler(
+		BindingRegistryServiceDescribeBindingProcedure,
+		svc.DescribeBinding,
+		connect.WithSchema(bindingRegistryServiceMethods.ByName("DescribeBinding")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.program_runtime.v1.bindings.BindingRegistryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BindingRegistryServiceListBindingsProcedure:
@@ -148,6 +194,10 @@ func NewBindingRegistryServiceHandler(svc BindingRegistryServiceHandler, opts ..
 			bindingRegistryServiceListUnboundHandler.ServeHTTP(w, r)
 		case BindingRegistryServiceResolveActCellsProcedure:
 			bindingRegistryServiceResolveActCellsHandler.ServeHTTP(w, r)
+		case BindingRegistryServiceDoctorBindingsProcedure:
+			bindingRegistryServiceDoctorBindingsHandler.ServeHTTP(w, r)
+		case BindingRegistryServiceDescribeBindingProcedure:
+			bindingRegistryServiceDescribeBindingHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -167,4 +217,12 @@ func (UnimplementedBindingRegistryServiceHandler) ListUnbound(context.Context, *
 
 func (UnimplementedBindingRegistryServiceHandler) ResolveActCells(context.Context, *connect.Request[bindings.ResolveActCellsRequest]) (*connect.Response[bindings.ResolveActCellsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveActCells is not implemented"))
+}
+
+func (UnimplementedBindingRegistryServiceHandler) DoctorBindings(context.Context, *connect.Request[bindings.DoctorBindingsRequest]) (*connect.Response[bindings.DoctorBindingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.bindings.BindingRegistryService.DoctorBindings is not implemented"))
+}
+
+func (UnimplementedBindingRegistryServiceHandler) DescribeBinding(context.Context, *connect.Request[bindings.DescribeBindingRequest]) (*connect.Response[bindings.DescribeBindingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding is not implemented"))
 }

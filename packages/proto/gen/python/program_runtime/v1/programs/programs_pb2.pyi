@@ -17,7 +17,7 @@ PROVENANCE_AGENT: Provenance
 PROVENANCE_OPERATOR: Provenance
 
 class Program(_message.Message):
-    __slots__ = ("id", "session_id", "source", "provenance", "status", "stdout", "failure_detail", "failure_shape", "context_bytes", "created_at")
+    __slots__ = ("id", "session_id", "source", "provenance", "status", "stdout", "failure_detail", "failure_shape", "context_bytes", "created_at", "output_limit_bytes")
     ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
@@ -28,6 +28,7 @@ class Program(_message.Message):
     FAILURE_SHAPE_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_BYTES_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_LIMIT_BYTES_FIELD_NUMBER: _ClassVar[int]
     id: str
     session_id: str
     source: str
@@ -38,7 +39,8 @@ class Program(_message.Message):
     failure_shape: str
     context_bytes: int
     created_at: str
-    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., source: _Optional[str] = ..., provenance: _Optional[_Union[Provenance, str]] = ..., status: _Optional[str] = ..., stdout: _Optional[str] = ..., failure_detail: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., created_at: _Optional[str] = ...) -> None: ...
+    output_limit_bytes: int
+    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., source: _Optional[str] = ..., provenance: _Optional[_Union[Provenance, str]] = ..., status: _Optional[str] = ..., stdout: _Optional[str] = ..., failure_detail: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., output_limit_bytes: _Optional[int] = ...) -> None: ...
 
 class SubmitProgramRequest(_message.Message):
     __slots__ = ("session_id", "source", "provenance", "include_materialized")

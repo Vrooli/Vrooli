@@ -71,19 +71,20 @@ func (Provenance) EnumDescriptor() ([]byte, []int) {
 }
 
 type Program struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	Source        string                 `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
-	Provenance    Provenance             `protobuf:"varint,4,opt,name=provenance,proto3,enum=vrooli.program_runtime.v1.programs.Provenance" json:"provenance,omitempty"`
-	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	Stdout        string                 `protobuf:"bytes,6,opt,name=stdout,proto3" json:"stdout,omitempty"`
-	FailureDetail string                 `protobuf:"bytes,7,opt,name=failure_detail,json=failureDetail,proto3" json:"failure_detail,omitempty"`
-	FailureShape  string                 `protobuf:"bytes,8,opt,name=failure_shape,json=failureShape,proto3" json:"failure_shape,omitempty"`
-	ContextBytes  int64                  `protobuf:"varint,9,opt,name=context_bytes,json=contextBytes,proto3" json:"context_bytes,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SessionId        string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Source           string                 `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
+	Provenance       Provenance             `protobuf:"varint,4,opt,name=provenance,proto3,enum=vrooli.program_runtime.v1.programs.Provenance" json:"provenance,omitempty"`
+	Status           string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Stdout           string                 `protobuf:"bytes,6,opt,name=stdout,proto3" json:"stdout,omitempty"`
+	FailureDetail    string                 `protobuf:"bytes,7,opt,name=failure_detail,json=failureDetail,proto3" json:"failure_detail,omitempty"`
+	FailureShape     string                 `protobuf:"bytes,8,opt,name=failure_shape,json=failureShape,proto3" json:"failure_shape,omitempty"`
+	ContextBytes     int64                  `protobuf:"varint,9,opt,name=context_bytes,json=contextBytes,proto3" json:"context_bytes,omitempty"`
+	CreatedAt        string                 `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	OutputLimitBytes int64                  `protobuf:"varint,11,opt,name=output_limit_bytes,json=outputLimitBytes,proto3" json:"output_limit_bytes,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Program) Reset() {
@@ -184,6 +185,13 @@ func (x *Program) GetCreatedAt() string {
 		return x.CreatedAt
 	}
 	return ""
+}
+
+func (x *Program) GetOutputLimitBytes() int64 {
+	if x != nil {
+		return x.OutputLimitBytes
+	}
+	return 0
 }
 
 type SubmitProgramRequest struct {
@@ -634,7 +642,7 @@ var File_program_runtime_v1_programs_programs_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\n" +
-	"*program-runtime/v1/programs/programs.proto\x12\"vrooli.program_runtime.v1.programs\"\xe0\x02\n" +
+	"*program-runtime/v1/programs/programs.proto\x12\"vrooli.program_runtime.v1.programs\"\x8e\x03\n" +
 	"\aProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -650,7 +658,8 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\rcontext_bytes\x18\t \x01(\x03R\fcontextBytes\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\n" +
-	" \x01(\tR\tcreatedAt\"\xd0\x01\n" +
+	" \x01(\tR\tcreatedAt\x12,\n" +
+	"\x12output_limit_bytes\x18\v \x01(\x03R\x10outputLimitBytes\"\xd0\x01\n" +
 	"\x14SubmitProgramRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x16\n" +

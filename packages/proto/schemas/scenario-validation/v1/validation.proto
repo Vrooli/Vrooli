@@ -244,6 +244,35 @@ message StartValidationRunRequest {
   // Optional Test Genie parent/attempt identity. Providers retain this only as
   // a durable linkage reference; it is not their source of truth.
   string parent_run_id = 4;
+  // Optional target binding for an execution-backed validation run. The
+  // provider persists this identity and supplies it to the owned execution
+  // engine; omission means the normal static/browser validation path.
+  DesktopValidationBinding desktop_binding = 5;
+}
+
+// DesktopValidationBinding identifies a target-owned desktop renderer for a
+// durable validation run. The storage lease is provider-owned and is bound to
+// the durable run ID, so callers cannot smuggle an unverified lease through
+// this request.
+message DesktopValidationBinding {
+  string target_id = 1;
+  string cdp_endpoint = 2;
+  string renderer_id = 3;
+  string renderer_url = 4;
+  string renderer_title = 5;
+  string scenario_name = 6;
+  string artifact_digest = 7;
+  string context_id = 8;
+  string profile_id = 9;
+  string cdp_transport = 10;
+  // Optional provider-owned workflow asset path. The caller supplies the
+  // normalized catalog path; the provider remains responsible for parsing,
+  // validating, and executing that asset.
+  string workflow_path = 11;
+  // Stable provider-owned workflow identity for validation-context binding.
+  // This may differ from workflow_path when a catalog prefixes the path with
+  // a scenario or provider namespace.
+  string workflow_id = 12;
 }
 
 message StartValidationRunResponse {

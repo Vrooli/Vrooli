@@ -17,6 +17,7 @@ message Program {
   string failure_shape = 8;
   int64 context_bytes = 9;
   string created_at = 10;
+  int64 output_limit_bytes = 11;
 }
 
 message SubmitProgramRequest {

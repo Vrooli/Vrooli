@@ -391,6 +391,42 @@ message ExecuteWorkflowOptions {
   // Optional seed-scenario identifier. Defaults to "browser-automation-studio"
   // when seed_mode is set without an explicit scenario.
   string seed_scenario = 8;
+
+  // Target-owned Electron renderer to attach for desktop validation. When
+  // present, BAS never launches or owns the desktop process; it attaches to
+  // the renderer identified by the target adapter.
+  ElectronTarget electron_target = 9;
+
+  // Immutable validation-cell identity required with electron_target. BAS
+  // refuses target execution without the leased isolation binding.
+  ValidationContext validation_context = 10;
+}
+
+// ElectronTarget describes an already-running renderer owned by a desktop
+// target adapter. The endpoint must be loopback-only or authenticated by the
+// target transport; BAS does not open or expose a debugging port.
+message ElectronTarget {
+  string target_id = 1;
+  string cdp_endpoint = 2;
+  string renderer_id = 3;
+  string renderer_url = 4;
+  string renderer_title = 5;
+  string scenario_name = 6;
+  string artifact_digest = 7;
+  string context_id = 8;
+  string cdp_transport = 9;
+}
+
+// ValidationContext binds one BAS execution to an immutable validation cell
+// and its routed test-storage lease.
+message ValidationContext {
+  string context_id = 1;
+  string scenario_name = 2;
+  string artifact_digest = 3;
+  string target_id = 4;
+  string workflow_id = 5;
+  string profile_id = 6;
+  string isolation_lease_id = 7;
 }
 
 // ExecutionMetadata captures optional labels for adhoc runs.

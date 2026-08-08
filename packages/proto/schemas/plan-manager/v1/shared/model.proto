@@ -501,7 +501,7 @@ message LogEntry {
   string source_command = 12;
   // Optional supporting evidence locators (paths, command output refs, urls).
   repeated string evidence = 13;
-  // VROOLI_AGENT_MANAGER_RUN_ID when present; powers attribution-keyed dedup.
+  // Explicit or server-verified attribution run id; powers attribution-keyed dedup.
   string attribution_run_id = 14;
   // Idempotency key; a retry with the same key returns the existing entry.
   string idempotency_key = 15;

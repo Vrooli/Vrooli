@@ -1010,7 +1010,7 @@ export type LogEntry = Message<"vrooli.plan_manager.v1.shared.LogEntry"> & {
   evidence: string[];
 
   /**
-   * VROOLI_AGENT_MANAGER_RUN_ID when present; powers attribution-keyed dedup.
+   * Explicit or server-verified attribution run id; powers attribution-keyed dedup.
    *
    * @generated from field: string attribution_run_id = 14;
    */

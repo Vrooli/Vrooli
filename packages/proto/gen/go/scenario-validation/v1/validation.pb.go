@@ -1017,9 +1017,13 @@ type StartValidationRunRequest struct {
 	IdempotencyKey string `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	// Optional Test Genie parent/attempt identity. Providers retain this only as
 	// a durable linkage reference; it is not their source of truth.
-	ParentRunId   string `protobuf:"bytes,4,opt,name=parent_run_id,json=parentRunId,proto3" json:"parent_run_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ParentRunId string `protobuf:"bytes,4,opt,name=parent_run_id,json=parentRunId,proto3" json:"parent_run_id,omitempty"`
+	// Optional target binding for an execution-backed validation run. The
+	// provider persists this identity and supplies it to the owned execution
+	// engine; omission means the normal static/browser validation path.
+	DesktopBinding *DesktopValidationBinding `protobuf:"bytes,5,opt,name=desktop_binding,json=desktopBinding,proto3" json:"desktop_binding,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StartValidationRunRequest) Reset() {
@@ -1080,6 +1084,155 @@ func (x *StartValidationRunRequest) GetParentRunId() string {
 	return ""
 }
 
+func (x *StartValidationRunRequest) GetDesktopBinding() *DesktopValidationBinding {
+	if x != nil {
+		return x.DesktopBinding
+	}
+	return nil
+}
+
+// DesktopValidationBinding identifies a target-owned desktop renderer for a
+// durable validation run. The storage lease is provider-owned and is bound to
+// the durable run ID, so callers cannot smuggle an unverified lease through
+// this request.
+type DesktopValidationBinding struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TargetId       string                 `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	CdpEndpoint    string                 `protobuf:"bytes,2,opt,name=cdp_endpoint,json=cdpEndpoint,proto3" json:"cdp_endpoint,omitempty"`
+	RendererId     string                 `protobuf:"bytes,3,opt,name=renderer_id,json=rendererId,proto3" json:"renderer_id,omitempty"`
+	RendererUrl    string                 `protobuf:"bytes,4,opt,name=renderer_url,json=rendererUrl,proto3" json:"renderer_url,omitempty"`
+	RendererTitle  string                 `protobuf:"bytes,5,opt,name=renderer_title,json=rendererTitle,proto3" json:"renderer_title,omitempty"`
+	ScenarioName   string                 `protobuf:"bytes,6,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	ArtifactDigest string                 `protobuf:"bytes,7,opt,name=artifact_digest,json=artifactDigest,proto3" json:"artifact_digest,omitempty"`
+	ContextId      string                 `protobuf:"bytes,8,opt,name=context_id,json=contextId,proto3" json:"context_id,omitempty"`
+	ProfileId      string                 `protobuf:"bytes,9,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	CdpTransport   string                 `protobuf:"bytes,10,opt,name=cdp_transport,json=cdpTransport,proto3" json:"cdp_transport,omitempty"`
+	// Optional provider-owned workflow asset path. The caller supplies the
+	// normalized catalog path; the provider remains responsible for parsing,
+	// validating, and executing that asset.
+	WorkflowPath string `protobuf:"bytes,11,opt,name=workflow_path,json=workflowPath,proto3" json:"workflow_path,omitempty"`
+	// Stable provider-owned workflow identity for validation-context binding.
+	// This may differ from workflow_path when a catalog prefixes the path with
+	// a scenario or provider namespace.
+	WorkflowId    string `protobuf:"bytes,12,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DesktopValidationBinding) Reset() {
+	*x = DesktopValidationBinding{}
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DesktopValidationBinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DesktopValidationBinding) ProtoMessage() {}
+
+func (x *DesktopValidationBinding) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DesktopValidationBinding.ProtoReflect.Descriptor instead.
+func (*DesktopValidationBinding) Descriptor() ([]byte, []int) {
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *DesktopValidationBinding) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetCdpEndpoint() string {
+	if x != nil {
+		return x.CdpEndpoint
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetRendererId() string {
+	if x != nil {
+		return x.RendererId
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetRendererUrl() string {
+	if x != nil {
+		return x.RendererUrl
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetRendererTitle() string {
+	if x != nil {
+		return x.RendererTitle
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetArtifactDigest() string {
+	if x != nil {
+		return x.ArtifactDigest
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetContextId() string {
+	if x != nil {
+		return x.ContextId
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetCdpTransport() string {
+	if x != nil {
+		return x.CdpTransport
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetWorkflowPath() string {
+	if x != nil {
+		return x.WorkflowPath
+	}
+	return ""
+}
+
+func (x *DesktopValidationBinding) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
 type StartValidationRunResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Run           *ValidationRun         `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
@@ -1089,7 +1242,7 @@ type StartValidationRunResponse struct {
 
 func (x *StartValidationRunResponse) Reset() {
 	*x = StartValidationRunResponse{}
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[11]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1101,7 +1254,7 @@ func (x *StartValidationRunResponse) String() string {
 func (*StartValidationRunResponse) ProtoMessage() {}
 
 func (x *StartValidationRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[11]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1114,7 +1267,7 @@ func (x *StartValidationRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartValidationRunResponse.ProtoReflect.Descriptor instead.
 func (*StartValidationRunResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{11}
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *StartValidationRunResponse) GetRun() *ValidationRun {
@@ -1133,7 +1286,7 @@ type GetValidationRunRequest struct {
 
 func (x *GetValidationRunRequest) Reset() {
 	*x = GetValidationRunRequest{}
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[12]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1145,7 +1298,7 @@ func (x *GetValidationRunRequest) String() string {
 func (*GetValidationRunRequest) ProtoMessage() {}
 
 func (x *GetValidationRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[12]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1158,7 +1311,7 @@ func (x *GetValidationRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetValidationRunRequest.ProtoReflect.Descriptor instead.
 func (*GetValidationRunRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{12}
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetValidationRunRequest) GetRunId() string {
@@ -1177,7 +1330,7 @@ type GetValidationRunResponse struct {
 
 func (x *GetValidationRunResponse) Reset() {
 	*x = GetValidationRunResponse{}
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[13]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1189,7 +1342,7 @@ func (x *GetValidationRunResponse) String() string {
 func (*GetValidationRunResponse) ProtoMessage() {}
 
 func (x *GetValidationRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[13]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1202,7 +1355,7 @@ func (x *GetValidationRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetValidationRunResponse.ProtoReflect.Descriptor instead.
 func (*GetValidationRunResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{13}
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetValidationRunResponse) GetRun() *ValidationRun {
@@ -1224,7 +1377,7 @@ type WaitValidationRunRequest struct {
 
 func (x *WaitValidationRunRequest) Reset() {
 	*x = WaitValidationRunRequest{}
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[14]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1236,7 +1389,7 @@ func (x *WaitValidationRunRequest) String() string {
 func (*WaitValidationRunRequest) ProtoMessage() {}
 
 func (x *WaitValidationRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[14]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1249,7 +1402,7 @@ func (x *WaitValidationRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitValidationRunRequest.ProtoReflect.Descriptor instead.
 func (*WaitValidationRunRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{14}
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *WaitValidationRunRequest) GetRunId() string {
@@ -1275,7 +1428,7 @@ type WaitValidationRunResponse struct {
 
 func (x *WaitValidationRunResponse) Reset() {
 	*x = WaitValidationRunResponse{}
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[15]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1287,7 +1440,7 @@ func (x *WaitValidationRunResponse) String() string {
 func (*WaitValidationRunResponse) ProtoMessage() {}
 
 func (x *WaitValidationRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[15]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1300,7 +1453,7 @@ func (x *WaitValidationRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitValidationRunResponse.ProtoReflect.Descriptor instead.
 func (*WaitValidationRunResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{15}
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *WaitValidationRunResponse) GetRun() *ValidationRun {
@@ -1320,7 +1473,7 @@ type AbortValidationRunRequest struct {
 
 func (x *AbortValidationRunRequest) Reset() {
 	*x = AbortValidationRunRequest{}
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[16]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1332,7 +1485,7 @@ func (x *AbortValidationRunRequest) String() string {
 func (*AbortValidationRunRequest) ProtoMessage() {}
 
 func (x *AbortValidationRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[16]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1345,7 +1498,7 @@ func (x *AbortValidationRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbortValidationRunRequest.ProtoReflect.Descriptor instead.
 func (*AbortValidationRunRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{16}
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *AbortValidationRunRequest) GetRunId() string {
@@ -1371,7 +1524,7 @@ type AbortValidationRunResponse struct {
 
 func (x *AbortValidationRunResponse) Reset() {
 	*x = AbortValidationRunResponse{}
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[17]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1383,7 +1536,7 @@ func (x *AbortValidationRunResponse) String() string {
 func (*AbortValidationRunResponse) ProtoMessage() {}
 
 func (x *AbortValidationRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[17]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1396,7 +1549,7 @@ func (x *AbortValidationRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbortValidationRunResponse.ProtoReflect.Descriptor instead.
 func (*AbortValidationRunResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{17}
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AbortValidationRunResponse) GetRun() *ValidationRun {
@@ -1424,7 +1577,7 @@ type FixRequest struct {
 
 func (x *FixRequest) Reset() {
 	*x = FixRequest{}
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[18]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1436,7 +1589,7 @@ func (x *FixRequest) String() string {
 func (*FixRequest) ProtoMessage() {}
 
 func (x *FixRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[18]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1449,7 +1602,7 @@ func (x *FixRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FixRequest.ProtoReflect.Descriptor instead.
 func (*FixRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{18}
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *FixRequest) GetScenario() string {
@@ -1496,7 +1649,7 @@ type FixCandidate struct {
 
 func (x *FixCandidate) Reset() {
 	*x = FixCandidate{}
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[19]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1508,7 +1661,7 @@ func (x *FixCandidate) String() string {
 func (*FixCandidate) ProtoMessage() {}
 
 func (x *FixCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[19]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1521,7 +1674,7 @@ func (x *FixCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FixCandidate.ProtoReflect.Descriptor instead.
 func (*FixCandidate) Descriptor() ([]byte, []int) {
-	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{19}
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *FixCandidate) GetRuleId() string {
@@ -1583,7 +1736,7 @@ type FixResponse struct {
 
 func (x *FixResponse) Reset() {
 	*x = FixResponse{}
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[20]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1595,7 +1748,7 @@ func (x *FixResponse) String() string {
 func (*FixResponse) ProtoMessage() {}
 
 func (x *FixResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_validation_v1_validation_proto_msgTypes[20]
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1608,7 +1761,7 @@ func (x *FixResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FixResponse.ProtoReflect.Descriptor instead.
 func (*FixResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{20}
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *FixResponse) GetScenario() string {
@@ -1708,12 +1861,31 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\x0fterminal_result\x18\f \x01(\v27.vrooli.scenario_validation.v1.ValidateScenarioResponseR\x0eterminalResult\x12G\n" +
 	"\x05error\x18\r \x01(\v21.vrooli.scenario_validation.v1.ValidationRunErrorR\x05error\x12E\n" +
 	"\x13artifact_references\x18\x0e \x03(\v2\x14.google.protobuf.AnyR\x12artifactReferences\x125\n" +
-	"\x16cancellation_requested\x18\x0f \x01(\bR\x15cancellationRequested\"\x98\x01\n" +
+	"\x16cancellation_requested\x18\x0f \x01(\bR\x15cancellationRequested\"\xfa\x01\n" +
 	"\x19StartValidationRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12'\n" +
 	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12\"\n" +
-	"\rparent_run_id\x18\x04 \x01(\tR\vparentRunId\"\\\n" +
+	"\rparent_run_id\x18\x04 \x01(\tR\vparentRunId\x12`\n" +
+	"\x0fdesktop_binding\x18\x05 \x01(\v27.vrooli.scenario_validation.v1.DesktopValidationBindingR\x0edesktopBinding\"\xbc\x03\n" +
+	"\x18DesktopValidationBinding\x12\x1b\n" +
+	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12!\n" +
+	"\fcdp_endpoint\x18\x02 \x01(\tR\vcdpEndpoint\x12\x1f\n" +
+	"\vrenderer_id\x18\x03 \x01(\tR\n" +
+	"rendererId\x12!\n" +
+	"\frenderer_url\x18\x04 \x01(\tR\vrendererUrl\x12%\n" +
+	"\x0erenderer_title\x18\x05 \x01(\tR\rrendererTitle\x12#\n" +
+	"\rscenario_name\x18\x06 \x01(\tR\fscenarioName\x12'\n" +
+	"\x0fartifact_digest\x18\a \x01(\tR\x0eartifactDigest\x12\x1d\n" +
+	"\n" +
+	"context_id\x18\b \x01(\tR\tcontextId\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\t \x01(\tR\tprofileId\x12#\n" +
+	"\rcdp_transport\x18\n" +
+	" \x01(\tR\fcdpTransport\x12#\n" +
+	"\rworkflow_path\x18\v \x01(\tR\fworkflowPath\x12\x1f\n" +
+	"\vworkflow_id\x18\f \x01(\tR\n" +
+	"workflowId\"\\\n" +
 	"\x1aStartValidationRunResponse\x12>\n" +
 	"\x03run\x18\x01 \x01(\v2,.vrooli.scenario_validation.v1.ValidationRunR\x03run\"0\n" +
 	"\x17GetValidationRunRequest\x12\x15\n" +
@@ -1799,7 +1971,7 @@ func file_scenario_validation_v1_validation_proto_rawDescGZIP() []byte {
 }
 
 var file_scenario_validation_v1_validation_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_scenario_validation_v1_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_scenario_validation_v1_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_scenario_validation_v1_validation_proto_goTypes = []any{
 	(ValidationStatus)(0),              // 0: vrooli.scenario_validation.v1.ValidationStatus
 	(ValidationRunState)(0),            // 1: vrooli.scenario_validation.v1.ValidationRunState
@@ -1815,79 +1987,81 @@ var file_scenario_validation_v1_validation_proto_goTypes = []any{
 	(*ValidationRunError)(nil),         // 11: vrooli.scenario_validation.v1.ValidationRunError
 	(*ValidationRun)(nil),              // 12: vrooli.scenario_validation.v1.ValidationRun
 	(*StartValidationRunRequest)(nil),  // 13: vrooli.scenario_validation.v1.StartValidationRunRequest
-	(*StartValidationRunResponse)(nil), // 14: vrooli.scenario_validation.v1.StartValidationRunResponse
-	(*GetValidationRunRequest)(nil),    // 15: vrooli.scenario_validation.v1.GetValidationRunRequest
-	(*GetValidationRunResponse)(nil),   // 16: vrooli.scenario_validation.v1.GetValidationRunResponse
-	(*WaitValidationRunRequest)(nil),   // 17: vrooli.scenario_validation.v1.WaitValidationRunRequest
-	(*WaitValidationRunResponse)(nil),  // 18: vrooli.scenario_validation.v1.WaitValidationRunResponse
-	(*AbortValidationRunRequest)(nil),  // 19: vrooli.scenario_validation.v1.AbortValidationRunRequest
-	(*AbortValidationRunResponse)(nil), // 20: vrooli.scenario_validation.v1.AbortValidationRunResponse
-	(*FixRequest)(nil),                 // 21: vrooli.scenario_validation.v1.FixRequest
-	(*FixCandidate)(nil),               // 22: vrooli.scenario_validation.v1.FixCandidate
-	(*FixResponse)(nil),                // 23: vrooli.scenario_validation.v1.FixResponse
-	(*timestamppb.Timestamp)(nil),      // 24: google.protobuf.Timestamp
-	(v1.ValidationTargetKind)(0),       // 25: common.v1.ValidationTargetKind
-	(*v1.ValidationTarget)(nil),        // 26: common.v1.ValidationTarget
-	(*v1.MaturityAssessment)(nil),      // 27: common.v1.MaturityAssessment
-	(*anypb.Any)(nil),                  // 28: google.protobuf.Any
-	(*v1.ExecutionMetrics)(nil),        // 29: common.v1.ExecutionMetrics
-	(*durationpb.Duration)(nil),        // 30: google.protobuf.Duration
+	(*DesktopValidationBinding)(nil),   // 14: vrooli.scenario_validation.v1.DesktopValidationBinding
+	(*StartValidationRunResponse)(nil), // 15: vrooli.scenario_validation.v1.StartValidationRunResponse
+	(*GetValidationRunRequest)(nil),    // 16: vrooli.scenario_validation.v1.GetValidationRunRequest
+	(*GetValidationRunResponse)(nil),   // 17: vrooli.scenario_validation.v1.GetValidationRunResponse
+	(*WaitValidationRunRequest)(nil),   // 18: vrooli.scenario_validation.v1.WaitValidationRunRequest
+	(*WaitValidationRunResponse)(nil),  // 19: vrooli.scenario_validation.v1.WaitValidationRunResponse
+	(*AbortValidationRunRequest)(nil),  // 20: vrooli.scenario_validation.v1.AbortValidationRunRequest
+	(*AbortValidationRunResponse)(nil), // 21: vrooli.scenario_validation.v1.AbortValidationRunResponse
+	(*FixRequest)(nil),                 // 22: vrooli.scenario_validation.v1.FixRequest
+	(*FixCandidate)(nil),               // 23: vrooli.scenario_validation.v1.FixCandidate
+	(*FixResponse)(nil),                // 24: vrooli.scenario_validation.v1.FixResponse
+	(*timestamppb.Timestamp)(nil),      // 25: google.protobuf.Timestamp
+	(v1.ValidationTargetKind)(0),       // 26: common.v1.ValidationTargetKind
+	(*v1.ValidationTarget)(nil),        // 27: common.v1.ValidationTarget
+	(*v1.MaturityAssessment)(nil),      // 28: common.v1.MaturityAssessment
+	(*anypb.Any)(nil),                  // 29: google.protobuf.Any
+	(*v1.ExecutionMetrics)(nil),        // 30: common.v1.ExecutionMetrics
+	(*durationpb.Duration)(nil),        // 31: google.protobuf.Duration
 }
 var file_scenario_validation_v1_validation_proto_depIdxs = []int32{
 	5,  // 0: vrooli.scenario_validation.v1.DescribeProviderResponse.build:type_name -> vrooli.scenario_validation.v1.ProviderBuild
 	6,  // 1: vrooli.scenario_validation.v1.DescribeProviderResponse.capabilities:type_name -> vrooli.scenario_validation.v1.ProviderCapabilities
-	24, // 2: vrooli.scenario_validation.v1.ProviderBuild.built_at:type_name -> google.protobuf.Timestamp
-	24, // 3: vrooli.scenario_validation.v1.ProviderBuild.binary_modified_at:type_name -> google.protobuf.Timestamp
-	25, // 4: vrooli.scenario_validation.v1.ProviderCapabilities.target_kinds:type_name -> common.v1.ValidationTargetKind
-	26, // 5: vrooli.scenario_validation.v1.ValidateTargetRequest.target:type_name -> common.v1.ValidationTarget
-	26, // 6: vrooli.scenario_validation.v1.ValidateTargetResponse.target:type_name -> common.v1.ValidationTarget
+	25, // 2: vrooli.scenario_validation.v1.ProviderBuild.built_at:type_name -> google.protobuf.Timestamp
+	25, // 3: vrooli.scenario_validation.v1.ProviderBuild.binary_modified_at:type_name -> google.protobuf.Timestamp
+	26, // 4: vrooli.scenario_validation.v1.ProviderCapabilities.target_kinds:type_name -> common.v1.ValidationTargetKind
+	27, // 5: vrooli.scenario_validation.v1.ValidateTargetRequest.target:type_name -> common.v1.ValidationTarget
+	27, // 6: vrooli.scenario_validation.v1.ValidateTargetResponse.target:type_name -> common.v1.ValidationTarget
 	0,  // 7: vrooli.scenario_validation.v1.ValidateTargetResponse.status:type_name -> vrooli.scenario_validation.v1.ValidationStatus
-	27, // 8: vrooli.scenario_validation.v1.ValidateTargetResponse.assessment:type_name -> common.v1.MaturityAssessment
-	28, // 9: vrooli.scenario_validation.v1.ValidateTargetResponse.native_detail:type_name -> google.protobuf.Any
-	29, // 10: vrooli.scenario_validation.v1.ValidateTargetResponse.metrics:type_name -> common.v1.ExecutionMetrics
+	28, // 8: vrooli.scenario_validation.v1.ValidateTargetResponse.assessment:type_name -> common.v1.MaturityAssessment
+	29, // 9: vrooli.scenario_validation.v1.ValidateTargetResponse.native_detail:type_name -> google.protobuf.Any
+	30, // 10: vrooli.scenario_validation.v1.ValidateTargetResponse.metrics:type_name -> common.v1.ExecutionMetrics
 	0,  // 11: vrooli.scenario_validation.v1.ValidateScenarioResponse.status:type_name -> vrooli.scenario_validation.v1.ValidationStatus
-	27, // 12: vrooli.scenario_validation.v1.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
-	28, // 13: vrooli.scenario_validation.v1.ValidateScenarioResponse.native_detail:type_name -> google.protobuf.Any
-	29, // 14: vrooli.scenario_validation.v1.ValidateScenarioResponse.metrics:type_name -> common.v1.ExecutionMetrics
+	28, // 12: vrooli.scenario_validation.v1.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
+	29, // 13: vrooli.scenario_validation.v1.ValidateScenarioResponse.native_detail:type_name -> google.protobuf.Any
+	30, // 14: vrooli.scenario_validation.v1.ValidateScenarioResponse.metrics:type_name -> common.v1.ExecutionMetrics
 	2,  // 15: vrooli.scenario_validation.v1.ValidationRunError.code:type_name -> vrooli.scenario_validation.v1.ValidationRunErrorCode
 	1,  // 16: vrooli.scenario_validation.v1.ValidationRun.state:type_name -> vrooli.scenario_validation.v1.ValidationRunState
-	24, // 17: vrooli.scenario_validation.v1.ValidationRun.created_at:type_name -> google.protobuf.Timestamp
-	24, // 18: vrooli.scenario_validation.v1.ValidationRun.started_at:type_name -> google.protobuf.Timestamp
-	24, // 19: vrooli.scenario_validation.v1.ValidationRun.completed_at:type_name -> google.protobuf.Timestamp
-	30, // 20: vrooli.scenario_validation.v1.ValidationRun.estimated_remaining:type_name -> google.protobuf.Duration
+	25, // 17: vrooli.scenario_validation.v1.ValidationRun.created_at:type_name -> google.protobuf.Timestamp
+	25, // 18: vrooli.scenario_validation.v1.ValidationRun.started_at:type_name -> google.protobuf.Timestamp
+	25, // 19: vrooli.scenario_validation.v1.ValidationRun.completed_at:type_name -> google.protobuf.Timestamp
+	31, // 20: vrooli.scenario_validation.v1.ValidationRun.estimated_remaining:type_name -> google.protobuf.Duration
 	10, // 21: vrooli.scenario_validation.v1.ValidationRun.preliminary_static_result:type_name -> vrooli.scenario_validation.v1.ValidateScenarioResponse
 	10, // 22: vrooli.scenario_validation.v1.ValidationRun.terminal_result:type_name -> vrooli.scenario_validation.v1.ValidateScenarioResponse
 	11, // 23: vrooli.scenario_validation.v1.ValidationRun.error:type_name -> vrooli.scenario_validation.v1.ValidationRunError
-	28, // 24: vrooli.scenario_validation.v1.ValidationRun.artifact_references:type_name -> google.protobuf.Any
-	12, // 25: vrooli.scenario_validation.v1.StartValidationRunResponse.run:type_name -> vrooli.scenario_validation.v1.ValidationRun
-	12, // 26: vrooli.scenario_validation.v1.GetValidationRunResponse.run:type_name -> vrooli.scenario_validation.v1.ValidationRun
-	30, // 27: vrooli.scenario_validation.v1.WaitValidationRunRequest.timeout:type_name -> google.protobuf.Duration
-	12, // 28: vrooli.scenario_validation.v1.WaitValidationRunResponse.run:type_name -> vrooli.scenario_validation.v1.ValidationRun
-	12, // 29: vrooli.scenario_validation.v1.AbortValidationRunResponse.run:type_name -> vrooli.scenario_validation.v1.ValidationRun
-	22, // 30: vrooli.scenario_validation.v1.FixResponse.candidates:type_name -> vrooli.scenario_validation.v1.FixCandidate
-	7,  // 31: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:input_type -> vrooli.scenario_validation.v1.ValidateScenarioRequest
-	8,  // 32: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateTarget:input_type -> vrooli.scenario_validation.v1.ValidateTargetRequest
-	3,  // 33: vrooli.scenario_validation.v1.ScenarioValidationService.DescribeProvider:input_type -> vrooli.scenario_validation.v1.DescribeProviderRequest
-	21, // 34: vrooli.scenario_validation.v1.ScenarioValidationService.PreviewFix:input_type -> vrooli.scenario_validation.v1.FixRequest
-	21, // 35: vrooli.scenario_validation.v1.ScenarioValidationService.ApplyFix:input_type -> vrooli.scenario_validation.v1.FixRequest
-	13, // 36: vrooli.scenario_validation.v1.DurableValidationRunService.StartValidationRun:input_type -> vrooli.scenario_validation.v1.StartValidationRunRequest
-	15, // 37: vrooli.scenario_validation.v1.DurableValidationRunService.GetValidationRun:input_type -> vrooli.scenario_validation.v1.GetValidationRunRequest
-	17, // 38: vrooli.scenario_validation.v1.DurableValidationRunService.WaitValidationRun:input_type -> vrooli.scenario_validation.v1.WaitValidationRunRequest
-	19, // 39: vrooli.scenario_validation.v1.DurableValidationRunService.AbortValidationRun:input_type -> vrooli.scenario_validation.v1.AbortValidationRunRequest
-	10, // 40: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:output_type -> vrooli.scenario_validation.v1.ValidateScenarioResponse
-	9,  // 41: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateTarget:output_type -> vrooli.scenario_validation.v1.ValidateTargetResponse
-	4,  // 42: vrooli.scenario_validation.v1.ScenarioValidationService.DescribeProvider:output_type -> vrooli.scenario_validation.v1.DescribeProviderResponse
-	23, // 43: vrooli.scenario_validation.v1.ScenarioValidationService.PreviewFix:output_type -> vrooli.scenario_validation.v1.FixResponse
-	23, // 44: vrooli.scenario_validation.v1.ScenarioValidationService.ApplyFix:output_type -> vrooli.scenario_validation.v1.FixResponse
-	14, // 45: vrooli.scenario_validation.v1.DurableValidationRunService.StartValidationRun:output_type -> vrooli.scenario_validation.v1.StartValidationRunResponse
-	16, // 46: vrooli.scenario_validation.v1.DurableValidationRunService.GetValidationRun:output_type -> vrooli.scenario_validation.v1.GetValidationRunResponse
-	18, // 47: vrooli.scenario_validation.v1.DurableValidationRunService.WaitValidationRun:output_type -> vrooli.scenario_validation.v1.WaitValidationRunResponse
-	20, // 48: vrooli.scenario_validation.v1.DurableValidationRunService.AbortValidationRun:output_type -> vrooli.scenario_validation.v1.AbortValidationRunResponse
-	40, // [40:49] is the sub-list for method output_type
-	31, // [31:40] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	29, // 24: vrooli.scenario_validation.v1.ValidationRun.artifact_references:type_name -> google.protobuf.Any
+	14, // 25: vrooli.scenario_validation.v1.StartValidationRunRequest.desktop_binding:type_name -> vrooli.scenario_validation.v1.DesktopValidationBinding
+	12, // 26: vrooli.scenario_validation.v1.StartValidationRunResponse.run:type_name -> vrooli.scenario_validation.v1.ValidationRun
+	12, // 27: vrooli.scenario_validation.v1.GetValidationRunResponse.run:type_name -> vrooli.scenario_validation.v1.ValidationRun
+	31, // 28: vrooli.scenario_validation.v1.WaitValidationRunRequest.timeout:type_name -> google.protobuf.Duration
+	12, // 29: vrooli.scenario_validation.v1.WaitValidationRunResponse.run:type_name -> vrooli.scenario_validation.v1.ValidationRun
+	12, // 30: vrooli.scenario_validation.v1.AbortValidationRunResponse.run:type_name -> vrooli.scenario_validation.v1.ValidationRun
+	23, // 31: vrooli.scenario_validation.v1.FixResponse.candidates:type_name -> vrooli.scenario_validation.v1.FixCandidate
+	7,  // 32: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:input_type -> vrooli.scenario_validation.v1.ValidateScenarioRequest
+	8,  // 33: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateTarget:input_type -> vrooli.scenario_validation.v1.ValidateTargetRequest
+	3,  // 34: vrooli.scenario_validation.v1.ScenarioValidationService.DescribeProvider:input_type -> vrooli.scenario_validation.v1.DescribeProviderRequest
+	22, // 35: vrooli.scenario_validation.v1.ScenarioValidationService.PreviewFix:input_type -> vrooli.scenario_validation.v1.FixRequest
+	22, // 36: vrooli.scenario_validation.v1.ScenarioValidationService.ApplyFix:input_type -> vrooli.scenario_validation.v1.FixRequest
+	13, // 37: vrooli.scenario_validation.v1.DurableValidationRunService.StartValidationRun:input_type -> vrooli.scenario_validation.v1.StartValidationRunRequest
+	16, // 38: vrooli.scenario_validation.v1.DurableValidationRunService.GetValidationRun:input_type -> vrooli.scenario_validation.v1.GetValidationRunRequest
+	18, // 39: vrooli.scenario_validation.v1.DurableValidationRunService.WaitValidationRun:input_type -> vrooli.scenario_validation.v1.WaitValidationRunRequest
+	20, // 40: vrooli.scenario_validation.v1.DurableValidationRunService.AbortValidationRun:input_type -> vrooli.scenario_validation.v1.AbortValidationRunRequest
+	10, // 41: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:output_type -> vrooli.scenario_validation.v1.ValidateScenarioResponse
+	9,  // 42: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateTarget:output_type -> vrooli.scenario_validation.v1.ValidateTargetResponse
+	4,  // 43: vrooli.scenario_validation.v1.ScenarioValidationService.DescribeProvider:output_type -> vrooli.scenario_validation.v1.DescribeProviderResponse
+	24, // 44: vrooli.scenario_validation.v1.ScenarioValidationService.PreviewFix:output_type -> vrooli.scenario_validation.v1.FixResponse
+	24, // 45: vrooli.scenario_validation.v1.ScenarioValidationService.ApplyFix:output_type -> vrooli.scenario_validation.v1.FixResponse
+	15, // 46: vrooli.scenario_validation.v1.DurableValidationRunService.StartValidationRun:output_type -> vrooli.scenario_validation.v1.StartValidationRunResponse
+	17, // 47: vrooli.scenario_validation.v1.DurableValidationRunService.GetValidationRun:output_type -> vrooli.scenario_validation.v1.GetValidationRunResponse
+	19, // 48: vrooli.scenario_validation.v1.DurableValidationRunService.WaitValidationRun:output_type -> vrooli.scenario_validation.v1.WaitValidationRunResponse
+	21, // 49: vrooli.scenario_validation.v1.DurableValidationRunService.AbortValidationRun:output_type -> vrooli.scenario_validation.v1.AbortValidationRunResponse
+	41, // [41:50] is the sub-list for method output_type
+	32, // [32:41] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_scenario_validation_v1_validation_proto_init() }
@@ -1901,7 +2075,7 @@ func file_scenario_validation_v1_validation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_validation_v1_validation_proto_rawDesc), len(file_scenario_validation_v1_validation_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   21,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

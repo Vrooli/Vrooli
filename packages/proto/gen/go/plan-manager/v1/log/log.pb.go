@@ -100,7 +100,7 @@ type AddDecisionRequest struct {
 	// Optional idempotency key; a retry with the same key returns the existing
 	// entry. Falls back to attribution-keyed dedup when empty.
 	IdempotencyKey string `protobuf:"bytes,7,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	// Optional attribution run id; falls back to VROOLI_AGENT_MANAGER_RUN_ID.
+	// Optional explicitly supplied or server-verified attribution run id.
 	RunId         string `protobuf:"bytes,8,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

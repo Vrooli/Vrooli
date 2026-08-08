@@ -2780,7 +2780,7 @@ type LogEntry struct {
 	SourceCommand string `protobuf:"bytes,12,opt,name=source_command,json=sourceCommand,proto3" json:"source_command,omitempty"`
 	// Optional supporting evidence locators (paths, command output refs, urls).
 	Evidence []string `protobuf:"bytes,13,rep,name=evidence,proto3" json:"evidence,omitempty"`
-	// VROOLI_AGENT_MANAGER_RUN_ID when present; powers attribution-keyed dedup.
+	// Explicit or server-verified attribution run id; powers attribution-keyed dedup.
 	AttributionRunId string `protobuf:"bytes,14,opt,name=attribution_run_id,json=attributionRunId,proto3" json:"attribution_run_id,omitempty"`
 	// Idempotency key; a retry with the same key returns the existing entry.
 	IdempotencyKey string `protobuf:"bytes,15,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`

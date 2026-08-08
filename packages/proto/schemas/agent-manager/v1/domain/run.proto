@@ -201,7 +201,16 @@ message Run {
   string import_source_session_id = 42;
   optional google.protobuf.Timestamp imported_at = 43;
   string goal_id = 44;
-  string goal_status = 45;
+  reserved 45;
+
+  // Human-readable label for this concrete run, independent of its task.
+  string label = 48;
+
+  // Origin of label: harness, derived, generated, or manual.
+  string label_source = 49;
+
+  // Bounded subjects derived from recorded tool-call evidence.
+  repeated string subject = 50;
 }
 
 // FinalOutputSelectionStatus describes whether provider evidence identifies a

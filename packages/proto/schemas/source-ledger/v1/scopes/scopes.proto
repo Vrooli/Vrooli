@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package vrooli.source_ledger.v1.scopes;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes;scopesv1";
+
+service ScopesService {
+  rpc CreateScope(CreateScopeRequest) returns (CreateScopeResponse);
+  rpc ListScopes(ListScopesRequest) returns (ListScopesResponse);
+}
+
+message FacetSpec {
+  string id = 1;
+  string label = 2;
+  string guidance = 3;
+  string retention_policy = 4;
+  bool compaction_eligible = 5;
+  int32 resident_budget = 6;
+}
+
+message Scope {
+  string id = 1;
+  string label = 2;
+  int32 frontier_target = 3;
+  int32 wake_budget = 4;
+  int32 max_entry_lines = 5;
+  repeated FacetSpec facets = 6;
+}
+
+message CreateScopeRequest {
+  Scope scope = 1;
+}
+
+message CreateScopeResponse {
+  Scope scope = 1;
+}
+
+message ListScopesRequest {
+  string scope = 1;
+}
+
+message ListScopesResponse {
+  repeated Scope scopes = 1;
+}

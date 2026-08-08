@@ -1,0 +1,68 @@
+syntax = "proto3";
+package vrooli.source_ledger.v1.rules;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/rules;rules_v1";
+
+service ClassificationRulesService {
+  rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
+  rpc CreateRule(CreateRuleRequest) returns (CreateRuleResponse);
+  rpc DryRunRule(DryRunRuleRequest) returns (DryRunRuleResponse);
+  rpc EnableRule(EnableRuleRequest) returns (EnableRuleResponse);
+  rpc RevertRule(RevertRuleRequest) returns (RevertRuleResponse);
+  rpc RefacetCorpus(RefacetCorpusRequest) returns (RefacetCorpusResponse);
+  rpc MeasureDistribution(MeasureDistributionRequest) returns (MeasureDistributionResponse);
+}
+
+message Rule {
+  string id = 1;
+  string scope = 2;
+  int32 priority = 3;
+  string facet_id = 4;
+  string source_runtime = 5;
+  string kind = 6;
+  string source_path_glob = 7;
+  string body_pattern = 8;
+  bool enabled = 9;
+}
+message ListRulesRequest { string scope = 1; }
+message ListRulesResponse { repeated Rule rules = 1; }
+message CreateRuleRequest { Rule rule = 1; }
+message CreateRuleResponse { Rule rule = 1; }
+message DryRunRuleRequest { string rule_id = 1; string scope = 2; }
+message DryRunRuleResponse {
+  string rule_id = 1;
+  string corpus_fingerprint = 2;
+  int32 match_count = 3;
+  repeated string samples = 4;
+}
+message EnableRuleRequest { string rule_id = 1; string scope = 2; }
+message EnableRuleResponse {}
+message RevertRuleRequest { string rule_id = 1; string scope = 2; }
+message RevertRuleResponse { int32 restored_count = 1; }
+message RefacetCorpusRequest {
+  string scope = 1;
+  string after_entry_id = 2;
+  int32 limit = 3;
+}
+message RefacetCorpusResponse {
+  int32 total = 1;
+  int32 assigned = 2;
+  int32 rule_assigned = 3;
+  int32 classified = 4;
+  int32 failed = 5;
+  string next_entry_id = 6;
+  bool complete = 7;
+}
+message MeasureDistributionRequest { string scope = 1; }
+message MeasureDistributionResponse {
+  string scope = 1;
+  int32 total = 2;
+  int32 rule_matched = 3;
+  int32 classifier_tail = 4;
+  map<string, int32> rule_coverage = 5;
+  map<string, int32> classifier_tail_by_facet = 6;
+  double ceiling_percent = 7;
+  string max_tail_facet = 8;
+  double max_tail_percent = 9;
+  bool within_ceiling = 10;
+}

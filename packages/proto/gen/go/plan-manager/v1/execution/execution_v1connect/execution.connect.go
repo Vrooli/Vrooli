@@ -61,6 +61,9 @@ const (
 	// ExecutionServiceRepairSourceScopeProcedure is the fully-qualified name of the ExecutionService's
 	// RepairSourceScope RPC.
 	ExecutionServiceRepairSourceScopeProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/RepairSourceScope"
+	// ExecutionServiceExtendBoundaryProcedure is the fully-qualified name of the ExecutionService's
+	// ExtendBoundary RPC.
+	ExecutionServiceExtendBoundaryProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/ExtendBoundary"
 	// ExecutionServiceGetNextProcedure is the fully-qualified name of the ExecutionService's GetNext
 	// RPC.
 	ExecutionServiceGetNextProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/GetNext"
@@ -112,6 +115,11 @@ type ExecutionServiceClient interface {
 	// RepairSourceScope replaces a repair-required informational selection only
 	// after it is boundary-checked and re-estimated by Git Control Tower.
 	RepairSourceScope(context.Context, *connect.Request[execution.RepairSourceScopeRequest]) (*connect.Response[execution.RepairSourceScopeResponse], error)
+	// ExtendBoundary appends globs to the plan's acceptance_allow mid-execution so
+	// validation scope follows a sanctioned scope expansion. It is append-only,
+	// refuses anything the authored acceptance_deny guardrail forbids, and
+	// invalidates the current phase's prior evidence generation.
+	ExtendBoundary(context.Context, *connect.Request[execution.ExtendBoundaryRequest]) (*connect.Response[execution.ExtendBoundaryResponse], error)
 	// GetNext advances the runner's pointer to the next actionable phase and
 	// returns its injected context.
 	GetNext(context.Context, *connect.Request[execution.GetNextRequest]) (*connect.Response[execution.GetNextResponse], error)
@@ -202,6 +210,12 @@ func NewExecutionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(executionServiceMethods.ByName("RepairSourceScope")),
 			connect.WithClientOptions(opts...),
 		),
+		extendBoundary: connect.NewClient[execution.ExtendBoundaryRequest, execution.ExtendBoundaryResponse](
+			httpClient,
+			baseURL+ExecutionServiceExtendBoundaryProcedure,
+			connect.WithSchema(executionServiceMethods.ByName("ExtendBoundary")),
+			connect.WithClientOptions(opts...),
+		),
 		getNext: connect.NewClient[execution.GetNextRequest, execution.GetNextResponse](
 			httpClient,
 			baseURL+ExecutionServiceGetNextProcedure,
@@ -253,6 +267,7 @@ type executionServiceClient struct {
 	amendScope        *connect.Client[execution.AmendScopeRequest, execution.AmendScopeResponse]
 	adoptBaseline     *connect.Client[execution.AdoptBaselineRequest, execution.AdoptBaselineResponse]
 	repairSourceScope *connect.Client[execution.RepairSourceScopeRequest, execution.RepairSourceScopeResponse]
+	extendBoundary    *connect.Client[execution.ExtendBoundaryRequest, execution.ExtendBoundaryResponse]
 	getNext           *connect.Client[execution.GetNextRequest, execution.GetNextResponse]
 	transitionPhase   *connect.Client[execution.TransitionPhaseRequest, execution.TransitionPhaseResponse]
 	complete          *connect.Client[execution.CompleteRequest, execution.CompleteResponse]
@@ -309,6 +324,11 @@ func (c *executionServiceClient) AdoptBaseline(ctx context.Context, req *connect
 // RepairSourceScope calls vrooli.plan_manager.v1.execution.ExecutionService.RepairSourceScope.
 func (c *executionServiceClient) RepairSourceScope(ctx context.Context, req *connect.Request[execution.RepairSourceScopeRequest]) (*connect.Response[execution.RepairSourceScopeResponse], error) {
 	return c.repairSourceScope.CallUnary(ctx, req)
+}
+
+// ExtendBoundary calls vrooli.plan_manager.v1.execution.ExecutionService.ExtendBoundary.
+func (c *executionServiceClient) ExtendBoundary(ctx context.Context, req *connect.Request[execution.ExtendBoundaryRequest]) (*connect.Response[execution.ExtendBoundaryResponse], error) {
+	return c.extendBoundary.CallUnary(ctx, req)
 }
 
 // GetNext calls vrooli.plan_manager.v1.execution.ExecutionService.GetNext.
@@ -372,6 +392,11 @@ type ExecutionServiceHandler interface {
 	// RepairSourceScope replaces a repair-required informational selection only
 	// after it is boundary-checked and re-estimated by Git Control Tower.
 	RepairSourceScope(context.Context, *connect.Request[execution.RepairSourceScopeRequest]) (*connect.Response[execution.RepairSourceScopeResponse], error)
+	// ExtendBoundary appends globs to the plan's acceptance_allow mid-execution so
+	// validation scope follows a sanctioned scope expansion. It is append-only,
+	// refuses anything the authored acceptance_deny guardrail forbids, and
+	// invalidates the current phase's prior evidence generation.
+	ExtendBoundary(context.Context, *connect.Request[execution.ExtendBoundaryRequest]) (*connect.Response[execution.ExtendBoundaryResponse], error)
 	// GetNext advances the runner's pointer to the next actionable phase and
 	// returns its injected context.
 	GetNext(context.Context, *connect.Request[execution.GetNextRequest]) (*connect.Response[execution.GetNextResponse], error)
@@ -457,6 +482,12 @@ func NewExecutionServiceHandler(svc ExecutionServiceHandler, opts ...connect.Han
 		connect.WithSchema(executionServiceMethods.ByName("RepairSourceScope")),
 		connect.WithHandlerOptions(opts...),
 	)
+	executionServiceExtendBoundaryHandler := connect.NewUnaryHandler(
+		ExecutionServiceExtendBoundaryProcedure,
+		svc.ExtendBoundary,
+		connect.WithSchema(executionServiceMethods.ByName("ExtendBoundary")),
+		connect.WithHandlerOptions(opts...),
+	)
 	executionServiceGetNextHandler := connect.NewUnaryHandler(
 		ExecutionServiceGetNextProcedure,
 		svc.GetNext,
@@ -515,6 +546,8 @@ func NewExecutionServiceHandler(svc ExecutionServiceHandler, opts ...connect.Han
 			executionServiceAdoptBaselineHandler.ServeHTTP(w, r)
 		case ExecutionServiceRepairSourceScopeProcedure:
 			executionServiceRepairSourceScopeHandler.ServeHTTP(w, r)
+		case ExecutionServiceExtendBoundaryProcedure:
+			executionServiceExtendBoundaryHandler.ServeHTTP(w, r)
 		case ExecutionServiceGetNextProcedure:
 			executionServiceGetNextHandler.ServeHTTP(w, r)
 		case ExecutionServiceTransitionPhaseProcedure:
@@ -574,6 +607,10 @@ func (UnimplementedExecutionServiceHandler) AdoptBaseline(context.Context, *conn
 
 func (UnimplementedExecutionServiceHandler) RepairSourceScope(context.Context, *connect.Request[execution.RepairSourceScopeRequest]) (*connect.Response[execution.RepairSourceScopeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.RepairSourceScope is not implemented"))
+}
+
+func (UnimplementedExecutionServiceHandler) ExtendBoundary(context.Context, *connect.Request[execution.ExtendBoundaryRequest]) (*connect.Response[execution.ExtendBoundaryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.ExtendBoundary is not implemented"))
 }
 
 func (UnimplementedExecutionServiceHandler) GetNext(context.Context, *connect.Request[execution.GetNextRequest]) (*connect.Response[execution.GetNextResponse], error) {

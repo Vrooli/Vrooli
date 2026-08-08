@@ -57,6 +57,11 @@ service ExecutionService {
   // RepairSourceScope replaces a repair-required informational selection only
   // after it is boundary-checked and re-estimated by Git Control Tower.
   rpc RepairSourceScope(RepairSourceScopeRequest) returns (RepairSourceScopeResponse);
+  // ExtendBoundary appends globs to the plan's acceptance_allow mid-execution so
+  // validation scope follows a sanctioned scope expansion. It is append-only,
+  // refuses anything the authored acceptance_deny guardrail forbids, and
+  // invalidates the current phase's prior evidence generation.
+  rpc ExtendBoundary(ExtendBoundaryRequest) returns (ExtendBoundaryResponse);
   // GetNext advances the runner's pointer to the next actionable phase and
   // returns its injected context.
   rpc GetNext(GetNextRequest) returns (GetNextResponse);
@@ -85,7 +90,7 @@ service ExecutionService {
 message Execution {
   string id = 1;
   string plan_id = 2;
-  // VROOLI_AGENT_MANAGER_RUN_ID when present (best-effort when absent).
+  // Explicit or server-verified attribution run id when present.
   string run_id = 3;
   string current_phase_id = 4;
   bool complete = 5;
@@ -99,6 +104,7 @@ message Execution {
   string abandoned_reason = 12;
   string abandoned_at = 13;
   string abandoned_by = 14;
+  repeated BoundaryExtension boundary_extensions = 15;
 }
 
 // Execution-owned checkpoint for a resolved GCT collection. Source paths are
@@ -265,7 +271,7 @@ message CompletionNudge {
 
 message StartRequest {
   string plan_id = 1;
-  // Optional attribution run id; falls back to VROOLI_AGENT_MANAGER_RUN_ID
+  // Optional explicitly supplied or server-verified attribution run id.
   // server-side when empty.
   string run_id = 2;
 }
@@ -395,6 +401,44 @@ message RepairSourceScopeResponse {
   Execution execution = 1;
   PhaseContext context = 2;
   shared.GuidedStep step = 3;
+}
+
+// BoundaryExtension is an append-only audit record of a mid-execution widening
+// of the plan's acceptance_allow. The authored boundary is a blast-radius
+// estimate made before the work started; when a phase's intent genuinely needs
+// an edit outside it, the honest move is to widen the boundary and re-validate,
+// not to write a workaround that stays inside a stale estimate. Deny globs are
+// never extendable — they are the authored prohibition.
+message BoundaryExtension {
+  string id = 1;
+  string phase_id = 2;
+  string author = 3;
+  string reason = 4;
+  // The globs added by this extension (already normalized).
+  repeated string added_allow = 5;
+  // The full acceptance_allow before and after, for audit reconstruction.
+  repeated string old_allow = 6;
+  repeated string new_allow = 7;
+  string invalidated_at = 8;
+  string created_at = 9;
+}
+
+message ExtendBoundaryRequest {
+  string execution_id = 1;
+  repeated string path = 2;
+  string reason = 3;
+  string author = 4;
+}
+message ExtendBoundaryResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+  // The globs THIS call added. Empty means every requested glob was already
+  // inside the boundary, which is a successful no-op rather than an error.
+  // Callers must read this field rather than inferring the outcome from the
+  // execution's boundary_extensions tail — on a no-op that tail still holds an
+  // EARLIER extension, and reporting it would claim work that did not happen.
+  repeated string added_allow = 4;
 }
 
 message GetNextRequest {

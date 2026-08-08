@@ -203,16 +203,46 @@ class ValidationRun(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., state: _Optional[_Union[ValidationRunState, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., estimated_remaining: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., preliminary_static_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., terminal_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., error: _Optional[_Union[ValidationRunError, _Mapping]] = ..., artifact_references: _Optional[_Iterable[_Union[_any_pb2.Any, _Mapping]]] = ..., cancellation_requested: _Optional[bool] = ...) -> None: ...
 
 class StartValidationRunRequest(_message.Message):
-    __slots__ = ("scenario", "path", "idempotency_key", "parent_run_id")
+    __slots__ = ("scenario", "path", "idempotency_key", "parent_run_id", "desktop_binding")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    DESKTOP_BINDING_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     path: str
     idempotency_key: str
     parent_run_id: str
-    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ...) -> None: ...
+    desktop_binding: DesktopValidationBinding
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., desktop_binding: _Optional[_Union[DesktopValidationBinding, _Mapping]] = ...) -> None: ...
+
+class DesktopValidationBinding(_message.Message):
+    __slots__ = ("target_id", "cdp_endpoint", "renderer_id", "renderer_url", "renderer_title", "scenario_name", "artifact_digest", "context_id", "profile_id", "cdp_transport", "workflow_path", "workflow_id")
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    CDP_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
+    RENDERER_ID_FIELD_NUMBER: _ClassVar[int]
+    RENDERER_URL_FIELD_NUMBER: _ClassVar[int]
+    RENDERER_TITLE_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_ID_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    CDP_TRANSPORT_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_PATH_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
+    target_id: str
+    cdp_endpoint: str
+    renderer_id: str
+    renderer_url: str
+    renderer_title: str
+    scenario_name: str
+    artifact_digest: str
+    context_id: str
+    profile_id: str
+    cdp_transport: str
+    workflow_path: str
+    workflow_id: str
+    def __init__(self, target_id: _Optional[str] = ..., cdp_endpoint: _Optional[str] = ..., renderer_id: _Optional[str] = ..., renderer_url: _Optional[str] = ..., renderer_title: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., context_id: _Optional[str] = ..., profile_id: _Optional[str] = ..., cdp_transport: _Optional[str] = ..., workflow_path: _Optional[str] = ..., workflow_id: _Optional[str] = ...) -> None: ...
 
 class StartValidationRunResponse(_message.Message):
     __slots__ = ("run",)

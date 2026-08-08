@@ -96,7 +96,7 @@ export type AddDecisionRequest = Message<"vrooli.plan_manager.v1.log.AddDecision
   idempotencyKey: string;
 
   /**
-   * Optional attribution run id; falls back to VROOLI_AGENT_MANAGER_RUN_ID.
+   * Optional explicitly supplied or server-verified attribution run id.
    *
    * @generated from field: string run_id = 8;
    */

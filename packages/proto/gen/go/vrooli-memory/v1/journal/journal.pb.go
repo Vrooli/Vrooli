@@ -83,12 +83,15 @@ func (x *FacetText) GetEmbeddingRef() string {
 }
 
 type Attribution struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ActorId       string                 `protobuf:"bytes,1,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
-	ActorKind     string                 `protobuf:"bytes,2,opt,name=actor_kind,json=actorKind,proto3" json:"actor_kind,omitempty"`
-	SourceRuntime string                 `protobuf:"bytes,3,opt,name=source_runtime,json=sourceRuntime,proto3" json:"source_runtime,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	ActorId            string                 `protobuf:"bytes,1,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	ActorKind          string                 `protobuf:"bytes,2,opt,name=actor_kind,json=actorKind,proto3" json:"actor_kind,omitempty"`
+	SourceRuntime      string                 `protobuf:"bytes,3,opt,name=source_runtime,json=sourceRuntime,proto3" json:"source_runtime,omitempty"`
+	VerificationStatus string                 `protobuf:"bytes,4,opt,name=verification_status,json=verificationStatus,proto3" json:"verification_status,omitempty"`
+	HarnessSessionId   string                 `protobuf:"bytes,5,opt,name=harness_session_id,json=harnessSessionId,proto3" json:"harness_session_id,omitempty"`
+	HarnessKind        string                 `protobuf:"bytes,6,opt,name=harness_kind,json=harnessKind,proto3" json:"harness_kind,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Attribution) Reset() {
@@ -138,6 +141,27 @@ func (x *Attribution) GetActorKind() string {
 func (x *Attribution) GetSourceRuntime() string {
 	if x != nil {
 		return x.SourceRuntime
+	}
+	return ""
+}
+
+func (x *Attribution) GetVerificationStatus() string {
+	if x != nil {
+		return x.VerificationStatus
+	}
+	return ""
+}
+
+func (x *Attribution) GetHarnessSessionId() string {
+	if x != nil {
+		return x.HarnessSessionId
+	}
+	return ""
+}
+
+func (x *Attribution) GetHarnessKind() string {
+	if x != nil {
+		return x.HarnessKind
 	}
 	return ""
 }
@@ -994,12 +1018,15 @@ const file_vrooli_memory_v1_journal_journal_proto_rawDesc = "" +
 	"\tFacetText\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x12#\n" +
-	"\rembedding_ref\x18\x03 \x01(\tR\fembeddingRef\"n\n" +
+	"\rembedding_ref\x18\x03 \x01(\tR\fembeddingRef\"\xf0\x01\n" +
 	"\vAttribution\x12\x19\n" +
 	"\bactor_id\x18\x01 \x01(\tR\aactorId\x12\x1d\n" +
 	"\n" +
 	"actor_kind\x18\x02 \x01(\tR\tactorKind\x12%\n" +
-	"\x0esource_runtime\x18\x03 \x01(\tR\rsourceRuntime\"w\n" +
+	"\x0esource_runtime\x18\x03 \x01(\tR\rsourceRuntime\x12/\n" +
+	"\x13verification_status\x18\x04 \x01(\tR\x12verificationStatus\x12,\n" +
+	"\x12harness_session_id\x18\x05 \x01(\tR\x10harnessSessionId\x12!\n" +
+	"\fharness_kind\x18\x06 \x01(\tR\vharnessKind\"w\n" +
 	"\vCorrelation\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x122\n" +
 	"\x15workflow_execution_id\x18\x02 \x01(\tR\x13workflowExecutionId\x12\x1d\n" +

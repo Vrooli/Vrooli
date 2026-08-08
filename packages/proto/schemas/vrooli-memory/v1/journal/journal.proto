@@ -21,6 +21,9 @@ message Attribution {
   string actor_id = 1;
   string actor_kind = 2;
   string source_runtime = 3;
+  string verification_status = 4;
+  string harness_session_id = 5;
+  string harness_kind = 6;
 }
 message Correlation {
   string run_id = 1;

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file program-runtime/v1/bindings/bindings.proto.
  */
 export const file_program_runtime_v1_bindings_bindings: GenFile = /*@__PURE__*/
-  fileDesc("Cipwcm9ncmFtLXJ1bnRpbWUvdjEvYmluZGluZ3MvYmluZGluZ3MucHJvdG8SInZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MilwIKB0JpbmRpbmcSCgoCaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDQoFZ3JvdXAYAyABKAkSDwoHY29tbWFuZBgEIAEoCRIPCgdzZXJ2aWNlGAUgASgJEg4KBm1ldGhvZBgGIAEoCRIUCgxyZXF1ZXN0X3R5cGUYByABKAkSFQoNcmVzcG9uc2VfdHlwZRgIIAEoCRIOCgZlZmZlY3QYCSABKAkSFAoMcnVuX2VsaWdpYmxlGAogASgIEh0KFXJlcXVpcmVzX2NvbmZpcm1hdGlvbhgLIAEoCBITCgtwZXJtaXNzaW9ucxgMIAMoCRITCgtkZXNjcmlwdGlvbhgNIAEoCRIRCglzaWduYXR1cmUYDiABKAkiuQEKEVVuYm91bmRDYXBhYmlsaXR5EhAKCHNjZW5hcmlvGAEgASgJEg0KBWdyb3VwGAIgASgJEg8KB2NvbW1hbmQYAyABKAkSDwoHc2VydmljZRgEIAEoCRIOCgZtZXRob2QYBSABKAkSQQoGcmVhc29uGAYgASgOMjEudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5VbmJvdW5kUmVhc29uEg4KBmRldGFpbBgHIAEoCSI2ChNMaXN0QmluZGluZ3NSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg0KBWdyb3VwGAIgASgJIlUKFExpc3RCaW5kaW5nc1Jlc3BvbnNlEj0KCGJpbmRpbmdzGAEgAygLMisudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5CaW5kaW5nIiYKEkxpc3RVbmJvdW5kUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJiChNMaXN0VW5ib3VuZFJlc3BvbnNlEksKDGNhcGFiaWxpdGllcxgBIAMoCzI1LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuVW5ib3VuZENhcGFiaWxpdHkiQgoHQWN0Q2VsbBIKCgJpZBgBIAEoCRISCgpvcGVyYXRpb25zGAIgAygJEhcKD2F1dGhvcmVkX3N0YXR1cxgDIAEoCSLUAQoOQWN0Q2VsbFZlcmRpY3QSCgoCaWQYASABKAkSPwoHdmVyZGljdBgCIAEoDjIuLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuQWN0VmVyZGljdBIbChNyZXNvbHZlZF9vcGVyYXRpb25zGAMgAygJEh0KFXVucmVzb2x2ZWRfb3BlcmF0aW9ucxgEIAMoCRIPCgdyZWFzb25zGAUgAygJEhcKD2F1dGhvcmVkX3N0YXR1cxgGIAEoCRIPCgdhdWRpdGVkGAcgASgIIlQKFlJlc29sdmVBY3RDZWxsc1JlcXVlc3QSOgoFY2VsbHMYASADKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmJpbmRpbmdzLkFjdENlbGwiqAEKF1Jlc29sdmVBY3RDZWxsc1Jlc3BvbnNlEkEKBWNlbGxzGAEgAygLMjIudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5BY3RDZWxsVmVyZGljdBIVCg1hdWRpdGVkX2NlbGxzGAIgASgFEhMKC3RvdGFsX2NlbGxzGAMgASgFEh4KFmRlbm9taW5hdG9yX2NvbmZpZGVuY2UYBCABKAkquAEKDVVuYm91bmRSZWFzb24SHgoaVU5CT1VORF9SRUFTT05fVU5TUEVDSUZJRUQQABIeChpVTkJPVU5EX1JFQVNPTl9OT19NQU5JRkVTVBABEiAKHFVOQk9VTkRfUkVBU09OX0xPQ0FMX0JJTkRJTkcQAhIeChpVTkJPVU5EX1JFQVNPTl9PTUlUVEVEX1JQQxADEiUKIVVOQk9VTkRfUkVBU09OX0VYVEVSTkFMX1RPT0xfT05MWRAEKnIKCkFjdFZlcmRpY3QSGwoXQUNUX1ZFUkRJQ1RfVU5TUEVDSUZJRUQQABITCg9BQ1RfVkVSRElDVF9OT1cQARIYChRBQ1RfVkVSRElDVF9JTl9SRUFDSBACEhgKFEFDVF9WRVJESUNUX0FVVEhPUkVEEAMyqQMKFkJpbmRpbmdSZWdpc3RyeVNlcnZpY2USgQEKDExpc3RCaW5kaW5ncxI3LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuTGlzdEJpbmRpbmdzUmVxdWVzdBo4LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuTGlzdEJpbmRpbmdzUmVzcG9uc2USfgoLTGlzdFVuYm91bmQSNi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmJpbmRpbmdzLkxpc3RVbmJvdW5kUmVxdWVzdBo3LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuTGlzdFVuYm91bmRSZXNwb25zZRKKAQoPUmVzb2x2ZUFjdENlbGxzEjoudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5SZXNvbHZlQWN0Q2VsbHNSZXF1ZXN0GjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5SZXNvbHZlQWN0Q2VsbHNSZXNwb25zZUJYWlZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb2dyYW0tcnVudGltZS92MS9iaW5kaW5ncztiaW5kaW5nc192MWIGcHJvdG8z");
+  fileDesc("Cipwcm9ncmFtLXJ1bnRpbWUvdjEvYmluZGluZ3MvYmluZGluZ3MucHJvdG8SInZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MilwIKB0JpbmRpbmcSCgoCaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDQoFZ3JvdXAYAyABKAkSDwoHY29tbWFuZBgEIAEoCRIPCgdzZXJ2aWNlGAUgASgJEg4KBm1ldGhvZBgGIAEoCRIUCgxyZXF1ZXN0X3R5cGUYByABKAkSFQoNcmVzcG9uc2VfdHlwZRgIIAEoCRIOCgZlZmZlY3QYCSABKAkSFAoMcnVuX2VsaWdpYmxlGAogASgIEh0KFXJlcXVpcmVzX2NvbmZpcm1hdGlvbhgLIAEoCBITCgtwZXJtaXNzaW9ucxgMIAMoCRITCgtkZXNjcmlwdGlvbhgNIAEoCRIRCglzaWduYXR1cmUYDiABKAkiuQEKEVVuYm91bmRDYXBhYmlsaXR5EhAKCHNjZW5hcmlvGAEgASgJEg0KBWdyb3VwGAIgASgJEg8KB2NvbW1hbmQYAyABKAkSDwoHc2VydmljZRgEIAEoCRIOCgZtZXRob2QYBSABKAkSQQoGcmVhc29uGAYgASgOMjEudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5VbmJvdW5kUmVhc29uEg4KBmRldGFpbBgHIAEoCSI2ChNMaXN0QmluZGluZ3NSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg0KBWdyb3VwGAIgASgJIlUKFExpc3RCaW5kaW5nc1Jlc3BvbnNlEj0KCGJpbmRpbmdzGAEgAygLMisudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5CaW5kaW5nIiYKEkxpc3RVbmJvdW5kUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJiChNMaXN0VW5ib3VuZFJlc3BvbnNlEksKDGNhcGFiaWxpdGllcxgBIAMoCzI1LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuVW5ib3VuZENhcGFiaWxpdHkiKQoVRG9jdG9yQmluZGluZ3NSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJIpoBCgxCaW5kaW5nSXNzdWUSEAoIc2NlbmFyaW8YASABKAkSEgoKYmluZGluZ19pZBgCIAEoCRIQCghhcmd1bWVudBgDIAEoCRIUCgxyZXF1ZXN0X3R5cGUYBCABKAkSDgoGcmVhc29uGAUgASgJEhIKCnByb3RvX3BhdGgYBiABKAkSGAoQY2FuZGlkYXRlX2ZpZWxkcxgHIAMoCSLqAgoWRG9jdG9yQmluZGluZ3NSZXNwb25zZRIQCghiaW5kaW5ncxgBIAEoBRIQCghjYWxsYWJsZRgCIAEoBRISCgp1bmNhbGxhYmxlGAMgASgFEg8KB3BhcnRpYWwYBCABKAUSEAoIemVyb19hcmcYBSABKAUSEQoJbWlzcm91dGVzGAYgASgFEkAKBmlzc3VlcxgHIAMoCzIwLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuQmluZGluZ0lzc3VlEhgKEGZpZWxkX2NvbGxpc2lvbnMYCCABKAUSGwoTY29udHJvbF9mbGFnc19ib3VuZBgJIAEoBRIjChtyZXF1aXJlZF9maWVsZHNfdW5wb3B1bGF0ZWQYCiABKAUSIwobYmluZHNfd2hlcmVfcmVuYW1lX3N1ZmZpY2VzGAsgASgFEh8KF3NjYWxhcl9ib3VuZF90b19tZXNzYWdlGAwgASgFIiQKFkRlc2NyaWJlQmluZGluZ1JlcXVlc3QSCgoCaWQYASABKAkiYwoPQmluZGluZ0FyZ3VtZW50EgwKBG5hbWUYASABKAkSEgoKcHJvdG9fcGF0aBgCIAEoCRIMCgRraW5kGAMgASgJEhAKCHJlcXVpcmVkGAQgASgIEg4KBnJlYXNvbhgFIAEoCSLKAQoXRGVzY3JpYmVCaW5kaW5nUmVzcG9uc2USPAoHYmluZGluZxgBIAEoCzIrLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuQmluZGluZxIXCg9yZXNvbHZlZF9zb3VyY2UYAiABKAkSEAoIY2FsbGFibGUYAyABKAgSRgoJYXJndW1lbnRzGAQgAygLMjMudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5CaW5kaW5nQXJndW1lbnQiQgoHQWN0Q2VsbBIKCgJpZBgBIAEoCRISCgpvcGVyYXRpb25zGAIgAygJEhcKD2F1dGhvcmVkX3N0YXR1cxgDIAEoCSLUAQoOQWN0Q2VsbFZlcmRpY3QSCgoCaWQYASABKAkSPwoHdmVyZGljdBgCIAEoDjIuLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuQWN0VmVyZGljdBIbChNyZXNvbHZlZF9vcGVyYXRpb25zGAMgAygJEh0KFXVucmVzb2x2ZWRfb3BlcmF0aW9ucxgEIAMoCRIPCgdyZWFzb25zGAUgAygJEhcKD2F1dGhvcmVkX3N0YXR1cxgGIAEoCRIPCgdhdWRpdGVkGAcgASgIIlQKFlJlc29sdmVBY3RDZWxsc1JlcXVlc3QSOgoFY2VsbHMYASADKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmJpbmRpbmdzLkFjdENlbGwiqAEKF1Jlc29sdmVBY3RDZWxsc1Jlc3BvbnNlEkEKBWNlbGxzGAEgAygLMjIudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5BY3RDZWxsVmVyZGljdBIVCg1hdWRpdGVkX2NlbGxzGAIgASgFEhMKC3RvdGFsX2NlbGxzGAMgASgFEh4KFmRlbm9taW5hdG9yX2NvbmZpZGVuY2UYBCABKAkquAEKDVVuYm91bmRSZWFzb24SHgoaVU5CT1VORF9SRUFTT05fVU5TUEVDSUZJRUQQABIeChpVTkJPVU5EX1JFQVNPTl9OT19NQU5JRkVTVBABEiAKHFVOQk9VTkRfUkVBU09OX0xPQ0FMX0JJTkRJTkcQAhIeChpVTkJPVU5EX1JFQVNPTl9PTUlUVEVEX1JQQxADEiUKIVVOQk9VTkRfUkVBU09OX0VYVEVSTkFMX1RPT0xfT05MWRAEKnIKCkFjdFZlcmRpY3QSGwoXQUNUX1ZFUkRJQ1RfVU5TUEVDSUZJRUQQABITCg9BQ1RfVkVSRElDVF9OT1cQARIYChRBQ1RfVkVSRElDVF9JTl9SRUFDSBACEhgKFEFDVF9WRVJESUNUX0FVVEhPUkVEEAMywAUKFkJpbmRpbmdSZWdpc3RyeVNlcnZpY2USgQEKDExpc3RCaW5kaW5ncxI3LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuTGlzdEJpbmRpbmdzUmVxdWVzdBo4LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuTGlzdEJpbmRpbmdzUmVzcG9uc2USfgoLTGlzdFVuYm91bmQSNi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmJpbmRpbmdzLkxpc3RVbmJvdW5kUmVxdWVzdBo3LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuTGlzdFVuYm91bmRSZXNwb25zZRKKAQoPUmVzb2x2ZUFjdENlbGxzEjoudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5SZXNvbHZlQWN0Q2VsbHNSZXF1ZXN0GjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5SZXNvbHZlQWN0Q2VsbHNSZXNwb25zZRKHAQoORG9jdG9yQmluZGluZ3MSOS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmJpbmRpbmdzLkRvY3RvckJpbmRpbmdzUmVxdWVzdBo6LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuYmluZGluZ3MuRG9jdG9yQmluZGluZ3NSZXNwb25zZRKKAQoPRGVzY3JpYmVCaW5kaW5nEjoudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5EZXNjcmliZUJpbmRpbmdSZXF1ZXN0GjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5iaW5kaW5ncy5EZXNjcmliZUJpbmRpbmdSZXNwb25zZUJYWlZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb2dyYW0tcnVudGltZS92MS9iaW5kaW5ncztiaW5kaW5nc192MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.program_runtime.v1.bindings.Binding
@@ -215,6 +215,236 @@ export const ListUnboundResponseSchema: GenMessage<ListUnboundResponse> = /*@__P
   messageDesc(file_program_runtime_v1_bindings_bindings, 5);
 
 /**
+ * @generated from message vrooli.program_runtime.v1.bindings.DoctorBindingsRequest
+ */
+export type DoctorBindingsRequest = Message<"vrooli.program_runtime.v1.bindings.DoctorBindingsRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.bindings.DoctorBindingsRequest.
+ * Use `create(DoctorBindingsRequestSchema)` to create a new message.
+ */
+export const DoctorBindingsRequestSchema: GenMessage<DoctorBindingsRequest> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_bindings_bindings, 6);
+
+/**
+ * @generated from message vrooli.program_runtime.v1.bindings.BindingIssue
+ */
+export type BindingIssue = Message<"vrooli.program_runtime.v1.bindings.BindingIssue"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string binding_id = 2;
+   */
+  bindingId: string;
+
+  /**
+   * @generated from field: string argument = 3;
+   */
+  argument: string;
+
+  /**
+   * @generated from field: string request_type = 4;
+   */
+  requestType: string;
+
+  /**
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string proto_path = 6;
+   */
+  protoPath: string;
+
+  /**
+   * @generated from field: repeated string candidate_fields = 7;
+   */
+  candidateFields: string[];
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.bindings.BindingIssue.
+ * Use `create(BindingIssueSchema)` to create a new message.
+ */
+export const BindingIssueSchema: GenMessage<BindingIssue> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_bindings_bindings, 7);
+
+/**
+ * @generated from message vrooli.program_runtime.v1.bindings.DoctorBindingsResponse
+ */
+export type DoctorBindingsResponse = Message<"vrooli.program_runtime.v1.bindings.DoctorBindingsResponse"> & {
+  /**
+   * @generated from field: int32 bindings = 1;
+   */
+  bindings: number;
+
+  /**
+   * @generated from field: int32 callable = 2;
+   */
+  callable: number;
+
+  /**
+   * @generated from field: int32 uncallable = 3;
+   */
+  uncallable: number;
+
+  /**
+   * @generated from field: int32 partial = 4;
+   */
+  partial: number;
+
+  /**
+   * @generated from field: int32 zero_arg = 5;
+   */
+  zeroArg: number;
+
+  /**
+   * @generated from field: int32 misroutes = 6;
+   */
+  misroutes: number;
+
+  /**
+   * @generated from field: repeated vrooli.program_runtime.v1.bindings.BindingIssue issues = 7;
+   */
+  issues: BindingIssue[];
+
+  /**
+   * Semantic manifest-to-proto findings. These counts use the same shared
+   * argument resolver as callable/uncallable classification and make the
+   * runtime doctor useful as an independent convergence check.
+   *
+   * @generated from field: int32 field_collisions = 8;
+   */
+  fieldCollisions: number;
+
+  /**
+   * @generated from field: int32 control_flags_bound = 9;
+   */
+  controlFlagsBound: number;
+
+  /**
+   * @generated from field: int32 required_fields_unpopulated = 10;
+   */
+  requiredFieldsUnpopulated: number;
+
+  /**
+   * @generated from field: int32 binds_where_rename_suffices = 11;
+   */
+  bindsWhereRenameSuffices: number;
+
+  /**
+   * Arguments that resolve onto a structured field a bare CLI string cannot
+   * populate. These pass every callability check, so they are only visible as
+   * their own dimension.
+   *
+   * @generated from field: int32 scalar_bound_to_message = 12;
+   */
+  scalarBoundToMessage: number;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.
+ * Use `create(DoctorBindingsResponseSchema)` to create a new message.
+ */
+export const DoctorBindingsResponseSchema: GenMessage<DoctorBindingsResponse> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_bindings_bindings, 8);
+
+/**
+ * @generated from message vrooli.program_runtime.v1.bindings.DescribeBindingRequest
+ */
+export type DescribeBindingRequest = Message<"vrooli.program_runtime.v1.bindings.DescribeBindingRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.bindings.DescribeBindingRequest.
+ * Use `create(DescribeBindingRequestSchema)` to create a new message.
+ */
+export const DescribeBindingRequestSchema: GenMessage<DescribeBindingRequest> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_bindings_bindings, 9);
+
+/**
+ * @generated from message vrooli.program_runtime.v1.bindings.BindingArgument
+ */
+export type BindingArgument = Message<"vrooli.program_runtime.v1.bindings.BindingArgument"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string proto_path = 2;
+   */
+  protoPath: string;
+
+  /**
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: bool required = 4;
+   */
+  required: boolean;
+
+  /**
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.bindings.BindingArgument.
+ * Use `create(BindingArgumentSchema)` to create a new message.
+ */
+export const BindingArgumentSchema: GenMessage<BindingArgument> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_bindings_bindings, 10);
+
+/**
+ * @generated from message vrooli.program_runtime.v1.bindings.DescribeBindingResponse
+ */
+export type DescribeBindingResponse = Message<"vrooli.program_runtime.v1.bindings.DescribeBindingResponse"> & {
+  /**
+   * @generated from field: vrooli.program_runtime.v1.bindings.Binding binding = 1;
+   */
+  binding?: Binding | undefined;
+
+  /**
+   * @generated from field: string resolved_source = 2;
+   */
+  resolvedSource: string;
+
+  /**
+   * @generated from field: bool callable = 3;
+   */
+  callable: boolean;
+
+  /**
+   * @generated from field: repeated vrooli.program_runtime.v1.bindings.BindingArgument arguments = 4;
+   */
+  arguments: BindingArgument[];
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.bindings.DescribeBindingResponse.
+ * Use `create(DescribeBindingResponseSchema)` to create a new message.
+ */
+export const DescribeBindingResponseSchema: GenMessage<DescribeBindingResponse> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_bindings_bindings, 11);
+
+/**
  * @generated from message vrooli.program_runtime.v1.bindings.ActCell
  */
 export type ActCell = Message<"vrooli.program_runtime.v1.bindings.ActCell"> & {
@@ -239,7 +469,7 @@ export type ActCell = Message<"vrooli.program_runtime.v1.bindings.ActCell"> & {
  * Use `create(ActCellSchema)` to create a new message.
  */
 export const ActCellSchema: GenMessage<ActCell> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_bindings_bindings, 6);
+  messageDesc(file_program_runtime_v1_bindings_bindings, 12);
 
 /**
  * @generated from message vrooli.program_runtime.v1.bindings.ActCellVerdict
@@ -286,7 +516,7 @@ export type ActCellVerdict = Message<"vrooli.program_runtime.v1.bindings.ActCell
  * Use `create(ActCellVerdictSchema)` to create a new message.
  */
 export const ActCellVerdictSchema: GenMessage<ActCellVerdict> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_bindings_bindings, 7);
+  messageDesc(file_program_runtime_v1_bindings_bindings, 13);
 
 /**
  * @generated from message vrooli.program_runtime.v1.bindings.ResolveActCellsRequest
@@ -303,7 +533,7 @@ export type ResolveActCellsRequest = Message<"vrooli.program_runtime.v1.bindings
  * Use `create(ResolveActCellsRequestSchema)` to create a new message.
  */
 export const ResolveActCellsRequestSchema: GenMessage<ResolveActCellsRequest> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_bindings_bindings, 8);
+  messageDesc(file_program_runtime_v1_bindings_bindings, 14);
 
 /**
  * @generated from message vrooli.program_runtime.v1.bindings.ResolveActCellsResponse
@@ -335,7 +565,7 @@ export type ResolveActCellsResponse = Message<"vrooli.program_runtime.v1.binding
  * Use `create(ResolveActCellsResponseSchema)` to create a new message.
  */
 export const ResolveActCellsResponseSchema: GenMessage<ResolveActCellsResponse> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_bindings_bindings, 9);
+  messageDesc(file_program_runtime_v1_bindings_bindings, 15);
 
 /**
  * @generated from enum vrooli.program_runtime.v1.bindings.UnboundReason
@@ -435,6 +665,22 @@ export const BindingRegistryService: GenService<{
     methodKind: "unary";
     input: typeof ResolveActCellsRequestSchema;
     output: typeof ResolveActCellsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.program_runtime.v1.bindings.BindingRegistryService.DoctorBindings
+   */
+  doctorBindings: {
+    methodKind: "unary";
+    input: typeof DoctorBindingsRequestSchema;
+    output: typeof DoctorBindingsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding
+   */
+  describeBinding: {
+    methodKind: "unary";
+    input: typeof DescribeBindingRequestSchema;
+    output: typeof DescribeBindingResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_program_runtime_v1_bindings_bindings, 0);

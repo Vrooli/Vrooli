@@ -321,9 +321,14 @@ type Run struct {
 	ImportSourceSessionId string                 `protobuf:"bytes,42,opt,name=import_source_session_id,json=importSourceSessionId,proto3" json:"import_source_session_id,omitempty"`
 	ImportedAt            *timestamppb.Timestamp `protobuf:"bytes,43,opt,name=imported_at,json=importedAt,proto3,oneof" json:"imported_at,omitempty"`
 	GoalId                string                 `protobuf:"bytes,44,opt,name=goal_id,json=goalId,proto3" json:"goal_id,omitempty"`
-	GoalStatus            string                 `protobuf:"bytes,45,opt,name=goal_status,json=goalStatus,proto3" json:"goal_status,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Human-readable label for this concrete run, independent of its task.
+	Label string `protobuf:"bytes,48,opt,name=label,proto3" json:"label,omitempty"`
+	// Origin of label: harness, derived, generated, or manual.
+	LabelSource string `protobuf:"bytes,49,opt,name=label_source,json=labelSource,proto3" json:"label_source,omitempty"`
+	// Bounded subjects derived from recorded tool-call evidence.
+	Subject       []string `protobuf:"bytes,50,rep,name=subject,proto3" json:"subject,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
@@ -671,11 +676,25 @@ func (x *Run) GetGoalId() string {
 	return ""
 }
 
-func (x *Run) GetGoalStatus() string {
+func (x *Run) GetLabel() string {
 	if x != nil {
-		return x.GoalStatus
+		return x.Label
 	}
 	return ""
+}
+
+func (x *Run) GetLabelSource() string {
+	if x != nil {
+		return x.LabelSource
+	}
+	return ""
+}
+
+func (x *Run) GetSubject() []string {
+	if x != nil {
+		return x.Subject
+	}
+	return nil
 }
 
 // FinalOutputCandidate is one assistant message considered by the resolver.
@@ -3574,7 +3593,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x13\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf2\x13\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -3631,9 +3650,10 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x18import_source_session_id\x18* \x01(\tR\x15importSourceSessionId\x12@\n" +
 	"\vimported_at\x18+ \x01(\v2\x1a.google.protobuf.TimestampH\rR\n" +
 	"importedAt\x88\x01\x01\x12\x17\n" +
-	"\agoal_id\x18, \x01(\tR\x06goalId\x12\x1f\n" +
-	"\vgoal_status\x18- \x01(\tR\n" +
-	"goalStatusB\x13\n" +
+	"\agoal_id\x18, \x01(\tR\x06goalId\x12\x14\n" +
+	"\x05label\x180 \x01(\tR\x05label\x12!\n" +
+	"\flabel_source\x181 \x01(\tR\vlabelSource\x12\x18\n" +
+	"\asubject\x182 \x03(\tR\asubjectB\x13\n" +
 	"\x11_agent_profile_idB\r\n" +
 	"\v_sandbox_idB\r\n" +
 	"\v_started_atB\v\n" +
@@ -3649,7 +3669,7 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\r_finalized_atB\x0f\n" +
 	"\r_await_handleB\t\n" +
 	"\a_resultB\x0e\n" +
-	"\f_imported_at\"\xf5\x03\n" +
+	"\f_imported_atJ\x04\b-\x10.\"\xf5\x03\n" +
 	"\x14FinalOutputCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x1a\n" +

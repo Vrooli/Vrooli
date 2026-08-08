@@ -77,6 +77,9 @@ const (
 	// RunsServiceGetFleetHealthProcedure is the fully-qualified name of the RunsService's
 	// GetFleetHealth RPC.
 	RunsServiceGetFleetHealthProcedure = "/vrooli.test_genie.v1.runs.RunsService/GetFleetHealth"
+	// RunsServiceGetCostReportProcedure is the fully-qualified name of the RunsService's GetCostReport
+	// RPC.
+	RunsServiceGetCostReportProcedure = "/vrooli.test_genie.v1.runs.RunsService/GetCostReport"
 	// RunsServiceStartRunProcedure is the fully-qualified name of the RunsService's StartRun RPC.
 	RunsServiceStartRunProcedure = "/vrooli.test_genie.v1.runs.RunsService/StartRun"
 	// RunsServiceFollowRunProcedure is the fully-qualified name of the RunsService's FollowRun RPC.
@@ -170,6 +173,9 @@ type RunsServiceClient interface {
 	// datum is as-of stamped so stale data can never read as fresh. Read-only;
 	// consumed by the `test-genie fleet status` CLI verb and meta-optimization.
 	GetFleetHealth(context.Context, *connect.Request[runs.GetFleetHealthRequest]) (*connect.Response[runs.GetFleetHealthResponse], error)
+	// GetCostReport aggregates measured phase cost over a bounded window. Low
+	// reliability samples are reported separately and never blended into totals.
+	GetCostReport(context.Context, *connect.Request[runs.GetCostReportRequest]) (*connect.Response[runs.GetCostReportResponse], error)
 	// StartRun starts a suite run under a server-lifetime context and returns its
 	// run id synchronously (before the suite executes). The run survives client
 	// cancellation; observe it via FollowRun/WaitRun/GetRunStatus.
@@ -301,6 +307,12 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(runsServiceMethods.ByName("GetFleetHealth")),
 			connect.WithClientOptions(opts...),
 		),
+		getCostReport: connect.NewClient[runs.GetCostReportRequest, runs.GetCostReportResponse](
+			httpClient,
+			baseURL+RunsServiceGetCostReportProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("GetCostReport")),
+			connect.WithClientOptions(opts...),
+		),
 		startRun: connect.NewClient[runs.StartRunRequest, runs.StartRunResponse](
 			httpClient,
 			baseURL+RunsServiceStartRunProcedure,
@@ -353,6 +365,7 @@ type runsServiceClient struct {
 	checkFreshness    *connect.Client[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse]
 	getSelfHealth     *connect.Client[runs.GetSelfHealthRequest, runs.GetSelfHealthResponse]
 	getFleetHealth    *connect.Client[runs.GetFleetHealthRequest, runs.GetFleetHealthResponse]
+	getCostReport     *connect.Client[runs.GetCostReportRequest, runs.GetCostReportResponse]
 	startRun          *connect.Client[runs.StartRunRequest, runs.StartRunResponse]
 	followRun         *connect.Client[runs.FollowRunRequest, runs.RunEvent]
 	waitRun           *connect.Client[runs.WaitRunRequest, runs.WaitRunResponse]
@@ -443,6 +456,11 @@ func (c *runsServiceClient) GetSelfHealth(ctx context.Context, req *connect.Requ
 // GetFleetHealth calls vrooli.test_genie.v1.runs.RunsService.GetFleetHealth.
 func (c *runsServiceClient) GetFleetHealth(ctx context.Context, req *connect.Request[runs.GetFleetHealthRequest]) (*connect.Response[runs.GetFleetHealthResponse], error) {
 	return c.getFleetHealth.CallUnary(ctx, req)
+}
+
+// GetCostReport calls vrooli.test_genie.v1.runs.RunsService.GetCostReport.
+func (c *runsServiceClient) GetCostReport(ctx context.Context, req *connect.Request[runs.GetCostReportRequest]) (*connect.Response[runs.GetCostReportResponse], error) {
+	return c.getCostReport.CallUnary(ctx, req)
 }
 
 // StartRun calls vrooli.test_genie.v1.runs.RunsService.StartRun.
@@ -550,6 +568,9 @@ type RunsServiceHandler interface {
 	// datum is as-of stamped so stale data can never read as fresh. Read-only;
 	// consumed by the `test-genie fleet status` CLI verb and meta-optimization.
 	GetFleetHealth(context.Context, *connect.Request[runs.GetFleetHealthRequest]) (*connect.Response[runs.GetFleetHealthResponse], error)
+	// GetCostReport aggregates measured phase cost over a bounded window. Low
+	// reliability samples are reported separately and never blended into totals.
+	GetCostReport(context.Context, *connect.Request[runs.GetCostReportRequest]) (*connect.Response[runs.GetCostReportResponse], error)
 	// StartRun starts a suite run under a server-lifetime context and returns its
 	// run id synchronously (before the suite executes). The run survives client
 	// cancellation; observe it via FollowRun/WaitRun/GetRunStatus.
@@ -677,6 +698,12 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(runsServiceMethods.ByName("GetFleetHealth")),
 		connect.WithHandlerOptions(opts...),
 	)
+	runsServiceGetCostReportHandler := connect.NewUnaryHandler(
+		RunsServiceGetCostReportProcedure,
+		svc.GetCostReport,
+		connect.WithSchema(runsServiceMethods.ByName("GetCostReport")),
+		connect.WithHandlerOptions(opts...),
+	)
 	runsServiceStartRunHandler := connect.NewUnaryHandler(
 		RunsServiceStartRunProcedure,
 		svc.StartRun,
@@ -743,6 +770,8 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 			runsServiceGetSelfHealthHandler.ServeHTTP(w, r)
 		case RunsServiceGetFleetHealthProcedure:
 			runsServiceGetFleetHealthHandler.ServeHTTP(w, r)
+		case RunsServiceGetCostReportProcedure:
+			runsServiceGetCostReportHandler.ServeHTTP(w, r)
 		case RunsServiceStartRunProcedure:
 			runsServiceStartRunHandler.ServeHTTP(w, r)
 		case RunsServiceFollowRunProcedure:
@@ -828,6 +857,10 @@ func (UnimplementedRunsServiceHandler) GetSelfHealth(context.Context, *connect.R
 
 func (UnimplementedRunsServiceHandler) GetFleetHealth(context.Context, *connect.Request[runs.GetFleetHealthRequest]) (*connect.Response[runs.GetFleetHealthResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.GetFleetHealth is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) GetCostReport(context.Context, *connect.Request[runs.GetCostReportRequest]) (*connect.Response[runs.GetCostReportResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.GetCostReport is not implemented"))
 }
 
 func (UnimplementedRunsServiceHandler) StartRun(context.Context, *connect.Request[runs.StartRunRequest]) (*connect.Response[runs.StartRunResponse], error) {

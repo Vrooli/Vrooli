@@ -11,6 +11,8 @@ service BindingRegistryService {
   rpc ListBindings(ListBindingsRequest) returns (ListBindingsResponse);
   rpc ListUnbound(ListUnboundRequest) returns (ListUnboundResponse);
   rpc ResolveActCells(ResolveActCellsRequest) returns (ResolveActCellsResponse);
+  rpc DoctorBindings(DoctorBindingsRequest) returns (DoctorBindingsResponse);
+  rpc DescribeBinding(DescribeBindingRequest) returns (DescribeBindingResponse);
 }
 
 enum UnboundReason {
@@ -63,6 +65,61 @@ message ListUnboundRequest {
 
 message ListUnboundResponse {
   repeated UnboundCapability capabilities = 1;
+}
+
+message DoctorBindingsRequest {
+  string scenario = 1;
+}
+
+message BindingIssue {
+  string scenario = 1;
+  string binding_id = 2;
+  string argument = 3;
+  string request_type = 4;
+  string reason = 5;
+  string proto_path = 6;
+  repeated string candidate_fields = 7;
+}
+
+message DoctorBindingsResponse {
+  int32 bindings = 1;
+  int32 callable = 2;
+  int32 uncallable = 3;
+  int32 partial = 4;
+  int32 zero_arg = 5;
+  int32 misroutes = 6;
+  repeated BindingIssue issues = 7;
+
+  // Semantic manifest-to-proto findings. These counts use the same shared
+  // argument resolver as callable/uncallable classification and make the
+  // runtime doctor useful as an independent convergence check.
+  int32 field_collisions = 8;
+  int32 control_flags_bound = 9;
+  int32 required_fields_unpopulated = 10;
+  int32 binds_where_rename_suffices = 11;
+  // Arguments that resolve onto a structured field a bare CLI string cannot
+  // populate. These pass every callability check, so they are only visible as
+  // their own dimension.
+  int32 scalar_bound_to_message = 12;
+}
+
+message DescribeBindingRequest {
+  string id = 1;
+}
+
+message BindingArgument {
+  string name = 1;
+  string proto_path = 2;
+  string kind = 3;
+  bool required = 4;
+  string reason = 5;
+}
+
+message DescribeBindingResponse {
+  Binding binding = 1;
+  string resolved_source = 2;
+  bool callable = 3;
+  repeated BindingArgument arguments = 4;
 }
 
 message ActCell {

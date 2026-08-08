@@ -86,7 +86,7 @@ message AddDecisionRequest {
   // Optional idempotency key; a retry with the same key returns the existing
   // entry. Falls back to attribution-keyed dedup when empty.
   string idempotency_key = 7;
-  // Optional attribution run id; falls back to VROOLI_AGENT_MANAGER_RUN_ID.
+  // Optional explicitly supplied or server-verified attribution run id.
   string run_id = 8;
 }
 

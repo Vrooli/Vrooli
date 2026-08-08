@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*program-runtime/v1/programs/programs.proto\x12\"vrooli.program_runtime.v1.programs\"\xe0\x02\n\x07Program\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n\nsession_id\x18\x02 \x01(\tR\tsessionId\x12\x16\n\x06source\x18\x03 \x01(\tR\x06source\x12N\n\nprovenance\x18\x04 \x01(\x0e\x32..vrooli.program_runtime.v1.programs.ProvenanceR\nprovenance\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12\x16\n\x06stdout\x18\x06 \x01(\tR\x06stdout\x12%\n\x0e\x66\x61ilure_detail\x18\x07 \x01(\tR\rfailureDetail\x12#\n\rfailure_shape\x18\x08 \x01(\tR\x0c\x66\x61ilureShape\x12#\n\rcontext_bytes\x18\t \x01(\x03R\x0c\x63ontextBytes\x12\x1d\n\ncreated_at\x18\n \x01(\tR\tcreatedAt\"\xd0\x01\n\x14SubmitProgramRequest\x12\x1d\n\nsession_id\x18\x01 \x01(\tR\tsessionId\x12\x16\n\x06source\x18\x02 \x01(\tR\x06source\x12N\n\nprovenance\x18\x03 \x01(\x0e\x32..vrooli.program_runtime.v1.programs.ProvenanceR\nprovenance\x12\x31\n\x14include_materialized\x18\x04 \x01(\x08R\x13includeMaterialized\"^\n\x15SubmitProgramResponse\x12\x45\n\x07program\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.programs.ProgramR\x07program\"#\n\x11GetProgramRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"[\n\x12GetProgramResponse\x12\x45\n\x07program\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.programs.ProgramR\x07program\"_\n\x13ListProgramsRequest\x12\x1d\n\nsession_id\x18\x01 \x01(\tR\tsessionId\x12)\n\x10include_operator\x18\x02 \x01(\x08R\x0fincludeOperator\"_\n\x14ListProgramsResponse\x12G\n\x08programs\x18\x01 \x03(\x0b\x32+.vrooli.program_runtime.v1.programs.ProgramR\x08programs\"@\n\x13MineFailuresRequest\x12)\n\x10include_operator\x18\x01 \x01(\x08R\x0fincludeOperator\":\n\x0c\x46\x61ilureShape\x12\x14\n\x05shape\x18\x01 \x01(\tR\x05shape\x12\x14\n\x05\x63ount\x18\x02 \x01(\x03R\x05\x63ount\"v\n\x14MineFailuresResponse\x12H\n\x06shapes\x18\x01 \x03(\x0b\x32\x30.vrooli.program_runtime.v1.programs.FailureShapeR\x06shapes\x12\x14\n\x05\x63ount\x18\x02 \x01(\x03R\x05\x63ount*W\n\nProvenance\x12\x1a\n\x16PROVENANCE_UNSPECIFIED\x10\x00\x12\x14\n\x10PROVENANCE_AGENT\x10\x01\x12\x17\n\x13PROVENANCE_OPERATOR\x10\x02\x32\x9c\x04\n\x0eProgramService\x12\x84\x01\n\rSubmitProgram\x12\x38.vrooli.program_runtime.v1.programs.SubmitProgramRequest\x1a\x39.vrooli.program_runtime.v1.programs.SubmitProgramResponse\x12{\n\nGetProgram\x12\x35.vrooli.program_runtime.v1.programs.GetProgramRequest\x1a\x36.vrooli.program_runtime.v1.programs.GetProgramResponse\x12\x81\x01\n\x0cListPrograms\x12\x37.vrooli.program_runtime.v1.programs.ListProgramsRequest\x1a\x38.vrooli.program_runtime.v1.programs.ListProgramsResponse\x12\x81\x01\n\x0cMineFailures\x12\x37.vrooli.program_runtime.v1.programs.MineFailuresRequest\x1a\x38.vrooli.program_runtime.v1.programs.MineFailuresResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs;programs_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*program-runtime/v1/programs/programs.proto\x12\"vrooli.program_runtime.v1.programs\"\x8e\x03\n\x07Program\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n\nsession_id\x18\x02 \x01(\tR\tsessionId\x12\x16\n\x06source\x18\x03 \x01(\tR\x06source\x12N\n\nprovenance\x18\x04 \x01(\x0e\x32..vrooli.program_runtime.v1.programs.ProvenanceR\nprovenance\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12\x16\n\x06stdout\x18\x06 \x01(\tR\x06stdout\x12%\n\x0e\x66\x61ilure_detail\x18\x07 \x01(\tR\rfailureDetail\x12#\n\rfailure_shape\x18\x08 \x01(\tR\x0c\x66\x61ilureShape\x12#\n\rcontext_bytes\x18\t \x01(\x03R\x0c\x63ontextBytes\x12\x1d\n\ncreated_at\x18\n \x01(\tR\tcreatedAt\x12,\n\x12output_limit_bytes\x18\x0b \x01(\x03R\x10outputLimitBytes\"\xd0\x01\n\x14SubmitProgramRequest\x12\x1d\n\nsession_id\x18\x01 \x01(\tR\tsessionId\x12\x16\n\x06source\x18\x02 \x01(\tR\x06source\x12N\n\nprovenance\x18\x03 \x01(\x0e\x32..vrooli.program_runtime.v1.programs.ProvenanceR\nprovenance\x12\x31\n\x14include_materialized\x18\x04 \x01(\x08R\x13includeMaterialized\"^\n\x15SubmitProgramResponse\x12\x45\n\x07program\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.programs.ProgramR\x07program\"#\n\x11GetProgramRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"[\n\x12GetProgramResponse\x12\x45\n\x07program\x18\x01 \x01(\x0b\x32+.vrooli.program_runtime.v1.programs.ProgramR\x07program\"_\n\x13ListProgramsRequest\x12\x1d\n\nsession_id\x18\x01 \x01(\tR\tsessionId\x12)\n\x10include_operator\x18\x02 \x01(\x08R\x0fincludeOperator\"_\n\x14ListProgramsResponse\x12G\n\x08programs\x18\x01 \x03(\x0b\x32+.vrooli.program_runtime.v1.programs.ProgramR\x08programs\"@\n\x13MineFailuresRequest\x12)\n\x10include_operator\x18\x01 \x01(\x08R\x0fincludeOperator\":\n\x0c\x46\x61ilureShape\x12\x14\n\x05shape\x18\x01 \x01(\tR\x05shape\x12\x14\n\x05\x63ount\x18\x02 \x01(\x03R\x05\x63ount\"v\n\x14MineFailuresResponse\x12H\n\x06shapes\x18\x01 \x03(\x0b\x32\x30.vrooli.program_runtime.v1.programs.FailureShapeR\x06shapes\x12\x14\n\x05\x63ount\x18\x02 \x01(\x03R\x05\x63ount*W\n\nProvenance\x12\x1a\n\x16PROVENANCE_UNSPECIFIED\x10\x00\x12\x14\n\x10PROVENANCE_AGENT\x10\x01\x12\x17\n\x13PROVENANCE_OPERATOR\x10\x02\x32\x9c\x04\n\x0eProgramService\x12\x84\x01\n\rSubmitProgram\x12\x38.vrooli.program_runtime.v1.programs.SubmitProgramRequest\x1a\x39.vrooli.program_runtime.v1.programs.SubmitProgramResponse\x12{\n\nGetProgram\x12\x35.vrooli.program_runtime.v1.programs.GetProgramRequest\x1a\x36.vrooli.program_runtime.v1.programs.GetProgramResponse\x12\x81\x01\n\x0cListPrograms\x12\x37.vrooli.program_runtime.v1.programs.ListProgramsRequest\x1a\x38.vrooli.program_runtime.v1.programs.ListProgramsResponse\x12\x81\x01\n\x0cMineFailures\x12\x37.vrooli.program_runtime.v1.programs.MineFailuresRequest\x1a\x38.vrooli.program_runtime.v1.programs.MineFailuresResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs;programs_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,28 +32,28 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'program_runtime.v1.programs
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs;programs_v1'
-  _globals['_PROVENANCE']._serialized_start=1314
-  _globals['_PROVENANCE']._serialized_end=1401
+  _globals['_PROVENANCE']._serialized_start=1360
+  _globals['_PROVENANCE']._serialized_end=1447
   _globals['_PROGRAM']._serialized_start=83
-  _globals['_PROGRAM']._serialized_end=435
-  _globals['_SUBMITPROGRAMREQUEST']._serialized_start=438
-  _globals['_SUBMITPROGRAMREQUEST']._serialized_end=646
-  _globals['_SUBMITPROGRAMRESPONSE']._serialized_start=648
-  _globals['_SUBMITPROGRAMRESPONSE']._serialized_end=742
-  _globals['_GETPROGRAMREQUEST']._serialized_start=744
-  _globals['_GETPROGRAMREQUEST']._serialized_end=779
-  _globals['_GETPROGRAMRESPONSE']._serialized_start=781
-  _globals['_GETPROGRAMRESPONSE']._serialized_end=872
-  _globals['_LISTPROGRAMSREQUEST']._serialized_start=874
-  _globals['_LISTPROGRAMSREQUEST']._serialized_end=969
-  _globals['_LISTPROGRAMSRESPONSE']._serialized_start=971
-  _globals['_LISTPROGRAMSRESPONSE']._serialized_end=1066
-  _globals['_MINEFAILURESREQUEST']._serialized_start=1068
-  _globals['_MINEFAILURESREQUEST']._serialized_end=1132
-  _globals['_FAILURESHAPE']._serialized_start=1134
-  _globals['_FAILURESHAPE']._serialized_end=1192
-  _globals['_MINEFAILURESRESPONSE']._serialized_start=1194
-  _globals['_MINEFAILURESRESPONSE']._serialized_end=1312
-  _globals['_PROGRAMSERVICE']._serialized_start=1404
-  _globals['_PROGRAMSERVICE']._serialized_end=1944
+  _globals['_PROGRAM']._serialized_end=481
+  _globals['_SUBMITPROGRAMREQUEST']._serialized_start=484
+  _globals['_SUBMITPROGRAMREQUEST']._serialized_end=692
+  _globals['_SUBMITPROGRAMRESPONSE']._serialized_start=694
+  _globals['_SUBMITPROGRAMRESPONSE']._serialized_end=788
+  _globals['_GETPROGRAMREQUEST']._serialized_start=790
+  _globals['_GETPROGRAMREQUEST']._serialized_end=825
+  _globals['_GETPROGRAMRESPONSE']._serialized_start=827
+  _globals['_GETPROGRAMRESPONSE']._serialized_end=918
+  _globals['_LISTPROGRAMSREQUEST']._serialized_start=920
+  _globals['_LISTPROGRAMSREQUEST']._serialized_end=1015
+  _globals['_LISTPROGRAMSRESPONSE']._serialized_start=1017
+  _globals['_LISTPROGRAMSRESPONSE']._serialized_end=1112
+  _globals['_MINEFAILURESREQUEST']._serialized_start=1114
+  _globals['_MINEFAILURESREQUEST']._serialized_end=1178
+  _globals['_FAILURESHAPE']._serialized_start=1180
+  _globals['_FAILURESHAPE']._serialized_end=1238
+  _globals['_MINEFAILURESRESPONSE']._serialized_start=1240
+  _globals['_MINEFAILURESRESPONSE']._serialized_end=1358
+  _globals['_PROGRAMSERVICE']._serialized_start=1450
+  _globals['_PROGRAMSERVICE']._serialized_end=1990
 # @@protoc_insertion_point(module_scope)

@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Execution(_message.Message):
-    __slots__ = ("id", "plan_id", "run_id", "current_phase_id", "complete", "started_at", "updated_at", "baseline_set", "scope_amendments", "degraded_reason", "lifecycle_state", "abandoned_reason", "abandoned_at", "abandoned_by")
+    __slots__ = ("id", "plan_id", "run_id", "current_phase_id", "complete", "started_at", "updated_at", "baseline_set", "scope_amendments", "degraded_reason", "lifecycle_state", "abandoned_reason", "abandoned_at", "abandoned_by", "boundary_extensions")
     ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -23,6 +23,7 @@ class Execution(_message.Message):
     ABANDONED_REASON_FIELD_NUMBER: _ClassVar[int]
     ABANDONED_AT_FIELD_NUMBER: _ClassVar[int]
     ABANDONED_BY_FIELD_NUMBER: _ClassVar[int]
+    BOUNDARY_EXTENSIONS_FIELD_NUMBER: _ClassVar[int]
     id: str
     plan_id: str
     run_id: str
@@ -37,7 +38,8 @@ class Execution(_message.Message):
     abandoned_reason: str
     abandoned_at: str
     abandoned_by: str
-    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., current_phase_id: _Optional[str] = ..., complete: _Optional[bool] = ..., started_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., baseline_set: _Optional[_Union[BaselineSetState, _Mapping]] = ..., scope_amendments: _Optional[_Iterable[_Union[ScopeAmendment, _Mapping]]] = ..., degraded_reason: _Optional[str] = ..., lifecycle_state: _Optional[str] = ..., abandoned_reason: _Optional[str] = ..., abandoned_at: _Optional[str] = ..., abandoned_by: _Optional[str] = ...) -> None: ...
+    boundary_extensions: _containers.RepeatedCompositeFieldContainer[BoundaryExtension]
+    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., current_phase_id: _Optional[str] = ..., complete: _Optional[bool] = ..., started_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., baseline_set: _Optional[_Union[BaselineSetState, _Mapping]] = ..., scope_amendments: _Optional[_Iterable[_Union[ScopeAmendment, _Mapping]]] = ..., degraded_reason: _Optional[str] = ..., lifecycle_state: _Optional[str] = ..., abandoned_reason: _Optional[str] = ..., abandoned_at: _Optional[str] = ..., abandoned_by: _Optional[str] = ..., boundary_extensions: _Optional[_Iterable[_Union[BoundaryExtension, _Mapping]]] = ...) -> None: ...
 
 class BaselineSetState(_message.Message):
     __slots__ = ("version", "name", "scenario_targets", "repo_paths", "captured_at", "status", "required", "ready", "pending", "failed", "skipped", "stale", "detail", "collection_branch", "members", "path_snapshots", "capture_argv", "wait_argv", "sync_argv", "last_synced_at", "source_preflight", "preflight_unavailable")
@@ -484,6 +486,52 @@ class RepairSourceScopeResponse(_message.Message):
     context: PhaseContext
     step: _model_pb2.GuidedStep
     def __init__(self, execution: _Optional[_Union[Execution, _Mapping]] = ..., context: _Optional[_Union[PhaseContext, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
+
+class BoundaryExtension(_message.Message):
+    __slots__ = ("id", "phase_id", "author", "reason", "added_allow", "old_allow", "new_allow", "invalidated_at", "created_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    AUTHOR_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    ADDED_ALLOW_FIELD_NUMBER: _ClassVar[int]
+    OLD_ALLOW_FIELD_NUMBER: _ClassVar[int]
+    NEW_ALLOW_FIELD_NUMBER: _ClassVar[int]
+    INVALIDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    phase_id: str
+    author: str
+    reason: str
+    added_allow: _containers.RepeatedScalarFieldContainer[str]
+    old_allow: _containers.RepeatedScalarFieldContainer[str]
+    new_allow: _containers.RepeatedScalarFieldContainer[str]
+    invalidated_at: str
+    created_at: str
+    def __init__(self, id: _Optional[str] = ..., phase_id: _Optional[str] = ..., author: _Optional[str] = ..., reason: _Optional[str] = ..., added_allow: _Optional[_Iterable[str]] = ..., old_allow: _Optional[_Iterable[str]] = ..., new_allow: _Optional[_Iterable[str]] = ..., invalidated_at: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
+
+class ExtendBoundaryRequest(_message.Message):
+    __slots__ = ("execution_id", "path", "reason", "author")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    AUTHOR_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    path: _containers.RepeatedScalarFieldContainer[str]
+    reason: str
+    author: str
+    def __init__(self, execution_id: _Optional[str] = ..., path: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ..., author: _Optional[str] = ...) -> None: ...
+
+class ExtendBoundaryResponse(_message.Message):
+    __slots__ = ("execution", "context", "step", "added_allow")
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    ADDED_ALLOW_FIELD_NUMBER: _ClassVar[int]
+    execution: Execution
+    context: PhaseContext
+    step: _model_pb2.GuidedStep
+    added_allow: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, execution: _Optional[_Union[Execution, _Mapping]] = ..., context: _Optional[_Union[PhaseContext, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ..., added_allow: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class GetNextRequest(_message.Message):
     __slots__ = ("execution_id",)

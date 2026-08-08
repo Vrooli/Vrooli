@@ -110,6 +110,9 @@ service RunsService {
   // datum is as-of stamped so stale data can never read as fresh. Read-only;
   // consumed by the `test-genie fleet status` CLI verb and meta-optimization.
   rpc GetFleetHealth(GetFleetHealthRequest) returns (GetFleetHealthResponse);
+  // GetCostReport aggregates measured phase cost over a bounded window. Low
+  // reliability samples are reported separately and never blended into totals.
+  rpc GetCostReport(GetCostReportRequest) returns (GetCostReportResponse);
 
   // --- Durable run lifecycle (server-owned, request-decoupled) ---------------
   // The run manager owns execution under a server-lifetime context, so a run
@@ -318,6 +321,43 @@ message AbortRunResponse {
 message GetRunStatusRequest {
   string scenario = 1;
   string run_id = 2;
+}
+
+message GetCostReportRequest {
+  string scenario = 1;
+  int64 window_seconds = 2; // 0 = 7 days
+  int64 compare_window_seconds = 3; // 0 = no comparison
+}
+
+message CostPhaseSummary {
+  string scenario = 1;
+  string phase = 2;
+  int32 sample_count = 3;
+  int32 reliable_sample_count = 4;
+  int32 excluded_sample_count = 5;
+  int64 total_wall_clock_ms = 6;
+  int64 median_wall_clock_ms = 7;
+  int64 p90_wall_clock_ms = 8;
+  int64 total_cpu_user_ms = 9;
+  int64 max_peak_rss_bytes = 10;
+  int64 change_wall_clock_ms = 11;
+  double change_percent = 12;
+  int32 prediction_sample_count = 13;
+  int64 prediction_error_total_ms = 14;
+  int64 prediction_mean_absolute_error_ms = 15;
+  double prediction_mean_absolute_error_percent = 16;
+  int32 passing_sample_count = 17;
+  int32 failing_sample_count = 18;
+  int64 passing_median_wall_clock_ms = 19;
+  int64 passing_p90_wall_clock_ms = 20;
+  int64 failing_median_wall_clock_ms = 21;
+  int64 failing_p90_wall_clock_ms = 22;
+}
+
+message GetCostReportResponse {
+  repeated CostPhaseSummary phases = 1;
+  int64 window_seconds = 2;
+  int64 compare_window_seconds = 3;
 }
 
 // DiagnosticsInfo is the serialized diagnostics profile a run executed with.
@@ -1046,6 +1086,13 @@ message ProviderConformance {
   // True only after the provider's PreviewFix/ApplyFix responses agree and all
   // candidate paths stay inside the isolated conformance fixture.
   bool fix_contract_valid = 14;
+  // True when the provider-owned descriptor declares its concurrency mode.
+  // Missing declarations are scheduled exclusively for safety but remain a
+  // conformance migration finding.
+  bool concurrency_declared = 15;
+  // True when the live validation response carried metrics, independent of
+  // whether the execution history persisted them.
+  bool metrics_reachable = 16;
 }
 
 // AutofixCoverage is the per-provider autofix declaration rollup derived from a

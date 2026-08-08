@@ -107,6 +107,90 @@ class ListUnboundResponse(_message.Message):
     capabilities: _containers.RepeatedCompositeFieldContainer[UnboundCapability]
     def __init__(self, capabilities: _Optional[_Iterable[_Union[UnboundCapability, _Mapping]]] = ...) -> None: ...
 
+class DoctorBindingsRequest(_message.Message):
+    __slots__ = ("scenario",)
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    def __init__(self, scenario: _Optional[str] = ...) -> None: ...
+
+class BindingIssue(_message.Message):
+    __slots__ = ("scenario", "binding_id", "argument", "request_type", "reason", "proto_path", "candidate_fields")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    BINDING_ID_FIELD_NUMBER: _ClassVar[int]
+    ARGUMENT_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_TYPE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    PROTO_PATH_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    binding_id: str
+    argument: str
+    request_type: str
+    reason: str
+    proto_path: str
+    candidate_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scenario: _Optional[str] = ..., binding_id: _Optional[str] = ..., argument: _Optional[str] = ..., request_type: _Optional[str] = ..., reason: _Optional[str] = ..., proto_path: _Optional[str] = ..., candidate_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class DoctorBindingsResponse(_message.Message):
+    __slots__ = ("bindings", "callable", "uncallable", "partial", "zero_arg", "misroutes", "issues", "field_collisions", "control_flags_bound", "required_fields_unpopulated", "binds_where_rename_suffices", "scalar_bound_to_message")
+    BINDINGS_FIELD_NUMBER: _ClassVar[int]
+    CALLABLE_FIELD_NUMBER: _ClassVar[int]
+    UNCALLABLE_FIELD_NUMBER: _ClassVar[int]
+    PARTIAL_FIELD_NUMBER: _ClassVar[int]
+    ZERO_ARG_FIELD_NUMBER: _ClassVar[int]
+    MISROUTES_FIELD_NUMBER: _ClassVar[int]
+    ISSUES_FIELD_NUMBER: _ClassVar[int]
+    FIELD_COLLISIONS_FIELD_NUMBER: _ClassVar[int]
+    CONTROL_FLAGS_BOUND_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELDS_UNPOPULATED_FIELD_NUMBER: _ClassVar[int]
+    BINDS_WHERE_RENAME_SUFFICES_FIELD_NUMBER: _ClassVar[int]
+    SCALAR_BOUND_TO_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    bindings: int
+    callable: int
+    uncallable: int
+    partial: int
+    zero_arg: int
+    misroutes: int
+    issues: _containers.RepeatedCompositeFieldContainer[BindingIssue]
+    field_collisions: int
+    control_flags_bound: int
+    required_fields_unpopulated: int
+    binds_where_rename_suffices: int
+    scalar_bound_to_message: int
+    def __init__(self, bindings: _Optional[int] = ..., callable: _Optional[int] = ..., uncallable: _Optional[int] = ..., partial: _Optional[int] = ..., zero_arg: _Optional[int] = ..., misroutes: _Optional[int] = ..., issues: _Optional[_Iterable[_Union[BindingIssue, _Mapping]]] = ..., field_collisions: _Optional[int] = ..., control_flags_bound: _Optional[int] = ..., required_fields_unpopulated: _Optional[int] = ..., binds_where_rename_suffices: _Optional[int] = ..., scalar_bound_to_message: _Optional[int] = ...) -> None: ...
+
+class DescribeBindingRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class BindingArgument(_message.Message):
+    __slots__ = ("name", "proto_path", "kind", "required", "reason")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    PROTO_PATH_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    proto_path: str
+    kind: str
+    required: bool
+    reason: str
+    def __init__(self, name: _Optional[str] = ..., proto_path: _Optional[str] = ..., kind: _Optional[str] = ..., required: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class DescribeBindingResponse(_message.Message):
+    __slots__ = ("binding", "resolved_source", "callable", "arguments")
+    BINDING_FIELD_NUMBER: _ClassVar[int]
+    RESOLVED_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    CALLABLE_FIELD_NUMBER: _ClassVar[int]
+    ARGUMENTS_FIELD_NUMBER: _ClassVar[int]
+    binding: Binding
+    resolved_source: str
+    callable: bool
+    arguments: _containers.RepeatedCompositeFieldContainer[BindingArgument]
+    def __init__(self, binding: _Optional[_Union[Binding, _Mapping]] = ..., resolved_source: _Optional[str] = ..., callable: _Optional[bool] = ..., arguments: _Optional[_Iterable[_Union[BindingArgument, _Mapping]]] = ...) -> None: ...
+
 class ActCell(_message.Message):
     __slots__ = ("id", "operations", "authored_status")
     ID_FIELD_NUMBER: _ClassVar[int]
