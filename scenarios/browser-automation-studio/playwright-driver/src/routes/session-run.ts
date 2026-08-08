@@ -237,7 +237,7 @@ export async function handleSessionRun(
     if (previousExecution?.cachedOutcome) {
       logger.info(scopedLog(LogContext.INSTRUCTION, 'returning cached replay result'), {
         sessionId,
-		type: getActionType(instruction),
+        type: getActionType(instruction),
         stepIndex: instruction.index,
         nodeId: instruction.nodeId,
       });
@@ -257,7 +257,7 @@ export async function handleSessionRun(
     if (previousExecution) {
       logger.info(scopedLog(LogContext.INSTRUCTION, 'replay detected (no cached outcome)'), {
         sessionId,
-		type: getActionType(instruction),
+        type: getActionType(instruction),
         stepIndex: instruction.index,
       });
     }
@@ -273,6 +273,7 @@ export async function handleSessionRun(
       logger: appLogger,
       metrics: appMetrics,
       sessionId,
+      electronTarget: session.spec.electron_target,
     };
 
     const executionResult = await executeInstruction(

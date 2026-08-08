@@ -321,9 +321,7 @@
               "name": "wait",
               "bool": true,
               "description": "Block once until the download job is terminal (no polling)",
-              "bind": {
-                "field": "id"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -376,9 +374,7 @@
             {
               "name": "operation",
               "description": "An operation this model serves (repeat for several)",
-              "bind": {
-                "field": "local_path"
-              }
+              "local_only": true
             },
             {
               "name": "backend",
@@ -630,9 +626,7 @@
               "name": "wait",
               "description": "Block once until the download job is terminal (no polling)",
               "bool": true,
-              "bind": {
-                "field": "id"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -974,7 +968,8 @@
               "name": "file",
               "description": "Path to a JSON file describing the Look (name + steps)",
               "bind": {
-                "field": "look"
+                "field": "look",
+                "kind": "json_file"
               }
             }
           ],
@@ -999,7 +994,8 @@
               "name": "file",
               "description": "Path to a JSON file describing the Look (id + name + steps)",
               "bind": {
-                "field": "look"
+                "field": "look",
+                "kind": "json_file"
               }
             }
           ],

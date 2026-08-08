@@ -137,7 +137,7 @@ func scaleCorpus(path, scope string, scale int) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	for i := count; i < target; i++ {
 		id := fmt.Sprintf("perf-scale:%08d", i)

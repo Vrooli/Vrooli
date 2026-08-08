@@ -57,7 +57,7 @@
               "name": "scenarios",
               "description": "Comma-separated scenario filter",
               "bind": {
-                "field": "scenario"
+                "field": "scenario_filter"
               }
             }
           ],
@@ -98,7 +98,7 @@
               "name": "scenarios",
               "description": "Comma-separated scenario filter",
               "bind": {
-                "field": "to_scenario"
+                "field": "scenario_filter"
               }
             }
           ],
@@ -129,7 +129,7 @@
               "name": "scenarios",
               "description": "Comma-separated scenario filter",
               "bind": {
-                "field": "scenario"
+                "field": "scenario_filter"
               }
             }
           ],
@@ -737,9 +737,8 @@
             {
               "name": "path",
               "required": false,
-              "bind": {
-                "field": "slug"
-              }
+              "local_only": true,
+              "description": "Optional file path; filters the fetched tree client-side to print one file's text."
             }
           ],
           "binding": {

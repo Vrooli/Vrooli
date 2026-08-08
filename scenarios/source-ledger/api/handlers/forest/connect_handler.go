@@ -35,13 +35,13 @@ func (h *connectHandler) RunCompactionPass(ctx context.Context, req *connect.Req
 	passCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), compactionPassTimeout)
 	defer cancel()
 	h.logger.Printf("forest compaction pass started")
-	r, e := h.service.Run(passCtx)
+	r, e := h.service.RunBounded(passCtx, int(req.Msg.GetMaxClusters()))
 	if e != nil {
 		h.logger.Printf("forest compaction pass failed: %v", e)
 		return nil, connect.NewError(connect.CodeInternal, e)
 	}
 	h.logger.Printf("forest compaction pass completed: compacted=%d eligible_before=%d eligible_after=%d", r.CompactedCount, r.EligibleFrontierBefore, r.EligibleFrontierAfter)
-	return connect.NewResponse(&forestv1.RunCompactionPassResponse{CompactedCount: int32(r.CompactedCount)}), nil
+	return connect.NewResponse(&forestv1.RunCompactionPassResponse{CompactedCount: int32(r.CompactedCount), EligibleFrontierBefore: int32(r.EligibleFrontierBefore), EligibleFrontierAfter: int32(r.EligibleFrontierAfter), Target: int32(r.Target)}), nil
 }
 
 func (h *connectHandler) GetFrontier(ctx context.Context, req *connect.Request[forestv1.GetFrontierRequest]) (*connect.Response[forestv1.GetFrontierResponse], error) {

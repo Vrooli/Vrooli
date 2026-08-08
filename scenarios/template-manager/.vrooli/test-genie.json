@@ -10,6 +10,13 @@
   "timeout": "90s",
   "phaseClass": "capability",
   "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "file-determined",
+    "inputs": ["**"]
+  },
   "dimensions": ["operational-targets"],
   "validation": {
     "contract": "scenario-validation/v1",

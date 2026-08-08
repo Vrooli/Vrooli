@@ -26,7 +26,8 @@
             },
             {
               "name": "dimensions",
-              "description": "Preset viewport: mobile|tablet|desktop"
+              "description": "Preset viewport: mobile|tablet|desktop",
+              "bind_waiver": "CLI-local preset is converted into the structured Dimensions request by the capture command."
             },
             {
               "name": "width",
@@ -42,7 +43,8 @@
             },
             {
               "name": "wait-for",
-              "description": "Wait condition before capture (load|networkidle|selector:...)"
+              "description": "Wait condition before capture (load|networkidle|selector:...)",
+              "bind_waiver": "CLI-local readiness syntax is parsed into the structured WaitFor request by the capture command."
             },
             {
               "name": "out",
@@ -2301,7 +2303,12 @@
             },
             {
               "name": "parameters",
-              "description": "JSON object of workflow parameters"
+              "description": "JSON object of workflow parameters",
+              "bind": {
+                "field": "parameters",
+                "kind": "json_inline"
+              },
+              "bind_waiver": "The argument name intentionally remains the public CLI name; json_inline is required to decode the structured workflow-parameter map."
             },
             {
               "name": "inactive",
@@ -2453,7 +2460,12 @@
             },
             {
               "name": "parameters",
-              "description": "JSON object of workflow parameters (replaces persisted parameters)"
+              "description": "JSON object of workflow parameters (replaces persisted parameters)",
+              "bind": {
+                "field": "parameters",
+                "kind": "json_inline"
+              },
+              "bind_waiver": "The argument name intentionally remains the public CLI name; json_inline is required to decode the structured workflow-parameter map."
             },
             {
               "name": "active",
@@ -2610,7 +2622,8 @@
               "description": "Viewport preset: mobile (390x844), tablet (768x1024), desktop (1440x900)",
               "bind": {
                 "field": "viewport"
-              }
+              },
+              "bind_waiver": "CLI-local viewport preset is converted into the structured Viewport request by the preview command."
             },
             {
               "name": "device-scale-factor",

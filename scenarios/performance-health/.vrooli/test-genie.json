@@ -430,6 +430,10 @@
     "mode": "exclusive",
     "reason": "Concurrent load changes build time and Lighthouse measurements."
   },
+  "determinism": {
+    "default": "observational",
+    "reason": "Performance measurements depend on external runtime state and are not completely represented by a file digest."
+  },
   "dimensions": [
     "performance"
   ],

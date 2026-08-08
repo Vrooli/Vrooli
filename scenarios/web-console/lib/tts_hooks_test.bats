@@ -14,36 +14,14 @@ EOF
     echo "secret-token" > "$HOME/.local/state/vrooli/web-console/hook-token.txt"
 
     export APP_ROOT="$TEST_TMP_DIR/app"
-    mkdir -p "$APP_ROOT/resources/claude-code/lib" "$APP_ROOT/resources/claude-code/config"
-    mkdir -p "$APP_ROOT/scripts/lib/utils" "$APP_ROOT/scripts/lib/system"
-    cat > "$APP_ROOT/resources/claude-code/config/defaults.sh" <<'EOF'
+    mkdir -p "$APP_ROOT/bin"
+    cat > "$APP_ROOT/bin/resource-claude-code" <<'EOF'
 #!/usr/bin/env bash
-CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+printf '%s\n' "$*" >> "${TEST_CLAUDE_CLI_ARGS}"
+printf '%s\n' "${TEST_CLAUDE_CLI_OUTPUT}"
 EOF
-    cat > "$APP_ROOT/resources/claude-code/lib/settings.sh" <<'EOF'
-#!/usr/bin/env bash
-claude_code::export_settings_context() { :; }
-EOF
-    cat > "$APP_ROOT/resources/claude-code/lib/hooks.sh" <<'EOF'
-#!/usr/bin/env bash
-claude_code::hooks_reconcile() {
-    printf '%s\n' "$*" > "${TEST_CLAUDE_CLI_ARGS}"
-    printf '%s\n' "${TEST_CLAUDE_CLI_OUTPUT}"
-}
-claude_code::hooks_remove() { :; }
-EOF
-    cat > "$APP_ROOT/scripts/lib/utils/var.sh" <<'EOF'
-#!/usr/bin/env bash
-:
-EOF
-    cat > "$APP_ROOT/scripts/lib/utils/log.sh" <<'EOF'
-#!/usr/bin/env bash
-:
-EOF
-    cat > "$APP_ROOT/scripts/lib/system/system_commands.sh" <<'EOF'
-#!/usr/bin/env bash
-:
-EOF
+    chmod +x "$APP_ROOT/bin/resource-claude-code"
+    export PATH="$APP_ROOT/bin:$PATH"
 
     export TEST_CLAUDE_CLI_ARGS="$TEST_TMP_DIR/claude-cli-args.txt"
     export TEST_CLAUDE_CLI_OUTPUT='{"status":"applied","code":"hook_reconciled","reason":"Claude hook was written to settings","settingsPath":"/tmp/project/.claude/settings.json"}'
@@ -61,7 +39,10 @@ teardown() {
     [[ "$output" == *"registered Stop hook"* ]]
 
     args=$(cat "$TEST_CLAUDE_CLI_ARGS")
-    [[ "$args" == Stop\ web-console-tts*project ]]
+    [[ "$args" == *"hooks reconcile"* ]]
+    [[ "$args" == *"--event Stop"* ]]
+    [[ "$args" == *"--id web-console-tts"* ]]
+    [[ "$args" == *"--scope project"* ]]
     [[ "$args" == *'"type": "command"'* ]]
     [[ "$args" == *'claude-stop-hook.sh --url http://localhost:17086/api/v1/hooks/stop --token secret-token'* ]]
 }

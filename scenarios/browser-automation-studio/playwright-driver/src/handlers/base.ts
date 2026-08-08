@@ -19,10 +19,17 @@ import type { Page, BrowserContext, Frame } from 'rebrowser-playwright';
 import type { Config } from '../config';
 import type { Metrics } from '../utils/metrics';
 import type winston from 'winston';
+import type { ElectronTargetSpec } from '../types/session';
 
 // Import types from proto and outcome-builder
 import type { HandlerInstruction } from '../proto';
-import type { HandlerResult, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEvent } from '../outcome/outcome-builder';
+import type {
+  HandlerResult,
+  Screenshot,
+  DOMSnapshot,
+  ConsoleLogEntry,
+  NetworkEvent,
+} from '../outcome/outcome-builder';
 
 // Re-export for handler use
 export type { HandlerResult, Screenshot, DOMSnapshot, ConsoleLogEntry, NetworkEvent };
@@ -81,6 +88,8 @@ export interface HandlerContext {
   metrics: Metrics;
   /** Session identifier for logging and tracking */
   sessionId: string;
+  /** The admitted target identity, when this is a controlled Electron run. */
+  electronTarget?: ElectronTargetSpec;
 
   // -------------------------------------------------------------------------
   // OPTIONAL FIELDS - Populated when relevant features are used
@@ -131,10 +140,7 @@ export interface InstructionHandler {
   /**
    * Execute instruction
    */
-  execute(
-    instruction: CompiledInstruction,
-    context: HandlerContext
-  ): Promise<HandlerResult>;
+  execute(instruction: CompiledInstruction, context: HandlerContext): Promise<HandlerResult>;
 }
 
 /**
@@ -154,11 +160,7 @@ export abstract class BaseHandler implements InstructionHandler {
   /**
    * Wait for element with timeout
    */
-  protected async waitForElement(
-    page: Page,
-    selector: string,
-    timeoutMs?: number
-  ): Promise<void> {
+  protected async waitForElement(page: Page, selector: string, timeoutMs?: number): Promise<void> {
     await page.waitForSelector(selector, {
       timeout: timeoutMs,
       state: 'visible',
@@ -190,10 +192,7 @@ export abstract class BaseHandler implements InstructionHandler {
   /**
    * Extract text from page
    */
-  protected async extractText(
-    page: Page,
-    selector?: string
-  ): Promise<string> {
+  protected async extractText(page: Page, selector?: string): Promise<string> {
     if (selector) {
       const element = page.locator(selector).first();
       const text = await element.textContent();
@@ -221,15 +220,11 @@ export abstract class BaseHandler implements InstructionHandler {
    * Throws an error if the instruction doesn't have a typed action - this indicates
    * an execution path that hasn't been migrated to populate the Action field.
    */
-  protected requireTypedParams<T>(
-    params: T | undefined,
-    handlerType: string,
-    nodeId: string
-  ): T {
+  protected requireTypedParams<T>(params: T | undefined, handlerType: string, nodeId: string): T {
     if (!params) {
       throw new Error(
         `[${handlerType}] Missing typed action params for node ${nodeId}. ` +
-        `This indicates an unmigrated execution path - all instructions should have action populated.`
+          `This indicates an unmigrated execution path - all instructions should have action populated.`
       );
     }
     return params;

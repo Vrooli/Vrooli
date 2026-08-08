@@ -1,5 +1,6 @@
 import type { Page } from 'rebrowser-playwright';
 import type { ElectronTargetSpec, SessionSpec } from '../types';
+import path from 'node:path';
 
 type JsonTarget = {
   id?: unknown;
@@ -8,8 +9,7 @@ type JsonTarget = {
   title?: unknown;
 };
 
-const isLoopback = (hostname: string): boolean =>
-  hostname === '127.0.0.1' || hostname === '[::1]';
+const isLoopback = (hostname: string): boolean => hostname === '127.0.0.1' || hostname === '[::1]';
 
 export function validateElectronTargetSpec(target: ElectronTargetSpec): void {
   for (const [field, value] of [
@@ -25,7 +25,10 @@ export function validateElectronTargetSpec(target: ElectronTargetSpec): void {
       throw new Error(`electron_target.${field} is required`);
     }
   }
-  if (target.cdp_transport !== 'loopback-authenticated' && target.cdp_transport !== 'bridge-authenticated') {
+  if (
+    target.cdp_transport !== 'loopback-authenticated' &&
+    target.cdp_transport !== 'bridge-authenticated'
+  ) {
     throw new Error('unsupported Electron CDP transport');
   }
   const endpoint = new URL(target.cdp_endpoint);
@@ -56,7 +59,9 @@ export function validateElectronTargetCapabilities(
     .filter(([, requested]) => requested === true)
     .map(([name]) => name);
   if (unsupported.length > 0) {
-    throw new Error(`Electron target does not support required capabilities: ${unsupported.join(', ')}`);
+    throw new Error(
+      `Electron target does not support required capabilities: ${unsupported.join(', ')}`
+    );
   }
 }
 
@@ -78,11 +83,16 @@ export async function verifyElectronRenderer(target: ElectronTargetSpec): Promis
     return candidate.id === target.renderer_id && candidate.type === 'page';
   });
   if (matches.length !== 1) {
-    throw new Error(`Electron renderer identity is ${matches.length === 0 ? 'missing' : 'ambiguous'}`);
+    throw new Error(
+      `Electron renderer identity is ${matches.length === 0 ? 'missing' : 'ambiguous'}`
+    );
   }
   const renderer = matches[0];
   if (!renderer) throw new Error('Electron renderer identity is missing');
-  if (!isAllowedRendererNavigation(target.renderer_url, renderer.url)) {
+  if (
+    typeof renderer.url !== 'string' ||
+    !isAllowedRendererNavigation(target.renderer_url, renderer.url)
+  ) {
     throw new Error('Electron renderer navigated outside the admitted origin');
   }
 }
@@ -96,7 +106,9 @@ export async function selectElectronPage(pages: Page[], target: ElectronTargetSp
         return onlyPage;
       }
     }
-    throw new Error(`Electron renderer page identity is ${matches.length === 0 ? 'missing' : 'ambiguous'}`);
+    throw new Error(
+      `Electron renderer page identity is ${matches.length === 0 ? 'missing' : 'ambiguous'}`
+    );
   }
   const page = matches[0];
   if (!page) throw new Error('Electron renderer page identity is missing');
@@ -107,7 +119,12 @@ function isAllowedRendererNavigation(admittedURL: string, currentURL: string): b
   try {
     const admitted = new URL(admittedURL);
     const current = new URL(currentURL);
-    return admitted.protocol === current.protocol && admitted.host === current.host;
+    if (admitted.protocol !== current.protocol || admitted.host !== current.host) return false;
+    if (admitted.protocol === 'file:') {
+      const directory = path.posix.dirname(admitted.pathname);
+      return current.pathname === admitted.pathname || current.pathname.startsWith(`${directory}/`);
+    }
+    return true;
   } catch {
     return false;
   }

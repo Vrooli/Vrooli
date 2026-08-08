@@ -297,6 +297,13 @@
   "freshnessRequirement": "never",
   "phaseClass": "quality",
   "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "file-determined",
+    "inputs": ["**"]
+  },
   "dimensions": [
     "tidiness"
   ],

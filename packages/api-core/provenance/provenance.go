@@ -61,7 +61,9 @@ func (p Provenance) IsAgent() bool { return p.Actor == ActorAgent }
 
 // WriteFields returns the bounded attribution fields that a write seam may
 // persist. A caller-supplied run id is never treated as proof: only the
-// server-verified claim can populate actor_id/run_id. The remaining fields
+// server-verified claim can populate actor_id/run_id. ProfileKey is the
+// verified durable actor identity (the team member/profile), while RunID is
+// the individual execution instance. The remaining fields
 // preserve the verification outcome and the unverified invocation source so
 // absence, invalid credentials, and verifier outages remain distinguishable.
 func (p Provenance) WriteFields() (actorID, actorKind, sourceRuntime, verificationStatus, runID, workflowExecutionID string) {
@@ -78,8 +80,8 @@ func (p Provenance) WriteFields() (actorID, actorKind, sourceRuntime, verificati
 		sourceRuntime = strings.TrimSpace(p.Source)
 	}
 	if p.IsVerifiedAgent() {
-		actorID = strings.TrimSpace(p.RunID)
-		runID = actorID
+		actorID = strings.TrimSpace(p.ProfileKey)
+		runID = strings.TrimSpace(p.RunID)
 		workflowExecutionID = strings.TrimSpace(p.WorkflowExecutionID)
 	}
 	return actorID, actorKind, sourceRuntime, verificationStatus, runID, workflowExecutionID

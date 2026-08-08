@@ -48,7 +48,7 @@
         {
           "notes": "Source Ledger live operator pages cover the corpus list, scope detail, timeline, frontier, vocabulary editor, and cross-scope search.",
           "status": "implemented",
-          "type": "test",
+          "type": "manual",
           "ref": "ui/src/pages/LedgerPages.tsx::LedgerDashboardPage,ScopeDetailPage,VocabularyPage,SearchPage"
         }
       ]

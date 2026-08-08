@@ -27,13 +27,13 @@ func newHandler(t *testing.T) *connectHandler {
 
 func TestAppendDerivesCorrelationOnlyFromVerifiedProvenance(t *testing.T) { // [REQ:VMEM-P1-002]
 	h := newHandler(t)
-	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-verified", WorkflowExecutionID: "workflow-verified", Invocation: provenance.Invocation{Scenario: "test-harness"}})
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, ProfileKey: "profile-verified", RunID: "run-verified", WorkflowExecutionID: "workflow-verified", Invocation: provenance.Invocation{Scenario: "test-harness"}})
 	resp, err := h.AppendEntry(ctx, connect.NewRequest(&journalv1.AppendEntryRequest{Body: "correlated", Correlation: &journalv1.Correlation{RunId: "forged"}}))
 	require.NoError(t, err)
 	require.Equal(t, "run-verified", resp.Msg.GetEntry().GetCorrelation().GetRunId())
 	require.Equal(t, "workflow-verified", resp.Msg.GetEntry().GetCorrelation().GetWorkflowExecutionId())
 	require.Equal(t, provenance.ActorAgent, resp.Msg.GetEntry().GetCorrelation().GetActorKind())
-	require.Equal(t, "run-verified", resp.Msg.GetEntry().GetAttribution().GetActorId())
+	require.Equal(t, "profile-verified", resp.Msg.GetEntry().GetAttribution().GetActorId())
 	require.Equal(t, provenance.ActorAgent, resp.Msg.GetEntry().GetAttribution().GetActorKind())
 	require.Equal(t, "test-harness", resp.Msg.GetEntry().GetAttribution().GetSourceRuntime())
 	require.Equal(t, provenance.VerificationVerified, resp.Msg.GetEntry().GetAttribution().GetVerificationStatus())

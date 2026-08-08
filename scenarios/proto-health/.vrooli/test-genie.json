@@ -545,6 +545,10 @@
   "concurrency": {
     "mode": "provider-serial"
   },
+  "determinism": {
+    "default": "file-determined",
+    "inputs": ["**"]
+  },
   "dimensions": [
     "proto-health"
   ]

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	internalcapacity "github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 // Verdict describes whether a short-lived operation may consume its requested
@@ -23,6 +24,27 @@ type Lease interface {
 	Release(context.Context) error
 }
 
+// snapshotTTL bounds how long one host-capacity reading is reused across
+// admissions.
+//
+// It exists because Acquire is called once per admitted operation and
+// hostinventory.Collect is not cheap: it shells out to nvidia-smi, docker,
+// loginctl, systemctl, grdctl, and a Secret Service probe. On a healthy host
+// that is ~175 ms; on 2026-08-08 a single wedged gnome-keyring-daemon pushed it
+// to 8.2 s, and Test Genie — which admits every phase of every suite — spent
+// 46.6% of its total wall-clock inside this call. Caching does not fix a wedged
+// host, but it stops one slow probe from being multiplied by the admission
+// count.
+//
+// Two seconds is chosen against what the reading is for: free RAM and CPU
+// headroom, used to decide whether one more short-lived operation fits. Those
+// move on a timescale of seconds under real load, and every claim this broker
+// grants is already recorded in the ledger — which is read fresh on every
+// Acquire — so concurrent grants inside one TTL window still see each other.
+// The snapshot only supplies the host's total and free capacity, not the
+// outstanding claims against it.
+const snapshotTTL = 2 * time.Second
+
 // Broker is a serialized adapter over the shared capacity ledger. It does not
 // implement a second policy: Decide, claim persistence, and resource units all
 // remain owned by internal/capacity.
@@ -30,6 +52,13 @@ type Broker struct {
 	mu     sync.Mutex
 	store  *internalcapacity.SQLiteStore
 	source internalcapacity.CapacitySource
+
+	// cachedSnapshot is the last host reading and when it was taken. It is
+	// guarded by mu, which Acquire already holds for its whole body.
+	cachedSnapshot hostinventory.Snapshot
+	cachedAt       time.Time
+	// now is a clock seam so the TTL is testable without sleeping.
+	now func() time.Time
 }
 
 // NewBroker opens the shared capacity ledger. An empty dbPath uses the normal
@@ -72,7 +101,7 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	snapshot, err := b.source.Snapshot(ctx)
+	snapshot, err := b.snapshot(ctx)
 	if err != nil {
 		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity sensing unavailable: " + err.Error()}, nil
 	}
@@ -131,6 +160,30 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 		claimIDs = append(claimIDs, claim.ClaimID)
 	}
 	return &lease{broker: b, claimIDs: claimIDs}, Verdict{Kind: internalcapacity.VerdictGrant}, nil
+}
+
+// snapshot returns a host reading no older than snapshotTTL, collecting a fresh
+// one otherwise. The caller must hold b.mu.
+//
+// A failed collection does not evict a still-valid cached reading, and never
+// serves an expired one: sensing that has genuinely stopped working must reach
+// the caller as a deny, not be papered over by a stale number that would grant
+// capacity the host may no longer have.
+func (b *Broker) snapshot(ctx context.Context) (hostinventory.Snapshot, error) {
+	now := time.Now
+	if b.now != nil {
+		now = b.now
+	}
+	at := now()
+	if !b.cachedAt.IsZero() && at.Sub(b.cachedAt) < snapshotTTL {
+		return b.cachedSnapshot, nil
+	}
+	fresh, err := b.source.Snapshot(ctx)
+	if err != nil {
+		return hostinventory.Snapshot{}, err
+	}
+	b.cachedSnapshot, b.cachedAt = fresh, at
+	return fresh, nil
 }
 
 type lease struct {

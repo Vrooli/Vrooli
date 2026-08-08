@@ -1,4 +1,5 @@
 {
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
   "schemaVersion": "1.0.0",
   "scenario": "vrooli-events",
   "phase": "event-capture-conformance",
@@ -10,6 +11,13 @@
   "findingSource": "architecture",
   "phaseClass": "provider-contract",
   "runtimeClass": "static",
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "observational",
+    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
+  },
   "dimensions": ["contracts"],
   "validation": {"contract": "scenario-validation/v1"},
   "applicability": {

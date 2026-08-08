@@ -16,7 +16,7 @@
               "required": true,
               "description": "Natural-language query",
               "bind": {
-                "field": "types"
+                "field": "query"
               }
             }
           ],
@@ -480,9 +480,7 @@
               "name": "assert",
               "bool": true,
               "description": "Opt-in CI gate: exit non-zero if any case is below_expectation or unexpected_hit (the run is still stored)",
-              "bind": {
-                "field": "suite_id"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -764,41 +762,31 @@
               "name": "root",
               "default": ".",
               "description": "Repo root or descendant path; scanner walks up to find scenarios/",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             },
             {
               "name": "timeout",
               "default": "30s",
               "description": "Per-scenario validation RPC timeout, e.g. 10s or 1m",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             },
             {
               "name": "fleet-timeout",
               "default": "2m",
               "description": "Whole-scan deadline; completed target evidence is retained when it expires",
-              "bind": {
-                "field": "include_execution"
-              }
+              "local_only": true
             },
             {
               "name": "concurrency",
               "default": "6",
               "description": "Maximum concurrent validation RPCs",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             },
             {
               "name": "retries",
               "default": "1",
               "description": "Additional attempts for an unavailable validation RPC within the fleet deadline",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             },
             {
               "name": "fast",
@@ -812,9 +800,7 @@
               "name": "include-evals",
               "bool": true,
               "description": "Force full eval evidence checks; this is the default unless --fast is set",
-              "bind": {
-                "field": "include_execution"
-              }
+              "local_only": true
             }
           ],
           "binding": {
@@ -860,17 +846,13 @@
               "name": "timeout",
               "default": "30s",
               "description": "Fix RPC timeout, e.g. 10s or 1m",
-              "bind": {
-                "field": "scenario"
-              }
+              "local_only": true
             },
             {
               "name": "apply",
               "bool": true,
               "description": "Write the previewed mechanical fixes; default is dry-run",
-              "bind": {
-                "field": "path"
-              }
+              "local_only": true
             }
           ],
           "binding": {

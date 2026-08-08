@@ -126,7 +126,11 @@ func (h *connectHandler) launch(id string) {
 			return
 		}
 		h.signal(id)
-		report, err := h.run(ctx, record.Run.Target.Scenario, record.Run.Target.Path, execution.Options{IncludeExecution: true, RunID: id, Isolation: execution.NewRoutingIsolation(), ElectronTarget: electronTarget(record.ExecutionBinding), ValidationContext: electronValidationContext(record.ExecutionBinding, id)})
+		opts := execution.Options{IncludeExecution: true, RunID: id, Isolation: execution.NewRoutingIsolation(), ElectronTarget: electronTarget(record.ExecutionBinding), ValidationContext: electronValidationContext(record.ExecutionBinding, id)}
+		if workflowPath := strings.TrimSpace(record.ExecutionBinding.GetWorkflowPath()); workflowPath != "" {
+			opts.Selector.CasePaths = []string{workflowPath}
+		}
+		report, err := h.run(ctx, record.Run.Target.Scenario, record.Run.Target.Path, opts)
 		if err != nil {
 			h.finish(record, core.EventFail, nil, nil, err)
 			return
@@ -155,9 +159,13 @@ func electronValidationContext(binding *scenariovalidationv1.DesktopValidationBi
 	if binding == nil {
 		return nil
 	}
+	workflowID := strings.TrimSpace(binding.GetWorkflowId())
+	if workflowID == "" {
+		workflowID = binding.GetWorkflowPath()
+	}
 	return &execution.ValidationContext{
 		ContextID: binding.GetContextId(), ScenarioName: binding.GetScenarioName(), ArtifactDigest: binding.GetArtifactDigest(),
-		TargetID: binding.GetTargetId(), ProfileID: binding.GetProfileId(), IsolationLeaseID: runID,
+		TargetID: binding.GetTargetId(), ProfileID: binding.GetProfileId(), WorkflowID: workflowID, IsolationLeaseID: runID,
 	}
 }
 

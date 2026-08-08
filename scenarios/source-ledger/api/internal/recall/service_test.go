@@ -109,6 +109,30 @@ func TestWakeExcerptsLongEntriesAndMarksTheTruncation(t *testing.T) { // [REQ:VM
 	require.Equal(t, 2, lines(wake.Hits[0].Node.Text), "an excerpt costs at most MaxEntryLines against the wake budget")
 }
 
+func TestWorkRecordExcerptsIdentifyTheirSubjectWithinMaxEntryLines(t *testing.T) { // [REQ:VMEM-P0-008]
+	now := time.Now()
+	nodes := source{
+		{ID: "one", FacetID: "episode", Frontier: true, Text: "Work record from swarm-manager (same-scenario)\nTrigger: first subject\nApproach: implemented", CreatedAt: now},
+		{ID: "two", FacetID: "episode", Frontier: true, Text: "Work record from swarm-manager (same-scenario)\nTrigger: second subject\nApproach: implemented", CreatedAt: now.Add(-time.Minute)},
+	}
+	wake, err := NewService(nodes, embedder{}, Config{WakeBudget: 20, MaxEntryLines: 2, FacetBudgets: map[string]int{"episode": 2}}).Wake(context.Background(), 0)
+	require.NoError(t, err)
+	require.Len(t, wake.Hits, 2)
+	require.NotEqual(t, wake.Hits[0].Node.Text, wake.Hits[1].Node.Text)
+}
+
+func TestWakeHonorsCallerLineBudget(t *testing.T) {
+	now := time.Now()
+	nodes := source{
+		{ID: "one", Frontier: true, Text: "one", CreatedAt: now},
+		{ID: "two", Frontier: true, Text: "two", CreatedAt: now.Add(-time.Minute)},
+	}
+	wake, err := NewService(nodes, embedder{}, Config{WakeBudget: 20}).Wake(context.Background(), 1)
+	require.NoError(t, err)
+	require.Len(t, wake.Hits, 1)
+	require.Equal(t, 1, lines(wake.Hits[0].Node.Text))
+}
+
 // One oversized memory must not cost its facet the rest of its residency.
 func TestWakeSkipsAnOversizedEntryInsteadOfAbandoningTheFacet(t *testing.T) { // [REQ:VMEM-P0-008]
 	now := time.Now()

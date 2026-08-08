@@ -59,4 +59,25 @@ func TestRewriteElectronScenarioNavigationLeavesOtherDestinationsUntouched(t *te
 	}
 }
 
+func TestRewriteElectronScenarioNavigationKeepsAdmittedFileRenderer(t *testing.T) {
+	destinationType := basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO
+	instruction := contracts.CompiledInstruction{Action: &basactions.ActionDefinition{
+		Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+		Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
+			Url:             "http://localhost:1234/",
+			DestinationType: &destinationType,
+			Scenario:        stringPointer("controlled-scenario"),
+			ScenarioPath:    stringPointer("/"),
+		}},
+	}}
+
+	rewritten, err := rewriteElectronScenarioNavigation(instruction, &driver.ElectronTarget{RendererURL: "file:///tmp/controlled/index.html", ScenarioName: "controlled-scenario"})
+	if err != nil {
+		t.Fatalf("rewrite file renderer navigation: %v", err)
+	}
+	if got, want := rewritten.Action.GetNavigate().GetUrl(), "file:///tmp/controlled/index.html"; got != want {
+		t.Fatalf("rewritten URL = %q, want %q", got, want)
+	}
+}
+
 func stringPointer(value string) *string { return &value }

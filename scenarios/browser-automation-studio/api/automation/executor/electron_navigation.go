@@ -43,6 +43,19 @@ func rewriteElectronScenarioNavigation(instruction contracts.CompiledInstruction
 		}
 		return instruction, fmt.Errorf("parse admitted Electron renderer URL %q: %w", rendererURL, err)
 	}
+	// A packaged Electron renderer is admitted at one exact file URL. A
+	// scenario destination of "/" means "the already attached app"; mapping
+	// it to file:/// would leave the renderer and is therefore refused by the
+	// target seam. Browser targets continue through the normal route mapping.
+	if base.Scheme == "file" {
+		cloned, ok := proto.Clone(instruction.Action).(*basactions.ActionDefinition)
+		if !ok {
+			return instruction, fmt.Errorf("clone Electron scenario navigation action")
+		}
+		cloned.GetNavigate().Url = base.String()
+		instruction.Action = cloned
+		return instruction, nil
+	}
 
 	route := strings.TrimSpace(navigate.GetScenarioPath())
 	if route == "" {

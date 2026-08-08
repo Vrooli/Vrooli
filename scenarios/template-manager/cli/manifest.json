@@ -31,11 +31,9 @@
               "description": "Scenario description"
             },
             {
-              "name": "dest",
-              "description": "Destination path",
-              "bind": {
-                "field": "design"
-              }
+      "name": "dest",
+      "description": "Destination path",
+      "local_only": true
             },
             {
               "name": "design",

@@ -63,7 +63,7 @@ func (h *connectHandler) Recall(ctx context.Context, req *connect.Request[recall
 
 func (h *connectHandler) Wake(ctx context.Context, req *connect.Request[recallv1.WakeRequest]) (*connect.Response[recallv1.WakeResponse], error) {
 	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	wake, err := h.service.Wake(ctx, int(req.Msg.GetTokenBudget()))
+	wake, err := h.service.Wake(ctx, int(req.Msg.GetLineBudget()))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

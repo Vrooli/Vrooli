@@ -10,6 +10,7 @@ func verifiedAgent() provenance.Provenance {
 	return provenance.Provenance{
 		Actor:               provenance.ActorAgent,
 		VerificationStatus:  provenance.VerificationVerified,
+		ProfileKey:          "profile-123",
 		RunID:               "run-1234",
 		WorkflowExecutionID: "wfx-9",
 		Invocation:          provenance.Invocation{Scenario: "vrooli-memory"},
@@ -21,8 +22,8 @@ func verifiedAgent() provenance.Provenance {
 func TestAttributionFromVerifiedAgentPopulatesCorrelation(t *testing.T) {
 	attribution, correlation := AttributionFrom(verifiedAgent(), Attribution{})
 
-	if attribution.ActorID != "run-1234" {
-		t.Fatalf("actor id = %q, want run-1234", attribution.ActorID)
+	if attribution.ActorID != "profile-123" {
+		t.Fatalf("actor id = %q, want profile-123", attribution.ActorID)
 	}
 	if attribution.VerificationStatus != provenance.VerificationVerified {
 		t.Fatalf("verification status = %q, want verified", attribution.VerificationStatus)
@@ -48,8 +49,8 @@ func TestAttributionFromPreservesCallerDescriptiveFields(t *testing.T) {
 	if attribution.SourceRuntime != "claude-code" {
 		t.Fatalf("source runtime = %q, want claude-code", attribution.SourceRuntime)
 	}
-	if attribution.ActorID != "run-1234" {
-		t.Fatalf("actor id = %q, want the verified run id", attribution.ActorID)
+	if attribution.ActorID != "profile-123" {
+		t.Fatalf("actor id = %q, want the verified profile id", attribution.ActorID)
 	}
 	if correlation.ActorKind != "harness-import" {
 		t.Fatalf("correlation actor kind = %q, want harness-import", correlation.ActorKind)

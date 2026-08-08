@@ -25,36 +25,38 @@ _WC_PROMPT_HOOK_ID="web-console-prompt"
 _WC_HOOK_SCOPE="project"
 
 _wc::source_claude_code_hooks() {
-    local hooks_lib="${APP_ROOT}/resources/claude-code/lib/hooks.sh"
-    local settings_lib="${APP_ROOT}/resources/claude-code/lib/settings.sh"
-    local defaults_file="${APP_ROOT}/resources/claude-code/config/defaults.sh"
+    _wc::claude_code_cli >/dev/null 2>&1
+}
 
-    if [[ ! -f "$hooks_lib" || ! -f "$settings_lib" || ! -f "$defaults_file" ]]; then
-        return 1
-    fi
-
-    # Source required Vrooli utilities before the Claude resource files.
-    # shellcheck disable=SC1091
-    source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
-    # shellcheck disable=SC1091
-    source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
-    # shellcheck disable=SC1091
-    source "${APP_ROOT}/scripts/lib/system/system_commands.sh" 2>/dev/null || true
-
-    # shellcheck disable=SC1091
-    source "$defaults_file"
-    # shellcheck disable=SC1091
-    source "$settings_lib"
-    # shellcheck disable=SC1091
-    source "$hooks_lib"
-    if declare -F claude_code::export_settings_context >/dev/null 2>&1; then
-        claude_code::export_settings_context
-    fi
-    if declare -F claude_code::hooks_reconcile >/dev/null 2>&1; then
+_wc::claude_code_cli() {
+    if command -v resource-claude-code >/dev/null 2>&1; then
+        command -v resource-claude-code
         return 0
     fi
-
+    if [[ -n "${VROOLI_BIN_DIR:-}" && -x "${VROOLI_BIN_DIR}/resource-claude-code" ]]; then
+        echo "${VROOLI_BIN_DIR}/resource-claude-code"
+        return 0
+    fi
     return 1
+}
+
+_wc::hooks_reconcile() {
+    local cli
+    cli=$(_wc::claude_code_cli) || return 1
+    "$cli" hooks reconcile \
+        --event "$1" \
+        --id "$2" \
+        --hook-json "$3" \
+        --scope "$4"
+}
+
+_wc::hooks_remove() {
+    local cli
+    cli=$(_wc::claude_code_cli) || return 1
+    "$cli" hooks remove \
+        --event "$1" \
+        --id "$2" \
+        --scope "$3"
 }
 
 #######################################
@@ -157,7 +159,7 @@ ENDJSON
 )
 
     local result=""
-    if ! result=$(claude_code::hooks_reconcile "$_WC_HOOK_EVENT" "$_WC_HOOK_ID" "$hook_json" "$_WC_HOOK_SCOPE"); then
+    if ! result=$(_wc::hooks_reconcile "$_WC_HOOK_EVENT" "$_WC_HOOK_ID" "$hook_json" "$_WC_HOOK_SCOPE"); then
         echo "tts-hook: reconciliation failed" >&2
         if [[ -n "$result" ]]; then
             echo "$result" >&2
@@ -198,7 +200,7 @@ ENDJSON
 )
 
     local prompt_result=""
-    if ! prompt_result=$(claude_code::hooks_reconcile "$_WC_PROMPT_HOOK_EVENT" "$_WC_PROMPT_HOOK_ID" "$prompt_hook_json" "$_WC_HOOK_SCOPE"); then
+    if ! prompt_result=$(_wc::hooks_reconcile "$_WC_PROMPT_HOOK_EVENT" "$_WC_PROMPT_HOOK_ID" "$prompt_hook_json" "$_WC_HOOK_SCOPE"); then
         echo "tts-hook: prompt-submit reconciliation failed" >&2
         if [[ -n "$prompt_result" ]]; then
             echo "$prompt_result" >&2
@@ -241,14 +243,14 @@ wc::deregister_tts_hook() {
     fi
 
     # Remove the hooks
-    if claude_code::hooks_remove "$_WC_HOOK_EVENT" "$_WC_HOOK_ID" "$_WC_HOOK_SCOPE" >/dev/null; then
+    if _wc::hooks_remove "$_WC_HOOK_EVENT" "$_WC_HOOK_ID" "$_WC_HOOK_SCOPE" >/dev/null; then
         echo "tts-hook: deregistered Stop hook"
     else
         echo "tts-hook: deregistration failed" >&2
         return 1
     fi
 
-    claude_code::hooks_remove "$_WC_PROMPT_HOOK_EVENT" "$_WC_PROMPT_HOOK_ID" "$_WC_HOOK_SCOPE" >/dev/null
+    _wc::hooks_remove "$_WC_PROMPT_HOOK_EVENT" "$_WC_PROMPT_HOOK_ID" "$_WC_HOOK_SCOPE" >/dev/null
     echo "tts-hook: deregistered UserPromptSubmit hook"
 
     return 0

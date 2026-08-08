@@ -14,6 +14,10 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/provenance"
+	// Register the optional program-runtime event payload with the process-wide
+	// protobuf resolver. Events remain generic at the envelope boundary, but
+	// protojson must know every payload type that the platform accepts.
+	_ "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/convert"
