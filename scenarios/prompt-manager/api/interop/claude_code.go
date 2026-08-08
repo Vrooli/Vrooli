@@ -3,10 +3,11 @@ package interop
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/validation"
-	"strings"
 )
 
 // CCTeamConfig mirrors the structure of ~/.claude/teams/{name}/config.json.
@@ -159,7 +160,6 @@ func (c *ClaudeCodeConverter) ToPMTeam(config *ToolTeamConfig) (*PMTeamImport, e
 					InjectInbox:              false,
 					AllowPeerTriggers:        false,
 					ShowTaskBoardGuidance:    true,
-					ShowDecisionLogGuidance:  true,
 					ShowKnowledgeLogGuidance: true,
 					RequireHandoff:           true,
 				},
@@ -168,8 +168,7 @@ func (c *ClaudeCodeConverter) ToPMTeam(config *ToolTeamConfig) (*PMTeamImport, e
 				QueuePolicy:       teamconfig.QueuePolicySerialized,
 				MaxConcurrentRuns: 1,
 			},
-			DecisionMode: teamconfig.DecisionModeYolo,
-			Timestamps:   store.NewTimestamps(),
+			Timestamps: store.NewTimestamps(),
 		},
 		Agents:   make([]store.Agent, 0, len(config.Members)),
 		Members:  make([]store.TeamMemberRelation, 0, len(config.Members)),
@@ -271,25 +270,17 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 	// Coordination
 	b.WriteString("## 4. Coordination\n\n")
 	b.WriteString("- Use your coding agent's built-in subagent messaging for in-session coordination.\n")
-	b.WriteString("- Use `prompt-manager` CLI commands via Bash for persistent storage: task board, decision log, knowledge log, handoff history, and taskless member context.\n")
+	b.WriteString("- Use the shared Source Ledger team scope for durable context and Swarm Manager for backlog items, captures, and dispositions.\n")
 	b.WriteString("- Do not use `prompt-manager team message-send` for your in-session subagents unless you intentionally want an asynchronous inbox message for a future heartbeat.\n")
 	b.WriteString("- Monitor teammate status, synthesize their findings, and avoid parallel tool misuse that leaves the run hanging.\n\n")
 
 	// Operating loop
 	b.WriteString("## 5. Operating Loop\n\n")
-	b.WriteString("1. Review the latest handoff, active tasks, recent decisions, pending approvals, and any team-specific planning surface named in your lead context.\n")
+	b.WriteString("1. Review the latest handoff, active tasks, open Swarm Manager work, and any team-specific planning surface named in your lead context.\n")
 	b.WriteString("2. Spawn direct reports and collect structured briefs from them.\n")
 	b.WriteString("3. Synthesize the team's current priorities, blockers, and recommended next moves.\n")
 	b.WriteString("4. Persist useful state with prompt-manager commands.\n")
 	b.WriteString("5. End your final response with a `## HANDOFF` section as the last section, then stop.\n\n")
-
-	if ctx.DecisionMode == "approval" {
-		b.WriteString("## 6. Approval Constraints\n\n")
-		b.WriteString("- This team is running in `approval` decision mode.\n")
-		b.WriteString("- You may analyze, prioritize, update tasks, record knowledge, and log decisions/options as pending.\n")
-		b.WriteString("- Do not mark decisions accepted or rejected; that requires a human.\n")
-		b.WriteString("- Do not deploy teams, trigger external execution, or create external backlog items unless a human has already accepted that decision.\n\n")
-	}
 
 	// Org chart
 	b.WriteString("## 7. Org Chart\n\n")

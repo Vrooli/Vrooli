@@ -179,6 +179,7 @@ CI failure.
 
 | Code | Edge | Tier | Class | Default severity | Status |
 |---|---|---|---|---|---|
+| `experience.registry_invalid` | experience-manager capability registry → schema and cross-registry validation | 0 | det | error | active |
 | `experience.schema_invalid` | document → validates against `scenario-experience-spec/v1` | 0 | det | error | active |
 | `experience.index_parity` | `experience/index.json` ↔ on-disk pages/journeys/components, both directions | 0 | det | error | active |
 | `experience.ref_unresolved` | claim→element/state, sketch→element, journey step→page/state, component state→example all resolve | 0 | det | error | active |
@@ -449,7 +450,7 @@ edge emits the expected advisory findings.
   — the horizontal axis (structural soundness) both tracks complement.
 - `.vrooli/schemas/scenario-experience-spec.schema.json` — the canonical
   contract (`scenario-experience-spec/v1`).
-- `scenarios/experience-manager/docs/internal/DECISIONS.md` — the durable
+- `scenarios/experience-manager/docs/internal/SWARM_MANAGER_WORK.md` — the durable
   decision log behind every rule in this doc (each row carries context,
   consequences, and a revisit trigger).
 - [`docs/design/governance.md`](../design/governance.md) — DESIGN.md as

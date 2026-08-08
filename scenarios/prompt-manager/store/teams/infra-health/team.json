@@ -22,7 +22,6 @@
       "injectInbox": false,
       "allowPeerTriggers": false,
       "showTaskBoardGuidance": false,
-      "showDecisionLogGuidance": true,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
@@ -41,24 +40,13 @@
     {
       "prefix": "contrarian-scan/YYYY-MM-DD",
       "status": "live",
-      "purpose": "Stale decision and failure-mode review snapshot."
-    },
-    {
-      "prefix": "challenge-report/<decision-id>",
-      "status": "live",
-      "purpose": "Append-only challenge against a pending infra-health decision."
-    },
-    {
-      "prefix": "challenge-resolution-record/<decision-id>",
-      "status": "live",
-      "purpose": "Latest-state record for an infra-health challenge."
+      "purpose": "Stale work-item and failure-mode review snapshot."
     }
   ],
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
   },
-  "decisionMode": "approval",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
@@ -68,28 +56,6 @@
   "updatedAt": "2026-04-28T00:00:00Z",
   "operatingContract": {
     "schemaVersion": 1,
-    "governance": {
-      "decisionMode": "approval",
-      "teamPendingCeiling": {
-        "value": 12,
-        "readOnlyWhenAtOrAbove": true,
-        "rationale": "Keeps infra-health decisions sized for operator review at the morning vision walk."
-      },
-      "supersession": {
-        "requiredBeforeNewDecision": true,
-        "allowedInReadOnlyMode": true,
-        "replacementMustSetSupersedes": true
-      },
-      "staleDecisionPolicy": {
-        "afterHeartbeats": 7,
-        "ownerMemberId": "infra-contrarian",
-        "requiredOutcomes": [
-          "supersede",
-          "reject",
-          "still-relevant-note"
-        ]
-      }
-    },
     "documents": {
       "planOfRecord": [
         {
@@ -124,13 +90,13 @@
               "path": "docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md"
             }
           ],
-          "writePolicy": "operator-curated-via-decisions",
+          "writePolicy": "operator-curated-via-swarm-manager",
           "consumers": [
             "infra-health",
             "director-swarm"
           ],
           "rationale": "Plan-of-record for reliability targets, instrumentation gaps, and cross-platform assumptions.",
-          "useFor": "runtime reliability targets, instrumentation roadmap, cross-platform portability ledger, and director-swarm morning-walk infrastructure decisions"
+          "useFor": "runtime reliability targets, instrumentation roadmap, cross-platform portability ledger, and director-swarm morning-walk infrastructure work items"
         }
       ],
       "sharedState": [
@@ -141,33 +107,6 @@
             "path": "TEAM.md"
           },
           "kind": "charter",
-          "required": true
-        },
-        {
-          "id": "decisions-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
-          },
-          "kind": "decision-log",
-          "required": true
-        },
-        {
-          "id": "knowledge-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          "kind": "knowledge-log",
-          "required": true
-        },
-        {
-          "id": "handoff-history-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "handoff-history.jsonl"
-          },
-          "kind": "handoff-log",
           "required": true
         },
         {
@@ -202,62 +141,6 @@
         }
       ]
     },
-    "decisionContexts": {
-      "runtime-health-finding": {
-        "ownerMemberIds": [
-          "runtime-health-scanner"
-        ],
-        "description": "Runtime pattern warrants operator-routed action."
-      },
-      "platform-code-finding": {
-        "ownerMemberIds": [
-          "platform-code-auditor"
-        ],
-        "description": "Internal Vrooli platform code has an actionable quality or reliability finding."
-      },
-      "cross-platform-debt": {
-        "ownerMemberIds": [
-          "platform-code-auditor"
-        ],
-        "description": "Internal code contains a platform assumption that belongs in the cross-platform ledger."
-      },
-      "instrumentation-gap": {
-        "ownerMemberIds": [
-          "runtime-health-scanner",
-          "platform-code-auditor"
-        ],
-        "description": "Missing stat or signal blocked a finding or audit."
-      },
-      "capability-gap": {
-        "ownerMemberIds": [
-          "runtime-health-scanner",
-          "platform-code-auditor"
-        ],
-        "externalAuthorizedRaisers": [
-          "director-swarm",
-          "meta-optimization"
-        ],
-        "description": "Missing CLI verb, scenario, or tool capability blocks infra-health work."
-      },
-      "reliability-target-update": {
-        "ownerMemberIds": [
-          "runtime-health-scanner"
-        ],
-        "description": "Reliability target should change based on observed baseline evidence."
-      },
-      "decision-rejection-proposed": {
-        "ownerMemberIds": [
-          "infra-contrarian"
-        ],
-        "description": "Contrarian recommends rejecting or revising a pending infra-health decision."
-      },
-      "framework-meta": {
-        "ownerMemberIds": [
-          "infra-contrarian"
-        ],
-        "description": "Team rubric, triage ladder, or decision discipline needs an update."
-      }
-    },
     "knowledgeTopics": {
       "runtime-health-audit/YYYY-MM-DD": {
         "ownerMemberId": "runtime-health-scanner",
@@ -275,40 +158,15 @@
         "ownerMemberId": "infra-contrarian",
         "supersedesPrevious": true,
         "retention": "snapshot",
-        "comment": "Stale decision and failure-mode review snapshot."
-      },
-      "challenge-report/<decision-id>": {
-        "ownerMemberId": "infra-contrarian",
-        "supersedesPrevious": false,
-        "retention": "append-only",
-        "comment": "Append-only challenge against a pending infra-health decision."
-      },
-      "challenge-resolution-record/<decision-id>": {
-        "ownerMemberId": "infra-contrarian",
-        "supersedesPrevious": true,
-        "retention": "snapshot",
-        "comment": "Latest-state record for an infra-health challenge."
+        "comment": "Stale work item and failure-mode review snapshot."
       }
     },
     "members": {
       "runtime-health-scanner": {
         "lane": "Find aggregate runtime-health patterns across durable autoheal incidents, autoheal history, system-monitor, and lifecycle history; produce one concrete finding at a time.",
-        "ownedDecisionContexts": [
-          "runtime-health-finding",
-          "instrumentation-gap",
-          "capability-gap",
-          "reliability-target-update"
-        ],
-        "newDecisionCapPerHeartbeat": 2,
-        "pendingOwnedDecisionCap": 4,
         "allowedWrites": [
           {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
+            "kind": "knowledge"
           },
           {
             "base": "team-shared",
@@ -329,9 +187,7 @@
           "Never edit platform, autoheal, or system-monitor code."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
         "taskParameters": {
@@ -339,23 +195,10 @@
         }
       },
       "platform-code-auditor": {
-        "lane": "Audit one slice of internal Vrooli platform code per heartbeat and route concrete findings through decisions.",
-        "ownedDecisionContexts": [
-          "platform-code-finding",
-          "cross-platform-debt",
-          "instrumentation-gap",
-          "capability-gap"
-        ],
-        "newDecisionCapPerHeartbeat": 2,
-        "pendingOwnedDecisionCap": 4,
+        "lane": "Audit one slice of internal Vrooli platform code per heartbeat and route concrete findings through work items.",
         "allowedWrites": [
           {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
+            "kind": "knowledge"
           },
           {
             "base": "team-shared",
@@ -376,9 +219,7 @@
           "Do not audit scenario code; scenario-qa owns that lane."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
         "taskParameters": {
@@ -403,24 +244,10 @@
         }
       },
       "infra-contrarian": {
-        "lane": "Challenge infra-health decisions against the team failure-mode rubric and run the stale decision scan.",
-        "ownedDecisionContexts": [
-          "decision-rejection-proposed",
-          "framework-meta"
-        ],
-        "newDecisionCapsByContext": {
-          "decision-rejection-proposed": 2,
-          "framework-meta": 1
-        },
-        "pendingOwnedDecisionCap": 3,
+        "lane": "Challenge infra-health work items against the team failure-mode rubric and run the stale work item scan.",
         "allowedWrites": [
           {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
+            "kind": "knowledge"
           },
           {
             "base": "team-shared",
@@ -442,9 +269,7 @@
           "Do not synthesize other members into a leader-style brief."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
         "taskParameters": {

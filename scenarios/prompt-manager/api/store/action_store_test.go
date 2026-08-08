@@ -32,24 +32,24 @@ func setupActionStore(t *testing.T) (*FileActionStore, string) {
 func testAction(id string) *Action {
 	return &Action{
 		ID:          id,
-		Name:        "List Decisions",
-		Description: "List pending decisions for a team.",
+		Name:        "List Work",
+		Description: "List pending work items for a team.",
 		Status:      StatusDraft,
 		Owner: ActionOwner{
 			Type: "scenario",
 			ID:   "prompt-manager",
 		},
 		Command: ActionCommand{
-			Argv: []string{"prompt-manager", "team", "decisions", "list", "{{team}}"},
+			Argv: []string{"swarm-manager", "backlog", "list", "{{team}}", "--json"},
 		},
 		Inputs: map[string]ActionInput{
 			"team": {Type: "team", Required: true},
 		},
 		Outputs: map[string]ActionOutput{
-			"decisions": {Type: "json"},
+			"workItems": {Type: "json"},
 		},
 		Examples: []ActionExample{{
-			Description: "List the director swarm decisions.",
+			Description: "List the director swarm work items.",
 			Input:       map[string]any{"team": "director-swarm"},
 		}},
 	}
@@ -59,11 +59,11 @@ func TestActionStore_CreateGetUpdateArchiveDelete(t *testing.T) {
 	store, _ := setupActionStore(t)
 	ctx := context.Background()
 
-	if err := store.Create(ctx, "local", testAction("team.decisions.list")); err != nil {
+	if err := store.Create(ctx, "local", testAction("team.swarm.work.list")); err != nil {
 		t.Fatalf("create action: %v", err)
 	}
 
-	got, err := store.Get(ctx, "team.decisions.list")
+	got, err := store.Get(ctx, "team.swarm.work.list")
 	if err != nil {
 		t.Fatalf("get action: %v", err)
 	}
@@ -80,18 +80,18 @@ func TestActionStore_CreateGetUpdateArchiveDelete(t *testing.T) {
 		t.Errorf("expected initial timestamps/revision, got revision=%d created=%q updated=%q", got.Revision, got.CreatedAt, got.UpdatedAt)
 	}
 
-	if err := store.Update(ctx, "team.decisions.list", &Action{
-		Name:   "List Team Decisions",
+	if err := store.Update(ctx, "team.swarm.work.list", &Action{
+		Name:   "List Team Work",
 		Status: StatusActive,
-		Tags:   []string{"teams", "decisions"},
+		Tags:   []string{"teams", "work-items"},
 	}); err != nil {
 		t.Fatalf("update action: %v", err)
 	}
-	got, err = store.Get(ctx, "team.decisions.list")
+	got, err = store.Get(ctx, "team.swarm.work.list")
 	if err != nil {
 		t.Fatalf("get updated action: %v", err)
 	}
-	if got.Name != "List Team Decisions" {
+	if got.Name != "List Team Work" {
 		t.Errorf("Name = %q, want updated name", got.Name)
 	}
 	if got.Status != StatusActive {
@@ -101,10 +101,10 @@ func TestActionStore_CreateGetUpdateArchiveDelete(t *testing.T) {
 		t.Errorf("Revision = %d, want 2", got.Revision)
 	}
 
-	if err := store.Archive(ctx, "team.decisions.list"); err != nil {
+	if err := store.Archive(ctx, "team.swarm.work.list"); err != nil {
 		t.Fatalf("archive action: %v", err)
 	}
-	got, err = store.Get(ctx, "team.decisions.list")
+	got, err = store.Get(ctx, "team.swarm.work.list")
 	if err != nil {
 		t.Fatalf("get archived action: %v", err)
 	}
@@ -112,10 +112,10 @@ func TestActionStore_CreateGetUpdateArchiveDelete(t *testing.T) {
 		t.Errorf("Status = %q, want archived", got.Status)
 	}
 
-	if err := store.Delete(ctx, "team.decisions.list"); err != nil {
+	if err := store.Delete(ctx, "team.swarm.work.list"); err != nil {
 		t.Fatalf("delete action: %v", err)
 	}
-	if _, err := store.Get(ctx, "team.decisions.list"); err == nil {
+	if _, err := store.Get(ctx, "team.swarm.work.list"); err == nil {
 		t.Fatal("expected deleted action to be missing")
 	}
 }
@@ -139,7 +139,7 @@ func TestActionStore_AcceptsSnakeCasePlaceholders(t *testing.T) {
 func TestActionStore_DottedIDValidation(t *testing.T) {
 	valid := []string{
 		"scenario.ui.screenshot",
-		"team-decisions.list",
+		"team-swarm-work.list",
 		"skill.health-audit",
 	}
 	for _, id := range valid {
@@ -323,7 +323,7 @@ func TestActionStore_DuplicateCreateRejected(t *testing.T) {
 func TestActionStore_RunHistoryIsBounded(t *testing.T) {
 	store, storeDir := setupActionStore(t)
 	ctx := context.Background()
-	action := testAction("team.decisions.list")
+	action := testAction("team.swarm.work.list")
 	if err := store.Create(ctx, "local", action); err != nil {
 		t.Fatal(err)
 	}

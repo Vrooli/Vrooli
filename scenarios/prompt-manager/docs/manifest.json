@@ -142,18 +142,6 @@
           "title": "Heartbeat CLI",
           "description": "CLI commands for heartbeat management",
           "audience": ["users", "developers"]
-        },
-        {
-          "path": "reference/decision-initiative-proposal-contract.md",
-          "title": "Decision Initiative Proposal Contract",
-          "description": "Contract for decisions that create swarm-manager initiatives",
-          "audience": ["developers", "operators"]
-        },
-        {
-          "path": "reference/decision-modifications-contract.md",
-          "title": "Decision Modifications Contract",
-          "description": "Contract for recording accepted modifications on decisions",
-          "audience": ["developers", "operators"]
         }
       ]
     },

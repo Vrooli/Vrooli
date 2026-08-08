@@ -43,7 +43,7 @@ Decision-context detail lives in [`governance/editing.md`](governance/editing.md
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) - canonical technical reference for how Vrooli works.
 - [`../monetization/`](../monetization/README.md) - monetization strategy and revenue truth consumed by director-swarm.
 - [`../meta-optimization/`](../meta-optimization/README.md) - self-improvement loop that feeds director-level capability gaps.
-- [`../infra-health/`](../infra-health/README.md) - platform-reliability loop whose findings reach the walk at Phase 5.7; director-swarm may raise `capability-gap` decisions into infra-health.
+- [`../infra-health/`](../infra-health/README.md) - platform-reliability loop whose findings reach the walk at Phase 5.7; director-swarm may raise `capability-work` decisions into infra-health.
 
 ## Future PoR work
 

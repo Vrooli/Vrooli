@@ -1,8 +1,8 @@
 # Agent System
 
-Plan-of-record for the prompt-manager self-improvement framework: how skills, agents, teams, plans, decisions, knowledge topics, actions, and CLIs fit together.
+Plan-of-record for the prompt-manager self-improvement framework: how skills, agents, teams, plans, Source Ledger topics, actions, and CLIs fit together.
 
-This folder is **canon**. Edits go through approved decisions on the `meta-optimization` team. Other teams cite files here as required reading; nobody outside the meta-optimization decision flow rewrites them in place.
+This folder is **canon**. Edits go through accepted, operator-dispositioned Swarm Manager work on the `meta-optimization` team. Other teams cite files here as required reading; nobody outside the owning flow rewrites them in place.
 
 ## Status
 
@@ -26,18 +26,18 @@ Two chains run through this system, and you need both to read it. The **intent c
 | Team purpose | `team.json::objectivesServed`, restated with reasoning in `OPERATING_MODEL.md` §Mission | owning team | **objective id — declared and validated** |
 | Team responsibility | `OPERATING_MODEL.md` §Scope (owns / does not own) and §Operating Loops | owning team | prose, scored by audit judgment |
 | Member surface | `RESPONSIBILITIES.md`, `HEARTBEAT.md`, `topics.json` | owning team | the nine layers in `TEAM_MEMBER_ARCHITECTURE.md` |
-| Missing capability | `OPERATING_MODEL.md` §Current Implementation Gaps; `capability-gap` decisions; the capability ladder | owning team | the objective the gap blocks |
+| Missing capability | `OPERATING_MODEL.md` §Current Implementation Gaps; Swarm Manager work; the capability ladder | owning team | the objective the gap blocks |
 
 Two properties make the chain checkable rather than decorative:
 
 - **The objective join is a declaration, not prose.** `team.json::objectivesServed` names the ids a team serves, and `prompt-manager graph objectives` reads it against the objective table in both directions. Editing an objective therefore moves a sensor. Before this was declared, the top of the hierarchy was the one relationship in the system with no machine-readable edge, and changing it fired nothing.
-- **Ownership of the join is split across a measure/actuate seam.** `meta-optimization/team-agent-optimizer` *measures* coverage and is forbidden from acting on what it measures; the actuator is `outcome-direction` or `capability-gap` in `director-swarm`, which owns the objective set. Measuring and restructuring on the strength of your own measurement are different authorities on purpose.
+- **Ownership of the join is split across a measure/actuate seam.** `meta-optimization/team-agent-optimizer` *measures* coverage and is forbidden from acting on what it measures; the actuator is a Swarm Manager work item in `director-swarm`, which owns the objective set. Measuring and restructuring on the strength of your own measurement are different authorities on purpose.
 
 Read the objective set itself in `OBJECTIVES.md`; it is not restated here. What this table adds is the *shape* — which artifact holds which level, and what breaks when one is skipped. A level skipped downward is stated intent nobody serves; a level skipped upward is effort nobody asked for. Both are findings, and `OBJECTIVES.md` §"The coverage rule" is where they are defined.
 
 ### The ratchet
 
-Every capability added to the system is supposed to make the system **smaller**. A scenario absorbs work that previously lived as instructions, so the team that gained the scenario should end the cycle cheaper to orient in — fewer members, less canon, fewer topic families, fewer decision contexts — not more expensive. A capability that only adds instructions for using it has not paid for itself.
+Every capability added to the system is supposed to make the system **smaller**. A scenario absorbs work that previously lived as instructions, so the team that gained the scenario should end the cycle cheaper to orient in — fewer members, less canon, fewer topic families — not more expensive. A capability that only adds instructions for using it has not paid for itself.
 
 This is measured, not asserted: `prompt-manager graph orientation-cost` reads the composite per team, and `FRAMEWORK_HEALTH.md` §"Team orientation cost" bands it as a **trend** rather than a level. A team that owns more is allowed to carry more; what is never allowed is for orientation cost to rise in the same cycle that scenario coverage grew. The actuator is the `team-capability-consolidation` skill, which turns the missing capability into a scenario and re-derives the roster from it.
 
@@ -45,7 +45,7 @@ The ratchet applies to this folder too. Canon that grows to explain a capability
 
 ### The signal loop
 
-The agent system is one self-improving loop. Signals enter through team inboxes; router skills drain them into one of a small set of outcomes; pending decisions pass through team-local contrarian review before acceptance; accepted decisions either land directly or route through swarm-manager for execution; every change feeds back into the meta-optimization audit, which keeps the loop honest.
+The agent system is one self-improving loop. Signals enter through team inboxes; router skills drain them into one of a small set of outcomes; evidence-backed work enters Swarm Manager for operator disposition and execution; every change feeds back into the meta-optimization audit, which keeps the loop honest.
 
 ```mermaid
 flowchart TB
@@ -62,27 +62,12 @@ flowchart TB
     ROUTER -->|low-signal valid| OBS[Knowledge observation<br/>under canonical prefix]
     ROUTER -->|capability exists| RUN[Run existing<br/>skill or action]
     ROUTER -->|trivial automation| NEWACT[Create + run<br/>new action]
-    ROUTER -->|judgment / blast radius| DEC[File decision<br/>with context]
-    ROUTER -->|blocked: missing capability| GAP[File capability-gap]
+    ROUTER -->|judgment / blast radius| WORK[File one Swarm Manager<br/>work item or capture]
 
     RUN --> OBS
     NEWACT --> OBS
 
-    DEC --> CONTRA{Team contrarian<br/>review}
-    CONTRA -->|clean| ACCEPT{Accepted?}
-    CONTRA -->|challenge| CHAL[challenge-report<br/>+ resolution record]
-    CHAL --> AUTHOR[Author response<br/>revise / supersede / defend]
-    AUTHOR --> CONTRA
-    CONTRA -->|escalate| ESC[decision-rejection-proposed<br/>or framework-update]
-    ESC --> ACCEPT
-    ACCEPT -->|no / superseded| ARCH((archive))
-    ACCEPT -->|yes — direct-write eligible| DW[Direct write<br/>+ execution record]
-    ACCEPT -->|yes — execution work| WORK[Swarm-manager:<br/>backlog item or initiative]
-
-    GAP --> DSWARM[Director-swarm<br/>Phase 3 review]
-    DSWARM -->|scope clear| WORK
-    DSWARM -->|scope unclear| RES[Research backlog item]
-    RES -.scope narrows.-> WORK
+    WORK -->|operator disposition| DISPOSED[Swarm Manager<br/>next-action feed]
 
     WORK --> EXECW{Execution output}
     EXECW --> OUT1[Scenario / CLI verb]
@@ -90,9 +75,8 @@ flowchart TB
     EXECW --> OUT3[Infra change]
     EXECW --> OUT4[POR spoke]
 
-    DW & OUT1 & OUT2 & OUT3 & OUT4 --> AUDIT{{Meta-optimization audit<br/>9-layer rubric}}
-    AUDIT -->|smell| DEC
-    AUDIT -->|missing capability| GAP
+    WORK & OUT1 & OUT2 & OUT3 & OUT4 --> AUDIT{{Meta-optimization audit<br/>9-layer rubric}}
+    AUDIT -->|new work| WORK
     AUDIT -.observable improvement.-> INBOX
 ```
 
@@ -103,12 +87,12 @@ The same layering rule applies everywhere; its single canonical statement (truth
 For a first read, use this order:
 
 0. `path:docs/director-swarm/strategy/OBJECTIVES.md` — what the system is for. Everything below is machinery in service of it, and reading the machinery first is how a reader ends up able to describe the loop without being able to say what it is pointed at.
-1. `PRIMITIVES.md` — the nouns: Skill, Agent, Team, PoR, Action, CLI, Decision, Knowledge entry, Inbox/synthesis.
+1. `PRIMITIVES.md` — the nouns: Skill, Agent, Team, Team scope, PoR, Action, CLI, Gated work item, Knowledge entry, Inbox/synthesis.
 2. `LAYERS.md` — the rule for where each kind of guidance belongs.
-3. `TEAM_DOCS_PATTERNS.md` — where durable truth, typed observations, decisions, and implementation work belong.
+3. `TEAM_DOCS_PATTERNS.md` — where durable truth, typed observations, and implementation work belong.
 4. `INTAKE_PIPELINE.md` — how signals enter through topic inboxes and get routed.
-5. `DECISIONS.md` — what happens after the router files a decision: contexts, lifecycle, direct-write vs swarm-manager, action graduation, stale-decision policy.
-6. `CONTRARIAN_REVIEW.md` — how team-local contrarians challenge decisions, how authors respond, and how unresolved challenges return to decision review.
+5. `SWARM_MANAGER_WORK.md` — how a router files one work item, how the operator dispositions it, and how execution returns evidence.
+6. `REVIEW_FEEDBACK.md` — how teams record evidence about proposed work and return it to the same work stream.
 7. `TEAM_MEMBER_ARCHITECTURE.md` — how to evaluate whether a member has a complete operating surface.
 8. `PROMOTION_LADDER.md` — how prose guidance matures (or doesn't) into CLI contracts, Actions, and retired prose.
 
@@ -116,7 +100,7 @@ For a first read, use this order:
 
 | File | Status | Covers |
 |---|---|---|
-| `PRIMITIVES.md` | canon | What skills, agents, teams, plans, decisions, knowledge, inboxes, actions, CLIs are; how they relate |
+| `PRIMITIVES.md` | canon | What skills, agents, teams, plans, work items, knowledge, inboxes, actions, and CLIs are; how they relate |
 | `LAYERS.md` | canon | The layering rule: truth / judgment / execution / implementation / unbuilt / raw learning |
 | `PROMOTION_LADDER.md` | canon | Lifecycle of guidance: prose guardrail → CLI/tool contract → Action → retired prose |
 | `TEAM_DOCS_PATTERNS.md` | canon | Plan-of-record authority, typed knowledge flow, promotion gates, and write boundaries |
@@ -127,8 +111,8 @@ For a first read, use this order:
 | `OPERATING_GRAPHS.md` | canon | Operating-model document contracts, including required sections, the typed Mermaid graph section, docs tables, feedback/gaps/adoption validation, and runtime parity against `team.json`, `topics.json`, README links, and generated prompt sections. |
 | `TOPICS.md` | canon | Human registry of every topic prefix in active use — definition, conventions, per-team registry, adoption checklist |
 | `RUNTIME_ATTRIBUTION.md` | canon | Pillar 3 of topic validation: structured-attribution contract, `X-Vrooli-Attribution` HTTP header, `VROOLI_PROMPT_MANAGER_ATTRIBUTION` env-var bridge, per-team `attributionValidFrom` cutoff, threat model |
-| `DECISIONS.md` | canon | Decision contexts, lifecycle, direct-write vs swarm-manager routing, capability-gap criteria, action graduation gate, stale-decision policy, cross-team output ownership, inbox backpressure |
-| `CONTRARIAN_REVIEW.md` | canon | Team-local contrarian lifecycle: challenge reports, resolution records, author response, escalation, vision-walk consumption |
+| `SWARM_MANAGER_WORK.md` | canon | One-hop filing, operator disposition, evidence return path, action boundaries, cross-team ownership, and inbox backpressure |
+| `REVIEW_FEEDBACK.md` | canon | Evidence review, correction requests, and return to the unified Swarm Manager work stream |
 | `SKILL_AUTHORING.md` | canon | Universal authoring quality bars |
 | `FRAMEWORK_HEALTH.md` | canon | The framework's own targets: contract validity, declaration integrity, coupling visibility, canon coherence, skill conditioning quality. Each target names its sensor, deadband, and actuator. Framework health only — portfolio goals live in director-swarm's `OUTCOMES_CHARTER.md` |
 | `DEPRECATION_POLICY.md` | canon | Staleness windows, mandatory roadmap check, archive path, who-files-what |
@@ -155,7 +139,7 @@ Discover programmatically: `prompt-manager graph topics` resolves every `intake[
 
 ## Editing rules
 
-1. **Approval-gated.** Operator-curated via `meta-optimization` decisions. Agents propose diffs; they never edit directly.
+1. **Approval-gated.** Operator-curated via `meta-optimization` work items. Agents propose diffs; they never edit directly.
 2. **Cross-team-readable.** Any team's members may cite a file here as required reading.
 3. **One concept, one file.** No double residency. The PoR coherence test (`path:scenarios/prompt-manager/test/agent_system_canon_test.sh`) enforces this.
 4. **Skills cite, never restate.** Any skill that previously contained doctrine in this folder must drop it and add a `Required reading: docs/agent-system/<file>` line.

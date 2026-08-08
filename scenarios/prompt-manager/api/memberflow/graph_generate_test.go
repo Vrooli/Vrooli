@@ -107,10 +107,8 @@ func TestGeneratedGraphIsDeterministic(t *testing.T) {
 	in := GenerateOperatingGraphInput{
 		TeamID: team,
 		Runtime: generatorRuntime(team, member, Topics{
-			Intake:            []IntakeEntry{{Prefix: "b-inbox/*", Taxonomy: "friction"}, {Prefix: "a-inbox/*", Taxonomy: "friction"}},
-			Output:            []OutputEntry{{Prefix: "z-output/*", DestinationKind: "knowledge"}},
-			DecisionsOwned:    []string{"some-decision"},
-			DecisionsConsumed: []string{"other-decision"},
+			Intake: []IntakeEntry{{Prefix: "b-inbox/*", Taxonomy: "friction"}, {Prefix: "a-inbox/*", Taxonomy: "friction"}},
+			Output: []OutputEntry{{Prefix: "z-output/*", DestinationKind: "knowledge"}},
 		}),
 	}
 	first, err := GenerateOperatingGraphBlock(in)

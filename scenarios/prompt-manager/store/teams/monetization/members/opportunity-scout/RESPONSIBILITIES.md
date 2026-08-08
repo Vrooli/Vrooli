@@ -2,7 +2,7 @@
 
 ## Primary Duties
 - **Maintain the opportunity pool.** New SKU / add-on / services-line / channel candidates land as knowledge entries under `candidate-sku-record/<slug>` with the front-matter declared in `docs/monetization/taxonomies/monetization-opportunity/README.md` (`kind`, `catalog.proposed_sku`, `catalog.parent_bundle`, `revisit_trigger`, `acquisition_hypothesis`, `retention_hypothesis`, `capability_reuse`, `tam`, `effort`, `status`).
-- **Sweep the pool periodically.** Use `opportunity-pool-hygiene` to evaluate revisit triggers, retire stale or disproved bets, and propose `catalog-promotion`-class decisions when triggers fire.
+- **Sweep the pool periodically.** Use `opportunity-pool-hygiene` to evaluate revisit triggers, retire stale or disproved bets, and propose `catalog-promotion`-class work items when triggers fire.
 - **Run a small proactive baseline scan** when the inbox is empty and no operator alpha has landed — own scenarios inventory + 1-2 cited external comps, results land in the pool or as market-scans.
 
 (Inbox draining mechanics, destinations, and dispatch are generated into the heartbeat's `# Inbox Flow` section from `topics.json` + `docs/monetization/taxonomies/monetization-opportunity/README.md`. Do not duplicate them here.)

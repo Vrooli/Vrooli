@@ -6,7 +6,7 @@
     {
       "id": "portfolio-manager",
       "name": "Portfolio Manager",
-      "description": "Maintains portfolio flow in Swarm Manager, applies approved decisions, and proposes bounded corrective actions."
+      "description": "Maintains portfolio flow in Swarm Manager, applies approved work items, and proposes bounded corrective actions."
     },
     {
       "id": "outcome-strategist",

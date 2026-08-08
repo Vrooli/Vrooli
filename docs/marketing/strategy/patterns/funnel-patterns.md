@@ -12,7 +12,7 @@ Many otherwise-good marketing artifacts fail because the conversion path is brok
 
 ## How entries get here
 
-- The producer captures funnel observations in `audience-scans.jsonl` (typically `marketing-craft` scope — funnel-pattern observations from external content).
+- The producer captures funnel observations in the `team:marketing-crew` Source Ledger scope (topic `marketing-craft-observation/*` for funnel-pattern observations from external content).
 - The producer captures funnel observations from our own publish history once telemetry exists — what worked, what didn't.
 - Operator approves promotion via `brand-guideline-update`; entries land here.
 
@@ -31,7 +31,7 @@ Until telemetry exists, entries are `aspirational` or `light-interpretation` —
   - **Step 3: activation:** [what the audience does on the surface that closes the funnel]
   - **Tier alignment:** [which tier the activation grants; per `docs/monetization/strategy/TIERS.md`]
   - **Honesty:** measured | aspirational | light-interpretation | heavy-interpretation
-  - **Source / supporting evidence:** [scan ids, publish-log entries, external references]
+  - **Source / supporting evidence:** [scan ids, content-desk publish-history records, external references]
   - **Captured:** YYYY-MM-DD
 ```
 

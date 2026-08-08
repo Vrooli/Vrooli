@@ -930,7 +930,6 @@ export function TeamEditorPanel({
               teamId={team.id}
               members={team.members}
               allAgents={allAgents}
-              decisionMode={team.decisionMode}
               initialSubTab={initialSubTab}
               onSubTabChange={(subTab) => onSubTabChange?.(subTab)}
               className="h-full min-h-0"

@@ -49,7 +49,7 @@
     }
   ],
   "evidenceRules": [
-    "A repro is mandatory; if absent, the investigator first tries to reproduce, else routes to file-decision asking the reporter or operator to supply repro.",
+    "A repro is mandatory; if absent, the investigator first tries to reproduce, else routes to file-work asking the reporter or operator to supply repro.",
     "Severity is the producer's claim; the investigator may overrule based on actual scope of impact discovered during investigation.",
     "Honesty flags must include `repro-not-attempted` if the producer did not try to reproduce before reporting.",
     "Investigation outcomes must reference the technique applied (e.g., `scientific-debugging`) so the audit log can drive technique-graduation decisions on `meta-self-improvement`.",
@@ -59,9 +59,9 @@
     "drop": "Cannot reproduce + no clear scope; weak one-off. The investigator deletes the entry after a short investigation log explaining the drop.",
     "observe": "Confirmed bug; route findings to `bug-investigation-report/<slug>` and continue (no fix required this heartbeat — e.g., the bug is in a deprecated path or the fix is queued elsewhere).",
     "file-backlog": "Reproducible; investigator hands off a `swarm-manager` backlog item with full evidence, then closes the bug-inbox entry.",
-    "file-decision": "Cross-cutting; investigator raises `bug-resolution-proposal` for operator review (e.g., a recurring confusion that suggests renaming a CLI verb).",
-    "route-to-another-topic": "Misclassified — actually a documentation gap, capability-gap, or skill-issue. Retag/rewrite to the appropriate inbox or file the appropriate decision.",
-    "capability-gap": "Repro requires a missing tool/scenario/CLI; raise a `capability-gap` decision and leave the inbox entry until the gap is closed."
+    "file-work": "Cross-cutting; investigator raises `bug-resolution-proposal` for operator review (e.g., a recurring confusion that suggests renaming a CLI verb).",
+    "route-to-another-topic": "Misclassified — actually a documentation gap, capability-work, or skill-issue. Retag/rewrite to the appropriate inbox or file the appropriate decision.",
+    "capability-work": "Repro requires a missing tool/scenario/CLI; raise a `capability-work` decision and leave the inbox entry until the gap is closed."
   },
   "schemas": {
     "bug-report": {
@@ -84,7 +84,7 @@
         "bug_id": "<source-knw-id of the bug-inbox entry>",
         "investigator": "<agent-id>",
         "technique": "<technique-skill-id, e.g., scientific-debugging>",
-        "outcome": "<drop|observe|file-backlog|file-decision|route-to-another-topic|capability-gap>",
+        "outcome": "<drop|observe|file-backlog|file-work|route-to-another-topic|capability-work>",
         "root_cause": "<text-or-null>",
         "fix_target": "<text-or-null>",
         "closed_at": "<YYYY-MM-DD>"

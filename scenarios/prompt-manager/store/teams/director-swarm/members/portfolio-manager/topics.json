@@ -1,9 +1,6 @@
 {
   "required_read": [
     {
-      "prefix": "decision-application/<decision-id>"
-    },
-    {
       "prefix": "goal-portfolio-record/YYYY-MM-DD"
     }
   ],
@@ -11,24 +8,9 @@
     {
       "prefix": "goal-portfolio-record/*",
       "destination_kind": "knowledge"
-    },
-    {
-      "prefix": "decision-application/*",
-      "destination_kind": "knowledge"
     }
   ],
-  "decisions_owned": [
-    "goal-portfolio",
-    "goal-supplement",
-    "goal-proposal",
-    "goal-readiness"
-  ],
-  "raises_capability_gaps": true,
-  "decisions_consumed": [
-    "capability-gap",
-    "vision-update",
-    "outcome-direction"
-  ],
+  "raises_work_items": true,
   "external_producers": [
     "operator",
     "vision-walk"

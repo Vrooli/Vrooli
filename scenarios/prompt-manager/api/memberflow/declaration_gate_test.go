@@ -12,8 +12,8 @@ import (
 // `prompt-manager graph topics` could not gate CI because it shared one exit
 // code with runtime observation, and a runtime finding cannot be cleared by
 // editing the tree. So nothing ever forced the declaration count down, and
-// actual_writer_undeclared drifted from 9 to 43 unchecked between 2026-07-27
-// and 2026-07-31.
+// Runtime observations are intentionally excluded from this declaration gate:
+// they describe historical writes rather than checked-in declarations.
 //
 // This runs in the test-genie `unit` phase — a phase that already exists and
 // already gates — rather than as a new descriptor-backed phase, because

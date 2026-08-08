@@ -2,7 +2,6 @@ package memberflow
 
 const (
 	OperatingModelRuleGroupStructure       RuleGroup = "structure"
-	OperatingModelRuleGroupDecision        RuleGroup = "decision"
 	OperatingModelRuleGroupExternalInput   RuleGroup = "external_input"
 	OperatingModelRuleGroupOutput          RuleGroup = "output"
 	OperatingModelRuleGroupFeedback        RuleGroup = "feedback"
@@ -82,10 +81,6 @@ func DefaultOperatingModelRules() []Rule {
 	return []Rule{
 		operatingModelRule{id: "operating_model_required_section_missing", group: OperatingModelRuleGroupStructure, check: checkOperatingModelRequiredSectionMissing},
 		operatingModelRule{id: "operating_model_duplicate_section", group: OperatingModelRuleGroupStructure, check: checkOperatingModelDuplicateSection},
-		model(OperatingModelRuleGroupDecision, validateOperatingModelDecisions,
-			"operating_model_decisions_header_drift",
-			"operating_model_decisions_empty",
-			"operating_model_decisions_row_incomplete"),
 		contextual(OperatingModelRuleGroupExternalInput, validateOperatingModelExternalInputs,
 			"operating_model_external_inputs_table_missing",
 			"operating_model_external_inputs_header_drift",

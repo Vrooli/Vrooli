@@ -12,7 +12,7 @@ The team contract's `operatingContract.documents.planOfRecord.paths` lists the *
 
 1. An infra-health member observes a material reliability, instrumentation, platform-code, or portability signal.
 2. The member writes evidence to the appropriate knowledge topic or rolling snapshot.
-3. The member raises the smallest relevant decision context.
+3. The member raises the smallest relevant work type.
 4. The operator accepts, rejects, or requests revision.
 5. The operator applies accepted PoR edits and cites the decision id.
 
@@ -23,9 +23,9 @@ Common edit contexts:
 | `reliability-target-update` | `strategy/RELIABILITY_TARGETS.md` |
 | `instrumentation-gap` | `evidence/INSTRUMENTATION_ROADMAP.md` |
 | `cross-platform-debt` | `evidence/CROSS_PLATFORM_LEDGER.md` |
-| `capability-gap` | `evidence/INSTRUMENTATION_ROADMAP.md` or downstream Swarm Manager work |
+| `capability-work` | `evidence/INSTRUMENTATION_ROADMAP.md` or downstream Swarm Manager work |
 | `framework-meta` | `operating/OPERATING_MODEL.md`, `governance/`, or future manifest updates |
 
 ## Direct Edits
 
-Direct agent edits to plan-of-record canon are not allowed during normal heartbeats. The only direct-write infra-health state is team runtime state under `scenarios/prompt-manager/store/teams/infra-health/`.
+Direct agent edits to plan-of-record canon are not allowed during normal heartbeats. The only direct-edit infra-health state is team runtime state under `scenarios/prompt-manager/store/teams/infra-health/`.

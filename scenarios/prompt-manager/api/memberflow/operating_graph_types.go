@@ -13,7 +13,6 @@ type OperatingGraphNodeKind string
 const (
 	OperatingGraphNodeKindMember   OperatingGraphNodeKind = "member"
 	OperatingGraphNodeKindTopic    OperatingGraphNodeKind = "topic"
-	OperatingGraphNodeKindDecision OperatingGraphNodeKind = "decision"
 	OperatingGraphNodeKindTeam     OperatingGraphNodeKind = "team"
 	OperatingGraphNodeKindPOR      OperatingGraphNodeKind = "por"
 	OperatingGraphNodeKindExternal OperatingGraphNodeKind = "external"
@@ -133,7 +132,6 @@ type OperatingGraphEdge struct {
 
 type OperatingGraphDocs struct {
 	TopicCatalog OperatingTopicCatalogTable `json:"topic_catalog,omitempty"`
-	Decisions    OperatingDecisionTable     `json:"decisions,omitempty"`
 }
 
 type OperatingTopicCatalogTable struct {
@@ -154,23 +152,6 @@ type OperatingTopicCatalogRow struct {
 	RawTopic   string                      `json:"raw_topic"`
 }
 
-type OperatingDecisionTable struct {
-	HeaderLine int                    `json:"header_line,omitempty"`
-	Headers    []string               `json:"headers,omitempty"`
-	Rows       []OperatingDecisionRow `json:"rows,omitempty"`
-	Present    bool                   `json:"present,omitempty"`
-}
-
-type OperatingDecisionRow struct {
-	Decision                string                    `json:"decision"`
-	Owners                  []OperatingActorReference `json:"owners,omitempty"`
-	Purpose                 string                    `json:"purpose"`
-	ExpectedEvidenceTrigger string                    `json:"expected_evidence_trigger"`
-	AcceptedEffect          string                    `json:"accepted_effect"`
-	SourceLine              int                       `json:"source_line"`
-	RawDecision             string                    `json:"raw_decision"`
-}
-
 type OperatingActorReference struct {
 	Kind  OperatingActorKind `json:"kind"`
 	Value string             `json:"value"`
@@ -189,7 +170,6 @@ type OperatingGraphContractDiff struct {
 	Team             string   `json:"team"`
 	Member           string   `json:"member,omitempty"`
 	Topic            string   `json:"topic,omitempty"`
-	Decision         string   `json:"decision,omitempty"`
 	Path             string   `json:"path,omitempty"`
 	External         string   `json:"external,omitempty"`
 	ProducerTeam     string   `json:"producer_team,omitempty"`

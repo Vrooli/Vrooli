@@ -13,13 +13,13 @@ Every member has nine independent capability layers. Each lives in a specific ho
 | Layer | Belongs in | Good sign | Failure sign |
 |---|---|---|---|
 | **Identity** | `SOUL.md` and short agent prose | Compact enduring posture | Long task procedure or volatile rules |
-| **Ownership** | team contract, role, `RESPONSIBILITIES.md` | Clear lane, decision contexts, write surfaces | "Help with X" with no decision/write boundary |
+| **Ownership** | team contract, role, `RESPONSIBILITIES.md` | Clear lane, work types, write surfaces | "Help with X" with no work/write boundary |
 | **Plan of Record** | durable docs hub (`path:docs/<domain>/`) | Accepted strategy/canon has a discoverable home | Canon lives only in heartbeat prose or handoff |
 | **Skill Surface** | focused skills | Repeatable workflows have one or more paired skills | One mega-skill or no skill for repeated work |
 | **Intake** | shared state, inbox topic prefixes, heartbeat, external handoff, `topics.json` | Work can arrive through named, declared channels | Operator discoveries disappear into conversation memory |
 | **Collection** | tool skill, Action, CLI, scenario, or collection section | Evidence gathering is explicit and honest | "Research it" without source strategy |
 | **Analysis Method** | practice skill | The reasoning method is reusable and inspectable | Every run reinvents the method |
-| **Promotion / Routing** | contract, skill, decision guidance, `topics.json` | Observation vs synthesis vs decision vs backlog is explicit | Everything becomes a decision or nothing does |
+| **Promotion / Routing** | contract, skill, decision guidance, `topics.json` | Observation vs synthesis vs decision vs backlog is explicit | Everything becomes a work item or nothing does |
 | **Feedback Loop** | meta-optimization ownership | Skill/doc/tool gaps route to the right optimizer | Weakness is observed but has no improvement path |
 
 The principle behind the layers is the layering rule from `LAYERS.md`: each layer holds a different *kind* of guidance. Confusing the layers is the primary source of architecture smells.
@@ -42,7 +42,7 @@ How does work enter the member's lane?
 
 - operator-fed: vision walk, direct instruction, alpha inbox
 - proactive: scheduled scan, known source list, telemetry
-- cross-team: decisions, inbox messages, handoff, capability-gap
+- cross-team: decisions, inbox messages, handoff, capability-work
 - internal: logs, knowledge, scenario metrics
 
 Declared in `topics.json` as `intake[]` entries (each with a `prefix`, a `taxonomy` id, an optional `classifier_skill`, and an optional `source_team`) and `external_producers[]` (named non-team-member sources like `vision-walk` or `operator`).
@@ -55,9 +55,9 @@ How is source material gathered?
 - web/manual research
 - scenario API/CLI
 - Action
-- future capability-gap when source access is unavailable
+- future capability-work when source access is unavailable
 
-Detected from the presence of a paired collection skill, an Action, or — when neither exists — an explicit `capability-gap` claim. A member with no collection layer for a domain it claims to research is a failure sign.
+Detected from the presence of a paired collection skill, an Action, or — when neither exists — an explicit `capability-work` claim. A member with no collection layer for a domain it claims to research is a failure sign.
 
 ### Analysis Method
 
@@ -85,7 +85,7 @@ What happens to the output?
 - propose skill / Action / scenario / backlog work
 - route to another team/member
 
-Declared in `topics.json` as `output[]` entries (each with a `prefix`, a `destination_kind`, and an optional `destination_team` / `destination_path`), `decisions_owned[]`, `decisions_consumed[]`, and `raises_capability_gaps`.
+Declared in `topics.json` as `output[]` entries (each with a `prefix`, a `destination_kind`, and an optional `destination_team` / `destination_path`), plus `raises_work_items` when the member may file a capability-work work item.
 
 The full pattern, including the inbox-router-drain mechanic and topic-prefix conventions, lives in `INTAKE_PIPELINE.md`.
 
@@ -102,7 +102,7 @@ Two per-member Markdown files reach the running agent verbatim, and they are the
 
 ### Canonical section vocabulary
 
-Headings are exact level-two text. `required` sections are validation errors when absent; `recommended` sections are warnings that a team closes through its own decision context; `optional` sections are named so that teams that want them agree on the word.
+Headings are exact level-two text. `required` sections are validation errors when absent; `recommended` sections are warnings that a team closes through its own work type; `optional` sections are named so that teams that want them agree on the word.
 
 **`HEARTBEAT.md`**
 
@@ -146,14 +146,14 @@ One caution the validator cannot check: a member-specific heading that names a *
 
 ### What member prose must not restate
 
-The heartbeat prompt already renders the member's lane, owned decision contexts, decision caps, allowed and forbidden writes, safety-critical rules, task parameters, required reads, outputs, and consumed decisions — all generated from `team.json` and `topics.json`. Restating any of them in member prose is double residency (`LAYERS.md`), and it drifts the moment the config changes.
+The heartbeat prompt already renders the member's lane, owned work types, work limits, allowed and forbidden writes, safety-critical rules, task parameters, required reads, outputs, and consumed work items — all generated from `team.json` and `topics.json`. Restating any of them in member prose is double residency (`LAYERS.md`), and it drifts the moment the config changes.
 
 The test is what the paragraph adds:
 
 | Paragraph | Home |
 |---|---|
 | "I may not write `path:docs/<domain>/`" | `team.json::forbiddenWrites` — delete the prose |
-| "I own the `capability-gap` context" | `topics.json::decisions_owned` — delete the prose |
+| "I can file a capability gap" | `topics.json::raises_work_items` — delete the prose |
 | "Never originate content for a topic I only route" | `## Boundaries` — a judgment the config cannot express |
 | "Score the oldest item first, depth over breadth" | `## Judgment` — a judgment the config cannot express |
 
@@ -193,8 +193,8 @@ Recurring smells that the audit skill flags. The fix column is a default; specif
 | Passive-only intake | Operator can feed work, but proactive scan path is absent | Add proactive baseline or explicit non-goal |
 | Proactive-only scan | Agent searches broadly but ignores operator-fed discoveries | Add inbox/intake from vision walk or team handoff |
 | Promotion fog | No rule for observation vs synthesis vs decision vs backlog | Add `topics.json` declarations + promotion/routing matrix |
-| Dead-end gap | Member observes missing capability but cannot route it | Add `raises_capability_gaps: true` and an owning optimizer path |
-| State-in-prose | Team docs copy answers a scenario can serve at read time, or hold incubating data with no named promotion target (`path:docs/agent-system/OPERATING_GRAPHS.md` §"State belongs to scenarios; prose holds judgment") | Replace copies with typed references or the exact query command; add incubation markers; route existing-scenario promotions to the owning team and missing-scenario data to `capability-gap` |
+| Dead-end gap | Member observes missing capability but cannot route it | Add `raises_work_items: true` and an owning optimizer path |
+| State-in-prose | Team docs copy answers a scenario can serve at read time, or hold incubating data with no named promotion target (`path:docs/agent-system/OPERATING_GRAPHS.md` §"State belongs to scenarios; prose holds judgment") | Replace copies with typed references or the exact query command; add incubation markers; route existing-scenario promotions to the owning team and missing-scenario data to `capability-work` |
 
 ---
 

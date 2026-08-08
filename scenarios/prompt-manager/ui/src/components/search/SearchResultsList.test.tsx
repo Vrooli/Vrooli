@@ -43,12 +43,12 @@ function makeSkillResult(overrides: Partial<AISearchResult> = {}): AISearchResul
 
 function makeActionResult(overrides: Partial<AIActionSearchResult> = {}): AIActionSearchResult {
   return {
-    id: 'team.decisions.list',
-    name: 'List Team Decisions',
-    description: 'Review team decisions',
+    id: 'team.swarm.work.list',
+    name: 'List Team Work',
+    description: 'Review team work',
     status: 'active',
     owner: 'scenario:prompt-manager',
-    command: 'prompt-manager team decisions list',
+    command: 'swarm-manager backlog list --json',
     tags: ['team'],
     score: 0.9,
     scorePercent: 90,
@@ -89,8 +89,8 @@ describe('SearchResultsList', () => {
     it('renders Action discover results with operational metadata', () => {
       const results = [
         makeDiscoverResult({
-          id: 'team.decisions.list',
-          name: 'List Team Decisions',
+          id: 'team.swarm.work.list',
+          name: 'List Team Work',
           type: 'action',
           status: 'active',
           owner: 'scenario:prompt-manager',
@@ -116,8 +116,8 @@ describe('SearchResultsList', () => {
       expect(screen.getByText('active')).toBeDefined()
       expect(screen.getByText('scenario:prompt-manager')).toBeDefined()
 
-      fireEvent.click(screen.getByText('List Team Decisions'))
-      expect(onNavigate).toHaveBeenCalledWith('team.decisions.list', 'action')
+      fireEvent.click(screen.getByText('List Team Work'))
+      expect(onNavigate).toHaveBeenCalledWith('team.swarm.work.list', 'action')
     })
 
     it('does not render rank numbers in non-discover skill mode', () => {
@@ -315,15 +315,15 @@ describe('SearchResultsList', () => {
         />
       )
 
-      expect(screen.getByText('List Team Decisions')).toBeDefined()
+      expect(screen.getByText('List Team Work')).toBeDefined()
       expect(screen.getByText('scenario:prompt-manager')).toBeDefined()
-      expect(screen.getByText('prompt-manager team decisions list')).toBeDefined()
+      expect(screen.getByText('swarm-manager backlog list --json')).toBeDefined()
 
-      fireEvent.click(screen.getByRole('button', { name: /List Team Decisions/ }))
-      expect(onToggle).toHaveBeenCalledWith('team.decisions.list')
+      fireEvent.click(screen.getByRole('button', { name: /List Team Work/ }))
+      expect(onToggle).toHaveBeenCalledWith('team.swarm.work.list')
 
       fireEvent.click(screen.getByRole('button', { name: 'Go to entity' }))
-      expect(onNavigate).toHaveBeenCalledWith('team.decisions.list')
+      expect(onNavigate).toHaveBeenCalledWith('team.swarm.work.list')
     })
   })
 })

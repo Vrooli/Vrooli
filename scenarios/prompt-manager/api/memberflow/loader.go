@@ -114,7 +114,7 @@ func LoadMember(configDir, team, member string) (MemberTopics, error) {
 // Creates the member directory if it does not exist.
 //
 // HTML escaping is disabled in the encoder so prefixes containing `<`, `>`,
-// or `&` (e.g. `decision-application/<decision-id>`) round-trip as-is rather
+// or `&` (e.g. `work-application/<work-item-ref>`) round-trip as-is rather
 // than as `<`/`>`/`&` Unicode escapes — topics.json is read by
 // humans in PR review, not embedded in HTML.
 func WriteMember(configDir, team, member string, t Topics) error {

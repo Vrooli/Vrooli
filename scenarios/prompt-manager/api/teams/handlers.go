@@ -9,10 +9,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/validation"
-	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -184,7 +185,6 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		Runtime:           req.Runtime,
 		Coordination:      req.Coordination,
 		Execution:         req.Execution,
-		DecisionMode:      req.DecisionMode,
 		OperatingContract: req.OperatingContract,
 	}
 	if err := teamconfig.Validate(team.Contract()); err != nil {
@@ -250,9 +250,6 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	if req.Execution != nil {
 		updates.Execution = *req.Execution
 	}
-	if req.DecisionMode != nil {
-		updates.DecisionMode = *req.DecisionMode
-	}
 	if req.OperatingContract != nil {
 		updates.OperatingContract = req.OperatingContract
 	}
@@ -285,14 +282,8 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	if updates.Execution.QueuePolicy != "" {
 		merged.Execution = updates.Execution
 	}
-	if updates.DecisionMode != "" {
-		merged.DecisionMode = updates.DecisionMode
-	}
 	if updates.OperatingContract != nil {
 		merged.OperatingContract = updates.OperatingContract
-	}
-	if updates.DecisionMode != "" && merged.OperatingContract != nil {
-		merged.OperatingContract.Governance.DecisionMode = updates.DecisionMode
 	}
 	if err := teamconfig.Validate(merged.Contract()); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -1041,7 +1032,6 @@ func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
 		Runtime:            t.Runtime,
 		Coordination:       t.Coordination,
 		Execution:          t.Execution,
-		DecisionMode:       t.DecisionMode,
 		OperatingContract:  t.OperatingContract,
 		ValidationFindings: t.ValidationFindings,
 		MemberCount:        memberCount,

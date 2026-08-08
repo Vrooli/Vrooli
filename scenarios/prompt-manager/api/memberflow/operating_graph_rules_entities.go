@@ -44,7 +44,7 @@ func (r graphUnknownNodeKindRule) Check(ctx RuleContext) []OperatingGraphFinding
 			continue
 		}
 		switch node.Kind {
-		case "member", "decision", "team", "por", "topic", "external", "process", "future":
+		case "member", "team", "por", "topic", "external", "process", "future":
 		default:
 			findings = append(findings, builder.WithNode(ctx.Block.Source.Path, node, fmt.Sprintf("node kind %q is not supported", node.Kind)))
 		}
@@ -84,8 +84,6 @@ func operatingGraphNodeShapeMatchesKind(kind OperatingGraphNodeKind, shape Opera
 		return shape == OperatingGraphNodeShapeRectangle
 	case OperatingGraphNodeKindTopic:
 		return shape == OperatingGraphNodeShapeCylinder
-	case OperatingGraphNodeKindDecision:
-		return shape == OperatingGraphNodeShapeDiamond
 	case OperatingGraphNodeKindExternal, OperatingGraphNodeKindProcess, OperatingGraphNodeKindFuture:
 		return shape == OperatingGraphNodeShapeStadium
 	case OperatingGraphNodeKindTeam:
@@ -103,8 +101,6 @@ func operatingGraphExpectedShapeDetail(kind OperatingGraphNodeKind) string {
 		return string(OperatingGraphNodeShapeRectangle)
 	case OperatingGraphNodeKindTopic:
 		return string(OperatingGraphNodeShapeCylinder)
-	case OperatingGraphNodeKindDecision:
-		return string(OperatingGraphNodeShapeDiamond)
 	case OperatingGraphNodeKindExternal, OperatingGraphNodeKindProcess, OperatingGraphNodeKindFuture:
 		return string(OperatingGraphNodeShapeStadium)
 	case OperatingGraphNodeKindTeam:
@@ -140,35 +136,6 @@ func (r graphUnknownMemberRule) Check(ctx RuleContext) []OperatingGraphFinding {
 		if _, ok := contract.Contract.Members[node.Value]; !ok {
 			findings = append(findings, builder.WithNode(ctx.Block.Source.Path, node, fmt.Sprintf("member %q is not declared in %s/team.json", node.Value, ctx.Block.Metadata.Team)))
 		}
-	}
-	return findings
-}
-
-type graphUnknownDecisionRule struct{}
-
-func (r graphUnknownDecisionRule) ID() string                { return "graph_unknown_decision" }
-func (r graphUnknownDecisionRule) Group() RuleGroup          { return OperatingRuleGroupEntity }
-func (r graphUnknownDecisionRule) DefaultSeverity() Severity { return SeverityError }
-func (r graphUnknownDecisionRule) AppliesTo(ctx RuleContext) bool {
-	return string(ctx.Block.Metadata.Mode) != "explanatory"
-}
-
-func (r graphUnknownDecisionRule) Check(ctx RuleContext) []OperatingGraphFinding {
-	builder := NewOperatingFindingBuilder(ctx, r)
-	var findings []OperatingGraphFinding
-	for _, node := range ctx.Block.Graph.Nodes {
-		if node.Kind != "decision" {
-			continue
-		}
-		if ctx.Runtime.Contracts.HasTeamDecisionContext(ctx.Block.Metadata.Team, node.Value) {
-			continue
-		}
-		teams := ctx.Runtime.Contracts.TeamsForDecisionContext(node.Value)
-		detail := fmt.Sprintf("decision context %q is not declared in %s/team.json", node.Value, ctx.Block.Metadata.Team)
-		if len(teams) > 0 {
-			detail = fmt.Sprintf("decision context %q is declared by %s, but team-scoped graph %q must declare it in %s/team.json", node.Value, strings.Join(teams, ", "), ctx.Block.Metadata.ID, ctx.Block.Metadata.Team)
-		}
-		findings = append(findings, builder.WithNode(ctx.Block.Source.Path, node, detail))
 	}
 	return findings
 }

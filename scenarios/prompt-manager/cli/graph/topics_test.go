@@ -28,13 +28,13 @@ func TestCmdTopicsRendersHumanOutput(t *testing.T) {
 			{Kind: "external", ID: "external:vision-walk", Label: "vision-walk"},
 			{Kind: "knowledge_sink", ID: "prefix:research-inbox/*", Label: "research-inbox/*"},
 			{Kind: "knowledge_sink", ID: "prefix:audience-scan/*", Label: "audience-scan/*"},
-			{Kind: "decision", ID: "decision:audience-update", Label: "audience-update"},
+			{Kind: "backlog", ID: "backlog:audience-update", Label: "audience-update"},
 		},
 		Edges: []topicEdge{
 			{From: "external:vision-walk", To: "member:marketing-crew/researcher", Prefix: "", Kind: "external_producer"},
 			{From: "prefix:research-inbox/*", To: "member:marketing-crew/researcher", Prefix: "research-inbox/*", Kind: "intake"},
 			{From: "member:marketing-crew/researcher", To: "prefix:audience-scan/*", Prefix: "audience-scan/*", Kind: "output"},
-			{From: "member:marketing-crew/researcher", To: "decision:audience-update", Prefix: "audience-update", Kind: "decision_owned"},
+			{From: "member:marketing-crew/researcher", To: "backlog:audience-update", Prefix: "audience-update", Kind: "work_item"},
 		},
 	}
 	resp.Nodes[0].Ref.Team = "marketing-crew"

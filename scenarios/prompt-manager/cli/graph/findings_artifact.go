@@ -99,7 +99,7 @@ func writeFindingsArtifact(path string, resp topicsGraphResponse, team string, n
 		return fmt.Errorf("marshal findings artifact: %w", err)
 	}
 	// Trailing newline matches the convention used elsewhere in the
-	// store (knowledge.jsonl, taxonomies, topics.json) so the file
+	// store (team-corpus entries, taxonomies, topics.json) so the file
 	// composes cleanly with line-oriented tools (diff, grep, etc.).
 	raw = append(raw, '\n')
 

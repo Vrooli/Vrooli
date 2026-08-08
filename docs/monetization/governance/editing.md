@@ -10,7 +10,7 @@ The team-owned runtime state lives under `scenarios/prompt-manager/store/teams/m
 
 1. A monetization member observes a material trigger, benchmark, opportunity, or risk.
 2. The member writes evidence to the appropriate knowledge topic.
-3. The member raises the smallest relevant decision context.
+3. The member raises the smallest relevant work type.
 4. The operator accepts, rejects, or requests revision.
 5. The operator applies accepted PoR edits and cites the decision id.
 
@@ -29,4 +29,4 @@ Common edit contexts:
 
 ## Direct Edits
 
-Direct agent edits to plan-of-record canon are not allowed. The only direct-write monetization state is operator-owned runtime input data under team shared state, not this PoR folder.
+Direct agent edits to plan-of-record canon are not allowed. The only direct-edit monetization state is operator-owned runtime input data under team shared state, not this PoR folder.

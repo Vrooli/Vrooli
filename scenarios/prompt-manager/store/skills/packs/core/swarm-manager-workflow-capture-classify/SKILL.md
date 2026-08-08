@@ -2,7 +2,7 @@
 
 Classify one raw operator capture into zero or more suggested backlog items. Read the capture text. Identify each distinct actionable work intent. Return only the typed result.
 
-## Outcome decision table
+## Outcome work table
 
 | Observable end state | Outcome |
 | --- | --- |

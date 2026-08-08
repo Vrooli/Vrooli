@@ -25,16 +25,13 @@ type ValidationOptions struct {
 	// StoreDir is the absolute path to the prompt-manager Config-class
 	// store (scenarios/prompt-manager/store/). Used as the fallback
 	// location for team contracts when TeamContracts is nil; ignored when
-	// set explicitly. When both StoreDir and TeamContracts are empty, the
-	// dangling_evidence_decision rule is skipped.
+	// set explicitly.
 	StoreDir string
 
 	// RuntimeDataDir is the absolute path to the prompt-manager
-	// RuntimeData root (api-core/storage ClassData). Holds
-	// teams/<id>/shared/knowledge.jsonl etc. and is the source for
-	// runtime-attribution rules (actual_writer_undeclared). When empty,
-	// runtime-state rules silently skip; live callers thread this from
-	// paths.Roots.RuntimeData.
+	// RuntimeData root (api-core/storage ClassData). Retained for runtime
+	// enrichments that read mutable execution state. Team corpus data is read
+	// through the source-ledger adapter, not from this tree.
 	RuntimeDataDir string
 
 	// SkillIDs is the set of skill ids known to the skill registry.
@@ -47,7 +44,7 @@ type ValidationOptions struct {
 	Taxonomies TaxonomyRegistry
 
 	// TeamContracts is the loaded team-contract registry used by
-	// ruleDanglingEvidenceDecision. When nil and StoreDir is set,
+	// runtime attribution. When nil and StoreDir is set,
 	// Validate loads contracts on demand. An explicit empty registry
 	// disables the rule (lets tests assert behavior without contracts
 	// without needing a store on disk).
@@ -225,7 +222,7 @@ func ruleConflictingDrain(members []MemberTopics) []Finding {
 // kinds of consumer exist — that knowledge lives in the set, so adding a
 // new consumer kind is a one-line change in buildConsumerSet.
 //
-// Non-knowledge destinations (decision, por_file, capability_gap,
+// Non-knowledge destinations (por_file, work_item,
 // skill_proposal, backlog) are sinks, never orphans, and are skipped
 // before consulting the consumer set.
 func ruleOrphanOutput(members []MemberTopics, opts ValidationOptions) []Finding {
@@ -533,55 +530,6 @@ func ruleDanglingPORSink(members []MemberTopics, opts ValidationOptions) []Findi
 					Team:     m.Ref.Team, Member: m.Ref.Member,
 					Prefix: o.Prefix,
 					Detail: fmt.Sprintf("destination_path %q does not exist (resolved: %s)", *o.DestinationPath, full),
-				})
-			}
-		}
-	}
-	return out
-}
-
-// ruleDanglingEvidenceDecision — every `evidence_consumed[].for_decisions[]`
-// id on every member's topics.json must resolve against some team's
-// `team.json::operatingContract.decisionContexts`. A typo or a context that
-// has been removed from team.json without scrubbing the consuming
-// member's topics.json shows up here as an error finding.
-//
-// Skipped (no findings) when the team-contract registry is empty: this
-// happens in unit tests that don't fixture team contracts and on
-// scaffolds that haven't yet defined any team. The plan's intent is to
-// reject silent dead references, not to demand contracts exist.
-//
-// Severity is error: a dangling decision-context id is a structural
-// declaration drift the operator must reconcile (rename the id, remove the
-// evidence entry, or add the missing decision-context to team.json).
-func ruleDanglingEvidenceDecision(members []MemberTopics, opts ValidationOptions) []Finding {
-	if len(opts.TeamContracts) == 0 {
-		return nil
-	}
-	var out []Finding
-	for _, m := range members {
-		for _, ev := range m.Topics.EvidenceConsumed {
-			seen := map[string]bool{}
-			for _, decisionID := range ev.ForDecisions {
-				id := strings.TrimSpace(decisionID)
-				if id == "" {
-					// shape-level error; covered by Topics.Validate.
-					continue
-				}
-				if seen[id] {
-					// One finding per (member, prefix, id).
-					continue
-				}
-				seen[id] = true
-				if opts.TeamContracts.HasDecisionContext(id) {
-					continue
-				}
-				out = append(out, Finding{
-					Rule:     "dangling_evidence_decision",
-					Severity: SeverityError,
-					Team:     m.Ref.Team, Member: m.Ref.Member,
-					Prefix: ev.Prefix,
-					Detail: fmt.Sprintf("evidence_consumed[].for_decisions references decision-context %q which is not declared in any team.json::operatingContract.decisionContexts", id),
 				})
 			}
 		}

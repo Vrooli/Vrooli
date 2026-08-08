@@ -114,7 +114,7 @@ func TestEnrichWithKeyPrefixMismatch_PlaceholderDeclarationCoversItsKeys(t *test
 			Exists: true,
 			Topics: Topics{
 				Output: []OutputEntry{
-					{Prefix: "challenge-report/<decision-id>", DestinationKind: "knowledge"},
+					{Prefix: "review-evidence/<work-item-id>", DestinationKind: "knowledge"},
 					{Prefix: "friction-report/<scope>/<date>/<slug>", DestinationKind: "knowledge"},
 				},
 			},
@@ -123,7 +123,7 @@ func TestEnrichWithKeyPrefixMismatch_PlaceholderDeclarationCoversItsKeys(t *test
 	q := stubKnowledgeQuery{
 		allByTeam: map[string][]InboxEntry{
 			"alpha": {
-				{ID: "knw-1", Topic: "challenge-report/dec-1778803361775636366"},
+				{ID: "knw-1", Topic: "review-evidence/work-1778803361775636366"},
 				{ID: "knw-2", Topic: "friction-report/toolchain/2026-07-31/slow-build"},
 			},
 		},
@@ -142,7 +142,7 @@ func TestEnrichWithKeyPrefixMismatch_PlaceholderIsNotABlanketWildcard(t *testing
 			Ref:    MemberRef{Team: "alpha", Member: "contrarian"},
 			Exists: true,
 			Topics: Topics{
-				Output: []OutputEntry{{Prefix: "challenge-report/<decision-id>", DestinationKind: "knowledge"}},
+				Output: []OutputEntry{{Prefix: "review-evidence/<work-item-id>", DestinationKind: "knowledge"}},
 			},
 		},
 	}

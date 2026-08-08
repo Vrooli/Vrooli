@@ -58,7 +58,7 @@
   "evidenceRules": [
     "Cite sources for every external claim (`--source=<url>`).",
     "Label single-snapshot findings `light-interpretation`.",
-    "Do not silently invent benchmarks; raise a `capability-gap` if source access is blocked.",
+    "Do not silently invent benchmarks; raise a `capability-work` if source access is blocked.",
     "Tailwind references must be cited or flagged `tailwind-uncited`.",
     "Tier-4 hardware proposals without operator initiation are out of scope; drop."
   ],
@@ -66,8 +66,8 @@
     "drop": "Weak one-off / no Vrooli capability fit / out of scope. Delete the inbox row.",
     "observe": "Single-snapshot market fact (benchmark / competitor pricing). Retag inbox row to `monetization/market-scan/<slug>`.",
     "promote-to-canon": "Plausible SKU-shaped idea with classifiable fit. Retag inbox row to `candidate-sku-record/<slug>` with required front-matter.",
-    "file-decision": "Strong signal, clear fit, evidence threshold met. Promote AND raise the matching owned-context decision (`catalog-promotion`, `channel-activation`, `services-activation`).",
-    "capability-gap": "Source / tool / scenario missing. File `capability-gap`; leave the inbox entry until the gap is closed."
+    "file-work": "Strong signal, clear fit, evidence threshold met. Promote AND raise the matching owned work item (`catalog-promotion`, `channel-activation`, `services-activation`).",
+    "capability-work": "Source / tool / scenario missing. File `capability-work`; leave the inbox entry until the gap is closed."
   },
   "schemas": {
     "candidate-sku": {

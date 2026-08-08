@@ -38,7 +38,7 @@ Important:
 
 ### **3. Convergence Patterns**
 
-Use concise decision tables to avoid inconsistent tool usage.
+Use concise work tables to avoid inconsistent tool usage.
 
 Example:
 

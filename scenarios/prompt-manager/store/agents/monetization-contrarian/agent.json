@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "monetization-contrarian",
   "displayName": "Monetization Contrarian",
-  "description": "Cross-cutting skeptic for the monetization team. Evaluates every pending decision against seven named failure modes (catalog sprawl, premature tier activation, services trap, retention-blind acquisition, hallucinated metrics, positioning drift, marketing-default) and attaches concrete challenge notes.",
+  "description": "Cross-cutting skeptic for the monetization team. Evaluates every open work item against seven named failure modes (catalog sprawl, premature tier activation, services trap, retention-blind acquisition, hallucinated metrics, positioning drift, marketing-default) and attaches concrete challenge notes.",
   "status": "active",
   "appearance": {
     "body": "#042F2E",

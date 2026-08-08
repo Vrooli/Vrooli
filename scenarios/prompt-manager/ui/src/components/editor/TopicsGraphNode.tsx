@@ -2,7 +2,7 @@
  * TopicsGraphNode - Custom React Flow node for the topics-mode team graph.
  *
  * Renders members with their team/role identity, plus boundary nodes
- * (external producers, decision queues, PoR sinks, capability-gap registry,
+ * (external producers, PoR sinks, capability work registry,
  * skill proposals, backlog) using kind-specific styling.
  *
  * DOC: docs/agent-system/TOPICS_SCHEMA.md
@@ -19,7 +19,6 @@ import {
   ListTodo,
   Sparkles,
   User,
-  Vote,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TopicsFlowNodeData, TopicNodeKind } from '@/types/topicsGraph'
@@ -29,9 +28,8 @@ type TopicsGraphNodeProps = NodeProps<Node<TopicsFlowNodeData, 'topicsNode'>>
 const KIND_ICON: Record<TopicNodeKind, typeof User> = {
   member: User,
   external: Globe,
-  decision: Vote,
   por_file: FileText,
-  capability_gap: AlertTriangle,
+  work_item: AlertTriangle,
   skill_proposal: Sparkles,
   backlog: ListTodo,
   knowledge_sink: Inbox,
@@ -40,9 +38,8 @@ const KIND_ICON: Record<TopicNodeKind, typeof User> = {
 const KIND_LABEL: Record<TopicNodeKind, string> = {
   member: 'Member',
   external: 'External',
-  decision: 'Decision',
   por_file: 'PoR',
-  capability_gap: 'Capability gap',
+  work_item: 'Swarm Manager work',
   skill_proposal: 'Skill proposal',
   backlog: 'Backlog',
   knowledge_sink: 'Topic',
@@ -51,9 +48,8 @@ const KIND_LABEL: Record<TopicNodeKind, string> = {
 const KIND_STYLES: Record<TopicNodeKind, string> = {
   member: 'bg-card border-border',
   external: 'bg-amber-500/10 border-amber-500/40',
-  decision: 'bg-purple-500/10 border-purple-500/40',
   por_file: 'bg-blue-500/10 border-blue-500/40',
-  capability_gap: 'bg-rose-500/10 border-rose-500/40',
+  work_item: 'bg-rose-500/10 border-rose-500/40',
   skill_proposal: 'bg-emerald-500/10 border-emerald-500/40',
   backlog: 'bg-slate-500/10 border-slate-500/40',
   knowledge_sink: 'bg-cyan-500/10 border-cyan-500/40',

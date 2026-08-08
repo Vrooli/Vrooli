@@ -56,8 +56,8 @@ Phase 1 should be considered complete only when all of the following remain true
 - `.vrooli/repo-contract.json` stays aligned with the future-state repo shape
 - `.vrooli/schemas/repo-contract.schema.json` enforces the current contract shape
 - `vrooli contract validate` remains the canonical low-level contract validation entrypoint
-- `make hygiene` remains the CI/automation wrapper for precommit readiness
-- `internal/repocontract` catches schema drift, semantic drift, and legacy-path regressions
+- the `structure-health-contract` CI job starts structure-health through the control plane and fails on error-severity project findings
+- `structure-health` owns live repository-structure validation; the control plane delegates `vrooli contract validate` to its project target
 - remaining non-migrated consumers are clearly documented as migration targets rather than contract authority
 
 ## Shared Package Adoption
@@ -141,7 +141,9 @@ There are **two distinct `.vrooli` directories** and they must never be conflate
 
 **File ownership under sudo.** Home *writes* route through the owned-write seam (`config.EnsureOwnedDir` / `WriteOwnedFile` / `EnsureVrooliDir` / `WriteVrooliFile`), which — when running root-via-sudo — `Lchown`s exactly the path components it creates back to the invoking user (`$SUDO_UID:$SUDO_GID`). `config.ReconcileVrooliOwnership` (run by `vrooli setup`) reclaims pre-existing root-owned strays; it only ever touches root-owned entries, never follows symlinks, and never escapes the home root. Windows is a no-op.
 
-**Drift guard.** The `no_runtime_home_literals` check (`vrooli contract validate` / `make hygiene`) fails CI if `cmd/`, `internal/`, or `packages/` code joins a home-derived value with `".vrooli"` (or embeds a `"~/.vrooli/…"` literal) instead of going through the authority. A line that genuinely means the **repo-project** `.vrooli` can opt out with a trailing `// repo-contract:project-config` comment. `packages/repo-contract-go/**`, `internal/repocontractcheck/**`, and `internal/repocontractmeta/**` are exempt (they define the authority).
+**Drift guard.** The `no_runtime_home_literals` check (`vrooli contract validate` / `make hygiene`) fails CI if `cmd/`, `internal/`, or `packages/` code joins a home-derived value with `".vrooli"` (or embeds a `"~/.vrooli/…"` literal) instead of going through the authority. A line that genuinely means the **repo-project** `.vrooli` can opt out with a trailing `// repo-contract:project-config` comment. `packages/repo-contract-go/**` and `internal/repocontractmeta/**` are exempt (they define the authority).
+
+**Structure ownership.** `structure-health` is the structural authority for all nine repository target kinds: scenarios, resources, tools, safeguards, packages, control-plane roots, docs, teams, and the project itself. `vrooli hygiene --contract-only` and `vrooli contract validate` use its shared validation provider, while its fleet endpoint provides typed cross-kind rollups. CI starts the scenario through the lifecycle manager and runs the contract gate with error findings failing the job.
 
 ## Compatibility Policy
 
@@ -169,7 +171,7 @@ These do not belong in the contract:
 
 ## Validation
 
-Use the direct CLI for local validation or the Make target for CI/automation:
+Use the direct CLI for local validation or the Make target for local automation:
 
 ```bash
 vrooli contract validate
@@ -177,8 +179,10 @@ make hygiene
 ```
 
 The `vrooli contract ...` commands are the operator/developer-facing inspection
-surface. `make hygiene` remains the CI/automation entrypoint and includes
-contract validation plus repository hygiene checks.
+surface. CI uses the dedicated `structure-health-contract` job, which starts
+the scenario through the lifecycle manager and runs
+`vrooli hygiene --contract-only --fail-on error --json`. `make hygiene` remains
+available as a broader local automation wrapper.
 
 Validation currently covers:
 
@@ -216,7 +220,7 @@ For future repo-aware work:
 - do not add new hard-coded canonical scenario path assembly
 - do not introduce new repo-aware glob semantics outside the shared contract path
 - do not treat historical fallbacks as future-state architecture
-- when changing the contract, update the schema, docs, and `internal/repocontract` coverage in the same change
+- when changing the contract, update the schema, docs, and the structure-health project-pack coverage in the same change
 - add a new structural rule to the contract only if it is intentionally shared, future-state aligned, and stable enough to version
 
 Ordinary scenario runtime logic should usually consume higher-level shared packages. Repo-aware infrastructure code may consume `packages/repo-contract-go` directly when repository/layout semantics are part of the job.
@@ -242,5 +246,15 @@ These high-risk consumers now have repo-contract-backed primary resolution paths
 - `git-control-tower`
 
 Residual follow-up work should be treated as consumer cleanup, not as alternative contract authority.
+
+### Path-to-target consumers
+
+`packages/repo-contract-go` also exposes a cached `TargetIndex` for consumers
+that need to attribute a repository-relative path to a declared target. The
+index uses longest-root-prefix matching, honors target markers and excludes,
+and has a documented ten-second TTL in addition to contract-file mtime
+invalidation. Consumers should use this adapter instead of copying target
+roots or kind vocabularies. Unknown target kinds are skipped and recorded so a
+new contract entry cannot disable support for known kinds.
 
 One implementation detail remains intentionally local: `scenario-auditor/api/rules/structure/ui_structure.go` keeps stdlib-only rule-file discovery because the yaegi rule loader used for rule validation cannot resolve transitive third-party imports such as `repo-contract-go`. That rule-local fallback is not contract authority and does not change the shared runtime migration status.

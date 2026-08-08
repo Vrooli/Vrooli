@@ -199,7 +199,7 @@ func cmdDiscoveryGaps(ctx appctx.Context, args []string) error {
 	fmt.Println()
 	fmt.Println("These are queries that returned nothing useful. Each is a candidate for:")
 	fmt.Println("  - a new action over an existing CLI command, or")
-	fmt.Println("  - a capability-gap / cli-backlog when no command covers it yet.")
+	fmt.Println("  - a capability work / cli-backlog when no command covers it yet.")
 	return nil
 }
 

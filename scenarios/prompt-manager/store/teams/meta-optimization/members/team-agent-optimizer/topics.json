@@ -24,28 +24,7 @@
       "prefix": "friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>"
     }
   ],
-  "evidence_consumed": [
-    {
-      "prefix": "challenge-report/*",
-      "for_decisions": [
-        "agent-improvement",
-        "agent-deprecation",
-        "team-structure-change",
-        "team-deprecation",
-        "capability-gap"
-      ]
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "for_decisions": [
-        "agent-improvement",
-        "agent-deprecation",
-        "team-structure-change",
-        "team-deprecation",
-        "capability-gap"
-      ]
-    }
-  ],
+  "evidence_consumed": [],
   "output": [
     {
       "prefix": "team-audit/*",
@@ -68,13 +47,7 @@
       "destination_kind": "knowledge"
     }
   ],
-  "decisions_owned": [
-    "agent-improvement",
-    "agent-deprecation",
-    "team-structure-change",
-    "team-deprecation"
-  ],
-  "raises_capability_gaps": true,
+  "raises_work_items": true,
   "external_producers": [
     "operator"
   ]

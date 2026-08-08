@@ -113,7 +113,7 @@ If it says what is true -> Plan of Record.
 If it says how to decide -> Skill.
 If it says what to run -> Action.
 If it says how it works -> CLI implementation.
-If it says what is missing -> Backlog/capability-gap.
+If it says what is missing -> Backlog/capability-work.
 If it is unverified or one-off -> typed knowledge under the most specific topic.
 ```
 

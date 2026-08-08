@@ -13,6 +13,31 @@ Required reading:
 - `scenarios/plan-manager/docs/reference/cli-commands.md` — current
   `plan-manager author`, `plans`, `exec`, `validate`, and `log` command surface.
 
+Companion skill: `prompt-manager skill read implementation-plan-execution` owns
+what happens when a finalized plan turns out to be wrong during execution. Read
+it before authoring the Boundaries and stakes content below — knowing which
+divergences execution is expected to make on its own tells you what the plan
+must state and what it can leave to judgment.
+
+---
+
+### 0.0 Before authoring: read prior-plan status correctly
+
+You will find related plans while checking for duplicate work. Plan status is
+**computed from the phase-status set**, not from anyone's intent:
+
+- `draft` = no phase has left `todo`. A finalized, validated, never-started plan
+  reports `draft` forever. It does **not** mean the plan is half-written.
+- `active` = at least one phase left `todo`. A run abandoned mid-phase reports
+  `active` indefinitely. It does **not** mean anyone is working on it now.
+
+Neither value carries recency. Judge ownership by **last activity**, which
+`plans list` and `plans get` print beside the status.
+
+Do not report an existing plan as a reason not to author. A stale plan covering
+the subject is input to supersede, extend, or reuse — say explicitly which parts
+you took and which were stale.
+
 ---
 
 ### 0. Preserve the planning source, not just the task title
@@ -47,6 +72,7 @@ proper durable Plan Manager location:
 | Material | Durable destination |
 | --- | --- |
 | Outcome, user value | Purpose and Outcome |
+| What breaks or stays blocked if this is not delivered | Purpose (see §0.1) |
 | Current behavior and evidence | Problem |
 | Chosen design, alternatives, rationale, diagrams, flows | Approach & Decisions |
 | Allowed/forbidden areas and non-goals | Boundaries |
@@ -65,6 +91,26 @@ block inside Approach & Decisions content) instead of an inline prose arrow
 chain ("A -> B -> C"). The fence is the durable format even where a given
 viewer renders it as source text; do not downgrade to prose because of the
 viewer.
+
+#### 0.1 Record the consequence of failure
+
+Every plan's Purpose must state, in one sentence, **what breaks or stays blocked
+if this plan is not delivered, or is delivered wrong**. Write the consequence,
+not a priority level: "P1" tells an executing agent nothing, and a number
+invites a debate about the number.
+
+Good: "Without this, the desktop build ships without signed receipts, so the
+first paid scenario cannot be monetized."
+Bad: "This is high priority." / "This is important for quality."
+
+This sentence is not decoration. An executing agent hitting a defect that blocks
+a phase uses it to decide whether to fix the defect properly or work around it
+and file it (`implementation-plan-execution` §5). With no consequence recorded,
+that agent defaults to the conservative posture and works around things you may
+have wanted fixed.
+
+Do not inflate it. A plan whose honest consequence is "a rough edge stays rough"
+should say that; overstating stakes buys detours you did not want.
 
 There are two valid authoring modes:
 
@@ -186,8 +232,31 @@ do not strip nuance from it to satisfy the style rules.
 - Reject the lossy plans in §4.1 before finalizing.
 - The change boundary must name the paths the work may touch; do not hide scope
   in prose.
+- **Author `acceptance_allow` as the full reach of the change, not the folder
+  the work is "about".** Trace the change outward before writing the globs: a
+  change to an API shape reaches the proto that defines it; a change to a shared
+  behavior reaches `packages/**`; a change to a documented contract reaches
+  `docs/**`. Include those paths. A boundary listing only
+  `scenarios/<name>/**` when the change alters a wire contract is a defect in
+  the plan, and execution pays for it — either as a workaround inside the narrow
+  boundary or as a mid-run `exec boundary-extend`.
+- **`acceptance_allow` is an estimate; `acceptance_deny` is a prohibition.**
+  Execution may widen allow when a phase's intent needs it. Execution may never
+  overrule deny. Put a path in deny only when you mean "not even if it would
+  make the change cleaner" — deny is not a way to express "probably not needed",
+  and every deny glob you add is a path execution must escalate to reach.
+- Record the consequence of failure in Purpose (§0.1). It is the input an
+  executing agent uses to size its response to friction.
 - `validation` is the method of checking; `acceptance` is the outcome gate.
   They must not be identical.
+- **Phase validation scope is proportionate by default.** A phase with affected
+  areas derives a narrow scope from those areas and their scenario code
+  references when it has no `validation_scope` declaration. Use
+  `validation_scope: narrow:` to provide an explicit boundary when the derived
+  scope is incomplete. Use `validation_scope: full_plan: <rationale>` only when
+  the phase needs the whole plan boundary for a stated reason. The final
+  Definition of Done remains selector-free and validates the whole captured
+  collection, so narrowing removes duplicate work and does not remove coverage.
 - Every fact lives in exactly one section: Purpose is an abstract (do not
   restate Problem or Outcome there); the Definition of Done carries plan-level
   gates only, never restated phase acceptances.
@@ -227,6 +296,10 @@ agent. Check the plan against every row before `author finalize`.
 | Records a decision without its tradeoff | A later agent relitigates the decision because the cost of the alternative is invisible | Record the tradeoff and the revisit trigger with the decision |
 | Assumes context that exists only in chat | The executor never had the conversation and cannot recover the missing premise | Move the premise into the matching durable section before finalizing |
 | Leaves discovered facts behind "investigate as needed" | The executor repeats investigation already paid for, and may reach a different answer | Write the discovered fact and its evidence into the phase |
+| Bounds the change to one scenario when it alters a shared contract | The executor needs the proto/shared type the API shape depends on, and either writes an adapter to avoid touching it or stops | Trace the change outward and list every reached path — proto, `packages/**`, `docs/**` — in `acceptance_allow` |
+| States importance as a level ("P1", "high priority") instead of a consequence | The executor cannot tell what a detour would protect, so it treats every defect the same way | Write what breaks or stays blocked if the plan fails (§0.1) |
+| Uses `acceptance_deny` to express "probably out of scope" | Deny is a hard prohibition execution must escalate to cross, so a soft guess becomes a stop | Leave it out of both lists; an unlisted path is already outside the estimate and extendable |
+| Demands the whole baseline collection in every phase without a rationale | Each phase repeats the final gate and validation cost grows with no added coverage | Leave the field undeclared for the affected-area default, or use `full_plan:` with a concrete reason |
 
 ---
 
@@ -254,7 +327,9 @@ agent. Check the plan against every row before `author finalize`.
   report, and re-running finalize prints `Already finalized at <ts>`
 - A rendered review command/path
 - A concise note about degraded dependencies or manual fallbacks
-- The next execution command when implementation should continue
+- The next execution command when implementation should continue, paired with
+  `prompt-manager skill read implementation-plan-execution` so the executing
+  agent starts with the divergence rules rather than inferring them
 
 In Candidate mode, ensure the candidate itself records the material source
 context in the appropriate plan sections. Include a concise preservation note

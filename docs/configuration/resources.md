@@ -49,5 +49,5 @@ The wizard discovers the resource automatically once the manifest is in place.
 ## See also
 
 - [`scenarios.md`](scenarios.md) — how scenario selection drives resource derivation
-- [`secrets.md`](secrets.md) — `secretDescriptor` fields, Vault layout, rotation
+- [`secrets.md`](secrets.md) — credential descriptor fields, authority storage, rotation
 - [`host/`](host/) — `hostTools` and `hostSafeguards` resources may declare

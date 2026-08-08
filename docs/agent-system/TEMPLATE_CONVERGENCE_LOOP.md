@@ -75,7 +75,7 @@ Each pass through Stage 4 makes the *next* trip through Stage 1 cheaper, because
 
 ⚠️ **A one-off fix in a single production scenario.** No multiplier; use the relevant single-instance lens. Lifting it to the template is premature substrate work.
 
-⚠️ **Substrate that doesn't exist yet.** The fitness lens flags candidates; it doesn't authorize extraction. If the proposed home (cli-core, api-core, shared lib) can't accept the change today, that's a separate decision — Vrooli's "don't extract until the third repetition" rule still holds.
+⚠️ **Substrate that doesn't exist yet.** The fitness lens flags candidates; it doesn't authorize extraction. If the proposed home (cli-core, api-core, shared lib) can't accept the change today, that's a separate work item — Vrooli's "don't extract until the third repetition" rule still holds.
 
 ⚠️ **Skipping Stage 2.** A template edit that hasn't been generated/built/tested-and-measured is a hypothesis, not an improvement. Don't distill a skill from an unvalidated delta.
 

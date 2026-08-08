@@ -33,7 +33,7 @@ Every member declares `loop_kind`. One question generates the taxonomy and the o
 | Loop kind | Memory lives in | Must declare a ledger |
 |---|---|---|
 | `queue` | the intake's unrouted set — draining an entry is what marks it done | no |
-| `reactive` | the pending-artifact set it reviews, typically pending decisions | no |
+| `reactive` | the pending-artifact set it reviews, typically open work items | no |
 | `sweep` | nowhere by default | **yes** |
 | `generative` | nothing; the loop produces on a cadence over no population | no |
 
@@ -81,9 +81,7 @@ The ladder and the stop condition are **not** structural. A ledger gives the loo
       "schema": "monetization-benchmark-adjacent"
     }
   ],
-  "decisions_owned": ["audience-update", "channel-strategy-update"],
-  "decisions_consumed": ["capability-gap"],
-  "raises_capability_gaps": true,
+  "raises_work_items": true,
   "external_producers": ["vision-walk", "operator"]
 }
 ```
@@ -94,9 +92,7 @@ Top-level keys, all optional (omit when not applicable):
 |---|---|---|
 | `intake` | array of intake entries | Topic-prefixes this member drains. Each entry references a taxonomy and (optionally) a classifier skill. |
 | `output` | array of output entries | Topic-prefixes this member writes. Each entry names destination kind, optional cross-team destination, and optional front-matter schema. |
-| `decisions_owned` | array of decision-context strings | Decision contexts this member owns. |
-| `decisions_consumed` | array of decision-context strings | Decision contexts whose acceptance changes this member's behavior. |
-| `raises_capability_gaps` | boolean | True if the member's role includes filing `capability-gap` decisions. |
+| `raises_work_items` | boolean | True if the member's role includes filing a capability-work work item in Swarm Manager. |
 | `external_producers` | array of stable identifiers | Non-team-member producers that feed intake (e.g., `vision-walk`, `operator`, `signal-inbox`). |
 
 ## Team topic catalog
@@ -163,7 +159,7 @@ The operating-model Topic Catalog table is a human-readable projection of this s
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `prefix` | string with optional `*` suffix | yes | Topic-prefix this member writes. |
-| `destination_kind` | enum | yes | `knowledge` \| `decision` \| `por_file` \| `capability_gap` \| `skill_proposal` \| `backlog` |
+| `destination_kind` | enum | yes | `knowledge` \| `por_file` \| `skill_proposal` \| `backlog` |
 | `destination_team` | string or `null` | optional | If the destination is on another team's surface, name it. |
 | `destination_path` | string or `null` | optional | Required when `destination_kind` is `por_file`; names the path under `docs/`. |
 | `schema` | string | optional | References a front-matter shape declared on the *producer's* taxonomy (`taxonomy.schemas.<id>`). The validator's `missing_destination_schema` warning fires when set but unresolvable. The producer's taxonomy owns the schema even when the consumer is on another team. |
@@ -173,11 +169,9 @@ The operating-model Topic Catalog table is a human-readable projection of this s
 | Kind | Meaning | Validation |
 |---|---|---|
 | `knowledge` | Output is a team knowledge entry under this prefix | No further validation |
-| `decision` | Output is a decision context | Cross-checked in `orphan_output` rule |
-| `por_file` | Output is a markdown edit (proposed via decision) under `docs/` | `dangling_por_sink` checks `destination_path` exists |
-| `capability_gap` | Output is a `capability-gap` decision | `raises_capability_gaps` should be true |
+| `por_file` | Output is a markdown edit that must be reviewed by the owning operator | `dangling_por_sink` checks `destination_path` exists |
+| `backlog` | Output is one Swarm Manager work item with evidence and scope | `raises_work_items` should be true |
 | `skill_proposal` | Output is a proposal to author/modify a skill | Should be claimed by `skill-optimizer` |
-| `backlog` | Output is a backlog item handed off | Cross-team consumption |
 
 ## Validation rules
 
@@ -188,10 +182,7 @@ _Generated from the validation rule catalog by `prompt-manager graph rules`. Do 
 
 | Rule | Group | Default severity | Kind | Description | Actuator |
 |---|---|---|---|---|---|
-| `actual_writer_undeclared` | `topic` | `error` | `runtime` | Runtime attribution shows a member wrote outside its declared outputs. | Route the declaration or runtime-state correction through the owning team |
-| `attribution_malformed` | `topic` | `error` | `runtime` | Runtime attribution cannot be safely interpreted. | Route the declaration or runtime-state correction through the owning team |
 | `conflicting_drain` | `topic` | `error` | `declaration` | A required intake is drained by incompatible member contracts. | Route the declaration or runtime-state correction through the owning team |
-| `dangling_evidence_decision` | `topic` | `error` | `declaration` | A topic flow references a decision that does not exist. | Route the declaration or runtime-state correction through the owning team |
 | `dangling_por_sink` | `topic` | `error` | `declaration` | A topic flow points to a missing plan-of-record sink. | Route the declaration or runtime-state correction through the owning team |
 | `drain_status_unavailable` | `topic` | `warning` | `runtime` | Drain status cannot be read, so intake health is unknown this cycle. | Route the declaration or runtime-state correction through the owning team |
 | `ledger_shape_invalid` | `topic` | `error` | `declaration` | A sweep evidence ledger has an invalid shape. | Route the declaration or runtime-state correction through the owning team |
@@ -239,7 +230,7 @@ The `# Contract Findings` heartbeat prompt section closes that loop (`path:scena
 2. **Advisory findings are withheld.** See `PROSE_SCAN_TARGETS.md` §"Advisory findings". A heuristic that cannot separate a real defect from a lookalike is review material, not an instruction.
 3. **A clean member sees nothing.** The section is omitted entirely when there are no findings, so the loop costs no prompt budget on a healthy fleet. An unwired provider also renders nothing rather than claiming a clean contract it never checked — an unwired builder and a clean member must not look alike to a reader of the prompt.
 
-The section states the routes a member can actually take: correct its own writes this run, propose the declaration change as a decision in an owned context, or report it as friction. Members do not edit `topics.json` or their own member contract directly.
+The section states the routes a member can actually take: correct its own writes this run, file one scoped work item through Swarm Manager, or report it as friction. Members do not edit `topics.json` or their own member contract directly.
 
 ## Prefix-match semantics
 
@@ -288,22 +279,20 @@ When *not* to use:
 
 ### Evidence-consumed sidecars
 
-Some topics are not drained as inboxes but still must be visible to members when they own a related decision. Declare those with `evidence_consumed[]`, not `intake[]`.
+Some topics are not drained as inboxes but still must be visible to members when they own a related work item. Declare those with `evidence_consumed[]`, not `intake[]`.
 
 The canonical example is contrarian review:
 
-- a contrarian writes `challenge-report/<decision-id>` as append-only evidence;
-- the same contrarian writes `challenge-resolution-record/<decision-id>` as the latest state;
-- the challenged decision's author consumes both prefixes as evidence for its owned decision contexts;
+- the challenged decision's author consumes both prefixes as evidence for its owned work types;
 - the author does not drain or delete the entries.
 
-This distinction matters for validation and prompt generation. `orphan_output` treats `evidence_consumed[]` as a real consumer because the topic has a reader, even though no router skill drains it. The lifecycle is documented in [`CONTRARIAN_REVIEW.md`](CONTRARIAN_REVIEW.md).
+This distinction matters for validation and prompt generation. `orphan_output` treats `evidence_consumed[]` as a real consumer because the topic has a reader, even though no router skill drains it. The lifecycle is documented in [`REVIEW_FEEDBACK.md`](REVIEW_FEEDBACK.md).
 
 **Trigger guidance — where agents learn to invoke the writer.** The trigger paragraph that tells every agent when to load and invoke the writer skill is rendered into every member's heartbeat prompt as part of the Storage Map's `## Observe` subsection — see `path:scenarios/prompt-manager/api/heartbeat/prompt_builder.go` (`buildStorageMapSection`). When you add a new universal-source intake, add a matching paragraph there alongside the existing typed-topic-routing, bug-reporting (`report-bug`), and friction-reporting (`report-friction`) paragraphs so producers actually receive the trigger. The rendering is currently hardcoded prose for the two existing flows (bugs, friction); a third universal-source intake would push this past the worth-keeping-hardcoded threshold and into data-driven rendering off `intake[].source_team == "*"` declarations on member topics.json. Surface the refactor proposal as a `meta-self-improvement` decision when that third instance is in flight.
 
 Worked example: `team:scenario-qa/bug-investigator` drains `bug-inbox/*`. Every team's members may file a bug via the `report-bug` writer skill. Topology declared as `intake[].source_team: "*"` + `external_producers: ["report-bug"]`. The investigator validates the producer's signal-type assignment as the first step of investigation; no separate classifier skill (deterministic-prefix routing).
 
-Sister example: `team:meta-optimization/friction-curator` drains `friction-inbox/*` against the `friction-report` taxonomy. Every team's members may file friction via the `report-friction` writer skill. Topology declared identically: `intake[].source_team: "*"` + `external_producers: ["report-friction"]`. The curator validates scope (or reclassifies `unknown`), then routes by writing the entry to the appropriate `friction-report/<scope>/<date>/<slug>` topic owned by an existing meta-optimization sub-member. Critically, the curator owns no decision contexts — routing is determinate from scope; the destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) raise capability-gaps and other decisions after they drain the routed entries. This is the divergence from bug-investigator's pattern, which does own `bug-resolution-proposal` because investigation produces cross-cutting fixes; friction-curator produces routing only.
+Sister example: `team:meta-optimization/friction-curator` drains `friction-inbox/*` against the `friction-report` taxonomy. Every team's members may file friction via the `report-friction` writer skill. Topology declared identically: `intake[].source_team: "*"` + `external_producers: ["report-friction"]`. The curator validates scope (or reclassifies `unknown`), then routes by writing the entry to the appropriate `friction-report/<scope>/<date>/<slug>` topic owned by an existing meta-optimization sub-member. Critically, the curator owns no work types — routing is determinate from scope; the destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) raise capability-works and other decisions after they drain the routed entries. This is the divergence from bug-investigator's pattern, which does own `bug-resolution-proposal` because investigation produces cross-cutting fixes; friction-curator produces routing only.
 
 The producer-owns-schema rule has its own worked example (marketing → monetization) in `INTAKE_PIPELINE.md` § Cross-team schema ownership; see § Producer owns the schema above for the one-line statement and cite.
 
@@ -325,9 +314,7 @@ The producer-owns-schema rule has its own worked example (marketing → monetiza
     { "prefix": "hook-record/*",                           "destination_kind": "knowledge", "destination_team": null,           "schema": "hook" },
     { "prefix": "monetization-benchmark-adjacent-record/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
   ],
-  "decisions_owned": ["audience-update", "channel-strategy-update", "post-type-proposal", "hook-candidate-promotion"],
-  "decisions_consumed": ["capability-gap"],
-  "raises_capability_gaps": true,
+  "raises_work_items": true,
   "external_producers": ["vision-walk", "operator", "signal-inbox"]
 }
 ```

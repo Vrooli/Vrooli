@@ -12,4 +12,4 @@ Scope additions must cite empirical evidence from `friction-triage-record/*` sna
 
 ## Direct Edits
 
-Agents do not directly edit meta-optimization PoR files during heartbeat work. They may propose changes through the owning decision context, cite the affected manifest entry, and include the validation commands from [`adoption-validation.md`](adoption-validation.md).
+Agents do not directly edit meta-optimization PoR files during heartbeat work. They may propose changes through the owning work type, cite the affected manifest entry, and include the validation commands from [`adoption-validation.md`](adoption-validation.md).

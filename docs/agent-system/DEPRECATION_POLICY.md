@@ -2,7 +2,7 @@
 
 Rules for proposing and executing deprecation of skills, agents, and teams within Vrooli's agent system.
 
-This file is canon (plan-of-record). Edits go through `meta-optimization` decisions. Skills and team docs cite this file rather than restating the thresholds.
+This file is canon (plan-of-record). Edits go through `meta-optimization` work items. Skills and team docs cite this file rather than restating the thresholds.
 
 ---
 
@@ -14,7 +14,7 @@ Staleness windows — below these, do not propose deprecation:
 |--------|------------------|-------|
 | Skill  | ≥ 90 days without being referenced by any active agent | `prompt-manager graph orphaned-skills` + temporal check |
 | Agent  | ≥ 90 days without a heartbeat or invocation | Checked via agent-manager run log |
-| Team   | ≥ 120 days empty (no members) OR ≥ 120 days disabled with no pending decisions | Teams have longer windows because re-enablement is cheap and losing a team design is expensive |
+| Team   | ≥ 120 days empty (no members) OR ≥ 120 days disabled with no open work items | Teams have longer windows because re-enablement is cheap and losing a team design is expensive |
 
 **Rationale:** 90 days is long enough to survive one strategic pivot cycle; short enough that accretion is bounded. 120 days for teams reflects that team designs are high-effort to produce.
 
@@ -29,13 +29,13 @@ Before filing any `skill-deprecation`, `agent-deprecation`, or `team-deprecation
 3. **Cross-team relations.** Does any other team's member file reference it? (`grep` across `path:store/teams/*/members/*/`.)
 4. **Capability coverage.** Is this entity the *only* covering of a capability the system needs? If yes, the deprecation must include a successor or be rejected.
 
-If any of 1–4 hits, do not file deprecation. Instead, file a `skill-improvement` / `agent-improvement` / `team-structure-change` to revitalize the entity, or escalate as `capability-gap` if the entity is broken beyond repair but still needed.
+If any of 1–4 hits, do not file deprecation. Instead, file a `skill-improvement` / `agent-improvement` / `team-structure-change` to revitalize the entity, or escalate as `capability-work` if the entity is broken beyond repair but still needed.
 
 ---
 
 ## Archive path
 
-Once a deprecation decision is accepted by the operator:
+Once a deprecation work item is accepted by the operator:
 
 1. **Soft archive first.** Set `status: archived` in the entity's manifest (agent.json / team.json / skill manifest). Do NOT delete files yet.
 2. **Keep for 30 heartbeats.** During this grace period, any member that hits a "this used to work" error from the archive can file a `meta-self-improvement` decision to un-archive.
@@ -52,7 +52,7 @@ The grace-period and hard-archive numbers (30 / 180 heartbeats) are starting poi
 - `agent-deprecation` — **team-agent-optimizer** files it, after running the roadmap check.
 - `team-deprecation` — **team-agent-optimizer** files it, after running the roadmap check.
 
-The meta-optimization team does NOT file deprecation decisions for entities outside its ownership boundary — those are the owning members' lanes. Meta-optimization may file `meta-self-improvement` or `capability-gap` decisions when repeated deprecation friction reveals a missing tool, policy, or validation surface.
+The meta-optimization team does NOT file deprecation work items for entities outside its ownership boundary — those are the owning members' lanes. Meta-optimization may file `meta-self-improvement` or `capability-work` work items when repeated deprecation friction reveals a missing tool, policy, or validation surface.
 
 ---
 

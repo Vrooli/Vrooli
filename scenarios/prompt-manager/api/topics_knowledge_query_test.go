@@ -26,7 +26,7 @@ func TestTeamKnowledgeQuery_StripsWildcardAndDelegates(t *testing.T) {
 		{ID: "3", At: now.Format(time.RFC3339), Topic: "audience-scan/baz"}, // routed; should be filtered out
 	}
 	for i := range entries {
-		if err := fs.AppendKnowledge(context.Background(), teamID, &entries[i]); err != nil {
+		if err := fs.AppendTeamCorpus(context.Background(), teamID, &entries[i]); err != nil {
 			t.Fatalf("append %d: %v", i, err)
 		}
 	}

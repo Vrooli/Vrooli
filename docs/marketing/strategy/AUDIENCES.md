@@ -84,7 +84,7 @@ Personas the marketing-crew targets. The producer reads this for writing registe
 
 ## Notes on persona discipline
 
-- Every draft names a target persona key in `campaign-drafts.jsonl`.
+- Every draft names a target persona key in `content-desk campaign records`.
 - Marketing-contrarian checks register match: is the draft's register consistent with the named persona?
 - The producer's `audience-scan-*` entries reference personas by key for cross-linking.
 - Personas are canon. Proposed revisions require ≥3 converging scans (`audience-update` decision discipline).

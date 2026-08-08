@@ -10,9 +10,8 @@ import type { Node, Edge } from '@xyflow/react'
 export type TopicNodeKind =
   | 'member'
   | 'external'
-  | 'decision'
   | 'por_file'
-  | 'capability_gap'
+  | 'work_item'
   | 'skill_proposal'
   | 'backlog'
   | 'knowledge_sink'
@@ -20,10 +19,8 @@ export type TopicNodeKind =
 export type TopicEdgeKind =
   | 'intake'
   | 'output'
-  | 'decision_owned'
-  | 'decision_consumed'
   | 'external_producer'
-  | 'capability_gap'
+  | 'work_item'
 
 export interface TopicMemberRef {
   team: string
@@ -48,9 +45,7 @@ export interface TopicOutputEntry {
 export interface TopicDeclaration {
   intake?: TopicIntakeEntry[]
   output?: TopicOutputEntry[]
-  decisions_owned?: string[]
-  decisions_consumed?: string[]
-  raises_capability_gaps?: boolean
+  raises_work_items?: boolean
   external_producers?: string[]
 }
 

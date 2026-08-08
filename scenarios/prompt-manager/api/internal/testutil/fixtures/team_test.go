@@ -48,9 +48,6 @@ func TestIndependentTeamDefaults(t *testing.T) {
 	if team.Coordination.Pattern != teamconfig.CoordinationPatternIndependent {
 		t.Fatalf("expected independent coordination, got %q", team.Coordination.Pattern)
 	}
-	if team.DecisionMode != teamconfig.DecisionModeYolo {
-		t.Fatalf("expected yolo decision mode, got %q", team.DecisionMode)
-	}
 	if !team.Coordination.Capabilities.RequireHandoff {
 		t.Fatalf("expected independent team to require handoff guidance")
 	}
@@ -61,7 +58,6 @@ func TestIndependentTeamOptions(t *testing.T) {
 		"team-1",
 		"Team One",
 		WithEnabled(false),
-		WithDecisionMode(teamconfig.DecisionModeApproval),
 		WithContractAgents("agent-a", "agent-b"),
 		WithLeadAgent("agent-a"),
 	)
@@ -71,9 +67,6 @@ func TestIndependentTeamOptions(t *testing.T) {
 	}
 	if !team.EnabledSet {
 		t.Fatalf("expected WithEnabled to mark enabled as set")
-	}
-	if team.DecisionMode != teamconfig.DecisionModeApproval {
-		t.Fatalf("expected approval decision mode, got %q", team.DecisionMode)
 	}
 	if team.Coordination.LeadAgentID != "agent-a" {
 		t.Fatalf("expected lead agent agent-a, got %q", team.Coordination.LeadAgentID)

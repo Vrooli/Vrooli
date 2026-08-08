@@ -1,29 +1,35 @@
 {
   "shortNames": {
-    "decision:capability-gap": "CG",
-    "decision:goal-portfolio": "GP",
-    "decision:goal-proposal": "GPR",
-    "decision:goal-readiness": "GR",
-    "decision:goal-supplement": "GS",
-    "decision:outcome-direction": "OD",
-    "decision:outcome-gap": "OG",
-    "decision:vision-update": "VU",
     "external:operator": "OP",
     "external:swarm-manager-work": "SMWORK",
     "external:vision-walk": "VW",
     "member:outcome-strategist": "OS",
     "member:portfolio-manager": "PM",
     "member:vision-walk-prep": "VWP",
+    "por:docs/director-swarm/README.md": "DOCSDIRECTOR",
+    "por:docs/director-swarm/evidence/OUTCOMES_CHARTER.md": "DOCSDIRECTOR2",
+    "por:docs/director-swarm/evidence/README.md": "DOCSDIRECTOR3",
+    "por:docs/director-swarm/governance/adoption-validation.md": "DOCSDIRECTOR4",
+    "por:docs/director-swarm/governance/changelog.md": "DOCSDIRECTOR5",
+    "por:docs/director-swarm/governance/editing.md": "DOCSDIRECTOR6",
+    "por:docs/director-swarm/operating/OPERATING_MODEL.md": "DOCSDIRECTOR7",
+    "por:docs/director-swarm/operating/README.md": "DOCSDIRECTOR8",
+    "por:docs/director-swarm/strategy/OBJECTIVES.md": "DOCSDIRECTOR9",
+    "por:docs/director-swarm/strategy/PORTFOLIO_PHILOSOPHY.md": "DOCSDIRECTOR10",
+    "por:docs/director-swarm/strategy/README.md": "DOCSDIRECTOR11",
+    "por:docs/director-swarm/strategy/ROADMAP.md": "DOCSDIRECTOR12",
     "process:operator-approval": "APPROVAL",
     "process:operator-curated-canon": "CANON",
     "team:marketing-crew": "MKT",
     "team:monetization": "MON",
-    "topic:decision-application/\u003cdecision-id\u003e": "APP",
+    "topic:goal-portfolio-record/*": "GOALPORTFOLI",
     "topic:goal-portfolio-record/YYYY-MM-DD": "PORT",
     "topic:opportunity-inbox/*": "OI",
+    "topic:outcome-target-record/*": "OUTCOMETARGE",
     "topic:outcome-target-record/YYYY-MM-DD": "OUT",
     "topic:research-inbox/*": "RI",
     "topic:validation-inbox/*": "VI",
+    "topic:vision-walk-record/*": "VISIONWALKRE",
     "topic:vision-walk-record/\u003cdate\u003e/\u003cslug\u003e": "WALK"
   },
   "displays": {
@@ -39,65 +45,39 @@
     "team:monetization": "Monetization"
   },
   "nodeOrder": [
-    "topic:decision-application/\u003cdecision-id\u003e",
     "process:operator-approval",
     "process:operator-curated-canon",
-    "decision:capability-gap",
-    "decision:goal-portfolio",
-    "decision:goal-proposal",
-    "decision:goal-readiness",
-    "decision:goal-supplement",
+    "por:docs/director-swarm/README.md",
+    "por:docs/director-swarm/strategy/PORTFOLIO_PHILOSOPHY.md",
+    "por:docs/director-swarm/strategy/README.md",
+    "por:docs/director-swarm/strategy/ROADMAP.md",
+    "por:docs/director-swarm/evidence/OUTCOMES_CHARTER.md",
+    "por:docs/director-swarm/evidence/README.md",
+    "por:docs/director-swarm/governance/adoption-validation.md",
+    "por:docs/director-swarm/governance/changelog.md",
+    "por:docs/director-swarm/governance/editing.md",
+    "por:docs/director-swarm/operating/OPERATING_MODEL.md",
+    "por:docs/director-swarm/operating/README.md",
+    "por:docs/director-swarm/strategy/OBJECTIVES.md",
+    "topic:goal-portfolio-record/*",
     "team:marketing-crew",
     "team:monetization",
-    "decision:outcome-direction",
-    "decision:outcome-gap",
     "topic:opportunity-inbox/*",
     "external:operator",
     "member:outcome-strategist",
     "topic:outcome-target-record/YYYY-MM-DD",
+    "topic:outcome-target-record/*",
     "member:portfolio-manager",
     "topic:goal-portfolio-record/YYYY-MM-DD",
     "topic:research-inbox/*",
     "external:swarm-manager-work",
     "topic:validation-inbox/*",
-    "decision:vision-update",
+    "topic:vision-walk-record/*",
     "external:vision-walk",
     "member:vision-walk-prep",
     "topic:vision-walk-record/\u003cdate\u003e/\u003cslug\u003e"
   ],
   "readabilityEdges": [
-    {
-      "from": "decision:capability-gap",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:goal-portfolio",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:goal-proposal",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:goal-readiness",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:goal-supplement",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:outcome-direction",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:outcome-gap",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:vision-update",
-      "to": "process:operator-approval"
-    },
     {
       "from": "process:operator-approval",
       "to": "external:swarm-manager-work"

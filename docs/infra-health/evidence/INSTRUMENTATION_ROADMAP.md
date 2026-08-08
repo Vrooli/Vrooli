@@ -142,7 +142,7 @@ Each gap lists: stats unblocked, most likely host scenario, shape proposed, down
 ## Update protocol
 
 Entries change when:
-1. A capability ships → update the affected gap entry with "shipped on YYYY-MM-DD via <decision-id>" and search REPLACES-MANUAL markers to update consumers.
+1. A capability ships → update the affected gap entry with "shipped on YYYY-MM-DD via <review-id>" and search REPLACES-MANUAL markers to update consumers.
 2. An `instrumentation-gap` decision is approved at the morning vision walk → append a new entry citing the decision id.
 3. infra-contrarian challenges an entry as instrumentation-sprawl → if accepted, retire the entry with the rejection decision id.
 

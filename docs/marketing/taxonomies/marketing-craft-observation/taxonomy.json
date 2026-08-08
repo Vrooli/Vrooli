@@ -27,14 +27,14 @@
       "id": "publishing-workaround",
       "definition": "Marketing-specific publishing workaround that may become channel canon, scheduler work, or a capability gap.",
       "defaultDestinationPrefix": "marketing-craft-observation/publishing/<slug>",
-      "evidenceMinimum": "single blocker allowed when paired with capability-gap; otherwise repeated pattern"
+      "evidenceMinimum": "single blocker allowed when paired with capability-work; otherwise repeated pattern"
     }
   ],
   "actionSelection": {
     "observe": "Write the typed observation with source, affected surface, evidence count, and target direction.",
     "promote-to-canon": "Raise the relevant owned decision after evidence is stable enough to change a plan-of-record doc.",
     "skill-edit": "Route to the paired skill owner when the lesson is executable procedure.",
-    "capability-gap": "Raise capability-gap when missing tooling blocks the work.",
+    "capability-work": "Raise capability-work when missing tooling blocks the work.",
     "retire": "Mark or remove the observation when it is obsolete, duplicated, or superseded."
   },
   "schemas": {

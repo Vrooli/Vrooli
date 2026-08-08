@@ -58,7 +58,7 @@ The following groups summarize where covered/audit-pending entries cluster. See 
 
 ### ✅ Fully covered (or near-fully)
 
-- **Decisions** — `team decision-{add,list,show,update,accept,reject,delete}` plus top-level `decisions-pending` for cross-team triage (all 6 endpoints)
+- **Unified work** — team findings and operator dispositions are owned by Swarm Manager; prompt-manager does not expose a parallel decision CLI.
 - **Knowledge** — `team knowledge-{add,list,update,delete}` (all 4 endpoints)
 - **Tasks (team-scoped)** — `team task-{list,add,update,delete}` (all 4 endpoints)
 - **Skills core CRUD** — `skill {list,show,add,read,update,delete,sync,use,rate,versions,revert,variants,add-variant,rm-variant}`
@@ -107,6 +107,6 @@ The audit-pending queue is the gap inventory. Recommended decomposition (one swa
 5. `prompt-manager-cli-config-and-budgets` — Add `discover budget {get,set}` and `discover filters {get,set}` (4 routes)
 6. `prompt-manager-cli-misc-parity-fixes` — Topic-match, variant-update, experiment-update, roles-set, org-bulk-put, handoff-clearing (~7 routes)
 
-Each follow-up should: add the missing subcommand, add a unit test mirroring `decisions_test.go`, and update its `coverage.json` entry from `audit-pending` to `covered`.
+Each follow-up should: add the missing subcommand, add a focused unit test, and update its `coverage.json` entry from `audit-pending` to `covered`.
 
 When all 50 audit-pending entries are drained, the CLI achieves true thin-wrapper parity over the API and the principle stated at the top of this document is enforced end-to-end.

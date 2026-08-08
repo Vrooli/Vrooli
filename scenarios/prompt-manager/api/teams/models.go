@@ -25,7 +25,6 @@ type Response struct {
 	Runtime            RuntimeDTO                      `json:"runtime"`
 	Coordination       CoordinationDTO                 `json:"coordination"`
 	Execution          ExecutionDTO                    `json:"execution"`
-	DecisionMode       string                          `json:"decisionMode,omitempty"`
 	OperatingContract  *teamcontract.OperatingContract `json:"operatingContract"`
 	ValidationFindings []store.TeamValidationFinding   `json:"validationFindings,omitempty"`
 	MemberCount        int                             `json:"memberCount"`
@@ -86,7 +85,6 @@ type CreateRequest struct {
 	Runtime           RuntimeDTO                      `json:"runtime"`
 	Coordination      CoordinationDTO                 `json:"coordination"`
 	Execution         ExecutionDTO                    `json:"execution"`
-	DecisionMode      string                          `json:"decisionMode,omitempty"`
 	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
 }
 
@@ -98,7 +96,6 @@ type UpdateRequest struct {
 	Runtime           *RuntimeDTO                     `json:"runtime,omitempty"`
 	Coordination      *CoordinationDTO                `json:"coordination,omitempty"`
 	Execution         *ExecutionDTO                   `json:"execution,omitempty"`
-	DecisionMode      *string                         `json:"decisionMode,omitempty"`
 	OperatingContract *teamcontract.OperatingContract `json:"operatingContract,omitempty"`
 }
 

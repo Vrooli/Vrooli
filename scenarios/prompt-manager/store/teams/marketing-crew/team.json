@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "marketing-crew",
   "displayName": "Marketing Crew",
-  "mission": "Own Vrooli's external voice — subscription marketing, open-source / community marketing, brand canon, and publishing pipeline — and surface the publishing, campaign, and positioning decisions the operator reviews each heartbeat.",
+  "mission": "Own Vrooli's external voice — subscription marketing, open-source / community marketing, brand canon, and publishing pipeline — and surface the publishing, campaign, and positioning work items the operator reviews each heartbeat.",
   "objectivesServed": [
     {
       "id": "T1",
@@ -28,7 +28,6 @@
       "injectInbox": false,
       "allowPeerTriggers": false,
       "showTaskBoardGuidance": false,
-      "showDecisionLogGuidance": true,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
@@ -37,31 +36,8 @@
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
   },
-  "decisionMode": "approval",
   "operatingContract": {
     "schemaVersion": 1,
-    "governance": {
-      "decisionMode": "approval",
-      "teamPendingCeiling": {
-        "value": 12,
-        "readOnlyWhenAtOrAbove": true,
-        "rationale": "Tuned for a roughly 3/day operator review rate at the morning vision walk."
-      },
-      "supersession": {
-        "requiredBeforeNewDecision": true,
-        "allowedInReadOnlyMode": true,
-        "replacementMustSetSupersedes": true
-      },
-      "staleDecisionPolicy": {
-        "afterHeartbeats": 14,
-        "ownerMemberId": "marketing-contrarian",
-        "requiredOutcomes": [
-          "supersede",
-          "reject",
-          "still-relevant-note"
-        ]
-      }
-    },
     "documents": {
       "planOfRecord": [
         {
@@ -108,7 +84,7 @@
               "path": "docs/marketing/strategy/IMAGE_STYLE.md"
             }
           ],
-          "writePolicy": "operator-curated-via-decisions",
+          "writePolicy": "operator-curated-via-swarm-manager",
           "consumers": [
             "marketing-crew",
             "director-swarm",
@@ -125,7 +101,7 @@
               "path": "docs/marketing/catalogs/post-types/README.md"
             }
           ],
-          "writePolicy": "operator-curated-via-decisions",
+          "writePolicy": "operator-curated-via-swarm-manager",
           "consumers": [
             "marketing-crew"
           ],
@@ -156,7 +132,7 @@
               "path": "docs/marketing/strategy/patterns/hook-library.md"
             }
           ],
-          "writePolicy": "operator-curated-via-decisions",
+          "writePolicy": "operator-curated-via-swarm-manager",
           "consumers": [
             "marketing-crew"
           ],
@@ -175,7 +151,7 @@
               "path": "docs/marketing/evidence/research/README.md"
             }
           ],
-          "writePolicy": "operator-curated-via-decisions",
+          "writePolicy": "operator-curated-via-swarm-manager",
           "consumers": [
             "marketing-crew",
             "meta-optimization"
@@ -215,13 +191,13 @@
               "path": "docs/narrative/PITCH_DECK.md"
             }
           ],
-          "writePolicy": "operator-curated-via-decisions",
+          "writePolicy": "operator-curated-via-swarm-manager",
           "consumers": [
             "marketing-crew",
             "director-swarm",
             "monetization"
           ],
-          "rationale": "Cross-team project-identity canon curated through brand-guideline-update decisions.",
+          "rationale": "Cross-team project-identity canon curated through brand-guideline-update work items.",
           "useFor": "canonical pitch, narrative, FAQ, press kit, and pitch-deck project identity"
         },
         {
@@ -271,79 +247,6 @@
           "required": true
         },
         {
-          "id": "audience-scans-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "audience-scans.jsonl"
-          },
-          "ownerMemberId": "producer",
-          "kind": "append-only-event-log",
-          "required": true
-        },
-        {
-          "id": "campaign-drafts-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "campaign-drafts.jsonl"
-          },
-          "kind": "append-only-event-log",
-          "required": true
-        },
-        {
-          "id": "decisions-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
-          },
-          "kind": "decision-log",
-          "required": true
-        },
-        {
-          "id": "handoff-history-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "handoff-history.jsonl"
-          },
-          "kind": "handoff-log",
-          "required": true
-        },
-        {
-          "id": "knowledge-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          "kind": "knowledge-log",
-          "required": true
-        },
-        {
-          "id": "publish-log-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "publish-log.jsonl"
-          },
-          "kind": "append-only-event-log",
-          "required": true
-        },
-        {
-          "id": "published-improvements-log-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "published-improvements-log.jsonl"
-          },
-          "kind": "append-only-event-log",
-          "required": true
-        },
-        {
-          "id": "published-scenario-mentions-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "published-scenario-mentions.jsonl"
-          },
-          "kind": "append-only-event-log",
-          "required": true
-        },
-        {
           "id": "coverage-business",
           "path": {
             "base": "team-shared",
@@ -363,77 +266,6 @@
         }
       ]
     },
-    "decisionContexts": {
-      "audience-update": {
-        "ownerMemberIds": [
-          "producer"
-        ],
-        "description": "Persona or audience canon revision backed by converging observations."
-      },
-      "brand-guideline-update": {
-        "ownerMemberIds": [
-          "brand-manager"
-        ],
-        "description": "Plan-of-record edit proposal across marketing or narrative canon."
-      },
-      "campaign-launch-proposal": {
-        "ownerMemberIds": [
-          "brand-manager"
-        ],
-        "description": "Multi-artifact campaign with theme, timing, channel mix, and acquisition/retention hypothesis."
-      },
-      "capability-gap": {
-        "ownerMemberIds": [
-          "producer"
-        ],
-        "description": "Missing scenario, skill, or tool capability blocks marketing work; consumed by director-swarm.",
-        "externalAuthorizedRaisers": [
-          "meta-optimization"
-        ]
-      },
-      "channel-strategy-update": {
-        "ownerMemberIds": [
-          "producer"
-        ],
-        "description": "Strategic channel priority or activation update."
-      },
-      "channel-update": {
-        "ownerMemberIds": [
-          "brand-manager"
-        ],
-        "description": "Operational per-platform rule change based on publishing friction. Reassigned from publisher; moves to the scheduler team once account operations have a home."
-      },
-      "coverage-gap": {
-        "ownerMemberIds": [
-          "producer"
-        ],
-        "description": "Deployed or imminent SKU/app has stale or missing marketing coverage."
-      },
-      "decision-rejection-proposed": {
-        "ownerMemberIds": [
-          "marketing-contrarian"
-        ],
-        "description": "Contrarian recommends rejecting or revising a pending marketing proposal."
-      },
-      "framework-update": {
-        "ownerMemberIds": [
-          "marketing-contrarian"
-        ],
-        "description": "Marketing failure-mode framework needs a concrete update."
-      },
-      "hook-candidate-promotion": {
-        "ownerMemberIds": [
-          "producer"
-        ],
-        "description": "Promote observed stable hooks into hook-library canon."
-      },
-      "post-type-proposal": {
-        "ownerMemberIds": [
-          "producer"
-        ],
-        "description": "New post-type doc plus paired skill proposal backed by format-trend scans."
-      }
-    },
     "knowledgeTopics": {
       "audience-scan/YYYY-MM-DD": {
         "ownerMemberId": "producer",
@@ -451,11 +283,6 @@
         "retention": "append-only"
       },
       "competitor-record/<slug>": {
-        "ownerMemberId": "producer",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
-      "decision-application/<decision-id>": {
         "ownerMemberId": "producer",
         "supersedesPrevious": false,
         "retention": "append-only"
@@ -494,23 +321,9 @@
     "members": {
       "brand-manager": {
         "lane": "Steward marketing and narrative canon, drain typed marketing-craft observations, and propose campaigns only when signal warrants.",
-        "ownedDecisionContexts": [
-          "campaign-launch-proposal",
-          "brand-guideline-update",
-          "channel-update"
-        ],
-        "newDecisionCapsByContext": {
-          "brand-guideline-update": 1,
-          "campaign-launch-proposal": 1,
-          "channel-update": 1
-        },
-        "pendingOwnedDecisionCap": 3,
         "allowedWrites": [
           {
             "kind": "knowledge"
-          },
-          {
-            "kind": "decision"
           },
           {
             "kind": "handoff"
@@ -528,17 +341,15 @@
         ],
         "safetyCriticalRules": [
           "Do not review individual drafts; the producer drafts independently, and per-draft review belongs to the contrarian and the operator approval gate.",
-          "Do not edit plan-of-record files directly; propose promotions, retirements, or canon edits through the relevant decision."
+          "Do not edit plan-of-record files directly; propose promotions, retirements, or canon edits through the relevant work item."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
         "taskParameters": {
           "narrativeCanonTriggers": [
-            "accepted decision changes positioning",
+            "approved work item changes positioning",
             "new SKU ships or launch window opens",
             "systematic drift across >=3 recent drafts",
             "typed marketing-craft observation reaches promotion threshold",
@@ -547,22 +358,10 @@
         }
       },
       "marketing-contrarian": {
-        "lane": "Challenge pending marketing proposals against the failure-mode framework and run stale decision hygiene.",
-        "ownedDecisionContexts": [
-          "decision-rejection-proposed",
-          "framework-update"
-        ],
-        "newDecisionCapsByContext": {
-          "decision-rejection-proposed": 2,
-          "framework-update": 1
-        },
-        "pendingOwnedDecisionCap": 3,
+        "lane": "Challenge pending marketing proposals against the failure-mode framework and run stale work item hygiene.",
         "allowedWrites": [
           {
             "kind": "knowledge"
-          },
-          {
-            "kind": "decision"
           },
           {
             "kind": "handoff"
@@ -576,25 +375,15 @@
           {
             "base": "repo-root",
             "path": "docs/narrative/"
-          },
-          {
-            "base": "team-shared",
-            "path": "campaign-drafts.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "publish-log.jsonl"
           }
         ],
         "safetyCriticalRules": [
-          "Never generate positive-action decisions.",
+          "Never generate positive-action work items.",
           "Do not invent new failure modes inside a challenge; propose framework-update instead.",
-          "Do not relitigate resolved decisions."
+          "Do not relitigate resolved work items."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
         "taskParameters": {
@@ -604,33 +393,9 @@
       },
       "producer": {
         "lane": "Sole draft producer. Draws open campaign work from content-desk, gathers the evidence that work needs, and drafts against it with every factual assertion declared as a claim. Lane is a field on the draft, not a member.",
-        "ownedDecisionContexts": [
-          "audience-update",
-          "channel-strategy-update",
-          "post-type-proposal",
-          "hook-candidate-promotion",
-          "coverage-gap",
-          "capability-gap"
-        ],
-        "newDecisionCapsByContext": {
-          "audience-update": 1,
-          "capability-gap": 1,
-          "channel-strategy-update": 1,
-          "coverage-gap": 1,
-          "hook-candidate-promotion": 1,
-          "post-type-proposal": 1
-        },
-        "pendingOwnedDecisionCap": 3,
         "allowedWrites": [
           {
-            "base": "team-shared",
-            "path": "audience-scans.jsonl"
-          },
-          {
             "kind": "knowledge"
-          },
-          {
-            "kind": "decision"
           },
           {
             "kind": "handoff"
@@ -655,13 +420,11 @@
           "Frame OSS self-host as deliberate brand credibility, not a revenue leak.",
           "Never frame subscriptions as paywalling core features.",
           "Never hallucinate engagement numbers.",
-          "If a source system is unhealthy, raise capability-gap instead of shipping partial claims.",
+          "If a source system is unhealthy, raise capability work item instead of shipping partial claims.",
           "Audience and post-type proposals require at least three converging scans."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         }
       }
@@ -719,7 +482,7 @@
     {
       "prefix": "marketing-craft-observation/*",
       "status": "live",
-      "purpose": "Typed production observations that may feed canon, skill, scenario, capability-gap, or retirement decisions."
+      "purpose": "Typed production observations that may feed canon, skill, scenario, Swarm Manager work item, or retirement work items."
     },
     {
       "prefix": "brand-snapshot/*",

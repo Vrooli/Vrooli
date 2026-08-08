@@ -108,7 +108,7 @@ func operatingGraphEdgeActionable(from, to OperatingGraphNode) bool {
 }
 
 func operatingGraphRelationshipsEquivalent(a, b OperatingRelationship) bool {
-	if a.Kind != b.Kind || a.Team != b.Team || a.Member != b.Member || a.Decision != b.Decision || a.External != b.External || a.ProducerTeam != b.ProducerTeam || a.TargetTeam != b.TargetTeam {
+	if a.Kind != b.Kind || a.Team != b.Team || a.Member != b.Member || a.External != b.External || a.ProducerTeam != b.ProducerTeam || a.TargetTeam != b.TargetTeam {
 		return false
 	}
 	if a.Path != "" || b.Path != "" {

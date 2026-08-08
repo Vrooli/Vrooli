@@ -58,7 +58,7 @@ Cross-reference: [docs/monetization/catalogs/skus/base/business.md](../../moneti
 | `goal:decision-visual-grounding-propagation` | Propagates decision visuals through the proposal/review loop. |
 | `goal:ai-image-generation-foundation` | Image-tools-backed generation plumbing (wrap-not-use) that decision mockups and future image use cases sit on. |
 | `goal:initiative-feedback-research-support` | Research entry point for proposal feedback. (Retired-vocabulary name; rename candidate.) |
-| `goal:initiative-proposal-advanced-diff-ux` | Diff UX for reviewing proposals. (Retired-vocabulary name; rename candidate.) |
+| `goal:proposal-advanced-diff-ux` | Diff UX for reviewing proposals. (Renamed from retired decision vocabulary.) |
 | `goal:workshop-decision-triage` | Workshop decision-sync tail; review against the plan-workshop consolidation before further investment. |
 | `goal:audio-reliability-v1` | Shared audio substrate reliability — hands-free mobile use across web-console, swarm-manager, agent-manager. |
 
@@ -97,7 +97,7 @@ Cross-reference: [docs/monetization/catalogs/skus/base/business.md](../../moneti
 | `goal:ecosystem-intelligence-loop` | The recursive-learning-loop plumbing — agents building tools that make agents smarter. |
 | `goal:swarm-manager-meta-optimizer` | Swarm-manager's own meta-optimizer team — closes the loop on its execution quality. |
 | `goal:prompt-manager-decision-workflow-polish` | Decision-workflow ergonomics in the substrate every team's decisions flow through. |
-| `goal:search-hub-corpus-buildout` | AI search over declared capability-gap corpora — recall infrastructure for agents. |
+| `goal:search-hub-corpus-buildout` | AI search over declared capability-work corpora — recall infrastructure for agents. |
 | `goal:search-hub-federation-adoption` | Federates existing scenario AI-search features into one retrieval surface. |
 | `goal:emulator-platform` | Dedicated emulator platform — future-facing platform play. |
 

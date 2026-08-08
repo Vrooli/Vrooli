@@ -9,9 +9,9 @@ Audit one platform slice deeply. The goal is actionable reliability signal, not 
 3. Identify the top finding, if any.
 4. Update the rolling platform audit artifact.
 5. Record the platform-audit knowledge snapshot.
-6. Check supersession on owned pending decisions.
-7. Propose decisions when backed by concrete evidence.
-8. Attach proposed plan-of-record diffs inside decisions when relevant.
+6. Check supersession on owned open work items.
+7. Propose work items when backed by concrete evidence.
+8. Attach proposed plan-of-record diffs inside work items when relevant.
 
 ## Handoff Shape
 ### Slice audited
@@ -19,5 +19,5 @@ Audit one platform slice deeply. The goal is actionable reliability signal, not 
 ### Top finding
 ### Measurement plan
 ### Plan-of-record diffs proposed
-### Decisions raised
+### Work items filed
 ### Knowledge entries written

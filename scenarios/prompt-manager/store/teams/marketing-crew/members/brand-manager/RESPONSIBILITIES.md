@@ -1,7 +1,7 @@
 # Responsibilities: Brand Manager
 
 ## Primary Duties
-- Steward marketing and narrative canon through operator-approved decisions.
+- Steward marketing and narrative canon through operator-approved work items.
 - Curate typed marketing-craft observations by identifying promotion and retirement candidates.
 - Drain `topic:marketing-craft-observation/*` as structured evidence, not as permanent canon.
 - Convert accepted campaign planning into campaign records with a declared artifact slot budget. Slots are a hard cap, not a target — they are what bounds in-flight work and operator review load.

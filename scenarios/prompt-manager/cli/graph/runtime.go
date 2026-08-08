@@ -94,7 +94,7 @@ func cmdRuntime(ctx appctx.Context, args []string) error {
 		fmt.Printf(": %s\n", f.Detail)
 	}
 	fmt.Println()
-	fmt.Printf("%d runtime finding(s). This command never fails a build: a runtime finding reports what an agent did, and no edit to the tree clears it. Route adoption through the owning team's decision context.\n", len(runtimeFindings))
+	fmt.Printf("%d runtime finding(s). This command never fails a build: a runtime finding reports what an agent did, and no edit to the tree clears it. Route adoption through the owning team's work item type.\n", len(runtimeFindings))
 	return nil
 }
 

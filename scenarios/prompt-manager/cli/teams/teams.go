@@ -32,7 +32,6 @@ type Team struct {
 	Runtime           Runtime                         `json:"runtime"`
 	Coordination      Coordination                    `json:"coordination"`
 	Execution         Execution                       `json:"execution"`
-	DecisionMode      string                          `json:"decisionMode,omitempty"`
 	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
 	MemberCount       int                             `json:"memberCount"`
 	CreatedAt         string                          `json:"createdAt"`
@@ -180,89 +179,7 @@ type UpdateTaskRequest struct {
 	Note     *string `json:"note,omitempty"`
 }
 
-// DecisionOption represents a lettered choice in a multi-option decision.
-type DecisionOption struct {
-	Key         string `json:"key"`
-	Label       string `json:"label"`
-	Rationale   string `json:"rationale"`
-	Recommended bool   `json:"recommended,omitempty"`
-}
-
-// DecisionEntry represents a decision log entry.
-type DecisionEntry struct {
-	ID                      string                      `json:"id"`
-	At                      string                      `json:"at"`
-	By                      string                      `json:"by"`
-	Decision                string                      `json:"decision"`
-	Rationale               string                      `json:"rationale"`
-	Context                 string                      `json:"context,omitempty"`
-	Supersedes              string                      `json:"supersedes,omitempty"`
-	Status                  string                      `json:"status,omitempty"`
-	Topic                   string                      `json:"topic,omitempty"`
-	Description             string                      `json:"description,omitempty"`
-	Options                 []DecisionOption            `json:"options,omitempty"`
-	Selected                string                      `json:"selected,omitempty"`
-	Freeform                string                      `json:"freeform,omitempty"`
-	Notes                   string                      `json:"notes,omitempty"`
-	Modifications           *DecisionModifications      `json:"modifications,omitempty"`
-	RevisitAfter            *string                     `json:"revisit_after,omitempty"`
-	AcceptedAsProposed      bool                        `json:"accepted_as_proposed,omitempty"`
-	InitiativeMetadata      *DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
-	AutoCreateStatus        string                      `json:"auto_create_status,omitempty"`
-	AutoCreateError         string                      `json:"auto_create_error,omitempty"`
-	AutoCreateInitiativeRef string                      `json:"auto_create_initiative_ref,omitempty"`
-}
-
-// DecisionInitiativeMetadata mirrors the API store struct of the same name.
-// Carried on decisions whose context is "initiative-proposal"; consumed by
-// the API at decision-accept time to auto-create a swarm-manager initiative.
-// Contract: docs/reference/decision-initiative-proposal-contract.md.
-type DecisionInitiativeMetadata struct {
-	Name           string   `json:"name"`
-	Priority       int      `json:"priority,omitempty"`
-	DependsOn      []string `json:"depends_on,omitempty"`
-	TargetScenario string   `json:"target_scenario,omitempty"`
-	Title          string   `json:"title,omitempty"`
-}
-
-// DecisionModifications is a structured, scoped exception an operator attaches
-// to an accepted option. See docs/reference/decision-modifications-contract.md.
-type DecisionModifications struct {
-	ExcludedClauses []string `json:"excluded_clauses,omitempty"`
-	Additions       []string `json:"additions,omitempty"`
-	Rationale       string   `json:"rationale,omitempty"`
-}
-
-// DecisionListResponse represents the decision list API response.
-type DecisionListResponse struct {
-	TeamID  string          `json:"teamId"`
-	Entries []DecisionEntry `json:"entries"`
-	Total   int             `json:"total"`
-	Last    int             `json:"last"`
-}
-
-// AddDecisionRequest is the request body for adding a decision.
-type AddDecisionRequest struct {
-	By                 string                      `json:"by"`
-	Decision           string                      `json:"decision"`
-	Rationale          string                      `json:"rationale"`
-	Context            string                      `json:"context,omitempty"`
-	Supersedes         string                      `json:"supersedes,omitempty"`
-	Topic              string                      `json:"topic,omitempty"`
-	Description        string                      `json:"description,omitempty"`
-	Options            []DecisionOption            `json:"options,omitempty"`
-	InitiativeMetadata *DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
-}
-
-// AttributionInfo mirrors the API-side store.AttributionInfo so the CLI can
-// deserialize knowledge-list responses cleanly. Field semantics, JSON tags,
-// and per-kind required-field rules are owned by
-// docs/agent-system/RUNTIME_ATTRIBUTION.md and the canonical Go struct in
-// scenarios/prompt-manager/api/store/models.go::AttributionInfo. Keep this
-// shape in lockstep with that struct — drift surfaces as silent JSON-decode
-// gaps. Construction of outgoing attribution payloads lives in
-// cli/internal/attribution; this struct is read-only — it deserializes
-// attribution objects on knowledge-list responses for display.
+// AttributionInfo mirrors the API-side attribution object for read output.
 type AttributionInfo struct {
 	Kind          string  `json:"kind"`
 	MemberID      *string `json:"member_id"`
@@ -272,10 +189,6 @@ type AttributionInfo struct {
 	SourceSkillID *string `json:"source_skill_id"`
 }
 
-// KnowledgeEntry mirrors the API-side store.KnowledgeEntry. Caller is the
-// derived display string the API computes at write time; CallerNote is
-// optional freeform context; Attribution is the structured truth. See
-// docs/agent-system/RUNTIME_ATTRIBUTION.md for the contract.
 type KnowledgeEntry struct {
 	ID          string          `json:"id"`
 	At          string          `json:"at"`
@@ -288,17 +201,9 @@ type KnowledgeEntry struct {
 	Attribution AttributionInfo `json:"attribution"`
 }
 
-// KnowledgeListResponse represents the knowledge list API response.
 type KnowledgeListResponse struct {
 	TeamID  string           `json:"teamId"`
 	Entries []KnowledgeEntry `json:"entries"`
-}
-
-type ChallengeListEntry struct {
-	Decision    DecisionEntry    `json:"decision"`
-	Reports     []KnowledgeEntry `json:"reports"`
-	Resolutions []KnowledgeEntry `json:"resolutions"`
-	Status      string           `json:"status"`
 }
 
 // AddKnowledgeRequest is the request body for adding a knowledge entry.
@@ -324,7 +229,6 @@ type CreateTeamRequest struct {
 	Runtime           Runtime                         `json:"runtime"`
 	Coordination      Coordination                    `json:"coordination"`
 	Execution         Execution                       `json:"execution"`
-	DecisionMode      string                          `json:"decisionMode,omitempty"`
 	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
 }
 
@@ -336,7 +240,6 @@ type UpdateTeamRequest struct {
 	Runtime           *Runtime                        `json:"runtime,omitempty"`
 	Coordination      *Coordination                   `json:"coordination,omitempty"`
 	Execution         *Execution                      `json:"execution,omitempty"`
-	DecisionMode      *string                         `json:"decisionMode,omitempty"`
 	OperatingContract *teamcontract.OperatingContract `json:"operatingContract,omitempty"`
 }
 
@@ -352,7 +255,6 @@ type teamConfigFlagSet struct {
 	injectInbox              *string
 	allowPeerTriggers        *string
 	showTaskBoardGuidance    *string
-	showDecisionLogGuidance  *string
 	showKnowledgeLogGuidance *string
 	requireHandoff           *string
 }
@@ -381,7 +283,6 @@ func registerTeamConfigFlags(fs *flag.FlagSet, includeDefaults bool) teamConfigF
 		injectInbox:              fs.String("inject-inbox", "", "Inject inbox contents into prompts (true|false)"),
 		allowPeerTriggers:        fs.String("allow-peer-triggers", "", "Allow peer-triggered heartbeats (true|false)"),
 		showTaskBoardGuidance:    fs.String("show-task-board-guidance", "", "Show task board guidance in prompts (true|false)"),
-		showDecisionLogGuidance:  fs.String("show-decision-log-guidance", "", "Show decision log guidance in prompts (true|false)"),
 		showKnowledgeLogGuidance: fs.String("show-knowledge-log-guidance", "", "Show knowledge log guidance in prompts (true|false)"),
 		requireHandoff:           fs.String("require-handoff", "", "Require a final handoff section (true|false)"),
 	}
@@ -427,7 +328,6 @@ func applyCapabilityOverrides(coordination *Coordination, flags teamConfigFlagSe
 		{raw: *flags.injectInbox, set: func(v bool) { coordination.Capabilities.InjectInbox = v }},
 		{raw: *flags.allowPeerTriggers, set: func(v bool) { coordination.Capabilities.AllowPeerTriggers = v }},
 		{raw: *flags.showTaskBoardGuidance, set: func(v bool) { coordination.Capabilities.ShowTaskBoardGuidance = v }},
-		{raw: *flags.showDecisionLogGuidance, set: func(v bool) { coordination.Capabilities.ShowDecisionLogGuidance = v }},
 		{raw: *flags.showKnowledgeLogGuidance, set: func(v bool) { coordination.Capabilities.ShowKnowledgeLogGuidance = v }},
 		{raw: *flags.requireHandoff, set: func(v bool) { coordination.Capabilities.RequireHandoff = v }},
 	}
@@ -535,7 +435,6 @@ func resolveUpdatedTeamConfig(current TeamDetails, flags teamConfigFlagSet) (*Ru
 		strings.TrimSpace(*flags.injectInbox) != "" ||
 		strings.TrimSpace(*flags.allowPeerTriggers) != "" ||
 		strings.TrimSpace(*flags.showTaskBoardGuidance) != "" ||
-		strings.TrimSpace(*flags.showDecisionLogGuidance) != "" ||
 		strings.TrimSpace(*flags.showKnowledgeLogGuidance) != "" ||
 		strings.TrimSpace(*flags.requireHandoff) != "" {
 		changed = true
@@ -600,15 +499,6 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Description: "Manage teams (list|show|create|update|delete|add-member|update-member|remove-member|roles|org-*|message-*|heartbeat-*|retention|prune|import-cc|export-cc|trigger)",
 				Run: func(args []string) error {
 					return route(ctx, args)
-				},
-			},
-			{
-				Name:        "decisions-pending",
-				Aliases:     []string{"pending-decisions"},
-				NeedsAPI:    true,
-				Description: "List all pending decisions across all teams",
-				Run: func(args []string) error {
-					return cmdDecisionsPending(ctx, args)
 				},
 			},
 			{
@@ -718,26 +608,6 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdTaskUpdate(ctx, subArgs)
 	case "task-delete":
 		return cmdTaskDelete(ctx, subArgs)
-	case "decision-add":
-		return cmdDecisionAdd(ctx, subArgs)
-	case "decision-list":
-		return cmdDecisionList(ctx, subArgs)
-	case "decision-show":
-		return cmdDecisionShow(ctx, subArgs)
-	case "decision-update":
-		return cmdDecisionUpdate(ctx, subArgs)
-	case "decision-accept":
-		return cmdDecisionAccept(ctx, subArgs)
-	case "decision-reject":
-		return cmdDecisionReject(ctx, subArgs)
-	case "decision-defer":
-		return cmdDecisionDefer(ctx, subArgs)
-	case "decision-delete":
-		return cmdDecisionDelete(ctx, subArgs)
-	case "challenge-list":
-		return cmdChallengeList(ctx, subArgs)
-	case "challenge-resolve":
-		return cmdChallengeResolve(ctx, subArgs)
 	case "knowledge-add":
 		return cmdKnowledgeAdd(ctx, subArgs)
 	case "knowledge-list":
@@ -816,18 +686,6 @@ Task Board Commands:
   task-add <team-id>                    Add a task to the board
   task-update <team-id> <task-id>       Update a task
   task-delete <team-id> <task-id>       Delete a task
-
-Decision Log Commands:
-  decision-add <team-id>                Log a decision (supports --options for multi-option)
-  decision-list <team-id>               List decisions (--context, --status, --last)
-  decision-show <team-id> <id>          Show a single decision by id
-  decision-update <team-id> <id>        Update any field of a decision (PATCH semantics)
-  decision-accept <team-id> <id>        Accept a decision (--selected required for multi-option; omit for single-proposal; --notes recommended)
-  decision-reject <team-id> <id>        Reject a decision (--notes required)
-  decision-defer <team-id> <id>         Defer a pending decision (--revisit-after=YYYY-MM-DD required)
-  decision-delete <team-id> <id>        Delete a decision (use --yes to skip confirm)
-  challenge-list <team-id>              List challenge reports joined to pending decisions
-  challenge-resolve <team-id> <id>      Add a challenge-resolution-record entry
 
 Knowledge Log Commands:
   knowledge-add <team-id>               Add a knowledge entry
@@ -927,9 +785,6 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	fmt.Printf("Reporting Mode: %s\n", team.Coordination.ReportingMode)
 	fmt.Printf("Messaging Mode: %s\n", team.Coordination.MessagingMode)
 	fmt.Printf("Queue Policy: %s (max concurrent: %d)\n", team.Execution.QueuePolicy, team.Execution.MaxConcurrentRuns)
-	if team.DecisionMode != "" {
-		fmt.Printf("Decision Mode: %s\n", team.DecisionMode)
-	}
 	fmt.Printf("Members: %d\n", team.MemberCount)
 	if len(team.Members) > 0 {
 		fmt.Println("  Members:")
@@ -982,7 +837,6 @@ func cmdShow(ctx appctx.Context, args []string) error {
 func cmdCreate(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("create", flag.ContinueOnError)
 	mission := fs.String("mission", "", "Team mission statement")
-	decisionMode := fs.String("decision-mode", "", "Decision mode (yolo|approval)")
 	configFlags := registerTeamConfigFlags(fs, true)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -990,7 +844,7 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team create <name> [--mission=...] [--runtime-mode=...] [--coordination-pattern=...] [--decision-mode=...]")
+		return fmt.Errorf("usage: team create <name> [--mission=...] [--runtime-mode=...] [--coordination-pattern=...]")
 	}
 	name := fs.Arg(0)
 
@@ -999,18 +853,12 @@ func cmdCreate(ctx appctx.Context, args []string) error {
 		return err
 	}
 
-	resolvedDecisionMode := strings.TrimSpace(*decisionMode)
-	if resolvedDecisionMode == "" {
-		resolvedDecisionMode = "yolo"
-	}
-
 	req := CreateTeamRequest{
 		DisplayName:  name,
 		Mission:      *mission,
 		Runtime:      runtime,
 		Coordination: coordination,
 		Execution:    execution,
-		DecisionMode: resolvedDecisionMode,
 	}
 
 	var team TeamDetails
@@ -1033,7 +881,6 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	name := fs.String("name", "", "New display name")
 	mission := fs.String("mission", "", "New mission statement")
 	enabled := fs.String("enabled", "", "Set team enabled state (true|false)")
-	decisionMode := fs.String("decision-mode", "", "Decision mode (yolo|approval)")
 	configFlags := registerTeamConfigFlags(fs, false)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -1041,7 +888,7 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=...] [--coordination-pattern=...] [--decision-mode=...]")
+		return fmt.Errorf("usage: team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=...] [--coordination-pattern=...]")
 	}
 	teamID := fs.Arg(0)
 
@@ -1059,9 +906,6 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 		}
 		req.Enabled = &parsed
 	}
-	if *decisionMode != "" {
-		req.DecisionMode = decisionMode
-	}
 
 	if strings.TrimSpace(*configFlags.runtimeMode) != "" ||
 		strings.TrimSpace(*configFlags.coordinationPattern) != "" ||
@@ -1074,7 +918,6 @@ func cmdUpdate(ctx appctx.Context, args []string) error {
 		strings.TrimSpace(*configFlags.injectInbox) != "" ||
 		strings.TrimSpace(*configFlags.allowPeerTriggers) != "" ||
 		strings.TrimSpace(*configFlags.showTaskBoardGuidance) != "" ||
-		strings.TrimSpace(*configFlags.showDecisionLogGuidance) != "" ||
 		strings.TrimSpace(*configFlags.showKnowledgeLogGuidance) != "" ||
 		strings.TrimSpace(*configFlags.requireHandoff) != "" {
 		var current TeamDetails
@@ -3252,1268 +3095,6 @@ func cmdTaskDelete(ctx appctx.Context, args []string) error {
 	return nil
 }
 
-// --- Decision Log commands ---
-
-func cmdDecisionAdd(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("decision-add", flag.ContinueOnError)
-	by := fs.String("by", "", "Agent ID who made the decision (required)")
-	decision := fs.String("decision", "", "The decision (simple mode, required without --options)")
-	rationale := fs.String("rationale", "", "Why this decision was made")
-	contextTag := fs.String("context", "", "Context tag for grouping")
-	supersedes := fs.String("supersedes", "", "ID of decision this replaces")
-	topic := fs.String("topic", "", "What is being decided (multi-option mode, required with --options)")
-	description := fs.String("description", "", "Background/context for the decision (multi-option mode)")
-	options := fs.String("options", "", `JSON array of options, e.g. '[{"key":"A","label":"Option A","rationale":"Why A","recommended":true}]'`)
-	initiativeMetadataInline := fs.String("initiative-metadata", "", `Structured initiative metadata for context=initiative-proposal decisions, as JSON: '{"name":"my-init","priority":5,"depends_on":["..."],"target_scenario":"swarm-manager","title":"..."}'`)
-	initiativeMetadataFile := fs.String("initiative-metadata-file", "", "Path to a JSON file containing the same payload as --initiative-metadata (mutually exclusive)")
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team decision-add <team-id> --by=<id> [--decision=\"...\" --rationale=\"...\"] [--topic=\"...\" --description=\"...\" --options='[...]'] [--initiative-metadata='{...}']")
-	}
-	teamID := fs.Arg(0)
-
-	if strings.TrimSpace(*by) == "" {
-		return fmt.Errorf("by is required")
-	}
-
-	provided := map[string]bool{}
-	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
-	meta, err := loadInitiativeMetadataFromFlags(provided, *initiativeMetadataInline, *initiativeMetadataFile)
-	if err != nil {
-		return err
-	}
-	if meta != nil && *contextTag != "initiative-proposal" {
-		return fmt.Errorf("--initiative-metadata is only valid when --context=initiative-proposal")
-	}
-
-	req := AddDecisionRequest{
-		By:                 *by,
-		Context:            *contextTag,
-		Supersedes:         *supersedes,
-		Rationale:          *rationale,
-		InitiativeMetadata: meta,
-	}
-
-	if strings.TrimSpace(*options) != "" {
-		// Multi-option mode
-		if strings.TrimSpace(*topic) == "" {
-			return fmt.Errorf("topic is required when options are provided")
-		}
-		var opts []DecisionOption
-		if err := json.Unmarshal([]byte(*options), &opts); err != nil {
-			return fmt.Errorf("invalid options JSON: %w", err)
-		}
-		req.Topic = *topic
-		req.Description = *description
-		req.Options = opts
-	} else {
-		// Simple mode
-		if strings.TrimSpace(*decision) == "" {
-			return fmt.Errorf("decision is required (or use --topic + --options for multi-option)")
-		}
-		if strings.TrimSpace(*rationale) == "" {
-			return fmt.Errorf("rationale is required")
-		}
-		req.Decision = *decision
-	}
-
-	var resp DecisionEntry
-	if err := ctx.Post(fmt.Sprintf("/teams/%s/decisions", teamID), req, &resp); err != nil {
-		return fmt.Errorf("failed to add decision: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	if resp.Topic != "" {
-		fmt.Printf("Logged decision %s: %s (%d options)\n", resp.ID, resp.Topic, len(resp.Options))
-	} else {
-		fmt.Printf("Logged decision %s: %s\n", resp.ID, resp.Decision)
-	}
-	return nil
-}
-
-func cmdDecisionList(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("decision-list", flag.ContinueOnError)
-	contextTag := fs.String("context", "", "Filter by context tag")
-	status := fs.String("status", "", "Filter by status (pending|accepted|rejected|running|completed|deferred)")
-	last := fs.Int("last", 10, "Number of entries to show")
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team decision-list <team-id> [--context=<tag>] [--status=<status>] [--last=N] [--json]")
-	}
-	teamID := fs.Arg(0)
-
-	query := fmt.Sprintf("/teams/%s/decisions?last=%d", teamID, *last)
-	if *contextTag != "" {
-		query += "&context=" + url.QueryEscape(*contextTag)
-	}
-	if *status != "" {
-		query += "&status=" + url.QueryEscape(*status)
-	}
-
-	var resp DecisionListResponse
-	if err := ctx.Get(query, &resp); err != nil {
-		return fmt.Errorf("failed to get decisions: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	if len(resp.Entries) == 0 {
-		fmt.Println("No decisions found")
-		return nil
-	}
-
-	for _, entry := range resp.Entries {
-		contextStr := ""
-		if entry.Context != "" {
-			contextStr = fmt.Sprintf(" [%s]", entry.Context)
-		}
-		supersededStr := ""
-		if entry.Supersedes != "" {
-			supersededStr = fmt.Sprintf(" (supersedes %s)", entry.Supersedes)
-		}
-		statusStr := ""
-		if entry.Status != "" {
-			statusStr = fmt.Sprintf(" (%s)", entry.Status)
-		}
-		fmt.Printf("--- %s by %s%s%s%s ---\n", entry.ID, entry.By, contextStr, supersededStr, statusStr)
-
-		if len(entry.Options) > 0 {
-			fmt.Printf("Topic: %s\n", entry.Topic)
-			if entry.Description != "" {
-				fmt.Printf("Description: %s\n", entry.Description)
-			}
-			if entry.Rationale != "" {
-				fmt.Printf("Rationale: %s\n", entry.Rationale)
-			}
-			for _, opt := range entry.Options {
-				marker := "  "
-				if entry.Selected == opt.Key {
-					marker = "→ "
-				}
-				rec := ""
-				if opt.Recommended {
-					rec = " [RECOMMENDED]"
-				}
-				fmt.Printf("  %s%s) %s%s — %s\n", marker, opt.Key, opt.Label, rec, opt.Rationale)
-			}
-			if entry.Selected != "" {
-				if entry.Selected == "__other__" {
-					fmt.Printf("Selected: Other — %s\n", entry.Freeform)
-				} else {
-					fmt.Printf("Selected: %s\n", entry.Selected)
-				}
-			}
-			if entry.Notes != "" {
-				fmt.Printf("Notes: %s\n", entry.Notes)
-			}
-		} else {
-			fmt.Printf("Decision: %s\n", entry.Decision)
-			fmt.Printf("Rationale: %s\n", entry.Rationale)
-		}
-		fmt.Println()
-	}
-
-	// Pagination hint
-	remaining := resp.Total - len(resp.Entries)
-	if remaining > 0 {
-		fmt.Printf("+%d more entries. Run `prompt-manager team decision-list %s --last=%d` to see more\n", remaining, teamID, resp.Total)
-	}
-	return nil
-}
-
-// cmdDecisionUpdate is the generic PATCH wrapper exposing every field of the
-// API's UpdateDecisionRequest as an optional flag.
-func cmdDecisionUpdate(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("decision-update", flag.ContinueOnError)
-	decision := fs.String("decision", "", "Update decision text")
-	rationale := fs.String("rationale", "", "Update rationale")
-	contextTag := fs.String("context", "", "Update context tag")
-	status := fs.String("status", "", "Update status (pending|accepted|rejected|running|completed)")
-	supersedes := fs.String("supersedes", "", "ID of decision this supersedes")
-	topic := fs.String("topic", "", "Update topic (multi-option mode)")
-	description := fs.String("description", "", "Update description (multi-option mode)")
-	options := fs.String("options", "", `JSON array of options, e.g. '[{"key":"A","label":"...","rationale":"..."}]'`)
-	selected := fs.String("selected", "", "Selected option key (use __other__ with --freeform for write-in)")
-	freeform := fs.String("freeform", "", "Freeform answer when --selected=__other__")
-	notes := fs.String("notes", "", "Operator notes attached to the decision")
-	initiativeMetadataInline := fs.String("initiative-metadata", "", `Update structured initiative metadata, as JSON. Pre-accept only.`)
-	initiativeMetadataFile := fs.String("initiative-metadata-file", "", "Path to a JSON file containing the same payload as --initiative-metadata (mutually exclusive)")
-	autoCreateStatus := fs.String("auto-create-status", "", "Set auto_create_status (manual-recovery: failed→created or failed→failed)")
-	autoCreateRef := fs.String("auto-create-initiative-ref", "", "Initiative reference (\"<scenario>/<name>\") set alongside --auto-create-status=created")
-	autoCreateError := fs.String("auto-create-error", "", "Updated error message for failed→failed re-record (optional)")
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team decision-update <team-id> <decision-id> [--decision=...] [--rationale=...] [--context=...] [--status=...] [--supersedes=...] [--topic=...] [--description=...] [--options='[...]'] [--selected=...] [--freeform=...] [--notes=...] [--initiative-metadata='{...}'] [--auto-create-status=created --auto-create-initiative-ref=<ref>]")
-	}
-	teamID := fs.Arg(0)
-	decisionID := fs.Arg(1)
-
-	type updateReq struct {
-		Decision                *string                     `json:"decision,omitempty"`
-		Rationale               *string                     `json:"rationale,omitempty"`
-		Context                 *string                     `json:"context,omitempty"`
-		Status                  *string                     `json:"status,omitempty"`
-		Supersedes              *string                     `json:"supersedes,omitempty"`
-		Topic                   *string                     `json:"topic,omitempty"`
-		Description             *string                     `json:"description,omitempty"`
-		Options                 *[]DecisionOption           `json:"options,omitempty"`
-		Selected                *string                     `json:"selected,omitempty"`
-		Freeform                *string                     `json:"freeform,omitempty"`
-		Notes                   *string                     `json:"notes,omitempty"`
-		InitiativeMetadata      *DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
-		AutoCreateStatus        *string                     `json:"auto_create_status,omitempty"`
-		AutoCreateInitiativeRef *string                     `json:"auto_create_initiative_ref,omitempty"`
-		AutoCreateError         *string                     `json:"auto_create_error,omitempty"`
-	}
-
-	// Track which flags were explicitly set so that empty-string values can
-	// still be sent (e.g., --notes "" to clear notes). flag.Visit only
-	// iterates over flags the user actually passed.
-	provided := map[string]bool{}
-	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
-
-	req := updateReq{}
-	if provided["decision"] {
-		req.Decision = decision
-	}
-	if provided["rationale"] {
-		req.Rationale = rationale
-	}
-	if provided["context"] {
-		req.Context = contextTag
-	}
-	if provided["status"] {
-		req.Status = status
-	}
-	if provided["supersedes"] {
-		req.Supersedes = supersedes
-	}
-	if provided["topic"] {
-		req.Topic = topic
-	}
-	if provided["description"] {
-		req.Description = description
-	}
-	if provided["options"] {
-		var opts []DecisionOption
-		if strings.TrimSpace(*options) != "" {
-			if err := json.Unmarshal([]byte(*options), &opts); err != nil {
-				return fmt.Errorf("invalid options JSON: %w", err)
-			}
-		}
-		req.Options = &opts
-	}
-	if provided["selected"] {
-		req.Selected = selected
-	}
-	if provided["freeform"] {
-		req.Freeform = freeform
-	}
-	if provided["notes"] {
-		req.Notes = notes
-	}
-
-	// initiative-metadata: mutually-exclusive flag pair, parsed via shared helper.
-	meta, err := loadInitiativeMetadataFromFlags(provided, *initiativeMetadataInline, *initiativeMetadataFile)
-	if err != nil {
-		return err
-	}
-	if meta != nil {
-		req.InitiativeMetadata = meta
-	}
-
-	// auto-create-status manual-recovery flags (per d8=C). Status is the
-	// gate; ref/error only meaningful when status is set.
-	if provided["auto-create-status"] {
-		req.AutoCreateStatus = autoCreateStatus
-	}
-	if provided["auto-create-initiative-ref"] {
-		req.AutoCreateInitiativeRef = autoCreateRef
-	}
-	if provided["auto-create-error"] {
-		req.AutoCreateError = autoCreateError
-	}
-
-	// Reject a no-op call early — a PATCH with no fields is almost certainly a typo.
-	if req.Decision == nil && req.Rationale == nil && req.Context == nil && req.Status == nil &&
-		req.Supersedes == nil && req.Topic == nil && req.Description == nil && req.Options == nil &&
-		req.Selected == nil && req.Freeform == nil && req.Notes == nil &&
-		req.InitiativeMetadata == nil && req.AutoCreateStatus == nil &&
-		req.AutoCreateInitiativeRef == nil && req.AutoCreateError == nil {
-		return fmt.Errorf("decision-update requires at least one field flag")
-	}
-
-	var resp UpdateDecisionResponse
-	if err := ctx.Put(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID), req, &resp); err != nil {
-		return fmt.Errorf("failed to update decision: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	statusStr := ""
-	if resp.Status != "" {
-		statusStr = fmt.Sprintf(" [%s]", resp.Status)
-	}
-	selectedStr := ""
-	if resp.Selected != "" {
-		selectedStr = fmt.Sprintf(" selected=%s", resp.Selected)
-	}
-	fmt.Printf("Updated decision %s%s%s\n", resp.ID, statusStr, selectedStr)
-	fprintAutoCreateOutcome(os.Stdout, resp.AutoCreateOutcome)
-	return nil
-}
-
-// parseInitiativeMetadataJSON parses a JSON payload into a
-// DecisionInitiativeMetadata. CLI-boundary validation mirrors the API's
-// policy (kebab-case name, priority bounds) so operators get fast errors.
-// Server-side validation remains authoritative.
-func parseInitiativeMetadataJSON(data []byte) (*DecisionInitiativeMetadata, error) {
-	trimmed := strings.TrimSpace(string(data))
-	if trimmed == "" {
-		return nil, fmt.Errorf("payload is empty")
-	}
-	dec := json.NewDecoder(strings.NewReader(trimmed))
-	dec.DisallowUnknownFields()
-	var m DecisionInitiativeMetadata
-	if err := dec.Decode(&m); err != nil {
-		return nil, fmt.Errorf("invalid JSON: %w", err)
-	}
-	if strings.TrimSpace(m.Name) == "" {
-		return nil, fmt.Errorf("name is required")
-	}
-	if m.Priority != 0 && (m.Priority < 1 || m.Priority > 10) {
-		return nil, fmt.Errorf("priority %d must be 0 (unset) or in 1-10", m.Priority)
-	}
-	for i, d := range m.DependsOn {
-		if strings.TrimSpace(d) == "" {
-			return nil, fmt.Errorf("depends_on[%d] must be a non-empty string", i)
-		}
-	}
-	return &m, nil
-}
-
-// loadInitiativeMetadataFromFlags reads --initiative-metadata or
-// --initiative-metadata-file (mutually exclusive) and returns the parsed
-// metadata or nil when neither was supplied.
-func loadInitiativeMetadataFromFlags(provided map[string]bool, inline, filePath string) (*DecisionInitiativeMetadata, error) {
-	if provided["initiative-metadata"] && provided["initiative-metadata-file"] {
-		return nil, fmt.Errorf("--initiative-metadata and --initiative-metadata-file are mutually exclusive")
-	}
-	switch {
-	case provided["initiative-metadata"]:
-		m, err := parseInitiativeMetadataJSON([]byte(inline))
-		if err != nil {
-			return nil, fmt.Errorf("--initiative-metadata: %w", err)
-		}
-		return m, nil
-	case provided["initiative-metadata-file"]:
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("--initiative-metadata-file: %w", err)
-		}
-		m, err := parseInitiativeMetadataJSON(data)
-		if err != nil {
-			return nil, fmt.Errorf("--initiative-metadata-file: %w", err)
-		}
-		return m, nil
-	}
-	return nil, nil
-}
-
-// AutoCreateOutcome mirrors the API response field returned alongside
-// decision-update / decision-accept when an `initiative-proposal` decision
-// is accepted. The CLI renders this as the structured "Auto-Created
-// Initiative" block (per d9=A).
-type AutoCreateOutcome struct {
-	Status             string `json:"status"`
-	InitiativeRef      string `json:"initiative_ref,omitempty"`
-	Error              string `json:"error,omitempty"`
-	WorkaroundCommand  string `json:"workaround_command,omitempty"`
-	ResolveCommand     string `json:"resolve_command,omitempty"`
-	DescriptionTmpFile string `json:"description_tmp_file,omitempty"`
-	TargetScenario     string `json:"target_scenario,omitempty"`
-	InitiativeName     string `json:"initiative_name,omitempty"`
-	Priority           int    `json:"priority,omitempty"`
-}
-
-// UpdateDecisionResponse extends DecisionEntry with an optional
-// AutoCreateOutcome payload (set when an initiative-proposal decision is
-// accepted). Mirrors the API response shape.
-type UpdateDecisionResponse struct {
-	DecisionEntry
-	AutoCreateOutcome *AutoCreateOutcome `json:"auto_create_outcome,omitempty"`
-}
-
-// fprintAutoCreateOutcome renders the structured auto-create block per d9=A.
-// Success: shows ref + get/edit hints + a "Reminder:" to enrich the initiative.
-// Failure: shows the error and the pre-filled workaround + resolve commands.
-func fprintAutoCreateOutcome(w io.Writer, o *AutoCreateOutcome) {
-	if o == nil {
-		return
-	}
-	fmt.Fprintln(w, "Auto-Created Initiative:")
-	if o.Status == "created" {
-		if o.InitiativeName != "" {
-			fmt.Fprintf(w, "  Name:        %s\n", o.InitiativeName)
-		}
-		if o.Priority != 0 {
-			fmt.Fprintf(w, "  Priority:    %d\n", o.Priority)
-		}
-		target := o.TargetScenario
-		if target == "" {
-			target = "swarm-manager"
-		}
-		fmt.Fprintf(w, "  Inspect:     %s initiatives get --name %s\n", target, o.InitiativeName)
-		fmt.Fprintf(w, "  Edit:        %s initiatives update --name %s ...\n", target, o.InitiativeName)
-		fmt.Fprintln(w, "Reminder: enrich the initiative (description, members, additional depends_on) as needed.")
-		return
-	}
-	// Failure path: print exact workaround + resolve commands.
-	fmt.Fprintf(w, "  Status: failed (%s)\n", o.Error)
-	fmt.Fprintln(w)
-	if o.WorkaroundCommand != "" {
-		fmt.Fprintln(w, "To create the initiative manually, run:")
-		fmt.Fprintf(w, "  %s\n", o.WorkaroundCommand)
-		if o.DescriptionTmpFile != "" {
-			fmt.Fprintf(w, "  (description body materialised to %s)\n", o.DescriptionTmpFile)
-		}
-		fmt.Fprintln(w)
-	}
-	if o.ResolveCommand != "" {
-		fmt.Fprintln(w, "Once created, mark the decision as resolved:")
-		fmt.Fprintf(w, "  %s\n", o.ResolveCommand)
-	}
-}
-
-// parseDecisionModificationsJSON parses a JSON payload into a
-// DecisionModifications and performs CLI-boundary validation that mirrors the
-// API's policy so operators get fast, clear errors. Server-side validation
-// remains authoritative (see
-// docs/reference/decision-modifications-contract.md).
-func parseDecisionModificationsJSON(data []byte) (*DecisionModifications, error) {
-	trimmed := strings.TrimSpace(string(data))
-	if trimmed == "" {
-		return nil, fmt.Errorf("payload is empty")
-	}
-	dec := json.NewDecoder(strings.NewReader(trimmed))
-	dec.DisallowUnknownFields()
-	var m DecisionModifications
-	if err := dec.Decode(&m); err != nil {
-		return nil, fmt.Errorf("invalid JSON: %w", err)
-	}
-	for i, s := range m.ExcludedClauses {
-		if strings.TrimSpace(s) == "" {
-			return nil, fmt.Errorf("excluded_clauses[%d] must be a non-empty string", i)
-		}
-	}
-	for i, s := range m.Additions {
-		if strings.TrimSpace(s) == "" {
-			return nil, fmt.Errorf("additions[%d] must be a non-empty string", i)
-		}
-	}
-	if len(m.ExcludedClauses) == 0 && len(m.Additions) == 0 && strings.TrimSpace(m.Rationale) == "" {
-		return nil, fmt.Errorf("must contain at least one of excluded_clauses, additions, or rationale")
-	}
-	return &m, nil
-}
-
-// cmdDecisionAccept is the convenience wrapper for the most common operator
-// action: set status=accepted, record the chosen option key, and (optionally)
-// attach notes. --selected is required; an accept-without-choice is almost
-// always a mistake.
-func cmdDecisionAccept(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("decision-accept", flag.ContinueOnError)
-	selected := fs.String("selected", "", "Selected option key (required for multi-option decisions; omit for single-proposal decisions; use __other__ with --freeform for write-in)")
-	freeform := fs.String("freeform", "", "Freeform answer when --selected=__other__")
-	notes := fs.String("notes", "", "Operator notes (free-form commentary; for structured exceptions use --modifications)")
-	modsJSON := fs.String("modifications", "", `Structured exception against the selected option's rationale, as JSON: '{"excluded_clauses":[...],"additions":[...],"rationale":"..."}'. Distinct from --notes. Immutable once set.`)
-	modsFile := fs.String("modifications-file", "", "Path to a JSON file containing the same payload as --modifications (mutually exclusive)")
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team decision-accept <team-id> <decision-id> [--selected=<option-key>] [--freeform=\"...\"] [--notes=\"...\"] [--modifications='{...}' | --modifications-file=<path>]")
-	}
-	teamID := fs.Arg(0)
-	decisionID := fs.Arg(1)
-
-	// Pre-fetch the decision to detect single-proposal (no Options) shape.
-	// Single-proposal decisions are accepted with no --selected; multi-option
-	// decisions still require it.
-	var existing DecisionEntry
-	{
-		var listResp DecisionListResponse
-		if err := ctx.Get(fmt.Sprintf("/teams/%s/decisions?last=0", teamID), &listResp); err != nil {
-			return fmt.Errorf("failed to fetch decision: %w", err)
-		}
-		found := false
-		for _, e := range listResp.Entries {
-			if e.ID == decisionID {
-				existing = e
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("decision %s not found in team %s", decisionID, teamID)
-		}
-	}
-	singleProposal := len(existing.Options) == 0
-
-	if singleProposal {
-		if strings.TrimSpace(*selected) != "" {
-			return fmt.Errorf("single-proposal decisions are accepted with no --selected; rerun without it")
-		}
-	} else {
-		if strings.TrimSpace(*selected) == "" {
-			return fmt.Errorf("--selected is required for decision-accept on multi-option decisions (use decision-update for status-only changes)")
-		}
-		if *selected == "__other__" && strings.TrimSpace(*freeform) == "" {
-			return fmt.Errorf("--freeform is required when --selected=__other__")
-		}
-	}
-
-	provided := map[string]bool{}
-	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
-
-	var mods *DecisionModifications
-	if provided["modifications"] && provided["modifications-file"] {
-		return fmt.Errorf("--modifications and --modifications-file are mutually exclusive")
-	}
-	switch {
-	case provided["modifications"]:
-		parsed, err := parseDecisionModificationsJSON([]byte(*modsJSON))
-		if err != nil {
-			return fmt.Errorf("--modifications: %w", err)
-		}
-		mods = parsed
-	case provided["modifications-file"]:
-		data, err := os.ReadFile(*modsFile)
-		if err != nil {
-			return fmt.Errorf("--modifications-file: %w", err)
-		}
-		parsed, err := parseDecisionModificationsJSON(data)
-		if err != nil {
-			return fmt.Errorf("--modifications-file: %w", err)
-		}
-		mods = parsed
-	}
-
-	type acceptReq struct {
-		Status        string                 `json:"status"`
-		Selected      *string                `json:"selected,omitempty"`
-		Freeform      *string                `json:"freeform,omitempty"`
-		Notes         *string                `json:"notes,omitempty"`
-		Modifications *DecisionModifications `json:"modifications,omitempty"`
-	}
-	req := acceptReq{Status: "accepted"}
-	if !singleProposal {
-		s := *selected
-		req.Selected = &s
-	}
-	if provided["freeform"] {
-		req.Freeform = freeform
-	}
-	if provided["notes"] {
-		req.Notes = notes
-	}
-	if mods != nil {
-		req.Modifications = mods
-	}
-
-	var resp UpdateDecisionResponse
-	if err := ctx.Put(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID), req, &resp); err != nil {
-		return fmt.Errorf("failed to accept decision: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	if resp.AcceptedAsProposed || singleProposal {
-		fmt.Printf("Decision %s accepted (as proposed).\n", resp.ID)
-	} else {
-		fmt.Printf("Decision %s accepted (selected: %s).\n", resp.ID, resp.Selected)
-	}
-	fprintAutoCreateOutcome(os.Stdout, resp.AutoCreateOutcome)
-	return nil
-}
-
-// cmdDecisionReject is the convenience wrapper for rejecting a decision.
-// --notes is required at the CLI layer; the API does not enforce it but a
-// reject-without-reason is a nudge against future-self confusion.
-func cmdDecisionReject(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("decision-reject", flag.ContinueOnError)
-	notes := fs.String("notes", "", "Reason for rejection (required)")
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team decision-reject <team-id> <decision-id> --notes=\"reason\"")
-	}
-	teamID := fs.Arg(0)
-	decisionID := fs.Arg(1)
-
-	if strings.TrimSpace(*notes) == "" {
-		return fmt.Errorf("--notes is required for decision-reject (capture the reason for future reference)")
-	}
-
-	type rejectReq struct {
-		Status string `json:"status"`
-		Notes  string `json:"notes"`
-	}
-	req := rejectReq{Status: "rejected", Notes: *notes}
-
-	var resp DecisionEntry
-	if err := ctx.Put(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID), req, &resp); err != nil {
-		return fmt.Errorf("failed to reject decision: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	fmt.Printf("Rejected decision %s\n", resp.ID)
-	return nil
-}
-
-// cmdDecisionDefer parks a pending or already-deferred decision until a
-// specified revisit date. The decision disappears from the pending queue
-// until that date passes, at which point the next pending-queue read
-// auto-promotes it back to pending.
-func cmdDecisionDefer(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("decision-defer", flag.ContinueOnError)
-	revisitAfter := fs.String("revisit-after", "", "Date to revisit the decision (YYYY-MM-DD, required)")
-	notes := fs.String("notes", "", "Optional reason for deferring")
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team decision-defer <team-id> <decision-id> --revisit-after=YYYY-MM-DD [--notes=\"...\"]")
-	}
-	teamID := fs.Arg(0)
-	decisionID := fs.Arg(1)
-
-	if strings.TrimSpace(*revisitAfter) == "" {
-		return fmt.Errorf("--revisit-after is required (format: YYYY-MM-DD)")
-	}
-	parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*revisitAfter))
-	if err != nil {
-		return fmt.Errorf("--revisit-after must be in YYYY-MM-DD format: %w", err)
-	}
-	today := time.Now().UTC().Truncate(24 * time.Hour)
-	if parsed.UTC().Truncate(24 * time.Hour).Before(today) {
-		return fmt.Errorf("--revisit-after must be today or in the future (got %s)", *revisitAfter)
-	}
-
-	type deferReq struct {
-		Status       string  `json:"status"`
-		RevisitAfter string  `json:"revisit_after"`
-		Notes        *string `json:"notes,omitempty"`
-	}
-	req := deferReq{Status: "deferred", RevisitAfter: parsed.Format("2006-01-02")}
-	if strings.TrimSpace(*notes) != "" {
-		n := *notes
-		req.Notes = &n
-	}
-
-	var resp DecisionEntry
-	if err := ctx.Put(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID), req, &resp); err != nil {
-		return fmt.Errorf("failed to defer decision: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	revisit := req.RevisitAfter
-	if resp.RevisitAfter != nil {
-		revisit = *resp.RevisitAfter
-	}
-	fmt.Printf("Deferred decision %s in team %s — revisit on %s\n", resp.ID, teamID, revisit)
-	if resp.Notes != "" {
-		fmt.Printf("Notes: %s\n", resp.Notes)
-	}
-	return nil
-}
-
-// cmdDecisionDelete removes a decision entry. Pass --yes to skip confirmation.
-func cmdDecisionDelete(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("decision-delete", flag.ContinueOnError)
-	yes := fs.Bool("yes", false, "Skip confirmation prompt")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team decision-delete <team-id> <decision-id> [--yes]")
-	}
-	teamID := fs.Arg(0)
-	decisionID := fs.Arg(1)
-
-	if !*yes {
-		fmt.Fprintf(os.Stderr, "Delete decision %s from team %s? [y/N]: ", decisionID, teamID)
-		var answer string
-		_, _ = fmt.Fscanln(os.Stdin, &answer)
-		answer = strings.ToLower(strings.TrimSpace(answer))
-		if answer != "y" && answer != "yes" {
-			return fmt.Errorf("aborted")
-		}
-	}
-
-	if err := ctx.Delete(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID)); err != nil {
-		return fmt.Errorf("failed to delete decision: %w", err)
-	}
-
-	fmt.Printf("Deleted decision %s\n", decisionID)
-	return nil
-}
-
-// cmdDecisionShow returns a single decision by id. The API exposes no
-// single-show endpoint; this command paginates through the list endpoint and
-// filters client-side. Cheap for typical decision-log sizes.
-func cmdDecisionShow(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("decision-show", flag.ContinueOnError)
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team decision-show <team-id> <decision-id> [--json]")
-	}
-	teamID := fs.Arg(0)
-	decisionID := fs.Arg(1)
-
-	// last=0 fetches all entries (the API treats non-positive as no limit).
-	var resp DecisionListResponse
-	if err := ctx.Get(fmt.Sprintf("/teams/%s/decisions?last=0", teamID), &resp); err != nil {
-		return fmt.Errorf("failed to fetch decisions: %w", err)
-	}
-
-	for _, entry := range resp.Entries {
-		if entry.ID == decisionID {
-			if *jsonOut {
-				enc := json.NewEncoder(os.Stdout)
-				enc.SetIndent("", "  ")
-				return enc.Encode(entry)
-			}
-			formatDecisionShow(os.Stdout, entry)
-			return nil
-		}
-	}
-
-	return fmt.Errorf("decision %s not found in team %s", decisionID, teamID)
-}
-
-// formatDecisionShow renders a single decision for `decision-show`'s default
-// human output. Distinct from printDecisionEntry (used by decision-list /
-// decisions-pending) because the show view is the operator's primary surface
-// for inspecting a decision's options before accepting; it always renders the
-// options block — with key, label, rationale, and a `(recommended)` marker —
-// when options are present. Decisions without options omit the section
-// entirely (no empty header). See workshop d2 = A in plan.md.
-func formatDecisionShow(w io.Writer, entry DecisionEntry) {
-	contextStr := ""
-	if entry.Context != "" {
-		contextStr = fmt.Sprintf(" [%s]", entry.Context)
-	}
-	supersededStr := ""
-	if entry.Supersedes != "" {
-		supersededStr = fmt.Sprintf(" (supersedes %s)", entry.Supersedes)
-	}
-	statusStr := ""
-	if entry.Status != "" {
-		statusStr = fmt.Sprintf(" (%s)", entry.Status)
-	}
-	fmt.Fprintf(w, "--- %s by %s%s%s%s ---\n", entry.ID, entry.By, contextStr, supersededStr, statusStr)
-	if entry.RevisitAfter != nil && *entry.RevisitAfter != "" {
-		fmt.Fprintf(w, "Revisit after: %s\n", *entry.RevisitAfter)
-	}
-
-	if len(entry.Options) > 0 {
-		if entry.Topic != "" {
-			fmt.Fprintf(w, "Topic: %s\n", entry.Topic)
-		}
-		if entry.Description != "" {
-			fmt.Fprintf(w, "Description: %s\n", entry.Description)
-		}
-		if entry.Rationale != "" {
-			fmt.Fprintf(w, "Rationale: %s\n", entry.Rationale)
-		}
-		fmt.Fprintln(w, "Options:")
-		for _, opt := range entry.Options {
-			marker := "  "
-			if entry.Selected == opt.Key {
-				marker = "→ "
-			}
-			rec := ""
-			if opt.Recommended {
-				rec = " (recommended)"
-			}
-			fmt.Fprintf(w, "%s%s  %s%s\n", marker, opt.Key, opt.Label, rec)
-			if opt.Rationale != "" {
-				fmt.Fprintf(w, "     %s\n", opt.Rationale)
-			}
-		}
-		if entry.Selected != "" {
-			if entry.Selected == "__other__" {
-				fmt.Fprintf(w, "Selected: Other — %s\n", entry.Freeform)
-			} else {
-				fmt.Fprintf(w, "Selected: %s\n", entry.Selected)
-			}
-		}
-		if entry.Notes != "" {
-			fmt.Fprintf(w, "Notes: %s\n", entry.Notes)
-		}
-	} else {
-		fmt.Fprintf(w, "Decision: %s\n", entry.Decision)
-		fmt.Fprintf(w, "Rationale: %s\n", entry.Rationale)
-		if isAcceptedAsProposed(entry) {
-			fmt.Fprintln(w, "Selected: accepted as proposed")
-		}
-		if entry.Notes != "" {
-			fmt.Fprintf(w, "Notes: %s\n", entry.Notes)
-		}
-	}
-	fprintDecisionModifications(w, entry.Modifications)
-	fprintInitiativeMetadata(w, entry.InitiativeMetadata)
-	fprintAutoCreateStatus(w, entry)
-}
-
-// fprintInitiativeMetadata renders the structured initiative_metadata block
-// on `initiative-proposal` decisions. Empty metadata renders nothing.
-func fprintInitiativeMetadata(w io.Writer, m *DecisionInitiativeMetadata) {
-	if m == nil {
-		return
-	}
-	fmt.Fprintln(w, "Initiative Metadata:")
-	fmt.Fprintf(w, "  Name:            %s\n", m.Name)
-	if m.Title != "" {
-		fmt.Fprintf(w, "  Title:           %s\n", m.Title)
-	}
-	if m.Priority != 0 {
-		fmt.Fprintf(w, "  Priority:        %d\n", m.Priority)
-	}
-	if len(m.DependsOn) > 0 {
-		fmt.Fprintf(w, "  Depends on:      %s\n", strings.Join(m.DependsOn, ", "))
-	}
-	target := m.TargetScenario
-	if target == "" {
-		target = "swarm-manager (default)"
-	}
-	fmt.Fprintf(w, "  Target scenario: %s\n", target)
-}
-
-// fprintAutoCreateStatus renders the auto_create_status block when a status
-// has been recorded (created / failed / pending).
-func fprintAutoCreateStatus(w io.Writer, entry DecisionEntry) {
-	if entry.AutoCreateStatus == "" {
-		return
-	}
-	fmt.Fprintln(w, "Auto-Create Status:")
-	fmt.Fprintf(w, "  Status:    %s\n", entry.AutoCreateStatus)
-	if entry.AutoCreateInitiativeRef != "" {
-		fmt.Fprintf(w, "  Reference: %s\n", entry.AutoCreateInitiativeRef)
-	}
-	if entry.AutoCreateError != "" {
-		fmt.Fprintf(w, "  Error:     %s\n", entry.AutoCreateError)
-	}
-}
-
-func fprintDecisionModifications(w io.Writer, m *DecisionModifications) {
-	if m == nil {
-		return
-	}
-	fmt.Fprintln(w, "Modifications:")
-	if len(m.ExcludedClauses) > 0 {
-		fmt.Fprintln(w, "  Excluded clauses:")
-		for _, c := range m.ExcludedClauses {
-			fmt.Fprintf(w, "    - %s\n", c)
-		}
-	}
-	if len(m.Additions) > 0 {
-		fmt.Fprintln(w, "  Additions:")
-		for _, c := range m.Additions {
-			fmt.Fprintf(w, "    + %s\n", c)
-		}
-	}
-	if m.Rationale != "" {
-		fmt.Fprintf(w, "  Rationale: %s\n", m.Rationale)
-	}
-}
-
-// PendingDecisionTeamGroup mirrors the API response for grouped pending decisions.
-type PendingDecisionTeamGroup struct {
-	TeamID   string          `json:"teamId"`
-	TeamName string          `json:"teamName"`
-	Entries  []DecisionEntry `json:"entries"`
-}
-
-// AllPendingDecisionsResponse mirrors the API response for cross-team pending decisions.
-type AllPendingDecisionsResponse struct {
-	Teams      []PendingDecisionTeamGroup `json:"teams"`
-	TotalCount int                        `json:"totalCount"`
-}
-
-// cmdDecisionsPending lists every pending decision grouped by team — the
-// surface the morning-vision-walk prep agent and operator-side dashboards
-// rely on for triage.
-func cmdDecisionsPending(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("decisions-pending", flag.ContinueOnError)
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	var resp AllPendingDecisionsResponse
-	if err := ctx.Get("/decisions/pending", &resp); err != nil {
-		return fmt.Errorf("failed to fetch pending decisions: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	if resp.TotalCount == 0 {
-		fmt.Println("No pending decisions across any team")
-		return nil
-	}
-
-	fmt.Printf("%d pending decision(s) across %d team(s):\n\n", resp.TotalCount, len(resp.Teams))
-	for _, group := range resp.Teams {
-		fmt.Printf("=== %s (%s) — %d pending ===\n", group.TeamName, group.TeamID, len(group.Entries))
-		for _, entry := range group.Entries {
-			printDecisionEntry(entry)
-			fmt.Println()
-		}
-	}
-	return nil
-}
-
-// printDecisionEntry renders a single decision in the same format used by decision-list.
-func printDecisionEntry(entry DecisionEntry) {
-	contextStr := ""
-	if entry.Context != "" {
-		contextStr = fmt.Sprintf(" [%s]", entry.Context)
-	}
-	supersededStr := ""
-	if entry.Supersedes != "" {
-		supersededStr = fmt.Sprintf(" (supersedes %s)", entry.Supersedes)
-	}
-	statusStr := ""
-	if entry.Status != "" {
-		statusStr = fmt.Sprintf(" (%s)", entry.Status)
-	}
-	fmt.Printf("--- %s by %s%s%s%s ---\n", entry.ID, entry.By, contextStr, supersededStr, statusStr)
-	if entry.RevisitAfter != nil && *entry.RevisitAfter != "" {
-		fmt.Printf("Revisit after: %s\n", *entry.RevisitAfter)
-	}
-
-	if len(entry.Options) > 0 {
-		fmt.Printf("Topic: %s\n", entry.Topic)
-		if entry.Description != "" {
-			fmt.Printf("Description: %s\n", entry.Description)
-		}
-		if entry.Rationale != "" {
-			fmt.Printf("Rationale: %s\n", entry.Rationale)
-		}
-		for _, opt := range entry.Options {
-			marker := "  "
-			if entry.Selected == opt.Key {
-				marker = "→ "
-			}
-			rec := ""
-			if opt.Recommended {
-				rec = " [RECOMMENDED]"
-			}
-			fmt.Printf("  %s%s) %s%s — %s\n", marker, opt.Key, opt.Label, rec, opt.Rationale)
-		}
-		if entry.Selected != "" {
-			if entry.Selected == "__other__" {
-				fmt.Printf("Selected: Other — %s\n", entry.Freeform)
-			} else {
-				fmt.Printf("Selected: %s\n", entry.Selected)
-			}
-		}
-		if entry.Notes != "" {
-			fmt.Printf("Notes: %s\n", entry.Notes)
-		}
-		printDecisionModifications(entry.Modifications)
-	} else {
-		fmt.Printf("Decision: %s\n", entry.Decision)
-		fmt.Printf("Rationale: %s\n", entry.Rationale)
-		if isAcceptedAsProposed(entry) {
-			fmt.Println("Selected: accepted as proposed")
-		}
-		if entry.Notes != "" {
-			fmt.Printf("Notes: %s\n", entry.Notes)
-		}
-		printDecisionModifications(entry.Modifications)
-	}
-}
-
-// isAcceptedAsProposed returns true for both the new `accepted_as_proposed`
-// flag and historical entries that used the `__other__ + freeform="accept as
-// proposed"` workaround on a single-proposal decision (read-side normalization).
-func isAcceptedAsProposed(entry DecisionEntry) bool {
-	if entry.AcceptedAsProposed {
-		return true
-	}
-	if len(entry.Options) == 0 && entry.Selected == "__other__" {
-		return strings.Contains(strings.ToLower(strings.TrimSpace(entry.Freeform)), "accept as proposed")
-	}
-	return false
-}
-
-// printDecisionModifications renders the structured-exceptions block beneath
-// notes. Keeps modifications visually distinct from free-form notes.
-func printDecisionModifications(m *DecisionModifications) {
-	if m == nil {
-		return
-	}
-	fmt.Println("Modifications:")
-	if len(m.ExcludedClauses) > 0 {
-		fmt.Println("  Excluded clauses:")
-		for _, c := range m.ExcludedClauses {
-			fmt.Printf("    - %s\n", c)
-		}
-	}
-	if len(m.Additions) > 0 {
-		fmt.Println("  Additions:")
-		for _, c := range m.Additions {
-			fmt.Printf("    + %s\n", c)
-		}
-	}
-	if m.Rationale != "" {
-		fmt.Printf("  Rationale: %s\n", m.Rationale)
-	}
-}
-
-// --- Challenge Review commands ---
-
-func cmdChallengeList(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("challenge-list", flag.ContinueOnError)
-	memberID := fs.String("member", "", "Filter to pending decisions authored by this member")
-	decisionID := fs.String("decision", "", "Filter to one decision id")
-	includeClosed := fs.Bool("include-closed", false, "Include resolved, stale, and overridden challenges")
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team challenge-list <team-id> [--member=<member-id> | --decision=<decision-id>] [--include-closed] [--json]")
-	}
-	if *memberID != "" && *decisionID != "" {
-		return fmt.Errorf("--member and --decision are mutually exclusive")
-	}
-	teamID := fs.Arg(0)
-
-	var decisionsResp DecisionListResponse
-	if err := ctx.Get(fmt.Sprintf("/teams/%s/decisions?status=pending&last=0", teamID), &decisionsResp); err != nil {
-		return fmt.Errorf("failed to get pending decisions: %w", err)
-	}
-
-	ownedContexts := map[string]struct{}{}
-	if *memberID != "" {
-		var team Team
-		if err := ctx.Get(fmt.Sprintf("/teams/%s", teamID), &team); err == nil && team.OperatingContract != nil {
-			if member, ok := team.OperatingContract.Members[*memberID]; ok {
-				for _, contextID := range member.OwnedDecisionContexts {
-					if strings.TrimSpace(contextID) != "" {
-						ownedContexts[contextID] = struct{}{}
-					}
-				}
-			}
-		}
-	}
-
-	entries := make([]ChallengeListEntry, 0)
-	for _, decision := range decisionsResp.Entries {
-		if *decisionID != "" && decision.ID != *decisionID {
-			continue
-		}
-		if *memberID != "" && decision.By != *memberID && !mapContains(ownedContexts, decision.Context) {
-			continue
-		}
-
-		var reports KnowledgeListResponse
-		reportQuery := fmt.Sprintf("/teams/%s/knowledge?topic=%s&last=0", teamID, url.QueryEscape("challenge-report/"+decision.ID))
-		if err := ctx.Get(reportQuery, &reports); err != nil {
-			return fmt.Errorf("failed to get challenge reports for %s: %w", decision.ID, err)
-		}
-		if len(reports.Entries) == 0 {
-			continue
-		}
-
-		var resolutions KnowledgeListResponse
-		resolutionQuery := fmt.Sprintf("/teams/%s/knowledge?topic=%s&last=0", teamID, url.QueryEscape("challenge-resolution-record/"+decision.ID))
-		if err := ctx.Get(resolutionQuery, &resolutions); err != nil {
-			return fmt.Errorf("failed to get challenge resolution records for %s: %w", decision.ID, err)
-		}
-
-		status := "open"
-		if len(resolutions.Entries) > 0 {
-			status = challengeStatusFromContent(resolutions.Entries[len(resolutions.Entries)-1].Content)
-			if status == "" {
-				status = "open"
-			}
-		}
-		if !*includeClosed && challengeStatusIsClosed(status) {
-			continue
-		}
-
-		entries = append(entries, ChallengeListEntry{
-			Decision:    decision,
-			Reports:     reports.Entries,
-			Resolutions: resolutions.Entries,
-			Status:      status,
-		})
-	}
-
-	if *jsonOut {
-		resp := struct {
-			TeamID  string               `json:"teamId"`
-			Entries []ChallengeListEntry `json:"entries"`
-		}{TeamID: teamID, Entries: entries}
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	if len(entries) == 0 {
-		fmt.Println("No matching challenge reports found")
-		return nil
-	}
-
-	for _, entry := range entries {
-		fmt.Printf("--- %s by %s [%s] challenge status: %s ---\n", entry.Decision.ID, entry.Decision.By, entry.Decision.Context, entry.Status)
-		fmt.Printf("Decision: %s\n", truncate(firstNonEmpty(entry.Decision.Decision, entry.Decision.Topic), 180))
-		latestReport := entry.Reports[len(entry.Reports)-1]
-		fmt.Printf("Latest report: %s [%s]\n", latestReport.ID, latestReport.Topic)
-		fmt.Printf("%s\n", truncate(firstCLIContentLine(latestReport.Content), 220))
-		if len(entry.Resolutions) > 0 {
-			latestResolution := entry.Resolutions[len(entry.Resolutions)-1]
-			fmt.Printf("Latest resolution: %s [%s]\n", latestResolution.ID, latestResolution.Topic)
-			fmt.Printf("%s\n", truncate(firstCLIContentLine(latestResolution.Content), 220))
-		} else {
-			fmt.Println("Latest resolution: none")
-		}
-		fmt.Printf("Inspect: prompt-manager team knowledge-list %s --topic challenge-report/%s\n", teamID, entry.Decision.ID)
-		fmt.Printf("Resolve: prompt-manager team knowledge-add %s --topic challenge-resolution-record/%s --content '<yaml>'\n\n", teamID, entry.Decision.ID)
-	}
-
-	return nil
-}
-
-func cmdChallengeResolve(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("challenge-resolve", flag.ContinueOnError)
-	status := fs.String("status", "", "Resolution status (open|author-responded|resolved|escalated|overridden|stale)")
-	challengeReport := fs.String("challenge-report", "", "Knowledge id of the challenge report being addressed")
-	responseKind := fs.String("response-kind", "none", "Author response kind (none|revised|superseded|accepted|disagreed|no-response)")
-	responseRef := fs.String("response-ref", "", "Decision, knowledge, or notes reference for the author response")
-	dispositionKind := fs.String("disposition", "pending", "Contrarian disposition (pending|resolved|escalate-rejection|escalate-framework|operator-call|watch)")
-	notes := fs.String("notes", "", "Short rationale")
-	supersedes := fs.String("supersedes", "", "Prior challenge-resolution-record knowledge id superseded by this entry")
-	jsonOut := fs.Bool("json", false, "Output as JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() < 2 || strings.TrimSpace(*status) == "" {
-		return fmt.Errorf("usage: team challenge-resolve <team-id> <decision-id> --status=<status> [--challenge-report=<knowledge-id>] [--response-kind=<kind>] [--response-ref=<ref>] [--disposition=<kind>] [--notes=<text>] [--supersedes=<knowledge-id>] [--json]")
-	}
-	teamID := fs.Arg(0)
-	decisionID := fs.Arg(1)
-	normalizedStatus := strings.TrimSpace(*status)
-	if !validChallengeStatus(normalizedStatus) {
-		return fmt.Errorf("invalid --status %q", normalizedStatus)
-	}
-
-	content := buildChallengeResolutionContent(decisionID, *challengeReport, normalizedStatus, *responseKind, *responseRef, *dispositionKind, *notes)
-	req := AddKnowledgeRequest{
-		Topic:      "challenge-resolution-record/" + decisionID,
-		Content:    content,
-		CallerNote: "challenge-resolution",
-		Supersedes: strings.TrimSpace(*supersedes),
-	}
-
-	var resp KnowledgeEntry
-	if err := ctx.Post(fmt.Sprintf("/teams/%s/knowledge", teamID), req, &resp); err != nil {
-		return fmt.Errorf("failed to add challenge resolution: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	fmt.Printf("Added challenge resolution %s [%s] status %s\n", resp.ID, resp.Topic, normalizedStatus)
-	return nil
-}
-
-func buildChallengeResolutionContent(decisionID, challengeReport, status, responseKind, responseRef, dispositionKind, notes string) string {
-	var b strings.Builder
-	b.WriteString("target_decision: " + strings.TrimSpace(decisionID) + "\n")
-	b.WriteString("challenge_report: " + strings.TrimSpace(challengeReport) + "\n")
-	b.WriteString("status: " + strings.TrimSpace(status) + "\n")
-	b.WriteString("author_response:\n")
-	b.WriteString("  kind: " + strings.TrimSpace(firstNonEmpty(responseKind, "none")) + "\n")
-	b.WriteString("  reference: " + strings.TrimSpace(responseRef) + "\n")
-	b.WriteString("contrarian_disposition:\n")
-	b.WriteString("  kind: " + strings.TrimSpace(firstNonEmpty(dispositionKind, "pending")) + "\n")
-	b.WriteString("updated_at: " + time.Now().UTC().Format(time.RFC3339) + "\n")
-	if strings.TrimSpace(notes) != "" {
-		b.WriteString("notes: " + strings.TrimSpace(notes) + "\n")
-	}
-	return b.String()
-}
-
-func validChallengeStatus(status string) bool {
-	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "open", "author-responded", "resolved", "escalated", "overridden", "stale":
-		return true
-	default:
-		return false
-	}
-}
-
-func mapContains(values map[string]struct{}, key string) bool {
-	_, ok := values[strings.TrimSpace(key)]
-	return ok
-}
-
 // --- Knowledge Log commands ---
 
 func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
@@ -4821,9 +3402,7 @@ func cmdKnowledgeDelete(ctx appctx.Context, args []string) error {
 
 // RetentionConfig mirrors the API response for retention settings.
 type RetentionConfig struct {
-	Tasks     *TaskRetention  `json:"tasks,omitempty"`
-	Decisions *EntryRetention `json:"decisions,omitempty"`
-	Knowledge *EntryRetention `json:"knowledge,omitempty"`
+	Tasks *TaskRetention `json:"tasks,omitempty"`
 }
 
 // TaskRetention mirrors the API task retention settings.
@@ -4833,16 +3412,9 @@ type TaskRetention struct {
 }
 
 // EntryRetention mirrors the API entry retention settings.
-type EntryRetention struct {
-	MaxEntries int `json:"maxEntries"`
-	MaxAgeDays int `json:"maxAgeDays"`
-}
-
 // PruneResult mirrors the API prune result.
 type PruneResult struct {
-	TasksRemoved     int `json:"tasksRemoved"`
-	DecisionsRemoved int `json:"decisionsRemoved"`
-	KnowledgeRemoved int `json:"knowledgeRemoved"`
+	TasksRemoved int `json:"tasksRemoved"`
 }
 
 func cmdRetention(ctx appctx.Context, args []string) error {
@@ -4873,16 +3445,6 @@ func cmdRetention(ctx appctx.Context, args []string) error {
 		fmt.Printf("    Max completed:  %s\n", fmtLimit(cfg.Tasks.MaxCompleted))
 		fmt.Printf("    Max age (days): %s\n", fmtLimit(cfg.Tasks.MaxAgeDays))
 	}
-	if cfg.Decisions != nil {
-		fmt.Printf("  Decisions:\n")
-		fmt.Printf("    Max entries:    %s\n", fmtLimit(cfg.Decisions.MaxEntries))
-		fmt.Printf("    Max age (days): %s\n", fmtLimit(cfg.Decisions.MaxAgeDays))
-	}
-	if cfg.Knowledge != nil {
-		fmt.Printf("  Knowledge:\n")
-		fmt.Printf("    Max entries:    %s\n", fmtLimit(cfg.Knowledge.MaxEntries))
-		fmt.Printf("    Max age (days): %s\n", fmtLimit(cfg.Knowledge.MaxAgeDays))
-	}
 	return nil
 }
 
@@ -4908,7 +3470,7 @@ func cmdPrune(ctx appctx.Context, args []string) error {
 		return enc.Encode(result)
 	}
 
-	total := result.TasksRemoved + result.DecisionsRemoved + result.KnowledgeRemoved
+	total := result.TasksRemoved
 	if total == 0 {
 		fmt.Println("Nothing to prune.")
 		return nil
@@ -4917,12 +3479,6 @@ func cmdPrune(ctx appctx.Context, args []string) error {
 	fmt.Printf("Pruned %d items:\n", total)
 	if result.TasksRemoved > 0 {
 		fmt.Printf("  Tasks removed:     %d\n", result.TasksRemoved)
-	}
-	if result.DecisionsRemoved > 0 {
-		fmt.Printf("  Decisions removed: %d\n", result.DecisionsRemoved)
-	}
-	if result.KnowledgeRemoved > 0 {
-		fmt.Printf("  Knowledge removed: %d\n", result.KnowledgeRemoved)
 	}
 	return nil
 }

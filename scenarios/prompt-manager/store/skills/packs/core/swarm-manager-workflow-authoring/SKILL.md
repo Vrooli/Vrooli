@@ -70,7 +70,7 @@ Prepare a proposal with all of the following:
    machine-invoked workflow prompts": shape from schema, choice from skill.
    The workflow `resultSpec` schema owns and enforces the output shape (the
    engine renders it into the run prompt); the skill owns the outcome
-   decision table, variable legend, authority boundary, and method
+   work table, variable legend, authority boundary, and method
    citations, written in ASD-STE100 — the executing agent reads it cold, so
    ambiguity in the contract becomes divergence in the run.
 6. **Swarm adapter** — the small domain adapter that constructs the immutable

@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"prompt-manager/teamcontract"
 )
 
 func mkMember(team, member string, t Topics) MemberTopics {
@@ -95,9 +93,8 @@ func TestRule_OrphanOutput_NonKnowledgeIsNeverOrphan(t *testing.T) {
 	members := []MemberTopics{
 		mkMember("team-a", "writer", Topics{
 			Output: []OutputEntry{
-				{Prefix: "decisions/*", DestinationKind: DestinationDecision},
 				{Prefix: "doctrine/*", DestinationKind: DestinationPORFile, DestinationPath: ptr("docs/agent-system/PRIMITIVES.md")},
-				{Prefix: "gaps/*", DestinationKind: DestinationCapabilityGap},
+				{Prefix: "gaps/*", DestinationKind: DestinationBacklog},
 			},
 		}),
 	}
@@ -269,8 +266,7 @@ func TestRule_OrphanOutput_EvidenceConsumedSatisfies(t *testing.T) {
 		}),
 		mkMember("monetization", "catalog-strategist", Topics{
 			EvidenceConsumed: []EvidenceConsumedEntry{{
-				Prefix:       "candidate-sku-record/*",
-				ForDecisions: []string{"catalog-promotion"},
+				Prefix: "candidate-sku-record/*",
 			}},
 		}),
 	}
@@ -664,197 +660,6 @@ func TestValidate_RealStoreCanary(t *testing.T) {
 			t.Logf("[%s] %s %s %s", f.Severity, f.Rule, f.Member, f.Detail)
 		}
 		t.Errorf("real-store validation produced %d errors and %d warnings", r.Errors, r.Warnings)
-	}
-}
-
-func TestRule_DanglingEvidenceDecision_Resolves(t *testing.T) {
-	// A correctly-declared evidence_consumed entry whose for_decisions ids
-	// resolve in the registry must NOT trip the rule.
-	members := []MemberTopics{
-		mkMember("monetization", "catalog-strategist", Topics{
-			EvidenceConsumed: []EvidenceConsumedEntry{{
-				Prefix:       "candidate-sku-record/*",
-				ForDecisions: []string{"catalog-promotion", "sku-retirement"},
-			}},
-		}),
-	}
-	opts := ValidationOptions{
-		TeamContracts: TeamContractRegistry{
-			"monetization": {TeamID: "monetization", Contract: stubContract("catalog-promotion", "sku-retirement")},
-		},
-	}
-	r := Validate(members, opts)
-	for _, f := range r.Findings {
-		if f.Rule == "dangling_evidence_decision" {
-			t.Errorf("declared decision-context should not trip rule; got %v", f)
-		}
-	}
-}
-
-func TestRule_DanglingEvidenceDecision_Dangles(t *testing.T) {
-	// A typo or removed decision-context id surfaces as a structural error.
-	members := []MemberTopics{
-		mkMember("monetization", "catalog-strategist", Topics{
-			EvidenceConsumed: []EvidenceConsumedEntry{{
-				Prefix:       "candidate-sku-record/*",
-				ForDecisions: []string{"catalog-promotion", "ghost-decision"},
-			}},
-		}),
-	}
-	opts := ValidationOptions{
-		TeamContracts: TeamContractRegistry{
-			"monetization": {TeamID: "monetization", Contract: stubContract("catalog-promotion")},
-		},
-	}
-	r := Validate(members, opts)
-	hits := 0
-	for _, f := range r.Findings {
-		if f.Rule != "dangling_evidence_decision" {
-			continue
-		}
-		hits++
-		if f.Severity != SeverityError {
-			t.Errorf("dangling_evidence_decision must be error severity; got %s", f.Severity)
-		}
-		if !strings.Contains(f.Detail, "ghost-decision") {
-			t.Errorf("finding detail should name the dangling id; got %q", f.Detail)
-		}
-		if f.Member != "catalog-strategist" {
-			t.Errorf("finding should attribute to declaring member; got %v", f.Member)
-		}
-	}
-	if hits != 1 {
-		t.Errorf("expected exactly one dangling_evidence_decision finding; got %d", hits)
-	}
-}
-
-func TestRule_DanglingEvidenceDecision_ResolvesAcrossTeams(t *testing.T) {
-	// The rule's resolution semantics (per plan): "exists somewhere in the
-	// team graph." A member referencing a decision-context owned by
-	// another team is allowed — the registry is a global pool.
-	members := []MemberTopics{
-		mkMember("scenario-qa", "qa-contrarian", Topics{
-			EvidenceConsumed: []EvidenceConsumedEntry{{
-				Prefix:       "challenge-report/*",
-				ForDecisions: []string{"audience-update"}, // owned by marketing-crew
-			}},
-		}),
-	}
-	opts := ValidationOptions{
-		TeamContracts: TeamContractRegistry{
-			"marketing-crew": {TeamID: "marketing-crew", Contract: stubContract("audience-update")},
-		},
-	}
-	r := Validate(members, opts)
-	for _, f := range r.Findings {
-		if f.Rule == "dangling_evidence_decision" {
-			t.Errorf("cross-team decision-context resolution should be allowed; got %v", f)
-		}
-	}
-}
-
-func TestRule_DanglingEvidenceDecision_DeduplicatesPerEntry(t *testing.T) {
-	// If the same dangling id appears twice on one entry's for_decisions,
-	// emit only one finding so the operator's log isn't flooded.
-	members := []MemberTopics{
-		mkMember("team-a", "writer", Topics{
-			EvidenceConsumed: []EvidenceConsumedEntry{{
-				Prefix:       "ledger/*",
-				ForDecisions: []string{"ghost", "ghost"},
-			}},
-		}),
-	}
-	opts := ValidationOptions{
-		TeamContracts: TeamContractRegistry{
-			"team-a": {TeamID: "team-a", Contract: stubContract()},
-		},
-	}
-	r := Validate(members, opts)
-	hits := 0
-	for _, f := range r.Findings {
-		if f.Rule == "dangling_evidence_decision" {
-			hits++
-		}
-	}
-	if hits != 1 {
-		t.Errorf("expected one finding even with duplicate ids; got %d", hits)
-	}
-}
-
-func TestRule_DanglingEvidenceDecision_SkipsWhenRegistryEmpty(t *testing.T) {
-	// Without any team-contract registry, the rule has no ground truth to
-	// cross-check against — silently skip rather than flag everything.
-	// This keeps unit tests that don't fixture contracts honest.
-	members := []MemberTopics{
-		mkMember("team-a", "writer", Topics{
-			EvidenceConsumed: []EvidenceConsumedEntry{{
-				Prefix:       "ledger/*",
-				ForDecisions: []string{"any-id"},
-			}},
-		}),
-	}
-	r := Validate(members, ValidationOptions{}) // no registry, no StoreDir
-	for _, f := range r.Findings {
-		if f.Rule == "dangling_evidence_decision" {
-			t.Errorf("rule should be skipped without registry; got %v", f)
-		}
-	}
-}
-
-func TestRule_DanglingEvidenceDecision_LazyLoadFromStoreDir(t *testing.T) {
-	// When TeamContracts is nil but StoreDir is set, Validate lazy-loads.
-	// This is the canonical configuration the CLI uses.
-	root := t.TempDir()
-	writeTeamContract(t, root, "team-a", &teamcontract.OperatingContract{
-		SchemaVersion: 1,
-		DecisionContext: map[string]teamcontract.DecisionContext{
-			"declared": {Description: "x"},
-		},
-	})
-
-	members := []MemberTopics{
-		mkMember("team-a", "writer", Topics{
-			EvidenceConsumed: []EvidenceConsumedEntry{
-				{Prefix: "good/*", ForDecisions: []string{"declared"}},
-				{Prefix: "bad/*", ForDecisions: []string{"undeclared"}},
-			},
-		}),
-	}
-	r := Validate(members, ValidationOptions{StoreDir: root})
-
-	hits := 0
-	for _, f := range r.Findings {
-		if f.Rule != "dangling_evidence_decision" {
-			continue
-		}
-		hits++
-		if !strings.Contains(f.Detail, "undeclared") {
-			t.Errorf("rule fired on declared id: %v", f)
-		}
-	}
-	if hits != 1 {
-		t.Errorf("expected exactly one dangling finding; got %d", hits)
-	}
-}
-
-func TestRule_DanglingEvidenceDecision_IgnoresMembersWithoutEvidence(t *testing.T) {
-	// Members whose topics.json has no evidence_consumed[] entries
-	// must not cause findings even when the registry is empty.
-	members := []MemberTopics{
-		mkMember("team-a", "writer", Topics{
-			Output: []OutputEntry{{Prefix: "x/*", DestinationKind: DestinationKnowledge}},
-		}),
-	}
-	opts := ValidationOptions{
-		TeamContracts: TeamContractRegistry{
-			"team-a": {TeamID: "team-a", Contract: stubContract()},
-		},
-	}
-	r := Validate(members, opts)
-	for _, f := range r.Findings {
-		if f.Rule == "dangling_evidence_decision" {
-			t.Errorf("member without evidence_consumed should not trigger rule; got %v", f)
-		}
 	}
 }
 

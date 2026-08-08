@@ -19,12 +19,8 @@ const (
 	BaseTeamMember = "team-member"
 	BaseAgentRoot  = "agent-root"
 
-	DecisionModeYolo     = "yolo"
-	DecisionModeApproval = "approval"
-
 	TeamWorkingStateKindCharter            = "charter"
 	TeamWorkingStateKindTaskBoard          = "task-board"
-	TeamWorkingStateKindDecisionLog        = "decision-log"
 	TeamWorkingStateKindKnowledgeLog       = "knowledge-log"
 	TeamWorkingStateKindHandoffLog         = "handoff-log"
 	TeamWorkingStateKindWorkingRegister    = "working-register"
@@ -52,12 +48,6 @@ var teamWorkingStateKinds = map[string]TeamWorkingStateKind{
 		Label:      "Task board",
 		UseText:    "live team tasks and coordination state",
 		UpdateMode: "mutable",
-	},
-	TeamWorkingStateKindDecisionLog: {
-		ID:         TeamWorkingStateKindDecisionLog,
-		Label:      "Decision log",
-		UseText:    "reviewable proposed changes",
-		UpdateMode: "append/update via decision commands",
 	},
 	TeamWorkingStateKindKnowledgeLog: {
 		ID:         TeamWorkingStateKindKnowledgeLog,
@@ -98,12 +88,11 @@ var teamWorkingStateKinds = map[string]TeamWorkingStateKind{
 }
 
 type OperatingContract struct {
-	SchemaVersion   int                        `json:"schemaVersion"`
-	Governance      Governance                 `json:"governance"`
-	Documents       Documents                  `json:"documents"`
-	DecisionContext map[string]DecisionContext `json:"decisionContexts"`
-	KnowledgeTopics map[string]KnowledgeTopic  `json:"knowledgeTopics"`
-	Members         map[string]MemberContract  `json:"members"`
+	SchemaVersion   int                       `json:"schemaVersion"`
+	Governance      Governance                `json:"governance"`
+	Documents       Documents                 `json:"documents"`
+	KnowledgeTopics map[string]KnowledgeTopic `json:"knowledgeTopics"`
+	Members         map[string]MemberContract `json:"members"`
 }
 
 func TeamWorkingStateKindMetadata(kind string) (TeamWorkingStateKind, bool) {
@@ -120,30 +109,7 @@ func TeamWorkingStateKindIDs() []string {
 	return ids
 }
 
-type Governance struct {
-	DecisionMode        string               `json:"decisionMode"`
-	TeamPendingCeiling  TeamPendingCeiling   `json:"teamPendingCeiling"`
-	Supersession        SupersessionPolicy   `json:"supersession"`
-	StaleDecisionPolicy *StaleDecisionPolicy `json:"staleDecisionPolicy,omitempty"`
-}
-
-type TeamPendingCeiling struct {
-	Value                 int    `json:"value"`
-	ReadOnlyWhenAtOrAbove bool   `json:"readOnlyWhenAtOrAbove"`
-	Rationale             string `json:"rationale,omitempty"`
-}
-
-type SupersessionPolicy struct {
-	RequiredBeforeNewDecision    bool `json:"requiredBeforeNewDecision"`
-	AllowedInReadOnlyMode        bool `json:"allowedInReadOnlyMode"`
-	ReplacementMustSetSupersedes bool `json:"replacementMustSetSupersedes"`
-}
-
-type StaleDecisionPolicy struct {
-	AfterHeartbeats  int      `json:"afterHeartbeats"`
-	OwnerMemberID    string   `json:"ownerMemberId"`
-	RequiredOutcomes []string `json:"requiredOutcomes"`
-}
+type Governance struct{}
 
 type Documents struct {
 	PlanOfRecord []PlanOfRecordDocument `json:"planOfRecord"`
@@ -171,12 +137,6 @@ type SharedStateDocument struct {
 	OptionalReason string  `json:"optionalReason,omitempty"`
 }
 
-type DecisionContext struct {
-	OwnerMemberIDs            []string `json:"ownerMemberIds,omitempty"`
-	Description               string   `json:"description,omitempty"`
-	ExternalAuthorizedRaisers []string `json:"externalAuthorizedRaisers,omitempty"`
-}
-
 type KnowledgeTopic struct {
 	OwnerMemberID      string `json:"ownerMemberId"`
 	SupersedesPrevious bool   `json:"supersedesPrevious"`
@@ -184,29 +144,23 @@ type KnowledgeTopic struct {
 }
 
 // MemberContract describes the team-level half of a member's runtime
-// contract: decision-graph position, write surfaces, safety rules, and
+// contract: work-graph position, write surfaces, safety rules, and
 // read-only-mode behavior. Per-member message-flow declarations
 // (intake/required_read/evidence_consumed/output) live in topics.json,
 // not here — see api/memberflow/schema.go for the canonical declaration
 // and api/memberflow/validation.go for the rules that enforce it.
 type MemberContract struct {
-	Lane                       string           `json:"lane"`
-	OwnedDecisionContexts      []string         `json:"ownedDecisionContexts"`
-	NewDecisionCapPerHeartbeat *int             `json:"newDecisionCapPerHeartbeat,omitempty"`
-	NewDecisionCapsByContext   map[string]int   `json:"newDecisionCapsByContext,omitempty"`
-	PendingOwnedDecisionCap    *int             `json:"pendingOwnedDecisionCap,omitempty"`
-	AllowedWrites              []WriteRef       `json:"allowedWrites,omitempty"`
-	ForbiddenWrites            []WriteRef       `json:"forbiddenWrites,omitempty"`
-	SafetyCriticalRules        []string         `json:"safetyCriticalRules,omitempty"`
-	ReadOnlyModeBehavior       ReadOnlyBehavior `json:"readOnlyModeBehavior"`
-	TaskParameters             map[string]any   `json:"taskParameters,omitempty"`
+	Lane                 string           `json:"lane"`
+	AllowedWrites        []WriteRef       `json:"allowedWrites,omitempty"`
+	ForbiddenWrites      []WriteRef       `json:"forbiddenWrites,omitempty"`
+	SafetyCriticalRules  []string         `json:"safetyCriticalRules,omitempty"`
+	ReadOnlyModeBehavior ReadOnlyBehavior `json:"readOnlyModeBehavior"`
+	TaskParameters       map[string]any   `json:"taskParameters,omitempty"`
 }
 
 type ReadOnlyBehavior struct {
-	SkipNewDecisions     bool `json:"skipNewDecisions"`
-	StillWriteKnowledge  bool `json:"stillWriteKnowledge"`
-	StillRunSupersession bool `json:"stillRunSupersession"`
-	StillWriteHandoff    bool `json:"stillWriteHandoff"`
+	StillWriteKnowledge bool `json:"stillWriteKnowledge"`
+	StillWriteHandoff   bool `json:"stillWriteHandoff"`
 }
 
 type PathRef struct {
@@ -229,90 +183,46 @@ type WriteRef struct {
 }
 
 type ValidationInput struct {
-	TeamID       string
-	DecisionMode string
-	MemberIDs    []string
-	StoreDir     string
-	RepoRoot     string
+	TeamID    string
+	MemberIDs []string
+	StoreDir  string
+	RepoRoot  string
 }
 
 type RenderInput struct {
 	TeamID         string
 	TeamName       string
-	DecisionMode   string
 	MemberID       string
 	StoreDir       string
 	RepoRoot       string
 	RequireHandoff bool
 }
 
-func Minimal(decisionMode string, memberIDs ...string) *OperatingContract {
-	if decisionMode == "" {
-		decisionMode = DecisionModeYolo
-	}
-	contextID := "general"
+func Minimal(_ string, memberIDs ...string) *OperatingContract {
 	topicID := "heartbeat-note"
 	members := make(map[string]MemberContract, len(memberIDs))
 	for _, memberID := range memberIDs {
 		if strings.TrimSpace(memberID) == "" {
 			continue
 		}
-		cap := 1
-		pendingCap := 3
 		members[memberID] = MemberContract{
-			Lane:                       "Apply the team mission within this member's assigned scope.",
-			OwnedDecisionContexts:      []string{contextID},
-			NewDecisionCapPerHeartbeat: &cap,
-			PendingOwnedDecisionCap:    &pendingCap,
-			AllowedWrites:              []WriteRef{{Kind: "knowledge"}, {Kind: "decision"}, {Kind: "handoff"}},
+			Lane:          "Apply the team mission within this member's assigned scope.",
+			AllowedWrites: []WriteRef{{Kind: "knowledge"}, {Kind: "handoff"}},
 			ReadOnlyModeBehavior: ReadOnlyBehavior{
-				SkipNewDecisions:     true,
-				StillWriteKnowledge:  true,
-				StillRunSupersession: true,
-				StillWriteHandoff:    true,
+				StillWriteKnowledge: true,
+				StillWriteHandoff:   true,
 			},
 		}
 	}
 	return &OperatingContract{
 		SchemaVersion: SchemaVersion,
-		Governance: Governance{
-			DecisionMode:       decisionMode,
-			TeamPendingCeiling: TeamPendingCeiling{Value: 12, ReadOnlyWhenAtOrAbove: true},
-			Supersession: SupersessionPolicy{
-				RequiredBeforeNewDecision:    true,
-				AllowedInReadOnlyMode:        true,
-				ReplacementMustSetSupersedes: true,
-			},
-		},
-		Documents: Documents{},
-		DecisionContext: map[string]DecisionContext{
-			contextID: {OwnerMemberIDs: compactMemberIDs(memberIDs), Description: "General team decision proposals."},
-		},
+		Governance:    Governance{},
+		Documents:     Documents{},
 		KnowledgeTopics: map[string]KnowledgeTopic{
 			topicID: {OwnerMemberID: firstMemberID(memberIDs), SupersedesPrevious: false, Retention: "append-only"},
 		},
 		Members: members,
 	}
-}
-
-func compactMemberIDs(memberIDs []string) []string {
-	out := make([]string, 0, len(memberIDs))
-	seen := map[string]struct{}{}
-	for _, id := range memberIDs {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			continue
-		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		out = append(out, id)
-	}
-	if len(out) == 0 {
-		return []string{"unassigned"}
-	}
-	return out
 }
 
 func firstMemberID(memberIDs []string) string {
@@ -360,21 +270,6 @@ func ValidateFindings(contract *OperatingContract, input ValidationInput) []find
 	if contract.SchemaVersion != SchemaVersion {
 		add("contract_schema_version_invalid", "operatingContract.schemaVersion", "operatingContract.schemaVersion must equal %d", SchemaVersion)
 	}
-	if strings.TrimSpace(contract.Governance.DecisionMode) == "" {
-		add("contract_decision_mode_missing", "operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode is required")
-	}
-	if input.DecisionMode != "" && contract.Governance.DecisionMode != input.DecisionMode {
-		add("contract_decision_mode_team_mismatch", "operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode %q must match team decisionMode %q", contract.Governance.DecisionMode, input.DecisionMode)
-	}
-	if contract.Governance.DecisionMode != DecisionModeYolo && contract.Governance.DecisionMode != DecisionModeApproval {
-		add("contract_decision_mode_unknown", "operatingContract.governance.decisionMode", "operatingContract.governance.decisionMode must be 'yolo' or 'approval'")
-	}
-	if contract.Governance.TeamPendingCeiling.Value < 0 {
-		add("contract_team_pending_ceiling_negative", "operatingContract.governance.teamPendingCeiling.value", "operatingContract.governance.teamPendingCeiling.value must be non-negative")
-	}
-	if contract.DecisionContext == nil {
-		add("contract_decision_contexts_missing", "operatingContract.decisionContexts", "operatingContract.decisionContexts is required")
-	}
 	if contract.KnowledgeTopics == nil {
 		add("contract_knowledge_topics_missing", "operatingContract.knowledgeTopics", "operatingContract.knowledgeTopics is required")
 	}
@@ -395,69 +290,11 @@ func ValidateFindings(contract *OperatingContract, input ValidationInput) []find
 		if strings.TrimSpace(id) == "" {
 			add("contract_member_id_empty", "operatingContract.members", "operatingContract.members contains an empty member id")
 		}
-		if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat < 0 {
-			add("contract_member_decision_cap_negative", "operatingContract.members."+id+".newDecisionCapPerHeartbeat", "operatingContract.members.%s.newDecisionCapPerHeartbeat must be non-negative", id)
-		}
-		if member.PendingOwnedDecisionCap != nil && *member.PendingOwnedDecisionCap < 0 {
-			add("contract_member_pending_cap_negative", "operatingContract.members."+id+".pendingOwnedDecisionCap", "operatingContract.members.%s.pendingOwnedDecisionCap must be non-negative", id)
-		}
-		for contextID, cap := range member.NewDecisionCapsByContext {
-			if cap < 0 {
-				add("contract_member_context_cap_negative", "operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s.newDecisionCapsByContext.%s must be non-negative", id, contextID)
-			}
-			if _, ok := contract.DecisionContext[contextID]; !ok {
-				add("contract_member_context_cap_undeclared", "operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s.newDecisionCapsByContext.%s is not declared in decisionContexts", id, contextID)
-			}
-		}
-		for _, contextID := range member.OwnedDecisionContexts {
-			if _, ok := contract.DecisionContext[contextID]; !ok {
-				add("contract_member_owned_context_undeclared", "operatingContract.members."+id+".ownedDecisionContexts", "operatingContract.members.%s.ownedDecisionContexts contains undeclared context %q", id, contextID)
-			}
-		}
-		// A member that forbids decision writes must zero its caps. Owning a
-		// context while forbidding writes is legitimate — it attributes the
-		// context without granting authorship — but a nonzero cap advertises a
-		// permission the member does not have, and the generated prompt then
-		// states both "decision writes: not allowed" and "max new decisions: N".
-		if writeRefsContainKind(member.ForbiddenWrites, "decision") {
-			if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat != 0 {
-				add("contract_member_decision_cap_contradicts_forbidden_write", "operatingContract.members."+id+".newDecisionCapPerHeartbeat", "operatingContract.members.%s forbids decision writes but declares newDecisionCapPerHeartbeat %d; set it to 0 or drop the forbidden write", id, *member.NewDecisionCapPerHeartbeat)
-			}
-			if member.PendingOwnedDecisionCap != nil && *member.PendingOwnedDecisionCap != 0 {
-				add("contract_member_pending_cap_contradicts_forbidden_write", "operatingContract.members."+id+".pendingOwnedDecisionCap", "operatingContract.members.%s forbids decision writes but declares pendingOwnedDecisionCap %d; set it to 0 or drop the forbidden write", id, *member.PendingOwnedDecisionCap)
-			}
-			for contextID, cap := range member.NewDecisionCapsByContext {
-				if cap != 0 {
-					add("contract_member_context_cap_contradicts_forbidden_write", "operatingContract.members."+id+".newDecisionCapsByContext."+contextID, "operatingContract.members.%s forbids decision writes but declares newDecisionCapsByContext.%s %d; set it to 0 or drop the forbidden write", id, contextID, cap)
-				}
-			}
-		}
 		if err := validateWriteRefs(member.AllowedWrites, input, id, "allowedWrites"); err != nil {
 			add("contract_member_allowed_writes_invalid", "operatingContract.members."+id+".allowedWrites", "%s", err)
 		}
 		if err := validateWriteRefs(member.ForbiddenWrites, input, id, "forbiddenWrites"); err != nil {
 			add("contract_member_forbidden_writes_invalid", "operatingContract.members."+id+".forbiddenWrites", "%s", err)
-		}
-	}
-	for contextID, dc := range contract.DecisionContext {
-		if len(dc.OwnerMemberIDs) == 0 && len(dc.ExternalAuthorizedRaisers) == 0 {
-			add("contract_decision_context_unowned", "operatingContract.decisionContexts."+contextID, "operatingContract.decisionContexts.%s requires ownerMemberIds or externalAuthorizedRaisers", contextID)
-		}
-		for _, ownerID := range dc.OwnerMemberIDs {
-			if _, ok := contract.Members[ownerID]; !ok {
-				add("contract_decision_context_owner_unknown", "operatingContract.decisionContexts."+contextID+".ownerMemberIds", "operatingContract.decisionContexts.%s owner %q is not a contract member", contextID, ownerID)
-			}
-		}
-	}
-	if policy := contract.Governance.StaleDecisionPolicy; policy != nil {
-		if policy.AfterHeartbeats < 1 {
-			add("contract_stale_policy_after_heartbeats_invalid", "operatingContract.governance.staleDecisionPolicy.afterHeartbeats", "operatingContract.governance.staleDecisionPolicy.afterHeartbeats must be at least 1")
-		}
-		if _, ok := contract.Members[policy.OwnerMemberID]; !ok {
-			add("contract_stale_policy_owner_unknown", "operatingContract.governance.staleDecisionPolicy.ownerMemberId", "operatingContract.governance.staleDecisionPolicy.ownerMemberId %q is not a contract member", policy.OwnerMemberID)
-		}
-		if len(policy.RequiredOutcomes) == 0 {
-			add("contract_stale_policy_outcomes_missing", "operatingContract.governance.staleDecisionPolicy.requiredOutcomes", "operatingContract.governance.staleDecisionPolicy.requiredOutcomes is required")
 		}
 	}
 	if err := validateDocuments(contract, input); err != nil {
@@ -474,7 +311,7 @@ func ValidateFindings(contract *OperatingContract, input ValidationInput) []find
 
 func RenderMemberPolicy(contract *OperatingContract, input RenderInput) (string, error) {
 	if err := Validate(contract, ValidationInput{
-		TeamID: input.TeamID, DecisionMode: input.DecisionMode, MemberIDs: []string{input.MemberID}, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot,
+		TeamID: input.TeamID, MemberIDs: []string{input.MemberID}, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot,
 	}); err != nil {
 		return "", err
 	}
@@ -489,43 +326,10 @@ func RenderMemberPolicy(contract *OperatingContract, input RenderInput) (string,
 }
 
 func renderMemberPolicyBody(b *strings.Builder, contract *OperatingContract, member MemberContract, input RenderInput) {
-	b.WriteString("\n## Governance\n\n")
-	b.WriteString(fmt.Sprintf("Decision mode: %s\n", contract.Governance.DecisionMode))
-	b.WriteString(fmt.Sprintf("Pending decision ceiling: %d\n", contract.Governance.TeamPendingCeiling.Value))
-	if contract.Governance.TeamPendingCeiling.ReadOnlyWhenAtOrAbove {
-		b.WriteString(fmt.Sprintf("When pending decisions are >= %d:\n", contract.Governance.TeamPendingCeiling.Value))
-		if member.ReadOnlyModeBehavior.SkipNewDecisions {
-			b.WriteString("- skip new decision creation\n")
-		}
-		if member.ReadOnlyModeBehavior.StillWriteKnowledge {
-			b.WriteString("- still write required knowledge snapshots\n")
-		}
-		if member.ReadOnlyModeBehavior.StillRunSupersession {
-			b.WriteString("- still perform supersession when it shrinks the queue\n")
-		}
-		if member.ReadOnlyModeBehavior.StillWriteHandoff {
-			b.WriteString("- still write HANDOFF\n")
-		}
-	}
-	if policy := contract.Governance.StaleDecisionPolicy; policy != nil && policy.OwnerMemberID == input.MemberID {
-		b.WriteString(fmt.Sprintf("Stale decision scan: review pending decisions older than %d heartbeats; outcomes: %s.\n", policy.AfterHeartbeats, strings.Join(policy.RequiredOutcomes, ", ")))
-	}
 	b.WriteString("\n## Your Member Contract\n\n")
 	b.WriteString(fmt.Sprintf("Agent ID: %s\n", input.MemberID))
 	if member.Lane != "" {
 		b.WriteString(fmt.Sprintf("Lane: %s\n", member.Lane))
-	}
-	writeStringList(b, "Owned decision contexts", member.OwnedDecisionContexts)
-	// Caps describe how many decisions a member may create. Printing them for a
-	// member that cannot create any contradicts the Active Task Brief, which
-	// resolves the same contract to "decision writes: not allowed".
-	if writeRefsContainKind(member.ForbiddenWrites, "decision") {
-		b.WriteString("\nDecision caps: decision writes are not allowed for this member.\n")
-	} else {
-		b.WriteString("\nDecision caps:\n")
-		for _, line := range DecisionCapBulletLines(member.NewDecisionCapPerHeartbeat, member.NewDecisionCapsByContext, member.PendingOwnedDecisionCap) {
-			b.WriteString("- " + line + "\n")
-		}
 	}
 	// Document authority and the allowed/forbidden write paths are deliberately
 	// absent here. Both were rendered a second time in this section while
@@ -543,49 +347,6 @@ func renderMemberPolicyBody(b *strings.Builder, contract *OperatingContract, mem
 			b.WriteString(fmt.Sprintf("- %s: %v\n", key, member.TaskParameters[key]))
 		}
 	}
-}
-
-// DecisionCapsSummary is the single wording authority for the decision
-// creation limits shown in both the active-task brief and operating policy.
-// Keeping this logic in the contract package makes those independently built
-// prompt sections agree whenever a member contract changes.
-func DecisionCapsSummary(perHeartbeat *int, perContext map[string]int, pendingOwned *int) string {
-	clauses := make([]string, 0, 3)
-	if perHeartbeat != nil {
-		clauses = append(clauses, fmt.Sprintf("%d new decisions this heartbeat", *perHeartbeat))
-	}
-	if len(perContext) > 0 {
-		keys := sortedKeys(perContext)
-		parts := make([]string, 0, len(keys))
-		for _, contextID := range keys {
-			parts = append(parts, fmt.Sprintf("`%s` %d", contextID, perContext[contextID]))
-		}
-		clauses = append(clauses, "per owned context — "+strings.Join(parts, ", "))
-	}
-	if len(clauses) == 0 {
-		clauses = append(clauses, "no explicit per-heartbeat cap")
-	}
-	if pendingOwned != nil {
-		clauses = append(clauses, fmt.Sprintf("skip new decisions when %d owned-context decisions are already pending", *pendingOwned))
-	}
-	return strings.Join(clauses, "; ")
-}
-
-// DecisionCapBulletLines is the policy-oriented presentation of the same
-// decision-cap facts rendered inline by DecisionCapsSummary. Both functions
-// are deliberately sourced from the same three contract fields.
-func DecisionCapBulletLines(perHeartbeat *int, perContext map[string]int, pendingOwned *int) []string {
-	lines := make([]string, 0, len(perContext)+2)
-	if perHeartbeat != nil {
-		lines = append(lines, fmt.Sprintf("max new decisions this heartbeat: %d", *perHeartbeat))
-	}
-	for _, contextID := range sortedKeys(perContext) {
-		lines = append(lines, fmt.Sprintf("%s: max %d new decisions this heartbeat", contextID, perContext[contextID]))
-	}
-	if pendingOwned != nil {
-		lines = append(lines, fmt.Sprintf("skip new decisions when %d+ owned-context decisions are already pending", *pendingOwned))
-	}
-	return lines
 }
 
 func NormalizePath(ref PathRef, input ValidationInput, activeMemberID string) (string, error) {
@@ -672,7 +433,7 @@ func validateDocuments(contract *OperatingContract, input ValidationInput) error
 				return fmt.Errorf("operatingContract.documents.sharedState.%s ownerMemberId %q is not a contract member", doc.ID, doc.OwnerMemberID)
 			}
 		}
-		// SharedState files (decisions.jsonl, knowledge.jsonl, tasks.json, etc.)
+		// SharedState files (tasks.json and authored team documents).
 		// are runtime data: created on first write under RuntimeData class, not
 		// pre-populated in the repo. Validate structure only; doc.Required
 		// stays meaningful for prompt rendering ("kind is in scope for this
@@ -742,7 +503,7 @@ func validateWriteRefs(refs []WriteRef, input ValidationInput, activeMemberID, f
 	for _, ref := range refs {
 		if ref.Kind != "" {
 			switch ref.Kind {
-			case "handoff", "decision", "knowledge", "task", "inbox-message":
+			case "handoff", "knowledge", "task", "inbox-message", "backlog":
 				continue
 			default:
 				return fmt.Errorf("operatingContract.members.%s contains unsupported write kind %q", field, ref.Kind)
@@ -815,12 +576,12 @@ func writeStringList(b *strings.Builder, title string, values []string) {
 
 func RenderTeamStorage(contract *OperatingContract, input RenderInput) (string, error) {
 	if err := Validate(contract, ValidationInput{
-		TeamID: input.TeamID, DecisionMode: input.DecisionMode, MemberIDs: []string{input.MemberID}, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot,
+		TeamID: input.TeamID, MemberIDs: []string{input.MemberID}, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot,
 	}); err != nil {
 		return "", err
 	}
 
-	validationInput := ValidationInput{TeamID: input.TeamID, DecisionMode: input.DecisionMode, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot}
+	validationInput := ValidationInput{TeamID: input.TeamID, StoreDir: input.StoreDir, RepoRoot: input.RepoRoot}
 	var b strings.Builder
 	b.WriteString("## Your Team Storage\n\n")
 
@@ -855,28 +616,18 @@ func RenderTeamStorage(contract *OperatingContract, input RenderInput) (string, 
 
 	member := contract.Members[input.MemberID]
 	b.WriteString("Primitive availability for this member:\n")
-	b.WriteString("- decisions: " + primitiveDecisionAvailability(member) + "\n")
+	b.WriteString("- unified work filing: file findings and requests once into swarm-manager\n")
 	b.WriteString("- knowledge: " + primitiveKnowledgeAvailability(member) + "\n")
 	b.WriteString("- handoff: " + primitiveHandoffAvailability(member, input.RequireHandoff) + "\n")
 	b.WriteString("- task board: " + primitiveTaskAvailability(member) + "\n")
 	return strings.TrimRight(b.String(), "\n") + "\n", nil
 }
 
-func primitiveDecisionAvailability(member MemberContract) string {
-	if writeRefsContainKind(member.ForbiddenWrites, "decision") || (member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat == 0) {
-		return "`review-only` - review pending decisions when useful; do not create decisions from this heartbeat"
-	}
-	if writeRefsContainKind(member.AllowedWrites, "decision") || writeRefsContainPathSuffix(member.AllowedWrites, "decisions.jsonl") {
-		return "`write-allowed` - propose reviewable changes within your owned contexts and caps"
-	}
-	return "`unavailable` - no decision surface is declared for this member"
-}
-
 func primitiveKnowledgeAvailability(member MemberContract) string {
 	if writeRefsContainKind(member.ForbiddenWrites, "knowledge") {
 		return "`unavailable` - do not write team knowledge from this heartbeat"
 	}
-	if writeRefsContainKind(member.AllowedWrites, "knowledge") || writeRefsContainPathSuffix(member.AllowedWrites, "knowledge.jsonl") {
+	if writeRefsContainKind(member.AllowedWrites, "knowledge") {
 		return "`write-allowed` - record structured observations and friction signals using required topics"
 	}
 	return "`unavailable` - no knowledge surface is declared for this member"

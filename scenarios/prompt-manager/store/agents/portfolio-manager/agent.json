@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "portfolio-manager",
   "displayName": "Portfolio Manager",
-  "description": "Maintains Swarm Manager portfolio flow, applies approved decisions, and proposes bounded corrections when work drifts.",
+  "description": "Maintains Swarm Manager portfolio flow, applies approved work items, and proposes bounded corrections when work drifts.",
   "status": "active",
   "appearance": {
     "body": "#1E293B",

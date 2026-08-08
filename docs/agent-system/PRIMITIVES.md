@@ -66,10 +66,16 @@ A coordinated group of agents (members) sharing a team-level contract, role conf
 
 - `team.json` and `roles.json` — machine-readable team config
 - `shared/TEAM.md` — operating rules (write rules, coordination pattern, boundaries)
-- `path[example]:shared/<various>` — per-team shared state (knowledge, decisions, audit logs, run lessons)
+- `path[example]:shared/<various>` — per-team shared state (Source Ledger guidance, task state, audit logs, run lessons)
 - `path[example]:members/<id>/` — per-member binding (heartbeat, responsibilities, last-handoff, topics declarations)
 
 Coordination patterns (orthogonal to documentation architecture): independent, leader-led, or peer. Documentation architecture is split between plan-of-record truth and typed knowledge flow — see `TEAM_DOCS_PATTERNS.md`.
+
+### Team scope
+
+The team's durable Source Ledger namespace. Members append observations and evidence
+to this scope and use bounded recall at wake time. It is the shared corpus; mutable
+task state remains in `tasks.json`.
 
 ---
 
@@ -78,7 +84,7 @@ Coordination patterns (orthogonal to documentation architecture): independent, l
 Doctrine — durable, operator-curated documentation that defines what is true. Lives at `path:docs/<domain>/` (e.g., `path:docs/monetization/`, `path:docs/marketing/evidence/research/`, `path:docs/agent-system/`).
 
 Properties:
-- **Approval-gated:** operator-curated via approved decisions. Agents propose diffs; they never edit directly.
+- **Approval-gated:** operator-curated via approved Swarm Manager work. Agents file evidence and scope; they never edit directly.
 - **Cross-team-readable:** consumers from other teams or scenarios may cite it as required reading.
 - **Durable:** entries persist and evolve. High churn signals something wrong with the plan, not with the rate of change.
 - **One concept, one file:** no double residency.
@@ -103,16 +109,6 @@ CLIs own deterministic execution. Branching, shell conditionals, and multi-step 
 
 ---
 
-## Decision
-
-A structured, contextful proposal-and-acceptance record. Decisions have a context (`audience-update`, `capability-gap`, `meta-self-improvement`, `action-candidate`, etc.), an owner who proposes, and an operator (or approving team) who accepts or rejects.
-
-Decisions are the system's **commit log for plans, not for code.** When a member's behavior changes — a new audience definition, a deprecated skill, a new SKU — there is a decision recording the why.
-
-Decision contexts a member owns are declared in its `topics.json` under `decisions_owned`; contexts whose acceptance changes a member's behavior are declared under `decisions_consumed`.
-
-The full taxonomy of contexts, the lifecycle (proposed → accepted → executed → superseded → stale), the routing policy after acceptance (direct-write vs swarm-manager), and the cross-cutting rules (capability-gap criteria, action graduation gate, stale-decision policy, cross-team output ownership, inbox backpressure) live in `DECISIONS.md`. This file is concerned only with the bare definition.
-
 ---
 
 ## Knowledge entry
@@ -122,7 +118,9 @@ A team-scoped key/value record under a topic prefix. Used for both:
 - **Inbox material** under `<inbox-name>/<signal-type>/<slug>` — debt, awaiting routing.
 - **Permanent observations** under canonical surface prefixes (`audience-scan/<slug>`, `competitor-record/<slug>`, `monetization-benchmark-adjacent-record/<slug>`, etc.) — observations promoted from inbox to canon.
 
-Knowledge entries are the fine-grained granularity for evidence and observations. They support concurrency-safe append, retention, and querying via `prompt-manager team knowledge-*` commands.
+Knowledge entries are the fine-grained, topic-addressable representation of evidence
+and observations. Prompt Manager's topic APIs are backed by the team's Source Ledger
+scope; retention never deletes ledger entries.
 
 ---
 
@@ -146,11 +144,18 @@ The hierarchy is `Objective -> Goal -> Milestone -> Backlog item`. Every goal de
 
 ---
 
-## Backlog item / capability-gap
+## Backlog item
 
-Unbuilt work. A backlog item names something to build (typically tracked in `swarm-manager`); a `capability-gap` decision names a missing capability that blocks an existing member's work — typically a missing CLI command, action, scenario, or source-of-truth.
+Unbuilt work. A backlog item names an outcome to build or a bounded correction to make,
+with evidence, scope, dependencies, and a clear completion condition. File it through
+Swarm Manager so the operator sees one work stream and the executing agent can read the
+same context.
 
-The distinction: backlog is "we plan to build X." Capability-gap is "we are blocked because X does not exist." `DECISIONS.md` covers the criteria for choosing between filing a capability-gap, a `meta-self-improvement` decision, or a backlog item, and how director-swarm consumes accepted capability-gaps.
+### Gated work item
+
+A backlog item or capture that needs operator disposition before execution. Members
+file it once through Swarm Manager, then read its disposition from the same work
+stream; Prompt Manager does not maintain a parallel approval queue.
 
 ---
 
@@ -176,9 +181,9 @@ The primitives above describe *what* the system is made of. This section describ
 
 | Pillar | Source of truth | Catches | Anchor doc |
 |---|---|---|---|
-| **P1 — Declared graph** | `topics.json` per member (`intake[]`, `required_read[]`, `evidence_consumed[]`, `output[]`, `decisions_owned`, `decisions_consumed`, `external_producers`) | Cross-member declaration mismatches, dangling decision references, orphaned producers/consumers — anything derivable from a single load of the declared topology. | [`TOPICS_SCHEMA.md`](TOPICS_SCHEMA.md) |
+| **P1 — Declared graph** | `topics.json` per member (`intake[]`, `required_read[]`, `evidence_consumed[]`, `output[]`, `external_producers`) | Cross-member declaration mismatches and orphaned producers/consumers — anything derivable from a single load of the declared topology. | [`TOPICS_SCHEMA.md`](TOPICS_SCHEMA.md) |
 | **P2 — Prose scan** | Markdown bodies in `members/`, `agents/`, writer-skill `SKILL.md` files, and `path:docs/<domain>/`. | Hardcoded topic-prefix references (`prompt-manager team knowledge-add ... --topic=...` patterns, backticked topic strings in instructions) that contradict the declarations. Drift between what an agent's prose tells it to do and what its `topics.json` says it does. | [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) |
-| **P3 — Runtime attribution** | The `attribution` field on every post-cutoff `knowledge.jsonl` entry, scanned forward from each team's `attributionValidFrom`. | Observed writers/topics that no declaration accounts for. Agents writing to topics they don't declare; skills writing to topics not in `writes_to[]`; operator drift; legacy entries surfaced cleanly. | [`RUNTIME_ATTRIBUTION.md`](RUNTIME_ATTRIBUTION.md) |
+| **P3 — Runtime attribution** | Verified actor fields on events and source-ledger entries. | Observed writers/topics that no declaration accounts for. Agents writing outside their declared scope; operator drift; legacy entries surfaced cleanly. | [`RUNTIME_ATTRIBUTION.md`](RUNTIME_ATTRIBUTION.md) |
 
 Why three rather than one or two: declarations alone (P1) catch declaration mismatches but cannot detect a real-world write that nobody declared. Prose scans (P2) catch the human-language layer but cannot see runtime writes. Runtime attribution (P3) catches the observed-truth layer but cannot tell whether a declaration is internally consistent. Each pillar's blind spots are the others' load-bearing surface.
 

@@ -42,7 +42,7 @@ Optional:
 
 ### 3. Recommended Structure (Keep It Small)
 
-Structure follows `docs/agent-system/SKILL_AUTHORING.md` §"Skill structure" — do not restate it. The platform-specific additions are a **compatibility envelope** (template in §7) and **decision tables** for change classification and layering (§4). Platform skills are enforcement-heavy, not prose-heavy — avoid turning them into “everything about the package”; prefer linking to package docs.
+Structure follows `docs/agent-system/SKILL_AUTHORING.md` §"Skill structure" — do not restate it. The platform-specific additions are a **compatibility envelope** (template in §7) and **work tables** for change classification and layering (§4). Platform skills are enforcement-heavy, not prose-heavy — avoid turning them into “everything about the package”; prefer linking to package docs.
 
 ---
 

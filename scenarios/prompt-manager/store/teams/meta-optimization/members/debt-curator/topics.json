@@ -29,28 +29,12 @@
       "prefix": "friction-triage-record/<YYYY-MM-DD>"
     }
   ],
-  "evidence_consumed": [
-    {
-      "prefix": "challenge-report/*",
-      "for_decisions": [
-        "meta-self-improvement"
-      ]
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "for_decisions": [
-        "meta-self-improvement"
-      ]
-    }
-  ],
+  "evidence_consumed": [],
   "output": [
     {
       "prefix": "debt-scan/*",
       "destination_kind": "knowledge"
     }
-  ],
-  "decisions_owned": [
-    "meta-self-improvement"
   ],
   "external_producers": [
     "operator"

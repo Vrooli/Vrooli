@@ -26,7 +26,6 @@ type OperatingModelSections struct {
 	OperatingLoops OperatingMarkdownSection     `json:"operating_loops,omitempty"`
 	Graph          OperatingGraphSection        `json:"graph,omitempty"`
 	TopicCatalog   OperatingTopicCatalogTable   `json:"topic_catalog,omitempty"`
-	Decisions      OperatingDecisionTable       `json:"decisions,omitempty"`
 	ExternalInputs OperatingExternalInputsTable `json:"external_inputs,omitempty"`
 	Outputs        OperatingOutputsTable        `json:"outputs,omitempty"`
 	FeedbackLoop   OperatingFeedbackSection     `json:"feedback_loop,omitempty"`

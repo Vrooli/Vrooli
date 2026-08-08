@@ -9,12 +9,12 @@ function actionPayload(overrides: Record<string, unknown> = {}) {
   return {
     kind: 'action',
     schemaVersion: 1,
-    id: 'team.decisions.list',
-    name: 'List Team Decisions',
+    id: 'team.swarm.work.list',
+    name: 'List Team Work',
     description: null,
     status: 'draft',
     owner: { type: 'scenario', id: 'prompt-manager' },
-    command: { argv: ['prompt-manager', 'team', 'decision-list', '{{team}}', '--json'] },
+    command: { argv: ['swarm-manager', 'backlog', 'list', '--json'] },
     inputs: {
       team: {
         type: 'team',
@@ -57,7 +57,7 @@ describe('Action schemas', () => {
   it('parses validation and mutation envelopes', () => {
     const action = actionPayload()
     const validation = ActionValidationResponseSchema.parse({
-      actionId: 'team.decisions.list',
+      actionId: 'team.swarm.work.list',
       valid: true,
       runnable: false,
       status: 'draft',
@@ -84,8 +84,7 @@ describe('Action schemas', () => {
       validation,
     })
 
-    expect(mutation.action.id).toBe('team.decisions.list')
+    expect(mutation.action.id).toBe('team.swarm.work.list')
     expect(mutation.validation.valid).toBe(true)
   })
 })
-

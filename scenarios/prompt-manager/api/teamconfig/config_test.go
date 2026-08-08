@@ -89,7 +89,6 @@ func TestValidateAcceptsIndependentBoundedParallelTeam(t *testing.T) {
 				InjectInbox:              false,
 				AllowPeerTriggers:        false,
 				ShowTaskBoardGuidance:    true,
-				ShowDecisionLogGuidance:  true,
 				ShowKnowledgeLogGuidance: true,
 				RequireHandoff:           true,
 			},
@@ -98,7 +97,6 @@ func TestValidateAcceptsIndependentBoundedParallelTeam(t *testing.T) {
 			QueuePolicy:       QueuePolicyBoundedParallel,
 			MaxConcurrentRuns: 2,
 		},
-		DecisionMode: DecisionModeYolo,
 	}
 
 	if err := Validate(contract); err != nil {
@@ -120,7 +118,6 @@ func TestValidateRejectsLeadOnIndependentTeam(t *testing.T) {
 			QueuePolicy:       QueuePolicyBoundedParallel,
 			MaxConcurrentRuns: 2,
 		},
-		DecisionMode: DecisionModeYolo,
 	}
 
 	if err := Validate(contract); err == nil {
@@ -143,7 +140,6 @@ func TestValidateRejectsSingleProcessWithoutLeaderLedPattern(t *testing.T) {
 			QueuePolicy:       QueuePolicySerialized,
 			MaxConcurrentRuns: 1,
 		},
-		DecisionMode: DecisionModeApproval,
 	}
 
 	if err := Validate(contract); err == nil {
@@ -167,7 +163,6 @@ func TestValidateRejectsInboxInjectionWithoutAsyncMessaging(t *testing.T) {
 			QueuePolicy:       QueuePolicyBoundedParallel,
 			MaxConcurrentRuns: 2,
 		},
-		DecisionMode: DecisionModeYolo,
 	}
 
 	if err := Validate(contract); err == nil {
@@ -188,8 +183,7 @@ func TestValidateFindingsReportsIndependentDefectsTogether(t *testing.T) {
 				AllowPeerTriggers: true,
 			},
 		},
-		Execution:    Execution{QueuePolicy: QueuePolicySerialized, MaxConcurrentRuns: 2},
-		DecisionMode: "unsupported",
+		Execution: Execution{QueuePolicy: QueuePolicySerialized, MaxConcurrentRuns: 2},
 	}
 	findings := ValidateFindings(contract)
 	if len(findings) < 6 {
@@ -212,7 +206,6 @@ func TestHelpersReflectResolvedPolicy(t *testing.T) {
 				InjectInbox:              true,
 				AllowPeerTriggers:        true,
 				ShowTaskBoardGuidance:    true,
-				ShowDecisionLogGuidance:  true,
 				ShowKnowledgeLogGuidance: true,
 				RequireHandoff:           true,
 			},
@@ -221,7 +214,6 @@ func TestHelpersReflectResolvedPolicy(t *testing.T) {
 			QueuePolicy:       QueuePolicyBoundedParallel,
 			MaxConcurrentRuns: 3,
 		},
-		DecisionMode: DecisionModeYolo,
 	}
 
 	if got := CoordinationSkillID(contract); got != "team-coordination-peer" {
@@ -238,9 +230,6 @@ func TestHelpersReflectResolvedPolicy(t *testing.T) {
 	}
 	if !ShouldShowTaskBoardGuidance(contract) {
 		t.Fatal("expected task board guidance")
-	}
-	if !ShouldShowDecisionLogGuidance(contract) {
-		t.Fatal("expected decision log guidance")
 	}
 	if !ShouldShowKnowledgeLogGuidance(contract) {
 		t.Fatal("expected knowledge log guidance")
@@ -275,7 +264,6 @@ func TestHelpersReflectLeaderLedSingleProcessPolicy(t *testing.T) {
 				InjectInbox:              false,
 				AllowPeerTriggers:        false,
 				ShowTaskBoardGuidance:    true,
-				ShowDecisionLogGuidance:  true,
 				ShowKnowledgeLogGuidance: true,
 				RequireHandoff:           true,
 			},
@@ -284,7 +272,6 @@ func TestHelpersReflectLeaderLedSingleProcessPolicy(t *testing.T) {
 			QueuePolicy:       QueuePolicySerialized,
 			MaxConcurrentRuns: 1,
 		},
-		DecisionMode: DecisionModeApproval,
 	}
 
 	if err := Validate(contract); err != nil {

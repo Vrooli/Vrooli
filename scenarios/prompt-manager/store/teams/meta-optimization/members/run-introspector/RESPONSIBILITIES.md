@@ -16,13 +16,13 @@ Depth beats breadth. A useful lesson names what happened, the specific skill or 
 
 ## Action Signal
 
-When a run repeats a deterministic manual operation, search for an existing executable surface with `prompt-manager discover "<operation>" --type all`. If an exact Action exists, hand off usage/adoption evidence. If a stable Vrooli-controlled CLI exists but no Action exposes it, hand off a new Action candidate to skill-optimizer. If no controlled CLI exists, route to capability-gap or CLI-backlog instead.
+When a run repeats a deterministic manual operation, search for an existing executable surface with `prompt-manager discover "<operation>" --type all`. If an exact Action exists, hand off usage/adoption evidence. If a stable Vrooli-controlled CLI exists but no Action exposes it, hand off a new Action candidate to skill-optimizer. If no controlled CLI exists, route to capability work item or CLI-backlog instead.
 
-Known seed Actions: action:scenario.status.show for scenario lifecycle status and action:team.decisions.list for team decision lookup.
+Known seed Actions: action:scenario.status.show for scenario lifecycle status and action:team.swarm.work.list for team work lookup.
 
 ## Discovery-Gap Signal
 
-Per-run friction is one input; aggregate demand is another. Each heartbeat, run `prompt-manager discovery-gaps --since 7d` to see the queries agents searched for via `prompt-manager discover` but found nothing useful (zero or only sub-threshold matches). Counts are window-relative. A recurring cluster is a strong unmet-capability signal: route it to a **new-action-candidate** (skill-optimizer) when a controlled CLI already covers it, or a **capability-gap** / **cli-backlog** (director-swarm) when no command exists. This closes the loop between what agents needed and what the system can do.
+Per-run friction is one input; aggregate demand is another. Each heartbeat, run `prompt-manager discovery-gaps --since 7d` to see the queries agents searched for via `prompt-manager discover` but found nothing useful (zero or only sub-threshold matches). Counts are window-relative. A recurring cluster is a strong unmet-capability signal: route it to a **new-action-candidate** (skill-optimizer) when a controlled CLI already covers it, or a **capability work item** / **cli-backlog** (director-swarm) when no command exists. This closes the loop between what agents needed and what the system can do.
 
 ## Boundaries
 - Do not edit skills, agents, or teams. Lessons are observations and handoffs.

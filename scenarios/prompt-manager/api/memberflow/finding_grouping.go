@@ -1,6 +1,6 @@
-// Per-defect grouping for rules that scan knowledge entries.
+// Per-defect grouping for rules that scan team-corpus entries.
 //
-// Rules that walk `knowledge.jsonl` fire once per entry, so their finding
+// Rules that walk corpus entries fire once per entry, so their finding
 // count tracks how often a member ran rather than how much is wrong. One
 // undeclared prefix on one member produced 25 `actual_writer_undeclared`
 // errors; the fix was a single line of `topics.json`. Reported that way, a
@@ -42,7 +42,7 @@ var trailingISODate = regexp.MustCompile(`-\d{4}-\d{2}-\d{2}$`)
 // and returns the literal head plus `/*`.
 //
 //   - `initiative-portfolio-record/2026-05-14`                → `initiative-portfolio-record/*`
-//   - `challenge-resolution-record/dec-1778803361775636366`   → `challenge-resolution-record/*`
+//   - `review-evidence-snapshot/work-1778803361775636366`   → `review-evidence-snapshot/*`
 //   - `friction-report/recurring-workaround/2026-06-15/toolchain-fallback`
 //     → `friction-report/recurring-workaround/*`
 //   - `contrarian-scan-2026-06-14`                            → `contrarian-scan-*`

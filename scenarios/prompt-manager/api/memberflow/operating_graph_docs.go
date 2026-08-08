@@ -15,7 +15,6 @@ func ExtractOperatingGraphDocsForGraph(lines []string, meta OperatingGraphMetada
 	resolver := NewOperatingActorResolver(meta, graphs...)
 	return OperatingGraphDocs{
 		TopicCatalog: extractOperatingTopicCatalog(lines, resolver),
-		Decisions:    extractOperatingDecisionTable(lines, resolver),
 	}
 }
 
@@ -41,33 +40,6 @@ func extractOperatingTopicCatalog(lines []string, resolver OperatingActorResolve
 		row.Topic, row.Qualifier = parseDocsTopicToken(row.RawTopic)
 		row.Writers = parseOperatingActorReferences(resolver, cellByHeader(cells, index, "owner / primary writer"))
 		row.Readers = parseOperatingActorReferences(resolver, cellByHeader(cells, index, "primary readers"))
-		table.Rows = append(table.Rows, row)
-	}
-	return table
-}
-
-func extractOperatingDecisionTable(lines []string, resolver OperatingActorResolver) OperatingDecisionTable {
-	table := OperatingDecisionTable{}
-	headerLine, rows := extractMarkdownTableAfterHeading(lines, "## Decisions")
-	if headerLine == 0 {
-		return table
-	}
-	table.HeaderLine = headerLine
-	table.Present = true
-	header := normalizeMarkdownTableHeader(rows[0])
-	table.Headers = header
-	index := markdownHeaderIndex(header)
-	for _, rowLine := range rows[2:] {
-		cells := splitMarkdownTableRow(rowLine.text)
-		row := OperatingDecisionRow{
-			RawDecision:             cellByHeader(cells, index, "decision context"),
-			Purpose:                 cellByHeader(cells, index, "purpose"),
-			ExpectedEvidenceTrigger: cellByHeader(cells, index, "expected evidence / trigger"),
-			AcceptedEffect:          cellByHeader(cells, index, "accepted effect"),
-			SourceLine:              rowLine.line,
-		}
-		row.Decision = parseInlineCodeToken(row.RawDecision)
-		row.Owners = parseOperatingActorReferences(resolver, cellByHeader(cells, index, "owner"))
 		table.Rows = append(table.Rows, row)
 	}
 	return table

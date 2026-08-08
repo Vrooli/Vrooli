@@ -64,7 +64,7 @@ export function KnowledgeLogView({ teamId, members, allAgents }: KnowledgeLogVie
   const loadEntries = useCallback(async () => {
     try {
       setError(null)
-      const resp = await heartbeatService.getKnowledge(teamId, {
+      const resp = await heartbeatService.getTeamCorpus(teamId, {
         topic: topicFilter || undefined,
         last: 50,
       })

@@ -22,20 +22,9 @@ type ExperimentHandlers struct {
 	experiments              store.ExperimentStore
 	variants                 store.VariantStore
 	skills                   store.SkillStore
-	decisions                decisionPublisher
+	work                     workPublisher
 	receiptSigner            receiptsigning.ReceiptSigner
 	productionReceiptSigning bool
-}
-
-type decisionPublisher interface {
-	AppendDecision(context.Context, string, *store.DecisionEntry) error
-}
-
-// decisionReader is deliberately separate from publishing. Promotion must
-// inspect the durable team decision log rather than trust a caller-provided
-// assertion that an operator approved it.
-type decisionReader interface {
-	GetDecisions(context.Context, string, string, string, int) ([]store.DecisionEntry, int, error)
 }
 
 // NewExperimentHandlers creates experiment handlers.
@@ -43,10 +32,9 @@ func NewExperimentHandlers(experiments store.ExperimentStore, variants store.Var
 	return &ExperimentHandlers{experiments: experiments, variants: variants, skills: skills}
 }
 
-// SetDecisionPublisher wires experiment recommendations into prompt-manager's
-// existing human decision queue. It is intentionally optional for isolated
-// handler tests, but production configures it during API startup.
-func (h *ExperimentHandlers) SetDecisionPublisher(p decisionPublisher) { h.decisions = p }
+// SetWorkPublisher wires experiment recommendations into swarm-manager's
+// unified work stream.
+func (h *ExperimentHandlers) SetWorkPublisher(p workPublisher) { h.work = p }
 
 // SetReceiptSigner provides the sole receipt-signing boundary. Production
 // passes a lifecycle-bound provider; raw signing material never enters here.
@@ -345,23 +333,24 @@ func (h *ExperimentHandlers) ConcludeExperiment(w http.ResponseWriter, r *http.R
 		http.Error(w, "a valid clear audit receipt is required before recommendation", http.StatusConflict)
 		return
 	}
-	if h.decisions == nil {
-		http.Error(w, "decision publishing is required before an experiment can conclude", http.StatusServiceUnavailable)
+	if h.work == nil {
+		http.Error(w, "swarm-manager work publishing is required before an experiment can conclude", http.StatusServiceUnavailable)
 		return
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	decisionID := fmt.Sprintf("dec-experiment-%x", sha256.Sum256([]byte(eid+"|"+req.WinnerVariantID+"|"+now)))
-	rationale := fmt.Sprintf("Experiment %q recommends this variant. Review the protocol, outcome evidence, audit receipts, and holdout validation before accepting.", eid)
+	workName := fmt.Sprintf("experiment-promotion-%x", sha256.Sum256([]byte(eid+"|"+req.WinnerVariantID+"|"+now)))
+	title := fmt.Sprintf("Adopt variant %q for skill %q", req.WinnerVariantID, exp.SkillID)
+	rationale := fmt.Sprintf("Experiment %q recommends this variant. Review the protocol, outcome evidence, audit receipts, and holdout validation before approving.", eid)
 	if summary := h.promotionEvidenceSummary(r.Context(), exp, req.WinnerVariantID); summary != "" {
 		rationale = rationale + "\n" + summary
 	}
 	if gateErr != nil {
 		rationale = fmt.Sprintf("GATE OVERRIDE: the pre-registered recommendation gate failed (%s) and was overridden with justification: %s. %s", gateErr.Error(), strings.TrimSpace(req.OverrideJustification), rationale)
 	}
-	decision := &store.DecisionEntry{ID: decisionID, At: now, By: "skill-optimizer", Status: store.DecisionStatusPending, Context: "skill-experiment-promotion", Decision: fmt.Sprintf("Adopt variant %q for skill %q", req.WinnerVariantID, exp.SkillID), Rationale: rationale}
-	if err := h.decisions.AppendDecision(r.Context(), "meta-optimization", decision); err != nil {
-		http.Error(w, "publish promotion decision: "+err.Error(), http.StatusInternalServerError)
+	workRef, err := h.work.CreateWork(r.Context(), workName, title, rationale)
+	if err != nil {
+		http.Error(w, "publish promotion work: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	exp.Status = store.ExperimentStatusConcluded
@@ -371,7 +360,7 @@ func (h *ExperimentHandlers) ConcludeExperiment(w http.ResponseWriter, r *http.R
 	if gateErr != nil {
 		exp.Notes = strings.TrimSpace(fmt.Sprintf("[gate-override] %s — justification: %s\n%s", gateErr.Error(), strings.TrimSpace(req.OverrideJustification), req.Notes))
 	}
-	exp.PromotionDecisionID = decisionID
+	exp.PromotionWorkItemRef = workRef
 
 	if err := h.experiments.Update(r.Context(), eid, exp); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -437,7 +426,7 @@ func (h *ExperimentHandlers) validateRecommendationEvidence(ctx context.Context,
 }
 
 // promotionEvidenceSummary renders the evidence a reviewer needs directly into
-// the promotion decision, so accepting it never requires re-running the report
+// the promotion work item, so approval never requires re-running the report
 // command. Best-effort: an unreadable lane degrades to the pointer sentence in
 // the base rationale rather than blocking the conclude.
 func (h *ExperimentHandlers) promotionEvidenceSummary(ctx context.Context, exp *store.Experiment, winner string) string {
@@ -481,7 +470,7 @@ func (h *ExperimentHandlers) promotionEvidenceSummary(ctx context.Context, exp *
 	}
 
 	var b strings.Builder
-	// Operator-legibility contract (docs/agent-system/DECISIONS.md § Operator
+	// Operator-legibility contract (docs/agent-system/SWARM_MANAGER_WORK.md § Operator
 	// legibility): plain summary before the metric block.
 	if winnerRow != nil {
 		if winner == store.ControlVariantID {
@@ -656,7 +645,7 @@ func (h *ExperimentHandlers) RecordHoldoutReceipt(w http.ResponseWriter, r *http
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	if exp.Status != store.ExperimentStatusConcluded || exp.PromotionDecisionID == "" {
+	if exp.Status != store.ExperimentStatusConcluded || exp.PromotionWorkItemRef == "" {
 		http.Error(w, "holdout receipt requires a concluded experiment with a published recommendation", http.StatusConflict)
 		return
 	}
@@ -705,8 +694,8 @@ func (h *ExperimentHandlers) RecordHoldoutReceipt(w http.ResponseWriter, r *http
 
 func canonicalHoldoutReceipt(exp *store.Experiment, idempotencyKey string) ([]byte, error) {
 	return json.Marshal(struct {
-		ExperimentID, ProtocolHash, DecisionID, FindingsHash, CompletedAt, IdempotencyKey string
-	}{exp.ID, exp.Protocol.ProtocolHash, exp.PromotionDecisionID, exp.HoldoutFindingsHash, exp.HoldoutCompletedAt, idempotencyKey})
+		ExperimentID, ProtocolHash, WorkItemRef, FindingsHash, CompletedAt, IdempotencyKey string
+	}{exp.ID, exp.Protocol.ProtocolHash, exp.PromotionWorkItemRef, exp.HoldoutFindingsHash, exp.HoldoutCompletedAt, idempotencyKey})
 }
 
 func (h *ExperimentHandlers) signHoldoutReceipt(ctx context.Context, exp *store.Experiment, idempotencyKey string) (receiptsigning.SignatureEnvelope, error) {
@@ -722,7 +711,7 @@ func (h *ExperimentHandlers) signHoldoutReceipt(ctx context.Context, exp *store.
 
 // PromoteExperiment handles POST /experiments/{eid}/promote. It is the only
 // path that can apply a winner to SKILL.md and requires both sealed holdout
-// evidence and the exact decision accepted by the human operator.
+// evidence and an approved swarm-manager work item.
 func (h *ExperimentHandlers) PromoteExperiment(w http.ResponseWriter, r *http.Request) {
 	eid := mux.Vars(r)["eid"]
 	exp, err := h.experiments.Get(r.Context(), eid)
@@ -730,7 +719,7 @@ func (h *ExperimentHandlers) PromoteExperiment(w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	if exp.Status != store.ExperimentStatusConcluded || exp.WinnerVariantID == nil || exp.PromotionDecisionID == "" {
+	if exp.Status != store.ExperimentStatusConcluded || exp.WinnerVariantID == nil || exp.PromotionWorkItemRef == "" {
 		http.Error(w, "promotion requires a concluded recommendation", http.StatusConflict)
 		return
 	}
@@ -748,8 +737,8 @@ func (h *ExperimentHandlers) PromoteExperiment(w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if req.DecisionID == "" || req.DecisionID != exp.PromotionDecisionID {
-		http.Error(w, "decisionId must match the experiment's published promotion decision", http.StatusForbidden)
+	if req.WorkItemRef == "" || req.WorkItemRef != exp.PromotionWorkItemRef {
+		http.Error(w, "workItemRef must match the experiment's published promotion work item", http.StatusForbidden)
 		return
 	}
 	var envelope receiptsigning.SignatureEnvelope
@@ -758,25 +747,17 @@ func (h *ExperimentHandlers) PromoteExperiment(w http.ResponseWriter, r *http.Re
 		http.Error(w, "holdout receipt signature is invalid", http.StatusConflict)
 		return
 	}
-	reader, ok := h.decisions.(decisionReader)
-	if !ok {
-		http.Error(w, "durable decision reader is unavailable", http.StatusServiceUnavailable)
+	if h.work == nil {
+		http.Error(w, "swarm-manager work reader is unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	entries, _, err := reader.GetDecisions(r.Context(), "meta-optimization", "skill-experiment-promotion", store.DecisionStatusAccepted, 0)
+	work, err := h.work.GetWork(r.Context(), exp.PromotionWorkItemRef)
 	if err != nil {
-		http.Error(w, "read operator decision: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "read operator disposition: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	accepted := false
-	for _, entry := range entries {
-		if entry.ID == exp.PromotionDecisionID {
-			accepted = true
-			break
-		}
-	}
-	if !accepted {
-		http.Error(w, "the published promotion decision has not been accepted by the operator", http.StatusForbidden)
+	if work.ReviewStatus != "approved" {
+		http.Error(w, "the published promotion work item has not been approved by the operator", http.StatusForbidden)
 		return
 	}
 	if *exp.WinnerVariantID != store.ControlVariantID {
@@ -1050,24 +1031,24 @@ func (h *ExperimentHandlers) experimentToResponse(r *http.Request, exp store.Exp
 	}
 
 	resp := ExperimentResponse{
-		ID:                  exp.ID,
-		SkillID:             exp.SkillID,
-		Name:                exp.Name,
-		Hypothesis:          exp.Hypothesis,
-		Protocol:            exp.Protocol,
-		Status:              exp.Status,
-		Arms:                arms,
-		StartedAt:           exp.StartedAt,
-		ConcludedAt:         exp.ConcludedAt,
-		WinnerVariantID:     exp.WinnerVariantID,
-		PromotionDecisionID: exp.PromotionDecisionID,
-		HoldoutFindingsHash: exp.HoldoutFindingsHash,
-		HoldoutCompletedAt:  exp.HoldoutCompletedAt,
-		PromotedAt:          exp.PromotedAt,
-		Notes:               exp.Notes,
-		CreatedAt:           exp.CreatedAt,
-		UpdatedAt:           exp.UpdatedAt,
-		Revision:            exp.Revision,
+		ID:                   exp.ID,
+		SkillID:              exp.SkillID,
+		Name:                 exp.Name,
+		Hypothesis:           exp.Hypothesis,
+		Protocol:             exp.Protocol,
+		Status:               exp.Status,
+		Arms:                 arms,
+		StartedAt:            exp.StartedAt,
+		ConcludedAt:          exp.ConcludedAt,
+		WinnerVariantID:      exp.WinnerVariantID,
+		PromotionWorkItemRef: exp.PromotionWorkItemRef,
+		HoldoutFindingsHash:  exp.HoldoutFindingsHash,
+		HoldoutCompletedAt:   exp.HoldoutCompletedAt,
+		PromotedAt:           exp.PromotedAt,
+		Notes:                exp.Notes,
+		CreatedAt:            exp.CreatedAt,
+		UpdatedAt:            exp.UpdatedAt,
+		Revision:             exp.Revision,
 	}
 
 	if includeCounts {

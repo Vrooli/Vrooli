@@ -10,10 +10,10 @@ Every piece of guidance in the agent system has exactly one correct home. The ru
 
 ```
 Truth lives in Plan of Record.
-Judgment lives in Skills.
+Judgment lives in Skills and operator dispositions.
 Execution lives in Actions.
 Implementation lives in CLIs.
-Unbuilt work lives in backlog or capability-gap.
+Unbuilt work lives in the Swarm Manager backlog.
 Raw learning starts in inboxes and synthesis.
 Identity stays in SOUL.md.
 Ownership stays in team contracts and responsibilities.
@@ -32,7 +32,7 @@ If it says what is true       -> Plan of Record.
 If it says how to decide      -> Skill.
 If it says what to run        -> Action.
 If it says how it works       -> CLI implementation.
-If it says what is missing    -> backlog / capability-gap.
+If it says what is missing    -> Swarm Manager backlog.
 If it is unverified or one-off-> inbox / synthesis (not permanent).
 ```
 
@@ -58,13 +58,13 @@ When canon lives in the wrong home — typically when a skill restates doctrine 
 |---|---|---|
 | Plan of Record | `path:docs/<domain>/` and `path:docs/agent-system/` | `path:docs/monetization/`, `path:docs/marketing/evidence/research/README.md`, this file |
 | Skills | `path:scenarios/prompt-manager/store/skills/packs/<pack>/<skill-id>/SKILL.md` | `signal-classifier`, `team-member-capability-architecture-audit` |
-| Actions | `path:scenarios/prompt-manager/store/actions/<action-id>/` | `scenario.status.show`, `team.decisions.list` |
+| Actions | `path:scenarios/prompt-manager/store/actions/<action-id>/` | `scenario.status.show`, framework-health |
 | CLIs | `path:scenarios/<scenario>/cli/` and resource CLIs | `prompt-manager`, `swarm-manager`, `resource-postgres` |
-| Backlog / capability-gap | swarm-manager backlog + `capability-gap` decisions | filed via `swarm-manager` or as decisions |
-| Inbox / synthesis | team knowledge entries under topic prefix | `research-inbox/<signal-type>/<slug>` |
+| Backlog | Swarm Manager backlog and captures | filed with `swarm-manager backlog create` or `captures create` |
+| Inbox / synthesis | Source Ledger entries under a team scope | `research-inbox/<signal-type>/<slug>` |
 | Identity | `path:store/agents/<id>/SOUL.md` | per-agent identity prose |
 | Ownership | `path:store/teams/<team>/shared/TEAM.md`, `RESPONSIBILITIES.md`, `roles.json` | per-team contracts |
-| Topic flow declarations | `path:store/teams/<team>/members/<member>/topics.json` (per-member); schema canon at `path:docs/agent-system/TOPICS_SCHEMA.md` | intake/output prefixes, taxonomy bindings, decision-context ownership |
+| Topic flow declarations | `path:store/teams/<team>/members/<member>/topics.json` (per-member); schema canon at `path:docs/agent-system/TOPICS_SCHEMA.md` | intake/output prefixes and taxonomy bindings |
 | Signal taxonomies | `path:docs/<domain>/<id>-taxonomy.json` + `path:docs/<domain>/<NAME>_TAXONOMY.md` | per-domain signal vocabulary, dispatch table, evidence rules, destination schemas |
 
 When a topic-prefix crosses team boundaries, the producer's taxonomy owns the front-matter schema; the consumer's taxonomy governs only its own routing. See `INTAKE_PIPELINE.md` § Cross-team schema ownership for the load-bearing rule and `TOPICS_SCHEMA.md` for the validator's resolution semantics.

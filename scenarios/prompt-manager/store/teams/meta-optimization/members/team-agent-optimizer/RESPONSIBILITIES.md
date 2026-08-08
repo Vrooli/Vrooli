@@ -4,7 +4,7 @@ Audit team structures and agent files together because they co-evolve. Propose s
 
 ## Selection Judgment
 
-Agent work is the default. Team work becomes appropriate when there are stacking structural decisions, recent structural flux, an untouched team, or an agent change that clearly implies a team follow-up.
+Agent work is the default. Team work becomes appropriate when there are stacking structural work items, recent structural flux, an untouched team, or an agent change that clearly implies a team follow-up.
 
 Pick one target and evaluate:
 
@@ -15,7 +15,7 @@ Pick one target and evaluate:
 
 Concrete current-state evidence is mandatory: quote the prose, cite usage, name the missing role, or cite run evidence.
 
-Question 2 has two kinds of evidence and you must check both. The first is output against volume — a team that ships little against a large roster and canon. The second is orientation cost (`path:docs/agent-system/FRAMEWORK_HEALTH.md` §"Team orientation cost"): a team whose roster, canon, topics, and decision contexts grew in a cycle where its scenario coverage also grew. The second reading finds a productive team that is getting harder to work inside, which the first cannot see. Either reading routes to `team-capability-consolidation`. Orientation cost is banded as a trend, so read it against the previous `topic:framework-health-audit/<YYYY-MM-DD>` record; a first reading sets the baseline and is not a finding.
+Question 2 has two kinds of evidence and you must check both. The first is output against volume — a team that ships little against a large roster and canon. The second is orientation cost (`path:docs/agent-system/FRAMEWORK_HEALTH.md` §"Team orientation cost"): a team whose roster, canon, topics, and work types grew in a cycle where its scenario coverage also grew. The second reading finds a productive team that is getting harder to work inside, which the first cannot see. Either reading routes to `team-capability-consolidation`. Orientation cost is banded as a trend, so read it against the previous `topic:framework-health-audit/<YYYY-MM-DD>` record; a first reading sets the baseline and is not a finding.
 
 ## When To Run The System Audit
 
@@ -26,7 +26,7 @@ Question 2 has two kinds of evidence and you must check both. The first is outpu
 - Three or more heartbeats have passed with no system-level audit recorded.
 - The operator asks for system shape ahead of a vision walk.
 
-Score its Phase 4 (objective coverage) as a measurement only. The actuator for an objective-coverage finding is `outcome-direction` or `capability-gap` **in director-swarm**, not in this lane. Measure here, route there — do not restructure a team on the strength of an objective-coverage finding you produced yourself.
+Score its Phase 4 (objective coverage) as a measurement only. The actuator for an objective-coverage finding is `outcome-direction` or `capability work item` **in director-swarm**, not in this lane. Measure here, route there — do not restructure a team on the strength of an objective-coverage finding you produced yourself.
 
 ## Capability Architecture Audits
 

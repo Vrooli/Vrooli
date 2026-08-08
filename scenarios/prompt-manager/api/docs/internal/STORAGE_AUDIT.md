@@ -59,27 +59,16 @@ and `runtimeMemberDir` simultaneously (`store/team_store.go:351,334`).
 
 | File | Operation | Touched at | Move (Phase) |
 |---|---|---|---|
-| `heartbeat-attempts.jsonl` | Append / List | `store/team_store.go:494,513` | 3c ✅ |
-| `handoff-history.jsonl` | Append / List / Clear | `store/team_store.go:859,879,921` | 3c ✅ |
 | `tasks.json` | Set / Get | `store/team_store.go:982,995` | 3c ✅ |
-| `decisions.jsonl` | Append / List | `store/team_store.go:1067,1130` | 3c ✅ |
-| `knowledge.jsonl` | Append / List | `store/team_store.go:1216,1268` | 3c ✅ |
-| `knowledge.jsonl` | Read (attribution scan) | `memberflow/runtime_attribution.go:129` | 3c ✅ |
 
-`ListSharedFiles` (`store/team_store.go:638…`) currently enumerates the entire
-config-tree `shared/` directory. After cutover the directory contains only
-`TEAM.md` under Config; runtime jsonl files live under RuntimeData. Operation
-behavior preserved by merging the two listings, with file paths reported
-relative to the merged virtual `shared/` tree (Phase 3c).
+`ListSharedFiles` (`store/team_store.go`) enumerates the authored shared
+directory plus the mutable task board. Durable corpus and telemetry are
+queried from their owning services rather than exposed as files.
 
 #### Prompt-section source-path references
 
-`heartbeat/prompt_builder.go:185-196` constructs **display** `SourcePath`
-strings (`teams/<t>/members/<m>/last-handoff.md`, `teams/<t>/shared/knowledge.jsonl`)
-for prompt sections. These are relative-path labels, not file reads — they stay
-shape-identical because RuntimeData mirrors the Config tree shape (CD-2). No
-change required at the writer site; the reader in `runtime_attribution.go` (and
-any future reader) resolves the relative path against `Roots.RuntimeData`.
+Prompt sections use semantic source labels for ledger context and handoff
+history. They are display metadata, not filesystem read paths.
 
 ### Stays Config (no change)
 
@@ -98,13 +87,9 @@ agent execution:
 
 ### `.backup` writers
 
-Production scenario code has **zero** `.backup` writers; the only emitter is
-`cmd/migrate-knowledge-attribution/migrate.go:326`, a one-shot historical
-migration tool that today writes `<path>.backup` next to the original under
-`store/teams/<team>/shared/`. Phase 3e routes that tool through
-`paths.Roots.BackupFor(...)` so any future re-run (or any new `.backup` emitter)
-lands under `RuntimeData/backups/` (CD-3). Pre-existing `.backup` artifacts
-already committed under `store/` are removed during the Phase 5 cutover.
+Production scenario code has **zero** `.backup` writers. Backup artifacts are
+owned by the storage and data-backup services and land under
+`RuntimeData/backups/` when applicable.
 
 ## `storeDir` / `absStoreDir` god-variable spread
 

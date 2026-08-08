@@ -59,7 +59,7 @@ This is the wrap-not-use principle (see project memory): wrap the underlying cap
 For "does this even work" testing without committing to anything:
 
 1. Sign up at fal.ai, top up $5 credit.
-2. Add `FAL_API_KEY` to Vault under `literal:secret/vrooli/fal` via secrets-manager.
+2. Provision `FAL_API_KEY` through the credential authority under the declared `vrooli/...` identity via secrets-manager.
 3. Submit one composed prompt JSON (per the rich-media video-prompt template) directly via curl or a one-off script.
 4. Receive an MP4. Total cost: ~$1.50–$5 for an 8-second clip.
 
@@ -67,7 +67,7 @@ The fully-integrated path through a `rich-media-studio` scenario is future work.
 
 ## See also
 
-- [`../secrets.md`](../secrets.md) — `secretDescriptor` and Vault layout
+- [`../secrets.md`](../secrets.md) — `secretDescriptor` and credential-authority storage
 - [`../../marketing/rich-media/README.md`](../../marketing/rich-media/README.md) — character / scene / product JSON that feeds video prompts
 - [`../../marketing/rich-media/templates/video-prompt.template.json`](../../marketing/rich-media/templates/video-prompt.template.json) — Veo/Seedance-compatible prompt schema
 - [`../../marketing/strategies/ai-ugc-personas.md`](../../marketing/strategies/ai-ugc-personas.md) — disclosure rules and what's allowed

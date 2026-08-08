@@ -176,8 +176,6 @@ func generatedShape(kind OperatingGraphNodeKind, display string) string {
 	switch kind {
 	case OperatingGraphNodeKindTopic:
 		return "[(" + display + ")]"
-	case OperatingGraphNodeKindDecision:
-		return "{" + display + "}"
 	case OperatingGraphNodeKindExternal, OperatingGraphNodeKindProcess, OperatingGraphNodeKindFuture:
 		return "([" + display + "])"
 	case OperatingGraphNodeKindTeam:
@@ -202,8 +200,6 @@ func generatedEndpointFor(rel OperatingRelationship, kind OperatingGraphNodeKind
 		return generatedEndpoint{kind: kind, raw: rel.Member}
 	case OperatingGraphNodeKindTopic:
 		return generatedEndpoint{kind: kind, raw: rel.Topic}
-	case OperatingGraphNodeKindDecision:
-		return generatedEndpoint{kind: kind, raw: rel.Decision}
 	case OperatingGraphNodeKindPOR:
 		return generatedEndpoint{kind: kind, raw: rel.Path}
 	case OperatingGraphNodeKindExternal:

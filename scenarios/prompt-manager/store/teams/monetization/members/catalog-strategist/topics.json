@@ -6,44 +6,10 @@
   ],
   "evidence_consumed": [
     {
-      "prefix": "candidate-sku-record/*",
-      "for_decisions": [
-        "catalog-promotion",
-        "sku-retirement",
-        "channel-activation"
-      ]
+      "prefix": "candidate-sku-record/*"
     },
     {
-      "prefix": "monetization-benchmark-record/*",
-      "for_decisions": [
-        "catalog-promotion",
-        "sku-retirement",
-        "channel-activation"
-      ]
-    },
-    {
-      "prefix": "challenge-report/*",
-      "for_decisions": [
-        "catalog-promotion",
-        "catalog-mapping-update",
-        "channel-activation",
-        "sku-retirement",
-        "services-activation",
-        "services-conversion",
-        "services-sunset"
-      ]
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "for_decisions": [
-        "catalog-promotion",
-        "catalog-mapping-update",
-        "channel-activation",
-        "sku-retirement",
-        "services-activation",
-        "services-conversion",
-        "services-sunset"
-      ]
+      "prefix": "monetization-benchmark-record/*"
     }
   ],
   "output": [
@@ -56,19 +22,6 @@
       "prefix": "catalog-snapshot/*",
       "destination_kind": "knowledge"
     }
-  ],
-  "decisions_owned": [
-    "catalog-promotion",
-    "catalog-mapping-update",
-    "channel-activation",
-    "sku-retirement",
-    "services-activation",
-    "services-conversion",
-    "services-sunset"
-  ],
-  "decisions_consumed": [
-    "capability-gap",
-    "benchmark-update"
   ],
   "external_producers": [
     "operator",

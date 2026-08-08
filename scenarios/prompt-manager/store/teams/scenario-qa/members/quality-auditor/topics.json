@@ -4,28 +4,12 @@
       "prefix": "quality-audit/<scenario-id>/<skill-id>"
     }
   ],
-  "evidence_consumed": [
-    {
-      "prefix": "challenge-report/*",
-      "for_decisions": [
-        "quality-audit-backlog"
-      ]
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "for_decisions": [
-        "quality-audit-backlog"
-      ]
-    }
-  ],
+  "evidence_consumed": [],
   "output": [
     {
       "prefix": "quality-audit/*",
       "destination_kind": "knowledge"
     }
-  ],
-  "decisions_owned": [
-    "quality-audit-backlog"
   ],
   "external_producers": [
     "operator"

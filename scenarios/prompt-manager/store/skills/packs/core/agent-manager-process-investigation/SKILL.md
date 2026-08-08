@@ -12,7 +12,7 @@ authoritative; it deliberately excludes transcript bodies and unified diffs.
 
 {{.context}}
 
-### Outcome decision table
+### Outcome work table
 
 | Proven evidence | primary category | confidence |
 | --- | --- | --- |

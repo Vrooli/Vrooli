@@ -2,7 +2,7 @@
 
 **Status:** canon. Anchor doc for the `prose_topic_leak` validator rule and the writer-skill `writes_to[]` registry. Pairs with `TOPICS_SCHEMA.md` (declarations) and `RUNTIME_ATTRIBUTION.md` (receipts).
 
-This document defines **what files the scanner walks, what patterns it detects, how owners are derived from file paths, and how each finding maps back to a declaration the writer should have made**. It is the input the scanner consumes — its file-path globs, regex set, and severity guidance are normative; changes here are decision-gated.
+This document defines **what files the scanner walks, what patterns it detects, how owners are derived from file paths, and how each finding maps back to a declaration the writer should have made**. It is the input the scanner consumes — its file-path globs, regex set, and severity guidance are normative; changes here are work-item-gated.
 
 ---
 
@@ -133,8 +133,8 @@ Topic prefixes appear in prose almost exclusively as arguments to the prompt-man
 | `team knowledge-list` | exact knowledge topic | **MATCH** (alongside `--topic-prefix`) |
 | `team knowledge-update` | new knowledge topic | **MATCH** |
 | `team knowledge-delete` | (no `--topic` flag) | n/a |
-| `team decision-add` | decision title (free-form prose, e.g. `"What is being decided"`) | **SKIP** |
-| `team decision-update` | decision title | **SKIP** |
+| `swarm-manager backlog create` | work-item title (free-form prose, e.g. `"What needs doing"`) | **SKIP** |
+| `swarm-manager backlog update` | work-item title | **SKIP** |
 
 The discriminator is the literal substring `team knowledge-` immediately preceding the verb on the same logical command line.
 
@@ -160,7 +160,7 @@ Marked topic references use the shared project syntax in `path:docs/reference/ma
 - URL paths that happen to contain slashes (`https://example.com/a/b/c` does not look like a topic prefix because it has scheme-like prefixes; the regex requires lower-kebab segment shape and the absence of `://`).
 - Identifier strings without `/` (e.g. `audience-scan`) — bare prefixes are too generic to attribute.
 - Marked non-topic references such as `path:docs/agent-system/TOPICS.md`, `platform:darwin/arm64`, and `literal:if/else`.
-- Decision contexts and skill ids — these have their own validators.
+- Work types and skill ids — these have their own validators.
 
 ### Code-block exclusion
 

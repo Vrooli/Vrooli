@@ -2,9 +2,6 @@
   "required_read": [
     {
       "prefix": "outcome-target-record/YYYY-MM-DD"
-    },
-    {
-      "prefix": "decision-application/<decision-id>"
     }
   ],
   "output": [
@@ -12,10 +9,6 @@
       "prefix": "outcome-target-record/*",
       "destination_kind": "knowledge"
     }
-  ],
-  "decisions_owned": [
-    "outcome-gap",
-    "outcome-direction"
   ],
   "external_producers": [
     "operator",

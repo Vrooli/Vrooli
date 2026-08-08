@@ -5,9 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -211,7 +209,6 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		"Operate as an initiative portfolio manager.",
 		"## Runtime",
 		"## Coordination",
-		"## Governance",
 		"## Your Member Contract",
 		"## Operating Constraints",
 		"The complete task source is included later in `# Heartbeat Task (HEARTBEAT.md)`.",
@@ -231,7 +228,7 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		"## Authority Order",
 		"## Your Team Storage",
 		"Primitive availability for this member:",
-		"- decisions: `write-allowed`",
+		"- knowledge: `write-allowed`",
 		"## Available Storage Commands",
 		promptHeading(promptSectionKindTaskReminder),
 	} {
@@ -318,27 +315,10 @@ Coordination rules:
 - Prefer the planning surface named in your team charter or heartbeat instructions before falling back to broad repo scans.
 - This team does not use agent-to-agent messaging by default. Stay within your own scope unless the heartbeat task tells you otherwise.
 
-## Governance
-
-Decision mode: yolo
-Pending decision ceiling: 12
-When pending decisions are >= 12:
-- skip new decision creation
-- still write required knowledge snapshots
-- still perform supersession when it shrinks the queue
-- still write HANDOFF
-
 ## Your Member Contract
 
 Agent ID: agent-1
 Lane: Apply the team mission within this member's assigned scope.
-
-Owned decision contexts:
-- general
-
-Decision caps:
-- max new decisions this heartbeat: 1
-- skip new decisions when 3+ owned-context decisions are already pending
 
 ## Operating Constraints
 
@@ -414,7 +394,7 @@ func TestBuildIncludesCoordinationSkillSingleProcess(t *testing.T) {
 	}
 }
 
-func TestBuildTeamLeadPromptIncludesApprovalConstraints(t *testing.T) {
+func TestBuildTeamLeadPromptIncludesSwarmManagerWorkGuidance(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
 	fileStore := newFileStore(t, roots)
@@ -423,7 +403,6 @@ func TestBuildTeamLeadPromptIncludesApprovalConstraints(t *testing.T) {
 	relationStore := fileStore.Relations()
 
 	team := newLeaderLedSingleProcessTestTeam("team-sp", "SP Team", "director")
-	team.DecisionMode = teamconfig.DecisionModeApproval
 	if err := teamStore.Create(ctx, team); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
@@ -465,7 +444,6 @@ func TestBuildTeamLeadPromptIncludesApprovalConstraints(t *testing.T) {
 		"Lead Member Context",
 		"Focus on the initiative portfolio first.",
 		"Review `swarm-manager overview --format json` before broad repo signals.",
-		"This team is running in `approval` decision mode.",
 		"Do not create, import, or rename a team",
 		"End your final response with a `## HANDOFF` section as the last section, then stop.",
 	} {
@@ -821,13 +799,12 @@ func TestBundledVisionWalkPrepPromptUsesMemberAwareStorage(t *testing.T) {
 
 	for _, want := range []string{
 		promptHeading(promptSectionKindActiveTaskBrief),
-		"Decision writes: not allowed for this member. Review decisions when useful; do not create them.",
+		"swarm-manager captures create",
+		"swarm-manager backlog create",
+		"swarm-manager backlog list --actor-id=<verified-profile-key>",
 		"Primitive availability for this member:",
-		"- decisions: `review-only`",
 		"- task board: `review-only`",
-		"- Decision writes are not allowed for this member.",
 		promptHeading(promptSectionKindTaskReminder),
-		"do not create decisions",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("bundled prompt missing %q", want)
@@ -837,7 +814,7 @@ func TestBundledVisionWalkPrepPromptUsesMemberAwareStorage(t *testing.T) {
 		"# Execution Brief",
 		"execution-brief",
 		"Always available:",
-		"team decision-add director-swarm",
+		"prompt-manager team task-add director-swarm",
 		"team task-add director-swarm",
 		"team task-update director-swarm",
 	} {
@@ -952,10 +929,7 @@ func TestBundledPromptMatrixHardCutoverInvariants(t *testing.T) {
 
 func assertMemberWriteCommandsMatchContract(t *testing.T, prompt, teamID string, member teamcontract.MemberContract) {
 	t.Helper()
-	if !memberCanWriteDecision(member) && strings.Contains(prompt, "team decision-add "+teamID) {
-		t.Fatalf("decision-add rendered for a member that cannot create decisions")
-	}
-	if !memberCanWriteKindOrPath(member, "knowledge", "knowledge.jsonl") && strings.Contains(prompt, "team knowledge-add "+teamID) {
+	if !memberCanWriteKindOrPath(member, "knowledge", "") && strings.Contains(prompt, "team knowledge-add "+teamID) {
 		t.Fatalf("knowledge-add rendered for a member that cannot write knowledge")
 	}
 	if !memberCanWriteKindOrPath(member, "task", "tasks.json") {
@@ -965,13 +939,6 @@ func assertMemberWriteCommandsMatchContract(t *testing.T, prompt, teamID string,
 			}
 		}
 	}
-}
-
-func memberCanWriteDecision(member teamcontract.MemberContract) bool {
-	if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat == 0 {
-		return false
-	}
-	return memberCanWriteKindOrPath(member, "decision", "decisions.jsonl")
 }
 
 func memberCanWriteKindOrPath(member teamcontract.MemberContract, kind, pathSuffix string) bool {
@@ -1108,12 +1075,7 @@ func expectedRequiredMemoryBlock(t *testing.T, configRoot, teamID, agentID strin
 	return b.String()
 }
 
-// TestActiveTaskBriefNoSwarmManagerLeak guards prompt-manager's engine purity:
-// the generic prompt-assembly engine must never emit a swarm-manager-specific
-// instruction string. Domain dispatch policy belongs in team/skill *data*
-// (member lane text), never hard-coded here. See store/models.go: "Prompt-manager
-// never parses Data — it belongs to the source system (e.g. swarm-manager)."
-func TestActiveTaskBriefNoSwarmManagerLeak(t *testing.T) {
+func TestActiveTaskBriefNamesUnifiedWorkFiling(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
 	fileStore := newFileStore(t, roots)
@@ -1143,11 +1105,14 @@ func TestActiveTaskBriefNoSwarmManagerLeak(t *testing.T) {
 		t.Fatalf("BuildStructured: %v", err)
 	}
 	brief := promptSectionContent(sections, promptSectionKindActiveTaskBrief)
-	// Construct the forbidden marker from parts so this guard does not itself
-	// contain the contiguous literal (which would trip the re-leak grep).
-	forbidden := "swarm-manager " + "backlog list"
-	if strings.Contains(brief, forbidden) || strings.Contains(brief, "SKIP any scenario") {
-		t.Fatalf("engine leak: brief must not hard-code swarm-manager instruction strings:\n%s", brief)
+	for _, want := range []string{
+		"swarm-manager captures create",
+		"swarm-manager backlog create",
+		"swarm-manager backlog list --actor-id=<verified-profile-key>",
+	} {
+		if !strings.Contains(brief, want) {
+			t.Fatalf("brief missing unified filing command %q:\n%s", want, brief)
+		}
 	}
 }
 
@@ -1164,17 +1129,16 @@ func TestActiveTaskBriefUsesHumanReadableWriteSurface(t *testing.T) {
 	team := newIndependentTestTeam("team-1", "Team One")
 	optional := false
 	team.OperatingContract.Documents.SharedState = append(team.OperatingContract.Documents.SharedState, teamcontract.SharedStateDocument{
-		ID:             "ledger",
-		Path:           teamcontract.PathRef{Base: teamcontract.BaseTeamShared, Path: "ledger.jsonl", Required: &optional, OptionalReason: "test fixture"},
+		ID:             "event-log",
+		Path:           teamcontract.PathRef{Base: teamcontract.BaseTeamShared, Path: "event-log.md", Required: &optional, OptionalReason: "test fixture"},
 		Kind:           teamcontract.TeamWorkingStateKindAppendOnlyEventLog,
 		Required:       false,
 		OptionalReason: "test fixture",
 	})
 	member := team.OperatingContract.Members["agent-1"]
 	member.AllowedWrites = []teamcontract.WriteRef{
-		{Base: teamcontract.BaseTeamShared, Path: "knowledge.jsonl"},
-		{Base: teamcontract.BaseTeamShared, Path: "decisions.jsonl"},
-		{Base: teamcontract.BaseTeamShared, Path: "ledger.jsonl"},
+		{Kind: "knowledge"},
+		{Base: teamcontract.BaseTeamShared, Path: "event-log.md"},
 		{Kind: "handoff"},
 	}
 	team.OperatingContract.Members["agent-1"] = member
@@ -1195,21 +1159,12 @@ func TestActiveTaskBriefUsesHumanReadableWriteSurface(t *testing.T) {
 		t.Fatalf("active task brief not found")
 	}
 	for _, want := range []string{
-		"- decision proposals",
 		"- knowledge observations and friction signals",
-		"- team working state `scenarios/prompt-manager/store/teams/team-1/shared/ledger.jsonl` (append-only event log)",
+		"- team working state `scenarios/prompt-manager/store/teams/team-1/shared/event-log.md` (append-only event log)",
 		"- final `## HANDOFF` continuity",
 	} {
 		if !strings.Contains(brief, want) {
 			t.Fatalf("active task brief missing %q:\n%s", want, brief)
-		}
-	}
-	for _, tooRaw := range []string{
-		"`scenarios/prompt-manager/store/teams/team-1/shared/decisions.jsonl`",
-		"`scenarios/prompt-manager/store/teams/team-1/shared/knowledge.jsonl`",
-	} {
-		if strings.Contains(brief, tooRaw) {
-			t.Fatalf("active task brief should use semantic label instead of raw path %q:\n%s", tooRaw, brief)
 		}
 	}
 }
@@ -1287,116 +1242,4 @@ func TestBuildContextIncludesAllOtherSections(t *testing.T) {
 			t.Fatalf("BuildContext should include %q section", section)
 		}
 	}
-}
-
-// decisionCapNumbers extracts every integer stated in a prompt section's
-// decision-cap region, so the two renderers can be compared without coupling
-// the test to either one's phrasing.
-func decisionCapNumbers(t *testing.T, section, startMarker string) []int {
-	t.Helper()
-	idx := strings.Index(section, startMarker)
-	if idx < 0 {
-		return nil
-	}
-	region := section[idx+len(startMarker):]
-	// The brief states caps on a single line; the operating policy uses a
-	// bullet list terminated by the next blank line or heading.
-	if end := strings.Index(region, "\n\n"); end >= 0 {
-		region = region[:end]
-	}
-	var numbers []int
-	for _, field := range strings.FieldsFunc(region, func(r rune) bool { return r < '0' || r > '9' }) {
-		n, err := strconv.Atoi(field)
-		if err != nil {
-			t.Fatalf("parse cap number %q: %v", field, err)
-		}
-		numbers = append(numbers, n)
-	}
-	sort.Ints(numbers)
-	return numbers
-}
-
-// TestPromptSectionsAgreeOnDecisionCaps walks the live roster and proves that
-// "# Active Task Brief" and "# Operating Policy" never state different
-// new-decision caps for the same member.
-//
-// Regression guard: buildMemberStoragePolicy previously carried only
-// newDecisionCapPerHeartbeat, so every member capped by
-// newDecisionCapsByContext read "no explicit per-heartbeat cap" in the brief
-// while the operating policy 240 lines later named real caps.
-func TestPromptSectionsAgreeOnDecisionCaps(t *testing.T) {
-	ctx := context.Background()
-	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-	builder := NewPromptBuilder(teamStore, fileStore.Agents().(*store.FileAgentStore))
-
-	teams, err := teamStore.List(ctx)
-	if err != nil {
-		t.Fatalf("list teams: %v", err)
-	}
-	if len(teams) == 0 {
-		t.Fatalf("expected at least one bundled team")
-	}
-
-	checked := 0
-	for _, team := range teams {
-		if team.OperatingContract == nil {
-			continue
-		}
-		for memberID, member := range team.OperatingContract.Members {
-			sections, err := builder.BuildStructured(ctx, PromptBuildRequest{TeamID: team.ID, AgentID: memberID})
-			if err != nil {
-				t.Fatalf("build %s/%s: %v", team.ID, memberID, err)
-			}
-			var brief, policy string
-			for _, section := range sections {
-				switch section.Kind {
-				case promptSectionKindActiveTaskBrief:
-					brief = section.Content
-				case promptSectionKindOperatingPolicy:
-					policy = section.Content
-				}
-			}
-			if brief == "" || policy == "" {
-				t.Fatalf("%s/%s: missing brief or operating-policy section", team.ID, memberID)
-			}
-
-			declaresCap := member.NewDecisionCapPerHeartbeat != nil || len(member.NewDecisionCapsByContext) > 0
-			if declaresCap && strings.Contains(brief, "no explicit per-heartbeat cap") {
-				t.Errorf("%s/%s: brief claims no per-heartbeat cap while the contract declares one", team.ID, memberID)
-			}
-
-			// Every capped context must be named in the brief, not only in the
-			// operating policy the agent reads much later.
-			for contextID := range member.NewDecisionCapsByContext {
-				if !strings.Contains(brief, contextID) {
-					t.Errorf("%s/%s: brief omits capped decision context %q", team.ID, memberID, contextID)
-				}
-			}
-
-			if !strings.Contains(brief, "Decision cap: ") {
-				// Decision writes are not allowed for this member; the
-				// operating policy must not advertise a nonzero cap.
-				for _, n := range decisionCapNumbers(t, policy, "\nDecision caps:\n") {
-					if n != 0 {
-						t.Errorf("%s/%s: brief forbids decision writes while operating policy states cap %d", team.ID, memberID, n)
-					}
-				}
-				checked++
-				continue
-			}
-
-			briefNumbers := decisionCapNumbers(t, brief, "Decision cap: ")
-			policyNumbers := decisionCapNumbers(t, policy, "\nDecision caps:\n")
-			if !slices.Equal(briefNumbers, policyNumbers) {
-				t.Errorf("%s/%s: decision caps disagree across prompt sections.\n  brief:  %v\n  policy: %v\n  brief line: %s",
-					team.ID, memberID, briefNumbers, policyNumbers, strings.SplitN(brief[strings.Index(brief, "Decision cap: "):], "\n", 2)[0])
-			}
-			checked++
-		}
-	}
-	if checked == 0 {
-		t.Fatalf("expected to check at least one bundled member")
-	}
-	t.Logf("checked decision-cap agreement across %d bundled members", checked)
 }

@@ -15,11 +15,11 @@ If it says what is true -> Plan of Record.
 If it says how to decide -> Skill.
 If it says what to run -> Action.
 If it says how it works -> CLI implementation.
-If it says what is missing -> Backlog/capability-gap.
+If it says what is missing -> Backlog/capability work item.
 If it is unverified or one-off -> keep as typed evidence.
 ```
 
-Action promotion is valid only when one Vrooli-controlled CLI command already owns the deterministic operation or a draft Action exists and needs promotion. If the typed evidence describes branching, manual workarounds, or missing command behavior, propose CLI-backlog or capability-gap first.
+Action promotion is valid only when one Vrooli-controlled CLI command already owns the deterministic operation or a draft Action exists and needs promotion. If the typed evidence describes branching, manual workarounds, or missing command behavior, propose CLI-backlog or capability work item first.
 
 ## Available Skills
 

@@ -39,7 +39,7 @@ Apply the cross-cutting [essay-shape technique](../../../methods/post-techniques
 Specific to dev-logs:
 - **Range:** 3-7 tweets per X thread is a typical range, *not* a structural cap. Body tweets may exceed 280 chars per the asymmetry technique. Blog version: 500-2000 words.
 - **Work-in-progress is explicitly labeled.** "This is shipping — here's what works and what's still rough" is honest builder voice; "we're proud to launch X" is voice drift.
-- **Inter-post linkage** ([technique](../../../methods/post-techniques/inter-post-linkage.md)): each post after the first cites the prior post's URL via `previous_post_url` in `marketing-crew/shared/publish-log.jsonl`.
+- **Inter-post linkage** ([technique](../../../methods/post-techniques/inter-post-linkage.md)): each post after the first cites the prior post's URL via `previous_post_url` in `content-desk publish-history records`.
 
 ## Voice (dev-log-specific application)
 
@@ -57,7 +57,7 @@ Every change shown carries its own reason-to-care.
 
 The why connects to broader narrative: last post's setup, next post's payoff, the project's vision. **Show only changes that actually matter; do not narrate every commit.**
 
-The mechanism: use `marketing-crew/shared/published-improvements-log.jsonl` to track what's already been narrated per scenario, so the next post advances the story rather than repeating it.
+The mechanism: use `content-desk improvement-history records` to track what's already been narrated per scenario, so the next post advances the story rather than repeating it.
 
 The corresponding contrarian failure mode is **what-without-why** (mode 12 in `STRATEGY.md`'s Anti-patterns).
 
@@ -75,12 +75,12 @@ The `marketing-contrarian` member skill ingests this section as type-level revie
 |---|---|---|
 | **Narrative-flatness** | The post reads as a changelog or atomic-tweet list rather than essay-shape (hook → intro → body → conclusion). | mode 9 (narrative-flatness) |
 | **What-without-why** | The post lists changes / line counts / commit refs without why-it-mattered framing tied to broader narrative. | mode 12 (what-without-why) |
-| **Missing-introduction-on-first-mention** | The post refers to a scenario / agent / named file by name with no prior mention in `published-scenario-mentions.jsonl` for the target audience AND no introduction in the draft itself. | mode 11 |
+| **Missing-introduction-on-first-mention** | The post refers to a scenario / agent / named file by name with no prior mention in `content-desk subject-familiarity records` for the target audience AND no introduction in the draft itself. | mode 11 |
 | **Internal-vocabulary leakage** | Published copy uses internal artifact names (e.g., `p8`, `round-002`, batch ids) without translation. | mode 10 |
 | **Hype drift in feature claims** | Overpromising shipped scope; "soon" without a committed date; claims not verifiable in `docs/monetization/catalogs/skus/base/*.md` or in shipped commits. | mode 1 (hype drift) |
 | **Voice drift to corporate-marketer language** | "We're excited to announce," "supercharge," "transform," "unlock" replacing builder voice. | mode 2 (voice drift) |
 | **Engagement-metric hallucination** | Numbers without honesty flags (`measured / estimate / aspirational / pending-telemetry`). | mode 3 (hallucinated engagement metrics) |
-| **Capability-workaround without gap** | The post narrates a manual workaround the operator is doing, with no matching `capability-gap` decision or typed observation. | mode 8 |
+| **Capability-workaround without gap** | The post narrates a manual workaround the operator is doing, with no matching `capability-work` decision or typed observation. | mode 8 |
 
 Honesty flags the producer must attach to a dev-log draft:
 
@@ -94,7 +94,7 @@ Honesty flags the producer must attach to a dev-log draft:
 
 - [Essay-shape per post](../../../methods/post-techniques/essay-shape.md)
 - [Hook-vs-body length asymmetry](../../../methods/post-techniques/hook-vs-body-asymmetry.md)
-- [Intro-on-first-mention](../../../methods/post-techniques/intro-on-first-mention.md) (with `published-scenario-mentions.jsonl` lookup before assuming familiarity; subject-familiarity corollary applies to hook calibration)
+- [Intro-on-first-mention](../../../methods/post-techniques/intro-on-first-mention.md) (with `content-desk subject-familiarity records` lookup before assuming familiarity; subject-familiarity corollary applies to hook calibration)
 - [Inter-post linkage](../../../methods/post-techniques/inter-post-linkage.md)
 - [No internal numbering externally](../../../methods/post-techniques/no-internal-numbering-externally.md)
 
@@ -127,7 +127,7 @@ Honesty flags the producer must attach to a dev-log draft:
                                      ▼
                             operator manually posts;
                             operator pastes URL back into
-                            publish-log (until social-
+                            Content Desk publish history (until social-
                             media-scheduler ships)
 ```
 
@@ -139,7 +139,7 @@ Patterns observed during production runs of `x-dev-log` are written to `marketin
 - **This file** — observations that change strategic canon (audience model, conversion goal, new failure mode, type-specific voice rule).
 - **A `post-techniques/` file** — observations that turn out cross-cutting and apply to other post types.
 
-`brand-manager` curates the promotion path through the relevant canon, skill, scenario, config, or `capability-gap` decision.
+`brand-manager` curates the promotion path through the relevant canon, skill, scenario, config, or `capability-work` decision.
 
 ## Cross-references
 
@@ -147,7 +147,7 @@ Patterns observed during production runs of `x-dev-log` are written to `marketin
 - Plan-of-record neighbors: [`../../../strategy/STRATEGY.md`](../../../strategy/STRATEGY.md) (voice canon, voice samples — Sample 5 specifically illustrates the first-post intro burden), [`../../../strategy/AUDIENCES.md`](../../../strategy/AUDIENCES.md), [`../../../strategy/CHANNELS.md`](../../../strategy/CHANNELS.md), [`../../../strategy/ASSETS.md`](../../../strategy/ASSETS.md).
 - Craft observations: `marketing-craft-observation/dev-log/<slug>` — promotes mostly to `x-dev-log` skill.
 - Sibling post type: [`scenario-spotlight.md`](scenario-spotlight.md) — for contrast (asset-led, product-focused, conversion-funnel).
-- Persistence surfaces: `marketing-crew/shared/publish-log.jsonl` (URL paste-back), `marketing-crew/shared/published-scenario-mentions.jsonl` (familiarity tracking), `marketing-crew/shared/published-improvements-log.jsonl` (what-→-why de-duplication).
+- Persistence surfaces: `content-desk publish-history records` (URL paste-back), `content-desk subject-familiarity records` (familiarity tracking), `content-desk improvement-history records` (what-→-why de-duplication).
 
 ## Changelog
 

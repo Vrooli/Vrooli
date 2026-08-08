@@ -38,7 +38,7 @@
       "definition": "External skill or reusable prompt/process; may imply a missing capability.",
       "defaultMethod": "skill-opportunity-scan",
       "defaultDestinationPrefix": "skill-scan/<slug>",
-      "evidenceMinimum": "single-snapshot allowed; raise capability-gap when blocking"
+      "evidenceMinimum": "single-snapshot allowed; raise capability-work when blocking"
     },
     {
       "id": "channel",
@@ -71,9 +71,9 @@
   "actionSelection": {
     "drop": "Weak one-off / duplicate / out of scope. Delete the inbox row; mention in handoff if useful.",
     "observe": "Single-snapshot fact with applicability. Retag inbox row to the destination prefix with required front-matter.",
-    "promote-to-canon": "Converging evidence meets threshold. Retag plus raise the matching owned-context decision.",
-    "file-decision": "Operator should decide now. Raise the owned-context decision; delete the inbox row if the artifact lives elsewhere.",
-    "capability-gap": "Source / tool / scenario missing. File capability-gap decision and leave the inbox row until the gap is closed."
+    "promote-to-canon": "Converging evidence meets threshold. Retag plus raise the matching owned work item.",
+    "file-work": "Operator should decide now. Raise the owned work item; delete the inbox row if the artifact lives elsewhere.",
+    "capability-work": "Source / tool / scenario missing. File capability-work decision and leave the inbox row until the gap is closed."
   },
   "schemas": {
     "audience-scan": {
@@ -124,7 +124,7 @@
       "frontMatter": {
         "type": "skill-scan",
         "subject": "<text>",
-        "implies_capability_gap": "<true|false>",
+        "implies_work_item": "<true|false>",
         "honesty_flags": "[<...>]",
         "source": "<url-or-null>"
       },

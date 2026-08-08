@@ -18,7 +18,7 @@ Every number carries one:
 
 ## Sensor map
 
-Every target kind names its **sensor** (the exact command that observes it), its **deadband** (the error band inside which no finding is raised), and its **actuator** (the decision context that fires when out of band). The scanner reads the sensor named here; it does not re-derive how to measure a target each heartbeat. Deadband values are initial operator choices — the contrarian's hysteresis rules govern changing them.
+Every target kind names its **sensor** (the exact command that observes it), its **deadband** (the error band inside which no finding is raised), and its **actuator** (the work type that fires when out of band). The scanner reads the sensor named here; it does not re-derive how to measure a target each heartbeat. Deadband values are initial operator choices — the contrarian's hysteresis rules govern changing them.
 
 | Target kind | Sensor | Deadband (no finding while…) | Actuator |
 |---|---|---|---|
@@ -35,6 +35,7 @@ Every target kind names its **sensor** (the exact command that observes it), its
 | Capability availability | — (roadmap Gap 11: per-owner derived aggregates — availability/coverage history queryable from each capability owner) | per-owner, once baselined | `instrumentation-gap` until Gap 11 ships; then `runtime-health-finding`, with repeated unabsorbed degradation escalating per operating-model rule 1 |
 | Burst attribution | — (roadmap Gap 12: sustained host CPU/RAM saturation → owning scenario/run) | — | `instrumentation-gap` until shipped |
 | Storage growth-slope | `storage-manager infra-health --json` — closed device census, growth slope, and `declared_ceiling_measured_coverage` | measured bytes under a declared ceiling; investigate sustained positive slope or falling coverage | `runtime-health-finding` |
+| Test Genie validation cost and cache reliability | `test-genie runs cost --window 7d --json` — phase duration, reliability composition, cache-hit count/rate, and calibration decision | reliable samples only; investigate missing reliable calibration, cache-hit rate below the declared audit-adjusted target, or net saving ≤ audit cost | `runtime-health-finding` |
 
 ## Sensor integrity
 
@@ -119,7 +120,7 @@ Capability owners (search-hub, test-genie, prompt-manager, meta-optimization-man
 | Capability owner | Aggregate supervised | Target | Current state | Notes |
 |---|---|---|---|---|
 | search-hub | provider coverage % and degraded-member count over currently-registered providers | in band per owner-declared thresholds (`aspirational`) | `pending-telemetry` | Availability state is in-memory only today (circuit breaker + on-demand status probe) — Gap 11 |
-| test-genie | phase runnability across the declared phase catalog (run / run_degraded / skip rates) | in band (`aspirational`) | `pending-telemetry` | The per-phase provider-readiness gate exists and is the model contract; a queryable aggregate/history surface is Gap 11 |
+| test-genie | phase runnability and validation cost across the declared phase catalog (run / run_degraded / skip rates, reliable duration composition, cache-hit rate, audit/demotion count) | in band (`aspirational`) | `measured` — `test-genie runs cost --window 7d --json` is the canonical sensor; the current local store contains 18,962 phase rows and 13,769 passed rows in the seven-day window, with architecture averaging 14,353.9 ms and contracts 13,628.0 ms before cache-hit persistence was enabled | The provider-readiness gate, reliability-aware planner, and cache provenance are now the model contract; infra-health owns the aggregate signal and test-genie owns phase semantics |
 | meta-optimization-manager | projection availability (Answer / Validate / Guide owners reachable) | in band (`aspirational`) | `pending-telemetry` | Projections degrade honestly to UNAVAILABLE today but no history is kept — Gap 11 |
 
 **Scope boundary.** Search-performance optimization, embedding centralization, provider-less search availability, and any other capability-architecture evolution are roadmap work for the capability owner or the meta-optimization team. Infra-health's entire role here is supplying the measured out-of-band aggregate that justifies such work — it proposes no architecture and names no solution.
@@ -142,6 +143,8 @@ The tighten/loosen asymmetry is deliberate hysteresis: slow to tighten, evidence
 ## Change log
 
 - `2026-08-03` — Storage growth-slope shipped via storage-manager's closed device census and declared-ceiling coverage metric; Gap 12's storage half is now measured.
+
+- `2026-08-08` — Test Genie validation-cost signal added: `runs cost --window 7d --json` is the sensor for reliable phase duration, calibration freshness, cache-hit rate, audit cost, and demotion evidence. Initial local evidence was 18,962 phase rows / 13,769 passed rows in seven days; architecture and contracts were the measured decomposition candidates. The baseline collection wait also filed as recurring run-execution friction (`knw-1786168827604399514`).
 
 - `2026-07-24` (round 4) — Resume-readiness fixes (operator session, teams paused): de-enumerated the supervised-set coverage current-state cell — the unsupervised set is now named by derivation (running set minus the seeded supervised-config list) and counts, never a member roster, per the § Supervised-set coverage no-enumeration rule; changed the capability-availability sensor-map actuator to `instrumentation-gap` until Gap 11 ships (mirroring the burst-attribution / storage growth-slope rows), reverting to `runtime-health-finding` with escalation once the aggregate persists.
 - `2026-07-24` (round 3) — Cascade completion (operator session, teams paused): added the supervised-set coverage target (symmetric twin of the ghost rule; should-be-supervised set defined by derivation — core-set closure ∪ load-bearing declared capability members — never enumeration) and capability availability targets (per-owner derived aggregates for search-hub / test-genie / meta-optimization-manager, all `pending-telemetry` pending Gap 11), with the contract-not-roster scope boundary. Alarm-flood current state updated to 1,058/24h (2026-07-24 re-read, tail-dominated). New sensor-map rows: supervised-set coverage, capability availability, burst attribution, storage growth-slope.

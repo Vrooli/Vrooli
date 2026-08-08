@@ -4,6 +4,11 @@
   "id": "scenario-qa",
   "displayName": "Scenario QA Team",
   "mission": "Ensure scenario quality through structural quality audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes — producing evidence-rich backlog items, audit logs, investigation logs, and challenge notes that downstream agents act on.",
+  "objectivesServed": [
+    {
+      "id": "I1"
+    }
+  ],
   "enabled": true,
   "runtime": {
     "mode": "multi-process"
@@ -17,7 +22,6 @@
       "injectInbox": false,
       "allowPeerTriggers": false,
       "showTaskBoardGuidance": false,
-      "showDecisionLogGuidance": false,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
@@ -26,7 +30,6 @@
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 4
   },
-  "decisionMode": "yolo",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
@@ -49,33 +52,10 @@
       "prefix": "bug-investigation-report/<slug>",
       "status": "live",
       "purpose": "Closed bug-investigation audit log with root cause, evidence, action taken, and remaining gaps."
-    },
-    {
-      "prefix": "challenge-report/<slug>",
-      "status": "live",
-      "purpose": "Append-only contrarian challenge evidence for scenario-qa findings, investigations, and backlog decisions."
-    },
-    {
-      "prefix": "challenge-resolution-record/<slug>",
-      "status": "live",
-      "purpose": "Latest-state record for a scenario-qa challenge: open, author-responded, resolved, escalated, overridden, or stale."
     }
   ],
   "operatingContract": {
     "schemaVersion": 1,
-    "governance": {
-      "decisionMode": "yolo",
-      "teamPendingCeiling": {
-        "value": 20,
-        "readOnlyWhenAtOrAbove": false,
-        "rationale": "Scenario QA produces backlog artifacts and audit-log entries rather than operator-approval decisions; the ceiling guards against unbounded pending-decision growth on bug-resolution-proposal."
-      },
-      "supersession": {
-        "requiredBeforeNewDecision": true,
-        "allowedInReadOnlyMode": true,
-        "replacementMustSetSupersedes": true
-      }
-    },
     "documents": {
       "planOfRecord": [
         {
@@ -110,14 +90,14 @@
               "path": "docs/scenario-qa/methods/readiness/README.md"
             }
           ],
-          "writePolicy": "operator-curated-via-decisions",
+          "writePolicy": "operator-curated-via-swarm-manager",
           "consumers": [
             "scenario-qa",
             "swarm-manager",
             "meta-optimization"
           ],
           "rationale": "Strategic canon for scenario-qa: team plan-of-record overview, operating model, bug-report taxonomy, and three paired-doc-and-skill technique registries (investigation, audit, readiness).",
-          "useFor": "QA mission, member roster, decision contexts, bug-report schemas, audit-technique applicability, investigation-technique applicability, future technique graduation"
+          "useFor": "QA mission, member roster, work types, bug-report schemas, audit-technique applicability, investigation-technique applicability, future technique graduation"
         }
       ],
       "sharedState": [
@@ -129,55 +109,8 @@
           },
           "kind": "charter",
           "required": true
-        },
-        {
-          "id": "decisions-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
-          },
-          "kind": "decision-log",
-          "required": true
-        },
-        {
-          "id": "handoff-history-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "handoff-history.jsonl"
-          },
-          "kind": "handoff-log",
-          "required": true
-        },
-        {
-          "id": "knowledge-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          "kind": "knowledge-log",
-          "required": true
         }
       ]
-    },
-    "decisionContexts": {
-      "quality-audit-backlog": {
-        "ownerMemberIds": [
-          "quality-auditor"
-        ],
-        "description": "Judgment-based structural audit findings converted into Swarm Manager execute backlog items."
-      },
-      "bug-resolution-proposal": {
-        "ownerMemberIds": [
-          "bug-investigator"
-        ],
-        "description": "Cross-cutting fixes that require operator approval — for example, renaming a CLI verb because three bugs trace to its ambiguous name; refactoring a skill section that recurs as prompt-confusion; canonicalizing a data-shape that has drifted across producers."
-      },
-      "capability-gap": {
-        "ownerMemberIds": [
-          "bug-investigator"
-        ],
-        "description": "Missing source access, tooling, scenario capability, investigation support, or QA infrastructure that blocks a scenario-quality investigation or remediation path."
-      }
     },
     "knowledgeTopics": {
       "quality-audit/<scenario-id>/<skill-id>": {
@@ -201,34 +134,15 @@
         "ownerMemberId": "bug-investigator",
         "supersedesPrevious": false,
         "retention": "append-only",
-        "comment": "Audit log of closed bugs; one entry per investigation. Drives technique-graduation decisions on meta-self-improvement."
-      },
-      "challenge-report/<slug>": {
-        "ownerMemberId": "qa-contrarian",
-        "supersedesPrevious": false,
-        "retention": "append-only",
-        "comment": "Cross-cutting challenge-report entries on scenario-qa member outputs. Follow docs/agent-system/CONTRARIAN_REVIEW.md for resolution flow."
-      },
-      "challenge-resolution-record/<slug>": {
-        "ownerMemberId": "qa-contrarian",
-        "supersedesPrevious": true,
-        "retention": "snapshot",
-        "comment": "Latest-state record for a qa-contrarian challenge."
+        "comment": "Audit log of closed bugs; one entry per investigation. Drives technique-graduation work items on meta-self-improvement."
       }
     },
     "members": {
       "quality-auditor": {
         "lane": "Perform structural quality audits using the audit-technique rotation and create execute backlog items with draft plans when findings are material.",
-        "ownedDecisionContexts": [
-          "quality-audit-backlog"
-        ],
-        "pendingOwnedDecisionCap": 6,
         "allowedWrites": [
           {
             "kind": "knowledge"
-          },
-          {
-            "kind": "decision"
           },
           {
             "kind": "task"
@@ -248,12 +162,9 @@
           "Do not repeat a scenario/skill quality audit within seven days."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
-        "newDecisionCapPerHeartbeat": 1,
         "taskParameters": {
           "recencyWindowDays": 7,
           "rotationSource": "derived",
@@ -263,17 +174,9 @@
       },
       "bug-investigator": {
         "lane": "Drain bug-inbox/* (universal-source — any team may write via the report-bug skill). Apply a registered investigation technique, identify root cause, take the smallest useful action, write a bug-investigation-report/<slug> audit-log entry on close.",
-        "ownedDecisionContexts": [
-          "bug-resolution-proposal",
-          "capability-gap"
-        ],
-        "pendingOwnedDecisionCap": 4,
         "allowedWrites": [
           {
             "kind": "knowledge"
-          },
-          {
-            "kind": "decision"
           },
           {
             "kind": "task"
@@ -294,12 +197,9 @@
           "Close every drained entry with a bug-investigation-report/<slug> audit-log entry — never silently delete a bug-inbox entry."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
-        "newDecisionCapPerHeartbeat": 1,
         "taskParameters": {
           "newInvestigationsPerHeartbeat": 1,
           "severityOrdered": true,
@@ -307,9 +207,7 @@
         }
       },
       "qa-contrarian": {
-        "lane": "Read peer scenario-qa member outputs (bug-investigation-reports, audits, readiness backlog) and write challenge-report/* plus challenge-resolution-record/* entries citing specific failure modes from docs/scenario-qa/{investigation,audit}-techniques/. Does not generate positive-action proposals.",
-        "ownedDecisionContexts": [],
-        "pendingOwnedDecisionCap": 0,
+        "lane": "Read peer scenario-qa member outputs (bug-investigation-reports, audits, readiness backlog) and write Swarm Manager review evidence/* plus Swarm Manager review state/* entries citing specific failure modes from docs/scenario-qa/{investigation,audit}-techniques/. Does not generate positive-action proposals.",
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -319,9 +217,6 @@
           }
         ],
         "forbiddenWrites": [
-          {
-            "kind": "decision"
-          },
           {
             "kind": "task"
           },
@@ -333,16 +228,12 @@
         "safetyCriticalRules": [
           "Every challenge-note must cite a specific failure mode from a registered technique's PoR doc 'What the qa-contrarian watches for' section. Free-form challenges are forbidden.",
           "Quiet heartbeats are valid; manufactured challenge is forbidden.",
-          "Cap at 3 challenge-notes per heartbeat.",
-          "Only write to challenge-report/* and challenge-resolution-record/*; do not write to peer-member knowledge prefixes (bug-inbox/, bug-investigation-report/, quality-audit/). The constraint is enforced by the topics.json output declaration and RESPONSIBILITIES.md, not by forbiddenWrites at the kind level."
+          "Cap at 3 challenge-notes per heartbeat."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": false,
           "stillWriteHandoff": true
         },
-        "newDecisionCapPerHeartbeat": 0,
         "taskParameters": {
           "challengeNotesPerHeartbeatCap": 3,
           "peerOutputsToReview": [

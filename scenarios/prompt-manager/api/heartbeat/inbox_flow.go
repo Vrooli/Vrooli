@@ -12,7 +12,6 @@ package heartbeat
 import (
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"prompt-manager/memberflow"
@@ -63,7 +62,7 @@ func RenderInboxFlow(in *inboxFlowInputs) string {
 	}
 	var b strings.Builder
 	b.WriteString(promptHeading(promptSectionKindInboxFlow) + "\n\n")
-	b.WriteString("You drain one or more team-knowledge inboxes. The mechanics, destinations, decisions, and dispatch below are generated from your topics.json and the taxonomies it cites. Do not paraphrase from memory; the generated text is the source of truth.\n")
+	b.WriteString("You drain one or more team-knowledge inboxes. The mechanics, destinations, filing, and dispatch below are generated from your topics.json and the taxonomies it cites. Do not paraphrase from memory; the generated text is the source of truth.\n")
 
 	for _, intake := range in.memberFlow.Topics.Intake {
 		renderInboxBlock(&b, in, intake)
@@ -71,7 +70,6 @@ func RenderInboxFlow(in *inboxFlowInputs) string {
 
 	renderUniversalDrainProcedure(&b, in.teamID, &in.memberFlow.Topics)
 	renderDestinationsBlock(&b, in)
-	renderDecisionsBlock(&b, &in.memberFlow.Topics)
 	renderDispatchBlock(&b, in)
 
 	return strings.TrimRight(b.String(), "\n")
@@ -131,9 +129,9 @@ func renderUniversalDrainProcedure(b *strings.Builder, teamID string, topics *me
 	b.WriteString("2. Choose the smallest useful action from the taxonomy's `actionSelection` set:\n")
 	b.WriteString(fmt.Sprintf("   - **drop** — `prompt-manager team knowledge-delete %s <id>`\n", teamID))
 	b.WriteString(fmt.Sprintf("   - **observe** — `prompt-manager team knowledge-update %s <id> --topic=\"<destination-prefix>\"`\n", teamID))
-	b.WriteString("   - **promote-to-canon** — same as observe; pair with a decision when evidence converges\n")
-	b.WriteString("   - **file-decision** — raise an owned context; delete the inbox row if the artifact lives elsewhere\n")
-	b.WriteString("   - **capability-gap** — file `capability-gap` decision; leave the inbox entry until the gap is closed\n")
+	b.WriteString("   - **promote-to-canon** — same as observe; file the supporting evidence in the unified swarm work stream\n")
+	b.WriteString("   - **file-work** — create a typed capture or backlog item in swarm-manager; delete the inbox row if the artifact lives elsewhere\n")
+	b.WriteString("   - **capability work** — file a typed capture or backlog item in Swarm Manager; leave the inbox entry until the gap is closed\n")
 	b.WriteString("3. After routing, the entry must no longer carry an inbox topic-prefix. The inbox view is the unrouted set.\n")
 }
 
@@ -161,27 +159,6 @@ func renderDestinationsBlock(b *strings.Builder, in *inboxFlowInputs) {
 	}
 	if hasAnySchema(outputs) {
 		b.WriteString("\nFront-matter shapes for each schema are declared on the producer's taxonomy (see PoR links above).\n")
-	}
-}
-
-func renderDecisionsBlock(b *strings.Builder, topics *memberflow.Topics) {
-	if len(topics.DecisionsOwned) == 0 && len(topics.DecisionsConsumed) == 0 && !topics.RaisesCapabilityGaps {
-		return
-	}
-	b.WriteString("\n## Decisions\n\n")
-	b.WriteString("| Context | Role |\n|---|---|\n")
-	owned := append([]string(nil), topics.DecisionsOwned...)
-	sort.Strings(owned)
-	for _, ctx := range owned {
-		b.WriteString(fmt.Sprintf("| `%s` | own / propose |\n", ctx))
-	}
-	consumed := append([]string(nil), topics.DecisionsConsumed...)
-	sort.Strings(consumed)
-	for _, ctx := range consumed {
-		b.WriteString(fmt.Sprintf("| `%s` | consume |\n", ctx))
-	}
-	if topics.RaisesCapabilityGaps {
-		b.WriteString("| `capability-gap` | permitted to raise |\n")
 	}
 }
 

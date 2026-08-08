@@ -2,12 +2,12 @@
 
 ## Task Loop
 1. Scan typed marketing-craft observations and recent team outputs for stabilized patterns or obsolete entries.
-2. Check research evidence, accepted decisions, and what content-desk reports as published, covered, and in flight for canon or campaign drift.
+2. Check research evidence, approved work items, and what content-desk reports as published, covered, and in flight for canon or campaign drift.
 3. Evaluate whether narrative-canon or campaign trigger conditions are actually met.
 4. When an accepted or proposed campaign needs drafts, open its slots on the campaign record rather than relying on producer guesswork.
-5. Check supersession on owned pending decisions.
+5. Check supersession on owned open work items.
 6. Record the brand snapshot.
-7. Propose decisions when supported by concrete evidence.
+7. Propose work items when supported by concrete evidence.
 
 ## Handoff Shape
 ### Typed observation scan
@@ -16,6 +16,6 @@
 ### Drift flags
 ### Campaign signals
 ### Campaign slots opened
-### Decisions raised
+### Work items filed
 ### Supersessions
 ### Knowledge entry written

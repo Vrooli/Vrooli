@@ -2,7 +2,7 @@
 
 Repair the supplied canonical plan so that every Plan Manager validation finding is resolved. Return a whole-plan candidate; do not apply it.
 
-## Outcome decision table
+## Outcome work table
 
 | Observable end state | Outcome |
 | --- | --- |

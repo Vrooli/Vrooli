@@ -64,36 +64,6 @@ func writeTasks(t *testing.T, sharedDir string, tasks []TeamTask) {
 	}
 }
 
-func writeDecisions(t *testing.T, sharedDir string, entries []DecisionEntry) {
-	t.Helper()
-	var content string
-	for _, e := range entries {
-		data, err := json.Marshal(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		content += string(data) + "\n"
-	}
-	if err := os.WriteFile(filepath.Join(sharedDir, "decisions.jsonl"), []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func writeKnowledge(t *testing.T, sharedDir string, entries []KnowledgeEntry) {
-	t.Helper()
-	var content string
-	for _, e := range entries {
-		data, err := json.Marshal(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		content += string(data) + "\n"
-	}
-	if err := os.WriteFile(filepath.Join(sharedDir, "knowledge.jsonl"), []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func readTasksBack(t *testing.T, s *FileTeamStore) []TeamTask {
 	t.Helper()
 	board, err := s.GetTaskBoard(context.Background(), "team-1")
@@ -205,101 +175,6 @@ func TestPruneSharedState_ActiveTasksUntouched(t *testing.T) {
 	}
 }
 
-func TestPruneSharedState_Decisions(t *testing.T) {
-	s, sharedDir := setupPruneTestStoreWithRetention(t, &RetentionConfig{
-		Decisions: &EntryRetention{MaxEntries: 50, MaxAgeDays: 0},
-	})
-
-	now := time.Now().UTC()
-	var entries []DecisionEntry
-	for i := 0; i < 80; i++ {
-		entries = append(entries, DecisionEntry{
-			ID:       fmt.Sprintf("dec-%d", i),
-			At:       now.Add(-time.Duration(80-i) * time.Hour).Format(time.RFC3339),
-			By:       "agent-1",
-			Decision: fmt.Sprintf("Decision %d", i),
-		})
-	}
-	writeDecisions(t, sharedDir, entries)
-
-	result, err := s.PruneSharedState(context.Background(), "team-1")
-	if err != nil {
-		t.Fatalf("PruneSharedState: %v", err)
-	}
-	if result.DecisionsRemoved != 30 {
-		t.Errorf("expected 30 decisions removed, got %d", result.DecisionsRemoved)
-	}
-
-	// Read back
-	remaining, _, err := s.GetDecisions(context.Background(), "team-1", "", "", 0)
-	if err != nil {
-		t.Fatalf("GetDecisions: %v", err)
-	}
-	if len(remaining) != 50 {
-		t.Errorf("expected 50 decisions remaining, got %d", len(remaining))
-	}
-	// Verify newest are kept
-	if remaining[0].ID != "dec-30" {
-		t.Errorf("expected first remaining to be dec-30, got %s", remaining[0].ID)
-	}
-}
-
-func TestPruneSharedState_DecisionAgeCutoff(t *testing.T) {
-	s, sharedDir := setupPruneTestStoreWithRetention(t, &RetentionConfig{
-		Decisions: &EntryRetention{MaxEntries: 0, MaxAgeDays: 30},
-	})
-
-	now := time.Now().UTC()
-	entries := []DecisionEntry{
-		{ID: "old", At: now.Add(-60 * 24 * time.Hour).Format(time.RFC3339), By: "a", Decision: "old"},
-		{ID: "new", At: now.Add(-1 * 24 * time.Hour).Format(time.RFC3339), By: "a", Decision: "new"},
-	}
-	writeDecisions(t, sharedDir, entries)
-
-	result, err := s.PruneSharedState(context.Background(), "team-1")
-	if err != nil {
-		t.Fatalf("PruneSharedState: %v", err)
-	}
-	if result.DecisionsRemoved != 1 {
-		t.Errorf("expected 1 decision removed, got %d", result.DecisionsRemoved)
-	}
-}
-
-func TestPruneSharedState_Knowledge(t *testing.T) {
-	s, sharedDir := setupPruneTestStoreWithRetention(t, &RetentionConfig{
-		Knowledge: &EntryRetention{MaxEntries: 50, MaxAgeDays: 0},
-	})
-
-	now := time.Now().UTC()
-	var entries []KnowledgeEntry
-	for i := 0; i < 80; i++ {
-		entries = append(entries, KnowledgeEntry{
-			ID:      fmt.Sprintf("know-%d", i),
-			At:      now.Add(-time.Duration(80-i) * time.Hour).Format(time.RFC3339),
-			Caller:  "agent-1",
-			Topic:   "test",
-			Content: fmt.Sprintf("Knowledge %d", i),
-		})
-	}
-	writeKnowledge(t, sharedDir, entries)
-
-	result, err := s.PruneSharedState(context.Background(), "team-1")
-	if err != nil {
-		t.Fatalf("PruneSharedState: %v", err)
-	}
-	if result.KnowledgeRemoved != 30 {
-		t.Errorf("expected 30 knowledge removed, got %d", result.KnowledgeRemoved)
-	}
-
-	remaining, err := s.GetKnowledge(context.Background(), "team-1", "", "", 0)
-	if err != nil {
-		t.Fatalf("GetKnowledge: %v", err)
-	}
-	if len(remaining) != 50 {
-		t.Errorf("expected 50 knowledge remaining, got %d", len(remaining))
-	}
-}
-
 func TestPruneSharedState_EmptyState(t *testing.T) {
 	s, _ := setupPruneTestStore(t)
 
@@ -307,9 +182,8 @@ func TestPruneSharedState_EmptyState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PruneSharedState: %v", err)
 	}
-	if result.TasksRemoved != 0 || result.DecisionsRemoved != 0 || result.KnowledgeRemoved != 0 {
-		t.Errorf("expected all zeros, got tasks=%d decisions=%d knowledge=%d",
-			result.TasksRemoved, result.DecisionsRemoved, result.KnowledgeRemoved)
+	if result.TasksRemoved != 0 {
+		t.Errorf("expected zero tasks removed, got %d", result.TasksRemoved)
 	}
 }
 
@@ -336,114 +210,5 @@ func TestPruneSharedState_NilRetention(t *testing.T) {
 	}
 	if result.TasksRemoved != 10 {
 		t.Errorf("expected 10 tasks removed with default retention, got %d", result.TasksRemoved)
-	}
-}
-
-func TestPruneSharedState_CustomRetention(t *testing.T) {
-	s, sharedDir := setupPruneTestStoreWithRetention(t, &RetentionConfig{
-		Tasks:     &TaskRetention{MaxCompleted: 5, MaxAgeDays: 0},
-		Decisions: &EntryRetention{MaxEntries: 10, MaxAgeDays: 0},
-		Knowledge: &EntryRetention{MaxEntries: 3, MaxAgeDays: 0},
-	})
-
-	now := time.Now().UTC()
-
-	// 15 done tasks
-	var tasks []TeamTask
-	for i := 0; i < 15; i++ {
-		tasks = append(tasks, TeamTask{
-			ID:        fmt.Sprintf("task-%d", i),
-			Status:    "done",
-			UpdatedAt: now.Add(-time.Duration(15-i) * time.Hour).Format(time.RFC3339),
-		})
-	}
-	writeTasks(t, sharedDir, tasks)
-
-	// 20 decisions
-	var decisions []DecisionEntry
-	for i := 0; i < 20; i++ {
-		decisions = append(decisions, DecisionEntry{
-			ID: fmt.Sprintf("dec-%d", i),
-			At: now.Add(-time.Duration(20-i) * time.Hour).Format(time.RFC3339),
-		})
-	}
-	writeDecisions(t, sharedDir, decisions)
-
-	// 10 knowledge
-	var knowledge []KnowledgeEntry
-	for i := 0; i < 10; i++ {
-		knowledge = append(knowledge, KnowledgeEntry{
-			ID: fmt.Sprintf("know-%d", i),
-			At: now.Add(-time.Duration(10-i) * time.Hour).Format(time.RFC3339),
-		})
-	}
-	writeKnowledge(t, sharedDir, knowledge)
-
-	result, err := s.PruneSharedState(context.Background(), "team-1")
-	if err != nil {
-		t.Fatalf("PruneSharedState: %v", err)
-	}
-	if result.TasksRemoved != 10 {
-		t.Errorf("expected 10 tasks removed, got %d", result.TasksRemoved)
-	}
-	if result.DecisionsRemoved != 10 {
-		t.Errorf("expected 10 decisions removed, got %d", result.DecisionsRemoved)
-	}
-	if result.KnowledgeRemoved != 7 {
-		t.Errorf("expected 7 knowledge removed, got %d", result.KnowledgeRemoved)
-	}
-}
-
-func TestPruneSharedState_BothLimitsApplied(t *testing.T) {
-	s, sharedDir := setupPruneTestStoreWithRetention(t, &RetentionConfig{
-		Decisions: &EntryRetention{MaxEntries: 10, MaxAgeDays: 7},
-	})
-
-	now := time.Now().UTC()
-
-	// 15 decisions total:
-	//   5 very old (20-24 days ago)
-	//   4 moderately old (8-11 days ago, beyond 7-day cutoff)
-	//   6 recent (0-3 days ago, within 7-day cutoff)
-	var entries []DecisionEntry
-	for i := 0; i < 5; i++ {
-		entries = append(entries, DecisionEntry{
-			ID: fmt.Sprintf("ancient-%d", i),
-			At: now.Add(-time.Duration(20+i) * 24 * time.Hour).Format(time.RFC3339),
-		})
-	}
-	for i := 0; i < 4; i++ {
-		entries = append(entries, DecisionEntry{
-			ID: fmt.Sprintf("old-%d", i),
-			At: now.Add(-time.Duration(8+i) * 24 * time.Hour).Format(time.RFC3339),
-		})
-	}
-	for i := 0; i < 6; i++ {
-		entries = append(entries, DecisionEntry{
-			ID: fmt.Sprintf("new-%d", i),
-			At: now.Add(-time.Duration(i) * 24 * time.Hour).Format(time.RFC3339),
-		})
-	}
-	writeDecisions(t, sharedDir, entries)
-
-	result, err := s.PruneSharedState(context.Background(), "team-1")
-	if err != nil {
-		t.Fatalf("PruneSharedState: %v", err)
-	}
-
-	// maxEntries=10 first removes the 5 oldest (ancient-0 through ancient-4).
-	// Remaining 10: old-0..old-3 (8-11 days), new-0..new-5 (0-3 days, well within cutoff).
-	// maxAgeDays=7 then removes old-0..old-3 (all >7 days old) = 4 more.
-	// Total removed: 5 + 4 = 9. Remaining: 6 recent entries.
-	if result.DecisionsRemoved != 9 {
-		t.Errorf("expected 9 decisions removed, got %d", result.DecisionsRemoved)
-	}
-
-	remaining, _, err := s.GetDecisions(context.Background(), "team-1", "", "", 0)
-	if err != nil {
-		t.Fatalf("GetDecisions: %v", err)
-	}
-	if len(remaining) != 6 {
-		t.Errorf("expected 6 decisions remaining, got %d", len(remaining))
 	}
 }

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestGetKnowledge_TopicFilters(t *testing.T) {
+func TestListTeamCorpus_TopicFilters(t *testing.T) {
 	s := setupStateTestStore(t)
 	ctx := context.Background()
 
@@ -16,15 +16,15 @@ func TestGetKnowledge_TopicFilters(t *testing.T) {
 		{ID: "k4", At: "2026-05-01T00:00:03Z", Caller: "researcher", Topic: "research-inbox", Content: "d"},
 	}
 	for i := range entries {
-		if err := s.AppendKnowledge(ctx, "team-1", &entries[i]); err != nil {
-			t.Fatalf("AppendKnowledge[%d]: %v", i, err)
+		if err := s.AppendTeamCorpus(ctx, "team-1", &entries[i]); err != nil {
+			t.Fatalf("AppendTeamCorpus[%d]: %v", i, err)
 		}
 	}
 
 	t.Run("no filter returns all", func(t *testing.T) {
-		got, err := s.GetKnowledge(ctx, "team-1", "", "", 0)
+		got, err := s.ListTeamCorpus(ctx, "team-1", "", "", 0)
 		if err != nil {
-			t.Fatalf("GetKnowledge: %v", err)
+			t.Fatalf("ListTeamCorpus: %v", err)
 		}
 		if len(got) != 4 {
 			t.Errorf("want 4 entries, got %d", len(got))
@@ -32,9 +32,9 @@ func TestGetKnowledge_TopicFilters(t *testing.T) {
 	})
 
 	t.Run("exact topic matches only the literal topic", func(t *testing.T) {
-		got, err := s.GetKnowledge(ctx, "team-1", "research-inbox", "", 0)
+		got, err := s.ListTeamCorpus(ctx, "team-1", "research-inbox", "", 0)
 		if err != nil {
-			t.Fatalf("GetKnowledge: %v", err)
+			t.Fatalf("ListTeamCorpus: %v", err)
 		}
 		if len(got) != 1 || got[0].ID != "k4" {
 			t.Errorf("want exactly k4, got %+v", got)
@@ -42,9 +42,9 @@ func TestGetKnowledge_TopicFilters(t *testing.T) {
 	})
 
 	t.Run("topic prefix matches hierarchical entries under the prefix", func(t *testing.T) {
-		got, err := s.GetKnowledge(ctx, "team-1", "", "research-inbox/", 0)
+		got, err := s.ListTeamCorpus(ctx, "team-1", "", "research-inbox/", 0)
 		if err != nil {
-			t.Fatalf("GetKnowledge: %v", err)
+			t.Fatalf("ListTeamCorpus: %v", err)
 		}
 		if len(got) != 2 {
 			t.Fatalf("want 2 entries (k1, k2), got %d: %+v", len(got), got)
@@ -56,9 +56,9 @@ func TestGetKnowledge_TopicFilters(t *testing.T) {
 	})
 
 	t.Run("topic prefix without trailing slash also matches the bare topic", func(t *testing.T) {
-		got, err := s.GetKnowledge(ctx, "team-1", "", "research-inbox", 0)
+		got, err := s.ListTeamCorpus(ctx, "team-1", "", "research-inbox", 0)
 		if err != nil {
-			t.Fatalf("GetKnowledge: %v", err)
+			t.Fatalf("ListTeamCorpus: %v", err)
 		}
 		if len(got) != 3 {
 			t.Errorf("want 3 entries (k1, k2, k4), got %d", len(got))
@@ -66,9 +66,9 @@ func TestGetKnowledge_TopicFilters(t *testing.T) {
 	})
 
 	t.Run("last caps results to most recent N", func(t *testing.T) {
-		got, err := s.GetKnowledge(ctx, "team-1", "", "research-inbox/", 1)
+		got, err := s.ListTeamCorpus(ctx, "team-1", "", "research-inbox/", 1)
 		if err != nil {
-			t.Fatalf("GetKnowledge: %v", err)
+			t.Fatalf("ListTeamCorpus: %v", err)
 		}
 		if len(got) != 1 || got[0].ID != "k2" {
 			t.Errorf("want most recent prefix-matching entry k2, got %+v", got)

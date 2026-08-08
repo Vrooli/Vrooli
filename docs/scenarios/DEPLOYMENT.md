@@ -1,72 +1,54 @@
-# Scenario Deployment
+# Scenario deployment contract
 
-This page provides the scenario-system view of deployment.
+This page defines what a scenario author must declare. It does not describe
+how a packager implements a target.
 
-## Current Truth
+The project-level deployment model and maturity status live in the
+[Deployment Hub](../deployment/README.md). Target-specific implementation
+guides live with the owning `scenario-to-*` scenario.
 
-The canonical deployment truth for the platform lives in:
+## Current baseline
 
-- [../deployment/README.md](../deployment/README.md)
+The supported reference path is **deployment Tier 1: the local Vrooli stack**.
+Scenarios run through the lifecycle-managed control plane and may use the
+resources available to that installation.
 
-From the scenario-system perspective, the most important current facts are:
+Portability beyond that baseline is target-specific. A scenario is not desktop,
+mobile, cloud, or appliance-ready merely because its Tier 1 process starts or
+its UI builds.
 
-- Tier 1 is the mature deployment path today
-- scenario-local lifecycle flows matter
-- portability beyond Tier 1 depends on deployment intelligence, dependency fitness, and target-specific constraints
-- scenario docs should be explicit about their intended deployment tier instead of implying universal portability
+## Author responsibilities
 
-## Tier 1
+A scenario that wants a target evaluated must provide:
 
-For current supported operation, think in terms of a full Vrooli stack running locally or on a development server.
+- honest dependencies in `.vrooli/service.json`;
+- a deployment profile or target declaration appropriate to the target;
+- target-specific credentials and secret strategies;
+- migrations or compatibility notes for any dependency swap;
+- `bas/` workflows for the user journeys that prove the scenario works;
+- documented limitations when a capability is conditional, degraded, or remote.
 
-Useful commands:
+The author must not silently omit dependencies to improve a fitness score or
+describe a remote capability as offline.
 
-```bash
-vrooli scenario start <name>
-vrooli scenario test <name>
-vrooli scenario logs <name>
-```
+## Ownership
 
-Preferred local workflow:
+| Concern | Owner |
+| --- | --- |
+| Scenario behavior and dependency declarations | Scenario author |
+| Dependency graph and target fitness | `scenario-dependency-analyzer` |
+| Approval, release gate, and release record | `deployment-manager` |
+| Target packaging and native runtime | `scenario-to-*` ramp |
+| Credential classification and secure storage | `secrets-manager` and the credential authority |
+| Journey and target evidence | Test Genie, evidence producers, and the ramp |
 
-```bash
-cd scenarios/<scenario-name>
-make start
-make test
-make logs
-make stop
-```
+Scenario code should consume these contracts. It should not grow a second
+packaging or release system.
 
-## Beyond Tier 1
+## Target references
 
-Desktop, mobile, SaaS, and appliance-style deployment paths are important, but they are not all equally mature today.
-
-Scenario docs should therefore:
-
-- avoid implying universal portability
-- point readers to the Deployment Hub
-- keep scenario-specific deployment metadata honest
-- distinguish current operation from target future packaging
-
-## Who Owns What
-
-Scenario authors do not implement deployment. Two other scenarios own it:
-
-- `deployment-manager` decides whether a build may ship and records what shipped. It is tier-agnostic.
-- A `scenario-to-*` ramp builds, packages, signs, and publishes for one target family. It asks `deployment-manager` for a gate decision before it publishes.
-
-A scenario being deployed supplies three things and nothing else:
-
-- a deployment profile in `deployment-manager` naming its tier and target platforms
-- `bas/` workflow assets describing the user flows that prove the scenario works
-- honest dependency declarations in `.vrooli/service.json`, which feed fitness scoring
-
-See [../deployment/README.md](../deployment/README.md) for the full plane model.
-
-## Guidance
-
-- treat deployment as tier-aware
-- do not revive older one-size-fits-all packaging stories
-- when in doubt, defer to the Deployment Hub
-- keep target-specific details in the owning scenario docs once they stop being cross-scenario guidance
-- do not add packaging or release logic to a scenario; it belongs to a ramp
+- [Deployment Hub](../deployment/README.md)
+- [Resource deployment contract](../resources/deployment-contract.md)
+- [Credential configuration](../configuration/secrets.md)
+- [Desktop evidence contract](../reference/scenario-to-desktop-evidence-and-tier-contract.md)
+- [Production UI bundle expectations](PRODUCTION_BUNDLES.md)

@@ -331,7 +331,7 @@ func TestApplyCLIHealthPolicy_SeesActionCommandAsScenarioCLI(t *testing.T) {
 			{ID: "cli:prompt-manager", Type: NodeCLI},
 		},
 		Edges: []Edge{
-			{From: "action:team.decisions.list", To: "cli:prompt-manager", Kind: EdgeActionCommand, Category: CodeScenarioCLI, Command: "prompt-manager"},
+			{From: "action:team.swarm.work.list", To: "cli:prompt-manager", Kind: EdgeActionCommand, Category: CodeScenarioCLI, Command: "prompt-manager"},
 		},
 	}
 	got := ApplyCLIHealthPolicy(context.Background(), g, nil, &fakeScenarioProvider{

@@ -2,7 +2,7 @@
 
 Fold the operator's response — their answers and accepted proposals — into one coherent whole-plan candidate. The base is the pinned plan in the snapshot; the response is the complete statement of what changes.
 
-## Outcome decision table
+## Outcome work table
 
 | Observable end state | Outcome |
 | --- | --- |

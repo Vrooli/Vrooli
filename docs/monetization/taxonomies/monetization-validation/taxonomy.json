@@ -46,14 +46,14 @@
     "Label single-snapshot findings `light-interpretation`.",
     "Tailwind references must be cited or flagged `tailwind-uncited`.",
     "Mixed external data stays conflicting; do not average into a fake clean number.",
-    "If source access is blocked, raise `capability-gap`; do not invent."
+    "If source access is blocked, raise `capability-work`; do not invent."
   ],
   "actionSelection": {
     "drop": "Duplicate / out of scope / low-leverage. Delete the queue entry.",
     "observe": "Single-snapshot fact below the materiality threshold. Retag queue entry to `monetization-benchmark-record/<slug>`; no decision.",
     "promote-to-canon": "Scan crosses the materiality threshold. Retag entry plus raise `benchmark-update` / `pricing-decision` / `financial-model-assumption-update`.",
-    "file-decision": "Decision-only outcome (e.g., assumption invalidated, no new scan). Raise the decision; delete the queue entry.",
-    "capability-gap": "Source / tool / scenario missing. File `capability-gap`; leave the queue entry until the gap is closed."
+    "file-work": "Decision-only outcome (e.g., assumption invalidated, no new scan). Raise the decision; delete the queue entry.",
+    "capability-work": "Source / tool / scenario missing. File `capability-work`; leave the queue entry until the gap is closed."
   },
   "schemas": {
     "market-scan": {

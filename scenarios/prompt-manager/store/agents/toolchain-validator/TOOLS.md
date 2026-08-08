@@ -9,7 +9,7 @@
 - `scenario-auditor scan <reference> --summary`
 - `test-genie run <reference>`
 - `tidiness-manager scan <reference>`
-- `prompt-manager team decision-list meta-optimization ...`
+- `swarm-manager backlog list meta-optimization ...`
 - `prompt-manager team knowledge-list meta-optimization ...`
 
 ## Usage Rules

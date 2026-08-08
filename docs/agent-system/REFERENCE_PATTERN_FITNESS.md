@@ -1,6 +1,6 @@
 # Audit Lens: Reference-Pattern Fitness
 
-**Status:** v1 (paired with new `reference-pattern-fitness` skill, 2026-05-04). Established by a `meta-self-improvement` decision filed against [`path:scenarios/prompt-manager/store/teams/meta-optimization/shared/decisions.jsonl`](../../scenarios/prompt-manager/store/teams/meta-optimization/shared/decisions.jsonl). Owned by the `toolchain-validator` member of the `meta-optimization` team.
+**Status:** v1 (paired with new `reference-pattern-fitness` skill, 2026-05-04). Established by a `meta-self-improvement` work item filed through Swarm Manager and recorded in the `team:meta-optimization` team ledger. Owned by the `toolchain-validator` member of the `meta-optimization` team.
 
 ## Definition
 

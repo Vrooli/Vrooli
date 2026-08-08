@@ -6,14 +6,11 @@ package memberflow
 // surface before the rule can enter the shared registry.
 func OperatingModelRuleCatalog() (RuleCatalog, error) {
 	entry := func(id string, group RuleGroup, description string) RuleCatalogEntry {
-		return RuleCatalogEntry{ID: id, Group: group, Severity: SeverityError, Kind: KindDeclaration, Description: description, Actuator: "Correct the operating-model document or route a team-owned content change through its decision context"}
+		return RuleCatalogEntry{ID: id, Group: group, Severity: SeverityError, Kind: KindDeclaration, Description: description, Actuator: "Correct the operating-model document or route a team-owned content change through its work item type"}
 	}
 	return NewRuleCatalog(
 		entry("operating_model_required_section_missing", OperatingModelRuleGroupStructure, "The operating model omits a required section."),
 		entry("operating_model_duplicate_section", OperatingModelRuleGroupStructure, "The operating model defines a required section more than once."),
-		entry("operating_model_decisions_header_drift", OperatingModelRuleGroupDecision, "The Decisions table header does not match the operating-model contract."),
-		entry("operating_model_decisions_empty", OperatingModelRuleGroupDecision, "The Decisions table has no declared decisions."),
-		entry("operating_model_decisions_row_incomplete", OperatingModelRuleGroupDecision, "A Decisions table row omits required information."),
 		entry("operating_model_external_inputs_table_missing", OperatingModelRuleGroupExternalInput, "The operating model omits its External Inputs table."),
 		entry("operating_model_external_inputs_header_drift", OperatingModelRuleGroupExternalInput, "The External Inputs table header does not match the contract."),
 		entry("operating_model_external_inputs_empty", OperatingModelRuleGroupExternalInput, "The External Inputs table has no declared inputs."),

@@ -14,7 +14,6 @@ func TestLoadTeamKeepsReadableInvalidTeamVisibleWithFindings(t *testing.T) {
 		t.Fatalf("load fixture: %v", err)
 	}
 	team.Runtime.Mode = "invalid-runtime"
-	team.DecisionMode = "invalid-decision-mode"
 	if err := SaveJSON(teamPath, team); err != nil {
 		t.Fatalf("write invalid fixture: %v", err)
 	}
@@ -26,8 +25,8 @@ func TestLoadTeamKeepsReadableInvalidTeamVisibleWithFindings(t *testing.T) {
 	if got == nil || got.ID != "team-1" {
 		t.Fatalf("Get team = %+v, want visible team", got)
 	}
-	if len(got.ValidationFindings) < 2 {
-		t.Fatalf("validation findings = %+v, want both configuration defects", got.ValidationFindings)
+	if len(got.ValidationFindings) < 1 {
+		t.Fatalf("validation findings = %+v, want runtime configuration defect", got.ValidationFindings)
 	}
 	if err := s.Update(context.Background(), "team-1", got); err == nil {
 		t.Fatal("Update accepted invalid contract")

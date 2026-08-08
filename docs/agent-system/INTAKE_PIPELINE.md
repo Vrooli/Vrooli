@@ -1,8 +1,26 @@
 # Intake Pipeline
 
-The canonical pattern for how external signals become structured evidence, decisions, skills, or capability-gap proposals. Cites `LAYERS.md`, `TEAM_MEMBER_ARCHITECTURE.md`, `PROMOTION_LADDER.md`, and `DECISIONS.md` (for what happens after the router files a decision). Validated by the [three pillars](PRIMITIVES.md#three-pillars-of-topic-validation): [`TOPICS_SCHEMA.md`](TOPICS_SCHEMA.md) (declarations), [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) (prose drift), [`RUNTIME_ATTRIBUTION.md`](RUNTIME_ATTRIBUTION.md) (observed writes).
+The canonical pattern for how external signals become structured evidence or
+one Swarm Manager work item. Cites `LAYERS.md`, `TEAM_MEMBER_ARCHITECTURE.md`,
+`PROMOTION_LADDER.md`, and `SWARM_MANAGER_WORK.md`. Validated by the [three
+pillars](PRIMITIVES.md#three-pillars-of-topic-validation): [`TOPICS_SCHEMA.md`](TOPICS_SCHEMA.md)
+(declarations), [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) (prose drift),
+and [`RUNTIME_ATTRIBUTION.md`](RUNTIME_ATTRIBUTION.md) (observed writes).
 
-This is the live model. Agents write observations to typed knowledge topics; durable truth moves through decisions into the owning plan of record or implementation work.
+This is the live model. Agents write durable observations to the team's Source
+Ledger scope. When an observation needs implementation or operator judgment,
+the member files it once into Swarm Manager with evidence and provenance, then
+reads the disposition on a later heartbeat. Prompt Manager does not stage a
+second approval artifact.
+
+## One-hop team filing
+
+The filing rule is deliberately short: record the evidence in the team scope;
+if an outcome or operator disposition is needed, create one `swarm-manager
+backlog create` item or `swarm-manager captures create` capture; on the next
+heartbeat use `swarm-manager backlog list --actor-id=<verified-profile-key>`
+and `swarm-manager backlog get <item-id> --json` to act on the disposition.
+There is no Prompt Manager-local queue, decision file, or re-authoring step.
 
 ---
 
@@ -22,7 +40,7 @@ Work enters a member's lane through one of:
 
 - **Operator-fed.** Vision walk, direct instruction, alpha intake.
 - **Proactive.** Scheduled scan, known source list, telemetry.
-- **Cross-team.** Decisions, inbox messages, handoff, capability-gap routed from elsewhere.
+- **Cross-team.** Swarm Manager work, inbox messages, handoff, or Source Ledger entries routed from elsewhere.
 - **Internal.** Logs, knowledge entries, scenario metrics.
 
 Each intake channel a member drains is declared structurally in `topics.json`:
@@ -106,7 +124,7 @@ After routing, the entry must leave the inbox view (must no longer carry an `<in
 
   e.g., `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface (`audience-scan/<slug>`, `competitor-record/<slug>`, `hook-record/<slug>`, `monetization-benchmark-adjacent-record/<slug>`, etc.).
 
-  If the routed action creates a *new* entry on a different surface (decision, capability-gap), delete the inbox row instead of retagging.
+  If the routed action creates a new Swarm Manager work item, delete the inbox row instead of retagging it.
 
 - **Dropped** as weak / duplicate / out-of-scope:
 
@@ -136,7 +154,7 @@ Collection turns an intake claim into actual evidence. Modes:
 - **Scenario API or CLI.** When a Vrooli-controlled tool can fetch the source (e.g., `signal-inbox` for archived bookmarks), prefer that.
 - **Action.** When the collection is a single deterministic command, expose it as an Action (per `PROMOTION_LADDER.md`).
 
-When source access requires credentials, scheduling, or scraping that no controlled tool covers, file a `capability-gap` decision rather than fudging the collection. Do not pretend the scan happened.
+When source access requires credentials, scheduling, or scraping that no controlled tool covers, file a Swarm Manager work item naming the blocked collection and evidence rather than fudging the scan. Do not pretend the scan happened.
 
 ### Collection discipline
 
@@ -173,33 +191,30 @@ The draining member (using its taxonomy's `actionSelection` set, possibly inform
 
 | Condition | Action |
 |---|---|
-| Weak one-off signal | Drop/delete the inbox entry after noting it in handoff if useful. If the weak signal has real audit value, retag it to a non-inbox audit prefix such as `topic[example]:low-signal/<slug>` or a domain-specific equivalent. Never leave routed material under `<inbox-name>/*`. |
+| Weak one-off signal | Drop/delete the inbox entry after noting it in the team scope if useful. If the weak signal has real audit value, retag it to a non-inbox audit prefix such as `topic[example]:low-signal/<slug>` or a domain-specific equivalent. Never leave routed material under `<inbox-name>/*`. |
 | Concrete sourced observation | Add a knowledge entry under the canonical surface prefix (e.g., `audience-scan/<slug>`, `competitor-record/<slug>`). |
 | Capability already exists for this signal | Run the existing skill or Action; route the output as a knowledge observation. |
-| Trivial automation, no LLM judgment needed | Create + run a new Action (no decision required — see `DECISIONS.md` §4). |
-| Repeated but unresolved pattern | File a `meta-self-improvement` decision proposing a skill / scenario / config change, or route the observation through `friction-inbox/*` when the pattern is system friction. |
-| Converging evidence meets threshold | Raise the owned decision context (e.g., `audience-update`, `channel-strategy-update`). |
+| Trivial automation, no LLM judgment needed | Create + run a new Action. |
+| Repeated but unresolved pattern | File one evidence-backed Swarm Manager work item proposing a skill / scenario / config change, or route the observation through `friction-inbox/*` when the pattern is system friction. |
+| Converging evidence meets threshold | File one Swarm Manager work item with the evidence and requested operator disposition. |
 | Repeatable method has no skill | Propose a skill through the meta-optimization path (`skill-optimizer`). |
-| Collection requires missing source/tool/scenario | Raise `capability-gap` (see `DECISIONS.md` §5 for the capability-gap-vs-decision criteria). |
-| Signal belongs to another domain | Write to that domain's prefix or hand off as cross-team flow (cross-team output ownership rules in `DECISIONS.md` §9). |
+| Collection requires missing source/tool/scenario | File one Swarm Manager work item naming the blocked outcome and missing dependency. |
+| Signal belongs to another domain | Write to that domain's prefix or hand off as cross-team flow (cross-team output ownership rules in `SWARM_MANAGER_WORK.md` §9). |
 
-The drain's execute-directly vs file-decision threshold (and what governs each routing-outcome row above) is defined in `DECISIONS.md` §4. This table names what each row *is*; that file names *when* the member is allowed to take each row vs escalate.
+The drain's execute-versus-file threshold is defined in `SWARM_MANAGER_WORK.md`. This table names what each row *is*; that file names when the member is allowed to execute and when it must leave the work for operator disposition.
 
 Each member declares structurally what it produces:
 
 ```jsonc
 {
   "output": [
-    { "prefix": "audience-scan/*",                  "destination_kind": "knowledge", "destination_team": null,           "schema": "audience-scan" },
-    { "prefix": "monetization-benchmark-adjacent-record/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent" }
-  ],
-  "decisions_owned": ["audience-update", "channel-strategy-update"],
-  "decisions_consumed": ["capability-gap"],
-  "raises_capability_gaps": true
+    { "prefix": "audience-scan/*", "destination_kind": "knowledge" },
+    { "prefix": "swarm-manager-work/*", "destination_kind": "swarm_manager_work" }
+  ]
 }
 ```
 
-`destination_kind` is one of `knowledge`, `decision`, `por_file`, `capability_gap`, `skill_proposal`, `backlog`. `schema` references a front-matter shape declared on the producer's taxonomy (`taxonomy.schemas.<id>`). Cross-team flow is declared on both sides — see [Cross-team schema ownership](#cross-team-schema-ownership) below and `TOPICS_SCHEMA.md`.
+`destination_kind` is one of `knowledge`, `swarm_manager_work`, `por_file`, `skill_proposal`, or `backlog`. `schema` references a front-matter shape declared on the producer's taxonomy (`taxonomy.schemas.<id>`). Cross-team flow is declared on both sides — see [Cross-team schema ownership](#cross-team-schema-ownership) below and `TOPICS_SCHEMA.md`.
 
 ### Cross-team schema ownership
 
@@ -224,10 +239,10 @@ These apply at every stage of the pipeline:
 
 - **Never fabricate** engagement, revenue, conversion, audience-size, or pricing facts.
 - **One source is an observation, not canon.**
-- **Three converging scans** can justify a decision when the sources are meaningfully independent.
+- **Three converging scans** can justify a bounded work item when the sources are meaningfully independent.
 - **Single-snapshot data must be labeled** `light-interpretation`.
 - **Tool classifications are inputs, not proof.** Signal-inbox or other automated tagging may surface candidates; the analyst still evaluates relevance and evidence quality.
-- **Researchers do not edit canon directly.** They propose changes for operator review via the appropriate decision context.
+- **Researchers do not edit canon directly.** They file evidence-backed work for operator review in Swarm Manager.
 
 ---
 
@@ -237,10 +252,10 @@ These apply at every stage of the pipeline:
 
 - `intake[]` — prefixes the member drains. The classifier/triage skill named here owns routing for those entries.
 - `required_read[]` — prefixes the member must read every heartbeat (rendered into the active-task brief's "## Required Memory" section). Reading without draining.
-- `evidence_consumed[]` — prefixes the member cites as evidence when authoring decisions in a named `for_decisions[]` context. Reading with explicit decision provenance.
+- `evidence_consumed[]` — prefixes the member cites as evidence when authoring a named work item. Reading with explicit work provenance.
 - `output[]` — prefixes the member writes (with `destination_kind`, optional `destination_team`, schema, and supersession policy).
 
-The graph loader builds a directed graph from these declarations across all teams; the validator (`prompt-manager graph topics`) cross-checks the graph for orphan_input, orphan_output, conflicting_drain, unread_required, dangling_evidence_decision, dangling_por_sink, missing_destination_schema, wildcard_source_misuse, topic_key_prefix_mismatch, stalled_drain, and piling_inbox. The full rule list and severities live in `TOPICS_SCHEMA.md` § Validation rules.
+The graph loader builds a directed graph from these declarations across all teams; the validator (`prompt-manager graph topics`) cross-checks the graph for orphan_input, orphan_output, conflicting_drain, unread_required, dangling_por_sink, missing_destination_schema, wildcard_source_misuse, topic_key_prefix_mismatch, stalled_drain, and piling_inbox. The full rule list and severities live in `TOPICS_SCHEMA.md` § Validation rules.
 
 The layer-audit skill consumes `topics.json` programmatically to derive Intake / Collection / Promotion / Routing scores instead of prose grep — closing the loop where the layered architecture audits itself structurally rather than narratively.
 

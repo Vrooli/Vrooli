@@ -42,9 +42,6 @@ type OrientationComponents struct {
 	CanonLines int `json:"canonLines"`
 	// Topics is the count of declared topic families in the team catalog.
 	Topics int `json:"topics"`
-	// DecisionContexts is the count of declared decision contexts — each is
-	// a separate lifecycle a member must know when to enter.
-	DecisionContexts int `json:"decisionContexts"`
 }
 
 // OrientationCost is one team's reading.
@@ -74,10 +71,9 @@ type OrientationCost struct {
 // than buried, and they only need to be *stable* — the band reads movement, so
 // a consistent wrong weight still detects the ratchet running backwards.
 const (
-	orientationWeightMember          = 10
-	orientationWeightTopic           = 2
-	orientationWeightDecisionContext = 3
-	orientationCanonLinesPerPage     = 50
+	orientationWeightMember      = 10
+	orientationWeightTopic       = 2
+	orientationCanonLinesPerPage = 50
 )
 
 // OrientationCostReport is the JSON shape for GET /orientation-cost.
@@ -109,9 +105,6 @@ func ComputeOrientationCost(configDir, repoRoot string) (OrientationCostReport, 
 		cost := OrientationCost{TeamID: teamID}
 		cost.Components.Members = countTeamMembers(configDir, teamID, contract)
 		cost.Components.Topics = len(contract.TopicCatalog)
-		if contract.Contract != nil {
-			cost.Components.DecisionContexts = len(contract.Contract.DecisionContext)
-		}
 		lines, missing := canonLineCount(repoRoot, contract)
 		cost.Components.CanonLines = lines
 		cost.MissingCanon = missing
@@ -126,7 +119,6 @@ func ComputeOrientationCost(configDir, repoRoot string) (OrientationCostReport, 
 func orientationComposite(c OrientationComponents) int {
 	return c.Members*orientationWeightMember +
 		c.Topics*orientationWeightTopic +
-		c.DecisionContexts*orientationWeightDecisionContext +
 		c.CanonLines/orientationCanonLinesPerPage
 }
 

@@ -177,11 +177,11 @@ func TestProseScanner_MarkedNonTopicRefsDoNotMatchTopics(t *testing.T) {
 	}
 }
 
-func TestProseRegex_DecisionAddTopic_DoesNotMatchKnowledgeRegexes(t *testing.T) {
-	// `team decision-add --topic="..."` is a decision title, not a
+func TestProseRegex_SwarmWorkTopic_DoesNotMatchKnowledgeRegexes(t *testing.T) {
+	// A Swarm Manager work title is not a
 	// knowledge prefix; the discriminator (`team knowledge-`) ensures
 	// no cli-knowledge-* regex fires.
-	line := `prompt-manager team decision-add marketing-crew --topic="What is being decided"`
+	line := `swarm-manager backlog create marketing-crew --topic="What is being decided"`
 	for _, name := range []string{
 		"cli-knowledge-add-topic",
 		"cli-knowledge-list-topic",
@@ -190,7 +190,7 @@ func TestProseRegex_DecisionAddTopic_DoesNotMatchKnowledgeRegexes(t *testing.T) 
 	} {
 		got := findFirstByName(t, name, line)
 		if got != "" {
-			t.Errorf("regex %s unexpectedly matched decision-add line: %q", name, got)
+			t.Errorf("regex %s unexpectedly matched work-filing line: %q", name, got)
 		}
 	}
 }

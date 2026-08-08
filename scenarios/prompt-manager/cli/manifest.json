@@ -23,7 +23,6 @@
     {"name":"search-reconcile","flat":true,"commands":[{"name":"search-reconcile","description":"Reconcile search indexes.","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true}}]},
     {"name":"search-reconcile-status","flat":true,"commands":[{"name":"search-reconcile-status","description":"Check reconciliation status.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}]},
     {"name":"search-reconcile-cancel","flat":true,"commands":[{"name":"search-reconcile-cancel","description":"Cancel reconciliation.","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true}}]},
-    {"name":"decisions-pending","flat":true,"commands":[{"name":"decisions-pending","description":"List pending decisions.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}]},
     {"name":"heartbeat-control","flat":true,"commands":[{"name":"heartbeat-control","description":"Manage heartbeat control.","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true}}]},
     {"name":"discovery-gaps","flat":true,"commands":[{"name":"discovery-gaps","description":"Show discovery gaps.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}]},
     {"name":"skill-usage","flat":true,"commands":[{"name":"skill-usage","description":"Show skill usage.","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}]},

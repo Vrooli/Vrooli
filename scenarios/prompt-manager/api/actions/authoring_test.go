@@ -162,15 +162,15 @@ func TestFindSimilarActionsStructural(t *testing.T) {
 
 func TestFindSimilarActionsSemanticSeam(t *testing.T) {
 	searcher := &fakeSemanticSearcher{hits: []SemanticActionHit{
-		{ID: "team.decisions.list", Name: "List Team Decisions", Score: 0.82},
+		{ID: "team.swarm.work.list", Name: "List Team Work", Score: 0.82},
 		{ID: "self", Name: "self", Score: 0.99}, // must be excluded
 	}}
 	service := NewService(newFakeActionStore(), stubResolver{})
 	service.SetSemanticSearcher(searcher)
 
-	candidate := &store.Action{ID: "self", Name: "List decisions", Description: "show pending decisions", Command: store.ActionCommand{Argv: []string{"prompt-manager", "team", "decision-list", "{{team}}"}}}
+	candidate := &store.Action{ID: "self", Name: "List work", Description: "show open work", Command: store.ActionCommand{Argv: []string{"swarm-manager", "backlog", "list", "--json"}}}
 	matches := service.FindSimilarActions(context.Background(), candidate)
-	if len(matches) != 1 || matches[0].ID != "team.decisions.list" || matches[0].Reason != "semantic" {
+	if len(matches) != 1 || matches[0].ID != "team.swarm.work.list" || matches[0].Reason != "semantic" {
 		t.Fatalf("expected one semantic match excluding self, got %#v", matches)
 	}
 	if searcher.query == "" {

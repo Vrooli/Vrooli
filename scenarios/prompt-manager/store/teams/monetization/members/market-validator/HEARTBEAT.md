@@ -13,11 +13,11 @@ Do not attempt all of these every heartbeat. 1-2 queue items + the staleness swe
 
 ## Task Loop
 1. **Staleness sweep first.** Run `benchmark-staleness-sweep` to enqueue any scans past their dimension-aware threshold. Pricing-only sweep every heartbeat; full sweep weekly.
-2. **Read context.** Last handoff, recent decisions in owned contexts (`benchmark-update`, `pricing-decision`, `financial-model-assumption-update`), and the BENCHMARKS / STRATEGY / REVENUE_LINES docs relevant to in-flight queue items.
+2. **Read context.** Last handoff, recent work items in owned contexts (`benchmark-update`, `pricing-work-item`, `financial-model-assumption-update`), and the BENCHMARKS / STRATEGY / REVENUE_LINES docs relevant to in-flight queue items.
 3. **Drain your queues per the generated `# Inbox Flow` section.** Pick the 1-2 highest-leverage items per the reasoning framework above. Defer the rest with a note.
 4. **Apply the method skill.** For pricing-dimension requests, use `pricing-comp-capture`. For other dimensions, follow inline guidance from `docs/monetization/taxonomies/monetization-validation/README.md` until a dedicated method skill emerges.
-5. **Run supersession** against existing owned-context decisions before proposing replacements.
-6. **Author decisions only when material.** Materiality thresholds live in `docs/monetization/taxonomies/monetization-validation/README.md`.
+5. **Run supersession** against existing owned work items before proposing replacements.
+6. **Author work items only when material.** Materiality thresholds live in `docs/monetization/taxonomies/monetization-validation/README.md`.
 
 (Queue/inbox draining commands and destination prefixes are in the generated `# Inbox Flow` section above; do not duplicate them here.)
 
@@ -41,7 +41,7 @@ Do not attempt all of these every heartbeat. 1-2 queue items + the staleness swe
 ### Scans written
 (slug, comp, dimension, applicability, one-line takeaway)
 
-### Decisions raised this heartbeat
+### Work items filed this heartbeat
 (context, rationale, threshold met)
 
 ### Capability gaps

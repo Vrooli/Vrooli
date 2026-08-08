@@ -46,7 +46,7 @@ Required file reads (every run):
 - `docs/marketing/strategy/ASSETS.md` and `docs/marketing/strategy/IMAGE_STYLE.md` — brand consistency rules for the asset.
 - The target scenario's `PRD.md` and `README.md` — verifiable claims about what the scenario actually does.
 - `docs/monetization/TIERS.md` and `docs/monetization/scenario-sku-map.json` — for tier-alignment of demo'd features against the CTA's tier.
-- `scenarios/prompt-manager/store/teams/marketing-crew/shared/published-scenario-mentions.jsonl` (filtered by audience) — to decide whether to apply intro-on-first-mention or use a one-line refresher.
+- `scenarios/prompt-manager/store/teams/content-desk subject-familiarity records` (filtered by audience) — to decide whether to apply intro-on-first-mention or use a one-line refresher.
 
 Optional reads:
 - `marketing-craft-observation/scenario-spotlight/*` knowledge entries — emerging craft patterns.
@@ -56,7 +56,7 @@ Optional reads:
 
 ### **4. Inputs**
 
-The caller (typically the subscription lane through `subscription-advertiser`, occasionally direct operator) provides:
+The caller (typically `producer` drafting in the subscription lane, occasionally direct operator) provides:
 
 | Input | Required | Example |
 |-------|----------|---------|
@@ -79,7 +79,7 @@ Run the steps in order. Do not skip the verifiability passes — they are what d
 
 2. **Tier-align the demo'd features.** For every feature you might demo, look up its tier in `scenarios/<scenario>/.vrooli/service.json` and `docs/monetization/scenario-sku-map.json`. Mark any feature not reachable from the `conversion_rung`'s tier as `tier-mismatch` and exclude it.
 
-3. **Resolve audience familiarity.** Filter `published-scenario-mentions.jsonl` by `audience_persona`. If the scenario has not been mentioned to this audience before, plan a full intro (one sentence: what it is, why it exists, what it does at a high level). If mentioned ≥1 time, use a one-line refresher.
+3. **Resolve audience familiarity.** Filter `content-desk subject-familiarity records` by `audience_persona`. If the scenario has not been mentioned to this audience before, plan a full intro (one sentence: what it is, why it exists, what it does at a high level). If mentioned ≥1 time, use a one-line refresher.
 
 4. **Draft the hook.** Concrete friction or moment of recognition. No abstract value-prop language. Length asymmetric to the body per `STRATEGY.md`.
 
@@ -192,7 +192,7 @@ If you observe a recurring pattern across runs (e.g., "audience X responds bette
 - `docs/marketing/catalogs/post-types/text/scenario-spotlight.md` — observations changing strategic canon (audience model, new variant, new failure mode).
 - `docs/marketing/methods/post-techniques/<name>.md` — observations that turn out cross-cutting and apply to other post types.
 
-`brand-manager` curates the promotion path through the relevant canon, skill, scenario, config, or `capability-gap` decision.
+`brand-manager` curates the promotion path through the relevant canon, skill, scenario, config, or `capability-work` decision.
 
 ---
 

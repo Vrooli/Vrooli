@@ -106,7 +106,7 @@ Agent gating rule:
 - If `ssh bootstrap ... --non-interactive` fails **and deployment is missing**, stop and hand off the interactive bootstrap command.
 - If `ssh bootstrap ... --non-interactive` fails **but deployment exists**, continue to `deployment health` and use `ssh_key_auth` status to decide if bootstrap is required before convergence.
 
-`ssh_key_auth` decision table:
+`ssh_key_auth` work table:
 
 | `ssh_key_auth` status | Deployment exists? | Action |
 |---|---|---|

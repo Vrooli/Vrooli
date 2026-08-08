@@ -123,7 +123,7 @@ test-genie provider-contract scan --json
 test-genie provider-contract scan --target <fixture-scenario> --timeout 30s
 ```
 
-For each provider the scan probes (default target `test-genie`, `include_execution=false`) and scores five dimensions: `reachable`, `contract_valid` (passes `assessment.ValidateAssessment` + non-unspecified status), `identity_ok` (provider/phase match the effective registry via `assessment.RequireIdentity`), `spec_valid` (`.vrooli/test-genie.json` loads, its embedded `maturity` block validates, and descriptor/provider/phase identity is coherent), and `metrics_adopted` (the response carries `ExecutionMetrics`). `adoption_score` is the fraction of dimensions satisfied. As of Plan 3, `metrics_adopted` is **required, not advisory**: the fleet has adopted it, so a *reachable* provider that does not carry metrics is now a hard violation. The command exits non-zero when a provider is mis-specified (`spec_valid=false`) or — while reachable — breaks the contract, mismatches identity, or has dropped metrics; unreachability stays a liveness signal that does not fail the gate. The hard-violation rule is one SSOT predicate, `selfhealth.IsHardViolation`, shared by the API conformance method and both CLIs (`provider-contract scan`, `test-genie health`). The whole delegated fleet now scores full adoption (`metrics_adopted=true`).
+For each provider the scan probes (default target `test-genie`, `include_execution=false`) and scores five dimensions: `reachable`, `contract_valid` (passes `assessment.ValidateAssessment` + non-unspecified status), `identity_ok` (provider/phase match the effective registry via `assessment.RequireIdentity`), `spec_valid` (`.vrooli/test-genie.json` loads, its embedded `maturity` block validates, and descriptor/provider/phase identity is coherent), and `metrics_adopted` (the response's metrics were persisted in terminal execution history). `adoption_score` is the fraction of dimensions satisfied. As of Plan 3, `metrics_adopted` is **required, not advisory**: the fleet has adopted it, so a *reachable* provider whose metrics are absent from durable history is now a hard violation. The command exits non-zero when a provider is mis-specified (`spec_valid=false`) or — while reachable — breaks the contract, mismatches identity, or has dropped metrics; unreachability stays a liveness signal that does not fail the gate. The hard-violation rule is one SSOT predicate, `selfhealth.IsHardViolation`, shared by the API conformance method and both CLIs (`provider-contract scan`, `test-genie health`).
 
 ## Failure Taxonomy
 
@@ -143,7 +143,7 @@ Adopted provider phases use Connect-RPC `ScenarioValidationService.ValidateScena
 
 | Test Genie phase | Provider scenario | Transport | Native detail type | Finding source |
 |---|---|---|---|---|
-| `structure` | `structure-health` | Connect-RPC `ScenarioValidationService` | none | `FINDING_SOURCE_STRUCTURE` |
+| `structure` | `structure-health` | Connect-RPC `ScenarioValidationService` (all nine target kinds) | none | `FINDING_SOURCE_STRUCTURE` |
 | `business` | `business-health` | Connect-RPC `ScenarioValidationService` | `BusinessContractReport` | `FINDING_SOURCE_BUSINESS` |
 | `contracts` | `cli-health` | Connect-RPC `ScenarioValidationService` | none | `FINDING_SOURCE_CLI` |
 | `ui-health` | `ui-health` | Connect-RPC `ScenarioValidationService` | none | `FINDING_SOURCE_UI` |
@@ -174,7 +174,7 @@ Test Genie also reports on **its own** reliability and on fleet conformance, tur
 The payload stitches three reads:
 
 - **Catalog summary** — total phases, delegated vs. native, and per-phase provider + finding source (from the in-process phase catalog).
-- **Provider conformance** — the same scorecard `provider-contract scan` produces (reachable, contract-valid, identity, descriptor-embedded maturity valid, `metrics_adopted`, adoption score), probed **live and time-boxed** (fixture target `test-genie`, `include_execution=false`, parallel). The response marks `conformance_freshness="live"`; pass `--skip-conformance` to omit the live scan. The conformance core is shared between the endpoint and the CLI `scan` verb (`internal/selfhealth`).
+- **Provider conformance** — the same scorecard `provider-contract scan` produces (reachable, contract-valid, identity, descriptor-embedded maturity valid, persisted `metrics_adopted`, concurrency declaration, adoption score), probed **live and time-boxed** (fixture target `test-genie`, `include_execution=false`, parallel). The response marks `conformance_freshness="live"`; pass `--skip-conformance` to omit the live scan. The conformance core is shared between the endpoint and the CLI `scan` verb (`internal/selfhealth`).
 - **Reliability ledger** — over a recent window (default 30 days; `--window-days N`): suite availability and the run-level terminal-outcome histogram (`passed`/`failed`/`errored`/`aborted`/`timeout`), plus per-phase and per-provider availability %, failure rate, degraded counts, skip-reason + classification histograms, duration p50/p95/min/max/avg, and worst-scenarios-per-phase.
 - **Autofix coverage** — per provider, the spec-derived autofix declaration rollup (see "Autofix coverage lens" below). Advisory; carried on each conformance scorecard (`autofix`).
 

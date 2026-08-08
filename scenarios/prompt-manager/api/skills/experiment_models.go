@@ -8,25 +8,25 @@ import (
 
 // ExperimentResponse is the API response for an experiment.
 type ExperimentResponse struct {
-	ID                  string                   `json:"id"`
-	SkillID             string                   `json:"skillId"`
-	Name                string                   `json:"name"`
-	Hypothesis          string                   `json:"hypothesis,omitempty"`
-	Protocol            store.ExperimentProtocol `json:"protocol"`
-	Status              string                   `json:"status"`
-	Arms                []ExperimentArmResponse  `json:"arms"`
-	OutcomeCounts       map[string]int           `json:"outcomeCounts,omitempty"`
-	StartedAt           *string                  `json:"startedAt,omitempty"`
-	ConcludedAt         *string                  `json:"concludedAt,omitempty"`
-	WinnerVariantID     *string                  `json:"winnerVariantId,omitempty"`
-	PromotionDecisionID string                   `json:"promotionDecisionId,omitempty"`
-	HoldoutFindingsHash string                   `json:"holdoutFindingsHash,omitempty"`
-	HoldoutCompletedAt  string                   `json:"holdoutCompletedAt,omitempty"`
-	PromotedAt          string                   `json:"promotedAt,omitempty"`
-	Notes               string                   `json:"notes,omitempty"`
-	CreatedAt           string                   `json:"createdAt"`
-	UpdatedAt           string                   `json:"updatedAt"`
-	Revision            int                      `json:"revision"`
+	ID                   string                   `json:"id"`
+	SkillID              string                   `json:"skillId"`
+	Name                 string                   `json:"name"`
+	Hypothesis           string                   `json:"hypothesis,omitempty"`
+	Protocol             store.ExperimentProtocol `json:"protocol"`
+	Status               string                   `json:"status"`
+	Arms                 []ExperimentArmResponse  `json:"arms"`
+	OutcomeCounts        map[string]int           `json:"outcomeCounts,omitempty"`
+	StartedAt            *string                  `json:"startedAt,omitempty"`
+	ConcludedAt          *string                  `json:"concludedAt,omitempty"`
+	WinnerVariantID      *string                  `json:"winnerVariantId,omitempty"`
+	PromotionWorkItemRef string                   `json:"promotionWorkItemRef,omitempty"`
+	HoldoutFindingsHash  string                   `json:"holdoutFindingsHash,omitempty"`
+	HoldoutCompletedAt   string                   `json:"holdoutCompletedAt,omitempty"`
+	PromotedAt           string                   `json:"promotedAt,omitempty"`
+	Notes                string                   `json:"notes,omitempty"`
+	CreatedAt            string                   `json:"createdAt"`
+	UpdatedAt            string                   `json:"updatedAt"`
+	Revision             int                      `json:"revision"`
 }
 
 // ExperimentArmResponse is the API representation of an experiment arm.
@@ -114,7 +114,7 @@ type RecordHoldoutReceiptRequest struct {
 	IdempotencyKey string `json:"idempotencyKey"`
 }
 type PromoteExperimentRequest struct {
-	DecisionID string `json:"decisionId"`
+	WorkItemRef string `json:"workItemRef"`
 }
 
 // ExperimentReportResponse is the API response for an experiment report:

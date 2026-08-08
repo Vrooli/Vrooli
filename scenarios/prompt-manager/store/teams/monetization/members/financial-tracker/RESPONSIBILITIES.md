@@ -4,7 +4,7 @@
 - Maintain the monetization ledger: cash, costs, revenue, channel attribution, time allocation, runway, and default-alive gap.
 - Emit a structured ledger snapshot each heartbeat.
 - Flag material deltas in runway, costs, services capacity, assumptions, pricing, funnel bottlenecks, and retention.
-- Surface operator decisions based on the current math.
+- Surface operator work items based on the current math.
 
 ## Judgment
 Time is a first-class cost for a one-human operation. Services revenue can be useful, but services time starving product work is a company failure mode.

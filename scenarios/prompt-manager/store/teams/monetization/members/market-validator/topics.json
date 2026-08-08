@@ -18,24 +18,7 @@
       "prefix": "monetization/market-scan/<slug>"
     }
   ],
-  "evidence_consumed": [
-    {
-      "prefix": "challenge-report/*",
-      "for_decisions": [
-        "pricing-decision",
-        "financial-model-assumption-update",
-        "benchmark-update"
-      ]
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "for_decisions": [
-        "pricing-decision",
-        "financial-model-assumption-update",
-        "benchmark-update"
-      ]
-    }
-  ],
+  "evidence_consumed": [],
   "output": [
     {
       "prefix": "monetization-benchmark-record/*",
@@ -48,15 +31,7 @@
       "schema": "market-scan"
     }
   ],
-  "decisions_owned": [
-    "benchmark-update",
-    "pricing-decision",
-    "financial-model-assumption-update"
-  ],
-  "decisions_consumed": [
-    "capability-gap"
-  ],
-  "raises_capability_gaps": true,
+  "raises_work_items": true,
   "external_producers": [
     "operator",
     "vision-walk",

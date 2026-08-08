@@ -8,6 +8,9 @@ Owns scenario-quality findings (programmatic + structural), bug-triage for the e
 
 Does not directly edit target scenarios. Does not own monetization, marketing, infrastructure, or meta-layer optimization.
 
+## Shared team corpus
+Durable context lives in the `team:scenario-qa` source-ledger scope. Use `source-ledger recall` and `source-ledger journal note`; file defects and QA work once through swarm-manager.
+
 ## Plan of Record
 Strategic canon lives at [`docs/scenario-qa/README.md`](../../../../../../docs/scenario-qa/README.md), with three paired-doc-and-skill registries:
 - [`path:docs/scenario-qa/methods/investigation/`](../../../../../../docs/scenario-qa/methods/investigation/README.md) — bug-investigator's methods (1 entry: `scientific-debugging`).
@@ -18,9 +21,8 @@ Bug taxonomy: [`docs/scenario-qa/taxonomies/bug-report/README.md`](../../../../.
 
 ## Roster
 The canonical list lives in `team.json` (`operatingContract.members`). Roles, in summary:
-- `quality-auditor` — applies the seven-lens audit rotation; produces `quality-audit/*` knowledge and `quality-audit-backlog` decisions.
-- `bug-investigator` — drains `bug-inbox/*` (universal-source); applies investigation techniques; produces `bug-investigation-report/*` audit log and `bug-resolution-proposal` decisions.
-- `qa-contrarian` — reads peer outputs; produces `challenge-report/*` citing specific failure modes from the technique registries.
+- `quality-auditor` — applies the seven-lens audit rotation; produces `quality-audit/*` knowledge and `quality-audit-backlog` work items.
+- `bug-investigator` — drains `bug-inbox/*` (universal-source); applies investigation techniques; produces `bug-investigation-report/*` audit log and `bug-resolution-proposal` work items.
 
 ## Knowledge topic table
 
@@ -29,9 +31,8 @@ The canonical list lives in `team.json` (`operatingContract.members`). Roles, in
 | `quality-audit/<scenario-id>/<skill-id>` | quality-auditor | self | append-only |
 | `bug-inbox/<signal-type>/<slug>` | bug-investigator | **any team via `report-bug` skill** (universal-source intake) | drained-on-close |
 | `bug-investigation-report/<slug>` | bug-investigator | self | append-only |
-| `challenge-report/<slug>` | qa-contrarian | self | append-only |
 
-## Decision contexts
+## Work types
 - `quality-audit-backlog` — owner: quality-auditor. Judgment-based structural audit findings → Swarm Manager execute backlog items.
 - `bug-resolution-proposal` — owner: bug-investigator. Cross-cutting fixes that require operator approval (rename a CLI verb, refactor a confusing skill section, canonicalize a drifted data-shape, etc.).
 
@@ -41,7 +42,7 @@ The canonical list lives in `team.json` (`operatingContract.members`). Roles, in
 ## Team-Specific Principles
 - **Findings become artifacts, not direct edits.** Backlog items, audit-log entries, investigation logs, challenge notes — all evidence-rich and actionable by future agents who don't have this team's context.
 - **Behavior-oriented evidence over generic audit language.** "The X output produced Y when given Z, contradicting the schema documented at W" beats "this could be improved."
-- **Investigation rigor.** One technique applied per entry per heartbeat; if a technique stalls, record findings honestly and move on. A bug-investigation that admits "blocked, capability-gap filed" is more honest than one that guesses at a cause.
+- **Investigation rigor.** One technique applied per entry per heartbeat; if a technique stalls, record findings honestly and move on. A bug-investigation that admits "blocked, capability work item filed" is more honest than one that guesses at a cause.
 - **Contrarian discipline.** Every challenge cites a specific failure mode from a registered technique's PoR doc. Quiet heartbeats are valid; manufactured challenges are forbidden.
 - **Right inbox for the observation.** Bugs go to `bug-inbox/*` via the `report-bug` skill — even when observed during readiness review or quality audit. Each member uses the inbox shape that fits its observation.
 - **Doc + paired skill discipline.** Every technique has both a strategic-canon doc (in `docs/scenario-qa/{investigation,audit,readiness}-techniques/`) and an executable skill. Neither half is optional.

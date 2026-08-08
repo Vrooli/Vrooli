@@ -70,9 +70,6 @@ func TestOperatingModelGoldenFixtureValidatesAndCoversAllSections(t *testing.T) 
 	if docs.TopicCatalogRows != 1 || docs.TopicCatalogMatched != 1 || docs.TopicCatalogGraphOnly != 0 || docs.TopicCatalogDocsOnly != 0 {
 		t.Fatalf("golden fixture topic coverage drifted: %+v", docs)
 	}
-	if docs.DecisionsRows != 1 || docs.DecisionsMatched != 1 || docs.DecisionsGraphOnly != 0 || docs.DecisionsDocsOnly != 0 {
-		t.Fatalf("golden fixture decision coverage drifted: %+v", docs)
-	}
 	if docs.ExternalInputsRows != 1 || docs.ExternalInputsBackedRows != 1 || docs.ExternalInputsUnbackedRows != 0 {
 		t.Fatalf("golden fixture external input coverage drifted: %+v", docs)
 	}
@@ -103,15 +100,6 @@ func TestOperatingModelRegisteredRulesHaveFailureFixtures(t *testing.T) {
 		}},
 		{rule: "operating_model_duplicate_section", mutate: func(model *OperatingModelDocument) {
 			model.Sections.Mission.Duplicates = []int{3}
-		}},
-		{rule: "operating_model_decisions_header_drift", mutate: func(model *OperatingModelDocument) {
-			model.Sections.Decisions.Headers = []string{"decision context", "owner", "purpose"}
-		}},
-		{rule: "operating_model_decisions_empty", mutate: func(model *OperatingModelDocument) {
-			model.Sections.Decisions.Rows = nil
-		}},
-		{rule: "operating_model_decisions_row_incomplete", mutate: func(model *OperatingModelDocument) {
-			model.Sections.Decisions.Rows[0].ExpectedEvidenceTrigger = ""
 		}},
 		{rule: "operating_model_external_inputs_table_missing", mutate: func(model *OperatingModelDocument) {
 			model.Sections.ExternalInputs.Table = false
@@ -338,12 +326,10 @@ func TestMarketingOperatingModelUsesReadableAnnotatedLabels(t *testing.T) {
 	if len(graph.Nodes) == 0 || len(graph.Edges) == 0 {
 		t.Fatalf("expected populated marketing graph, nodes=%d edges=%d", len(graph.Nodes), len(graph.Edges))
 	}
-	mon := operatingNodeByID(t, graph, "MON")
-	if mon.Kind != "team" || mon.Value != "monetization" || mon.Display != "Monetization team" {
-		t.Fatalf("bad MON node: %+v", mon)
-	}
-	if strings.Contains(mon.Display, "team:") || strings.Contains(mon.RawLabel, "team:monetization") {
-		t.Fatalf("MON visual label should not contain machine token: %+v", mon)
+	for _, node := range graph.Nodes {
+		if strings.Contains(node.Display, "team:") || strings.Contains(node.RawLabel, "team:") {
+			t.Fatalf("visual label contains machine token: %+v", node)
+		}
 	}
 }
 
@@ -418,12 +404,6 @@ func TestValidateOperatingModelsKeepsMarketingScenarioQAMetaGreen(t *testing.T) 
 			docCoverage := coverage[0].Docs
 			if docCoverage.TopicCatalogRows != docCoverage.TopicCatalogMatched || docCoverage.TopicCatalogGraphOnly != 0 || docCoverage.TopicCatalogDocsOnly != 0 {
 				t.Fatalf("unexpected topic catalog coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
-			}
-			if docCoverage.DecisionsRows != docCoverage.DecisionsMatched || docCoverage.DecisionsGraphOnly != 0 || docCoverage.DecisionsDocsOnly != 0 {
-				t.Fatalf("unexpected decision coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
-			}
-			if docCoverage.DecisionsMetadataComplete != docCoverage.DecisionsRows || docCoverage.DecisionsMetadataIncomplete != 0 {
-				t.Fatalf("unexpected decision metadata coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
 			}
 			if docCoverage.RequiredSectionsPresent != docCoverage.RequiredSectionsTotal || docCoverage.RequiredSectionsTotal == 0 {
 				t.Fatalf("unexpected required-section coverage for %s/%s: %+v", tc.team, tc.id, docCoverage)
@@ -538,11 +518,6 @@ flowchart LR
 |---|---|---|---|---|
 | `+"`topic:first/*`"+` | live | member:a | member:a | First. |
 
-## Decisions
-
-| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
-|---|---|---|---|---|
-
 <!-- prompt-manager-graph:
 id: g2
 scope: team
@@ -561,10 +536,6 @@ flowchart LR
 |---|---|---|---|---|
 | `+"`topic:second/*`"+` | live | member:a | member:a | Second. |
 
-## Decisions
-
-| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
-|---|---|---|---|---|
 `), 0o644); err != nil {
 		t.Fatalf("write fixture: %v", err)
 	}
@@ -591,12 +562,9 @@ func operatingModelDocumentFixture(t *testing.T) OperatingModelDocument {
 		`  OP(["external:operator"])`,
 		`  A["member:a"]`,
 		`  T[("topic:first/*")]`,
-		`  D{"decision:model-update"}`,
 		"  OP --> A",
 		"  A --> T",
 		"  T --> A",
-		"  A --> D",
-		"  D --> A",
 	})
 	block.Docs = OperatingGraphDocs{
 		TopicCatalog: OperatingTopicCatalogTable{
@@ -613,20 +581,6 @@ func operatingModelDocumentFixture(t *testing.T) OperatingModelDocument {
 				RawTopic:   "`topic:first/*`",
 			}},
 		},
-		Decisions: OperatingDecisionTable{
-			Present:    true,
-			HeaderLine: 14,
-			Headers:    []string{"decision context", "owner", "purpose", "expected evidence / trigger", "accepted effect"},
-			Rows: []OperatingDecisionRow{{
-				Decision:                "model-update",
-				Owners:                  []OperatingActorReference{{Kind: OperatingActorKindMember, Value: "a", Raw: "member:a"}},
-				Purpose:                 "Update the model contract.",
-				ExpectedEvidenceTrigger: "Evidence from `topic:first/*`.",
-				AcceptedEffect:          "Operator-approved operating-model document update.",
-				SourceLine:              16,
-				RawDecision:             "`model-update`",
-			}},
-		},
 	}
 	return OperatingModelDocument{
 		ID:     "g",
@@ -638,7 +592,6 @@ func operatingModelDocumentFixture(t *testing.T) OperatingModelDocument {
 			OperatingLoops: OperatingMarkdownSection{Heading: "Operating Loops", Present: true, Line: 3},
 			Graph:          OperatingGraphSection{OperatingGraphBlock: block, Heading: "Operating Graph", Present: true},
 			TopicCatalog:   block.Docs.TopicCatalog,
-			Decisions:      block.Docs.Decisions,
 			ExternalInputs: OperatingExternalInputsTable{
 				OperatingMarkdownSection: OperatingMarkdownSection{Heading: "External Inputs / Triggers", Present: true, Line: 16},
 				HeaderLine:               17,
@@ -713,15 +666,12 @@ func operatingModelDiscoverabilityRuntime(t *testing.T, model OperatingModelDocu
 		Topics: Topics{
 			Intake:            []IntakeEntry{{Prefix: "first/*"}},
 			Output:            []OutputEntry{{Prefix: "first/*", DestinationKind: DestinationKnowledge}},
-			DecisionsOwned:    []string{"model-update"},
-			DecisionsConsumed: []string{"model-update"},
 			ExternalProducers: []string{"operator"},
 		},
 		Exists: true,
 	}}
 	loaded.Contract = &teamcontract.OperatingContract{
-		DecisionContext: map[string]teamcontract.DecisionContext{"model-update": {OwnerMemberIDs: []string{"a"}}},
-		Members:         map[string]teamcontract.MemberContract{"a": {}},
+		Members: map[string]teamcontract.MemberContract{"a": {}},
 	}
 	loaded.TopicCatalog = []TopicCatalogEntry{{
 		Prefix:  "first/*",
@@ -775,7 +725,6 @@ func TestOperatingModelReferenceIndexNormalizesDocumentReferences(t *testing.T) 
 	index := NewOperatingModelReferenceIndex(model, OperatingGraphRuntime{})
 
 	assertOperatingModelReference(t, index, OperatingModelReferenceKindTopic, "", "first/*", "topic_catalog")
-	assertOperatingModelReference(t, index, OperatingModelReferenceKindDecision, "", "model-update", "decisions")
 	assertOperatingModelReference(t, index, OperatingModelReferenceKindMember, "", "a", "topic_catalog")
 	assertOperatingModelReference(t, index, OperatingModelReferenceKindTopic, OperatingGraphQualifierFuture, "second/*", "gaps")
 	assertOperatingModelReference(t, index, OperatingModelReferenceKindCommand, "", "prompt-manager graph operating-model validate --team team-a --id g", "adoption")

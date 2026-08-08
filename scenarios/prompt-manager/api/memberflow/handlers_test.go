@@ -75,7 +75,7 @@ func TestPutMember_RoundTrip(t *testing.T) {
 	body := bytes.NewBufferString(`{
 		"intake": [{"prefix": "research-inbox/*", "taxonomy": "marketing-research"}],
 		"output": [{"prefix": "audience-scan/*", "destination_kind": "knowledge"}],
-		"raises_capability_gaps": true
+		"raises_work_items": true
 	}`)
 	req := httptest.NewRequest("PUT", "/teams/marketing-crew/members/researcher/topics", body)
 	w := httptest.NewRecorder()
@@ -95,7 +95,7 @@ func TestPutMember_RoundTrip(t *testing.T) {
 	if err := json.NewDecoder(w2.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if !resp.Exists || !resp.Topics.RaisesCapabilityGaps {
+	if !resp.Exists || !resp.Topics.RaisesWorkItems {
 		t.Errorf("round-trip lost data: %+v", resp)
 	}
 	if len(resp.Topics.Intake) != 1 || resp.Topics.Intake[0].Taxonomy != "marketing-research" {
@@ -168,9 +168,8 @@ func TestGetGraph_BuildsExpectedNodes(t *testing.T) {
 		Output: []OutputEntry{
 			{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge},
 		},
-		ExternalProducers:    []string{"vision-walk", "operator"},
-		DecisionsOwned:       []string{"audience-update"},
-		RaisesCapabilityGaps: true,
+		ExternalProducers: []string{"vision-walk", "operator"},
+		RaisesWorkItems:   true,
 	}); err != nil {
 		t.Fatalf("WriteMember: %v", err)
 	}
@@ -188,15 +187,14 @@ func TestGetGraph_BuildsExpectedNodes(t *testing.T) {
 		t.Fatalf("decode: %v", err)
 	}
 
-	// Member node + 2 external + 1 input prefix + 1 output prefix + 1 decision + 1 cap-gap = 7 nodes
+	// Member node + 2 external + 1 input prefix + 1 output prefix + 1 work node = 6 nodes
 	wantNodes := map[string]string{
 		"member:marketing-crew/researcher": "member",
 		"external:vision-walk":             "external",
 		"external:operator":                "external",
 		"prefix:research-inbox/*":          "knowledge_sink",
 		"prefix:audience-scan/*":           "knowledge_sink",
-		"decision:audience-update":         "decision",
-		"capability-gap":                   "capability_gap",
+		"backlog":                          "backlog",
 	}
 	if got := len(resp.Nodes); got != len(wantNodes) {
 		t.Errorf("node count = %d, want %d (nodes=%+v)", got, len(wantNodes), resp.Nodes)
@@ -443,13 +441,10 @@ flowchart LR
   IN[(research-inbox/*)]
   %% @node NOTE topic:marketing-craft-observation/*
   NOTE[(marketing-craft-observation/*)]
-  %% @node D decision:model-update
-  D{model-update}
   OP --> IN
   OP --> M
   IN --> M
   NOTE --> M
-  M --> D
 ` + "```" + `
 ## Topic Catalog
 
@@ -457,12 +452,6 @@ flowchart LR
 |---|---|---|---|---|
 | ` + "`topic:research-inbox/*`" + ` | live | external:operator | member:member-a | Intake. |
 | ` + "`topic:marketing-craft-observation/*`" + ` | live | | | Typed observation. |
-
-## Decisions
-
-| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
-|---|---|---|---|---|
-| ` + "`model-update`" + ` | member-a | Update fixture operating model. | ` + "`topic:research-inbox/*`" + ` evidence. | Team operating-model document changes. |
 
 ## External Inputs / Triggers
 
@@ -525,15 +514,10 @@ flowchart LR
               "path": "docs/test/OPERATING_MODEL.md"
             }
           ],
-          "writePolicy": "operator-curated-via-decisions"
+          "writePolicy": "operator-curated-via-swarm-manager"
         }
       ],
       "sharedState": []
-    },
-    "decisionContexts": {
-      "model-update": {
-        "description": "Update fixture operating model."
-      }
     },
     "knowledgeTopics": {},
     "members": {
@@ -547,7 +531,6 @@ flowchart LR
 	if err := WriteMember(storeDir, "team-a", "member-a", Topics{
 		Intake:            []IntakeEntry{{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}},
 		ExternalProducers: []string{"operator"},
-		DecisionsOwned:    []string{"model-update"},
 	}); err != nil {
 		t.Fatalf("WriteMember: %v", err)
 	}
@@ -587,24 +570,15 @@ flowchart LR
   OP([Operator])
   %% @node IN topic:research-inbox/*
   IN[(research-inbox/*)]
-  %% @node D decision:model-update
-  D{model-update}
   OP --> IN
   OP --> M
   IN --> M
-  M --> D
 ` + "```" + `
 ## Topic Catalog
 
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
 | ` + "`topic:research-inbox/*`" + ` | live | external:operator | member:member-a | Intake. |
-
-## Decisions
-
-| Decision context | Owner | Purpose | Expected evidence / trigger | Accepted effect |
-|---|---|---|---|---|
-| ` + "`model-update`" + ` | member-a | Update fixture operating model. | ` + "`topic:research-inbox/*`" + ` evidence. | Team operating-model document changes. |
 
 ## External Inputs / Triggers
 
@@ -662,15 +636,10 @@ flowchart LR
               "path": "docs/test/OPERATING_MODEL.md"
             }
           ],
-          "writePolicy": "operator-curated-via-decisions"
+          "writePolicy": "operator-curated-via-swarm-manager"
         }
       ],
       "sharedState": []
-    },
-    "decisionContexts": {
-      "model-update": {
-        "description": "Update fixture operating model."
-      }
     },
     "knowledgeTopics": {},
     "members": {
@@ -684,7 +653,6 @@ flowchart LR
 	if err := WriteMember(storeDir, "team-a", "member-a", Topics{
 		Intake:            []IntakeEntry{{Prefix: "research-inbox/*", Taxonomy: "marketing-research"}},
 		ExternalProducers: []string{"operator"},
-		DecisionsOwned:    []string{"model-update"},
 	}); err != nil {
 		t.Fatalf("WriteMember: %v", err)
 	}

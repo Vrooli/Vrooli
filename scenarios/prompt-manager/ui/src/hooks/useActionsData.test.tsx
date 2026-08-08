@@ -25,12 +25,12 @@ function createTestAction(overrides: Partial<Action> = {}): Action {
   return {
     kind: 'action',
     schemaVersion: 1,
-    id: 'team.decisions.list',
-    name: 'List Team Decisions',
-    description: 'List recent decisions.',
+    id: 'team.swarm.work.list',
+    name: 'List Team Work',
+    description: 'List recent work items.',
     status: 'draft',
     owner: { type: 'scenario', id: 'prompt-manager' },
-    command: { argv: ['prompt-manager', 'team', 'decision-list', '{{team}}', '--json'] },
+    command: { argv: ['swarm-manager', 'backlog', 'list', '--json'] },
     inputs: {},
     outputs: {},
     permissions: {
@@ -112,7 +112,7 @@ describe('useActionsData', () => {
       actionId: action.id,
       status: 'dry-run',
       durationMs: 1,
-      argv: ['prompt-manager', 'team', 'decision-list', 'meta-optimization', '--json'],
+      argv: ['swarm-manager', 'backlog', 'list', '--json'],
       stdout: '',
       stderr: '',
       stdoutTruncated: false,
@@ -159,14 +159,14 @@ describe('useActionsData', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    const validationPromise = result.current.validateAction('team.decisions.list')
+    const validationPromise = result.current.validateAction('team.swarm.work.list')
 
     await waitFor(() => {
       expect(result.current.isValidating).toBe(true)
     })
 
     resolveValidation({
-      actionId: 'team.decisions.list',
+      actionId: 'team.swarm.work.list',
       valid: true,
       runnable: false,
       unvalidated: false,
@@ -194,24 +194,24 @@ describe('useActionsData', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
-    const runPromise = result.current.runAction('team.decisions.list', { input: {}, dryRun: true })
+    const runPromise = result.current.runAction('team.swarm.work.list', { input: {}, dryRun: true })
 
     await waitFor(() => {
       expect(result.current.isRunning).toBe(true)
     })
 
     resolveRun({
-      actionId: 'team.decisions.list',
+      actionId: 'team.swarm.work.list',
       status: 'dry-run',
       durationMs: 1,
-      argv: ['prompt-manager', 'team', 'decision-list'],
+      argv: ['swarm-manager', 'backlog', 'list', '--json'],
       stdout: '',
       stderr: '',
       stdoutTruncated: false,
       stderrTruncated: false,
       error: '',
       validation: {
-        actionId: 'team.decisions.list',
+        actionId: 'team.swarm.work.list',
         valid: true,
         runnable: true,
         unvalidated: false,

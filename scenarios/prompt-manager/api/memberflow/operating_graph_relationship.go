@@ -15,9 +15,6 @@ const (
 	operatingRelTopicEvidenceConsumed  OperatingRelationshipKind = "topic_evidence_consumed"
 	operatingRelTopicOutput            OperatingRelationshipKind = "topic_output"
 	operatingRelPOROutput              OperatingRelationshipKind = "por_output"
-	operatingRelDecisionOwned          OperatingRelationshipKind = "decision_owned"
-	operatingRelDecisionConsumed       OperatingRelationshipKind = "decision_consumed"
-	operatingRelCapabilityGapRaised    OperatingRelationshipKind = "capability_gap_raised"
 	operatingRelExternalProducer       OperatingRelationshipKind = "external_producer"
 	operatingRelExternalProducerIntake OperatingRelationshipKind = "external_producer_intake"
 	operatingRelCrossTeamOutput        OperatingRelationshipKind = "cross_team_output"
@@ -34,7 +31,6 @@ type OperatingRelationship struct {
 	Team         string
 	Member       string
 	Topic        string
-	Decision     string
 	Path         string
 	External     string
 	ProducerTeam string
@@ -139,12 +135,7 @@ func BuildRuntimeOperatingRelationships(runtime OperatingGraphRuntime, team stri
 			rels = append(rels, OperatingRelationship{Kind: operatingRelTopicRequiredRead, Team: m.Ref.Team, Member: m.Ref.Member, Topic: read.Prefix, Source: source})
 		}
 		for _, ev := range m.Topics.EvidenceConsumed {
-			for _, decision := range ev.ForDecisions {
-				rels = append(rels, OperatingRelationship{Kind: operatingRelTopicEvidenceConsumed, Team: m.Ref.Team, Member: m.Ref.Member, Topic: ev.Prefix, Decision: decision, Source: source})
-			}
-			if len(ev.ForDecisions) == 0 {
-				rels = append(rels, OperatingRelationship{Kind: operatingRelTopicEvidenceConsumed, Team: m.Ref.Team, Member: m.Ref.Member, Topic: ev.Prefix, Source: source})
-			}
+			rels = append(rels, OperatingRelationship{Kind: operatingRelTopicEvidenceConsumed, Team: m.Ref.Team, Member: m.Ref.Member, Topic: ev.Prefix, Source: source})
 		}
 		for _, out := range m.Topics.Output {
 			switch out.DestinationKind {
@@ -158,15 +149,6 @@ func BuildRuntimeOperatingRelationships(runtime OperatingGraphRuntime, team stri
 					rels = append(rels, OperatingRelationship{Kind: operatingRelCrossTeamOutput, Team: m.Ref.Team, Member: m.Ref.Member, Topic: out.Prefix, TargetTeam: *out.DestinationTeam, Source: source})
 				}
 			}
-		}
-		for _, decision := range m.Topics.DecisionsOwned {
-			rels = append(rels, OperatingRelationship{Kind: operatingRelDecisionOwned, Team: m.Ref.Team, Member: m.Ref.Member, Decision: decision, Source: source})
-		}
-		for _, decision := range m.Topics.DecisionsConsumed {
-			rels = append(rels, OperatingRelationship{Kind: operatingRelDecisionConsumed, Team: m.Ref.Team, Member: m.Ref.Member, Decision: decision, Source: source})
-		}
-		if m.Topics.RaisesCapabilityGaps {
-			rels = append(rels, OperatingRelationship{Kind: operatingRelCapabilityGapRaised, Team: m.Ref.Team, Member: m.Ref.Member, Decision: "capability-gap", Source: source})
 		}
 		for _, external := range m.Topics.ExternalProducers {
 			rels = append(rels, OperatingRelationship{Kind: operatingRelExternalProducer, Team: m.Ref.Team, Member: m.Ref.Member, External: external, Source: source})
@@ -248,7 +230,6 @@ func operatingRelationshipKey(rel OperatingRelationship) string {
 		rel.Team,
 		rel.Member,
 		rel.Topic,
-		rel.Decision,
 		filepath.ToSlash(filepath.Clean(rel.Path)),
 		rel.External,
 		rel.ProducerTeam,
@@ -257,9 +238,6 @@ func operatingRelationshipKey(rel OperatingRelationship) string {
 }
 
 func operatingRelationshipDiffDedupeKey(rel OperatingRelationship) string {
-	if rel.Kind == operatingRelTopicEvidenceConsumed {
-		rel.Decision = ""
-	}
 	rel.Kind = DefaultOperatingRelationshipRegistry().GraphKindForRuntime(rel.Kind)
 	return operatingRelationshipKey(rel)
 }

@@ -16,7 +16,7 @@
     {
       "id": "qa-contrarian",
       "name": "QA Contrarian",
-      "description": "Cross-cutting skeptic for scenario-qa. Reads peer-member outputs (bug-investigation-reports, audits, readiness backlog) and writes challenge-report/* entries citing specific failure modes from the technique registries. Does not generate positive-action proposals."
+      "description": "Reviews quality evidence, records review notes in the team Source Ledger scope, and files one evidence-backed Swarm Manager work item when a concrete correction is needed."
     }
   ]
 }

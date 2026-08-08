@@ -145,14 +145,14 @@ func (h *Handlers) captureBug(r *http.Request, teamID string, info store.Attribu
 	}
 
 	topic := "bug-inbox/" + accepted["signal_type"] + "/" + bugSlug(req.Title)
-	if existing, err := h.teamStore.GetKnowledge(r.Context(), teamID, topic, "", 0); err != nil {
+	if existing, err := h.teamStore.ListTeamCorpus(r.Context(), teamID, topic, "", 0); err != nil {
 		return BugCaptureResponse{}, err
 	} else if len(existing) > 0 {
 		entry := existing[len(existing)-1]
 		return BugCaptureResponse{Disposition: "published", Knowledge: &entry, Accepted: accepted, Warnings: []string{"Returned the existing report for this deterministic topic."}}, nil
 	}
 	entry := &store.KnowledgeEntry{ID: "knw-" + generateID(), At: time.Now().UTC().Format(time.RFC3339), Topic: topic, Content: renderBugReport(req, accepted, info), Source: "prompt-manager bug capture", Caller: deriveCaller(info, teamID), Attribution: info}
-	if err := h.teamStore.AppendKnowledge(r.Context(), teamID, entry); err != nil {
+	if err := h.teamStore.AppendTeamCorpus(r.Context(), teamID, entry); err != nil {
 		return BugCaptureResponse{}, err
 	}
 	return BugCaptureResponse{Disposition: "published", Knowledge: entry, Accepted: accepted}, nil

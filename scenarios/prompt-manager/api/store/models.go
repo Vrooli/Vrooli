@@ -211,19 +211,18 @@ type Team struct {
 	Runtime           teamconfig.Runtime              `json:"runtime"`
 	Coordination      teamconfig.Coordination         `json:"coordination"`
 	Execution         teamconfig.Execution            `json:"execution"`
-	DecisionMode      string                          `json:"decisionMode,omitempty"` // "yolo" or "approval"
 	OperatingContract *teamcontract.OperatingContract `json:"operatingContract"`
 	// ValidationFindings are read-time diagnostics for an otherwise readable
 	// team.json. They are never persisted and do not weaken write validation.
 	ValidationFindings []TeamValidationFinding `json:"validationFindings,omitempty"`
 	Shared             *TeamShared             `json:"shared,omitempty"`
 	Retention          *RetentionConfig        `json:"retention,omitempty"`
-	// AttributionValidFrom is the per-team Pillar 3 cutoff. Knowledge
+	// AttributionValidFrom is the per-team Pillar 3 cutoff. Team-corpus
 	// entries written on or after this ISO-8601 date (YYYY-MM-DD) MUST
 	// carry runtime attribution conforming to docs/agent-system/RUNTIME_ATTRIBUTION.md;
 	// pre-cutoff entries are treated as kind="legacy" and skipped by
 	// ruleActualWriterUndeclared. The value is set at migration time
-	// by cmd/migrate-knowledge-attribution and may be widened retroactively
+	// by the cutover migration and may be widened retroactively
 	// by the operator if a migration introduces unexpected drift.
 	// Empty string means the team has not yet adopted the runtime contract;
 	// the validator skips such teams entirely.
@@ -271,7 +270,7 @@ type TeamPolicy struct {
 	// timestamp) is the bucket; the threshold is compared against the
 	// bucket's count. No rolling clock, no `time.Now()` dependency —
 	// `prompt-manager graph topics` produces the same findings on a
-	// frozen knowledge.jsonl regardless of when it runs.
+	// frozen team-corpus ledger regardless of when it runs.
 	FlagExternalWritesPerWeek int `json:"flagExternalWritesPerWeek,omitempty"`
 }
 
@@ -281,11 +280,11 @@ type TeamShared struct {
 	MountHint string `json:"mountHint,omitempty"` // readOnly or readWrite
 }
 
-// RetentionConfig controls automatic cleanup of completed tasks, decisions, and knowledge.
+// RetentionConfig controls automatic cleanup of completed tasks. Team-corpus
+// entries live in Source Ledger and are append-only, so they are never pruned
+// by prompt-manager.
 type RetentionConfig struct {
-	Tasks     *TaskRetention  `json:"tasks,omitempty"`
-	Decisions *EntryRetention `json:"decisions,omitempty"`
-	Knowledge *EntryRetention `json:"knowledge,omitempty"`
+	Tasks *TaskRetention `json:"tasks,omitempty"`
 }
 
 // TaskRetention controls how completed tasks are pruned.
@@ -294,18 +293,10 @@ type TaskRetention struct {
 	MaxAgeDays   int `json:"maxAgeDays"`   // remove completed tasks older than N days (0 = unlimited)
 }
 
-// EntryRetention controls how decision/knowledge entries are pruned.
-type EntryRetention struct {
-	MaxEntries int `json:"maxEntries"` // keep N newest entries (0 = unlimited)
-	MaxAgeDays int `json:"maxAgeDays"` // remove entries older than N days (0 = unlimited)
-}
-
 // DefaultRetentionConfig returns the default retention policy.
 func DefaultRetentionConfig() RetentionConfig {
 	return RetentionConfig{
-		Tasks:     &TaskRetention{MaxCompleted: 20, MaxAgeDays: 30},
-		Decisions: &EntryRetention{MaxEntries: 50, MaxAgeDays: 90},
-		Knowledge: &EntryRetention{MaxEntries: 100, MaxAgeDays: 180},
+		Tasks: &TaskRetention{MaxCompleted: 20, MaxAgeDays: 30},
 	}
 }
 
@@ -319,12 +310,6 @@ func (t *Team) EffectiveRetention() RetentionConfig {
 	if r.Tasks == nil {
 		r.Tasks = d.Tasks
 	}
-	if r.Decisions == nil {
-		r.Decisions = d.Decisions
-	}
-	if r.Knowledge == nil {
-		r.Knowledge = d.Knowledge
-	}
 	return r
 }
 
@@ -336,7 +321,6 @@ func (t *Team) Contract() teamconfig.Contract {
 		Runtime:      t.Runtime,
 		Coordination: t.Coordination,
 		Execution:    t.Execution,
-		DecisionMode: t.DecisionMode,
 	}
 }
 
@@ -454,7 +438,7 @@ type Experiment struct {
 	StartedAt                *string            `json:"startedAt,omitempty"`
 	ConcludedAt              *string            `json:"concludedAt,omitempty"`
 	WinnerVariantID          *string            `json:"winnerVariantId,omitempty"`
-	PromotionDecisionID      string             `json:"promotionDecisionId,omitempty"`
+	PromotionWorkItemRef     string             `json:"promotionWorkItemRef,omitempty"`
 	HoldoutFindingsHash      string             `json:"holdoutFindingsHash,omitempty"`
 	HoldoutCompletedAt       string             `json:"holdoutCompletedAt,omitempty"`
 	HoldoutIdempotencyKey    string             `json:"holdoutIdempotencyKey,omitempty"`
@@ -744,106 +728,10 @@ type TeamTaskBoard struct {
 	Tasks []TeamTask `json:"tasks"`
 }
 
-// --- Decision Log ---
-
-// Decision status constants.
-const (
-	DecisionStatusPending   = "pending"
-	DecisionStatusAccepted  = "accepted"
-	DecisionStatusRejected  = "rejected"
-	DecisionStatusRunning   = "running"
-	DecisionStatusCompleted = "completed"
-	DecisionStatusDeferred  = "deferred"
-)
-
-// MaxRevisitAfterDays caps how far in the future a deferred decision's
-// revisit_after may be set. Catches typo'd far-future dates cheaply.
-const MaxRevisitAfterDays = 365
-
-// DecisionOption represents a lettered choice in a multi-option decision.
-type DecisionOption struct {
-	Key         string `json:"key"`                   // "A", "B", "C", etc.
-	Label       string `json:"label"`                 // short description
-	Rationale   string `json:"rationale"`             // why this option
-	Recommended bool   `json:"recommended,omitempty"` // agent-suggested pick
-}
-
-// DecisionModifications captures structured, scoped exceptions an operator
-// attaches to an accepted option. `excluded_clauses` lists parts of the
-// option's rationale the operator does NOT accept; `additions` lists extra
-// constraints or scope added on top; `rationale` explains the modification.
-// Contract: see docs/reference/decision-modifications-contract.md.
-type DecisionModifications struct {
-	ExcludedClauses []string `json:"excluded_clauses,omitempty"`
-	Additions       []string `json:"additions,omitempty"`
-	Rationale       string   `json:"rationale,omitempty"`
-}
-
-// Auto-create status constants for `initiative-proposal` decisions.
-const (
-	AutoCreateStatusUnset   = ""
-	AutoCreateStatusPending = "pending"
-	AutoCreateStatusCreated = "created"
-	AutoCreateStatusFailed  = "failed"
-)
-
-// DecisionContextInitiativeProposal is the well-known context tag that
-// triggers initiative auto-creation on decision-accept.
-const DecisionContextInitiativeProposal = "initiative-proposal"
-
-// DecisionInitiativeMetadata is the structured block carried on a decision
-// whose context is `initiative-proposal`. It is the authoritative source of
-// the initiative's identity (name, priority, depends_on, target scenario)
-// and is consumed at decision-accept time to construct the swarm-manager
-// initiative. Immutable once the decision has been accepted.
-// Contract: see docs/reference/decision-initiative-proposal-contract.md.
-type DecisionInitiativeMetadata struct {
-	Name           string   `json:"name"`                      // initiative name (kebab-case)
-	Priority       int      `json:"priority,omitempty"`        // 0 (unset) or 1-10
-	DependsOn      []string `json:"depends_on,omitempty"`      // initiative name refs
-	TargetScenario string   `json:"target_scenario,omitempty"` // e.g. "swarm-manager"
-	Title          string   `json:"title,omitempty"`           // optional override; default = decision topic
-}
-
-// DecisionEntry represents a recorded decision in the team's decision log.
-type DecisionEntry struct {
-	ID            string                 `json:"id"`
-	At            string                 `json:"at"`
-	By            string                 `json:"by"` // agent ID
-	Decision      string                 `json:"decision"`
-	Rationale     string                 `json:"rationale"`
-	Context       string                 `json:"context,omitempty"`     // tag/topic grouping
-	Supersedes    string                 `json:"supersedes,omitempty"`  // ID of decision this replaces
-	Status        string                 `json:"status,omitempty"`      // "pending", "accepted", "rejected"
-	Topic         string                 `json:"topic,omitempty"`       // what is being decided (multi-option)
-	Description   string                 `json:"description,omitempty"` // background/context for multi-option decisions
-	Options       []DecisionOption       `json:"options,omitempty"`     // lettered choices
-	Selected      string                 `json:"selected,omitempty"`    // chosen option key or "__other__"
-	Freeform      string                 `json:"freeform,omitempty"`    // custom response text
-	Notes         string                 `json:"notes,omitempty"`       // additional human context
-	Modifications *DecisionModifications `json:"modifications,omitempty"`
-	RevisitAfter  *string                `json:"revisit_after,omitempty"` // ISO-8601 date (YYYY-MM-DD); set when status=deferred
-	// AcceptedAsProposed is true when a single-proposal decision (no Options)
-	// was accepted without picking from a list. Selected/Freeform stay empty
-	// in this case; this flag is the explicit, queryable marker.
-	AcceptedAsProposed bool `json:"accepted_as_proposed,omitempty"`
-	// InitiativeMetadata is set when Context == "initiative-proposal" and
-	// drives initiative auto-creation on accept. Immutable post-accept.
-	InitiativeMetadata *DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
-	// AutoCreateStatus tracks whether the auto-create attempt succeeded.
-	// One of: "" (unset), "pending", "created", "failed".
-	AutoCreateStatus string `json:"auto_create_status,omitempty"`
-	// AutoCreateError carries the failure reason when AutoCreateStatus="failed".
-	AutoCreateError string `json:"auto_create_error,omitempty"`
-	// AutoCreateInitiativeRef is the "<scenario>/<name>" reference of the
-	// successfully created initiative.
-	AutoCreateInitiativeRef string `json:"auto_create_initiative_ref,omitempty"`
-}
-
 // --- Knowledge Log ---
 
 // Knowledge writer-kind enum. Closed vocabulary; new kinds require a
-// meta-optimization decision and a migration plan. The canon contract is
+// meta-optimization gated work item and a migration plan. The canon contract is
 // docs/agent-system/RUNTIME_ATTRIBUTION.md § kind enum.
 const (
 	// KnowledgeKindAgentMember is a team member's agent process running
@@ -859,8 +747,8 @@ const (
 	// KnowledgeKindExternal is a non-Vrooli system (webhook, future
 	// integration). No required fields beyond Kind.
 	KnowledgeKindExternal = "external"
-	// KnowledgeKindLegacy is set by the one-time migration tool on every
-	// pre-cutoff entry. The original freeform `by` value is preserved on
+	// KnowledgeKindLegacy is set during the cutover on every pre-cutoff entry.
+	// The original freeform `by` value is preserved on
 	// the entry's CallerNote field. Skipped by ruleActualWriterUndeclared.
 	KnowledgeKindLegacy = "legacy"
 	// KnowledgeKindInvestigation is a bug-investigator or root-cause-analysis
@@ -972,10 +860,9 @@ type AttributionInfo struct {
 // as input. CallerNote is optional freeform context. The full contract is
 // docs/agent-system/RUNTIME_ATTRIBUTION.md.
 //
-// Pre-cutoff entries are migrated by cmd/migrate-knowledge-attribution to
-// kind=legacy with the original `by` field value preserved on CallerNote.
-// Post-cutoff entries with kind=legacy are not produced — the migration
-// runs once per team.
+// Pre-cutover entries use kind=legacy with the original `by` field value
+// preserved on CallerNote. Post-cutover entries with kind=legacy are not
+// produced.
 type KnowledgeEntry struct {
 	ID         string `json:"id"`
 	At         string `json:"at"`
@@ -991,10 +878,10 @@ type KnowledgeEntry struct {
 	// the API derives Caller.
 	Caller string `json:"caller"`
 	// CallerNote is optional freeform context the writer may attach (debug
-	// breadcrumb, retry note, migration trail). Capped at 256 chars by the
+	// breadcrumb, retry note, cutover trail). Capped at 256 chars by the
 	// API handler. No identity meaning; never read by validators.
-	// The legacy-knowledge migration preserves the original `by` field's
-	// value here on every pre-cutoff entry.
+	// The cutover preserves the original `by` field's value here on every
+	// pre-cutover entry.
 	CallerNote string `json:"caller_note,omitempty"`
 	// Attribution is the structured truth about who wrote this entry.
 	// Always present (post-cutoff and migrated entries alike). The API
@@ -1004,7 +891,7 @@ type KnowledgeEntry struct {
 }
 
 // BugDraft is a private, repairable Scenario QA intake submission. It is kept
-// outside knowledge.jsonl deliberately: only published reports are bug-inbox
+// outside the team corpus deliberately: only published reports are bug-inbox
 // entries and therefore visible to the investigator or knowledge search.
 type BugDraft struct {
 	ID          string            `json:"id"`

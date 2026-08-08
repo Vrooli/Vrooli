@@ -112,8 +112,9 @@ validation follow the same shape: `plan-manager validate start …` creates a
 ticket and prints exact producer argv; wait through Git Control Tower/Test Genie,
 then run `plan-manager validate sync <operation-id>`. Never replace those waits
 with Plan Manager `wait`, shell polling, or a guessed timeout. A phase can use a
-captured-member subset, but final Definition of Done omits selectors and covers
-the entire captured collection.
+captured-member subset derived from affected areas or an explicit validation
+scope. Final Definition of Done omits selectors and covers the entire captured
+collection.
 
 All long validation operations follow the same ownership rule: persist intent and an operation id before dispatch, separate queue/execution/transport budgets, and let one blocking wait reattach to that id. A client timeout, disconnect, or unexpected EOF may end the attachment, but it never decides or rewrites the server-owned outcome.
 

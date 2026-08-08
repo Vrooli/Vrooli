@@ -2,7 +2,7 @@
 
 Canon for marketing-specific production lessons that are not research evidence, code bugs, or cross-team friction.
 
-Use this only when the lesson belongs to marketing craft. Broken behavior goes to `report-bug`; system/process friction goes to `report-friction`; missing tooling that blocks marketing work becomes a `capability-gap` decision.
+Use this only when the lesson belongs to marketing craft. Broken behavior goes to `report-bug`; system/process friction goes to `report-friction`; missing tooling that blocks marketing work becomes a `capability-work` decision.
 
 ## Signal types
 
@@ -15,4 +15,4 @@ Use this only when the lesson belongs to marketing craft. Broken behavior goes t
 
 ## Promotion
 
-Brand-manager drains these observations. Each entry must name a target direction: skill edit, post-type doc, post-technique doc, strategy canon, channel rule, scenario/config change, `capability-gap`, or retirement.
+Brand-manager drains these observations. Each entry must name a target direction: skill edit, post-type doc, post-technique doc, strategy canon, channel rule, scenario/config change, `capability-work`, or retirement.

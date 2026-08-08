@@ -52,7 +52,7 @@ When platform-code-auditor proposes a new entry via `cross-platform-debt`, the o
 - **Pattern:** [1-2 sentences describing the assumption]
 - **Current state:** [`measured` | `inferred` | `fixed`]
 - **Resolution path:** [ledger-only until tier <N> activates | swarm-manager item <id>]
-- **Source decision:** `<decision-id>` raised by platform-code-auditor on YYYY-MM-DD
+- **Source decision:** `<review-id>` raised by platform-code-auditor on YYYY-MM-DD
 ```
 
 ## Update protocol

@@ -198,59 +198,6 @@ type TaskBoardResponse struct {
 	Offset int              `json:"offset"`
 }
 
-// --- Decision API models ---
-
-// AddDecisionRequest is the request body for adding a decision.
-type AddDecisionRequest struct {
-	By          string                 `json:"by"`
-	Decision    string                 `json:"decision"`
-	Rationale   string                 `json:"rationale"`
-	Context     string                 `json:"context,omitempty"`
-	Supersedes  string                 `json:"supersedes,omitempty"`
-	Topic       string                 `json:"topic,omitempty"`
-	Description string                 `json:"description,omitempty"`
-	Options     []store.DecisionOption `json:"options,omitempty"`
-	// InitiativeMetadata may be set only when Context == "initiative-proposal".
-	// Drives initiative auto-creation on decision-accept.
-	InitiativeMetadata *store.DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
-}
-
-// UpdateDecisionRequest is the request body for updating a decision.
-type UpdateDecisionRequest struct {
-	Decision    *string                 `json:"decision,omitempty"`
-	Rationale   *string                 `json:"rationale,omitempty"`
-	Context     *string                 `json:"context,omitempty"`
-	Status      *string                 `json:"status,omitempty"` // "pending", "accepted", "rejected"
-	Supersedes  *string                 `json:"supersedes,omitempty"`
-	Topic       *string                 `json:"topic,omitempty"`
-	Description *string                 `json:"description,omitempty"`
-	Options     *[]store.DecisionOption `json:"options,omitempty"`
-	Selected    *string                 `json:"selected,omitempty"`
-	Freeform    *string                 `json:"freeform,omitempty"`
-	Notes       *string                 `json:"notes,omitempty"`
-	// Modifications is a structured, scoped exception against the selected
-	// option's rationale. Immutable once set on an accepted decision.
-	// Contract: docs/reference/decision-modifications-contract.md.
-	Modifications *store.DecisionModifications `json:"modifications,omitempty"`
-	// RevisitAfter is an ISO-8601 date (YYYY-MM-DD). Required when transitioning
-	// to status=deferred; otherwise ignored.
-	RevisitAfter *string `json:"revisit_after,omitempty"`
-	// InitiativeMetadata may be set/replaced any number of times before first
-	// accept; immutable post-accept. Only valid on decisions whose
-	// context == "initiative-proposal".
-	InitiativeMetadata *store.DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
-	// AutoCreateStatus is operator-writable post-accept solely to record the
-	// d8=C manual-recovery outcome (allowed transition: failed → created or
-	// failed → failed). Setting "created" requires AutoCreateInitiativeRef.
-	AutoCreateStatus *string `json:"auto_create_status,omitempty"`
-	// AutoCreateError accompanies a failed→failed transition with an updated
-	// reason; ignored otherwise.
-	AutoCreateError *string `json:"auto_create_error,omitempty"`
-	// AutoCreateInitiativeRef is the "<scenario>/<name>" reference set
-	// alongside AutoCreateStatus="created".
-	AutoCreateInitiativeRef *string `json:"auto_create_initiative_ref,omitempty"`
-}
-
 // --- Knowledge API models ---
 
 // AddKnowledgeRequest is the request body for adding a knowledge entry.
@@ -267,8 +214,8 @@ type AddKnowledgeRequest struct {
 	Supersedes string `json:"supersedes,omitempty"`
 }
 
-// UpdateKnowledgeRequest is the request body for updating a knowledge entry.
-type UpdateKnowledgeRequest struct {
+// UpdateTeamCorpusRequest is the request body for superseding a corpus entry.
+type UpdateTeamCorpusRequest struct {
 	Topic      *string `json:"topic,omitempty"`
 	Content    *string `json:"content,omitempty"`
 	Source     *string `json:"source,omitempty"`
@@ -307,27 +254,6 @@ type BugCaptureResponse struct {
 	Invalid     []store.FieldDiagnostic `json:"invalid"`
 	Warnings    []string                `json:"warnings"`
 	NextAction  []string                `json:"next_action,omitempty"`
-}
-
-// DecisionListResponse is the API response for listing decisions.
-type DecisionListResponse struct {
-	TeamID  string                `json:"teamId"`
-	Entries []store.DecisionEntry `json:"entries"`
-	Total   int                   `json:"total"`
-	Last    int                   `json:"last"`
-}
-
-// PendingDecisionTeamGroup groups pending decisions by team.
-type PendingDecisionTeamGroup struct {
-	TeamID   string                `json:"teamId"`
-	TeamName string                `json:"teamName"`
-	Entries  []store.DecisionEntry `json:"entries"`
-}
-
-// AllPendingDecisionsResponse is the response for the aggregate pending decisions endpoint.
-type AllPendingDecisionsResponse struct {
-	Teams      []PendingDecisionTeamGroup `json:"teams"`
-	TotalCount int                        `json:"totalCount"`
 }
 
 // MemberContextResponse is the response for the member context endpoint.

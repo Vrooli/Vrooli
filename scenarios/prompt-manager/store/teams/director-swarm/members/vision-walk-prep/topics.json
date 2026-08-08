@@ -25,9 +25,6 @@
       "destination_kind": "knowledge"
     }
   ],
-  "decisions_owned": [
-    "vision-update"
-  ],
   "external_producers": [
     "operator"
   ]

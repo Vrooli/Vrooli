@@ -1,22 +1,50 @@
-# Scenario-to-Desktop deployment
+# Scenario-to-desktop
 
-Scenario-to-desktop is the Tier 2 desktop deployment ramp. It generates an
-Electron desktop wrapper for a Vrooli scenario and records the generated
-artifacts, build state, preflight results, and local validation evidence.
+`scenario-to-desktop` is the deployment Tier 2 ramp. It generates, packages,
+tests, and publishes Electron applications for Vrooli scenarios. It owns
+desktop execution; `deployment-manager` owns the target decision and release
+record.
 
-## Operating boundary
+This page is the project-level ownership summary. The maintained technical
+documentation is in [`scenarios/scenario-to-desktop/docs/`](../../../scenarios/scenario-to-desktop/docs/).
 
-The scenario runs desktop artifacts directly on the current host when that host
-matches the target platform. Local interactive validation is captured through a
-loopback-bound VNC/websockify session and durable evidence captures.
+## What the ramp owns
 
-Remote OS validation is a separate Vrooli Bridge consumer integration. Bridge
-currently supplies typed node dispatch, runs, and artifact-transfer seams, but
-does not yet define a desktop-session or evidence-capture transfer protocol;
-therefore a bridge job ID is not represented as local desktop evidence.
+- Electron wrapper generation and platform packaging;
+- target-specific bundle and runtime configuration;
+- local preflight and desktop smoke journeys;
+- artifact, build, and evidence records;
+- signing configuration and publication handoff.
 
-## Verification
+It does not own scenario business logic, resource policy, credential authority,
+release approval, or remote desktop execution on an untrusted machine.
 
-Use `vrooli scenario start scenario-to-desktop` to start the scenario, then run
-`vrooli scenario test scenario-to-desktop` for the server-owned full suite.
-See the scenario's `docs/guides/DEPLOYMENT.md` for package deployment details.
+## Supported deployment shapes
+
+| Shape | Meaning | Current claim |
+| --- | --- | --- |
+| Bundled private | The desktop supervisor starts verified private scenario/resource artifacts | Available for eligible plans; promotion is evidence-gated |
+| External-server | The desktop shell calls a configured Tier 1 scenario API | Supported when the server route is configured and tested |
+| Shared resource | The supervisor uses a broker-issued, scoped lease to a provider | Contract and fallback behavior exist; live evidence is required per release |
+| Tier 2 peer | One desktop runtime calls another desktop runtime | Unsupported until a real authenticated peer protocol exists |
+
+These shapes must not be described interchangeably. In particular, a thin
+client is not an offline bundle, and a provider candidate is not a peer
+protocol.
+
+## Evidence boundary
+
+Compile and package results are not native runtime evidence. A desktop release
+claim requires the machine assertions and reviewer-visible journey evidence
+defined by the [desktop evidence and communication contract](../../reference/scenario-to-desktop-evidence-and-tier-contract.md).
+
+Local validation runs on the current host. Remote OS validation through
+`vrooli-bridge` is a separate integration and currently does not transfer a
+desktop-session evidence protocol.
+
+## Read next
+
+- [Scenario-to-desktop documentation](../../../scenarios/scenario-to-desktop/docs/OVERVIEW.md)
+- [Desktop deployment quickstart](../../../scenarios/scenario-to-desktop/docs/QUICKSTART.md)
+- [Deployment modes](../../../scenarios/scenario-to-desktop/docs/concepts/deployment-modes.md)
+- [Desktop evidence and communication contract](../../reference/scenario-to-desktop-evidence-and-tier-contract.md)

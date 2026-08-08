@@ -2,6 +2,6 @@
 
 ## Tool Access
 - `prompt-manager team member-context director-swarm outcome-strategist`
-- `prompt-manager team decision-list director-swarm ...`
+- `swarm-manager backlog list director-swarm ...`
 - `prompt-manager team knowledge-list director-swarm ...`
 - `vrooli help`

@@ -17,7 +17,6 @@ type operatingModelSource struct {
 type operatingModelSections struct {
 	Graph        operatingGraphSection      `json:"graph,omitempty"`
 	TopicCatalog operatingTopicCatalogTable `json:"topic_catalog,omitempty"`
-	Decisions    operatingDecisionTable     `json:"decisions,omitempty"`
 }
 
 type operatingGraphSection struct {
@@ -84,7 +83,6 @@ type operatingGraphEdge struct {
 
 type operatingGraphDocs struct {
 	TopicCatalog operatingTopicCatalogTable `json:"topic_catalog,omitempty"`
-	Decisions    operatingDecisionTable     `json:"decisions,omitempty"`
 }
 
 type operatingTopicCatalogTable struct {
@@ -104,22 +102,6 @@ type operatingTopicCatalogRow struct {
 	RawTopic   string                    `json:"raw_topic"`
 }
 
-type operatingDecisionTable struct {
-	HeaderLine int                    `json:"header_line,omitempty"`
-	Rows       []operatingDecisionRow `json:"rows,omitempty"`
-	Present    bool                   `json:"present,omitempty"`
-}
-
-type operatingDecisionRow struct {
-	Decision                string                    `json:"decision"`
-	Owners                  []operatingActorReference `json:"owners,omitempty"`
-	Purpose                 string                    `json:"purpose"`
-	ExpectedEvidenceTrigger string                    `json:"expected_evidence_trigger"`
-	AcceptedEffect          string                    `json:"accepted_effect"`
-	SourceLine              int                       `json:"source_line"`
-	RawDecision             string                    `json:"raw_decision"`
-}
-
 type operatingActorReference struct {
 	Kind  string `json:"kind"`
 	Value string `json:"value"`
@@ -137,7 +119,6 @@ type operatingGraphFinding struct {
 	Edge       string `json:"edge,omitempty"`
 	Member     string `json:"member,omitempty"`
 	Topic      string `json:"topic,omitempty"`
-	Decision   string `json:"decision,omitempty"`
 	Path       string `json:"path,omitempty"`
 	Detail     string `json:"detail"`
 }
@@ -163,7 +144,6 @@ type operatingGraphDiff struct {
 	Team             string   `json:"team"`
 	Member           string   `json:"member,omitempty"`
 	Topic            string   `json:"topic,omitempty"`
-	Decision         string   `json:"decision,omitempty"`
 	Path             string   `json:"path,omitempty"`
 	External         string   `json:"external,omitempty"`
 	ProducerTeam     string   `json:"producer_team,omitempty"`
@@ -235,15 +215,6 @@ type operatingDocsCoverage struct {
 	TopicCatalogPurposeMatched        int    `json:"topic_catalog_purpose_matched"`
 	TopicCatalogPurposeMismatch       int    `json:"topic_catalog_purpose_mismatch"`
 	TopicCatalogPurposeMissingRuntime int    `json:"topic_catalog_purpose_missing_runtime"`
-	DecisionsTable                    string `json:"decisions_table"`
-	DecisionsRows                     int    `json:"decisions_rows"`
-	DecisionsMatched                  int    `json:"decisions_matched"`
-	DecisionsGraphOnly                int    `json:"decisions_graph_only"`
-	DecisionsDocsOnly                 int    `json:"decisions_docs_only"`
-	DecisionsInvalid                  int    `json:"decisions_invalid"`
-	DecisionsMetadataComplete         int    `json:"decisions_metadata_complete"`
-	DecisionsMetadataIncomplete       int    `json:"decisions_metadata_incomplete"`
-	DecisionsAcceptedEffectWeak       int    `json:"decisions_accepted_effect_weak"`
 	ExternalInputsTable               string `json:"external_inputs_table"`
 	ExternalInputsRows                int    `json:"external_inputs_rows"`
 	ExternalInputsBackedRows          int    `json:"external_inputs_backed_rows"`

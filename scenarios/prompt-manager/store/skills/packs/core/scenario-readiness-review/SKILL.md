@@ -123,7 +123,7 @@ Combine the review endpoint classification with git state observations:
 When a scenario is classified as **Ready** or **Ready with notes**, use the prompt-manager decision system to request commit approval.
 
 ```bash
-prompt-manager team decision-add director-swarm \
+swarm-manager backlog create director-swarm \
   --by {{AGENT_ID}} \
   --decision "Recommend committing {{SCENARIO}} — {{FILE_COUNT}} files, readiness {{READINESS}}" \
   --rationale "{{REVIEW_SUMMARY_WITH_DETAIL_ITEMS}}" \
@@ -170,7 +170,7 @@ Include specific findings — don't just say "fix quality issues." Cite the exac
 **You must produce:**
 - Structured readiness assessment using the server's classification
 - Specific evidence from detail fields (top violations, test failures, untraced files)
-- A pending decision via prompt-manager when recommending commit
+- A open work item via prompt-manager when recommending commit
 - Honest reporting of unavailable dimensions
 
 **You must NOT:**

@@ -12,9 +12,9 @@ It is the third leg of the three-pillar validation architecture; without it, a `
 
 | Pillar | Source | What it catches | Anchor doc |
 |---|---|---|---|
-| **P1 — Declared graph** | `topics.json` `intake[]` / `required_read[]` / `evidence_consumed[]` / `output[]` | Cross-member declaration mismatches, dangling decision references, orphaned producers/consumers | `TOPICS_SCHEMA.md` |
+| **P1 — Declared graph** | `topics.json` `intake[]` / `required_read[]` / `evidence_consumed[]` / `output[]` | Cross-member declaration mismatches, dangling work-item references, orphaned producers/consumers | `TOPICS_SCHEMA.md` |
 | **P2 — Prose scan** | Markdown bodies in `members/`, `agents/`, `skills/`, `docs/` | Hardcoded topic-prefix references in prose that contradict declarations | [`PROSE_SCAN_TARGETS.md`](PROSE_SCAN_TARGETS.md) |
-| **P3 — Runtime attribution** | `attribution` field on every post-cutoff `knowledge.jsonl` entry | Observed writers/topics not accounted for by any declaration | this file |
+| **P3 — Runtime attribution** | Verified actor fields on events and source-ledger entries | Observed writers/topics not accounted for by any declaration | this file |
 
 P1 is the plan. P2 is the prose adjacent to the plan. P3 is the receipts. Each catches a class of drift the others structurally cannot. Errors should land on the right pillar — for example, an undeclared writer is a P3 finding (`actual_writer_undeclared`), an undeclared cross-member read is a P1 finding (`unread_required`), and a stale code-block topic-prefix in a SKILL.md is a P2 finding (`prose_topic_leak`).
 
@@ -39,7 +39,13 @@ These are bookkeeping failures, not attacks. The contract is therefore designed 
 - Cryptographically attested attribution. A malicious local actor with shell access could spoof any field. Defending against that would require signed identity tokens with team/member claims, plus per-call signature verification — feasible (see § Future strengthening) but outside this contract.
 - Cross-tenant isolation. Vrooli is single-tenant local infrastructure today; if multi-tenant deployment becomes a goal, attribution becomes an authn surface and gets a separate workshop.
 
-The honest-drift threat model is the load-bearing simplification that lets attribution ship as a header + JSON payload, with the verifiable-claims path (`VROOLI_AGENT_IDENTITY_TOKEN`) listed explicitly as a future strengthening rather than a blocker.
+The honest-drift threat model remains the compatibility baseline for direct and legacy writers. The verifiable-claims path (`VROOLI_AGENT_IDENTITY_TOKEN`) is shipped for the durable write seams; further cryptographic cross-checking of freeform writer headers remains future work.
+
+## Shipped run attribution path
+
+The signed identity path is now shipped for durable writes owned by agent-manager, swarm-manager, plan-manager, and vrooli-memory. A spawned run receives `VROOLI_AGENT_IDENTITY_TOKEN`; receiving write seams resolve and persist the verified run id, actor id, actor kind, and verification status. A caller that cannot present a valid token is still allowed where the owning contract permits it, but the row records `unavailable`, `invalid`, or `absent` rather than being promoted to verified.
+
+The harness observation path remains separate: a transcript-imported run carries its runner-qualified session id and is reported as observed. Consumers must keep verified and observed coverage distinct.
 
 ---
 
@@ -141,7 +147,7 @@ The header value is the standard base64 encoding (`package:encoding/base64` in G
 
 ### Legacy `X-Caller-ID`
 
-`X-Vrooli-Attribution` is the canonical attribution header. The legacy `X-Caller-ID` header is retained only as a decision-approval compatibility fallback for older callers; new code must not use it as an engagement or identity signal. Member id flows through `attribution.member_id` derived from the new header.
+`X-Vrooli-Attribution` is the canonical attribution header. The legacy `X-Caller-ID` header is retained only as a work-approval compatibility fallback for older callers; new code must not use it as an engagement or identity signal. Member id flows through `attribution.member_id` derived from the new header.
 
 The mapping for callers that previously sent `X-Caller-ID`:
 - `X-Caller-ID: ui-user` → `attribution.kind: "operator-direct"`
@@ -158,7 +164,7 @@ The CLI never *constructs* `agent-member` attribution itself. If an operator at 
 
 ### Receiving side
 
-Every prompt-manager HTTP handler that records attributed writes (`POST /teams/{id}/knowledge`, decision-status engagement detection on `PATCH /teams/{id}/decisions/{id}`, etc.) MUST:
+Every prompt-manager HTTP handler that records attributed writes (`POST /teams/{id}/knowledge`, work-status engagement detection on Swarm Manager-backed routes, etc.) MUST:
 
 1. Read `X-Vrooli-Attribution` from the request.
 2. Reject with HTTP 400 if the endpoint requires attribution and the header is absent.
@@ -166,7 +172,7 @@ Every prompt-manager HTTP handler that records attributed writes (`POST /teams/{
 4. Cross-check team consistency: if `attribution.team_id` is set and the URL path's team id is different, reject with HTTP 400 (see § Conflict policy).
 5. Populate the resulting `KnowledgeEntry`'s `attribution` field from the validated header, derive `caller`, and store both atomically.
 
-Decision status updates use `operator-direct` attribution as the heartbeat auto-pause engagement signal. Missing attribution preserves legacy behavior but does not reset the idle clock; malformed attribution is rejected.
+Work disposition updates use `operator-direct` attribution as the heartbeat auto-pause engagement signal. Missing attribution preserves legacy behavior but does not reset the idle clock; malformed attribution is rejected.
 
 Read-only endpoints (`GET /teams/{id}/knowledge`, etc.) do not require the header. Idempotent metadata endpoints used by the heartbeat builder may declare themselves read-only-equivalent in their handler-level docs.
 
@@ -217,7 +223,7 @@ VROOLI_PROMPT_MANAGER_ATTRIBUTION=<base64-encoded JSON, same format as the HTTP 
 
 3. **Agent-manager** merges `Environment` into the agent process's env via `phases.MergeEnvVars` (Custom map). Sandbox and identity vars take precedence, but no current sandbox/identity var collides with the attribution slot — they share namespace cleanly. The env-var key (`VROOLI_PROMPT_MANAGER_ATTRIBUTION`) starts with the required `VROOLI_` prefix that agent-manager's `validateCustomEnvironment` enforces.
 
-4. **Spawned agent's CLI** (when it issues `prompt-manager team knowledge-add ...`) reads `VROOLI_PROMPT_MANAGER_ATTRIBUTION`, validates that base64 decodes and JSON parses, and forwards it verbatim as `X-Vrooli-Attribution` on the HTTP request. No re-derivation, no field-by-field reconstruction — the env var IS the header value.
+4. **Spawned agent's CLI** (when it issues a source-ledger journal write) reads `VROOLI_PROMPT_MANAGER_ATTRIBUTION`, validates that base64 decodes and JSON parses, and forwards it verbatim as `X-Vrooli-Attribution` on the HTTP request. No re-derivation, no field-by-field reconstruction — the env var IS the header value.
 
 5. **Spawned agent's CLI** never *constructs* `agent-member` attribution from its own context. Its only options are:
    - Forward the env var (when present).
@@ -239,17 +245,17 @@ Each `team.json` carries an `attributionValidFrom` ISO-8601 date (e.g., `"attrib
 
 ### Why per-team, not global
 
-Each team migrates its `knowledge.jsonl` independently. The cutoff is set by the migration tool to "today" at run time, with a `--cutoff-date` flag for testing. Per-team granularity means:
+Each team adopts its source-ledger scope independently. The ledger records provenance at append time. Per-team granularity means:
 
 - A team can adopt the contract early (or late) without coupling to the others.
 - Validation can run cleanly during the rollout window — pre-cutoff teams' findings are deferred until that team's cutoff lands.
-- A team can roll back its cutoff (retroactively widen the legacy window) without coordinating with peers, if a migration introduces unexpected drift.
+- A team can adjust its scope guidance without coordinating with peers, if classification introduces unexpected drift.
 
 The trade-off is six independent state machines instead of one, accepted because all six teams cross the cutoff in a single migration PR.
 
 ### Validator behavior at the boundary
 
-The runtime-attribution scanner (`ruleActualWriterUndeclared`) processes each team's entries:
+The runtime event and ledger consumers process each team's entries:
 
 - Skip entries with `at < attributionValidFrom` — these are `kind: "legacy"` by definition; their `caller` is `"legacy:<original-by-value>"`; their topic-flow declarations don't apply.
 - For entries with `at >= attributionValidFrom`, verify `attribution` is structurally valid (kind known; required fields populated). Structural failures fire `attribution_malformed` (always error severity).
@@ -271,15 +277,15 @@ A post-cutoff entry that supersedes a pre-cutoff entry is **a new entry on the l
    ```
    `run_id` is null because agent-manager hasn't assigned the run UUID yet (it returns the UUID in the `CreateRun` response, after the `Environment` map has been read).
 2. Agent-manager spawns the agent process with `VROOLI_PROMPT_MANAGER_ATTRIBUTION=<base64>` in its env.
-3. The agent runs, decides to write an audience-scan, invokes `prompt-manager team knowledge-add marketing-crew --topic=audience-scan/2026-05-04/q2-creators --content="..."`.
+3. The agent runs, decides to write an audience finding, invokes `source-ledger journal note "..." --scope=team:marketing-crew --kind=team-knowledge`.
 4. The CLI reads `VROOLI_PROMPT_MANAGER_ATTRIBUTION`, sets `X-Vrooli-Attribution` to its value, posts to `/teams/marketing-crew/knowledge`.
 5. The handler validates the header, confirms `team_id` matches the URL path, sees `kind=agent-member` with `spawn_origin=heartbeat` and accepts the null `run_id`, derives `caller="marketing-crew/producer"`, persists the entry.
-6. The runtime-attribution scanner sees the entry, joins it against `marketing-crew/producer/topics.json::output[]`, sees `audience-scan/*` is declared, no finding fires. ✅
+6. The ledger entry retains the verified writer provenance and the team's topic guidance remains the declaration authority. ✅
 
 ### Example 2: Writer-skill `report-bug` invoked by an agent
 
 1. The agent (e.g., `literal:monetization/opportunity-scout`) runs and decides to file a bug.
-2. The agent invokes the `report-bug` skill, which writes via `prompt-manager team knowledge-add scenario-qa --topic=bug-inbox/regression/cli-flag-confusion --content="..."`.
+2. The agent invokes the `report-bug` skill, which files the issue once through swarm-manager and records any durable context in `source-ledger journal note` under `team:scenario-qa`.
 3. The skill knows it's a writer skill — its CLI invocation logic constructs **writer-skill attribution** by inheriting agent context from `VROOLI_PROMPT_MANAGER_ATTRIBUTION` and overlaying `kind=writer-skill` and `source_skill_id=report-bug`:
    ```json
    {"kind":"writer-skill","member_id":"opportunity-scout","team_id":"scenario-qa","run_id":"<inherited-run-id>","spawn_origin":"heartbeat","source_skill_id":"report-bug"}
@@ -289,7 +295,7 @@ A post-cutoff entry that supersedes a pre-cutoff entry is **a new entry on the l
 
 ### Example 3: Operator at the terminal
 
-1. Operator at their shell runs `prompt-manager team knowledge-add marketing-crew --topic=audience-scan/2026-05-04/manual --content="..." --caller-note="hand-curated from yesterday's email"`.
+1. Operator at their shell runs `source-ledger journal note "hand-curated from yesterday's email" --scope=team:marketing-crew --kind=team-knowledge`.
 2. CLI sees no `VROOLI_PROMPT_MANAGER_ATTRIBUTION` env var, constructs:
    ```json
    {"kind":"operator-direct","spawn_origin":"operator-cli"}
@@ -300,18 +306,20 @@ A post-cutoff entry that supersedes a pre-cutoff entry is **a new entry on the l
 ### Example 4: Conflict — agent tries to write to another team
 
 1. Agent's CLI inherits `attribution.team_id="marketing-crew"` from its env.
-2. Operator-side bug: the agent invokes `prompt-manager team knowledge-add monetization --topic=...`. URL path team is `monetization`; attribution claims `marketing-crew`.
+2. Operator-side bug: a ledger write claims the wrong team scope. The scope is checked against the filing context before durable storage.
 3. Handler rejects with HTTP 400 `team_mismatch`. The agent's run sees the error in its run log; the operator sees it on the next heartbeat surface. The fix is on the agent side (don't write cross-team without producing a `writer-skill`-style attribution overlay) — never on the server side (don't silently accept).
 
 ---
 
 ## Future strengthening
 
-These are paths the contract explicitly leaves open. Each requires its own workshop and decision.
+These are paths the contract explicitly leaves open. Each requires its own workshop and work item.
 
-### Run-id resolution via VROOLI_AGENT_IDENTITY_TOKEN
+### Run-id resolution via VROOLI_AGENT_IDENTITY_TOKEN — shipped
 
-Today, attribution leaves `run_id` null on heartbeat-spawned writes because agent-manager assigns the UUID after `CreateRun` returns. The strengthening path closes that gap **without** a re-issue or post-spawn env-injection mechanism:
+The write-seam portion of this path is shipped. Agent-manager assigns the UUID and signs it into `VROOLI_AGENT_IDENTITY_TOKEN`; the shared provenance verifier resolves it at the receiving seam and stamps the durable row. This closes the former run-id gap without a re-issue or post-spawn env-injection mechanism.
+
+The original heartbeat-specific CLI overlay idea remains optional for legacy writer flows:
 
 Agent-manager already issues `VROOLI_AGENT_IDENTITY_TOKEN` to every spawned run, with `claims.RunID` populated (see `path:scenarios/agent-manager/api/internal/identity/`). The CLI's attribution forwarder can read the token, decode-only its JWT body (no signature verification needed for self-identification), extract `claims.RunID`, and overlay it into the attribution payload at request time:
 
@@ -322,7 +330,11 @@ The contract change is small: the CLI's "pure passthrough" property (the env var
 
 Cost: one decode-only JWT parse per CLI invocation; one new code path in `path:cli/internal/attribution`; updated tests. No agent-manager change. No on-disk data shape change.
 
-When this lands, the validator's per-kind rule reverts to the strict form (`agent-member` always requires `run_id`); the `spawn_origin=heartbeat` exemption is removed.
+The validator's `spawn_origin=heartbeat` compatibility exemption remains until all legacy writer flows have adopted the shared verifier.
+
+### Durability analysis epoch
+
+Durability grading begins at `2026-08-07T00:00:00Z`, the date the verified attribution write seams became live. The reason is: **durability evidence capture began with the verified attribution write seams**. Work before that boundary remains searchable and recallable, but receives no durability verdict; this is intentional scope, not an unknown result. The runtime projection reports the epoch, reason, sample size, and separate verified/observed/unlinked coverage beside every verdict.
 
 ### Cryptographic verification via VROOLI_AGENT_IDENTITY_TOKEN
 
@@ -379,7 +391,7 @@ The full `KnowledgeEntry` shape, with attribution, is defined in `path:scenarios
 ## Components and entry points
 
 - **Storage shape** — `KnowledgeEntry.Caller`, `CallerNote`, `Attribution`: `path:scenarios/prompt-manager/api/store/models.go`.
-- **Migration tool** — `path:scenarios/prompt-manager/api/cmd/migrate-knowledge-attribution/` (sets `kind=legacy`, populates `caller_note` from prior `by` value, sets per-team `attributionValidFrom`).
+- **Ledger adoption** — source-ledger scope registration preserves the durable entry body and records its source provenance.
 - **API handler validation** — `path:scenarios/prompt-manager/api/heartbeat/handlers.go::AddKnowledge` plus `path:scenarios/prompt-manager/api/heartbeat/attribution.go` (header decode, `validateAttribution`, conflict policy).
 - **CLI attribution forwarding** — `path:scenarios/prompt-manager/cli/internal/attribution` (env-var read, header set, `--caller-note` flag).
 - **Heartbeat executor propagation** — `path:scenarios/prompt-manager/api/heartbeat/spawn_attribution.go::buildHeartbeatAttributionEnv` and the call site in `executor.go` that injects it into `CreateRunRequest.Environment`.

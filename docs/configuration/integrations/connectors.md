@@ -19,7 +19,7 @@ Vrooli adopts the same pattern because:
 | | Connector | Connection |
 |---|---|---|
 | What | Definition of *how to talk to provider X* | An instance of an authenticated session for one operator |
-| Source-controlled | Yes (manifest in this repo) | No (lives in Vault + integration-hub state) |
+| Source-controlled | Yes (manifest in this repo) | No (lives in the credential authority + integration-hub state) |
 | Multiplicity | One per integration *type* | Zero, one, or many per connector |
 | Owns | Auth pattern, scopes, base URL, capabilities, runtime driver | Tokens, expiry, `bound_to` metadata, last-probed status |
 

@@ -12,33 +12,14 @@
       "prefix": "bug-investigation-report/<slug>"
     }
   ],
-  "evidence_consumed": [
-    {
-      "prefix": "challenge-report/*",
-      "for_decisions": [
-        "bug-resolution-proposal"
-      ]
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "for_decisions": [
-        "bug-resolution-proposal"
-      ]
-    }
-  ],
+  "evidence_consumed": [],
   "output": [
     {
       "prefix": "bug-investigation-report/*",
       "destination_kind": "knowledge"
     }
   ],
-  "decisions_owned": [
-    "bug-resolution-proposal"
-  ],
-  "decisions_consumed": [
-    "capability-gap"
-  ],
-  "raises_capability_gaps": true,
+  "raises_work_items": true,
   "external_producers": [
     "report-bug"
   ]

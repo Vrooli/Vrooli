@@ -22,7 +22,6 @@
       "injectInbox": false,
       "allowPeerTriggers": false,
       "showTaskBoardGuidance": false,
-      "showDecisionLogGuidance": true,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
@@ -31,7 +30,6 @@
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 2
   },
-  "decisionMode": "approval",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
@@ -40,11 +38,6 @@
   "createdAt": "2026-02-09T12:00:00Z",
   "updatedAt": "2026-07-23T22:45:00Z",
   "topicCatalog": [
-    {
-      "prefix": "decision-application/<decision-id>",
-      "status": "live",
-      "purpose": "Record exact accepted-decision application work and avoid duplicate application."
-    },
     {
       "prefix": "goal-portfolio-record/YYYY-MM-DD",
       "status": "live",
@@ -78,19 +71,6 @@
   ],
   "operatingContract": {
     "schemaVersion": 1,
-    "governance": {
-      "decisionMode": "approval",
-      "teamPendingCeiling": {
-        "value": 12,
-        "readOnlyWhenAtOrAbove": true,
-        "rationale": "Keeps operator-reviewed director decisions from stacking faster than the morning vision walk can resolve them."
-      },
-      "supersession": {
-        "requiredBeforeNewDecision": true,
-        "allowedInReadOnlyMode": true,
-        "replacementMustSetSupersedes": true
-      }
-    },
     "documents": {
       "planOfRecord": [
         {
@@ -121,12 +101,12 @@
               "path": "docs/director-swarm/evidence/OUTCOMES_CHARTER.md"
             }
           ],
-          "writePolicy": "operator-curated-via-decisions",
+          "writePolicy": "operator-curated-via-swarm-manager",
           "consumers": [
             "director-swarm"
           ],
           "rationale": "Canonical director-swarm portfolio philosophy, roadmap, and outcome discipline.",
-          "useFor": "portfolio ranking criteria, goal roadmap interpretation, outcome categories, and morning-walk decision context"
+          "useFor": "portfolio ranking criteria, goal roadmap interpretation, outcome categories, and morning-walk work type"
         },
         {
           "id": "project-vision",
@@ -175,33 +155,6 @@
           "required": true
         },
         {
-          "id": "decisions-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
-          },
-          "kind": "decision-log",
-          "required": true
-        },
-        {
-          "id": "handoff-history-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "handoff-history.jsonl"
-          },
-          "kind": "handoff-log",
-          "required": true
-        },
-        {
-          "id": "knowledge-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          "kind": "knowledge-log",
-          "required": true
-        },
-        {
           "id": "tasks-json",
           "path": {
             "base": "team-shared",
@@ -212,69 +165,7 @@
         }
       ]
     },
-    "decisionContexts": {
-      "goal-portfolio": {
-        "ownerMemberIds": [
-          "portfolio-manager"
-        ],
-        "description": "Rank goals as active now, track, or defer. Carries a prediction block per the Outcomes Charter prediction ledger."
-      },
-      "goal-supplement": {
-        "ownerMemberIds": [
-          "portfolio-manager"
-        ],
-        "description": "Proposed supporting backlog work under existing goals."
-      },
-      "goal-proposal": {
-        "ownerMemberIds": [
-          "portfolio-manager"
-        ],
-        "description": "Candidate new goals for operator approval. Carries a prediction block per the Outcomes Charter prediction ledger."
-      },
-      "goal-readiness": {
-        "ownerMemberIds": [
-          "portfolio-manager"
-        ],
-        "description": "Judgment about whether backlog items are detailed enough to execute."
-      },
-      "capability-gap": {
-        "ownerMemberIds": [
-          "portfolio-manager"
-        ],
-        "externalAuthorizedRaisers": [
-          "meta-optimization",
-          "infra-health"
-        ],
-        "description": "Missing capability routed from another team; portfolio-manager turns accepted gaps into goal or backlog proposals."
-      },
-      "outcome-gap": {
-        "ownerMemberIds": [
-          "outcome-strategist"
-        ],
-        "description": "Approval to build missing Command Center data pipelines."
-      },
-      "outcome-direction": {
-        "ownerMemberIds": [
-          "outcome-strategist"
-        ],
-        "description": "Outcome-driven recommendation that would change portfolio emphasis."
-      },
-      "vision-update": {
-        "ownerMemberIds": [
-          "vision-walk-prep"
-        ],
-        "externalAuthorizedRaisers": [
-          "operator"
-        ],
-        "description": "Operator-authored vision or architecture canon drift signal; prep surfaces only."
-      }
-    },
     "knowledgeTopics": {
-      "decision-application/<decision-id>": {
-        "ownerMemberId": "portfolio-manager",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
       "goal-portfolio-record/YYYY-MM-DD": {
         "ownerMemberId": "portfolio-manager",
         "supersedesPrevious": true,
@@ -293,21 +184,10 @@
     },
     "members": {
       "portfolio-manager": {
-        "lane": "Keep Swarm Manager goal flow healthy; apply accepted portfolio decisions and propose bounded corrections.",
-        "ownedDecisionContexts": [
-          "goal-portfolio",
-          "goal-supplement",
-          "goal-proposal",
-          "goal-readiness",
-          "capability-gap"
-        ],
-        "pendingOwnedDecisionCap": 3,
+        "lane": "Keep Swarm Manager goal flow healthy; apply accepted portfolio work items and propose bounded corrections.",
         "allowedWrites": [
           {
             "kind": "knowledge"
-          },
-          {
-            "kind": "decision"
           },
           {
             "kind": "handoff"
@@ -331,34 +211,23 @@
           }
         ],
         "safetyCriticalRules": [
-          "Human approval is required before creating Swarm Manager backlog items unless an accepted decision explicitly authorizes the exact proposal.",
+          "Human disposition is required before agents execute consequential Swarm Manager work items.",
           "Do not deploy teams, trigger external execution, or make code changes."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
-        "newDecisionCapPerHeartbeat": 3,
         "taskParameters": {
           "requiredScenarioCoverageCheck": "Run swarm-manager goals context before proposing scenario-scoped goals.",
-          "acceptedDecisionMarkerTopic": "decision-application/<decision-id>"
+          "workDispositionLookup": "swarm-manager backlog get <item-id> --json"
         }
       },
       "outcome-strategist": {
         "lane": "Interpret Command Center outcomes when real metrics exist; otherwise produce blocked handoffs.",
-        "ownedDecisionContexts": [
-          "outcome-gap",
-          "outcome-direction"
-        ],
-        "pendingOwnedDecisionCap": 3,
         "allowedWrites": [
           {
             "kind": "knowledge"
-          },
-          {
-            "kind": "decision"
           },
           {
             "kind": "handoff"
@@ -382,19 +251,12 @@
           "Recommend; do not authorize portfolio changes."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
-        },
-        "newDecisionCapPerHeartbeat": 3
+        }
       },
       "vision-walk-prep": {
         "lane": "Compile a read-only morning briefing across portfolio, monetization, marketing, meta-optimization, infra-health, and life-audit signals.",
-        "ownedDecisionContexts": [
-          "vision-update"
-        ],
-        "pendingOwnedDecisionCap": 0,
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -404,9 +266,6 @@
           }
         ],
         "forbiddenWrites": [
-          {
-            "kind": "decision"
-          },
           {
             "kind": "task"
           },
@@ -420,15 +279,12 @@
           }
         ],
         "safetyCriticalRules": [
-          "Strictly read-only: do not create decisions, modify backlog items, trigger side effects, or choose answers for the operator."
+          "Strictly read-only: do not file work items, modify backlog items, trigger side effects, or choose answers for the operator."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
-        "newDecisionCapPerHeartbeat": 0,
         "taskParameters": {
           "maxSummariesPerPhase": 3,
           "preserveWalkCheckpoint": true,

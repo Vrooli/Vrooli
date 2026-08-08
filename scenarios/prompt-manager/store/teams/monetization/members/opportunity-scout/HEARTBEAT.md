@@ -7,7 +7,7 @@
 4. Classify each idea by SKU, add-on, services line, or discovery channel.
 5. Attach acquisition and retention hypotheses.
 6. Attach a concrete revisit trigger.
-7. Choose whether the idea belongs in the pool, deserves a decision, or should be dropped.
+7. Choose whether the idea belongs in the pool, deserves a work item, or should be dropped.
 
 ## Task Loop
 1. Read declared catalog, channel, and strategy docs relevant to this heartbeat's signal.
@@ -15,8 +15,8 @@
 3. Drain your inbox per the generated `# Inbox Flow` section above. Generate or capture candidate ideas only to the extent the signal supports them.
 4. Dedupe against the existing pool; update the interpretation rather than re-adding duplicates.
 5. Append new candidate-pool entries when the idea is distinct and triggerable.
-6. Run supersession against existing owned-context decisions before proposing replacements.
-7. Raise promotion or activation decisions only when the operator should decide now.
+6. Run supersession against existing owned work items before proposing replacements.
+7. Raise promotion or activation work items only when the operator should decide now.
 8. Record the scout-scan knowledge entry.
 
 (Inbox draining commands and destination prefixes are in the generated `# Inbox Flow` section; do not duplicate them here.)

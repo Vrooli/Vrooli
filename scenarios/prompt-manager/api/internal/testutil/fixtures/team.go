@@ -52,14 +52,7 @@ func WithEnabled(enabled bool) TeamOption {
 
 func WithContractAgents(agentIDs ...string) TeamOption {
 	return func(team *store.Team) {
-		team.OperatingContract = teamcontract.Minimal(team.DecisionMode, agentIDs...)
-	}
-}
-
-func WithDecisionMode(mode string) TeamOption {
-	return func(team *store.Team) {
-		team.DecisionMode = mode
-		team.OperatingContract = teamcontract.Minimal(mode, "agent-1", "agent-2", "lead", "dev-1")
+		team.OperatingContract = teamcontract.Minimal("", agentIDs...)
 	}
 }
 
@@ -70,7 +63,7 @@ func WithLeadAgent(leadAgentID string) TeamOption {
 }
 
 // IndependentTeam returns a multi-process independent team with yolo
-// decision mode and a minimal operating contract.
+// execution mode and a minimal operating contract.
 func IndependentTeam(id, displayName string, opts ...TeamOption) *store.Team {
 	team := &store.Team{
 		ID:          id,
@@ -89,7 +82,6 @@ func IndependentTeam(id, displayName string, opts ...TeamOption) *store.Team {
 				InjectInbox:              false,
 				AllowPeerTriggers:        false,
 				ShowTaskBoardGuidance:    true,
-				ShowDecisionLogGuidance:  true,
 				ShowKnowledgeLogGuidance: true,
 				RequireHandoff:           true,
 			},
@@ -98,8 +90,7 @@ func IndependentTeam(id, displayName string, opts ...TeamOption) *store.Team {
 			QueuePolicy:       teamconfig.QueuePolicyBoundedParallel,
 			MaxConcurrentRuns: 2,
 		},
-		DecisionMode:      teamconfig.DecisionModeYolo,
-		OperatingContract: teamcontract.Minimal(teamconfig.DecisionModeYolo, "agent-1", "agent-2", "lead", "dev-1"),
+		OperatingContract: teamcontract.Minimal("", "agent-1", "agent-2", "lead", "dev-1"),
 	}
 	for _, opt := range opts {
 		opt(team)
@@ -122,7 +113,6 @@ func LeaderLedSingleProcessTeam(id, displayName, leadAgentID string, opts ...Tea
 			InjectInbox:              false,
 			AllowPeerTriggers:        false,
 			ShowTaskBoardGuidance:    true,
-			ShowDecisionLogGuidance:  true,
 			ShowKnowledgeLogGuidance: true,
 			RequireHandoff:           true,
 		},

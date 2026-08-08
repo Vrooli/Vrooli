@@ -1,24 +1,28 @@
 {
   "shortNames": {
-    "decision:capability-gap": "CG",
-    "decision:cross-platform-debt": "CPD",
-    "decision:decision-rejection-proposed": "DRP",
-    "decision:framework-meta": "FM",
-    "decision:instrumentation-gap": "IG",
-    "decision:platform-code-finding": "PCF",
-    "decision:reliability-target-update": "RTU",
-    "decision:runtime-health-finding": "RHF",
     "external:operator": "OP",
     "external:swarm-manager-work": "SWARM",
     "member:infra-contrarian": "IC",
     "member:platform-code-auditor": "PCA",
     "member:runtime-health-scanner": "RHS",
+    "por:docs/infra-health/README.md": "DOCSINFRAHEA",
+    "por:docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md": "DOCSINFRAHEA2",
+    "por:docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md": "DOCSINFRAHEA3",
+    "por:docs/infra-health/evidence/README.md": "DOCSINFRAHEA4",
+    "por:docs/infra-health/governance/adoption-validation.md": "DOCSINFRAHEA5",
+    "por:docs/infra-health/governance/changelog.md": "DOCSINFRAHEA6",
+    "por:docs/infra-health/governance/editing.md": "DOCSINFRAHEA7",
+    "por:docs/infra-health/operating/OPERATING_MODEL.md": "DOCSINFRAHEA8",
+    "por:docs/infra-health/operating/README.md": "DOCSINFRAHEA9",
+    "por:docs/infra-health/strategy/README.md": "DOCSINFRAHEA10",
+    "por:docs/infra-health/strategy/RELIABILITY_TARGETS.md": "DOCSINFRAHEA11",
     "process:operator-approval": "APPROVAL",
     "process:operator-curated-canon": "CANON",
-    "topic:challenge-report/\u003cdecision-id\u003e": "CR",
-    "topic:challenge-resolution-record/\u003cdecision-id\u003e": "CRR",
+    "topic:contrarian-scan/*": "CONTRARIANSC",
     "topic:contrarian-scan/YYYY-MM-DD": "CS",
+    "topic:platform-code-audit/*": "PLATFORMCODE",
     "topic:platform-code-audit/YYYY-MM-DD": "PCAUD",
+    "topic:runtime-health-audit/*": "RUNTIMEHEALT",
     "topic:runtime-health-audit/YYYY-MM-DD": "RHA"
   },
   "displays": {
@@ -33,58 +37,30 @@
   "nodeOrder": [
     "process:operator-approval",
     "process:operator-curated-canon",
-    "decision:capability-gap",
-    "decision:cross-platform-debt",
-    "topic:challenge-report/\u003cdecision-id\u003e",
-    "topic:challenge-resolution-record/\u003cdecision-id\u003e",
+    "topic:contrarian-scan/*",
     "topic:contrarian-scan/YYYY-MM-DD",
-    "decision:decision-rejection-proposed",
-    "decision:framework-meta",
+    "por:docs/infra-health/README.md",
+    "por:docs/infra-health/strategy/README.md",
+    "por:docs/infra-health/strategy/RELIABILITY_TARGETS.md",
+    "por:docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md",
+    "por:docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md",
+    "por:docs/infra-health/evidence/README.md",
+    "por:docs/infra-health/governance/adoption-validation.md",
+    "por:docs/infra-health/governance/changelog.md",
+    "por:docs/infra-health/governance/editing.md",
+    "por:docs/infra-health/operating/OPERATING_MODEL.md",
+    "por:docs/infra-health/operating/README.md",
     "member:infra-contrarian",
-    "decision:instrumentation-gap",
     "external:operator",
     "member:platform-code-auditor",
     "topic:platform-code-audit/YYYY-MM-DD",
-    "decision:platform-code-finding",
+    "topic:platform-code-audit/*",
     "topic:runtime-health-audit/YYYY-MM-DD",
-    "decision:runtime-health-finding",
     "member:runtime-health-scanner",
-    "decision:reliability-target-update",
+    "topic:runtime-health-audit/*",
     "external:swarm-manager-work"
   ],
   "readabilityEdges": [
-    {
-      "from": "decision:capability-gap",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:cross-platform-debt",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:decision-rejection-proposed",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:framework-meta",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:instrumentation-gap",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:platform-code-finding",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:reliability-target-update",
-      "to": "process:operator-approval"
-    },
-    {
-      "from": "decision:runtime-health-finding",
-      "to": "process:operator-approval"
-    },
     {
       "from": "process:operator-approval",
       "to": "external:swarm-manager-work"

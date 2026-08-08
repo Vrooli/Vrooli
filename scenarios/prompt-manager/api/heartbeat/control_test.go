@@ -94,7 +94,7 @@ func TestHeartbeatControlStore_OperatorEngagementResetsAutoPauseAgentDoesNot(t *
 	}
 	if err := s.RecordHumanEngagement(context.Background(), HumanEngagementEvent{
 		TeamID:      "team-a",
-		Reason:      "decision-accepted",
+		Reason:      "work-dispositioned",
 		Attribution: agentAttribution("team-a", "agent-a"),
 	}); err != nil {
 		t.Fatalf("agent engagement: %v", err)
@@ -111,7 +111,7 @@ func TestHeartbeatControlStore_OperatorEngagementResetsAutoPauseAgentDoesNot(t *
 	s.SetNowForTests(func() time.Time { return operatorAt })
 	if err := s.RecordHumanEngagement(context.Background(), HumanEngagementEvent{
 		TeamID:      "team-a",
-		Reason:      "decision-accepted",
+		Reason:      "work-dispositioned",
 		Attribution: operatorAttribution(),
 	}); err != nil {
 		t.Fatalf("operator engagement: %v", err)
@@ -123,7 +123,7 @@ func TestHeartbeatControlStore_OperatorEngagementResetsAutoPauseAgentDoesNot(t *
 	if status.Status != HeartbeatControlStatusActive {
 		t.Fatalf("operator status = %q, want active", status.Status)
 	}
-	if status.LastHumanEngagementReason != "decision-accepted" {
+	if status.LastHumanEngagementReason != "work-dispositioned" {
 		t.Fatalf("reason = %q", status.LastHumanEngagementReason)
 	}
 }

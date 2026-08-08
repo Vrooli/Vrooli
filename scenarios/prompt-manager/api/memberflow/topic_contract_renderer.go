@@ -14,7 +14,7 @@ func RenderTopicContract(teamID, agentID string, memberFlow MemberTopics, catalo
 
 	var b strings.Builder
 	b.WriteString(TopicContractHeading + "\n\n")
-	b.WriteString("This section is generated from `topics.json` and team `topicCatalog`. It is the source of truth for topic reads, writes, decisions, and capability-gap routing.\n")
+	b.WriteString("This section is generated from `topics.json` and team `topicCatalog`. It is the source of truth for topic reads, writes, and Swarm Manager work routing.\n")
 	if topics.IsEmpty() {
 		b.WriteString("\nNo topic flow is declared for this member.")
 		return b.String()
@@ -24,7 +24,6 @@ func RenderTopicContract(teamID, agentID string, memberFlow MemberTopics, catalo
 	renderTopicContractRequiredReads(&b, topics.RequiredRead, purposes)
 	renderTopicContractEvidence(&b, topics.EvidenceConsumed, purposes)
 	renderTopicContractOutputs(&b, topics.Output, purposes)
-	renderTopicContractDecisions(&b, topics)
 	renderTopicContractExternalProducers(&b, topics.ExternalProducers)
 
 	return strings.TrimRight(b.String(), "\n")
@@ -79,12 +78,7 @@ func renderTopicContractEvidence(b *strings.Builder, entries []EvidenceConsumedE
 
 	b.WriteString("\n## Evidence Consumed\n\n")
 	for _, e := range entries {
-		decisions := append([]string(nil), e.ForDecisions...)
-		sort.Strings(decisions)
-		detail := "general evidence"
-		if len(decisions) > 0 {
-			detail = fmt.Sprintf("for `%s`", strings.Join(decisions, "`, `"))
-		}
+		detail := "evidence used when authoring work"
 		if e.SourceTeam != nil && strings.TrimSpace(*e.SourceTeam) != "" {
 			detail += "; source team `" + *e.SourceTeam + "`"
 		}
@@ -117,26 +111,6 @@ func renderTopicContractOutputs(b *strings.Builder, entries []OutputEntry, purpo
 			parts = append(parts, "path `"+*e.DestinationPath+"`")
 		}
 		b.WriteString(fmt.Sprintf("- `%s` - %s\n", e.Prefix, topicContractLineDetail(e.Prefix, purposes, strings.Join(parts, ", "))))
-	}
-}
-
-func renderTopicContractDecisions(b *strings.Builder, topics Topics) {
-	if len(topics.DecisionsOwned) == 0 && len(topics.DecisionsConsumed) == 0 && !topics.RaisesCapabilityGaps {
-		return
-	}
-	b.WriteString("\n## Decisions\n\n")
-	if len(topics.DecisionsOwned) > 0 {
-		owned := append([]string(nil), topics.DecisionsOwned...)
-		sort.Strings(owned)
-		b.WriteString("- own/propose: `" + strings.Join(owned, "`, `") + "`\n")
-	}
-	if len(topics.DecisionsConsumed) > 0 {
-		consumed := append([]string(nil), topics.DecisionsConsumed...)
-		sort.Strings(consumed)
-		b.WriteString("- consume: `" + strings.Join(consumed, "`, `") + "`\n")
-	}
-	if topics.RaisesCapabilityGaps {
-		b.WriteString("- may raise `capability-gap`: yes\n")
 	}
 }
 

@@ -11,8 +11,7 @@ import (
 // CoverageEntry describes how a single API route is exposed (or
 // intentionally not exposed) on the CLI.
 type CoverageEntry struct {
-	// CLI is the canonical CLI invocation that wraps this route, e.g.
-	// "team decision-accept <team-id> <decision-id>". Empty if Status
+	// CLI is the canonical CLI invocation that wraps this route. Empty if Status
 	// is "intentionally-absent".
 	CLI string `json:"cli,omitempty"`
 

@@ -178,7 +178,7 @@ func auditContractValidity(ctx appctx.Context) auditTarget {
 		Target:   "Operating-model contract validity",
 		Sensor:   "prompt-manager graph operating-model validate",
 		Deadband: "0 errors, 0 warnings",
-		Actuator: "framework-update, or the owning team's decision context",
+		Actuator: "framework-update, or the owning team's work item type",
 	}
 	var resp operatingModelValidationResponse
 	if err := ctx.GetWithQuery("/operating-models/validate", url.Values{}, &resp); err != nil {
@@ -225,7 +225,7 @@ func auditGraphRuntimeDrift(ctx appctx.Context) auditTarget {
 		Target:   "Graph/runtime drift",
 		Sensor:   "prompt-manager graph operating-model diff",
 		Deadband: "0 diff items",
-		Actuator: "the owning team's decision context",
+		Actuator: "the owning team's work item type",
 	}
 	var resp operatingModelDiffResponse
 	if err := ctx.GetWithQuery("/operating-models/diff", url.Values{}, &resp); err != nil {
@@ -272,7 +272,7 @@ func auditMemberDocConformance(ctx appctx.Context) auditTarget {
 		Target:   "Member-document conformance",
 		Sensor:   "prompt-manager graph topics — member_doc_* findings",
 		Deadband: "0 errors; recommended-section gaps are reported, not banded",
-		Actuator: "framework-update for errors; the owning team's decision context for recommended-section gaps",
+		Actuator: "framework-update for errors; the owning team's work item type for recommended-section gaps",
 	}
 	resp, err := topicsAudit(ctx)
 	if err != nil {
@@ -337,7 +337,7 @@ func auditCrossTeamCoupling(ctx appctx.Context) auditTarget {
 		Target:   "Cross-team coupling visibility",
 		Sensor:   "prompt-manager graph map --json",
 		Deadband: "0 runtime-only relationship rows; retain every composed edge",
-		Actuator: "the producing team's decision context",
+		Actuator: "the producing team's work item type",
 	}
 	var m operatingMap
 	if err := ctx.Get("/operating-models/map", &m); err != nil {
@@ -453,7 +453,7 @@ func auditObjectiveCoverage(ctx appctx.Context) auditTarget {
 		Target:   "Objective coverage",
 		Sensor:   "prompt-manager graph objectives",
 		Deadband: "0 objectives unserved without a dated gap marker; 0 teams tracing to no objective; 0 declaration errors",
-		Actuator: "outcome-direction or capability-gap in director-swarm",
+		Actuator: "outcome-direction or capability work in director-swarm",
 	}
 	var resp objectiveResponse
 	if err := ctx.GetWithQuery("/objectives", url.Values{}, &resp); err != nil {
@@ -530,9 +530,9 @@ func auditTeamOrientationCost(ctx appctx.Context) auditTarget {
 	// here it is the payload the next cycle diffs against, and a truncated
 	// record would silently lose teams from the trend.
 	for _, team := range resp.Teams {
-		t.Detail = append(t.Detail, fmt.Sprintf("%s composite=%d (members=%d canon=%d topics=%d decisions=%d) scenarios=%d",
+		t.Detail = append(t.Detail, fmt.Sprintf("%s composite=%d (members=%d canon=%d topics=%d) scenarios=%d",
 			team.TeamID, team.Composite, team.Components.Members, team.Components.CanonLines,
-			team.Components.Topics, team.Components.DecisionContexts, team.ScenarioCoverage))
+			team.Components.Topics, team.ScenarioCoverage))
 	}
 	return t
 }

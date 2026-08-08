@@ -2,7 +2,7 @@
 
 Review the subject and its canonical plan from the immutable snapshot. Return one typed packet of findings, decision questions, and proposal drafts. The packet is the operator's entire review surface for this round — everything worth their attention goes in it, and nothing else does.
 
-## Outcome decision table
+## Outcome work table
 
 | Observable end state | Outcome |
 | --- | --- |

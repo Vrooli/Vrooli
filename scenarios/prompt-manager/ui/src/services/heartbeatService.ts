@@ -216,127 +216,6 @@ export interface UpdateTaskRequest {
   note?: string
 }
 
-export interface DecisionOption {
-  key: string
-  label: string
-  rationale: string
-  recommended?: boolean
-}
-
-// DecisionModifications is a structured, scoped exception an operator attaches
-// to an accepted option. See docs/reference/decision-modifications-contract.md.
-export interface DecisionModifications {
-  excluded_clauses?: string[]
-  additions?: string[]
-  rationale?: string
-}
-
-// DecisionInitiativeMetadata is the structured block carried on
-// `initiative-proposal` decisions; consumed at decision-accept time to
-// auto-create a swarm-manager initiative. Immutable post-accept.
-// Contract: docs/reference/decision-initiative-proposal-contract.md.
-export interface DecisionInitiativeMetadata {
-  name: string
-  priority?: number
-  depends_on?: string[]
-  target_scenario?: string
-  title?: string
-}
-
-// AutoCreateOutcome is returned alongside the updated decision when an
-// `initiative-proposal` decision is accepted. On success, initiative_ref is
-// populated; on failure, error + workaround_command + resolve_command are
-// populated for the operator-driven manual-recovery flow (per d8=C).
-export interface AutoCreateOutcome {
-  status: 'created' | 'failed' | 'pending'
-  initiative_ref?: string
-  error?: string
-  workaround_command?: string
-  resolve_command?: string
-  description_tmp_file?: string
-  target_scenario?: string
-  initiative_name?: string
-  priority?: number
-}
-
-export type AutoCreateStatus = '' | 'pending' | 'created' | 'failed'
-
-export interface DecisionEntry {
-  id: string
-  at: string
-  by: string
-  decision: string
-  rationale: string
-  context?: string
-  supersedes?: string
-  status?: 'pending' | 'accepted' | 'rejected' | 'running' | 'completed' | 'deferred'
-  topic?: string
-  description?: string
-  options?: DecisionOption[]
-  selected?: string | null
-  freeform?: string | null
-  notes?: string | null
-  modifications?: DecisionModifications | null
-  revisit_after?: string | null
-  accepted_as_proposed?: boolean
-  initiative_metadata?: DecisionInitiativeMetadata | null
-  auto_create_status?: AutoCreateStatus
-  auto_create_error?: string
-  auto_create_initiative_ref?: string
-}
-
-// UpdateDecisionResponse extends DecisionEntry with an optional
-// auto_create_outcome payload (set when accepting an initiative-proposal).
-export interface UpdateDecisionResponse extends DecisionEntry {
-  auto_create_outcome?: AutoCreateOutcome
-}
-
-export interface UpdateDecisionRequest {
-  decision?: string
-  rationale?: string
-  context?: string
-  status?: string
-  supersedes?: string
-  topic?: string
-  description?: string
-  options?: DecisionOption[]
-  selected?: string | null
-  freeform?: string | null
-  notes?: string | null
-  modifications?: DecisionModifications | null
-  initiative_metadata?: DecisionInitiativeMetadata | null
-  auto_create_status?: AutoCreateStatus
-  auto_create_error?: string
-  auto_create_initiative_ref?: string
-}
-
-export interface DecisionListResponse {
-  teamId: string
-  entries: DecisionEntry[]
-}
-
-export interface PendingDecisionTeamGroup {
-  teamId: string
-  teamName: string
-  entries: DecisionEntry[]
-}
-
-export interface AllPendingDecisionsResponse {
-  teams: PendingDecisionTeamGroup[]
-  totalCount: number
-}
-
-export interface AddDecisionRequest {
-  by: string
-  decision?: string
-  rationale?: string
-  context?: string
-  supersedes?: string
-  topic?: string
-  options?: DecisionOption[]
-  initiative_metadata?: DecisionInitiativeMetadata | null
-}
-
 // --- Knowledge types ---
 
 // AttributionInfo mirrors the API-side store.AttributionInfo. The canonical
@@ -1318,7 +1197,7 @@ export async function createRun(opts: {
 }
 
 // ============================================================================
-// Team State Operations (Handoff, Task Board, Decisions)
+// Team State Operations (Handoff, Task Board, Work)
 // ============================================================================
 
 export async function getLastHandoff(teamId: string, agentId: string): Promise<HandoffResponse> {
@@ -1377,54 +1256,11 @@ export async function deleteTask(teamId: string, taskId: string): Promise<void> 
   })
 }
 
-export async function getDecisions(
-  teamId: string,
-  opts?: { context?: string; status?: string; last?: number }
-): Promise<DecisionListResponse> {
-  const params = new URLSearchParams()
-  if (opts?.context) params.set('context', opts.context)
-  if (opts?.status) params.set('status', opts.status)
-  if (opts?.last) params.set('last', String(opts.last))
-  const qs = params.toString()
-  return apiRequest<DecisionListResponse>(`/teams/${encodeURIComponent(teamId)}/decisions${qs ? `?${qs}` : ''}`)
-}
-
-export async function getAllPendingDecisions(): Promise<AllPendingDecisionsResponse> {
-  return apiRequest<AllPendingDecisionsResponse>('/decisions/pending')
-}
-
-export async function addDecision(
-  teamId: string,
-  request: AddDecisionRequest
-): Promise<DecisionEntry> {
-  return apiRequest<DecisionEntry>(`/teams/${encodeURIComponent(teamId)}/decisions`, {
-    method: 'POST',
-    body: JSON.stringify(request),
-  })
-}
-
-export async function updateDecision(
-  teamId: string,
-  decisionId: string,
-  request: UpdateDecisionRequest
-): Promise<UpdateDecisionResponse> {
-  return apiRequest<UpdateDecisionResponse>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(request),
-  })
-}
-
-export async function deleteDecision(teamId: string, decisionId: string): Promise<void> {
-  await apiRequest<undefined>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
-    method: 'DELETE',
-  })
-}
-
 // ============================================================================
 // Knowledge Log
 // ============================================================================
 
-export async function getKnowledge(
+export async function getTeamCorpus(
   teamId: string,
   opts?: { topic?: string; last?: number }
 ): Promise<KnowledgeListResponse> {

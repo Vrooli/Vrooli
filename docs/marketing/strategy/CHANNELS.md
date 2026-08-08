@@ -98,7 +98,7 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Format support:** demo-recording (long-form), occasional comparison-reel and use-case-tutorial.
 
 **Rules:**
-- Production: currently manual; recurring workarounds are captured as typed marketing-craft observations or `capability-gap` decisions.
+- Production: currently manual; recurring workarounds are captured as typed marketing-craft observations or `capability-work` decisions.
 - Lengths: 30-60s for social clips, 2-5min for demos, 5-15min for architecture walks.
 - Captions mandatory.
 - Every metric in the description carries an honesty flag.
@@ -296,7 +296,7 @@ This table will populate as the social-media-scheduler scenario returns engageme
 | HackerNews | pending-telemetry | pending-telemetry | pending-telemetry | pending-telemetry |
 | ProductHunt | pending-telemetry | pending-telemetry | pending-telemetry | pending-telemetry |
 
-Decision context for populating: `channel-strategy-update` (`producer` proposes after reading scheduler metrics). The producer must apply the same `interpretation_flag` discipline used for `audience-scans.jsonl` — single-snapshot data is `light-interpretation`, ≥3 converging snapshots over comparable periods are required before promoting to a stable claim.
+Work item type for populating: `channel-strategy-update` (`producer` proposes after reading scheduler metrics). The producer must apply the same `interpretation_flag` discipline used for the `marketing-craft-observation/*` team-scope topic — single-snapshot data is `light-interpretation`, ≥3 converging snapshots over comparable periods are required before promoting to a stable claim.
 
 ---
 

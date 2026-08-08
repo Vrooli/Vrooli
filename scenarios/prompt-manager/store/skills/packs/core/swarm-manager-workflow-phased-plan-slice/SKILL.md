@@ -13,7 +13,7 @@ Execute exactly one coherent slice of the accepted plan. This is a fresh convers
 7. Mark the bound phase complete through `plan-manager exec` only after validation passes.
 8. Write a handoff with local nuance for the next slice.
 
-## Outcome decision table
+## Outcome work table
 
 | Observable end state | Outcome |
 | --- | --- |

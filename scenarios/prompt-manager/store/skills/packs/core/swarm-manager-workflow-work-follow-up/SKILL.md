@@ -2,7 +2,7 @@
 
 Do the follow-up work the operator requested on the completed parent execution. The snapshot is immutable; the operator note defines the follow-up scope.
 
-## Outcome decision table
+## Outcome work table
 
 | Observable end state | Outcome |
 | --- | --- |

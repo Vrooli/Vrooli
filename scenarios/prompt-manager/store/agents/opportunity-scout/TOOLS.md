@@ -3,7 +3,7 @@
 ## Tool Access
 - `prompt-manager skill read <skill-id>`
 - `prompt-manager team member-context monetization opportunity-scout`
-- `prompt-manager team decision-list monetization ...`
+- `swarm-manager backlog list monetization ...`
 - `prompt-manager team knowledge-list monetization ...`
 - `prompt-manager team knowledge-list director-swarm ...`
 - `vrooli help`

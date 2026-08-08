@@ -4,9 +4,9 @@ Author a Plan-Manager-compatible implementation plan for the authorized backlog 
 
 ## Method
 
-Run `prompt-manager skill read implementation-plan-authoring` and apply its **Candidate mode**. Follow its source inventory, placement map, and preservation audit before you return a result. Preserve material operator intent, workshop decisions, discovered facts, constraints, rationale, alternatives, diagrams, references, risks, validation expectations, and acceptance boundaries. Compress repetition, not the decision context a fresh execution agent needs.
+Run `prompt-manager skill read implementation-plan-authoring` and apply its **Candidate mode**. Follow its source inventory, placement map, and preservation audit before you return a result. Preserve material operator intent, workshop decisions, discovered facts, constraints, rationale, alternatives, diagrams, references, risks, validation expectations, and acceptance boundaries. Compress repetition, not the work type a fresh execution agent needs.
 
-## Outcome decision table
+## Outcome work table
 
 | Observable end state | Outcome |
 | --- | --- |

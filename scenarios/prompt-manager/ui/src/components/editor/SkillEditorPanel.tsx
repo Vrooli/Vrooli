@@ -102,7 +102,7 @@ interface SkillEditorPanelProps {
   onOpenSidebar?: () => void
   onOpenMobileSidebar?: () => void
   /** Notification counts for mobile hamburger badge */
-  pendingDecisionCount?: number
+  pendingWorkCount?: number
   runningAgentCount?: number
   homeView?: 'world' | 'graph'
   onHomeViewChange?: (view: 'world' | 'graph') => void
@@ -144,7 +144,7 @@ export function SkillEditorPanel({
   onNavigateToXRef,
   onOpenSidebar,
   onOpenMobileSidebar,
-  pendingDecisionCount,
+  pendingWorkCount,
   runningAgentCount,
   homeView = 'world',
   onHomeViewChange,
@@ -216,7 +216,7 @@ export function SkillEditorPanel({
         )}
         <ViewOverlay
           onOpenMobileSidebar={onOpenMobileSidebar}
-          pendingDecisionCount={pendingDecisionCount}
+          pendingWorkCount={pendingWorkCount}
           runningAgentCount={runningAgentCount}
           homeView={homeView}
           onHomeViewChange={onHomeViewChange}

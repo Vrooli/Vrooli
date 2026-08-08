@@ -22,17 +22,14 @@ type DestinationKind string
 
 const (
 	DestinationKnowledge     DestinationKind = "knowledge"
-	DestinationDecision      DestinationKind = "decision"
 	DestinationPORFile       DestinationKind = "por_file"
-	DestinationCapabilityGap DestinationKind = "capability_gap"
 	DestinationSkillProposal DestinationKind = "skill_proposal"
 	DestinationBacklog       DestinationKind = "backlog"
 )
 
 func (k DestinationKind) Valid() bool {
 	switch k {
-	case DestinationKnowledge, DestinationDecision, DestinationPORFile,
-		DestinationCapabilityGap, DestinationSkillProposal, DestinationBacklog:
+	case DestinationKnowledge, DestinationPORFile, DestinationSkillProposal, DestinationBacklog:
 		return true
 	default:
 		return false
@@ -60,7 +57,7 @@ const (
 	LoopQueue LoopKind = "queue"
 
 	// LoopReactive is triggered by a peer artifact awaiting review —
-	// typically pending decisions. The pending/resolved split is the
+	// typically pending work items. The pending/resolved split is the
 	// record. Contrarian members are the canonical instance.
 	LoopReactive LoopKind = "reactive"
 
@@ -156,14 +153,10 @@ type RequiredReadEntry struct {
 }
 
 // EvidenceConsumedEntry declares one topic-prefix this member reads as
-// evidence when authoring or contributing to specific decisions. Each entry
-// names the decision-context ids that consume it.
+// evidence when authoring work.
 //
 // Where IntakeEntry says "I drain new entries", EvidenceConsumedEntry says
-// "when authoring decision X, I cite entries from this prefix."
-// ruleDanglingEvidenceDecision cross-checks each ForDecisions id against
-// team.json::decisionContexts so typo'd or removed decision ids surface as
-// findings rather than silent dead references.
+// "when authoring work, I cite entries from this prefix."
 type EvidenceConsumedEntry struct {
 	// Prefix is a topic-prefix string. Wildcard suffix `/*` indicates a
 	// prefix match; a string without `/*` matches only that exact topic.
@@ -173,12 +166,6 @@ type EvidenceConsumedEntry struct {
 	// flow is cross-team. Empty / nil means same-team or external
 	// producer. Mirrors IntakeEntry.SourceTeam semantics.
 	SourceTeam *string `json:"source_team,omitempty"`
-
-	// ForDecisions names the decision-context ids that cite this prefix
-	// as evidence. Empty means general evidence consumed outside a specific
-	// decision context. ruleDanglingEvidenceDecision validates each non-empty
-	// id resolves against some team's team.json::decisionContexts.
-	ForDecisions []string `json:"for_decisions"`
 }
 
 // OutputEntry declares one topic-prefix this member writes.
@@ -215,8 +202,7 @@ type OutputEntry struct {
 //
 // Field ordering follows the consumption-side → production-side flow:
 // intake/required_read/evidence_consumed describe what the member reads;
-// output describes what it writes; decisions_owned/decisions_consumed
-// describe its decision-graph position; raises_capability_gaps and
+// output describes what it writes; raises_work_items and
 // external_producers are policy/anchor metadata.
 type Topics struct {
 	// LoopKind classifies where this member's loop keeps its memory
@@ -244,14 +230,12 @@ type Topics struct {
 	// per population rather than pooled.
 	Population []string `json:"population,omitempty"`
 
-	Intake               []IntakeEntry           `json:"intake,omitempty"`
-	RequiredRead         []RequiredReadEntry     `json:"required_read,omitempty"`
-	EvidenceConsumed     []EvidenceConsumedEntry `json:"evidence_consumed,omitempty"`
-	Output               []OutputEntry           `json:"output,omitempty"`
-	DecisionsOwned       []string                `json:"decisions_owned,omitempty"`
-	DecisionsConsumed    []string                `json:"decisions_consumed,omitempty"`
-	RaisesCapabilityGaps bool                    `json:"raises_capability_gaps,omitempty"`
-	ExternalProducers    []string                `json:"external_producers,omitempty"`
+	Intake            []IntakeEntry           `json:"intake,omitempty"`
+	RequiredRead      []RequiredReadEntry     `json:"required_read,omitempty"`
+	EvidenceConsumed  []EvidenceConsumedEntry `json:"evidence_consumed,omitempty"`
+	Output            []OutputEntry           `json:"output,omitempty"`
+	RaisesWorkItems   bool                    `json:"raises_work_items,omitempty"`
+	ExternalProducers []string                `json:"external_producers,omitempty"`
 }
 
 // IsEmpty reports whether the declaration has no content. An empty Topics is a
@@ -265,9 +249,7 @@ func (t Topics) IsEmpty() bool {
 		len(t.RequiredRead) == 0 &&
 		len(t.EvidenceConsumed) == 0 &&
 		len(t.Output) == 0 &&
-		len(t.DecisionsOwned) == 0 &&
-		len(t.DecisionsConsumed) == 0 &&
-		!t.RaisesCapabilityGaps &&
+		!t.RaisesWorkItems &&
 		len(t.ExternalProducers) == 0
 }
 
@@ -346,14 +328,6 @@ func validateEvidenceConsumed(e EvidenceConsumedEntry) error {
 	if !validPrefix(e.Prefix) {
 		return fmt.Errorf("prefix %q is malformed", e.Prefix)
 	}
-	if len(e.ForDecisions) == 0 {
-		return errors.New("for_decisions is required (non-empty list of decision-context ids)")
-	}
-	for i, id := range e.ForDecisions {
-		if strings.TrimSpace(id) == "" {
-			return fmt.Errorf("for_decisions[%d] is empty", i)
-		}
-	}
 	return nil
 }
 
@@ -365,7 +339,7 @@ func validateOutput(e OutputEntry) error {
 		return fmt.Errorf("prefix %q is malformed", e.Prefix)
 	}
 	if !e.DestinationKind.Valid() {
-		return fmt.Errorf("destination_kind %q is not one of: knowledge, decision, por_file, capability_gap, skill_proposal, backlog", e.DestinationKind)
+		return fmt.Errorf("destination_kind %q is not one of: knowledge, por_file, skill_proposal, backlog", e.DestinationKind)
 	}
 	if e.DestinationKind == DestinationPORFile {
 		if e.DestinationPath == nil || strings.TrimSpace(*e.DestinationPath) == "" {
@@ -400,10 +374,10 @@ func validPrefix(p string) bool {
 // topicSegmentIsPlaceholder reports whether one path segment is a `<name>`
 // placeholder standing for a single real segment.
 //
-// TOPICS_SCHEMA.md teaches this form by example — a contrarian declares
-// `challenge-report/<decision-id>`, a curator routes to
+// TOPICS_SCHEMA.md teaches this form by example — a reviewer declares
+// `review-evidence/<work-item-id>`, a curator routes to
 // `friction-report/<scope>/<date>/<slug>` — and 27 declarations across five
-// teams use it. Treating `<decision-id>` as literal text makes every one of
+// teams use it. Treating `<work-item-id>` as literal text makes every one of
 // them match nothing, so the member reads as having declared no prefix at all.
 func topicSegmentIsPlaceholder(seg string) bool {
 	return len(seg) > 2 && strings.HasPrefix(seg, "<") && strings.HasSuffix(seg, ">")
@@ -426,7 +400,7 @@ func topicSegmentsUnify(a, b string) bool {
 //   - Exact prefixes (no /*) overlap only with equal exact prefixes or with
 //     wildcards whose stripped form is a prefix.
 //   - A `<name>` segment matches any one segment, so
-//     "challenge-report/<decision-id>" overlaps "challenge-report/dec-42".
+//     "review-evidence/<work-item-id>" overlaps "review-evidence/work-42".
 //
 // Comparison is segment-wise rather than by raw string prefix. For inputs
 // carrying no placeholder the result is identical to plain string matching:

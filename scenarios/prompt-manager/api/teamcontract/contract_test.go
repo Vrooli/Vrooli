@@ -9,30 +9,17 @@ import (
 )
 
 func TestValidateRejectsMissingOperatingContract(t *testing.T) {
-	err := Validate(nil, ValidationInput{TeamID: "team-1", DecisionMode: DecisionModeApproval})
+	err := Validate(nil, ValidationInput{TeamID: "team-1"})
 	if err == nil || !strings.Contains(err.Error(), "operatingContract is required") {
 		t.Fatalf("expected missing contract error, got %v", err)
 	}
 }
 
-func TestValidateRejectsUnknownOwnedContext(t *testing.T) {
-	contract := Minimal(DecisionModeApproval, "agent-1")
-	member := contract.Members["agent-1"]
-	member.OwnedDecisionContexts = append(member.OwnedDecisionContexts, "unknown-context")
-	contract.Members["agent-1"] = member
-
-	err := Validate(contract, ValidationInput{TeamID: "team-1", DecisionMode: DecisionModeApproval})
-	if err == nil || !strings.Contains(err.Error(), "unknown-context") {
-		t.Fatalf("expected unknown context error, got %v", err)
-	}
-}
-
 func TestValidateRejectsMissingActiveMemberContract(t *testing.T) {
-	contract := Minimal(DecisionModeApproval, "agent-1")
+	contract := Minimal("", "agent-1")
 	err := Validate(contract, ValidationInput{
-		TeamID:       "team-1",
-		DecisionMode: DecisionModeApproval,
-		MemberIDs:    []string{"agent-1", "agent-2"},
+		TeamID:    "team-1",
+		MemberIDs: []string{"agent-1", "agent-2"},
 	})
 	if err == nil || !strings.Contains(err.Error(), `missing active member "agent-2"`) {
 		t.Fatalf("expected missing active member error, got %v", err)
@@ -40,24 +27,15 @@ func TestValidateRejectsMissingActiveMemberContract(t *testing.T) {
 }
 
 func TestValidateFindingsCollectsIndependentContractDefects(t *testing.T) {
-	contract := Minimal(DecisionModeApproval, "agent-1")
+	contract := Minimal("", "agent-1")
 	contract.SchemaVersion = 0
-	contract.Governance.DecisionMode = "invalid"
-	contract.Governance.TeamPendingCeiling.Value = -1
-	member := contract.Members["agent-1"]
-	member.OwnedDecisionContexts = []string{"missing-context"}
-	contract.Members["agent-1"] = member
-
-	findings := ValidateFindings(contract, ValidationInput{TeamID: "team-1", DecisionMode: DecisionModeApproval, MemberIDs: []string{"agent-2"}})
-	if len(findings) < 5 {
+	findings := ValidateFindings(contract, ValidationInput{TeamID: "team-1", MemberIDs: []string{"agent-2"}})
+	if len(findings) < 2 {
 		t.Fatalf("ValidateFindings returned %d findings, want independent defects: %+v", len(findings), findings)
 	}
 	for _, field := range []string{
 		"operatingContract.schemaVersion",
-		"operatingContract.governance.decisionMode",
-		"operatingContract.governance.teamPendingCeiling.value",
 		"operatingContract.members",
-		"operatingContract.members.agent-1.ownedDecisionContexts",
 	} {
 		found := false
 		for _, finding := range findings {
@@ -91,21 +69,18 @@ func TestNormalizePathRejectsTraversal(t *testing.T) {
 }
 
 func TestRenderMemberPolicyIncludesMemberPolicy(t *testing.T) {
-	contract := Minimal(DecisionModeApproval, "agent-1")
+	contract := Minimal("", "agent-1")
 	rendered, err := RenderMemberPolicy(contract, RenderInput{
-		TeamID:       "team-1",
-		TeamName:     "Team One",
-		DecisionMode: DecisionModeApproval,
-		MemberID:     "agent-1",
+		TeamID:   "team-1",
+		TeamName: "Team One",
+		MemberID: "agent-1",
 	})
 	if err != nil {
 		t.Fatalf("RenderMemberPolicy: %v", err)
 	}
 	for _, want := range []string{
-		"## Governance",
 		"## Your Member Contract",
 		"Agent ID: agent-1",
-		"Owned decision contexts:",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("rendered contract missing %q:\n%s", want, rendered)
@@ -131,7 +106,7 @@ func TestRenderMemberPolicyIncludesMemberPolicy(t *testing.T) {
 // reconciled them at read time, so the subset was removed. This test fails if
 // it comes back.
 func TestRenderMemberPolicyDoesNotRestateDocumentSurfaces(t *testing.T) {
-	contract := Minimal(DecisionModeApproval, "agent-1")
+	contract := Minimal("", "agent-1")
 	contract.Documents.PlanOfRecord = []PlanOfRecordDocument{{
 		ID:  "canon",
 		Hub: &PathRef{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
@@ -139,7 +114,7 @@ func TestRenderMemberPolicyDoesNotRestateDocumentSurfaces(t *testing.T) {
 			{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 			{Base: BaseRepoRoot, Path: "docs/monetization/strategy/PRICING.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 		},
-		WritePolicy:    "operator-curated-via-decisions",
+		WritePolicy:    "operator-curated-via-swarm-manager",
 		Consumers:      []string{"monetization"},
 		UseFor:         "monetization strategy, catalog, pricing, and channels",
 		Required:       boolPtr(false),
@@ -159,10 +134,9 @@ func TestRenderMemberPolicyDoesNotRestateDocumentSurfaces(t *testing.T) {
 	contract.Members["agent-1"] = member
 
 	rendered, err := RenderMemberPolicy(contract, RenderInput{
-		TeamID:       "team-1",
-		TeamName:     "Team One",
-		DecisionMode: DecisionModeApproval,
-		MemberID:     "agent-1",
+		TeamID:   "team-1",
+		TeamName: "Team One",
+		MemberID: "agent-1",
 	})
 	if err != nil {
 		t.Fatalf("RenderMemberPolicy: %v", err)
@@ -197,7 +171,7 @@ func TestRenderMemberPolicyDoesNotRestateDocumentSurfaces(t *testing.T) {
 
 func TestValidateAcceptsFinalTeamWorkingStateKinds(t *testing.T) {
 	for _, kind := range TeamWorkingStateKindIDs() {
-		contract := Minimal(DecisionModeApproval, "agent-1")
+		contract := Minimal("", "agent-1")
 		contract.Documents.SharedState = []SharedStateDocument{{
 			ID:             "state",
 			Path:           PathRef{Base: BaseTeamShared, Path: "state.md", Required: boolPtr(false), OptionalReason: "test fixture"},
@@ -206,7 +180,7 @@ func TestValidateAcceptsFinalTeamWorkingStateKinds(t *testing.T) {
 			OptionalReason: "test fixture",
 		}}
 
-		if err := Validate(contract, ValidationInput{TeamID: "team-1", DecisionMode: DecisionModeApproval}); err != nil {
+		if err := Validate(contract, ValidationInput{TeamID: "team-1"}); err != nil {
 			t.Fatalf("Validate kind %q: %v", kind, err)
 		}
 	}
@@ -214,7 +188,7 @@ func TestValidateAcceptsFinalTeamWorkingStateKinds(t *testing.T) {
 
 func TestValidateRejectsLegacyTeamWorkingStateKinds(t *testing.T) {
 	for _, kind := range []string{"rolling-artifact", "append-only-log", "operator-state", "decision-stream", "handoff-history", "unknown"} {
-		contract := Minimal(DecisionModeApproval, "agent-1")
+		contract := Minimal("", "agent-1")
 		contract.Documents.SharedState = []SharedStateDocument{{
 			ID:             "state",
 			Path:           PathRef{Base: BaseTeamShared, Path: "state.md", Required: boolPtr(false), OptionalReason: "test fixture"},
@@ -223,7 +197,7 @@ func TestValidateRejectsLegacyTeamWorkingStateKinds(t *testing.T) {
 			OptionalReason: "test fixture",
 		}}
 
-		err := Validate(contract, ValidationInput{TeamID: "team-1", DecisionMode: DecisionModeApproval})
+		err := Validate(contract, ValidationInput{TeamID: "team-1"})
 		if err == nil || !strings.Contains(err.Error(), "team working state kind") {
 			t.Fatalf("expected unsupported kind error for %q, got %v", kind, err)
 		}
@@ -231,11 +205,11 @@ func TestValidateRejectsLegacyTeamWorkingStateKinds(t *testing.T) {
 }
 
 func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
-	contract := Minimal(DecisionModeApproval, "agent-1")
+	contract := Minimal("", "agent-1")
 	contract.Documents.PlanOfRecord = []PlanOfRecordDocument{{
 		ID:          "strategy",
 		Paths:       []PathRef{{Base: BaseRepoRoot, Path: "docs/strategy.md", Required: boolPtr(false), OptionalReason: "test fixture"}},
-		WritePolicy: "operator-curated-via-decisions",
+		WritePolicy: "operator-curated-via-swarm-manager",
 		Consumers:   []string{"team-1", "team-2"},
 		UseFor:      "durable strategy canon",
 	}}
@@ -248,7 +222,7 @@ func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
 		OptionalReason: "test fixture",
 	}}
 
-	rendered, err := RenderTeamStorage(contract, RenderInput{TeamID: "team-1", DecisionMode: DecisionModeApproval, MemberID: "agent-1"})
+	rendered, err := RenderTeamStorage(contract, RenderInput{TeamID: "team-1", MemberID: "agent-1"})
 	if err != nil {
 		t.Fatalf("RenderTeamStorage: %v", err)
 	}
@@ -256,7 +230,7 @@ func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
 		"## Your Team Storage",
 		"Plan of record, read/propose only:",
 		"- `docs/strategy.md`",
-		"Policy: `operator-curated-via-decisions`",
+		"Policy: `operator-curated-via-swarm-manager`",
 		"Consumers: `team-1, team-2`",
 		"Use for: durable strategy canon",
 		"Navigation: start at the hub and follow its file map to the relevant spoke.",
@@ -264,7 +238,7 @@ func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
 		"Kind: `append-only-event-log`",
 		"Use for: structured historical events or observations owned by the team",
 		"Primitive availability for this member:",
-		"- decisions: `write-allowed`",
+		"- unified work filing: file findings and requests once into swarm-manager",
 		"- knowledge: `write-allowed`",
 		"- handoff: `allowed`",
 		"- task board: `review-only`",
@@ -279,26 +253,26 @@ func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
 }
 
 func TestValidateRequiresHubForMultiPathPlanOfRecord(t *testing.T) {
-	contract := Minimal(DecisionModeApproval, "agent-1")
+	contract := Minimal("", "agent-1")
 	contract.Documents.PlanOfRecord = []PlanOfRecordDocument{{
 		ID: "canon",
 		Paths: []PathRef{
 			{Base: BaseRepoRoot, Path: "docs/canon/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 			{Base: BaseRepoRoot, Path: "docs/canon/spoke.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 		},
-		WritePolicy: "operator-curated-via-decisions",
+		WritePolicy: "operator-curated-via-swarm-manager",
 		Consumers:   []string{"team-1"},
 		Required:    boolPtr(false),
 	}}
 
-	err := Validate(contract, ValidationInput{TeamID: "team-1", DecisionMode: DecisionModeApproval})
+	err := Validate(contract, ValidationInput{TeamID: "team-1"})
 	if err == nil || !strings.Contains(err.Error(), "hub is required") {
 		t.Fatalf("expected missing hub error, got %v", err)
 	}
 }
 
 func TestRenderTeamStorageUsesPlanOfRecordHubs(t *testing.T) {
-	contract := Minimal(DecisionModeApproval, "agent-1")
+	contract := Minimal("", "agent-1")
 	contract.Documents.PlanOfRecord = []PlanOfRecordDocument{{
 		ID:  "canon",
 		Hub: &PathRef{Base: BaseRepoRoot, Path: "docs/monetization/README.md", Required: boolPtr(false), OptionalReason: "test fixture"},
@@ -307,20 +281,20 @@ func TestRenderTeamStorageUsesPlanOfRecordHubs(t *testing.T) {
 			{Base: BaseRepoRoot, Path: "docs/monetization/catalogs/CATALOG.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 			{Base: BaseRepoRoot, Path: "docs/monetization/strategy/PRICING.md", Required: boolPtr(false), OptionalReason: "test fixture"},
 		},
-		WritePolicy:    "operator-curated-via-decisions",
+		WritePolicy:    "operator-curated-via-swarm-manager",
 		Consumers:      []string{"monetization"},
 		UseFor:         "monetization strategy, catalog, pricing, and channels",
 		Required:       boolPtr(false),
 		OptionalReason: "test fixture",
 	}}
 
-	rendered, err := RenderTeamStorage(contract, RenderInput{TeamID: "team-1", DecisionMode: DecisionModeApproval, MemberID: "agent-1"})
+	rendered, err := RenderTeamStorage(contract, RenderInput{TeamID: "team-1", MemberID: "agent-1"})
 	if err != nil {
 		t.Fatalf("RenderTeamStorage: %v", err)
 	}
 	for _, want := range []string{
 		"- `docs/monetization/README.md`",
-		"Policy: `operator-curated-via-decisions`",
+		"Policy: `operator-curated-via-swarm-manager`",
 		"Consumers: `monetization`",
 		"Use for: monetization strategy, catalog, pricing, and channels",
 		// The file count folded in from the removed "## Document Authority"
@@ -340,7 +314,6 @@ func TestRenderTeamStorageUsesPlanOfRecordHubs(t *testing.T) {
 
 func TestBundledMetaOptimizationContractValidatesAndRendersRepoRootPaths(t *testing.T) {
 	type teamFile struct {
-		DecisionMode      string             `json:"decisionMode"`
 		OperatingContract *OperatingContract `json:"operatingContract"`
 	}
 
@@ -356,10 +329,9 @@ func TestBundledMetaOptimizationContractValidatesAndRendersRepoRootPaths(t *test
 	}
 
 	err = Validate(team.OperatingContract, ValidationInput{
-		TeamID:       "meta-optimization",
-		DecisionMode: team.DecisionMode,
-		StoreDir:     storeDir,
-		RepoRoot:     repoRoot,
+		TeamID:   "meta-optimization",
+		StoreDir: storeDir,
+		RepoRoot: repoRoot,
 	})
 	if err != nil {
 		t.Fatalf("Validate bundled contract: %v", err)
@@ -368,12 +340,11 @@ func TestBundledMetaOptimizationContractValidatesAndRendersRepoRootPaths(t *test
 	// Shared-state paths render in team storage, which is their single home
 	// since "## Document Authority" was removed from the member policy.
 	rendered, err := RenderTeamStorage(team.OperatingContract, RenderInput{
-		TeamID:       "meta-optimization",
-		TeamName:     "Meta Optimization",
-		DecisionMode: team.DecisionMode,
-		MemberID:     "team-agent-optimizer",
-		StoreDir:     storeDir,
-		RepoRoot:     repoRoot,
+		TeamID:   "meta-optimization",
+		TeamName: "Meta Optimization",
+		MemberID: "team-agent-optimizer",
+		StoreDir: storeDir,
+		RepoRoot: repoRoot,
 	})
 	if err != nil {
 		t.Fatalf("RenderTeamStorage bundled contract: %v", err)
@@ -393,7 +364,6 @@ func boolPtr(v bool) *bool {
 
 func TestBundledTeamContractsValidate(t *testing.T) {
 	type teamFile struct {
-		DecisionMode      string             `json:"decisionMode"`
 		OperatingContract *OperatingContract `json:"operatingContract"`
 	}
 
@@ -417,13 +387,10 @@ func TestBundledTeamContractsValidate(t *testing.T) {
 		if err := json.Unmarshal(data, &team); err != nil {
 			t.Fatalf("unmarshal %s team: %v", teamID, err)
 		}
-		memberIDs := relationMemberIDs(t, storeDir, teamID)
 		if err := Validate(team.OperatingContract, ValidationInput{
-			TeamID:       teamID,
-			DecisionMode: team.DecisionMode,
-			MemberIDs:    memberIDs,
-			StoreDir:     storeDir,
-			RepoRoot:     repoRoot,
+			TeamID:   teamID,
+			StoreDir: storeDir,
+			RepoRoot: repoRoot,
 		}); err != nil {
 			t.Fatalf("Validate bundled %s contract: %v", teamID, err)
 		}
@@ -443,7 +410,7 @@ func TestBundledPromptProseDoesNotRestateContractPolicy(t *testing.T) {
 		"Team-ceiling",
 		"Team ceiling",
 		"Own-context cap",
-		"Decision Contexts",
+		"Work Item Types",
 		"Decision Queue Discipline",
 		"Shared State",
 		"shared state",

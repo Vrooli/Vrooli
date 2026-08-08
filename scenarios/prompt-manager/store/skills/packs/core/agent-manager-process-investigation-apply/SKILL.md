@@ -10,7 +10,7 @@ investigating-agent-runs` for the attribution and severity method.
 operator decision and selected recommendation set; `{{.context}}` is bounded
 source-run evidence. The approval selection is authoritative.
 
-### Outcome decision table
+### Outcome work table
 
 | Observable state | Outcome |
 | --- | --- |

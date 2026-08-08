@@ -32,7 +32,7 @@ const (
 	// memberDocRecommended sections carry a layer the file is supposed to
 	// hold but that some members do not yet state. Warning, because the
 	// content is team judgment — the fix is authored by the owning team
-	// through its own decision context, not inferred by a validator.
+	// through its own work item type, not inferred by a validator.
 	memberDocRecommended
 	// memberDocOptional sections are named only so that teams choosing to
 	// write them agree on the word.
@@ -202,7 +202,7 @@ func checkMemberDoc(storeDir string, ref MemberRef, contract memberDocContract) 
 				Rule:     "member_doc_section_recommended",
 				Severity: SeverityWarning,
 				Team:     ref.Team, Member: ref.Member,
-				Detail: fmt.Sprintf("%s has no %q section; the owning team should add one through its own decision context — the content is team judgment, not something a validator can infer",
+				Detail: fmt.Sprintf("%s has no %q section; the owning team should add one through its own work item type — the content is team judgment, not something a validator can infer",
 					contract.File, "## "+h),
 			})
 		}

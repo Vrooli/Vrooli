@@ -26,8 +26,6 @@ func (b OperatingFindingBuilder) WithNode(sourcePath string, node OperatingGraph
 		f.Member = node.Value
 	case "topic":
 		f.Topic = node.Value
-	case "decision":
-		f.Decision = node.Value
 	case "por":
 		f.Path = node.Value
 	}
@@ -44,7 +42,6 @@ func (b OperatingFindingBuilder) WithRelationship(rel OperatingRelationship, det
 	f := b.base(rel.Source.Path, rel.Source.Line, detail)
 	f.Member = rel.Member
 	f.Topic = rel.Topic
-	f.Decision = rel.Decision
 	f.Path = rel.Path
 	return f
 }

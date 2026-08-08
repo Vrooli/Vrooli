@@ -4,7 +4,10 @@
 Own the canonical monetization plan for Vrooli: catalog, tiers, channels, funnel, revenue lines, and financial model.
 
 ## Scope
-Maintains monetization strategy, evidence, and operator-routed decisions for Vrooli's path to default-alive.
+Maintains monetization strategy, evidence, and operator-routed work for Vrooli's path to default-alive.
+
+## Shared team corpus
+Durable context lives in the `team:monetization` source-ledger scope. Use `source-ledger recall` and `source-ledger journal note`; file executable monetization work once through swarm-manager.
 
 Does not own marketing execution, telemetry implementation, scenario code quality, or hardware-tier planning unless the operator explicitly initiates that work.
 
@@ -18,7 +21,7 @@ Does not own marketing execution, telemetry implementation, scenario code qualit
 
 ## Knowledge Topic Taxonomy
 
-The team uses `knowledge.jsonl` (managed via `prompt-manager team knowledge-*` CLI) as the single source for opportunity intake, the opportunity pool, and market-scan canon. There are no separate `opportunities.jsonl` or `market-scans.jsonl` files — those were retired on 2026-05-01 in favor of topic-prefixed knowledge entries.
+The team uses its source-ledger scope as the single source for opportunity intake, the opportunity pool, and market-scan canon. Entries are prose with a typed topic prefix; no local append-only corpus files are maintained.
 
 | Topic prefix | Owner | Purpose |
 |---|---|---|
@@ -28,15 +31,12 @@ The team uses `knowledge.jsonl` (managed via `prompt-manager team knowledge-*` C
 | `validation-inbox/<request-type>/<slug>` | any (operator, vision-walk, opportunity-scout conversion, catalog-strategist, financial-tracker, staleness sweep) | Untriaged validation requests. Request types and dispatch live in `docs/monetization/taxonomies/monetization-validation/README.md`; the `market-validator` member drains it (classifier: `signal-classifier`). The inbox view is the unrouted set. |
 | `topic[old]:vision-walk/alpha/<topic>` (legacy) | vision-walk fallback | Generic alpha when no typed topic fits. Prefer the typed `opportunity-inbox/*` or `validation-inbox/*` forms. |
 
-Other shared surfaces remain file-based because they are audit-grade or financial primitives:
-
-- `decisions.jsonl` — managed via `prompt-manager team decision-*` CLI; decision lifecycle (propose / accept / reject / defer).
-- `ledger.jsonl` — append-only financial events; owned by `financial-tracker`.
+Other canonical financial inputs remain authored documents under this team's config tree; executable changes are routed through swarm-manager.
 - `operator-inputs.json` — operator-supplied financial inputs.
-- `handoff-history.jsonl` — handoff log; managed by handoff CLI.
+- Source Ledger `team:monetization` — durable team context and handoff history.
 
 ## Inbox & Pool Invariants
 
-- **Unrouted-set invariant.** No entry remains under any inbox/queue topic after triage. Every entry exits via the actions in its taxonomy's `actionSelection` set (drop / observe / promote-to-canon / file-decision / capability-gap). Generated heartbeat `# Inbox Flow` sections render the procedure from `topics.json` + the relevant taxonomy. Deviations are a process bug. Staleness sweep auto-populates the validation queue but never resolves entries — only the validator does.
+- **Unrouted-set invariant.** No entry remains under any inbox/queue topic after triage. Every entry exits via the actions in its taxonomy's `actionSelection` set (drop / observe / promote-to-canon / file-work / capability work item). Generated heartbeat `# Inbox Flow` sections render the procedure from `topics.json` + the relevant taxonomy. Deviations are a process bug. Staleness sweep auto-populates the validation queue but never resolves entries — only the validator does.
 - **Front-matter discipline.** Pool entries (`monetization/opportunity/*`) and market-scan entries (`monetization/market-scan/*`) must include the required front-matter fields. Hygiene flags missing fields for repair; agents must not silently fix them.
-- **No JSONL hand-writes.** Agents must use the CLI (`team knowledge-add`/`-update`/`-delete`) so concurrency, retention, and provenance are honored. Direct writes to `knowledge.jsonl` are forbidden.
+- **No file hand-writes.** Agents use `source-ledger journal note` and `source-ledger recall`; the ledger owns concurrency, provenance, wake, and compaction.

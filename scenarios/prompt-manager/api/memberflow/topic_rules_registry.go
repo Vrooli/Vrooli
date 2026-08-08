@@ -68,16 +68,7 @@ func DefaultTopicRules() []Rule {
 		},
 		one("missing_destination_schema", SeverityWarning, ruleMissingDestinationSchema),
 		one("dangling_por_sink", SeverityError, ruleDanglingPORSink),
-		one("dangling_evidence_decision", SeverityError, ruleDanglingEvidenceDecision),
 		one("team_role_member_drift", SeverityError, options(ruleTeamRoleMemberDrift)),
-		// One function, two ids: an undeclared writer and a malformed
-		// attribution record are both read out of the same knowledge log.
-		topicCheck{
-			id:       "actual_writer_undeclared",
-			emits:    []string{"actual_writer_undeclared", "attribution_malformed"},
-			severity: SeverityError,
-			check:    ruleActualWriterUndeclared,
-		},
 		one("prose_topic_leak", SeverityWarning, ruleProseTopicLeak),
 		// One function, six ids. This ran six times per validation pass, each
 		// run discarding five sixths of its own output.

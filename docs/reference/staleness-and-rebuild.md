@@ -27,7 +27,7 @@ The fingerprint is embedded in the binary at build time via
 
 | Variable | Purpose |
 |---|---|
-| `VROOLI_SOURCE_ROOT` | Repository root used for fingerprinting. Defaults to module-root discovery. |
+| `VROOLI_SOURCE_ROOT` | Repository root used for fingerprinting. Defaults to module-root discovery, then the installed source pointer or a bounded, Vrooli-identity-checked search below the invoking user's home directory. |
 | `VROOLI_ROOT` | Fallback when `VROOLI_SOURCE_ROOT` is unset. |
 | `VROOLI_FINGERPRINT_PATHS` | Comma-separated relative paths overriding the default target set. |
 | `VROOLI_BUILD_TARGET` | Override `./cmd/<name>` build target used by `RebuildAndReexec`. |
@@ -41,6 +41,13 @@ The fingerprint is embedded in the binary at build time via
 | `<executable>.lock` | flock(2) target serializing concurrent rebuilders. Auto-released on process death. |
 | `<executable>.fp` | Sidecar fingerprint cache; lets sibling processes recognize a freshly rebuilt binary even when their own embedded symbol still reflects the pre-rebuild value. |
 | `<executable>.tmp.<pid>` | Transient build output; `os.Rename`d into place atomically. |
+
+The user-level source pointer at `~/.vrooli/source-root` records the checkout
+used by `make install` and by authenticated prebuilt installers. Resolution is
+sudo-aware, so `sudo vrooli setup` checks the invoking user's Vrooli home
+instead of `/root`. Existing local installs without the pointer can still
+bootstrap when the checkout is below that home directory and has the canonical
+Vrooli module path and CLI entrypoint.
 
 ### Sidecar precedence
 

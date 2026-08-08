@@ -35,7 +35,7 @@ test-genie runs findings --scenario {{TARGET}}
 
 Treat the provider's North Star, priority focus, next action, blocking codes, and freshness as authoritative. Test Genie renders those fields. It does not invent them. Do not infer a cross-phase prerequisite that the evidence does not show.
 
-Use this decision table:
+Use this work table:
 
 | Evidence state | Action |
 |---|---|

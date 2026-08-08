@@ -2,7 +2,7 @@
 
 Use the immutable goal snapshot to propose a bounded, sequenced change to its targets, milestones, or dependencies. Do not mutate the goal.
 
-## Outcome decision table
+## Outcome work table
 
 | Evidence | Outcome |
 | --- | --- |

@@ -4,7 +4,7 @@
 
 | Document | Purpose |
 |---|---|
-| [`OPERATING_MODEL.md`](OPERATING_MODEL.md) | Team-level operating contract: mission, scope, loops, graph, topic catalog, decisions, inputs, outputs, feedback loop, gaps, and adoption commands. |
+| [`OPERATING_MODEL.md`](OPERATING_MODEL.md) | Team-level operating contract: mission, scope, loops, graph, topic catalog, work and dispositions, inputs, outputs, feedback loop, gaps, and adoption commands. |
 
 ## Validation
 

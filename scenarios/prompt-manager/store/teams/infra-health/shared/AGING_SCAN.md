@@ -2,9 +2,9 @@
 
 Rolling artifact owned by `infra-contrarian`.
 
-Use this file for stale-decision scan results.
+Use this file for stale-work-item scan results.
 
 ## Scans
 
-| Date | Decisions reviewed | Stale decisions | Supersedable | Retirement candidates | Notes |
+| Date | Work Items reviewed | Stale work items | Supersedable | Retirement candidates | Notes |
 |---|---|---|---|---|---|

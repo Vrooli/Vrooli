@@ -10,22 +10,7 @@
       "prefix": "friction-report/toolchain/<YYYY-MM-DD>/<slug>"
     }
   ],
-  "evidence_consumed": [
-    {
-      "prefix": "challenge-report/*",
-      "for_decisions": [
-        "toolchain-violation",
-        "capability-gap"
-      ]
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "for_decisions": [
-        "toolchain-violation",
-        "capability-gap"
-      ]
-    }
-  ],
+  "evidence_consumed": [],
   "output": [
     {
       "prefix": "toolchain-audit/*",
@@ -36,10 +21,7 @@
       "destination_kind": "knowledge"
     }
   ],
-  "decisions_owned": [
-    "toolchain-violation"
-  ],
-  "raises_capability_gaps": true,
+  "raises_work_items": true,
   "external_producers": [
     "operator"
   ]

@@ -28,11 +28,10 @@ scenario-qa runs three members:
 |---|---|---|
 | `quality-auditor` | Judgment-based structural audits using a rotation of audit lenses | `topic[example]:quality-audit/<scenario-id>/<skill-id>` knowledge entries |
 | `bug-investigator` | Drains `bug-inbox/*` (universal-source), applies investigation techniques, writes audit log | `bug-investigation-report/<slug>` knowledge entries |
-| `qa-contrarian` | Challenges QA outcomes (audits, investigations) — surfaces gaps in reasoning | `challenge-report/*` knowledge entries |
 
 > **Pre-emptive readiness moved into swarm-manager.** A former QA member swept idle scenarios and filed fix items before feature work. That ordering is now a deterministic swarm-manager gate (`fix_before_feature` setting) plus the policy-governed backlog auto-filer (`auto_filer` settings) for optional maintenance intake; regressions on scheduled scenarios are caught just-in-time by execution finalization's before/after baseline diff. See the swarm-manager execution docs.
 
-Decision contexts owned by the team:
+Work types owned by the team:
 
 | Context | Owner | Purpose |
 |---|---|---|
@@ -68,14 +67,13 @@ any-team/* ─[report-bug skill]──▶ scenario-qa/bug-inbox/<signal-type>/<s
        (audit log; append-only)  (fix/chore items)        (operator review for cross-cutting fixes)
 ```
 
-The `qa-contrarian` reads peer-team decisions and member outputs (including bug-investigation entries and audit findings) and writes `challenge-report/*` plus `challenge-resolution-record/*` entries — challenge to QA outcomes is a first-class output, not a side-channel comment. The lifecycle follows `docs/agent-system/CONTRARIAN_REVIEW.md`: reports are append-only evidence, resolution records carry latest state, and quiet reviews write no challenge report.
 
 ## Editing rules
 
 - **Agents never write to these files directly.** All edits come through operator-approved decisions.
-- **Edit context:** `bug-resolution-proposal` covers `taxonomies/bug-report/README.md` updates and bug-report taxonomy schema changes; `meta-self-improvement` (on `meta-optimization`) covers new technique entries in `methods/investigation/` and `methods/audit/`; per-rotation skill updates go through the standard skill-edit decision flow.
+- **Edit context:** `bug-resolution-proposal` covers `taxonomies/bug-report/README.md` updates and bug-report taxonomy schema changes; `meta-self-improvement` (on `meta-optimization`) covers new technique entries in `methods/investigation/` and `methods/audit/`; per-rotation skill updates go through the standard skill-edit work flow.
 - **Operator executes edits** on decision acceptance. Commit messages cite the decision id.
-- **Drafts are not canon.** Synthesis-in-flux content belongs in typed knowledge topics until an accepted decision promotes it; files in this folder are stable PoR.
+- **Drafts are not canon.** Synthesis-in-flux content belongs in typed knowledge topics until an approved work item promotes it; files in this folder are stable PoR.
 
 ## Doc + paired skill discipline
 

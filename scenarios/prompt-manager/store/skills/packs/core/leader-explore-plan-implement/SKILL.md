@@ -19,7 +19,7 @@ Required reading:
 
 Run the phases per the shared contract's phase shape. Enter at any phase whose inputs already exist (see the entry table).
 
-### 2. Pipeline entry decision table
+### 2. Pipeline entry work table
 
 | You have... | Area understood? | Plan exists? | Entry point |
 |---|---|---|---|

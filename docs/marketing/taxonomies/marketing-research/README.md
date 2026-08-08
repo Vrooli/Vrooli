@@ -20,7 +20,7 @@ When the JSON sidecar changes, update this markdown to match — they are paired
 | competitor         | Competitor pricing, packaging, positioning, changelog.           | competitor-positioning-scan | `competitor-record/<slug>`              |
 | hook               | Reusable opening, framing, or copy pattern.                      | hook-pattern-mining         | `hook-record/<slug>`                    |
 | workflow           | External process, playbook, agent setup worth deconstructing.    | workflow-deconstruction     | `workflow-scan/<slug>`                  |
-| skill              | External skill or reusable prompt/process.                       | skill-opportunity-scan      | `skill-scan/<slug>` (capability-gap if blocking) |
+| skill              | External skill or reusable prompt/process.                       | skill-opportunity-scan      | `skill-scan/<slug>` (capability-work if blocking) |
 | channel            | New acquisition channel observed working in market.              | channel-format-scan         | `channel-scan/<slug>` (channel-strategy-update when material) |
 | format             | New marketing post format or channel-native format.              | post-type-discovery         | `format-scan/<slug>` (post-type-proposal when material) |
 | benchmark-adjacent | Pricing/market fact relevant to monetization (cross-team).       | benchmark-adjacent-scan     | `monetization-benchmark-adjacent-record/<slug>` (cross-team to monetization) |
@@ -40,9 +40,9 @@ The classifier returns a recommendation; the member's drain procedure picks one 
 |-------------------|-----------------------------------------------------------------------------------------------|
 | drop              | Weak one-off / duplicate / out of scope. Delete the inbox row; mention in handoff if useful.  |
 | observe           | Single-snapshot fact with applicability. Retag inbox row to destination prefix with front-matter. |
-| promote-to-canon  | Converging evidence meets threshold. Retag plus raise the owned-context decision.             |
-| file-decision     | Operator should decide now. Raise the decision; delete the inbox row if the artifact lives elsewhere. |
-| capability-gap    | Source / tool / scenario missing. File `capability-gap` decision and leave the inbox row until closed. |
+| promote-to-canon  | Converging evidence meets threshold. Retag plus raise the owned work item.             |
+| file-work     | Operator should decide now. Raise the decision; delete the inbox row if the artifact lives elsewhere. |
+| capability-work    | Source / tool / scenario missing. File `capability-work` decision and leave the inbox row until closed. |
 
 ## Owned schemas
 
@@ -105,7 +105,7 @@ Body must include: `## Steps`, `## Reusable parts`.
 ---
 type: skill-scan
 subject: <text>
-implies_capability_gap: <true|false>
+implies_work_item: <true|false>
 honesty_flags: [<...>]
 source: <url-or-null>
 ---

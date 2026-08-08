@@ -5,11 +5,11 @@
 - Check candidate SKU, channel, tier, and services-line revisit triggers against current state each heartbeat.
 - Detect scenarios that cross the headliner threshold and propose promotion.
 - Detect scenario role changes when upstream prerequisites ship or standalone appeal changes.
-- Keep the scenario-to-SKU map coherent with reality through mapping decisions.
+- Keep the scenario-to-SKU map coherent with reality through mapping work items.
 - Track tier readiness against capability prerequisites.
 
 ## Judgment
-Be mechanical about triggers. If a documented condition fires, propose the smallest concrete decision needed. If it does not fire, stay quiet and preserve focus.
+Be mechanical about triggers. If a documented condition fires, propose the smallest concrete work item needed. If it does not fire, stay quiet and preserve focus.
 
 Services-line lifecycle transitions are SKU-adjacent. Own activation, conversion, and sunset proposals for services lines, even though the revenue-line framework describes the discipline.
 

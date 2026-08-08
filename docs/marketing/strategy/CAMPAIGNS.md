@@ -1,6 +1,6 @@
 # Campaigns
 
-Index of currently-active and recently-closed marketing campaigns. Brand-manager proposes new campaigns via `campaign-launch-proposal` decisions; the operator accepts; the accepted decision triggers an entry in this file.
+Index of currently-active and recently-closed marketing campaigns. Brand-manager proposes new campaigns via `campaign-launch-proposal` decisions; the operator accepts; the approved work item triggers an entry in this file.
 
 **Write rule:** operator-curated via accepted `campaign-launch-proposal` decisions. Brand-manager proposes; does not edit directly.
 
@@ -41,5 +41,5 @@ Closed campaigns stay in this file as historical record. Long-term, these may mo
 ## Operator discipline
 
 - Campaign creation: operator accepts `campaign-launch-proposal` → operator adds entry here → commit cites decision id.
-- Campaign close: `brand-manager` raises `campaign-launch-proposal` with status=close plus a post-mortem reference. The close note and final artifact go through `content-desk`'s operator approval gate; the former `content-publish-proposal` decision context is retired.
+- Campaign close: `brand-manager` raises `campaign-launch-proposal` with status=close plus a post-mortem reference. The close note and final artifact go through `content-desk`'s operator approval gate; the former `content-publish-proposal` work type is retired.
 - Operator updates the campaign's outstanding artifact slots as the producer drafts them and they are released (this can be low-overhead — a tick-box pass during vision walks). Once `content-desk` owns campaign records, slot state is derived rather than ticked.

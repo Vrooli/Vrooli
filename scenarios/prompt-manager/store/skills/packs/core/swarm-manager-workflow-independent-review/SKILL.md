@@ -6,7 +6,7 @@ Independently review the completed backlog execution using only the immutable sn
 
 Run `prompt-manager skill read swarm-manager-review` and apply its evidence strategy, its GCT-results and baseline-delta evaluation steps, its evidence-type selection, and its classification rules. Its Inputs section describes a legacy envelope — your inputs arrive in `{{.snapshot}}` instead; the doctrine is unchanged.
 
-## Verdict decision table
+## Verdict work table
 
 | Observable end state | Verdict |
 | --- | --- |

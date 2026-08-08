@@ -63,7 +63,7 @@
     "tool_target": "REPLACE — e.g. 'gpt-image-2' | 'flux' | 'qwen-image' | 'midjourney' | 'ideogram'"
   },
   "honesty_flags": {
-    "_comment": "Carried into the publish-log entry for the artifact this render is part of.",
+    "_comment": "Carried into the Content Desk publish-history record for the artifact this render is part of.",
     "feature_claims": "measured | overclaimed | uncertain",
     "tier_alignment": "verified | not-yet-checked",
     "real_person_check": "verified-no-likeness",

@@ -31,21 +31,11 @@ type Handlers struct {
 	agentClient   AgentClient
 	teamExecStore *TeamExecutionStore
 	controlStore  *HeartbeatControlStore
-	// swarmClient is the HTTP client used to invoke swarm-manager when
-	// auto-creating an initiative on decision-accept. Lazily initialised the
-	// first time it is used; tests inject a stub via SetSwarmInitiativeClient.
-	swarmClient *SwarmInitiativeClient
 }
 
 // SetControlStore attaches the heartbeat engagement guard.
 func (h *Handlers) SetControlStore(controlStore *HeartbeatControlStore) {
 	h.controlStore = controlStore
-}
-
-// SetSwarmInitiativeClient overrides the swarm-manager initiative client.
-// Intended for tests; production code uses the lazily-initialised default.
-func (h *Handlers) SetSwarmInitiativeClient(c *SwarmInitiativeClient) {
-	h.swarmClient = c
 }
 
 // NewHandlers creates new heartbeat handlers
@@ -2426,694 +2416,6 @@ func (h *Handlers) DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// --- Decision Log handlers ---
-
-// AddDecision handles POST /teams/{id}/decisions
-func (h *Handlers) AddDecision(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	teamID := vars["id"]
-
-	var req AddDecisionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-	// Multi-option decisions use topic+options; simple decisions use decision+rationale.
-	if len(req.Options) > 0 {
-		if strings.TrimSpace(req.Topic) == "" {
-			http.Error(w, "topic is required when options are provided", http.StatusBadRequest)
-			return
-		}
-	} else {
-		if strings.TrimSpace(req.Decision) == "" {
-			http.Error(w, "decision is required", http.StatusBadRequest)
-			return
-		}
-		if strings.TrimSpace(req.Rationale) == "" {
-			http.Error(w, "rationale is required", http.StatusBadRequest)
-			return
-		}
-	}
-
-	// initiative_metadata is only valid on initiative-proposal decisions.
-	if req.InitiativeMetadata != nil {
-		if req.Context != store.DecisionContextInitiativeProposal {
-			writeDecisionFieldError(w, "initiative_metadata", "initiative_metadata is only valid when context=initiative-proposal")
-			return
-		}
-		if err := validateInitiativeMetadata(req.InitiativeMetadata); err != nil {
-			writeDecisionFieldError(w, "initiative_metadata", err.Error())
-			return
-		}
-	}
-
-	entry := &store.DecisionEntry{
-		ID:                 fmt.Sprintf("dec-%s", generateID()),
-		At:                 time.Now().UTC().Format(time.RFC3339),
-		By:                 req.By,
-		Decision:           req.Decision,
-		Rationale:          req.Rationale,
-		Context:            req.Context,
-		Supersedes:         req.Supersedes,
-		Status:             store.DecisionStatusPending,
-		Topic:              req.Topic,
-		Description:        req.Description,
-		Options:            req.Options,
-		InitiativeMetadata: req.InitiativeMetadata,
-	}
-
-	if err := h.teamStore.AppendDecision(r.Context(), teamID, entry); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(entry)
-}
-
-// GetDecisions handles GET /teams/{id}/decisions
-func (h *Handlers) GetDecisions(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	teamID := vars["id"]
-	contextFilter := r.URL.Query().Get("context")
-	statusFilter := r.URL.Query().Get("status")
-	last := 10
-	if v := r.URL.Query().Get("last"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			last = n
-		}
-	}
-
-	entries, total, err := h.teamStore.GetDecisions(r.Context(), teamID, contextFilter, statusFilter, last)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if entries == nil {
-		entries = []store.DecisionEntry{}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(DecisionListResponse{
-		TeamID:  teamID,
-		Entries: entries,
-		Total:   total,
-		Last:    last,
-	})
-}
-
-// UpdateDecisionHandler handles PATCH /teams/{id}/decisions/{decisionId}
-func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	teamID := vars["id"]
-	decisionID := vars["decisionId"]
-
-	var req UpdateDecisionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if req.Modifications != nil {
-		if err := validateDecisionModifications(req.Modifications); err != nil {
-			writeDecisionFieldError(w, "modifications", err.Error())
-			return
-		}
-		// Immutability: if the stored decision already has modifications, reject
-		// any attempt to change them (accept-once semantics).
-		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
-		if existing != nil && existing.Modifications != nil {
-			writeDecisionFieldError(w, "modifications", "modifications are immutable once set on an accepted decision")
-			return
-		}
-	}
-
-	// initiative_metadata: validate shape, scope to initiative-proposal context,
-	// and enforce post-accept immutability (mirrors modifications rule).
-	if req.InitiativeMetadata != nil {
-		if err := validateInitiativeMetadata(req.InitiativeMetadata); err != nil {
-			writeDecisionFieldError(w, "initiative_metadata", err.Error())
-			return
-		}
-		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
-		if existing != nil {
-			ctxTag := existing.Context
-			if req.Context != nil {
-				ctxTag = *req.Context
-			}
-			if ctxTag != store.DecisionContextInitiativeProposal {
-				writeDecisionFieldError(w, "initiative_metadata", "initiative_metadata is only valid when context=initiative-proposal")
-				return
-			}
-			if existing.Status == store.DecisionStatusAccepted {
-				writeDecisionFieldError(w, "initiative_metadata", "initiative_metadata is immutable once the decision has been accepted")
-				return
-			}
-		}
-	}
-
-	// auto_create_status manual-recovery transitions (per d8=C). Allowed only
-	// from a "failed" starting state. failed→created requires a non-empty ref.
-	if req.AutoCreateStatus != nil {
-		newStatus := strings.TrimSpace(*req.AutoCreateStatus)
-		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
-		if existing == nil {
-			writeDecisionFieldError(w, "auto_create_status", "decision not found")
-			return
-		}
-		if existing.AutoCreateStatus != store.AutoCreateStatusFailed {
-			writeDecisionFieldError(w, "auto_create_status", fmt.Sprintf("auto_create_status can only be transitioned from %q (current: %q)", store.AutoCreateStatusFailed, existing.AutoCreateStatus))
-			return
-		}
-		switch newStatus {
-		case store.AutoCreateStatusCreated:
-			if req.AutoCreateInitiativeRef == nil || strings.TrimSpace(*req.AutoCreateInitiativeRef) == "" {
-				writeDecisionFieldError(w, "auto_create_initiative_ref", "auto_create_initiative_ref is required when setting auto_create_status=created")
-				return
-			}
-		case store.AutoCreateStatusFailed:
-			// re-record an updated error — allowed
-		default:
-			writeDecisionFieldError(w, "auto_create_status", fmt.Sprintf("auto_create_status %q is not a permitted transition (allowed: %q, %q)", newStatus, store.AutoCreateStatusCreated, store.AutoCreateStatusFailed))
-			return
-		}
-	}
-
-	// Determine effective status: if selecting an option on a pending decision, implicitly accept.
-	effectiveStatus := req.Status
-	if req.Selected != nil && strings.TrimSpace(*req.Selected) != "" && req.Status == nil {
-		accepted := store.DecisionStatusAccepted
-		effectiveStatus = &accepted
-	}
-
-	// Single-proposal decisions (no Options) are accepted without --selected.
-	// Reject any explicit --selected on this shape — including the legacy
-	// `__other__ + freeform="accept as proposed"` workaround. Reads of
-	// historical entries with that shape are still tolerated by the read path.
-	acceptAsProposed := false
-	if effectiveStatus != nil && *effectiveStatus == store.DecisionStatusAccepted {
-		if existing, _ := h.findDecision(r.Context(), teamID, decisionID); existing != nil && len(existing.Options) == 0 {
-			if req.Selected != nil && strings.TrimSpace(*req.Selected) != "" {
-				writeDecisionFieldError(w, "selected", "single-proposal decisions are accepted with no --selected; rerun without it")
-				return
-			}
-			acceptAsProposed = true
-		}
-	}
-
-	// Defer-specific validation and transition checks.
-	var deferRevisitDate string // canonical YYYY-MM-DD form, set when transitioning to deferred
-	var deferAuditNote string   // appended to existing notes (re-defer only)
-	if effectiveStatus != nil && *effectiveStatus == store.DecisionStatusDeferred {
-		if req.RevisitAfter == nil || strings.TrimSpace(*req.RevisitAfter) == "" {
-			writeDecisionFieldError(w, "revisit_after", "revisit_after is required when status=deferred (format: YYYY-MM-DD)")
-			return
-		}
-		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.RevisitAfter))
-		if err != nil {
-			writeDecisionFieldError(w, "revisit_after", "revisit_after must be an ISO-8601 date (YYYY-MM-DD)")
-			return
-		}
-		today := time.Now().UTC().Truncate(24 * time.Hour)
-		parsedDay := parsed.UTC().Truncate(24 * time.Hour)
-		if parsedDay.Before(today) {
-			writeDecisionFieldError(w, "revisit_after", "revisit_after must be today or in the future")
-			return
-		}
-		maxDate := today.AddDate(0, 0, store.MaxRevisitAfterDays)
-		if parsedDay.After(maxDate) {
-			writeDecisionFieldError(w, "revisit_after", fmt.Sprintf("revisit_after must be within %d days of today", store.MaxRevisitAfterDays))
-			return
-		}
-		deferRevisitDate = parsedDay.Format("2006-01-02")
-
-		// Validate source transition.
-		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
-		if existing != nil {
-			switch existing.Status {
-			case store.DecisionStatusPending, "":
-				// fresh defer — ok
-			case store.DecisionStatusDeferred:
-				// re-defer in place — preserve audit trail
-				prev := ""
-				if existing.RevisitAfter != nil {
-					prev = *existing.RevisitAfter
-				}
-				deferAuditNote = fmt.Sprintf("[re-deferred] %s → %s", prev, deferRevisitDate)
-			default:
-				writeDecisionFieldError(w, "status", fmt.Sprintf("cannot defer decision in status %q (only pending or deferred can be deferred)", existing.Status))
-				return
-			}
-		}
-	}
-
-	// Validate transitions OUT of deferred to a non-defer status.
-	if effectiveStatus != nil && *effectiveStatus != store.DecisionStatusDeferred {
-		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
-		if existing != nil && existing.Status == store.DecisionStatusDeferred {
-			switch *effectiveStatus {
-			case store.DecisionStatusPending, store.DecisionStatusAccepted, store.DecisionStatusRejected:
-				// allowed — un-defer / accept / reject
-			default:
-				writeDecisionFieldError(w, "status", fmt.Sprintf("cannot transition deferred decision to %q (allowed: pending, accepted, rejected, deferred)", *effectiveStatus))
-				return
-			}
-		}
-	}
-
-	// Approval enforcement: check if the team is in approval mode and restrict agent callers.
-	if effectiveStatus != nil {
-		if blocked, msg := h.checkApprovalEnforcement(r, teamID, decisionID, *effectiveStatus); blocked {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusForbidden)
-			_ = json.NewEncoder(w).Encode(msg)
-			return
-		}
-	}
-	var engagementAttribution store.AttributionInfo
-	shouldRecordEngagement := false
-	if effectiveStatus != nil && isHumanDecisionEngagementStatus(*effectiveStatus) && h.controlStore != nil {
-		attr, isHuman, err := attributionFromRequest(r, teamID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if isHuman {
-			engagementAttribution = attr
-			shouldRecordEngagement = true
-		}
-	}
-
-	// d5: accepting an initiative-proposal decision requires initiative_metadata
-	// to be present (either already on the decision or supplied in this PATCH).
-	if effectiveStatus != nil && *effectiveStatus == store.DecisionStatusAccepted {
-		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
-		if existing != nil && existing.Context == store.DecisionContextInitiativeProposal {
-			if existing.InitiativeMetadata == nil && req.InitiativeMetadata == nil {
-				writeDecisionFieldError(w, "initiative_metadata",
-					"add --initiative-metadata to the decision (or use decision-update) before accepting")
-				return
-			}
-		}
-	}
-
-	err := h.teamStore.UpdateDecision(r.Context(), teamID, decisionID, func(d *store.DecisionEntry) {
-		if req.Decision != nil && strings.TrimSpace(*req.Decision) != "" {
-			d.Decision = *req.Decision
-		}
-		if req.Rationale != nil {
-			d.Rationale = *req.Rationale
-		}
-		if req.Context != nil {
-			d.Context = *req.Context
-		}
-		if effectiveStatus != nil {
-			d.Status = *effectiveStatus
-		}
-		if req.Supersedes != nil {
-			d.Supersedes = *req.Supersedes
-		}
-		if req.Topic != nil {
-			d.Topic = *req.Topic
-		}
-		if req.Description != nil {
-			d.Description = *req.Description
-		}
-		if req.Options != nil {
-			d.Options = *req.Options
-		}
-		if req.Selected != nil {
-			d.Selected = *req.Selected
-		}
-		if req.Freeform != nil {
-			d.Freeform = *req.Freeform
-		}
-		if req.Notes != nil {
-			d.Notes = *req.Notes
-		}
-		if req.Modifications != nil {
-			m := *req.Modifications
-			d.Modifications = &m
-		}
-		if req.InitiativeMetadata != nil {
-			meta := *req.InitiativeMetadata
-			d.InitiativeMetadata = &meta
-		}
-		if req.AutoCreateStatus != nil {
-			d.AutoCreateStatus = strings.TrimSpace(*req.AutoCreateStatus)
-			// Clear stale error when flipping to created.
-			if d.AutoCreateStatus == store.AutoCreateStatusCreated {
-				d.AutoCreateError = ""
-			}
-		}
-		if req.AutoCreateError != nil {
-			d.AutoCreateError = *req.AutoCreateError
-		}
-		if req.AutoCreateInitiativeRef != nil {
-			d.AutoCreateInitiativeRef = strings.TrimSpace(*req.AutoCreateInitiativeRef)
-		}
-		if acceptAsProposed {
-			d.AcceptedAsProposed = true
-		}
-		// Defer-related state.
-		if effectiveStatus != nil && *effectiveStatus == store.DecisionStatusDeferred {
-			rev := deferRevisitDate
-			d.RevisitAfter = &rev
-			if deferAuditNote != "" {
-				if strings.TrimSpace(d.Notes) == "" {
-					d.Notes = deferAuditNote
-				} else {
-					d.Notes = d.Notes + "\n" + deferAuditNote
-				}
-			}
-		} else if effectiveStatus != nil {
-			// Transitioning out of deferred to pending/accepted/rejected — clear the date.
-			d.RevisitAfter = nil
-		}
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Fetch updated entry to return
-	entries, _, err := h.teamStore.GetDecisions(r.Context(), teamID, "", "", 0)
-	if err != nil {
-		http.Error(w, "decision updated but fetch failed", http.StatusInternalServerError)
-		return
-	}
-	var updated *store.DecisionEntry
-	for i := range entries {
-		if entries[i].ID == decisionID {
-			updated = &entries[i]
-			break
-		}
-	}
-	if updated == nil {
-		http.Error(w, "decision updated but not found in response", http.StatusInternalServerError)
-		return
-	}
-	if shouldRecordEngagement {
-		if err := h.controlStore.RecordHumanEngagement(r.Context(), HumanEngagementEvent{
-			TeamID:      teamID,
-			Reason:      "decision-" + *effectiveStatus,
-			Attribution: engagementAttribution,
-		}); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Auto-create initiative when transitioning an initiative-proposal decision
-	// to accepted. Failure does not roll back the accept (per d4=A); the
-	// failure is persisted on the decision and surfaced in the response with
-	// a pre-filled manual workaround (per d8=C + d9=A).
-	var autoOutcome *AutoCreateOutcome
-	justAcceptedProposal := effectiveStatus != nil &&
-		*effectiveStatus == store.DecisionStatusAccepted &&
-		updated.Context == store.DecisionContextInitiativeProposal &&
-		updated.InitiativeMetadata != nil &&
-		updated.AutoCreateStatus != store.AutoCreateStatusCreated
-	if justAcceptedProposal {
-		autoOutcome = h.runAutoCreateInitiative(r.Context(), teamID, updated)
-		// Persist the outcome on the decision record.
-		_ = h.teamStore.UpdateDecision(r.Context(), teamID, decisionID, func(d *store.DecisionEntry) {
-			d.AutoCreateStatus = autoOutcome.Status
-			if autoOutcome.Status == store.AutoCreateStatusCreated {
-				d.AutoCreateInitiativeRef = autoOutcome.InitiativeRef
-				d.AutoCreateError = ""
-			} else {
-				d.AutoCreateError = autoOutcome.Error
-			}
-		})
-		// Reflect persisted state in the returned entry.
-		updated.AutoCreateStatus = autoOutcome.Status
-		if autoOutcome.Status == store.AutoCreateStatusCreated {
-			updated.AutoCreateInitiativeRef = autoOutcome.InitiativeRef
-			updated.AutoCreateError = ""
-		} else {
-			updated.AutoCreateError = autoOutcome.Error
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(UpdateDecisionResponse{
-		DecisionEntry:     *updated,
-		AutoCreateOutcome: autoOutcome,
-	})
-}
-
-func isHumanDecisionEngagementStatus(status string) bool {
-	switch status {
-	case store.DecisionStatusAccepted, store.DecisionStatusRejected, store.DecisionStatusDeferred, store.DecisionStatusPending:
-		return true
-	default:
-		return false
-	}
-}
-
-// UpdateDecisionResponse extends the persisted decision with an optional
-// AutoCreateOutcome payload populated when an `initiative-proposal` decision
-// is accepted. The outcome carries (a) the success ref or (b) the failure
-// reason plus the pre-filled manual-recovery commands.
-type UpdateDecisionResponse struct {
-	store.DecisionEntry
-	AutoCreateOutcome *AutoCreateOutcome `json:"auto_create_outcome,omitempty"`
-}
-
-// approvalError is the JSON response body for approval enforcement failures.
-type approvalError struct {
-	Error         string `json:"error"`
-	Message       string `json:"message"`
-	CurrentStatus string `json:"currentStatus,omitempty"`
-}
-
-// checkApprovalEnforcement checks whether the requested status transition is allowed.
-// Returns (true, error) if blocked, (false, nil) if allowed.
-func (h *Handlers) checkApprovalEnforcement(r *http.Request, teamID, decisionID, newStatus string) (bool, *approvalError) {
-	ctx := r.Context()
-
-	// Fetch team to check decision mode
-	team, err := h.teamStore.Get(ctx, teamID)
-	if err != nil || team == nil {
-		return false, nil // fail open if team not found
-	}
-
-	if team.DecisionMode != "approval" {
-		return false, nil // yolo mode — no restrictions
-	}
-
-	// Determine if caller is an agent
-	callerID := r.Header.Get("X-Caller-ID")
-	if callerID == "" || callerID == "ui-user" {
-		return false, nil // human caller — no restrictions
-	}
-
-	// Check if the caller ID matches a team member (agent)
-	isAgent := false
-	if h.relationStore != nil {
-		members, err := h.relationStore.ListTeamMembers(ctx, teamID)
-		if err == nil {
-			for _, m := range members {
-				if m.AgentID == callerID {
-					isAgent = true
-					break
-				}
-			}
-		}
-	}
-	if !isAgent {
-		return false, nil // not a known agent — treat as human
-	}
-
-	// Agents in approval mode cannot set accepted or rejected
-	if newStatus == store.DecisionStatusAccepted || newStatus == store.DecisionStatusRejected {
-		return true, &approvalError{
-			Error:   "decision_approval_required",
-			Message: "This team requires human approval. Do not proceed with this decision until a human sets the status to 'accepted'.",
-		}
-	}
-
-	// Agents can set running only if current status is accepted
-	if newStatus == store.DecisionStatusRunning {
-		currentStatus := h.getDecisionStatus(ctx, teamID, decisionID)
-		if currentStatus != store.DecisionStatusAccepted {
-			return true, &approvalError{
-				Error:         "decision_not_accepted",
-				Message:       "Decision must be accepted by a human before it can be set to running. Current status: " + currentStatus,
-				CurrentStatus: currentStatus,
-			}
-		}
-	}
-
-	// Agents can set completed only if current status is running
-	if newStatus == store.DecisionStatusCompleted {
-		currentStatus := h.getDecisionStatus(ctx, teamID, decisionID)
-		if currentStatus != store.DecisionStatusRunning {
-			return true, &approvalError{
-				Error:         "decision_not_running",
-				Message:       "Decision must be running before it can be set to completed. Current status: " + currentStatus,
-				CurrentStatus: currentStatus,
-			}
-		}
-	}
-
-	return false, nil
-}
-
-// getDecisionStatus returns the current status of a decision, or empty string if not found.
-func (h *Handlers) getDecisionStatus(ctx context.Context, teamID, decisionID string) string {
-	entries, _, err := h.teamStore.GetDecisions(ctx, teamID, "", "", 0)
-	if err != nil {
-		return ""
-	}
-	for _, e := range entries {
-		if e.ID == decisionID {
-			return e.Status
-		}
-	}
-	return ""
-}
-
-// findDecision returns the DecisionEntry with the given ID, or nil if absent.
-func (h *Handlers) findDecision(ctx context.Context, teamID, decisionID string) (*store.DecisionEntry, error) {
-	entries, _, err := h.teamStore.GetDecisions(ctx, teamID, "", "", 0)
-	if err != nil {
-		return nil, err
-	}
-	for i := range entries {
-		if entries[i].ID == decisionID {
-			return &entries[i], nil
-		}
-	}
-	return nil, nil
-}
-
-// decisionModificationsMaxRationale is the max UTF-8 byte length for
-// DecisionModifications.Rationale.
-const decisionModificationsMaxRationale = 4096
-
-// validateDecisionModifications enforces the contract policy:
-// reject entirely-empty payloads, reject empty-string entries in arrays,
-// and bound rationale length. See
-// docs/reference/decision-modifications-contract.md.
-func validateDecisionModifications(m *store.DecisionModifications) error {
-	if m == nil {
-		return nil
-	}
-	for i, s := range m.ExcludedClauses {
-		if strings.TrimSpace(s) == "" {
-			return fmt.Errorf("excluded_clauses[%d] must be a non-empty string", i)
-		}
-	}
-	for i, s := range m.Additions {
-		if strings.TrimSpace(s) == "" {
-			return fmt.Errorf("additions[%d] must be a non-empty string", i)
-		}
-	}
-	if len(m.Rationale) > decisionModificationsMaxRationale {
-		return fmt.Errorf("rationale exceeds %d bytes", decisionModificationsMaxRationale)
-	}
-	// Reject entirely-empty objects — operator should omit the field instead.
-	if len(m.ExcludedClauses) == 0 && len(m.Additions) == 0 && strings.TrimSpace(m.Rationale) == "" {
-		return fmt.Errorf("modifications must contain at least one of excluded_clauses, additions, or rationale")
-	}
-	return nil
-}
-
-// runAutoCreateInitiative invokes the swarm-manager initiative create
-// endpoint for an accepted initiative-proposal decision. Always returns a
-// non-nil outcome — success populates InitiativeRef; failure populates
-// Error and the pre-filled manual-recovery commands (per d4=A + d8=C + d9=A).
-func (h *Handlers) runAutoCreateInitiative(ctx context.Context, teamID string, d *store.DecisionEntry) *AutoCreateOutcome {
-	meta := d.InitiativeMetadata
-	target := resolvedTargetScenario(meta)
-	desc := buildInitiativeDescription(d)
-	createReq := initiativeCreateRequest{
-		Name:        strings.TrimSpace(meta.Name),
-		Title:       resolvedInitiativeTitle(d, meta),
-		Description: desc,
-		Priority:    meta.Priority,
-		DependsOn:   meta.DependsOn,
-	}
-
-	client := h.swarmClient
-	if client == nil {
-		client = NewSwarmInitiativeClient(30 * time.Second)
-	}
-
-	createdName, err := client.Create(ctx, target, createReq)
-	if err == nil {
-		return &AutoCreateOutcome{
-			Status:         store.AutoCreateStatusCreated,
-			InitiativeRef:  fmt.Sprintf("%s/%s", target, createdName),
-			TargetScenario: target,
-			InitiativeName: createdName,
-			Priority:       createReq.Priority,
-		}
-	}
-
-	// Failure path: render the workaround commands. Materialise the
-	// description body to a tmp file so the operator does not re-author it.
-	descFile := ""
-	if desc != "" {
-		f, ferr := os.CreateTemp("", fmt.Sprintf("%s-initiative-description-*.md", d.ID))
-		if ferr == nil {
-			if _, werr := f.WriteString(desc); werr == nil {
-				descFile = f.Name()
-			}
-			_ = f.Close()
-		}
-	}
-	workaround := buildWorkaroundCommand(createReq, descFile, target)
-	resolveCmd := buildResolveCommand(teamID, d.ID, fmt.Sprintf("%s/%s", target, createReq.Name))
-
-	return &AutoCreateOutcome{
-		Status:             store.AutoCreateStatusFailed,
-		Error:              err.Error(),
-		WorkaroundCommand:  workaround,
-		ResolveCommand:     resolveCmd,
-		DescriptionTmpFile: descFile,
-		TargetScenario:     target,
-		InitiativeName:     createReq.Name,
-		Priority:           createReq.Priority,
-	}
-}
-
-// writeDecisionFieldError emits a structured field-violation response.
-func writeDecisionFieldError(w http.ResponseWriter, field, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"error":   "invalid_field",
-		"field":   field,
-		"message": message,
-	})
-}
-
-// DeleteDecisionHandler handles DELETE /teams/{id}/decisions/{decisionId}
-func (h *Handlers) DeleteDecisionHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	teamID := vars["id"]
-	decisionID := vars["decisionId"]
-
-	err := h.teamStore.DeleteDecision(r.Context(), teamID, decisionID)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
 // --- Knowledge Log handlers ---
 
 // AddKnowledge handles POST /teams/{id}/knowledge.
@@ -3167,7 +2469,7 @@ func (h *Handlers) AddKnowledge(w http.ResponseWriter, r *http.Request) {
 		Attribution: info,
 	}
 
-	if err := h.teamStore.AppendKnowledge(r.Context(), teamID, entry); err != nil {
+	if err := h.teamStore.AppendTeamCorpus(r.Context(), teamID, entry); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -3177,8 +2479,8 @@ func (h *Handlers) AddKnowledge(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(entry)
 }
 
-// GetKnowledge handles GET /teams/{id}/knowledge
-func (h *Handlers) GetKnowledge(w http.ResponseWriter, r *http.Request) {
+// ListTeamCorpus handles the internal team-corpus view.
+func (h *Handlers) ListTeamCorpus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	topicFilter := r.URL.Query().Get("topic")
@@ -3194,7 +2496,7 @@ func (h *Handlers) GetKnowledge(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	entries, err := h.teamStore.GetKnowledge(r.Context(), teamID, topicFilter, topicPrefix, last)
+	entries, err := h.teamStore.ListTeamCorpus(r.Context(), teamID, topicFilter, topicPrefix, last)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -3210,19 +2512,19 @@ func (h *Handlers) GetKnowledge(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// UpdateKnowledgeHandler handles PATCH /teams/{id}/knowledge/{knowledgeId}
-func (h *Handlers) UpdateKnowledgeHandler(w http.ResponseWriter, r *http.Request) {
+// UpdateTeamCorpusHandler appends a superseding team-corpus entry.
+func (h *Handlers) UpdateTeamCorpusHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	knowledgeID := vars["knowledgeId"]
 
-	var req UpdateKnowledgeRequest
+	var req UpdateTeamCorpusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	err := h.teamStore.UpdateKnowledge(r.Context(), teamID, knowledgeID, func(k *store.KnowledgeEntry) {
+	err := h.teamStore.UpdateTeamCorpus(r.Context(), teamID, knowledgeID, func(k *store.KnowledgeEntry) {
 		if req.Topic != nil && strings.TrimSpace(*req.Topic) != "" {
 			k.Topic = *req.Topic
 		}
@@ -3246,7 +2548,7 @@ func (h *Handlers) UpdateKnowledgeHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	// Fetch updated entry to return
-	entries, err := h.teamStore.GetKnowledge(r.Context(), teamID, "", "", 0)
+	entries, err := h.teamStore.ListTeamCorpus(r.Context(), teamID, "", "", 0)
 	if err != nil {
 		http.Error(w, "knowledge updated but fetch failed", http.StatusInternalServerError)
 		return
@@ -3261,13 +2563,13 @@ func (h *Handlers) UpdateKnowledgeHandler(w http.ResponseWriter, r *http.Request
 	http.Error(w, "knowledge updated but not found in response", http.StatusInternalServerError)
 }
 
-// DeleteKnowledgeHandler handles DELETE /teams/{id}/knowledge/{knowledgeId}
-func (h *Handlers) DeleteKnowledgeHandler(w http.ResponseWriter, r *http.Request) {
+// DeleteTeamCorpusHandler handles fixture-only deletion.
+func (h *Handlers) DeleteTeamCorpusHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	knowledgeID := vars["knowledgeId"]
 
-	err := h.teamStore.DeleteKnowledge(r.Context(), teamID, knowledgeID)
+	err := h.teamStore.DeleteTeamCorpus(r.Context(), teamID, knowledgeID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)

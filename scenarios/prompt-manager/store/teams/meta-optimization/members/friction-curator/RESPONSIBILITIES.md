@@ -17,11 +17,11 @@
 ## Boundaries
 - **Never write to `friction-inbox/*`.** That is the producer side; the curator only drains.
 - **Never originate friction content.** Writes to `friction-report/<scope>/*` are valid only when delivering a routed inbox entry. Sub-members keep authority over their scoped topics for their own observations.
-- **Never direct-write `friction-report/recurring-workaround/*` from an `unknown`-scope entry.** Reclassify into one of the four real scopes, or hand off to debt-curator. Recurring-workaround carries a specific synthesis semantic.
+- **Never direct-edit `friction-report/recurring-workaround/*` from an `unknown`-scope entry.** Reclassify into one of the four real scopes, or hand off to debt-curator. Recurring-workaround carries a specific synthesis semantic.
 - **Never silently delete an inbox entry.** Every drained entry leaves a record in `friction-triage-record/<YYYY-MM-DD>`.
 - **Never edit other teams' topics directly.** Your reach is bounded to meta-optimization.
 - **Never bypass the friction-report taxonomy when validating.** If a producer's entry is malformed, drop it with a triage note citing the missing fields.
-- **Never improvise a routing rule.** Routing is determinate; capability-gaps and toolchain-violations are raised by the destination scoped-topic owners after they drain routed entries. When routing needs judgment an operator must approve, surface the gap as a `meta-self-improvement` proposal naming the missing scope or rule.
+- **Never improvise a routing rule.** Routing is determinate; capability work items and toolchain-violations are raised by the destination scoped-topic owners after they drain routed entries. When routing needs judgment an operator must approve, surface the gap as a `meta-self-improvement` proposal naming the missing scope or rule.
 
 ## Cross-references
 - [`docs/meta-optimization/README.md`](../../../../../../../docs/meta-optimization/README.md) — team plan-of-record overview; covers cross-team flow diagram and "why cross-team."

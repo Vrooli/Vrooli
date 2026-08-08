@@ -1,6 +1,6 @@
 # Marketing Research
 
-This folder is the plan-of-record hub for how the marketing-crew producer turns external signals into evidence, decisions, skills, and capability-gap proposals.
+This folder is the plan-of-record hub for how the marketing-crew producer turns external signals into evidence, decisions, skills, and capability-work proposals.
 
 Research supports two intake modes:
 
@@ -63,7 +63,7 @@ After the router classifies an entry, it must either retag or delete it:
   prompt-manager team knowledge-update marketing-crew <id> --topic="<destination-topic>"
   ```
 
-  e.g. `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface: `audience-scan/<slug>`, `competitor-record/<slug>`, `hook-record/<slug>`, `monetization-benchmark-adjacent-record/<slug>`, etc. If the routed action creates a new entry on a different surface (decision, typed craft observation, capability-gap), delete the inbox row instead of retagging.
+  e.g. `research-inbox/audience/foo` → `audience-scan/foo`. Destination topics use the canonical prefix for the surface: `audience-scan/<slug>`, `competitor-record/<slug>`, `hook-record/<slug>`, `monetization-benchmark-adjacent-record/<slug>`, etc. If the routed action creates a new entry on a different surface (decision, typed craft observation, capability-work), delete the inbox row instead of retagging.
 
 - **Delete** when the entry was weak, duplicate, or otherwise dropped:
 
@@ -112,14 +112,14 @@ Do not collapse these into one permanent mega-skill. A router may classify and c
 | Signal | Destination |
 |---|---|
 | Low-signal or one-off item | Handoff, or `research-inbox/*` knowledge entry. |
-| Concrete observation with source | `audience-scan/*` knowledge entry, or `audience-scans.jsonl` for batch scan rows. |
+| Concrete observation with source | `audience-scan/*` knowledge entry, or a `team:marketing-crew` Source Ledger entry under `marketing-craft-observation/*` for batch scan rows. |
 | Unresolved repeated marketing-specific pattern | `marketing-craft-observation/<post-type>/<slug>` knowledge entry. |
 | Audience/persona change with converging evidence | `audience-update` decision. |
 | Channel priority or activation change | `channel-strategy-update` decision. |
 | New post format with enough evidence | `post-type-proposal` decision. |
 | Stable reusable hook | `hook-candidate-promotion` decision. |
 | External skill/workflow worth operationalizing | skill/action/scenario proposal routed through the right team. |
-| Missing source access, CLI, action, or scenario blocks research | `capability-gap` decision. |
+| Missing source access, CLI, action, or scenario blocks research | `capability-work` decision. |
 | Monetization-relevant but not marketing-owned fact | `monetization-benchmark-adjacent-record/<topic>` knowledge entry. |
 
 ## Evidence Rules

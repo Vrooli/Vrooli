@@ -26,7 +26,7 @@ const (
 
 // Kind separates what a finding was computed from. A declaration finding reads
 // only checked-in files, so it can gate CI. A runtime finding reads live agent
-// behavior recorded in knowledge.jsonl, so it cannot: the tree can be correct
+// behavior recorded in the live team corpus, so it cannot: the tree can be correct
 // while agents are still misbehaving. Sharing one exit code between them is why
 // `graph topics` could not gate anything and why actual_writer_undeclared grew
 // from 9 findings to 43 unchecked.
@@ -59,7 +59,6 @@ type Finding struct {
 	GraphID  string `json:"graph_id,omitempty"`
 	NodeID   string `json:"node_id,omitempty"`
 	Edge     string `json:"edge,omitempty"`
-	Decision string `json:"decision,omitempty"`
 	OwnerKey string `json:"owner_key,omitempty"`
 
 	// SourcePath is the file the finding was read out of, which is not always

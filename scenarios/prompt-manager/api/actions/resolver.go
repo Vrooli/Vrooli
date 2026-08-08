@@ -383,7 +383,6 @@ func promptManagerCommandCatalog() map[string]promptManagerCommandGroup {
 	addDirect("search-reindex", nil, write)
 	addDirect("search-reindex-status", nil, read)
 	addDirect("search-reindex-cancel", nil, write)
-	addDirect("decisions-pending", nil, read)
 	return catalog
 }
 
@@ -408,19 +407,16 @@ func teamCommandEntries(read, write, writeProcess, destructive commandCatalogEnt
 		"roles": read, "org-list": read, "message-list": read, "heartbeat-list": read, "heartbeat": read,
 		"heartbeat-logs": read, "responsibilities": read, "heartbeat-instructions": read, "export-cc": read,
 		"member-context": read, "search": read, "find": {Canonical: "search", Effect: EffectRead, Permissions: []string{"api:read"}},
-		"handoff-latest": read, "handoff-history": read, "task-list": read, "decision-list": read,
-		"decision-show": read, "knowledge-list": read, "retention": read,
+		"handoff-latest": read, "handoff-history": read, "task-list": read, "retention": read,
 		"create": write, "add": {Canonical: "create", Effect: EffectWrite, Permissions: []string{"api:write"}},
 		"update": write, "edit": {Canonical: "update", Effect: EffectWrite, Permissions: []string{"api:write"}},
 		"add-member": write, "update-member": write, "remove-member": write,
 		"org-set": write, "org-remove": write, "message-send": write,
 		"heartbeat-enable": write, "heartbeat-disable": write, "heartbeat-trigger": write,
 		"import-cc": write, "trigger": writeProcess, "task-add": write, "task-update": write,
-		"decision-add": write, "decision-update": write, "decision-accept": write, "decision-reject": write,
-		"decision-defer": write, "knowledge-add": write, "knowledge-update": write, "prune": write,
+		"prune": write,
 		"delete": destructive, "rm": {Canonical: "delete", Effect: EffectDestructive, Permissions: []string{"api:write"}},
 		"message-delete": destructive, "message-clear": destructive, "task-delete": destructive,
-		"decision-delete": destructive, "knowledge-delete": destructive,
 	})
 }
 

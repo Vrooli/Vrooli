@@ -1,20 +1,5 @@
 {
   "required_read": [],
   "evidence_consumed": [],
-  "output": [],
-  "decisions_owned": [
-    "decision-rejection-proposed",
-    "framework-update"
-  ],
-  "decisions_consumed": [
-    "campaign-launch-proposal",
-    "brand-guideline-update",
-    "audience-update",
-    "channel-update",
-    "channel-strategy-update",
-    "post-type-proposal",
-    "hook-candidate-promotion",
-    "coverage-gap",
-    "capability-gap"
-  ]
+  "output": []
 }

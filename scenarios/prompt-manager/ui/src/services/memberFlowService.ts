@@ -53,7 +53,7 @@ async function apiRequest<T>(endpoint: string, opts: RequestOptions = {}): Promi
 /**
  * Fetch the topics graph. When `teamId` is provided, the response contains
  * member nodes for that team plus boundary nodes (cross-team neighbours,
- * external producers, decision queues, PoR sinks, capability-gap registry).
+ * external producers, Swarm Manager work feed, PoR sinks, capability work registry).
  */
 export async function getTopicsGraph(teamId?: string): Promise<TopicsGraphResponse> {
   const qs = teamId ? `?team=${encodeURIComponent(teamId)}` : ''

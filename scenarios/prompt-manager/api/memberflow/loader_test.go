@@ -48,7 +48,7 @@ func TestLoadAll_ValidMixedTopics(t *testing.T) {
 			"researcher": `{
 				"intake": [{"prefix": "research-inbox/*", "taxonomy": "marketing-research", "classifier_skill": "signal-classifier"}],
 				"output": [{"prefix": "audience-scan/*", "destination_kind": "knowledge", "schema": "audience-scan"}],
-				"raises_capability_gaps": true
+				"raises_work_items": true
 			}`,
 			"publisher":     `{}`,
 			"empty-no-file": "", // no file written
@@ -107,7 +107,7 @@ func TestLoadAll_ValidMixedTopics(t *testing.T) {
 	if len(res.Topics.Intake) != 1 || res.Topics.Intake[0].Taxonomy != "marketing-research" {
 		t.Errorf("researcher intake mismatch: %+v", res.Topics.Intake)
 	}
-	if !res.Topics.RaisesCapabilityGaps {
+	if !res.Topics.RaisesWorkItems {
 		t.Errorf("researcher should raise capability gaps")
 	}
 }
@@ -180,14 +180,14 @@ func TestLoadTeam_FiltersByTeam(t *testing.T) {
 func TestLoadMember(t *testing.T) {
 	store := makeStore(t, map[string]map[string]string{
 		"team-a": {
-			"member-1": `{"raises_capability_gaps": true}`,
+			"member-1": `{"raises_work_items": true}`,
 		},
 	})
 	got, err := LoadMember(store, "team-a", "member-1")
 	if err != nil {
 		t.Fatalf("LoadMember: %v", err)
 	}
-	if !got.Exists || !got.Topics.RaisesCapabilityGaps {
+	if !got.Exists || !got.Topics.RaisesWorkItems {
 		t.Errorf("LoadMember produced %+v", got)
 	}
 
@@ -213,8 +213,7 @@ func TestWriteMember_RoundTrip(t *testing.T) {
 		Output: []OutputEntry{
 			{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge, Schema: "audience-scan"},
 		},
-		DecisionsOwned:       []string{"audience-update"},
-		RaisesCapabilityGaps: true,
+		RaisesWorkItems: true,
 	}
 	if err := WriteMember(root, "marketing-crew", "researcher", original); err != nil {
 		t.Fatalf("WriteMember: %v", err)
@@ -277,14 +276,14 @@ func containsAny(b []byte, needle byte) bool {
 }
 
 // TestWriteMember_PreservesPlaceholderChars pins that prefixes containing
-// `<`, `>`, or `&` (e.g. `decision-application/<decision-id>`) survive a
+// `<`, `>`, or `&` (e.g. `work-application/<work-item-ref>`) survive a
 // round-trip through WriteMember without being escaped to Unicode literals.
 // Operators read topics.json in PR review; `<…>` is unreadable.
 func TestWriteMember_PreservesPlaceholderChars(t *testing.T) {
 	root := t.TempDir()
 	src := Topics{
 		RequiredRead: []RequiredReadEntry{
-			{Prefix: "decision-application/<decision-id>"},
+			{Prefix: "work-application/<work-item-ref>"},
 			{Prefix: "team-visited/<team-id>"},
 		},
 	}
@@ -296,8 +295,8 @@ func TestWriteMember_PreservesPlaceholderChars(t *testing.T) {
 		t.Fatalf("read: %v", err)
 	}
 	asString := string(data)
-	if !strings.Contains(asString, "<decision-id>") {
-		t.Errorf("expected raw `<decision-id>` in output, got:\n%s", asString)
+	if !strings.Contains(asString, "<work-item-ref>") {
+		t.Errorf("expected raw `<work-item-ref>` in output, got:\n%s", asString)
 	}
 	if strings.Contains(asString, `\u003c`) || strings.Contains(asString, `\u003e`) {
 		t.Errorf("found Unicode escape in output (HTML-safe escaping not disabled):\n%s", asString)

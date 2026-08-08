@@ -7,8 +7,8 @@ import (
 )
 
 // writeOrientationFixture builds a store with one team, N member directories,
-// a topic catalog, decision contexts, and a canon document of the given length.
-func writeOrientationFixture(t *testing.T, members int, topics int, decisions int, canonLines int) (string, string) {
+// a topic catalog, and a canon document of the given length.
+func writeOrientationFixture(t *testing.T, members int, topics int, canonLines int) (string, string) {
 	t.Helper()
 	root := t.TempDir()
 	storeDir := filepath.Join(root, "scenarios", "prompt-manager", "store")
@@ -41,14 +41,7 @@ func writeOrientationFixture(t *testing.T, members int, topics int, decisions in
 		}
 		team += `{"prefix":"fixture-` + string(rune('a'+i)) + `/*","status":"live","purpose":"p"}`
 	}
-	team += `],"operatingContract":{"schemaVersion":1,"decisionContexts":{`
-	for i := 0; i < decisions; i++ {
-		if i > 0 {
-			team += ","
-		}
-		team += `"ctx-` + string(rune('a'+i)) + `":{}`
-	}
-	team += `},"documents":{"planOfRecord":[{"id":"fixture-canon","paths":[{"base":"repo-root","path":"` + canonPath + `"}],"writePolicy":"operator-curated-via-decisions"}]}}}`
+	team += `],"operatingContract":{"schemaVersion":1,"documents":{"planOfRecord":[{"id":"fixture-canon","paths":[{"base":"repo-root","path":"` + canonPath + `"}],"writePolicy":"operator-curated"}]}}}`
 	if err := os.WriteFile(filepath.Join(teamDir, "team.json"), []byte(team), 0o644); err != nil {
 		t.Fatalf("write team.json: %v", err)
 	}
@@ -56,7 +49,7 @@ func writeOrientationFixture(t *testing.T, members int, topics int, decisions in
 }
 
 func TestOrientationCostSumsEveryDeclaredSurface(t *testing.T) {
-	storeDir, repoRoot := writeOrientationFixture(t, 3, 2, 4, 100)
+	storeDir, repoRoot := writeOrientationFixture(t, 3, 2, 100)
 	report, err := ComputeOrientationCost(storeDir, repoRoot)
 	if err != nil {
 		t.Fatalf("ComputeOrientationCost: %v", err)
@@ -65,13 +58,13 @@ func TestOrientationCostSumsEveryDeclaredSurface(t *testing.T) {
 		t.Fatalf("teams = %d, want 1", len(report.Teams))
 	}
 	got := report.Teams[0]
-	want := OrientationComponents{Members: 3, CanonLines: 100, Topics: 2, DecisionContexts: 4}
+	want := OrientationComponents{Members: 3, CanonLines: 100, Topics: 2}
 	if got.Components != want {
 		t.Fatalf("components = %+v, want %+v", got.Components, want)
 	}
-	// 3*10 + 2*2 + 4*3 + 100/50 = 30 + 4 + 12 + 2 = 48
-	if got.Composite != 48 {
-		t.Fatalf("composite = %d, want 48", got.Composite)
+	// 3*10 + 2*2 + 100/50 = 30 + 4 + 2 = 36
+	if got.Composite != 36 {
+		t.Fatalf("composite = %d, want 36", got.Composite)
 	}
 	if len(got.MissingCanon) != 0 {
 		t.Fatalf("missingCanon = %v", got.MissingCanon)
@@ -81,7 +74,7 @@ func TestOrientationCostSumsEveryDeclaredSurface(t *testing.T) {
 // Each component must move the composite on its own, otherwise a team could
 // grow along an unweighted axis without the ratchet noticing.
 func TestOrientationCostRisesWithEveryComponent(t *testing.T) {
-	baseStore, baseRoot := writeOrientationFixture(t, 2, 1, 1, 50)
+	baseStore, baseRoot := writeOrientationFixture(t, 2, 1, 50)
 	base, err := ComputeOrientationCost(baseStore, baseRoot)
 	if err != nil {
 		t.Fatalf("baseline: %v", err)
@@ -89,17 +82,16 @@ func TestOrientationCostRisesWithEveryComponent(t *testing.T) {
 	baseline := base.Teams[0].Composite
 
 	cases := []struct {
-		name                              string
-		members, topics, decisions, canon int
+		name                   string
+		members, topics, canon int
 	}{
-		{"one more member", 3, 1, 1, 50},
-		{"one more topic", 2, 2, 1, 50},
-		{"one more decision context", 2, 1, 2, 50},
-		{"a page more canon", 2, 1, 1, 100},
+		{"one more member", 3, 1, 50},
+		{"one more topic", 2, 2, 50},
+		{"a page more canon", 2, 1, 100},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			store, root := writeOrientationFixture(t, tc.members, tc.topics, tc.decisions, tc.canon)
+			store, root := writeOrientationFixture(t, tc.members, tc.topics, tc.canon)
 			report, err := ComputeOrientationCost(store, root)
 			if err != nil {
 				t.Fatalf("ComputeOrientationCost: %v", err)
@@ -114,7 +106,7 @@ func TestOrientationCostRisesWithEveryComponent(t *testing.T) {
 // A declared document that is not on disk must be named, not silently skipped:
 // a broken reference would otherwise make a team read as cheaper to orient in.
 func TestOrientationCostReportsCanonThatIsNotOnDisk(t *testing.T) {
-	storeDir, repoRoot := writeOrientationFixture(t, 1, 0, 0, 10)
+	storeDir, repoRoot := writeOrientationFixture(t, 1, 0, 10)
 	if err := os.Remove(filepath.Join(repoRoot, "docs/fixture/OPERATING_MODEL.md")); err != nil {
 		t.Fatalf("remove canon: %v", err)
 	}
@@ -135,7 +127,7 @@ func TestOrientationCostReportsCanonThatIsNotOnDisk(t *testing.T) {
 // presented without that caveat invites exactly the misread the trend band
 // exists to prevent.
 func TestOrientationCostReportCarriesTheTrendCaveat(t *testing.T) {
-	storeDir, repoRoot := writeOrientationFixture(t, 1, 1, 1, 10)
+	storeDir, repoRoot := writeOrientationFixture(t, 1, 1, 10)
 	report, err := ComputeOrientationCost(storeDir, repoRoot)
 	if err != nil {
 		t.Fatalf("ComputeOrientationCost: %v", err)

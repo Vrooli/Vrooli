@@ -54,7 +54,7 @@ func DefaultPlanOfRecordRules() []Rule {
 
 func PlanOfRecordRuleCatalog() (RuleCatalog, error) {
 	entry := func(id string, severity Severity, description string) RuleCatalogEntry {
-		return RuleCatalogEntry{ID: id, Group: OperatingRuleGroupPlanOfRecord, Severity: severity, Kind: KindDeclaration, Description: description, Actuator: "Correct the plan-of-record manifest or route content changes through the owning team decision context"}
+		return RuleCatalogEntry{ID: id, Group: OperatingRuleGroupPlanOfRecord, Severity: severity, Kind: KindDeclaration, Description: description, Actuator: "Correct the plan-of-record manifest or route content changes through the owning team work item type"}
 	}
 	return NewRuleCatalog(
 		entry("por_discovery_failed", SeverityError, "Plan-of-record discovery could not complete."),

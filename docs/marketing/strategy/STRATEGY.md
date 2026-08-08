@@ -73,7 +73,7 @@ Notes: vision tied to a concrete prerequisite, named substrate, named candidates
 
 Notes: introduces Vrooli before swarm-manager; introduces swarm-manager before assuming it; first-person, grounded enthusiasm ("on my mind this week"); inverts the changelog-shape into a story-shape; no internal numbering. Hook is the *opening sentence* — short — followed by intro, body, conclusion.
 
-After this post ships, future posts can use Sample 1's shorter "swarm-manager just landed initiative-agents…" hook, because the audience now knows what swarm-manager and initiative-agents are. Track the boundary with `shared/published-scenario-mentions.jsonl`.
+After this post ships, future posts can use Sample 1's shorter "swarm-manager just landed initiative-agents…" hook, because the audience now knows what swarm-manager and initiative-agents are. Track the boundary with `shared/content-desk subject-familiarity records`.
 
 ## Dual-audience framing
 
@@ -119,7 +119,7 @@ Other content types not yet broken into per-entity files:
 
 - **Feature announcements** (subscription or OSS, depending on framing): shipped features only. Imminent-release features carry "launching [date]."
 - **Blog posts**: 500-2000 words, technical depth welcome, code snippets fine, end with a concrete invitation (try it, read more, contribute). Apply the same [essay-shape](../methods/post-techniques/essay-shape.md) and [intro-on-first-mention](../methods/post-techniques/intro-on-first-mention.md) techniques as dev logs.
-- **Videos**: demos or architecture walkthroughs; recurring manual production workarounds require typed marketing-craft observations or `capability-gap` decisions until `video-studio` scenario ships.
+- **Videos**: demos or architecture walkthroughs; recurring manual production workarounds require typed marketing-craft observations or `capability-work` decisions until `video-studio` scenario ships.
 - **Contributor-onboarding**: specific entry points (start with scenario X, run these commands, expect this output).
 
 ## Cross-cutting post techniques
@@ -128,8 +128,8 @@ Voice / structural rules that apply across multiple post types live under [`../m
 
 - [`../methods/post-techniques/essay-shape.md`](../methods/post-techniques/essay-shape.md) — hook → introduction → body → conclusion structure.
 - [`../methods/post-techniques/hook-vs-body-asymmetry.md`](../methods/post-techniques/hook-vs-body-asymmetry.md) — short hook, long-as-needed body.
-- [`../methods/post-techniques/intro-on-first-mention.md`](../methods/post-techniques/intro-on-first-mention.md) — `published-scenario-mentions.jsonl` lookup discipline (with subject-familiarity corollary for hook calibration).
-- [`../methods/post-techniques/inter-post-linkage.md`](../methods/post-techniques/inter-post-linkage.md) — series posts link to prior posts via `publish-log.jsonl`.
+- [`../methods/post-techniques/intro-on-first-mention.md`](../methods/post-techniques/intro-on-first-mention.md) — `content-desk subject-familiarity records` lookup discipline (with subject-familiarity corollary for hook calibration).
+- [`../methods/post-techniques/inter-post-linkage.md`](../methods/post-techniques/inter-post-linkage.md) — series posts link to prior posts via `content-desk publish-history records`.
 - [`../methods/post-techniques/no-internal-numbering-externally.md`](../methods/post-techniques/no-internal-numbering-externally.md) — `p8` / `round-002` / batch ids never appear in published copy.
 
 Type-specific applications of voice canon (e.g., dev-log's "personal voice grounded in builder identity" and "what → why framing") live in the relevant post-type file rather than here, since they are not cross-cutting.
@@ -145,10 +145,10 @@ These are the voice, positioning, process, and narrative-shape failures marketin
 5. **OSS-as-leak framing.** Self-host described as lost revenue or fallback.
 6. **Coverage-gap ignorance.** New campaigns while deployed SKUs have stale/missing coverage.
 7. **Acquisition-only hypothesis.** Proposal names acquisition mechanism only; no retention side, no explicit `awareness-only: true`.
-8. **Capability-workaround without gap.** Manual workaround with no matching `capability-gap` decision or typed observation.
+8. **Capability-workaround without gap.** Manual workaround with no matching `capability-work` decision or typed observation.
 9. **Narrative-flatness.** Draft reads as a changelog or atomic-tweet list rather than essay-shape (hook → introduction → body → conclusion). Distinct from voice-drift (mode 2) — that's word/phrase-level corporate-marketer language; this is structural shape.
 10. **Internal-vocabulary-leakage.** Published copy uses internal artifact names (e.g. `p8`, `round-002`, internal codenames) without translation. Distinct from hype-drift (mode 1) — that's feature-claim overreach; this is vocabulary obscurity unrelated to claims.
-11. **Missing-introduction-on-first-mention.** Draft refers to a scenario / agent / named file by name with no prior mention in `marketing-crew/shared/published-scenario-mentions.jsonl` for the target audience, AND no introduction in the draft itself.
+11. **Missing-introduction-on-first-mention.** Draft refers to a scenario / agent / named file by name with no prior mention in `content-desk subject-familiarity records` for the target audience, AND no introduction in the draft itself.
 12. **What-without-why.** Draft lists changes / line counts / commit refs without why-it-mattered framing tied to broader narrative.
 13. **Persona-disclosure-violation.** Substantial AI-generated persona content posted without the platform's required AI-content label or without `#ad` for sponsorships. Scope: AI-UGC content per [`patterns/ai-ugc-personas.md`](patterns/ai-ugc-personas.md).
 14. **Credential-claim-by-persona.** Persona claims a professional credential (doctor, therapist, lawyer, financial advisor, pharmacist, nurse practitioner, etc.) — explicit or implicit (e.g., professional-uniform visuals giving health advice). Hard reject; deception in regulated domains carries lawsuit risk.

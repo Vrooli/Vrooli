@@ -31,7 +31,7 @@ type OperatingGraphPromptSectionProvider interface {
 // roots. configDir is the Config-class authored store
 // (scenarios/prompt-manager/store/); runtimeDataDir is the RuntimeData root
 // (~/.vrooli/data/vrooli/prompt-manager) used by validation rules that read
-// runtime state (e.g. teams/<id>/shared/knowledge.jsonl).
+// runtime state. Team corpus data is owned by source-ledger.
 //
 // Use SetKnowledgeQuery to enable stalled_drain / piling_inbox warnings;
 // without it the API returns the pure-Go validation result.
@@ -158,10 +158,10 @@ type GraphResponse struct {
 }
 
 // GraphNode is a single addressable element in the topic flow graph. Member
-// nodes carry a Ref; boundary nodes (external producers, decision queues, PoR
+// nodes carry a Ref; boundary nodes (external producers, work queues, PoR
 // sinks) carry a synthetic Ref with Team="<external>".
 type GraphNode struct {
-	Kind   string    `json:"kind"` // "member" | "external" | "decision" | "por_file" | "capability_gap" | "skill_proposal" | "backlog" | "knowledge_sink"
+	Kind   string    `json:"kind"` // "member" | "external" | "por_file" | "skill_proposal" | "backlog" | "knowledge_sink"
 	ID     string    `json:"id"`   // unique within the response
 	Ref    MemberRef `json:"ref,omitempty"`
 	Label  string    `json:"label,omitempty"`
@@ -174,7 +174,7 @@ type GraphEdge struct {
 	From   string `json:"from"`
 	To     string `json:"to"`
 	Prefix string `json:"prefix"`
-	Kind   string `json:"kind"` // "intake" | "output" | "decision_owned" | "decision_consumed" | "external_producer" | "capability_gap"
+	Kind   string `json:"kind"` // "intake" | "output" | "external_producer" | "work_item"
 }
 
 // GraphWithValidationResponse pairs the directed graph with cross-graph
@@ -301,7 +301,7 @@ func buildGraph(members []MemberTopics) GraphResponse {
 		}
 
 		// Output edges: this member -> destination prefix (knowledge sink,
-		// PoR file, decision queue, etc.).
+		// PoR file, work queue, etc.).
 		for _, e := range m.Topics.Output {
 			var destKind, destID string
 			switch e.DestinationKind {
@@ -313,14 +313,6 @@ func buildGraph(members []MemberTopics) GraphResponse {
 					destID = "por:<missing>"
 				}
 				addNode(GraphNode{Kind: destKind, ID: destID, Label: stringPtr(e.DestinationPath)})
-			case DestinationDecision:
-				destKind = "decision"
-				destID = "decision:" + e.Prefix
-				addNode(GraphNode{Kind: destKind, ID: destID, Label: e.Prefix})
-			case DestinationCapabilityGap:
-				destKind = "capability_gap"
-				destID = "capability-gap"
-				addNode(GraphNode{Kind: destKind, ID: destID, Label: "capability-gap"})
 			case DestinationSkillProposal:
 				destKind = "skill_proposal"
 				destID = "skill-proposal"
@@ -337,21 +329,10 @@ func buildGraph(members []MemberTopics) GraphResponse {
 			resp.Edges = append(resp.Edges, GraphEdge{From: memberID, To: destID, Prefix: e.Prefix, Kind: "output"})
 		}
 
-		for _, ctx := range m.Topics.DecisionsOwned {
-			id := "decision:" + ctx
-			addNode(GraphNode{Kind: "decision", ID: id, Label: ctx})
-			resp.Edges = append(resp.Edges, GraphEdge{From: memberID, To: id, Prefix: ctx, Kind: "decision_owned"})
-		}
-		for _, ctx := range m.Topics.DecisionsConsumed {
-			id := "decision:" + ctx
-			addNode(GraphNode{Kind: "decision", ID: id, Label: ctx})
-			resp.Edges = append(resp.Edges, GraphEdge{From: id, To: memberID, Prefix: ctx, Kind: "decision_consumed"})
-		}
-
-		if m.Topics.RaisesCapabilityGaps {
-			id := "capability-gap"
-			addNode(GraphNode{Kind: "capability_gap", ID: id, Label: "capability-gap"})
-			resp.Edges = append(resp.Edges, GraphEdge{From: memberID, To: id, Prefix: "capability-gap", Kind: "capability_gap"})
+		if m.Topics.RaisesWorkItems {
+			id := "backlog"
+			addNode(GraphNode{Kind: "backlog", ID: id, Label: "Swarm Manager work"})
+			resp.Edges = append(resp.Edges, GraphEdge{From: memberID, To: id, Prefix: "backlog", Kind: "work_item"})
 		}
 	}
 

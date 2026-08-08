@@ -58,7 +58,6 @@ const literalSelectors = {
     runtimeMode: 'team-editor-runtime-mode',
     coordinationPattern: 'team-editor-coordination-pattern',
     executionPolicy: 'team-editor-execution-policy',
-    decisionMode: 'team-editor-decision-mode',
   },
   runs: {
     list: 'run-list',

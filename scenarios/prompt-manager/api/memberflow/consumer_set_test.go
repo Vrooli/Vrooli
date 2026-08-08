@@ -203,8 +203,7 @@ func TestBuildConsumerSet_RegistersEvidenceConsumed(t *testing.T) {
 		mkMember("monetization", "catalog-strategist", Topics{
 			EvidenceConsumed: []EvidenceConsumedEntry{
 				{
-					Prefix:       "candidate-sku-record/*",
-					ForDecisions: []string{"catalog-promotion", "sku-retirement"},
+					Prefix: "candidate-sku-record/*",
 				},
 			},
 		}),
@@ -240,8 +239,7 @@ func TestBuildConsumerSet_AggregatesAllConsumerKinds(t *testing.T) {
 			},
 			EvidenceConsumed: []EvidenceConsumedEntry{
 				{
-					Prefix:       "audience-scan/*",
-					ForDecisions: []string{"content-publish-proposal"},
+					Prefix: "audience-scan/*",
 				},
 			},
 		}),
@@ -283,10 +281,7 @@ func TestBuildConsumerSet_PreservesDeclarationOrderAcrossKinds(t *testing.T) {
 			Intake: []IntakeEntry{
 				{Prefix: "bob-i1/*", Taxonomy: "tx"},
 			},
-			EvidenceConsumed: []EvidenceConsumedEntry{
-				{Prefix: "bob-e1/*", ForDecisions: []string{"d1"}},
-				{Prefix: "bob-e2/*", ForDecisions: []string{"d2"}},
-			},
+			EvidenceConsumed: []EvidenceConsumedEntry{},
 		}),
 	}
 	s := buildConsumerSet(members)
@@ -298,8 +293,6 @@ func TestBuildConsumerSet_PreservesDeclarationOrderAcrossKinds(t *testing.T) {
 		{"alice-r1/*", consumerSourceRequiredRead},
 		{"alice-r2/*", consumerSourceRequiredRead},
 		{"bob-i1/*", consumerSourceIntake},
-		{"bob-e1/*", consumerSourceEvidence},
-		{"bob-e2/*", consumerSourceEvidence},
 	}
 	if got := len(s.entries); got != len(want) {
 		t.Fatalf("entry count = %d, want %d", got, len(want))
@@ -326,16 +319,13 @@ func TestBuildConsumerSet_DropsEmptyPrefixesFromAllSources(t *testing.T) {
 				{Prefix: "   "},
 				{Prefix: "good-required/*"},
 			},
-			EvidenceConsumed: []EvidenceConsumedEntry{
-				{Prefix: "  ", ForDecisions: []string{"d1"}},
-				{Prefix: "good-evidence/*", ForDecisions: []string{"d1"}},
-			},
+			EvidenceConsumed: []EvidenceConsumedEntry{},
 		}),
 	}
 	s := buildConsumerSet(members)
 
-	if got := len(s.entries); got != 3 {
-		t.Fatalf("expected 3 entries (one per non-empty prefix), got %d: %+v", got, s.entries)
+	if got := len(s.entries); got != 2 {
+		t.Fatalf("expected 2 entries (one per non-empty prefix), got %d: %+v", got, s.entries)
 	}
 }
 

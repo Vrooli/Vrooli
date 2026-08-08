@@ -3,7 +3,7 @@
 //
 // Why this file exists: every other relationship in the agent system is
 // declared and validated — topic flows, cross-team outputs, operating-graph
-// nodes, decision contexts. The objective edge was the exception. It lived as
+// nodes, work types. The objective edge was the exception. It lived as
 // prose on both ends: a `Served by` column in OBJECTIVES.md and a bolded
 // sentence in six operating models. Editing an objective therefore fired
 // nothing: no validator, no sweep target, no decision. The only reader was an

@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,12 +14,19 @@ import (
 	"time"
 
 	"prompt-manager/finding"
+	"prompt-manager/sourceledger"
 
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
 
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // FileTeamStore implements TeamStore using the file system.
@@ -28,8 +38,8 @@ import (
 //     HEARTBEAT.md, topics.json}, and shared/TEAM.md.
 //   - runtimeDataRoot (RuntimeData class) holds runtime execution state:
 //     members/<a>/{heartbeat.json, last-handoff.md, inbox.json, logs/} and
-//     shared/{tasks.json, decisions.jsonl, handoff-history.jsonl,
-//     heartbeat-attempts.jsonl, knowledge.jsonl}.
+//     shared/tasks.json and member runtime files. Durable team corpus lives in
+//     source-ledger scopes.
 //
 // Path shapes under each root mirror the original single-tree layout (CD-2);
 // only the prefix differs. The operator-facing shared/ tree is virtually
@@ -39,6 +49,9 @@ type FileTeamStore struct {
 	runtimeDataRoot string
 	relationStore   RelationStore
 	routedRoots     *filerouting.RoutedRoots
+	ledger          *sourceledger.Client
+	eventsBase      string
+	corpus          *memoryCorpus
 }
 
 // NewFileTeamStore creates a new file-based team store rooted at the given
@@ -55,7 +68,19 @@ func NewFileTeamStore(configRoot, runtimeDataRoot string, relationStore Relation
 		runtimeDataRoot: runtimeDataRoot,
 		relationStore:   relationStore,
 		routedRoots:     roots,
+		corpus:          newMemoryCorpus(),
 	}
+}
+
+// SetSourceLedger attaches the shared durable corpus used by production team
+// runtime paths. Nil is retained only for isolated file-store tests.
+func (s *FileTeamStore) SetSourceLedger(client *sourceledger.Client) { s.ledger = client }
+
+// SetEventsEndpoint attaches the durable event stream used for heartbeat
+// attempts. Production never falls back to a local attempts file; nil is
+// retained only for isolated fixture stores.
+func (s *FileTeamStore) SetEventsEndpoint(base string) {
+	s.eventsBase = strings.TrimRight(strings.TrimSpace(base), "/")
 }
 
 // forContext returns a short-lived, root-resolved view for a request. The
@@ -73,7 +98,11 @@ func (s *FileTeamStore) forContext(ctx context.Context) *FileTeamStore {
 	if err != nil {
 		return s
 	}
-	return NewFileTeamStore(configRoot, runtimeRoot, s.relationStore)
+	cloned := NewFileTeamStore(configRoot, runtimeRoot, s.relationStore)
+	cloned.ledger = s.ledger
+	cloned.eventsBase = s.eventsBase
+	cloned.corpus = s.corpus
+	return cloned
 }
 
 // configTeamsDir returns the Config-class teams directory.
@@ -147,9 +176,6 @@ func (s *FileTeamStore) Create(ctx context.Context, team *Team) error {
 	}
 	if err := teamconfig.Validate(team.Contract()); err != nil {
 		return err
-	}
-	if team.OperatingContract != nil {
-		team.OperatingContract.Governance.DecisionMode = team.DecisionMode
 	}
 	if err := s.validateOperatingContract(context.Background(), team); err != nil {
 		return err
@@ -230,14 +256,8 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	if updates.Execution.QueuePolicy != "" {
 		team.Execution = updates.Execution
 	}
-	if updates.DecisionMode != "" {
-		team.DecisionMode = updates.DecisionMode
-	}
 	if updates.OperatingContract != nil {
 		team.OperatingContract = updates.OperatingContract
-	}
-	if updates.DecisionMode != "" && team.OperatingContract != nil {
-		team.OperatingContract.Governance.DecisionMode = updates.DecisionMode
 	}
 	if updates.Shared != nil {
 		team.Shared = updates.Shared
@@ -442,10 +462,9 @@ func (s *FileTeamStore) validateOperatingContractFindings(ctx context.Context, t
 		}
 	}
 	return teamcontract.ValidateFindings(team.OperatingContract, teamcontract.ValidationInput{
-		TeamID:       team.ID,
-		DecisionMode: team.DecisionMode,
-		MemberIDs:    memberIDs,
-		StoreDir:     s.configRoot,
+		TeamID:    team.ID,
+		MemberIDs: memberIDs,
+		StoreDir:  s.configRoot,
 	})
 }
 
@@ -662,11 +681,68 @@ func (s *FileTeamStore) AppendHeartbeatAttempt(ctx context.Context, teamID strin
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.AppendHeartbeatAttempt(ctx, teamID, entry)
 	}
-	sharedDir := filepath.Join(s.runtimeTeamsDir(), teamID, "shared")
-	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
-		return fmt.Errorf("creating shared directory: %w", err)
+	if s.ledger != nil {
+		return s.appendHeartbeatAttemptEvent(ctx, entry)
 	}
-	return AppendJSONL(filepath.Join(sharedDir, "heartbeat-attempts.jsonl"), entry)
+	s.corpus.mu.Lock()
+	defer s.corpus.mu.Unlock()
+	s.corpus.attempts[teamID] = append(s.corpus.attempts[teamID], *entry)
+	return nil
+}
+
+const heartbeatAttemptEventType = "prompt-manager.heartbeat.attempt.v1"
+
+func (s *FileTeamStore) appendHeartbeatAttemptEvent(ctx context.Context, entry *HeartbeatAttempt) error {
+	if strings.TrimSpace(s.eventsBase) == "" {
+		return fmt.Errorf("vrooli-events unavailable: heartbeat attempt persistence requires the shared event stream")
+	}
+	if strings.TrimSpace(entry.ID) == "" {
+		entry.ID = fmt.Sprintf("heartbeat-attempt-%d", time.Now().UTC().UnixNano())
+	}
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("encode heartbeat attempt: %w", err)
+	}
+	var values map[string]any
+	if err := json.Unmarshal(data, &values); err != nil {
+		return fmt.Errorf("prepare heartbeat attempt event: %w", err)
+	}
+	structData, err := structpb.NewStruct(values)
+	if err != nil {
+		return fmt.Errorf("pack heartbeat attempt event: %w", err)
+	}
+	packed, err := anypb.New(structData)
+	if err != nil {
+		return fmt.Errorf("pack heartbeat attempt payload: %w", err)
+	}
+	env := &domain.EventEnvelope{
+		EventId: entry.ID, EventType: heartbeatAttemptEventType, OccurredAt: timestamppb.Now(),
+		Source: &domain.EventSource{Scenario: "prompt-manager", ActorKind: "system"},
+		Target: &domain.EventTarget{Scenario: "prompt-manager", Operation: "heartbeat-attempt", Protocol: "http"},
+		Data:   packed,
+	}
+	if entry.RunID != "" || entry.TaskID != "" {
+		env.Correlation = &domain.EventCorrelation{AgentRunId: entry.RunID, TaskId: entry.TaskID}
+	}
+	body, err := (protojson.MarshalOptions{}).Marshal(env)
+	if err != nil {
+		return fmt.Errorf("encode heartbeat attempt event envelope: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.eventsBase+"/api/v1/events", strings.NewReader(string(body)))
+	if err != nil {
+		return fmt.Errorf("create heartbeat attempt event request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("publish heartbeat attempt event: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusConflict {
+		responseBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("publish heartbeat attempt event: %s: %s", resp.Status, strings.TrimSpace(string(responseBody)))
+	}
+	return nil
 }
 
 // ListHeartbeatAttempts returns newest-first heartbeat dispatch attempts across
@@ -687,35 +763,26 @@ func (s *FileTeamStore) ListHeartbeatAttempts(ctx context.Context, teamID, agent
 	}
 
 	var entries []HeartbeatAttempt
-	for _, id := range teamIDs {
-		path := filepath.Join(s.runtimeTeamsDir(), id, "shared", "heartbeat-attempts.jsonl")
-		if !FileExists(path) {
-		} else {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return nil, 0, fmt.Errorf("reading heartbeat attempts: %w", err)
-			}
-			for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
-				line = strings.TrimSpace(line)
-				if line == "" {
-					continue
-				}
-				var entry HeartbeatAttempt
-				if err := json.Unmarshal([]byte(line), &entry); err != nil {
-					continue
-				}
-				if agentID != "" && entry.AgentID != agentID {
-					continue
-				}
-				if status != "" && entry.Status != status {
-					continue
-				}
-				if profileKey != "" && entry.ProfileKey != profileKey {
+	if s.ledger != nil {
+		var err error
+		entries, err = s.listHeartbeatAttemptEvents(ctx, teamID, agentID, status, profileKey, limit, offset)
+		if err != nil {
+			return nil, 0, err
+		}
+	} else {
+		s.corpus.mu.Lock()
+		for _, id := range teamIDs {
+			attempts := append([]HeartbeatAttempt(nil), s.corpus.attempts[id]...)
+			for _, entry := range attempts {
+				if agentID != "" && entry.AgentID != agentID || status != "" && entry.Status != status || profileKey != "" && entry.ProfileKey != profileKey {
 					continue
 				}
 				entries = append(entries, entry)
 			}
 		}
+		s.corpus.mu.Unlock()
+	}
+	for _, id := range teamIDs {
 
 		configs, _ := s.ListHeartbeatConfigs(ctx, id)
 		for _, config := range configs {
@@ -785,6 +852,61 @@ func (s *FileTeamStore) ListHeartbeatAttempts(ctx context.Context, teamID, agent
 		entries = entries[offset:]
 	}
 	return entries, total, nil
+}
+
+func (s *FileTeamStore) listHeartbeatAttemptEvents(ctx context.Context, teamID, agentID, status, profileKey string, limit, offset int) ([]HeartbeatAttempt, error) {
+	u, err := url.Parse(s.eventsBase + "/api/v1/events")
+	if err != nil {
+		return nil, fmt.Errorf("parse vrooli-events endpoint: %w", err)
+	}
+	query := u.Query()
+	query.Set("type", heartbeatAttemptEventType)
+	query.Set("source", "prompt-manager")
+	query.Set("limit", "100")
+	u.RawQuery = query.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create heartbeat attempt query: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("query heartbeat attempt events: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("query heartbeat attempt events: %s", resp.Status)
+	}
+	var raw []json.RawMessage
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, fmt.Errorf("decode heartbeat attempt events: %w", err)
+	}
+	entries := make([]HeartbeatAttempt, 0, len(raw))
+	for _, item := range raw {
+		env := &domain.EventEnvelope{}
+		if err := protojson.Unmarshal(item, env); err != nil || env.GetData() == nil {
+			continue
+		}
+		payload := &structpb.Struct{}
+		if err := anypb.UnmarshalTo(env.GetData(), payload, proto.UnmarshalOptions{}); err != nil {
+			continue
+		}
+		body, err := json.Marshal(payload.AsMap())
+		if err != nil {
+			continue
+		}
+		var entry HeartbeatAttempt
+		if err := json.Unmarshal(body, &entry); err != nil {
+			continue
+		}
+		if entry.ID == "" {
+			entry.ID = env.GetEventId()
+		}
+		if teamID != "" && entry.TeamID != teamID || agentID != "" && entry.AgentID != agentID || status != "" && entry.Status != status || profileKey != "" && entry.ProfileKey != profileKey {
+			continue
+		}
+		entries = append(entries, entry)
+	}
+	return entries, nil
 }
 
 // GetMemberLogPath returns the path for a heartbeat execution log
@@ -1036,7 +1158,7 @@ func (s *FileTeamStore) configSharedDir(team *Team) string {
 }
 
 // runtimeSharedDir returns the RuntimeData-class shared directory (holds
-// tasks.json and the *.jsonl append-logs).
+// mutable tasks.json only).
 func (s *FileTeamStore) runtimeSharedDir(team *Team) string {
 	return filepath.Join(s.runtimeTeamsDir(), team.ID, s.sharedSubpath(team))
 }
@@ -1045,11 +1167,7 @@ func (s *FileTeamStore) runtimeSharedDir(team *Team) string {
 // RuntimeData shared/ root. Operator file ops use it to route a request to
 // the correct class root.
 var runtimeSharedBasenames = map[string]struct{}{
-	"tasks.json":               {},
-	"decisions.jsonl":          {},
-	"handoff-history.jsonl":    {},
-	"heartbeat-attempts.jsonl": {},
-	"knowledge.jsonl":          {},
+	"tasks.json": {},
 }
 
 // isRuntimeSharedRel reports whether the given (cleaned) relative path under
@@ -1095,6 +1213,22 @@ func (s *FileTeamStore) GetLastHandoff(ctx context.Context, teamID, agentID stri
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.GetLastHandoff(ctx, teamID, agentID)
 	}
+	if s.ledger != nil {
+		entries, err := s.ledger.List(ctx, sourceLedgerScope(teamID), 500)
+		if err != nil {
+			return "", err
+		}
+		for i := len(entries) - 1; i >= 0; i-- {
+			if entries[i].Kind != sourceLedgerHandoffSnapshotKind {
+				continue
+			}
+			handoff, ok := decodeHandoff(entries[i].Body)
+			if ok && handoff.AgentID == agentID {
+				return handoff.Content, nil
+			}
+		}
+		return "", nil
+	}
 	path := filepath.Join(s.runtimeMemberDir(teamID, agentID), "last-handoff.md")
 	if !FileExists(path) {
 		return "", nil
@@ -1106,6 +1240,14 @@ func (s *FileTeamStore) GetLastHandoff(ctx context.Context, teamID, agentID stri
 func (s *FileTeamStore) SetLastHandoff(ctx context.Context, teamID, agentID, content string) error {
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.SetLastHandoff(ctx, teamID, agentID, content)
+	}
+	if s.ledger != nil {
+		body, err := encodeHandoff(HandoffEntry{AgentID: agentID, Content: content, Timestamp: time.Now().UTC().Format(time.RFC3339Nano)})
+		if err != nil {
+			return err
+		}
+		_, err = s.ledger.Append(ctx, sourceLedgerScope(teamID), body, sourceLedgerHandoffSnapshotKind)
+		return err
 	}
 	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
 		return err
@@ -1119,26 +1261,18 @@ func (s *FileTeamStore) AppendHandoffHistory(ctx context.Context, teamID string,
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.AppendHandoffHistory(ctx, teamID, entry)
 	}
-	sharedDir := filepath.Join(s.runtimeTeamsDir(), teamID, "shared")
-	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
-		return fmt.Errorf("creating shared directory: %w", err)
+	if s.ledger != nil {
+		body, err := encodeHandoff(*entry)
+		if err != nil {
+			return err
+		}
+		_, err = s.ledger.Append(ctx, sourceLedgerScope(teamID), body, sourceLedgerHandoffKind)
+		return err
 	}
-	path := filepath.Join(sharedDir, "handoff-history.jsonl")
-
-	data, err := json.Marshal(entry)
-	if err != nil {
-		return fmt.Errorf("marshaling handoff entry: %w", err)
-	}
-	data = append(data, '\n')
-
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return fmt.Errorf("opening handoff history: %w", err)
-	}
-	defer f.Close()
-
-	_, err = f.Write(data)
-	return err
+	s.corpus.mu.Lock()
+	defer s.corpus.mu.Unlock()
+	s.corpus.handoffs[teamID] = append(s.corpus.handoffs[teamID], *entry)
+	return nil
 }
 
 // GetHandoffHistory reads handoff history entries, optionally filtered by agent and limited.
@@ -1146,31 +1280,40 @@ func (s *FileTeamStore) GetHandoffHistory(ctx context.Context, teamID, agentID s
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.GetHandoffHistory(ctx, teamID, agentID, last)
 	}
-	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "handoff-history.jsonl")
-	if !FileExists(path) {
-		return nil, nil
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading handoff history: %w", err)
-	}
-
-	var entries []HandoffEntry
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
+	if s.ledger != nil {
+		entries, err := s.ledger.List(ctx, sourceLedgerScope(teamID), 500)
+		if err != nil {
+			return nil, err
 		}
-		var entry HandoffEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			continue // skip malformed lines
+		history := make([]HandoffEntry, 0, len(entries))
+		for _, item := range entries {
+			if item.Kind != sourceLedgerHandoffKind {
+				continue
+			}
+			handoff, ok := decodeHandoff(item.Body)
+			if !ok || (agentID != "" && handoff.AgentID != agentID) {
+				continue
+			}
+			history = append(history, handoff)
 		}
-		if agentID != "" && entry.AgentID != agentID {
-			continue
+		if last > 0 && len(history) > last {
+			history = history[len(history)-last:]
 		}
-		entries = append(entries, entry)
+		for i, j := 0, len(history)-1; i < j; i, j = i+1, j-1 {
+			history[i], history[j] = history[j], history[i]
+		}
+		return history, nil
 	}
+	s.corpus.mu.Lock()
+	entries := append([]HandoffEntry(nil), s.corpus.handoffs[teamID]...)
+	s.corpus.mu.Unlock()
+	filtered := entries[:0]
+	for _, entry := range entries {
+		if agentID == "" || entry.AgentID == agentID {
+			filtered = append(filtered, entry)
+		}
+	}
+	entries = filtered
 
 	// Return the last N entries
 	if last > 0 && len(entries) > last {
@@ -1191,58 +1334,32 @@ func (s *FileTeamStore) ClearHandoffHistory(ctx context.Context, teamID, agentID
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.ClearHandoffHistory(ctx, teamID, agentID)
 	}
-	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "handoff-history.jsonl")
-	if !FileExists(path) {
+	if s.ledger != nil {
+		return fmt.Errorf("source-ledger handoff history is append-only; clearing is unsupported")
+	}
+	s.corpus.mu.Lock()
+	defer s.corpus.mu.Unlock()
+	if agentID == "" {
+		s.corpus.handoffs[teamID] = nil
 		return nil
 	}
-
-	if agentID == "" {
-		return os.Remove(path)
-	}
-
-	// Read all, filter out the target agent, rewrite.
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("reading handoff history: %w", err)
-	}
-
-	var kept [][]byte
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
+	kept := s.corpus.handoffs[teamID][:0]
+	for _, entry := range s.corpus.handoffs[teamID] {
+		if entry.AgentID != agentID {
+			kept = append(kept, entry)
 		}
-		var entry HandoffEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			kept = append(kept, []byte(line))
-			continue
-		}
-		if entry.AgentID == agentID {
-			continue
-		}
-		kept = append(kept, []byte(line))
 	}
-
-	if len(kept) == 0 {
-		return os.Remove(path)
-	}
-
-	tmp := path + ".tmp"
-	lines := make([]string, len(kept))
-	for i, b := range kept {
-		lines[i] = string(b)
-	}
-	content := strings.Join(lines, "\n") + "\n"
-	if err := os.WriteFile(tmp, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("writing temp handoff history: %w", err)
-	}
-	return os.Rename(tmp, path)
+	s.corpus.handoffs[teamID] = kept
+	return nil
 }
 
 // ClearLastHandoff removes the last handoff file for a team member.
 func (s *FileTeamStore) ClearLastHandoff(ctx context.Context, teamID, agentID string) error {
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.ClearLastHandoff(ctx, teamID, agentID)
+	}
+	if s.ledger != nil {
+		return fmt.Errorf("source-ledger handoff snapshots are append-only; clearing is unsupported")
 	}
 	path := filepath.Join(s.runtimeMemberDir(teamID, agentID), "last-handoff.md")
 	if !FileExists(path) {
@@ -1347,209 +1464,69 @@ func (s *FileTeamStore) DeleteTask(ctx context.Context, teamID, taskID string) e
 	return s.SaveTaskBoard(ctx, teamID, board)
 }
 
-// --- Decision Log methods ---
+// --- Team corpus methods ---
 
-// AppendDecision appends a decision entry to the team's decision log.
-func (s *FileTeamStore) AppendDecision(ctx context.Context, teamID string, entry *DecisionEntry) error {
+// AppendTeamCorpus appends durable team context to the team's source-ledger scope.
+func (s *FileTeamStore) AppendTeamCorpus(ctx context.Context, teamID string, entry *KnowledgeEntry) error {
 	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.AppendDecision(ctx, teamID, entry)
+		return scoped.AppendTeamCorpus(ctx, teamID, entry)
 	}
-	sharedDir := filepath.Join(s.runtimeTeamsDir(), teamID, "shared")
-	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
-		return fmt.Errorf("creating shared directory: %w", err)
-	}
-	path := filepath.Join(sharedDir, "decisions.jsonl")
-
-	data, err := json.Marshal(entry)
-	if err != nil {
-		return fmt.Errorf("marshaling decision entry: %w", err)
-	}
-	data = append(data, '\n')
-
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return fmt.Errorf("opening decision log: %w", err)
-	}
-	defer f.Close()
-
-	_, err = f.Write(data)
-	return err
-}
-
-// GetDecisions reads decision entries, optionally filtered by context tag, status, and limited.
-// Returns the sliced entries, the total count after filtering (before slicing), and any error.
-func (s *FileTeamStore) GetDecisions(ctx context.Context, teamID, contextTag, statusFilter string, last int) ([]DecisionEntry, int, error) {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetDecisions(ctx, teamID, contextTag, statusFilter, last)
-	}
-	entries, _, err := s.readAllDecisions(teamID)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	if contextTag != "" {
-		filtered := make([]DecisionEntry, 0, len(entries))
-		for _, e := range entries {
-			if e.Context == contextTag {
-				filtered = append(filtered, e)
-			}
-		}
-		entries = filtered
-	}
-
-	if statusFilter != "" {
-		filtered := make([]DecisionEntry, 0, len(entries))
-		for _, e := range entries {
-			status := e.Status
-			// Treat empty status as "pending" for backward compatibility
-			// with decisions created before the status field was added.
-			if status == "" {
-				status = DecisionStatusPending
-			}
-			if status == statusFilter {
-				filtered = append(filtered, e)
-			}
-		}
-		entries = filtered
-	}
-
-	total := len(entries)
-
-	if last > 0 && len(entries) > last {
-		entries = entries[len(entries)-last:]
-	}
-
-	return entries, total, nil
-}
-
-// readAllDecisions reads all decision entries from the JSONL file.
-func (s *FileTeamStore) readAllDecisions(teamID string) ([]DecisionEntry, string, error) {
-	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "decisions.jsonl")
-	if !FileExists(path) {
-		return nil, path, nil
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, path, fmt.Errorf("reading decision log: %w", err)
-	}
-	var entries []DecisionEntry
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		var entry DecisionEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			continue
-		}
-		entries = append(entries, entry)
-	}
-	return entries, path, nil
-}
-
-// writeAllDecisions rewrites the full decisions JSONL file.
-func (s *FileTeamStore) writeAllDecisions(path string, entries []DecisionEntry) error {
-	var buf strings.Builder
-	for _, e := range entries {
-		data, err := json.Marshal(e)
+	if s.ledger != nil {
+		body, err := encodeKnowledge(*entry)
 		if err != nil {
-			return fmt.Errorf("marshaling decision entry: %w", err)
+			return err
 		}
-		buf.Write(data)
-		buf.WriteByte('\n')
-	}
-	return os.WriteFile(path, []byte(buf.String()), 0o644)
-}
-
-// UpdateDecision updates a decision entry by ID using the provided updater function.
-func (s *FileTeamStore) UpdateDecision(ctx context.Context, teamID, decisionID string, updater func(*DecisionEntry)) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.UpdateDecision(ctx, teamID, decisionID, updater)
-	}
-	entries, path, err := s.readAllDecisions(teamID)
-	if err != nil {
+		_, err = s.ledger.Append(ctx, sourceLedgerScope(teamID), body, sourceLedgerKnowledgeKind)
 		return err
 	}
-	found := false
-	for i := range entries {
-		if entries[i].ID == decisionID {
-			updater(&entries[i])
-			found = true
-			break
-		}
-	}
-	if !found {
-		return fmt.Errorf("decision not found: %s", decisionID)
-	}
-	return s.writeAllDecisions(path, entries)
+	s.corpus.mu.Lock()
+	defer s.corpus.mu.Unlock()
+	s.corpus.knowledge[teamID] = append(s.corpus.knowledge[teamID], *entry)
+	return nil
 }
 
-// DeleteDecision removes a decision entry by ID.
-func (s *FileTeamStore) DeleteDecision(ctx context.Context, teamID, decisionID string) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.DeleteDecision(ctx, teamID, decisionID)
-	}
-	entries, path, err := s.readAllDecisions(teamID)
-	if err != nil {
-		return err
-	}
-	filtered := make([]DecisionEntry, 0, len(entries))
-	found := false
-	for _, e := range entries {
-		if e.ID == decisionID {
-			found = true
-			continue
-		}
-		filtered = append(filtered, e)
-	}
-	if !found {
-		return fmt.Errorf("decision not found: %s", decisionID)
-	}
-	return s.writeAllDecisions(path, filtered)
-}
-
-// --- Knowledge Log methods ---
-
-// AppendKnowledge appends a knowledge entry to the team's knowledge log.
-func (s *FileTeamStore) AppendKnowledge(ctx context.Context, teamID string, entry *KnowledgeEntry) error {
-	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.AppendKnowledge(ctx, teamID, entry)
-	}
-	sharedDir := filepath.Join(s.runtimeTeamsDir(), teamID, "shared")
-	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
-		return fmt.Errorf("creating shared directory: %w", err)
-	}
-	path := filepath.Join(sharedDir, "knowledge.jsonl")
-
-	data, err := json.Marshal(entry)
-	if err != nil {
-		return fmt.Errorf("marshaling knowledge entry: %w", err)
-	}
-	data = append(data, '\n')
-
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return fmt.Errorf("opening knowledge log: %w", err)
-	}
-	defer f.Close()
-
-	_, err = f.Write(data)
-	return err
-}
-
-// GetKnowledge reads knowledge entries, optionally filtered by exact topic
+// ListTeamCorpus reads team context, optionally filtered by exact topic
 // match, topic prefix match, and limited to the most recent N entries. When
 // both topicFilter and topicPrefix are non-empty, an entry must satisfy both
 // to be returned; in practice upstream layers enforce mutual exclusion so the
 // AND semantics rarely matter.
-func (s *FileTeamStore) GetKnowledge(ctx context.Context, teamID, topicFilter, topicPrefix string, last int) ([]KnowledgeEntry, error) {
+func (s *FileTeamStore) ListTeamCorpus(ctx context.Context, teamID, topicFilter, topicPrefix string, last int) ([]KnowledgeEntry, error) {
 	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.GetKnowledge(ctx, teamID, topicFilter, topicPrefix, last)
+		return scoped.ListTeamCorpus(ctx, teamID, topicFilter, topicPrefix, last)
 	}
-	entries, _, err := s.readAllKnowledge(teamID)
-	if err != nil {
-		return nil, err
+	if s.ledger != nil {
+		entries, err := s.ledger.List(ctx, sourceLedgerScope(teamID), 500)
+		if err != nil {
+			return nil, err
+		}
+		knowledge := make([]KnowledgeEntry, 0, len(entries))
+		for _, item := range entries {
+			if item.Kind != sourceLedgerKnowledgeKind {
+				continue
+			}
+			entry, ok := decodeKnowledge(item.Body)
+			if !ok {
+				continue
+			}
+			if entry.At == "" {
+				entry.At = item.CreatedAt
+			}
+			if topicFilter != "" && entry.Topic != topicFilter {
+				continue
+			}
+			if topicPrefix != "" && !strings.HasPrefix(entry.Topic, topicPrefix) {
+				continue
+			}
+			knowledge = append(knowledge, entry)
+		}
+		if last > 0 && len(knowledge) > last {
+			knowledge = knowledge[len(knowledge)-last:]
+		}
+		return knowledge, nil
 	}
+	s.corpus.mu.Lock()
+	entries := append([]KnowledgeEntry(nil), s.corpus.knowledge[teamID]...)
+	s.corpus.mu.Unlock()
 
 	if topicFilter != "" || topicPrefix != "" {
 		filtered := make([]KnowledgeEntry, 0, len(entries))
@@ -1572,54 +1549,27 @@ func (s *FileTeamStore) GetKnowledge(ctx context.Context, teamID, topicFilter, t
 	return entries, nil
 }
 
-// readAllKnowledge reads all knowledge entries from the JSONL file.
-func (s *FileTeamStore) readAllKnowledge(teamID string) ([]KnowledgeEntry, string, error) {
-	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "knowledge.jsonl")
-	if !FileExists(path) {
-		return nil, path, nil
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, path, fmt.Errorf("reading knowledge log: %w", err)
-	}
-	var entries []KnowledgeEntry
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		var entry KnowledgeEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			continue
-		}
-		entries = append(entries, entry)
-	}
-	return entries, path, nil
-}
-
-// writeAllKnowledge rewrites the full knowledge JSONL file.
-func (s *FileTeamStore) writeAllKnowledge(path string, entries []KnowledgeEntry) error {
-	var buf strings.Builder
-	for _, e := range entries {
-		data, err := json.Marshal(e)
-		if err != nil {
-			return fmt.Errorf("marshaling knowledge entry: %w", err)
-		}
-		buf.Write(data)
-		buf.WriteByte('\n')
-	}
-	return os.WriteFile(path, []byte(buf.String()), 0o644)
-}
-
-// UpdateKnowledge updates a knowledge entry by ID using the provided updater function.
-func (s *FileTeamStore) UpdateKnowledge(ctx context.Context, teamID, knowledgeID string, updater func(*KnowledgeEntry)) error {
+// UpdateTeamCorpus updates a team-corpus entry by ID using the provided updater function.
+func (s *FileTeamStore) UpdateTeamCorpus(ctx context.Context, teamID, knowledgeID string, updater func(*KnowledgeEntry)) error {
 	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.UpdateKnowledge(ctx, teamID, knowledgeID, updater)
+		return scoped.UpdateTeamCorpus(ctx, teamID, knowledgeID, updater)
 	}
-	entries, path, err := s.readAllKnowledge(teamID)
-	if err != nil {
-		return err
+	if s.ledger != nil {
+		entries, err := s.ListTeamCorpus(ctx, teamID, "", "", 0)
+		if err != nil {
+			return err
+		}
+		for i := range entries {
+			if entries[i].ID == knowledgeID {
+				updater(&entries[i])
+				return s.AppendTeamCorpus(ctx, teamID, &entries[i])
+			}
+		}
+		return fmt.Errorf("knowledge entry not found: %s", knowledgeID)
 	}
+	s.corpus.mu.Lock()
+	defer s.corpus.mu.Unlock()
+	entries := append([]KnowledgeEntry(nil), s.corpus.knowledge[teamID]...)
 	found := false
 	for i := range entries {
 		if entries[i].ID == knowledgeID {
@@ -1631,18 +1581,21 @@ func (s *FileTeamStore) UpdateKnowledge(ctx context.Context, teamID, knowledgeID
 	if !found {
 		return fmt.Errorf("knowledge entry not found: %s", knowledgeID)
 	}
-	return s.writeAllKnowledge(path, entries)
+	s.corpus.knowledge[teamID] = entries
+	return nil
 }
 
-// DeleteKnowledge removes a knowledge entry by ID.
-func (s *FileTeamStore) DeleteKnowledge(ctx context.Context, teamID, knowledgeID string) error {
+// DeleteTeamCorpus removes a team-corpus entry by ID in fixture mode.
+func (s *FileTeamStore) DeleteTeamCorpus(ctx context.Context, teamID, knowledgeID string) error {
 	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.DeleteKnowledge(ctx, teamID, knowledgeID)
+		return scoped.DeleteTeamCorpus(ctx, teamID, knowledgeID)
 	}
-	entries, path, err := s.readAllKnowledge(teamID)
-	if err != nil {
-		return err
+	if s.ledger != nil {
+		return fmt.Errorf("source-ledger knowledge is append-only; file a superseding entry instead of deleting %s", knowledgeID)
 	}
+	s.corpus.mu.Lock()
+	defer s.corpus.mu.Unlock()
+	entries := append([]KnowledgeEntry(nil), s.corpus.knowledge[teamID]...)
 	filtered := make([]KnowledgeEntry, 0, len(entries))
 	found := false
 	for _, e := range entries {
@@ -1655,20 +1608,27 @@ func (s *FileTeamStore) DeleteKnowledge(ctx context.Context, teamID, knowledgeID
 	if !found {
 		return fmt.Errorf("knowledge entry not found: %s", knowledgeID)
 	}
-	return s.writeAllKnowledge(path, filtered)
+	s.corpus.knowledge[teamID] = filtered
+	return nil
 }
 
 // SaveBugDraft persists a private repairable intake draft. Drafts have their
-// own runtime file and are intentionally never returned by GetKnowledge.
+// own fixture store and are intentionally never returned by ListTeamCorpus.
 func (s *FileTeamStore) SaveBugDraft(ctx context.Context, teamID string, draft BugDraft) error {
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.SaveBugDraft(ctx, teamID, draft)
 	}
-	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "bug-drafts.jsonl")
-	drafts, err := s.readBugDrafts(path)
-	if err != nil {
+	if s.ledger != nil {
+		data, err := json.Marshal(draft)
+		if err != nil {
+			return fmt.Errorf("marshal bug draft: %w", err)
+		}
+		_, err = s.ledger.Append(ctx, sourceLedgerScope(teamID), string(data), sourceLedgerBugDraftKind)
 		return err
 	}
+	s.corpus.mu.Lock()
+	defer s.corpus.mu.Unlock()
+	drafts := append([]BugDraft(nil), s.corpus.drafts[teamID]...)
 	replaced := false
 	for i := range drafts {
 		if drafts[i].ID == draft.ID {
@@ -1680,7 +1640,8 @@ func (s *FileTeamStore) SaveBugDraft(ctx context.Context, teamID string, draft B
 	if !replaced {
 		drafts = append(drafts, draft)
 	}
-	return s.writeBugDrafts(path, drafts)
+	s.corpus.drafts[teamID] = drafts
+	return nil
 }
 
 // GetBugDraft returns one private draft. It is intentionally a direct-id read;
@@ -1689,11 +1650,25 @@ func (s *FileTeamStore) GetBugDraft(ctx context.Context, teamID, id string) (Bug
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.GetBugDraft(ctx, teamID, id)
 	}
-	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "bug-drafts.jsonl")
-	drafts, err := s.readBugDrafts(path)
-	if err != nil {
-		return BugDraft{}, err
+	if s.ledger != nil {
+		entries, err := s.ledger.List(ctx, sourceLedgerScope(teamID), 500)
+		if err != nil {
+			return BugDraft{}, err
+		}
+		for _, item := range entries {
+			if item.Kind != sourceLedgerBugDraftKind {
+				continue
+			}
+			var draft BugDraft
+			if err := json.Unmarshal([]byte(item.Body), &draft); err == nil && draft.ID == id {
+				return draft, nil
+			}
+		}
+		return BugDraft{}, fmt.Errorf("bug draft not found: %s", id)
 	}
+	s.corpus.mu.Lock()
+	defer s.corpus.mu.Unlock()
+	drafts := append([]BugDraft(nil), s.corpus.drafts[teamID]...)
 	for _, draft := range drafts {
 		if draft.ID == id {
 			return draft, nil
@@ -1708,11 +1683,12 @@ func (s *FileTeamStore) DeleteBugDraft(ctx context.Context, teamID, id string) e
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.DeleteBugDraft(ctx, teamID, id)
 	}
-	path := filepath.Join(s.runtimeTeamsDir(), teamID, "shared", "bug-drafts.jsonl")
-	drafts, err := s.readBugDrafts(path)
-	if err != nil {
-		return err
+	if s.ledger != nil {
+		return fmt.Errorf("source-ledger bug drafts are append-only; close %s through the swarm-manager work item", id)
 	}
+	s.corpus.mu.Lock()
+	defer s.corpus.mu.Unlock()
+	drafts := append([]BugDraft(nil), s.corpus.drafts[teamID]...)
 	filtered := drafts[:0]
 	found := false
 	for _, draft := range drafts {
@@ -1725,58 +1701,20 @@ func (s *FileTeamStore) DeleteBugDraft(ctx context.Context, teamID, id string) e
 	if !found {
 		return fmt.Errorf("bug draft not found: %s", id)
 	}
-	return s.writeBugDrafts(path, filtered)
-}
-
-func (s *FileTeamStore) readBugDrafts(path string) ([]BugDraft, error) {
-	if !FileExists(path) {
-		return []BugDraft{}, nil
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading bug drafts: %w", err)
-	}
-	drafts := make([]BugDraft, 0)
-	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-		var draft BugDraft
-		if err := json.Unmarshal([]byte(line), &draft); err != nil {
-			return nil, fmt.Errorf("decoding bug draft: %w", err)
-		}
-		drafts = append(drafts, draft)
-	}
-	return drafts, nil
-}
-
-func (s *FileTeamStore) writeBugDrafts(path string, drafts []BugDraft) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("creating bug draft directory: %w", err)
-	}
-	var out strings.Builder
-	for _, draft := range drafts {
-		data, err := json.Marshal(draft)
-		if err != nil {
-			return fmt.Errorf("marshaling bug draft: %w", err)
-		}
-		out.Write(data)
-		out.WriteByte('\n')
-	}
-	return os.WriteFile(path, []byte(out.String()), 0o600)
+	s.corpus.drafts[teamID] = filtered
+	return nil
 }
 
 // --- Retention / Prune ---
 
-// PruneResult reports how many items were removed during pruning.
+// PruneResult reports how many mutable task items were removed during pruning.
 type PruneResult struct {
-	TasksRemoved     int `json:"tasksRemoved"`
-	DecisionsRemoved int `json:"decisionsRemoved"`
-	KnowledgeRemoved int `json:"knowledgeRemoved"`
+	TasksRemoved int `json:"tasksRemoved"`
 }
 
-// PruneSharedState removes stale completed tasks, decisions, and knowledge
-// entries according to the team's retention policy.
+// PruneSharedState removes stale completed tasks according to the team's
+// retention policy. Source Ledger team-corpus entries are append-only and are
+// deliberately excluded.
 func (s *FileTeamStore) PruneSharedState(ctx context.Context, teamID string) (*PruneResult, error) {
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.PruneSharedState(ctx, teamID)
@@ -1793,17 +1731,6 @@ func (s *FileTeamStore) PruneSharedState(ctx context.Context, teamID string) (*P
 	if err := s.pruneCompletedTasks(ctx, teamID, retention.Tasks, now, result); err != nil {
 		return result, fmt.Errorf("pruning tasks: %w", err)
 	}
-
-	// 2. Prune decisions
-	if err := s.pruneDecisions(teamID, retention.Decisions, now, result); err != nil {
-		return result, fmt.Errorf("pruning decisions: %w", err)
-	}
-
-	// 3. Prune knowledge
-	if err := s.pruneKnowledge(teamID, retention.Knowledge, now, result); err != nil {
-		return result, fmt.Errorf("pruning knowledge: %w", err)
-	}
-
 	return result, nil
 }
 
@@ -1859,81 +1786,4 @@ func (s *FileTeamStore) pruneCompletedTasks(ctx context.Context, teamID string, 
 	result.TasksRemoved = removed
 	board.Tasks = append(active, kept...)
 	return s.SaveTaskBoard(ctx, teamID, board)
-}
-
-func (s *FileTeamStore) pruneDecisions(teamID string, cfg *EntryRetention, now time.Time, result *PruneResult) error {
-	if cfg == nil {
-		return nil
-	}
-
-	entries, path, err := s.readAllDecisions(teamID)
-	if err != nil {
-		return err
-	}
-	if len(entries) == 0 {
-		return nil
-	}
-
-	kept := pruneEntries(entries, cfg, now, func(e DecisionEntry) string { return e.At })
-	removed := len(entries) - len(kept)
-	if removed == 0 {
-		return nil
-	}
-
-	result.DecisionsRemoved = removed
-	return s.writeAllDecisions(path, kept)
-}
-
-func (s *FileTeamStore) pruneKnowledge(teamID string, cfg *EntryRetention, now time.Time, result *PruneResult) error {
-	if cfg == nil {
-		return nil
-	}
-
-	entries, path, err := s.readAllKnowledge(teamID)
-	if err != nil {
-		return err
-	}
-	if len(entries) == 0 {
-		return nil
-	}
-
-	kept := pruneEntries(entries, cfg, now, func(e KnowledgeEntry) string { return e.At })
-	removed := len(entries) - len(kept)
-	if removed == 0 {
-		return nil
-	}
-
-	result.KnowledgeRemoved = removed
-	return s.writeAllKnowledge(path, kept)
-}
-
-// pruneEntries is a generic helper that applies maxEntries and maxAgeDays to a slice.
-// The getAt function extracts the timestamp string from each entry.
-// Entries are assumed to be in chronological order (oldest first), which is the
-// natural order for append-only JSONL files.
-func pruneEntries[T any](entries []T, cfg *EntryRetention, now time.Time, getAt func(T) string) []T {
-	// Apply maxEntries: keep N newest (from the end)
-	if cfg.MaxEntries > 0 && len(entries) > cfg.MaxEntries {
-		entries = entries[len(entries)-cfg.MaxEntries:]
-	}
-
-	// Apply maxAgeDays: remove entries older than cutoff
-	if cfg.MaxAgeDays > 0 {
-		cutoff := now.Add(-time.Duration(cfg.MaxAgeDays) * 24 * time.Hour)
-		kept := make([]T, 0, len(entries))
-		for _, e := range entries {
-			parsed, parseErr := time.Parse(time.RFC3339, getAt(e))
-			if parseErr != nil {
-				// Keep entries with unparseable timestamps
-				kept = append(kept, e)
-				continue
-			}
-			if !parsed.Before(cutoff) {
-				kept = append(kept, e)
-			}
-		}
-		entries = kept
-	}
-
-	return entries
 }

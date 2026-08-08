@@ -7,32 +7,14 @@
       "prefix": "friction-report/run-execution/<YYYY-MM-DD>/<slug>"
     }
   ],
-  "evidence_consumed": [
-    {
-      "prefix": "challenge-report/*",
-      "for_decisions": [
-        "run-lesson",
-        "capability-gap"
-      ]
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "for_decisions": [
-        "run-lesson",
-        "capability-gap"
-      ]
-    }
-  ],
+  "evidence_consumed": [],
   "output": [
     {
       "prefix": "run-lesson-report/*",
       "destination_kind": "knowledge"
     }
   ],
-  "decisions_owned": [
-    "run-lesson"
-  ],
-  "raises_capability_gaps": true,
+  "raises_work_items": true,
   "external_producers": [
     "operator"
   ]

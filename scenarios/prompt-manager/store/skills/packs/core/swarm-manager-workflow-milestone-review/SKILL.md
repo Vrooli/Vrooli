@@ -2,7 +2,7 @@
 
 Judge one milestone's definition of done against its member-item evidence. Do not mutate the milestone, its goal, items, or repository files.
 
-## Verdict decision table
+## Verdict work table
 
 | Evidence | Verdict |
 | --- | --- |

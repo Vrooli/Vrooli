@@ -2,38 +2,12 @@
   "required_read": [
     {
       "prefix": "contrarian-scan/YYYY-MM-DD"
-    },
-    {
-      "prefix": "challenge-report/<decision-id>"
-    },
-    {
-      "prefix": "challenge-resolution-record/<decision-id>"
     }
   ],
   "output": [
     {
-      "prefix": "challenge-report/*",
-      "destination_kind": "knowledge"
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "destination_kind": "knowledge"
-    },
-    {
       "prefix": "contrarian-scan/*",
       "destination_kind": "knowledge"
     }
-  ],
-  "decisions_owned": [
-    "decision-rejection-proposed",
-    "framework-meta"
-  ],
-  "decisions_consumed": [
-    "runtime-health-finding",
-    "platform-code-finding",
-    "cross-platform-debt",
-    "instrumentation-gap",
-    "reliability-target-update",
-    "capability-gap"
   ]
 }

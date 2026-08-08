@@ -16,29 +16,24 @@ last_probed:    2026-04-29T16:31:14Z   # last successful health probe
 status:         healthy                 # healthy | needs_refresh | revoked | unknown
 ```
 
-The token itself lives in Vault under a structured prefix; the metadata above lives in integration-hub's state. The split is the same as resources: secret values in Vault, descriptors in the manifest.
+Credential values live in the canonical credential authority under a backend-neutral identity; the metadata above lives in integration-hub's state. The authority may use the operating system key service or encrypted portable storage.
 
-## Vault layout
+## Credential-authority layout
 
-```
-secret/vrooli/integrations/<connector_id>/<connection_id>
-```
+Identity: `vrooli/integrations/<connector_id>/<connection_id>`
 
 Examples:
 
+```text
+vrooli/integrations/github-oauth/github-default
+vrooli/integrations/tiktok-account/persona-amy
+vrooli/integrations/tiktok-account/persona-bob
+vrooli/integrations/fal-api/scratch-2026-04-29
 ```
-secret/vrooli/integrations/github-oauth/github-default
-secret/vrooli/integrations/tiktok-account/persona-amy
-secret/vrooli/integrations/tiktok-account/persona-bob
-secret/vrooli/integrations/fal-api/scratch-2026-04-29
-```
 
-Each path holds the auth-pattern-specific keys. For OAuth: `access_token`, `refresh_token`, `expires_at`, `scopes`. For `api_key`: a single `value`. For `external_sign_in_command`: usually nothing in Vault — the agent stores its own token, integration-hub stores only metadata.
+Each identity holds the auth-pattern-specific fields. For OAuth: `access-token`, `refresh-token`, `expires-at`, `scopes`. For `api_key`: a single `value`. For `external_sign_in_command`: usually no credential-authority value — the agent stores its own token, and integration-hub stores only metadata.
 
-This sits parallel to:
-
-- `literal:secret/vrooli/<resource_name>` — paste-string secrets attached to a resource (existing).
-- `literal:secret/vrooli/scratch/<name>` — *not used*; scratch credentials live as unbound connections instead. See [unbound connections](#unbound-connections-the-scratch-case) below.
+Connector-level client secrets use identity `vrooli/integrations/connectors/<connector_id>`. Unbound connections use the same identity scheme; there is no separate scratch namespace.
 
 ## Bound vs unbound
 
@@ -73,10 +68,10 @@ When the operator wants to test a third-party API before any scenario uses it, t
 Worked example: testing fal.ai for AI-UGC video generation.
 
 1. Operator creates a `fal-api` connection in integration-hub: `connection_id: fal-scratch-2026-04-29`, `bound_to: null`.
-2. Operator pastes the API key; it lives at `literal:secret/vrooli/integrations/fal-api/fal-scratch-2026-04-29`.
+2. Operator pastes the API key; it lives under the authority identity `vrooli/integrations/fal-api/fal-scratch-2026-04-29`.
 3. Operator runs ad-hoc test scripts that read this connection.
 4. Once a video-studio scenario ships and declares `integrations: [{ connector: "fal-api", scopes: [...], required: true }]`, the operator binds the existing connection: `integration-hub bind fal-scratch-2026-04-29 --to video-studio`.
-5. The connection metadata gains `bound_to: ["video-studio"]`. Vault path doesn't move; no key rotation needed.
+5. The connection metadata gains `bound_to: ["video-studio"]`. The authority identity does not move; no key rotation is needed.
 
 This is the entire scratch-keys story. There is no separate scratch namespace, no "loose secrets" file. Unbound connections are the canonical home.
 
@@ -91,7 +86,7 @@ The flow when a new scenario is enabled:
 5. The choice is written to `operator-state.json#/integrations.<scenario>.<connector>`.
 6. Scenario reads its bindings at runtime via integration-hub's CLI: `integration-hub get --scenario swarm-manager --connector github-oauth`.
 
-Scenarios never touch Vault directly. The integration-hub CLI is the only seam.
+Scenarios never touch the authority store directly. The integration-hub CLI is the only seam.
 
 ## Lifecycle operations
 
@@ -119,7 +114,7 @@ integration-hub bind tiktok-amy --to marketing-crew --context persona-amy
 # Unbind — detach without deleting the connection.
 integration-hub unbind fal-scratch-2026-04-29 --from video-studio
 
-# Revoke — call provider's revoke endpoint and delete from Vault.
+# Revoke — call provider's revoke endpoint and delete from the credential authority.
 integration-hub revoke github-default
 ```
 
@@ -140,7 +135,7 @@ The wizard never invents connections silently — the operator picks or creates 
 
 Integration-hub probes connections on a schedule (per-connector cadence; OAuth tokens with short lives get probed more often). Probe results update the connection's `status`. The wizard's validation step in onboarding shows current status; if a connection is `needs_refresh` or `revoked`, the wizard surfaces an actionable error rather than masking it.
 
-Rotation is operator-initiated for `api_key` and `app_password` patterns (the operator generates a new key, pastes it, integration-hub updates Vault and probes). For OAuth patterns, refresh is automatic via the connector's handler; revoke + reauth is operator-initiated.
+Rotation is operator-initiated for `api_key` and `app_password` patterns (the operator generates a new key, pastes it, integration-hub updates the credential authority and probes). For OAuth patterns, refresh is automatic via the connector's handler; revoke + reauth is operator-initiated.
 
 ## Why this layer exists separately
 
@@ -161,7 +156,7 @@ The `integration-hub` scenario doesn't exist yet. Building it is a non-trivial c
   the control-plane credential authority. See [`../secrets.md`](../secrets.md).
 - Loose / scratch keys for ad-hoc testing have no integration binding surface
   until integration-hub ships; delay that setup rather than inventing an
-  unmanaged Vault path.
+  unmanaged file, environment variable, or provider-specific secret path.
 
 When integration-hub ships, scratch keys created during the gap migrate by being recreated as unbound connections. There is no automatic migration path; operator runs `integration-hub create` once per scratch key.
 

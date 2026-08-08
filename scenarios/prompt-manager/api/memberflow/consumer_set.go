@@ -1,14 +1,14 @@
 // consumerSet is the single place in memberflow that knows what counts as
 // "a consumer" of a topic prefix. The orphan_output rule (and, post-Phase
 // 1.6, any other rule that needs to ask "does anyone read this prefix?")
-// delegates the decision here.
+// delegates the consumer policy here.
 //
 // Three-pillar design context (see docs/agent-system/PRIMITIVES.md):
 // Pillar 1 (declared graph) is the validator-visible view of who reads /
 // writes what. The set aggregates every read-side declaration on every
 // member's topics.json: `intake[]` (drain), `required_read[]`
-// (heartbeat-prompt context), and `evidence_consumed[]` (decision
-// rationale). Holding this aggregation in one type is the whole point —
+// (heartbeat-prompt context), and `evidence_consumed[]` (work-item
+// evidence). Holding this aggregation in one type is the whole point —
 // future consumer kinds become a one-line addition to buildConsumerSet
 // rather than a scatter of conditionals across rule functions.
 //
@@ -47,8 +47,8 @@ const (
 
 	// consumerSourceEvidence — the prefix appears on a member's
 	// `evidence_consumed[]`. The member cites entries from this prefix
-	// when authoring or contributing to specific decisions; the
-	// for_decisions[] list on the entry names which decisions consume
+	// when authoring or contributing to specific work items; the
+	// for_work_items[] list on the entry names which work items consume
 	// it.
 	consumerSourceEvidence consumerSource = "evidence_consumed"
 )
@@ -76,7 +76,7 @@ type consumerSet struct {
 // topics.json declarations and returns the populated set. The aggregation
 // covers every read-side declaration kind: intake[] (drain),
 // required_read[] (heartbeat-prompt context), and evidence_consumed[]
-// (decision-rationale evidence).
+// (work-item evidence).
 //
 // Members are visited in input order; within a member, entries are
 // appended in this order — intake → required_read → evidence_consumed —

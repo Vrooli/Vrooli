@@ -16,7 +16,7 @@ assets/
 ## Discipline
 
 - **Single source of truth.** A logo, a voice sample, a UI screenshot lives once in this folder and is referenced from every JSON that needs it. Updates land here; the JSONs continue pointing at the same path.
-- **No transient assets.** Per-render outputs (one-off generated images, intermediate compositing files) do **not** live here. Per-render outputs live alongside their `render_provenance.output_uri` (typically in a publish-log-tied storage path or a campaign-specific folder).
+- **No transient assets.** Per-render outputs (one-off generated images, intermediate compositing files) do **not** live here. Per-render outputs live alongside their `render_provenance.output_uri` (typically in a content-history storage path or a campaign-specific folder).
 - **Versioning is by filename.** When a logo or screenshot supersedes a prior version, prefix with the date (e.g., `logo-2026-04-28.svg`) and update references. Do not silently overwrite — referenced JSONs must keep working.
 - **Future home.** When the `brand-manager` or `rich-media-studio` scenario ships, this folder is replaced by structured asset storage with versioning and per-asset metadata. Until then, this is the operator-curated stand-in.
 

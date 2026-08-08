@@ -57,12 +57,11 @@ All seven entries below pair with skills that already exist; this registry was a
 
 New techniques enter the registry via a `meta-self-improvement` decision filed on `meta-optimization`. The decision must include:
 
-1. **Why a new technique?** What audit pattern recurred in `quality-audit/<scenario-id>/<skill-id>` knowledge entries (or in `challenge-report/*` from the qa-contrarian) that doesn't fit any registered lens.
 2. **Strategic-canon doc draft.** A `<slug>.md` for this folder following the structure of the existing entries: definition, when-applies, when-backfires, qa-contrarian failure modes, paired-skill citation.
 3. **Skill draft.** A `scenarios/prompt-manager/store/skills/packs/core/<slug>/{skill.json,SKILL.md}` with `tags: ["audit-technique"]` and required-reading citing the PoR doc.
 4. **Activation step.** Update `quality-auditor/RESPONSIBILITIES.md` Available Skills table AND add the slug to `team.json`'s `skillRotation` array.
 
-Future candidates the audit log will surface: `performance-audit`, `security-audit`, `deprecation-audit`, `accessibility-audit`, `observability-audit`. Each enters via the same decision flow.
+Future candidates the audit log will surface: `performance-audit`, `security-audit`, `deprecation-audit`, `accessibility-audit`, `observability-audit`. Each enters via the same work flow.
 
 ## Cross-references
 

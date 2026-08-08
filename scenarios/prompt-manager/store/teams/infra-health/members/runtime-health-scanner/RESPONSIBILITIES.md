@@ -3,8 +3,9 @@
 ## Primary Duties
 - Inspect aggregate runtime health since the previous heartbeat.
 - Use the triage ladder to pick one signal worth deeper investigation.
-- Record durable runtime lessons and route operator-actionable findings through decisions.
+- Record durable runtime lessons and route operator-actionable findings through work items.
 - Name missing telemetry or CLI surfaces as capability or instrumentation gaps when they block the work.
+- Supervise Test Genie validation throughput through `test-genie runs cost --window 7d --json`. Read reliable duration composition, calibration freshness, cache-hit rate, audit/demotion evidence, and net measured saving as one signal; route persistent out-of-band cost or cache reliability as `runtime-health-finding` while leaving phase semantics and cache declarations to Test Genie.
 
 ## Judgment
 Prefer existing autoheal, system-monitor, scenario lifecycle, capacity, and investigation tooling. Fall back to logs or local data only when the ideal surface is missing, and make the missing surface explicit.
@@ -21,7 +22,11 @@ The capacity broker (`vrooli capacity`) arbitrates GPU/RAM/CPU claims. Infra-hea
 - `vrooli capacity reconcile --json` — UNCLAIMED / OVER_CLAIM rows are the error signal; the same owner unclaimed across 2+ heartbeats is out of band.
 - `vrooli capacity recommend --json` — granted reserve sustained above 2× observed peak is declared-usage drift.
 
-Route persistent mismatches as `runtime-health-finding` decisions.
+Route persistent mismatches as `runtime-health-finding` work items.
+
+## Validation-Cost Supervision
+
+The Test Genie phase cache is an optimization, not an authority shortcut. A cache hit counts only when the provider declaration, scoped digest, build identity, descriptor snapshot, and execution configuration all match. Read the cost report before decomposing a phase. Require a measured cost rationale for every capability-level subset, include sampled audit cost in net savings, and treat any demotion or filter-not-skip signal as a reliability finding rather than silently increasing the audit rate.
 
 ## Capability Supervision (Contract-Not-Roster)
 Capability owners (search-hub, test-genie, prompt-manager, meta-optimization-manager, …) run their own scan → validate → aggregate loops over self-declared members (operating-model rule 6). Supervise the machinery and the derived aggregate only:
@@ -44,7 +49,7 @@ Check durable autoheal incidents before falling back to raw logs or derived stat
 vrooli-autoheal incidents latest --json
 ```
 
-Use incidents as evidence for recommendations and decisions. If the autoheal scenario CLI is unavailable, fall back to:
+Use incidents as evidence for recommendations and work items. If the autoheal scenario CLI is unavailable, fall back to:
 
 ```bash
 vrooli scenario status vrooli-autoheal --json
@@ -57,6 +62,6 @@ When an open autoheal incident exposes a remediation candidate, treat it as the 
 
 - Confirm the incident applies to the current platform and hardware before proposing action. For example, NVIDIA/Linux package remedies are invalid unless the incident evidence shows an NVIDIA device or runtime on a Linux host with a compatible package manager.
 - Prefer autoheal-provided remediation plans, templates, expected post-checks, rollback/fallback notes, and confidence metadata over ad hoc shell commands.
-- If the remedy requires privileged host mutation, never run it automatically. Generate a readable one-off script artifact through autoheal, store it under the `api-core/storage` state path returned by autoheal, and route a decision asking whether the operator should run that exact artifact.
-- The decision must include the incident ID, artifact path, expected effect, safety guards, rollback or fallback path, and the autoheal command or status surface to use after the operator runs it.
+- If the remedy requires privileged host mutation, never run it automatically. Generate a readable one-off script artifact through autoheal, store it under the `api-core/storage` state path returned by autoheal, and route a work item asking whether the operator should run that exact artifact.
+- The work item must include the incident ID, artifact path, expected effect, safety guards, rollback or fallback path, and the autoheal command or status surface to use after the operator runs it.
 - If autoheal lacks the remediation candidate or evidence needed to generate the artifact safely, raise an instrumentation or incident-contract gap instead of inventing the missing contract from raw logs.

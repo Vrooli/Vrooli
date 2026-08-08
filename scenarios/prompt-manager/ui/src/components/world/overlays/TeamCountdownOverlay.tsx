@@ -12,7 +12,6 @@ interface TeamCountdownOverlayProps {
   position: [number, number, number]
   yOffset: number
   onClick: () => void
-  pendingDecisionCount?: number
 }
 
 let nowValue = Date.now()
@@ -60,7 +59,6 @@ export function TeamCountdownOverlay({
   position,
   yOffset,
   onClick,
-  pendingDecisionCount,
 }: TeamCountdownOverlayProps) {
   const now = useNowTick()
   const [showName, setShowName] = useState(false)
@@ -116,13 +114,6 @@ export function TeamCountdownOverlay({
         >
           {display}
         </span>
-
-        {/* Pending decision badge */}
-        {pendingDecisionCount != null && pendingDecisionCount > 0 && (
-          <span className="text-[10px] font-semibold bg-amber-500/20 text-amber-400 px-1.5 rounded-full">
-            {pendingDecisionCount}
-          </span>
-        )}
 
         {/* Team name on hover */}
         {showName && (

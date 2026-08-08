@@ -24,8 +24,8 @@ These get a third home: `strategies/`. Each strategy file is its own entity, sco
 
 Same as the rest of `path:docs/marketing/`: agents never write directly; operator-curated via approved decisions.
 
-- `ai-ugc-personas.md` — `brand-guideline-update` decision context.
-- `hook-library.md` — `hook-candidate-promotion` decision context (producer proposes; operator approves).
+- `ai-ugc-personas.md` — `brand-guideline-update` work type.
+- `hook-library.md` — `hook-candidate-promotion` work type (producer proposes; operator approves).
 - `funnel-patterns.md` — `brand-guideline-update`.
 
 ## Cross-references

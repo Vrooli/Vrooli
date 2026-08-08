@@ -2,7 +2,7 @@
 
 Inspect the immutable goal snapshot and propose bounded missing work that advances the goal. Do not mutate the goal.
 
-## Outcome decision table
+## Outcome work table
 
 | Evidence | Outcome |
 | --- | --- |

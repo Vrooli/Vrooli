@@ -119,23 +119,7 @@ func TestServiceValidateCommandOwnership(t *testing.T) {
 func TestManifestResolverClassifiesPromptManagerSubcommands(t *testing.T) {
 	resolver := NewManifestCommandResolver("")
 
-	read, err := resolver.ResolveCommand(context.Background(), []string{"prompt-manager", "team", "decision-list", "meta-optimization", "--json"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if read.Certainty != CertaintyCommand || read.Effect != EffectRead || strings.Join(read.CommandPath, " ") != "team decision-list" {
-		t.Fatalf("unexpected decision-list resolution: %#v", read)
-	}
-
-	write, err := resolver.ResolveCommand(context.Background(), []string{"prompt-manager", "team", "decision-accept", "meta-optimization", "decision-1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if write.Certainty != CertaintyCommand || write.Effect != EffectWrite || strings.Join(write.CommandPath, " ") != "team decision-accept" {
-		t.Fatalf("unexpected decision-accept resolution: %#v", write)
-	}
-
-	destructive, err := resolver.ResolveCommand(context.Background(), []string{"prompt-manager", "action", "delete", "team.decisions.list"})
+	destructive, err := resolver.ResolveCommand(context.Background(), []string{"prompt-manager", "action", "delete", "team.knowledge.list"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,7 +402,7 @@ func TestServiceRunAppliesDefaultsRendersArgvAndAudits(t *testing.T) {
 	service := NewService(actionStore, runnableResolver())
 	service.runner = runner
 
-	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+	result, err := service.Run(context.Background(), "team.swarm.work.list", RunRequest{
 		Input: map[string]any{"identifier": "implementation-plan-authoring"},
 	})
 	if err != nil {
@@ -444,7 +428,7 @@ func TestServiceRunOmitsFlagForAbsentOptionalInput(t *testing.T) {
 	runner := &stubRunner{result: CommandRunResult{ExitCode: 0}}
 	service := NewService(actionStore, runnableResolver())
 	service.runner = runner
-	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{Input: map[string]any{"identifier": "https://example.com"}, DryRun: true})
+	result, err := service.Run(context.Background(), "team.swarm.work.list", RunRequest{Input: map[string]any{"identifier": "https://example.com"}, DryRun: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -465,7 +449,7 @@ func TestServiceRunRendersSnakeCasePlaceholder(t *testing.T) {
 	service := NewService(actionStore, runnableResolver())
 	service.runner = runner
 
-	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+	result, err := service.Run(context.Background(), "team.swarm.work.list", RunRequest{
 		Input:  map[string]any{"phase_or_provider": "cli-health", "scenario": "test-genie"},
 		DryRun: true,
 	})
@@ -487,7 +471,7 @@ func TestServiceRunRejectsInvalidInputBeforeExecution(t *testing.T) {
 	service := NewService(actionStore, runnableResolver())
 	service.runner = runner
 
-	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+	result, err := service.Run(context.Background(), "team.swarm.work.list", RunRequest{
 		Input: map[string]any{"identifier": "bad\nvalue"},
 	})
 	if err != nil {
@@ -514,7 +498,7 @@ func TestServiceRunEnforcesFileInputPermissionBeforeExecution(t *testing.T) {
 	service := NewService(actionStore, runnableResolver())
 	service.runner = runner
 
-	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+	result, err := service.Run(context.Background(), "team.swarm.work.list", RunRequest{
 		Input: map[string]any{"source": "docs/README.md"},
 	})
 	if err != nil {
@@ -536,7 +520,7 @@ func TestServiceRunEnforcesEligibilityAndRunSurface(t *testing.T) {
 	service := NewService(actionStore, runnableResolver())
 	service.runner = &stubRunner{result: CommandRunResult{ExitCode: 0}}
 
-	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+	result, err := service.Run(context.Background(), "team.swarm.work.list", RunRequest{
 		Input: map[string]any{"identifier": "implementation-plan-authoring"},
 	})
 	if err != nil {
@@ -556,7 +540,7 @@ func TestServiceRunEnforcesEligibilityAndRunSurface(t *testing.T) {
 		Message:     "ok",
 	}})
 	service.runner = &stubRunner{result: CommandRunResult{ExitCode: 0}}
-	result, err = service.Run(context.Background(), "team.decisions.list", RunRequest{
+	result, err = service.Run(context.Background(), "team.swarm.work.list", RunRequest{
 		Input: map[string]any{"identifier": "implementation-plan-authoring"},
 	})
 	if err != nil {
@@ -574,7 +558,7 @@ func TestServiceRunThrottlesBeforeStartingProcess(t *testing.T) {
 	service.runSlots = make(chan struct{}, 1)
 	service.runSlots <- struct{}{}
 
-	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+	result, err := service.Run(context.Background(), "team.swarm.work.list", RunRequest{
 		Input: map[string]any{"identifier": "implementation-plan-authoring"},
 	})
 	if err != nil {
@@ -593,7 +577,7 @@ func TestServiceRunTimeoutCancellation(t *testing.T) {
 	service := NewService(actionStore, runnableResolver())
 	service.runner = blockingRunner{}
 
-	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+	result, err := service.Run(context.Background(), "team.swarm.work.list", RunRequest{
 		Input: map[string]any{"identifier": "implementation-plan-authoring"},
 	})
 	if err != nil {
@@ -616,7 +600,7 @@ func TestServiceRunParsesJSONOutputAndCapsAudit(t *testing.T) {
 		StdoutTruncated: true,
 	}}
 
-	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+	result, err := service.Run(context.Background(), "team.swarm.work.list", RunRequest{
 		Input: map[string]any{"identifier": "implementation-plan-authoring"},
 	})
 	if err != nil {
@@ -672,8 +656,8 @@ func (blockingRunner) Run(ctx context.Context, argv []string, workDir string, ou
 func validAction(mutate func(*store.Action)) *store.Action {
 	action := &store.Action{
 		BaseEntity: store.BaseEntity{Kind: store.KindAction, SchemaVersion: store.CurrentSchemaVersion},
-		ID:         "team.decisions.list",
-		Name:       "List Team Decisions",
+		ID:         "team.swarm.work.list",
+		Name:       "List Team Work",
 		Status:     store.StatusActive,
 		Owner:      store.ActionOwner{Type: "scenario", ID: "prompt-manager"},
 		Command:    store.ActionCommand{Argv: []string{"prompt-manager", "skill", "read", "{{identifier}}"}},

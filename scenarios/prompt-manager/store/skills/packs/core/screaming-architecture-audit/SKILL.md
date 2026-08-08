@@ -149,7 +149,7 @@ Choose the shape by behavior, not by folder uniformity. First choose a primary a
 | Integration / client | External service or another scenario is wrapped | client seam, retry/idempotency, webhook handler, contract tests |
 | Orchestration | Multiple domains/resources must be coordinated | planner/orchestrator, policy seams, checkpoints, progress state |
 | Reporting / query | Read-heavy aggregation, dashboards, exports | query repository, views, report DTOs, cached summaries |
-| Policy / rules | Decision logic is the core capability | pure rule functions, decision tables, table tests |
+| Policy / rules | Decision logic is the core capability | pure rule functions, work tables, table tests |
 | Configuration / settings | User/operator-configurable behavior | defaults, validation, versioned shape, migration path |
 
 Decision rule:

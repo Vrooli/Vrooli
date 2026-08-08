@@ -3,7 +3,7 @@
 ## Tool Access
 - `prompt-manager skill read <skill-id>`
 - `prompt-manager team member-context monetization market-validator`
-- `prompt-manager team decision-list monetization ...`
+- `swarm-manager backlog list monetization ...`
 - `prompt-manager team knowledge-list monetization ...`
 - Browser or web fetch for external sources when available.
 

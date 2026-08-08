@@ -46,6 +46,6 @@ On promotion to `active`, this line must have all four:
 
 ## Notes
 
-- The Facebook-Marketplace-bidding-tactics bookmark that surfaced this revenue line at vision walk #4 (2026-04-27 chore-audit) is captured as an operational-reference inline in monetization team knowledge entry `literal:flipping-revenue-line-seed/marketplace-bidding-reference` — see `scenarios/prompt-manager/store/teams/monetization/shared/knowledge.jsonl`. When the marketplace-negotiation-assistant scenario gets built, that bookmark is the seed reference for prompt patterns.
+- The Facebook-Marketplace-bidding-tactics bookmark that surfaced this revenue line at vision walk #4 (2026-04-27 chore-audit) is captured as an operational-reference entry in the monetization team's source-ledger scope under `literal:flipping-revenue-line-seed/marketplace-bidding-reference`. When the marketplace-negotiation-assistant scenario gets built, that bookmark is the seed reference for prompt patterns.
 - Cross-reference: vision walk #4 third-divergence checkpoint at `scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/last-handoff.md` for full context on how this revenue line was surfaced.
 - Cross-reference: `path:scenarios/signal-inbox/` rework initiative (`bookmark-intelligence-hub-rework-and-ideation`) — once that ships, bookmarks like the source one will surface through the ideation pipeline rather than requiring vision-walk-divergence to capture.

@@ -51,7 +51,7 @@ Emit a single structured report:
 - `summary`: two to four sentences on how aligned the runners were and where the
   sharpest divergence sits.
 - `findings`: one entry per material divergence, each with `severity`,
-  `dimension` (which decision-list field diverged), `skill_sentence` (the exact
+  `dimension` (which work-list field diverged), `skill_sentence` (the exact
   quoted sentence that permitted both readings), `divergent_readings` (two or
   more short descriptions of what each runner did), and `explanation` (why this
   is material and what the skill would need to say to converge).

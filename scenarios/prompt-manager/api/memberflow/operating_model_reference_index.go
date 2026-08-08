@@ -6,7 +6,6 @@ type OperatingModelReferenceKind string
 
 const (
 	OperatingModelReferenceKindTopic    OperatingModelReferenceKind = "topic"
-	OperatingModelReferenceKindDecision OperatingModelReferenceKind = "decision"
 	OperatingModelReferenceKindMember   OperatingModelReferenceKind = "member"
 	OperatingModelReferenceKindTeam     OperatingModelReferenceKind = "team"
 	OperatingModelReferenceKindExternal OperatingModelReferenceKind = "external"
@@ -201,9 +200,6 @@ func (idx OperatingModelReferenceIndex) feedbackReferenceBacked(ref string) bool
 	if idx.topicCatalogHasTopic(normalized) {
 		return true
 	}
-	if idx.decisionCatalogHasDecision(normalized) {
-		return true
-	}
 	if idx.feedbackExternalInputBacked(ref, normalized) {
 		return true
 	}
@@ -220,7 +216,7 @@ func (idx OperatingModelReferenceIndex) feedbackGraphNodeBacked(raw, normalized 
 				continue
 			}
 			switch node.Kind {
-			case OperatingGraphNodeKindTopic, OperatingGraphNodeKindDecision, OperatingGraphNodeKindMember, OperatingGraphNodeKindTeam, OperatingGraphNodeKindPOR, OperatingGraphNodeKindExternal:
+			case OperatingGraphNodeKindTopic, OperatingGraphNodeKindMember, OperatingGraphNodeKindTeam, OperatingGraphNodeKindPOR, OperatingGraphNodeKindExternal:
 				return true
 			}
 		}
@@ -343,7 +339,7 @@ func (idx OperatingModelReferenceIndex) entrySurfaceBacked(raw string, surfaces 
 
 func (idx OperatingModelReferenceIndex) outputSurfaceBacked(raw string, surfaces []operatingSurfaceReference) bool {
 	if len(surfaces) == 0 {
-		return idx.surfaceTextMentionsBackedDecision(raw) || idx.surfaceTextMentionsBackedPath(raw)
+		return idx.surfaceTextMentionsBackedPath(raw)
 	}
 	for _, surface := range surfaces {
 		if operatingSurfaceReferenceIsTargetState(surface) {
@@ -360,7 +356,7 @@ func (idx OperatingModelReferenceIndex) externalInputDrainerBacked(producers []O
 	if len(drainers) == 0 {
 		return false
 	}
-	if strings.Contains(strings.ToLower(raw), "decision owner") && idx.surfacesContainBackedTopicOrDecision(surfaces) {
+	if strings.Contains(strings.ToLower(raw), "work owner") && idx.surfacesContainBackedTopic(surfaces) {
 		return true
 	}
 	for _, drainer := range drainers {
@@ -410,7 +406,7 @@ func (idx OperatingModelReferenceIndex) outputConsumerBacked(surfaces []operatin
 			}
 		}
 	}
-	return strings.Contains(strings.ToLower(raw), "decision owner") && idx.surfacesContainBackedDecision(surfaces)
+	return strings.Contains(strings.ToLower(raw), "work owner") && idx.surfacesContainBackedTopic(surfaces)
 }
 
 func (idx OperatingModelReferenceIndex) memberDrainerBacked(producers []OperatingActorReference, surfaces []operatingSurfaceReference, member string) bool {
@@ -430,12 +426,6 @@ func (idx OperatingModelReferenceIndex) memberSurfaceConsumerBacked(surfaces []o
 		case OperatingGraphNodeKindTopic:
 			if idx.graphHasRelationship(func(rel OperatingRelationship) bool {
 				return rel.Kind == operatingRelTopicRead && rel.Member == member && topicsOverlap(rel.Topic, surface.Value)
-			}) {
-				return true
-			}
-		case OperatingGraphNodeKindDecision:
-			if idx.graphHasRelationship(func(rel OperatingRelationship) bool {
-				return (rel.Kind == operatingRelDecisionConsumed || rel.Kind == operatingRelDecisionOwned || rel.Kind == operatingRelCapabilityGapRaised) && rel.Member == member && operatingDecisionRefsOverlap(rel.Decision, surface.Value)
 			}) {
 				return true
 			}
@@ -466,9 +456,6 @@ func (idx OperatingModelReferenceIndex) surfaceReferenceBacked(ref operatingSurf
 	case OperatingGraphNodeKindTopic:
 		return idx.graphHasNode(OperatingGraphNodeKindTopic, ref.Value) &&
 			idx.topicCatalogHasTopic(ref.Value)
-	case OperatingGraphNodeKindDecision:
-		return idx.graphHasNode(OperatingGraphNodeKindDecision, ref.Value) &&
-			idx.decisionCatalogHasDecision(ref.Value)
 	case OperatingGraphNodeKindPOR:
 		return idx.graphHasNode(OperatingGraphNodeKindPOR, ref.Value)
 	case OperatingGraphNodeKindMember, OperatingGraphNodeKindTeam, OperatingGraphNodeKindExternal:
@@ -476,19 +463,6 @@ func (idx OperatingModelReferenceIndex) surfaceReferenceBacked(ref operatingSurf
 	default:
 		return false
 	}
-}
-
-func (idx OperatingModelReferenceIndex) surfaceTextMentionsBackedDecision(raw string) bool {
-	normalized := strings.ToLower(raw)
-	if !strings.Contains(normalized, "decision") {
-		return false
-	}
-	for _, row := range idx.Model.Sections.Decisions.Rows {
-		if row.Decision != "" && strings.Contains(normalized, strings.ToLower(row.Decision)) {
-			return true
-		}
-	}
-	return false
 }
 
 func (idx OperatingModelReferenceIndex) surfaceTextMentionsBackedPath(raw string) bool {
@@ -502,22 +476,10 @@ func (idx OperatingModelReferenceIndex) surfaceTextMentionsBackedPath(raw string
 	return false
 }
 
-func (idx OperatingModelReferenceIndex) surfacesContainBackedDecision(surfaces []operatingSurfaceReference) bool {
+func (idx OperatingModelReferenceIndex) surfacesContainBackedTopic(surfaces []operatingSurfaceReference) bool {
 	for _, surface := range surfaces {
-		if surface.Kind == OperatingGraphNodeKindDecision && idx.surfaceReferenceBacked(surface) {
+		if surface.Kind == OperatingGraphNodeKindTopic && idx.surfaceReferenceBacked(surface) {
 			return true
-		}
-	}
-	return false
-}
-
-func (idx OperatingModelReferenceIndex) surfacesContainBackedTopicOrDecision(surfaces []operatingSurfaceReference) bool {
-	for _, surface := range surfaces {
-		switch surface.Kind {
-		case OperatingGraphNodeKindTopic, OperatingGraphNodeKindDecision:
-			if idx.surfaceReferenceBacked(surface) {
-				return true
-			}
 		}
 	}
 	return false
@@ -569,15 +531,6 @@ func (idx OperatingModelReferenceIndex) topicCatalogHasTopic(topic string) bool 
 	return false
 }
 
-func (idx OperatingModelReferenceIndex) decisionCatalogHasDecision(decision string) bool {
-	for _, row := range idx.Model.Sections.Decisions.Rows {
-		if operatingDecisionRefsOverlap(row.Decision, decision) {
-			return true
-		}
-	}
-	return false
-}
-
 func (idx OperatingModelReferenceIndex) collectReferences() []OperatingModelReference {
 	var refs []OperatingModelReference
 	seen := map[string]bool{}
@@ -596,12 +549,6 @@ func (idx OperatingModelReferenceIndex) collectReferences() []OperatingModelRefe
 		add(OperatingModelReference{Kind: OperatingModelReferenceKindTopic, Qualifier: OperatingGraphQualifier(row.Qualifier), Value: row.Topic, Raw: row.RawTopic, Line: row.SourceLine, Surface: "topic_catalog"})
 		for _, actor := range append(append([]OperatingActorReference{}, row.Writers...), row.Readers...) {
 			add(operatingModelReferenceFromActor(actor, row.SourceLine, "topic_catalog"))
-		}
-	}
-	for _, row := range idx.Model.Sections.Decisions.Rows {
-		add(OperatingModelReference{Kind: OperatingModelReferenceKindDecision, Value: row.Decision, Raw: row.RawDecision, Line: row.SourceLine, Surface: "decisions"})
-		for _, actor := range row.Owners {
-			add(operatingModelReferenceFromActor(actor, row.SourceLine, "decisions"))
 		}
 	}
 	for _, row := range idx.Model.Sections.ExternalInputs.Rows {
@@ -664,7 +611,7 @@ func operatingModelReferenceFromToken(token string, line int, surface string) Op
 	case strings.Contains(token, "/") || strings.Contains(token, "*"):
 		return OperatingModelReference{Kind: OperatingModelReferenceKindTopic, Value: strings.TrimPrefix(token, "topic:"), Raw: raw, Line: line, Surface: surface}
 	default:
-		return OperatingModelReference{Kind: OperatingModelReferenceKindDecision, Value: token, Raw: raw, Line: line, Surface: surface}
+		return OperatingModelReference{Raw: raw, Line: line, Surface: surface}
 	}
 }
 
@@ -698,8 +645,6 @@ func operatingModelReferenceKindFromGraphNode(kind OperatingGraphNodeKind) Opera
 	switch kind {
 	case OperatingGraphNodeKindTopic:
 		return OperatingModelReferenceKindTopic
-	case OperatingGraphNodeKindDecision:
-		return OperatingModelReferenceKindDecision
 	case OperatingGraphNodeKindMember:
 		return OperatingModelReferenceKindMember
 	case OperatingGraphNodeKindTeam:
@@ -764,8 +709,8 @@ func operatingSurfaceLooseTokens(raw string) []string {
 		token := strings.TrimSpace(part)
 		token = strings.TrimSuffix(token, " topics")
 		token = strings.TrimSuffix(token, " topic")
-		token = strings.TrimSuffix(token, " decisions")
-		token = strings.TrimSuffix(token, " decision")
+		token = strings.TrimSuffix(token, " work items")
+		token = strings.TrimSuffix(token, " work item")
 		if token != "" {
 			out = append(out, token)
 		}
@@ -781,8 +726,6 @@ func operatingSurfaceReferenceFromToken(token, context string) operatingSurfaceR
 	switch {
 	case strings.HasPrefix(token, "docs/"):
 		return operatingSurfaceReference{Kind: OperatingGraphNodeKindPOR, Value: token}
-	case strings.Contains(strings.ToLower(context), "decision") && !strings.Contains(token, "/"):
-		return operatingSurfaceReference{Kind: OperatingGraphNodeKindDecision, Value: token}
 	case strings.Contains(token, "/") || strings.Contains(token, "*"):
 		return operatingSurfaceReference{Kind: OperatingGraphNodeKindTopic, Value: strings.TrimPrefix(token, "topic:")}
 	default:
@@ -803,24 +746,6 @@ func operatingModelRowIsTargetState(parts ...string) bool {
 		strings.Contains(normalized, "until ")
 }
 
-func operatingDecisionRefsOverlap(a, b string) bool {
-	a = strings.TrimSpace(a)
-	b = strings.TrimSpace(b)
-	if a == "" || b == "" {
-		return false
-	}
-	if a == b {
-		return true
-	}
-	if strings.HasSuffix(a, "*") && strings.HasPrefix(b, strings.TrimSuffix(a, "*")) {
-		return true
-	}
-	if strings.HasSuffix(b, "*") && strings.HasPrefix(a, strings.TrimSuffix(b, "*")) {
-		return true
-	}
-	return false
-}
-
 func operatingModelSurfaceValuesOverlap(a, b string) bool {
 	if a == b {
 		return true
@@ -828,7 +753,7 @@ func operatingModelSurfaceValuesOverlap(a, b string) bool {
 	if strings.Contains(a, "/") || strings.Contains(b, "/") {
 		return topicsOverlap(a, b)
 	}
-	return operatingDecisionRefsOverlap(a, b)
+	return strings.TrimSpace(a) != "" && strings.TrimSpace(a) == strings.TrimSpace(b)
 }
 
 func operatingOutputConsumerTextIsDownstream(raw string) bool {

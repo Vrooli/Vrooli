@@ -75,24 +75,6 @@ func TestOperatingRelationshipRegistryMapsSupportedGraphEdges(t *testing.T) {
 			want: operatingRelPOROutput,
 		},
 		{
-			name: "decision owned",
-			from: OperatingGraphNode{Kind: OperatingGraphNodeKindMember, Value: "researcher"},
-			to:   OperatingGraphNode{Kind: OperatingGraphNodeKindDecision, Value: "audience-update"},
-			want: operatingRelDecisionOwned,
-		},
-		{
-			name: "decision consumed",
-			from: OperatingGraphNode{Kind: OperatingGraphNodeKindDecision, Value: "audience-update"},
-			to:   OperatingGraphNode{Kind: OperatingGraphNodeKindMember, Value: "marketing-contrarian"},
-			want: operatingRelDecisionConsumed,
-		},
-		{
-			name: "capability gap raised",
-			from: OperatingGraphNode{Kind: OperatingGraphNodeKindMember, Value: "researcher"},
-			to:   OperatingGraphNode{Kind: OperatingGraphNodeKindDecision, Value: "capability-gap"},
-			want: operatingRelCapabilityGapRaised,
-		},
-		{
 			name: "external producer",
 			from: OperatingGraphNode{Kind: OperatingGraphNodeKindExternal, Value: "operator"},
 			to:   OperatingGraphNode{Kind: OperatingGraphNodeKindMember, Value: "researcher"},
@@ -137,12 +119,6 @@ func TestOperatingRelationshipRegistryMatchesRuntimeKinds(t *testing.T) {
 		if !registry.Match(read, runtime) {
 			t.Fatalf("topic read should match runtime kind %q", runtimeKind)
 		}
-	}
-
-	decisionRead := OperatingRelationship{Kind: operatingRelDecisionConsumed, Team: "team-a", Member: "contrarian", Decision: "audience-update"}
-	evidence := OperatingRelationship{Kind: operatingRelTopicEvidenceConsumed, Team: "team-a", Member: "contrarian", Topic: "audience-scan/*", Decision: "audience-update"}
-	if !registry.Match(decisionRead, evidence) {
-		t.Fatalf("decision consumption should be satisfiable by evidence consumed for the decision")
 	}
 
 	graphExternalTopic := OperatingRelationship{Kind: operatingRelExternalProducerIntake, Team: "team-a", External: "operator", Topic: "research-inbox/*"}

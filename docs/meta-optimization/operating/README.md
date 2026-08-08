@@ -6,7 +6,7 @@ This folder contains the enforceable operating contract for the `meta-optimizati
 
 | Document | Purpose |
 |---|---|
-| [`OPERATING_MODEL.md`](OPERATING_MODEL.md) | Team-level operating graph, topic catalog, decision catalog, external inputs, downstream outputs, feedback loop, implementation gaps, and adoption commands. |
+| [`OPERATING_MODEL.md`](OPERATING_MODEL.md) | Team-level operating graph, topic catalog, work catalog, external inputs, downstream outputs, feedback loop, implementation gaps, and adoption commands. |
 
 ## Validation
 

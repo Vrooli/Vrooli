@@ -43,14 +43,6 @@
       "destination_kind": "knowledge"
     }
   ],
-  "decisions_owned": [
-    "campaign-launch-proposal",
-    "brand-guideline-update",
-    "channel-update"
-  ],
-  "decisions_consumed": [
-    "capability-gap"
-  ],
   "external_producers": [
     "operator",
     "vision-walk"

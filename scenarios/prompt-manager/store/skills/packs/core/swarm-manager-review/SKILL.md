@@ -103,39 +103,31 @@ Decision rules:
 | `cleared` non-empty matching plan goal | Positive evidence the work succeeded. |
 | `comparable` = `false` | State that regression attribution was unavailable for this scenario; reason from GCT/absolute results instead. |
 
-### Step 3: Determine Evidence Type Per Scenario
+### Step 3: Settle Each Claim Through a Discovered Producer
 
-Use this decision tree for each affected scenario:
+The acceptance criterion fixes the claim. Select the producer at run time;
+never prescribe a product or invent a bespoke capture script.
 
-```
-What kind of changes were made?
-│
-├─ UI routes/pages affected?
-│  └─ YES → Screenshot evidence + workflow recording (if routes are testable)
-│     - Use browser-automation-studio CLI to capture screenshots
-│     - Capture key routes that were changed
-│     - If before-state is available, include for comparison
-│
-├─ API endpoints affected?
-│  └─ YES → Functional evidence (api_test type)
-│     - Make actual HTTP requests to the endpoints
-│     - Capture request/response pairs
-│     - Test both success and error cases from the spec
-│
-├─ CLI commands affected?
-│  └─ YES → CLI output evidence (cli_output type)
-│     - Run the affected CLI commands
-│     - Capture stdout/stderr
-│     - Verify output matches expected behavior
-│
-├─ Config/data files only?
-│  └─ YES → Config diff evidence (config_diff type)
-│     - Show before/after of config changes
-│     - Verify config is syntactically valid
-│
-└─ None of the above / mixed?
-   └─ Custom evidence with descriptive text
-```
+| Criterion claim class | Evidence artifact class | Discovery query |
+|---|---|---|
+| Visual UI behavior | screenshot or workflow recording | `prompt-manager discover "capture visual evidence for <claim>" --type all` |
+| Transactional behavior | API request/response or structured test result | `prompt-manager discover "verify API behavior for <claim>" --type all` |
+| Textual command behavior | CLI output or structured test result | `prompt-manager discover "verify CLI behavior for <claim>" --type all` |
+| Structural/configuration behavior | config diff, command output, or structured test result | `prompt-manager discover "verify configuration for <claim>" --type all` |
+
+Before capture, query `search-hub` for a comparable historical claim. If
+discovery returns a scenario but not an exact command, use `cli-health` to
+locate its supported command surface. A producer must be a registered
+prompt-manager action. Record its action name in `producer` on the evidence
+item so later rounds remain comparable even when the available producer varies.
+
+When no registered action can settle a claim, emit an evidence item with
+`settlement: "unavailable"`, the attempted action(s) in
+`attempted_producer`, and a specific `unavailable_reason`. Keep `producer`
+as the evidence producer identity. Add an improvement suggestion proposing the
+missing registered producer. Do not replace the gap with free-form `custom`
+prose, and do not mark it refuted merely because capture infrastructure is
+absent.
 
 ### Step 4: Gather Evidence
 
@@ -158,7 +150,7 @@ For each piece of one-off evidence you gathered, consider whether a permanent au
 
 | Evidence You Gathered | Suggested Improvement |
 |----------------------|----------------------|
-| Ad-hoc screenshot of a UI route | Add route to browser-automation-studio capture config so GCT's visual dimension covers it |
+| Ad-hoc visual capture of a UI route | Register a reusable visual-capture action so GCT's visual dimension can cover it |
 | Manual API endpoint test | Add endpoint to scenario's test suite so GCT's tests dimension covers it |
 | CLI command verification | Add to scenario health check or smoke test |
 | Tests pass but don't cover changed code | Suggest specific test file/function additions |
@@ -237,13 +229,26 @@ Write the review round to the backlog item's `review/round-{{ ROUND_NUMBER }}.js
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | string | Yes | Unique ID within the round (e.g., "e1", "e2") |
+| `criterion_id` | string | Yes | Stable acceptance-criterion id this item settles; empty only when it settles no criterion |
+| `settlement` | string | Yes | `settled`, `refuted`, or `unavailable` |
 | `type` | string | Yes | One of: screenshot, api_test, cli_output, config_diff, workflow_recording, custom |
+| `producer` | string | Yes | Registered action that produced this artifact or was attempted |
+| `trust` | string | Yes | `reported` for agent output; `observed` for Test Genie or GCT artifacts |
 | `title` | string | Yes | Short descriptive title |
 | `description` | string | Yes | What this evidence shows and why it matters |
 | `capture_path` | string | No | Relative path from review/ to binary artifact |
 | `verified` | bool | Yes | Always `false` when agent creates it (user verifies) |
 | `before_capture_path` | string | No | Path to before-state capture (when baseline exists) |
 | `test_results` | array | No | Structured test outcomes (for api_test, cli_output) |
+| `unavailable_reason` | string | Required when unavailable | Why the registered producer could not settle the claim |
+| `attempted_producer` | string | Required when unavailable | Registered action or producer that was attempted |
+
+### Criterion Verdicts
+
+Return one `criterion_verdicts` entry for every criterion assessed. Each entry
+has `criterion_id`, `settlement` (`settled`, `refuted`, or `unavailable`), and
+`evidence_ids`. The IDs must reference evidence from the same result. Do not
+replace this table with a prose verdict.
 
 ### Type-Specific Guidance
 
@@ -255,7 +260,7 @@ Write the review round to the backlog item's `review/round-{{ ROUND_NUMBER }}.js
 
 **config_diff**: Show the relevant before/after of config or data files. Can be stored as a text diff in captures/.
 
-**workflow_recording**: Use browser-automation-studio to record a multi-step workflow. Store as .webm in captures/.
+**workflow_recording**: Use a discovered registered recording action to capture a multi-step workflow. Store its descriptor or artifact path in captures/.
 
 **custom**: Free-form evidence with detailed description. Use when none of the above types fit.
 
@@ -291,15 +296,16 @@ Do NOT replace existing evidence — only add to it.
 - **Do NOT run the full test suite.** That's finalization's job. Only run targeted tests relevant to your evidence.
 - **Do NOT make the archive/follow-up decision.** Present evidence; the human decides.
 - **Do NOT fabricate evidence.** If you can't capture something, say so explicitly.
-- **Do NOT skip evidence because tools are unavailable.** Explain what you attempted and what alternative evidence you can provide instead.
+- **Do NOT skip evidence because tools are unavailable.** Emit a typed `unavailable` item with the producer attempted and a reason, then add an improvement suggestion.
 - Always set `verified: false` on new evidence items. Only the human reviewer can verify.
 
 ## Handling Tool Unavailability
 
-If browser-automation-studio is unavailable:
-- Note it in the agent_assessment
-- Fall back to CLI-based verification or API-based checks
-- Explain what visual evidence would have been captured if the tool were available
+If a producer is unavailable:
+- Keep the criterion claim unchanged.
+- Try another registered producer only when it can settle the same claim.
+- Otherwise emit `settlement: "unavailable"` with `producer` and `unavailable_reason` populated.
+- Add an improvement suggestion to register the missing producer; do not fabricate a substitute artifact.
 
 If a scenario is not running:
 - Note it in the agent_assessment

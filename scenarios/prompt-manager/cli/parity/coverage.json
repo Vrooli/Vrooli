@@ -27,10 +27,6 @@
     "cli": "team delete <id>",
     "status": "covered"
   },
-  "DELETE /teams/{id}/decisions/{decisionId}": {
-    "cli": "team decision-delete <id> <decisionId>",
-    "status": "covered"
-  },
   "DELETE /teams/{id}/handoff-history": {
     "reason": "No handoff-history-clear subcommand visible",
     "status": "audit-pending"
@@ -38,10 +34,6 @@
   "DELETE /teams/{id}/heartbeats/{agentId}": {
     "reason": "No heartbeat-delete subcommand visible (heartbeat-disable is not the same as delete)",
     "status": "audit-pending"
-  },
-  "DELETE /teams/{id}/knowledge/{knowledgeId}": {
-    "cli": "team knowledge-delete",
-    "status": "covered"
   },
   "DELETE /teams/{id}/members/{agentId}": {
     "cli": "team remove-member",
@@ -122,10 +114,6 @@
   "GET /config/discover-filters": {
     "reason": "discover dispatch has 'under'/'over' budget cases; verify whether these wrap config endpoints",
     "status": "audit-pending"
-  },
-  "GET /decisions/pending": {
-    "cli": "decisions-pending",
-    "status": "covered"
   },
   "GET /discovery-gaps": {
     "cli": "discovery-gaps",
@@ -339,10 +327,6 @@
     "cli": "team show <id>",
     "status": "covered"
   },
-  "GET /teams/{id}/decisions": {
-    "cli": "team decision-list <id>",
-    "status": "covered"
-  },
   "GET /teams/{id}/exclusive-members": {
     "reason": "No exclusive-members subcommand visible \u2014 may be UI-only",
     "status": "audit-pending"
@@ -382,10 +366,6 @@
   "GET /teams/{id}/heartbeats/{agentId}/logs/{logId}": {
     "reason": "No single-log show subcommand visible",
     "status": "audit-pending"
-  },
-  "GET /teams/{id}/knowledge": {
-    "cli": "team knowledge-list <id>",
-    "status": "covered"
   },
   "GET /teams/{id}/members/{agentId}/context": {
     "cli": "team member-context",
@@ -471,14 +451,6 @@
     "cli": "team bug-repair <team-id> <draft-id>",
     "status": "covered"
   },
-  "PATCH,PUT /teams/{id}/decisions/{decisionId}": {
-    "cli": "team decision-update / decision-accept / decision-reject",
-    "status": "covered"
-  },
-  "PATCH,PUT /teams/{id}/knowledge/{knowledgeId}": {
-    "cli": "team knowledge-update",
-    "status": "covered"
-  },
   "PATCH,PUT /teams/{id}/tasks/{taskId}": {
     "cli": "team task-update <id> <taskId>",
     "status": "covered"
@@ -540,7 +512,7 @@
     "status": "covered"
   },
   "POST /experiments/{eid}/promote": {
-    "cli": "experiment promote <eid> <decision-id>",
+    "cli": "experiment promote <eid> <work-item-ref>",
     "status": "covered"
   },
   "POST /experiments/{eid}/start": {
@@ -659,10 +631,6 @@
     "cli": "team bug-capture <team-id>",
     "status": "covered"
   },
-  "POST /teams/{id}/decisions": {
-    "cli": "team decision-add <id>",
-    "status": "covered"
-  },
   "POST /teams/{id}/heartbeats/control/pause": {
     "cli": "team heartbeat-control <id> pause",
     "status": "covered"
@@ -677,10 +645,6 @@
   },
   "POST /teams/{id}/heartbeats/{agentId}/trigger": {
     "cli": "team heartbeat-trigger",
-    "status": "covered"
-  },
-  "POST /teams/{id}/knowledge": {
-    "cli": "team knowledge-add <id>",
     "status": "covered"
   },
   "POST /teams/{id}/members": {

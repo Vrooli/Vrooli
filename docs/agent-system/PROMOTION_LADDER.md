@@ -1,6 +1,6 @@
 # Promotion Ladder
 
-Lifecycle of a piece of guidance from raw observation to retired prose. Cites `LAYERS.md` for where each layer lives, `INTAKE_PIPELINE.md` for how observations enter the system, and `DECISIONS.md` for the `action-candidate` graduation gate.
+Lifecycle of a piece of guidance from raw observation to retired prose. Cites `LAYERS.md` for where each layer lives, `INTAKE_PIPELINE.md` for how observations enter the system, and `SWARM_MANAGER_WORK.md` for the operator-dispositioned work gate.
 
 This is canon. Skills and team docs cite this file rather than restating the lifecycle.
 
@@ -26,8 +26,8 @@ flowchart LR
 
     P0 -->|patterns stabilize<br/>across many runs| P1
     P1 -->|most logic now<br/>in CLI / scenario| P2
-    P2 -->|one command owns it;<br/>create Action — free,<br/>no decision| P3
-    P3 -->|action-candidate<br/>decision accepted;<br/>prose retires| P4
+    P2 -->|one command owns it;<br/>create Action and file<br/>the bounded work| P3
+    P3 -->|operator dispositioned<br/>work item accepted;<br/>prose retires| P4
 
     P1 -.LLM still needed<br/>for inputs / synthesis.-> P1
     P2 -.partial automation<br/>steady state.-> P2
@@ -35,7 +35,7 @@ flowchart LR
 
 A skill that classifies fuzzy text (e.g., `signal-classifier`) will likely never reach step 3 — classification of nuanced human signals is an LLM job. That is fine; the ladder is not a glide path to retirement, it is a tool for recognizing which steps a given skill *can* take.
 
-For the operator-approval gate at step 3 → step 4 (the only step where prose actually retires), see §"Action graduation gate" in `DECISIONS.md`.
+For the operator-disposition gate at step 3 → step 4 (the only step where prose actually retires), see `SWARM_MANAGER_WORK.md`.
 
 ---
 
@@ -45,10 +45,10 @@ Every CLI-operational guidance follows the same path:
 
 1. **Interim prose guardrail.** Add minimal skill guidance when tools do not yet provide deterministic output contracts.
 2. **Promote to CLI/tool contract.** Implement pass/fail signals, next-step guidance, and structured failure hints in the tool itself.
-3. **Expose as an Action when execution is one command.** If one Vrooli-controlled CLI command owns the deterministic operation, create or update an Action so agents can discover and validate it without reading prose. **This step is free — no decision required** (creating/running an Action is structurally low-risk; see "Action-creation authorization" in `DECISIONS.md`).
-4. **Retire superseded prose.** Remove or collapse skill instructions now covered by tool output contracts or Action references. **This is the only gated step:** retiring the prose removes LLM oversight permanently, so it requires an accepted `action-candidate` decision (see "Action graduation gate" in `DECISIONS.md`).
+3. **Expose as an Action when execution is one command.** If one Vrooli-controlled CLI command owns the deterministic operation, create or update an Action so agents can discover and validate it without reading prose.
+4. **Retire superseded prose.** Remove or collapse skill instructions now covered by tool output contracts or Action references. Record the evidence and acceptance in the owning Swarm Manager work item.
 
-The ladder is one-way. Step 1 is the cheapest, most volatile rung; step 4 is permanent. Reverse moves (un-retiring prose because a CLI regressed, demoting an Action to a skill) happen, but only via decision; they are not the default direction.
+The ladder is one-way. Step 1 is the cheapest, most volatile rung; step 4 is permanent. Reverse moves (un-retiring prose because a CLI regressed, demoting an Action to a skill) happen through a new bounded work item; they are not the default direction.
 
 ---
 
@@ -56,7 +56,7 @@ The ladder is one-way. Step 1 is the cheapest, most volatile rung; step 4 is per
 
 A skill section is eligible for retirement when **all** of the following hold:
 
-- The CLI/tool returns a deterministic status for the workflow decision (`literal:pass/fail` or equivalent).
+- The CLI/tool returns a deterministic status for the workflow result (`literal:pass/fail` or equivalent).
 - The CLI/tool output contains actionable next steps for common failures.
 - The Action contract is discoverable and validated when the workflow is a single executable operation.
 - Keeping both the tool contract and the detailed skill prose would duplicate volatile operational logic.
@@ -71,7 +71,7 @@ Some guidance never moves down the ladder. Keep in skill prose:
 
 - **Safety constraints** (`must not`, irreversible operations, credential handling).
 - **Scope boundaries** (what the skill is for vs. what belongs in another skill).
-- **Ownership boundaries** (who files which decisions, who edits which surfaces).
+- **Ownership boundaries** (who files which work, who edits which surfaces).
 - **Human handoff rules** where automation is intentionally impossible.
 
 These are judgment, not execution. They live in skills permanently per `LAYERS.md`.
@@ -82,7 +82,7 @@ These are judgment, not execution. They live in skills permanently per `LAYERS.m
 
 A prose skill section is an Action conversion candidate if **all three** are true:
 
-1. **A Vrooli-controlled CLI command covers the behavior.** This may be a project CLI, resource CLI, prompt-manager CLI, or scenario CLI. If no controlled command exists, file `cli-backlog` or `capability-gap` instead of creating a partial Action.
+1. **A Vrooli-controlled CLI command covers the behavior.** This may be a project CLI, resource CLI, prompt-manager CLI, or scenario CLI. If no controlled command exists, file a Swarm Manager backlog item instead of creating a partial Action.
 2. **The behavior is deterministic.** Same input should produce the same operation and a clear success/failure state. If the work is judgment, synthesis, or taste, leave it in a Skill or Plan of Record.
 3. **Discoverable execution would reduce future cost.** The current prose causes meaningful token load, repeated manual command lookup, or repeated run friction.
 
@@ -92,7 +92,7 @@ If any is false, route through normal skill improvement, inbox routing, or backl
 
 ## Conversion procedure
 
-Step-by-step, executed by `skill-optimizer` or the owning member, with a `meta-self-improvement` decision filed at the end:
+Step-by-step, executed by `skill-optimizer` or the owning member, with a bounded Swarm Manager work item filed at the end:
 
 1. **Baseline the prose.** Count the relevant token/prose section, usage count, and current manual steps.
 2. **Identify the CLI owner.** Name the exact Vrooli-controlled command. Run `cli-health search "<operation>"` first — it indexes every scenario's `cli/manifest.json` (with a `--help` fallback) and returns ranked matches across all CLIs. Treat a hit there as the source of truth; only file a `cli-backlog` if the search finds nothing close. If the command needs branching logic, route that work to the owning CLI before creating an Action.
@@ -101,7 +101,7 @@ Step-by-step, executed by `skill-optimizer` or the owning member, with a `meta-s
 5. **Collapse or retire prose.** Keep judgment and safety boundaries in Skills (per the retention criteria). Replace deterministic command prose with an Action reference once the Action validates.
 6. **Validate.** Use `prompt-manager action validate <id>` and, when appropriate, `prompt-manager action run <id> --dry-run`.
 7. **Measure the delta.** Compare prose/token cost, repeated manual operation count, discovery hits, and Action run history after adoption.
-8. **File the decision.** Use `action-candidate`, `action-improvement`, or `action-deprecation` with baseline, expected delta, validation evidence, and measurement plan.
+8. **File the work item.** Include the baseline, expected delta, validation evidence, and measurement plan in the Swarm Manager item.
 
 ---
 
@@ -124,7 +124,7 @@ Skills and analyses that audit other skills (`skill-validation`, `skill-improvem
 
 Record the classification in a table named **`Prose Retirement Map`** with this exact column shape (every auditing skill uses the same name and shape; do not invent variants):
 
-| Instruction / Gate | Decision (Keep/Collapse/Delete) | Rationale | Prerequisite contract | Risk |
+| Instruction / Gate | Disposition (Keep/Collapse/Delete) | Rationale | Prerequisite contract | Risk |
 |---|---|---|---|---|
 
 `Prerequisite contract` names the CLI/tool/Action contract (or existing contract evidence) that a `Collapse`/`Delete` depends on; `Keep` rows cite the retention criterion that applies.

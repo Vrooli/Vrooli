@@ -1,25 +1,4 @@
 {
-  "required_read": [
-    {
-      "prefix": "challenge-report/<slug>"
-    },
-    {
-      "prefix": "challenge-resolution-record/<slug>"
-    }
-  ],
-  "output": [
-    {
-      "prefix": "challenge-report/*",
-      "destination_kind": "knowledge"
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "destination_kind": "knowledge"
-    }
-  ],
-  "decisions_consumed": [
-    "bug-resolution-proposal",
-    "quality-audit-backlog",
-    "capability-gap"
-  ]
+  "required_read": [],
+  "output": []
 }

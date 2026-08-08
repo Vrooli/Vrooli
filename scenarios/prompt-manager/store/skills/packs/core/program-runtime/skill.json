@@ -1,0 +1,15 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "program-runtime",
+  "name": "Program Runtime",
+  "description": "Write governed Python programs with persistent sessions, typed scenario bindings, bounded handles, provenance, typed inference, and failure-corpus discovery.",
+  "modes": ["tools"],
+  "tags": ["skill", "program", "python", "session", "binding", "typed inference", "governance", "runtime"],
+  "icon": "terminal",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 2,
+  "createdAt": "2026-08-06T00:00:00Z",
+  "updatedAt": "2026-08-06T00:00:00Z"
+}

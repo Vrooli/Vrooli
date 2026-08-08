@@ -41,7 +41,7 @@ Use this README first, then choose the module that matches the work:
 ## Editing rules
 
 - **Agents never write to plan-of-record canon directly.** All canon edits come through operator-approved decisions.
-- **Working observations go to typed team knowledge topics.** Use the most specific topic prefix available (`research-inbox/*`, `marketing-craft-observation/*`, `friction-inbox/*`, `bug-inbox/*`, or `capability-gap/*`) and promote only through an owned decision.
+- **Working observations go to typed team knowledge topics.** Use the most specific topic prefix available (`research-inbox/*`, `marketing-craft-observation/*`, `friction-inbox/*`, `bug-inbox/*`, or `capability-work/*`) and promote only through an owned decision.
 - **Use the most specific module.** Add post shapes under `catalogs/post-types/`, reusable writing techniques under `methods/post-techniques/`, directional marketing truth under `strategy/`, classification/routing rules under `taxonomies/`, and supporting proof under `evidence/`.
 - **Operator executes accepted edits.** Commit messages cite the decision id.
 

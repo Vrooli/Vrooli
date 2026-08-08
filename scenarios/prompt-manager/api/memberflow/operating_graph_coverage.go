@@ -51,14 +51,6 @@ type OperatingDocsCoverage struct {
 	TopicCatalogPurposeMatched        int                     `json:"topic_catalog_purpose_matched"`
 	TopicCatalogPurposeMismatch       int                     `json:"topic_catalog_purpose_mismatch"`
 	TopicCatalogPurposeMissingRuntime int                     `json:"topic_catalog_purpose_missing_runtime"`
-	DecisionsTable                    OperatingCoverageStatus `json:"decisions_table"`
-	DecisionsRows                     int                     `json:"decisions_rows"`
-	DecisionsMatched                  int                     `json:"decisions_matched"`
-	DecisionsGraphOnly                int                     `json:"decisions_graph_only"`
-	DecisionsDocsOnly                 int                     `json:"decisions_docs_only"`
-	DecisionsInvalid                  int                     `json:"decisions_invalid"`
-	DecisionsMetadataComplete         int                     `json:"decisions_metadata_complete"`
-	DecisionsMetadataIncomplete       int                     `json:"decisions_metadata_incomplete"`
 	ExternalInputsTable               OperatingCoverageStatus `json:"external_inputs_table"`
 	ExternalInputsRows                int                     `json:"external_inputs_rows"`
 	ExternalInputsBackedRows          int                     `json:"external_inputs_backed_rows"`
@@ -256,17 +248,13 @@ func buildOperatingDocsCoverage(ctx OperatingGraphContractContext) OperatingDocs
 	docs := OperatingDocsCoverage{
 		MermaidGraph:      OperatingCoverageStatusReferenceOnly,
 		TopicCatalogTable: OperatingCoverageStatusNotImplemented,
-		DecisionsTable:    OperatingCoverageStatusNotImplemented,
 	}
 	if block.Metadata.Mode == OperatingGraphModeContract || block.Metadata.Mode == OperatingGraphModeCheckable {
 		docs.MermaidGraph = OperatingCoverageStatusEnforced
 	}
 	docs.TopicCatalogTable = docsTableStatus(block.Docs.TopicCatalog.Present)
-	docs.DecisionsTable = docsTableStatus(block.Docs.Decisions.Present)
 	docs.TopicCatalogRows, docs.TopicCatalogMatched, docs.TopicCatalogGraphOnly, docs.TopicCatalogDocsOnly, docs.TopicCatalogInvalid = topicCatalogCoverageCounts(block)
 	docs.TopicCatalogPurposeMatched, docs.TopicCatalogPurposeMismatch, docs.TopicCatalogPurposeMissingRuntime = topicCatalogPurposeCoverageCounts(block, ctx.Runtime.Contracts[block.Metadata.Team])
-	docs.DecisionsRows, docs.DecisionsMatched, docs.DecisionsGraphOnly, docs.DecisionsDocsOnly, docs.DecisionsInvalid = decisionTableCoverageCounts(block)
-	docs.DecisionsMetadataComplete, docs.DecisionsMetadataIncomplete = decisionMetadataCoverageCounts(block)
 	return docs
 }
 
@@ -449,48 +437,6 @@ func topicCatalogPurposeCoverageCounts(block OperatingGraphBlock, contract *Load
 		} else {
 			mismatch++
 		}
-	}
-	return
-}
-
-func decisionTableCoverageCounts(block OperatingGraphBlock) (rows, matched, graphOnly, docsOnly, invalid int) {
-	graphDecisions := map[string]bool{}
-	for _, node := range block.Graph.Nodes {
-		if node.Kind == OperatingGraphNodeKindDecision {
-			graphDecisions[node.Value] = true
-		}
-	}
-	docDecisions := map[string]bool{}
-	for _, row := range block.Docs.Decisions.Rows {
-		rows++
-		if row.Decision == "" {
-			invalid++
-			continue
-		}
-		docDecisions[row.Decision] = true
-	}
-	for decision := range graphDecisions {
-		if docDecisions[decision] {
-			matched++
-		} else {
-			graphOnly++
-		}
-	}
-	for decision := range docDecisions {
-		if !graphDecisions[decision] {
-			docsOnly++
-		}
-	}
-	return
-}
-
-func decisionMetadataCoverageCounts(block OperatingGraphBlock) (complete, incomplete int) {
-	for _, row := range block.Docs.Decisions.Rows {
-		if len(missingDecisionFields(row)) > 0 {
-			incomplete++
-			continue
-		}
-		complete++
 	}
 	return
 }

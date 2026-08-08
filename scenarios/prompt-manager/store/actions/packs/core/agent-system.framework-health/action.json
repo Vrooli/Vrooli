@@ -20,7 +20,7 @@
   "outputs": {
     "report": {
       "type": "string",
-      "description": "Per-sensor report. Each sensor prints its observed value, its deadband, and — when out of band — the actuator decision context that owns the fix."
+      "description": "Per-sensor report. Each sensor prints its observed value, its deadband, and — when out of band — the actuator work type that owns the fix."
     }
   },
   "permissions": {

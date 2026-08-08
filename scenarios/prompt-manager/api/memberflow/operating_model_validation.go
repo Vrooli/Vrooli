@@ -51,7 +51,6 @@ func requiredOperatingModelSections(model OperatingModelDocument) []requiredOper
 		{heading: "Operating Loops", section: model.Sections.OperatingLoops},
 		{heading: "Operating Graph", section: graph},
 		{heading: "Topic Catalog", section: tableBackedMarkdownSection("Topic Catalog", model.Sections.TopicCatalog.Present, model.Sections.TopicCatalog.HeaderLine)},
-		{heading: "Decisions", section: tableBackedMarkdownSection("Decisions", model.Sections.Decisions.Present, model.Sections.Decisions.HeaderLine)},
 		{heading: "External Inputs / Triggers", section: model.Sections.ExternalInputs.OperatingMarkdownSection},
 		{heading: "Outputs / Downstream Consumers", section: model.Sections.Outputs.OperatingMarkdownSection},
 		{heading: "Feedback / Capability Improvement Loop", section: model.Sections.FeedbackLoop.OperatingMarkdownSection},
@@ -112,33 +111,6 @@ func operatingModelPrimaryGraphMode(model OperatingModelDocument) OperatingGraph
 	return model.Graphs[0].Metadata.Mode
 }
 
-func validateOperatingModelDecisions(model OperatingModelDocument) []OperatingGraphFinding {
-	return validateDecisionsTable(model)
-}
-
-func validateDecisionsTable(model OperatingModelDocument) []OperatingGraphFinding {
-	table := model.Sections.Decisions
-	if !table.Present {
-		return nil
-	}
-	var findings []OperatingGraphFinding
-	want := []string{"decision context", "owner", "purpose", "expected evidence / trigger", "accepted effect"}
-	if !sameStringSlice(table.Headers, want) {
-		findings = append(findings, operatingModelFinding(model, "operating_model_decisions_header_drift", table.HeaderLine, fmt.Sprintf("Decisions headers must be %q", strings.Join(want, " | "))))
-	}
-	if len(table.Rows) == 0 {
-		findings = append(findings, operatingModelFinding(model, "operating_model_decisions_empty", table.HeaderLine, "Decisions must declare at least one row"))
-	}
-	for _, row := range table.Rows {
-		missing := missingDecisionFields(row)
-		if len(missing) > 0 {
-			findings = append(findings, operatingModelFinding(model, "operating_model_decisions_row_incomplete", row.SourceLine, fmt.Sprintf("Decisions row %q is missing %s", decisionRowLabel(row), strings.Join(missing, ", "))))
-			continue
-		}
-	}
-	return findings
-}
-
 func validateOperatingModelExternalInputs(ctx OperatingModelRuleContext) []OperatingGraphFinding {
 	return validateExternalInputsTable(ctx)
 }
@@ -171,7 +143,7 @@ func validateExternalInputsTable(ctx OperatingModelRuleContext) []OperatingGraph
 			findings = append(findings, operatingModelFinding(model, "operating_model_external_inputs_producer_unbacked", row.SourceLine, fmt.Sprintf("External Inputs / Triggers row %q names a producer that is not backed by graph/runtime external producer relationships", row.ProducerTrigger)))
 		}
 		if !assurance.Entry {
-			findings = append(findings, operatingModelFinding(model, "operating_model_external_inputs_entry_unbacked", row.SourceLine, fmt.Sprintf("External Inputs / Triggers row %q names an entry surface that is not backed by the graph, Topic Catalog, or Decisions table", row.EntrySurface)))
+			findings = append(findings, operatingModelFinding(model, "operating_model_external_inputs_entry_unbacked", row.SourceLine, fmt.Sprintf("External Inputs / Triggers row %q names an entry surface that is not backed by the graph or Topic Catalog", row.EntrySurface)))
 		}
 		if !assurance.Drainer {
 			findings = append(findings, operatingModelFinding(model, "operating_model_external_inputs_drainer_unbacked", row.SourceLine, fmt.Sprintf("External Inputs / Triggers row %q names a drainer that is not backed by topic/member, external/member, or cross-team relationships", row.Drainer)))
@@ -209,10 +181,10 @@ func validateOutputsTable(ctx OperatingModelRuleContext) []OperatingGraphFinding
 			continue
 		}
 		if !assurance.Surface {
-			findings = append(findings, operatingModelFinding(model, "operating_model_outputs_surface_unbacked", row.SourceLine, fmt.Sprintf("Outputs / Downstream Consumers row %q names a surface that is not backed by the graph, Topic Catalog, Decisions table, runtime output, or PoR path", row.Output)))
+			findings = append(findings, operatingModelFinding(model, "operating_model_outputs_surface_unbacked", row.SourceLine, fmt.Sprintf("Outputs / Downstream Consumers row %q names a surface that is not backed by the graph, Topic Catalog, runtime output, or PoR path", row.Output)))
 		}
 		if !assurance.Consumer {
-			findings = append(findings, operatingModelFinding(model, "operating_model_outputs_consumer_unbacked", row.SourceLine, fmt.Sprintf("Outputs / Downstream Consumers row %q names a consumer that is not backed by topic/member, decision/member, or cross-team output relationships", row.Output)))
+			findings = append(findings, operatingModelFinding(model, "operating_model_outputs_consumer_unbacked", row.SourceLine, fmt.Sprintf("Outputs / Downstream Consumers row %q names a consumer that is not backed by topic/member or cross-team output relationships", row.Output)))
 		}
 	}
 	return findings
@@ -235,14 +207,14 @@ func validateOperatingModelFeedbackLoop(ctx OperatingModelRuleContext) []Operati
 	for _, assurance := range ctx.ReferenceIndex.Feedback {
 		step := assurance.Step
 		if len(step.References) == 0 {
-			findings = append(findings, operatingModelFinding(model, "operating_model_feedback_step_unanchored", step.SourceLine, "Feedback loop step must name at least one concrete topic, decision, member, command, output, or downstream surface"))
+			findings = append(findings, operatingModelFinding(model, "operating_model_feedback_step_unanchored", step.SourceLine, "Feedback loop step must name at least one concrete topic, member, command, output, or downstream surface"))
 			continue
 		}
 		for _, ref := range assurance.References {
 			if ref.Backed {
 				continue
 			}
-			findings = append(findings, operatingModelFinding(model, "operating_model_feedback_reference_unbacked", step.SourceLine, fmt.Sprintf("Feedback loop reference %q is not represented by the graph, topic catalog, decision catalog, external inputs, outputs, or team members", ref.Reference)))
+			findings = append(findings, operatingModelFinding(model, "operating_model_feedback_reference_unbacked", step.SourceLine, fmt.Sprintf("Feedback loop reference %q is not represented by the graph, topic catalog, external inputs, outputs, or team members", ref.Reference)))
 		}
 		if !assurance.Anchored {
 			findings = append(findings, operatingModelFinding(model, "operating_model_feedback_step_unanchored", step.SourceLine, "Feedback loop step must include at least one backed operating-model surface"))
@@ -401,36 +373,6 @@ func missingOutputFields(row OperatingOutputRow) []string {
 		missing = append(missing, "purpose")
 	}
 	return missing
-}
-
-func missingDecisionFields(row OperatingDecisionRow) []string {
-	var missing []string
-	if strings.TrimSpace(row.Decision) == "" {
-		missing = append(missing, "decision context")
-	}
-	if len(row.Owners) == 0 {
-		missing = append(missing, "owner")
-	}
-	if strings.TrimSpace(row.Purpose) == "" {
-		missing = append(missing, "purpose")
-	}
-	if strings.TrimSpace(row.ExpectedEvidenceTrigger) == "" {
-		missing = append(missing, "expected evidence / trigger")
-	}
-	if strings.TrimSpace(row.AcceptedEffect) == "" {
-		missing = append(missing, "accepted effect")
-	}
-	return missing
-}
-
-func decisionRowLabel(row OperatingDecisionRow) string {
-	if strings.TrimSpace(row.Decision) != "" {
-		return row.Decision
-	}
-	if strings.TrimSpace(row.RawDecision) != "" {
-		return row.RawDecision
-	}
-	return "<empty>"
 }
 
 func sameStringSlice(got, want []string) bool {

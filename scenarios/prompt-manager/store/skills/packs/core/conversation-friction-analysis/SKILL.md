@@ -156,7 +156,7 @@ When using `Collapse` or `Delete`, specify:
 
 ### 5. Convergence Patterns
 
-Use this decision flow for each friction event:
+Use this work flow for each friction event:
 
 ```mermaid
 flowchart TD

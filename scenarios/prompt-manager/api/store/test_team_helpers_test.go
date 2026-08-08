@@ -32,7 +32,6 @@ func newIndependentTestTeam(id, displayName string) *Team {
 				InjectInbox:              false,
 				AllowPeerTriggers:        false,
 				ShowTaskBoardGuidance:    true,
-				ShowDecisionLogGuidance:  true,
 				ShowKnowledgeLogGuidance: true,
 				RequireHandoff:           true,
 			},
@@ -41,7 +40,6 @@ func newIndependentTestTeam(id, displayName string) *Team {
 			QueuePolicy:       teamconfig.QueuePolicyBoundedParallel,
 			MaxConcurrentRuns: 2,
 		},
-		DecisionMode:      teamconfig.DecisionModeYolo,
-		OperatingContract: teamcontract.Minimal(teamconfig.DecisionModeYolo, "agent-1", "agent-2", "lead", "dev-1"),
+		OperatingContract: teamcontract.Minimal("", "agent-1", "agent-2", "lead", "dev-1"),
 	}
 }

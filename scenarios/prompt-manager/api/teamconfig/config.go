@@ -23,9 +23,6 @@ const (
 
 	QueuePolicySerialized      = "serialized"
 	QueuePolicyBoundedParallel = "bounded-parallel"
-
-	DecisionModeYolo     = "yolo"
-	DecisionModeApproval = "approval"
 )
 
 type Runtime struct {
@@ -37,7 +34,6 @@ type Capabilities struct {
 	InjectInbox              bool `json:"injectInbox"`
 	AllowPeerTriggers        bool `json:"allowPeerTriggers"`
 	ShowTaskBoardGuidance    bool `json:"showTaskBoardGuidance"`
-	ShowDecisionLogGuidance  bool `json:"showDecisionLogGuidance"`
 	ShowKnowledgeLogGuidance bool `json:"showKnowledgeLogGuidance"`
 	RequireHandoff           bool `json:"requireHandoff"`
 }
@@ -59,7 +55,6 @@ type Contract struct {
 	Runtime      Runtime
 	Coordination Coordination
 	Execution    Execution
-	DecisionMode string
 }
 
 type ValidationError struct {
@@ -92,7 +87,6 @@ func DefaultIndependentCapabilities() Capabilities {
 		InjectInbox:              false,
 		AllowPeerTriggers:        false,
 		ShowTaskBoardGuidance:    true,
-		ShowDecisionLogGuidance:  true,
 		ShowKnowledgeLogGuidance: true,
 		RequireHandoff:           true,
 	}
@@ -104,7 +98,6 @@ func DefaultPeerCapabilities() Capabilities {
 		InjectInbox:              true,
 		AllowPeerTriggers:        true,
 		ShowTaskBoardGuidance:    true,
-		ShowDecisionLogGuidance:  true,
 		ShowKnowledgeLogGuidance: true,
 		RequireHandoff:           true,
 	}
@@ -116,7 +109,6 @@ func DefaultLeaderLedCapabilities(runtimeMode string) Capabilities {
 		InjectInbox:              runtimeMode == RuntimeModeMultiProcess,
 		AllowPeerTriggers:        false,
 		ShowTaskBoardGuidance:    true,
-		ShowDecisionLogGuidance:  true,
 		ShowKnowledgeLogGuidance: true,
 		RequireHandoff:           true,
 	}
@@ -208,12 +200,6 @@ func ValidateFindings(contract Contract) []ValidationFinding {
 	case RuntimeModeMultiProcess, RuntimeModeSingleProcess:
 	default:
 		add("runtime.mode", "runtime.mode must be 'multi-process' or 'single-process'")
-	}
-
-	switch contract.DecisionMode {
-	case DecisionModeYolo, DecisionModeApproval:
-	default:
-		add("decisionMode", "decisionMode must be 'yolo' or 'approval'")
 	}
 
 	switch contract.Coordination.Pattern {
@@ -356,10 +342,6 @@ func ShouldShowOrgContext(contract Contract) bool {
 
 func ShouldShowTaskBoardGuidance(contract Contract) bool {
 	return contract.Coordination.Capabilities.ShowTaskBoardGuidance
-}
-
-func ShouldShowDecisionLogGuidance(contract Contract) bool {
-	return contract.Coordination.Capabilities.ShowDecisionLogGuidance
 }
 
 func ShouldShowKnowledgeLogGuidance(contract Contract) bool {

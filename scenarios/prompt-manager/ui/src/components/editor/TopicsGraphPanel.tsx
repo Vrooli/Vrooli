@@ -3,8 +3,8 @@
  *
  * Renders the directed graph derived from each member's topics.json:
  * - Member nodes
- * - Boundary nodes (external producers, decision queues, PoR sinks,
- *   capability-gap registry, skill proposals, backlog)
+ * - Boundary nodes (external producers, PoR sinks,
+ *   Swarm Manager work feed, skill proposals, backlog)
  * - Directed edges labelled with topic prefix; edge style by kind
  * - Validation overlay (red ring on members with error-severity findings)
  *
@@ -59,15 +59,13 @@ const nodeTypes = {
 const EDGE_STYLES: Record<TopicEdgeKind, { stroke: string; dashed?: boolean }> = {
   intake: { stroke: 'hsl(var(--primary))' },
   output: { stroke: '#22d3ee' },
-  decision_owned: { stroke: '#a855f7' },
-  decision_consumed: { stroke: '#a855f7', dashed: true },
   external_producer: { stroke: '#f59e0b', dashed: true },
-  capability_gap: { stroke: '#f43f5e', dashed: true },
+  work_item: { stroke: '#f43f5e', dashed: true },
 }
 
 /**
  * Group nodes into ranks so dagre lays them out left-to-right in flow order:
- *   external/decision_consumed sources (left) -> members (middle) -> outputs (right)
+ *   external sources (left) -> members (middle) -> outputs (right)
  *
  * Dagre's standard rankdir=LR + edge direction handles ordering automatically;
  * we keep the helper for explicit columnization should it become useful.
@@ -204,9 +202,8 @@ export function TopicsGraphPanel({
     const boundaryByKind: Record<TopicNodeKind, number> = {
       member: 0,
       external: 0,
-      decision: 0,
       por_file: 0,
-      capability_gap: 0,
+      work_item: 0,
       skill_proposal: 0,
       backlog: 0,
       knowledge_sink: 0,
@@ -275,9 +272,8 @@ export function TopicsGraphPanel({
             switch (kind) {
               case 'member': return '#6366f1'
               case 'external': return '#f59e0b'
-              case 'decision': return '#a855f7'
               case 'por_file': return '#3b82f6'
-              case 'capability_gap': return '#f43f5e'
+              case 'work_item': return '#f43f5e'
               case 'skill_proposal': return '#10b981'
               case 'backlog': return '#64748b'
               case 'knowledge_sink': return '#06b6d4'

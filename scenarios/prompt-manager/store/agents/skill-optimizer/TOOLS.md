@@ -9,7 +9,7 @@
 - `prompt-manager graph circular-refs`
 - `prompt-manager graph node <skill-id>`
 - `vrooli help`
-- `prompt-manager team decision-list meta-optimization ...`
+- `swarm-manager backlog list meta-optimization ...`
 - `prompt-manager team knowledge-list meta-optimization ...`
 
 ## Usage Rules

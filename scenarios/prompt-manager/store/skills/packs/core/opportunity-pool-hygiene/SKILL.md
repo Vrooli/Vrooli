@@ -17,7 +17,7 @@ Use this skill on the opportunity-scout heartbeat when:
 
 Do not use this skill for:
 - intake / triage of the inbox — that's `signal-classifier`
-- editing CATALOG.md candidate files — propose via `catalog-promotion`-class decision; catalog-strategist + operator do the writing
+- editing CATALOG.md candidate files — propose via a `catalog-promotion`-class Swarm Manager work item; catalog-strategist + operator do the writing
 
 ---
 
@@ -28,8 +28,8 @@ Read first:
 - pool view: `prompt-manager team knowledge-list monetization --topic-prefix=monetization/opportunity/ --json`
 - recent `monetization/market-scan/*` entries — competitor moves and benchmarks may fire triggers
 - `docs/monetization/CATALOG.md` — current SKU lifecycle; some pool entries may already have graduated and be redundant
-- recent `decisions.jsonl` for `catalog-promotion`, `services-activation`, `runway-warning` contexts
-- recent `ledger.jsonl` events — financial state may invalidate some bets
+- recent `catalog-promotion`, `services-activation`, and `runway-warning` work items in Swarm Manager
+- recent `team:monetization` ledger events — financial state may invalidate some bets
 - `scenarios/prompt-manager/store/teams/monetization/members/opportunity-scout/last-handoff.md`
 
 Read as needed:
@@ -101,7 +101,7 @@ prompt-manager team knowledge-delete monetization "<id>"
 
 Raise a catalog-promotion decision:
 ```bash
-prompt-manager team decision-add monetization \
+swarm-manager backlog create monetization \
   --by=opportunity-scout \
   --context=catalog-promotion \
   --proposal="Promote <slug> to CATALOG candidate; trigger fired: <evidence>" \

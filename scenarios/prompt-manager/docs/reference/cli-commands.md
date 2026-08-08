@@ -480,7 +480,7 @@ prompt-manager team show engineering
 Create a new team.
 
 ```bash
-prompt-manager team create <name> [--mission=...] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--decision-mode=yolo|approval] [--json]
+prompt-manager team create <name> [--mission=...] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--json]
 ```
 
 **Options:**
@@ -494,15 +494,14 @@ prompt-manager team create <name> [--mission=...] [--runtime-mode=multi-process|
 | `--messaging-mode` | Messaging mode override: `disabled`, `async-inbox`, or `in-session` |
 | `--queue-policy` | Execution queue policy: `bounded-parallel` (default) or `serialized` |
 | `--max-concurrent-runs` | Concurrency limit for `bounded-parallel` execution |
-| `--show-org-context`, `--inject-inbox`, `--allow-peer-triggers`, `--show-task-board-guidance`, `--show-decision-log-guidance`, `--show-knowledge-log-guidance`, `--require-handoff` | Override individual coordination capabilities |
-| `--decision-mode` | Decision policy: `yolo` (default behavior) or `approval` |
+| `--show-org-context`, `--inject-inbox`, `--allow-peer-triggers`, `--show-task-board-guidance`, `--show-knowledge-log-guidance`, `--require-handoff` | Override individual coordination capabilities |
 | `--json` | Output as JSON |
 
 **Example:**
 ```bash
 prompt-manager team create "Engineering" --mission="Build and maintain core platform"
 prompt-manager team create "Scenario QA" --coordination-pattern=independent --queue-policy=bounded-parallel --max-concurrent-runs=2
-prompt-manager team create "Director Swarm" --runtime-mode=single-process --coordination-pattern=leader-led --lead-agent-id=director --decision-mode=approval
+prompt-manager team create "Director Swarm" --runtime-mode=single-process --coordination-pattern=leader-led --lead-agent-id=director
 ```
 
 When you choose `--runtime-mode=single-process`, the CLI resolves the team onto the leader-led serialized preset before sending the request.
@@ -514,7 +513,7 @@ Teams are stored with a required `operatingContract`. The default create flow se
 Update an existing team.
 
 ```bash
-prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--decision-mode=yolo|approval] [--json]
+prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|false] [--runtime-mode=multi-process|single-process] [--coordination-pattern=independent|peer|leader-led] [--json]
 ```
 
 **Options:**
@@ -528,7 +527,6 @@ prompt-manager team update <id> [--name=...] [--mission=...] [--enabled=true|fal
 | `--lead-agent-id` | Set or replace the explicit lead agent for leader-led teams |
 | `--reporting-mode`, `--messaging-mode`, `--queue-policy`, `--max-concurrent-runs` | Update policy settings directly |
 | Capability override flags | Update prompt and coordination capabilities individually |
-| `--decision-mode` | Change decision policy |
 | `--json` | Output as JSON |
 
 ### prompt-manager team operating-contract
@@ -995,7 +993,7 @@ prompt-manager discover "debugging methodology" --type skill
 
 [CODE: cli/discover/discover.go]
 
-Show clustered unmet-capability queries — the searches that `prompt-manager discover` answered with nothing useful (zero results or only sub-threshold matches). These misses are captured server-side automatically; this command reads a time window and clusters near-duplicate queries so the meta-optimization team can route each to a new action, capability-gap, or cli-backlog. Counts are window-relative.
+Show clustered unmet-capability queries — the searches that `prompt-manager discover` answered with nothing useful (zero results or only sub-threshold matches). These misses are captured server-side automatically; this command reads a time window and clusters near-duplicate queries so the meta-optimization team can route each to a new action, capability-work, or cli-backlog. Counts are window-relative.
 
 ```bash
 prompt-manager discovery-gaps [--since 7d] [--type skill|action|all] [--limit=N] [--json]
@@ -1025,7 +1023,7 @@ prompt-manager action show <id> [--json]
 
 ### prompt-manager action create
 
-Create an Action from a single Vrooli CLI command. **Previews by default** (writes nothing): the command resolves the owner, infers inputs from `{{placeholders}}`, infers permissions from the owner's `cli/manifest.json`, validates the contract, and surfaces any similar existing actions. Add `--apply` to register it (default status `active`). Alternatively, pass a fully authored `--file=action.json`. Creating an action is free — no decision required (only *retiring prose* in favor of an action is gated; see [DOC: docs/concepts/ACTIONS.md]).
+Create an Action from a single Vrooli CLI command. **Previews by default** (writes nothing): the command resolves the owner, infers inputs from `{{placeholders}}`, infers permissions from the owner's `cli/manifest.json`, validates the contract, and surfaces any similar existing actions. Add `--apply` to register it (default status `active`). Alternatively, pass a fully authored `--file=action.json`. Record a prose-retirement work item with its validation evidence.
 
 ```bash
 # Preview (no write): infer + validate + show similar actions

@@ -32,6 +32,7 @@ import (
 	"prompt-manager/ogmeta"
 	"prompt-manager/search"
 	"prompt-manager/skills"
+	"prompt-manager/sourceledger"
 	"prompt-manager/store"
 	"prompt-manager/tags"
 	"prompt-manager/teams"
@@ -45,6 +46,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
@@ -52,6 +54,7 @@ import (
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
+	scopesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -324,6 +327,29 @@ func main() {
 	if err != nil {
 		log.Fatalf("initialize file store: %v", err)
 	}
+	ledger, err := sourceledger.New(dbCtx)
+	if err != nil {
+		log.Fatalf("connect to source-ledger: %v", err)
+	}
+	eventsBase, err := discovery.ResolveScenarioURLDefault(dbCtx, "vrooli-events")
+	if err != nil {
+		log.Fatalf("connect to vrooli-events: %v", err)
+	}
+	teamScopes := []string{"director-swarm", "infra-health", "marketing-crew", "meta-optimization", "monetization", "scenario-qa"}
+	for _, teamID := range teamScopes {
+		// Facet ids are globally keyed by source-ledger, so include the team
+		// scope in each id while retaining the shared semantic vocabulary.
+		teamFacets := []*scopesv1.FacetSpec{
+			{Id: "prompt-manager-" + teamID + "-knowledge", Label: "Team knowledge", Guidance: "Durable team context and operating lessons", CompactionEligible: true, ResidentBudget: 32},
+			{Id: "prompt-manager-" + teamID + "-handoff", Label: "Team handoff", Guidance: "Member handoff context", CompactionEligible: true, ResidentBudget: 16},
+			{Id: "prompt-manager-" + teamID + "-work", Label: "Team work", Guidance: "Work context and evidence", CompactionEligible: true, ResidentBudget: 16},
+		}
+		if err := ledger.EnsureScope(dbCtx, "team:"+teamID, "prompt-manager team "+teamID, teamFacets); err != nil {
+			log.Fatalf("register source-ledger scope %q: %v", teamID, err)
+		}
+	}
+	fileStore.SetSourceLedger(ledger)
+	fileStore.SetEventsEndpoint(eventsBase)
 	fileStore.SetExperimentStoreDatabase(db)
 
 	// Initialize domain components (seams for testing)
@@ -390,6 +416,7 @@ func main() {
 	// Variant and experiment handlers
 	variantHandlers := skills.NewVariantHandlers(fileStore.Variants(), fileStore.Skills())
 	experimentHandlers := skills.NewExperimentHandlers(fileStore.Experiments(), fileStore.Variants(), fileStore.Skills())
+	experimentHandlers.SetWorkPublisher(skills.NewHTTPWorkPublisherFromEnv())
 	// Lifecycle/Secrets Manager writes a standard runtime config into the
 	// scenario config directory. Absent config is explicitly development-only;
 	// production config selects the credential-authority signer without an
@@ -400,13 +427,6 @@ func main() {
 	}
 	experimentHandlers.SetReceiptSigner(receiptSigner)
 	experimentHandlers.SetProductionReceiptSigningRequired(productionReceiptSigning)
-	if decisions, ok := fileStore.Teams().(interface {
-		AppendDecision(context.Context, string, *store.DecisionEntry) error
-	}); ok {
-		experimentHandlers.SetDecisionPublisher(decisions)
-	} else {
-		panic("prompt-manager team store does not support decision publishing")
-	}
 
 	// Agent and team AI search vector stores
 	agentAICollection := collectionForDomain("AI_SEARCH_AGENT_COLLECTION", "agents")
@@ -933,7 +953,7 @@ func main() {
 	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.SetHeartbeatInstructions).Methods("PUT")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/context", heartbeatHandlers.GetMemberContext).Methods("GET")
 
-	// Team state routes (handoff, task board, decisions)
+	// Team state routes (handoff and task board)
 	v1.HandleFunc("/teams/{id}/members/{agentId}/handoff", heartbeatHandlers.GetLastHandoff).Methods("GET")
 	v1.HandleFunc("/teams/{id}/members/{agentId}/handoff", heartbeatHandlers.ClearLastHandoff).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/handoff-history", heartbeatHandlers.GetHandoffHistory).Methods("GET")
@@ -942,17 +962,8 @@ func main() {
 	v1.HandleFunc("/teams/{id}/tasks", heartbeatHandlers.AddTask).Methods("POST")
 	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.UpdateTaskHandler).Methods("PATCH", "PUT")
 	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.DeleteTaskHandler).Methods("DELETE")
-	v1.HandleFunc("/decisions/pending", heartbeatHandlers.GetAllPendingDecisions).Methods("GET")
-	v1.HandleFunc("/teams/{id}/decisions", heartbeatHandlers.AddDecision).Methods("POST")
-	v1.HandleFunc("/teams/{id}/decisions", heartbeatHandlers.GetDecisions).Methods("GET")
-	v1.HandleFunc("/teams/{id}/decisions/{decisionId}", heartbeatHandlers.UpdateDecisionHandler).Methods("PATCH", "PUT")
-	v1.HandleFunc("/teams/{id}/decisions/{decisionId}", heartbeatHandlers.DeleteDecisionHandler).Methods("DELETE")
 
 	// Knowledge log routes
-	v1.HandleFunc("/teams/{id}/knowledge", heartbeatHandlers.AddKnowledge).Methods("POST")
-	v1.HandleFunc("/teams/{id}/knowledge", heartbeatHandlers.GetKnowledge).Methods("GET")
-	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.UpdateKnowledgeHandler).Methods("PATCH", "PUT")
-	v1.HandleFunc("/teams/{id}/knowledge/{knowledgeId}", heartbeatHandlers.DeleteKnowledgeHandler).Methods("DELETE")
 	// Typed Scenario QA bug intake. Drafts are kept private to the writer
 	// boundary; only validated published reports enter bug-inbox knowledge.
 	v1.HandleFunc("/teams/{id}/bugs/capture", heartbeatHandlers.CaptureBug).Methods("POST")

@@ -3,7 +3,13 @@
   "schemaVersion": 1,
   "id": "monetization",
   "displayName": "Monetization Team",
-  "mission": "Own the canonical monetization plan for Vrooli — catalog, tiers, funnel, revenue lines, and financial model — and surface the decisions the operator must make each heartbeat to stay on a path to default-alive.",
+  "mission": "Own the canonical monetization plan for Vrooli — catalog, tiers, funnel, revenue lines, and financial model — and surface the work items the operator must make each heartbeat to stay on a path to default-alive.",
+  "objectivesServed": [
+    {
+      "id": "T1",
+      "role": "primary"
+    }
+  ],
   "enabled": true,
   "runtime": {
     "mode": "multi-process"
@@ -17,7 +23,6 @@
       "injectInbox": false,
       "allowPeerTriggers": false,
       "showTaskBoardGuidance": false,
-      "showDecisionLogGuidance": true,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
@@ -26,7 +31,6 @@
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
   },
-  "decisionMode": "approval",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
@@ -35,44 +39,64 @@
   "createdAt": "2026-04-20T00:00:00Z",
   "updatedAt": "2026-04-22T11:17:33Z",
   "topicCatalog": [
-    {"prefix":"opportunity-inbox/*","status":"live","purpose":"Intake for monetization opportunity signals classified by `monetization-opportunity`."},
-    {"prefix":"candidate-sku-record/*","status":"live","purpose":"Candidate SKU, add-on, services-line, or channel records."},
-    {"prefix":"scout-scan/*","status":"live","purpose":"Scout heartbeat summaries and pool snapshots."},
-    {"prefix":"monetization/opportunity/*","status":"live","purpose":"Additional opportunity observations that are not yet promoted."},
-    {"prefix":"catalog-snapshot/*","status":"live","purpose":"Snapshot of SKU, tier, channel, and services-line trigger state."},
-    {"prefix":"ledger-snapshot/*","status":"live","purpose":"Financial posture snapshot."},
-    {"prefix":"monetization-ledger-log/*","status":"live","purpose":"Append-only monetization ledger events used to produce current financial posture snapshots."},
-    {"prefix":"validation-inbox/*","status":"live","purpose":"Validation requests classified by `monetization-validation`."},
-    {"prefix":"monetization-benchmark-adjacent-record/*","status":"live","purpose":"Cross-team benchmark-adjacent evidence from marketing."},
-    {"prefix":"monetization-benchmark-record/*","status":"live","purpose":"Validated benchmark records."},
-    {"prefix":"monetization/market-scan/*","status":"live","purpose":"Market-scan evidence."},
-    {"prefix":"challenge-report/*","status":"live","purpose":"Append-only challenge evidence."},
-    {"prefix":"challenge-resolution-record/*","status":"live","purpose":"Latest-state challenge resolution records."}
+    {
+      "prefix": "opportunity-inbox/*",
+      "status": "live",
+      "purpose": "Intake for monetization opportunity signals classified by `monetization-opportunity`."
+    },
+    {
+      "prefix": "candidate-sku-record/*",
+      "status": "live",
+      "purpose": "Candidate SKU, add-on, services-line, or channel records."
+    },
+    {
+      "prefix": "scout-scan/*",
+      "status": "live",
+      "purpose": "Scout heartbeat summaries and pool snapshots."
+    },
+    {
+      "prefix": "monetization/opportunity/*",
+      "status": "live",
+      "purpose": "Additional opportunity observations that are not yet promoted."
+    },
+    {
+      "prefix": "catalog-snapshot/*",
+      "status": "live",
+      "purpose": "Snapshot of SKU, tier, channel, and services-line trigger state."
+    },
+    {
+      "prefix": "ledger-snapshot/*",
+      "status": "live",
+      "purpose": "Financial posture snapshot."
+    },
+    {
+      "prefix": "monetization-ledger-log/*",
+      "status": "live",
+      "purpose": "Append-only monetization ledger events used to produce current financial posture snapshots."
+    },
+    {
+      "prefix": "validation-inbox/*",
+      "status": "live",
+      "purpose": "Validation requests classified by `monetization-validation`."
+    },
+    {
+      "prefix": "monetization-benchmark-adjacent-record/*",
+      "status": "live",
+      "purpose": "Cross-team benchmark-adjacent evidence from marketing."
+    },
+    {
+      "prefix": "monetization-benchmark-record/*",
+      "status": "live",
+      "purpose": "Validated benchmark records."
+    },
+    {
+      "prefix": "monetization/market-scan/*",
+      "status": "live",
+      "purpose": "Market-scan evidence."
+    }
   ],
   "operatingContract": {
     "schemaVersion": 1,
-    "governance": {
-      "decisionMode": "approval",
-      "teamPendingCeiling": {
-        "value": 12,
-        "readOnlyWhenAtOrAbove": true,
-        "rationale": "Tuned for a roughly 3/day operator review rate; prevents the monetization queue from outpacing the morning vision walk."
-      },
-      "supersession": {
-        "requiredBeforeNewDecision": true,
-        "allowedInReadOnlyMode": true,
-        "replacementMustSetSupersedes": true
-      },
-      "staleDecisionPolicy": {
-        "afterHeartbeats": 14,
-        "ownerMemberId": "monetization-contrarian",
-        "requiredOutcomes": [
-          "supersede",
-          "reject",
-          "still-relevant-note"
-        ]
-      }
-    },
     "documents": {
       "planOfRecord": [
         {
@@ -215,7 +239,7 @@
               "path": "docs/monetization/catalogs/channels/web-seo.md"
             }
           ],
-          "writePolicy": "operator-curated-via-decisions",
+          "writePolicy": "operator-curated-via-swarm-manager",
           "consumers": [
             "monetization",
             "director-swarm",
@@ -239,43 +263,6 @@
           "required": true
         },
         {
-          "id": "decisions-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
-          },
-          "kind": "decision-log",
-          "required": true
-        },
-        {
-          "id": "knowledge-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          "kind": "knowledge-log",
-          "required": true
-        },
-        {
-          "id": "handoff-history-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "handoff-history.jsonl"
-          },
-          "kind": "handoff-log",
-          "required": true
-        },
-        {
-          "id": "ledger-jsonl",
-          "path": {
-            "base": "team-shared",
-            "path": "ledger.jsonl"
-          },
-          "ownerMemberId": "financial-tracker",
-          "kind": "append-only-event-log",
-          "required": true
-        },
-        {
           "id": "operator-inputs-json",
           "path": {
             "base": "team-shared",
@@ -286,122 +273,6 @@
           "required": true
         }
       ]
-    },
-    "decisionContexts": {
-      "capability-gap": {
-        "ownerMemberIds": [
-          "opportunity-scout",
-          "market-validator"
-        ],
-        "description": "A missing tool, data source, prompt surface, validation rule, or owner blocks monetization work."
-      },
-      "catalog-promotion": {
-        "ownerMemberIds": [
-          "catalog-strategist",
-          "opportunity-scout"
-        ],
-        "description": "Scenario, SKU, add-on, services line, or candidate deserves operator promotion review."
-      },
-      "catalog-mapping-update": {
-        "ownerMemberIds": [
-          "catalog-strategist"
-        ],
-        "description": "scenario-sku-map.json or scenario role mapping should change."
-      },
-      "channel-activation": {
-        "ownerMemberIds": [
-          "catalog-strategist",
-          "opportunity-scout"
-        ],
-        "description": "Candidate discovery channel activation trigger has fired and telemetry/prereqs are present."
-      },
-      "channel-attribution-gap": {
-        "ownerMemberIds": [
-          "financial-tracker"
-        ],
-        "description": "Active or pilot channel lacks attribution telemetry required for monetization decisions."
-      },
-      "sku-retirement": {
-        "ownerMemberIds": [
-          "catalog-strategist"
-        ],
-        "description": "SKU, add-on, tier, or services line should retire because it no longer coheres or missed its target."
-      },
-      "services-activation": {
-        "ownerMemberIds": [
-          "catalog-strategist",
-          "opportunity-scout"
-        ],
-        "description": "Candidate services line trigger has fired and deserves operator activation review."
-      },
-      "services-conversion": {
-        "ownerMemberIds": [
-          "catalog-strategist"
-        ],
-        "description": "Services engagement should convert into subscription or productized offering."
-      },
-      "services-sunset": {
-        "ownerMemberIds": [
-          "catalog-strategist"
-        ],
-        "description": "Services line missed its productization target or sunset date."
-      },
-      "pricing-decision": {
-        "ownerMemberIds": [
-          "financial-tracker",
-          "market-validator"
-        ],
-        "description": "Price setting or adjustment for a specific SKU, tier, bundle, or revenue line."
-      },
-      "financial-model-assumption-update": {
-        "ownerMemberIds": [
-          "financial-tracker",
-          "market-validator"
-        ],
-        "description": "Load-bearing financial or market assumption needs revision."
-      },
-      "runway-warning": {
-        "ownerMemberIds": [
-          "financial-tracker"
-        ],
-        "description": "Material runway or default-alive gap change requires operator attention."
-      },
-      "services-trap-warning": {
-        "ownerMemberIds": [
-          "financial-tracker"
-        ],
-        "description": "Services time, services/subscription ratio, or services discipline exceeded guardrails."
-      },
-      "benchmark-update": {
-        "ownerMemberIds": [
-          "market-validator"
-        ],
-        "description": "New or refreshed benchmark should update BENCHMARKS.md."
-      },
-      "funnel-bottleneck": {
-        "ownerMemberIds": [
-          "financial-tracker"
-        ],
-        "description": "Telemetry identifies a funnel stage as the current bottleneck."
-      },
-      "retention-concern": {
-        "ownerMemberIds": [
-          "financial-tracker"
-        ],
-        "description": "Measured retention metric is materially worse than target."
-      },
-      "decision-rejection-proposed": {
-        "ownerMemberIds": [
-          "monetization-contrarian"
-        ],
-        "description": "Contrarian recommends rejecting or revising a pending proposal after concrete failure-mode hits."
-      },
-      "framework-update": {
-        "ownerMemberIds": [
-          "monetization-contrarian"
-        ],
-        "description": "Contrarian found a recurring flaw not covered by the current failure-mode framework."
-      }
     },
     "knowledgeTopics": {
       "catalog-snapshot/YYYY-MM-DD": {
@@ -423,45 +294,14 @@
         "ownerMemberId": "market-validator",
         "supersedesPrevious": true,
         "retention": "snapshot"
-      },
-      "challenge-report/<decision-id>": {
-        "ownerMemberId": "monetization-contrarian",
-        "supersedesPrevious": false,
-        "retention": "append-only"
-      },
-      "challenge-resolution-record/<decision-id>": {
-        "ownerMemberId": "monetization-contrarian",
-        "supersedesPrevious": true,
-        "retention": "snapshot"
-      },
-      "decision-application/<decision-id>": {
-        "ownerMemberId": "catalog-strategist",
-        "supersedesPrevious": false,
-        "retention": "append-only"
       }
     },
     "members": {
       "catalog-strategist": {
         "lane": "Maintain the SKU, discovery-channel, delivery-tier, services-line, and scenario-role graph; propose promotions, mappings, retirements, and services lifecycle changes when triggers fire.",
-        "ownedDecisionContexts": [
-          "catalog-promotion",
-          "catalog-mapping-update",
-          "channel-activation",
-          "sku-retirement",
-          "services-activation",
-          "services-conversion",
-          "services-sunset"
-        ],
-        "newDecisionCapPerHeartbeat": 3,
-        "pendingOwnedDecisionCap": 3,
         "allowedWrites": [
           {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
+            "kind": "knowledge"
           },
           {
             "kind": "handoff"
@@ -474,13 +314,11 @@
           }
         ],
         "safetyCriticalRules": [
-          "Do not edit canonical docs under docs/monetization directly; propose changes via decisions.",
+          "Do not edit canonical docs under docs/monetization directly; propose changes via work items.",
           "Do not aggregate other members into a synthetic monetization brief."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
         "taskParameters": {
@@ -494,21 +332,9 @@
       },
       "opportunity-scout": {
         "lane": "Generate candidate SKUs, add-ons, services lines, and discovery channels; classify them, attach explicit revisit triggers, and maintain the candidate pool.",
-        "ownedDecisionContexts": [
-          "catalog-promotion",
-          "channel-activation",
-          "services-activation"
-        ],
-        "newDecisionCapPerHeartbeat": 3,
-        "pendingOwnedDecisionCap": 3,
         "allowedWrites": [
           {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
+            "kind": "knowledge"
           },
           {
             "kind": "handoff"
@@ -527,15 +353,13 @@
           "Inbox triage must leave no entry under opportunity-inbox/* — promote (retag to monetization/opportunity/<slug>), convert-to-market-scan (retag to monetization/market-scan/<slug>), or delete."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
         "taskParameters": {
           "ideasPerHeartbeat": "3-10 when signal supports it; fewer is valid during quiet signal",
           "destinationRule": [
-            "strong signal plus clear fit -> decision",
+            "strong signal plus clear fit -> work item",
             "plausible speculative idea -> knowledge entry under monetization/opportunity/<slug> with required front-matter (catalog, revisit_trigger, acquisition_hypothesis, retention_hypothesis)",
             "raw untriaged signal -> knowledge entry under opportunity-inbox/<signal-type>/<slug>",
             "weak or incoherent -> drop"
@@ -544,29 +368,12 @@
       },
       "financial-tracker": {
         "lane": "Maintain the monetization ledger, classify operator-provided and telemetry-backed inputs, compute runway/default-alive deltas, and flag financial guardrail changes.",
-        "ownedDecisionContexts": [
-          "runway-warning",
-          "services-trap-warning",
-          "channel-attribution-gap",
-          "pricing-decision",
-          "financial-model-assumption-update",
-          "funnel-bottleneck",
-          "retention-concern"
-        ],
-        "newDecisionCapPerHeartbeat": 2,
-        "pendingOwnedDecisionCap": 3,
         "allowedWrites": [
           {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
+            "kind": "knowledge"
           },
           {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "ledger.jsonl"
+            "kind": "knowledge"
           },
           {
             "kind": "handoff"
@@ -584,9 +391,7 @@
           "Keep channels separate from revenue lines."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
         "taskParameters": {
@@ -604,21 +409,9 @@
       },
       "market-validator": {
         "lane": "Capture external benchmarks, validate market assumptions, refresh stale comps, and propose benchmark/pricing/model updates for the active tier and bundle.",
-        "ownedDecisionContexts": [
-          "benchmark-update",
-          "pricing-decision",
-          "financial-model-assumption-update"
-        ],
-        "newDecisionCapPerHeartbeat": 2,
-        "pendingOwnedDecisionCap": 3,
         "allowedWrites": [
           {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
+            "kind": "knowledge"
           },
           {
             "kind": "handoff"
@@ -633,13 +426,11 @@
         "safetyCriticalRules": [
           "Every captured value needs a source, date, and applicability flag.",
           "Deep research stays scoped to the active tier and bundle.",
-          "Validation-inbox triage must leave no entry under validation-inbox/* — convert (retag to monetization/market-scan/<slug>), raise a decision, or delete.",
+          "Validation-inbox triage must leave no entry under validation-inbox/* — convert (retag to monetization/market-scan/<slug>), file a work item, or delete.",
           "The staleness sweep enqueues but never re-fetches or resolves; resolution happens via the router and method skills only."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
         "taskParameters": {
@@ -650,23 +441,9 @@
       },
       "monetization-contrarian": {
         "lane": "Challenge monetization proposals against the seven failure modes and channel-activation guardrail; make skepticism visible without creating positive proposals.",
-        "ownedDecisionContexts": [
-          "decision-rejection-proposed",
-          "framework-update"
-        ],
-        "pendingOwnedDecisionCap": 3,
-        "newDecisionCapsByContext": {
-          "decision-rejection-proposed": 2,
-          "framework-update": 1
-        },
         "allowedWrites": [
           {
-            "base": "team-shared",
-            "path": "knowledge.jsonl"
-          },
-          {
-            "base": "team-shared",
-            "path": "decisions.jsonl"
+            "kind": "knowledge"
           },
           {
             "kind": "handoff"
@@ -679,18 +456,15 @@
           }
         ],
         "safetyCriticalRules": [
-          "Do not create promotional or positive-action decisions.",
-          "Do not block decisions directly; operator resolves them.",
-          "Do not invent new failure modes on the fly; use framework-update decisions."
+          "Do not create promotional or positive-action work items.",
+          "Do not block work items directly; operator resolves them.",
+          "Do not invent new failure modes on the fly; use framework-update work items."
         ],
         "readOnlyModeBehavior": {
-          "skipNewDecisions": true,
           "stillWriteKnowledge": true,
-          "stillRunSupersession": true,
           "stillWriteHandoff": true
         },
         "taskParameters": {
-          "staleDecisionScan": "review pending decisions older than 14 heartbeats every heartbeat",
           "failureModes": [
             "catalog sprawl",
             "premature tier activation",

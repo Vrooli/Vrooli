@@ -28,7 +28,7 @@ Friction is *system-level capture-leak* — the gap between what the system prom
 |---|---|---|
 | Broken scenario or code behavior — code defects, regressions, prompt confusion, unexpected errors | [`report-bug`](../../../../scenarios/prompt-manager/store/skills/packs/core/report-bug/SKILL.md) — writes to `bug-inbox/*` on scenario-qa | Bugs are defects against documented behavior; friction is gaps in promised capability. Different drainer, different fix layer. |
 | Disagreement with an existing decision, plan, or operating contract | Raise a decision in the appropriate context (e.g., `decision-rejection-proposed` for stale decisions, `framework-update` for contract-level disputes) | Disagreement is structural input, not observation. |
-| Capability the system should have but doesn't | The owning member raises a `capability-gap` decision (toolchain-validator, run-introspector, or team-agent-optimizer) | Capability gaps are commitments to build new infrastructure, not observations about existing infrastructure. |
+| Capability the system should have but doesn't | The owning member raises a `capability-work` decision (toolchain-validator, run-introspector, or team-agent-optimizer) | Capability gaps are commitments to build new infrastructure, not observations about existing infrastructure. |
 | A fix the reporter could just apply right now | Apply the fix directly | Don't file friction reports for things you can fix in five minutes. The whole point of friction reporting is signal that the *system* should change. |
 | Post-hoc deep analysis of a long conversation | [`conversation-friction-analysis`](../../../../scenarios/prompt-manager/store/skills/packs/core/conversation-friction-analysis/SKILL.md) | That skill is for analytic decomposition with timeline + attribution + scoring; `report-friction` is for in-flight observation. |
 
@@ -50,7 +50,7 @@ Scope choice is made by the producer at file time. If the producer is uncertain,
 
 The reporter assigns severity:
 
-- `blocking` — the reporter is currently stopped; no workaround applied. Routes through curator with priority; may also escalate to a `capability-gap` decision via the destination scoped-topic owner.
+- `blocking` — the reporter is currently stopped; no workaround applied. Routes through curator with priority; may also escalate to a `capability-work` decision via the destination scoped-topic owner.
 - `recurring` — the friction has been observed multiple times across heartbeats or runs. Requires evidence of recurrence (count or prior-entry pointer).
 - `one-off` — observed once, with workaround applied. **The curator drops `one-off` entries with a triage note** — file in handoff next time, not the inbox. This keeps the inbox actionable.
 
@@ -61,8 +61,8 @@ The curator may overrule severity based on observed scope or recurrence (e.g., a
 - **Severity is the producer's claim**, but the curator may overrule based on actual scope of impact during routing.
 - **Honesty flags are required when applicable.** `speculative-cause` (the reporter guessed at why the friction happened); `repeats-existing-friction-topic` (this is the same friction the reporter or another agent has filed before — the curator may merge); `minimal-context` (the report was filed under time pressure with reduced context); `auto-generated` (the description was machine-summarized or produced by a skill, not a human-shaped sentence).
 - **`recurring` severity requires evidence of recurrence**: count of past occurrences, or pointer to a prior friction entry being amplified.
-- **`blocking` severity requires the reporter is currently stopped** (not just slowed). Blockers route via handoff or capability-gap depending on whether a fix exists.
-- **`unknown` scope requires curator reclassification before routing.** If reclassification fails after one heartbeat, the curator hands off to debt-curator with full context — never direct-writes to `friction-report/recurring-workaround/*` from `unknown` (that would corrupt debt-curator's synthesis input).
+- **`blocking` severity requires the reporter is currently stopped** (not just slowed). Blockers route via handoff or capability-work depending on whether a fix exists.
+- **`unknown` scope requires curator reclassification before routing.** If reclassification fails after one heartbeat, the curator hands off to debt-curator with full context — never direct-edits to `friction-report/recurring-workaround/*` from `unknown` (that would corrupt debt-curator's synthesis input).
 - **Friction entries are observation, not authority.** The destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) decide what action follows. The original `friction-inbox/*` entry is closed on routing; the routing record lives in `friction-triage-record/<YYYY-MM-DD>`.
 
 ## Action selection

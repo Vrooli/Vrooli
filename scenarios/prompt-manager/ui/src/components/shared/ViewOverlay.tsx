@@ -21,8 +21,8 @@ import { FPSOverlay } from '@/components/world/performance'
 
 interface ViewOverlayProps {
   onOpenMobileSidebar?: () => void
-  /** Number of pending decisions needing attention */
-  pendingDecisionCount?: number
+  /** Number of pending work items needing attention */
+  pendingWorkCount?: number
   /** Number of currently running agents */
   runningAgentCount?: number
   leftPanelContent?: ReactNode
@@ -36,7 +36,7 @@ interface ViewOverlayProps {
 
 export function ViewOverlay({
   onOpenMobileSidebar,
-  pendingDecisionCount = 0,
+  pendingWorkCount = 0,
   runningAgentCount = 0,
   leftPanelContent,
   settingsContent,
@@ -105,9 +105,9 @@ export function ViewOverlay({
                   >
                     <Menu className="h-4 w-4" />
                   </Button>
-                  {(pendingDecisionCount > 0 || runningAgentCount > 0) && (
+                  {(pendingWorkCount > 0 || runningAgentCount > 0) && (
                     <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white px-1 pointer-events-none">
-                      {pendingDecisionCount + runningAgentCount}
+                      {pendingWorkCount + runningAgentCount}
                     </span>
                   )}
                 </div>

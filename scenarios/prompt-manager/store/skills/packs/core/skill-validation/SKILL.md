@@ -52,7 +52,7 @@ Run these checks in order. Each stage produces findings you'll later convert int
 
 Check {{SKILL}} against the universal quality bars in `docs/agent-system/SKILL_AUTHORING.md` §"Universal quality bars" and against the matching per-category authoring guide (`skill-authoring` for Steer; `skill-authoring-tools`, `-search`, `-practice`, `-platform`, `-meta` otherwise). The authoring guide **is** the category checklist — anchor each finding to the specific bar or guide rule it violates; do not restate either.
 
-**Contract skills** (`modes[0]: contract` — machine-invoked workflow prompts) use a different checklist: validate against the five required-content items and the exemption list in `SKILL_AUTHORING.md` §"Contract skills: machine-invoked workflow prompts" instead of the generic structure template. §3.2, §3.8, and §3.11 do not apply. The divergence probe (§3.3) is the primary gate and targets the outcome decision table; probe specifically for end states where an affirmative row is arguably-but-not-provably satisfied — the skill must resolve these to the conservative outcome per SKILL_AUTHORING §"The conservative-branch default", and a probe that finds an optimistic-vs-conservative split unresolved by that default is a confirmed C4. Additionally cross-check the referencing workflow declaration (the node whose `promptRef` names {{SKILL}}): every `{{.var}}` in the skill has a matching node binding, every node binding is referenced by the skill or deliberately omitted, and the skill restates no part of the node's `resultSpec` schema — the engine renders that schema into the prompt; restated shape is drift.
+**Contract skills** (`modes[0]: contract` — machine-invoked workflow prompts) use a different checklist: validate against the five required-content items and the exemption list in `SKILL_AUTHORING.md` §"Contract skills: machine-invoked workflow prompts" instead of the generic structure template. §3.2, §3.8, and §3.11 do not apply. The divergence probe (§3.3) is the primary gate and targets the outcome work table; probe specifically for end states where an affirmative row is arguably-but-not-provably satisfied — the skill must resolve these to the conservative outcome per SKILL_AUTHORING §"The conservative-branch default", and a probe that finds an optimistic-vs-conservative split unresolved by that default is a confirmed C4. Additionally cross-check the referencing workflow declaration (the node whose `promptRef` names {{SKILL}}): every `{{.var}}` in the skill has a matching node binding, every node binding is referenced by the skill or deliberately omitted, and the skill restates no part of the node's `resultSpec` schema — the engine renders that schema into the prompt; restated shape is drift.
 
 Two placement checks specific to validation:
 
@@ -111,7 +111,7 @@ Example: a skill says "Parameters must be nested in `initial_params` via `--para
 
 * [ ] One placeholder convention used consistently
 * [ ] One canonical term per concept (with synonyms explicitly mapped if needed)
-* [ ] If multiple approaches exist, the skill explains *when to use which* (decision table)
+* [ ] If multiple approaches exist, the skill explains *when to use which* (work table)
 
 #### 3.6 External Reality Check (Tooling & References Actually Exist)
 
@@ -237,7 +237,7 @@ This prevents validation reports from turning into opinionated rewrites.
 
 ### 6. Expansion Patches: Fix and Extend Without Rewriting
 
-Validation produces **targeted, copy-paste expansions** that close gaps with minimal disruption. High-leverage patch types: missing prerequisites section; missing verification section; missing failure mode table; missing decision table ("when to use which approach"); missing output contract; missing "when NOT to use this" boundaries.
+Validation produces **targeted, copy-paste expansions** that close gaps with minimal disruption. High-leverage patch types: missing prerequisites section; missing verification section; missing failure mode table; missing work table ("when to use which approach"); missing output contract; missing "when NOT to use this" boundaries.
 
 **Patch style rules:**
 

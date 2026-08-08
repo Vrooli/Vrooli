@@ -34,7 +34,7 @@ func newTeamKnowledgeQuery(s *store.FileTeamStore) memberflow.KnowledgeQuery {
 func (q *teamKnowledgeQuery) ListUnrouted(team string, prefix string) ([]memberflow.InboxEntry, error) {
 	literal := strings.TrimSuffix(prefix, "/*")
 	if literal == prefix && !strings.HasSuffix(literal, "/") {
-		// Exact-topic prefix. team_store.GetKnowledge HasPrefix matches both
+		// Exact-topic prefix. Team corpus listing matches both
 		// the topic and any descendants — for an exact match we still want
 		// HasPrefix because the inbox convention nests slugs under the
 		// signal type (`research-inbox/audience/foo`).
@@ -42,7 +42,7 @@ func (q *teamKnowledgeQuery) ListUnrouted(team string, prefix string) ([]memberf
 		literal = literal + "/"
 	}
 
-	entries, err := q.store.GetKnowledge(context.Background(), team, "", literal, 0)
+	entries, err := q.store.ListTeamCorpus(context.Background(), team, "", literal, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (q *teamKnowledgeQuery) ListUnrouted(team string, prefix string) ([]memberf
 // the topic_key_prefix_mismatch validator rule to cross-check entries
 // against the team's declared topic prefixes.
 func (q *teamKnowledgeQuery) ListAll(team string) ([]memberflow.InboxEntry, error) {
-	entries, err := q.store.GetKnowledge(context.Background(), team, "", "", 0)
+	entries, err := q.store.ListTeamCorpus(context.Background(), team, "", "", 0)
 	if err != nil {
 		return nil, err
 	}

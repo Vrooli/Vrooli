@@ -20,8 +20,8 @@ import (
 // API source. Methods is the set of HTTP verbs the route accepts.
 type APIRoute struct {
 	Methods []string // sorted, uppercase
-	Path    string   // e.g. "/teams/{id}/decisions/{decisionId}"
-	Handler string   // e.g. "heartbeatHandlers.UpdateDecisionHandler"
+	Path    string   // e.g. "/teams/{id}/tasks/{taskId}"
+	Handler string   // e.g. "heartbeatHandlers.UpdateTaskHandler"
 	Line    int      // source line for diagnostics
 }
 
@@ -33,7 +33,7 @@ func (r APIRoute) Key() string {
 
 // routeRe matches lines like:
 //
-//	v1.HandleFunc("/teams/{id}/decisions/{decisionId}", heartbeatHandlers.UpdateDecisionHandler).Methods("PATCH", "PUT")
+//	v1.HandleFunc("/teams/{id}/tasks/{taskId}", heartbeatHandlers.UpdateTaskHandler).Methods("PATCH", "PUT")
 //
 // The pattern intentionally tolerates whitespace variations and one or many
 // methods. Multi-line registrations would not match — none exist in the

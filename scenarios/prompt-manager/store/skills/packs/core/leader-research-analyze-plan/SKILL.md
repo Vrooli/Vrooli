@@ -22,7 +22,7 @@ Optional: `prompt-manager skill read conversation-friction-analysis capability-e
 
 Run the phases per the shared contract's phase shape (Gate 1 after Research, Gate 2 after Analyze, Gate 3 after Decide).
 
-### 2. Pipeline entry decision table
+### 2. Pipeline entry work table
 
 | You have... | Area understood? | Gaps identified? | Entry point |
 |---|---|---|---|

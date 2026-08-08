@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "morning-vision-walk",
   "name": "Morning Vision Walk",
-  "description": "Daily strategic sync and idea generation session. Guides the human through retrospective review, pending decisions from director-swarm and meta-optimization lanes, monetization questions, life audit for capability gap discovery, and big-picture brainstorming — the single interface through which you steer the entire Vrooli project.",
+  "description": "Daily strategic sync and idea generation session. Guides the human through retrospective review, open work items from director-swarm and meta-optimization lanes, monetization questions, life audit for capability gap discovery, and big-picture brainstorming — the single interface through which you steer the entire Vrooli project.",
   "modes": [
     "practice"
   ],

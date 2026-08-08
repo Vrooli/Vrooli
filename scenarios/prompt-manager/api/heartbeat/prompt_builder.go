@@ -172,10 +172,6 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			sections = append(sections, newPromptSection(promptSectionKindLastHandoff, fmt.Sprintf("teams/%s/members/%s/last-handoff.md", teamID, agentID), promptHeading(promptSectionKindLastHandoff)+"\n\nThis is what you noted at the end of your last heartbeat:\n\n"+shiftMarkdownHeadings(handoff, 2)))
 		}
 
-		if section := b.buildChallengeReviewSection(ctx, team, agentID); section != "" {
-			sections = append(sections, newPromptSection(promptSectionKindChallengeReview, fmt.Sprintf("teams/%s/shared/knowledge.jsonl", teamID), section))
-		}
-
 		if section, err := b.buildStorageMapSection(team, agentID); err != nil {
 			return nil, err
 		} else if section != "" {
@@ -255,7 +251,6 @@ func (b *PromptBuilder) buildTopicContractSection(teamID, agentID string) string
 }
 
 type memberStoragePolicy struct {
-	CanWriteDecision          bool
 	CanWriteKnowledge         bool
 	RequiresHandoff           bool
 	CanWriteTask              bool
@@ -263,9 +258,6 @@ type memberStoragePolicy struct {
 	AllowedWriteLabels        []string
 	ForbiddenWriteLabels      []string
 	RequiredReadPrefixes      []string
-	DecisionCapPerHeartbeat   *int
-	DecisionCapsByContext     map[string]int
-	PendingOwnedDecisionCap   *int
 }
 
 func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartbeat bool, heartbeatInstructions string, configDir string) string {
@@ -327,11 +319,7 @@ func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartb
 	} else {
 		section.WriteString("- No required handoff declared for this member.\n\n")
 	}
-	if policy.CanWriteDecision {
-		section.WriteString("Decision cap: " + describeDecisionCaps(policy) + ".\n\n")
-	} else {
-		section.WriteString("Decision writes: not allowed for this member. Review decisions when useful; do not create them.\n\n")
-	}
+	section.WriteString("Findings: file raw observations with `swarm-manager captures create`; file shaped outcomes with `swarm-manager backlog create`. Read your filed items with `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.\n\n")
 	// This block used to point at `# Storage Map`'s authority order to resolve
 	// section conflicts. That list ranks sources of truth about the world
 	// (plan of record, decisions, working state, knowledge, handoff) and names
@@ -346,7 +334,7 @@ func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartb
 		rank++
 	}
 	writeRank("Operator instruction given during this run")
-	writeRank("Your contract — `" + promptHeading(promptSectionKindActiveTaskBrief) + "`, `" + promptHeading(promptSectionKindOperatingPolicy) + "`, `" + promptHeading(promptSectionKindTopicContract) + "`. Write surfaces, decision caps, and safety-critical rules bound the task; the task cannot widen them.")
+	writeRank("Your contract — `" + promptHeading(promptSectionKindActiveTaskBrief) + "`, `" + promptHeading(promptSectionKindOperatingPolicy) + "`, `" + promptHeading(promptSectionKindTopicContract) + "`. Write surfaces and safety-critical rules bind the task; the task cannot widen them.")
 	// The context-only build omits the heartbeat task, so naming it here would
 	// rank a section the reader cannot find.
 	if includeHeartbeat {
@@ -383,10 +371,7 @@ func buildTaskReminderSection(team *store.Team, agentID string, heartbeatInstruc
 	section.WriteString("Do now:\n")
 	section.WriteString("1. Follow the task loop in `HEARTBEAT.md`.\n")
 	section.WriteString("2. Use only the write surfaces allowed in `# Active Task Brief`.\n")
-	itemThree := "3. Record observations, friction"
-	if policy.CanWriteDecision {
-		itemThree += ", decisions"
-	}
+	itemThree := "3. Record observations, friction, and shaped work"
 	if len(policy.CanWriteWorkingStatePaths) > 0 {
 		itemThree += ", working-state updates"
 	}
@@ -394,144 +379,11 @@ func buildTaskReminderSection(team *store.Team, agentID string, heartbeatInstruc
 		itemThree += ", and handoff"
 	}
 	itemThree += " according to `# Storage Map`"
-	if !policy.CanWriteDecision {
-		itemThree += "; do not create decisions"
-	}
 	section.WriteString(itemThree + ".\n")
 	if policy.RequiresHandoff {
 		section.WriteString("4. End with `## HANDOFF` when required, then stop.")
 	}
 	return section.String()
-}
-
-type pendingChallengeView struct {
-	Decision   store.DecisionEntry
-	Report     *store.KnowledgeEntry
-	Resolution *store.KnowledgeEntry
-	Status     string
-}
-
-func (b *PromptBuilder) buildChallengeReviewSection(ctx context.Context, team *store.Team, agentID string) string {
-	if b == nil || b.teamStore == nil || team == nil || team.OperatingContract == nil {
-		return ""
-	}
-	member, ok := team.OperatingContract.Members[agentID]
-	if !ok {
-		return ""
-	}
-
-	ownedContexts := make(map[string]struct{}, len(member.OwnedDecisionContexts))
-	for _, contextID := range member.OwnedDecisionContexts {
-		contextID = strings.TrimSpace(contextID)
-		if contextID != "" {
-			ownedContexts[contextID] = struct{}{}
-		}
-	}
-
-	decisions, _, err := b.teamStore.GetDecisions(ctx, team.ID, "", store.DecisionStatusPending, 0)
-	if err != nil || len(decisions) == 0 {
-		return ""
-	}
-
-	challenges := make([]pendingChallengeView, 0)
-	for _, decision := range decisions {
-		if strings.TrimSpace(decision.ID) == "" || !memberOwnsChallengeTarget(decision, agentID, ownedContexts) {
-			continue
-		}
-		reports, err := b.teamStore.GetKnowledge(ctx, team.ID, "challenge-report/"+decision.ID, "", 0)
-		if err != nil || len(reports) == 0 {
-			continue
-		}
-		resolutions, err := b.teamStore.GetKnowledge(ctx, team.ID, "challenge-resolution-record/"+decision.ID, "", 0)
-		if err != nil {
-			continue
-		}
-
-		view := pendingChallengeView{
-			Decision: decision,
-			Report:   &reports[len(reports)-1],
-			Status:   "open",
-		}
-		if len(resolutions) > 0 {
-			view.Resolution = &resolutions[len(resolutions)-1]
-			view.Status = challengeResolutionStatus(view.Resolution.Content)
-			if view.Status == "" {
-				view.Status = "open"
-			}
-		}
-		if challengeStatusClosed(view.Status) {
-			continue
-		}
-		challenges = append(challenges, view)
-	}
-	if len(challenges) == 0 {
-		return ""
-	}
-
-	var section strings.Builder
-	section.WriteString(promptHeading(promptSectionKindChallengeReview) + "\n\n")
-	section.WriteString("These pending decisions you authored or own by context have unresolved contrarian challenges. Respond before filing unrelated new decisions when possible.\n\n")
-	for _, challenge := range challenges {
-		section.WriteString(fmt.Sprintf("## `%s`\n\n", challenge.Decision.ID))
-		section.WriteString(fmt.Sprintf("- Context: `%s`\n", emptyAs(challenge.Decision.Context, "none")))
-		section.WriteString(fmt.Sprintf("- Author: `%s`\n", emptyAs(challenge.Decision.By, "unknown")))
-		section.WriteString(fmt.Sprintf("- Challenge report: `%s`", challenge.Report.Topic))
-		if challenge.Report.ID != "" {
-			section.WriteString(fmt.Sprintf(" (`%s`)", challenge.Report.ID))
-		}
-		section.WriteString("\n")
-		if challenge.Resolution != nil {
-			section.WriteString(fmt.Sprintf("- Latest resolution: `%s`", challenge.Resolution.Topic))
-			if challenge.Resolution.ID != "" {
-				section.WriteString(fmt.Sprintf(" (`%s`)", challenge.Resolution.ID))
-			}
-			section.WriteString(fmt.Sprintf(" status `%s`\n", challenge.Status))
-		} else {
-			section.WriteString("- Latest resolution: none yet; treat status as `open`\n")
-		}
-		if summary := firstContentLine(challenge.Report.Content); summary != "" {
-			section.WriteString("- Report summary: " + summary + "\n")
-		}
-		section.WriteString("- Response path: revise or supersede the decision, accept the challenge, or disagree with evidence; if you cannot attach the response to the decision, write `challenge-resolution-record/" + challenge.Decision.ID + "` with `status: author-responded`.\n")
-		section.WriteString("- Inspect with: `prompt-manager team knowledge-list " + team.ID + " --topic challenge-report/" + challenge.Decision.ID + "` and `prompt-manager team knowledge-list " + team.ID + " --topic challenge-resolution-record/" + challenge.Decision.ID + "`.\n\n")
-	}
-	section.WriteString("Challenge lifecycle canon: `docs/agent-system/CONTRARIAN_REVIEW.md`.")
-	return section.String()
-}
-
-func memberOwnsChallengeTarget(decision store.DecisionEntry, agentID string, ownedContexts map[string]struct{}) bool {
-	if strings.TrimSpace(decision.By) == agentID {
-		return true
-	}
-	if _, ok := ownedContexts[strings.TrimSpace(decision.Context)]; ok {
-		return true
-	}
-	return false
-}
-
-func challengeResolutionStatus(content string) string {
-	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "status:") {
-			return strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "status:")), `"'`)
-		}
-		if strings.HasPrefix(line, `"status"`) {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				return strings.Trim(strings.TrimSpace(strings.TrimRight(parts[1], ",")), `"'`)
-			}
-		}
-	}
-	return ""
-}
-
-func challengeStatusClosed(status string) bool {
-	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "resolved", "overridden", "stale":
-		return true
-	default:
-		return false
-	}
 }
 
 func firstContentLine(content string) string {
@@ -596,17 +448,6 @@ func renderWriteSurface(policy memberStoragePolicy) string {
 	return out.String()
 }
 
-// describeDecisionCaps renders the member's new-decision caps as a single
-// clause for the Active Task Brief.
-//
-// A member may cap per heartbeat (newDecisionCapPerHeartbeat), per owned
-// context (newDecisionCapsByContext), or both. Reporting only the scalar left
-// per-context members reading "no explicit per-heartbeat cap" in the brief
-// while the operating policy named real caps.
-func describeDecisionCaps(policy memberStoragePolicy) string {
-	return teamcontract.DecisionCapsSummary(policy.DecisionCapPerHeartbeat, policy.DecisionCapsByContext, policy.PendingOwnedDecisionCap)
-}
-
 func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string) memberStoragePolicy {
 	if team == nil || team.OperatingContract == nil {
 		return memberStoragePolicy{}
@@ -616,11 +457,8 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string
 		return memberStoragePolicy{}
 	}
 	policy := memberStoragePolicy{
-		RequiresHandoff:         teamconfig.RequiresHandoff(team.Contract()) && !writeRefsContainKind(member.ForbiddenWrites, "handoff"),
-		RequiredReadPrefixes:    loadRequiredReadPrefixes(configDir, team.ID, agentID),
-		DecisionCapPerHeartbeat: member.NewDecisionCapPerHeartbeat,
-		DecisionCapsByContext:   member.NewDecisionCapsByContext,
-		PendingOwnedDecisionCap: member.PendingOwnedDecisionCap,
+		RequiresHandoff:      teamconfig.RequiresHandoff(team.Contract()) && !writeRefsContainKind(member.ForbiddenWrites, "handoff"),
+		RequiredReadPrefixes: loadRequiredReadPrefixes(configDir, team.ID, agentID),
 	}
 	for _, ref := range member.AllowedWrites {
 		label := describeWriteRef(ref, team, agentID, configDir)
@@ -629,8 +467,6 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string
 		}
 		if ref.Kind != "" {
 			switch ref.Kind {
-			case "decision":
-				policy.CanWriteDecision = true
 			case "knowledge":
 				policy.CanWriteKnowledge = true
 			case "handoff":
@@ -641,15 +477,8 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string
 			continue
 		}
 		normalized := normalizedWritePath(ref, team, agentID, configDir)
-		switch {
-		case strings.HasSuffix(normalized, "/decisions.jsonl"):
-			policy.CanWriteDecision = true
-		case strings.HasSuffix(normalized, "/knowledge.jsonl"):
-			policy.CanWriteKnowledge = true
-		default:
-			if normalized != "" {
-				policy.CanWriteWorkingStatePaths = append(policy.CanWriteWorkingStatePaths, normalized)
-			}
+		if normalized != "" {
+			policy.CanWriteWorkingStatePaths = append(policy.CanWriteWorkingStatePaths, normalized)
 		}
 	}
 	for _, ref := range member.ForbiddenWrites {
@@ -661,8 +490,6 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string
 			continue
 		}
 		switch ref.Kind {
-		case "decision":
-			policy.CanWriteDecision = false
 		case "knowledge":
 			policy.CanWriteKnowledge = false
 		case "handoff":
@@ -670,9 +497,6 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string
 		case "task":
 			policy.CanWriteTask = false
 		}
-	}
-	if member.NewDecisionCapPerHeartbeat != nil && *member.NewDecisionCapPerHeartbeat == 0 {
-		policy.CanWriteDecision = false
 	}
 	policy.AllowedWriteLabels = sortedUniqueStrings(policy.AllowedWriteLabels)
 	policy.ForbiddenWriteLabels = sortedUniqueStrings(policy.ForbiddenWriteLabels)
@@ -736,8 +560,6 @@ func sortedUniqueStrings(values []string) []string {
 func describeWriteRef(ref teamcontract.WriteRef, team *store.Team, agentID string, configDir string) string {
 	if ref.Kind != "" {
 		switch ref.Kind {
-		case "decision":
-			return "decision proposals"
 		case "knowledge":
 			return "knowledge observations and friction signals"
 		case "handoff":
@@ -761,10 +583,6 @@ func describeWriteRef(ref teamcontract.WriteRef, team *store.Team, agentID strin
 
 func describeKnownWritePath(path string, team *store.Team, agentID string, configDir string) string {
 	switch {
-	case strings.HasSuffix(path, "/decisions.jsonl"):
-		return "decision proposals"
-	case strings.HasSuffix(path, "/knowledge.jsonl"):
-		return "knowledge observations and friction signals"
 	case strings.HasSuffix(path, "/tasks.json"):
 		return "team task board updates"
 	}
@@ -773,9 +591,8 @@ func describeKnownWritePath(path string, team *store.Team, agentID string, confi
 	}
 	for _, doc := range team.OperatingContract.Documents.SharedState {
 		normalized, err := teamcontract.NormalizePath(doc.Path, teamcontract.ValidationInput{
-			TeamID:       team.ID,
-			DecisionMode: team.DecisionMode,
-			StoreDir:     configDir,
+			TeamID:   team.ID,
+			StoreDir: configDir,
 		}, agentID)
 		if err != nil || normalized != path {
 			continue
@@ -799,9 +616,8 @@ func normalizedWritePath(ref teamcontract.WriteRef, team *store.Team, agentID st
 		MemberID: ref.MemberID,
 		AgentID:  ref.AgentID,
 	}, teamcontract.ValidationInput{
-		TeamID:       team.ID,
-		DecisionMode: team.DecisionMode,
-		StoreDir:     configDir,
+		TeamID:   team.ID,
+		StoreDir: configDir,
 	}, agentID)
 	if err != nil {
 		return ""
@@ -917,16 +733,11 @@ func (b *PromptBuilder) buildOperatingPolicySection(team *store.Team, agentID st
 	if teamconfig.AllowsPeerTriggers(contract) {
 		section.WriteString(fmt.Sprintf("- Peer triggers are enabled. You may request a teammate run by calling `prompt-manager team heartbeat-trigger %s <agent-id>` when the heartbeat task explicitly benefits from it.\n", team.ID))
 	}
-	if team.DecisionMode == "approval" {
-		section.WriteString("- This team is in `approval` decision mode. Analyze, prioritize, and log pending decisions, but do not deploy teams, trigger external execution, or create external backlog items unless a human has already accepted that decision.\n")
-	}
-
 	memberPolicy, err := teamcontract.RenderMemberPolicy(team.OperatingContract, teamcontract.RenderInput{
-		TeamID:       team.ID,
-		TeamName:     team.DisplayName,
-		DecisionMode: team.DecisionMode,
-		MemberID:     agentID,
-		StoreDir:     b.teamStore.StoreDir(),
+		TeamID:   team.ID,
+		TeamName: team.DisplayName,
+		MemberID: agentID,
+		StoreDir: b.teamStore.StoreDir(),
 	})
 	if err != nil {
 		return "", err
@@ -942,8 +753,7 @@ func shouldIncludeCoordinationSkillReference(team *store.Team) bool {
 	contract := team.Contract()
 	return contract.Coordination.Pattern != teamconfig.CoordinationPatternIndependent ||
 		teamconfig.MessagingEnabled(contract) ||
-		teamconfig.AllowsPeerTriggers(contract) ||
-		team.DecisionMode == "approval"
+		teamconfig.AllowsPeerTriggers(contract)
 }
 
 func (b *PromptBuilder) buildOrgContextSection(ctx context.Context, team *store.Team, agentID string) string {
@@ -1049,7 +859,7 @@ Write what your next run needs to know: what changed, what remains open, what to
 
 Use the knowledge log for structured observations from this heartbeat: evidence, measurements, snapshots, findings, and concrete friction signals.
 
-When an observation has a clear typed destination — another member's inbox topic, or a concrete-typed topic that another member drains — write to that topic with ` + "`prompt-manager team knowledge-add`" + ` so the right drainer picks it up. If no typed topic fits, use ` + "`report-friction`" + ` for system/process friction or raise a ` + "`meta-self-improvement`" + ` proposal to add the missing topic/taxonomy. The full registry of inboxes and other typed topics is ` + "`docs/agent-system/TOPICS.md`" + `.
+When an observation has a clear typed destination — another member's inbox topic, or a concrete-typed topic that another member drains — record the prose once with ` + "`source-ledger journal note`" + ` in the team's ` + "`team:<id>`" + ` scope, then file any resulting work through swarm-manager. If no typed topic fits, use ` + "`report-friction`" + ` for system/process friction. The full registry of inboxes and other typed topics is ` + "`docs/agent-system/TOPICS.md`" + `.
 
 For broken scenario or code behavior — bugs of any kind: code defects, regressions, prompt confusion, data-shape mismatches, unexpected errors — load ` + "`prompt-manager skill read report-bug`" + ` and follow it. The skill writes to ` + "`bug-inbox/<signal-type>/<slug>`" + ` on ` + "`scenario-qa`" + `, where the bug-investigator drains. ` + "`bug-inbox/*`" + ` is the universal-source intake any team's members write to.
 
@@ -1057,9 +867,9 @@ If something expected was missing, broken, confusing, slow, undocumented, or har
 
 ## Propose
 
-Use decisions for changes that need review.
+File work for review in the unified swarm-manager stream.
 
-Create a decision when something durable should change: plan-of-record docs, skills, actions, CLIs, team config, scenarios, backlog, or another member's operating surface. Include the proposed change, rationale, evidence, and target destination.
+Use ` + "`swarm-manager captures create`" + ` for a raw observation and ` + "`swarm-manager backlog create`" + ` for a shaped outcome. Include the evidence, intended result, and target destination. Read the operator disposition later with ` + "`swarm-manager backlog list --actor-id=<verified-profile-key>`" + ` and ` + "`swarm-manager backlog get`" + `.
 
 ## Operate
 
@@ -1073,7 +883,7 @@ When sources disagree, prefer:
 
 1. Operator instruction in the current run
 2. Accepted plan-of-record docs
-3. Accepted decisions
+3. Accepted work dispositions
 4. Team working state
 5. Knowledge log evidence
 6. Handoff
@@ -1082,7 +892,6 @@ When sources disagree, prefer:
 	teamStorage, err := teamcontract.RenderTeamStorage(team.OperatingContract, teamcontract.RenderInput{
 		TeamID:         team.ID,
 		TeamName:       team.DisplayName,
-		DecisionMode:   team.DecisionMode,
 		MemberID:       agentID,
 		StoreDir:       b.teamStore.StoreDir(),
 		RequireHandoff: teamconfig.RequiresHandoff(team.Contract()),
@@ -1134,24 +943,19 @@ func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team, a
 		lines = append(lines, "")
 	}
 
-	if teamconfig.ShouldShowDecisionLogGuidance(contract) {
-		lines = append(lines, "### Decision Log")
-		lines = append(lines, "")
-		lines = append(lines, fmt.Sprintf("- Review decisions: `prompt-manager team decision-list %s`", team.ID))
-		if policy.CanWriteDecision {
-			lines = append(lines, fmt.Sprintf("- Record a pending decision: `prompt-manager team decision-add %s --by=<agent-id> --decision \"...\" --rationale \"...\"`", team.ID))
-		} else {
-			lines = append(lines, "- Decision writes are not allowed for this member.")
-		}
-		lines = append(lines, "")
-	}
+	lines = append(lines, "### Unified Work Filing")
+	lines = append(lines, "")
+	lines = append(lines, "- File a raw observation once: `swarm-manager captures create`.")
+	lines = append(lines, "- File a shaped outcome once: `swarm-manager backlog create`.")
+	lines = append(lines, "- Read your dispositions: `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.")
+	lines = append(lines, "")
 
 	if teamconfig.ShouldShowKnowledgeLogGuidance(contract) {
 		lines = append(lines, "### Knowledge Log")
 		lines = append(lines, "")
-		lines = append(lines, fmt.Sprintf("- Review team knowledge: `prompt-manager team knowledge-list %s`", team.ID))
+		lines = append(lines, fmt.Sprintf("- Recall team context: `source-ledger recall \"<query>\" --scope=team:%s`", team.ID))
 		if policy.CanWriteKnowledge {
-			lines = append(lines, fmt.Sprintf("- Record durable knowledge: `prompt-manager team knowledge-add %s --by=<agent-id> --topic \"...\" --content \"...\"`", team.ID))
+			lines = append(lines, fmt.Sprintf("- Record durable team context: `source-ledger journal note \"<prose>\" --scope=team:%s --kind=team-knowledge`", team.ID))
 		} else {
 			lines = append(lines, "- Knowledge writes are not allowed for this member.")
 		}
@@ -1243,7 +1047,6 @@ func (b *PromptBuilder) BuildTeamLeadPrompt(ctx context.Context, teamID, agentID
 		WorkingDir:    vrooliRoot,
 		VrooliRoot:    vrooliRoot,
 		TeamID:        teamID,
-		DecisionMode:  team.DecisionMode,
 		AdditionalCtx: additionalCtx,
 	}
 

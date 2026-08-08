@@ -139,7 +139,7 @@ func TestRenderContractFindingsOrdersErrorsFirst(t *testing.T) {
 		"`contrarian-scan/*`",
 		// The member cannot edit its own topics.json, so the section has to
 		// name the routes it can actually take.
-		"propose the change as a decision",
+		"file one scoped work item through Swarm Manager",
 		"report it as friction",
 		"prompt-manager graph topics --team team-1",
 	} {

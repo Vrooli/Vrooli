@@ -6,7 +6,7 @@
 
 Each post in a series connects to its predecessor.
 
-**Mechanism:** after publishing, the operator pastes the post URL back into `marketing-crew/shared/publish-log.jsonl` (`post_url` field). The next post in the series cites that URL as `previous_post_url` (in the final reply, or as a visible link). Readers landing on the new post can find the prior chain.
+**Mechanism:** after publishing, the operator pastes the post URL back into `content-desk publish-history records` (`post_url` field). The next post in the series cites that URL as `previous_post_url` (in the final reply, or as a visible link). Readers landing on the new post can find the prior chain.
 
 For the first post in a series, `previous_post_url` is `null` and the conclusion invites readers to follow for future posts.
 
@@ -38,11 +38,11 @@ Empirical observation (walk #5, Post 4 — agent-dev-team video course quote-twe
 - ➖ Standalone short posts that don't have an underlying long-form artifact don't need this technique.
 - ❌ Linking a thin restatement of the same content across platforms with no added value on each surface — that's spam, not amplification.
 
-**Mechanism:** the publish-log entry's `post_url` is per-platform. Cross-platform amplification means the same `series_id` may have multiple entries (one per platform/surface) for the same nominal "post." A future schema extension may add a `surface` or `platform` field; today, separate entries with consistent `series_id` and a shared `draft_id` (or a paired `amplifies` reference) is the convention. The contrarian's `data_source=verifiable` check applies: every linked surface must be reachable and consistent.
+**Mechanism:** the Content Desk publish-history record's `post_url` is per-platform. Cross-platform amplification means the same `series_id` may have multiple entries (one per platform/surface) for the same nominal "post." A future schema extension may add a `surface` or `platform` field; today, separate entries with consistent `series_id` and a shared `draft_id` (or a paired `amplifies` reference) is the convention. The contrarian's `data_source=verifiable` check applies: every linked surface must be reachable and consistent.
 
 ## Mechanism details
 
-The publish-log entry shape (per `marketing-crew/shared/publish-log.jsonl`):
+The Content Desk publish-history record shape (per `content-desk publish-history records`):
 
 ```jsonl
 {
@@ -54,11 +54,11 @@ The publish-log entry shape (per `marketing-crew/shared/publish-log.jsonl`):
 }
 ```
 
-`social-media-scheduler` (planned scenario, initiative-proposal `dec-1777312920606447957`) is intended to own the URL paste-back roundtrip and the series-chaining lookup so it isn't operator-manual.
+`social-media-scheduler` (planned scenario, gated work item `dec-1777312920606447957`) is intended to own the URL paste-back roundtrip and the series-chaining lookup so it isn't operator-manual.
 
 ## Cross-references
 
 - `post-techniques/essay-shape.md` — companion technique; the conclusion of an essay-shape post is the natural place to embed `previous_post_url` and the invitation to follow for the next post.
 - `post-techniques/no-internal-numbering-externally.md` — `post_index_in_series` is the *only* numbering allowed externally; this technique uses it correctly.
-- `marketing-crew/shared/publish-log.jsonl` — the persistence surface this technique reads/writes.
+- `content-desk publish-history records` — the persistence surface this technique reads/writes.
 - `social-media-scheduler` scenario (planned) — future automation of the manual paste-back step.

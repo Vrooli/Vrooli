@@ -33,7 +33,7 @@ func rulePassForGroup(group RuleGroup) (RulePass, error) {
 	case OperatingRuleGroupObjective:
 		return RulePassObjective, nil
 	case OperatingRuleGroupPlanOfRecord,
-		OperatingModelRuleGroupStructure, OperatingModelRuleGroupDecision,
+		OperatingModelRuleGroupStructure,
 		OperatingModelRuleGroupExternalInput, OperatingModelRuleGroupOutput,
 		OperatingModelRuleGroupFeedback, OperatingModelRuleGroupGap,
 		OperatingModelRuleGroupAdoption, OperatingModelRuleGroupDiscoverability:

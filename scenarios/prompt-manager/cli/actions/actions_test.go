@@ -118,27 +118,27 @@ func TestCmdListBuildsFilters(t *testing.T) {
 }
 
 func TestCmdShowGetsActionByID(t *testing.T) {
-	ctx := &fakeContext{response: Action{ID: "team.decisions.list", Name: "List Decisions", Status: "active"}}
-	if err := cmdShow(ctx, []string{"team.decisions.list"}); err != nil {
+	ctx := &fakeContext{response: Action{ID: "team.swarm.work.list", Name: "List Work", Status: "active"}}
+	if err := cmdShow(ctx, []string{"team.swarm.work.list"}); err != nil {
 		t.Fatalf("cmdShow: %v", err)
 	}
-	if ctx.method != "GET" || ctx.path != "/actions/team.decisions.list" {
+	if ctx.method != "GET" || ctx.path != "/actions/team.swarm.work.list" {
 		t.Fatalf("unexpected request: %s %s", ctx.method, ctx.path)
 	}
 }
 
 func TestCmdCreatePostsActionFileWithPack(t *testing.T) {
 	file := writeActionFixture(t, Action{
-		ID:      "team.decisions.list",
-		Name:    "List Decisions",
+		ID:      "team.swarm.work.list",
+		Name:    "List Work",
 		Status:  "draft",
 		Owner:   ActionOwner{Type: "scenario", ID: "prompt-manager"},
-		Command: ActionCommand{Argv: []string{"prompt-manager", "team", "decision-list", "meta-optimization"}},
+		Command: ActionCommand{Argv: []string{"swarm-manager", "backlog", "list", "--json"}},
 	})
 	ctx := &fakeContext{response: MutationResponse{
-		Action: &Action{ID: "team.decisions.list", Name: "List Decisions", Status: "draft"},
+		Action: &Action{ID: "team.swarm.work.list", Name: "List Work", Status: "draft"},
 		Validation: ValidationResponse{
-			ActionID: "team.decisions.list",
+			ActionID: "team.swarm.work.list",
 			Valid:    true,
 		},
 	}}
@@ -156,7 +156,7 @@ func TestCmdCreatePostsActionFileWithPack(t *testing.T) {
 	if !ok {
 		t.Fatalf("payload type = %T, want Action", ctx.payload)
 	}
-	if action.ID != "team.decisions.list" || action.Pack != "core" {
+	if action.ID != "team.swarm.work.list" || action.Pack != "core" {
 		t.Fatalf("unexpected action payload: %+v", action)
 	}
 }
@@ -214,59 +214,59 @@ func TestCmdCreateRejectsInvalidActionFileBeforeAPI(t *testing.T) {
 
 func TestCmdUpdatePutsActionFileByID(t *testing.T) {
 	file := writeActionFixture(t, Action{
-		ID:      "team.decisions.list",
-		Name:    "List Decisions",
+		ID:      "team.swarm.work.list",
+		Name:    "List Work",
 		Status:  "active",
 		Owner:   ActionOwner{Type: "scenario", ID: "prompt-manager"},
-		Command: ActionCommand{Argv: []string{"prompt-manager", "team", "decision-list", "meta-optimization"}},
+		Command: ActionCommand{Argv: []string{"swarm-manager", "backlog", "list", "--json"}},
 	})
 	ctx := &fakeContext{response: MutationResponse{
-		Action: &Action{ID: "team.decisions.list", Name: "List Decisions", Status: "active"},
+		Action: &Action{ID: "team.swarm.work.list", Name: "List Work", Status: "active"},
 		Validation: ValidationResponse{
-			ActionID: "team.decisions.list",
+			ActionID: "team.swarm.work.list",
 			Valid:    true,
 			Runnable: true,
 		},
 	}}
 
-	if err := cmdUpdate(ctx, []string{"team.decisions.list", "--file", file}); err != nil {
+	if err := cmdUpdate(ctx, []string{"team.swarm.work.list", "--file", file}); err != nil {
 		t.Fatalf("cmdUpdate: %v", err)
 	}
-	if ctx.method != "PUT" || ctx.path != "/actions/team.decisions.list" {
+	if ctx.method != "PUT" || ctx.path != "/actions/team.swarm.work.list" {
 		t.Fatalf("unexpected request: %s %s", ctx.method, ctx.path)
 	}
 	action, ok := ctx.payload.(Action)
 	if !ok {
 		t.Fatalf("payload type = %T, want Action", ctx.payload)
 	}
-	if action.ID != "team.decisions.list" {
+	if action.ID != "team.swarm.work.list" {
 		t.Fatalf("unexpected action payload: %+v", action)
 	}
 }
 
 func TestCmdDeleteArchivesByDefault(t *testing.T) {
 	ctx := &fakeContext{}
-	if err := cmdDelete(ctx, []string{"team.decisions.list", "--yes"}); err != nil {
+	if err := cmdDelete(ctx, []string{"team.swarm.work.list", "--yes"}); err != nil {
 		t.Fatalf("cmdDelete: %v", err)
 	}
-	if ctx.method != "DELETE" || ctx.path != "/actions/team.decisions.list" {
+	if ctx.method != "DELETE" || ctx.path != "/actions/team.swarm.work.list" {
 		t.Fatalf("unexpected request: %s %s", ctx.method, ctx.path)
 	}
 }
 
 func TestCmdDeleteSupportsHardDelete(t *testing.T) {
 	ctx := &fakeContext{}
-	if err := cmdDelete(ctx, []string{"team.decisions.list", "--yes", "--hard"}); err != nil {
+	if err := cmdDelete(ctx, []string{"team.swarm.work.list", "--yes", "--hard"}); err != nil {
 		t.Fatalf("cmdDelete: %v", err)
 	}
-	if ctx.method != "DELETE" || ctx.path != "/actions/team.decisions.list?hard=true" {
+	if ctx.method != "DELETE" || ctx.path != "/actions/team.swarm.work.list?hard=true" {
 		t.Fatalf("unexpected request: %s %s", ctx.method, ctx.path)
 	}
 }
 
 func TestCmdValidatePostsToValidateEndpoint(t *testing.T) {
 	ctx := &fakeContext{response: ValidationResponse{
-		ActionID: "team.decisions.list",
+		ActionID: "team.swarm.work.list",
 		Valid:    true,
 		Runnable: true,
 		Checks: []ValidationCheck{{
@@ -275,10 +275,10 @@ func TestCmdValidatePostsToValidateEndpoint(t *testing.T) {
 			Message: "ok",
 		}},
 	}}
-	if err := cmdValidate(ctx, []string{"team.decisions.list"}); err != nil {
+	if err := cmdValidate(ctx, []string{"team.swarm.work.list"}); err != nil {
 		t.Fatalf("cmdValidate: %v", err)
 	}
-	if ctx.method != "POST" || ctx.path != "/actions/team.decisions.list/validate" {
+	if ctx.method != "POST" || ctx.path != "/actions/team.swarm.work.list/validate" {
 		t.Fatalf("unexpected request: %s %s", ctx.method, ctx.path)
 	}
 	if ctx.payload == nil {
@@ -304,18 +304,18 @@ func TestCmdValidateReturnsErrorForInvalidAction(t *testing.T) {
 func TestCmdRunPostsInputToRunEndpoint(t *testing.T) {
 	exitCode := 0
 	ctx := &fakeContext{postResponse: RunResponse{
-		ActionID:   "team.decisions.list",
+		ActionID:   "team.swarm.work.list",
 		Status:     "completed",
 		ExitCode:   &exitCode,
 		DurationMs: 12,
 		Stdout:     "ok",
 	}}
 
-	err := cmdRun(ctx, []string{"team.decisions.list", "--input", `{"team":"meta-optimization","limit":3}`})
+	err := cmdRun(ctx, []string{"team.swarm.work.list", "--input", `{"team":"meta-optimization","limit":3}`})
 	if err != nil {
 		t.Fatalf("cmdRun: %v", err)
 	}
-	if ctx.method != "POST" || ctx.path != "/actions/team.decisions.list/run" {
+	if ctx.method != "POST" || ctx.path != "/actions/team.swarm.work.list/run" {
 		t.Fatalf("unexpected request: %s %s", ctx.method, ctx.path)
 	}
 	req, ok := ctx.payload.(RunRequest)
@@ -401,7 +401,7 @@ func TestCmdRunSupportsInputFileAndDryRun(t *testing.T) {
 
 func TestCmdRunRejectsBothInputForms(t *testing.T) {
 	ctx := &fakeContext{}
-	err := cmdRun(ctx, []string{"team.decisions.list", "--input", `{}`, "--input-file", "payload.json"})
+	err := cmdRun(ctx, []string{"team.swarm.work.list", "--input", `{}`, "--input-file", "payload.json"})
 	if err == nil {
 		t.Fatal("expected mutually exclusive input flags to return an error")
 	}
@@ -412,7 +412,7 @@ func TestCmdRunRejectsBothInputForms(t *testing.T) {
 
 func TestCmdRunRejectsInvalidInputBeforeAPI(t *testing.T) {
 	ctx := &fakeContext{}
-	err := cmdRun(ctx, []string{"team.decisions.list", "--input", `[]`})
+	err := cmdRun(ctx, []string{"team.swarm.work.list", "--input", `[]`})
 	if err == nil {
 		t.Fatal("expected non-object input to return an error")
 	}
@@ -423,15 +423,15 @@ func TestCmdRunRejectsInvalidInputBeforeAPI(t *testing.T) {
 
 func TestCmdRunReturnsErrorForFailedStatus(t *testing.T) {
 	ctx := &fakeContext{response: RunResponse{
-		ActionID: "team.decisions.list",
+		ActionID: "team.swarm.work.list",
 		Status:   "failed",
 		Error:    "exit status 2",
 	}}
-	err := cmdRun(ctx, []string{"team.decisions.list"})
+	err := cmdRun(ctx, []string{"team.swarm.work.list"})
 	if err == nil {
 		t.Fatal("expected failed run status to return an error")
 	}
-	if ctx.method != "POST" || ctx.path != "/actions/team.decisions.list/run" {
+	if ctx.method != "POST" || ctx.path != "/actions/team.swarm.work.list/run" {
 		t.Fatalf("unexpected request: %s %s", ctx.method, ctx.path)
 	}
 }

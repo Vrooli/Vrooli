@@ -271,7 +271,6 @@ func TestFormatSpawnPrompt(t *testing.T) {
 		WorkingDir:    "/home/user/project",
 		VrooliRoot:    "/opt/vrooli",
 		TeamID:        "widget-builders",
-		DecisionMode:  "approval",
 		AdditionalCtx: "Focus on performance.",
 	}
 
@@ -288,7 +287,6 @@ func TestFormatSpawnPrompt(t *testing.T) {
 		"Spawn Direct Reports",
 		"Coordination",
 		"Operating Loop",
-		"Approval Constraints",
 		"Org Chart",
 		"Context",
 	}

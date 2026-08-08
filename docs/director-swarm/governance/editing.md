@@ -2,11 +2,11 @@
 
 ## Authority
 
-The director-swarm plan of record is operator-curated canon owned by the `director-swarm` team. Agents propose changes through approved decisions; they do not edit canon directly during heartbeat work.
+The director-swarm plan of record is operator-curated canon owned by the `director-swarm` team. Agents propose changes through approved Swarm Manager work items; they do not edit canon directly during heartbeat work.
 
 ## Change Flow
 
-| Change | Decision context |
+| Change | Work item type |
 |---|---|
 | Portfolio ranking, roadmap themes, and sequencing interpretation | `goal-portfolio` |
 | New goal framing | `goal-proposal` |
@@ -16,7 +16,7 @@ The director-swarm plan of record is operator-curated canon owned by the `direct
 | Outcome-driven portfolio emphasis changes | `outcome-direction` |
 | Operator vision or architecture drift signals | `vision-update` |
 
-Accepted decisions are executed by the operator. Commit messages cite the decision id.
+Approved work items are executed by the operator. Commit messages cite the work item reference.
 
 ## Direct Edits
 

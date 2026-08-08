@@ -43,7 +43,7 @@ The investigator may overrule severity based on actual scope of impact discovere
 
 ## Evidence rules
 
-- **A repro is mandatory.** If absent, the investigator first tries to reproduce. If reproduction fails, the action is `file-decision` asking the reporter or operator to supply repro — not `drop`.
+- **A repro is mandatory.** If absent, the investigator first tries to reproduce. If reproduction fails, the action is `file-work` asking the reporter or operator to supply repro — not `drop`.
 - **Honesty flags are required when applicable.** If the reporter didn't try to reproduce, the entry must include `repro-not-attempted`. Other flags: `speculative-cause` (the reporter guessed at a cause), `minimal-context` (the reporter shipped a short report under time pressure), `ai-generated-summary` (the description was machine-summarized).
 - **Investigation outcomes cite the technique applied.** The `bug-investigation-report/<slug>` entry's `technique` front-matter field must name a registered investigation technique. This drives technique-graduation decisions on `meta-self-improvement` (e.g., "bisect-debugging recurred 8 times this month — promote to a registered technique").
 - **Bug entries are debt, not authority.** Investigation outcomes (`bug-investigation-report/<slug>`) are the durable audit log; the original bug-inbox entry is moved or deleted on close.
@@ -55,9 +55,9 @@ The investigator may overrule severity based on actual scope of impact discovere
 | `drop`                  | Cannot reproduce + no clear scope; weak one-off. The investigator writes a short bug-investigation entry explaining the drop and deletes the bug-inbox entry. |
 | `observe`               | Confirmed bug; findings recorded in `bug-investigation-report/<slug>` but no fix this heartbeat (deprecated path, queued elsewhere, etc.). |
 | `file-backlog`          | Reproducible; investigator files a `swarm-manager` backlog item whose description states the outcome and its done-condition, attaches the investigation evidence as the item's `research/summary.md`, then closes the bug-inbox entry. Do not put the investigation narrative in `description` — see `swarm-manager-backlog-tools` §"Writing Standard". |
-| `file-decision`         | Cross-cutting; investigator raises `bug-resolution-proposal` for operator review (e.g., a recurring confusion that suggests renaming a CLI verb). |
-| `route-to-another-topic`| Misclassified — actually a documentation gap, capability-gap, or skill-issue. Retag/rewrite to the appropriate inbox or file the appropriate decision. |
-| `capability-gap`        | Repro requires a missing tool/scenario/CLI; raise a `capability-gap` decision and leave the inbox entry until the gap is closed. |
+| `file-work`         | Cross-cutting; investigator raises `bug-resolution-proposal` for operator review (e.g., a recurring confusion that suggests renaming a CLI verb). |
+| `route-to-another-topic`| Misclassified — actually a documentation gap, capability-work, or skill-issue. Retag/rewrite to the appropriate inbox or file the appropriate decision. |
+| `capability-work`        | Repro requires a missing tool/scenario/CLI; raise a `capability-work` decision and leave the inbox entry until the gap is closed. |
 
 ## Front-matter schemas
 
@@ -89,7 +89,7 @@ honesty_flags: [<flags from honestyFlags below>]
 bug_id: <source-knw-id of the bug-inbox entry>
 investigator: <agent-id>
 technique: <technique-skill-id, e.g., scientific-debugging>
-outcome: drop | observe | file-backlog | file-decision | route-to-another-topic | capability-gap
+outcome: drop | observe | file-backlog | file-work | route-to-another-topic | capability-work
 root_cause: <text-or-null>
 fix_target: <text-or-null>
 closed_at: <YYYY-MM-DD>

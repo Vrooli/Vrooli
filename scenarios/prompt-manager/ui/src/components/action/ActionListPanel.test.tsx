@@ -12,12 +12,12 @@ function makeAction(overrides: Partial<Action> = {}): Action {
   return {
     kind: 'action',
     schemaVersion: 1,
-    id: 'team.decisions.list',
-    name: 'List Team Decisions',
-    description: 'List decisions for a team.',
+    id: 'team.swarm.work.list',
+    name: 'List Team Work',
+    description: 'List workItems for a team.',
     status: 'active',
     owner: { type: 'scenario', id: 'prompt-manager' },
-    command: { argv: ['prompt-manager', 'team', 'decisions', 'list'] },
+    command: { argv: ['prompt-manager', 'team', 'workItems', 'list'] },
     inputs: {},
     outputs: {},
     permissions: {
@@ -74,16 +74,16 @@ describe('ActionListPanel', () => {
       <ActionListPanel
         selectedActionId={null}
         onSelectAction={onSelect}
-        searchQuery="decisions"
+        searchQuery="workItems"
       />
     )
 
-    fireEvent.click(screen.getByText('List Team Decisions'))
+    fireEvent.click(screen.getByText('List Team Work'))
 
-    expect(screen.getByText('team.decisions.list')).toBeDefined()
-    expect(screen.getByText('prompt-manager team decisions list')).toBeDefined()
-    expect(screen.getByRole('button', { name: 'List Team Decisions, active Action owned by scenario:prompt-manager' })).toBeDefined()
-    expect(onSelect).toHaveBeenCalledWith('team.decisions.list')
+    expect(screen.getByText('team.swarm.work.list')).toBeDefined()
+    expect(screen.getByText('swarm-manager backlog list --json')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'List Team Work, active Action owned by scenario:prompt-manager' })).toBeDefined()
+    expect(onSelect).toHaveBeenCalledWith('team.swarm.work.list')
   })
 
   it('creates a draft Action with a controlled prompt-manager command', async () => {
@@ -113,17 +113,17 @@ describe('ActionListPanel', () => {
         selectedActionId={null}
         onSelectAction={onSelect}
         isSelectMode
-        selectedIds={new Set(['team.decisions.list'])}
+        selectedIds={new Set(['team.swarm.work.list'])}
         onToggleSelection={onToggleSelection}
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'List Team Decisions, active Action owned by scenario:prompt-manager' }))
-    expect(onToggleSelection).toHaveBeenCalledWith('team.decisions.list')
+    fireEvent.click(screen.getByRole('button', { name: 'List Team Work, active Action owned by scenario:prompt-manager' }))
+    expect(onToggleSelection).toHaveBeenCalledWith('team.swarm.work.list')
     expect(onSelect).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Go to List Team Decisions' }))
-    expect(onSelect).toHaveBeenCalledWith('team.decisions.list')
+    fireEvent.click(screen.getByRole('button', { name: 'Go to List Team Work' }))
+    expect(onSelect).toHaveBeenCalledWith('team.swarm.work.list')
     expect(screen.queryByRole('button', { name: 'New Action' })).toBeNull()
   })
 })

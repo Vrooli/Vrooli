@@ -12,7 +12,7 @@
 - `prompt-manager graph node <id>`
 - `prompt-manager agent show <id>`
 - `prompt-manager team show <id>`
-- `prompt-manager team decision-list meta-optimization ...`
+- `swarm-manager backlog list meta-optimization ...`
 - `prompt-manager team knowledge-list meta-optimization ...`
 
 ## Usage Rules

@@ -2,11 +2,11 @@
 
 ## Authority
 
-The marketing plan of record is operator-curated canon owned by the `marketing-crew` team. Agents propose changes through approved decisions; they do not edit canon directly during heartbeat work.
+The marketing plan of record is operator-curated canon owned by the `marketing-crew` team. Agents propose changes through approved Swarm Manager work items; they do not edit canon directly during heartbeat work.
 
 ## Change Flow
 
-| Change | Decision context |
+| Change | Work item type |
 |---|---|
 | Voice, brand, asset, image-style, research, rich-media, strategy-pattern, and narrative-adjacent changes | `brand-guideline-update` |
 | Audience persona changes | `audience-update` |
@@ -16,7 +16,7 @@ The marketing plan of record is operator-curated canon owned by the `marketing-c
 | New post-type entries | `post-type-proposal` |
 | Hook-library additions | `hook-candidate-promotion` |
 
-Accepted decisions are executed by the operator. Commit messages cite the decision id.
+Approved work items are executed by the operator. Commit messages cite the work item reference.
 
 ## Direct Edits
 

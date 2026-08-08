@@ -146,8 +146,8 @@ Subcommands:
   conclude <eid> <vid>  Conclude a running experiment with a winner
 	  holdout <eid> --findings-hash HASH --idempotency-key KEY
 	                        Record separately held-out confirmation
-	  promote <eid> <decision-id>
-	                        Apply only after operator accepts that exact decision
+	  promote <eid> <work-item-ref>
+	                        Apply only after the operator dispositions that exact work item
   outcomes <eid>        List recorded outcomes
   report <eid>          Show per-arm report (serves, outcomes, success rate)
   delete, rm <eid>      Delete an experiment`
@@ -445,11 +445,11 @@ func cmdHoldout(ctx appctx.Context, args []string) error {
 
 func cmdPromote(ctx appctx.Context, args []string) error {
 	if len(args) != 2 {
-		return fmt.Errorf("usage: experiment promote <eid> <decision-id>")
+		return fmt.Errorf("usage: experiment promote <eid> <work-item-ref>")
 	}
 	var exp ExperimentResponse
 	if err := ctx.Post(fmt.Sprintf("/experiments/%s/promote", args[0]), struct {
-		DecisionID string `json:"decisionId"`
+		WorkItemRef string `json:"workItemRef"`
 	}{args[1]}, &exp); err != nil {
 		return fmt.Errorf("failed to promote experiment: %w", err)
 	}

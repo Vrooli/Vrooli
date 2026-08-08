@@ -2,7 +2,7 @@
 
 Apply the authorized correction to the parent execution's completed work. Correct only what the correction request names. The snapshot is immutable; do not act on state it does not contain.
 
-## Outcome decision table
+## Outcome work table
 
 | Observable end state | Outcome |
 | --- | --- |

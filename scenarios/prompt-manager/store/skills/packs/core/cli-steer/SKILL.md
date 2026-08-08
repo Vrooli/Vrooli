@@ -95,6 +95,68 @@ All scenario CLIs use `cli-core` from `path:packages/cli-core/`.
 | `ParseInterspersed` | Argument parser that handles flags interspersed with positionals | `cliutil.ParseInterspersed` |
 | Stale checking | Auto-rebuild when source changes | Built into `ScenarioApp` |
 
+#### 4.2 Manifest-to-proto binding contract
+
+The CLI manifest is also the declaration consumed by generic Connect
+dispatchers. When a CLI argument name differs from the request field, declare
+the projection in the manifest instead of duplicating request construction in a
+handler:
+
+```json
+{
+  "name": "schema",
+  "required": true,
+  "bind": {"field": "schema_json", "kind": "json_file"}
+}
+```
+
+`bind` is valid on flags and positionals. Its `kind` is `raw_string`,
+`json_inline`, or `json_file`; `json_file` reads the argument as a path and
+decodes its JSON into the target field. The shared resolution ladder is:
+
+1. explicit `bind.field` override;
+2. exact argument/alias name match;
+3. one-level auto-descent into the request's single non-repeated message
+   envelope (for example, `role` → `request.role`);
+4. otherwise report `binding.arg_unmapped` at validation time.
+
+Top-level fields always win, and auto-descent never guesses among multiple
+envelopes. `program-runtime bindings describe <id>` shows the selected path;
+`bindings doctor` is the fleet-wide callability gate. Response construction is
+generic, but a scenario may retain a curated human renderer through
+`cliapp.ProtoBindingOptions.Render`.
+
+The identity rule is strict: the proto declares what the server accepts, the
+manifest declares how a human types it, and an argument's identity is the
+proto field it populates. A name that is convenient for a CLI is not permission
+to send its value to an unrelated field. Use the ladder above to resolve the
+field, then validate the meaning of the resulting mapping.
+
+The semantic gate reports four classes:
+
+- `binding.field_collision` — two or more arguments target one field, so one
+  value would overwrite another.
+- `binding.control_flag_bound` — a CLI control such as `json`, `format`,
+  `limit`, or `wait` is incorrectly sent as request data.
+- `binding.required_field_unpopulated` — a request payload field marked
+  required by its proto validation constraint has no supplying argument.
+- `binding.bind_where_rename_suffices` — an explicit bind is redundant because
+  the argument name already identifies the top-level field.
+
+The first three are errors; the last is a warning. Fix them by correcting the
+argument name/alias, removing the competing bind, or marking a genuinely
+request-data control flag or explicit decoder bind with a waiver.
+`bind_waiver` is a non-empty, per-argument explanation used only for a real
+exception, for example a `format` argument that selects a server-side output
+encoding or an argument that must retain an explicit file-aware decoder. It is
+not a way to suppress an arbitrary collision or required-field error. Run
+`program-runtime bindings doctor --json` for the fleet-wide counts and
+`program-runtime bindings describe <id>` for one resolved path.
+
+The general gate principle is: a metric that can be satisfied by declaring
+something arbitrary is incomplete. Every headline number needs a rule that
+makes the cheap path also the correct path.
+
 **Why cli-core matters:**
 - **Consistency** — all CLIs behave the same (flags, help, errors, output contracts)
 - **DRY** — Connect client construction, HTTP, config, env vars are solved once

@@ -22,7 +22,7 @@ behavior it is meant to check.
 
 | Package | Provides |
 |---|---|
-| `internal/testutil/fixtures` | `WriteTeam`, `WriteJSON`, `RepositoryRoot`, and the `TeamOption` builders (`WithEnabled`, `WithContractAgents`, `WithDecisionMode`, …) |
+| `internal/testutil/fixtures` | `WriteTeam`, `WriteJSON`, `RepositoryRoot`, and the `TeamOption` builders (`WithEnabled`, `WithContractAgents`, …) |
 | `internal/testutil/httpx` | `Request`, `JSONRequest`, `Recorder`, `DecodeJSON[T]` for handler tests |
 | `internal/testutil/assertx` | `Eventually`, `Contains` |
 | `internal/testutil/mocks` | Hand-written doubles |

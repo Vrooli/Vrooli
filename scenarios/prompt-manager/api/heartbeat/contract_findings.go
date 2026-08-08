@@ -109,7 +109,7 @@ func renderContractFindings(teamID string, findings []ContractFinding) string {
 	b.WriteString("\n## What to do with these\n\n")
 	b.WriteString("Take the smallest correcting action your contract already allows:\n\n")
 	b.WriteString("1. If the finding says you wrote outside your declared prefixes, write to a prefix you already declare for the rest of this run.\n")
-	b.WriteString("2. If the declaration itself is wrong, propose the change as a decision in one of your owned contexts. You do not edit `topics.json` or your own member contract directly.\n")
+	b.WriteString("2. If the declaration itself is wrong, file one scoped work item through Swarm Manager. You do not edit `topics.json` or your own member contract directly.\n")
 	b.WriteString("3. If neither fits — the right prefix does not exist, or the rule looks wrong — report it as friction rather than working around it silently.\n\n")
 	b.WriteString(fmt.Sprintf("Full detail, including findings owned by your teammates: `prompt-manager graph topics --team %s`.\n", teamID))
 

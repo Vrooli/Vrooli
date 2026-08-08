@@ -117,7 +117,7 @@ Each post-type file references the techniques it depends on. The canonical home 
 
 - Essay-shape per post (hook → intro → body → conclusion)
 - Hook-vs-body length asymmetry
-- Intro-on-first-mention (with `shared/published-scenario-mentions.jsonl` lookup)
+- Intro-on-first-mention (with `shared/content-desk subject-familiarity records` lookup)
 - Inter-post linkage (incl. cross-platform amplification)
 - No internal numbering externally
 - Recommendation framing — third-party voice, applies when genuine third-party basis exists
@@ -133,7 +133,7 @@ For multi-frame and persona-actor content (image slideshows, video formats), see
 
 Same as the rest of `path:docs/marketing/`: agents never write directly; operator-curated via approved decisions.
 
-- **New post-type proposals** come through the `post-type-proposal` decision context, owned by `producer`. The proposal must include:
+- **New post-type proposals** come through the `post-type-proposal` work type, owned by `producer`. The proposal must include:
   1. The strategic canon content (purpose, audience, conversion goal, asset requirements, contrarian failure modes) — this is what authors the v0 doc.
   2. The proposed paired-skill name (`x-<slug>`) and which member(s) will consume it.
   3. The member's `RESPONSIBILITIES.md` Available Skills update.

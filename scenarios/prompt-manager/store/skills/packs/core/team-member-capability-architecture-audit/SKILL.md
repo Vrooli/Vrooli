@@ -81,22 +81,9 @@ Do not penalize simple members for missing layers they do not need. For example,
 
 #### Phase 3: Identify Architecture Smells
 
-Look for these recurring smells:
+Score the target against every row of `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md` §"Architecture smells". The catalogue is canon and is not reproduced here; a copy of it in this skill would be an instance of the `Skillless canon residue` row it contains.
 
-| Smell | Meaning | Likely fix |
-|---|---|---|
-| Vague capability | Member says what domain it works on but not how work enters or exits | Add intake and promotion guidance |
-| Workflow in heartbeat | Repeatable method lives in `HEARTBEAT.md` | Extract or propose a focused skill |
-| Planless skill | Skill exists but no plan-of-record doc says why/when it matters | Add or reference docs hub |
-| Skillless canon | Plan-of-record doc exists but no executable skill applies it | Propose paired skill |
-| Skillless canon residue | Skill restates canon that lives in `path:docs/agent-system/` (layer mantra, promotion ladder, 9-layer table, etc.) | Drop the prose; cite `docs/agent-system/<file>.md` |
-| Mega-skill pressure | One skill handles many unrelated methods | Split into router plus method skills |
-| Source ambiguity | External research required but source collection is unspecified | Add collection skill/tool/backlog |
-| Passive-only intake | Operator can feed work, but proactive scan path is absent | Add proactive baseline or explicit non-goal |
-| Proactive-only scan | Agent searches broadly but ignores operator-fed discoveries | Add inbox/intake from vision walk or team handoff |
-| Promotion fog | No rule for observation vs typed evidence vs decision vs backlog | Add promotion/routing matrix |
-| Dead-end gap | Member observes missing capability but cannot route it | Add capability-gap or owning optimizer path |
-| State-in-prose | Team docs copy answers a scenario can serve at read time, or hold incubating data with no named promotion target (`path:docs/agent-system/OPERATING_GRAPHS.md` §"State belongs to scenarios; prose holds judgment") | Replace copies with typed references or the exact query command; add incubation markers; route existing-scenario promotions to owning team, missing-scenario data to `capability-gap` |
+Name each hit by its row name. Do not restate the row's meaning or its fix — §5 "Output Contract" reports the row name, the target, and the evidence.
 
 #### Phase 4: Choose the Smallest Useful Fix
 
@@ -109,7 +96,7 @@ Prefer the smallest change that repairs the architecture:
 | No plan-of-record home | `team-structure-change` or debt-curator follow-up |
 | Missing repeatable method skill | route to `skill-optimizer` via decision or explicit handoff |
 | One skill should split | route to `skill-optimizer`; name proposed split |
-| Missing source collection tooling | `capability-gap` or team-structure proposal with backlog target |
+| Missing source collection tooling | `capability-work` or team-structure proposal with backlog target |
 | Missing operator-fed intake | add shared inbox/log or heartbeat intake step |
 | Missing proactive baseline | add heartbeat step or method skill with collection mode |
 | Missing promotion matrix | add member guidance or skill section |
@@ -129,7 +116,7 @@ Scoring rules (pipeline layers only; other layers stay prose-judgment):
 | Intake | no `intake[]` entries | one entry but no `taxonomy` (or `taxonomy` does not resolve) | at least one entry with a registered `taxonomy` | validation in `prompt-manager graph topics --team <name>` returns no smells for any intake prefix |
 | Collection | no collection skill, no Action, no `external_producers[]` | `external_producers[]` declared but no procedure | a paired collection skill or Action exists | collection is exposed as an Action wrapping one CLI |
 | Analysis | no method skill referenced from the taxonomy's dispatch | one method skill but combined with collection | a dedicated method skill is named | multiple method skills declared and the member dispatches to them by classifier-recommended signal type |
-| Promotion / Routing | no `output[]`, no `decisions_owned[]`, `raises_capability_gaps: false` | `output[]` declared but no destinations or decisions | `output[]` + at least one of `decisions_owned[]` / `raises_capability_gaps` | `output[]` validates structurally (no orphan-output smells), `decisions_owned[]` are real, capability-gap path exists |
+| Promotion / Routing | no `output[]`, `raises_work_items: false` | `output[]` declared but no destinations or work path | `output[]` + `raises_work_items` when needed | `output[]` validates structurally (no orphan-output smells), capability-work path exists |
 
 When the member legitimately has no pipeline (a pure reviewer, code-writer, or deterministic-CLI maintainer), score these four layers `literal:n/a` — `topics.json` should be `{}` (or omitted) as a positive declaration that there is no flow.
 
@@ -172,7 +159,7 @@ When using this skill, produce a concise audit in this shape:
 - team-agent-optimizer: <agent/team prompt or contract change>
 - skill-optimizer: <skill create/split/improve, if any>
 - debt-curator: <plan-of-record or typed-evidence promotion, if any>
-- capability-gap/backlog: <missing tool/scenario/action, if any>
+- capability-work/backlog: <missing tool/scenario/action, if any>
 
 **Validation report:** (copy verbatim from `prompt-manager graph topics --team <team>`)
 - structural errors / warnings touching this member, including any
@@ -196,7 +183,7 @@ Likely diagnosis:
 - Skill surface is weak if all research methods live in heartbeat prose or broad role language.
 - Intake should support both operator-fed alpha from the morning vision walk and proactive baseline scans.
 - Collection and analysis should not collapse into one vague "research" instruction forever.
-- Promotion should distinguish observation, typed evidence, audience scan, decision, skill proposal, and capability-gap.
+- Promotion should distinguish observation, typed evidence, audience scan, decision, skill proposal, and capability-work.
 
 Likely target architecture:
 
@@ -204,7 +191,7 @@ Likely target architecture:
 Research inbox / alpha intake
   -> research router skill
   -> focused method skills
-  -> knowledge / decision / skill proposal / capability-gap
+  -> knowledge / decision / skill proposal / capability-work
 ```
 
 Example method skills:

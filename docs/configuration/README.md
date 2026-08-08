@@ -4,7 +4,7 @@ This is the operator-facing reference for configuring a Vrooli install: which sc
 
 ## Why this folder exists
 
-Configuration was scattered: secrets in vault and resource manifests, scenario state in service.json files, host-tool opt-ins inferred at runtime, and no single doc walked an operator (or AI agent) from "I want to use X" to "X is declared, stored, validated, and consumed." This folder is the unified description of the configuration substrate. If you're trying to figure out where a knob lives or how a setting reaches the running system, start here.
+Configuration was scattered: credentials in provider-specific stores and resource manifests, scenario state in service.json files, host-tool opt-ins inferred at runtime, and no single doc walked an operator (or AI agent) from "I want to use X" to "X is declared, stored, validated, and consumed." This folder is the unified description of the configuration substrate. If you're trying to figure out where a knob lives or how a setting reaches the running system, start here.
 
 ## What lives where
 

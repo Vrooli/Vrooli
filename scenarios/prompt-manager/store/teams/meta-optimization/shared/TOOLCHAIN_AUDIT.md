@@ -73,7 +73,7 @@ Either way, this means scan results across heartbeats may not be directly compar
 
 ### Decisions this heartbeat
 - 1 supersession: `dec-1777327401931026247` (toolchain-violation, the 24-violation false-clean take) → superseded by new toolchain-violation reflecting the corrected 36-violation reality.
-- 1 new `capability-gap`: scenario-auditor scan non-determinism / restart-sensitivity. Without this fixed, this heartbeat's primary signal (delta vs. prior scan) cannot be trusted.
+- 1 new `capability work item`: scenario-auditor scan non-determinism / restart-sensitivity. Without this fixed, this heartbeat's primary signal (delta vs. prior scan) cannot be trusted.
 - **Pre-heartbeat queue:** 4 pending team-wide; 1 own-context. Post-raise: 5 pending team-wide (4 − 1 superseded + 2 new = +1 net); 2 own-context (under 4 cap).
 
 ### Knowledge entries

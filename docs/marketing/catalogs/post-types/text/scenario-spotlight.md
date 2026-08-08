@@ -38,7 +38,7 @@ Each spotlight should be explicit about which rung it is targeting. A spotlight 
 Apply the cross-cutting [essay-shape technique](../../../methods/post-techniques/) — hook → introduction → body → conclusion — with this type-specific shape:
 
 1. **Hook:** the friction or moment of recognition. "If you've ever ___ and ended up ___…" or "Here's what happens when ___…" Concrete. No abstract value-prop language.
-2. **Intro:** name the scenario (apply [intro-on-first-mention](../../../methods/post-techniques/) — check `shared/published-scenario-mentions.jsonl` filtered by audience before assuming familiarity). One-sentence what-it-is.
+2. **Intro:** name the scenario (apply [intro-on-first-mention](../../../methods/post-techniques/) — check `shared/content-desk subject-familiarity records` filtered by audience before assuming familiarity). One-sentence what-it-is.
 3. **Body:** demonstrate, do not describe. The body is mostly the **asset** (screen recording / screenshots / mid-fidelity demo). Text wraps the asset with what the reader is seeing and why it matters for *their* workflow.
 4. **Conclusion:** the call-to-action at the rung this spotlight is targeting. One link. One verb. Inter-post linkage to other relevant material if applicable (see [inter-post-linkage technique](../../../methods/post-techniques/)).
 
@@ -106,7 +106,7 @@ Honesty flags the producer must attach to a spotlight draft (mirroring the dev-l
 
 - [Essay-shape per post](../../../methods/post-techniques/essay-shape.md)
 - [Hook-vs-body length asymmetry](../../../methods/post-techniques/hook-vs-body-asymmetry.md)
-- [Intro-on-first-mention](../../../methods/post-techniques/intro-on-first-mention.md) (with `shared/published-scenario-mentions.jsonl` lookup before assuming familiarity)
+- [Intro-on-first-mention](../../../methods/post-techniques/intro-on-first-mention.md) (with `shared/content-desk subject-familiarity records` lookup before assuming familiarity)
 - [Inter-post linkage](../../../methods/post-techniques/inter-post-linkage.md) (link to dev-logs about the scenario; link to follow-up spotlights of the same scenario)
 - [No internal numbering externally](../../../methods/post-techniques/no-internal-numbering-externally.md)
 - Recommendation framing — *applies only when genuine third-party basis exists*; subject to the failure-mode rule above. Canonical home pending — see `../../../methods/post-techniques/README.md` for status.
@@ -143,7 +143,7 @@ Honesty flags the producer must attach to a spotlight draft (mirroring the dev-l
                             tracking / series chaining
 ```
 
-`social-media-scheduler` is a planned scenario (initiative-proposal `dec-1777312920606447957`, accepted at walk #5) that owns the publishing plumbing once a spotlight is approved.
+`social-media-scheduler` is a planned scenario (gated work item `dec-1777312920606447957`, accepted at walk #5) that owns the publishing plumbing once a spotlight is approved.
 
 ## Promotion path for craft observations
 
@@ -160,7 +160,7 @@ The typed observation never persists indefinitely; brand-manager curates promoti
 - Paired skill: `x-scenario-spotlight` (in prompt-manager core skills).
 - Plan-of-record neighbors: [`../../../strategy/STRATEGY.md`](../../../strategy/STRATEGY.md), [`../../../strategy/AUDIENCES.md`](../../../strategy/AUDIENCES.md), [`../../../strategy/CHANNELS.md`](../../../strategy/CHANNELS.md), [`../../../strategy/ASSETS.md`](../../../strategy/ASSETS.md), [`../../../strategy/IMAGE_STYLE.md`](../../../strategy/IMAGE_STYLE.md).
 - Asset substrate: [Browser Automation Studio scenario](../../../../../scenarios/browser-automation-studio/).
-- Publishing plumbing: `social-media-scheduler` scenario (planned; initiative-proposal `dec-1777312920606447957`).
+- Publishing plumbing: `social-media-scheduler` scenario (planned; gated work item `dec-1777312920606447957`).
 - Tier alignment: [`docs/monetization/strategy/TIERS.md`](../../../../monetization/strategy/TIERS.md), [`docs/monetization/catalogs/CATALOG.md`](../../../../monetization/catalogs/CATALOG.md), `docs/monetization/catalogs/scenario-sku-map.json`.
 
 ## Changelog

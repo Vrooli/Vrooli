@@ -71,6 +71,5 @@ type SpawnContext struct {
 	WorkingDir    string
 	VrooliRoot    string
 	TeamID        string
-	DecisionMode  string
 	AdditionalCtx string
 }

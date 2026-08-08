@@ -156,10 +156,6 @@
       "testId": "team-editor-execution-policy",
       "selector": "[data-testid=\"team-editor-execution-policy\"]"
     },
-    "teamEditor.decisionMode": {
-      "testId": "team-editor-decision-mode",
-      "selector": "[data-testid=\"team-editor-decision-mode\"]"
-    },
     "runs.list": {
       "testId": "run-list",
       "selector": "[data-testid=\"run-list\"]"

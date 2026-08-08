@@ -106,10 +106,10 @@ describe('saveCopySets', () => {
   })
 
   it('isolates Action copy sets under the actions namespace', () => {
-    saveCopySets('actions', [makeEntry({ ids: ['team.decisions.list'] })])
+    saveCopySets('actions', [makeEntry({ ids: ['team.swarm.work.list'] })])
     saveCopySets('skills', [makeEntry({ ids: ['implementation-plan-authoring'] })])
 
-    expect(loadCopySets('actions')[0]?.ids).toEqual(['team.decisions.list'])
+    expect(loadCopySets('actions')[0]?.ids).toEqual(['team.swarm.work.list'])
     expect(loadCopySets('skills')[0]?.ids).toEqual(['implementation-plan-authoring'])
     expect(store['pm.copySets.actions']).toBeDefined()
   })

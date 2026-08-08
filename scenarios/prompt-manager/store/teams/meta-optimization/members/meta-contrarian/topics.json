@@ -1,45 +1,8 @@
 {
   "required_read": [
     {
-      "prefix": "challenge-report/<decision-id>"
-    },
-    {
-      "prefix": "challenge-resolution-record/<decision-id>"
-    },
-    {
       "prefix": "skill-experiment/<skill-id>/<experiment-id>"
     }
   ],
-  "output": [
-    {
-      "prefix": "challenge-report/*",
-      "destination_kind": "knowledge"
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "destination_kind": "knowledge"
-    }
-  ],
-  "decisions_owned": [
-    "decision-rejection-proposed",
-    "framework-update"
-  ],
-  "decisions_consumed": [
-    "skill-conversion-candidate",
-    "skill-improvement",
-    "skill-deprecation",
-    "skill-graduation",
-    "skill-experiment-promotion",
-    "action-candidate",
-    "action-improvement",
-    "action-deprecation",
-    "agent-improvement",
-    "agent-deprecation",
-    "team-structure-change",
-    "team-deprecation",
-    "toolchain-violation",
-    "run-lesson",
-    "capability-gap",
-    "meta-self-improvement"
-  ]
+  "output": []
 }

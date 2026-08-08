@@ -462,7 +462,7 @@ swarm-manager backlog prompt-trace --kind "<kind>" --name "<name>"
 |----------|--------------|--------------|
 | `spec.json` | system, user | all agents |
 | `spec.json.plan_ref` / plan-manager plan | workshop agent, user, plan-manager | all agents |
-| `workshop/*.json` | workshop agent (items), user (answers/decisions) | all agents |
+| `workshop/*.json` | workshop agent (items), user (answers/dispositions) | all agents |
 | `research/summary.md` | research agent | all agents |
 | `path:archive/*` | user, system (when archiving scenario artifacts) | all agents (read-only) |
 | user files (root) | user | all agents |

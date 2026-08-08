@@ -31,7 +31,7 @@ Try in order; document which source produced the values, and the most-canonical 
 4. **Wayback machine snapshot** — `web.archive.org/web/*/<comp-pricing-url>` — when the live page 404s or the company removed pricing transparency. Flag `archived-source-<date>`. Treat as evidence-of-past, not evidence-of-current.
 5. **Founder posts / public statements** — Twitter, blog, podcast transcript with explicit price numbers. Flag `founder-post-<date>`. Lower confidence than a published page.
 
-If steps 1-5 all fail, raise a `capability-gap` decision instead of inventing values. Do not estimate from competitor screenshots, sales-call transcripts, or hearsay.
+If steps 1-5 all fail, raise a `capability-work` decision instead of inventing values. Do not estimate from competitor screenshots, sales-call transcripts, or hearsay.
 
 ---
 

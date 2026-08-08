@@ -23,8 +23,8 @@ func TestValidateHandler(t *testing.T) {
 	}})
 	handler := NewHandlers(service)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/actions/team.decisions.list/validate", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team.decisions.list"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/actions/team.swarm.work.list/validate", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team.swarm.work.list"})
 	rr := httptest.NewRecorder()
 
 	handler.Validate(rr, req)
@@ -47,8 +47,8 @@ func TestValidateHandlerReturnsUnprocessableForInvalidAction(t *testing.T) {
 	}))
 	handler := NewHandlers(NewService(actionStore, nil))
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/actions/team.decisions.list/validate", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team.decisions.list"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/actions/team.swarm.work.list/validate", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team.swarm.work.list"})
 	rr := httptest.NewRecorder()
 
 	handler.Validate(rr, req)
@@ -65,8 +65,8 @@ func TestRunHandler(t *testing.T) {
 	handler := NewHandlers(service)
 
 	body := bytes.NewBufferString(`{"input":{"identifier":"implementation-plan-authoring"}}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/actions/team.decisions.list/run", body)
-	req = mux.SetURLVars(req, map[string]string{"id": "team.decisions.list"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/actions/team.swarm.work.list/run", body)
+	req = mux.SetURLVars(req, map[string]string{"id": "team.swarm.work.list"})
 	rr := httptest.NewRecorder()
 
 	handler.Run(rr, req)
@@ -89,8 +89,8 @@ func TestRunHandlerReturnsUnprocessableForRejectedRun(t *testing.T) {
 	}))
 	handler := NewHandlers(NewService(actionStore, runnableResolver()))
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/actions/team.decisions.list/run", bytes.NewBufferString(`{}`))
-	req = mux.SetURLVars(req, map[string]string{"id": "team.decisions.list"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/actions/team.swarm.work.list/run", bytes.NewBufferString(`{}`))
+	req = mux.SetURLVars(req, map[string]string{"id": "team.swarm.work.list"})
 	rr := httptest.NewRecorder()
 
 	handler.Run(rr, req)
@@ -102,7 +102,7 @@ func TestRunHandlerReturnsUnprocessableForRejectedRun(t *testing.T) {
 
 func TestActionCRUDHandlers(t *testing.T) {
 	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
-		action.ID = "team.decisions.list"
+		action.ID = "team.swarm.work.list"
 		action.Status = store.StatusDraft
 		action.Pack = "drafts"
 		action.Tags = []string{"team"}
@@ -124,12 +124,12 @@ func TestActionCRUDHandlers(t *testing.T) {
 	if err := json.NewDecoder(rr.Body).Decode(&listed); err != nil {
 		t.Fatal(err)
 	}
-	if len(listed) != 1 || listed[0].ID != "team.decisions.list" {
+	if len(listed) != 1 || listed[0].ID != "team.swarm.work.list" {
 		t.Fatalf("unexpected list response: %#v", listed)
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/actions/team.decisions.list", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team.decisions.list"})
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/actions/team.swarm.work.list", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team.swarm.work.list"})
 	rr = httptest.NewRecorder()
 	handler.Get(rr, req)
 	if rr.Code != http.StatusOK {
@@ -139,7 +139,7 @@ func TestActionCRUDHandlers(t *testing.T) {
 	createBody := mustJSON(t, CreateRequest{
 		Pack: "drafts",
 		Action: *validAction(func(action *store.Action) {
-			action.ID = "team.decisions.create"
+			action.ID = "team.swarm.work.create"
 			action.Status = store.StatusDraft
 		}),
 	})
@@ -151,26 +151,26 @@ func TestActionCRUDHandlers(t *testing.T) {
 	}
 
 	updateBody := mustJSON(t, validAction(func(action *store.Action) {
-		action.ID = "team.decisions.create"
+		action.ID = "team.swarm.work.create"
 		action.Name = "Updated Decision Action"
 		action.Status = store.StatusDraft
 	}))
-	req = httptest.NewRequest(http.MethodPut, "/api/v1/actions/team.decisions.create", bytes.NewReader(updateBody))
-	req = mux.SetURLVars(req, map[string]string{"id": "team.decisions.create"})
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/actions/team.swarm.work.create", bytes.NewReader(updateBody))
+	req = mux.SetURLVars(req, map[string]string{"id": "team.swarm.work.create"})
 	rr = httptest.NewRecorder()
 	handler.Update(rr, req)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("update status = %d, body = %s", rr.Code, rr.Body.String())
 	}
 
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/actions/team.decisions.create", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "team.decisions.create"})
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/actions/team.swarm.work.create", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "team.swarm.work.create"})
 	rr = httptest.NewRecorder()
 	handler.Delete(rr, req)
 	if rr.Code != http.StatusNoContent {
 		t.Fatalf("delete/archive status = %d, body = %s", rr.Code, rr.Body.String())
 	}
-	archived, _ := actionStore.Get(context.Background(), "team.decisions.create")
+	archived, _ := actionStore.Get(context.Background(), "team.swarm.work.create")
 	if archived.Status != store.StatusArchived {
 		t.Fatalf("DELETE without hard=true should archive, got %s", archived.Status)
 	}
@@ -182,7 +182,7 @@ func TestCreateHandlerReturnsUnprocessableForValidationFailure(t *testing.T) {
 	body := mustJSON(t, CreateRequest{
 		Pack: "drafts",
 		Action: *validAction(func(action *store.Action) {
-			action.ID = "team.decisions.bad"
+			action.ID = "team.swarm.work.bad"
 			action.Status = store.StatusActive
 			action.Command.Argv = []string{"prompt-manager", "not-a-real-command"}
 		}),

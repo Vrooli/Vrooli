@@ -59,7 +59,7 @@ W0 is the rung no other skill owns, so its gate is stated here in full.
 
    The default output carries the description, the targets, the status, and the scope counts. Read it directly; `--json` adds nothing this gate needs.
 3. Read every operational target in `scenarios/<name>/PRD.md`, at all three priorities.
-4. Read the reversals in the scenario's decisions document: `docs/internal/DECISIONS.md` when it exists, otherwise `docs/DECISIONS.md`. Skip this step when neither exists.
+4. Read the reversals in the scenario's decisions document: `docs/internal/SWARM_MANAGER_WORK.md` when it exists, otherwise `docs/SWARM_MANAGER_WORK.md`. Skip this step when neither exists.
 5. Compare in both directions. W0 **fails** when any row below is true.
 
 | Condition | Example |

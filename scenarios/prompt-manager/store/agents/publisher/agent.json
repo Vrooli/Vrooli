@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "publisher",
   "displayName": "Publisher",
-  "description": "Marketing-crew publishing operator. Executes accepted publish proposals, polishes platform variants, records release state, and keeps publish-log, coverage, and subject-mention state queryable for the rest of the team. Routes channel, account, scheduling, and media gaps rather than inventing positioning.",
+  "description": "Marketing-crew publishing operator. Executes accepted publish proposals, polishes platform variants, records release state, and keeps Content Desk publish-history, coverage, and subject-familiarity state queryable for the rest of the team. Routes channel, account, scheduling, and media gaps rather than inventing positioning.",
   "status": "active",
   "appearance": {
     "body": "#4C1D95",

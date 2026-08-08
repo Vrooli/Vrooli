@@ -44,10 +44,8 @@ import { useResizableSidebar } from '@/hooks/useResizableSidebar'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersistence'
 import { useRunningAgentStatusSync } from '@/hooks/useRunningAgentStatusSync'
-import { usePendingDecisionSync } from '@/hooks/usePendingDecisionSync'
 import { useHeartbeatControlStatus } from '@/hooks/useHeartbeatControlStatus'
 import { RunningAgentsPopover } from '@/components/tree/RunningAgentsPopover'
-import { PendingDecisionsPopover } from '@/components/tree/PendingDecisionsPopover'
 import { HeartbeatControlPopover } from '@/components/tree/HeartbeatControlPopover'
 import { useGraphStore, selectEffectiveHealthScores } from '@/stores/graphStore'
 import { useEditorStore } from '@/stores/editorStore'
@@ -146,8 +144,6 @@ function SkillManagerLayoutImpl() {
 
   // Running agent sync (single polling instance, feeds 3D world + stores)
   const runningAgentsData = useRunningAgentStatusSync()
-  // Pending decision sync (single polling instance, feeds sidebar + world view)
-  const pendingDecisionsData = usePendingDecisionSync()
   const heartbeatControlData = useHeartbeatControlStatus()
 
   // Mobile state
@@ -1276,18 +1272,6 @@ function SkillManagerLayoutImpl() {
     [navigate, setActiveTab, isMobile]
   )
 
-  // Navigate to a team's decision log
-  const handleNavigateToDecision = useCallback(
-    (teamId: string) => {
-      setActiveTab('teams')
-      navigate(teamDetailPath(teamId, { tab: 'activity', subTab: 'decisions' }))
-      if (isMobile) {
-        setIsMobileSidebarOpen(false)
-      }
-    },
-    [navigate, setActiveTab, isMobile]
-  )
-
   // Handle cross-reference navigation with highlight
   const handleNavigateToXRef = useCallback(
     (ref: Reference) => {
@@ -1450,9 +1434,7 @@ function SkillManagerLayoutImpl() {
         onContentMatchesChange={setContentMatches}
         onNavigateToRunningAgent={handleNavigateToRunningAgent}
         runningAgentsData={runningAgentsData}
-        pendingDecisionsData={pendingDecisionsData}
         heartbeatControlData={heartbeatControlData}
-        onNavigateToDecision={handleNavigateToDecision}
         onOpenTopicWizard={() => navigate(topicWizardPath())}
         onDuplicateAgent={(id) => void handleDuplicateAgentById(id)}
         onCustomizeAgent={handleCustomizeAgentById}
@@ -1655,7 +1637,6 @@ function SkillManagerLayoutImpl() {
                 onClose={goBack}
                 onOpenSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
                 onOpenMobileSidebar={isMobile ? () => setIsMobileSidebarOpen(true) : undefined}
-                pendingDecisionCount={pendingDecisionsData.count}
                 runningAgentCount={runningAgentsData.count}
                 homeView={routeHome}
                 onHomeViewChange={(view) => navigate(view === 'graph' ? graphPath() : worldPath())}
@@ -1709,19 +1690,6 @@ function SkillManagerLayoutImpl() {
                     count={runningAgentsData.count}
                     stopAgent={runningAgentsData.stopAgent}
                     stoppingIds={runningAgentsData.stoppingIds}
-                  />
-                )}
-                {pendingDecisionsData.count > 0 && (
-                  <PendingDecisionsPopover
-                    onNavigateToDecision={(teamId) => {
-                      handleNavigateToDecision(teamId)
-                      setIsMobileSidebarOpen(false)
-                    }}
-                    groupedByTeam={pendingDecisionsData.groupedByTeam}
-                    count={pendingDecisionsData.count}
-                    acceptDecision={pendingDecisionsData.acceptDecision}
-                    rejectDecision={pendingDecisionsData.rejectDecision}
-                    processingIds={pendingDecisionsData.processingIds}
                   />
                 )}
                 <button
@@ -1840,9 +1808,7 @@ function SkillManagerLayoutImpl() {
                 onContentMatchesChange={setContentMatches}
                 onNavigateToRunningAgent={handleNavigateToRunningAgent}
                 runningAgentsData={runningAgentsData}
-                pendingDecisionsData={pendingDecisionsData}
                 heartbeatControlData={heartbeatControlData}
-                onNavigateToDecision={handleNavigateToDecision}
                 onOpenTopicWizard={() => navigate(topicWizardPath())}
                 onDuplicateAgent={(id) => void handleDuplicateAgentById(id)}
                 onCustomizeAgent={handleCustomizeAgentById}

@@ -9,7 +9,7 @@ Status: adopted for Action-aware meta-optimization. This document defines the on
 ```text
 Continue -> handoff
 Observe  -> typed knowledge and friction evidence
-Propose  -> decisions
+  Propose  -> Swarm Manager work
 Operate  -> team working state
 ```
 
@@ -26,7 +26,7 @@ Skill = reusable judgment/process guidance
 Action = typed executable operation
 CLI = implementation of behavior
 Backlog = unbuilt or broken behavior
-Decision = reviewable proposal to change a durable surface
+Gated work = reviewable, evidence-backed request to change a durable surface
 ```
 
 The short form:
@@ -36,7 +36,7 @@ If it says what is true -> Plan of Record.
 If it says how to decide -> Skill.
 If it says what to run -> Action.
 If it says how it works -> CLI implementation.
-If it says what is missing -> Backlog/capability-gap.
+If it says what is missing -> Backlog/capability-work.
 If it is evidence or a measurement -> Knowledge.
 If it is unverified, recurring, or a workaround -> typed knowledge under the most specific topic.
 If it is missing, broken, confusing, slow, undocumented, or harder than expected -> friction observation.
@@ -54,7 +54,7 @@ This keeps prompt-manager from turning every useful note into prose. It also pre
 | Action | Typed execution wrapper over one Vrooli-controlled CLI command | Prompt-manager Action registry |
 | CLI | Implementation, branching, retries, validation, operational behavior | Scenario/resource/project owner |
 | Backlog | Missing or broken behavior that needs implementation | Swarm-manager / owning scenario |
-| Decision | Reviewable proposal to change a durable surface | Owning team/member |
+| Gated work | Reviewable proposal to change a durable surface | Owning team/member |
 
 ## Promotion Decision Tree
 
@@ -75,7 +75,7 @@ For each typed knowledge entry:
    - Yes: create or update an Action.
 
 5. Is it an operation, but the proper CLI does not exist yet?
-   - Yes: create a backlog item or `capability-gap` for the owning scenario/resource/project.
+   - Yes: create a backlog item or `capability-work` for the owning scenario/resource/project.
    - If discoverable execution is the intended future interface, note the future Action that should wrap the CLI once it exists.
 
 6. Is it deterministic but multi-step?
@@ -106,8 +106,8 @@ Examples:
 | "Before proposing a meta-layer change, capture a baseline and expected delta." | Skill |
 | "Actions wrap exactly one Vrooli-controlled CLI command." | Plan of Record |
 | "If an operation requires conditional logic, move it into the CLI and keep the Action thin." | Skill or Action-authoring rule |
-| "Run `prompt-manager team decision-list meta-optimization --status=pending` to check queue pressure." | Action candidate |
-| "There is no scenario UI screenshot command yet." | Backlog/capability-gap |
+| "Run `swarm-manager backlog list --json` to check work pressure." | Action candidate |
+| "There is no scenario UI screenshot command yet." | Backlog/capability-work |
 
 ## Workaround Handling
 
@@ -122,7 +122,7 @@ Typed workaround evidence
 
 Then classify:
 
-- Missing CLI capability -> backlog item or `capability-gap`
+- Missing CLI capability -> backlog item or `capability-work`
 - Existing CLI is awkward -> CLI improvement backlog item
 - Existing CLI is good but undiscoverable -> Action candidate
 - Agents keep forgetting the right approach -> skill update
@@ -143,7 +143,7 @@ Route friction through the lightest useful durable form:
 - Minor or one-off friction goes in the final handoff when it helps the next run.
 - Concrete system friction, workarounds, inefficiencies, or process leaks are filed through `report-friction` to `friction-inbox/<scope>/<slug>`.
 - The friction curator routes accepted entries to `friction-report/<scope>/<YYYY-MM-DD>/<slug>` and records routing in `friction-triage-record/<YYYY-MM-DD>`.
-- Missing or broken capability that blocks work becomes a decision in the relevant capability-gap, bug, instrumentation, CLI, skill, scenario, or team context.
+- Missing or broken capability that blocks work becomes one evidence-backed Swarm Manager backlog item.
 
 Good friction notes include:
 
@@ -163,13 +163,13 @@ Recommended flow:
 ```text
 Typed knowledge entry
   -> classifier applies promotion decision tree
-  -> decision proposal records target form and rationale
-  -> operator accepts, rejects, or defers
-  -> owning lane implements the accepted promotion
+  -> Swarm Manager work records target form and rationale
+  -> operator dispositions the work
+  -> owning lane implements the dispositioned work
   -> obsolete typed evidence is retired or linked to the permanent form
 ```
 
-Agents should not silently rewrite durable memory. The promotion path should produce reviewable decisions when the change affects shared team behavior, prompt-manager entities, scenario implementation, or operator-facing policy.
+Agents should not silently rewrite durable memory. The promotion path should produce reviewable Swarm Manager work when the change affects shared team behavior, prompt-manager entities, scenario implementation, or operator-facing policy.
 
 ## Adoption in Meta-Optimization
 

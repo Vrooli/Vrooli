@@ -63,7 +63,7 @@ Examples:
 |--------|---------|----------------------|
 | `scenario.ui.screenshot` | Capture a scenario UI screenshot | scenario or project CLI |
 | `scenario.test.run` | Run a scenario test suite | project lifecycle CLI |
-| `team.decisions.list` | List pending decisions for a team | prompt-manager CLI |
+| `team.work.list` | List team-filed Swarm Manager work | swarm-manager CLI |
 | `scenario.logs.tail` | Read recent scenario logs | project lifecycle CLI |
 | `skill.health.audit` | Run a skill health check | prompt-manager or meta-optimization CLI |
 
@@ -174,18 +174,18 @@ These fields belong to the **command** (the CLI surface of the owning scenario),
 
 The CLI exposes `prompt-manager action run` as a thin API client for trusted workflows that intentionally select an active runnable Action. The UI Action editor delegates to the same governed API route for dry-run and run requests, blocks runs while local contract edits are unsaved, and renders the run response envelope.
 
-The first shipped seed Actions are action:scenario.status.show, which wraps `vrooli scenario status {{scenario}}`, and action:team.decisions.list, which wraps `prompt-manager team decision-list {{team}} --json`. Both are read-oriented Actions with API/CLI validation and dry-run coverage.
+The first shipped seed Action is action:scenario.status.show, which wraps `vrooli scenario status {{scenario}}`. Team work is listed through Swarm Manager's own CLI and is not duplicated as a Prompt Manager Action.
 
 ## Creating an Action is free
 
-Creating a new Action over an existing Vrooli-controlled CLI command — and running it — needs **no decision and no operator approval**. An Action wraps exactly one argv-shaped command, runs without a shell, declares its permissions up front, and is validated before it can run, so creation is structurally low-risk. When you discover that one CLI command cleanly does something reusable, register it:
+Creating a new Action over an existing Vrooli-controlled CLI command — and running it — is a bounded work item. An Action wraps exactly one argv-shaped command, runs without a shell, declares its permissions up front, and is validated before it can run. When you discover that one CLI command cleanly does something reusable, register it:
 
 ```bash
 prompt-manager action create --name "…" --command '<argv with {{placeholders}}>'   # previews
 prompt-manager action create --name "…" --command '…' --apply                       # registers
 ```
 
-The only governed transition is **retiring prose** in favor of an Action (the graduation step below) — that removes LLM oversight from a workflow that previously had it, and it is the one step that requires an `action-candidate` decision. See `path:docs/agent-system/DECISIONS.md` ("Action-creation authorization" and "Action graduation gate") and `path:docs/agent-system/PROMOTION_LADDER.md`.
+The governed transition is **retiring prose** in favor of an Action. Record the baseline, validation evidence, and operator disposition in the owning Swarm Manager work item; see `path:docs/agent-system/PROMOTION_LADDER.md`.
 
 ## Graduation from Skills
 
@@ -200,9 +200,9 @@ Graduation — *retiring* a prose skill (or section) because an Action now cover
 
 If a skill still contains judgment, split it:
 
-- Keep the decision rule in the skill.
+- Keep the judgment rule in the skill.
 - Move deterministic execution into one or more Actions.
-- Move missing implementation work into a backlog item or `capability-gap`.
+- Move missing implementation work into a Swarm Manager backlog item.
 
 ## Discovery
 

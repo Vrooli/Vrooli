@@ -49,6 +49,30 @@ files are scanned under per-file and total byte budgets; if a budget is hit,
 `scan_stats.budget_exceeded` is set so automation can distinguish a clean bounded
 scan from an incomplete text scan.
 
+### Package-local JavaScript test lifecycles
+
+Standalone JavaScript/TypeScript packages own their test toolchain. The package
+root must contain its own `package.json`, lockfile, and package-local executable
+used by the governed lifecycle; lifecycle commands must not alias into a
+scenario's `node_modules` tree or contain a developer-specific absolute path.
+
+For a package that needs a standalone pnpm boundary, add a package-local
+`pnpm-workspace.yaml` containing `packages: - .`. Install every third-party
+dependency through SDA, targeting the package's governed surface, and keep
+test-only tools in `devDependencies`:
+
+```bash
+scenario-dependency-analyzer deps install npm/vitest@<reviewed-version> \
+  --scenario <scenario-steward> --surface tools/<package> --apply
+vrooli package test <package>
+```
+
+The `tools/<package>` surface may be a temporary steward-owned routing surface
+when the governed package lives under `packages/`; it must be removed after the
+install and never become a package adoption mechanism. The durable result is
+the package's own lockfile and `node_modules/.bin` entry. Do not use a borrowed
+scenario executable to validate package lifecycle readiness.
+
 ## Workflow
 
 ### Adding a governed package
@@ -166,3 +190,23 @@ dividing line — this note is guidance, not a gate, and nothing enforces it.
 ## Why This Exists
 
 This model preserves scenario independence across languages, frameworks, and package managers while still allowing disciplined reuse. The package manifest declares what a package is, who may adopt it, how it is refreshed, and how governance is validated.
+
+## Agent policy mutation boundary
+
+Coding-agent package mutations use Scenario Dependency Analyzer's typed install
+gateway. Adapters return structured argv, a scenario-contained working root,
+the selected manager, lockfile reproduction profile, and governance evidence.
+The `Command` field in response messages is display-only; it is never an
+execution primitive and must not be passed to a shell.
+
+The gateway rejects scenario/path traversal, package specs beginning with
+flags, control characters, shell metacharacters, and ambiguous mutation
+surfaces. JavaScript manager selection requires the manager's lockfile or an
+explicit manager fact. Language evidence alone is not npm, pnpm, Yarn, or Bun
+evidence. C/C++ are visible discovery adapters but do not claim a universal
+mutation command until a manager-specific adapter is governed.
+
+Frozen reproduction is separate from mutation and uses script-safe defaults
+where the manager supports them. Any exception is explicit, owned, reasoned,
+policy-scoped, and auditable. Approved dependency state remains SDA-owned and
+must be changed through its governance commands.

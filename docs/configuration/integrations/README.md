@@ -15,7 +15,7 @@ The model intentionally mirrors the well-trodden integration-platform pattern (Z
 ## What goes in this folder
 
 - **`connectors.md`** — the connector concept, manifest sketch, capability declarations.
-- **`connections.md`** — connection instances, bound vs unbound, Vault layout, lifecycle CLI.
+- **`connections.md`** — connection instances, bound vs unbound, credential-authority storage, lifecycle CLI.
 - **`external-auth.md`** — catalog of supported auth patterns (`api_key`, `oauth_web`, `oauth_device`, `external_sign_in_command`, `app_password`).
 - **Per-integration pages** — one file per *wired* connector or per concrete integration that doesn't fit the connector model. Examples below.
 

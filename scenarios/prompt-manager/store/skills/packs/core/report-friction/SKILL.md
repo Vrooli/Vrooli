@@ -29,7 +29,7 @@ Friction is *system-level capture-leak*. These adjacent signals look similar but
 
 - **Broken code or scenario behavior** — code defects, regressions, prompt confusion, data-shape mismatches, unexpected errors. Use [`report-bug`](../report-bug/SKILL.md) — writes to `bug-inbox/*` on scenario-qa. Bugs are defects against documented behavior; friction is gaps in promised capability.
 - **Disagreement with a decision, plan, or contract.** Raise a decision in the appropriate context (e.g., `decision-rejection-proposed` for stale decisions, `framework-update` for contract-level disputes). Disagreement is structural input, not observation.
-- **A capability the system should have but doesn't.** The owning member raises a `capability-gap` decision (toolchain-validator, run-introspector, or team-agent-optimizer). Capability gaps are commitments to build, not observations.
+- **A capability the system should have but doesn't.** The owning member raises a `capability-work` decision (toolchain-validator, run-introspector, or team-agent-optimizer). Capability gaps are commitments to build, not observations.
 - **A fix you can apply right now in five minutes.** Just apply it. Filing friction for things you can fix yourself is overhead. The whole point is signal that the *system* should change.
 - **Post-hoc deep analysis of a long conversation.** Use [`conversation-friction-analysis`](../conversation-friction-analysis/SKILL.md). That skill is for analytic decomposition with timeline, attribution, and scoring; `report-friction` is for in-flight observation.
 - **One-off friction you ran into once.** Mention it in your handoff next time, not the inbox. The curator drops `one-off`-severity entries with a triage note.
@@ -128,15 +128,15 @@ You **must not**:
 - Modify the friction entry after writing — let the curator handle reclassification, severity changes, and follow-ups via `route-to-another-topic` mirroring or by writing to the destination scoped topic on your behalf.
 - Write multiple friction-inbox entries for one root cause — if three symptoms trace to one structural gap, file one entry.
 - Skip the honesty flags — `repeats-existing-friction-topic` and `speculative-cause` are not embarrassing; they're load-bearing for the curator's triage and merge logic.
-- Use this skill as a fix-it backlog — friction-curator routes; the destination scoped-topic owner (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) decides whether the friction becomes a backlog item or a `capability-gap`.
+- Use this skill as a fix-it backlog — friction-curator routes; the destination scoped-topic owner (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) decides whether the friction becomes a backlog item or a `capability-work`.
 
 ---
 
 ### **5. Boundaries**
 
-This skill writes; it does not read, classify, route, or resolve. The friction-curator drains and routes. The destination scoped-topic owner synthesizes patterns and proposes fixes via their existing decision contexts. Each role has its own lane; this skill exists so producers don't need to know any of that — they just file what they observed.
+This skill writes; it does not read, classify, route, or resolve. The friction-curator drains and routes. The destination scoped-topic owner synthesizes patterns and proposes fixes via their existing work types. Each role has its own lane; this skill exists so producers don't need to know any of that — they just file what they observed.
 
-Friction-curator is a **router, not an analyst**. Synthesis stays with debt-curator (who reads scoped friction topics for recurring patterns). Deep root-cause analysis stays with `conversation-friction-analysis` (post-hoc, not in-flight). The curator owns no decision contexts; capability-gaps and other decisions are still raised by the destination scoped-topic owners after they drain the routed entries.
+Friction-curator is a **router, not an analyst**. Synthesis stays with debt-curator (who reads scoped friction topics for recurring patterns). Deep root-cause analysis stays with `conversation-friction-analysis` (post-hoc, not in-flight). The curator owns no work types; capability-works and other decisions are still raised by the destination scoped-topic owners after they drain the routed entries.
 
 If the `report-friction` skill is itself buggy or ambiguous, file a `bug-inbox/prompt-confusion/<slug>` entry via `report-bug` and let the bug-investigator pick it up. Recursive correctness is intentional.
 

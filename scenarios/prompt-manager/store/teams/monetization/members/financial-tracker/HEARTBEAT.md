@@ -14,12 +14,12 @@ Each heartbeat, compute and label:
 ## Task Loop
 1. Read the declared financial model, pricing, revenue-line, channel, telemetry-roadmap, and input-guidance docs.
 2. Read operator-inputs.json and classify each field by status.
-3. Read recent ledger entries and pending decisions in your owned contexts.
+3. Read recent ledger entries and open work items in your owned contexts.
 4. Compute the current snapshot with honesty flags.
 5. Identify material deltas and assumption drift.
-6. Run supersession against existing owned-context decisions before proposing replacements.
+6. Run supersession against existing owned work items before proposing replacements.
 7. Append the ledger entry when the snapshot has supported data.
-8. Propose decisions when the math materially changes an operator choice.
+8. Propose work items when the math materially changes an operator choice.
 9. Record the ledger-snapshot knowledge entry.
 
 ## Ledger Entry Shape
@@ -65,7 +65,7 @@ Do not emit bare numbers.
 ### Snapshot summary
 ### Material deltas since last snapshot
 ### Flags raised
-### Decisions raised this heartbeat
+### Work items filed this heartbeat
 ### Assumptions checked
 ### Pending-telemetry fields
 ### Knowledge entry written

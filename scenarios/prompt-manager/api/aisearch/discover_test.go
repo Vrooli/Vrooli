@@ -233,12 +233,12 @@ func TestDiscoverTyped_DefaultPreservesSkillOnlyShape(t *testing.T) {
 		skillStore:    mockSkills,
 		searchService: search.NewService(mockSkills),
 		actionStore: &MockActionStore{actions: []store.Action{{
-			ID:          "team.decisions.list",
-			Name:        "List Decisions",
-			Description: "List team decisions",
+			ID:          "team.swarm.work.list",
+			Name:        "List Work",
+			Description: "List team work",
 			Status:      store.StatusActive,
 			Owner:       store.ActionOwner{Type: "scenario", ID: "prompt-manager"},
-			Command:     store.ActionCommand{Argv: []string{"prompt-manager", "team", "decision-list", "meta-optimization"}},
+			Command:     store.ActionCommand{Argv: []string{"swarm-manager", "backlog", "list", "--json"}},
 		}}},
 	}
 
@@ -263,17 +263,17 @@ func TestDiscoverTyped_ActionOnlyUsesActionStore(t *testing.T) {
 		skillStore:    mockSkills,
 		searchService: search.NewService(mockSkills),
 		actionStore: &MockActionStore{actions: []store.Action{{
-			ID:          "team.decisions.list",
-			Name:        "List Decisions",
-			Description: "List pending team decisions",
+			ID:          "team.swarm.work.list",
+			Name:        "List Work",
+			Description: "List pending team work",
 			Status:      store.StatusActive,
 			Owner:       store.ActionOwner{Type: "scenario", ID: "prompt-manager"},
-			Command:     store.ActionCommand{Argv: []string{"prompt-manager", "team", "decision-list", "meta-optimization"}},
+			Command:     store.ActionCommand{Argv: []string{"swarm-manager", "backlog", "list", "--json"}},
 			Tags:        []string{"team", "decisions"},
 		}}},
 	}
 
-	resp, err := svc.DiscoverTyped(context.Background(), []string{"team decisions"}, "", 10, "action")
+	resp, err := svc.DiscoverTyped(context.Background(), []string{"team work"}, "", 10, "action")
 	if err != nil {
 		t.Fatalf("DiscoverTyped failed: %v", err)
 	}
@@ -281,10 +281,10 @@ func TestDiscoverTyped_ActionOnlyUsesActionStore(t *testing.T) {
 		t.Fatalf("total = %d, want 1", resp.Total)
 	}
 	result := resp.Results[0]
-	if result.Type != "action" || result.ID != "team.decisions.list" {
+	if result.Type != "action" || result.ID != "team.swarm.work.list" {
 		t.Fatalf("unexpected action result: %+v", result)
 	}
-	if result.ShowCommand != "prompt-manager action show team.decisions.list" {
+	if result.ShowCommand != "prompt-manager action show team.swarm.work.list" {
 		t.Fatalf("show command = %q", result.ShowCommand)
 	}
 	if resp.ReadCommand != "" {
@@ -295,18 +295,18 @@ func TestDiscoverTyped_ActionOnlyUsesActionStore(t *testing.T) {
 func TestSearchActionsHandler_TextFallback(t *testing.T) {
 	service := &Service{
 		actionStore: &MockActionStore{actions: []store.Action{{
-			ID:          "team.decisions.list",
-			Name:        "List team decisions",
-			Description: "Review recent team decisions",
+			ID:          "team.swarm.work.list",
+			Name:        "List team work",
+			Description: "Review recent team work",
 			Status:      "active",
 			Owner:       store.ActionOwner{Type: "scenario", ID: "prompt-manager"},
-			Command:     store.ActionCommand{Argv: []string{"prompt-manager", "team", "decisions", "list"}},
-			Tags:        []string{"team", "decision"},
+			Command:     store.ActionCommand{Argv: []string{"swarm-manager", "backlog", "list", "--json"}},
+			Tags:        []string{"team", "work"},
 		}}},
 	}
 	handler := NewHandlers(service)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/actions/ai", strings.NewReader(`{"query":"team decisions","limit":5}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/actions/ai", strings.NewReader(`{"query":"team work","limit":5}`))
 	rr := httptest.NewRecorder()
 
 	handler.SearchActions(rr, req)
@@ -326,11 +326,11 @@ func TestSearchActionsHandler_TextFallback(t *testing.T) {
 		t.Fatalf("result count = %d, want 1", len(resp.Results))
 	}
 	got := resp.Results[0]
-	if got.ID != "team.decisions.list" {
-		t.Fatalf("result id = %q, want team.decisions.list", got.ID)
+	if got.ID != "team.swarm.work.list" {
+		t.Fatalf("result id = %q, want team.swarm.work.list", got.ID)
 	}
-	if got.Command != "prompt-manager team decisions list" {
-		t.Fatalf("command = %q, want prompt-manager team decisions list", got.Command)
+	if got.Command != "swarm-manager backlog list --json" {
+		t.Fatalf("command = %q, want swarm-manager backlog list --json", got.Command)
 	}
 }
 

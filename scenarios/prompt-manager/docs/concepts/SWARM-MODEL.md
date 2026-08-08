@@ -260,7 +260,7 @@ Team: Review Squad
 
 ## Swarm Manager Integration: The Staging Layer
 
-Teams do not execute their plans directly. Instead, they deposit findings into the `swarm-manager` scenario as backlog items using the `swarm-manager-recommendations` skill. This creates a **staging and review layer** between agent analysis and scenario execution.
+Teams do not execute their plans directly. Instead, the member that found a signal files it once into the unified `swarm-manager` stream: raw observations use `swarm-manager captures create`, while shaped outcomes use `swarm-manager backlog create`. The operator disposition is read later with `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.
 
 ```
 prompt-manager (teams analyze)          swarm-manager (staging/review)
@@ -281,16 +281,16 @@ prompt-manager (teams analyze)          swarm-manager (staging/review)
 - Execution governance (manual/scheduled/yolo) controls when approved work runs
 - Plans are git-tracked, human-readable, and editable before committing to execution
 
-Actions do not replace this staging layer. If a missing operation needs new scenario/resource/project behavior, the correct output is still a backlog item or `capability-gap`. Once the CLI behavior exists and is stable, an Action can wrap it for future execution.
+Actions do not replace this staging layer. If a missing operation needs new scenario/resource/project behavior, the correct output is still a backlog item or `capability-work`. Once the CLI behavior exists and is stable, an Action can wrap it for future execution.
 
-**Team-to-backlog mapping** (defined in the `swarm-manager-recommendations` skill):
+**Team-to-backlog mapping**:
 
 | Team | Backlog Kind | Purpose |
 |------|-------------|---------|
 | Feature Team | `idea` or `execute` | New capabilities and enhancements |
 | QA Team | `fix` or `execute` | Quality issues and test improvements |
 
-See [swarm-manager-recommendations SKILL.md](../../store/skills/packs/core/swarm-manager-recommendations/SKILL.md) for the full team-to-backlog contract.
+See the [swarm-manager work-authoring skill](../../store/skills/packs/core/swarm-manager-work-authoring/SKILL.md) for the filing contract.
 
 ## Coordination Skills
 

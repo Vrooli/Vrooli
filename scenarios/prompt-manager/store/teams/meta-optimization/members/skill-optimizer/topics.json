@@ -21,34 +21,7 @@
       "prefix": "skill-experiment/<skill-id>/<experiment-id>"
     }
   ],
-  "evidence_consumed": [
-    {
-      "prefix": "challenge-report/*",
-      "for_decisions": [
-        "skill-conversion-candidate",
-        "skill-improvement",
-        "skill-deprecation",
-        "skill-graduation",
-        "skill-experiment-promotion",
-        "action-candidate",
-        "action-improvement",
-        "action-deprecation"
-      ]
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "for_decisions": [
-        "skill-conversion-candidate",
-        "skill-improvement",
-        "skill-deprecation",
-        "skill-graduation",
-        "skill-experiment-promotion",
-        "action-candidate",
-        "action-improvement",
-        "action-deprecation"
-      ]
-    }
-  ],
+  "evidence_consumed": [],
   "output": [
     {
       "prefix": "skill-audit/*",
@@ -70,19 +43,6 @@
       "prefix": "skill-experiment/*",
       "destination_kind": "knowledge"
     }
-  ],
-  "decisions_owned": [
-    "skill-conversion-candidate",
-    "skill-improvement",
-    "skill-deprecation",
-    "skill-graduation",
-    "skill-experiment-promotion",
-    "action-candidate",
-    "action-improvement",
-    "action-deprecation"
-  ],
-  "decisions_consumed": [
-    "capability-gap"
   ],
   "external_producers": [
     "operator"

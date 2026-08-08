@@ -10,7 +10,7 @@ Patterns we currently anticipate. Five is enough for the foreseeable future; new
 
 ## `api_key`
 
-**What it looks like.** Operator obtains a string from a provider's web UI, pastes it once, the system stores it in Vault.
+**What it looks like.** Operator obtains a string from a provider's web UI, pastes it once, and the system stores it in the credential authority.
 
 **Examples.** fal.ai, OpenRouter, Gemini, OpenAI, most pay-per-use AI APIs.
 
@@ -27,11 +27,11 @@ Patterns we currently anticipate. Five is enough for the foreseeable future; new
 
 These fields mirror `secretDescriptor` because the auth surface is identical — a paste-string secret. (`api_key`-pattern connectors are effectively `secretDescriptor`-shaped under a connector wrapper, and the schema reuses the type.)
 
-**Vault contents.** A single `value` key holding the string.
+**Credential-authority fields.** A single `value` field holding the string.
 
 **Probe contract.** The handler calls a known authenticated read-only endpoint (e.g. `/v1/keys/me` or equivalent) and reports `healthy` / `revoked` / `unknown`.
 
-**Refresh contract.** No automatic refresh. Operator generates a new key in the provider UI and re-pastes; integration-hub updates Vault.
+**Refresh contract.** No automatic refresh. Operator generates a new key in the provider UI and re-pastes; integration-hub updates the credential authority.
 
 ## `oauth_web`
 
@@ -51,15 +51,15 @@ These fields mirror `secretDescriptor` because the auth surface is identical —
 }
 ```
 
-The connector handler also embeds the client_id; the client_secret lives in Vault under `literal:secret/vrooli/connectors/<connector_id>` (a separate Vault prefix from connection instances; this is the *connector's* secret, not any operator's).
+The connector handler also embeds the client_id; the client_secret lives in the credential authority under identity `vrooli/integrations/connectors/<connector_id>` (separate from connection instances; this is the *connector's* secret, not any operator's).
 
-**Vault contents.** `access_token`, `refresh_token` (when provider supports it), `expires_at`, `scopes`.
+**Credential-authority fields.** `access-token`, `refresh-token` (when provider supports it), `expires-at`, `scopes`.
 
 **Probe contract.** Handler calls a low-cost authenticated endpoint (e.g. `/user`) and parses `401` / `403` to distinguish `revoked` from `needs_refresh`.
 
 **Refresh contract.** Handler runs the provider's refresh-token exchange before token expiry. Failure transitions the connection to `needs_refresh`; the wizard surfaces this for re-authorization.
 
-**Callback handling.** Integration-hub exposes the callback URL on its API server; the handler parses the code, exchanges it, writes Vault. The callback URL must be registered with the provider as part of the connector's app configuration (a one-time human step, documented per connector).
+**Callback handling.** Integration-hub exposes the callback URL on its API server; the handler parses the code, exchanges it, and writes the credential authority. The callback URL must be registered with the provider as part of the connector's app configuration (a one-time human step, documented per connector).
 
 ## `oauth_device`
 
@@ -69,7 +69,7 @@ The connector handler also embeds the client_id; the client_secret lives in Vaul
 
 **Connector manifest fields under `auth`.** Similar to `oauth_web` but with `device_code_url` instead of `authorize_url`, and no `callback_path`. Polling parameters (interval, max wait) are handler-defined defaults, overridable per-provider.
 
-**Vault contents.** Same as `oauth_web`.
+**Credential-authority fields.** Same as `oauth_web`.
 
 **Probe and refresh.** Same as `oauth_web`.
 
@@ -94,7 +94,7 @@ The connector handler also embeds the client_id; the client_secret lives in Vaul
 
 The connector handler invokes `probe_command` and matches against `expected_substring` (or a structured-output parser for more elaborate cases).
 
-**Vault contents.** Usually empty — the third-party tool owns its own storage. If the connector needs to track metadata (last-probed identity, selected workspace), that lives in integration-hub state, not Vault.
+**Credential-authority fields.** Usually empty — the third-party tool owns its own storage. If the connector needs to track metadata (last-probed identity, selected workspace), that lives in integration-hub state, not the credential authority.
 
 **Probe contract.** Run the probe command. `0` exit + matching output = `healthy`; non-zero or no match = `unknown`. There is no automatic distinction between revoked and never-signed-in for this pattern; the probe just reports the live state.
 
@@ -104,13 +104,13 @@ The connector handler invokes `probe_command` and matches against `expected_subs
 
 ## `app_password`
 
-**What it looks like.** Operator generates a long-lived secondary password from the provider's UI (separate from their main password), pastes it, system stores in Vault. Distinct from `api_key` because the obtain UX is different — the provider's UI calls it an "app password" or "app-specific password", and the operator's mental model differs.
+**What it looks like.** Operator generates a long-lived secondary password from the provider's UI (separate from their main password), pastes it, and the system stores it in the credential authority. Distinct from `api_key` because the obtain UX is different — the provider's UI calls it an "app password" or "app-specific password", and the operator's mental model differs.
 
 **Examples.** Bluesky's app passwords, Apple's app-specific passwords, some self-hosted services with limited OAuth support.
 
 **Connector manifest fields under `auth`.** Same shape as `api_key` plus an `obtain_instructions` field that walks the operator through the provider's specific path to generate the password (often buried 3 clicks deep in account settings).
 
-**Vault contents.** A `value` key, or sometimes a `username` + `value` pair when the provider requires both.
+**Credential-authority fields.** A `value` field, or sometimes a `username` + `value` pair when the provider requires both.
 
 **Probe and refresh.** Same as `api_key` — no automatic refresh; operator regenerates if needed.
 
@@ -124,5 +124,5 @@ The connector handler invokes `probe_command` and matches against `expected_subs
 ## See also
 
 - [`connectors.md`](connectors.md) — the connector model that consumes these patterns
-- [`connections.md`](connections.md) — connection instances and Vault layout
+- [`connections.md`](connections.md) — connection instances and credential-authority layout
 - [`../secrets.md`](../secrets.md) — paste-string secrets attached to resources (the existing pattern, structurally the same as `api_key` connectors)

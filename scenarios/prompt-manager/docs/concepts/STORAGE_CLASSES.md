@@ -33,12 +33,11 @@ Lives under `~/.vrooli/data/vrooli/prompt-manager/` (api-core/storage
 `ClassData`, `ProfileAuto`).
 
 - Files: `teams/<team>/members/<member>/{heartbeat.json, last-handoff.md,
-  inbox.json, logs/*.log}`, `teams/<team>/shared/{tasks.json,
-  decisions.jsonl, handoff-history.jsonl, heartbeat-attempts.jsonl,
-  knowledge.jsonl}`, `team-queue-<team>.json`, `heartbeat-active-runs.json`,
+  inbox.json, logs/*.log}`, `teams/<team>/shared/tasks.json`,
+  `team-queue-<team>.json`, `heartbeat-active-runs.json`,
   `experiments/<id>/...`, `backups/<mirrored-rel-path>.backup`.
-- Lifecycle: written every heartbeat tick, handoff, knowledge append, queue
-  update. Never edited by humans.
+- Lifecycle: written for mutable task and queue state. Durable team context,
+  handoffs, and run telemetry are owned by source-ledger and vrooli-events.
 - Backup: covered by data-backup-manager's `WellKnownScanner` via the
   `vrooli/data` discovery suggestion. No self-registration call.
 
@@ -58,7 +57,7 @@ Pick the class by asking, in order:
 
 1. **Is it durable, authored, and meaningful in a PR diff?** → Config.
 2. **Does running execution mutate it, and would losing it represent data
-   loss (history, decisions, queue depth)?** → RuntimeData.
+   loss (task or queue state)?** → RuntimeData.
 3. **Is it fully reconstructable from Config + RuntimeData?** → RuntimeCache.
 
 Backups (`.backup` artifacts) always route through `Roots.BackupFor(rel,

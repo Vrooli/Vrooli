@@ -7,7 +7,7 @@ Action health and adoption snapshot. Maintained by `skill-optimizer`.
 | Action | Status | Validation | Discoverability | Disposition | Notes |
 |--------|--------|------------|-----------------|-------------|-------|
 | action:scenario.status.show | active | valid; dry-run passes | mixed discovery returns `show scenario status`; graph health 0.725 with inbound references | adopted | First active read-only seed Action. |
-| action:team.decisions.list | active | valid; dry-run passes | mixed discovery returns `list team decisions`; graph health 0.725 with inbound references | adopted | Read-only prompt-manager decision lookup with `apiRead` permission. |
+| action:team.swarm.work.list | active | valid; dry-run passes | mixed discovery returns `list team work`; graph health 0.725 with inbound references | adopted | Read-only Swarm Manager work lookup with `apiRead` permission. |
 
 ## Measurement Signals
 

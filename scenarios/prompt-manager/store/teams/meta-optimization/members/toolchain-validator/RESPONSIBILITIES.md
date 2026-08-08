@@ -15,11 +15,11 @@ Each violation report should preserve severity, tool, evidence, whether it is ne
 
 ## Longer-Cadence Template Audit
 
-On a longer cadence (default: monthly per registered template), audit the template each reference is generated from using the [`reference-pattern-fitness`](../../../../../../../docs/agent-system/REFERENCE_PATTERN_FITNESS.md) skill. The lens applies only to artifacts that exist to be copied (templates, references, canonical examples) and runs **after** the relevant single-instance audit lenses on the same artifact. Findings are filed as proposed template patches under `meta-self-improvement` decision context; the operator resolves.
+On a longer cadence (default: monthly per registered template), audit the template each reference is generated from using the [`reference-pattern-fitness`](../../../../../../../docs/agent-system/REFERENCE_PATTERN_FITNESS.md) skill. The lens applies only to artifacts that exist to be copied (templates, references, canonical examples) and runs **after** the relevant single-instance audit lenses on the same artifact. Findings are filed as proposed template patches under `meta-self-improvement` work type; the operator resolves.
 
 Rotation hint: for the gold-star template, run the audit at the start of each month, or when a `reference-stale-from-template` violation surfaces (whichever is sooner).
 
-If validation repeatedly requires the same deterministic prompt-manager or Vrooli CLI check, note whether an existing Action should expose it. Toolchain-validator still raises toolchain violations or capability gaps; skill-optimizer owns Action conversion decisions.
+If validation repeatedly requires the same deterministic prompt-manager or Vrooli CLI check, note whether an existing Action should expose it. Toolchain-validator still raises toolchain violations or capability gaps; skill-optimizer owns Action conversion work items.
 
 ## Boundaries
 - Do not fix tool code.

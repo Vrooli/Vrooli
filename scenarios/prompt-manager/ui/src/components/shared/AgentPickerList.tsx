@@ -33,7 +33,7 @@ export function AgentPickerList({ onSelect }: AgentPickerListProps) {
       {agents.map((agent) => {
         const position = getPosition(agent.id)
         const status = agentAccessories[agent.id]?.status
-        const hasPendingDecision = status?.type === 'pending-decision'
+        const hasPendingWork = status?.type === 'pending-work'
 
         return (
           <button
@@ -51,8 +51,8 @@ export function AgentPickerList({ onSelect }: AgentPickerListProps) {
             <span className="text-sm font-medium text-foreground truncate flex-1">
               {agent.displayName}
             </span>
-            {hasPendingDecision && (
-              <span className="flex-shrink-0 w-2 h-2 rounded-full bg-amber-500" title="Has pending decision" />
+            {hasPendingWork && (
+              <span className="flex-shrink-0 w-2 h-2 rounded-full bg-amber-500" title="Has pending work" />
             )}
           </button>
         )

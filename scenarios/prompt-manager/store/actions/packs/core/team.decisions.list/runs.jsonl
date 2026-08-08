@@ -1,2 +1,0 @@
-{"actionId":"team.decisions.list","startedAt":"2026-05-01T17:08:02.443790832Z","finishedAt":"2026-05-01T17:08:02.443934495Z","durationMs":0,"status":"dry-run","argv":["prompt-manager","team","decision-list","meta-optimization","--json"],"validationValid":true}
-{"actionId":"team.decisions.list","startedAt":"2026-05-01T17:11:44.556531035Z","finishedAt":"2026-05-01T17:11:44.556673511Z","durationMs":0,"status":"dry-run","argv":["prompt-manager","team","decision-list","meta-optimization","--json"],"validationValid":true}

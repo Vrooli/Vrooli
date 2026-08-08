@@ -111,7 +111,7 @@ This section read `_No entries yet._` for as long as the charter had no layer ab
 When a metric on any Command Center page shows as `gap`, the flow is:
 
 1. Director-swarm's `outcome-strategist` (once active) spots the gap via `/api/v1/gaps`.
-2. Proposes a backlog item or goal to build the missing data pipeline, with decision context `outcome-gap`.
+2. Proposes a backlog item or goal to build the missing data pipeline, with work type `outcome-gap`.
 3. Human approves at the vision walk.
 4. A capability-building team (or the relevant feature team) builds the pipeline.
 5. The metric flips from `gap` → `live`.

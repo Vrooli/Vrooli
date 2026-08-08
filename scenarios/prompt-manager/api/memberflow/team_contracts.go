@@ -1,13 +1,11 @@
 // Team-contract loader and registry. Memberflow validation rules that need
-// to cross-check declarations against team-level state (decision contexts,
+// to cross-check declarations against team-level state (work surfaces,
 // knowledge-topic registries, etc.) consult this registry rather than
 // reaching into the broader store package — it keeps memberflow a leaf
 // dependency and lets validation tests fixture team contracts directly.
 //
-// Today the only consumer is ruleDanglingEvidenceDecision, which
-// verifies that every `evidence_consumed[].for_decisions[]` id on every
-// member's topics.json resolves against some team's
-// `team.json::operatingContract.decisionContexts`.
+// The registry is intentionally small: it verifies team-level work surfaces
+// without making memberflow depend on the broader store package.
 //
 // Loader semantics mirror LoadAllTaxonomies (taxonomy.go): a missing
 // teams/ directory yields an empty registry without error so that callers
@@ -179,7 +177,7 @@ func parseTeamFile(path string) (*LoadedTeamContract, error) {
 		return nil, fmt.Errorf("team %q has invalid topicCatalog: %w", path, err)
 	}
 	// operatingContract may legitimately be nil while a team is being
-	// scaffolded; the validator treats that as "no decision contexts to
+	// scaffolded; the validator treats that as "no work types to
 	// match," which is preferable to crashing. The dangling-evidence rule
 	// will then report unresolved references in detail.
 	flag := 0
@@ -280,61 +278,6 @@ func ValidateTopicCatalog(entries []TopicCatalogEntry) error {
 		seen[key] = struct{}{}
 	}
 	return nil
-}
-
-// HasDecisionContext reports whether any team in the registry declares the
-// given decision-context id. Empty/whitespace ids never match.
-func (r TeamContractRegistry) HasDecisionContext(id string) bool {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return false
-	}
-	for _, lt := range r {
-		if lt == nil || lt.Contract == nil {
-			continue
-		}
-		if _, ok := lt.Contract.DecisionContext[id]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-// HasTeamDecisionContext reports whether a specific team contract declares the
-// given decision-context id. Empty/whitespace ids never match.
-func (r TeamContractRegistry) HasTeamDecisionContext(teamID, id string) bool {
-	teamID = strings.TrimSpace(teamID)
-	id = strings.TrimSpace(id)
-	if teamID == "" || id == "" {
-		return false
-	}
-	lt := r[teamID]
-	if lt == nil || lt.Contract == nil {
-		return false
-	}
-	_, ok := lt.Contract.DecisionContext[id]
-	return ok
-}
-
-// TeamsForDecisionContext returns every team id whose contract declares
-// the given decision-context id, in lexical order. Useful for diagnostic
-// detail strings that point the operator at the right team.json.
-func (r TeamContractRegistry) TeamsForDecisionContext(id string) []string {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil
-	}
-	var teams []string
-	for teamID, lt := range r {
-		if lt == nil || lt.Contract == nil {
-			continue
-		}
-		if _, ok := lt.Contract.DecisionContext[id]; ok {
-			teams = append(teams, teamID)
-		}
-	}
-	sort.Strings(teams)
-	return teams
 }
 
 // IDs returns every loaded team id in lexical order.

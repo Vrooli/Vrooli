@@ -20,12 +20,12 @@ function makeAction(overrides: Partial<Action> = {}): Action {
   return {
     kind: 'action',
     schemaVersion: 1,
-    id: 'team.decisions.list',
-    name: 'List Team Decisions',
-    description: 'List decisions for a team.',
+    id: 'team.swarm.work.list',
+    name: 'List Team Work',
+    description: 'List workItems for a team.',
     status: 'active',
     owner: { type: 'scenario', id: 'prompt-manager' },
-    command: { argv: ['prompt-manager', 'team', 'decisions', 'list'] },
+    command: { argv: ['prompt-manager', 'team', 'workItems', 'list'] },
     inputs: {
       team: {
         type: 'team',
@@ -61,7 +61,7 @@ function makeAction(overrides: Partial<Action> = {}): Action {
 }
 
 const validation: ActionValidationResponse = {
-  actionId: 'team.decisions.list',
+  actionId: 'team.swarm.work.list',
   valid: true,
   runnable: false,
   unvalidated: false,
@@ -105,22 +105,22 @@ beforeEach(() => {
 
 describe('ActionEditorPanel', () => {
   it('renders Action contract details and exposes governed run controls', () => {
-    render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
+    render(<ActionEditorPanel actionId="team.swarm.work.list" onClose={vi.fn()} />)
 
-    expect(screen.getByText('List Team Decisions')).toBeDefined()
-    expect(screen.getByText('team.decisions.list')).toBeDefined()
-    expect(screen.getAllByText('prompt-manager team decisions list').length).toBeGreaterThan(0)
+    expect(screen.getByText('List Team Work')).toBeDefined()
+    expect(screen.getByText('team.swarm.work.list')).toBeDefined()
+    expect(screen.getAllByText('swarm-manager backlog list --json').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'Dry run' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled()
   })
 
   it('shows validation results from the API', async () => {
     validateAction.mockResolvedValue(validation)
-    render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
+    render(<ActionEditorPanel actionId="team.swarm.work.list" onClose={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Validate' }))
 
-    await waitFor(() => expect(validateAction).toHaveBeenCalledWith('team.decisions.list'))
+    await waitFor(() => expect(validateAction).toHaveBeenCalledWith('team.swarm.work.list'))
     expect(await screen.findByText('command.controlled')).toBeDefined()
     expect(screen.getByText('Command is controlled.')).toBeDefined()
   })
@@ -131,7 +131,7 @@ describe('ActionEditorPanel', () => {
       validation,
     })
 
-    render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
+    render(<ActionEditorPanel actionId="team.swarm.work.list" onClose={vi.fn()} />)
     const editor = screen.getByLabelText('Action contract JSON')
     const nextJson = JSON.stringify({
       ...makeAction({ name: 'Updated Action' }),
@@ -144,16 +144,16 @@ describe('ActionEditorPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(updateAction).toHaveBeenCalled())
-    expect(updateAction.mock.calls[0]?.[0]).toBe('team.decisions.list')
+    expect(updateAction.mock.calls[0]?.[0]).toBe('team.swarm.work.list')
     expect(updateAction.mock.calls[0]?.[1]).toMatchObject({ name: 'Updated Action' })
   })
 
   it('runs an Action dry-run through the governed API seam', async () => {
     runAction.mockResolvedValue({
-      actionId: 'team.decisions.list',
+      actionId: 'team.swarm.work.list',
       status: 'dry-run',
       durationMs: 2,
-      argv: ['prompt-manager', 'team', 'decisions', 'list', 'meta-optimization'],
+      argv: ['prompt-manager', 'team', 'workItems', 'list', 'meta-optimization'],
       stdout: '',
       stderr: '',
       stdoutTruncated: false,
@@ -162,22 +162,22 @@ describe('ActionEditorPanel', () => {
       validation: { ...validation, runnable: true },
     })
 
-    render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
+    render(<ActionEditorPanel actionId="team.swarm.work.list" onClose={vi.fn()} />)
     expect(screen.getByLabelText('Run input JSON')).toHaveValue(JSON.stringify({ team: 'meta-optimization' }, null, 2))
     fireEvent.click(screen.getByRole('button', { name: 'Dry run' }))
 
-    await waitFor(() => expect(runAction).toHaveBeenCalledWith('team.decisions.list', {
+    await waitFor(() => expect(runAction).toHaveBeenCalledWith('team.swarm.work.list', {
       input: { team: 'meta-optimization' },
       dryRun: true,
     }))
     expect(await screen.findByText('dry-run')).toBeDefined()
     expect(screen.getByText((_content, node) =>
-      node?.textContent === 'prompt-manager\nteam\ndecisions\nlist\nmeta-optimization'
+      node?.textContent === 'prompt-manager\nteam\nworkItems\nlist\nmeta-optimization'
     )).toBeDefined()
   })
 
   it('rejects malformed run input before calling the API', async () => {
-    render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
+    render(<ActionEditorPanel actionId="team.swarm.work.list" onClose={vi.fn()} />)
 
     fireEvent.change(screen.getByLabelText('Run input JSON'), { target: { value: '[]' } })
     fireEvent.click(screen.getByRole('button', { name: 'Run' }))
@@ -187,7 +187,7 @@ describe('ActionEditorPanel', () => {
   })
 
   it('disables run controls while contract edits are unsaved', () => {
-    render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
+    render(<ActionEditorPanel actionId="team.swarm.work.list" onClose={vi.fn()} />)
 
     const [nameField] = screen.getAllByLabelText('Name')
     if (!nameField) {
@@ -204,7 +204,7 @@ describe('ActionEditorPanel', () => {
     updateAction.mockResolvedValue({
       action: makeAction({
         name: 'Typed Action',
-        command: { argv: ['prompt-manager', 'team', 'decisions', 'show', '{{team}}'] },
+        command: { argv: ['prompt-manager', 'team', 'workItems', 'show', '{{team}}'] },
         inputs: {
           team: {
             type: 'team',
@@ -219,7 +219,7 @@ describe('ActionEditorPanel', () => {
       validation,
     })
 
-    render(<ActionEditorPanel actionId="team.decisions.list" onClose={vi.fn()} />)
+    render(<ActionEditorPanel actionId="team.swarm.work.list" onClose={vi.fn()} />)
 
     const [nameField] = screen.getAllByLabelText('Name')
     if (!nameField) {
@@ -227,7 +227,7 @@ describe('ActionEditorPanel', () => {
     }
     fireEvent.change(nameField, { target: { value: 'Typed Action' } })
     fireEvent.change(screen.getByLabelText(/Argv tokens/), {
-      target: { value: 'prompt-manager\nteam\ndecisions\nshow\n{{team}}' },
+      target: { value: 'prompt-manager\nteam\nworkItems\nshow\n{{team}}' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Add input' }))
     const nameFields = screen.getAllByLabelText('Name')
@@ -249,7 +249,7 @@ describe('ActionEditorPanel', () => {
     await waitFor(() => expect(updateAction).toHaveBeenCalled())
     expect(updateAction.mock.calls[0]?.[1]).toMatchObject({
       name: 'Typed Action',
-      command: { argv: ['prompt-manager', 'team', 'decisions', 'show', '{{team}}'] },
+      command: { argv: ['prompt-manager', 'team', 'workItems', 'show', '{{team}}'] },
       inputs: { team: { type: 'team', required: true } },
       permissions: { filesystemWrite: true },
     })
@@ -259,10 +259,10 @@ describe('ActionEditorPanel', () => {
     const onClose = vi.fn()
     deleteAction.mockResolvedValue(undefined)
 
-    render(<ActionEditorPanel actionId="team.decisions.list" onClose={onClose} />)
+    render(<ActionEditorPanel actionId="team.swarm.work.list" onClose={onClose} />)
     fireEvent.click(screen.getByRole('button', { name: 'Archive' }))
 
-    await waitFor(() => expect(deleteAction).toHaveBeenCalledWith('team.decisions.list', false))
+    await waitFor(() => expect(deleteAction).toHaveBeenCalledWith('team.swarm.work.list', false))
     expect(onClose).toHaveBeenCalled()
   })
 
@@ -270,7 +270,7 @@ describe('ActionEditorPanel', () => {
     const onClose = vi.fn()
     deleteAction.mockResolvedValue(undefined)
 
-    render(<ActionEditorPanel actionId="team.decisions.list" onClose={onClose} />)
+    render(<ActionEditorPanel actionId="team.swarm.work.list" onClose={onClose} />)
     fireEvent.click(screen.getByRole('button', { name: 'Hard delete' }))
 
     expect(deleteAction).not.toHaveBeenCalled()
@@ -278,7 +278,7 @@ describe('ActionEditorPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirm hard delete' }))
 
-    await waitFor(() => expect(deleteAction).toHaveBeenCalledWith('team.decisions.list', true))
+    await waitFor(() => expect(deleteAction).toHaveBeenCalledWith('team.swarm.work.list', true))
     expect(onClose).toHaveBeenCalled()
   })
 })

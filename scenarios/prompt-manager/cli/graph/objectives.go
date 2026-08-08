@@ -125,7 +125,7 @@ func printObjectives(resp objectiveResponse) {
 	// An unserved objective is stated intent nobody is serving. Naming the
 	// actuator here keeps the reader from treating the count as informational.
 	if resp.Unserved > 0 {
-		fmt.Println("\nActuator for an unserved objective: outcome-direction or capability-gap in director-swarm.")
+		fmt.Println("\nActuator for an unserved objective: outcome-direction or capability work in director-swarm.")
 	}
 }
 

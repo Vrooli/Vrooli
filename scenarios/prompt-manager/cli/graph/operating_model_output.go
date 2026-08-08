@@ -131,21 +131,6 @@ func printOperatingModelCoverage(resp operatingModelCoverageResponse) {
 			cov.Docs.TopicCatalogPurposeMismatch,
 			cov.Docs.TopicCatalogPurposeMissingRuntime,
 		)
-		fmt.Printf("- Decisions table: %s (rows %d, matched %d, graph-only %d, docs-only %d, invalid %d)\n",
-			cov.Docs.DecisionsTable,
-			cov.Docs.DecisionsRows,
-			cov.Docs.DecisionsMatched,
-			cov.Docs.DecisionsGraphOnly,
-			cov.Docs.DecisionsDocsOnly,
-			cov.Docs.DecisionsInvalid,
-		)
-		if cov.Docs.DecisionsRows > 0 {
-			fmt.Printf("- Decisions metadata: complete %d, incomplete %d, weak accepted effects %d\n",
-				cov.Docs.DecisionsMetadataComplete,
-				cov.Docs.DecisionsMetadataIncomplete,
-				cov.Docs.DecisionsAcceptedEffectWeak,
-			)
-		}
 		if cov.Docs.ExternalInputsTable != "" {
 			fmt.Printf("- External Inputs / Triggers table: %s (rows %d, backed %d, unbacked %d)\n",
 				cov.Docs.ExternalInputsTable,

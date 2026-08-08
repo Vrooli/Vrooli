@@ -23,7 +23,6 @@ import type { Agent } from '@/types/agent'
 import { useCombineStore, type CombineFormat } from '@/stores/combineStore'
 import type { ContentSearchMatch, AISearchResponse, AIActionSearchResponse, AIAgentSearchResponse, AITeamSearchResponse, TopicMatchResponse, DiscoverResponse, BudgetConfig, DiscoverFilterConfig } from '@/lib/schemas'
 import type { UseRunningAgentsResult } from '@/hooks/useRunningAgents'
-import type { UsePendingDecisionsResult } from '@/hooks/usePendingDecisions'
 import type { UseHeartbeatControlStatusResult } from '@/hooks/useHeartbeatControlStatus'
 import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
 import { DEFAULT_FILTER_STATE } from '@/types/filterSort'
@@ -56,7 +55,6 @@ import { SavedSetEditor } from './SavedSetEditor'
 import type { CopySetEntry } from '@/lib/copySetStorage'
 import { UnsavedChangesMenu, UnsavedChangesCollapsedBadge } from './UnsavedChangesMenu'
 import { RunningAgentsPopover } from './RunningAgentsPopover'
-import { PendingDecisionsPopover } from './PendingDecisionsPopover'
 import { HeartbeatControlPopover } from './HeartbeatControlPopover'
 import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
 import { buildDirtyCountIndex, buildSelectionStateIndex } from '@/services/treeService'
@@ -405,12 +403,8 @@ interface SkillTreeSidebarProps {
   onNavigateToRunningAgent?: (teamId: string, agentId: string) => void
   /** Pre-fetched running agents data from the sync hook (eliminates duplicate polling) */
   runningAgentsData?: UseRunningAgentsResult
-  /** Pre-fetched pending decisions data from the sync hook */
-  pendingDecisionsData?: UsePendingDecisionsResult
   /** Pre-fetched heartbeat control data from the sync hook */
   heartbeatControlData?: UseHeartbeatControlStatusResult
-  /** Callback to navigate to a team's decision log */
-  onNavigateToDecision?: (teamId: string) => void
   /** Callback to open the topic discovery wizard route */
   onOpenTopicWizard?: () => void
   // Agent context menu callbacks
@@ -513,9 +507,7 @@ export function SkillTreeSidebar({
   onContentMatchesChange,
   onNavigateToRunningAgent,
   runningAgentsData,
-  pendingDecisionsData,
   heartbeatControlData,
-  onNavigateToDecision,
   onOpenTopicWizard,
   onDuplicateAgent,
   onCustomizeAgent,
@@ -1240,16 +1232,6 @@ export function SkillTreeSidebar({
                       count={runningAgentsData?.count}
                       stopAgent={runningAgentsData?.stopAgent}
                       stoppingIds={runningAgentsData?.stoppingIds}
-                    />
-                  )}
-                  {onNavigateToDecision && (
-                    <PendingDecisionsPopover
-                      onNavigateToDecision={onNavigateToDecision}
-                      groupedByTeam={pendingDecisionsData?.groupedByTeam}
-                      count={pendingDecisionsData?.count}
-                      acceptDecision={pendingDecisionsData?.acceptDecision}
-                      rejectDecision={pendingDecisionsData?.rejectDecision}
-                      processingIds={pendingDecisionsData?.processingIds}
                     />
                   )}
                   {dirtyCount > 0 && (

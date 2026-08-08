@@ -37,8 +37,8 @@ The lenses generate a small defect vocabulary. This table is the single source o
 |---|---|---|---|
 | C1 | Hand-rolled rule cluster (focality) | 5+ style/format rules that a real, widely documented named standard already encodes | Adopt the standard by name and delete the rules it replaces (name-and-delete). Verify the standard is real first; the prose-standard placement map lives in `writing-standards` |
 | C2 | Name-and-keep decoration | A standard or concept cited alongside the hand-rolled rules it describes | Delete either the name or the rules |
-| C3 | Attention-splitting rule pile | Many weak, orthogonal, or contradictory rules aimed at one behavior | Consolidate into one coherent argument or one decision table |
-| C4 | High interpretive entropy | Two compliant readings of a key instruction produce materially different executions | The fix is a decision, not more prose; prefer decision tables over prose conditionals |
+| C3 | Attention-splitting rule pile | Many weak, orthogonal, or contradictory rules aimed at one behavior | Consolidate into one coherent argument or one work table |
+| C4 | High interpretive entropy | Two compliant readings of a key instruction produce materially different executions | The fix is a decision, not more prose; prefer work tables over prose conditionals |
 | C5 | Unverifiable rules | Compliance judged by adjectives ("clear", "appropriate") rather than lint, CLI assertion, or named artifact | Restate as a mechanically checkable condition, or apply §"Destination over direction" |
 
 Routing rule for audits: a **confirmed C4** — the divergence probe in `skill-validation` produced two materially different compliant executions — is an executability defect and stays a validation finding. C1, C2, C3, and C5 are conditioning-cost defects; they belong to `skill-improvement-suggestions`.
@@ -77,12 +77,12 @@ A **contract skill** is the prompt contract of a declared Agent Manager workflow
 **Shape from schema, choice from skill.** The workflow node's `resultSpec.schema` is the single source of truth for output shape, and the engine renders that schema into the run prompt and into the schema-repair prompt. Therefore:
 
 - Do not restate the schema — field lists, enum values, nesting, required-ness — in skill prose. Restated shape drifts, and the agent already sees the authoritative schema.
-- Do own the **outcome decision rules**. A schema can say the outcome enum is `completed | proposed | needs_attention | abstained`; it cannot say when each value is correct. That choice is the contract skill's core content, and it must be a decision table (observable end state → outcome value), not prose.
+- Do own the **outcome decision rules**. A schema can say the outcome enum is `completed | proposed | needs_attention | abstained`; it cannot say when each value is correct. That choice is the contract skill's core content, and it must be a work table (observable end state → outcome value), not prose.
 
 **Required content.** This list is the complete structure for a contract skill; the generic skill-structure template and the `## <Category> focus:` header do not apply, because every line of the body is rendered into the run prompt and must earn its tokens there:
 
 1. **Task statement** — 1–3 STE-100 sentences: what the run does to which subject.
-2. **Outcome decision table** — one row per outcome value the schema admits, keyed to observable end states (commands run, artifacts produced, checks passed). Two agents that reach the same end state must select the same outcome value.
+2. **Outcome work table** — one row per outcome value the schema admits, keyed to observable end states (commands run, artifacts produced, checks passed). Two agents that reach the same end state must select the same outcome value.
 3. **Variable legend** — one line per template binding (`{{.snapshot}}`, `{{.entity}}`, …): what it contains and what is authoritative about it. These are Go-template placeholders rendered by Agent Manager at run time; `prompt-manager skill read` shows them literally.
 4. **Authority boundary** — what the run must not mutate, in STE-100. State it positively where possible ("write only inside `<path>`").
 5. **Method by citation** — when the run needs doctrine (how to review, how to author a plan), cite it: `prompt-manager skill read <skill-id>`. Do not inline doctrine another skill or doc owns.
@@ -93,7 +93,7 @@ Exemplar: `swarm-manager-workflow-plan-author` (task statement, outcome decision
 
 **Exempt from:** the audit section, the agent memory loop, `Troubleshooting & Edge Cases`, `{{TARGET}}` transferability, and boundary-against-over-application prose — a contract skill cannot be over-applied, because the workflow node fixes its scope, inputs, and lifetime.
 
-**Validation:** the divergence probe (`skill-validation` §3.3) is the primary gate and runs against the outcome decision table: if two compliant readings of the same end state select different outcome values, that is a confirmed C4. Structure checks written for interactive skills do not apply. Validation also cross-checks the referencing workflow declaration: every template variable in the skill has a matching node binding, and the skill restates no part of the node's `resultSpec` schema.
+**Validation:** the divergence probe (`skill-validation` §3.3) is the primary gate and runs against the outcome work table: if two compliant readings of the same end state select different outcome values, that is a confirmed C4. Structure checks written for interactive skills do not apply. Validation also cross-checks the referencing workflow declaration: every template variable in the skill has a matching node binding, and the skill restates no part of the node's `resultSpec` schema.
 
 ---
 

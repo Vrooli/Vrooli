@@ -81,7 +81,6 @@ func operatingModelDocumentFromGraphBlock(block OperatingGraphBlock, sections ma
 		OperatingLoops: operatingModelSection(sections, "Operating Loops"),
 		Graph:          OperatingGraphSection{OperatingGraphBlock: block, Heading: operatingModelGraphHeading(sections), Present: true},
 		TopicCatalog:   block.Docs.TopicCatalog,
-		Decisions:      block.Docs.Decisions,
 		ExternalInputs: extractOperatingExternalInputsTable(sections),
 		Outputs:        extractOperatingOutputsTable(sections),
 		FeedbackLoop:   extractOperatingFeedbackSection(sections),

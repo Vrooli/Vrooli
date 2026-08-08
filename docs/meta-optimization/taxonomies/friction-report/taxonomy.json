@@ -41,8 +41,8 @@
     "Honesty flags must include `speculative-cause` when the reporter guessed at why the friction happened.",
     "`one-off` severity entries are dropped by the curator with a triage note; reporters should mention one-off friction in handoff instead of filing.",
     "`recurring` severity requires evidence of recurrence: count of past occurrences, or a pointer to a prior friction entry the reporter is amplifying.",
-    "`blocking` severity requires that the reporter is currently stopped (not just slowed); blockers route via handoff or capability-gap depending on whether a fix exists.",
-    "`unknown` scope requires the curator to reclassify before routing; if reclassification fails after one heartbeat, the curator hands off to debt-curator with full context — never direct-writes to friction-report/recurring-workaround/* from unknown.",
+    "`blocking` severity requires that the reporter is currently stopped (not just slowed); blockers route via handoff or capability-work depending on whether a fix exists.",
+    "`unknown` scope requires the curator to reclassify before routing; if reclassification fails after one heartbeat, the curator hands off to debt-curator with full context — never direct-edits to friction-report/recurring-workaround/* from unknown.",
     "Friction entries are observation, not authority. The destination scoped-topic owners (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) decide what action follows; the original friction-inbox entry is closed on routing."
   ],
   "actionSelection": {

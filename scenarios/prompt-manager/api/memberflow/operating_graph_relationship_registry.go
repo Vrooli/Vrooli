@@ -72,42 +72,6 @@ func DefaultOperatingRelationshipRegistry() OperatingRelationshipRegistry {
 			DiffIncluded:        true,
 		},
 		{
-			Kind:                operatingRelDecisionOwned,
-			RuntimeKinds:        []OperatingRelationshipKind{operatingRelDecisionOwned},
-			GraphShape:          OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindMember, ToKind: OperatingGraphNodeKindDecision},
-			RuntimeFields:       []string{"decisions_owned"},
-			GraphSuggestions:    graphDecisionOwnedSuggestions,
-			RuntimeSuggestions:  runtimeDecisionOwnedSuggestions,
-			Statement:           decisionOwnedStatement,
-			RuntimeCoverageMode: OperatingRelationshipRuntimeCoverageAll,
-			CoverageIncluded:    true,
-			DiffIncluded:        true,
-		},
-		{
-			Kind:                operatingRelDecisionConsumed,
-			RuntimeKinds:        []OperatingRelationshipKind{operatingRelDecisionConsumed, operatingRelTopicEvidenceConsumed},
-			GraphShape:          OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindDecision, ToKind: OperatingGraphNodeKindMember},
-			RuntimeFields:       []string{"decisions_consumed", "evidence_consumed.for_decisions"},
-			GraphSuggestions:    graphDecisionConsumedSuggestions,
-			RuntimeSuggestions:  runtimeDecisionConsumedSuggestions,
-			Statement:           decisionConsumedStatement,
-			RuntimeCoverageMode: OperatingRelationshipRuntimeCoverageAll,
-			CoverageIncluded:    true,
-			DiffIncluded:        true,
-		},
-		{
-			Kind:                operatingRelCapabilityGapRaised,
-			RuntimeKinds:        []OperatingRelationshipKind{operatingRelCapabilityGapRaised},
-			GraphShape:          OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindMember, ToKind: OperatingGraphNodeKindDecision},
-			RuntimeFields:       []string{"raises_capability_gaps"},
-			GraphSuggestions:    graphCapabilityGapRaisedSuggestions,
-			RuntimeSuggestions:  runtimeCapabilityGapRaisedSuggestions,
-			Statement:           capabilityGapRaisedStatement,
-			RuntimeCoverageMode: OperatingRelationshipRuntimeCoverageAll,
-			CoverageIncluded:    true,
-			DiffIncluded:        true,
-		},
-		{
 			Kind:                operatingRelExternalProducer,
 			RuntimeKinds:        []OperatingRelationshipKind{operatingRelExternalProducer},
 			GraphShape:          OperatingGraphEdgeShape{FromKind: OperatingGraphNodeKindExternal, ToKind: OperatingGraphNodeKindMember},
@@ -208,15 +172,6 @@ func (r OperatingRelationshipRegistry) RelationshipFromEdge(team string, source 
 	case operatingRelPOROutput:
 		rel.Member = from.Value
 		rel.Path = to.Value
-	case operatingRelDecisionOwned:
-		rel.Member = from.Value
-		rel.Decision = to.Value
-	case operatingRelDecisionConsumed:
-		rel.Decision = from.Value
-		rel.Member = to.Value
-	case operatingRelCapabilityGapRaised:
-		rel.Member = from.Value
-		rel.Decision = to.Value
 	case operatingRelExternalProducer:
 		rel.External = from.Value
 		rel.Member = to.Value
@@ -253,14 +208,6 @@ func (r OperatingRelationshipRegistry) Match(graphRel, runtimeRel OperatingRelat
 	case operatingRelPOROutput:
 		return graphRel.Member == runtimeRel.Member &&
 			pathsEqual(graphRel.Path, runtimeRel.Path)
-	case operatingRelDecisionOwned:
-		return graphRel.Member == runtimeRel.Member &&
-			graphRel.Decision == runtimeRel.Decision
-	case operatingRelDecisionConsumed:
-		return graphRel.Member == runtimeRel.Member &&
-			graphRel.Decision == runtimeRel.Decision
-	case operatingRelCapabilityGapRaised:
-		return graphRel.Member == runtimeRel.Member
 	case operatingRelExternalProducer:
 		return graphRel.Member == runtimeRel.Member &&
 			graphRel.External == runtimeRel.External
@@ -342,12 +289,6 @@ func (r OperatingRelationshipRegistry) specForEdge(from, to OperatingGraphNode) 
 		if spec.GraphShape.FromKind != from.Kind || spec.GraphShape.ToKind != to.Kind {
 			continue
 		}
-		if spec.Kind == operatingRelCapabilityGapRaised && to.Value != "capability-gap" {
-			continue
-		}
-		if spec.Kind == operatingRelDecisionOwned && to.Value == "capability-gap" {
-			continue
-		}
 		return spec, true
 	}
 	return OperatingRelationshipSpec{}, false
@@ -396,42 +337,6 @@ func runtimePOROutputSuggestions(diff OperatingGraphContractDiff) []string {
 
 func porOutputStatement(diff OperatingGraphContractDiff) string {
 	return fmt.Sprintf("member:%s -> por:%s", diff.Member, diff.Path)
-}
-
-func graphDecisionOwnedSuggestions(diff OperatingGraphContractDiff) []string {
-	return []string{fmt.Sprintf("add decisions_owned %q to %s/topics.json", diff.Decision, diff.Member), "or remove the member -> decision edge from the operating graph"}
-}
-
-func runtimeDecisionOwnedSuggestions(diff OperatingGraphContractDiff) []string {
-	return []string{fmt.Sprintf("add member:%s -> decision:%s to the operating graph", diff.Member, diff.Decision), "or remove the runtime decision ownership if it is obsolete"}
-}
-
-func decisionOwnedStatement(diff OperatingGraphContractDiff) string {
-	return fmt.Sprintf("member:%s -> decision:%s", diff.Member, diff.Decision)
-}
-
-func graphDecisionConsumedSuggestions(diff OperatingGraphContractDiff) []string {
-	return []string{fmt.Sprintf("add decisions_consumed %q to %s/topics.json", diff.Decision, diff.Member), "or remove the decision -> member edge from the operating graph"}
-}
-
-func runtimeDecisionConsumedSuggestions(diff OperatingGraphContractDiff) []string {
-	return []string{fmt.Sprintf("add decision:%s -> member:%s to the operating graph", diff.Decision, diff.Member), "or remove the runtime decision consumption if it is obsolete"}
-}
-
-func decisionConsumedStatement(diff OperatingGraphContractDiff) string {
-	return fmt.Sprintf("decision:%s -> member:%s", diff.Decision, diff.Member)
-}
-
-func graphCapabilityGapRaisedSuggestions(diff OperatingGraphContractDiff) []string {
-	return []string{fmt.Sprintf("set raises_capability_gaps to true in %s/topics.json", diff.Member), "or remove the member -> capability-gap edge from the operating graph"}
-}
-
-func runtimeCapabilityGapRaisedSuggestions(diff OperatingGraphContractDiff) []string {
-	return []string{fmt.Sprintf("add member:%s -> decision:capability-gap to the operating graph", diff.Member), "or unset raises_capability_gaps if this member should not raise gaps"}
-}
-
-func capabilityGapRaisedStatement(diff OperatingGraphContractDiff) string {
-	return fmt.Sprintf("member:%s -> decision:capability-gap", diff.Member)
 }
 
 func graphExternalProducerSuggestions(diff OperatingGraphContractDiff) []string {

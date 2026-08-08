@@ -1,8 +1,8 @@
 # Strategy: Hook Library
 
-**Status:** v0 (skeleton — populated by the producer's `hook-candidate-promotion` decisions over time).
+**Status:** v0 (skeleton — populated by the producer's `hook-candidate-promotion` work items over time).
 
-A curated library of proven hook patterns, tagged by platform / audience / outcome. Hooks are observed in the wild by `producer`, captured in `audience-scans.jsonl` as `hook-candidate` scope entries, and promoted here when ≥3 stable observations support the hook + when a `hook-candidate-promotion` decision is approved.
+A curated library of proven hook patterns, tagged by platform / audience / outcome. Hooks are observed in the wild by `producer`, captured in the `team:marketing-crew` Source Ledger scope as `hook-candidate` observations, and promoted here when ≥3 stable observations support the hook + when the corresponding Swarm Manager work item is approved.
 
 This is a *library* (a list), not a *technique*. Hook *shape patterns* (essay-shape, hook-vs-body asymmetry) live in [`../../methods/post-techniques/`](../../methods/post-techniques/); specific *hook lines and templates* live here.
 
@@ -26,7 +26,7 @@ Hooks the operator drafts directly are also accepted but should still be capture
   - **Post type(s):** [post-type slugs that this hook fits]
   - **Outcome observed:** [what happened in the wild — e.g., "high reply rate", "high save rate", "high watch-completion"]
   - **Honesty notes:** [does this hook require a specific verifiable claim? what fails if applied dishonestly?]
-  - **Source:** [URL — original observation in the producer's audience-scans.jsonl or external reference]
+  - **Source:** [URL — original observation in the producer's Source Ledger entry or external reference]
   - **Captured:** YYYY-MM-DD
 ```
 
@@ -87,4 +87,4 @@ Hooks the operator drafts directly are also accepted but should still be capture
 - [`../../methods/post-techniques/essay-shape.md`](../../methods/post-techniques/essay-shape.md) — where hooks fit in the post structure.
 - [`../../methods/post-techniques/hook-vs-body-asymmetry.md`](../../methods/post-techniques/hook-vs-body-asymmetry.md) — hook-length discipline.
 - [`../STRATEGY.md`](../STRATEGY.md) — voice canon (banned phrases that auto-disqualify hooks).
-- The producer's [`HEARTBEAT.md`](../../../../scenarios/prompt-manager/store/teams/marketing-crew/members/producer/HEARTBEAT.md) — `hook-candidate` scan scope and `hook-candidate-promotion` decision context.
+- The producer's [`HEARTBEAT.md`](../../../../scenarios/prompt-manager/store/teams/marketing-crew/members/producer/HEARTBEAT.md) — `hook-candidate` scan scope and `hook-candidate-promotion` work type.

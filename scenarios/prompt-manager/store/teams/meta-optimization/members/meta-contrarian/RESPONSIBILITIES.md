@@ -4,9 +4,8 @@ Challenge material proposals before they reach the operator's vision walk, using
 
 ## Challenge Standard
 
-Every pending decision gets scored against the named failure modes. A clean proposal passes. A proposal that trips one mode gets a concrete challenge note. A proposal that trips multiple modes can become a rejection recommendation when allowed by the contract.
+Every open work item gets scored against the named failure modes. A clean proposal passes. A proposal that trips one mode gets a concrete challenge note. A proposal that trips multiple modes can become a rejection recommendation when allowed by the contract.
 
-Use `docs/agent-system/CONTRARIAN_REVIEW.md` for lifecycle state. Every open challenge needs a current `challenge-resolution-record/<decision-id>` so the author, contrarian, and vision walk see the same status.
 
 For Action proposals, also check that the command boundary is Vrooli-controlled, one CLI command owns the behavior, validation evidence or a blocked reason is present, and baseline/measurement is concrete. Challenge Action sprawl when an existing Action could be improved instead.
 
@@ -16,7 +15,7 @@ Named failure mode for experiment conclusions — **Concluded on unstable substr
 
 ## Failure Modes
 
-Every pending decision is scored against these modes. One tripped mode → challenge note; multiple → rejection recommendation (where the contract allows).
+Every open work item is scored against these modes. One tripped mode → challenge note; multiple → rejection recommendation (where the contract allows).
 
 1. **Polishing** — improving an entity that has no measurable usage to benefit from it. Evidence of use (popularity, recent references, agent-manager invocations) must be present.
 2. **Sprawl** — proposing a new skill/agent when an existing one could cover it with a small edit. New entities must justify why an edit is insufficient.
@@ -31,8 +30,8 @@ These are the starting set. Recurring uncovered flaws become `framework-update` 
 
 ## Boundaries
 - Do not generate positive proposals. Alternatives are other members' jobs.
-- Do not block decisions. The operator resolves them.
-- Do not re-litigate resolved decisions.
+- Do not block work items. The operator resolves them.
+- Do not re-litigate resolved work items.
 - Do not invent new failure modes inline; recurring uncovered flaws become framework-update candidates.
 
 ## Available Skills

@@ -22,8 +22,7 @@ func TestRenderTopicContractSummarizesTopicsJSON(t *testing.T) {
 				}},
 				RequiredRead: []memberflow.RequiredReadEntry{{Prefix: "audience-scan/*"}},
 				EvidenceConsumed: []memberflow.EvidenceConsumedEntry{{
-					Prefix:       "challenge-report/*",
-					ForDecisions: []string{"capability-gap", "audience-update"},
+					Prefix: "review-evidence/*",
 				}, {
 					Prefix: "marketing-craft-observation/*",
 				}},
@@ -36,10 +35,7 @@ func TestRenderTopicContractSummarizesTopicsJSON(t *testing.T) {
 					DestinationKind: memberflow.DestinationPORFile,
 					DestinationPath: &porPath,
 				}},
-				DecisionsOwned:       []string{"audience-update"},
-				DecisionsConsumed:    []string{"capability-gap"},
-				RaisesCapabilityGaps: true,
-				ExternalProducers:    []string{"operator"},
+				ExternalProducers: []string{"operator"},
 			},
 		},
 	})
@@ -48,13 +44,10 @@ func TestRenderTopicContractSummarizesTopicsJSON(t *testing.T) {
 		"# Topic Contract",
 		"- `research-inbox/*` - taxonomy `marketing-research`, classifier `signal-classifier`",
 		"- `audience-scan/*`",
-		"- `challenge-report/*` - for `audience-update`, `capability-gap`",
-		"- `marketing-craft-observation/*` - general evidence",
+		"- `review-evidence/*` - evidence used when authoring work",
+		"- `marketing-craft-observation/*` - evidence used when authoring work",
 		"- `audience-scan/*` - knowledge, schema `audience-scan`",
 		"- `marketing-canon/*` - por_file, path `docs/marketing/STRATEGY.md`",
-		"- own/propose: `audience-update`",
-		"- consume: `capability-gap`",
-		"- may raise `capability-gap`: yes",
 		"- `operator`",
 	} {
 		if !strings.Contains(got, want) {
@@ -85,8 +78,7 @@ func TestRenderTopicContractIncludesTopicCatalogPurpose(t *testing.T) {
 				}},
 				RequiredRead: []memberflow.RequiredReadEntry{{Prefix: "audience-scan/*"}},
 				EvidenceConsumed: []memberflow.EvidenceConsumedEntry{{
-					Prefix:       "challenge-report/*",
-					ForDecisions: []string{"capability-gap"},
+					Prefix: "review-evidence/*",
 				}},
 				Output: []memberflow.OutputEntry{{
 					Prefix:          "audience-scan/*",
@@ -103,7 +95,7 @@ func TestRenderTopicContractIncludesTopicCatalogPurpose(t *testing.T) {
 			Status:  "live",
 			Purpose: "Audience evidence.",
 		}, {
-			Prefix:  "challenge-report/*",
+			Prefix:  "review-evidence/*",
 			Status:  "live",
 			Purpose: "Challenge evidence.",
 		}},
@@ -112,7 +104,7 @@ func TestRenderTopicContractIncludesTopicCatalogPurpose(t *testing.T) {
 	for _, want := range []string{
 		"- `research-inbox/*` - Raw research intake. (taxonomy `marketing-research`)",
 		"- `audience-scan/*` - Audience evidence.",
-		"- `challenge-report/*` - Challenge evidence. (for `capability-gap`)",
+		"- `review-evidence/*` - Challenge evidence.",
 		"- `audience-scan/*` - Audience evidence. (knowledge)",
 	} {
 		if !strings.Contains(got, want) {

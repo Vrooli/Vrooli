@@ -169,11 +169,11 @@ Cross-link the entry from the artifact's row in `REFERENCE_SCENARIOS.md` (the "L
 
 ### **10. Optional: Decision Proposal**
 
-If findings warrant a `meta-optimization` decision (substrate work proposal, registry update, role change, template patch beyond a single fix), draft it and file under context `meta-self-improvement` in `scenarios/prompt-manager/store/teams/meta-optimization/shared/decisions.jsonl`.
+If findings warrant a `meta-optimization` work item (substrate work proposal, registry update, role change, template patch beyond a single fix), file it once through Swarm Manager under the `meta-self-improvement` work type and record the evidence in the `team:meta-optimization` team ledger.
 
 Mirror the format of the last 5 entries in that file; the procedure is non-negotiable on field shape (see decision filing convention in `path:docs/agent-system/`). The decision links to the typed audit record from step 9 as evidence.
 
-Decisions are reviewed by the operator. The auditor's role is to file proposals; the operator accepts, rejects, or defers.
+Work items are reviewed by the operator in Swarm Manager. The auditor's role is to file proposals; the operator accepts, rejects, or defers.
 
 If findings can be implemented as a single Pass-N plan against the artifact without cross-cutting substrate work, no decision is needed — the plan file is sufficient.
 

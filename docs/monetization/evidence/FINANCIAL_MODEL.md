@@ -1,6 +1,6 @@
 # Financial Model
 
-The durable financial structure: how costs work, how revenue works, how runway is computed, what "default-alive" means for Vrooli. Specifics — actual numbers — are populated by `financial-tracker` in `store/teams/monetization/shared/ledger.jsonl` on its heartbeat. This file holds the *framework*, not the current snapshot.
+The durable financial structure: how costs work, how revenue works, how runway is computed, what "default-alive" means for Vrooli. Specifics — actual numbers — are populated by `financial-tracker` in the `team:monetization` Source Ledger scope on its heartbeat. This file holds the *framework*, not the current snapshot.
 
 ## Honesty conventions
 
@@ -156,7 +156,7 @@ The `financial-tracker` member's deliverable is a ledger snapshot. Each snapshot
 - Deltas from previous snapshot
 - Flags (services-trap warning, runway-delta warning, assumption drift)
 
-See [scenarios/prompt-manager/store/teams/monetization/shared/ledger.jsonl](../../scenarios/prompt-manager/store/teams/monetization/shared/ledger.jsonl) for the actual series once the team is running.
+See the `team:monetization` Source Ledger scope for the actual series once the team is running.
 
 ## When to revisit this model
 

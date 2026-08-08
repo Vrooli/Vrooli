@@ -6,7 +6,6 @@
 import { useMemo } from 'react'
 import { useTeamActivityStore } from '@/stores/teamActivityStore'
 import { useFurnitureStore } from '@/stores/furnitureStore'
-import { usePendingDecisionsStore } from '@/stores/pendingDecisionsStore'
 import { TeamCountdownOverlay } from './TeamCountdownOverlay'
 
 interface TeamOverlayManagerProps {
@@ -21,7 +20,6 @@ export function TeamOverlayManager({ onTeamClick }: TeamOverlayManagerProps) {
   const activities = useTeamActivityStore((s) => s.activities)
   const allocations = useTeamActivityStore((s) => s.allocations)
   const getFurniture = useFurnitureStore((s) => s.getFurniture)
-  const getTeamPendingCount = usePendingDecisionsStore((s) => s.getTeamPendingCount)
 
   // Group activities by their allocated furniture (or fallback position key)
   const overlayGroups = useMemo(() => {
@@ -71,7 +69,6 @@ export function TeamOverlayManager({ onTeamClick }: TeamOverlayManagerProps) {
             position={group.position}
             yOffset={BASE_Y_OFFSET + idx * STACK_GAP}
             onClick={() => onTeamClick?.(activity.teamId)}
-            pendingDecisionCount={getTeamPendingCount(activity.teamId)}
           />
         )),
       )}

@@ -55,7 +55,7 @@ export interface AgentAccessories {
 /**
  * Agent status indicator types
  */
-export type AgentStatusType = 'normal' | 'warning' | 'error' | 'info' | 'thinking' | 'speaking' | 'pending-decision'
+export type AgentStatusType = 'normal' | 'warning' | 'error' | 'info' | 'thinking' | 'speaking' | 'pending-work'
 
 /**
  * Agent status configuration
@@ -67,7 +67,7 @@ export interface AgentStatus {
   /** Auto-hide duration in ms (0 = never) */
   duration?: number
   /** Source of status, for priority resolution when clearing */
-  source?: 'heartbeat' | 'user' | 'system' | 'decision'
+  source?: 'heartbeat' | 'user' | 'system' | 'work'
 }
 
 /**

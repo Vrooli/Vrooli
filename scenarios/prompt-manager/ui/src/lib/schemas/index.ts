@@ -243,7 +243,6 @@ export {
 
 // Team schemas
 export {
-  DecisionModeSchema,
   RuntimeModeSchema,
   CoordinationPatternSchema,
   ReportingModeSchema,
@@ -281,7 +280,6 @@ export {
   buildBoundedParallelExecution,
   buildSerializedExecution,
   buildDefaultCreateTeamRequest,
-  type DecisionMode,
   type RuntimeMode,
   type CoordinationPattern,
   type ReportingMode,

@@ -6,7 +6,7 @@
     {
       "id": "toolchain-validator",
       "name": "Toolchain Validator",
-      "description": "Runs development-toolchain-validator (or manual fallback: scenario-auditor + test-genie + tidiness-manager) against a gold-star reference scenario each heartbeat; investigates violations the tool returns. On a longer cadence (default: monthly per registered template), audits the template each reference is generated from using the `reference-pattern-fitness` skill (canon: docs/agent-system/REFERENCE_PATTERN_FITNESS.md); files findings as proposed template patches under `meta-self-improvement` decision context. No visited tracker needed — the tool surfaces current issues."
+      "description": "Runs development-toolchain-validator (or manual fallback: scenario-auditor + test-genie + tidiness-manager) against a gold-star reference scenario each heartbeat; investigates violations the tool returns. On a longer cadence (default: monthly per registered template), audits the template each reference is generated from using the `reference-pattern-fitness` skill (canon: docs/agent-system/REFERENCE_PATTERN_FITNESS.md); files findings as proposed template patches under `meta-self-improvement` work type. No visited tracker needed — the tool surfaces current issues."
     },
     {
       "id": "skill-optimizer",
@@ -31,7 +31,7 @@
     {
       "id": "meta-contrarian",
       "name": "Meta-Contrarian",
-      "description": "Mandatory skeptic across all other members' proposals. Defends against polishing, sprawl, premature conversion, churn-without-benefit, too-fast deprecation, scope creep, and conversion-without-measurement. Owns the aging scan for the decision queue."
+      "description": "Mandatory skeptic across all other members' proposals. Defends against polishing, sprawl, premature conversion, churn-without-benefit, too-fast deprecation, scope creep, and conversion-without-measurement. Owns the aging scan for the work queue."
     },
     {
       "id": "debt-curator",

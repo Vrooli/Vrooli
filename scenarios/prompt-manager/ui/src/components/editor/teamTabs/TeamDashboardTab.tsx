@@ -708,7 +708,6 @@ export function TeamDashboardTab({
                 ['injectInbox', 'Inject inbox into prompt'],
                 ['allowPeerTriggers', 'Allow peer triggers'],
                 ['showTaskBoardGuidance', 'Show task board guidance'],
-                ['showDecisionLogGuidance', 'Show decision log guidance'],
                 ['showKnowledgeLogGuidance', 'Show knowledge log guidance'],
                 ['requireHandoff', 'Require handoff'],
               ] as const
@@ -776,35 +775,21 @@ export function TeamDashboardTab({
         </div>
       </section>
 
-      {/* Decision Mode */}
-      <section data-testid={selectors.teamEditor.decisionMode}>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Decision Approval</h3>
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            {(['yolo', 'approval'] as const).map((mode) => {
-              const selected = team.decisionMode === mode
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => void onUpdate({ decisionMode: mode })}
-                  className={cn(
-                    'flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors',
-                    selected
-                      ? 'bg-primary/15 border-primary/40 text-primary'
-                      : 'bg-muted border-border text-muted-foreground hover:text-foreground hover:border-foreground/20',
-                  )}
-                >
-                  {mode === 'yolo' ? 'Auto-approve' : 'Require Approval'}
-                </button>
-              )
-            })}
+      <section className="rounded-lg border border-border bg-muted/20 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Swarm Manager work</h3>
+            <p className="mt-1 text-sm text-foreground">Team requests and operator dispositions live in the unified work feed.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Open the feed to review this team&apos;s filed work and its current disposition.</p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {(team.decisionMode === 'approval')
-              ? 'Decisions require human approval before agents can act on them.'
-              : 'Agents can freely approve and act on their own decisions.'}
-          </p>
+          <a
+            href="/swarm-manager"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10"
+          >
+            Open work feed <ExternalLink className="h-3 w-3" />
+          </a>
         </div>
       </section>
 

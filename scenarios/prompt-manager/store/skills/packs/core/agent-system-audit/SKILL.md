@@ -96,7 +96,7 @@ Most of this phase is now a sensor. Run it first, then spend the reading on what
 | Drifted claim | A team's `## Mission` paragraphs disagree with the objective table or the aggregate map — **read, not sensed**; the sensor compares id sets only, so a role or emphasis stated in prose is yours to check | either |
 
 4. Treat a **declared** gap as reported, not as clean. An objective marked unserved with a dated marker is an open finding whose disposition is known; it stays in the findings list every cycle until it closes.
-5. Do not close a finding this phase produced. The actuator is `outcome-direction` or `capability-gap` in `director-swarm`, which owns the objective set. Measuring the join and restructuring on the strength of your own measurement are different authorities.
+5. Do not close a finding this phase produced. The actuator is `outcome-direction` or `capability-work` in `director-swarm`, which owns the objective set. Measuring the join and restructuring on the strength of your own measurement are different authorities.
 
 #### Phase 5 — Entropy and consolidation
 
@@ -106,7 +106,7 @@ Most of this phase is now a sensor. Run it first, then spend the reading on what
 4. Classify each conditioning defect using the C1–C5 table in `docs/agent-system/SKILL_AUTHORING.md` §"Conditioning defect patterns". Cite the row id; do not restate the row.
 5. Record any team that meets one of three conditions: its shipped output is near zero against a large roster and canon; it hand-maintains records with a lifecycle; or its orientation cost rose in a cycle where its scenario coverage grew (`FRAMEWORK_HEALTH.md` § Team orientation cost). Route it to `team-capability-consolidation`; the missing capability, not the roster, is usually the defect.
 6. Read the third condition against the previous audit record, not against a single reading. The sweep reports every team's composite and its components (`prompt-manager graph orientation-cost` for the standalone read), but orientation cost is banded as a trend, so one cycle's numbers cannot say whether it moved. A first reading establishes the baseline and raises no finding.
-7. When the composite rose, name the component that rose with it — members, canon lines, topics, or decision contexts. "Orientation cost is up" routes nowhere; "the roster grew while `content-desk` absorbed the drafting loop" names the consolidation target.
+7. When the composite rose, name the component that rose with it — members, canon lines, topics, or work types. "Orientation cost is up" routes nowhere; "the roster grew while `content-desk` absorbed the drafting loop" names the consolidation target.
 
 #### Phase 6 — Report and record
 
@@ -118,6 +118,6 @@ Most of this phase is now a sensor. Run it first, then spend the reading on what
 
 ### 4. Boundaries
 
-- Do not edit team canon. Findings route to the owning team's decision context.
+- Do not edit team canon. Findings route to the owning team's work type.
 - Do not audit a single member or a single skill here; route to the narrower skill.
 - Do not invent objectives or outcome targets. Both are operator-authored. Unset ones are `pending-operator-input` and stay that way until the operator sets them; report the hole, do not fill it.

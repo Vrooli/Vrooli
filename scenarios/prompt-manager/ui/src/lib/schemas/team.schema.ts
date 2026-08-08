@@ -48,9 +48,6 @@ export type MessagingMode = z.infer<typeof MessagingModeSchema>
 export const QueuePolicySchema = z.enum(['serialized', 'bounded-parallel'])
 export type QueuePolicy = z.infer<typeof QueuePolicySchema>
 
-export const DecisionModeSchema = z.enum(['yolo', 'approval'])
-export type DecisionMode = z.infer<typeof DecisionModeSchema>
-
 const PathRefSchema = z.object({
   base: z.enum(['repo-root', 'team-root', 'team-shared', 'team-member', 'agent-root']).optional(),
   path: z.string().optional(),
@@ -61,29 +58,11 @@ const PathRefSchema = z.object({
 })
 
 const WriteRefSchema = PathRefSchema.extend({
-  kind: z.enum(['handoff', 'decision', 'knowledge', 'task', 'inbox-message']).optional(),
+  kind: z.enum(['handoff', 'knowledge', 'task', 'inbox-message']).optional(),
 })
 
 export const OperatingContractSchema = z.object({
   schemaVersion: z.literal(1),
-  governance: z.object({
-    decisionMode: DecisionModeSchema,
-    teamPendingCeiling: z.object({
-      value: z.number().int().nonnegative(),
-      readOnlyWhenAtOrAbove: z.boolean(),
-      rationale: z.string().optional(),
-    }),
-    supersession: z.object({
-      requiredBeforeNewDecision: z.boolean(),
-      allowedInReadOnlyMode: z.boolean(),
-      replacementMustSetSupersedes: z.boolean(),
-    }),
-    staleDecisionPolicy: z.object({
-      afterHeartbeats: z.number().int().positive(),
-      ownerMemberId: z.string(),
-      requiredOutcomes: z.array(z.string()),
-    }).optional(),
-  }),
   documents: z.object({
     planOfRecord: z.array(z.object({
       id: z.string(),
@@ -103,29 +82,17 @@ export const OperatingContractSchema = z.object({
       optionalReason: z.string().optional(),
     })).optional().default([]),
   }),
-  decisionContexts: z.record(z.string(), z.object({
-    ownerMemberIds: z.array(z.string()).optional(),
-    description: z.string().optional(),
-    externalAuthorizedRaisers: z.array(z.string()).optional(),
-  })),
   knowledgeTopics: z.record(z.string(), z.object({
     ownerMemberId: z.string(),
-    supersedesPrevious: z.boolean(),
     retention: z.string().optional(),
   })),
   members: z.record(z.string(), z.object({
     lane: z.string(),
-    ownedDecisionContexts: z.array(z.string()),
-    newDecisionCapPerHeartbeat: z.number().int().nonnegative().optional(),
-    newDecisionCapsByContext: z.record(z.string(), z.number().int().nonnegative()).optional(),
-    pendingOwnedDecisionCap: z.number().int().nonnegative().optional(),
     allowedWrites: z.array(WriteRefSchema).optional(),
     forbiddenWrites: z.array(WriteRefSchema).optional(),
     safetyCriticalRules: z.array(z.string()).optional(),
     readOnlyModeBehavior: z.object({
-      skipNewDecisions: z.boolean(),
       stillWriteKnowledge: z.boolean(),
-      stillRunSupersession: z.boolean(),
       stillWriteHandoff: z.boolean(),
     }),
     taskParameters: z.record(z.string(), z.unknown()).optional(),
@@ -138,7 +105,6 @@ export const CoordinationCapabilitiesSchema = z.object({
   injectInbox: z.boolean(),
   allowPeerTriggers: z.boolean(),
   showTaskBoardGuidance: z.boolean(),
-  showDecisionLogGuidance: z.boolean(),
   showKnowledgeLogGuidance: z.boolean(),
   requireHandoff: z.boolean(),
 })
@@ -172,7 +138,6 @@ export const TeamSchema = z.object({
   runtime: RuntimeSchema,
   coordination: CoordinationSchema,
   execution: ExecutionSchema,
-  decisionMode: DecisionModeSchema.optional().default('yolo'),
   operatingContract: OperatingContractSchema,
   memberCount: z.number().int(),
   createdAt: z.string(),
@@ -195,7 +160,6 @@ export const CreateTeamRequestSchema = z.object({
   runtime: RuntimeSchema,
   coordination: CoordinationSchema,
   execution: ExecutionSchema,
-  decisionMode: DecisionModeSchema.optional(),
   operatingContract: OperatingContractSchema,
 })
 export type CreateTeamRequest = z.infer<typeof CreateTeamRequestSchema>
@@ -207,7 +171,6 @@ export const UpdateTeamRequestSchema = z.object({
   runtime: RuntimeSchema.optional(),
   coordination: CoordinationSchema.optional(),
   execution: ExecutionSchema.optional(),
-  decisionMode: DecisionModeSchema.optional(),
   operatingContract: OperatingContractSchema.optional(),
 })
 export type UpdateTeamRequest = z.infer<typeof UpdateTeamRequestSchema>
@@ -299,7 +262,6 @@ export const DEFAULT_INDEPENDENT_CAPABILITIES: CoordinationCapabilities = {
   injectInbox: false,
   allowPeerTriggers: false,
   showTaskBoardGuidance: true,
-  showDecisionLogGuidance: true,
   showKnowledgeLogGuidance: true,
   requireHandoff: true,
 }
@@ -309,7 +271,6 @@ export const DEFAULT_PEER_CAPABILITIES: CoordinationCapabilities = {
   injectInbox: true,
   allowPeerTriggers: true,
   showTaskBoardGuidance: true,
-  showDecisionLogGuidance: true,
   showKnowledgeLogGuidance: true,
   requireHandoff: true,
 }
@@ -319,7 +280,6 @@ export const DEFAULT_LEADER_LED_CAPABILITIES: CoordinationCapabilities = {
   injectInbox: false,
   allowPeerTriggers: false,
   showTaskBoardGuidance: true,
-  showDecisionLogGuidance: true,
   showKnowledgeLogGuidance: true,
   requireHandoff: true,
 }
@@ -378,20 +338,9 @@ export function buildDefaultCreateTeamRequest(displayName: string): CreateTeamRe
     runtime: { mode: 'multi-process' },
     coordination: buildIndependentCoordination(),
     execution: buildBoundedParallelExecution(2),
-    decisionMode: 'yolo',
     operatingContract: {
       schemaVersion: 1,
-      governance: {
-        decisionMode: 'yolo',
-        teamPendingCeiling: { value: 12, readOnlyWhenAtOrAbove: true },
-        supersession: {
-          requiredBeforeNewDecision: true,
-          allowedInReadOnlyMode: true,
-          replacementMustSetSupersedes: true,
-        },
-      },
       documents: { planOfRecord: [], sharedState: [] },
-      decisionContexts: {},
       knowledgeTopics: {},
       members: {},
     },

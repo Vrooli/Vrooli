@@ -15,6 +15,7 @@ import (
 	// binaries failed on "sql: unknown driver sqlite".
 	_ "modernc.org/sqlite"
 	"prompt-manager/internal/paths"
+	"prompt-manager/sourceledger"
 )
 
 // FileStore is the combined implementation of all store interfaces.
@@ -114,6 +115,24 @@ func (s *FileStore) SetExperimentStoreDatabase(db *database.RoutedDB) {
 		panic("experiment database is nil")
 	}
 	s.experiments = NewSQLiteExperimentStore(db)
+}
+
+// SetSourceLedger installs the shared source-ledger corpus client on the team
+// store. Production startup calls this before wiring heartbeat handlers.
+func (s *FileStore) SetSourceLedger(client *sourceledger.Client) {
+	if s == nil || s.teams == nil {
+		return
+	}
+	s.teams.SetSourceLedger(client)
+}
+
+// SetEventsEndpoint installs the shared event stream used for durable
+// heartbeat-attempt records.
+func (s *FileStore) SetEventsEndpoint(base string) {
+	if s == nil || s.teams == nil {
+		return
+	}
+	s.teams.SetEventsEndpoint(base)
 }
 
 // Roots returns the storage roots this FileStore was constructed against.

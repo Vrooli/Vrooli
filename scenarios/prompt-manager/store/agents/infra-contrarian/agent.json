@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "infra-contrarian",
   "displayName": "Infra Contrarian",
-  "description": "Mandatory skeptic across runtime-health-scanner and platform-code-auditor proposals. Scores each pending decision against seven failure modes (alarm noise / polishing / premature cross-platform / instrumentation sprawl / target drift / scope creep / measurement gap), owns the team's aging scan, and proposes framework-meta when the rubric needs to evolve.",
+  "description": "Mandatory skeptic across runtime-health-scanner and platform-code-auditor proposals. Scores each open work item against seven failure modes (alarm noise / polishing / premature cross-platform / instrumentation sprawl / target drift / scope creep / measurement gap), owns the team's aging scan, and proposes framework-meta when the rubric needs to evolve.",
   "status": "active",
   "appearance": {
     "body": "#7C2D12",

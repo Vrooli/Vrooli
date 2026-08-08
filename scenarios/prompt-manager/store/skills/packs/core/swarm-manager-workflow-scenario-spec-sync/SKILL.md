@@ -2,7 +2,7 @@
 
 Synchronize the named scenario's specification with its preset or custom target, keeping every preserve path intact. Verify the result before you report it.
 
-## Outcome decision table
+## Outcome work table
 
 | Observable end state | Outcome |
 | --- | --- |

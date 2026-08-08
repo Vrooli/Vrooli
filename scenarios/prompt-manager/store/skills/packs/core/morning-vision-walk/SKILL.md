@@ -31,20 +31,20 @@ This skill exists because of a core insight about Vrooli:
 
 **The project's biggest bottleneck is not execution — it's idea generation.** The swarm manager, director team, and agent infrastructure handle execution well. But new capabilities and strategic direction still originate primarily from the human. This skill exists to make that human input as high-leverage as possible by:
 
-1. **Clearing the decision queue first** — so the human isn't carrying unresolved questions while trying to think creatively.
+1. **Clearing the work queue first** — so the human isn't carrying unresolved questions while trying to think creatively.
 2. **Providing full project context** — so brainstorming is informed by current reality.
 3. **Applying the "everything outside Vrooli is an error" frame** — every tool or service the human uses outside this project represents a capability gap and a potential new scenario. Daily chores and manual tasks are nucleation points for brainstorming new capabilities.
 4. **Connecting ideas to the bigger picture** — every idea can potentially fit into a bundle (dev tools via LPBS, personal/household via Life OS) and onto the tech tree of all possible software.
 
-**Meta-optimization context:** The meta-optimization team produces decisions about how Vrooli improves itself — skill conversions (prose → programmatic), agent/team structure changes, toolchain violations, run-derived lessons, debt promotion, and framework challenges. These are second-order but compounding — they make every future agent run cheaper and sharper. Phase 5.5 gives them dedicated air time so they aren't crowded out by first-order product decisions. `capability-gap` decisions raised by this team are an exception: they surface in Phase 3 alongside portfolio decisions because director-swarm consumes them.
+**Meta-optimization context:** The meta-optimization team produces decisions about how Vrooli improves itself — skill conversions (prose → programmatic), agent/team structure changes, toolchain violations, run-derived lessons, debt promotion, and framework challenges. These are second-order but compounding — they make every future agent run cheaper and sharper. Phase 5.5 gives them dedicated air time so they aren't crowded out by first-order product decisions. `capability-work` decisions raised by this team are an exception: they surface in Phase 3 alongside portfolio decisions because director-swarm consumes them.
 
-**Marketing-crew context:** The marketing-crew team produces decisions about Vrooli's external voice — what gets published (content-publish-proposal), what campaigns launch (campaign-launch-proposal), when brand canon evolves (brand-guideline-update, audience-update, channel-update), where coverage on deployed SKUs is stale (coverage-gap), and when typed marketing-craft observations mature into permanent structure. Phase 5.3 handles these; `capability-gap` items raised by marketing-crew members are folded into Phase 3 alongside meta-optimization's (both have director-swarm as consumer).
+**Marketing-crew context:** The marketing-crew team produces decisions about Vrooli's external voice — what gets published (content-publish-proposal), what campaigns launch (campaign-launch-proposal), when brand canon evolves (brand-guideline-update, audience-update, channel-update), where coverage on deployed SKUs is stale (coverage-gap), and when typed marketing-craft observations mature into permanent structure. Phase 5.3 handles these; `capability-work` items raised by marketing-crew members are folded into Phase 3 alongside meta-optimization's (both have director-swarm as consumer).
 
 **Ecosystem context:** How a scenario fits the whole is canonical at `path:docs/concepts/ECOSYSTEM.md` — two axes (functional role × interfaces) plus compound-value and monetization make up the full "ecosystem-fit" frame. When assessing or brainstorming a scenario, look past the app itself: which interface(s) does it serve or enable (direct UI, conversational/agentic, voice, programmatic, embodied), what functional role does it play (meta/self-improvement, interface-enabler, integration, product), and does it raise the system's multiplier or compound with other scenarios? **Bundle fit (below) is the monetization slice of this frame, not the whole of it.**
 
 **Monetization context:** Vrooli's full monetization plan is canonical at `path:docs/monetization/` — see `STRATEGY.md` for principles, `CATALOG.md` for the SKU index, `TIERS.md` for delivery tiers, `REVENUE_LINES.md` for subscription-vs-services discipline. In brief: the business bundle (developer + solopreneur tools, including LPBS, Git Control Tower, and Web Console) is the first active bundle; the lifestyle bundle (personal + household) is the next candidate. Delivery tiers ladder from individual apps → self-hosted → hosted cloud → hardware (north-star only). Each new scenario brainstormed during this walk should be assessed for bundle fit (does it serve the business or lifestyle bundle?), role (headliner or depth?), and compound value within the ecosystem. The `monetization` team surfaces the concrete decisions that come out of tracking this plan.
 
-**Infra-health context:** The infra-health team produces decisions about platform reliability and internal-code quality — runtime patterns surfaced from autoheal/system-monitor history (heal-loops, repeat failures, slow-restart trends, investigation clusters), internal-code audit findings across cli/lifecycle/setup/infra/harness, instrumentation gaps the team needs filled, cross-platform debt for tier-2+ deployment, and proposed reliability-target updates. Phase 5.7 handles these. `capability-gap` items raised by infra-health (typically missing CLI verbs on autoheal, system-monitor, or vrooli core) surface in Phase 3 alongside marketing-crew's and meta-optimization's, since director-swarm consumes them. Plan-of-record lives at `path:docs/infra-health/` (`strategy/RELIABILITY_TARGETS.md`, `evidence/INSTRUMENTATION_ROADMAP.md`, `evidence/CROSS_PLATFORM_LEDGER.md`).
+**Infra-health context:** The infra-health team produces decisions about platform reliability and internal-code quality — runtime patterns surfaced from autoheal/system-monitor history (heal-loops, repeat failures, slow-restart trends, investigation clusters), internal-code audit findings across cli/lifecycle/setup/infra/harness, instrumentation gaps the team needs filled, cross-platform debt for tier-2+ deployment, and proposed reliability-target updates. Phase 5.7 handles these. `capability-work` items raised by infra-health (typically missing CLI verbs on autoheal, system-monitor, or vrooli core) surface in Phase 3 alongside marketing-crew's and meta-optimization's, since director-swarm consumes them. Plan-of-record lives at `path:docs/infra-health/` (`strategy/RELIABILITY_TARGETS.md`, `evidence/INSTRUMENTATION_ROADMAP.md`, `evidence/CROSS_PLATFORM_LEDGER.md`).
 
 **The long-term vision:** This morning walk should eventually be the *only* thing the human needs to do to steer the project. Everything else — execution, monitoring, deployment, testing — happens autonomously. The walk is where human judgment, creativity, and strategic thinking enter the system.
 
@@ -136,20 +136,18 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 **Entry criteria:** Retrospective complete.
 
 **Actions:**
-1. Present pending portfolio decisions from the prep deliverable (max 3). Portfolio decisions here include `capability-gap` items raised by the meta-optimization team (run-introspector or toolchain-validator), the marketing-crew team, and the infra-health team — those live on their respective team queues but are portfolio decisions by design, so they're grouped here, not in Phases 5.3 / 5.5 / 5.7.
-2. For each decision: state what's being decided, the recommended option, and why it matters — in conversational language, not formal decision-doc prose. If the decision has an attached contrarian challenge note (any team's `capability-gap` items may), present the skepticism alongside the recommendation so the operator sees both.
+1. Present pending portfolio decisions from the prep deliverable (max 3). Portfolio decisions here include `capability-work` items raised by the meta-optimization team (run-introspector or toolchain-validator), the marketing-crew team, and the infra-health team — those live on their respective team queues but are portfolio decisions by design, so they're grouped here, not in Phases 5.3 / 5.5 / 5.7.
+2. For each decision: state what's being decided, the recommended option, and why it matters — in conversational language, not formal decision-doc prose. If the decision has an attached contrarian challenge note (any team's `capability-work` items may), present the skepticism alongside the recommendation so the operator sees both.
 3. If the user makes a choice, execute it immediately on the correct team:
    ```bash
    # Director-swarm portfolio decisions
-   prompt-manager team decision-accept director-swarm "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
-   # capability-gap decisions live on the team that raised them
-   prompt-manager team decision-accept meta-optimization "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
-   prompt-manager team decision-accept marketing-crew "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
-   prompt-manager team decision-accept infra-health "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
+   swarm-manager backlog review-decide --kind execute --name "<work-item>" --approve --notes "<user's reasoning>"
+   # capability-work decisions live on the team that raised them
+   # Use the same Swarm Manager review-decide call for every team-owned item.
    ```
-   Note: if `decision-accept` is not yet available in the CLI, that is a parity bug — file/surface it and escalate; do NOT work around it by calling the API directly from this skill.
+   Note: if the Swarm Manager disposition command is unavailable, surface that CLI gap and stop; do not recreate a Prompt Manager-local approval path.
 4. If the user wants to defer, note it and move on.
-5. If there are no pending decisions, say so briefly and move on.
+5. If there are no open work items, say so briefly and move on.
 
 **Guardrail:** Max 3 decisions in this phase. If there are more, the prep agent already selected the most impactful ones. Do not go hunting for additional decisions.
 
@@ -205,11 +203,11 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
    - `decision-rejection-proposed` — "Marketing-contrarian recommends rejecting or superseding <original-decision> for <failure-mode>. Agree, override, or defer?"
 4. Execute the user's choice:
    ```bash
-   prompt-manager team decision-accept marketing-crew "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
+   swarm-manager backlog review-decide --kind execute --name "<work-item>" --approve --notes "<user's reasoning>"
    ```
 5. For approved plan-of-record edits, the operator (or you, on the operator's direction) executes the actual file edits. Cite the decision id in the commit message.
 6. If the user wants to defer, note it and move on.
-7. If there are no pending decisions, say so briefly and move on.
+7. If there are no open work items, say so briefly and move on.
 
 **Disabled-team branch:** If `teams/marketing-crew/team.json` has `"enabled": false`, **or** the team is enabled but every member's heartbeat is disabled (check with `prompt-manager team heartbeat-list marketing-crew`), skip with: "Marketing-crew is not currently running. Once running, this phase will surface publish proposals, campaign launches, brand-canon edits, coverage gaps, and typed-learning decisions." The prep deliverable must distinguish *dormant* (heartbeats disabled, no recent runs) from *quiet* (heartbeats active but nothing raised) — only the latter is genuinely quiet.
 
@@ -231,10 +229,10 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 3. For `decision-rejection-proposed` context, frame conversationally as: "Contrarian is recommending we reject or supersede [original decision X] because [failure mode tripped]. Agree, override, or defer?"
 4. Execute the user's choice immediately:
    ```bash
-   prompt-manager team decision-accept meta-optimization "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
+   swarm-manager backlog review-decide --kind execute --name "<work-item>" --approve --notes "<user's reasoning>"
    ```
 5. If the user wants to defer, note it and move on.
-6. If there are no pending decisions, say so briefly and move on.
+6. If there are no open work items, say so briefly and move on.
 
 **Category orientation (first walk after the team is enabled — one-time explanation):**
 
@@ -245,7 +243,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 | Run lessons | Durable lessons from specific agent-manager runs that warrant a skill/agent change |
 | Toolchain violations | Issues the dev toolchain surfaced against the gold-star reference scenario |
 | Debt promotions | Synthesis material from typed evidence topics mature enough to become permanent structure (Plan of Record under `path:docs/agent-system/`, skill, Action, CLI backlog, team-config change, or scenario feature) |
-| Framework meta | Contrarian-identified failure modes not covered by the existing seven, or proposals to reject pending decisions |
+| Framework meta | Contrarian-identified failure modes not covered by the existing seven, or proposals to reject open work items |
 
 **Guardrail:** Max 3 decisions in this phase. The prep agent has already diversified across categories; do not go hunting for more.
 
@@ -274,11 +272,11 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
    - `decision-rejection-proposed` — "Infra-contrarian recommends rejecting or superseding <original-decision> for <failure-mode>. Agree, override, or defer?"
 4. Execute the user's choice:
    ```bash
-   prompt-manager team decision-accept infra-health "<decision-id>" --selected "<option-key>" --notes "<user's reasoning>"
+   swarm-manager backlog review-decide --kind execute --name "<work-item>" --approve --notes "<user's reasoning>"
    ```
 5. For approved `instrumentation-gap` / `cross-platform-debt` / `reliability-target-update` / `framework-meta` decisions, the operator (or you, on the operator's direction) executes the actual `docs/infra-health/` edits proposed in the decision's attached diff. Cite the decision id in the change line.
 6. If the user wants to defer, note it and move on.
-7. If there are no pending decisions, say so briefly and move on.
+7. If there are no open work items, say so briefly and move on.
 
 **Disabled-team branch:** If `teams/infra-health/team.json` has `"enabled": false`, **or** the team is enabled but every member's heartbeat is disabled (check with `prompt-manager team heartbeat-list infra-health`), skip with: "Infra-health team is not currently running. Once running, this phase will surface platform reliability findings, internal-code audit items, instrumentation gaps, and cross-platform debt." The prep deliverable must distinguish *dormant* (heartbeats disabled, no recent runs) from *quiet* (heartbeats active but nothing raised) — only the latter is genuinely quiet.
 
@@ -313,7 +311,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 6. For alpha extraction, preserve enough raw context for downstream agents:
    - source URL or platform if known
    - the user's raw note about why it seemed interesting
-   - likely signal type: `workflow`, `skill`, `audience-pain`, `competitor`, `hook`, `channel-format`, `funnel`, `benchmark`, `capability-gap`, or `unknown`
+   - likely signal type: `workflow`, `skill`, `audience-pain`, `competitor`, `hook`, `channel-format`, `funnel`, `benchmark`, `capability-work`, or `unknown`
    - likely owner if obvious; otherwise leave it for Phase 8 routing
 7. Play back what you heard:
    - "So it sounds like [X, Y, Z] are areas where Vrooli isn't helping yet."
@@ -391,7 +389,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 | Agent/team/skill/process improvement signal | `prompt-manager team knowledge-add meta-optimization --topic "vision-walk-record/alpha/<topic>" ...` if meta-optimization is active; otherwise director-swarm knowledge fallback. |
 | Product/scenario idea ready for execution pipeline | Swarm-manager backlog item. |
 | Unclear strategic residue or no owner exists yet | Director-swarm knowledge fallback. |
-| Missing source collection, automation, CLI, or scenario blocks follow-up | Capability-gap decision or backlog item for the owning team. |
+| Missing source collection, automation, CLI, or scenario blocks follow-up | Capability work item in Swarm Manager for the owning team. |
 
 Research-inbox entries are knowledge entries on the `marketing-crew` team under a `research-inbox/<signal-type>/<slug>` topic. The CLI handles concurrency, retention, and listing — do not write JSONL files directly.
 

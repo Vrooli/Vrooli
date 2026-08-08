@@ -12,7 +12,7 @@ Required reading:
 
 Optional reading:
 - `prompt-manager skill read interoperability-steer temporal-flow-audit cross-platform-readiness`
-- Source scenario docs: `PRD.md`, `docs/concepts/*`, `docs/internal/SEAMS.md`, `docs/internal/PROBLEMS.md`, and `docs/internal/DECISIONS.md`
+- Source scenario docs: `PRD.md`, `docs/concepts/*`, `docs/internal/SEAMS.md`, `docs/internal/PROBLEMS.md`, and `docs/internal/SWARM_MANAGER_WORK.md`
 
 ---
 
@@ -109,11 +109,11 @@ Classify every meaningful piece of behavior:
 | Consumer adapter | Code/config future adopters need | Target docs, examples, SDK/component surfaces |
 | Provider/resource boundary | Local/BYOK/subscription/third-party routing choice | Target integrations, config, seams |
 | Migration-only compatibility | Temporary bridge to preserve adoption | Target migration plan with removal trigger |
-| Obsolete/debt | Behavior not worth carrying forward | Record in problems/decisions; do not port |
+| Obsolete/debt | Behavior not worth carrying forward | Record in the problem log; do not port |
 
 **Exit criteria:** The extraction boundary is explicit enough that an implementation agent will not blindly move source code wholesale.
 
-**Artifacts:** Boundary map in `docs/internal/EXTRACTION-SOURCES.md`; durable decisions in `docs/internal/DECISIONS.md` when tradeoffs matter.
+**Artifacts:** Boundary map in `docs/internal/EXTRACTION-SOURCES.md`; durable decisions in `docs/internal/SWARM_MANAGER_WORK.md` when tradeoffs matter.
 
 ### **Phase 4: UI Archetype Selection**
 
@@ -185,7 +185,7 @@ Pick one or more UI archetypes. The selected archetypes become product scope and
    - `docs/concepts/INTEGRATIONS.md` for source/consumer scenarios, providers, resources, and failure behavior,
    - `docs/concepts/FLOWS.md` for stateful workflows,
    - `docs/internal/SEAMS.md` for provider, transport, storage, and test substitution boundaries,
-   - `docs/internal/DECISIONS.md` for meaningful extraction tradeoffs,
+   - `docs/internal/SWARM_MANAGER_WORK.md` for meaningful extraction tradeoffs,
    - `docs/internal/PROBLEMS.md` for source drift, missing tests, and deferred migrations.
 
 **Exit criteria:** Future implementation agents can build the scenario from the target scenario's own PRD, requirements, and docs without needing the original planning conversation.
@@ -305,7 +305,7 @@ Create this as `docs/internal/EXTRACTION-SOURCES.md` in the target scenario.
 | Which domain owns each UI surface | `docs/concepts/DOMAINS.md` |
 | Stateful UI workflows | `docs/concepts/FLOWS.md` |
 | Visual language, density, tokens, accessibility feel | `DESIGN.md` |
-| Meaningful UI tradeoffs | `docs/internal/DECISIONS.md` |
+| Meaningful UI tradeoffs | `docs/internal/SWARM_MANAGER_WORK.md` |
 | Known UI gaps/deferred surfaces | `docs/internal/PROBLEMS.md` |
 
 #### **Operating Mode Choice After Setup**

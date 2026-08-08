@@ -41,6 +41,15 @@ from the install mechanism per platform. A manifest only declares it explicitly
 when that derivation would be wrong, and then supplies `privilegeReason`.
 `elevated` work remains confined to Vrooli's explicit project setup boundary.
 
+The Linux package-manager probe recognizes `apt-get`, `dnf`, `yum`, `zypper`,
+`pacman`, `apk`, and `brew` in that order. A release-backed tool that has no
+upstream `linux/arm64` artifact must declare a reason at
+`source.unsupported["linux/arm64"]`; this prevents a missing target from being
+mistaken for an installable route. `sd`, `sd-gpu`, and
+`realesrgan-ncnn-vulkan` use that explicit unsupported declaration. The
+manifest invariant test `TestReleaseManifestsDeclareLinuxArm64RouteOrUnsupportedReason`
+guards the contract.
+
 ## Linux credential storage
 
 `secret-tool` is the Linux-only `libsecret` command client used by the
@@ -68,6 +77,21 @@ The Vault start performs the non-secret Secret Service probe. If it fails,
 start and unlock the active user's Secret Service session, then rerun the
 `vrooli resource start vault` command. Do not initialize a shared managed
 resource until that probe passes.
+
+## Platform support ladder
+
+Vrooli reports platform support in two separate rungs:
+
+| Rung | Linux | macOS | Windows |
+|---|---|---|---|
+| Host provisioning (`vrooli setup`) | Supported | Build-verified | Build-verified through winget, Chocolatey, or Scoop when one is available |
+| Scenario runtime (`vrooli develop`, resource and scenario lifecycle) | Supported | Supported | Not supported; lifecycle steps execute through the shell-defined `bash` contract |
+
+Windows support therefore means that Vrooli can inspect and provision host tools
+through the detected package manager. It does not claim that scenario lifecycle
+processes or service management run on Windows. When no Windows package manager
+is present, setup reports that capability as unavailable instead of assuming
+winget or attempting a bootstrap.
 
 Onboarding consumes the filesystem registry; it does not maintain its own list.
 

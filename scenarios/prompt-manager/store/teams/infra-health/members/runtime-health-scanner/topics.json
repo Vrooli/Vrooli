@@ -4,38 +4,14 @@
       "prefix": "runtime-health-audit/YYYY-MM-DD"
     }
   ],
-  "evidence_consumed": [
-    {
-      "prefix": "challenge-report/*",
-      "for_decisions": [
-        "runtime-health-finding",
-        "instrumentation-gap",
-        "capability-gap",
-        "reliability-target-update"
-      ]
-    },
-    {
-      "prefix": "challenge-resolution-record/*",
-      "for_decisions": [
-        "runtime-health-finding",
-        "instrumentation-gap",
-        "capability-gap",
-        "reliability-target-update"
-      ]
-    }
-  ],
+  "evidence_consumed": [],
   "output": [
     {
       "prefix": "runtime-health-audit/*",
       "destination_kind": "knowledge"
     }
   ],
-  "decisions_owned": [
-    "runtime-health-finding",
-    "instrumentation-gap",
-    "reliability-target-update"
-  ],
-  "raises_capability_gaps": true,
+  "raises_work_items": true,
   "external_producers": [
     "operator"
   ]

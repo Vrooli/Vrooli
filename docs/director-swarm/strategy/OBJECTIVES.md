@@ -84,7 +84,7 @@ The ladder exists because enabling work has no privileged lane in the portfolio 
 
 `I3` is stated and unowned. That is deliberate and visible rather than quietly absent: the objective is real, the work is real, and no team currently ranks it. The disposition is `pending-operator-input` — a lane inside `team:director-swarm` is the cheapest option that still lets instrument work outrank the loops it unblocks, but establishing it is an operator decision, not an agent's.
 
-Until it resolves, capability-ladder items route through the existing `outcome-gap` decision context and are ranked by `portfolio-manager` alongside everything else, which is exactly the defect `I3` names.
+Until it resolves, capability-ladder items route through the existing `outcome-gap` work type and are ranked by `portfolio-manager` alongside everything else, which is exactly the defect `I3` names.
 
 ## Deferred and unstaffed objectives
 
@@ -101,6 +101,6 @@ Deferring the *work* is a legitimate operator decision. The sequencing trigger i
 
 ## Updating this file
 
-Objectives change by operator decision through the `vision-update` decision context, the same gate that governs `path:VISION.md` — they are the same kind of truth at two levels of resolution. Agents raise `outcome-direction` or `capability-gap` decisions when the coverage rule reports a hole; they do not resolve it by editing this file.
+Objectives change by operator decision through the `vision-update` work type, the same gate that governs `path:VISION.md` — they are the same kind of truth at two levels of resolution. Agents raise `outcome-direction` or `capability-work` decisions when the coverage rule reports a hole; they do not resolve it by editing this file.
 
 Adding or retiring an objective obliges a re-check of both coverage directions. An objective retired without re-checking upward coverage leaves teams working toward nothing.

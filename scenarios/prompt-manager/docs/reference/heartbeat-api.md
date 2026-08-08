@@ -34,7 +34,7 @@ Returns global policy/state plus per-team summaries.
     "resumeMode": "manual"
   },
   "lastHumanEngagementAt": "2026-06-19T12:00:00Z",
-  "lastHumanEngagementReason": "decision-accepted",
+  "lastHumanEngagementReason": "work-dispositioned",
   "warningAt": "2026-06-29T12:00:00Z",
   "autoPauseAt": "2026-07-03T12:00:00Z",
   "teams": []
@@ -692,130 +692,23 @@ Deletes a task from the board.
 
 **Response**: `204 No Content`
 
-## Decision Log
+## Swarm Manager work and disposition
 
-### Decision Statuses
-
-Decisions follow a lifecycle with these statuses:
-- `pending` — awaiting review (set automatically on creation)
-- `accepted` — approved by a human reviewer
-- `rejected` — declined by a human reviewer
-- `running` — agent is actively working on an accepted decision
-- `completed` — agent has finished the work
-
-### Decision Approval Modes
-
-Teams can be configured with a `decisionMode` field in `team.json`:
-
-- `yolo` (default) — agents can set any status, no restrictions
-- `approval` — agents are restricted:
-  - Can set: `pending`, `running` (only if current is `accepted`), `completed` (only if current is `running`)
-  - Cannot set: `accepted`, `rejected` — these require human action
-  - Blocked transitions return `403` with an instructive JSON error body
-
-Caller identification uses the `X-Caller-ID` request header. Agents should send their agent ID; the UI sends nothing or `"ui-user"`. The handler checks if the caller ID matches a team member agent ID to determine if it's an agent call.
-
-### Add Decision
-`POST /teams/{teamId}/decisions`
-
-Records a decision in the team's decision log. Status is always set to `pending` regardless of request body.
-
-**Request Body**:
-```json
-{
-  "by": "string (agent ID, required)",
-  "decision": "string (required)",
-  "rationale": "string (required)",
-  "context": "string (optional — tag for grouping)",
-  "supersedes": "string (optional — ID of decision this replaces)"
-}
-```
-
-**Response**: `201 Created` — returns the created decision entry with `status: "pending"`.
-
-### Get Decisions
-`GET /teams/{teamId}/decisions`
-
-Returns decision log entries.
-
-**Query Parameters**:
-- `context` (optional) — filter by context tag
-- `status` (optional) — filter by status (e.g., `pending`, `accepted`, `running`)
-- `last` (optional, default: 20) — number of entries to return
-
-**Response**: `200 OK`
-```json
-{
-  "teamId": "string",
-  "entries": [
-    {
-      "id": "string",
-      "at": "string (RFC3339)",
-      "by": "string",
-      "decision": "string",
-      "rationale": "string",
-      "context": "string",
-      "supersedes": "string",
-      "status": "string"
-    }
-  ]
-}
-```
-
-### Get All Pending Decisions
-`GET /v1/decisions/pending`
-
-Returns all pending decisions across all teams in a single request. Used by the UI sidebar to show a global pending count.
-
-**Response**: `200 OK`
-```json
-{
-  "teams": [
-    {
-      "teamId": "string",
-      "teamName": "string",
-      "entries": [ /* DecisionEntry[] */ ]
-    }
-  ],
-  "totalCount": 3
-}
-```
-
-### Update Decision
-`PATCH /teams/{teamId}/decisions/{decisionId}`
-
-Updates a decision entry. In `approval` mode, agent callers (identified via `X-Caller-ID` header) are restricted from setting `accepted` or `rejected`, and must follow the status transition rules.
-
-**Request Headers**:
-- `X-Caller-ID` (optional) — agent ID for approval enforcement
-
-**Request Body**: Partial update — only include fields to change.
-```json
-{
-  "decision": "string",
-  "rationale": "string",
-  "context": "string",
-  "status": "string",
-  "supersedes": "string"
-}
-```
-
-**Response**: `200 OK` — returns the updated decision entry.
-**Error**: `403 Forbidden` — when approval mode blocks the transition:
-```json
-{
-  "error": "decision_approval_required",
-  "message": "This team requires human approval. Do not proceed with this decision until a human sets the status to 'accepted'.",
-  "currentStatus": "pending"
-}
-```
+Prompt Manager does not expose a local approval stream. A member records its
+evidence in the team's Source Ledger scope and files one work item or capture
+through Swarm Manager when an outcome or operator judgment is needed. The
+operator dispositions that item in Swarm Manager's next-action feed. On a later
+heartbeat the member reads `swarm-manager backlog list --actor-id=<verified-profile-key>`
+and `swarm-manager backlog get <item-id> --json` to continue, follow up, or
+archive. This return path is a member-side poll; Swarm Manager does not call
+back into Prompt Manager.
 
 ---
 
 ## Implementation Reference
 
 - [CODE: api/heartbeat/handlers.go] - HTTP handlers
-- [CODE: api/heartbeat/handlers_pending.go] - Aggregate pending decisions handler
+- [CODE: api/heartbeat/prompt_builder.go] - Generated team-scope and work guidance
 - [CODE: api/heartbeat/scheduler.go] - Cron scheduler
 - [CODE: api/heartbeat/executor.go] - Execution logic
 - [CODE: api/heartbeat/client.go] - Agent-manager client

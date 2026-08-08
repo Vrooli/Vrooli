@@ -55,3 +55,14 @@ The principle that code, data, models, and automation should run on infrastructu
 ## Documentation Debt
 
 Any documentation that is stale, duplicated, misleading, unowned, or disconnected from the code and workflows it claims to describe.
+
+## Team Scope
+
+A Source Ledger scope shared by one prompt-manager team. It holds durable team
+observations, handoffs, and guidance with scoped recall and compaction budgets.
+
+## Gated Work Item
+
+A Swarm Manager backlog item whose execution waits for an operator disposition.
+It carries the outcome, evidence, scope, dependencies, and completion condition
+in the same work record the executing agent reads.

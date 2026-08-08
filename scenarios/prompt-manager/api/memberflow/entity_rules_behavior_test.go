@@ -14,7 +14,7 @@ import (
 // hand-drawn graph would actually be reported.
 
 // entityContext wires a contract block whose graph holds the given nodes,
-// against a team contract declaring exactly one member and one decision context.
+// against a team contract declaring exactly one member.
 func entityContext(nodes []OperatingGraphNode) RuleContext {
 	const team = "team-a"
 	block := OperatingGraphBlock{
@@ -30,9 +30,8 @@ func entityContext(nodes []OperatingGraphNode) RuleContext {
 	runtime := OperatingGraphRuntime{
 		Contracts: TeamContractRegistry{
 			team: &LoadedTeamContract{TeamID: team, Contract: &teamcontract.OperatingContract{
-				SchemaVersion:   teamcontract.SchemaVersion,
-				Members:         map[string]teamcontract.MemberContract{"known-member": {}},
-				DecisionContext: map[string]teamcontract.DecisionContext{"known-decision": {}},
+				SchemaVersion: teamcontract.SchemaVersion,
+				Members:       map[string]teamcontract.MemberContract{"known-member": {}},
 			}},
 		},
 	}
@@ -75,12 +74,6 @@ func TestGraphEntityRulesFireOnNodesTheRuntimeDoesNotBack(t *testing.T) {
 			nodes: []OperatingGraphNode{node("X", OperatingGraphNodeKindMember, "ghost-member")},
 			check: func(c RuleContext) []OperatingGraphFinding { return (graphUnknownMemberRule{}).Check(c) },
 		},
-		{
-			name:  "decision node names no declared decision context",
-			rule:  "graph_unknown_decision",
-			nodes: []OperatingGraphNode{node("X", "decision", "ghost-decision")},
-			check: func(c RuleContext) []OperatingGraphFinding { return (graphUnknownDecisionRule{}).Check(c) },
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			findings := tc.check(entityContext(tc.nodes))
@@ -106,13 +99,11 @@ func TestGraphEntityRulesFireOnNodesTheRuntimeDoesNotBack(t *testing.T) {
 func TestGraphEntityRulesStaySilentOnBackedNodes(t *testing.T) {
 	ctx := entityContext([]OperatingGraphNode{
 		node("M", OperatingGraphNodeKindMember, "known-member"),
-		node("D", "decision", "known-decision"),
 	})
 	for name, findings := range map[string][]OperatingGraphFinding{
 		"graph_untyped_node":      (graphUntypedNodeRule{}).Check(ctx),
 		"graph_unknown_node_kind": (graphUnknownNodeKindRule{}).Check(ctx),
 		"graph_unknown_member":    (graphUnknownMemberRule{}).Check(ctx),
-		"graph_unknown_decision":  (graphUnknownDecisionRule{}).Check(ctx),
 	} {
 		if len(findings) != 0 {
 			t.Errorf("%s fired on a backed graph: %+v", name, findings)

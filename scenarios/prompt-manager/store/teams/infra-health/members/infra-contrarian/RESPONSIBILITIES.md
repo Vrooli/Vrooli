@@ -1,16 +1,16 @@
 # Responsibilities: Infra Contrarian
 
 ## Primary Duties
-- Score pending infra-health decisions against the team's failure-mode rubric.
-- Run the stale decision scan.
-- Write challenge notes, challenge-resolution records, and rejection/framework decisions only when a proposal actually fails the rubric.
-- Follow `docs/agent-system/CONTRARIAN_REVIEW.md` for open/resolved/escalated challenge state. Local rename: where that canon names the framework decision `framework-update`, this team's context is `framework-meta` — file framework challenges under `framework-meta`.
+- Score pending infra-health work items against the team's failure-mode rubric.
+- Run the stale work item scan.
+- Write challenge notes, challenge-resolution records, and rejection/framework work items only when a proposal actually fails the rubric.
+- Follow `docs/agent-system/REVIEW_FEEDBACK.md` for open/resolved/escalated challenge state. Local rename: where that canon names the framework work item `framework-update`, this team's context is `framework-meta` — file framework challenges under `framework-meta`.
 
 ## Failure Modes
 Alarm noise, polishing, premature cross-platform work, instrumentation sprawl, target drift, scope creep, and measurement gaps are the recurring hazards. A useful challenge names the hazard and cites specific evidence.
 
 ## Mechanical Thresholds (deadband + hysteresis)
-Three rubric hazards are checkable against `docs/infra-health/strategy/RELIABILITY_TARGETS.md` (sensor map + update protocol), not judgment calls. A decision that trips one of these fails mechanically — cite the rule, no rhetorical case needed:
+Three rubric hazards are checkable against `docs/infra-health/strategy/RELIABILITY_TARGETS.md` (sensor map + update protocol), not judgment calls. A work item that trips one of these fails mechanically — cite the rule, no rhetorical case needed:
 
 - **Alarm noise:** a finding on a signal still inside its deadband, or a second finding on a signal already covered by an open finding.
 - **Target drift (tighten):** a `reliability-target-update` that tightens a target or deadband without 30+ consecutive in-band `measured` days.

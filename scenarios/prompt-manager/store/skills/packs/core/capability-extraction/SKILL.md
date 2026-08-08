@@ -75,7 +75,7 @@ Optional reading:
 5. **Identify embedded patterns** — look for:
    - Numbered workflow steps (especially with delegation points)
    - Decision frameworks with structured criteria
-   - Inline decision tables mapping inputs to actions
+   - Inline work tables mapping inputs to actions
    - Communication formats or status protocols
    - Delegation protocols or assignment templates
    - Verification checklists embedded in workflow prose
@@ -136,7 +136,7 @@ Optional reading:
    |---|---|---|
    | `agents_who_benefit` | 1-8 | Count of agents with the same or similar embedded pattern |
    | `promotion_potential` | 1 (Low), 2 (Medium), 3 (High) | How likely is this to eventually become a CLI capability? Deterministic patterns score High. |
-   | `extraction_cost` | 1 (Low), 2 (Medium), 3 (High) | How complex is the extraction? Single decision table = Low. Multi-phase pipeline = High. |
+   | `extraction_cost` | 1 (Low), 2 (Medium), 3 (High) | How complex is the extraction? Single work table = Low. Multi-phase pipeline = High. |
 
 2. **Rank candidates** by compound impact score (descending)
 3. **Draw the extraction threshold** — candidates above the line are worth extracting now; below are deferred

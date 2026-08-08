@@ -20,15 +20,13 @@ func TestTopicsValidate_ValidCanonical(t *testing.T) {
 			{"prefix": "campaign-draft/*", "source_team": "marketing-crew", "comment": "needed to cite latest draft on every publish proposal"}
 		],
 		"evidence_consumed": [
-			{"prefix": "campaign-draft/*", "source_team": "marketing-crew", "for_decisions": ["content-publish-proposal"]}
+			{"prefix": "campaign-draft/*", "source_team": "marketing-crew"}
 		],
 		"output": [
 			{"prefix": "audience-scan/*", "destination_kind": "knowledge", "destination_team": null, "schema": "audience-scan"},
 			{"prefix": "monetization-benchmark-adjacent-record/*", "destination_kind": "knowledge", "destination_team": "monetization", "schema": "monetization-benchmark-adjacent"}
 		],
-		"decisions_owned": ["audience-update", "channel-strategy-update"],
-		"decisions_consumed": ["capability-gap"],
-		"raises_capability_gaps": true,
+		"raises_work_items": true,
 		"external_producers": ["vision-walk", "operator"]
 	}`
 	var topics Topics
@@ -53,10 +51,7 @@ func TestTopicsValidate_ValidCanonical(t *testing.T) {
 	if got := topics.RequiredRead[0].Comment; got != "needed to cite latest draft on every publish proposal" {
 		t.Errorf("required_read[0].comment lost: %q", got)
 	}
-	if got := len(topics.EvidenceConsumed); got != 1 ||
-		topics.EvidenceConsumed[0].Prefix != "campaign-draft/*" ||
-		len(topics.EvidenceConsumed[0].ForDecisions) != 1 ||
-		topics.EvidenceConsumed[0].ForDecisions[0] != "content-publish-proposal" {
+	if got := len(topics.EvidenceConsumed); got != 1 || topics.EvidenceConsumed[0].Prefix != "campaign-draft/*" {
 		t.Errorf("evidence_consumed did not round-trip: %+v", topics.EvidenceConsumed)
 	}
 }
@@ -252,16 +247,16 @@ func TestValidateAllReturnsAllErrors(t *testing.T) {
 			{Prefix: "foo/*/bar"},
 		},
 		EvidenceConsumed: []EvidenceConsumedEntry{
-			{Prefix: "ev/*", ForDecisions: nil},
-			{Prefix: "ev/*", ForDecisions: []string{"valid", "  "}},
+			{Prefix: "ev/*"},
+			{Prefix: "ev/*"},
 		},
 		Output: []OutputEntry{
 			{Prefix: "out/*", DestinationKind: DestinationKind("bogus")},
 		},
 	}
 	errs := topics.ValidateAll()
-	if len(errs) != 7 {
-		t.Errorf("ValidateAll() returned %d errors, want 7", len(errs))
+	if len(errs) != 5 {
+		t.Errorf("ValidateAll() returned %d errors, want 5", len(errs))
 		for _, e := range errs {
 			t.Logf("  - %v", e)
 		}
@@ -339,87 +334,6 @@ func TestRequiredReadValidation(t *testing.T) {
 	}
 }
 
-func TestEvidenceConsumedValidation(t *testing.T) {
-	tests := []struct {
-		name    string
-		entry   EvidenceConsumedEntry
-		wantErr string
-	}{
-		{
-			name:    "missing prefix",
-			entry:   EvidenceConsumedEntry{ForDecisions: []string{"d1"}},
-			wantErr: "prefix is required",
-		},
-		{
-			name:    "whitespace prefix",
-			entry:   EvidenceConsumedEntry{Prefix: " ", ForDecisions: []string{"d1"}},
-			wantErr: "prefix is required",
-		},
-		{
-			name:    "bare star prefix",
-			entry:   EvidenceConsumedEntry{Prefix: "*", ForDecisions: []string{"d1"}},
-			wantErr: "malformed",
-		},
-		{
-			name:    "inner star prefix",
-			entry:   EvidenceConsumedEntry{Prefix: "foo/*/bar", ForDecisions: []string{"d1"}},
-			wantErr: "malformed",
-		},
-		{
-			name:    "missing for_decisions",
-			entry:   EvidenceConsumedEntry{Prefix: "campaign-draft/*"},
-			wantErr: "for_decisions is required",
-		},
-		{
-			name:    "empty for_decisions slice",
-			entry:   EvidenceConsumedEntry{Prefix: "campaign-draft/*", ForDecisions: []string{}},
-			wantErr: "for_decisions is required",
-		},
-		{
-			name: "for_decisions contains empty id",
-			entry: EvidenceConsumedEntry{
-				Prefix:       "campaign-draft/*",
-				ForDecisions: []string{"valid", "  "},
-			},
-			wantErr: "for_decisions[1] is empty",
-		},
-		{
-			name: "valid wildcard with single decision",
-			entry: EvidenceConsumedEntry{
-				Prefix:       "campaign-draft/*",
-				ForDecisions: []string{"content-publish-proposal"},
-			},
-		},
-		{
-			name: "valid cross-team with multiple decisions",
-			entry: EvidenceConsumedEntry{
-				Prefix:       "candidate-sku-record/*",
-				SourceTeam:   ptr("monetization"),
-				ForDecisions: []string{"catalog-promotion", "sku-retirement", "channel-activation"},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			topics := Topics{EvidenceConsumed: []EvidenceConsumedEntry{tt.entry}}
-			err := topics.Validate()
-			if tt.wantErr == "" {
-				if err != nil {
-					t.Errorf("Validate() returned %v, want nil", err)
-				}
-				return
-			}
-			if err == nil {
-				t.Fatalf("Validate() returned nil, want error containing %q", tt.wantErr)
-			}
-			if !strings.Contains(err.Error(), tt.wantErr) {
-				t.Errorf("Validate() error %q does not contain %q", err.Error(), tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestIsEmpty_NewFields(t *testing.T) {
 	// Each of required_read[]/evidence_consumed[] independently flips IsEmpty to false.
 	cases := []struct {
@@ -430,14 +344,6 @@ func TestIsEmpty_NewFields(t *testing.T) {
 			name: "required_read alone makes non-empty",
 			topics: Topics{
 				RequiredRead: []RequiredReadEntry{{Prefix: "x/*"}},
-			},
-		},
-		{
-			name: "evidence_consumed alone makes non-empty",
-			topics: Topics{
-				EvidenceConsumed: []EvidenceConsumedEntry{
-					{Prefix: "x/*", ForDecisions: []string{"d1"}},
-				},
 			},
 		},
 	}
@@ -453,11 +359,9 @@ func TestIsEmpty_NewFields(t *testing.T) {
 func TestDestinationKindValid(t *testing.T) {
 	valid := []DestinationKind{
 		DestinationKnowledge,
-		DestinationDecision,
 		DestinationPORFile,
-		DestinationCapabilityGap,
-		DestinationSkillProposal,
 		DestinationBacklog,
+		DestinationSkillProposal,
 	}
 	for _, k := range valid {
 		if !k.Valid() {
@@ -500,20 +404,20 @@ func TestOverlap(t *testing.T) {
 		// `<name>` placeholders stand for exactly one segment. TOPICS_SCHEMA.md
 		// teaches this form by example and 27 live declarations use it; before
 		// this was implemented every one of them matched nothing.
-		{"challenge-report/<decision-id>", "challenge-report/dec-42", true},
-		{"decision-application/<decision-id>", "decision-application/dec-1778803361775636366", true},
+		{"review-evidence/<work-item-id>", "review-evidence/work-42", true},
+		{"work-application/<work-item-ref>", "work-application/work-1778803361775636366", true},
 		{"skill-experiment/<skill-id>/<experiment-id>", "skill-experiment/report-bug/exp-1", true},
 		{"vision-walk-record/<date>/<slug>", "vision-walk-record/2026-06-16/kickoff", true},
 		// A placeholder binds one segment, not many: the declaration is depth-2,
 		// so it must not reach a depth-3 key.
-		{"challenge-report/<decision-id>", "challenge-report/dec-42/extra", false},
+		{"review-evidence/<work-item-id>", "review-evidence/work-42/extra", false},
 		// A literal after a placeholder still has to agree.
 		{"friction-report/<scope>/summary", "friction-report/toolchain/summary", true},
 		{"friction-report/<scope>/summary", "friction-report/toolchain/detail", false},
 		// The placeholder does not make disjoint roots overlap.
-		{"challenge-report/<decision-id>", "quality-audit/dec-42", false},
+		{"review-evidence/<work-item-id>", "quality-audit/work-42", false},
 		// A wildcard is still wider than a placeholder.
-		{"challenge-report/*", "challenge-report/<decision-id>", true},
+		{"review-evidence/*", "review-evidence/<work-item-id>", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.a+" vs "+tt.b, func(t *testing.T) {
@@ -558,18 +462,16 @@ func TestRoundTripJSON(t *testing.T) {
 		},
 		EvidenceConsumed: []EvidenceConsumedEntry{
 			{
-				Prefix:       "candidate-sku-record/*",
-				SourceTeam:   ptr("monetization"),
-				ForDecisions: []string{"catalog-promotion", "sku-retirement"},
+				Prefix:     "candidate-sku-record/*",
+				SourceTeam: ptr("monetization"),
 			},
 		},
 		Output: []OutputEntry{
 			{Prefix: "audience-scan/*", DestinationKind: DestinationKnowledge, Schema: "audience-scan"},
 			{Prefix: "doctrine/*", DestinationKind: DestinationPORFile, DestinationPath: ptr("docs/agent-system/PRIMITIVES.md")},
 		},
-		DecisionsOwned:       []string{"audience-update"},
-		RaisesCapabilityGaps: true,
-		ExternalProducers:    []string{"operator"},
+		RaisesWorkItems:   true,
+		ExternalProducers: []string{"operator"},
 	}
 	b, err := json.Marshal(original)
 	if err != nil {
@@ -600,8 +502,7 @@ func TestRoundTripJSON(t *testing.T) {
 		t.Fatalf("evidence_consumed round-trip wrong length: %d", len(roundTrip.EvidenceConsumed))
 	}
 	if got := roundTrip.EvidenceConsumed[0]; got.Prefix != "candidate-sku-record/*" ||
-		got.SourceTeam == nil || *got.SourceTeam != "monetization" ||
-		len(got.ForDecisions) != 2 || got.ForDecisions[0] != "catalog-promotion" || got.ForDecisions[1] != "sku-retirement" {
+		got.SourceTeam == nil || *got.SourceTeam != "monetization" {
 		t.Errorf("evidence_consumed[0] round-trip lost data: %+v", got)
 	}
 	if len(roundTrip.Output) != 2 {

@@ -11,12 +11,12 @@
     {
       "id": "platform-code-auditor",
       "name": "Platform Code Auditor",
-      "description": "Audits Vrooli's internal code (cli/, lifecycle, setup, infra, vrooli binary, harness scripts, Makefiles) along architecture / security / test-coverage / documentation dimensions, plus cross-platform readiness, signal-and-feedback surface quality, and instrumentation gaps. Produces Swarm Manager backlog items via decisions; never modifies internal code directly."
+      "description": "Audits Vrooli's internal code (cli/, lifecycle, setup, infra, vrooli binary, harness scripts, Makefiles) along architecture / security / test-coverage / documentation dimensions, plus cross-platform readiness, signal-and-feedback surface quality, and instrumentation gaps. Produces Swarm Manager backlog items via work items; never modifies internal code directly."
     },
     {
       "id": "infra-contrarian",
       "name": "Infra Contrarian",
-      "description": "Mandatory skeptic across runtime-health-scanner and platform-code-auditor proposals. Defends against alarm noise (heal-loops working as designed), aesthetic refactors masquerading as reliability work, premature cross-platform fixes for tiers that don't exist yet, and instrumentation sprawl. Owns the aging scan for the team's decision queue."
+      "description": "Mandatory skeptic across runtime-health-scanner and platform-code-auditor proposals. Defends against alarm noise (heal-loops working as designed), aesthetic refactors masquerading as reliability work, premature cross-platform fixes for tiers that don't exist yet, and instrumentation sprawl. Owns the aging scan for the team's work queue."
     }
   ]
 }

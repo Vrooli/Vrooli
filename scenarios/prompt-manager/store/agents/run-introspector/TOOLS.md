@@ -4,7 +4,7 @@
 - `prompt-manager skill read <skill-id>`
 - Agent-manager run list and investigation command
 - Run manifest, transcript, and artifact reads
-- `prompt-manager team decision-list meta-optimization ...`
+- `swarm-manager backlog list meta-optimization ...`
 - `prompt-manager team knowledge-list meta-optimization ...`
 
 ## Usage Rules

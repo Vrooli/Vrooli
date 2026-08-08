@@ -96,7 +96,7 @@ func TestBugCaptureDraftRemainsPrivateUntilRepairPublishes(t *testing.T) {
 	if draft.Disposition != "draft" || draft.DraftID == "" {
 		t.Fatalf("draft = %+v", draft)
 	}
-	if entries, err := teamStore.GetKnowledge(context.Background(), scenarioQATeamID, "", "bug-inbox/", 0); err != nil || len(entries) != 0 {
+	if entries, err := teamStore.ListTeamCorpus(context.Background(), scenarioQATeamID, "", "bug-inbox/", 0); err != nil || len(entries) != 0 {
 		t.Fatalf("private draft leaked into inbox: entries=%+v err=%v", entries, err)
 	}
 	published := invoke(http.MethodPatch, "/draft/"+draft.DraftID, BugCaptureRequest{Severity: "major", Repro: []string{"start"}, Expected: "fresh", Actual: "stale", Description: "details"})

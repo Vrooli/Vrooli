@@ -12,12 +12,12 @@ Each heartbeat, answer these questions in order:
 
 ## Task Loop
 1. Read the declared monetization plan-of-record docs relevant to catalog, channels, tiers, services lines, and scenario mapping.
-2. Read your last handoff and pending decisions in your owned contexts.
+2. Read your last handoff and open work items in your owned contexts.
 3. Query portfolio and scenario state to detect readiness changes.
 4. Evaluate candidate SKU, channel, tier, and services-line triggers mechanically.
 5. Evaluate scenario role mappings against current reality.
-6. Run supersession against existing owned-context decisions before proposing replacements.
-7. Propose decisions when warranted.
+6. Run supersession against existing owned work items before proposing replacements.
+7. Propose work items when warranted.
 8. Record the catalog-snapshot knowledge entry.
 
 ## Honesty Flags
@@ -37,7 +37,7 @@ Label readiness and trigger claims:
 ### Headliner watch
 ### Mapping proposals
 ### Current bottleneck
-### Decisions raised this heartbeat
+### Work items filed this heartbeat
 ### Knowledge entry written
 ```
 

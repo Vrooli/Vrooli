@@ -19,7 +19,7 @@ Required reading:
 
 The leader typically performs Triage personally — severity and blast-radius judgment should not be delegated — but may delegate symptom gathering. Investigate and Resolve are delegated per the shared delegation template.
 
-### 2. Pipeline entry decision table
+### 2. Pipeline entry work table
 
 | You have... | Severity known? | Root cause known? | Entry point |
 |---|---|---|---|

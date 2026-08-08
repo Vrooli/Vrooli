@@ -30,7 +30,7 @@ The 7-slot taxonomy (matches morning-vision-walk Phase 8 routing):
 
 - Cite sources for every external claim.
 - Label single-snapshot findings `light-interpretation`.
-- Do not silently invent benchmarks; raise `capability-gap` if source access is blocked.
+- Do not silently invent benchmarks; raise `capability-work` if source access is blocked.
 - Tailwind references (regulatory, market, demographic) must be cited or flagged `tailwind-uncited`.
 - Tier-4 hardware proposals without operator initiation are out of scope; drop.
 
@@ -41,8 +41,8 @@ The 7-slot taxonomy (matches morning-vision-walk Phase 8 routing):
 | drop              | Weak one-off / no fit / out of scope.                                                         |
 | observe           | Single-snapshot market fact. Retag inbox row to `monetization/market-scan/<slug>`.            |
 | promote-to-canon  | Plausible SKU-shaped idea. Retag to `candidate-sku-record/<slug>`.                                   |
-| file-decision     | Strong signal + clear fit + threshold met. Promote AND raise `catalog-promotion`, `channel-activation`, or `services-activation`. |
-| capability-gap    | Source / tool / scenario missing. File `capability-gap` and leave the inbox row.              |
+| file-work     | Strong signal + clear fit + threshold met. Promote AND raise `catalog-promotion`, `channel-activation`, or `services-activation`. |
+| capability-work    | Source / tool / scenario missing. File `capability-work` and leave the inbox row.              |
 
 ## Owned schemas
 

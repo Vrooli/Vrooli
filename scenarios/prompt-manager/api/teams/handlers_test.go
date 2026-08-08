@@ -118,9 +118,6 @@ func (m *MockTeamStore) Update(ctx context.Context, id string, updates *store.Te
 	if updates.Execution.QueuePolicy != "" {
 		existing.Execution = updates.Execution
 	}
-	if updates.DecisionMode != "" {
-		existing.DecisionMode = updates.DecisionMode
-	}
 	return nil
 }
 
@@ -396,7 +393,6 @@ func independentCreateRequest(displayName string) CreateRequest {
 		Runtime:      teamconfig.Runtime{Mode: teamconfig.RuntimeModeMultiProcess},
 		Coordination: newIndependentTestTeam("tmp", displayName).Coordination,
 		Execution:    teamconfig.Execution{QueuePolicy: teamconfig.QueuePolicyBoundedParallel, MaxConcurrentRuns: 2},
-		DecisionMode: teamconfig.DecisionModeYolo,
 	}
 }
 
@@ -414,13 +410,11 @@ func leaderLedCreateRequest(displayName, leadAgentID string) CreateRequest {
 				InjectInbox:              false,
 				AllowPeerTriggers:        false,
 				ShowTaskBoardGuidance:    true,
-				ShowDecisionLogGuidance:  true,
 				ShowKnowledgeLogGuidance: true,
 				RequireHandoff:           true,
 			},
 		},
-		Execution:    teamconfig.Execution{QueuePolicy: teamconfig.QueuePolicySerialized, MaxConcurrentRuns: 1},
-		DecisionMode: teamconfig.DecisionModeYolo,
+		Execution: teamconfig.Execution{QueuePolicy: teamconfig.QueuePolicySerialized, MaxConcurrentRuns: 1},
 	}
 }
 
@@ -538,7 +532,6 @@ func TestCreate(t *testing.T) {
 		Runtime:      independentCreateRequest("New Team").Runtime,
 		Coordination: independentCreateRequest("New Team").Coordination,
 		Execution:    independentCreateRequest("New Team").Execution,
-		DecisionMode: independentCreateRequest("New Team").DecisionMode,
 	}
 	bodyBytes, _ := json.Marshal(body)
 
@@ -647,231 +640,6 @@ func TestCreateWithInvalidRuntimeMode(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	handlers.Create(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestCreateWithDecisionMode(t *testing.T) {
-	handlers, teamStore, _, _ := setupTestHandlers()
-
-	body := independentCreateRequest("Approval Team")
-	body.DecisionMode = teamconfig.DecisionModeApproval
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
-	w := httptest.NewRecorder()
-
-	handlers.Create(w, req)
-
-	if w.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var response TeamDetailsResponse
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatalf("Failed to decode response: %v", err)
-	}
-
-	if response.DecisionMode != "approval" {
-		t.Errorf("expected decisionMode 'approval', got %q", response.DecisionMode)
-	}
-
-	stored := teamStore.teams["approval-team"]
-	if stored == nil {
-		t.Fatal("team not stored")
-	}
-	if stored.DecisionMode != "approval" {
-		t.Errorf("stored decisionMode = %q, want 'approval'", stored.DecisionMode)
-	}
-}
-
-func TestCreateWithInvalidDecisionMode(t *testing.T) {
-	handlers, _, _, _ := setupTestHandlers()
-
-	body := independentCreateRequest("Bad Decision Mode")
-	body.DecisionMode = "manual"
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("POST", "/teams", bytes.NewReader(bodyBytes))
-	w := httptest.NewRecorder()
-
-	handlers.Create(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestUpdateRuntimePolicy(t *testing.T) {
-	handlers, teamStore, _, _ := setupTestHandlers()
-
-	teamStore.teams["team-1"] = newIndependentTestTeam("team-1", "Original")
-	teamStore.roles["team-1"] = &store.TeamRoles{TeamID: "team-1", Roles: []store.Role{}}
-	teamStore.orgChart["team-1"] = &store.OrgChart{TeamID: "team-1", Edges: []store.OrgEdge{}}
-
-	body := UpdateRequest{
-		Runtime: &RuntimeDTO{
-			Mode: teamconfig.RuntimeModeSingleProcess,
-		},
-		Coordination: &CoordinationDTO{
-			Pattern:       teamconfig.CoordinationPatternLeaderLed,
-			LeadAgentID:   "lead-agent",
-			ReportingMode: teamconfig.ReportingModeLeader,
-			MessagingMode: teamconfig.MessagingModeInSession,
-			Capabilities: teamconfig.Capabilities{
-				ShowOrgContext:           true,
-				InjectInbox:              false,
-				AllowPeerTriggers:        false,
-				ShowTaskBoardGuidance:    true,
-				ShowDecisionLogGuidance:  true,
-				ShowKnowledgeLogGuidance: true,
-				RequireHandoff:           true,
-			},
-		},
-		Execution: &ExecutionDTO{
-			QueuePolicy:       teamconfig.QueuePolicySerialized,
-			MaxConcurrentRuns: 1,
-		},
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
-	w := httptest.NewRecorder()
-
-	handlers.Update(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var response TeamDetailsResponse
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatalf("Failed to decode: %v", err)
-	}
-
-	if response.Runtime.Mode != teamconfig.RuntimeModeSingleProcess {
-		t.Errorf("expected runtime.mode %q, got %q", teamconfig.RuntimeModeSingleProcess, response.Runtime.Mode)
-	}
-	if teamStore.teams["team-1"].Runtime.Mode != teamconfig.RuntimeModeSingleProcess {
-		t.Errorf("stored runtime.mode = %q, want %q", teamStore.teams["team-1"].Runtime.Mode, teamconfig.RuntimeModeSingleProcess)
-	}
-}
-
-func TestUpdateEnabledLeaderLedTeamRequiresActiveLeadMember(t *testing.T) {
-	handlers, teamStore, _, relationStore := setupTestHandlers()
-
-	team := newLeaderLedSingleProcessTestTeam("team-1", "Original", "lead-agent")
-	team.Enabled = false
-	teamStore.teams["team-1"] = team
-	teamStore.roles["team-1"] = &store.TeamRoles{TeamID: "team-1", Roles: []store.Role{}}
-	teamStore.orgChart["team-1"] = &store.OrgChart{TeamID: "team-1", Edges: []store.OrgEdge{}}
-	relationStore.teamMembers["team-1"] = map[string]*store.TeamMemberRelation{
-		"lead-agent": {
-			TeamID:  "team-1",
-			AgentID: "lead-agent",
-			Status:  store.MemberStatusInactive,
-		},
-	}
-
-	enable := true
-	body := UpdateRequest{Enabled: &enable}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
-	w := httptest.NewRecorder()
-
-	handlers.Update(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
-	}
-	if got := w.Body.String(); got == "" || !bytes.Contains(w.Body.Bytes(), []byte("active team member")) {
-		t.Fatalf("expected active team member error, got %q", got)
-	}
-}
-
-func TestUpdateInvalidRuntimeMode(t *testing.T) {
-	handlers, teamStore, _, _ := setupTestHandlers()
-
-	teamStore.teams["team-1"] = newIndependentTestTeam("team-1", "Team")
-
-	body := UpdateRequest{
-		Runtime: &RuntimeDTO{
-			Mode: "bad-mode",
-		},
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
-	w := httptest.NewRecorder()
-
-	handlers.Update(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestUpdateDecisionMode(t *testing.T) {
-	handlers, teamStore, _, _ := setupTestHandlers()
-
-	team := newIndependentTestTeam("team-1", "Original")
-	team.DecisionMode = teamconfig.DecisionModeYolo
-	teamStore.teams["team-1"] = team
-	teamStore.roles["team-1"] = &store.TeamRoles{TeamID: "team-1", Roles: []store.Role{}}
-	teamStore.orgChart["team-1"] = &store.OrgChart{TeamID: "team-1", Edges: []store.OrgEdge{}}
-
-	newMode := teamconfig.DecisionModeApproval
-	body := UpdateRequest{
-		DecisionMode: &newMode,
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
-	w := httptest.NewRecorder()
-
-	handlers.Update(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
-	}
-
-	var response TeamDetailsResponse
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatalf("Failed to decode: %v", err)
-	}
-
-	if response.DecisionMode != "approval" {
-		t.Errorf("expected decisionMode 'approval', got %q", response.DecisionMode)
-	}
-
-	if teamStore.teams["team-1"].DecisionMode != "approval" {
-		t.Errorf("stored decisionMode = %q, want 'approval'", teamStore.teams["team-1"].DecisionMode)
-	}
-}
-
-func TestUpdateInvalidDecisionMode(t *testing.T) {
-	handlers, teamStore, _, _ := setupTestHandlers()
-
-	teamStore.teams["team-1"] = newIndependentTestTeam("team-1", "Team")
-
-	invalid := "manual"
-	body := UpdateRequest{
-		DecisionMode: &invalid,
-	}
-	bodyBytes, _ := json.Marshal(body)
-
-	req := httptest.NewRequest("PUT", "/teams/team-1", bytes.NewReader(bodyBytes))
-	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
-	w := httptest.NewRecorder()
-
-	handlers.Update(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d: %s", w.Code, w.Body.String())

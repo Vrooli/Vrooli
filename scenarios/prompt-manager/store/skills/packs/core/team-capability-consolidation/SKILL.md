@@ -56,7 +56,7 @@ Two triggers admit a team to Phase 2, and they are independent. Read both before
 
 **Actions:**
 1. Count what the team has actually shipped. Use its terminal artifact, not its activity — published items, filed reports, merged changes.
-2. Count the volume it carries: roster size, canon line count, declared topics, declared decision contexts.
+2. Count the volume it carries: roster size, canon line count, declared topics, declared work types.
 3. Read the same volume against the previous audit record and ask whether it rose in a cycle where the team's scenario coverage grew (`path:docs/agent-system/FRAMEWORK_HEALTH.md` §"Team orientation cost").
 4. Apply the table.
 
@@ -85,7 +85,7 @@ The second trigger exists because the first one is blind to a team that ships. O
 1. List the team's shared files and its plan-of-record data tables.
 2. Classify each surface with the table below.
 3. Survey the same surface across every team in the store.
-   - If most teams carry the pattern: **stop.** This is a substrate question about the team system, not a missing capability for this team. Raise it as a `capability-gap`.
+   - If most teams carry the pattern: **stop.** This is a substrate question about the team system, not a missing capability for this team. Raise it as a `capability-work`.
    - If one or two teams carry it: continue. Accretion in a minority of teams marks the teams whose work product has no scenario.
 
 | Surface holds | Classification | Destination |
@@ -164,7 +164,7 @@ This is the phase that distinguishes this skill. Do not update the roster to mat
 1. List every separation between current members.
 2. Classify each with the table below.
 3. Collapse the collapsible ones. Keep the controls.
-4. Reassign every decision context, topic, and state surface owned by a removed member.
+4. Reassign every work type, topic, and state surface owned by a removed member.
 
 | Separation exists because | Classification | Action |
 |---|---|---|
@@ -214,9 +214,9 @@ Two ordering rules carry the risk:
 | Output ratio and state classification | The team's knowledge topic, dated |
 | Capability statement | The new scenario's `PRD.md` |
 | Boundary rationale and rejected splits | The scenario's `docs/concepts/ARCHITECTURE.md` |
-| Roster decisions and what each separation was | The scenario's `docs/internal/DECISIONS.md` |
+| Roster decisions and what each separation was | The scenario's `docs/internal/SWARM_MANAGER_WORK.md` |
 | Anything left open at cutover | The scenario's `docs/internal/PROBLEMS.md` |
-| A capability nobody will build yet | A `capability-gap` decision |
+| A capability nobody will build yet | A `capability-work` decision |
 
 Do not write a standalone audit report. Findings that live outside durable docs freeze one session's view and rot.
 
@@ -241,14 +241,14 @@ Do not write a standalone audit report. Findings that live outside durable docs 
 
 You may:
 - Edit the team contract, member files, and roles.
-- Create and remove members, and reassign their decision contexts, topics, and state surfaces.
+- Create and remove members, and reassign their work types, topics, and state surfaces.
 - Repair references to deleted scenarios and skills.
 
 You must:
 - Preserve every state surface an importer has not yet consumed.
 - Keep adversarial separation.
 - Reassign every ownership reference held by a removed member, and confirm no reference points at a member that no longer exists.
-- Route plan-of-record canon edits through the owning decision context.
+- Route plan-of-record canon edits through the owning work type.
 - Report the validator state after the pass, including findings you left open and why.
 
 You must not:

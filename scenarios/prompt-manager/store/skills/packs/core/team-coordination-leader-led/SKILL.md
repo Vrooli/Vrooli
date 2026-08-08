@@ -49,7 +49,7 @@ Every phase has the same four parts:
 3. **Delegation** — when delegating, send the delegation message (template below).
 4. **Artifacts** — the named deliverable the phase produces; the next gate checks it.
 
-Each pipeline maps its phases onto **leaf skills** (the methodology each phase invokes) and enters at any phase when its inputs already exist (partial entry). The pipeline's own skill provides that phase-to-leaf mapping and the entry decision table.
+Each pipeline maps its phases onto **leaf skills** (the methodology each phase invokes) and enters at any phase when its inputs already exist (partial entry). The pipeline's own skill provides that phase-to-leaf mapping and the entry work table.
 
 ### Gate semantics
 

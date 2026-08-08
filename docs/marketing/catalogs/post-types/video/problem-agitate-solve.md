@@ -53,7 +53,7 @@ Persona voice or brand voice both work. PAS in persona voice carries higher conv
 
 Honesty flags:
 
-- `friction_authenticity=verified-from-research | speculative` — `verified-from-research` requires the friction to appear in the producer's `audience-scans.jsonl` or in audience interviews; speculative frictions are flagged for operator review.
+- `friction_authenticity=verified-from-research | speculative` — `verified-from-research` requires the friction to appear in a `team:marketing-crew` Source Ledger entry under `marketing-craft-observation/*` or in audience interviews; speculative frictions are flagged for operator review.
 - `feature_claims=measured` for the solve phase.
 - Plus the standard AI-UGC flags when persona-voice.
 

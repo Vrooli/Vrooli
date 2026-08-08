@@ -18,9 +18,6 @@ vi.mock('./HandoffTimeline', () => ({
 vi.mock('./kanban', () => ({
   TaskKanbanBoard: () => <div data-testid="task-board">Tasks Content</div>,
 }))
-vi.mock('./DecisionLogView', () => ({
-  DecisionLogView: () => <div data-testid="decision-log">Decisions Content</div>,
-}))
 
 const defaultProps = {
   teamId: 'team-1',
@@ -39,15 +36,6 @@ describe('TeamActivityTab', () => {
     expect(screen.getByTestId('handoff-timeline')).toBeInTheDocument()
   })
 
-  it('should switch to decisions sub-tab when initialSubTab is set', () => {
-    render(<TeamActivityTab {...defaultProps} initialSubTab="decisions" />)
-
-    const decisionsTab = screen.getByRole('tab', { name: /decisions/i })
-    expect(decisionsTab).toHaveAttribute('data-state', 'active')
-
-    expect(screen.getByTestId('decision-log')).toBeInTheDocument()
-  })
-
   it('should switch to tasks sub-tab when initialSubTab is set', () => {
     render(<TeamActivityTab {...defaultProps} initialSubTab="tasks" />)
 
@@ -63,24 +51,22 @@ describe('TeamActivityTab', () => {
     // Default: handoffs
     expect(screen.getByTestId('handoff-timeline')).toBeInTheDocument()
 
-    // Switch to decisions via prop
-    rerender(<TeamActivityTab {...defaultProps} initialSubTab="decisions" />)
+    rerender(<TeamActivityTab {...defaultProps} initialSubTab="tasks" />)
 
-    expect(screen.getByTestId('decision-log')).toBeInTheDocument()
+    expect(screen.getByTestId('task-board')).toBeInTheDocument()
   })
 
   it('should call onSubTabChange when user clicks a sub-tab', () => {
     const onSubTabChange = vi.fn()
     render(<TeamActivityTab {...defaultProps} onSubTabChange={onSubTabChange} />)
 
-    const decisionsTab = screen.getByRole('tab', { name: /decisions/i })
-    // Radix Tabs uses Roving Focus internally; simulate full pointer sequence
-    fireEvent.mouseDown(decisionsTab)
-    fireEvent.mouseUp(decisionsTab)
-    fireEvent.click(decisionsTab)
-    fireEvent.focus(decisionsTab)
+    const tasksTab = screen.getByRole('tab', { name: /tasks/i })
+    fireEvent.mouseDown(tasksTab)
+    fireEvent.mouseUp(tasksTab)
+    fireEvent.click(tasksTab)
+    fireEvent.focus(tasksTab)
 
-    expect(onSubTabChange).toHaveBeenCalledWith('decisions')
+    expect(onSubTabChange).toHaveBeenCalledWith('tasks')
   })
 
   it('should not call onSubTabChange on initial render', () => {

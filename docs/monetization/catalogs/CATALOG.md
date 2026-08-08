@@ -15,7 +15,7 @@ Every SKU carries a status field that flows through this lifecycle:
 | `shipped` | Available for purchase. Revenue and metrics tracked. |
 | `retired` | Removed from sale or superseded. |
 
-Promotion from `candidate` → `active` is a human decision surfaced at the morning vision walk. Agents never self-promote.
+Promotion from `candidate` → `active` is a human work surfaced at the morning vision walk. Agents never self-promote.
 
 **Where SKU-shaped ideas live before they enter this catalog:** the agent-side raw pool lives as `monetization` team knowledge entries under `monetization/opportunity/<slug>`, populated by opportunity-scout. List with `prompt-manager team knowledge-list monetization --topic-prefix=monetization/opportunity/`. When an opportunity is broader-than-SKU OR not-yet-ready-for-active-tracking, it may instead be staged in [`path:docs/strategy/idea-pipeline/`](../strategy/idea-pipeline/) — the operator-curated, capacity-deferred staging surface for project-wide ideas. Idea-pipeline graduates SKU-shaped entries here as `candidate` files when their revisit triggers fire and active tracking is warranted.
 

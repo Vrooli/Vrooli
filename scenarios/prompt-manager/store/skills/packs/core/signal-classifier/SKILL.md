@@ -49,4 +49,4 @@ Only the genuine differences. Everything not listed here follows the shared spin
   rationale: <one short paragraph>
 ```
 
-The caller chooses the action (drop / observe / promote-to-canon / file-decision / capability-gap) using the taxonomy's `actionSelection` set and the member's drain procedure.
+The caller chooses the action (drop / observe / promote-to-canon / file-work / capability-work) using the taxonomy's `actionSelection` set and the member's drain procedure.

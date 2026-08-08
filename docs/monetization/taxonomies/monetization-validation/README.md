@@ -32,7 +32,7 @@ Validation-queue entries arrive with a `request_type` set by the producer (oppor
 - Label single-snapshot findings `light-interpretation`.
 - Tailwind references must be cited or flagged `tailwind-uncited`.
 - Mixed external data stays conflicting; do not average into a fake clean number.
-- If source access is blocked, raise `capability-gap`; do not invent.
+- If source access is blocked, raise `capability-work`; do not invent.
 
 ## Materiality thresholds (decision-raise gates)
 
@@ -53,8 +53,8 @@ Below threshold: write the scan, no decision. Above threshold: raise `benchmark-
 | drop              | Duplicate / out of scope / low-leverage.                                                      |
 | observe           | Single-snapshot fact below threshold. Retag to `monetization-benchmark-record/<slug>`; no decision.  |
 | promote-to-canon  | Scan crosses materiality. Retag plus raise the matching owned decision.                       |
-| file-decision     | Decision-only outcome (e.g., assumption invalidated, no scan). Raise; delete the queue entry. |
-| capability-gap    | Source / tool / scenario missing.                                                             |
+| file-work     | Decision-only outcome (e.g., assumption invalidated, no scan). Raise; delete the queue entry. |
+| capability-work    | Source / tool / scenario missing.                                                             |
 
 ## Owned schemas
 

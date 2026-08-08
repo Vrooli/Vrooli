@@ -18,13 +18,13 @@ Default policy:
 - A new/missing control store initializes `lastHumanEngagementAt` to the current time so upgrades do not immediately pause all teams.
 
 Operator engagement signals:
-- `operator-direct` decision status transitions such as accepted, rejected, deferred, or pending.
+- `operator-direct` Swarm Manager work dispositions such as accepted, rejected, deferred, or pending.
 - `operator-direct` manual heartbeat or team trigger.
 - `operator-direct` heartbeat control/policy changes.
 - `operator-direct` heartbeat config changes.
 
 Non-signals:
-- Agent-member decision transitions.
+- Agent-member work-item transitions.
 - Writer-skill or agent knowledge writes.
 - Scheduled heartbeat starts/completions.
 - Read-only UI polling.
@@ -154,9 +154,9 @@ This layered approach means:
 - **HEARTBEAT.md**: "What I need to do right now" (cron task)
 - **Task Reminder**: generated final focus and output reminder
 
-Every team must define `operatingContract` in `team.json`. The prompt builder fails rather than inferring missing contract policy from `TEAM.md`, `RESPONSIBILITIES.md`, `HEARTBEAT.md`, or agent files. Contract-owned policy includes decision contexts, numeric caps, read-only behavior, supersession rules, knowledge topics, source documents, and write surfaces.
+Every team must define `operatingContract` in `team.json`. The prompt builder fails rather than inferring missing contract policy from `TEAM.md`, `RESPONSIBILITIES.md`, `HEARTBEAT.md`, or agent files. Contract-owned policy includes work types, numeric caps, read-only behavior, supersession rules, knowledge topics, source documents, and write surfaces.
 
-The generated Operating Policy embeds the lean `shared/TEAM.md` charter before the generated runtime and contract policy. It also includes top-level runtime, coordination, execution, and decision-mode fields from `team.json`. The rendered policy uses repo-root-relative paths only. For example, a stored `team-shared` path such as `RUN_LESSONS.md` renders as `scenarios/prompt-manager/store/teams/meta-optimization/shared/RUN_LESSONS.md`.
+The generated Operating Policy embeds the lean `shared/TEAM.md` charter before the generated runtime and contract policy. It also includes top-level runtime, coordination, and execution fields from `team.json`. The rendered policy uses repo-root-relative paths only. For example, a stored `team-shared` path such as `RUN_LESSONS.md` renders as `scenarios/prompt-manager/store/teams/meta-optimization/shared/RUN_LESSONS.md`.
 
 Source ownership:
 - `team.runtime`, `team.coordination`, and `team.execution`: runtime mechanics.

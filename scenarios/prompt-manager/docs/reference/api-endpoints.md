@@ -337,7 +337,7 @@ Conclude a running experiment with a recommendation.
 **Notes:**
 - Winner must be one of the experiment's arms
 - Conclude never changes `SKILL.md`
-- A signed, clear audit receipt matching the frozen protocol is required before a recommendation decision is published
+- A signed, clear audit receipt matching the frozen protocol is required before a recommendation work item is published
 - A separately authorized, holdout-confirmed promotion is required to apply content
 
 ### POST /api/v1/experiments/{eid}/audit-receipt
@@ -355,15 +355,16 @@ source-controlled service declaration.
 ### POST /api/v1/experiments/{eid}/holdout-receipt
 
 Record the separate holdout finding after conclusion. The server signs the
-experiment ID, frozen protocol hash, published decision ID, finding hash, and
+experiment ID, frozen protocol hash, published work item ID, finding hash, and
 completion time. It requires `findingsHash` and an idempotency key.
 
 ### POST /api/v1/experiments/{eid}/promote
 
 Apply a concluded winner only after a signed holdout receipt and the exact
-published `skill-experiment-promotion` decision has status `accepted` in the
-`meta-optimization` team. The caller supplies `{"decisionId":"..."}`; a
-caller assertion, topic entry, or different accepted decision is insufficient.
+published `skill-experiment-promotion` work item has status `accepted` in the
+`meta-optimization` team. The caller supplies `{"workItemId":"..."}`; a
+
+caller assertion, topic entry, or different approved work item is insufficient.
 
 ### POST /api/v1/experiments/{eid}/outcomes
 
@@ -1242,7 +1243,6 @@ Create a new team.
       "injectInbox": false,
       "allowPeerTriggers": false,
       "showTaskBoardGuidance": true,
-      "showDecisionLogGuidance": true,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
@@ -1251,26 +1251,12 @@ Create a new team.
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 2
   },
-  "decisionMode": "approval",
   "operatingContract": {
     "schemaVersion": 1,
-    "governance": {
-      "decisionMode": "approval",
-      "teamPendingCeiling": {
-        "value": 12,
-        "readOnlyWhenAtOrAbove": true
-      },
-      "supersession": {
-        "requiredBeforeNewDecision": true,
-        "allowedInReadOnlyMode": true,
-        "replacementMustSetSupersedes": true
-      }
-    },
     "documents": {
       "planOfRecord": [],
       "sharedState": []
     },
-    "decisionContexts": {},
     "knowledgeTopics": {},
     "members": {}
   }
@@ -1279,7 +1265,7 @@ Create a new team.
 
 **Required Fields:** `displayName`, `runtime`, `coordination`, `execution`, `operatingContract`
 
-**Optional Fields:** `id` (auto-generated from displayName), `mission`, `decisionMode`
+**Optional Fields:** `id` (auto-generated from displayName), `mission`
 
 **runtime.mode Values:** `multi-process` - members run as separate heartbeat processes. `single-process` - one Claude Code lead session coordinates the team.
 
@@ -1287,11 +1273,9 @@ Create a new team.
 
 **execution.queuePolicy Values:** `serialized`, `bounded-parallel`
 
-**operatingContract.documents.sharedState:** Internal JSON field for team working state. Use final `kind` values only: `charter`, `task-board`, `decision-log`, `knowledge-log`, `handoff-log`, `working-register`, `rolling-snapshot`, `append-only-event-log`, `operator-input`. Agent-facing prompts render this category as team working state in the Storage Map.
+**operatingContract.documents.sharedState:** Internal JSON field for team working state. Use final `kind` values such as `charter`, `task-board`, `working-register`, `rolling-snapshot`, `append-only-event-log`, and `operator-input`. Agent-facing prompts render this category as team working state in the Storage Map.
 
-**decisionMode Values:** `yolo` (default behavior) - agents can proceed without human approval. `approval` - agents must wait for human acceptance before acting on gated decisions.
-
-**operatingContract:** Required structured source of truth for team/member operating policy. `operatingContract.governance.decisionMode` must match `decisionMode`. Heartbeat prompts render member-specific contract data inside the generated `Operating Policy` section, alongside top-level runtime, coordination, execution, and decision-mode policy. Prompt rendering fails if required policy is missing or invalid.
+**operatingContract:** Required structured source of truth for team/member operating policy. Heartbeat prompts render member-specific contract data inside the generated `Operating Policy` section alongside runtime, coordination, and execution policy. Prompt rendering fails if required policy is missing or invalid.
 
 **Response:** Created team object with `201 Created`.
 
@@ -1318,7 +1302,6 @@ Update an existing team.
       "injectInbox": false,
       "allowPeerTriggers": false,
       "showTaskBoardGuidance": true,
-      "showDecisionLogGuidance": true,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
@@ -1327,7 +1310,6 @@ Update an existing team.
     "queuePolicy": "serialized",
     "maxConcurrentRuns": 1
   },
-  "decisionMode": "approval"
 }
 ```
 

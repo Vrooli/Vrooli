@@ -22,10 +22,9 @@ import (
 )
 
 type orientationComponents struct {
-	Members          int `json:"members"`
-	CanonLines       int `json:"canonLines"`
-	Topics           int `json:"topics"`
-	DecisionContexts int `json:"decisionContexts"`
+	Members    int `json:"members"`
+	CanonLines int `json:"canonLines"`
+	Topics     int `json:"topics"`
 }
 
 type orientationCost struct {
@@ -59,12 +58,11 @@ func cmdOrientationCost(ctx appctx.Context, args []string) error {
 		return enc.Encode(resp)
 	}
 
-	fmt.Printf("%-20s %9s %8s %6s %6s %6s %9s\n", "TEAM", "COMPOSITE", "MEMBERS", "CANON", "TOPICS", "DECIS", "SCENARIOS")
+	fmt.Printf("%-20s %9s %8s %6s %6s %9s\n", "TEAM", "COMPOSITE", "MEMBERS", "CANON", "TOPICS", "SCENARIOS")
 	for _, team := range resp.Teams {
-		fmt.Printf("%-20s %9d %8d %6d %6d %6d %9d\n",
+		fmt.Printf("%-20s %9d %8d %6d %6d %9d\n",
 			team.TeamID, team.Composite, team.Components.Members,
-			team.Components.CanonLines, team.Components.Topics,
-			team.Components.DecisionContexts, team.ScenarioCoverage)
+			team.Components.CanonLines, team.Components.Topics, team.ScenarioCoverage)
 	}
 	for _, team := range resp.Teams {
 		if len(team.MissingCanon) > 0 {

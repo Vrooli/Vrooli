@@ -31,8 +31,8 @@ func ObjectiveRuleCatalog() (RuleCatalog, error) {
 	entry := func(id string, severity Severity, description, actuator string) RuleCatalogEntry {
 		return RuleCatalogEntry{ID: id, Group: OperatingRuleGroupObjective, Severity: severity, Kind: KindDeclaration, Description: description, Actuator: actuator}
 	}
-	const fixDeclaration = "Correct team.json::objectivesServed, or route an objective-set change through director-swarm's vision-update decision context"
-	const fixCoverage = "Raise outcome-direction or capability-gap in director-swarm"
+	const fixDeclaration = "Correct team.json::objectivesServed, or route an objective-set change through director-swarm's vision-update work item type"
+	const fixCoverage = "Raise outcome-direction or capability work in director-swarm"
 	return NewRuleCatalog(
 		entry("objective_unknown_id", SeverityError,
 			"A team declares an objective id that the objective table does not define.", fixDeclaration),

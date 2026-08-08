@@ -13,16 +13,16 @@ Required reading:
 
 ---
 
-### The programmatic counterpart: the `storage-health` scenario
+### The programmatic counterpart: the `storage-manager` scenario
 
-This skill says *what* good storage architecture is and *why*. **`storage-health` is the *how* — the engine that measures whether a scenario actually conforms, and the gate that enforces the one non-negotiable: test-isolation safety.** What used to be the hand-rolled grep cookbook in §10 is now a real, productized validator; drive it instead of eyeballing `rg` output:
+This skill says *what* good storage architecture is and *why*. **`storage-manager` is the *how* — the engine that measures whether a scenario actually conforms, and the gate that enforces the one non-negotiable: test-isolation safety.** What used to be the hand-rolled grep cookbook in §10 is now a real, productized validator; drive it instead of eyeballing `rg` output:
 
-- `storage-health validate scenario {{TARGET}}` — runs every static storage analyzer (schema layout, per-domain ownership, migration hygiene, persistence-seam adoption, and **the SQL + file isolation proof**) and returns a maturity assessment with `file:line`-anchored findings + remediation. This *is* the audit; §10's greps are what it automates.
-- `storage-health fix preview {{TARGET}}` / `storage-health fix apply {{TARGET}}` — preview/apply the deterministic autofixes it reports (e.g. `ENSURE_SCHEMAS_NOT_WIRED`, `DB_ROWS_NOT_CLOSED`). Idempotent: a second apply over an already-fixed tree is a no-op.
-- `storage-health fleet scan` · `storage-health advisor engines` · `storage-health advisor migrations` — fleet inventory (which scenarios use which engines, isolation-readiness, backup gaps), the Postgres→SQLite fitness advisor, and migration-hygiene intelligence.
-- `vrooli scenario test {{TARGET}}` **storage phase** — the same engine run as a delegated test-genie phase, positioned **before playbooks**. Its L2 verdict is the fail-closed gate: when SQL or file isolation can't be statically proven (`ROUTED_SEAMS_UNWIRED`, `FILE_ROUTED_SEAMS_UNWIRED`, `STORAGE_ISOLATION_UNVERIFIED`, or `FILE_ISOLATION_UNVERIFIED`), test-genie **refuses** destructive E2E playbooks rather than risk mutating real data. This is the regression gate your changes must keep green.
+- `storage-manager validate scenario {{TARGET}}` — runs every static storage analyzer (schema layout, per-domain ownership, migration hygiene, persistence-seam adoption, and **the SQL + file isolation proof**) and returns a maturity assessment with `file:line`-anchored findings + remediation. This *is* the audit; §10's greps are what it automates.
+- `storage-manager fix preview {{TARGET}}` / `storage-manager fix apply {{TARGET}}` — preview/apply the deterministic autofixes it reports (e.g. `ENSURE_SCHEMAS_NOT_WIRED`, `DB_ROWS_NOT_CLOSED`). Idempotent: a second apply over an already-fixed tree is a no-op.
+- `storage-manager fleet scan` · `storage-manager advisor engines` · `storage-manager advisor migrations` — fleet inventory (which scenarios use which engines, isolation-readiness, backup gaps), the Postgres→SQLite fitness advisor, and migration-hygiene intelligence.
+- `vrooli scenario test {{TARGET}}` **storage phase** — the same engine run as a delegated test-genie phase, positioned **before playbooks**. Its L2 verdict is the fail-closed gate: when SQL or file isolation can't be statically proven (`ROUTED_SEAMS_UNWIRED`, `FILE_ROUTED_SEAMS_UNWIRED`, or `STORAGE_ISOLATION_UNVERIFIED`), test-genie **refuses** destructive E2E playbooks rather than risk mutating real data. This is the regression gate your changes must keep green.
 
-> This skill's detection has **graduated into a programmatic engine** (`programmaticHome: storage-health:storage`, dimension `storage`). Treat storage-health as the source of truth for the findings; this steer is the judgment layer over them. storage-health **superseded the five retired `scenario-auditor` DB/storage rules** (`routed_database_drivers`, `routed_database_handle_capture`, `database_backoff`, `db_rows_close`, `storage_namespace_helpers`) — don't reach for those; run the validator.
+> This skill's detection has **graduated into a programmatic engine** (`programmaticHome: storage-manager:storage`, dimension `storage`). Treat storage-manager as the source of truth for the findings; this steer is the judgment layer over them. storage-manager **superseded the five retired `scenario-auditor` DB/storage rules** (`routed_database_drivers`, `routed_database_handle_capture`, `database_backoff`, `db_rows_close`, `storage_namespace_helpers`) — don't reach for those; run the validator.
 
 ---
 
@@ -430,29 +430,136 @@ Before making changes, assess `{{TARGET}}`'s current storage posture against the
 
 #### 10.1 Run the validator (don't hand-roll greps)
 
-`storage-health` automates the entire audit — schema layout, per-domain ownership, SQL and file isolation proof, persistence hygiene, namespace adoption, migration hygiene. Run it first, read its `file:line` findings, apply the autofixes it offers, and only fall back to manual inspection for things outside its analyzer set.
+`storage-manager` automates the entire audit — schema layout, per-domain ownership, SQL and file isolation proof, persistence hygiene, namespace adoption, migration hygiene. Run it first, read its `file:line` findings, apply the autofixes it offers, and only fall back to manual inspection for things outside its analyzer set.
 
 ```bash
 # The full static storage audit, with file:line findings + remediation.
-storage-health validate scenario {{TARGET}}
+storage-manager validate scenario {{TARGET}}
+
+# Prove the target can run isolated without starting its API.
+storage-manager validate prove-isolation {{TARGET}}
 
 # Preview / apply the deterministic autofixes it reports (idempotent).
-storage-health fix preview {{TARGET}}
-storage-health fix apply {{TARGET}}
+storage-manager fix preview {{TARGET}}
+storage-manager fix apply {{TARGET}}
 
 # Cross-scenario triage, engine-fitness advisor, migration-hygiene intelligence.
-storage-health fleet scan
-storage-health advisor engines
-storage-health advisor migrations
+storage-manager fleet scan
+storage-manager advisor engines
+storage-manager advisor migrations
+
+# Inspect the declared and observed storage surface.
+storage-manager declare inspect {{TARGET}}
+
+# Print a measured, schema-valid declaration suggestion.
+storage-manager declare suggest {{TARGET}}
+
+# Report declaration coverage by owner kind.
+storage-manager declare check
 ```
 
-The validator's findings map directly onto the red-flags below — it is the *mechanism* that detects them; §10.2 is the human-readable account of *what* it (and you) are looking for and *why* each matters. Reach for a manual `rg` only when you suspect something the analyzers don't yet cover, and consider filing a capability gap (`swarm-manager captures create`) so storage-health learns to catch it.
+#### 10.1.1 `storage.entries` contract
+
+Every durable filesystem claim belongs in the owner's `storage.entries` map.
+The owner manifest declares the default platform set. An entry may declare a
+`platforms` array to narrow that set; an entry must not claim a platform that
+its owner excludes.
+
+Use one accountability rung:
+
+| Situation | Rung | Path form | Portable tokens |
+|---|---|---|---|
+| Vrooli owns the writer and location | `owned` | Relative path under the declared class root | `$USER_CONFIG_DIR`, `$USER_CACHE_DIR`, `$USER_STATE_DIR`, or `$USER_DATA_DIR` |
+| The upstream tool exposes a relocation lever | `relocatable` | Portable default plus `relocation` metadata | The token matching the selected class |
+| The upstream tool exposes no relocation lever | `pinned` | The observed default, with a budget and reclaim command | Use a token when the default is portable; document an unavoidable fixed layout |
+
+`owned` means Vrooli chose the path. `relocatable` means the upstream tool
+exposes a relocation lever. `pinned` means no relocation lever exists. A
+`pinned` entry with a budget and a reclaim command is complete. Do not penalize
+an author for a relocation lever that the upstream tool does not offer.
+
+Use these six portable tokens. Do not use XDG variable names such as
+`$XDG_DATA_HOME`; use `$USER_DATA_DIR` instead.
+
+| Token | Linux | macOS | Windows |
+|---|---|---|---|
+| `$USER_HOME` | `/home/<user>` | `/Users/<user>` | `C:\\Users\\<user>` |
+| `$USER_CONFIG_DIR` | `$USER_HOME/.config` | `$USER_HOME/Library/Application Support` | `$USER_HOME/AppData/Roaming` |
+| `$USER_CACHE_DIR` | `$USER_HOME/.cache` | `$USER_HOME/Library/Caches` | `$USER_HOME/AppData/Local` |
+| `$USER_STATE_DIR` | `$USER_HOME/.local/state` | `$USER_HOME/Library/Application Support` | `$USER_HOME/AppData/Local` |
+| `$USER_DATA_DIR` | `$USER_HOME/.local/share` | `$USER_HOME/Library/Application Support` | `$USER_HOME/AppData/Local` |
+| `$TEMP_DIR` | `/tmp` | `/tmp` | `C:\\Windows\\Temp` |
+
+Use a string `path` when one portable token expresses the location. Use an
+object with `linux`, `macos`, and `windows` keys when the platform layouts
+really differ. A missing key is a declaration defect. An explicit `null` key
+declares intentional absence and does not fail verification.
+
+`internal/tools/docker/tool.json` is the worked example: its `byOS` map uses
+the platform-specific path and has a `null` macOS branch because Docker's
+daemon storage is inside the Desktop VM, not a portable host directory.
+
+Declare `budget` with `max_bytes` or `max_age`, and put the measured number and
+date in its `rationale`. Declare `reclaim.command` when an operator can reclaim
+the entry. Also declare `regenerable`, `sensitive`, `class`, and the entry
+`rationale`. Use `class` values `config`, `data`, `cache`, `logs`, and `state`.
+
+For a `format: sqlite` entry, declare both `-wal` and `-shm` sidecars. Treat
+sidecars as live storage while SQLite is open.
+
+The `relocation` block records the upstream lever:
+
+| Field | Meaning |
+|---|---|
+| `key` | Environment variable or setting name that moves the data |
+| `config` | Optional configuration file or setting path |
+| `scope` | One of `process-tree`, `session`, `daemon`, or `container` |
+
+`storage-manager` resolves the requested platform with the same contract used
+by the placement verifier. It reports a platform-absent entry as
+`applicable=false`, not as an error.
+
+The cross-platform lint emits these codes:
+
+| Finding | Fix |
+|---|---|
+| `STORAGE_PATH_NOT_PORTABLE` | Replace a host-layout absolute path with a portable token or a complete platform map. |
+| `STORAGE_PATH_PLATFORM_MISMATCH` | Change the path syntax or narrow the declared platform set so they agree. |
+| `STORAGE_PATH_BRANCH_MISSING` | Add the missing platform branch, or add an explicit `null` to declare absence. |
+| `STORAGE_TOKEN_SUPERSEDABLE` | Replace identical platform branches with the named portable token. |
+| `contradictory_storage_platforms` | Remove the unsupported entry platform or add it to the owner declaration. |
+
+Use `cross-platform-readiness` for engine selection. Do not duplicate its
+fitness table in this skill.
+
+```json
+{
+  "cache": {
+    "rung": "owned",
+    "class": "cache",
+    "path": "data/cache",
+    "kind": "dir",
+    "regenerable": true,
+    "budget": {
+      "max_bytes": "512MiB",
+      "rationale": "Measured at 184MiB on 2026-08-02; 30-day growth slope is below the ceiling."
+    },
+    "reclaim": { "command": "my-scenario cache prune" },
+    "rationale": "Vrooli owns this regenerable cache directory."
+  }
+}
+```
+
+For a `format: sqlite` entry, declare both `-wal` and `-shm` sidecars. Treat sidecars as live storage while SQLite is open.
+
+`storage-manager declare inspect` compares the declared surface with observed bytes. `storage-manager declare suggest` emits a ready-to-paste block from measured size and growth. `storage-manager declare check` reports coverage by owner kind. Validate every emitted block against `common.schema.json` before committing it.
+
+The validator's findings map directly onto the red-flags below — it is the *mechanism* that detects them; §10.2 is the human-readable account of *what* it (and you) are looking for and *why* each matters. Reach for a manual `rg` only when you suspect something the analyzers don't yet cover, and consider filing a capability gap (`swarm-manager captures create`) so storage-manager learns to catch it.
 
 #### 10.2 Red-Flags Checklist
 
 - [ ] No per-domain `internal/<dom>/schema.sql` files (schema is centralized somewhere)
 - [ ] `path:internal/store/` or `path:internal/db/` package present with schema content (deprecated naming)
-- [ ] `initialization/storage/postgres/schema.sql` exists in `.vrooli/` (resource-applied path)
 - [ ] Schema files are not idempotent (missing `IF NOT EXISTS`)
 - [ ] Direct SQL in handler / controller code (no repository abstraction)
 - [ ] Hard cross-domain FKs (constraint-based, not soft)
@@ -512,7 +619,7 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 2. ...
 
 ## Cross-References
-- `storage-health validate scenario {{TARGET}}` → the programmatic audit that produced these findings
+- `storage-manager validate scenario {{TARGET}}` → the programmatic audit that produced these findings
 - `cross-platform-readiness` → engine selection, filesystem contract
 - `packages/api-core/database/schemas.go` → substrate
 - `path:templates/scenarios/react-vite/api/internal/notes/` → canonical worked example
@@ -571,7 +678,7 @@ You must:
 
 You must NOT:
 - Invent ad-hoc versioned-migration tooling inline in a scenario (escalate instead)
-- Centralize schema across domains (`internal/store/schema.sql`, `initialization/storage/postgres/schema.sql`, etc.)
+- Centralize schema across domains (`internal/store/schema.sql`, `api/internal/<domain>/storage/postgres/schema.sql`, etc.)
 - Pre-emptively refactor a non-conforming scenario without the user's approval
 - Write SQL directly in handler / controller code
 - Hardcode database credentials or connection strings

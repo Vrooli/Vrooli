@@ -14,7 +14,7 @@ Operating-model validation consumes the local [`../manifest.json`](../manifest.j
 
 - `README.md` is the only top-level prose entrypoint.
 - Durable canon lives under `operating/`, `taxonomies/`, `methods/`, `catalogs/`, `strategy/`, `evidence/`, or `governance/`.
-- Non-canon observations use typed team knowledge topics and enter the PoR only through accepted decisions.
+- Non-canon observations use typed team knowledge topics and enter the PoR only through approved work items.
 - `taxonomies/marketing-research/README.md` and `taxonomies/marketing-research/taxonomy.json` remain paired.
 - `operating/OPERATING_MODEL.md` remains clean under operating-model validation.
 

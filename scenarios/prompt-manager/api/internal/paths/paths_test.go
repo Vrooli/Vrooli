@@ -62,8 +62,8 @@ func TestRootsForTestUsesTempDir(t *testing.T) {
 
 func TestBackupForPlacesUnderRuntimeDataBackups(t *testing.T) {
 	roots := RootsForTest(t)
-	got := roots.BackupFor("teams/director-swarm/shared/knowledge.jsonl", "20260528T120000Z")
-	want := filepath.Join(roots.RuntimeData, "backups", "teams/director-swarm/shared/knowledge.jsonl.backup-20260528T120000Z")
+	got := roots.BackupFor("teams/director-swarm/shared/tasks.json", "20260528T120000Z")
+	want := filepath.Join(roots.RuntimeData, "backups", "teams/director-swarm/shared/tasks.json.backup-20260528T120000Z")
 	if got != want {
 		t.Errorf("BackupFor with suffix:\n  got  %q\n  want %q", got, want)
 	}
