@@ -169,7 +169,7 @@ func TestReviewDecide_RejectsInReview(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/stuck/review-decide", bytes.NewReader(body))
 	r = mux.SetURLVars(r, map[string]string{"kind": "execute", "name": "stuck"})
 	rec := httptest.NewRecorder()
-	h.ReviewDecide(rec, r)
+	decideReviewMutation(t, h, rec, r)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected review-decide to reject in_review with 400, got %d: %s", rec.Code, rec.Body.String())
 	}

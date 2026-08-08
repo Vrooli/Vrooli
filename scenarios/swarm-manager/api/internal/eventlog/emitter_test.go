@@ -10,6 +10,7 @@ import (
 	"swarm-manager/internal/eventlog"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/provenance"
 	_ "modernc.org/sqlite"
 )
 
@@ -65,10 +66,32 @@ func TestEmitBacklogCreated(t *testing.T) {
 	}
 }
 
+func TestEmitBacklogCreatedFromContextPersistsVerifiedRunAttribution(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-event", ProfileKey: "team/member"})
+	emitter.EmitBacklogCreatedFromContext(ctx, "execute/attributed", "execute", "backlog", 5, "", "", "user", "")
+
+	e := lastEvent(t, repo)
+	if e.ActorType != provenance.ActorAgent || e.ActorID != "team/member" || e.RunID != "run-event" || e.VerificationStatus != provenance.VerificationVerified {
+		t.Fatalf("verified event attribution = %q/%q/%q/%q", e.ActorType, e.ActorID, e.RunID, e.VerificationStatus)
+	}
+}
+
+func TestEmitBacklogCreatedFromContextPersistsHarnessObservationWithoutRun(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Invocation: provenance.Invocation{HarnessSessionID: "codex-thread-1", HarnessKind: "codex"}})
+	emitter.EmitBacklogCreatedFromContext(ctx, "execute/observed", "execute", "backlog", 5, "", "", "user", "")
+
+	e := lastEvent(t, repo)
+	if e.HarnessSessionID != "codex-thread-1" || e.HarnessKind != "codex" || e.VerificationStatus != provenance.VerificationAbsent || e.ActorID != "" {
+		t.Fatalf("harness observation = %+v", e)
+	}
+}
+
 func TestEmitBacklogStatusChanged(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 
-	emitter.EmitBacklogStatusChanged("fix/bug-1", "backlog", "in_progress")
+	emitter.EmitBacklogStatusChanged(context.Background(), "fix/bug-1", "backlog", "in_progress")
 
 	e := lastEvent(t, repo)
 	if e.EventType != eventlog.EventBacklogStatusChanged {
@@ -87,7 +110,7 @@ func TestEmitBacklogStatusChanged(t *testing.T) {
 func TestEmitBacklogStatusChangedFromSource(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 
-	emitter.EmitBacklogStatusChangedFromSource("execute/do-thing", "ready", "completed", eventlog.BacklogMutationSourcePayload{
+	emitter.EmitBacklogStatusChangedFromSource(context.Background(), "execute/do-thing", "ready", "completed", eventlog.BacklogMutationSourcePayload{
 		Entrypoint:     "initiative.operating_mode.complete_items",
 		InitiativeName: "init-a",
 		Mode:           "holistic-loop",
@@ -303,5 +326,60 @@ func TestEmitClarificationAction(t *testing.T) {
 	}
 	if p.RoundNumber != 3 || p.ItemID != "d2" || p.Action != "invalidate_round" {
 		t.Errorf("payload: %+v", p)
+	}
+}
+
+// TestDurabilityEventSeamsCarryProvenance is the guard for the durability read
+// lane. The three event types swarm-manager's durability handler reads must all
+// persist verified attribution; if any of them regresses to the context-free
+// emit helper the whole lane silently reports verification_status=absent and
+// every verdict becomes unlinked. Add a case here whenever the durability
+// handler starts reading a new event type.
+func TestDurabilityEventSeamsCarryProvenance(t *testing.T) {
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{
+		Actor:              provenance.ActorAgent,
+		VerificationStatus: provenance.VerificationVerified,
+		RunID:              "run-durability",
+		ProfileKey:         "team/member",
+	})
+
+	cases := []struct {
+		name  string
+		emit  func(*eventlog.Emitter)
+		event eventlog.EventType
+	}{
+		{
+			name:  "backlog status changed",
+			emit:  func(e *eventlog.Emitter) { e.EmitBacklogStatusChanged(ctx, "fix/bug-1", "failed", "completed") },
+			event: eventlog.EventBacklogStatusChanged,
+		},
+		{
+			name:  "record superseded",
+			emit:  func(e *eventlog.Emitter) { e.EmitRecordSuperseded(ctx, "rec-new", "rec-old", "rework") },
+			event: eventlog.EventRecordSuperseded,
+		},
+		{
+			name:  "review failed",
+			emit:  func(e *eventlog.Emitter) { e.EmitReviewFailed(ctx, "exec-1", "insufficient evidence", 12) },
+			event: eventlog.EventReviewFailed,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			emitter, repo := setupEmitter(t)
+			tc.emit(emitter)
+
+			e := lastEvent(t, repo)
+			if e.EventType != tc.event {
+				t.Fatalf("event_type = %q, want %q", e.EventType, tc.event)
+			}
+			if e.VerificationStatus != provenance.VerificationVerified {
+				t.Errorf("verification_status = %q, want %q", e.VerificationStatus, provenance.VerificationVerified)
+			}
+			if e.ActorType != provenance.ActorAgent || e.ActorID != "team/member" || e.RunID != "run-durability" {
+				t.Errorf("actor = %q/%q run=%q, want %q/%q run=%q", e.ActorType, e.ActorID, e.RunID, provenance.ActorAgent, "team/member", "run-durability")
+			}
+		})
 	}
 }

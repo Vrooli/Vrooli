@@ -125,6 +125,10 @@ type CreationEventEmitter interface {
 	EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, milestone, effort, actorType, actorID string)
 }
 
+type contextualCreationEventEmitter interface {
+	EmitBacklogCreatedFromContext(context.Context, string, string, string, int, string, string, string, string)
+}
+
 type archiveEventEmitter interface {
 	EmitBacklogArchived(entityID, previousStatus, archivedAt string)
 }
@@ -373,16 +377,11 @@ func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc Creati
 
 	if s.events != nil {
 		actorType, actorID := actorForSource(cc)
-		s.events.EmitBacklogCreatedFromSource(
-			string(item.Kind)+"/"+item.Name,
-			string(item.Kind),
-			string(item.Status),
-			item.Priority,
-			item.Milestone,
-			item.Effort,
-			actorType,
-			actorID,
-		)
+		if contextual, ok := s.events.(contextualCreationEventEmitter); ok {
+			contextual.EmitBacklogCreatedFromContext(cc.Context, string(item.Kind)+"/"+item.Name, string(item.Kind), string(item.Status), item.Priority, item.Milestone, item.Effort, actorType, actorID)
+		} else {
+			s.events.EmitBacklogCreatedFromSource(string(item.Kind)+"/"+item.Name, string(item.Kind), string(item.Status), item.Priority, item.Milestone, item.Effort, actorType, actorID)
+		}
 	}
 
 	if s.invalidator != nil && !cc.SkipGraphInvalidation {

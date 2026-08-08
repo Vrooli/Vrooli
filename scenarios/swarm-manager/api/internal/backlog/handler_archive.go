@@ -130,7 +130,7 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 	entityID := string(kind) + "/" + name
 	if h.eventLogger != nil {
 		if statusChanged {
-			h.eventLogger.EmitBacklogStatusChanged(entityID, string(priorStatus), string(item.Status))
+			h.eventLogger.EmitBacklogStatusChanged(r.Context(), entityID, string(priorStatus), string(item.Status))
 		}
 		h.eventLogger.EmitBacklogArchived(entityID, string(item.Status), now)
 	}

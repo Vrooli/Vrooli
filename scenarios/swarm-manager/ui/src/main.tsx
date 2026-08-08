@@ -31,7 +31,7 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
 import { API_BASE } from "./lib/api-client";
-import { AudioToolsProvider, createAudioToolsClient, useHydrateVoiceConfig } from "./audio-integration";
+import { AudioToolsProvider, createAudioToolsClient, registerVoiceTransport, useHydrateVoiceConfig } from "./audio-integration";
 import { fetchAudioToolsDiscovery } from "./api/discovery";
 import "./styles.css";
 
@@ -102,6 +102,8 @@ const ensureSEO = () => {
 };
 
 ensureSEO();
+
+registerVoiceTransport();
 
 // AUDIO-TOOLS DISCOVERY: ask the swarm-manager backend whether audio-tools is
 // reachable BEFORE React mounts. When it is, the browser still talks only to

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
 
 	"github.com/gorilla/mux"
@@ -275,6 +276,23 @@ func TestList_FilterBySpawnedFrom(t *testing.T) {
 	}
 	if resp.Items[0].Name != "spawned-a" {
 		t.Errorf("expected 'spawned-a', got %q", resp.Items[0].Name)
+	}
+}
+
+func TestList_FilterByVerifiedActorID(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	verified := identity.Provenance{Actor: identity.TypeAgent, VerificationStatus: "verified", ProfileKey: "team/member", RunID: "run-1"}
+	other := identity.Provenance{Actor: identity.TypeAgent, VerificationStatus: "verified", ProfileKey: "team/other", RunID: "run-2"}
+	createTestItem(t, rootDir, KindExecute, BacklogItem{Name: "member-item", Title: "Member item", Status: StatusBacklog, Priority: 1, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z", CreatedBy: &verified})
+	createTestItem(t, rootDir, KindExecute, BacklogItem{Name: "other-item", Title: "Other item", Status: StatusBacklog, Priority: 1, Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z", CreatedBy: &other})
+
+	req := httptest.NewRequest("GET", "/api/v1/backlog?actor_id=team/member", nil)
+	w := httptest.NewRecorder()
+	h.List(w, req)
+	testutil.AssertStatusOK(t, w)
+	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	if len(resp.Items) != 1 || resp.Items[0].Name != "member-item" {
+		t.Fatalf("actor filter returned %#v", resp.Items)
 	}
 }
 

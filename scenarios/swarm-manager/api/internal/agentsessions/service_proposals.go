@@ -184,7 +184,7 @@ func findProposal(session Session, proposalID string) (Proposal, bool) {
 func proposalApplyProvenance(session Session, proposal Proposal) identity.Provenance {
 	if proposal.Attribution != nil && proposal.Attribution.Type == AttributionAgent {
 		return identity.Provenance{
-			Type:        identity.TypeAgent,
+			Actor:       identity.TypeAgent,
 			RunID:       proposal.Attribution.RunID,
 			TaskID:      proposal.Attribution.TaskID,
 			ProfileKey:  proposal.Attribution.ProfileKey,
@@ -194,7 +194,7 @@ func proposalApplyProvenance(session Session, proposal Proposal) identity.Proven
 		}
 	}
 	return identity.Provenance{
-		Type:        identity.TypeAgent,
+		Actor:       identity.TypeAgent,
 		RunID:       session.RunID,
 		TaskID:      session.TaskID,
 		ProfileKey:  session.ProfileKey,

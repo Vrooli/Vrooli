@@ -91,7 +91,7 @@ func TestSessionProtoJSONRoundTrip(t *testing.T) {
 
 func TestAttributionFromProvenance(t *testing.T) {
 	attr := AttributionFromProvenance(identity.Provenance{
-		Type:        identity.TypeAgent,
+		Actor:       identity.TypeAgent,
 		RunID:       "run-1",
 		TaskID:      "task-1",
 		ProfileKey:  "swarm-manager/default",

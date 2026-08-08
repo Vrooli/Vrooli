@@ -53,7 +53,7 @@ func (s *Server) initEventLog() {
 	}
 	// Apply the per-domain schemas to whichever pool is active (live at boot;
 	// the test pool once installed) via the shared EnsureSchemas seam. This is
-	// the "primary schema application" seam storage-health requires.
+	// the "primary schema application" seam storage-manager requires.
 	if err := database.EnsureSchemas(context.Background(), eventDB.Primary(),
 		database.SchemaProviderFunc(eventlog.Schema),
 	); err != nil {

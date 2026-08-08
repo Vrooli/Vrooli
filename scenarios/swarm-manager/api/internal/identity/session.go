@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/vrooli/api-core/provenance"
 )
 
 // SessionReference is the session ownership data resolved from a verified
@@ -40,7 +42,7 @@ func SessionMiddleware(resolver SessionResolver) func(http.Handler) http.Handler
 				next.ServeHTTP(w, r)
 				return
 			}
-			ctx := NewContext(r.Context(), prov.WithSession(ref))
+			ctx := provenance.NewContext(r.Context(), prov.WithSession(ref.SessionID, ref.SessionKind, ref.Source))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

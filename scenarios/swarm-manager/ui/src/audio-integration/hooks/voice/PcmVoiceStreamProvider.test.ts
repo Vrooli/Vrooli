@@ -12,7 +12,10 @@ vi.mock("../../api/voice", () => ({
   transcribeAudioWithRetry: vi.fn(),
 }));
 vi.mock("./sharedAudioContext", () => ({ getSharedAudioContext: vi.fn(() => ({})) }));
-vi.mock("@vrooli/audio-capture-browser", () => ({
+vi.mock("@vrooli/audio-capture-browser", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@vrooli/audio-capture-browser")>();
+  return {
+  ...actual,
   TARGET_SAMPLE_RATE: 16_000,
   concatInt16: (parts: Int16Array[]) => parts[0] ?? new Int16Array(),
   createCanonicalPcmCapture: async (_context: unknown, _stream: unknown, onFrame: (samples: Float32Array, rate: number) => void) => {
@@ -46,8 +49,11 @@ vi.mock("@vrooli/audio-capture-browser", () => ({
     replayAfter = () => [];
     discard = core.discard;
   },
-}));
+  };
+});
 
+import { buildVoiceStreamWsUrl } from "../../api/voice";
+import { TurnJournal } from "@vrooli/audio-capture-browser";
 import { PcmVoiceStreamProvider } from "./PcmVoiceStreamProvider";
 
 class FakeWebSocket {
@@ -80,7 +86,17 @@ describe("PcmVoiceStreamProvider", () => {
     core.acknowledge.mockClear();
     core.discard.mockClear();
     (globalThis as unknown as { WebSocket: typeof FakeWebSocket }).WebSocket = FakeWebSocket;
-    provider = new PcmVoiceStreamProvider();
+    provider = new PcmVoiceStreamProvider({
+      transport: {
+        buildStreamUrl: (language, sessionId, _resumeToken) => buildVoiceStreamWsUrl(language, sessionId),
+        transcribeRetained: async () => "",
+      },
+      captureFactory: async (_stream, onFrame) => {
+        core.frame = onFrame;
+        return { stop: vi.fn() };
+      },
+      journalFactory: () => new (TurnJournal as unknown as { new (): TurnJournal })(),
+    });
   });
 
   afterEach(() => provider.dispose());

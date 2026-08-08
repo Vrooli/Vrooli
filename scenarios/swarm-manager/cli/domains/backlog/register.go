@@ -110,12 +110,13 @@ func listCommand() cliapp.Command {
 	cmd := cliapp.Command{
 		Name:        "list",
 		NeedsAPI:    true,
-		Description: "List backlog items [--kind KIND]",
+		Description: "List backlog items [--kind KIND] [--actor-id PROFILE]",
 		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
 			{Name: "kind", Description: "Comma-separated backlog kinds"},
 			{Name: "status", Description: "Comma-separated backlog statuses"},
 			{Name: "archived", Description: "Show archived items: true, false, or all", Values: []string{"true", "false", "all"}},
 			{Name: "scenario", Description: "Comma-separated scenario names"},
+			{Name: "actor-id", Description: "Verified team-member/profile identity"},
 		}},
 	}
 	return cmd.WithPrimitive(cliapp.ProtoList(
@@ -124,6 +125,7 @@ func listCommand() cliapp.Command {
 				Kinds:     splitCSV(op.Flag("kind")),
 				Statuses:  splitCSV(op.Flag("status")),
 				Scenarios: splitCSV(op.Flag("scenario")),
+				ActorId:   optionalString(op.Flag("actor-id")),
 			}
 			switch strings.TrimSpace(op.Flag("archived")) {
 			case "", "false":

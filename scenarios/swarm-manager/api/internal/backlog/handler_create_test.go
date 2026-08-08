@@ -15,6 +15,7 @@ import (
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
 
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -72,7 +73,7 @@ func TestCreate_StoresAgentProvenanceFromIdentityMiddleware(t *testing.T) {
 	req.Header.Set("X-Agent-Identity-Token", "valid-token")
 	w := httptest.NewRecorder()
 
-	handler := identity.Middleware(identity.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+	handler := provenance.Middleware(provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
 		if token != "valid-token" {
 			t.Fatalf("token = %q, want valid-token", token)
 		}
@@ -94,8 +95,8 @@ func TestCreate_StoresAgentProvenanceFromIdentityMiddleware(t *testing.T) {
 	if saved.CreatedBy == nil {
 		t.Fatal("expected created_by provenance")
 	}
-	if saved.CreatedBy.Type != identity.TypeAgent {
-		t.Fatalf("created_by.type = %q, want %q", saved.CreatedBy.Type, identity.TypeAgent)
+	if saved.CreatedBy.Actor != identity.TypeAgent {
+		t.Fatalf("created_by.actor = %q, want %q", saved.CreatedBy.Actor, identity.TypeAgent)
 	}
 	if saved.CreatedBy.RunID != "run-agent-1" || saved.CreatedBy.TaskID != "task-agent-1" || saved.CreatedBy.ProfileKey != "swarm-manager/default" {
 		t.Fatalf("unexpected created_by provenance: %+v", saved.CreatedBy)

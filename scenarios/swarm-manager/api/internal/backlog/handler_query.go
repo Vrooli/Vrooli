@@ -38,6 +38,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		Scenarios:   parseScenariosQuery(r),
 		SpawnedFrom: strings.TrimSpace(r.URL.Query().Get("spawned_from")),
 		PlanRef:     strings.TrimSpace(r.URL.Query().Get("plan_ref")),
+		ActorID:     strings.TrimSpace(r.URL.Query().Get("actor_id")),
 	}
 	if filters.PlanRef == "" {
 		filters.PlanRef = strings.TrimSpace(r.URL.Query().Get("plan_ref_slug"))
@@ -71,6 +72,7 @@ type ListFilters struct {
 	HasPlanRef  *bool
 	PlanRef     string
 	Stale       *bool
+	ActorID     string
 }
 
 func (h *Handler) listItems(filters ListFilters) (*apipb.ListBacklogItemsResponse, error) {
@@ -81,6 +83,15 @@ func (h *Handler) listItems(filters ListFilters) (*apipb.ListBacklogItemsRespons
 	items = filterByStatus(items, filters.Statuses)
 	items = filterByArchived(items, filters.Archived)
 	items = filterByScenario(items, filters.Scenarios)
+	if filters.ActorID != "" {
+		filtered := items[:0]
+		for _, item := range items {
+			if item.CreatedBy != nil && item.CreatedBy.IsVerifiedAgent() && item.CreatedBy.ProfileKey == filters.ActorID {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
 	if filters.SpawnedFrom != "" {
 		filtered := items[:0]
 		for _, item := range items {

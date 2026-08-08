@@ -53,7 +53,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@vrooli/audio-capture-browser": ["../../../packages/audio-capture-browser/src/index.ts"]
+      "@vrooli/audio-capture-browser": ["../../../packages/audio-capture-browser/src/index.ts"],
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "lucide-react": ["./node_modules/lucide-react/dist/lucide-react.d.ts"]
     }
   },
   "include": ["src"],

@@ -109,7 +109,7 @@ func (h *Handler) DispatchPendingFollowUp(ctx context.Context, kind BacklogKind,
 		return BacklogItem{}, FollowUp{}, apierr.Internal("failed to persist dispatched follow-up")
 	}
 	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogStatusChanged(string(kind)+"/"+name, string(StatusNeedsFollowup), string(item.Status))
+		h.eventLogger.EmitBacklogStatusChanged(ctx, string(kind)+"/"+name, string(StatusNeedsFollowup), string(item.Status))
 	}
 	return item, instruction, nil
 }

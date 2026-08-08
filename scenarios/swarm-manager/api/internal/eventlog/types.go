@@ -180,14 +180,18 @@ const EntitySystem EntityType = "system"
 
 // Event represents a single state change recorded in the event log.
 type Event struct {
-	ID         int64           `json:"id"`
-	Timestamp  time.Time       `json:"timestamp"`
-	EntityType EntityType      `json:"entity_type"`
-	EntityID   string          `json:"entity_id"`
-	EventType  EventType       `json:"event_type"`
-	ActorType  string          `json:"actor_type"`
-	ActorID    string          `json:"actor_id"`
-	Metadata   json.RawMessage `json:"metadata,omitempty"`
+	ID                 int64           `json:"id"`
+	Timestamp          time.Time       `json:"timestamp"`
+	EntityType         EntityType      `json:"entity_type"`
+	EntityID           string          `json:"entity_id"`
+	EventType          EventType       `json:"event_type"`
+	ActorType          string          `json:"actor_type"`
+	ActorID            string          `json:"actor_id"`
+	RunID              string          `json:"run_id,omitempty"`
+	VerificationStatus string          `json:"verification_status"`
+	HarnessSessionID   string          `json:"harness_session_id,omitempty"`
+	HarnessKind        string          `json:"harness_kind,omitempty"`
+	Metadata           json.RawMessage `json:"metadata,omitempty"`
 }
 
 // Typed metadata payloads for each event category.

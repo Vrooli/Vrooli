@@ -190,7 +190,7 @@ func (h *Handler) SetLifecycleService(service *Service) { h.lifecycleService = s
 type EventLogger interface {
 	EmitBacklogCreated(entityID, kind, status string, priority int, milestone, effort string)
 	EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, milestone, effort, actorType, actorID string)
-	EmitBacklogStatusChanged(entityID, from, to string)
+	EmitBacklogStatusChanged(ctx context.Context, entityID, from, to string)
 	EmitBacklogPriorityChanged(entityID string, from, to int)
 	EmitBacklogEffortChanged(entityID, from, to string)
 	EmitBacklogDependencyAdded(entityID, target string)

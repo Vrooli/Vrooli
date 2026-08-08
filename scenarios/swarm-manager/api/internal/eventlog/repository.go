@@ -24,6 +24,10 @@ type Repository interface {
 	QueryByEntity(ctx context.Context, entityType EntityType, entityID string, afterID int64, limit int) ([]Event, error)
 	// MaxID returns the highest event ID, or 0 if empty.
 	MaxID(ctx context.Context) (int64, error)
+	// QueryByTypesSince returns events of the given types at or after since,
+	// ordered by ID. Analytical readers use this instead of All so the filter
+	// runs in SQL and their cost does not grow with unrelated event history.
+	QueryByTypesSince(ctx context.Context, types []EventType, since time.Time) ([]Event, error)
 }
 
 // SQLiteRepository implements Repository backed by a SQLite database.
@@ -54,10 +58,15 @@ const schemaSQL = `
 			event_type TEXT NOT NULL,
 			actor_type TEXT NOT NULL DEFAULT 'user',
 			actor_id TEXT NOT NULL DEFAULT '',
+			run_id TEXT NOT NULL DEFAULT '',
+			verification_status TEXT NOT NULL DEFAULT 'absent',
+			harness_session_id TEXT NOT NULL DEFAULT '',
+			harness_kind TEXT NOT NULL DEFAULT '',
 			metadata TEXT
 		);
 		CREATE INDEX IF NOT EXISTS idx_events_entity ON events(entity_type, entity_id, id);
 		CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
+		CREATE INDEX IF NOT EXISTS idx_events_actor ON events(actor_id, id);
 		CREATE TABLE IF NOT EXISTS evidence_observations (
 			id TEXT PRIMARY KEY,
 			producer TEXT NOT NULL,
@@ -109,12 +118,19 @@ func Schema() string { return schemaSQL }
 
 // InitSchema creates the events table and indexes if they don't exist.
 func (r *SQLiteRepository) InitSchema(ctx context.Context) error {
+	if err := r.migrateLegacyEvidenceSchema(ctx); err != nil {
+		return fmt.Errorf("migrate legacy evidence schema: %w", err)
+	}
 	if _, err := r.db.ExecContext(ctx, schemaSQL); err != nil {
 		return err
 	}
 	// Existing event databases predate the operator-verification columns. SQLite
 	// lacks ADD COLUMN IF NOT EXISTS, so duplicate-column errors are benign.
 	for _, statement := range []string{
+		"ALTER TABLE events ADD COLUMN verification_status TEXT NOT NULL DEFAULT 'absent'",
+		"ALTER TABLE events ADD COLUMN run_id TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE events ADD COLUMN harness_session_id TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE events ADD COLUMN harness_kind TEXT NOT NULL DEFAULT ''",
 		"ALTER TABLE evidence_observations ADD COLUMN actor TEXT NOT NULL DEFAULT ''",
 		"ALTER TABLE evidence_observations ADD COLUMN reason TEXT NOT NULL DEFAULT ''",
 	} {
@@ -123,6 +139,128 @@ func (r *SQLiteRepository) InitSchema(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// migrateLegacyEvidenceSchema upgrades the short-lived, pre-ledger evidence
+// tables. That schema used integer observations and owner links, while the
+// ledger requires deterministic string observation IDs and attempt links. The
+// old tables are retained under explicit legacy names after their contents are
+// copied, so an upgrade never silently discards operator evidence.
+func (r *SQLiteRepository) migrateLegacyEvidenceSchema(ctx context.Context) error {
+	rows, err := r.db.QueryContext(ctx, "PRAGMA table_info(evidence_observations)")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	hasTable, hasProducer := false, false
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull, primaryKey int
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &primaryKey); err != nil {
+			return err
+		}
+		hasTable = true
+		if name == "producer" {
+			hasProducer = true
+		}
+	}
+	if err := rows.Err(); err != nil || !hasTable {
+		return err
+	}
+	if hasProducer {
+		return r.migrateLegacyEvidenceProgressSchema(ctx)
+	}
+	for _, statement := range []string{
+		"ALTER TABLE evidence_observations RENAME TO legacy_evidence_observations_v0",
+		"ALTER TABLE evidence_links RENAME TO legacy_evidence_links_v0",
+		"ALTER TABLE evidence_migration_audits RENAME TO legacy_evidence_migration_audits_v0",
+		"ALTER TABLE evidence_checkpoints RENAME TO legacy_evidence_checkpoints_v0",
+		"ALTER TABLE evidence_watermarks RENAME TO legacy_evidence_watermarks_v0",
+	} {
+		if _, err := r.db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
+	if _, err := r.db.ExecContext(ctx, schemaSQL); err != nil {
+		return err
+	}
+	if _, err := r.db.ExecContext(ctx, `INSERT INTO evidence_observations (id, producer, source_system, run_id, subject_kind, subject_id, action, confidence, title, description, actor, reason, observed_at)
+		SELECT 'legacy/' || id, 'legacy:' || source_system, source_system, run_id, subject_kind, subject_id, action, confidence, 'Legacy evidence ' || source_event_id, metadata_json, actor, reason, observed_at
+		FROM legacy_evidence_observations_v0`); err != nil {
+		return err
+	}
+	if _, err := r.db.ExecContext(ctx, `INSERT INTO evidence_links (observation_id, attempt_ref)
+		SELECT 'legacy/' || observation_id, 'legacy/' || owner_kind || '/' || owner_id || '/' || owner_round
+		FROM legacy_evidence_links_v0`); err != nil {
+		return err
+	}
+	if _, err := r.db.ExecContext(ctx, `INSERT INTO evidence_migration_audits (migration_key, source_digest, projection_digest, source_count, projection_count, parity_proven, audited_at)
+		SELECT migration_key, source_digest, projected_digest, source_count, projected_count, source_count = projected_count, completed_at
+		FROM legacy_evidence_migration_audits_v0`); err != nil {
+		return err
+	}
+	if _, err := r.db.ExecContext(ctx, `INSERT INTO evidence_checkpoints (producer, run_id, fact_kind, checkpoint_at)
+		SELECT producer_id, run_id, fact_kind, updated_at FROM legacy_evidence_checkpoints_v0`); err != nil {
+		return err
+	}
+	if _, err := r.db.ExecContext(ctx, `INSERT INTO evidence_watermarks (producer, run_id, fact_kind, terminal_at)
+		SELECT producer_id, run_id, fact_kind, completed_at FROM legacy_evidence_watermarks_v0`); err != nil {
+		return err
+	}
+	return nil
+}
+
+// migrateLegacyEvidenceProgressSchema covers installations interrupted between
+// the observation-table upgrade and the checkpoint/watermark upgrade.
+func (r *SQLiteRepository) migrateLegacyEvidenceProgressSchema(ctx context.Context) error {
+	legacy, err := r.tableLacksColumn(ctx, "evidence_checkpoints", "producer")
+	if err != nil || !legacy {
+		return err
+	}
+	for _, statement := range []string{
+		"ALTER TABLE evidence_checkpoints RENAME TO legacy_evidence_checkpoints_v0",
+		"ALTER TABLE evidence_watermarks RENAME TO legacy_evidence_watermarks_v0",
+	} {
+		if _, err := r.db.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+	}
+	if _, err := r.db.ExecContext(ctx, schemaSQL); err != nil {
+		return err
+	}
+	if _, err := r.db.ExecContext(ctx, `INSERT INTO evidence_checkpoints (producer, run_id, fact_kind, checkpoint_at)
+		SELECT producer_id, run_id, fact_kind, updated_at FROM legacy_evidence_checkpoints_v0`); err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, `INSERT INTO evidence_watermarks (producer, run_id, fact_kind, terminal_at)
+		SELECT producer_id, run_id, fact_kind, completed_at FROM legacy_evidence_watermarks_v0`)
+	return err
+}
+
+func (r *SQLiteRepository) tableLacksColumn(ctx context.Context, table, column string) (bool, error) {
+	rows, err := r.db.QueryContext(ctx, "PRAGMA table_info("+table+")")
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	hasTable, hasColumn := false, false
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notNull, primaryKey int
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &primaryKey); err != nil {
+			return false, err
+		}
+		hasTable = true
+		hasColumn = hasColumn || name == column
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	return hasTable && !hasColumn, nil
 }
 
 // Append inserts a new event and returns its auto-generated ID.
@@ -144,14 +282,18 @@ func (r *SQLiteRepository) Append(ctx context.Context, e Event) (int64, error) {
 	}
 
 	result, err := r.db.ExecContext(ctx,
-		`INSERT INTO events (timestamp, entity_type, entity_id, event_type, actor_type, actor_id, metadata)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO events (timestamp, entity_type, entity_id, event_type, actor_type, actor_id, run_id, verification_status, harness_session_id, harness_kind, metadata)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ts.Format(time.RFC3339Nano),
 		string(e.EntityType),
 		e.EntityID,
 		string(e.EventType),
 		actorType,
 		e.ActorID,
+		e.RunID,
+		e.VerificationStatus,
+		e.HarnessSessionID,
+		e.HarnessKind,
 		metaStr,
 	)
 	if err != nil {
@@ -163,7 +305,7 @@ func (r *SQLiteRepository) Append(ctx context.Context, e Event) (int64, error) {
 // Since returns events with ID > afterID, ordered by ID ascending, up to limit.
 func (r *SQLiteRepository) Since(ctx context.Context, afterID int64, limit int) ([]Event, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, timestamp, entity_type, entity_id, event_type, actor_type, actor_id, metadata
+		`SELECT id, timestamp, entity_type, entity_id, event_type, actor_type, actor_id, run_id, verification_status, harness_session_id, harness_kind, metadata
 		 FROM events WHERE id > ? ORDER BY id ASC LIMIT ?`,
 		afterID, limit,
 	)
@@ -177,11 +319,40 @@ func (r *SQLiteRepository) Since(ctx context.Context, afterID int64, limit int) 
 // All returns every event ordered by ID ascending.
 func (r *SQLiteRepository) All(ctx context.Context) ([]Event, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, timestamp, entity_type, entity_id, event_type, actor_type, actor_id, metadata
+		`SELECT id, timestamp, entity_type, entity_id, event_type, actor_type, actor_id, run_id, verification_status, harness_session_id, harness_kind, metadata
 		 FROM events ORDER BY id ASC`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("eventlog all: %w", err)
+	}
+	defer rows.Close()
+	return scanEvents(rows)
+}
+
+// QueryByTypesSince pushes the read filter into SQL. An empty types slice
+// matches nothing rather than everything: a caller that forgot to name its
+// event types should read no evidence, not the entire log.
+func (r *SQLiteRepository) QueryByTypesSince(ctx context.Context, types []EventType, since time.Time) ([]Event, error) {
+	if len(types) == 0 {
+		return nil, nil
+	}
+	args := make([]any, 0, len(types)+1)
+	placeholders := make([]string, 0, len(types))
+	for _, eventType := range types {
+		placeholders = append(placeholders, "?")
+		args = append(args, string(eventType))
+	}
+	query := `SELECT id, timestamp, entity_type, entity_id, event_type, actor_type, actor_id, run_id, verification_status, harness_session_id, harness_kind, metadata
+		 FROM events WHERE event_type IN (` + strings.Join(placeholders, ",") + `)`
+	if !since.IsZero() {
+		query += " AND timestamp >= ?"
+		args = append(args, since.UTC().Format(time.RFC3339Nano))
+	}
+	query += " ORDER BY id ASC"
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("eventlog query by types: %w", err)
 	}
 	defer rows.Close()
 	return scanEvents(rows)
@@ -195,7 +366,7 @@ func (r *SQLiteRepository) QueryByEntity(ctx context.Context, entityType EntityT
 		limit = 100
 	}
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, timestamp, entity_type, entity_id, event_type, actor_type, actor_id, metadata
+		`SELECT id, timestamp, entity_type, entity_id, event_type, actor_type, actor_id, run_id, verification_status, harness_session_id, harness_kind, metadata
 		 FROM events WHERE entity_type = ? AND entity_id = ? AND id > ? ORDER BY id ASC LIMIT ?`,
 		string(entityType), entityID, afterID, limit,
 	)
@@ -313,6 +484,10 @@ func scanEvents(rows *sql.Rows) ([]Event, error) {
 			&e.EventType,
 			&e.ActorType,
 			&e.ActorID,
+			&e.RunID,
+			&e.VerificationStatus,
+			&e.HarnessSessionID,
+			&e.HarnessKind,
 			&metaStr,
 		)
 		if err != nil {

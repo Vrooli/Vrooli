@@ -26,7 +26,7 @@ func (f *fakeEvents) EmitRecordCreated(id, kind, scenario, backlogRef string, st
 	f.created = append(f.created, tag)
 }
 
-func (f *fakeEvents) EmitRecordSuperseded(id, superseded, reason string) {
+func (f *fakeEvents) EmitRecordSuperseded(_ context.Context, id, superseded, reason string) {
 	f.superseded = append(f.superseded, [2]string{id, superseded})
 }
 

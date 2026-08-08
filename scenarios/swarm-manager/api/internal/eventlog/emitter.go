@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"time"
+
+	"github.com/vrooli/api-core/provenance"
 )
 
 // Emitter provides typed methods for emitting events. All methods are
@@ -42,11 +44,14 @@ func (e *Emitter) EmitBacklogCreatedFromSource(entityID, kind, status string, pr
 	})
 }
 
-func (e *Emitter) EmitBacklogStatusChanged(entityID, from, to string) {
-	e.emit(EntityBacklogItem, entityID, EventBacklogStatusChanged, StatusChangePayload{From: from, To: to})
+// EmitBacklogStatusChanged records a status transition. This is a durability
+// pushback signal, so it takes the request context: an item bounced back to
+// failed or needs_followup is only attributable if the row records who did it.
+func (e *Emitter) EmitBacklogStatusChanged(ctx context.Context, entityID, from, to string) {
+	e.emitContext(ctx, EntityBacklogItem, entityID, EventBacklogStatusChanged, StatusChangePayload{From: from, To: to})
 }
 
-func (e *Emitter) EmitBacklogStatusChangedFromSource(entityID, from, to string, source BacklogMutationSourcePayload, itemRefs []string) {
+func (e *Emitter) EmitBacklogStatusChangedFromSource(ctx context.Context, entityID, from, to string, source BacklogMutationSourcePayload, itemRefs []string) {
 	payload := StatusChangePayload{
 		From:     from,
 		To:       to,
@@ -62,7 +67,7 @@ func (e *Emitter) EmitBacklogStatusChangedFromSource(entityID, from, to string, 
 			actorID = source.RunID
 		}
 	}
-	e.emitWithActor(EntityBacklogItem, entityID, EventBacklogStatusChanged, actorType, actorID, payload)
+	e.emitWithActorContext(ctx, EntityBacklogItem, entityID, EventBacklogStatusChanged, actorType, actorID, payload)
 }
 
 func (e *Emitter) EmitBacklogPriorityChanged(entityID string, from, to int) {
@@ -259,8 +264,8 @@ func (e *Emitter) EmitRecordCreated(recordID, kind, scenario, backlogRef string,
 // EmitRecordSuperseded records that a record was superseded by another. The
 // successor record's id goes in Event.EntityID; the predecessor goes in the
 // payload, giving stats consumers a directional link without joining tables.
-func (e *Emitter) EmitRecordSuperseded(successorID, supersededID, reason string) {
-	e.emit(EntityRecord, successorID, EventRecordSuperseded, RecordSupersededPayload{
+func (e *Emitter) EmitRecordSuperseded(ctx context.Context, successorID, supersededID, reason string) {
+	e.emitContext(ctx, EntityRecord, successorID, EventRecordSuperseded, RecordSupersededPayload{
 		SupersededID: supersededID,
 		Reason:       reason,
 	})
@@ -416,8 +421,8 @@ func (e *Emitter) EmitReviewRoundCompleted(executionID string, roundNumber, evid
 	})
 }
 
-func (e *Emitter) EmitReviewFailed(executionID, reason string, durationSecs float64) {
-	e.emit(EntityExecution, executionID, EventReviewFailed, ReviewFailedPayload{
+func (e *Emitter) EmitReviewFailed(ctx context.Context, executionID, reason string, durationSecs float64) {
+	e.emitContext(ctx, EntityExecution, executionID, EventReviewFailed, ReviewFailedPayload{
 		ExecutionID:  executionID,
 		Reason:       reason,
 		DurationSecs: durationSecs,
@@ -450,11 +455,42 @@ func proposalActor(p ProposalAppliedPayload) (actorType, actorID string) {
 
 // emit is the internal helper that marshals metadata and appends the event
 // with the default "user" actor.
+//
+// It carries no request context, so provenance cannot be resolved and the row
+// records verification_status=absent. Any event type read by a durability or
+// attribution consumer must use emitContext instead — see
+// docs/internal/PROVENANCE.md § Event seams.
 func (e *Emitter) emit(entityType EntityType, entityID string, eventType EventType, payload any) {
 	e.emitWithActor(entityType, entityID, eventType, "user", "", payload)
 }
 
+// emitContext is the request-aware counterpart to emit. The caller's context
+// carries the verified provenance resolved by api-core's middleware, so the
+// appended row can record who actually performed the mutation.
+func (e *Emitter) emitContext(ctx context.Context, entityType EntityType, entityID string, eventType EventType, payload any) {
+	e.emitWithActorContext(ctx, entityType, entityID, eventType, "user", "", payload)
+}
+
 func (e *Emitter) emitWithActor(entityType EntityType, entityID string, eventType EventType, actorType, actorID string, payload any) {
+	e.emitWithActorContext(context.Background(), entityType, entityID, eventType, actorType, actorID, payload)
+}
+
+// EmitBacklogCreatedFromContext is the request-aware seam used by the
+// backlog mutation path. It keeps the legacy typed emitter API intact while
+// allowing the shared verifier result to reach the append-only event row.
+func (e *Emitter) EmitBacklogCreatedFromContext(ctx context.Context, entityID, kind, status string, priority int, milestone, effort, actorType, actorID string) {
+	e.emitWithActorContext(ctx, EntityBacklogItem, entityID, EventBacklogCreated, actorType, actorID, BacklogCreatedPayload{
+		Kind: kind, Status: status, Priority: priority, Milestone: milestone, Effort: effort,
+	})
+}
+
+func (e *Emitter) emitWithActorContext(ctx context.Context, entityType EntityType, entityID string, eventType EventType, actorType, actorID string, payload any) {
+	prov := provenance.FromContext(ctx)
+	verifiedActorID, verifiedActorType, _, status, verifiedRunID, _ := prov.WriteFields()
+	sessionID, sessionKind := prov.ObservationFields()
+	if prov.IsVerifiedAgent() {
+		actorType, actorID = verifiedActorType, verifiedActorID
+	}
 	var metadata json.RawMessage
 	if payload != nil {
 		data, err := json.Marshal(payload)
@@ -466,13 +502,17 @@ func (e *Emitter) emitWithActor(entityType EntityType, entityID string, eventTyp
 	}
 
 	event := Event{
-		Timestamp:  time.Now().UTC(),
-		EntityType: entityType,
-		EntityID:   entityID,
-		EventType:  eventType,
-		ActorType:  actorType,
-		ActorID:    actorID,
-		Metadata:   metadata,
+		Timestamp:          time.Now().UTC(),
+		EntityType:         entityType,
+		EntityID:           entityID,
+		EventType:          eventType,
+		ActorType:          actorType,
+		ActorID:            actorID,
+		RunID:              verifiedRunID,
+		VerificationStatus: status,
+		HarnessSessionID:   sessionID,
+		HarnessKind:        sessionKind,
+		Metadata:           metadata,
 	}
 
 	if _, err := e.repo.Append(context.Background(), event); err != nil {

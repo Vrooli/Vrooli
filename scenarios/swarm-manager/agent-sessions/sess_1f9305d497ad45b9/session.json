@@ -12,7 +12,7 @@
   },
   "proposal_target": {
     "type": "initiative",
-    "ref": "initiative-proposal-advanced-diff-ux",
+    "ref": "proposal-advanced-diff-ux",
     "name": "Advanced Diff UX for Initiative Proposals"
   }
 }

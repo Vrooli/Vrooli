@@ -358,7 +358,7 @@ func TestApplyEvidenceRequestWorkflow_ExactlyOnce(t *testing.T) {
 	}
 }
 
-// --- Polling / RefreshGatheringRounds tests ---
+// --- Explicit liveness-recovery tests ---
 
 func writeRound(t *testing.T, itemDir string, round Round) {
 	t.Helper()

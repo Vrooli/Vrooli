@@ -53,3 +53,10 @@ Prior operating-mode and agent-operation implementation notes were removed with
 the runtime. Their persisted data is retained as read-only provenance, and
 migration evidence is kept under
 [operations/migration](../operations/migration/).
+
+## Work ladder
+
+- Rung: W0 (goal/problem contract comparison)
+- Evidence: Search found multiple swarm-manager goals, but none directly represents the user-supplied audio-tools reliability plan. Swarm-manager is in scope only for the thin shared-package adapter and focused validation evidence.
+- Constraint: Broad pre-existing swarm-manager health findings remain separate from the audio capture contract.
+- Measured: 2026-08-03.

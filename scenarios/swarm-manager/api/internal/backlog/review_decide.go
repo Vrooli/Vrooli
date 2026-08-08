@@ -170,7 +170,7 @@ func (h *Handler) DecideReview(ctx context.Context, kind BacklogKind, name strin
 	}
 
 	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogStatusChanged(string(kind)+"/"+name, string(priorStatus), string(targetStatus))
+		h.eventLogger.EmitBacklogStatusChanged(ctx, string(kind)+"/"+name, string(priorStatus), string(targetStatus))
 	}
 
 	// Records capture: auto-write a FILLED, searchable record drawn from this

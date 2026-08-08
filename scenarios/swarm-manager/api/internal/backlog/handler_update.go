@@ -96,7 +96,7 @@ func (h *Handler) doUpdatePatch(ctx context.Context, kind BacklogKind, name stri
 		return BacklogItem{}, apiErr
 	}
 
-	h.logAndEmitUpdate(kind, name, oldStatus, existing.Status, oldPriority, existing.Priority, oldEffort, existing.Effort, oldMilestone, existing.Milestone, oldDependsOn, existing.DependsOn)
+	h.logAndEmitUpdate(ctx, kind, name, oldStatus, existing.Status, oldPriority, existing.Priority, oldEffort, existing.Effort, oldMilestone, existing.Milestone, oldDependsOn, existing.DependsOn)
 	h.maybeManuallyAcceptExecution(ctx, kind, name, oldStatus, existing.Status)
 	return existing, nil
 }
@@ -137,6 +137,7 @@ func (h *Handler) saveWithMilestoneUpdate(existing BacklogItem, kind BacklogKind
 
 // logAndEmitUpdate logs the update and emits analytics events for changed fields.
 func (h *Handler) logAndEmitUpdate(
+	ctx context.Context,
 	kind BacklogKind, name string,
 	oldStatus, newStatus BacklogStatus,
 	oldPriority, newPriority int,
@@ -155,7 +156,7 @@ func (h *Handler) logAndEmitUpdate(
 	}
 	entityID := string(kind) + "/" + name
 	if oldStatus != newStatus {
-		h.eventLogger.EmitBacklogStatusChanged(entityID, string(oldStatus), string(newStatus))
+		h.eventLogger.EmitBacklogStatusChanged(ctx, entityID, string(oldStatus), string(newStatus))
 	}
 	if oldPriority != newPriority {
 		h.eventLogger.EmitBacklogPriorityChanged(entityID, oldPriority, newPriority)

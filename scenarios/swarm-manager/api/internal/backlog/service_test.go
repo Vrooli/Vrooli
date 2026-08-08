@@ -160,7 +160,7 @@ func TestService_Create_SessionProvenanceRecordsArtifactBeforeEvents(t *testing.
 	env := newServiceTestEnv(t)
 	item := sampleItem("session-created")
 	item.CreatedBy = &identity.Provenance{
-		Type:        identity.TypeAgent,
+		Actor:       identity.TypeAgent,
 		RunID:       "run-session-1",
 		TaskID:      "task-session-1",
 		ProfileKey:  "swarm-manager/default",
@@ -190,7 +190,7 @@ func TestService_Create_ArtifactFailureRollsBackItem(t *testing.T) {
 	env.artifacts.err = errors.New("artifact store failed")
 	item := sampleItem("artifact-rollback")
 	item.CreatedBy = &identity.Provenance{
-		Type:      identity.TypeAgent,
+		Actor:     identity.TypeAgent,
 		RunID:     "run-session-2",
 		SessionID: "sess_rollback",
 	}

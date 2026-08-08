@@ -30,13 +30,13 @@ func (noopIndexer) IndexRecord(ctx context.Context, r Record) error { return nil
 // seam: records.EventLogger
 type EventLogger interface {
 	EmitRecordCreated(recordID, kind, scenario, backlogRef string, stub bool)
-	EmitRecordSuperseded(recordID, supersededID, reason string)
+	EmitRecordSuperseded(ctx context.Context, recordID, supersededID, reason string)
 }
 
 type noopLogger struct{}
 
-func (noopLogger) EmitRecordCreated(string, string, string, string, bool) {}
-func (noopLogger) EmitRecordSuperseded(string, string, string)            {}
+func (noopLogger) EmitRecordCreated(string, string, string, string, bool)       {}
+func (noopLogger) EmitRecordSuperseded(context.Context, string, string, string) {}
 
 // Service is the records business-logic layer. It owns id generation,
 // stub-vs-filled invariants, supersede cycle detection, and indexing
@@ -293,7 +293,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Record, error) {
 		if _, err := s.store.SetSupersededBy(r.Supersedes, r.ID); err != nil {
 			return Record{}, fmt.Errorf("link supersedes: %w", err)
 		}
-		s.events.EmitRecordSuperseded(r.ID, r.Supersedes, "")
+		s.events.EmitRecordSuperseded(ctx, r.ID, r.Supersedes, "")
 	}
 	if err := s.store.Create(r); err != nil {
 		return Record{}, err
@@ -383,7 +383,7 @@ func (s *Service) Supersede(ctx context.Context, id, successorID, reason string)
 	if err != nil {
 		return Record{}, err
 	}
-	s.events.EmitRecordSuperseded(successorID, id, reason)
+	s.events.EmitRecordSuperseded(ctx, successorID, id, reason)
 	return r, nil
 }
 

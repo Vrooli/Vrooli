@@ -15,7 +15,7 @@ the on-disk layout is `~/.vrooli/<class>/vrooli/swarm-manager/...`.
 
 The scenario source root (`scenarios/swarm-manager/`) keeps only **code**
 (`api/`, `cli/`, `ui/`, `bas/`), **shipped defaults** (`config/`,
-`initialization/`, `requirements/`, `docs/`), and **metadata** (`.vrooli/`). A
+`api/internal/<domain>/`, `requirements/`, `docs/`), and **metadata** (`.vrooli/`). A
 fresh checkout carries zero domain data; the running scenario recreates and
 serves it from storage (locked by `TestFreshCheckout_ServesDomainDataFromStorage`).
 

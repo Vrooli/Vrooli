@@ -832,7 +832,7 @@ func TestServiceApplyBacklogBatchImportProposalUsesSessionAttribution(t *testing
 	if applier.provenance.SessionID != session.ID || applier.provenance.SessionKind != string(KindMetaOrchestration) {
 		t.Fatalf("provenance = %+v", applier.provenance)
 	}
-	if applier.provenance.RunID != session.RunID || applier.provenance.Type != identity.TypeAgent {
+	if applier.provenance.RunID != session.RunID || applier.provenance.Actor != identity.TypeAgent {
 		t.Fatalf("agent provenance = %+v, session run = %q", applier.provenance, session.RunID)
 	}
 	if len(artifacts) != 1 || artifacts[0].EntityRef != "idea/session-item" {

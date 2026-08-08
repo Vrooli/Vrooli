@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTextToSpeechCore, useAudioToolsUnavailableReason } from "../audio-integration";
+import * as ttsRuntime from "../audio-integration/api/tts";
 
 interface UseAgentMessageTTSResult {
   speak: (messageId: string, text: string) => void;
@@ -31,6 +32,13 @@ export function useAgentMessageTTS(): UseAgentMessageTTSResult {
       autoEnabled: false,
       backend: "auto",
       startMuted: false,
+      runtime: {
+        synthesizeTTS: ttsRuntime.synthesizeTTS,
+        synthesizeTTSWithMetrics: ttsRuntime.synthesizeTTSWithMetrics,
+        fetchCachedTTS: ttsRuntime.fetchCachedTTS,
+        getTTSVoices: ttsRuntime.getTTSVoices,
+        reportTTSPlayStart: ttsRuntime.reportTTSPlayStart,
+      },
     },
     {
       voice: "",

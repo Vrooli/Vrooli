@@ -25,7 +25,7 @@ type EventLogger interface {
 	EmitReviewEvidenceVerified(executionID, evidenceID string)
 	EmitReviewRequestCreated(executionID, requestID, description string)
 	EmitReviewRoundCompleted(executionID string, roundNumber, evidenceCount int, classification string, durationSecs float64)
-	EmitReviewFailed(executionID, reason string, durationSecs float64)
+	EmitReviewFailed(ctx context.Context, executionID, reason string, durationSecs float64)
 }
 
 // BacklogItemDirResolver resolves the on-disk directory for a backlog item.
@@ -84,8 +84,9 @@ type EvidenceVerificationProjection func(ctx context.Context, kind, name string,
 // ServiceConfig configures the review service dependencies.
 type ServiceConfig struct {
 	DataRoot string
-	// RunInspector polls agent-run state for gathering rounds. Optional —
-	// without it, stale rounds fall back to age-based recovery.
+	// RunInspector reads agent-run state when an explicit liveness recovery is
+	// requested. It is never called by a periodic worker; without it, stale rounds
+	// fall back to age-based recovery.
 	RunInspector         RunInspector
 	PromptClient         promptmanager.Client
 	ItemDirFn            func(kind, name string) string
@@ -101,7 +102,7 @@ type ServiceConfig struct {
 	VerificationRecorder   EvidenceVerificationRecorder
 	VerificationProjection EvidenceVerificationProjection
 	// RoundMaxAge bounds how long a round may sit in `gathering` before the
-	// poller treats its run as abandoned and finalizes it as failed (which
+	// liveness recovery treats its run as abandoned and finalizes it as failed (which
 	// fires OnRoundTerminal so the item leaves in_review). Zero uses
 	// DefaultRoundMaxAge.
 	RoundMaxAge time.Duration

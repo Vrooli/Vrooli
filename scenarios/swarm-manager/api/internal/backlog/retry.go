@@ -128,7 +128,7 @@ func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 // a retry flow. Persists the item, writes an audit record, and emits the
 // status-changed event. This is the only legitimate writer that moves an
 // item *out* of a terminal status.
-func (h *Handler) reopenForRetry(_ context.Context, item *BacklogItem, newRecord execution.Record, note string) error {
+func (h *Handler) reopenForRetry(ctx context.Context, item *BacklogItem, newRecord execution.Record, note string) error {
 	if !IsTerminalStatus(item.Status) {
 		return fmt.Errorf("reopenForRetry called on non-terminal item (status=%s)", item.Status)
 	}
@@ -154,7 +154,7 @@ func (h *Handler) reopenForRetry(_ context.Context, item *BacklogItem, newRecord
 	}
 
 	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogStatusChanged(string(item.Kind)+"/"+item.Name, string(priorStatus), string(item.Status))
+		h.eventLogger.EmitBacklogStatusChanged(ctx, string(item.Kind)+"/"+item.Name, string(priorStatus), string(item.Status))
 	}
 	h.invalidateAllGraphLenses()
 	return nil

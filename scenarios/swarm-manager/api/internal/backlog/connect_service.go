@@ -276,7 +276,7 @@ func mapDecisionConnectError(err error) error {
 }
 
 func listFiltersFromProto(in *apipb.ListBacklogItemsRequest) (ListFilters, error) {
-	filters := ListFilters{Scenarios: in.GetScenarios(), SpawnedFrom: strings.TrimSpace(in.GetSpawnedFrom()), PlanRef: strings.TrimSpace(in.GetPlanRef())}
+	filters := ListFilters{Scenarios: in.GetScenarios(), SpawnedFrom: strings.TrimSpace(in.GetSpawnedFrom()), PlanRef: strings.TrimSpace(in.GetPlanRef()), ActorID: strings.TrimSpace(in.GetActorId())}
 	for _, raw := range in.GetKinds() {
 		kind, err := ParseBacklogKind(raw)
 		if err != nil {

@@ -38,7 +38,9 @@ import (
 	"swarm-manager/internal/autodrain"
 	"swarm-manager/internal/autofiler"
 	"swarm-manager/internal/backlog"
+	capabilities "swarm-manager/internal/capabilities"
 	"swarm-manager/internal/captures"
+	durabilitysource "swarm-manager/internal/durability"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/goals"
@@ -67,6 +69,8 @@ import (
 	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitionrunner"
 	"swarm-manager/internal/transitions"
+
+	"github.com/vrooli/api-core/provenance"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -251,7 +255,7 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
-	s.router.Use(identity.Middleware(identity.CLIUtilVerifier{}))
+	s.router.Use(provenance.Middleware(provenance.CLIUtilVerifier{}))
 	scenarioRoot := s.scenarioRoot
 	scenariosDir := filepath.Dir(scenarioRoot)
 	s.transitionRegistry = loadTransitionRegistry(scenarioRoot)
@@ -262,6 +266,7 @@ func (s *Server) setupRoutes() {
 	s.registerAudioRoutes()
 	s.registerSettingsRoutes(scenarioRoot) // Must be before backlog/execution (they depend on settings store)
 	s.registerIntegrationStatusRoutes()
+	s.registerCapabilityRoutes()
 	eventlog.NewHandler(s.eventRepo).RegisterRoutes(s.router)
 	s.registerAgentActivityRoutes(scenarioRoot) // Must be before backlog/execution (they depend on agent activity)
 	s.registerScenarioRoutes(scenariosDir)
@@ -342,6 +347,11 @@ func (s *Server) setupRoutes() {
 
 	// --- AI search (must come last so readers see fully-wired stores) ---
 	s.registerAISearchRoutes(backlogHandler)
+}
+
+func (s *Server) registerCapabilityRoutes() {
+	checker := capabilities.ScenarioChecker{Slug: "audio-tools"}
+	capabilities.NewHandler(capabilities.NewRegistry(checker)).RegisterRoutes(s.router)
 }
 
 // registerAISearchRoutes constructs the aisearch service from environment
@@ -750,6 +760,7 @@ func (s *Server) registerRecordsRoutes(dataRoot, scenariosDir string) {
 	s.recordsService = svc
 	s.recordsHandler = handler
 	s.recordsStore = store
+	durabilitysource.NewHandler(s.eventRepo, store).RegisterRoutes(s.router)
 	// Capture hook: auto-write a filled, indexed record on backlog terminal
 	// transitions (the recursive-learning write-side). Backlog must already be
 	// registered (it is — registerBacklogRoutes runs before

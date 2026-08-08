@@ -3,7 +3,7 @@
   "name": "swarm-manager-review-evidence",
   "profileKey": "swarm-manager/review-evidence",
   "description": "Read-only profile for independent evidence gathering through registered capture actions.",
-  "roleRef": "code.smart",
+  "roleRef": "code.default",
   "maxTurns": 450,
   "timeout": "2700s",
   "allowedTools": ["read", "glob", "grep", "shell"],

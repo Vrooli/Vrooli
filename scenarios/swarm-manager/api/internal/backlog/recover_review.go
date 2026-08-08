@@ -209,7 +209,7 @@ func (h *Handler) recoverReviewTo(ctx context.Context, item *BacklogItem, target
 	}
 
 	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogStatusChanged(string(item.Kind)+"/"+item.Name, string(priorStatus), string(item.Status))
+		h.eventLogger.EmitBacklogStatusChanged(ctx, string(item.Kind)+"/"+item.Name, string(priorStatus), string(item.Status))
 	}
 	h.invalidateAllGraphLenses()
 	slog.Info("recovered orphaned review item",

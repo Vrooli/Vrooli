@@ -24,6 +24,35 @@ type recordingFollowUpDispatcher struct {
 	steering string
 }
 
+// decideReviewMutation keeps historical mutation tests focused on the domain
+// behavior. Production has no REST review-decide handler; transport coverage
+// belongs to the Connect DecideAttempt tests in connect_service_test.go.
+func decideReviewMutation(t *testing.T, h *Handler, recorder *httptest.ResponseRecorder, request *http.Request) {
+	t.Helper()
+	vars := mux.Vars(request)
+	kind, err := ParseBacklogKind(vars["kind"])
+	if err != nil {
+		http.Error(recorder, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var input ReviewDecideRequest
+	if err := json.NewDecoder(request.Body).Decode(&input); err != nil {
+		http.Error(recorder, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if input.DecidedBy == "" {
+		input.DecidedBy = "operator:test"
+	}
+	result, err := h.DecideReview(request.Context(), kind, vars["name"], input)
+	if err != nil {
+		http.Error(recorder, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := json.NewEncoder(recorder).Encode(result); err != nil {
+		t.Fatalf("encode decision response: %v", err)
+	}
+}
+
 func TestDecideReview_RecordsVerifiedAtAccept(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 	item := BacklogItem{Name: "verification-snapshot", Title: "Verification snapshot", Status: StatusReviewPending, Kind: KindExecute}
@@ -83,7 +112,7 @@ func TestReviewDecide_AcceptFromReviewPending(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/sample-item/review-decide", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "sample-item"})
 	rec := httptest.NewRecorder()
-	h.ReviewDecide(rec, req)
+	decideReviewMutation(t, h, rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
@@ -139,7 +168,7 @@ func TestReviewDecide_RejectedFromWrongStatus(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/item-"+tc.name+"/review-decide", bytes.NewReader(body))
 			req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "item-" + tc.name})
 			rec := httptest.NewRecorder()
-			h.ReviewDecide(rec, req)
+			decideReviewMutation(t, h, rec, req)
 
 			if rec.Code == http.StatusOK {
 				t.Fatalf("expected non-200 for status %q, got 200: %s", tc.status, rec.Body.String())
@@ -174,7 +203,7 @@ func TestReviewDecide_ItemTerminalHandlerFires(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/hook-item/review-decide", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "hook-item"})
 	rec := httptest.NewRecorder()
-	h.ReviewDecide(rec, req)
+	decideReviewMutation(t, h, rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
@@ -204,7 +233,7 @@ func TestReviewDecide_NoHandler_IsOK(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/no-hook/review-decide", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "no-hook"})
 	rec := httptest.NewRecorder()
-	h.ReviewDecide(rec, req)
+	decideReviewMutation(t, h, rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 with no hook installed, got %d: %s", rec.Code, rec.Body.String())
@@ -225,7 +254,7 @@ func TestReviewDecide_FollowupMapsToNeedsFollowup(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/followup-item/review-decide", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "followup-item"})
 	rec := httptest.NewRecorder()
-	h.ReviewDecide(rec, req)
+	decideReviewMutation(t, h, rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
@@ -247,7 +276,7 @@ func TestReviewDecide_FollowupRequiresTypedInstruction(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/missing-followup/review-decide", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "missing-followup"})
 	rec := httptest.NewRecorder()
-	h.ReviewDecide(rec, req)
+	decideReviewMutation(t, h, rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
 	}
@@ -400,7 +429,7 @@ func TestReviewDecide_DoubleDecide(t *testing.T) {
 	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/twice/review-decide", bytes.NewReader(body1))
 	req1 = mux.SetURLVars(req1, map[string]string{"kind": "execute", "name": "twice"})
 	rec1 := httptest.NewRecorder()
-	h.ReviewDecide(rec1, req1)
+	decideReviewMutation(t, h, rec1, req1)
 	if rec1.Code != http.StatusOK {
 		t.Fatalf("first decide: expected 200, got %d: %s", rec1.Code, rec1.Body.String())
 	}
@@ -409,7 +438,7 @@ func TestReviewDecide_DoubleDecide(t *testing.T) {
 	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/twice/review-decide", bytes.NewReader(body2))
 	req2 = mux.SetURLVars(req2, map[string]string{"kind": "execute", "name": "twice"})
 	rec2 := httptest.NewRecorder()
-	h.ReviewDecide(rec2, req2)
+	decideReviewMutation(t, h, rec2, req2)
 	if rec2.Code == http.StatusOK {
 		t.Fatalf("second decide unexpectedly succeeded: %s", rec2.Body.String())
 	}
@@ -432,7 +461,7 @@ func TestReviewDecide_InvalidDecision(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/bogus-decision/review-decide", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "bogus-decision"})
 	rec := httptest.NewRecorder()
-	h.ReviewDecide(rec, req)
+	decideReviewMutation(t, h, rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
@@ -460,7 +489,7 @@ func TestReviewDecide_MissingRationaleOK(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/no-rationale/review-decide", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "no-rationale"})
 	rec := httptest.NewRecorder()
-	h.ReviewDecide(rec, req)
+	decideReviewMutation(t, h, rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 with empty rationale, got %d: %s", rec.Code, rec.Body.String())

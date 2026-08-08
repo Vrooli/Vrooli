@@ -373,7 +373,7 @@
           "status": "backlog",
           "refs": [
             "depends_on:idea/advanced-diff-ux-spec",
-            "initiative:initiative-proposal-advanced-diff-ux"
+            "initiative:proposal-advanced-diff-ux"
           ]
         },
         {
@@ -2651,8 +2651,8 @@
           ]
         },
         {
-          "identity": "execute/prompt-manager-decision-accept-initiative-proposal-auto-create",
-          "rel_path": "execute/prompt-manager-decision-accept-initiative-proposal-auto-create/spec.json",
+            "identity": "execute/prompt-manager-decision-accept-gated-work",
+            "rel_path": "execute/prompt-manager-decision-accept-gated-work/spec.json",
           "size": 2463,
           "sha256": "0a3d55a8fd703d22dddbf9b838ed8e717df3948ee6def073f7ce1e8113f0d4a6",
           "status": "completed",
@@ -4830,8 +4830,8 @@
           "status": "backlog"
         },
         {
-          "identity": "fix/react-component-library-bottomnav-drift-cleanup-manager",
-          "rel_path": "fix/react-component-library-bottomnav-drift-cleanup-manager/spec.json",
+          "identity": "fix/react-component-library-bottomnav-drift-storage-manager",
+          "rel_path": "fix/react-component-library-bottomnav-drift-storage-manager/spec.json",
           "size": 828,
           "sha256": "d91f5c27a6dc0b7710a92a13274cdd96528f3297f801dbe4bae37c0a8415ba88",
           "status": "backlog"
@@ -4844,8 +4844,8 @@
           "status": "backlog"
         },
         {
-          "identity": "fix/react-component-library-button-drift-cleanup-manager",
-          "rel_path": "fix/react-component-library-button-drift-cleanup-manager/spec.json",
+          "identity": "fix/react-component-library-button-drift-storage-manager",
+          "rel_path": "fix/react-component-library-button-drift-storage-manager/spec.json",
           "size": 811,
           "sha256": "70aa3bc501bb529db19e3918cb2947ad6787c7a2b2e6833d81ac36b6ef2b2dd6",
           "status": "backlog"
@@ -4865,8 +4865,8 @@
           "status": "backlog"
         },
         {
-          "identity": "fix/react-component-library-card-drift-cleanup-manager",
-          "rel_path": "fix/react-component-library-card-drift-cleanup-manager/spec.json",
+          "identity": "fix/react-component-library-card-drift-storage-manager",
+          "rel_path": "fix/react-component-library-card-drift-storage-manager/spec.json",
           "size": 801,
           "sha256": "413c1ff5c43e541496a09e81e4412a6440b8b78a55c48520dc2d780ff6a25241",
           "status": "backlog"
@@ -4886,8 +4886,8 @@
           "status": "backlog"
         },
         {
-          "identity": "fix/react-component-library-datatable-drift-cleanup-manager",
-          "rel_path": "fix/react-component-library-datatable-drift-cleanup-manager/spec.json",
+          "identity": "fix/react-component-library-datatable-drift-storage-manager",
+          "rel_path": "fix/react-component-library-datatable-drift-storage-manager/spec.json",
           "size": 828,
           "sha256": "81e122f29bd09e7f457a429eea3e61fed216ef88cc6b47ce4a8b77792d2edd88",
           "status": "backlog"
@@ -4921,8 +4921,8 @@
           "status": "backlog"
         },
         {
-          "identity": "fix/react-component-library-emptystate-drift-cleanup-manager",
-          "rel_path": "fix/react-component-library-emptystate-drift-cleanup-manager/spec.json",
+          "identity": "fix/react-component-library-emptystate-drift-storage-manager",
+          "rel_path": "fix/react-component-library-emptystate-drift-storage-manager/spec.json",
           "size": 833,
           "sha256": "a2ebd61cf16117e617d0fbe9fbccbc005b13cb0935d336897f56711761673f03",
           "status": "backlog"
@@ -4942,8 +4942,8 @@
           "status": "backlog"
         },
         {
-          "identity": "fix/react-component-library-input-drift-cleanup-manager",
-          "rel_path": "fix/react-component-library-input-drift-cleanup-manager/spec.json",
+          "identity": "fix/react-component-library-input-drift-storage-manager",
+          "rel_path": "fix/react-component-library-input-drift-storage-manager/spec.json",
           "size": 806,
           "sha256": "3eeee9474494cbfbd5b53d2304849f1586be7099ab37da6cb617c9664d2b057f",
           "status": "backlog"
@@ -4963,8 +4963,8 @@
           "status": "backlog"
         },
         {
-          "identity": "fix/react-component-library-select-drift-cleanup-manager",
-          "rel_path": "fix/react-component-library-select-drift-cleanup-manager/spec.json",
+          "identity": "fix/react-component-library-select-drift-storage-manager",
+          "rel_path": "fix/react-component-library-select-drift-storage-manager/spec.json",
           "size": 811,
           "sha256": "5dea42e1a7fef7370dd1220da8e6a8f2861cf71b140cdf40ac10b19d132ca560",
           "status": "backlog"
@@ -4984,8 +4984,8 @@
           "status": "backlog"
         },
         {
-          "identity": "fix/react-component-library-sidebarshell-drift-cleanup-manager",
-          "rel_path": "fix/react-component-library-sidebarshell-drift-cleanup-manager/spec.json",
+          "identity": "fix/react-component-library-sidebarshell-drift-storage-manager",
+          "rel_path": "fix/react-component-library-sidebarshell-drift-storage-manager/spec.json",
           "size": 843,
           "sha256": "429627bf54961511ed6ed378e1431647acedb28a28396667a332d24da61b9922",
           "status": "backlog"
@@ -5005,8 +5005,8 @@
           "status": "backlog"
         },
         {
-          "identity": "fix/react-component-library-statusbadge-drift-cleanup-manager",
-          "rel_path": "fix/react-component-library-statusbadge-drift-cleanup-manager/spec.json",
+          "identity": "fix/react-component-library-statusbadge-drift-storage-manager",
+          "rel_path": "fix/react-component-library-statusbadge-drift-storage-manager/spec.json",
           "size": 838,
           "sha256": "b3d71da6c7c5c52ad16e7d2e52d40ae6dfa036f62069bb2f204578b788443d41",
           "status": "backlog"
@@ -5122,7 +5122,7 @@
           "sha256": "11abc2289f7543cb731fc4281a1ed5c4975c712b7d0bcb45124afd7a32c208ff",
           "status": "backlog",
           "refs": [
-            "initiative:initiative-proposal-advanced-diff-ux"
+            "initiative:proposal-advanced-diff-ux"
           ]
         },
         {
@@ -7276,8 +7276,8 @@
           ]
         },
         {
-          "identity": "initiative-proposal-advanced-diff-ux",
-          "rel_path": "initiatives/initiative-proposal-advanced-diff-ux/initiative.json",
+            "identity": "proposal-advanced-diff-ux",
+            "rel_path": "initiatives/proposal-advanced-diff-ux/initiative.json",
           "size": 672,
           "sha256": "47090f9ccdfef2efc856e0b2c83519cc1b1e69876bf83d144009b0fc05ad6a31",
           "status": "active",
@@ -7408,7 +7408,7 @@
           "sha256": "d8e4599c716bff3eb9b43a01c660114481eecf47b6d0eafe3572295fd65b86f0",
           "status": "active",
           "refs": [
-            "item:execute/prompt-manager-decision-accept-initiative-proposal-auto-create",
+            "item:execute/prompt-manager-decision-accept-gated-work",
             "item:execute/prompt-manager-decision-deferral-primitive",
             "item:execute/prompt-manager-decision-partial-accept-with-modifications",
             "item:fix/prompt-manager-decision-accept-no-options-ergonomics",
@@ -9093,7 +9093,7 @@
         },
         {
           "identity": "rec-1c5319cb37fe0207",
-          "rel_path": "records/cleanup-manager/execute/rec-1c5319cb37fe0207.json",
+          "rel_path": "records/storage-manager/execute/rec-1c5319cb37fe0207.json",
           "size": 1149,
           "sha256": "722af9c050c756e0ed47e17c880a8f76bd6667e524fc6026a81fc61888f46279",
           "status": "shipped"
@@ -9961,7 +9961,7 @@
         },
         {
           "identity": "rec-31020f2eeb8d745a",
-          "rel_path": "records/cleanup-manager/execute/rec-31020f2eeb8d745a.json",
+          "rel_path": "records/storage-manager/execute/rec-31020f2eeb8d745a.json",
           "size": 1164,
           "sha256": "00d4c3dc4a5a2dc90e260207e3997a868777f10a429138bd6847805350753783",
           "status": "partial"
@@ -10569,7 +10569,7 @@
         },
         {
           "identity": "rec-3e4d89e7618a3e4f",
-          "rel_path": "records/cleanup-manager/execute/rec-3e4d89e7618a3e4f.json",
+          "rel_path": "records/storage-manager/execute/rec-3e4d89e7618a3e4f.json",
           "size": 922,
           "sha256": "4572c128dce544245bd70d5cfc027a5875a2528c25b18d00d757d53ef95e0f61",
           "status": "partial"
@@ -11545,7 +11545,7 @@
         },
         {
           "identity": "rec-54e04a1698ce1061",
-          "rel_path": "records/cleanup-manager/execute/rec-54e04a1698ce1061.json",
+          "rel_path": "records/storage-manager/execute/rec-54e04a1698ce1061.json",
           "size": 1896,
           "sha256": "7ae4ff7b358d8212ff70d631b0ef9099e42994309b8a36edad2e806c8d69d409",
           "status": "partial"
@@ -13378,7 +13378,7 @@
         },
         {
           "identity": "rec-7f9e0e6ca9971482",
-          "rel_path": "records/cleanup-manager/execute/rec-7f9e0e6ca9971482.json",
+          "rel_path": "records/storage-manager/execute/rec-7f9e0e6ca9971482.json",
           "size": 786,
           "sha256": "cd6763c55ce9bde563c92501caebfcade7de854fad76ce2ebab3a4d3f4ae0c28",
           "status": "shipped"
@@ -14137,7 +14137,7 @@
         },
         {
           "identity": "rec-9163f229b49f532e",
-          "rel_path": "records/cleanup-manager/execute/rec-9163f229b49f532e.json",
+          "rel_path": "records/storage-manager/execute/rec-9163f229b49f532e.json",
           "size": 1390,
           "sha256": "e986ecc73a4dfc316b55602ed0e88269ae57a10576cfca060b68abc0d0e5433a",
           "status": "shipped"
@@ -15815,7 +15815,7 @@
         },
         {
           "identity": "rec-b5516ae31cc53bc1",
-          "rel_path": "records/cleanup-manager/execute/rec-b5516ae31cc53bc1.json",
+          "rel_path": "records/storage-manager/execute/rec-b5516ae31cc53bc1.json",
           "size": 1056,
           "sha256": "16c410bf487fc6abd9821571993fd7b18be954be9bb0a49651f2e6e008350518",
           "status": "partial"
@@ -17823,7 +17823,7 @@
         },
         {
           "identity": "rec-e24e9c582279c76f",
-          "rel_path": "records/cleanup-manager/execute/rec-e24e9c582279c76f.json",
+          "rel_path": "records/storage-manager/execute/rec-e24e9c582279c76f.json",
           "size": 1258,
           "sha256": "811444df33e6a4f348c44d7281902894173025cf883e24d3aa4634714debbcc0",
           "status": "partial"

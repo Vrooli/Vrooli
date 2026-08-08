@@ -20,7 +20,7 @@ if (typeof (globalThis as { AudioContext?: unknown }).AudioContext === "undefine
 }
 
 // jsdom's WebSocket opens REAL network connections. The voice stack
-// (useVoiceCore mounts → VoiceStreamProvider.preConnect) constructs a
+// (useVoiceCore mounts → PcmVoiceStreamProvider.preConnect) constructs a
 // WebSocket whenever the default capability check reports Whisper healthy,
 // which is the hardcoded default. Any test that renders the message composer
 // (directly or via a page) therefore opened a real socket to the voice-stream

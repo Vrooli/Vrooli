@@ -6,12 +6,6 @@ import (
 	"swarm-manager/internal/attemptstore"
 )
 
-func attemptRoundFilename(n int) string { return attemptstore.RoundFilename(n) }
-
-func saveCapture(itemDir, filename string, data []byte) (string, error) {
-	return attemptstore.SaveCapture(itemDir, "review", filename, data)
-}
-
 // readRounds reads all review/round-*.json files from the item directory,
 // sorted by round number ascending. Durable I/O itself is owned by
 // attemptstore; this package only supplies review decoding and normalization.

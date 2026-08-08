@@ -58,9 +58,15 @@ func (s *Service) ListRounds(kind, name string) ([]Round, error) {
 		if mapRunStatusToRoundStatus(state.Status) == "" {
 			continue
 		}
+		previous := round.Status
 		*round = finalizeRoundFromRunState(*round, state)
 		_ = saveRound(itemDir, *round)
-
+		// Emit exactly once per transition. Reaching here requires the prior
+		// status to be gathering, and the guard above skips this block on every
+		// later poll, so a terminal round is never re-announced.
+		if previous != round.Status {
+			s.emitRoundTerminal(context.Background(), *round)
+		}
 	}
 
 	return rounds, nil
@@ -312,6 +318,52 @@ func (s *Service) DismissRequest(kind, name string, roundNum int, threadID strin
 // execution.ReviewServiceIntegration. Best-effort and idempotent-ish: a new
 // round number is allocated each call, but callers invoke it once per
 // finalization.
+// emitRoundTerminal announces a round reaching a terminal status. Review
+// outcomes are externally-authored pushback evidence: without this the
+// durability lane can never see a review that failed, only ones that were
+// started.
+func (s *Service) emitRoundTerminal(ctx context.Context, round Round) {
+	if s.eventLogger == nil {
+		return
+	}
+	executionID := reviewExecutionID(round)
+	if executionID == "" {
+		return
+	}
+	elapsed := roundElapsedSeconds(round)
+	switch round.Status {
+	case RoundStatusFailed:
+		s.eventLogger.EmitReviewFailed(ctx, executionID, round.FailureReason, elapsed)
+	case RoundStatusComplete:
+		s.eventLogger.EmitReviewRoundCompleted(executionID, round.RoundNum, len(round.Evidence), round.Classification, elapsed)
+	}
+}
+
+// reviewExecutionID prefers the immutable snapshot the round was started from
+// and falls back to the run that produced it.
+func reviewExecutionID(round Round) string {
+	var snapshot struct {
+		ExecutionID string `json:"executionId"`
+	}
+	if len(round.AgentWorkflowSnapshot) > 0 && json.Unmarshal(round.AgentWorkflowSnapshot, &snapshot) == nil {
+		if id := strings.TrimSpace(snapshot.ExecutionID); id != "" {
+			return id
+		}
+	}
+	return strings.TrimSpace(round.RunID)
+}
+
+func roundElapsedSeconds(round Round) float64 {
+	started, err := time.Parse(time.RFC3339, strings.TrimSpace(round.GeneratedAt))
+	if err != nil {
+		return 0
+	}
+	if elapsed := time.Since(started).Seconds(); elapsed > 0 {
+		return elapsed
+	}
+	return 0
+}
+
 func (s *Service) RecordUnavailableReview(kind, name, executionID, reason string) error {
 	itemDir := s.resolveItemDir(kind, name)
 	roundNum, err := nextRoundNumber(itemDir)
@@ -333,6 +385,7 @@ func (s *Service) RecordUnavailableReview(kind, name, executionID, reason string
 	if err := saveRound(itemDir, round); err != nil {
 		return fmt.Errorf("save review-unavailable round: %w", err)
 	}
+	s.emitRoundTerminal(context.Background(), round)
 	slog.Info("recorded review-unavailable round", "kind", kind, "name", name, "round", roundNum, "execution_id", executionID)
 	return nil
 }

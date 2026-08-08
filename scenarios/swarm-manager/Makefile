@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open import-review-evidence
 
 .DEFAULT_GOAL := help
 
@@ -30,6 +30,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
 	@printf "  make open                       Open the scenario in a browser\n"
+	@printf "  make import-review-evidence APPLY=1  Import existing review rounds into the evidence ledger\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
@@ -73,6 +74,9 @@ gen-status: ## Regenerate the UI's backlog-status mirror from the Go SSOT table
 
 gen-status-check: ## Fail if the generated backlog-status mirror is stale
 	@cd api && go run ./cmd/gen-backlog-status -check ../ui/src/types/backlog-status.generated.ts
+
+import-review-evidence: ## Import review rounds into the evidence ledger (requires APPLY=1)
+	@cd api && go run ./cmd/import-review-evidence $(if $(filter 1 true yes,$(APPLY)),--apply,)
 
 fmt: fmt-go fmt-ui ## Format all code
 

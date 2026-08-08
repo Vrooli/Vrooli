@@ -39,6 +39,52 @@ func TestInitSchemaIdempotent(t *testing.T) {
 	}
 }
 
+func TestInitSchemaMigratesLegacyEvidenceTables(t *testing.T) {
+	sqldb, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sqldb.Close() })
+	legacy := []string{
+		`CREATE TABLE evidence_observations (id INTEGER PRIMARY KEY AUTOINCREMENT, source_system TEXT NOT NULL, source_event_id TEXT NOT NULL, run_id TEXT NOT NULL, subject_kind TEXT NOT NULL, subject_id TEXT NOT NULL, action TEXT NOT NULL, confidence TEXT NOT NULL, verification TEXT NOT NULL, content_digest TEXT NOT NULL DEFAULT '', metadata_json TEXT NOT NULL DEFAULT '{}', observed_at TEXT NOT NULL, ownership_status TEXT NOT NULL, actor TEXT NOT NULL DEFAULT '', reason TEXT NOT NULL DEFAULT '')`,
+		`CREATE TABLE evidence_links (observation_id INTEGER NOT NULL, owner_kind TEXT NOT NULL, owner_id TEXT NOT NULL, owner_round INTEGER NOT NULL DEFAULT 0, linked_at TEXT NOT NULL, PRIMARY KEY(observation_id, owner_kind, owner_id, owner_round))`,
+		`CREATE TABLE evidence_migration_audits (migration_key TEXT PRIMARY KEY, source_count INTEGER NOT NULL, projected_count INTEGER NOT NULL, source_digest TEXT NOT NULL, projected_digest TEXT NOT NULL, completed_at TEXT NOT NULL)`,
+		`CREATE TABLE evidence_checkpoints (producer_id TEXT NOT NULL, run_id TEXT NOT NULL, fact_kind TEXT NOT NULL, cursor TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(producer_id, run_id, fact_kind))`,
+		`CREATE TABLE evidence_watermarks (producer_id TEXT NOT NULL, run_id TEXT NOT NULL, fact_kind TEXT NOT NULL, coverage TEXT NOT NULL, completed_at TEXT NOT NULL, PRIMARY KEY(producer_id, run_id, fact_kind))`,
+		`INSERT INTO evidence_observations (source_system, source_event_id, run_id, subject_kind, subject_id, action, confidence, verification, metadata_json, observed_at, ownership_status) VALUES ('old-review', 'event-1', 'run-1', 'criterion', 'execute/item/criterion', 'settled', 'reported', 'none', '{"legacy":true}', '2026-07-30T00:00:00Z', 'owned')`,
+		`INSERT INTO evidence_links (observation_id, owner_kind, owner_id, owner_round, linked_at) VALUES (1, 'backlog', 'execute/item', 2, '2026-07-30T00:00:00Z')`,
+		`INSERT INTO evidence_migration_audits (migration_key, source_count, projected_count, source_digest, projected_digest, completed_at) VALUES ('old/v1', 1, 1, 'source', 'projection', '2026-07-30T00:00:00Z')`,
+		`INSERT INTO evidence_checkpoints (producer_id, run_id, fact_kind, cursor, updated_at) VALUES ('old-review', 'run-1', 'review_evidence', '0', '2026-07-30T00:00:00Z')`,
+		`INSERT INTO evidence_watermarks (producer_id, run_id, fact_kind, coverage, completed_at) VALUES ('old-review', 'run-1', 'review_evidence', 'complete', '2026-07-30T00:00:00Z')`,
+	}
+	for _, statement := range legacy {
+		if _, err := sqldb.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repo := eventlog.NewSQLiteRepository(database.NewFromPrimary(sqldb))
+	if err := repo.InitSchema(context.Background()); err != nil {
+		t.Fatalf("InitSchema: %v", err)
+	}
+	var producer, attemptRef string
+	if err := sqldb.QueryRow(`SELECT producer FROM evidence_observations WHERE id = 'legacy/1'`).Scan(&producer); err != nil {
+		t.Fatal(err)
+	}
+	if err := sqldb.QueryRow(`SELECT attempt_ref FROM evidence_links WHERE observation_id = 'legacy/1'`).Scan(&attemptRef); err != nil {
+		t.Fatal(err)
+	}
+	if producer != "legacy:old-review" || attemptRef != "legacy/backlog/execute/item/2" {
+		t.Fatalf("migrated evidence = producer %q, attempt %q", producer, attemptRef)
+	}
+	var parity bool
+	if err := sqldb.QueryRow(`SELECT parity_proven FROM evidence_migration_audits WHERE migration_key = 'old/v1'`).Scan(&parity); err != nil {
+		t.Fatal(err)
+	}
+	if !parity {
+		t.Fatal("expected migrated parity audit")
+	}
+}
+
 func TestAppendAndSince(t *testing.T) {
 	db := setupTestDB(t)
 	repo := eventlog.NewSQLiteRepository(db)

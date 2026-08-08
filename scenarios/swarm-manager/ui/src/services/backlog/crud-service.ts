@@ -120,9 +120,14 @@ export function createCrudMethods(apiClient: IApiClient) {
         kind: item.kind,
         dependsOn: item.dependsOn ?? [],
         milestone: item.milestone || undefined,
-        acceptanceCriteria: item.acceptanceCriteria ?? [],
+        // Proto JSON emits a present repeated field as an explicit empty array.
+        // Preserve the established create wire contract unless the caller
+        // actually supplied criteria; an explicit empty array remains useful
+        // when a caller intentionally clears criteria through the update path.
+        ...(item.acceptanceCriteria?.length ? { acceptanceCriteria: item.acceptanceCriteria } : {}),
       });
-      const payload = toProtoJson(CreateBacklogItemRequestSchema, message);
+      const payload = toProtoJson(CreateBacklogItemRequestSchema, message) as Record<string, unknown>;
+      if (!item.acceptanceCriteria?.length) delete payload.acceptance_criteria;
       const data = await apiClient.post<unknown>(API_ENDPOINTS.backlog, payload);
       const parsed = parseProtoResponse(backlogItemResponseSchema, data, "backlog item");
       return mapProtoBacklogItem(requireProtoField(parsed.item, "backlog item"));

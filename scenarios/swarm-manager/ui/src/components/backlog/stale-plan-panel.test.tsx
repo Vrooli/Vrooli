@@ -24,8 +24,8 @@ describe("StalePlanPanel", () => {
         name="agent-sandbox-auditability-contract"
         missingPaths={[
           {
-            glob: "scripts/lib/scenario/**",
-            resolved: "scripts/lib/scenario",
+            glob: "retired-plan-path/**",
+            resolved: "retired-plan-path",
             reason: "path does not exist under project root",
           },
           {
@@ -40,7 +40,7 @@ describe("StalePlanPanel", () => {
     expect(
       screen.getByText(/this plan references paths that no longer exist/i),
     ).toBeInTheDocument();
-    expect(screen.getByText("scripts/lib/scenario/**")).toBeInTheDocument();
+    expect(screen.getByText("retired-plan-path/**")).toBeInTheDocument();
     expect(screen.getByText("cli/commands/scenario/**")).toBeInTheDocument();
     expect(
       screen.getByTestId("stale-plan-reworkshop-button"),

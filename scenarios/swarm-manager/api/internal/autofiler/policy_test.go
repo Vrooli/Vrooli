@@ -80,6 +80,6 @@ func autoFiledItem(kind, name string, status backlog.BacklogStatus, archivedAt *
 		Kind:       backlog.BacklogKind(kind),
 		Status:     status,
 		ArchivedAt: archivedAt,
-		CreatedBy:  &identity.Provenance{Type: identity.TypeAgent, Source: Origin(StrategyFeaturePending, "finding-"+name)},
+		CreatedBy:  &identity.Provenance{Actor: identity.TypeAgent, Source: Origin(StrategyFeaturePending, "finding-"+name)},
 	}
 }

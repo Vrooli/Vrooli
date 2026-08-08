@@ -37,7 +37,7 @@ func TestReviewDecide_RecordCaptured_OnAccept(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/fix/rec-cap-accept/review-decide", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"kind": "fix", "name": "rec-cap-accept"})
 	rec := httptest.NewRecorder()
-	h.ReviewDecide(rec, req)
+	decideReviewMutation(t, h, rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
@@ -81,7 +81,7 @@ func TestReviewDecide_RecordSkipped_WhenNoRecord(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/fix/rec-cap-skip/review-decide", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"kind": "fix", "name": "rec-cap-skip"})
 	rec := httptest.NewRecorder()
-	h.ReviewDecide(rec, req)
+	decideReviewMutation(t, h, rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
@@ -108,7 +108,7 @@ func TestReviewDecide_CaptureFailureDoesNotBlockTerminal(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/fix/rec-cap-err/review-decide", bytes.NewReader(body))
 	req = mux.SetURLVars(req, map[string]string{"kind": "fix", "name": "rec-cap-err"})
 	rec := httptest.NewRecorder()
-	h.ReviewDecide(rec, req)
+	decideReviewMutation(t, h, rec, req)
 
 	// Terminal transition must succeed even when record capture fails.
 	if rec.Code != http.StatusOK {

@@ -37,7 +37,7 @@ export class WhisperProvider implements TranscriptionProvider {
 
   // Batch mode has no tail to drop — the full turn ships in a single POST
   // on stop(), so auto-stop arming is a no-op here. Keeps the provider
-  // interface uniform with VoiceStreamProvider.
+  // interface uniform with PcmVoiceStreamProvider.
   dropTail(): void {}
 
   private micAcquireTime = 0;

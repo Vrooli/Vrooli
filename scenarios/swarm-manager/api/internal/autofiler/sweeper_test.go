@@ -210,6 +210,6 @@ func autoFiledFindingItem(name string, status backlog.BacklogStatus, findingRef 
 		Created:    "2026-07-09T00:00:00Z",
 		Updated:    "2026-07-09T00:00:00Z",
 		FindingRef: findingRef,
-		CreatedBy:  &identity.Provenance{Type: identity.TypeAgent, Source: Origin(StrategyFeaturePending, findingRef)},
+		CreatedBy:  &identity.Provenance{Actor: identity.TypeAgent, Source: Origin(StrategyFeaturePending, findingRef)},
 	}
 }

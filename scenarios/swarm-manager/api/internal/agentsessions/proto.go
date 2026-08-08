@@ -11,7 +11,7 @@ import (
 
 func AttributionFromProvenance(prov identity.Provenance) Attribution {
 	attr := Attribution{
-		Type:        AttributionType(prov.Type),
+		Type:        AttributionType(prov.Actor),
 		RunID:       prov.RunID,
 		TaskID:      prov.TaskID,
 		ProfileKey:  prov.ProfileKey,

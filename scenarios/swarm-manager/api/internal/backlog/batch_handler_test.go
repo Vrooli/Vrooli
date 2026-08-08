@@ -239,7 +239,7 @@ func TestBatchCreate_StampsCreatedByFromRequestProvenance(t *testing.T) {
 	}
 
 	prov := identity.Provenance{
-		Type:       identity.TypeAgent,
+		Actor:      identity.TypeAgent,
 		RunID:      "run-batch-1",
 		TaskID:     "task-batch-1",
 		ProfileKey: "swarm-manager/default",
@@ -296,7 +296,7 @@ func TestBatchCreate_SessionProvenanceRecordsItemAndMilestoneArtifacts(t *testin
 		t.Fatalf("failed to marshal request: %v", err)
 	}
 	prov := identity.Provenance{
-		Type:        identity.TypeAgent,
+		Actor:       identity.TypeAgent,
 		RunID:       "run-batch-session",
 		TaskID:      "task-batch-session",
 		ProfileKey:  "swarm-manager/default",
@@ -348,7 +348,7 @@ func TestApplyAgentSessionBacklogBatchImportCreatesItemsAndArtifacts(t *testing.
 		]
 	}`
 	prov := identity.Provenance{
-		Type:        identity.TypeAgent,
+		Actor:       identity.TypeAgent,
 		RunID:       "run-session-apply",
 		TaskID:      "task-session-apply",
 		ProfileKey:  "swarm-manager/default",
@@ -402,7 +402,7 @@ func TestApplyAgentSessionBacklogBatchImportRollsBackWhenArtifactRecordingFails(
 		]
 	}`
 	prov := identity.Provenance{
-		Type:        identity.TypeAgent,
+		Actor:       identity.TypeAgent,
 		RunID:       "run-session-rollback",
 		TaskID:      "task-session-rollback",
 		ProfileKey:  "swarm-manager/default",

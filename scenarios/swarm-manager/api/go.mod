@@ -18,6 +18,7 @@ require (
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/searchregister-go v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
+	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/sync v0.20.0
 	google.golang.org/protobuf v1.36.11
@@ -63,5 +64,7 @@ replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

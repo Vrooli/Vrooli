@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 type handlerRepository struct {
@@ -18,6 +19,10 @@ func (r *handlerRepository) Append(context.Context, Event) (int64, error)       
 func (r *handlerRepository) Since(context.Context, int64, int) ([]Event, error) { return nil, nil }
 func (r *handlerRepository) All(context.Context) ([]Event, error)               { return nil, nil }
 func (r *handlerRepository) MaxID(context.Context) (int64, error)               { return 0, nil }
+func (r *handlerRepository) QueryByTypesSince(context.Context, []EventType, time.Time) ([]Event, error) {
+	return nil, nil
+}
+
 func (r *handlerRepository) QueryByEntity(_ context.Context, entityType EntityType, entityID string, after int64, limit int) ([]Event, error) {
 	r.entityType, r.entityID, r.after, r.limit = entityType, entityID, after, limit
 	return []Event{{ID: 9, EntityType: entityType, EntityID: entityID, EventType: EventBacklogStatusChanged}}, nil

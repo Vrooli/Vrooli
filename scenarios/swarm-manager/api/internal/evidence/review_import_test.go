@@ -86,3 +86,30 @@ func TestImportReviewRoundsRecordsDeterministicParityAudit(t *testing.T) {
 		t.Fatalf("import must be deterministic: first=%+v repeat=%+v", audit, again)
 	}
 }
+
+func TestImportReviewRoundPreservesUntypedLegacyEvidenceWithoutClaimingSettlement(t *testing.T) {
+	sqldb, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sqldb.Close() })
+	db := database.NewFromPrimary(sqldb)
+	if err := eventlog.NewSQLiteRepository(db).InitSchema(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	round := review.Round{RoundNum: 1, Evidence: []review.EvidenceItem{{Description: "An old untyped artifact."}}}
+	audit, err := NewLedger(db).ImportReviewRounds(context.Background(), []ReviewRoundSource{{Kind: "execute", Name: "legacy", Round: round}})
+	if err != nil {
+		t.Fatalf("ImportReviewRounds: %v", err)
+	}
+	if audit.SourceCount != 1 || audit.ProjectionCount != 1 {
+		t.Fatalf("audit = %+v", audit)
+	}
+	var id, action, title string
+	if err := db.QueryRowContext(context.Background(), "SELECT id, action, title FROM evidence_observations").Scan(&id, &action, &title); err != nil {
+		t.Fatal(err)
+	}
+	if id != "backlog/execute/legacy/work.review/1/legacy-evidence-001" || action != "reported" || title != "Legacy review evidence legacy-evidence-001" {
+		t.Fatalf("imported observation = %q, %q, %q", id, action, title)
+	}
+}

@@ -149,7 +149,7 @@ func itemForFinding(f Finding, opts FileOptions, now time.Time) backlog.BacklogI
 			"scenarios/" + slugPathSegment(f.Scenario) + "/**",
 		},
 		CreatedBy: &identity.Provenance{
-			Type:   identity.TypeAgent,
+			Actor:  identity.TypeAgent,
 			Source: Origin(opts.Strategy, f.StableID()),
 		},
 	}

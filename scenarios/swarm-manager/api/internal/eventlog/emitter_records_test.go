@@ -1,6 +1,7 @@
 package eventlog_test
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -50,7 +51,7 @@ func TestEmitRecordCreated_Stub(t *testing.T) {
 
 func TestEmitRecordSuperseded(t *testing.T) {
 	emitter, repo := setupEmitter(t)
-	emitter.EmitRecordSuperseded("rec-new", "rec-old", "regression")
+	emitter.EmitRecordSuperseded(context.Background(), "rec-new", "rec-old", "regression")
 
 	e := lastEvent(t, repo)
 	if e.EntityID != "rec-new" {

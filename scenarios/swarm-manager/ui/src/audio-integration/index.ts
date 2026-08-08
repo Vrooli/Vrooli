@@ -4,20 +4,23 @@
 // own AudioAdminService and AudioRuntimeService. The browser never sees
 // audio-tools' host; swarm-manager's API owns the inter-scenario hop.
 
+import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
+import { buildVoiceStreamWsUrl, transcribeAudioWithRetry } from "./api/voice";
+
+export function registerVoiceTransport(): void {
+  registerBrowserVoiceTransport({
+    buildStreamUrl: (language, sessionId, resumeToken) => buildVoiceStreamWsUrl(language, sessionId, resumeToken),
+    transcribeRetained: (blob, language) => transcribeAudioWithRetry(blob, 2, language),
+  });
+}
+
 export { MicReadinessIndicator } from "./MicReadinessIndicator";
 export type { MicReadinessIndicatorProps } from "./MicReadinessIndicator";
 export { useVoiceConfigStore } from "./hooks/useVoiceConfigStore";
 export type { VoiceConfigState } from "./hooks/useVoiceConfigStore";
 export { useHydrateVoiceConfig } from "./hooks/useHydrateVoiceConfig";
 
-export {
-  useServerVadStateStore,
-  setServerVadState,
-  resetServerVadState,
-  _resetServerVadStateForTesting,
-  SERVER_VAD_STALE_MS,
-} from "./hooks/useServerVadStateStore";
-export type { ServerVadStateSnapshot } from "./hooks/useServerVadStateStore";
+
 
 // Connect client + React context for consumers calling audio-tools RPCs.
 export {
@@ -36,29 +39,19 @@ export type {
 
 // =============================================================================
 // Voice (STT) capability surface.
-// =============================================================================
-
-export * from "./hooks/voice/types";
-export * from "./hooks/voice/audioUtils";
-export * from "./hooks/voice/audioCues";
-export * from "./hooks/voice/activity";
-export * from "./hooks/voice/vad";
-export * from "./hooks/voice/autoStopDecision";
-export * from "./hooks/voice/sharedAudioContext";
-export * from "./hooks/voice/micReadiness";
-export { VoiceStreamProvider } from "./hooks/voice/VoiceStreamProvider";
-export { PcmVoiceStreamProvider } from "./hooks/voice/PcmVoiceStreamProvider";
+//
+// The protocol, PCM provider, voice core, VAD, lifecycle, and wake-word
+// substrate are exported from the shared browser package. Only the
+// microphone readiness seam remains host-local where it exists.
+export * from "@vrooli/audio-capture-browser";
 export { WhisperProvider } from "./hooks/voice/WhisperProvider";
 export { WebSpeechProvider } from "./hooks/voice/WebSpeechProvider";
-export * from "./hooks/voice/wakeword";
 
-// =============================================================================
 // TTS capability surface.
 // =============================================================================
 
-export * from "./hooks/tts/types";
-export { KokoroProvider } from "./hooks/tts/KokoroProvider";
-export { BrowserTTSProvider } from "./hooks/tts/BrowserTTSProvider";
+export type { TTSBackend, TTSPlaybackCapabilities, TTSPlaybackState, TTSProvider, TTSSpeakOptions, TTSVoiceInfo } from "@vrooli/audio-capture-browser";
+export { KokoroProvider, BrowserTTSProvider } from "@vrooli/audio-capture-browser";
 
 // =============================================================================
 // API surfaces (audio operations against swarm-manager's own API).
@@ -75,7 +68,7 @@ export {
   updateTTSSummarizeConfig,
   reportTTSEvent,
 } from "./api/tts";
-export type { TTSConfig, TTSSummarizeConfig, TTSSummarizeModel, TTSVoiceInfo, TTSPlaybackEvent } from "./api/tts";
+export type { TTSConfig, TTSSummarizeConfig, TTSSummarizeModel, TTSPlaybackEvent } from "./api/tts";
 
 export {
   buildVoiceStreamWsUrl,
@@ -115,16 +108,16 @@ export type {
 // Generic, scenario-agnostic core React hooks.
 // =============================================================================
 
-export { useVoiceCore } from "./hooks/useVoiceCore";
+export { useScenarioVoiceCore as useVoiceCore } from "./hooks/useVoiceCore";
 export type { UseVoiceCoreOptions, VoiceCapabilityProbe } from "./hooks/useVoiceCore";
 
-export { useTextToSpeechCore } from "./hooks/useTextToSpeechCore";
+export { useTextToSpeechCore } from "@vrooli/audio-capture-browser";
 export type {
   UseTextToSpeechCoreOptions,
   TTSCoreSpeakSettings,
   TTSCoreState,
   TTSCorePlaybackEvent,
-} from "./hooks/useTextToSpeechCore";
+} from "@vrooli/audio-capture-browser";
 
 // Canonical capability + feature slugs for audio-tools (drift-safe via proto enum).
 export { AUDIO_TOOLS_CAPABILITY_SLUG, featureSlug, allFeatureSlugs, AudioToolsFeature } from "./features";

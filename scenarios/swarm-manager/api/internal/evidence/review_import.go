@@ -40,9 +40,10 @@ func (l *Ledger) ImportReviewRounds(ctx context.Context, sources []ReviewRoundSo
 		if strings.TrimSpace(source.Kind) == "" || strings.TrimSpace(source.Name) == "" || source.Round.RoundNum <= 0 {
 			return MigrationAudit{}, fmt.Errorf("review evidence import requires kind, name, and positive round number")
 		}
-		for _, item := range source.Round.Evidence {
-			_, _ = sourceHash.Write([]byte(source.Kind + "\x00" + source.Name + "\x00" + fmt.Sprintf("%d", source.Round.RoundNum) + "\x00" + item.ID + "\x00" + item.CriterionID + "\x00" + item.Settlement + "\n"))
-			_, _ = projectionHash.Write([]byte(fmt.Sprintf("backlog/%s/%s/work.review/%d/%s\n", source.Kind, source.Name, source.Round.RoundNum, item.ID)))
+		for index, item := range source.Round.Evidence {
+			id, _, settlement := legacyEvidenceFields(item, index)
+			_, _ = sourceHash.Write([]byte(source.Kind + "\x00" + source.Name + "\x00" + fmt.Sprintf("%d", source.Round.RoundNum) + "\x00" + id + "\x00" + item.CriterionID + "\x00" + settlement + "\n"))
+			_, _ = projectionHash.Write([]byte(fmt.Sprintf("backlog/%s/%s/work.review/%d/%s\n", source.Kind, source.Name, source.Round.RoundNum, id)))
 			sourceCount++
 		}
 		if err := l.ImportReviewRound(ctx, source.Kind, source.Name, source.Round); err != nil {
@@ -67,7 +68,7 @@ func (l *Ledger) countImportedReviewEvidence(ctx context.Context, kind, name str
 	}
 	attemptRef := fmt.Sprintf("backlog/%s/%s/work.review/%d", kind, name, roundNum)
 	var count int
-	err := l.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM evidence_links JOIN evidence_observations ON evidence_observations.id = evidence_links.observation_id WHERE attempt_ref = ? AND producer = 'swarm-review' AND source_system = 'work.review' AND action IN ('settled', 'refuted', 'unavailable')`, attemptRef).Scan(&count)
+	err := l.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM evidence_links JOIN evidence_observations ON evidence_observations.id = evidence_links.observation_id WHERE attempt_ref = ? AND producer = 'swarm-review' AND source_system = 'work.review' AND confidence = 'reported'`, attemptRef).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count imported review evidence: %w", err)
 	}
@@ -88,13 +89,14 @@ func (l *Ledger) ImportReviewRound(ctx context.Context, kind, name string, round
 	if parsed, err := time.Parse(time.RFC3339, round.GeneratedAt); err == nil {
 		observedAt = parsed
 	}
-	for _, item := range round.Evidence {
+	for index, item := range round.Evidence {
+		id, title, settlement := legacyEvidenceFields(item, index)
 		criterionID := strings.TrimSpace(item.CriterionID)
 		if criterionID == "" {
-			criterionID = "legacy-unbound:" + item.ID
+			criterionID = "legacy-unbound:" + id
 		}
 		subjectID := fmt.Sprintf("%s/%s/%s", kind, name, criterionID)
-		if err := l.Record(ctx, Observation{ID: attemptRef + "/" + item.ID, Producer: "swarm-review", SourceSystem: "work.review", RunID: runID, SubjectKind: "criterion", SubjectID: subjectID, Action: item.Settlement, Confidence: "reported", Title: item.Title, Description: item.Description, ObservedAt: observedAt}, attemptRef); err != nil {
+		if err := l.Record(ctx, Observation{ID: attemptRef + "/" + id, Producer: "swarm-review", SourceSystem: "work.review", RunID: runID, SubjectKind: "criterion", SubjectID: subjectID, Action: settlement, Confidence: "reported", Title: title, Description: item.Description, ObservedAt: observedAt}, attemptRef); err != nil {
 			return err
 		}
 		if !item.Verified {
@@ -104,9 +106,29 @@ func (l *Ledger) ImportReviewRound(ctx context.Context, kind, name string, round
 		if parsed, err := time.Parse(time.RFC3339, item.VerifiedAt); err == nil {
 			verifiedAt = parsed
 		}
-		if err := l.Record(ctx, Observation{ID: attemptRef + "/" + item.ID + "/operator_verified", Producer: "swarm-review", SourceSystem: "work.review", RunID: runID, SubjectKind: "criterion", SubjectID: subjectID, Action: "operator_verified", Confidence: "operator_verified", Title: item.Title, Description: item.Description, Actor: "unknown-legacy", Reason: "Imported legacy review verification flag.", ObservedAt: verifiedAt}, attemptRef); err != nil {
+		if err := l.Record(ctx, Observation{ID: attemptRef + "/" + id + "/operator_verified", Producer: "swarm-review", SourceSystem: "work.review", RunID: runID, SubjectKind: "criterion", SubjectID: subjectID, Action: "operator_verified", Confidence: "operator_verified", Title: title, Description: item.Description, Actor: "unknown-legacy", Reason: "Imported legacy review verification flag.", ObservedAt: verifiedAt}, attemptRef); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// legacyEvidenceFields preserves older rounds that predate typed settlement
+// fields. Missing settlement means only that an artifact was reported, not
+// that its criterion was delivered; missing IDs/titles receive deterministic
+// recovery values so the ledger can remain complete and idempotent.
+func legacyEvidenceFields(item review.EvidenceItem, index int) (id, title, settlement string) {
+	id = strings.TrimSpace(item.ID)
+	if id == "" {
+		id = fmt.Sprintf("legacy-evidence-%03d", index+1)
+	}
+	title = strings.TrimSpace(item.Title)
+	if title == "" {
+		title = "Legacy review evidence " + id
+	}
+	settlement = strings.TrimSpace(item.Settlement)
+	if settlement == "" {
+		settlement = "reported"
+	}
+	return id, title, settlement
 }
