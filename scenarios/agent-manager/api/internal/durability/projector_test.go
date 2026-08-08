@@ -22,7 +22,7 @@ func TestProjectReportsPushbackAndKeepsLanesSeparate(t *testing.T) {
 }
 
 func TestProjectReportsDurableWithoutObservedSignals(t *testing.T) {
-	got := Project(Boundary{Epoch: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)}, Work{ID: "run-2", StartedAt: time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC), Lane: LaneVerified}, nil)
+	got := Project(Boundary{Epoch: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)}, Work{ID: "run-2", Subject: []string{"path:scenarios/agent-manager"}, StartedAt: time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC), Lane: LaneVerified}, nil)
 	if got.Verdict != VerdictDurable || got.SampleSize != 0 || got.NoVerdict {
 		t.Fatalf("verdict = %#v", got)
 	}
@@ -50,7 +50,7 @@ func TestProjectTreatsMissingLaneAsUnlinked(t *testing.T) {
 // must neither inflate the sample nor let an unread lane read as durable.
 func TestProjectTreatsDegradedReadAsUnknownNotSignal(t *testing.T) {
 	epoch := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	got := Project(Boundary{Epoch: epoch}, Work{ID: "run-5", StartedAt: epoch.Add(time.Hour), Lane: LaneVerified}, []Evidence{
+	got := Project(Boundary{Epoch: epoch}, Work{ID: "run-5", Subject: []string{"path:scenarios/agent-manager"}, StartedAt: epoch.Add(time.Hour), Lane: LaneVerified}, []Evidence{
 		{Kind: "swarm-evidence-unavailable", Reference: "swarm-manager://durability/evidence", At: epoch, Lane: LaneUnlinked, Degraded: true},
 	})
 	if got.Verdict != VerdictUnknown || got.UnknownReason != ReasonEvidenceDegraded {
@@ -138,10 +138,41 @@ func TestResolveBoundaryRefusesWithoutStore(t *testing.T) {
 // here would mean "we found no pushback" when the truth is "we never looked".
 func TestProjectTreatsUnconsultedSourceAsUnknown(t *testing.T) {
 	epoch := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	got := Project(Boundary{Epoch: epoch}, Work{ID: "run-7", StartedAt: epoch.Add(time.Hour), Lane: LaneVerified}, []Evidence{
+	got := Project(Boundary{Epoch: epoch}, Work{ID: "run-7", Subject: []string{"path:scenarios/agent-manager"}, StartedAt: epoch.Add(time.Hour), Lane: LaneVerified}, []Evidence{
 		{Kind: "swarm-evidence-not-configured", Reference: "swarm-manager://durability/evidence", At: epoch, Lane: LaneUnlinked, Degraded: true},
 	})
 	if got.Verdict != VerdictUnknown || got.UnknownReason != ReasonEvidenceDegraded {
+		t.Fatalf("verdict = %#v", got)
+	}
+}
+
+// The rework lane searches by subject, so subjectless work leaves it blind.
+// An empty evidence set then means "nothing was searched for", which reads
+// identically to a clean scan unless the verdict says otherwise.
+func TestProjectDoesNotGradeSubjectlessWorkAsDurable(t *testing.T) {
+	epoch := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	for name, subject := range map[string][]string{
+		"nil":    nil,
+		"empty":  {},
+		"blank":  {"   "},
+		"blanks": {"", "\t"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := Project(Boundary{Epoch: epoch}, Work{ID: "run-8", Subject: subject, StartedAt: epoch.Add(time.Hour), Lane: LaneVerified}, nil)
+			if got.Verdict != VerdictUnknown || got.UnknownReason != ReasonNoSubject {
+				t.Fatalf("verdict = %#v", got)
+			}
+		})
+	}
+}
+
+// Unattributed work is the more fundamental gap: reporting a missing subject
+// for work we could not attribute at all would send a consumer to fix the
+// wrong thing.
+func TestProjectPrefersUnattributedOverNoSubject(t *testing.T) {
+	epoch := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	got := Project(Boundary{Epoch: epoch}, Work{ID: "run-9", StartedAt: epoch.Add(time.Hour), Lane: LaneUnlinked}, nil)
+	if got.Verdict != VerdictUnknown || got.UnknownReason != ReasonUnattributedWork {
 		t.Fatalf("verdict = %#v", got)
 	}
 }

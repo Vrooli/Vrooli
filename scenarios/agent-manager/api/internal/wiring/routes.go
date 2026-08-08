@@ -60,6 +60,7 @@ type RouteDependencies struct {
 	EventRepository       eventlog.Repository
 	InvocationReadModel   invocationreadmodel.Store
 	ModelPolicyDrift      *modelpolicydrift.Scheduler
+	TranscriptImporter    *orchestration.TranscriptImportScheduler
 	WorkspaceSandbox      interface {
 		IsAvailable(context.Context) (bool, string)
 	}
@@ -110,6 +111,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.WithPermissionPolicy(deps.PermissionPolicyState, deps.PermissionPolicy),
 		handlers.WithObservedReceipts(eventbus.Client{BaseURL: eventsBaseURL}),
 		handlers.WithReceiptAvailabilityReader(receiptAvailability),
+		handlers.WithTranscriptImporter(deps.TranscriptImporter),
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
 	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)

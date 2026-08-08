@@ -35,3 +35,20 @@ func (h *Handler) BackfillRunSubjects(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, result)
 }
+
+// ImportTranscriptSweep runs the scheduled importer's sweep on demand. It is
+// the same idempotent operation the scheduler runs, so an operator diagnosing a
+// stale corpus never has to wait out the interval or reach for a second import
+// path that could drift from the scheduled one.
+func (h *Handler) ImportTranscriptSweep(w http.ResponseWriter, r *http.Request) {
+	if h.transcriptImporter == nil {
+		writeSimpleError(w, r, "service", "transcript import sweep is unavailable")
+		return
+	}
+	summary, err := h.transcriptImporter.RunOnce(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, summary)
+}

@@ -31,6 +31,11 @@ const (
 const (
 	ReasonUnattributedWork = "unattributed_work"
 	ReasonEvidenceDegraded = "evidence_degraded"
+	// ReasonNoSubject marks work that carries no subject to search for. The
+	// rework lane matches evidence by subject, so subjectless work leaves that
+	// lane blind: an empty evidence set then means "nothing was searched", not
+	// "nothing was found", and cannot clear the bar VerdictDurable sets.
+	ReasonNoSubject = "no_subject"
 )
 
 type Boundary struct {
@@ -160,6 +165,9 @@ func Project(boundary Boundary, work Work, evidence []Evidence) Verdict {
 	case out.Lane == LaneUnlinked:
 		out.Verdict = VerdictUnknown
 		out.UnknownReason = ReasonUnattributedWork
+	case !hasSubject(work.Subject):
+		out.Verdict = VerdictUnknown
+		out.UnknownReason = ReasonNoSubject
 	case len(out.Degradations) > 0:
 		out.Verdict = VerdictUnknown
 		out.UnknownReason = ReasonEvidenceDegraded
@@ -167,6 +175,18 @@ func Project(boundary Boundary, work Work, evidence []Evidence) Verdict {
 		out.Verdict = VerdictDurable
 	}
 	return out
+}
+
+// hasSubject reports whether the work names anything the rework lane can search
+// for. An all-blank subject list is treated as absent, not as a searched-and-
+// empty one.
+func hasSubject(subject []string) bool {
+	for _, value := range subject {
+		if strings.TrimSpace(value) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func sortEvidence(items []Evidence) {

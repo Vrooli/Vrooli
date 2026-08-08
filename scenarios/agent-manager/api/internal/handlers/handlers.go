@@ -63,6 +63,17 @@ type Handler struct {
 	permissionPolicy      *permissionpolicy.Service
 	receipts              eventbus.Client
 	receiptAvailability   ReceiptAvailabilityReader
+	transcriptImporter    TranscriptImportRunner
+}
+
+// TranscriptImportRunner is the operator-triggerable half of the scheduled
+// transcript importer. It is a seam rather than the concrete scheduler so the
+// handler cannot start, stop, or reschedule the background loop — the only
+// exposed capability is running the same idempotent sweep on demand.
+//
+// seam: handlers.TranscriptImportRunner
+type TranscriptImportRunner interface {
+	RunOnce(ctx context.Context) (orchestration.TranscriptImportSummary, error)
 }
 
 // ReceiptAvailabilityReader explains an otherwise empty receipt ledger.
@@ -109,6 +120,20 @@ func WithObservedReceipts(client eventbus.Client) HandlerOption {
 // when Vrooli Events returns no correlated receipts.
 func WithReceiptAvailabilityReader(reader ReceiptAvailabilityReader) HandlerOption {
 	return func(h *Handler) { h.receiptAvailability = reader }
+}
+
+// WithTranscriptImporter installs the on-demand transcript import sweep so an
+// operator can refresh the corpus without waiting out the scheduler interval.
+func WithTranscriptImporter(runner TranscriptImportRunner) HandlerOption {
+	return func(h *Handler) {
+		// A typed-nil pointer stored in an interface is not nil. Letting one
+		// through would make the endpoint report an empty sweep — indistinguish-
+		// able from "scanned everything, found nothing" — instead of unavailable.
+		if scheduler, ok := runner.(*orchestration.TranscriptImportScheduler); ok && scheduler == nil {
+			return
+		}
+		h.transcriptImporter = runner
+	}
 }
 
 // New creates a new Handler with the given orchestration service.
@@ -216,6 +241,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/import-transcript", h.ImportTranscriptHTTP).Methods("POST")
 	r.HandleFunc("/api/v1/runs/import-session-corpus", h.ImportSessionCorpus).Methods("POST")
 	r.HandleFunc("/api/v1/runs/backfill-labels", h.BackfillImportedRunLabels).Methods("POST")
+	r.HandleFunc("/api/v1/runs/import-sweep", h.ImportTranscriptSweep).Methods("POST")
 	r.HandleFunc("/api/v1/runs/backfill-subjects", h.BackfillRunSubjects).Methods("POST")
 	r.HandleFunc("/api/v1/import/sources", h.ListImportSources).Methods("GET")
 	r.HandleFunc("/api/v1/import/sessions", h.ListRunnerSessions).Methods("GET")

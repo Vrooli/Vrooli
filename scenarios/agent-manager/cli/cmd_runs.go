@@ -58,6 +58,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runImportTranscript(args[1:])
 	case "import-session-corpus":
 		return a.runImportSessionCorpus(args[1:])
+	case "import-sweep":
+		return a.runImportSweep(args[1:])
 	case "backfill-labels":
 		return a.runBackfillLabels(args[1:])
 	case "backfill-subjects":
@@ -145,6 +147,7 @@ Subcommands:
 	  refresh-invocation-facts <id> Refresh evidence only when events advanced
 	  replay-invocation-corpus    Rebuild or refresh a filtered run corpus
 	  import-session-corpus       Import a bounded, reproducible runner-session corpus
+	  import-sweep                Run the scheduled transcript import sweep now
 	  backfill-labels              Recover labels from retained imported transcripts
 	  invocation-aggregate        Aggregate durable invocation facts
 	  invocation-cohort           Select run IDs from durable invocation facts

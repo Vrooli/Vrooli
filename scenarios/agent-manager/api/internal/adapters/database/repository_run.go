@@ -813,16 +813,37 @@ func (r *runRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*
 	return row.toDomain(), nil
 }
 
+// GetByImportProvenance resolves the run that already adopted a harness
+// session. The harness is matched through domain.NormalizeImportHarness rather
+// than by raw string: import paths label the same store differently, and
+// treating the label as part of the identity made each path adopt sessions the
+// other had already imported, duplicating runs on every sweep.
+//
+// An empty session id identifies nothing — every non-imported run shares it —
+// so it resolves to no match instead of an arbitrary row.
 func (r *runRepository) GetByImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) (*domain.Run, error) {
-	query := fmt.Sprintf("SELECT %s FROM runs WHERE import_source_harness = ? AND import_source_session_id = ?", runColumns)
-	var row runRow
-	if err := r.db.GetContext(ctx, &row, query, sourceHarness, sourceSessionID); err != nil {
+	if strings.TrimSpace(sourceSessionID) == "" {
+		return nil, nil
+	}
+	query := fmt.Sprintf("SELECT %s FROM runs WHERE import_source_session_id = ? ORDER BY created_at ASC, id ASC", runColumns)
+	var rows []runRow
+	if err := r.db.SelectContext(ctx, &rows, query, sourceSessionID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, wrapDBError("get_by_import_provenance", "Run", sourceHarness+":"+sourceSessionID, err)
 	}
-	return row.toDomain(), nil
+	wanted := domain.NormalizeImportHarness(sourceHarness)
+	for index := range rows {
+		run := rows[index].toDomain()
+		if run == nil {
+			continue
+		}
+		if domain.NormalizeImportHarness(run.ImportSourceHarness) == wanted {
+			return run, nil
+		}
+	}
+	return nil, nil
 }
 
 func (r *runRepository) Delete(ctx context.Context, id uuid.UUID) error {

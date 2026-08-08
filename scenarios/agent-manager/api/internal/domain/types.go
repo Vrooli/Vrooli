@@ -885,7 +885,9 @@ type Run struct {
 
 	// Import provenance is populated for read-only transcripts adopted from an
 	// external runner store. Source harness plus source session is a stable,
-	// runner-qualified identity used to make corpus imports idempotent.
+	// runner-qualified identity used to make corpus imports idempotent. The
+	// harness half must be compared through [NormalizeImportHarness] — see that
+	// function for why the raw label is descriptive, not identifying.
 	ImportSourceHarness   string     `json:"importSourceHarness,omitempty" db:"import_source_harness"`
 	ImportSourceSessionID string     `json:"importSourceSessionId,omitempty" db:"import_source_session_id"`
 	ImportedAt            *time.Time `json:"importedAt,omitempty" db:"imported_at"`

@@ -125,6 +125,7 @@ func (a *App) runCommands() []cliapp.Command {
 		{"ledger", "Show cross-scenario receipt ledger", "agent-manager run ledger <id> [--with-projections] [--json]", a.runLedger},
 		{"import-transcript", "Adopt an external harness transcript as a read-only run", "agent-manager run import-transcript <path> [--runner type] [--label value] [--json]", a.runImportTranscript},
 		{"import-session-corpus", "Import a bounded, reproducible governed runner-session corpus", "agent-manager run import-session-corpus [--runners codex,claude-code] [--from RFC3339] [--to RFC3339] [--per-month n] [--limit n] [--json]", a.runImportSessionCorpus},
+		{"import-sweep", "Run the scheduled transcript import sweep now", "agent-manager run import-sweep [--json]", a.runImportSweep},
 		{"backfill-labels", "Recover labels from retained imported transcripts", "agent-manager run backfill-labels [--json]", a.runBackfillLabels},
 		{"backfill-subjects", "Project run subjects from retained invocation facts", "agent-manager run backfill-subjects [--json]", a.runBackfillSubjects},
 		{"mine-self-report-vocabulary", "Mine offline self-report phrase candidates for human review", "agent-manager run mine-self-report-vocabulary [--output review.json] <transcript.jsonl> ...", a.runMineSelfReportVocabulary},

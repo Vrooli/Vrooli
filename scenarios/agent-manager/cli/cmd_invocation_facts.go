@@ -101,6 +101,24 @@ func (a *App) runBackfillLabels(args []string) error {
 	return nil
 }
 
+func (a *App) runImportSweep(args []string) error {
+	fs := flag.NewFlagSet("run import-sweep", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, err := a.services.Runs.ImportSweep()
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+	} else {
+		fmt.Println(string(body))
+	}
+	return nil
+}
+
 func (a *App) runBackfillSubjects(args []string) error {
 	fs := flag.NewFlagSet("run backfill-subjects", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)

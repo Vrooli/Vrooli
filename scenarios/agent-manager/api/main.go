@@ -205,7 +205,7 @@ func (s *Server) setupRoutes() {
 		PricingService: s.pricingService, PricingRepository: s.pricingRepository, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
 		PermissionPolicyState: s.permissionPolicyState, PermissionPolicy: s.permissionPolicy, Storage: s.storage,
 		StatsEngine: s.statsEngine, HealthStore: s.healthStore, EventRepository: s.eventRepo, InvocationReadModel: s.invocationReadModel,
-		ModelPolicyDrift: s.modelPolicyDrift,
+		ModelPolicyDrift: s.modelPolicyDrift, TranscriptImporter: s.transcriptImporter,
 		WorkspaceSandbox: s.workspaceSandbox,
 	})
 }

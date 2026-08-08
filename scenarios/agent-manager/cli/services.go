@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -986,6 +987,18 @@ func (s *RunService) BackfillLabels() ([]byte, error) {
 
 func (s *RunService) BackfillSubjects() ([]byte, error) {
 	return s.api.Request("POST", "/api/v1/runs/backfill-subjects", nil, nil)
+}
+
+// importSweepTimeout bounds the on-demand sweep generously. A sweep re-reads
+// every governed harness transcript — measured at ~90s over ~4.9k files — so
+// the CLI default would abort it partway and report a transport failure for
+// work the server was completing normally.
+const importSweepTimeout = 15 * time.Minute
+
+// ImportSweep runs the scheduled importer's sweep now. It is idempotent, so a
+// caller diagnosing a stale corpus can repeat it safely.
+func (s *RunService) ImportSweep() ([]byte, error) {
+	return s.api.WithTimeout(importSweepTimeout).Request("POST", "/api/v1/runs/import-sweep", nil, nil)
 }
 
 func (s *RunService) ReplayInvocationFacts(id string) ([]byte, error) {
