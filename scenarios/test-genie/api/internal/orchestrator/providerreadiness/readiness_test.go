@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"test-genie/internal/orchestrator/phasepolicy"
 )
@@ -144,6 +147,54 @@ func TestCheckNoProviderReadinessPolicySkipsProviderWork(t *testing.T) {
 	if !got.Ready || called {
 		t.Fatalf("outcome = %+v called=%v, want ready with no probe", got, called)
 	}
+}
+
+func TestCheckSerializesSameProviderAcrossConcurrentRuns(t *testing.T) {
+	manager := &Manager{}
+	firstStarted := make(chan struct{})
+	secondEntered := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	var active int32
+	var once sync.Once
+	manager.Probe = func(context.Context, Input) (ProbeResult, error) {
+		current := atomic.AddInt32(&active, 1)
+		if current == 1 {
+			once.Do(func() { close(firstStarted) })
+			<-releaseFirst
+		} else {
+			select {
+			case <-secondEntered:
+			default:
+				close(secondEntered)
+			}
+		}
+		atomic.AddInt32(&active, -1)
+		return ProbeResult{Reachable: true, ContractValid: true, IdentityMatch: true}, nil
+	}
+	policy := phasepolicy.RequiredProviderPolicy()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		manager.Check(context.Background(), inputWithPolicy(policy), io.Discard)
+	}()
+	select {
+	case <-firstStarted:
+	case <-time.After(time.Second):
+		t.Fatal("first provider check did not start")
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		manager.Check(context.Background(), inputWithPolicy(policy), io.Discard)
+	}()
+	select {
+	case <-secondEntered:
+		t.Fatal("same-provider checks overlapped across runs")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(releaseFirst)
+	wg.Wait()
 }
 
 func inputWithPolicy(policy phasepolicy.Policy) Input {

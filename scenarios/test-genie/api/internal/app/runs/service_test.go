@@ -385,6 +385,28 @@ func TestCompareRunsUsesCapturedCatalogEvolutionAndTypedReasons(t *testing.T) { 
 	assertComparisonReason(t, byPhase["runtime"], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_PROVIDER_UNAVAILABLE)
 }
 
+func TestLegacyIndexComparisonPreservesHistoricalAnchorBehavior(t *testing.T) {
+	a := runProjection{descriptorErr: sharedruns.ErrDescriptorSnapshotNotFound, record: sharedruns.RunRecord{
+		TreeDigest: "tree:before", PhaseSetDigest: "phase-set:same",
+		Phases: []sharedruns.PhaseRecord{{Name: "unit", Status: "failed"}},
+	}}
+	b := runProjection{descriptorErr: sharedruns.ErrDescriptorSnapshotNotFound, record: sharedruns.RunRecord{
+		TreeDigest: "tree:after", PhaseSetDigest: "phase-set:same",
+		Phases: []sharedruns.PhaseRecord{{Name: "unit", Status: "failed"}},
+	}}
+	if !legacyIndexComparable(a, b) {
+		t.Fatal("matching compact indexes should support a legacy anchor comparison")
+	}
+	if got := comparisonProvenance(a, b); got != "legacy-index" {
+		t.Fatalf("provenance = %q, want legacy-index", got)
+	}
+	if got := legacyVerdict(&runspb.CompareRunsResponse{
+		Behavior: "preexisting", Coverage: "measured", Compatibility: "compatible", Provenance: "legacy-index",
+	}); got != verdictPreexisting {
+		t.Fatalf("legacy verdict = %q, want %q", got, verdictPreexisting)
+	}
+}
+
 func inapplicablePhase(phase, displayName string) sharedruns.PhaseDescriptorSnapshot {
 	descriptor := capturedPhase(phase, displayName)
 	descriptor.Applicability = sharedruns.ApplicabilityDecisionSnapshot{Status: "not_applicable", Planned: false}
@@ -1164,6 +1186,26 @@ func TestFindRunRequiresCurrentComprehensivePhaseSetDigest(t *testing.T) {
 	}
 	if got := resp.Msg.GetRun().GetPhaseSetDigest(); got != currentDigest {
 		t.Fatalf("RunInfo phase_set_digest = %q, want %q", got, currentDigest)
+	}
+}
+
+func TestFindRunWithoutCaptureProfileMatchesOrdinaryComprehensiveRun(t *testing.T) {
+	svc, root := newTestService(t)
+	planned := phases.DefaultPresets()[phases.PresetComprehensive.String()]
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "ordinary", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+		Preset: "comprehensive", CaptureProfile: "", PlannedPhases: planned,
+		PhaseSetDigest: phases.PhaseSetDigest(planned),
+	})
+
+	resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{
+		Scenario: "demo", Preset: "comprehensive", Status: "passed",
+	}))
+	if err != nil {
+		t.Fatalf("FindRun: %v", err)
+	}
+	if !resp.Msg.GetFound() || resp.Msg.GetRun().GetRunId() != "ordinary" {
+		t.Fatalf("ordinary default-profile run was not reusable: %+v", resp.Msg.GetRun())
 	}
 }
 

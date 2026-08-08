@@ -99,6 +99,23 @@ func TestRunSendsScenarioPath(t *testing.T) {
 	}
 }
 
+func TestRunSendsCapabilitySubset(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	cap := &capturingClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
+		Scenario: "demo", Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Assessment: testAssessment(""),
+	}}
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client { return cap }
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	provider := testProvider(false)
+	provider.CapabilitySubset = []string{"architecture", "contracts"}
+	Run(context.Background(), provider, "demo", "/tmp/demo")
+	if got := cap.got.GetCapabilitySubset(); len(got) != 2 || got[0] != "architecture" || got[1] != "contracts" {
+		t.Fatalf("capability subset = %v", got)
+	}
+}
+
 func TestRunDurableStartsOnceAndWaitsForSharedTerminalResponse(t *testing.T) {
 	prevResolve, prevClient := ResolveBaseURL, NewDurableClient
 	terminal := &scenariovalidationv1.ValidateScenarioResponse{Scenario: "demo", Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Assessment: testAssessment("")}
@@ -108,6 +125,7 @@ func TestRunDurableStartsOnceAndWaitsForSharedTerminalResponse(t *testing.T) {
 	t.Cleanup(func() { ResolveBaseURL, NewDurableClient = prevResolve, prevClient })
 
 	provider := testProvider(false)
+	provider.CapabilitySubset = []string{"contracts"}
 	var startedRef RunReference
 	provider.OnStarted = func(ref RunReference) { startedRef = ref }
 	result := RunDurable(context.Background(), provider, "demo", "/tmp/demo", "parent-run-1")
@@ -124,6 +142,9 @@ func TestRunDurableStartsOnceAndWaitsForSharedTerminalResponse(t *testing.T) {
 	// safety authorization (including routed isolation) remains provider-owned.
 	if cap.start.GetScenario() != "demo" || cap.start.GetPath() != "/tmp/demo" {
 		t.Fatalf("start target = %+v", cap.start)
+	}
+	if got := cap.start.GetCapabilitySubset(); len(got) != 1 || got[0] != "contracts" {
+		t.Fatalf("start capability subset = %v", got)
 	}
 	if cap.wait.GetRunId() != "provider-run-1" {
 		t.Fatalf("wait run id = %q", cap.wait.GetRunId())
@@ -257,6 +278,32 @@ func testCapabilityAssessment() *commonv1.MaturityAssessment {
 	a.Findings[0].Maturity.LocalLevel = "L1"
 	a.Presentation = assessmentpkg.BuildPhasePresentation(a)
 	return a
+}
+
+func TestMergeCapabilityResultsRebuildsOnePhaseStanding(t *testing.T) {
+	full := testCapabilityAssessment()
+	full.Findings = append(full.Findings, &commonv1.AssessmentFinding{
+		Code:     "proto.interop_warning",
+		Severity: "SEVERITY_WARNING",
+		Title:    "Interop warning",
+		Maturity: &commonv1.FindingMaturity{CapabilityId: "interop"},
+	})
+	full.Presentation = assessmentpkg.BuildPhasePresentation(full)
+	left := FilterCapabilityResult(&Result{RunResult: shared.RunResult[Summary]{Success: true, Summary: Summary{Scenario: "demo"}}, Assessment: full}, "interop")
+	right := FilterCapabilityResult(&Result{RunResult: shared.RunResult[Summary]{Success: true, Summary: Summary{Scenario: "demo"}}, Assessment: full}, "pwa_native_readiness")
+	merged := MergeCapabilityResults(left, right)
+	if merged == nil || merged.Assessment == nil {
+		t.Fatal("merged result did not retain assessment")
+	}
+	if len(merged.Assessment.GetCapabilities()) != 2 || len(merged.Assessment.GetFindings()) != 2 {
+		t.Fatalf("merged assessment lost capability projections: capabilities=%d findings=%d", len(merged.Assessment.GetCapabilities()), len(merged.Assessment.GetFindings()))
+	}
+	if merged.Summary.Status != "passed" || !merged.Success {
+		t.Fatalf("merged standing should derive a passing status from warnings: %+v", merged.Summary)
+	}
+	if merged.Assessment.GetPresentation() == nil || len(merged.Assessment.GetPresentation().GetCapabilities()) != 2 {
+		t.Fatalf("merged presentation was not rebuilt: %+v", merged.Assessment.GetPresentation())
+	}
 }
 
 func testArchitectureProvider() Provider {

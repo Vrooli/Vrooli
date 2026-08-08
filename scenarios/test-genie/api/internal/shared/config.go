@@ -127,7 +127,7 @@ func LoadTestingConfig(scenarioDir string) ([]byte, error) {
 
 // LoadPhaseConfig loads phase-specific configuration from testing.json.
 // T should be a struct type that can unmarshal the phase-specific section.
-// phaseName is the JSON key for the phase (e.g., "structure", "business").
+// phaseName is the provider descriptor key in the JSON configuration.
 // defaultConfig is returned if the file doesn't exist or the phase section is missing.
 func LoadPhaseConfig[T any](scenarioDir, phaseName string, defaultConfig T) (T, error) {
 	data, err := LoadTestingConfig(scenarioDir)
@@ -159,7 +159,7 @@ func LoadPhaseConfig[T any](scenarioDir, phaseName string, defaultConfig T) (T, 
 
 // MergePhaseConfig loads phase config and merges non-zero values into the provided config.
 // This is useful when you want to start with defaults and override specific fields.
-// phaseName is the JSON key for the phase (e.g., "structure", "business").
+// phaseName is the provider descriptor key in the JSON configuration.
 // config is a pointer to the config struct to populate.
 func MergePhaseConfig[T any](scenarioDir, phaseName string, config *T) error {
 	data, err := LoadTestingConfig(scenarioDir)

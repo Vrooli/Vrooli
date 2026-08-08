@@ -18,7 +18,7 @@ import (
 // surface area was too large to track by hand).
 //
 // The trigger is source-agnostic: it fires on ANY audit that crosses a
-// threshold, not only the architecture phase — a docs/standards/cli/ui load
+// threshold, regardless of descriptor class — a docs/standards/cli/ui load
 // is just as worth tracking. Always logged when it fires — never silent.
 //
 // Two triggers, both env-tunable; the nudge fires when EITHER holds:

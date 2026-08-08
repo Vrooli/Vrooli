@@ -26,7 +26,7 @@ func GateDecisionForComparison(cmp *runspb.CompareRunsResponse) GateDecision {
 	}
 	// "verified" is the V2 spelling for what is now called strict. Keep it
 	// readable in historical comparison envelopes.
-	if cmp.GetProvenance() != "strict" && cmp.GetProvenance() != "shared-scoped" && cmp.GetProvenance() != "verified" {
+	if cmp.GetProvenance() != "strict" && cmp.GetProvenance() != "shared-scoped" && cmp.GetProvenance() != "verified" && cmp.GetProvenance() != "legacy-index" {
 		return GateDecision{VerdictNotComparable, true, "source provenance is unavailable or changed during the test attempt"}
 	}
 	if cmp.GetBehavior() == "preexisting" {

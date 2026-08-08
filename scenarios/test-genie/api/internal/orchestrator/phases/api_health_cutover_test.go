@@ -10,7 +10,9 @@ import (
 func TestAPIHealthCutoverUsesSharedValidationProvider(t *testing.T) {
 	catalog := NewDefaultCatalog(DefaultTimeout)
 
-	apiSpec, ok := catalog.Lookup(API.String())
+	apiName := Name("api")
+	architectureName := Name("architecture")
+	apiSpec, ok := catalog.Lookup(apiName.String())
 	if !ok {
 		t.Fatal("api phase missing from default catalog")
 	}
@@ -30,11 +32,11 @@ func TestAPIHealthCutoverUsesSharedValidationProvider(t *testing.T) {
 		t.Fatalf("api phase description should advertise API readiness ownership, got %q", apiSpec.Description)
 	}
 
-	apiOrder, ok := catalog.Order(API)
+	apiOrder, ok := catalog.Order(apiName)
 	if !ok {
 		t.Fatal("api phase missing order")
 	}
-	architectureOrder, ok := catalog.Order(Architecture)
+	architectureOrder, ok := catalog.Order(architectureName)
 	if !ok {
 		t.Fatal("architecture phase missing order")
 	}
@@ -45,12 +47,13 @@ func TestAPIHealthCutoverUsesSharedValidationProvider(t *testing.T) {
 
 func TestCuratedPresetsIncludeAPIHealth(t *testing.T) {
 	presets := DefaultPresets()
+	apiName := Name("api")
 	for _, preset := range []Preset{PresetArchitectureAudit, PresetComprehensive} {
 		names, ok := presets[preset.String()]
 		if !ok {
 			t.Fatalf("preset %q missing from DefaultPresets", preset)
 		}
-		if !containsPhase(names, API.String()) {
+		if !containsPhase(names, apiName.String()) {
 			t.Fatalf("preset %q must include api phase after API Health cutover, got %v", preset, names)
 		}
 	}

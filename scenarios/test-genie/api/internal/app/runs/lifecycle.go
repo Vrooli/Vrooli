@@ -153,6 +153,12 @@ func (s *Service) prepareAdmission(ctx context.Context, req *orchestrator.SuiteE
 	if preview == nil {
 		return 0, false, connect.NewError(connect.CodeFailedPrecondition, errors.New("resolve execution identity: planner returned no preview"))
 	}
+	// StartRun is the durable RPC path used by the CLI and control-plane
+	// callers. Carry the planner's selected phases and timing guidance into the
+	// executor here; the streaming HTTP path applies the same projection in its
+	// request handler. Without this, the scheduler sees an empty prediction map
+	// and can batch a phase that is already close to its timeout budget.
+	applyAdmissionPreview(req, preview)
 	req.AdmissionTreeDigest = digest
 	req.AdmissionPhaseSetDigest = preview.PhaseSetDigest
 	req.AdmissionDescriptorDigest = preview.DescriptorSnapshotDigest
@@ -164,6 +170,43 @@ func (s *Service) prepareAdmission(ctx context.Context, req *orchestrator.SuiteE
 	req.AdmissionResources = uniqueStrings(resources)
 	total := preview.Summary.EstimatedDurationSeconds
 	return total, total > 0, nil
+}
+
+// applyAdmissionPreview carries the planner's selection and timing guidance
+// into the executor without impersonating an explicit phase request.
+//
+// It used to append every previewed phase onto req.Phases, which silently
+// converted a preset request into an explicit phase request. Downstream that is
+// a different kind of request: resolveDesiredPhaseList treats explicit phases
+// as exact user intent and assigns no preset, so the run recorded
+// preset_used=NULL. Git Control Tower's FindReusableRun keys baseline reuse on
+// Preset=="comprehensive", so every durable run made itself ineligible for the
+// reuse it had just earned. Measured 2026-08-08: runs went from
+// preset=comprehensive with 0 requested phases to preset=NULL with 20.
+//
+// The selection is still carried, because an adaptive profile trims the set to
+// a budget and the executor cannot re-derive that. It now travels in
+// ResolvedPhases, which narrows selection while keeping the preset name.
+func applyAdmissionPreview(req *orchestrator.SuiteExecutionRequest, preview *execution.ExecutionPlanPreview) {
+	if req == nil || preview == nil {
+		return
+	}
+	if len(req.Phases) > 0 {
+		// The operator named phases explicitly; the planner does not override
+		// exact intent.
+		return
+	}
+	for _, phase := range preview.Phases {
+		name := strings.TrimSpace(phase.Name)
+		if name == "" {
+			continue
+		}
+		req.ResolvedPhases = append(req.ResolvedPhases, name)
+		if req.PredictedPhaseDurationsMilliseconds == nil {
+			req.PredictedPhaseDurationsMilliseconds = make(map[string]int64)
+		}
+		req.PredictedPhaseDurationsMilliseconds[strings.ToLower(name)] = int64(phase.EstimatedDurationSeconds) * 1000
+	}
 }
 
 func uniqueStrings(values []string) []string {

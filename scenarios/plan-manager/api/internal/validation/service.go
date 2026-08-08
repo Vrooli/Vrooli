@@ -272,7 +272,9 @@ func (s *service) DeriveBaselineScope(ctx context.Context, planID, phaseID strin
 	if phaseID == "" && strings.TrimSpace(p.BaselineSet.Name) != "" {
 		boundary = fullBaselineSetBoundary(boundary, p.BaselineSet.ScenarioTargets)
 	}
-	return deriveScope(p, refs, boundary), nil
+	scope := deriveScope(p, refs, boundary)
+	scope.Provenance = scopeProvenance(p, phaseID)
+	return scope, nil
 }
 
 // SyncBaseline reads an already-started collection exactly once. The caller is
@@ -876,9 +878,10 @@ func deriveScope(p planmodel.Plan, refs []planmodel.Reference, boundary planmode
 	return BaselineScope{Commands: checkCommands(checks), Locations: locations}
 }
 
-// effectiveBoundary returns the boundary that scopes validation for a phase: the
-// phase's own boundary when it declares one (a narrowing refinement), otherwise
-// the plan-level boundary.
+// effectiveBoundary returns the boundary that scopes validation for a phase.
+// Explicit declarations win. An undeclared phase derives a boundary from its
+// affected areas and scenario code references; only a phase with neither falls
+// back to the plan boundary.
 func effectiveBoundary(p planmodel.Plan, phaseID string) planmodel.ChangeBoundary {
 	if strings.TrimSpace(phaseID) != "" {
 		for _, ph := range p.Phases {
@@ -892,10 +895,60 @@ func effectiveBoundary(p planmodel.Plan, phaseID string) planmodel.ChangeBoundar
 				if !ph.ChangeBoundary.IsZero() {
 					return ph.ChangeBoundary
 				}
+				if derived := derivedPhaseBoundary(ph); !derived.IsZero() {
+					return derived
+				}
 			}
 		}
 	}
 	return p.ChangeBoundary
+}
+
+func scopeProvenance(p planmodel.Plan, phaseID string) string {
+	if strings.TrimSpace(phaseID) == "" {
+		return "plan"
+	}
+	for _, ph := range p.Phases {
+		if ph.ID != phaseID {
+			continue
+		}
+		switch ph.ValidationScope.Mode {
+		case planmodel.ValidationScopeNarrow, planmodel.ValidationScopeFullPlan:
+			return "explicit"
+		}
+		if !ph.ChangeBoundary.IsZero() {
+			return "explicit"
+		}
+		if !derivedPhaseBoundary(ph).IsZero() {
+			return "derived"
+		}
+		return "plan"
+	}
+	return "plan"
+}
+
+func derivedPhaseBoundary(ph planmodel.Phase) planmodel.ChangeBoundary {
+	allow := make([]string, 0, len(ph.AffectedAreas)+len(ph.References))
+	for _, area := range ph.AffectedAreas {
+		path := strings.TrimSpace(strings.ReplaceAll(area, "\\", "/"))
+		if path == "" {
+			continue
+		}
+		if scenario := scenarioFromTarget(path); scenario != "" {
+			allow = append(allow, "scenarios/"+scenario+"/**")
+			continue
+		}
+		allow = append(allow, path)
+	}
+	for _, ref := range ph.References {
+		if ref.Kind != planmodel.ReferenceCode || ref.Future {
+			continue
+		}
+		if scenario := scenarioFromTarget(ref.Target); scenario != "" {
+			allow = append(allow, "scenarios/"+scenario+"/**")
+		}
+	}
+	return planmodel.ChangeBoundary{AcceptanceAllow: allow}.Normalized()
 }
 
 // fullBaselineSetBoundary is used only for plan-level/final validation. A phase

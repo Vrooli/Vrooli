@@ -36,8 +36,8 @@ func TestNormalizePhaseName(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected normalization success")
 	}
-	if name != Unit {
-		t.Fatalf("expected %s but got %s", Unit, name)
+	if name != Name("unit") {
+		t.Fatalf("expected %s but got %s", Name("unit"), name)
 	}
 	if !name.IsZero() && name.Key() != "unit" {
 		t.Fatalf("unexpected map key %s", name.Key())
@@ -59,6 +59,12 @@ func TestPhaseCatalogDescriptors(t *testing.T) {
 		}
 		if descriptor.Source == "" {
 			t.Fatalf("descriptor missing source: %#v", descriptor)
+		}
+		if descriptor.Determinism.Default != "file-determined" && descriptor.Determinism.Default != "observational" {
+			t.Fatalf("descriptor %q missing resolved determinism mode: %#v", descriptor.Name, descriptor.Determinism)
+		}
+		if descriptor.Determinism.Default == "file-determined" && len(descriptor.Determinism.Inputs) == 0 {
+			t.Fatalf("file-determined descriptor %q missing declared inputs", descriptor.Name)
 		}
 	}
 }

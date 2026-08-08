@@ -29,40 +29,42 @@ const (
 
 // PlannedPhase describes a selected phase with timing guidance for operators.
 type PlannedPhase struct {
-	Name                        string                 `json:"name"`
-	DisplayName                 string                 `json:"displayName,omitempty"`
-	Description                 string                 `json:"description,omitempty"`
-	Provider                    string                 `json:"provider,omitempty"`
-	Source                      string                 `json:"source,omitempty"`
-	Optional                    bool                   `json:"optional"`
-	EstimatedDurationSeconds    int                    `json:"estimatedDurationSeconds"`
-	TimeoutSeconds              int                    `json:"timeoutSeconds"`
-	EstimateSource              EstimateSource         `json:"estimateSource"`
-	EstimateConfidence          EstimateConfidence     `json:"estimateConfidence"`
-	EstimateSampleSize          int                    `json:"estimateSampleSize"`
-	EstimatePointSampleCount    int                    `json:"estimatePointSampleCount,omitempty"`
-	EstimateCensoredSampleCount int                    `json:"estimateCensoredSampleCount,omitempty"`
-	EstimateExcludedSampleCount int                    `json:"estimateExcludedSampleCount,omitempty"`
-	EstimateUnknown             bool                   `json:"estimateUnknown,omitempty"`
-	SelectionStatus             string                 `json:"selectionStatus,omitempty"`
-	SelectionReasons            []string               `json:"selectionReasons,omitempty"`
-	OmissionReasons             []string               `json:"omissionReasons,omitempty"`
-	ApplicabilityStatus         applicability.Status   `json:"applicabilityStatus,omitempty"`
-	ApplicabilityReasons        []applicability.Reason `json:"applicabilityReasons,omitempty"`
-	ProviderReadiness           string                 `json:"providerReadiness,omitempty"`
-	Freshness                   string                 `json:"freshness,omitempty"`
-	Policy                      phasepolicy.Policy     `json:"policy,omitempty"`
-	DocPath                     string                 `json:"docPath,omitempty"`
-	DescriptorPath              string                 `json:"descriptorPath,omitempty"`
-	FindingSource               string                 `json:"findingSource,omitempty"`
-	ProfileMembership           []string               `json:"profileMembership,omitempty"`
-	FreshnessRequirement        string                 `json:"freshnessRequirement,omitempty"`
-	PhaseClass                  string                 `json:"phaseClass,omitempty"`
-	RuntimeClass                string                 `json:"runtimeClass,omitempty"`
-	ConcurrencyMode             string                 `json:"concurrencyMode,omitempty"`
-	ConcurrencyGroup            string                 `json:"concurrencyGroup,omitempty"`
-	Dimensions                  []string               `json:"dimensions,omitempty"`
-	RequiredResources           []string               `json:"requiredResources,omitempty"`
+	Name                           string                 `json:"name"`
+	DisplayName                    string                 `json:"displayName,omitempty"`
+	Description                    string                 `json:"description,omitempty"`
+	Provider                       string                 `json:"provider,omitempty"`
+	Source                         string                 `json:"source,omitempty"`
+	Optional                       bool                   `json:"optional"`
+	EstimatedDurationSeconds       int                    `json:"estimatedDurationSeconds"`
+	TimeoutSeconds                 int                    `json:"timeoutSeconds"`
+	EstimateSource                 EstimateSource         `json:"estimateSource"`
+	EstimateConfidence             EstimateConfidence     `json:"estimateConfidence"`
+	EstimateSampleSize             int                    `json:"estimateSampleSize"`
+	EstimatePointSampleCount       int                    `json:"estimatePointSampleCount,omitempty"`
+	EstimateCensoredSampleCount    int                    `json:"estimateCensoredSampleCount,omitempty"`
+	EstimateExcludedSampleCount    int                    `json:"estimateExcludedSampleCount,omitempty"`
+	EstimateReliabilityComposition string                 `json:"estimateReliabilityComposition,omitempty"`
+	EstimateLowConfidenceReason    string                 `json:"estimateLowConfidenceReason,omitempty"`
+	EstimateUnknown                bool                   `json:"estimateUnknown,omitempty"`
+	SelectionStatus                string                 `json:"selectionStatus,omitempty"`
+	SelectionReasons               []string               `json:"selectionReasons,omitempty"`
+	OmissionReasons                []string               `json:"omissionReasons,omitempty"`
+	ApplicabilityStatus            applicability.Status   `json:"applicabilityStatus,omitempty"`
+	ApplicabilityReasons           []applicability.Reason `json:"applicabilityReasons,omitempty"`
+	ProviderReadiness              string                 `json:"providerReadiness,omitempty"`
+	Freshness                      string                 `json:"freshness,omitempty"`
+	Policy                         phasepolicy.Policy     `json:"policy,omitempty"`
+	DocPath                        string                 `json:"docPath,omitempty"`
+	DescriptorPath                 string                 `json:"descriptorPath,omitempty"`
+	FindingSource                  string                 `json:"findingSource,omitempty"`
+	ProfileMembership              []string               `json:"profileMembership,omitempty"`
+	FreshnessRequirement           string                 `json:"freshnessRequirement,omitempty"`
+	PhaseClass                     string                 `json:"phaseClass,omitempty"`
+	RuntimeClass                   string                 `json:"runtimeClass,omitempty"`
+	ConcurrencyMode                string                 `json:"concurrencyMode,omitempty"`
+	ConcurrencyGroup               string                 `json:"concurrencyGroup,omitempty"`
+	Dimensions                     []string               `json:"dimensions,omitempty"`
+	RequiredResources              []string               `json:"requiredResources,omitempty"`
 }
 
 // ExecutionPlanSummary captures total timing guidance for a plan.
@@ -115,8 +117,10 @@ type PhaseDurationSample struct {
 	DurationMilliseconds int64
 	// DurationSeconds is retained for old rows and fixture readers; it is not
 	// used when milliseconds are available.
-	DurationSeconds int
-	CompletedAt     time.Time
+	DurationSeconds   int
+	CompletedAt       time.Time
+	CPUReliability    string
+	MemoryReliability string
 }
 
 // PlanDurationSample is a terminal full-run observation. Legacy rows with an

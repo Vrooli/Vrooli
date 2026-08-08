@@ -96,6 +96,16 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario, path string) (
 	descriptor := load.Descriptors[0]
 	report.Phase = descriptor.Phase
 	s.validateTargetDeclaration(ctx, &report, descriptor)
+	if !descriptor.DeterminismDeclared() {
+		report.add(Finding{
+			Code:        CodeDeterminismUndeclared,
+			Severity:    SeverityWarning,
+			Title:       "Provider determinism policy is implicit",
+			Message:     "The provider descriptor omits determinism, so phase-result reuse remains observational and cannot be audited as an explicit provider decision.",
+			Location:    providerdescriptor.RelPath + ":determinism",
+			Remediation: "Declare determinism.default=file-determined with complete inputs, or declare observational with a reason.",
+		})
+	}
 
 	s.validateDocs(&report, descriptor)
 	validateMaturityContract(&report, descriptor)

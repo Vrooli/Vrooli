@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,6 +20,40 @@ func TestBaselineStartRequestHasDedicatedAdmissionCaller(t *testing.T) {
 	}
 	if got := request.Msg.GetCaptureProfile(); got != "baseline" {
 		t.Fatalf("capture profile = %q, want baseline", got)
+	}
+}
+
+func TestCachedScenarioURLResolverCollapsesConcurrentDiscovery(t *testing.T) {
+	var calls atomic.Int32
+	resolver := &cachedScenarioURLResolver{
+		ttl: time.Minute,
+		resolve: func(context.Context) (string, error) {
+			calls.Add(1)
+			time.Sleep(10 * time.Millisecond)
+			return "http://localhost:15421/", nil
+		},
+	}
+
+	const workers = 8
+	urls := make([]string, workers)
+	errs := make([]error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			urls[i], errs[i] = resolver.Resolve(context.Background())
+		}(i)
+	}
+	wg.Wait()
+
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("discovery calls = %d, want one shared resolution", got)
+	}
+	for i := range urls {
+		if errs[i] != nil || urls[i] != "http://localhost:15421" {
+			t.Fatalf("worker %d got url=%q err=%v", i, urls[i], errs[i])
+		}
 	}
 }
 

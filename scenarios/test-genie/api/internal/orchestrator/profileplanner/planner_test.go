@@ -82,6 +82,29 @@ func TestEstimatorExcludesCensoredSamplesFromPointEstimate(t *testing.T) {
 	}
 }
 
+func TestEstimatorUsesReliableSamplesOnlyWhenBucketIsMixed(t *testing.T) {
+	samples := make([]Sample, 0, 5)
+	for _, duration := range []int{10, 11, 12, 13} {
+		samples = append(samples, Sample{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationSeconds: duration, CPUReliability: "RELIABILITY_RELIABLE", MemoryReliability: "RELIABILITY_RELIABLE"})
+	}
+	samples = append(samples, Sample{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationSeconds: 900, CPUReliability: "RELIABILITY_BEST_EFFORT", MemoryReliability: "RELIABILITY_BEST_EFFORT"})
+	estimate := NewEstimator("demo", samples).Estimate("unit", 120)
+	if estimate.DurationSeconds >= 900 || estimate.ReliabilityComposition != "reliable" {
+		t.Fatalf("mixed bucket used best-effort sample: %#v", estimate)
+	}
+}
+
+func TestEstimatorNamesBestEffortOnlyReason(t *testing.T) {
+	samples := make([]Sample, 0, 5)
+	for _, duration := range []int{10, 11, 12, 13, 14} {
+		samples = append(samples, Sample{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationSeconds: duration, CPUReliability: "RELIABILITY_BEST_EFFORT", MemoryReliability: "RELIABILITY_BEST_EFFORT"})
+	}
+	estimate := NewEstimator("demo", samples).Estimate("unit", 120)
+	if estimate.ReliabilityComposition != "best_effort" || estimate.LowConfidenceReason == "" || estimate.Confidence != EstimateConfidenceLow {
+		t.Fatalf("best-effort estimate is not honest: %#v", estimate)
+	}
+}
+
 func TestEstimatorMillisecondsAndSecondsProduceSameBudgetSelection(t *testing.T) {
 	seconds := NewEstimator("demo", []Sample{
 		{ScenarioName: "demo", PhaseName: "unit", Status: "passed", DurationSeconds: 40},

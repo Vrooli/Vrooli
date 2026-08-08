@@ -42,6 +42,7 @@ type Descriptor struct {
 	PhaseClass           string           `json:"phaseClass,omitempty"`
 	RuntimeClass         string           `json:"runtimeClass,omitempty"`
 	Concurrency          Concurrency      `json:"concurrency,omitempty"`
+	Determinism          Determinism      `json:"determinism,omitempty"`
 	Dimensions           []string         `json:"dimensions,omitempty"`
 	EvidenceKinds        []string         `json:"evidenceKinds,omitempty"`
 	Aliases              []string         `json:"aliases,omitempty"`
@@ -58,11 +59,36 @@ type Descriptor struct {
 	TimeoutValue         time.Duration    `json:"-"`
 	MaturitySpec         *assessment.Spec `json:"-"`
 	concurrencyDeclared  bool             `json:"-"`
+	determinismDeclared  bool             `json:"-"`
 }
 
 type Concurrency struct {
 	Mode   string `json:"mode,omitempty"`
 	Reason string `json:"reason,omitempty"`
+}
+
+// Determinism is the provider-owned cache eligibility declaration. The safe
+// default is observational: a provider must explicitly name every file input
+// before Test Genie can reuse a passed result.
+type Determinism struct {
+	Default      string                         `json:"default,omitempty"`
+	Inputs       []string                       `json:"inputs,omitempty"`
+	Reason       string                         `json:"reason,omitempty"`
+	Capabilities map[string]DeterminismOverride `json:"capabilities,omitempty"`
+}
+
+type DeterminismOverride struct {
+	Mode   string   `json:"mode,omitempty"`
+	Inputs []string `json:"inputs,omitempty"`
+	Reason string   `json:"reason,omitempty"`
+}
+
+// DeterminismDeclared reports whether the provider opted into the explicit
+// cache-determinism contract. An omitted declaration intentionally remains
+// observational for execution, but callers that enforce the contract need to
+// distinguish that safe default from an auditable provider declaration.
+func (d Descriptor) DeterminismDeclared() bool {
+	return d.determinismDeclared
 }
 
 type Targets struct {
@@ -101,6 +127,7 @@ func (d *Descriptor) UnmarshalJSON(raw []byte) error {
 		return err
 	}
 	_, d.concurrencyDeclared = fields["concurrency"]
+	_, d.determinismDeclared = fields["determinism"]
 	return nil
 }
 
@@ -597,6 +624,7 @@ func normalizeOrchestrationDefaults(d *Descriptor) {
 	if d.Concurrency.Mode == "" {
 		d.Concurrency.Mode = "exclusive"
 	}
+	normalizeDeterminism(&d.Determinism)
 	for i, profile := range d.ProfileMembership {
 		d.ProfileMembership[i] = phasekeys.NormalizeKey(profile)
 	}
@@ -611,6 +639,28 @@ func normalizeOrchestrationDefaults(d *Descriptor) {
 	}
 	for i, superseded := range d.Supersedes {
 		d.Supersedes[i] = phasekeys.NormalizeKey(superseded)
+	}
+}
+
+func normalizeDeterminism(d *Determinism) {
+	if d == nil {
+		return
+	}
+	d.Default = strings.ToLower(strings.TrimSpace(d.Default))
+	if d.Default == "" {
+		d.Default = "observational"
+	}
+	d.Reason = strings.TrimSpace(d.Reason)
+	for i, input := range d.Inputs {
+		d.Inputs[i] = strings.TrimSpace(strings.ReplaceAll(input, "\\", "/"))
+	}
+	for capability, override := range d.Capabilities {
+		override.Mode = strings.ToLower(strings.TrimSpace(override.Mode))
+		override.Reason = strings.TrimSpace(override.Reason)
+		for i, input := range override.Inputs {
+			override.Inputs[i] = strings.TrimSpace(strings.ReplaceAll(input, "\\", "/"))
+		}
+		d.Capabilities[capability] = override
 	}
 }
 
@@ -644,6 +694,28 @@ func validateOrchestration(d *Descriptor) []Diagnostic {
 	}
 	if d.concurrencyDeclared && d.Concurrency.Mode == "exclusive" && d.Concurrency.Reason == "" {
 		add("missing_concurrency_reason", "concurrency.reason is required when mode is exclusive")
+	}
+	if d.determinismDeclared {
+		if !oneOf(d.Determinism.Default, "file-determined", "observational") {
+			add("invalid_determinism_mode", "determinism.default must be file-determined or observational")
+		}
+		if d.Determinism.Default == "file-determined" && len(d.Determinism.Inputs) == 0 {
+			add("missing_determinism_inputs", "determinism.inputs is required when determinism.default is file-determined")
+		}
+		if d.Determinism.Default == "observational" && d.Determinism.Reason == "" {
+			add("missing_determinism_reason", "determinism.reason is required when determinism.default is observational")
+		}
+		for capability, override := range d.Determinism.Capabilities {
+			if !oneOf(override.Mode, "file-determined", "observational") {
+				add("invalid_determinism_capability", fmt.Sprintf("determinism capability %q has invalid mode %q", capability, override.Mode))
+			}
+			if override.Mode == "file-determined" && len(override.Inputs) == 0 {
+				add("missing_determinism_capability_inputs", fmt.Sprintf("determinism capability %q requires inputs", capability))
+			}
+			if override.Mode == "observational" && override.Reason == "" {
+				add("missing_determinism_capability_reason", fmt.Sprintf("determinism capability %q requires a reason", capability))
+			}
+		}
 	}
 	if !oneOf(d.Comparison.Mode, "compatible", "changed-unreviewed", "invalidated", "superseded") {
 		add("invalid_comparison_mode", "comparison.mode must be compatible, changed-unreviewed, invalidated, or superseded")

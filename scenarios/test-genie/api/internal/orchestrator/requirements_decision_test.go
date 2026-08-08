@@ -45,11 +45,11 @@ func passedResults(names []string) []PhaseExecutionResult {
 func TestRequirementsSyncStillGatedOnProfileSubsets(t *testing.T) {
 	defs := catalogDefinitions(t)
 	profileSubset := []string{
-		phases.Structure.String(),
-		phases.Docs.String(),
-		phases.Business.String(),
-		phases.Unit.String(),
-		phases.Proto.String(),
+		phases.Name("structure").String(),
+		phases.Name("docs").String(),
+		phases.Name("business").String(),
+		phases.Name("unit").String(),
+		phases.Name("proto").String(),
 	}
 
 	for _, profile := range []string{"quick", "smoke"} {

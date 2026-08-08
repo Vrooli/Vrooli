@@ -94,12 +94,29 @@ func phaseDescriptorSnapshot(def phases.Definition, descriptor providerdescripto
 		ValidationDeliveryMode: strings.TrimSpace(descriptor.Validation.DeliveryMode),
 		ValidationExecution:    descriptor.Validation.Execution,
 		ValidationRunService:   strings.TrimSpace(descriptor.Validation.RunService),
+		Determinism: sharedruns.DeterminismSnapshot{
+			Default:      descriptor.Determinism.Default,
+			Inputs:       append([]string(nil), descriptor.Determinism.Inputs...),
+			Reason:       descriptor.Determinism.Reason,
+			Capabilities: snapshotDeterminismCapabilities(descriptor.Determinism.Capabilities),
+		},
 	}
 	fingerprint, err := sharedruns.PhaseComparisonFingerprint(entry)
 	if err == nil {
 		entry.ComparisonFingerprint = fingerprint
 	}
 	return entry
+}
+
+func snapshotDeterminismCapabilities(values map[string]providerdescriptor.DeterminismOverride) map[string]sharedruns.DeterminismOverride {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make(map[string]sharedruns.DeterminismOverride, len(values))
+	for name, value := range values {
+		out[name] = sharedruns.DeterminismOverride{Mode: value.Mode, Inputs: append([]string(nil), value.Inputs...), Reason: value.Reason}
+	}
+	return out
 }
 
 func maturityReference(descriptor providerdescriptor.Descriptor) string {

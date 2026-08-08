@@ -321,7 +321,7 @@ func (a *phaseAccumulator) observe(obs execution.PhaseObservation) {
 			}
 		}
 	}
-	if (strings.EqualFold(a.phase, "security") || strings.EqualFold(a.findingSource, "security")) &&
+	if strings.EqualFold(a.findingSource, "security") &&
 		(obs.Status == "passed" || obs.Status == "failed") {
 		a.securityObservations = append(a.securityObservations, obs)
 	}
@@ -447,8 +447,8 @@ func worstScenarios(perScenario map[string]*scenarioAcc) []ScenarioFailureRate {
 	return ranked
 }
 
-func securityFriction(phase, findingSource string, observations []execution.PhaseObservation) SecurityFriction {
-	if !strings.EqualFold(phase, "security") && !strings.EqualFold(findingSource, "security") {
+func securityFriction(_ string, findingSource string, observations []execution.PhaseObservation) SecurityFriction {
+	if !strings.EqualFold(findingSource, "security") {
 		return SecurityFriction{}
 	}
 	byScenario := make(map[string][]execution.PhaseObservation)

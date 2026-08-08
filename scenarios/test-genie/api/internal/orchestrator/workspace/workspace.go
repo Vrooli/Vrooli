@@ -35,6 +35,16 @@ type Environment struct {
 	// at default visual-artifact depth; "baseline" requests all-pages visual
 	// capture + video. See internal/captureprofile.
 	CaptureProfile string
+	// Cache identity is frozen during planning. Empty values make a phase
+	// observational rather than guessable.
+	DescriptorSnapshotDigest     string
+	ExecutionConfigurationDigest string
+	SchedulerDecision            string
+	// CapabilitySubset is an execution-time override used only by mixed
+	// determinism phases. It is kept on the workspace environment so the
+	// orchestrator can request the uncached capabilities without changing the
+	// provider-owned phase runner contract.
+	CapabilitySubset []string
 
 	ScenarioName string
 	TargetKind   string

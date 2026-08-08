@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -60,6 +61,9 @@ type Outcome struct {
 	Restarted        bool          `json:"restarted,omitempty"`
 	BestEffort       bool          `json:"bestEffort,omitempty"`
 	Message          string        `json:"message,omitempty"`
+	SpecVersion      string        `json:"specVersion,omitempty"`
+	BuildRevision    string        `json:"buildRevision,omitempty"`
+	FreshnessDigest  string        `json:"freshnessDigest,omitempty"`
 	Err              error         `json:"-"`
 }
 
@@ -116,6 +120,14 @@ type Lifecycle interface {
 // restarted, so the run still finishes and the operator still learns about it.
 const DefaultMaxStaleRestarts = 4
 
+// Discovery is shared host/control-plane work, not provider work. Multiple
+// durable Test Genie runs can enter readiness at once (for example, a Git
+// Control Tower baseline collection), so a per-run worker limit is not enough
+// to protect api-core discovery from a burst of identical lookups.
+const defaultProviderDiscoveryConcurrency = 4
+
+var providerDiscoverySlots = make(chan struct{}, defaultProviderDiscoveryConcurrency)
+
 type Manager struct {
 	Probe     Probe
 	Lifecycle Lifecycle
@@ -136,8 +148,16 @@ type Manager struct {
 	// Now is the clock seam for tests.
 	Now func() time.Time
 
+	// restartMu serializes lifecycle mutations and the per-run restart budget.
+	// Readiness probes may run concurrently, but restarting a provider is a
+	// process mutation and must never overlap another restart.
+	restartMu     sync.Mutex
 	staleRestarts int
 	staleSkipped  []string
+	// providerLocks serialize the complete readiness lifecycle for one
+	// provider across durable runs. Different providers remain concurrent, but
+	// two runs can never restart/start/probe the same provider simultaneously.
+	providerLocks sync.Map // map[string]*sync.Mutex
 }
 
 // StaleReport summarizes what the staleness rails did during a run, so the cost
@@ -168,6 +188,8 @@ func (m *Manager) restartIfStale(ctx context.Context, in Input, result ProbeResu
 	if !verdict.Stale {
 		return false, ""
 	}
+	m.restartMu.Lock()
+	defer m.restartMu.Unlock()
 	limit := m.MaxStaleRestarts
 	if limit == 0 {
 		limit = DefaultMaxStaleRestarts
@@ -213,16 +235,21 @@ func NewManager() *Manager {
 }
 
 func (m *Manager) Check(ctx context.Context, in Input, logWriter io.Writer) Outcome {
+	if m == nil {
+		m = NewManager()
+	}
 	in.Phase = strings.TrimSpace(in.Phase)
 	in.ProviderScenario = strings.TrimSpace(in.ProviderScenario)
+	if in.ProviderScenario != "" {
+		lockValue, _ := m.providerLocks.LoadOrStore(in.ProviderScenario, &sync.Mutex{})
+		lockValue.(*sync.Mutex).Lock()
+		defer lockValue.(*sync.Mutex).Unlock()
+	}
 	if in.Policy.IsZero() {
 		in.Policy = phasepolicy.RequiredProviderPolicy()
 	}
 	if in.Policy.ProviderReadiness == phasepolicy.ProviderReadinessNone || in.ProviderScenario == "" {
 		return Outcome{Phase: in.Phase, ProviderScenario: in.ProviderScenario, Status: OutcomeReady, Ready: true}
-	}
-	if m == nil {
-		m = NewManager()
 	}
 	probe := m.Probe
 	if probe == nil {
@@ -304,6 +331,9 @@ func classify(in Input, probed probeOutcome, started, restarted bool) Outcome {
 		Started:          started,
 		Restarted:        restarted,
 		Message:          result.Message,
+		SpecVersion:      result.SpecVersion,
+		BuildRevision:    result.BuildRevision,
+		FreshnessDigest:  result.FreshnessDigest,
 	}
 	if in.Policy.Freshness == phasepolicy.FreshnessRequireLiveContract && !result.ContractValid {
 		return blocking(in, OutcomeContractInvalid, errors.New(emptyAs(result.Message, "provider contract probe failed")))
@@ -396,11 +426,28 @@ func DefaultProbe(ctx context.Context, in Input) (ProbeResult, error) {
 	if strings.TrimSpace(in.TargetScenario) == "" {
 		return ProbeResult{}, errors.New("target scenario is required")
 	}
+	if err := acquireProviderDiscoverySlot(ctx); err != nil {
+		return ProbeResult{}, fmt.Errorf("wait for provider discovery capacity: %w", err)
+	}
+	defer releaseProviderDiscoverySlot()
 	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, in.ProviderScenario)
 	if err != nil {
 		return ProbeResult{}, fmt.Errorf("resolve %s URL: %w", in.ProviderScenario, err)
 	}
 	return probeAt(ctx, baseURL, in)
+}
+
+func acquireProviderDiscoverySlot(ctx context.Context) error {
+	select {
+	case providerDiscoverySlots <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func releaseProviderDiscoverySlot() {
+	<-providerDiscoverySlots
 }
 
 // probeAt is DefaultProbe with the provider URL already resolved. It owns the

@@ -3,6 +3,7 @@ package runs
 import (
 	"context"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -258,6 +259,43 @@ func TestLifecycleRPC_StartRunPreviewsOnceForAdmission(t *testing.T) {
 		t.Fatalf("planner calls = %d, want 1", got)
 	}
 	close(fake.release)
+}
+
+func TestPrepareAdmissionProjectsPlanTimingIntoDurableRequest(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(root+"/demo", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	planner := &countingRPCPlanner{preview: &execution.ExecutionPlanPreview{
+		ScenarioName: "demo",
+		Phases: []execution.PlannedPhase{
+			{Name: "structure", EstimatedDurationSeconds: 1},
+			{Name: "docs", EstimatedDurationSeconds: 43},
+		},
+		PhaseSetDigest:           "phase:one",
+		DescriptorSnapshotDigest: "descriptor:one",
+		ConfigurationFingerprint: "config:one",
+	}}
+	svc := NewService(root, nil, planner, nil)
+	req := &orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}
+	if _, _, err := svc.prepareAdmission(context.Background(), req); err != nil {
+		t.Fatalf("prepareAdmission: %v", err)
+	}
+	// The selection lands on ResolvedPhases, never on Phases. Phases means the
+	// operator named them, which records no preset and made every durable run
+	// ineligible for the baseline reuse it had just earned.
+	if len(req.Phases) != 0 {
+		t.Fatalf("admission pinned Phases %v; a preset request must stay a preset request", req.Phases)
+	}
+	if got, want := strings.Join(req.ResolvedPhases, ","), "structure,docs"; got != want {
+		t.Fatalf("resolved phases = %q, want %q", got, want)
+	}
+	if got, want := req.PredictedPhaseDurationsMilliseconds["docs"], int64(43_000); got != want {
+		t.Fatalf("docs prediction = %d, want %d", got, want)
+	}
+	if got, want := req.PredictedPhaseDurationsMilliseconds["structure"], int64(1_000); got != want {
+		t.Fatalf("structure prediction = %d, want %d", got, want)
+	}
 }
 
 func TestPrepareAdmissionHonorsCancellation(t *testing.T) {

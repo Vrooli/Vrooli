@@ -277,13 +277,15 @@ func (r *SuiteExecutionRepository) ListPhaseSamples(ctx context.Context, scenari
 	q := fmt.Sprintf(`
 WITH ranked AS (
   SELECT e.scenario_name, p.phase_name, p.status, p.duration_ms, p.duration_seconds, e.completed_at,
+         p.cpu_reliability, p.memory_reliability,
          ROW_NUMBER() OVER (PARTITION BY e.scenario_name, LOWER(p.phase_name) ORDER BY e.completed_at DESC, e.id DESC) AS scenario_rank,
          ROW_NUMBER() OVER (PARTITION BY LOWER(p.phase_name) ORDER BY e.completed_at DESC, e.id DESC) AS global_rank
   FROM suite_execution_phases AS p
   JOIN suite_executions AS e ON e.id = p.execution_id
   WHERE LOWER(p.phase_name) IN (%s) AND e.completed_at >= ?
 )
-SELECT scenario_name, phase_name, status, duration_ms, duration_seconds, completed_at
+SELECT scenario_name, phase_name, status, duration_ms, duration_seconds, completed_at,
+       cpu_reliability, memory_reliability
 FROM ranked
 WHERE (scenario_name = ? AND scenario_rank <= 20)
    OR (scenario_name <> ? AND global_rank <= 50)
@@ -307,6 +309,7 @@ ORDER BY completed_at DESC
 	for rows.Next() {
 		var sample PhaseDurationSample
 		var completedAt any
+		var cpuReliability, memoryReliability sql.NullString
 		if err := rows.Scan(
 			&sample.ScenarioName,
 			&sample.PhaseName,
@@ -314,6 +317,8 @@ ORDER BY completed_at DESC
 			&sample.DurationMilliseconds,
 			&sample.DurationSeconds,
 			&completedAt,
+			&cpuReliability,
+			&memoryReliability,
 		); err != nil {
 			return nil, err
 		}
@@ -321,6 +326,8 @@ ORDER BY completed_at DESC
 		if err != nil {
 			return nil, err
 		}
+		sample.CPUReliability = cpuReliability.String
+		sample.MemoryReliability = memoryReliability.String
 		samples = append(samples, sample)
 	}
 	if err := rows.Err(); err != nil {

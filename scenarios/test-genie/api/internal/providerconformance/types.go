@@ -35,6 +35,7 @@ const (
 	CodeTargetGlobUnresolvable       = "PROVIDER_TARGET_GLOB_UNRESOLVABLE"
 	CodeExecutionRunnerMissing       = "PROVIDER_EXECUTION_RUNNER_MISSING"
 	CodeRunningSpecVersionStale      = "PROVIDER_RUNNING_SPEC_VERSION_STALE"
+	CodeDeterminismUndeclared        = "PROVIDER_DETERMINISM_UNDECLARED"
 )
 
 type Severity string

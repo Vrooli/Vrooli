@@ -76,9 +76,9 @@ func TestRepositoryDescriptorsOwnDisplayNames(t *testing.T) {
 
 func TestMergePresetsPrecedenceAndFiltering(t *testing.T) {
 	allowed := map[string]struct{}{
-		Structure.String(): {},
-		Unit.String():      {},
-		Docs.String():      {},
+		Name("structure").String(): {},
+		Name("unit").String():      {},
+		Name("docs").String():      {},
 	}
 	defaults := map[string][]string{
 		"quick": {"structure", "unit"},
@@ -114,13 +114,13 @@ func TestCuratedPresetsIncludeProto(t *testing.T) {
 		}
 		found := false
 		for _, name := range names {
-			if name == Proto.String() {
+			if name == Name("proto").String() {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("preset %q must include %q for proto contract feedback, got %v", preset, Proto, names)
+			t.Errorf("preset %q must include %q for proto contract feedback, got %v", preset, Name("proto"), names)
 		}
 	}
 }
@@ -195,27 +195,27 @@ func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
 // build instead of silently producing un-attributed findings.
 func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 	producing := map[Name]architecturev1.FindingSource{
-		Structure:    architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
-		Contracts:    architecturev1.FindingSource_FINDING_SOURCE_CLI,
-		UIHealth:     architecturev1.FindingSource_FINDING_SOURCE_UI,
-		API:          architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
-		Quality:      architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
-		Architecture: architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
-		Dependencies: architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
-		Docs:         architecturev1.FindingSource_FINDING_SOURCE_DOCS,
-		Business:     architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
+		Name("structure"):    architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
+		Name("contracts"):    architecturev1.FindingSource_FINDING_SOURCE_CLI,
+		Name("ui-health"):    architecturev1.FindingSource_FINDING_SOURCE_UI,
+		Name("api"):          architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+		Name("quality"):      architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+		Name("architecture"): architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+		Name("dependencies"): architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
+		Name("docs"):         architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+		Name("business"):     architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
 		// After the hard cutover the unit phase delegates to unit-health and
 		// emits coverage findings into the COVERAGE channel (the separate
 		// `coverage` phase is retired), so it is now a COVERAGE producer.
-		Unit:               architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
-		Tidiness:           architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
-		Security:           architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
-		Measures:           architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
-		Proto:              architecturev1.FindingSource_FINDING_SOURCE_PROTO,
-		Storage:            architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
-		Workflow:           architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW,
-		Branding:           architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
-		Name("experience"): architecturev1.FindingSource_FINDING_SOURCE_UI,
+		Name("unit"):                      architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
+		Name("tidiness"):                  architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
+		Name("security"):                  architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
+		Name("measures"):                  architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
+		Name("proto"):                     architecturev1.FindingSource_FINDING_SOURCE_PROTO,
+		Name("storage"):                   architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
+		Name("workflow"):                  architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW,
+		Name("branding"):                  architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
+		Name("experience"):                architecturev1.FindingSource_FINDING_SOURCE_UI,
 		Name("event-capture-conformance"): architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
 		// Component Tests executes the React Component Library provider and
 		// emits contract-test findings into the coverage channel.

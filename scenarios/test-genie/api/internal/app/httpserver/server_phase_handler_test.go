@@ -8,16 +8,21 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/applicability"
+	"test-genie/internal/orchestrator/phases"
 
 	"github.com/gorilla/mux"
 )
 
 func TestHandleListPhases(t *testing.T) {
 	tmp := t.TempDir()
+	if spec, ok := phases.NewDefaultCatalog(time.Minute).Lookup("structure"); !ok || spec.Determinism.Default != "file-determined" {
+		t.Fatalf("default catalog determinism = %#v, ok=%t", spec.Determinism, ok)
+	}
 	orchestratorSvc, err := orchestrator.NewSuiteOrchestrator(tmp)
 	if err != nil {
 		t.Fatalf("failed to initialize orchestrator: %v", err)
@@ -47,6 +52,16 @@ func TestHandleListPhases(t *testing.T) {
 	}
 	if payload.Count == 0 || len(payload.Items) == 0 {
 		t.Fatalf("expected phase descriptors in response")
+	}
+	var structure *orchestrator.PhaseDescriptor
+	for i := range payload.Items {
+		if payload.Items[i].Name == "structure" {
+			structure = &payload.Items[i]
+			break
+		}
+	}
+	if structure == nil || structure.Determinism.Default != "file-determined" || len(structure.Determinism.Inputs) == 0 {
+		t.Fatalf("phase list omitted determinism projection: %#v", structure)
 	}
 }
 

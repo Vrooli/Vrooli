@@ -45,6 +45,19 @@ type ApplicabilityDecisionSnapshot struct {
 	Planned bool                          `json:"planned"`
 }
 
+type DeterminismSnapshot struct {
+	Default      string                         `json:"default,omitempty"`
+	Inputs       []string                       `json:"inputs,omitempty"`
+	Reason       string                         `json:"reason,omitempty"`
+	Capabilities map[string]DeterminismOverride `json:"capabilities,omitempty"`
+}
+
+type DeterminismOverride struct {
+	Mode   string   `json:"mode,omitempty"`
+	Inputs []string `json:"inputs,omitempty"`
+	Reason string   `json:"reason,omitempty"`
+}
+
 // PhaseDescriptorSnapshot is the historical presentation and policy contract
 // for one immutable phase key.
 type PhaseDescriptorSnapshot struct {
@@ -75,6 +88,7 @@ type PhaseDescriptorSnapshot struct {
 	ValidationDeliveryMode string                        `json:"validation_delivery_mode,omitempty"`
 	ValidationExecution    bool                          `json:"validation_execution,omitempty"`
 	ValidationRunService   string                        `json:"validation_run_service,omitempty"`
+	Determinism            DeterminismSnapshot           `json:"determinism,omitempty"`
 	Applicability          ApplicabilityDecisionSnapshot `json:"applicability"`
 }
 

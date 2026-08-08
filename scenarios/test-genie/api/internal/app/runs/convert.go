@@ -494,14 +494,15 @@ func comparePhases(a, b runProjection, phaseFilter string) *runspb.CompareRunsRe
 // these dimensions, but no dimension is allowed to masquerade as another.
 func classifyPhaseComparison(diff *runspb.PhaseDiff, a, b runProjection, recordA sharedruns.PhaseRecord, okA bool, recordB sharedruns.PhaseRecord, okB bool, descriptorA *sharedruns.PhaseDescriptorSnapshot, hasDescriptorA bool, descriptorB *sharedruns.PhaseDescriptorSnapshot, hasDescriptorB bool) {
 	diff.Behavior, diff.Coverage, diff.Compatibility, diff.Provenance = "unknown", "measured", "compatible", comparisonProvenance(a, b)
+	legacyIndex := legacyIndexComparable(a, b)
 	add := func(side, code, detail string) {
 		diff.Diagnostics = append(diff.Diagnostics, &runspb.ComparisonDiagnostic{Side: side, Code: code, Detail: detail})
 	}
-	if a.descriptorErr != nil || b.descriptorErr != nil {
+	if (a.descriptorErr != nil || b.descriptorErr != nil) && !legacyIndex {
 		diff.Compatibility = "legacy"
 		add("comparison", "legacy_descriptor_metadata", "one or both runs lack a compatible descriptor snapshot")
 	}
-	if !hasDescriptorA || !hasDescriptorB {
+	if !legacyIndex && (!hasDescriptorA || !hasDescriptorB) {
 		if hasDescriptorB {
 			diff.Compatibility = "new"
 			add("comparison", "new_phase", "phase exists only in the current catalog")
@@ -509,10 +510,10 @@ func classifyPhaseComparison(diff *runspb.PhaseDiff, a, b runProjection, recordA
 			diff.Compatibility = "retired"
 			add("comparison", "retired_phase", "phase exists only in the baseline catalog")
 		}
-	} else if descriptorA.ComparisonFingerprint == "" || descriptorB.ComparisonFingerprint == "" {
+	} else if !legacyIndex && (descriptorA.ComparisonFingerprint == "" || descriptorB.ComparisonFingerprint == "") {
 		diff.Compatibility = "legacy"
 		add("comparison", "missing_comparison_fingerprint", "captured descriptor predates semantic comparison fingerprints")
-	} else if descriptorA.ComparisonFingerprint != descriptorB.ComparisonFingerprint {
+	} else if !legacyIndex && descriptorA.ComparisonFingerprint != descriptorB.ComparisonFingerprint {
 		diff.Compatibility = descriptorB.ComparisonMode
 		if diff.Compatibility == "" {
 			diff.Compatibility = "changed-unreviewed"
@@ -630,6 +631,9 @@ func appendCoverageDiagnostic(diff *runspb.PhaseDiff, side string, record shared
 }
 
 func comparisonProvenance(a, b runProjection) string {
+	if legacyIndexComparable(a, b) {
+		return "legacy-index"
+	}
 	tier := "strict"
 	for _, projection := range []runProjection{a, b} {
 		if projection.result == nil {
@@ -647,6 +651,24 @@ func comparisonProvenance(a, b runProjection) string {
 		}
 	}
 	return tier
+}
+
+// legacyIndexComparable permits a historical run that predates canonical
+// terminal snapshots to remain useful as an anchor when its compact index
+// still carries a stable tree digest, matching phase-set digest, and phase
+// records on both sides. The result remains explicitly marked legacy-index;
+// it never participates in source-keyed reuse or cache eligibility.
+func legacyIndexComparable(a, b runProjection) bool {
+	if a.descriptorErr == nil && b.descriptorErr == nil {
+		return false
+	}
+	if a.record.TreeDigest == "" || b.record.TreeDigest == "" {
+		return false
+	}
+	if a.record.PhaseSetDigest == "" || a.record.PhaseSetDigest != b.record.PhaseSetDigest {
+		return false
+	}
+	return len(a.record.Phases) > 0 && len(b.record.Phases) > 0
 }
 
 func aggregateBehavior(current, next string) string {
@@ -677,7 +699,7 @@ func legacyVerdict(response *runspb.CompareRunsResponse) string {
 	case "new-failure":
 		return verdictNewFailure
 	}
-	if response.Coverage != "measured" || response.Compatibility != "compatible" || (response.Provenance != "strict" && response.Provenance != "shared-scoped") {
+	if response.Coverage != "measured" || response.Compatibility != "compatible" || (response.Provenance != "strict" && response.Provenance != "shared-scoped" && response.Provenance != "legacy-index") {
 		return verdictNotComparable
 	}
 	if response.Behavior == "preexisting" {
@@ -879,21 +901,22 @@ func phaseComparisonReasons(
 ) ([]*runspb.PhaseComparisonReason, bool) {
 	var reasons []*runspb.PhaseComparisonReason
 	forceNotComparable := false
+	legacyIndex := legacyIndexComparable(a, b)
 	add := func(code runspb.PhaseComparisonReasonCode, detail string, blocks bool) {
 		reasons = append(reasons, &runspb.PhaseComparisonReason{Code: code, Detail: detail})
 		forceNotComparable = forceNotComparable || blocks
 	}
-	if a.descriptorErr != nil || b.descriptorErr != nil {
+	if (a.descriptorErr != nil || b.descriptorErr != nil) && !legacyIndex {
 		code := runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_LEGACY_METADATA_UNAVAILABLE
 		if descriptorSnapshotIncompatible(a.descriptorErr) || descriptorSnapshotIncompatible(b.descriptorErr) {
 			code = runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_INCOMPATIBLE_SCHEMA
 		}
 		add(code, "one or both runs lack a compatible captured descriptor snapshot", true)
 	}
-	if !hasDescriptorA && hasDescriptorB {
+	if !legacyIndex && !hasDescriptorA && hasDescriptorB {
 		add(runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_NEW_PHASE, "phase exists only in the current run catalog", false)
 	}
-	if hasDescriptorA && !hasDescriptorB {
+	if !legacyIndex && hasDescriptorA && !hasDescriptorB {
 		add(runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_RETIRED_PHASE, "phase exists only in the baseline run catalog", true)
 	}
 	if descriptorInapplicable(descriptorA) {

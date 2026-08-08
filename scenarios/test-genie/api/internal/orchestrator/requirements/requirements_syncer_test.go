@@ -14,8 +14,8 @@ import (
 
 func TestBuildPhaseStatusPayload(t *testing.T) {
 	defs := []phases.Definition{
-		{Name: phases.Structure},
-		{Name: phases.Unit, Optional: true},
+		{Name: phases.Name("structure")},
+		{Name: phases.Name("unit"), Optional: true},
 	}
 	results := []phases.ExecutionResult{
 		{Name: "Structure", Status: "PASSED"},
@@ -78,7 +78,7 @@ func TestNodeSyncerSyncRunsCommand(t *testing.T) {
 		ScenarioName: "demo",
 		ScenarioDir:  scenarioDir,
 		PhaseDefinitions: []phases.Definition{
-			{Name: phases.Structure},
+			{Name: phases.Name("structure")},
 		},
 		PhaseResults: []phases.ExecutionResult{
 			{Name: "Structure", Status: "PASSED"},
@@ -116,7 +116,7 @@ func TestNodeSyncerSyncErrorsWhenCommandUnavailable(t *testing.T) {
 	input := SyncInput{
 		ScenarioName:     "demo",
 		ScenarioDir:      scenarioDir,
-		PhaseDefinitions: []phases.Definition{{Name: phases.Unit}},
+		PhaseDefinitions: []phases.Definition{{Name: phases.Name("unit")}},
 		PhaseResults:     []phases.ExecutionResult{{Name: "unit", Status: "passed"}},
 	}
 	if _, err := syncer.Sync(context.Background(), input); err == nil || !strings.Contains(err.Error(), "node command not available") {
@@ -155,7 +155,7 @@ func TestNodeSyncerSyncPropagatesCommandErrors(t *testing.T) {
 	input := SyncInput{
 		ScenarioName:     "demo",
 		ScenarioDir:      scenarioDir,
-		PhaseDefinitions: []phases.Definition{{Name: phases.Unit}},
+		PhaseDefinitions: []phases.Definition{{Name: phases.Name("unit")}},
 		PhaseResults:     []phases.ExecutionResult{{Name: "unit", Status: "failed"}},
 		CommandHistory:   []string{"suite demo"},
 	}

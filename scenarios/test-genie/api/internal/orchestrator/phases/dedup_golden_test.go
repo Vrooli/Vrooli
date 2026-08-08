@@ -45,7 +45,7 @@ func TestObservationStringGolden(t *testing.T) {
 // projected field, so the centralization in suite_execution stays faithful.
 func TestSpecToDefinition(t *testing.T) {
 	spec := Spec{
-		Name:           Business,
+		Name:           Name("business"),
 		Runner:         func(context.Context, workspace.Environment, io.Writer) RunReport { return RunReport{} },
 		Optional:       true,
 		DefaultTimeout: 42 * time.Second,

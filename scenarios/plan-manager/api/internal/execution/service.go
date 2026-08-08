@@ -1060,6 +1060,16 @@ func phaseMinimum(plan planmodel.Plan, phaseID string) []string {
 	if !ok {
 		return nil
 	}
+	// The phase validation declaration is the execution gate's source of
+	// truth. In particular, a narrow scope must not be expanded back to the
+	// plan boundary here: doing so makes a proportionate validation ticket look
+	// incomplete and forces every phase to rerun the whole baseline collection.
+	switch phase.ValidationScope.Mode {
+	case planmodel.ValidationScopeNarrow:
+		return uniqueStrings(phase.ValidationScope.Boundary.AffectedScenarios())
+	case planmodel.ValidationScopeFullPlan:
+		return uniqueStrings(plan.ChangeBoundary.AffectedScenarios())
+	}
 	boundary := plan.ChangeBoundary
 	if !phase.ChangeBoundary.IsZero() {
 		boundary = phase.ChangeBoundary

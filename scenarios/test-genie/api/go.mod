@@ -105,5 +105,3 @@ replace github.com/vrooli/vrooli => ../../..
 replace intent-go => ../../../packages/intent-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
-
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime

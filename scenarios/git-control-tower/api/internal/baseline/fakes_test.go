@@ -132,6 +132,17 @@ type fakeRuns struct {
 	compareVisualErr error
 }
 
+type captureRuns struct {
+	*fakeRuns
+	captureID    string
+	captureCalls int
+}
+
+func (f *captureRuns) CaptureMissingEvidence(_ context.Context, _ string, _ string, _ []string) (string, error) {
+	f.captureCalls++
+	return f.captureID, nil
+}
+
 func (f *fakeRuns) PinRun(_ context.Context, scenario, runID, by, reason string) error {
 	f.pins = append(f.pins, pinCall{scenario, runID, by, reason})
 	return f.pinErr

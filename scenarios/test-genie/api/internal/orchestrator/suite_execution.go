@@ -20,6 +20,7 @@ import (
 
 	"test-genie/internal/captureprofile"
 	"test-genie/internal/executionevidence"
+	"test-genie/internal/orchestrator/phasecache"
 	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/phaseregistry"
 	"test-genie/internal/orchestrator/phases"
@@ -71,13 +72,6 @@ const (
 	failureClassMissingDependency = phases.FailureClassMissingDependency
 	failureClassTimeout           = phases.FailureClassTimeout
 	failureClassSystem            = phases.FailureClassSystem
-	PhaseStructure                = phases.Structure
-	PhaseDependencies             = phases.Dependencies
-	PhaseQuality                  = phases.Quality
-	PhaseDocs                     = phases.Docs
-	PhaseUnit                     = phases.Unit
-	PhaseBusiness                 = phases.Business
-	PhasePerformance              = phases.Performance
 )
 
 const MaxExecutionHistory = 50
@@ -141,6 +135,13 @@ type PhaseCapacityBroker interface {
 // PhaseCostEstimator supplies reliable historical sizing for admission.
 type PhaseCostEstimator interface {
 	PhaseCostEstimate(context.Context, string, string) (ramBytes, cpuMilli int64, reliable bool)
+}
+
+// PhaseCalibrationPlanner owns the age and descriptor-history policy for
+// reliable samples. The orchestrator consumes the decision and records its
+// reason; it does not infer freshness from elapsed test time.
+type PhaseCalibrationPlanner interface {
+	CalibrationDecision(context.Context, string, []string, string) (forceSerial bool, reason string)
 }
 
 // SetClaims wires the playbooks-claims service used by the playbooks phase
@@ -218,6 +219,17 @@ type SuiteExecutionRequest struct {
 	AdmissionResources                  []string         `json:"admissionResources,omitempty"`
 	RequireGateQuality                  bool             `json:"requireGateQuality,omitempty"`
 	PredictedPhaseDurationsMilliseconds map[string]int64 `json:"predictedPhaseDurationsMilliseconds,omitempty"`
+	// ResolvedPhases is the phase set the planner selected for this request —
+	// notably an adaptive profile's budget-trimmed subset, which the executor
+	// cannot re-derive because profile fitting happens in the plan service.
+	//
+	// It is deliberately separate from Phases. Phases means "the operator named
+	// these", which is exact intent and carries no preset; ResolvedPhases means
+	// "the planner resolved the operator's preset to these", which still has a
+	// preset. Collapsing the two is what recorded preset_used=NULL on every
+	// durable run and made each one ineligible for the baseline reuse it had
+	// just earned.
+	ResolvedPhases []string `json:"resolvedPhases,omitempty"`
 }
 
 // SuiteExecutionResult captures the outcome of a run.
@@ -265,6 +277,7 @@ type SuiteExecutionResult struct {
 	PhaseSummary      PhaseSummary                `json:"phaseSummary"`
 	PreparationStages []PreparationStage          `json:"preparationStages,omitempty"`
 	ProviderReadiness []providerreadiness.Outcome `json:"providerReadiness,omitempty"`
+	SchedulerDecision string                      `json:"schedulerDecision,omitempty"`
 	Warnings          []string                    `json:"warnings,omitempty"`
 	WarningSummary    WarningSummary              `json:"warningSummary"`
 	// CampaignNudge is present only when the audit finding load exceeded the
@@ -518,6 +531,18 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 	prepared.result.PreparationStages = append(prepared.result.PreparationStages, PreparationStage{Name: "target_runtime", Status: "completed", DurationMilliseconds: time.Since(runtimeStarted).Milliseconds()})
 	emitPreparationProgress(emit, "target_runtime", fmt.Sprintf("completed in %s", time.Since(runtimeStarted).Round(time.Millisecond)))
 	log.Printf("test-genie preflight target runtime for %s completed in %s", prepared.env.ScenarioName, time.Since(runtimeStarted).Round(time.Millisecond))
+	if planner, ok := o.costEstimator.(PhaseCalibrationPlanner); ok {
+		forceSerial, reason := planner.CalibrationDecision(ctx, env.ScenarioName, phaseDefinitionNames(prepared.plan.Selected), prepared.result.DescriptorSnapshotDigest)
+		if forceSerial && strings.TrimSpace(reason) != "" {
+			// Assign to env, not to prepared.env. workspace.Environment is a
+			// value type, so writing through the copy recorded the decision in
+			// run evidence while the scheduler — which is handed env below —
+			// never saw it. Every run reported a serial calibration it did not
+			// perform.
+			env.SchedulerDecision = strings.TrimSpace(reason)
+			prepared.result.SchedulerDecision = env.SchedulerDecision
+		}
+	}
 	prepared.env = env
 	defer func() {
 		if runtimeManager != nil {
@@ -527,7 +552,7 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 		}
 	}()
 
-	phaseResults, anyFailure := o.runSelectedPhasesWithRunID(
+	phaseResults, anyFailure, loopMetrics := o.runSelectedPhasesWithRunID(
 		ctx,
 		env,
 		runCtx,
@@ -540,6 +565,14 @@ func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionReque
 		buildPhaseWarningMap(prepared.plan),
 		req.PredictedPhaseDurationsMilliseconds,
 	)
+	// Recorded as a stage so `runs cost` and any consumer summing stages sees
+	// scheduling overhead beside phase cost instead of losing it.
+	prepared.result.PreparationStages = append(prepared.result.PreparationStages, PreparationStage{
+		Name:                 "phase_scheduling",
+		Status:               "completed",
+		Subject:              fmt.Sprintf("%d admission attempts", loopMetrics.AdmissionAttempts),
+		DurationMilliseconds: loopMetrics.SchedulingMilliseconds,
+	})
 
 	return o.finalizeExecution(ctx, req, prepared, phaseResults, anyFailure, emit), nil
 }
@@ -745,6 +778,8 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	}
 	phaseSetDigest := phases.PhaseSetDigest(plannedPhases)
 	configurationDigest := ExecutionConfigurationFingerprint(req, descriptorSnapshot.Digest)
+	planCtx.env.DescriptorSnapshotDigest = descriptorSnapshot.Digest
+	planCtx.env.ExecutionConfigurationDigest = configurationDigest
 	if req.AdmissionTreeDigest != "" && req.AdmissionTreeDigest != digest {
 		return nil, fmt.Errorf("source tree changed after admission; retry to measure the current source identity")
 	}
@@ -831,13 +866,14 @@ func isLinkedWorktree(scenarioDir string) bool {
 // ExecutionConfigurationFingerprint captures the execution knobs that can
 // materially change runtime without folding in volatile URLs or timestamps.
 // The descriptor digest separately covers providers, policies, and descriptor
-// revisions. Together with the selected phase-set digest these are the exact
-// comparability key for full-run timing history.
+// revisions. Capture depth is deliberately excluded: it controls optional
+// evidence recorded by a run, not the validation contract being compared.
+// Together with the selected phase-set digest these are the exact comparability
+// key for full-run timing history.
 func ExecutionConfigurationFingerprint(req SuiteExecutionRequest, descriptorDigest string) string {
 	payload := strings.Join([]string{
 		"v1",
 		strings.TrimSpace(req.Preset),
-		strings.TrimSpace(req.CaptureProfile),
 		strings.TrimSpace(req.DiagnosticsPreset),
 		fmt.Sprintf("fail-fast=%t", req.FailFast),
 		strings.TrimSpace(descriptorDigest),
@@ -966,10 +1002,12 @@ func (o *SuiteOrchestrator) finalizeRunRecord(scenarioDir, runID string, result 
 	}
 	for _, p := range phaseResults {
 		record := sharedruns.PhaseRecord{
-			Name:            p.Name,
-			Status:          p.Status,
-			DurationSeconds: p.DurationSeconds,
-			Comparable:      true,
+			Name:             p.Name,
+			Status:           p.Status,
+			DurationSeconds:  p.DurationSeconds,
+			Comparable:       true,
+			CacheHit:         p.CacheHit,
+			CacheSourceRunID: p.CacheSourceRunID,
 		}
 		if descriptor, ok := descriptorByPhase[p.Name]; ok {
 			record.Advisory = descriptor.Policy.ResultGating == string(phasepolicy.ResultGatingAdvisory)
@@ -1077,7 +1115,27 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithEvents(
 	if len(predicted) > 0 {
 		predictions = predicted[0]
 	}
-	return o.runSelectedPhasesWithRunID(ctx, env, runCtx, env.ScenarioName, runLogDir, defs, readiness, failFast, emit, warnings, predictions)
+	results, anyFailure, _ := o.runSelectedPhasesWithRunID(ctx, env, runCtx, env.ScenarioName, runLogDir, defs, readiness, failFast, emit, warnings, predictions)
+	return results, anyFailure
+}
+
+// phaseLoopMetrics attributes the wall-clock a run spends inside the phase loop
+// but outside any phase.
+//
+// It exists because that time was unmeasurable. On 2026-08-08 a suite whose
+// phases totalled 72.5 s took 571 s, and the missing 401 s sat between phases
+// where nothing recorded it: `test-genie runs cost` sums phase durations, so it
+// reported the regression as zero. A cost surface that cannot see the largest
+// cost in a run is not a cost surface, and the fix is to name the gap rather
+// than to trust that it stays small.
+type phaseLoopMetrics struct {
+	// SchedulingMilliseconds is time spent choosing a batch and admitting it
+	// against the capacity broker — work that belongs to no phase.
+	SchedulingMilliseconds int64
+	// AdmissionAttempts counts calls into batch admission. A failed batch
+	// re-proposes its remaining phases on the next iteration, so this grows
+	// faster than the phase count and is the signal that it is doing so.
+	AdmissionAttempts int
 }
 
 func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
@@ -1092,9 +1150,10 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 	emit ExecutionEventCallback,
 	warnings map[string][]phases.Observation,
 	predicted map[string]int64,
-) ([]PhaseExecutionResult, bool) {
+) ([]PhaseExecutionResult, bool, phaseLoopMetrics) {
+	var metrics phaseLoopMetrics
 	if len(defs) == 0 {
-		return nil, false
+		return nil, false, metrics
 	}
 	if emit != nil {
 		underlyingEmit := emit
@@ -1109,10 +1168,17 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 	anyFailure := false
 	total := len(defs)
 	forceSerial := phaseSchedulerForcedSerial()
+	if strings.TrimSpace(env.SchedulerDecision) != "" {
+		forceSerial = true
+	}
 	for start := 0; start < len(defs); {
+		// Everything from here to the goroutine launch is scheduling, not
+		// phase work. It is timed because it used to be invisible.
+		admissionStarted := time.Now()
 		parallelUnavailable := o.capacity == nil || o.costEstimator == nil
-		end := nextPhaseBatch(defs, start, forceSerial || parallelUnavailable)
+		end := nextPhaseBatchWithPredictions(defs, start, forceSerial || parallelUnavailable, predicted)
 		batch := defs[start:end]
+		metrics.AdmissionAttempts++
 		leases, admissionReason, admitted := o.admitPhaseBatch(ctx, env.ScenarioName, runID, batch)
 		if len(batch) > 1 && !admitted {
 			// An unknown estimate or a broker queue/deny is deliberately a serial
@@ -1122,6 +1188,7 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 			batch = defs[start:end]
 			leases = nil
 		}
+		metrics.SchedulingMilliseconds += time.Since(admissionStarted).Milliseconds()
 		for offset, phase := range batch {
 			if emit != nil {
 				emit(ExecutionEvent{Type: EventPhaseStart, Timestamp: time.Now(), Phase: phase.Name.String(), PhaseIndex: start + offset + 1, PhaseTotal: total})
@@ -1137,6 +1204,9 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 			go func(offset int, phase phases.Definition) {
 				var result PhaseExecutionResult
 				phaseWarnings := append([]phases.Observation(nil), warnings[phase.Name.Key()]...)
+				if env.SchedulerDecision != "" {
+					phaseWarnings = append(phaseWarnings, phases.NewWarningObservation("scheduler serial calibration: "+env.SchedulerDecision))
+				}
 				if admissionReason != "" {
 					phaseWarnings = append(phaseWarnings, phases.NewWarningObservation("scheduler serial fallback: "+admissionReason))
 				}
@@ -1145,8 +1215,37 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 				} else if verdict := resolvePhaseVerdict(phase, runCtx); verdict.IsSkip() {
 					result = o.newSkippedPhaseResult(phase, runLogDir, verdict)
 				} else {
-					result = o.runPhaseWithEvents(ctx, env, runLogDir, phase, emit, mergeRunnabilityObservations(verdict, phaseWarnings))
-					annotatePhaseRunnability(&result, verdict)
+					if cached, audit, ok, cachedDuration := o.loadCachedPhaseResult(env, runID, runLogDir, phase, readiness); ok && !audit {
+						result = cached
+					} else {
+						result = o.runPhaseWithEvents(ctx, env, runLogDir, phase, emit, mergeRunnabilityObservations(verdict, phaseWarnings))
+						annotatePhaseRunnability(&result, verdict)
+						cacheResult := true
+						if cached.Status == phaseStatusPassed && audit {
+							result.CacheAudit = true
+							identity, identityOK := o.phaseCacheIdentity(env, phase, readiness)
+							if identityOK {
+								key := phasecache.Key(identity)
+								store := phasecache.New(env.ArtifactRoot)
+								if !phasecache.Equivalent(cached, result) {
+									result.CacheAuditMismatch = true
+									appendPhaseCacheFinding(&result, env.ScenarioName, phase.Name.Key(), "test_genie.phase_cache_audit_mismatch", "cached phase result differed from the freshly executed capability result; the cache entry was demoted")
+									_ = store.Demote(key, "audit result differed from cached passed result")
+									cacheResult = false
+								} else {
+									result.Observations = append(result.Observations, phases.NewObservation("phase cache audit matched cached passed result"))
+									if cachedDuration > 0 && result.DurationMilliseconds >= cachedDuration*9/10 {
+										result.CacheNoSaving = true
+										appendPhaseCacheFinding(&result, env.ScenarioName, phase.Name.Key(), "test_genie.phase_cache_audit_no_saving", "cache audit found no measured saving; the provider may be filtering its response instead of skipping the work")
+										cacheResult = false
+									}
+								}
+							}
+						}
+						if cacheResult {
+							o.saveCachedPhaseResult(env, runID, phase, readiness, result)
+						}
+					}
 				}
 				result.PredictedDurationMilliseconds = predicted[strings.ToLower(strings.TrimSpace(phase.Name.String()))]
 				if result.PredictedDurationMilliseconds < 0 {
@@ -1181,7 +1280,123 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 		}
 		start = end
 	}
-	return results, anyFailure
+	return results, anyFailure, metrics
+}
+
+func appendPhaseCacheFinding(result *PhaseExecutionResult, scenario, phase, code, message string) {
+	if result == nil {
+		return
+	}
+	capability := strings.TrimSpace(phase)
+	if result.PhasePresentation != nil && strings.TrimSpace(result.PhasePresentation.GetFocusCapabilityId()) != "" {
+		capability = strings.TrimSpace(result.PhasePresentation.GetFocusCapabilityId())
+	}
+	message = fmt.Sprintf("phase %s capability %s: %s", phase, capability, message)
+	finding := &architecturev1.ArchitectureFinding{
+		Scenario:     scenario,
+		Source:       architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
+		Code:         code,
+		Severity:     architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING,
+		Locations:    []string{"phase:" + phase, "capability:" + capability},
+		Message:      message,
+		Suggestion:   "Review the provider determinism declaration and its cache-audit behavior before relying on phase reuse.",
+		FindingClass: architecturev1.FindingClass_FINDING_CLASS_HEURISTIC,
+	}
+	findingid.Stamp(finding)
+	result.Findings = append(result.Findings, finding)
+	if result.FindingsSummary == nil {
+		result.FindingsSummary = &runspb.PhaseFindingsSummary{}
+	}
+	result.FindingsSummary.Warnings++
+	result.FindingsSummary.Total++
+	result.Observations = append(result.Observations, phases.NewWarningObservation(message))
+}
+
+func (o *SuiteOrchestrator) phaseCacheIdentity(env workspacepkg.Environment, phase phases.Definition, readiness map[string]providerreadiness.Outcome) (phasecache.Identity, bool) {
+	if strings.ToLower(strings.TrimSpace(phase.Determinism.Default)) != "file-determined" || len(phase.Determinism.Inputs) == 0 {
+		return phasecache.Identity{}, false
+	}
+	digest, err := phasecache.ScopedDigest(env.ScenarioDir, phase.Determinism.Inputs)
+	if err != nil {
+		return phasecache.Identity{}, false
+	}
+	providerIdentity := "native:" + phase.Name.Key()
+	if phase.ProviderScenario != "" {
+		outcome := readiness[phase.Name.Key()]
+		provider := strings.TrimSpace(outcome.ProviderScenario)
+		if provider == "" {
+			provider = strings.TrimSpace(phase.ProviderScenario)
+		}
+		if provider == "" {
+			return phasecache.Identity{}, false
+		}
+		providerIdentity = strings.Join([]string{
+			provider,
+			strings.TrimSpace(outcome.SpecVersion),
+			strings.TrimSpace(outcome.BuildRevision),
+			strings.TrimSpace(outcome.FreshnessDigest),
+		}, "|")
+		// A provider with no readiness policy has no live build identity to
+		// report. The descriptor snapshot is still part of the cache key, so
+		// bind this safe file-determined fallback to the provider contract rather
+		// than silently treating an empty readiness outcome as an identity.
+		if strings.Trim(providerIdentity, "|") == provider {
+			providerIdentity = "descriptor-contract:" + env.DescriptorSnapshotDigest + "|" + provider
+		}
+	}
+	if env.DescriptorSnapshotDigest == "" || env.ExecutionConfigurationDigest == "" {
+		return phasecache.Identity{}, false
+	}
+	return phasecache.Identity{
+		ScopedInputDigest:      digest,
+		ProviderBuildIdentity:  providerIdentity,
+		DescriptorSnapshotHash: env.DescriptorSnapshotDigest,
+		ExecutionConfiguration: env.ExecutionConfigurationDigest,
+	}, true
+}
+
+func (o *SuiteOrchestrator) loadCachedPhaseResult(env workspacepkg.Environment, runID, runLogDir string, phase phases.Definition, readiness map[string]providerreadiness.Outcome) (PhaseExecutionResult, bool, bool, int64) {
+	identity, ok := o.phaseCacheIdentity(env, phase, readiness)
+	if !ok {
+		return PhaseExecutionResult{}, false, false, 0
+	}
+	key := phasecache.Key(identity)
+	store := phasecache.New(env.ArtifactRoot)
+	entry, found, err := store.Load(key)
+	if err != nil || !found {
+		return PhaseExecutionResult{}, false, false, 0
+	}
+	result := entry.Phase
+	cachedDuration := result.DurationMilliseconds
+	result.Name = phase.Name.String()
+	result.DurationMilliseconds = 0
+	result.DurationSeconds = 0
+	result.CacheHit = true
+	result.CacheSourceRunID = entry.RunID
+	result.LogPath = phaseLogPath(runLogDir, phase.Name)
+	if err := os.WriteFile(result.LogPath, []byte(fmt.Sprintf("[INFO] cache hit: reused passed result from run %s\n", entry.RunID)), 0o644); err != nil {
+		return PhaseExecutionResult{}, false, false, 0
+	}
+	if o.projectRoot != "" {
+		if rel, err := filepath.Rel(o.projectRoot, result.LogPath); err == nil {
+			result.LogPath = rel
+		}
+	}
+	return result, store.ShouldAudit(key, runID), true, cachedDuration
+}
+
+func (o *SuiteOrchestrator) saveCachedPhaseResult(env workspacepkg.Environment, runID string, phase phases.Definition, readiness map[string]providerreadiness.Outcome, result PhaseExecutionResult) {
+	identity, ok := o.phaseCacheIdentity(env, phase, readiness)
+	if !ok || result.Status != phaseStatusPassed {
+		return
+	}
+	// Recompute immediately after the phase. A source edit during execution is
+	// never allowed to publish a result under the digest from before the edit.
+	after, err := phasecache.ScopedDigest(env.ScenarioDir, phase.Determinism.Inputs)
+	if err != nil || after != identity.ScopedInputDigest {
+		return
+	}
+	_ = phasecache.New(env.ArtifactRoot).Save(phasecache.Key(identity), runID, result)
 }
 
 func (o *SuiteOrchestrator) admitPhaseBatch(ctx context.Context, scenario, runID string, batch []phases.Definition) ([]sharedcapacity.Lease, string, bool) {
@@ -1230,13 +1445,29 @@ func phaseSchedulerForcedSerial() bool {
 }
 
 func nextPhaseBatch(defs []phases.Definition, start int, forceSerial bool) int {
+	return nextPhaseBatchWithPredictions(defs, start, forceSerial, nil)
+}
+
+// nextPhaseBatchWithPredictions keeps phases with a measured duration close to
+// their own deadline out of concurrent batches. A phase that already consumes
+// most of its timeout budget has no meaningful contention headroom: admitting
+// it beside another phase can turn a passing run into a timeout without any
+// source or validation-contract change. Shorter phases retain the normal
+// contiguous batching behavior.
+func nextPhaseBatchWithPredictions(defs []phases.Definition, start int, forceSerial bool, predicted map[string]int64) int {
 	if forceSerial || start >= len(defs) || phaseConcurrencyMode(defs[start]) == "exclusive" {
+		return start + 1
+	}
+	if phaseTimeoutRisk(defs[start], predicted) {
 		return start + 1
 	}
 	providers := map[string]struct{}{}
 	for end := start; end < len(defs); end++ {
 		mode := phaseConcurrencyMode(defs[end])
 		if mode == "exclusive" {
+			return end
+		}
+		if end > start && phaseTimeoutRisk(defs[end], predicted) {
 			return end
 		}
 		if mode == "provider-serial" {
@@ -1251,6 +1482,22 @@ func nextPhaseBatch(defs []phases.Definition, start int, forceSerial bool) int {
 		}
 	}
 	return len(defs)
+}
+
+func phaseTimeoutRisk(def phases.Definition, predicted map[string]int64) bool {
+	if len(predicted) == 0 {
+		return false
+	}
+	prediction := predicted[strings.ToLower(strings.TrimSpace(def.Name.String()))]
+	if prediction <= 0 {
+		return false
+	}
+	timeout := def.Timeout
+	if timeout <= 0 {
+		timeout = phases.DefaultTimeout
+	}
+	// Reserve half of the phase budget for contention and runtime variance.
+	return prediction >= timeout.Milliseconds()/2
 }
 
 func phaseConcurrencyMode(def phases.Definition) string {
@@ -1724,6 +1971,8 @@ type findingsArtifactPhase struct {
 	// --from-audit ingest reads only phases[].findings, so this does not affect it.
 	PhasePresentation *commonv1.PhasePresentation  `json:"phasePresentation,omitempty"`
 	FindingsSummary   *runspb.PhaseFindingsSummary `json:"findingsSummary,omitempty"`
+	CacheHit          bool                         `json:"cacheHit,omitempty"`
+	CacheSourceRunID  string                       `json:"cacheSourceRunId,omitempty"`
 }
 
 // writeFindingsArtifact persists the one canonical detailed findings document
@@ -1748,6 +1997,8 @@ func (o *SuiteOrchestrator) writeFindingsArtifact(scenarioDir, scenario, runID, 
 			Assessment:        res.Assessment,
 			PhasePresentation: res.PhasePresentation,
 			FindingsSummary:   res.FindingsSummary,
+			CacheHit:          res.CacheHit,
+			CacheSourceRunID:  res.CacheSourceRunID,
 		})
 	}
 	writer := sharedartifacts.NewBaseWriter(scenarioDir, filepath.Base(scenarioDir), runID)
@@ -1788,6 +2039,8 @@ func writeEvidenceManifest(scenarioDir, runID, scenario, verdict string, complet
 			FindingSource:     result.FindingSource,
 			PhasePresentation: result.PhasePresentation,
 			FindingsSummary:   result.FindingsSummary,
+			CacheHit:          result.CacheHit,
+			CacheSourceRunID:  result.CacheSourceRunID,
 		}
 		if phase.FindingCount > 0 {
 			phase.Findings = &findings
@@ -1823,6 +2076,8 @@ type phaseResultView struct {
 	PhasePresentation    *commonv1.PhasePresentation
 	FindingsSummary      *runspb.PhaseFindingsSummary
 	Metrics              *commonv1.ExecutionMetrics
+	CacheHit             bool
+	CacheSourceRunID     string
 }
 
 func buildPhaseResultViews(runLogDir string, results []PhaseExecutionResult) []phaseResultView {
@@ -1850,6 +2105,8 @@ func buildPhaseResultViews(runLogDir string, results []PhaseExecutionResult) []p
 			PhasePresentation:    result.PhasePresentation,
 			FindingsSummary:      result.FindingsSummary,
 			Metrics:              result.Metrics,
+			CacheHit:             result.CacheHit,
+			CacheSourceRunID:     result.CacheSourceRunID,
 		})
 	}
 	return views
@@ -2047,6 +2304,8 @@ func descriptorFromRegistryEntry(entry phaseregistry.Entry) phases.Descriptor {
 		FreshnessRequirement:  spec.FreshnessRequirement,
 		PhaseClass:            spec.PhaseClass,
 		RuntimeClass:          spec.RuntimeClass,
+		Concurrency:           spec.Concurrency,
+		Determinism:           spec.Determinism,
 		Dimensions:            append([]string(nil), spec.Dimensions...),
 	}
 }
@@ -2199,8 +2458,28 @@ func resolveDesiredPhaseList(req SuiteExecutionRequest, presets map[string][]str
 	if len(req.Phases) > 0 {
 		return req.Phases, "", nil
 	}
+	// A planner-resolved set narrows selection without being user intent, so it
+	// keeps the preset name. This is the adaptive-profile path: `quick` and
+	// `smoke` are budget-fitted in the plan service, and the executor cannot
+	// re-derive that trim on its own.
+	presetName := phases.NormalizeKey(req.Preset)
+	if presetName == "" {
+		// An unspecified preset selects every applicable phase — see the
+		// len(desired)==0 branch in selectPhases — which is precisely what the
+		// comprehensive preset names. Recording "" for it was not a smaller
+		// claim, it was a wrong one: Git Control Tower's FindReusableRun keys
+		// reuse on Preset=="comprehensive", so a run that had done the full
+		// comprehensive work advertised itself as ineligible and forced a
+		// second, more expensive baseline run.
+		presetName = phases.PresetComprehensive.String()
+	}
+	if len(req.ResolvedPhases) > 0 {
+		return req.ResolvedPhases, presetName, nil
+	}
 	if req.Preset == "" {
-		return nil, "", nil
+		// nil desired is returned deliberately. Naming the preset must not
+		// change which phases run, only what the run says it did.
+		return nil, presetName, nil
 	}
 	name := phases.NormalizeKey(req.Preset)
 	if name == "" {

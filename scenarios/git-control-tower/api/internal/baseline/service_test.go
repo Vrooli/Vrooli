@@ -622,8 +622,8 @@ func TestServiceForwardsUnknownPhaseAndOpaqueArtifacts(t *testing.T) { // [REQ:G
 	runs := &fakeRuns{
 		compare: CompareResult{Verdict: "regression", Phases: []*runspb.PhaseDiff{phase}},
 		catalogs: map[string]ArtifactCatalog{
-			"run-1": {SchemaVersion: 1, Digest: "base-cat", Artifacts: []*runspb.ArtifactRef{{Id: "opaque-base", Kind: "future/evidence", ProducingPhase: "future-phase"}}},
-			"run-2": {SchemaVersion: 1, Digest: "cur-cat", Artifacts: []*runspb.ArtifactRef{{Id: "opaque-current", Kind: "future/evidence", ProducingPhase: "future-phase"}}},
+			"run-1": {SchemaVersion: 1, Digest: "base-cat", Artifacts: []*runspb.ArtifactRef{{Id: "opaque-base", Kind: "future/evidence", ProducingPhase: "future-phase"}, {Id: "baseline-shot", Kind: "visual/screenshot"}}},
+			"run-2": {SchemaVersion: 1, Digest: "cur-cat", Artifacts: []*runspb.ArtifactRef{{Id: "opaque-current", Kind: "future/evidence", ProducingPhase: "future-phase"}, {Id: "current-shot", Kind: "visual/screenshot"}}},
 		},
 		visualDeltas: []VisualDelta{{Page: "/", Status: "changed", ChangedFraction: 0.25}},
 	}
@@ -658,20 +658,47 @@ func TestServiceReportsDegradedArtifactEvidenceAsAdvisory(t *testing.T) { // [RE
 	}
 }
 
-func TestServicePreservesBehavioralVerdictWhenAdvisoryEvidenceIsUnavailable(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
+func TestServiceFailsClosedWhenRequiredVisualEvidenceIsUnavailable(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
 	runs := &fakeRuns{
-		compare:          CompareResult{Verdict: "clean", Phases: []*runspb.PhaseDiff{{Phase: "unit", Verdict: "clean"}}},
-		catalogErr:       errors.New("catalog transport unavailable"),
+		compare: CompareResult{Verdict: "clean", Phases: []*runspb.PhaseDiff{{Phase: "unit", Verdict: "clean"}}},
+		catalogs: map[string]ArtifactCatalog{
+			"run-1": {Artifacts: []*runspb.ArtifactRef{{Id: "baseline-shot", Kind: "visual/screenshot"}}},
+			"run-2": {},
+		},
 		compareVisualErr: errors.New("visual transport unavailable"),
 	}
 	svc, _ := newTestService(t, &fakeExecutor{result: terminalResult()}, runs, git.State{Branch: "agi", Sha: "different-sha"})
 	seedBaseline(t, svc, "advisory-outage")
 	res := runDiff(t, svc, "advisory-outage")
-	if res.Verdict != VerdictClean {
-		t.Fatalf("advisory evidence masked behavioral verdict: %+v", res)
+	if res.Verdict != VerdictNotComparable {
+		t.Fatalf("missing visual evidence must be not-comparable: %+v", res)
 	}
-	if len(res.Evidence.DegradedReasons) == 0 {
-		t.Fatal("advisory outage was not retained as evidence warning")
+	if len(res.Evidence.BlockingReasons) == 0 || !strings.Contains(strings.Join(res.Evidence.BlockingReasons, ";"), "visual evidence") {
+		t.Fatal("visual outage was not retained as a blocking evidence reason")
+	}
+}
+
+func TestServiceCapturesOnlyMissingVisualEvidence(t *testing.T) {
+	runs := &captureRuns{
+		fakeRuns: &fakeRuns{
+			compare: CompareResult{Verdict: "clean", Phases: []*runspb.PhaseDiff{{Phase: "unit", Verdict: "clean"}}},
+			catalogs: map[string]ArtifactCatalog{
+				"run-1":          {Artifacts: []*runspb.ArtifactRef{{Id: "baseline-shot", Kind: "visual/screenshot"}}},
+				"run-2":          {},
+				"visual-capture": {Artifacts: []*runspb.ArtifactRef{{Id: "current-shot", Kind: "visual/screenshot"}}},
+			},
+			visualDeltas: []VisualDelta{{Page: "/", Status: "unchanged"}},
+		},
+		captureID: "visual-capture",
+	}
+	svc, _ := newTestService(t, &fakeExecutor{result: terminalResult()}, runs, git.State{Branch: "agi", Sha: "different-sha"})
+	seedBaseline(t, svc, "capture-only")
+	res := runDiff(t, svc, "capture-only")
+	if res.Verdict != VerdictClean || len(res.Evidence.VisualDeltas) != 1 {
+		t.Fatalf("capture-only result = %+v", res)
+	}
+	if runs.captureCalls != 1 {
+		t.Fatalf("capture calls = %d, want 1", runs.captureCalls)
 	}
 }
 

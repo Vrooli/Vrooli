@@ -25,6 +25,7 @@ func TestSuiteExecutionServicePersistsOnlyCompactPhaseHistory(t *testing.T) {
 			Name: "security", Status: "failed", DurationSeconds: 2, LogPath: "coverage/logs/huge.log",
 			Observations: []phases.Observation{phases.NewErrorObservation("huge observation")},
 			Findings:     []*architecturev1.ArchitectureFinding{{Code: "huge.finding", Message: "detailed payload"}},
+			CacheHit:     true, CacheSourceRunID: "source-run", CacheAudit: true,
 		}},
 	}}, recorder)
 	if _, err := service.Execute(context.Background(), SuiteExecutionInput{Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}}); err != nil {
@@ -36,6 +37,9 @@ func TestSuiteExecutionServicePersistsOnlyCompactPhaseHistory(t *testing.T) {
 	}
 	if stored.Name != "security" || stored.Status != "failed" || stored.DurationSeconds != 2 {
 		t.Fatalf("compact phase lost summary fields: %+v", stored)
+	}
+	if !stored.CacheHit || stored.CacheSourceRunID != "source-run" || !stored.CacheAudit {
+		t.Fatalf("compact phase lost cache provenance: %+v", stored)
 	}
 }
 

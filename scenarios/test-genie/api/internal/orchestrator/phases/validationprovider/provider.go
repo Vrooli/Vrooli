@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -42,6 +43,7 @@ type Provider struct {
 	Optional         bool
 	Timeout          time.Duration
 	IncludeExecution bool
+	CapabilitySubset []string
 	DeliveryMode     string
 	GateEnvVar       string
 	DefaultGateMode  GateMode
@@ -219,6 +221,7 @@ func Run(ctx context.Context, provider Provider, targetScenario, scenarioPath st
 		Scenario:         targetScenario,
 		Path:             strings.TrimSpace(scenarioPath),
 		IncludeExecution: provider.IncludeExecution,
+		CapabilitySubset: append([]string(nil), provider.CapabilitySubset...),
 	}))
 	if err != nil {
 		return unavailable(provider, targetScenario, fmt.Errorf("%s validation RPC failed: %w", provider.ProviderScenario, err))
@@ -255,6 +258,7 @@ func RunTarget(ctx context.Context, provider Provider, target *commonv1.Validati
 		Target:           requestTarget,
 		IncludeExecution: provider.IncludeExecution,
 		Path:             strings.TrimSpace(targetPath),
+		CapabilitySubset: append([]string(nil), provider.CapabilitySubset...),
 	}))
 	if err != nil {
 		return unavailable(provider, target.GetId(), fmt.Errorf("%s target validation RPC failed: %w", provider.ProviderScenario, err))
@@ -284,7 +288,13 @@ func RunDurable(ctx context.Context, provider Provider, targetScenario, scenario
 		return failure(provider, targetScenario, shared.FailureClassMisconfiguration, errors.New("durable provider requires parent run id"), "")
 	}
 	client := NewDurableClient(provider.Timeout+time.Minute, baseURL)
-	started, err := client.StartValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: targetScenario, Path: scenarioPath, IdempotencyKey: key, ParentRunId: parentRunID}))
+	started, err := client.StartValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{
+		Scenario:         targetScenario,
+		Path:             scenarioPath,
+		IdempotencyKey:   key,
+		ParentRunId:      parentRunID,
+		CapabilitySubset: append([]string(nil), provider.CapabilitySubset...),
+	}))
 	if err != nil || started == nil || started.Msg == nil || started.Msg.GetRun() == nil {
 		if err == nil {
 			err = errors.New("provider returned empty durable start response")
@@ -423,6 +433,201 @@ func summarize(scenario string, status scenariovalidationv1.ValidationStatus, a 
 		}
 	}
 	return s
+}
+
+// FilterCapabilityResult projects a provider result onto one capability. It
+// is the durable unit used by mixed-determinism caching: the provider owns the
+// capability ladder and finding attribution, while Test Genie only carries
+// the selected projection forward.
+func FilterCapabilityResult(result *Result, capabilityID string) *Result {
+	if result == nil || strings.TrimSpace(capabilityID) == "" {
+		return nil
+	}
+	out := *result
+	capabilityID = strings.TrimSpace(capabilityID)
+	if result.Assessment != nil {
+		assessmentCopy := proto.Clone(result.Assessment).(*commonv1.MaturityAssessment)
+		assessmentCopy.Capabilities = nil
+		for _, capability := range result.Assessment.GetCapabilities() {
+			if capability != nil && capability.GetId() == capabilityID {
+				assessmentCopy.Capabilities = append(assessmentCopy.Capabilities, capability)
+			}
+		}
+		assessmentCopy.Findings = filterAssessmentFindings(result.Assessment.GetFindings(), capabilityID)
+		assessmentCopy.Presentation = assessment.BuildPhasePresentation(assessmentCopy)
+		out.Assessment = assessmentCopy
+		out.Presentation = assessmentCopy.GetPresentation()
+		out.Summary = summarize(assessmentCopy.GetScenario(), statusForAssessment(assessmentCopy), assessmentCopy)
+		out.FindingsSummary = buildFindingsSummary(out.Summary)
+		out.Findings = filterArchitectureFindings(result.Findings, capabilityID, assessmentFindingCodes(assessmentCopy.GetFindings()))
+		return &out
+	}
+	out.Findings = filterArchitectureFindings(result.Findings, capabilityID, nil)
+	return &out
+}
+
+// MergeCapabilityResults combines cached and fresh capability projections.
+// Duplicate findings are removed by stable semantic identity, and the final
+// status/standing is rebuilt from the merged assessment rather than inherited
+// from whichever projection happened to run last.
+func MergeCapabilityResults(cached, fresh *Result) *Result {
+	if cached == nil {
+		return fresh
+	}
+	if fresh == nil {
+		return cached
+	}
+	base := fresh
+	if base.Assessment == nil {
+		base = cached
+	}
+	out := *base
+	if cached.Assessment != nil || fresh.Assessment != nil {
+		merged := mergeAssessments(cached.Assessment, fresh.Assessment)
+		out.Assessment = merged
+		out.Presentation = merged.GetPresentation()
+		out.Summary = summarize(merged.GetScenario(), statusForAssessment(merged), merged)
+		out.FindingsSummary = buildFindingsSummary(out.Summary)
+	}
+	out.Findings = mergeArchitectureFindings(cached.Findings, fresh.Findings)
+	out.RunResult.Observations = append(append([]shared.Observation(nil), cached.RunResult.Observations...), fresh.RunResult.Observations...)
+	out.Success = out.Summary.Status == "passed" || out.Summary.Status == "skipped"
+	if !out.Success && out.Error == nil {
+		out.Error = fmt.Errorf("merged capability result contains blocking findings")
+		out.FailureClass = shared.FailureClassTestFailure
+	}
+	return &out
+}
+
+func mergeAssessments(left, right *commonv1.MaturityAssessment) *commonv1.MaturityAssessment {
+	var out *commonv1.MaturityAssessment
+	if right != nil {
+		out = proto.Clone(right).(*commonv1.MaturityAssessment)
+	} else {
+		out = proto.Clone(left).(*commonv1.MaturityAssessment)
+	}
+	capabilities := map[string]*commonv1.CapabilityMaturityAssessment{}
+	for _, source := range []*commonv1.MaturityAssessment{left, right} {
+		if source == nil {
+			continue
+		}
+		for _, capability := range source.GetCapabilities() {
+			if capability != nil && capability.GetId() != "" {
+				capabilities[capability.GetId()] = capability
+			}
+		}
+	}
+	out.Capabilities = out.Capabilities[:0]
+	for _, capability := range capabilities {
+		out.Capabilities = append(out.Capabilities, capability)
+	}
+	sort.Slice(out.Capabilities, func(i, j int) bool { return out.Capabilities[i].GetId() < out.Capabilities[j].GetId() })
+	out.Findings = mergeAssessmentFindings(left, right)
+	out.FindingsBySeverity = countAssessmentFindings(out.Findings)
+	out.Presentation = assessment.BuildPhasePresentation(out)
+	return out
+}
+
+func filterAssessmentFindings(findings []*commonv1.AssessmentFinding, capabilityID string) []*commonv1.AssessmentFinding {
+	out := make([]*commonv1.AssessmentFinding, 0, len(findings))
+	for _, finding := range findings {
+		if finding != nil && finding.GetMaturity().GetCapabilityId() == capabilityID {
+			out = append(out, finding)
+		}
+	}
+	return out
+}
+
+func filterArchitectureFindings(findings []*architecturev1.ArchitectureFinding, capabilityID string, assessmentCodes map[string]struct{}) []*architecturev1.ArchitectureFinding {
+	out := make([]*architecturev1.ArchitectureFinding, 0, len(findings))
+	for _, finding := range findings {
+		if finding == nil {
+			continue
+		}
+		if _, attributed := assessmentCodes[finding.GetCode()]; attributed {
+			out = append(out, finding)
+			continue
+		}
+		for _, location := range finding.GetLocations() {
+			if location == "capability:"+capabilityID {
+				out = append(out, finding)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func assessmentFindingCodes(findings []*commonv1.AssessmentFinding) map[string]struct{} {
+	codes := make(map[string]struct{}, len(findings))
+	for _, finding := range findings {
+		if finding != nil && finding.GetCode() != "" {
+			codes[finding.GetCode()] = struct{}{}
+		}
+	}
+	return codes
+}
+
+func mergeAssessmentFindings(left, right *commonv1.MaturityAssessment) []*commonv1.AssessmentFinding {
+	seen := map[string]*commonv1.AssessmentFinding{}
+	for _, source := range []*commonv1.MaturityAssessment{left, right} {
+		if source == nil {
+			continue
+		}
+		for _, finding := range source.GetFindings() {
+			if finding == nil {
+				continue
+			}
+			key := finding.GetCode() + "\x00" + finding.GetLocation() + "\x00" + finding.GetMaturity().GetCapabilityId()
+			seen[key] = finding
+		}
+	}
+	out := make([]*commonv1.AssessmentFinding, 0, len(seen))
+	for _, finding := range seen {
+		out = append(out, finding)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].GetCode() < out[j].GetCode() })
+	return out
+}
+
+func mergeArchitectureFindings(left, right []*architecturev1.ArchitectureFinding) []*architecturev1.ArchitectureFinding {
+	seen := map[string]*architecturev1.ArchitectureFinding{}
+	for _, finding := range append(append([]*architecturev1.ArchitectureFinding(nil), left...), right...) {
+		if finding == nil {
+			continue
+		}
+		key := finding.GetCode() + "\x00" + strings.Join(finding.GetLocations(), "\x00")
+		seen[key] = finding
+	}
+	out := make([]*architecturev1.ArchitectureFinding, 0, len(seen))
+	for _, finding := range seen {
+		out = append(out, finding)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].GetCode() < out[j].GetCode() })
+	return out
+}
+
+func countAssessmentFindings(findings []*commonv1.AssessmentFinding) map[string]int32 {
+	counts := map[string]int32{}
+	for _, finding := range findings {
+		if finding != nil {
+			counts[finding.GetSeverity()]++
+		}
+	}
+	return counts
+}
+
+func statusForAssessment(a *commonv1.MaturityAssessment) scenariovalidationv1.ValidationStatus {
+	for _, finding := range a.GetFindings() {
+		if finding == nil {
+			continue
+		}
+		switch finding.GetSeverity() {
+		case "SEVERITY_BLOCKER", "SEVERITY_ERROR":
+			return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+		}
+	}
+	return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
 }
 
 func capabilitySummaries(capabilities []*commonv1.CapabilityMaturityAssessment) []CapabilitySummary {

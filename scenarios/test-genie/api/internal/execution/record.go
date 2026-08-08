@@ -25,6 +25,7 @@ type SuiteExecutionRecord struct {
 	DescriptorSnapshotDigest string
 	ConfigurationFingerprint string
 	FailFast                 bool
+	SchedulerDecision        string
 	Success                  bool
 	// TerminalOutcome classifies the run-level result (passed | failed |
 	// errored | aborted | timeout). It is the reliability ledger's denominator
@@ -41,21 +42,24 @@ type SuiteExecutionRecord struct {
 // ToExecutionResult converts the repository record into the orchestrator payload shared with callers.
 func (r SuiteExecutionRecord) ToExecutionResult() *orchestrator.SuiteExecutionResult {
 	result := &orchestrator.SuiteExecutionResult{
-		ExecutionID:         r.ID,
-		RunID:               r.RunID,
-		ScenarioName:        r.ScenarioName,
-		TargetKind:          r.TargetKind,
-		TargetID:            r.TargetID,
-		StartedAt:           r.StartedAt,
-		CompletedAt:         r.CompletedAt,
-		Success:             r.Success,
-		PresetUsed:          r.PresetUsed,
-		RequestedPreset:     r.RequestedPreset,
-		RequestedPhases:     append([]string(nil), r.RequestedPhases...),
-		RequestedSkipPhases: append([]string(nil), r.RequestedSkipPhases...),
-		PlannedPhases:       append([]string(nil), r.PlannedPhases...),
-		PhaseSetDigest:      r.PhaseSetDigest,
-		FailFast:            r.FailFast,
+		ExecutionID:              r.ID,
+		RunID:                    r.RunID,
+		ScenarioName:             r.ScenarioName,
+		TargetKind:               r.TargetKind,
+		TargetID:                 r.TargetID,
+		StartedAt:                r.StartedAt,
+		CompletedAt:              r.CompletedAt,
+		Success:                  r.Success,
+		PresetUsed:               r.PresetUsed,
+		RequestedPreset:          r.RequestedPreset,
+		RequestedPhases:          append([]string(nil), r.RequestedPhases...),
+		RequestedSkipPhases:      append([]string(nil), r.RequestedSkipPhases...),
+		PlannedPhases:            append([]string(nil), r.PlannedPhases...),
+		PhaseSetDigest:           r.PhaseSetDigest,
+		DescriptorSnapshotDigest: r.DescriptorSnapshotDigest,
+		ConfigurationFingerprint: r.ConfigurationFingerprint,
+		FailFast:                 r.FailFast,
+		SchedulerDecision:        r.SchedulerDecision,
 	}
 	if len(r.Phases) > 0 {
 		result.Phases = append([]orchestrator.PhaseExecutionResult(nil), r.Phases...)

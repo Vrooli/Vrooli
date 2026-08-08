@@ -44,7 +44,7 @@ func TestComprehensivePresetIncludesPreviouslyDroppedPhases(t *testing.T) {
 	for _, p := range comprehensive {
 		have[p] = struct{}{}
 	}
-	for _, required := range []Name{UIHealth, Architecture, Quality} {
+	for _, required := range []Name{Name("ui-health"), Name("architecture"), Name("quality")} {
 		if _, ok := have[required.String()]; !ok {
 			t.Errorf("comprehensive preset must include %q (regression: it was once silently dropped)", required)
 		}

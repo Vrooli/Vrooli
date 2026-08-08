@@ -105,8 +105,9 @@ type RunStatusInfo struct {
 }
 
 type ReusableRun struct {
-	RunID       string
-	CompletedAt time.Time
+	RunID          string
+	CompletedAt    time.Time
+	CaptureProfile string
 }
 
 type RunBusyError struct {
@@ -136,6 +137,14 @@ type RunsClient interface {
 	CompareRuns(ctx context.Context, scenario, runIDA, runIDB, phase string) (CompareResult, error)
 	ListRunArtifacts(ctx context.Context, scenario, runID string) (ArtifactCatalog, error)
 	CompareRunVisuals(ctx context.Context, scenario, baseRunID, curRunID string) ([]VisualDelta, error)
+}
+
+// MissingEvidenceCapturer is an optional seam for providers that can collect
+// only the evidence a baseline diff is missing. It must not re-run the
+// comprehensive suite; implementations should return the run id containing
+// the newly captured evidence.
+type MissingEvidenceCapturer interface {
+	CaptureMissingEvidence(ctx context.Context, scenario, sourceRunID string, kinds []string) (string, error)
 }
 
 type VisualDelta struct {

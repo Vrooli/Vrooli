@@ -43,6 +43,7 @@ func TestProviderConformanceSpecCoversEveryCode(t *testing.T) {
 		CodeTargetGlobUnresolvable,
 		CodeExecutionRunnerMissing,
 		CodeRunningSpecVersionStale,
+		CodeDeterminismUndeclared,
 	}
 	for _, code := range codes {
 		if _, ok := spec.Findings[code]; !ok {

@@ -153,25 +153,30 @@ func (s *Server) previewExecutionPlan(ctx context.Context, req orchestrator.Suit
 	return preview, preview.Summary.EstimatedDurationSeconds, nil
 }
 
+// applyPreviewPhaseSelection carries the planner's selection and timing
+// guidance into the executor without impersonating an explicit phase request.
+//
+// It is the streaming twin of applyAdmissionPreview and shares its correction:
+// writing the previewed phases onto Request.Phases turns a preset request into
+// an explicit-phase request, and an explicit-phase request records no preset.
+// That is what made durable runs ineligible for the baseline reuse they had
+// already earned. The selection now lands on ResolvedPhases instead.
 func applyPreviewPhaseSelection(input *execution.SuiteExecutionInput, preview *execution.ExecutionPlanPreview) {
-	if input == nil || preview == nil || len(input.Request.Phases) > 0 {
+	if input == nil || preview == nil {
 		return
 	}
-	if len(preview.Phases) == 0 {
+	if len(input.Request.Phases) > 0 {
 		return
 	}
-	names := make([]string, 0, len(preview.Phases))
 	for _, phase := range preview.Phases {
-		if phase.Name != "" {
-			names = append(names, phase.Name)
-			if input.Request.PredictedPhaseDurationsMilliseconds == nil {
-				input.Request.PredictedPhaseDurationsMilliseconds = make(map[string]int64)
-			}
-			input.Request.PredictedPhaseDurationsMilliseconds[strings.ToLower(strings.TrimSpace(phase.Name))] = int64(phase.EstimatedDurationSeconds) * 1000
+		if phase.Name == "" {
+			continue
 		}
-	}
-	if len(names) > 0 {
-		input.Request.Phases = names
+		input.Request.ResolvedPhases = append(input.Request.ResolvedPhases, phase.Name)
+		if input.Request.PredictedPhaseDurationsMilliseconds == nil {
+			input.Request.PredictedPhaseDurationsMilliseconds = make(map[string]int64)
+		}
+		input.Request.PredictedPhaseDurationsMilliseconds[strings.ToLower(strings.TrimSpace(phase.Name))] = int64(phase.EstimatedDurationSeconds) * 1000
 	}
 }
 

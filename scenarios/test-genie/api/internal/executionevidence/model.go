@@ -45,6 +45,8 @@ type PhaseSummary struct {
 	FindingSource     string                       `json:"findingSource,omitempty"`
 	PhasePresentation *commonv1.PhasePresentation  `json:"phasePresentation,omitempty"`
 	FindingsSummary   *runspb.PhaseFindingsSummary `json:"findingsSummary,omitempty"`
+	CacheHit          bool                         `json:"cacheHit,omitempty"`
+	CacheSourceRunID  string                       `json:"cacheSourceRunId,omitempty"`
 }
 
 // Manifest is the canonical durable run-evidence index. Detailed structured

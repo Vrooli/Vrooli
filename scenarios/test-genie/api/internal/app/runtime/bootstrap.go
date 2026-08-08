@@ -115,11 +115,11 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	}
 
 	executionRepo := execution.NewSuiteExecutionRepository(db)
+	runner.SetPhaseCostEstimator(executionRepo)
 	if capacityBroker, capacityErr := sharedcapacity.NewBroker(context.Background(), ""); capacityErr != nil {
 		log.Printf("[test-genie] phase capacity broker unavailable; scheduler will serialize: %v", capacityErr)
 	} else {
 		runner.SetCapacityBroker(capacityBroker)
-		runner.SetPhaseCostEstimator(executionRepo)
 	}
 	executionHistory := execution.NewExecutionHistoryService(executionRepo)
 	executionPlanner := execution.NewExecutionPlanService(runner, executionRepo)

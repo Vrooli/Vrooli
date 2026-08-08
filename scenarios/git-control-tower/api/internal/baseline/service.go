@@ -1154,10 +1154,41 @@ func (s *Service) computeDiff(ctx context.Context, manifest BaselineManifest, cu
 		}
 		res.Evidence.BaseCatalog = s.loadArtifactCatalog(ctx, manifest.Scenario, baseRunID, "baseline", &res)
 		res.Evidence.CurrentCatalog = s.loadArtifactCatalog(ctx, manifest.Scenario, curRunID, "current", &res)
-		if deltas, err := s.runs.CompareRunVisuals(ctx, manifest.Scenario, baseRunID, curRunID); err != nil {
-			res.Evidence.AdvisoryWarnings = append(res.Evidence.AdvisoryWarnings, "compare visual evidence: "+err.Error())
-		} else {
-			res.Evidence.VisualDeltas = append(res.Evidence.VisualDeltas, deltas...)
+		baseHasVisual := catalogHasVisualEvidence(res.Evidence.BaseCatalog)
+		currentHasVisual := catalogHasVisualEvidence(res.Evidence.CurrentCatalog)
+		// The artifact catalog, rather than the capture-profile label, is the
+		// evidence authority here. This permits an ordinary reused run to satisfy
+		// content comparison while still failing closed whenever the immutable
+		// baseline actually contains visual evidence that must be compared.
+		visualRunID := curRunID
+		if baseHasVisual && !currentHasVisual {
+			// A normal run may be content-complete but lack the optional visual
+			// capture depth required by an older baseline. Give the owning
+			// provider one explicit capture-only opportunity. The provider must
+			// return a separate evidence run; it may not silently re-execute the
+			// comprehensive suite. If that seam is unavailable or cannot produce
+			// the requested evidence, fail closed as not-comparable.
+			if capturer, ok := s.runs.(MissingEvidenceCapturer); ok {
+				capturedRunID, captureErr := capturer.CaptureMissingEvidence(ctx, manifest.Scenario, curRunID, []string{"visual"})
+				if captureErr != nil {
+					res.Evidence.BlockingReasons = append(res.Evidence.BlockingReasons, "required current visual evidence capture failed: "+captureErr.Error())
+				} else if strings.TrimSpace(capturedRunID) == "" {
+					res.Evidence.BlockingReasons = append(res.Evidence.BlockingReasons, "required current visual evidence capture returned no run id")
+				} else {
+					visualRunID = capturedRunID
+					res.Evidence.CurrentCatalog = s.loadArtifactCatalog(ctx, manifest.Scenario, visualRunID, "current visual capture", &res)
+					currentHasVisual = catalogHasVisualEvidence(res.Evidence.CurrentCatalog)
+				}
+			} else {
+				res.Evidence.BlockingReasons = append(res.Evidence.BlockingReasons, "required current visual evidence is unavailable")
+			}
+		}
+		if baseHasVisual && currentHasVisual {
+			if deltas, err := s.runs.CompareRunVisuals(ctx, manifest.Scenario, baseRunID, visualRunID); err != nil {
+				res.Evidence.BlockingReasons = append(res.Evidence.BlockingReasons, "required visual evidence comparison is unavailable: "+err.Error())
+			} else {
+				res.Evidence.VisualDeltas = append(res.Evidence.VisualDeltas, deltas...)
+			}
 		}
 	}
 	if len(res.Evidence.BlockingReasons) > 0 {
@@ -1171,6 +1202,19 @@ func (s *Service) computeDiff(ctx context.Context, manifest BaselineManifest, cu
 		res.Evidence.EvidenceStatus = "complete"
 	}
 	return res
+}
+
+func catalogHasVisualEvidence(catalog ArtifactCatalog) bool {
+	for _, artifact := range catalog.Artifacts {
+		if artifact == nil {
+			continue
+		}
+		kind := strings.ToLower(strings.TrimSpace(artifact.GetKind()))
+		if strings.Contains(kind, "visual") || strings.Contains(kind, "screenshot") || strings.Contains(kind, "video") {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) loadArtifactCatalog(ctx context.Context, scenario, runID, label string, res *DiffResult) ArtifactCatalog {

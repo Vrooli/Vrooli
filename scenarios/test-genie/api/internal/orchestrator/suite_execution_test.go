@@ -9,10 +9,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"test-genie/internal/orchestrator/phasecache"
 	phasespkg "test-genie/internal/orchestrator/phases"
 	reqsync "test-genie/internal/orchestrator/requirements"
 	"test-genie/internal/orchestrator/runnability"
@@ -22,6 +24,7 @@ import (
 	sharedruns "test-genie/internal/shared/runs"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 func TestIsLinkedWorktreeDistinguishesPrimaryAndStrictWorktree(t *testing.T) {
@@ -48,6 +51,90 @@ func TestIsLinkedWorktreeDistinguishesPrimaryAndStrictWorktree(t *testing.T) {
 	}
 	if !isLinkedWorktree(linked) {
 		t.Fatal("linked worktree must satisfy strict provenance precondition")
+	}
+}
+
+func TestFileDeterminedProviderPhasesAreCacheEligible(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test source path")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../../"))
+	o, err := NewSuiteOrchestrator(filepath.Join(repoRoot, "scenarios"))
+	if err != nil {
+		t.Fatalf("NewSuiteOrchestrator: %v", err)
+	}
+	defs, err := o.discoverPhaseDefinitions(workspacepkg.Environment{})
+	if err != nil {
+		t.Fatalf("discover phase definitions: %v", err)
+	}
+	env := workspacepkg.Environment{
+		ScenarioDir:                  filepath.Join(repoRoot, "scenarios", "meta-optimization-manager"),
+		DescriptorSnapshotDigest:     "descriptor:test",
+		ExecutionConfigurationDigest: "config:test",
+	}
+	eligible := 0
+	for _, def := range defs {
+		if strings.TrimSpace(def.Determinism.Default) != "file-determined" {
+			continue
+		}
+		eligible++
+		if digest, digestErr := phasecache.ScopedDigest(env.ScenarioDir, def.Determinism.Inputs); digestErr != nil {
+			t.Errorf("phase %s scoped digest: %v", def.Name, digestErr)
+		} else if _, ok := o.phaseCacheIdentity(env, def, nil); !ok {
+			t.Errorf("file-determined phase %s was not cache eligible (digest %q provider %q)", def.Name, digest, def.ProviderScenario)
+		}
+	}
+	if eligible == 0 {
+		t.Fatal("descriptor catalog exposed no file-determined phases")
+	}
+}
+
+func TestLoadCachedPhaseResultWritesLogToCurrentRunDirectory(t *testing.T) {
+	scenarioDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(scenarioDir, "input.txt"), []byte("stable"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := workspacepkg.Environment{
+		ScenarioName:                 "demo",
+		ScenarioDir:                  scenarioDir,
+		ArtifactRoot:                 scenarioDir,
+		DescriptorSnapshotDigest:     "descriptor:test",
+		ExecutionConfigurationDigest: "config:test",
+	}
+	phase := phasespkg.Definition{
+		Name:             "structure",
+		ProviderScenario: "structure-health",
+		Determinism:      phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}},
+	}
+	identity, ok := (&SuiteOrchestrator{}).phaseCacheIdentity(env, phase, nil)
+	if !ok {
+		t.Fatal("phase should be cache eligible")
+	}
+	if err := phasecache.New(env.ArtifactRoot).Save(phasecache.Key(identity), "source-run", phasespkg.ExecutionResult{Name: "structure", Status: "passed", DurationMilliseconds: 250}); err != nil {
+		t.Fatal(err)
+	}
+	runLogDir := filepath.Join(scenarioDir, "coverage", "logs", "current-run")
+	if err := os.MkdirAll(runLogDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	result, audit, found, _ := (&SuiteOrchestrator{}).loadCachedPhaseResult(env, "current-run", runLogDir, phase, nil)
+	if !found || audit || !result.CacheHit || result.CacheSourceRunID != "source-run" {
+		t.Fatalf("cache lookup = found=%t audit=%t result=%+v", found, audit, result)
+	}
+	if _, err := os.Stat(filepath.Join(runLogDir, "structure.log")); err != nil {
+		t.Fatalf("cache-hit log not written under current run directory: %v", err)
+	}
+}
+
+func TestAppendPhaseCacheFindingNamesPhaseAndCapability(t *testing.T) {
+	result := PhaseExecutionResult{PhasePresentation: &commonv1.PhasePresentation{FocusCapabilityId: "endpoint_proof"}}
+	appendPhaseCacheFinding(&result, "demo", "proto", "test_genie.phase_cache_audit_mismatch", "cache mismatch")
+	if len(result.Findings) != 1 || result.Findings[0].Code != "test_genie.phase_cache_audit_mismatch" {
+		t.Fatalf("findings = %+v", result.Findings)
+	}
+	if !strings.Contains(result.Findings[0].Message, "phase proto capability endpoint_proof") || result.FindingsSummary.GetWarnings() != 1 {
+		t.Fatalf("finding attribution = %+v summary=%+v", result.Findings[0], result.FindingsSummary)
 	}
 }
 
@@ -522,7 +609,7 @@ func TestSuiteOrchestratorPreviewExecutionAppliesDescriptorApplicability(t *test
 
 func TestSuiteOrchestratorPhasePlanRequiresDescriptorMetadata(t *testing.T) {
 	catalog := phasespkg.NewCatalogFromSpecs(time.Minute, phasespkg.Spec{
-		Name:        phasespkg.Search,
+		Name:        phasespkg.Name("search"),
 		Description: "catalog-only fixture",
 		Source:      "validation-provider",
 		Delegated:   &phasespkg.Delegated{ProviderScenario: "search-hub"},
@@ -801,7 +888,8 @@ func TestPrepareTargetRuntimeIgnoresGenericPortEnvironment(t *testing.T) {
 	}
 
 	env := workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: filepath.Join(t.TempDir(), "demo")}
-	uiPhaseDef := phasespkg.Definition{Name: phasespkg.Performance, Capabilities: runnability.PhaseCapabilities{Phase: phasespkg.Performance.String(), NeedsUI: true}}
+	uiPhaseName := phasespkg.Name("performance")
+	uiPhaseDef := phasespkg.Definition{Name: uiPhaseName, Capabilities: runnability.PhaseCapabilities{Phase: uiPhaseName.String(), NeedsUI: true}}
 	_, _, _, _, err := orch.prepareTargetRuntime(context.Background(), env, []phasespkg.Definition{uiPhaseDef}, SuiteExecutionRequest{}, io.Discard)
 	if err == nil {
 		t.Fatal("expected runtime start failure")
@@ -848,7 +936,7 @@ func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 		// Force the first phase (structure) to fail so fail-fast halts the rest.
 		// Structure is now delegated to structure-health, so the failure is
 		// injected via the runner rather than by corrupting the fake layout.
-		orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Structure, Runner: func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
+		orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Name("structure"), Runner: func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
 			return phasespkg.RunReport{Err: fmt.Errorf("forced structure failure")}
 		}})
 
@@ -1082,7 +1170,7 @@ func TestSuiteOrchestratorRespectsPhaseTimeoutOverrides(t *testing.T) {
 }
 
 func TestRequirementsSyncDecision(t *testing.T) {
-	defs := []phaseDefinition{{Name: PhaseStructure}, {Name: PhaseUnit}}
+	defs := []phaseDefinition{{Name: phasespkg.Name("structure")}, {Name: phasespkg.Name("unit")}}
 	selected := append([]phaseDefinition(nil), defs...)
 	fullPlan := &phasePlan{
 		Definitions: defs,
@@ -1146,7 +1234,7 @@ func TestBuildCommandHistory(t *testing.T) {
 	}
 	plan := &phasePlan{
 		PresetUsed: "quick",
-		Selected:   []phaseDefinition{{Name: PhaseStructure}, {Name: PhaseDependencies}},
+		Selected:   []phaseDefinition{{Name: phasespkg.Name("structure")}, {Name: phasespkg.Name("dependencies")}},
 	}
 
 	history := buildCommandHistory(req, plan)
@@ -1160,21 +1248,24 @@ func TestBuildCommandHistory(t *testing.T) {
 
 func TestSelectPhases(t *testing.T) {
 	defs := []phaseDefinition{
-		{Name: PhaseStructure},
-		{Name: PhaseDependencies},
-		{Name: PhaseUnit},
+		{Name: phasespkg.Name("structure")},
+		{Name: phasespkg.Name("dependencies")},
+		{Name: phasespkg.Name("unit")},
 	}
 	presets := map[string][]string{
 		"quick": {"structure", "unit"},
 	}
 
+	// A request with no preset and no explicit phases runs every applicable
+	// phase, which is exactly what "comprehensive" names. Reporting "" for it
+	// made Git Control Tower treat a full run as ineligible for baseline reuse.
 	t.Run("defaults to all phases when no hints provided", func(t *testing.T) {
 		selected, preset, notices, err := selectPhases(defs, presets, SuiteExecutionRequest{}, PhaseToggleConfig{})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if preset != "" {
-			t.Fatalf("expected empty preset usage, got %s", preset)
+		if preset != phasespkg.PresetComprehensive.String() {
+			t.Fatalf("expected comprehensive preset usage, got %s", preset)
 		}
 		if len(selected) != len(defs) {
 			t.Fatalf("expected %d phases, got %d", len(defs), len(selected))
@@ -1192,7 +1283,7 @@ func TestSelectPhases(t *testing.T) {
 		if preset != "quick" {
 			t.Fatalf("expected preset quick, got %s", preset)
 		}
-		if len(selected) != 2 || selected[0].Name != PhaseStructure || selected[1].Name != PhaseUnit {
+		if len(selected) != 2 || selected[0].Name != phasespkg.Name("structure") || selected[1].Name != phasespkg.Name("unit") {
 			t.Fatalf("unexpected preset selection: %#v", selected)
 		}
 		if len(notices.Skipped) != 0 {
@@ -1213,7 +1304,7 @@ func TestSelectPhases(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		for _, def := range selected {
-			if def.Name == PhaseDependencies {
+			if def.Name == phasespkg.Name("dependencies") {
 				t.Fatalf("dependency phase should have been skipped")
 			}
 		}
@@ -1239,7 +1330,7 @@ func TestSelectPhases(t *testing.T) {
 		t.Setenv("TEST_GENIE_SKIP_UNIT", "1")
 		defsWithEnv := append([]phaseDefinition(nil), defs...)
 		for i := range defsWithEnv {
-			if defsWithEnv[i].Name == PhaseUnit {
+			if defsWithEnv[i].Name == phasespkg.Name("unit") {
 				defsWithEnv[i].SkipEnvVar = "TEST_GENIE_SKIP_UNIT"
 			}
 		}
@@ -1248,7 +1339,7 @@ func TestSelectPhases(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		for _, def := range selected {
-			if def.Name == PhaseUnit {
+			if def.Name == phasespkg.Name("unit") {
 				t.Fatalf("unit phase should have been skipped via env before execution")
 			}
 		}
@@ -1264,7 +1355,7 @@ func TestSelectPhases(t *testing.T) {
 		t.Setenv("TEST_GENIE_SKIP_UNIT", "1")
 		defsWithEnv := append([]phaseDefinition(nil), defs...)
 		for i := range defsWithEnv {
-			if defsWithEnv[i].Name == PhaseUnit {
+			if defsWithEnv[i].Name == phasespkg.Name("unit") {
 				defsWithEnv[i].SkipEnvVar = "TEST_GENIE_SKIP_UNIT"
 			}
 		}
@@ -1290,8 +1381,9 @@ func TestSelectPhases(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if preset != "" {
-			t.Fatalf("expected empty preset usage, got %s", preset)
+		// Naming the preset must not change what a toggle does to selection.
+		if preset != phasespkg.PresetComprehensive.String() {
+			t.Fatalf("expected comprehensive preset usage, got %s", preset)
 		}
 		if len(selected) != 2 {
 			t.Fatalf("expected 2 phases after disabling unit, got %d", len(selected))
@@ -1314,7 +1406,7 @@ func TestSelectPhases(t *testing.T) {
 		if preset != "" {
 			t.Fatalf("expected empty preset usage, got %s", preset)
 		}
-		if len(selected) != 1 || selected[0].Name != PhaseUnit {
+		if len(selected) != 1 || selected[0].Name != phasespkg.Name("unit") {
 			t.Fatalf("expected only unit to be selected, got %#v", selected)
 		}
 		if len(notices.Explicit) != 1 || notices.Explicit[0].Name != "unit" {
@@ -1325,8 +1417,8 @@ func TestSelectPhases(t *testing.T) {
 
 func TestValidateTestingConfigPhasesReportsUnknownKeys(t *testing.T) {
 	defs := []phaseDefinition{
-		{Name: PhaseStructure},
-		{Name: PhaseUnit},
+		{Name: phasespkg.Name("structure")},
+		{Name: phasespkg.Name("unit")},
 	}
 	cfg := &workspacepkg.Config{Phases: map[string]workspacepkg.PhaseSettings{
 		"strcuture": {},

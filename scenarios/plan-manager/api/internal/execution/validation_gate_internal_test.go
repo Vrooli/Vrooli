@@ -166,3 +166,45 @@ func TestValidationBlockerReasonEmptyOnFreshPass(t *testing.T) {
 		t.Fatal("fresh pass must be recognized as a recent pass")
 	}
 }
+
+func TestPhaseMinimumHonorsValidationScope(t *testing.T) {
+	plan := planmodel.Plan{
+		ChangeBoundary: planmodel.ChangeBoundary{AcceptanceAllow: []string{
+			"scenarios/git-control-tower/**",
+			"scenarios/plan-manager/**",
+		}},
+		Phases: []planmodel.Phase{
+			{
+				ID: "narrow",
+				ValidationScope: planmodel.ValidationScope{
+					Mode:     planmodel.ValidationScopeNarrow,
+					Boundary: planmodel.ChangeBoundary{AcceptanceAllow: []string{"scenarios/test-genie/**"}},
+				},
+			},
+			{ID: "full", ValidationScope: planmodel.ValidationScope{Mode: planmodel.ValidationScopeFullPlan}},
+			{ID: "phase-boundary", ChangeBoundary: planmodel.ChangeBoundary{AcceptanceAllow: []string{"scenarios/prompt-manager/**"}}},
+		},
+	}
+
+	if got := phaseMinimum(plan, "narrow"); !sameStrings(got, []string{"test-genie"}) {
+		t.Fatalf("narrow phase minimum = %v, want [test-genie]", got)
+	}
+	if got := phaseMinimum(plan, "full"); !sameStrings(got, []string{"git-control-tower", "plan-manager"}) {
+		t.Fatalf("full-plan phase minimum = %v, want plan boundary members", got)
+	}
+	if got := phaseMinimum(plan, "phase-boundary"); !sameStrings(got, []string{"prompt-manager"}) {
+		t.Fatalf("phase-boundary minimum = %v, want [prompt-manager]", got)
+	}
+}
+
+func sameStrings(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
+}

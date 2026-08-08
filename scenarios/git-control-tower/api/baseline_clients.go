@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -180,7 +182,6 @@ func (e baselineExecutor) FindReusableRun(ctx context.Context, scenario string) 
 	resp, err := cl.FindRun(ctx, connect.NewRequest(&runspb.FindRunRequest{
 		Scenario:           scenario,
 		Preset:             "comprehensive",
-		CaptureProfile:     "baseline",
 		Status:             "passed",
 		MatchCurrentSource: true,
 	}))
@@ -192,7 +193,7 @@ func (e baselineExecutor) FindReusableRun(ctx context.Context, scenario string) 
 	}
 	info := resp.Msg.GetRun()
 	completedAt, _ := time.Parse(time.RFC3339, info.GetCompletedAt())
-	return baseline.ReusableRun{RunID: info.GetRunId(), CompletedAt: completedAt}, true, nil
+	return baseline.ReusableRun{RunID: info.GetRunId(), CompletedAt: completedAt, CaptureProfile: info.GetCaptureProfile()}, true, nil
 }
 
 func (e baselineExecutor) AwaitResult(ctx context.Context, scenario, runID string) (baseline.ExecResult, error) {
@@ -298,12 +299,69 @@ type baselineRunsClient struct {
 	resolveURL func(ctx context.Context) (string, error)
 }
 
+// cachedScenarioURLResolver collapses the discovery fan-out created by a
+// collection diff. A single child comparison can resolve Test Genie several
+// times (wait, compare, and artifact catalogs); a four-member collection used
+// to launch all of those `vrooli scenario port` subprocesses concurrently.
+// That made the aggregate wait spend minutes in discovery after the actual
+// runs had already finished. The URL is stable for the lifetime of a local
+// service, while the short TTL still notices a service relocation/restart.
+type cachedScenarioURLResolver struct {
+	mu        sync.Mutex
+	url       string
+	expiresAt time.Time
+	resolving chan struct{}
+	resolve   func(context.Context) (string, error)
+	ttl       time.Duration
+}
+
+func (r *cachedScenarioURLResolver) Resolve(ctx context.Context) (string, error) {
+	for {
+		r.mu.Lock()
+		if r.url != "" && time.Now().Before(r.expiresAt) {
+			url := r.url
+			r.mu.Unlock()
+			return url, nil
+		}
+		if r.resolving != nil {
+			done := r.resolving
+			r.mu.Unlock()
+			select {
+			case <-done:
+				continue
+			case <-ctx.Done():
+				return "", ctx.Err()
+			}
+		}
+		resolving := make(chan struct{})
+		r.resolving = resolving
+		r.mu.Unlock()
+
+		url, err := r.resolve(ctx)
+		r.mu.Lock()
+		if err == nil && strings.TrimSpace(url) != "" {
+			r.url = strings.TrimRight(url, "/")
+			r.expiresAt = time.Now().Add(r.ttl)
+			url = r.url
+		}
+		r.resolving = nil
+		close(resolving)
+		r.mu.Unlock()
+		return url, err
+	}
+}
+
+var baselineTestGenieURL = &cachedScenarioURLResolver{
+	resolve: func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "test-genie")
+	},
+	ttl: 30 * time.Second,
+}
+
 func newBaselineRunsClient(timeout time.Duration) baselineRunsClient {
 	return baselineRunsClient{
 		httpClient: &http.Client{Timeout: timeout},
-		resolveURL: func(ctx context.Context) (string, error) {
-			return discovery.ResolveScenarioURLDefault(ctx, "test-genie")
-		},
+		resolveURL: baselineTestGenieURL.Resolve,
 	}
 }
 
@@ -398,6 +456,49 @@ func (c baselineRunsClient) CompareRunVisuals(ctx context.Context, scenario, bas
 		})
 	}
 	return out, nil
+}
+
+// CaptureMissingEvidence runs only the visual-producing phase with baseline
+// capture depth. It is deliberately separate from baselineExecutor.StartRun:
+// a missing-evidence repair must never re-run the comprehensive suite.
+func (c baselineRunsClient) CaptureMissingEvidence(ctx context.Context, scenario, _ string, kinds []string) (string, error) {
+	if !slices.Contains(kinds, "visual") {
+		return "", fmt.Errorf("unsupported missing evidence kinds: %s", strings.Join(kinds, ", "))
+	}
+	cl, err := c.client(ctx)
+	if err != nil {
+		return "", err
+	}
+	request := connect.NewRequest(&runspb.StartRunRequest{
+		Scenario:       scenario,
+		Phases:         []string{"ui-health"},
+		CaptureProfile: "baseline",
+	})
+	request.Header().Set("X-Vrooli-Caller", baselineAdmissionCaller+":missing-evidence")
+	started, err := startBaselineRunWithRetry(ctx, func() (*connect.Response[runspb.StartRunResponse], error) {
+		return cl.StartRun(ctx, request)
+	})
+	if err != nil {
+		return "", err
+	}
+	runID := started.Msg.GetRunId()
+	if strings.TrimSpace(runID) == "" {
+		return "", fmt.Errorf("test-genie returned no missing-evidence run id")
+	}
+	waited, err := waitForBaselineTerminal(ctx, func() (*connect.Response[runspb.WaitRunResponse], error) {
+		return cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{Scenario: scenario, RunId: runID}))
+	})
+	if err != nil {
+		return "", err
+	}
+	terminal := waited.Msg.GetTerminalRun()
+	if terminal == nil || waited.Msg.GetTerminalSnapshotSchemaVersion() == 0 {
+		return "", fmt.Errorf("missing-evidence run %s has no canonical terminal snapshot", runID)
+	}
+	if terminal.GetStatus() != "passed" {
+		return "", fmt.Errorf("missing-evidence run %s ended with status %s", runID, terminal.GetStatus())
+	}
+	return runID, nil
 }
 
 // baselineReachability is a fast, bounded liveness check of the test-genie

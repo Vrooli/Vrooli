@@ -392,3 +392,38 @@ func TestSuiteExecutionRepositoryCostReportSeparatesPassingAndFailingDurations(t
 		t.Fatalf("unexpected status distributions: %#v", summary)
 	}
 }
+
+func TestSuiteExecutionRepositoryCostReportIncludesCacheEconomics(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	now := time.Now().UTC()
+	insert := func(duration int64, hit, audit bool, offset time.Duration) {
+		t.Helper()
+		id := uuid.New()
+		phase := phases.ExecutionResult{Name: "unit", Status: "passed", DurationMilliseconds: duration, CacheHit: hit, CacheAudit: audit}
+		if err := repo.Create(context.Background(), &SuiteExecutionRecord{ID: id, ScenarioName: "demo", Success: true, Phases: []phases.ExecutionResult{phase}, StartedAt: now.Add(-offset - time.Second), CompletedAt: now.Add(-offset)}); err != nil {
+			t.Fatalf("create: %v", err)
+		}
+		if _, err := db.Exec(`UPDATE suite_execution_phases SET wall_clock_ms = ?, cpu_reliability = 'RELIABILITY_RELIABLE', memory_reliability = 'RELIABILITY_RELIABLE' WHERE execution_id = ?`, duration, id.String()); err != nil {
+			t.Fatalf("seed metrics: %v", err)
+		}
+	}
+	insert(1000, false, false, time.Minute)
+	insert(1000, true, false, 2*time.Minute)
+	insert(1200, false, true, 3*time.Minute)
+
+	report, err := repo.CostReport(context.Background(), "demo", now.Add(-time.Hour), now.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("cost report: %v", err)
+	}
+	if len(report) != 1 {
+		t.Fatalf("expected one phase summary, got %#v", report)
+	}
+	summary := report[0]
+	if summary.CacheHitCount != 1 || summary.ExecutedSampleCount != 2 || summary.CacheAuditCount != 1 || summary.CacheHitRatePercent < 33.33 || summary.CacheHitRatePercent > 33.34 {
+		t.Fatalf("unexpected cache counts: %#v", summary)
+	}
+	if summary.EstimatedGrossSavedWallClockMs != 1000 || summary.CacheAuditWallClockMs != 1200 || summary.EstimatedNetSavedWallClockMs != -200 {
+		t.Fatalf("net saving did not account for audit cost: %#v", summary)
+	}
+}

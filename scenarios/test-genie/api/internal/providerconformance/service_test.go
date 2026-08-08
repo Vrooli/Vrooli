@@ -71,6 +71,10 @@ func fixtureRepo(t *testing.T, scenario string, mutate func(map[string]any)) (re
 		},
 		"runnability": map[string]any{},
 		"docs":        map[string]any{"path": docsRel},
+		"determinism": map[string]any{
+			"default": "observational",
+			"reason":  "fixture provider uses external observations",
+		},
 		"maturity": map[string]any{
 			"version": "1.0.0",
 			"capabilities": []any{

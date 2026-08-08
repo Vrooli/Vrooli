@@ -50,13 +50,13 @@ func TestIsValidPhase(t *testing.T) {
 	}
 }
 
-func TestNormalizeKeyResolvesAliases(t *testing.T) {
+func TestNormalizeKeyPreservesDescriptorIdentity(t *testing.T) {
 	tests := map[string]string{
-		" E2E ":      "workflow",
-		"unit-test":  "unit",
-		"playbook":   "workflow",
-		"playbooks":  "workflow",
-		"STRUCT":     "structure",
+		" E2E ":      "e2e",
+		"unit-test":  "unit-test",
+		"playbook":   "playbook",
+		"playbooks":  "playbooks",
+		"STRUCT":     "struct",
 		"custom-one": "custom-one",
 	}
 	for input, want := range tests {
@@ -65,11 +65,8 @@ func TestNormalizeKeyResolvesAliases(t *testing.T) {
 		}
 	}
 	name, ok := NormalizeName("e2e")
-	if !ok {
-		t.Fatal("NormalizeName(e2e) returned !ok")
-	}
-	if name != Workflow {
-		t.Fatalf("NormalizeName(e2e) = %q, want %q", name, Workflow)
+	if !ok || name != Name("e2e") {
+		t.Fatalf("NormalizeName(e2e) = %q, %v; want descriptor key e2e", name, ok)
 	}
 }
 

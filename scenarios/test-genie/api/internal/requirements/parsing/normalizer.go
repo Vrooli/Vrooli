@@ -3,7 +3,6 @@ package parsing
 import (
 	"strings"
 
-	"test-genie/internal/orchestrator/phasekeys"
 	"test-genie/internal/requirements/types"
 )
 
@@ -125,7 +124,20 @@ func normalizeStringSlice(slice []string) []string {
 
 // normalizePhase normalizes a phase name to lowercase.
 func normalizePhase(phase string) string {
-	return phasekeys.NormalizeKey(phase)
+	key := strings.ToLower(strings.TrimSpace(phase))
+	// Requirement files historically used these classification aliases. Keep
+	// the compatibility boundary in the requirements parser; the orchestrator's
+	// descriptor identity remains alias-free and provider-owned.
+	aliases := map[string]string{
+		"unit-test": "unit", "unit_test": "unit", "unittest": "unit",
+		"integration-test": "integration", "integration_test": "integration",
+		"e2e": "workflow", "business-logic": "business", "struct": "structure",
+		"deps": "dependencies", "perf": "performance", "playbook": "workflow",
+	}
+	if canonical, ok := aliases[key]; ok {
+		return canonical
+	}
+	return key
 }
 
 // NormalizeID normalizes a requirement ID for consistent comparison.

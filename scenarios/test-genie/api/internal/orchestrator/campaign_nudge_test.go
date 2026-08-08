@@ -36,7 +36,7 @@ func resultsFor(phase string, findings ...[]*architecturev1.ArchitectureFinding)
 
 // archResults is a convenience for the architecture phase specifically.
 func archResults(findings ...[]*architecturev1.ArchitectureFinding) []phases.ExecutionResult {
-	return resultsFor(phases.Architecture.String(), findings...)
+	return resultsFor(phases.Name("architecture").String(), findings...)
 }
 
 // nudge is a test shim with the default FAIL verdict + a fixed artifact path.
@@ -135,7 +135,7 @@ func TestCampaignNudge_BoundaryActionableIs15IsNil(t *testing.T) {
 // regression: a heavy quality-only audit (no architecture phase) must still
 // nudge, because any battery crossing the threshold is worth tracking.
 func TestCampaignNudge_FiresOnNonArchitectureBattery(t *testing.T) {
-	res := resultsFor(phases.Quality.String(),
+	res := resultsFor(phases.Name("quality").String(),
 		repeatFindings(architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, 20))
 	n := nudge("demo", res)
 	if n == nil {

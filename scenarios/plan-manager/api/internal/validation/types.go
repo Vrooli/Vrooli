@@ -212,6 +212,9 @@ type ReferenceReport struct {
 type BaselineScope struct {
 	Commands  []string
 	Locations []string
+	// Provenance explains why this scope was selected: explicit is an authored
+	// declaration, derived is the affected-area default, and plan is fallback.
+	Provenance string
 }
 
 // BaselineCapture reports the outcome of capturing the regression-anchor's

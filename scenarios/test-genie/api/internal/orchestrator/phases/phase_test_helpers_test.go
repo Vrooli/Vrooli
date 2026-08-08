@@ -47,7 +47,7 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), []byte(serviceJSON), 0o644); err != nil {
 		t.Fatalf("failed to seed service.json: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "testing.json"), []byte(`{"structure":{"ui_smoke":{"enabled":false}}}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "testing.json"), []byte(`{"descriptor-key":{"ui_smoke":{"enabled":false}}}`), 0o644); err != nil {
 		t.Fatalf("failed to seed testing.json: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(scenarioDir, "requirements", "index.json"), []byte(`{"imports":["01-internal-orchestrator/module.json"]}`), 0o644); err != nil {

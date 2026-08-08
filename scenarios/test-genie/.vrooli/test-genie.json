@@ -449,6 +449,19 @@
         ],
         "fix_class": "manual",
         "reason": "Metrics adoption requires wiring the shared collector through the provider's handler."
+      },
+      "PROVIDER_DETERMINISM_UNDECLARED": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Cache eligibility is a provider ownership decision and must not be inferred from timing or a partial input scan."
       }
     },
     "fallback": {
@@ -466,6 +479,10 @@
   "runtimeClass": "static",
   "concurrency": {
     "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "observational",
+    "reason": "Provider inputs and external observations are not proven to be completely represented by a file digest."
   },
   "dimensions": [
     "operational-targets"

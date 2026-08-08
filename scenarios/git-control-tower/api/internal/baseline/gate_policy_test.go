@@ -15,6 +15,7 @@ func TestGateDecisionForComparisonKeepsAxesIndependent(t *testing.T) {
 		{"oracle", "unknown", "measured", "changed-unreviewed", "verified", VerdictNotComparable},
 		{"volatile", "clean", "measured", "compatible", "volatile", VerdictNotComparable},
 		{"shared-scoped", "clean", "measured", "compatible", "shared-scoped", VerdictClean},
+		{"legacy-index", "clean", "measured", "compatible", "legacy-index", VerdictClean},
 		{"preexisting", "preexisting", "measured", "compatible", "verified", VerdictPreexisting},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

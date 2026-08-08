@@ -16,8 +16,8 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 )
 
-// Catalog exposes the orchestrator's built-in phase registry so the API can
-// clearly advertise the supported domain flows (structure, dependencies, etc.).
+// Catalog exposes the descriptor-backed registry so the API can advertise the
+// effective provider-owned validation contracts.
 type Catalog struct {
 	specs map[Name]Spec
 	order []Name
@@ -214,6 +214,7 @@ func (c *Catalog) Descriptors() []Descriptor {
 			PhaseClass:            spec.PhaseClass,
 			RuntimeClass:          spec.RuntimeClass,
 			Concurrency:           spec.Concurrency,
+			Determinism:           spec.Determinism,
 			Dimensions:            append([]string(nil), spec.Dimensions...),
 		})
 	}

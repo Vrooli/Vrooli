@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"testing"
+	"time"
 
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	"test-genie/internal/orchestrator/phases"
@@ -41,6 +42,21 @@ func TestNextPhaseBatchHonorsExclusiveAndProviderSerial(t *testing.T) {
 	}
 	if got := nextPhaseBatch(defs, 0, true); got != 1 {
 		t.Fatalf("forced serial batch end = %d, want 1", got)
+	}
+}
+
+func TestNextPhaseBatchSerializesDeadlineSensitivePhase(t *testing.T) {
+	defs := []phases.Definition{
+		{Name: phases.Name("short"), Timeout: time.Minute, Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
+		{Name: phases.Name("docs"), Timeout: time.Minute, Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
+		{Name: phases.Name("after"), Timeout: time.Minute, Concurrency: phases.Concurrency{Mode: "parallel-safe"}},
+	}
+	predicted := map[string]int64{"short": 10_000, "docs": 31_000, "after": 10_000}
+	if got := nextPhaseBatchWithPredictions(defs, 0, false, predicted); got != 1 {
+		t.Fatalf("short batch end = %d, want 1 before deadline-sensitive phase", got)
+	}
+	if got := nextPhaseBatchWithPredictions(defs, 1, false, predicted); got != 2 {
+		t.Fatalf("deadline-sensitive batch end = %d, want singleton", got)
 	}
 }
 

@@ -81,19 +81,23 @@ type Sample struct {
 	DurationMilliseconds int64
 	// DurationSeconds supports fixture callers and legacy run projections. When
 	// both fields are present, milliseconds are authoritative.
-	DurationSeconds int
-	CompletedAt     time.Time
+	DurationSeconds   int
+	CompletedAt       time.Time
+	CPUReliability    string
+	MemoryReliability string
 }
 
 type Estimate struct {
-	DurationSeconds     int
-	Source              EstimateSource
-	Confidence          EstimateConfidence
-	SampleSize          int
-	Unknown             bool
-	PointSampleCount    int
-	CensoredSampleCount int
-	ExcludedSampleCount int
+	DurationSeconds        int
+	Source                 EstimateSource
+	Confidence             EstimateConfidence
+	SampleSize             int
+	Unknown                bool
+	PointSampleCount       int
+	CensoredSampleCount    int
+	ExcludedSampleCount    int
+	ReliabilityComposition string
+	LowConfidenceReason    string
 }
 
 type Decision struct {
@@ -117,13 +121,15 @@ type Plan struct {
 }
 
 type sampleBucket struct {
-	pointDurations []int
-	censoredCount  int
-	excludedCount  int
+	reliablePointDurations   []int
+	bestEffortPointDurations []int
+	bestEffortDeclared       bool
+	censoredCount            int
+	excludedCount            int
 }
 
 func (b sampleBucket) totalCount() int {
-	return len(b.pointDurations) + b.censoredCount + b.excludedCount
+	return len(b.reliablePointDurations) + len(b.bestEffortPointDurations) + b.censoredCount + b.excludedCount
 }
 
 type Estimator struct {
@@ -173,7 +179,12 @@ func addSample(bucket *sampleBucket, sample Sample, class sampleClass) {
 	duration := sampleDurationSeconds(sample)
 	switch class {
 	case samplePoint:
-		bucket.pointDurations = append(bucket.pointDurations, duration)
+		if sample.CPUReliability == "RELIABILITY_RELIABLE" && sample.MemoryReliability == "RELIABILITY_RELIABLE" {
+			bucket.reliablePointDurations = append(bucket.reliablePointDurations, duration)
+		} else {
+			bucket.bestEffortPointDurations = append(bucket.bestEffortPointDurations, duration)
+			bucket.bestEffortDeclared = sample.CPUReliability != "" || sample.MemoryReliability != ""
+		}
 	case sampleCensored:
 		bucket.censoredCount++
 	default:
@@ -351,34 +362,57 @@ func estimatedPlanTotal(profile Profile, decisions []Decision) int {
 }
 
 func estimatePhase(timeoutSeconds int, scenario, global sampleBucket) Estimate {
-	scenarioCount := len(scenario.pointDurations)
-	globalCount := len(global.pointDurations)
+	reliableOnly := len(scenario.reliablePointDurations)+len(global.reliablePointDurations) > 0
+	scenarioDurations := usableDurations(scenario, reliableOnly)
+	globalDurations := usableDurations(global, reliableOnly)
+	scenarioCount := len(scenarioDurations)
+	globalCount := len(globalDurations)
 	censored := scenario.censoredCount + global.censoredCount
 	excluded := scenario.excludedCount + global.excludedCount
 	base := Estimate{CensoredSampleCount: censored, ExcludedSampleCount: excluded}
 	switch {
 	case scenarioCount >= primaryScenarioSamples:
-		base.DurationSeconds = percentileSeconds(scenario.pointDurations, historyPercentile)
+		base.DurationSeconds = percentileSeconds(scenarioDurations, historyPercentile)
 		base.Source, base.SampleSize = EstimateSourceScenarioHistory, scenarioCount
-		return finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount)
+		return finishReliability(finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount), reliableOnly, scenario.bestEffortDeclared || global.bestEffortDeclared)
 	case scenarioCount > 0 && globalCount > 0:
 		globalWeight := minInt(globalCount, primaryScenarioSamples)
-		base.DurationSeconds = weightedBlend(percentileSeconds(scenario.pointDurations, historyPercentile), scenarioCount, percentileSeconds(global.pointDurations, historyPercentile), globalWeight)
+		base.DurationSeconds = weightedBlend(percentileSeconds(scenarioDurations, historyPercentile), scenarioCount, percentileSeconds(globalDurations, historyPercentile), globalWeight)
 		base.Source, base.SampleSize = EstimateSourceBlendedHistory, scenarioCount+globalWeight
-		return finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount)
+		return finishReliability(finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount), reliableOnly, scenario.bestEffortDeclared || global.bestEffortDeclared)
 	case scenarioCount > 0:
-		base.DurationSeconds = percentileSeconds(scenario.pointDurations, historyPercentile)
+		base.DurationSeconds = percentileSeconds(scenarioDurations, historyPercentile)
 		base.Source, base.SampleSize = EstimateSourceScenarioHistory, scenarioCount
-		return finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount)
+		return finishReliability(finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount), reliableOnly, scenario.bestEffortDeclared || global.bestEffortDeclared)
 	case globalCount > 0:
-		base.DurationSeconds = percentileSeconds(global.pointDurations, historyPercentile)
+		base.DurationSeconds = percentileSeconds(globalDurations, historyPercentile)
 		base.Source, base.SampleSize = EstimateSourceGlobalHistory, globalCount
-		return finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount)
+		return finishReliability(finishEstimate(base, scenarioCount, censored, excluded, base.Source, globalCount), reliableOnly, scenario.bestEffortDeclared || global.bestEffortDeclared)
 	default:
 		base.DurationSeconds = clampNonNegative(timeoutSeconds)
 		base.Source, base.Confidence, base.Unknown = EstimateSourceUnknown, EstimateConfidenceLow, true
 		return base
 	}
+}
+
+func usableDurations(bucket sampleBucket, reliableOnly bool) []int {
+	if reliableOnly {
+		return append([]int(nil), bucket.reliablePointDurations...)
+	}
+	return append([]int(nil), bucket.bestEffortPointDurations...)
+}
+
+func finishReliability(estimate Estimate, reliable, declaredBestEffort bool) Estimate {
+	if reliable {
+		estimate.ReliabilityComposition = "reliable"
+		return estimate
+	}
+	if estimate.PointSampleCount > 0 && declaredBestEffort {
+		estimate.ReliabilityComposition = "best_effort"
+		estimate.LowConfidenceReason = "no RELIABILITY_RELIABLE samples were available"
+		estimate.Confidence = EstimateConfidenceLow
+	}
+	return estimate
 }
 
 func finishEstimate(estimate Estimate, point, censored, excluded int, source EstimateSource, global int) Estimate {
@@ -529,12 +563,14 @@ func clampNonNegative(value int) int {
 	}
 	return value
 }
+
 func maxInt(left, right int) int {
 	if left > right {
 		return left
 	}
 	return right
 }
+
 func minInt(left, right int) int {
 	if left < right {
 		return left

@@ -94,6 +94,7 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 		DescriptorSnapshotDigest: result.DescriptorSnapshotDigest,
 		ConfigurationFingerprint: result.ConfigurationFingerprint,
 		FailFast:                 result.FailFast,
+		SchedulerDecision:        result.SchedulerDecision,
 		Success:                  result.Success,
 		Phases:                   compactPhaseResults(result.Phases),
 		PreparationStages:        compactPreparationStages(result.PreparationStages),
@@ -161,6 +162,11 @@ func compactPhaseResults(results []phases.ExecutionResult) []phases.ExecutionRes
 			PhasePresentation:             result.PhasePresentation,
 			FindingsSummary:               result.FindingsSummary,
 			Metrics:                       result.Metrics,
+			CacheHit:                      result.CacheHit,
+			CacheSourceRunID:              result.CacheSourceRunID,
+			CacheAudit:                    result.CacheAudit,
+			CacheAuditMismatch:            result.CacheAuditMismatch,
+			CacheNoSaving:                 result.CacheNoSaving,
 		})
 	}
 	return compact

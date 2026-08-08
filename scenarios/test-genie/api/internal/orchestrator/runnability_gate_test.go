@@ -35,10 +35,10 @@ func surfaceDef(name phases.Name) phases.Definition {
 
 func TestComputeSuiteVerdict(t *testing.T) {
 	defs := []phases.Definition{
-		{Name: phases.Structure},
-		{Name: phases.Performance, Optional: true},
-		{Name: phases.Measures, Policy: phasepolicy.AdvisoryProviderPolicy()},
-		{Name: phases.Unit},
+		{Name: phases.Name("structure")},
+		{Name: phases.Name("performance"), Optional: true},
+		{Name: phases.Name("measures"), Policy: phasepolicy.AdvisoryProviderPolicy()},
+		{Name: phases.Name("unit")},
 	}
 	cases := []struct {
 		name    string
@@ -110,8 +110,8 @@ func TestRunSelectedPhasesSkipsUnrunnableSurfacePhaseOnSelf(t *testing.T) {
 	runLogDir := t.TempDir()
 
 	defs := []phases.Definition{
-		staticDef(phases.Structure),
-		surfaceDef(phases.Performance),
+		staticDef(phases.Name("structure")),
+		surfaceDef(phases.Name("performance")),
 	}
 	// Self-target, no live surfaces: the performance phase cannot run without a
 	// start that would SIGTERM the suite, so it must skip.
@@ -149,7 +149,7 @@ func TestRunSelectedPhasesRunsSurfacePhaseWhenLive(t *testing.T) {
 	o := &SuiteOrchestrator{projectRoot: t.TempDir(), phaseTimeout: phases.DefaultTimeout}
 	runLogDir := t.TempDir()
 
-	defs := []phases.Definition{surfaceDef(phases.Performance)}
+	defs := []phases.Definition{surfaceDef(phases.Name("performance"))}
 	rc := runnability.RunContext{TargetIsSelf: true, LiveSurfaces: runnability.Surfaces{UI: true}}
 
 	results, anyFailure := o.runSelectedPhasesWithEvents(context.Background(), workspacepkg.Environment{}, rc, runLogDir, defs, nil, false, nil, nil)

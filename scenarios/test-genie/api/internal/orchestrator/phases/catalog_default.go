@@ -2,7 +2,7 @@ package phases
 
 import "sync"
 
-// The default catalog is the single source of truth for phase identity,
+// The default catalog is the single source of truth for descriptor identity,
 // ordering, presets, and validation. Callers (orchestrator, CLI, tests) derive
 // their phase knowledge from these helpers instead of restating phase literals.
 
@@ -11,8 +11,8 @@ var (
 	defaultCatalogInst *Catalog
 )
 
-// DefaultCatalog returns the process-wide default phase catalog, lazily built
-// from the canonical phase registrations in NewDefaultCatalog.
+// DefaultCatalog returns the process-wide descriptor catalog, lazily built
+// from provider-owned descriptors in NewDefaultCatalog.
 func DefaultCatalog() *Catalog {
 	defaultCatalogOnce.Do(func() {
 		defaultCatalogInst = NewDefaultCatalog(DefaultTimeout)
@@ -20,7 +20,7 @@ func DefaultCatalog() *Catalog {
 	return defaultCatalogInst
 }
 
-// AllPhases returns the canonical phase names in catalog (weight) order.
+// AllPhases returns descriptor names in catalog order.
 func AllPhases() []Name {
 	specs := DefaultCatalog().All()
 	names := make([]Name, 0, len(specs))
@@ -30,7 +30,7 @@ func AllPhases() []Name {
 	return names
 }
 
-// ValidPhaseNames returns the canonical phase names as strings in catalog order.
+// ValidPhaseNames returns descriptor names as strings in catalog order.
 func ValidPhaseNames() []string {
 	names := AllPhases()
 	out := make([]string, 0, len(names))
@@ -40,9 +40,8 @@ func ValidPhaseNames() []string {
 	return out
 }
 
-// IsValidPhase reports whether raw resolves to a registered catalog phase
-// (case-insensitive). Aliases (e.g. "e2e") are not resolved here; callers that
-// accept aliases must normalize before calling.
+// IsValidPhase reports whether raw resolves to a registered descriptor
+// (case-insensitive).
 func IsValidPhase(raw string) bool {
 	_, ok := DefaultCatalog().Lookup(raw)
 	return ok

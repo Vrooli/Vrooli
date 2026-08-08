@@ -41,7 +41,7 @@ func RenderPhasesMarkdown(catalog *Catalog) string {
 	b.WriteString("Test Genie phases are generated from the effective descriptor-backed registry. Provider-backed phase metadata lives in each provider's `.vrooli/test-genie.json`; Test Genie code owns runner bindings, preset composition, and registry validation.\n\n")
 	b.WriteString("Use `test-genie phases inspect <phase> --json` or `/api/v1/phases/<phase>` to inspect the effective descriptor projection, including provider, descriptor path, docs path, policy, runnability, applicability vocabulary, freshness requirement, profile membership, phase/runtime class, dimensions, and finding source. Provider descriptors must declare `docs.path`; retired `.vrooli/maturity.json` files are rejected.\n\n")
 	b.WriteString("## The Phase Capability Contract\n\n")
-	b.WriteString("Every phase declares a **[Phase Capability Contract](../concepts/phase-capability-contract.md)**: a first-class North Star, a gated L0–L4 ladder, a provider-returned per-phase standing, and a structured remediation doc. The `docs.path` target must follow the fixed [remediation-doc skeleton](../concepts/phase-capability-contract.md#the-remediation-doc-skeleton) — the five H2 headings `North Star` / `The rungs and their gates` / `What each finding means` / `The canonical fix` / `How to verify` — so a doc-search topic emitted in run output resolves to the exact remediation section with no per-phase glue. The contract is validated (gating) by the [provider-conformance](provider-conformance/README.md) self-phase. Every catalog phase's contract posture is tracked in the drift-guarded [capability-contract inventory](capability-contract-inventory.md). Seed a new phase's skeleton with `test-genie phases scaffold <name>`.\n\n")
+	b.WriteString("Every descriptor declares a **[Phase Capability Contract](../concepts/phase-capability-contract.md)**: a first-class North Star, a gated L0–L4 ladder, a provider-returned standing, and a structured remediation doc. The `docs.path` target must follow the fixed [remediation-doc skeleton](../concepts/phase-capability-contract.md#the-remediation-doc-skeleton) — the five H2 headings `North Star` / `The rungs and their gates` / `What each finding means` / `The canonical fix` / `How to verify` — so a doc-search topic emitted in run output resolves to the exact remediation section with no per-descriptor glue. The contract is validated by the provider-conformance contract checks. Every catalog entry's contract posture is tracked in the drift-guarded [capability-contract inventory](capability-contract-inventory.md). Seed a new descriptor's skeleton with `test-genie phases scaffold <name>`.\n\n")
 	b.WriteString("## Phase Summary\n\n")
 	b.WriteString("| Order | Phase | Timeout | Selection | Provider Readiness | Gating | Runtime | Source | Purpose |\n")
 	b.WriteString("|-------|-------|---------|-----------|--------------------|--------|---------|--------|---------|\n")
@@ -65,7 +65,7 @@ func RenderPhasesMarkdown(catalog *Catalog) string {
 	writePhaseList(&b, catalog, true)
 	b.WriteString("\n## Running Phases\n\n")
 	b.WriteString("```bash\n")
-	b.WriteString("test-genie execute my-scenario --phases structure,unit\n")
+	b.WriteString("test-genie execute my-scenario --phases <descriptor-a>,<descriptor-b>\n")
 	b.WriteString("test-genie execute my-scenario --preset comprehensive\n")
 	b.WriteString("```\n\n")
 	b.WriteString("## Configuration\n\n")
@@ -209,9 +209,6 @@ func displayNameFromKey(raw string) string {
 			continue
 		}
 		switch strings.ToLower(part) {
-		case "api", "bas", "cli", "docs", "json", "ui":
-			parts[i] = strings.ToUpper(part)
-			continue
 		}
 		parts[i] = strings.ToUpper(part[:1]) + part[1:]
 	}

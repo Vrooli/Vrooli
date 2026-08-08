@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -18,6 +19,10 @@ type CostSample struct {
 	CPUReliability       string
 	MemoryReliability    string
 	PredictedWallClockMs sql.NullInt64
+	CacheHit             bool
+	CacheAudit           bool
+	CacheAuditMismatch   bool
+	CacheNoSaving        bool
 }
 
 type CostSummary struct {
@@ -43,10 +48,88 @@ type CostSummary struct {
 	PredictionErrorTotalMs             int64
 	PredictionMeanAbsoluteErrorMs      int64
 	PredictionMeanAbsoluteErrorPercent float64
+	CacheHitCount                      int
+	ExecutedSampleCount                int
+	CacheHitRatePercent                float64
+	CacheAuditCount                    int
+	CacheAuditMismatchCount            int
+	CacheNoSavingCount                 int
+	CacheAuditWallClockMs              int64
+	EstimatedGrossSavedWallClockMs     int64
+	EstimatedNetSavedWallClockMs       int64
 }
 
 type CostSource interface {
 	CostReport(context.Context, string, time.Time, time.Time) ([]CostSummary, error)
+}
+
+const calibrationInterval = 7 * 24 * time.Hour
+
+// CalibrationDecision keeps at least one uncontended sample for every planned
+// phase that can produce one. It is intentionally separate from the 30-day
+// eligibility window in PhaseCostEstimate: this is a sampling cadence, not a
+// cache TTL.
+//
+// The "that can produce one" qualifier is load-bearing. A provider may report
+// its resources UNAVAILABLE — workflow-health does, emitting a wall clock with
+// no CPU or RSS — and `metricColumns` then stores no reliability at all. Such a
+// phase can never satisfy a reliable-sample requirement, so demanding one from
+// every planned phase made this function return "calibrate" on literally every
+// run, permanently. Measured 2026-08-08: 100% of runs across every scenario
+// reported `reliable sample for workflow is older than calibration interval`.
+//
+// An unmeasurable phase costs nothing to exclude: PhaseCostEstimate already
+// returns unknown for it, and an unknown-size phase runs serially by its own
+// rule. Excluding it here removes a veto over *other* phases' concurrency,
+// which is not something its own unmeasurability entitles it to.
+func (r *SuiteExecutionRepository) CalibrationDecision(ctx context.Context, scenario string, phases []string, descriptorDigest string) (bool, string) {
+	cutoff := time.Now().UTC().Add(-calibrationInterval).Format(time.RFC3339Nano)
+	for _, phase := range phases {
+		var observed int
+		var measurable int
+		var latestReliable sql.NullString
+		err := r.db.QueryRowContext(ctx, `
+SELECT
+  COUNT(*),
+  SUM(CASE WHEN p.cpu_reliability IS NOT NULL AND p.cpu_reliability <> '' THEN 1 ELSE 0 END),
+  MAX(CASE WHEN p.cpu_reliability = 'RELIABILITY_RELIABLE'
+            AND p.memory_reliability = 'RELIABILITY_RELIABLE'
+           THEN e.completed_at END)
+FROM suite_execution_phases p
+JOIN suite_executions e ON e.id = p.execution_id
+WHERE e.scenario_name = ? AND p.phase_name = ?
+  AND e.completed_at IS NOT NULL
+  AND e.completed_at >= ?`, scenario, phase, cutoff).Scan(&observed, &measurable, &latestReliable)
+		if err != nil {
+			return true, fmt.Sprintf("calibration history for %s could not be read", phase)
+		}
+		switch {
+		case latestReliable.Valid && latestReliable.String >= cutoff:
+			// A recent uncontended sample exists. Nothing to calibrate.
+		case observed == 0:
+			// No history at all inside the window. A phase nobody has measured
+			// is measured serially before it is scheduled against anything.
+			return true, fmt.Sprintf("no sample for %s inside the calibration interval (%s)", phase, calibrationInterval)
+		case measurable == 0:
+			// Observed repeatedly, never with a reliability. The provider
+			// reports its resources unavailable, so no serial run will ever
+			// change this. Reporting it as a calibration need would be a
+			// permanent false positive.
+		default:
+			return true, fmt.Sprintf("reliable sample for %s is older than calibration interval (%s)", phase, calibrationInterval)
+		}
+	}
+	if strings.TrimSpace(descriptorDigest) != "" {
+		var recentDescriptor sql.NullString
+		if err := r.db.QueryRowContext(ctx, `
+SELECT descriptor_snapshot_digest
+FROM suite_executions
+WHERE scenario_name = ? AND completed_at IS NOT NULL
+ORDER BY completed_at DESC LIMIT 1`, scenario).Scan(&recentDescriptor); err == nil && recentDescriptor.Valid && recentDescriptor.String != descriptorDigest {
+			return true, "descriptor snapshot changed; first run must be measured serially"
+		}
+	}
+	return false, ""
 }
 
 // PhaseCostEstimate adapts durable measured history to scheduler claim units.
@@ -139,6 +222,7 @@ func (r *SuiteExecutionRepository) CostReport(ctx context.Context, scenario stri
 		SELECT e.scenario_name, p.phase_name, p.status,
 		       COALESCE(p.wall_clock_ms, p.duration_ms),
 		       p.cpu_user_ms, p.peak_rss_bytes, p.cpu_reliability, p.memory_reliability,
+		       p.cache_hit, p.cache_audit, p.cache_audit_mismatch, p.cache_no_saving,
 		       p.predicted_duration_ms
 FROM suite_execution_phases p
 JOIN suite_executions e ON e.id = p.execution_id
@@ -166,9 +250,14 @@ WHERE e.completed_at >= ? AND e.completed_at < ?`
 		var s CostSample
 		var cpuUser, peak sql.NullInt64
 		var cpuRel, memRel sql.NullString
-		if err := rows.Scan(&s.Scenario, &s.Phase, &s.Status, &s.WallClockMs, &cpuUser, &peak, &cpuRel, &memRel, &s.PredictedWallClockMs); err != nil {
+		var cacheHit, cacheAudit, cacheAuditMismatch, cacheNoSaving int
+		if err := rows.Scan(&s.Scenario, &s.Phase, &s.Status, &s.WallClockMs, &cpuUser, &peak, &cpuRel, &memRel, &cacheHit, &cacheAudit, &cacheAuditMismatch, &cacheNoSaving, &s.PredictedWallClockMs); err != nil {
 			return nil, err
 		}
+		s.CacheHit = cacheHit != 0
+		s.CacheAudit = cacheAudit != 0
+		s.CacheAuditMismatch = cacheAuditMismatch != 0
+		s.CacheNoSaving = cacheNoSaving != 0
 		if cpuUser.Valid {
 			s.CPUUserMs = cpuUser.Int64
 		}
@@ -188,6 +277,23 @@ WHERE e.completed_at >= ? AND e.completed_at < ?`
 			buckets[key] = b
 		}
 		b.SampleCount++
+		if s.CacheHit {
+			b.CacheHitCount++
+		} else {
+			b.ExecutedSampleCount++
+		}
+		if s.CacheAudit {
+			b.CacheAuditCount++
+		}
+		if s.CacheAuditMismatch {
+			b.CacheAuditMismatchCount++
+		}
+		if s.CacheNoSaving {
+			b.CacheNoSavingCount++
+		}
+		if s.CacheAudit {
+			b.CacheAuditWallClockMs += maxInt64(0, s.WallClockMs)
+		}
 		if isPassingPhaseStatus(s.Status) {
 			b.PassingSampleCount++
 			b.passingWall = append(b.passingWall, maxInt64(0, s.WallClockMs))
@@ -244,6 +350,17 @@ WHERE e.completed_at >= ? AND e.completed_at < ?`
 				b.PredictionMeanAbsoluteErrorPercent = float64(b.PredictionMeanAbsoluteErrorMs) / float64(predictedTotal) * 100
 			}
 		}
+		if b.SampleCount > 0 {
+			b.CacheHitRatePercent = float64(b.CacheHitCount) / float64(b.SampleCount) * 100
+		}
+		// A hit has no measured provider duration. Estimate the avoided work from
+		// the median executed sample for this phase, then subtract the measured
+		// cost of audit executions. This is intentionally conservative: the
+		// report never presents gross avoided work as net savings.
+		if len(b.reliableWall) > 0 {
+			b.EstimatedGrossSavedWallClockMs = int64(b.CacheHitCount) * b.MedianWallClockMs
+		}
+		b.EstimatedNetSavedWallClockMs = b.EstimatedGrossSavedWallClockMs - b.CacheAuditWallClockMs
 		b.reliableWall = nil
 		b.passingWall = nil
 		b.failingWall = nil

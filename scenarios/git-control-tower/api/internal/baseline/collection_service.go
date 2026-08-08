@@ -1140,16 +1140,25 @@ func (s *Service) reconcileCollectionDiff(ctx context.Context, repoID int64, bra
 			}
 			continue
 		}
-		if _, finalizeErr := s.FinalizeCollectionDiff(ctx, repoID, PendingCollectionDiff{CollectionName: name, OperationID: operationID, Scenario: member.Scenario, Pending: intent.PendingDiff()}); finalizeErr != nil {
-			if errors.Is(finalizeErr, context.Canceled) || errors.Is(finalizeErr, context.DeadlineExceeded) {
-				return collection, operation, finalizeErr
-			}
-			return collection, operation, finalizeErr
+		// Status is a recovery/read path, not the owner of an unbounded child
+		// attachment. A terminal Test Genie run should normally finalize quickly,
+		// but discovery or comparison can be slow during host contention. Keep
+		// one slow child from making `diff status` (and the post-wait recovery
+		// path) hang for the full 30-minute client ceiling; the durable child
+		// remains pending and a later status/wait retries the fan-in.
+		finalizeCtx, cancel := context.WithTimeout(ctx, collectionDiffStatusFinalizeTimeout)
+		_, finalizeErr := s.FinalizeCollectionDiff(finalizeCtx, repoID, PendingCollectionDiff{CollectionName: name, OperationID: operationID, Scenario: member.Scenario, Pending: intent.PendingDiff()})
+		cancel()
+		if finalizeErr != nil {
+			_ = s.noteCollectionDiffReconciliationError(repoID, branch, name, operationID, finalizeErr)
+			continue
 		}
 	}
 	operation, err = s.storage.LoadCollectionDiffOperation(repoID, branch, name, operationID)
 	return collection, operation, err
 }
+
+const collectionDiffStatusFinalizeTimeout = 15 * time.Second
 
 // ReconcileCollectionDiffOperations is the server-owned pull backstop for
 // detached clients and lost completion delivery. It never waits for active

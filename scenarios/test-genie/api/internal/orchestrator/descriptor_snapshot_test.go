@@ -11,8 +11,8 @@ import (
 )
 
 func TestBuildRunDescriptorSnapshotFreezesCatalogEvolution(t *testing.T) { // [REQ:TESTGENIE-DESCRIPTOR-SNAPSHOT-P0]
-	unitDef := phases.Definition{Name: phases.Unit, DisplayName: "Unit", ProviderScenario: "unit-health", Policy: phasepolicy.RequiredProviderPolicy()}
-	searchDef := phases.Definition{Name: phases.Search, DisplayName: "Search", ProviderScenario: "search-hub", Policy: phasepolicy.RequiredProviderPolicy()}
+	unitDef := phases.Definition{Name: phases.Name("unit"), DisplayName: "Unit", ProviderScenario: "unit-health", Policy: phasepolicy.RequiredProviderPolicy()}
+	searchDef := phases.Definition{Name: phases.Name("search"), DisplayName: "Search", ProviderScenario: "search-hub", Policy: phasepolicy.RequiredProviderPolicy()}
 	unitDescriptor := providerdescriptor.Descriptor{
 		SchemaVersion: "1.0.0", Scenario: "unit-health", Phase: "unit", DisplayName: "Unit Health",
 		Description: "Validates unit tests.", OrderHint: 20, PhaseClass: "quality", RuntimeClass: "execution",

@@ -19,8 +19,13 @@ INSERT INTO suite_execution_phases (
 	classification, remediation, runnability_verdict, runnability_reason,
 	finding_source, metrics_present, findings_blockers, findings_errors,
 	findings_warnings, findings_infos, findings_total, wall_clock_ms, cpu_user_ms,
-	cpu_sys_ms, peak_rss_bytes, cpu_reliability, memory_reliability, gpu_reliability
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	cpu_sys_ms, peak_rss_bytes, cpu_reliability, memory_reliability, gpu_reliability,
+	cache_hit, cache_source_run_id, cache_audit, cache_audit_mismatch, cache_no_saving
+) VALUES (
+ ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+ ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+ ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+ ?)`
 
 // insertPhaseHistory persists the compact, normalized history projection. It
 // intentionally excludes rich findings, metrics, logs, and presentation data:
@@ -57,7 +62,8 @@ func insertPhaseHistory(ctx context.Context, tx *sql.Tx, executionID uuid.UUID, 
 			result.Error, result.Classification, result.Remediation, result.RunnabilityVerdict,
 			result.RunnabilityReason, result.FindingSource, boolToInt(result.Metrics != nil), summary.GetBlockers(), summary.GetErrors(),
 			summary.GetWarnings(), summary.GetInfos(), summary.GetTotal(), wallClock, cpuUser, cpuSys,
-			peakRSS, cpuReliability, memoryReliability, gpuReliability,
+			peakRSS, cpuReliability, memoryReliability, gpuReliability, boolToInt(result.CacheHit), result.CacheSourceRunID,
+			boolToInt(result.CacheAudit), boolToInt(result.CacheAuditMismatch), boolToInt(result.CacheNoSaving),
 		); err != nil {
 			return fmt.Errorf("insert compact phase history: %w", err)
 		}
@@ -88,7 +94,8 @@ func (r *SuiteExecutionRepository) loadPhaseHistory(ctx context.Context, executi
 	SELECT phase_name, status, duration_ms, predicted_duration_ms, duration_seconds, error_text, classification,
        remediation, runnability_verdict, runnability_reason, finding_source,
        metrics_present, findings_blockers, findings_errors, findings_warnings,
-       findings_infos, findings_total
+		findings_infos, findings_total, cache_hit, cache_source_run_id,
+		cache_audit, cache_audit_mismatch, cache_no_saving
 FROM suite_execution_phases
 WHERE execution_id = ?
 ORDER BY ordinal ASC`
@@ -102,13 +109,19 @@ ORDER BY ordinal ASC`
 		var result phases.ExecutionResult
 		var metricsPresent int
 		var predictedDuration sql.NullInt64
+		var cacheHit, cacheAudit, cacheAuditMismatch, cacheNoSaving int
 		var summary runspb.PhaseFindingsSummary
 		if err := rows.Scan(&result.Name, &result.Status, &result.DurationMilliseconds, &predictedDuration, &result.DurationSeconds, &result.Error,
 			&result.Classification, &result.Remediation, &result.RunnabilityVerdict,
 			&result.RunnabilityReason, &result.FindingSource, &metricsPresent,
-			&summary.Blockers, &summary.Errors, &summary.Warnings, &summary.Infos, &summary.Total); err != nil {
+			&summary.Blockers, &summary.Errors, &summary.Warnings, &summary.Infos, &summary.Total, &cacheHit, &result.CacheSourceRunID,
+			&cacheAudit, &cacheAuditMismatch, &cacheNoSaving); err != nil {
 			return nil, err
 		}
+		result.CacheHit = cacheHit != 0
+		result.CacheAudit = cacheAudit != 0
+		result.CacheAuditMismatch = cacheAuditMismatch != 0
+		result.CacheNoSaving = cacheNoSaving != 0
 		if predictedDuration.Valid {
 			result.PredictedDurationMilliseconds = predictedDuration.Int64
 		}

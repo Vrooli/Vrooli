@@ -317,8 +317,8 @@ func TestService_Sync_WithPhaseResults(t *testing.T) {
 		ScenarioName: "demo",
 		ScenarioDir:  fixture.scenarioDir,
 		PhaseDefinitions: []phases.Definition{
-			{Name: phases.Unit},
-			{Name: phases.Structure},
+			{Name: phases.Name("unit")},
+			{Name: phases.Name("structure")},
 		},
 		PhaseResults: []phases.ExecutionResult{
 			{Name: "unit", Status: "PASSED", DurationSeconds: 5},
@@ -499,7 +499,7 @@ func TestService_Sync_Integration(t *testing.T) {
 		ScenarioName: "demo",
 		ScenarioDir:  scenarioDir,
 		PhaseDefinitions: []phases.Definition{
-			{Name: phases.Unit},
+			{Name: phases.Name("unit")},
 		},
 		PhaseResults: []phases.ExecutionResult{
 			{Name: "unit", Status: "passed", DurationSeconds: 3},

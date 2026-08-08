@@ -6,7 +6,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"test-genie/internal/orchestrator/phasepolicy"
@@ -20,6 +22,39 @@ type providerReadinessPlan struct {
 	Blocked  map[string]providerreadiness.Outcome
 	Outcomes []providerreadiness.Outcome
 	Stages   []PreparationStage
+}
+
+const defaultProviderReadinessConcurrency = 4
+
+func providerReadinessConcurrency() int {
+	value := strings.TrimSpace(os.Getenv("TEST_GENIE_PROVIDER_READINESS_CONCURRENCY"))
+	if strings.EqualFold(value, "serial") || value == "0" || strings.EqualFold(value, "false") {
+		return 1
+	}
+	if n, err := strconv.Atoi(value); err == nil && n > 0 {
+		return n
+	}
+	return defaultProviderReadinessConcurrency
+}
+
+type synchronizedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (w *synchronizedWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.w == nil {
+		return len(p), nil
+	}
+	return w.w.Write(p)
+}
+
+type providerReadinessResult struct {
+	def      phases.Definition
+	outcome  providerreadiness.Outcome
+	duration time.Duration
 }
 
 func (o *SuiteOrchestrator) checkProviderReadiness(
@@ -51,30 +86,55 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 		}
 	}
 
-	for _, def := range defs {
+	results := make([]providerReadinessResult, len(defs))
+	var providerLocks sync.Map
+	serialLog := &synchronizedWriter{w: logWriter}
+	worker := func(index int) {
+		def := defs[index]
 		policy := def.Policy
 		if policy.IsZero() {
 			policy = phasepolicy.FromLegacyCatalog(def.Optional, false)
 		}
+		provider := strings.TrimSpace(def.ProviderScenario)
 		started := time.Now()
+		if provider != "" {
+			lockValue, _ := providerLocks.LoadOrStore(provider, &sync.Mutex{})
+			lockValue.(*sync.Mutex).Lock()
+			defer lockValue.(*sync.Mutex).Unlock()
+		}
 		outcome := manager.Check(ctx, providerreadiness.Input{
 			Phase:            def.Name.String(),
-			ProviderScenario: def.ProviderScenario,
+			ProviderScenario: provider,
 			TargetScenario:   env.ScenarioName,
 			TargetPath:       env.ScenarioDir,
 			Policy:           policy,
 			Timeout:          def.Timeout,
-		}, logWriter)
+		}, serialLog)
+		results[index] = providerReadinessResult{def: def, outcome: outcome, duration: time.Since(started)}
+	}
+	limit := providerReadinessConcurrency()
+	semaphore := make(chan struct{}, limit)
+	var wg sync.WaitGroup
+	for index := range defs {
+		if limit == 1 {
+			worker(index)
+			continue
+		}
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+			worker(index)
+		}(index)
+	}
+	wg.Wait()
+	for _, result := range results {
+		def, outcome := result.def, result.outcome
 		provider := strings.TrimSpace(def.ProviderScenario)
 		if provider != "" {
-			stages = append(stages, PreparationStage{
-				Name:                 "provider_check",
-				Parent:               "provider_readiness",
-				Subject:              provider,
-				Status:               string(outcome.Status),
-				DurationMilliseconds: time.Since(started).Milliseconds(),
-			})
-			emitPreparationProgress(emit, "provider_readiness", fmt.Sprintf("checked %s: %s in %s", provider, outcome.Status, time.Since(started).Round(time.Millisecond)))
+			stages = append(stages, PreparationStage{Name: "provider_check", Parent: "provider_readiness", Subject: provider, Status: string(outcome.Status), DurationMilliseconds: result.duration.Milliseconds()})
+			emitPreparationProgress(emit, "provider_readiness", fmt.Sprintf("checked %s: %s in %s", provider, outcome.Status, result.duration.Round(time.Millisecond)))
 		}
 		if def.ProviderScenario != "" || outcome.Status != providerreadiness.OutcomeReady {
 			outcomes = append(outcomes, outcome)

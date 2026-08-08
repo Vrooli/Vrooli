@@ -3,9 +3,9 @@ package phases
 import (
 	"context"
 	"io"
+	"strings"
 	"time"
 
-	"test-genie/internal/orchestrator/phasekeys"
 	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/workspace"
@@ -17,32 +17,6 @@ import (
 
 // Name identifies a single orchestrator phase.
 type Name string
-
-// Canonical phase names implemented by the Go orchestrator.
-const (
-	Structure    Name = "structure"
-	Contracts    Name = "contracts"
-	UIHealth     Name = "ui-health"
-	API          Name = "api"
-	Architecture Name = "architecture"
-	Dependencies Name = "dependencies"
-	Quality      Name = "quality"
-	Docs         Name = "docs"
-	Unit         Name = "unit"
-	Storage      Name = "storage"
-	Workflow     Name = "workflow"
-	Business     Name = "business"
-	Performance  Name = "performance"
-	Tidiness     Name = "tidiness"
-	Security     Name = "security"
-	Measures     Name = "measures"
-	Proto        Name = "proto"
-	Branding     Name = "branding"
-	Search       Name = "search"
-	// ProviderConformance validates scenarios that declare themselves as Test
-	// Genie phase providers (.vrooli/test-genie.json); owned by test-genie itself.
-	ProviderConformance Name = "provider-conformance"
-)
 
 const (
 	// DefaultTimeout defines the baseline duration budget for runners unless overridden.
@@ -82,6 +56,7 @@ type Descriptor struct {
 	PhaseClass            string                        `json:"phaseClass,omitempty"`
 	RuntimeClass          string                        `json:"runtimeClass,omitempty"`
 	Concurrency           Concurrency                   `json:"concurrency,omitempty"`
+	Determinism           Determinism                   `json:"determinism,omitempty"`
 	Dimensions            []string                      `json:"dimensions,omitempty"`
 }
 
@@ -90,6 +65,21 @@ type Descriptor struct {
 type Concurrency struct {
 	Mode   string `json:"mode,omitempty"`
 	Reason string `json:"reason,omitempty"`
+}
+
+// Determinism is the normalized provider declaration used by the phase cache.
+// An empty declaration is observational and therefore never cacheable.
+type Determinism struct {
+	Default      string                         `json:"default,omitempty"`
+	Inputs       []string                       `json:"inputs,omitempty"`
+	Reason       string                         `json:"reason,omitempty"`
+	Capabilities map[string]DeterminismOverride `json:"capabilities,omitempty"`
+}
+
+type DeterminismOverride struct {
+	Mode   string   `json:"mode,omitempty"`
+	Inputs []string `json:"inputs,omitempty"`
+	Reason string   `json:"reason,omitempty"`
 }
 
 // Observation represents a single test observation with optional rich formatting.
@@ -258,6 +248,7 @@ type Definition struct {
 	PhaseClass           string
 	RuntimeClass         string
 	Concurrency          Concurrency
+	Determinism          Determinism
 	Dimensions           []string
 }
 
@@ -299,6 +290,7 @@ type Spec struct {
 	PhaseClass           string
 	RuntimeClass         string
 	Concurrency          Concurrency
+	Determinism          Determinism
 	Dimensions           []string
 	// NonComparable opts a phase out of baseline/run comparison. The default is
 	// comparable; catalog entries opt out only when their result cannot produce
@@ -336,6 +328,7 @@ func (s Spec) ToDefinition() Definition {
 		PhaseClass:           s.PhaseClass,
 		RuntimeClass:         s.RuntimeClass,
 		Concurrency:          s.Concurrency,
+		Determinism:          s.Determinism,
 		Dimensions:           append([]string(nil), s.Dimensions...),
 	}
 	if s.Delegated != nil {
@@ -387,10 +380,15 @@ type ExecutionResult struct {
 	// one server payload. nil for native phases / providers with no ladder.
 	PhasePresentation *commonv1.PhasePresentation `json:"phasePresentation,omitempty"`
 	// FindingsSummary is the per-severity finding tally for the phase.
-	FindingsSummary *runspb.PhaseFindingsSummary `json:"findingsSummary,omitempty"`
+	FindingsSummary    *runspb.PhaseFindingsSummary `json:"findingsSummary,omitempty"`
+	CacheHit           bool                         `json:"cacheHit,omitempty"`
+	CacheSourceRunID   string                       `json:"cacheSourceRunId,omitempty"`
+	CacheAudit         bool                         `json:"cacheAudit,omitempty"`
+	CacheAuditMismatch bool                         `json:"cacheAuditMismatch,omitempty"`
+	CacheNoSaving      bool                         `json:"cacheNoSaving,omitempty"`
 }
 
-// NormalizeName standardizes arbitrary input into a canonical Name.
+// NormalizeName standardizes arbitrary input into a descriptor key.
 func NormalizeName(raw string) (Name, bool) {
 	normalized := Name(NormalizeKey(raw))
 	if normalized == "" {
@@ -399,17 +397,17 @@ func NormalizeName(raw string) (Name, bool) {
 	return normalized, true
 }
 
-// NormalizeKey standardizes arbitrary input into a canonical phase key.
+// NormalizeKey standardizes arbitrary input into a descriptor key.
 func NormalizeKey(raw string) string {
-	return phasekeys.NormalizeKey(raw)
+	return strings.ToLower(strings.TrimSpace(raw))
 }
 
-// String returns the canonical lowercase phase name.
+// String returns the normalized descriptor key.
 func (n Name) String() string {
 	return string(n)
 }
 
-// Key returns a safe map key for the phase.
+// Key returns a safe map key for the descriptor.
 func (n Name) Key() string {
 	return NormalizeKey(n.String())
 }

@@ -13,10 +13,10 @@ import (
 //
 // Usage:
 //
-//	return RunPhase(ctx, logWriter, "unit", func() (*unit.RunResult, error) {
+//	return RunPhase(ctx, logWriter, "descriptor-key", func() (*provider.RunResult, error) {
 //	    runner := unit.New(config, unit.WithLogger(logWriter))
 //	    return runner.Run(ctx), nil
-//	}, func(r *unit.RunResult) PhaseResult[unit.Observation] {
+//	}, func(r *provider.RunResult) PhaseResult[provider.Observation] {
 //	    return PhaseResult[unit.Observation]{...}
 //	})
 func RunPhase[TResult any, TObs StandardObservation](

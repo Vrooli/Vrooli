@@ -6,7 +6,7 @@ Use `test-genie phases inspect <phase> --json` or `/api/v1/phases/<phase>` to in
 
 ## The Phase Capability Contract
 
-Every phase declares a **[Phase Capability Contract](../concepts/phase-capability-contract.md)**: a first-class North Star, a gated L0–L4 ladder, a provider-returned per-phase standing, and a structured remediation doc. The `docs.path` target must follow the fixed [remediation-doc skeleton](../concepts/phase-capability-contract.md#the-remediation-doc-skeleton) — the five H2 headings `North Star` / `The rungs and their gates` / `What each finding means` / `The canonical fix` / `How to verify` — so a doc-search topic emitted in run output resolves to the exact remediation section with no per-phase glue. The contract is validated (gating) by the [provider-conformance](provider-conformance/README.md) self-phase. Every catalog phase's contract posture is tracked in the drift-guarded [capability-contract inventory](capability-contract-inventory.md). Seed a new phase's skeleton with `test-genie phases scaffold <name>`.
+Every descriptor declares a **[Phase Capability Contract](../concepts/phase-capability-contract.md)**: a first-class North Star, a gated L0–L4 ladder, a provider-returned standing, and a structured remediation doc. The `docs.path` target must follow the fixed [remediation-doc skeleton](../concepts/phase-capability-contract.md#the-remediation-doc-skeleton) — the five H2 headings `North Star` / `The rungs and their gates` / `What each finding means` / `The canonical fix` / `How to verify` — so a doc-search topic emitted in run output resolves to the exact remediation section with no per-descriptor glue. The contract is validated by the provider-conformance contract checks. Every catalog entry's contract posture is tracked in the drift-guarded [capability-contract inventory](capability-contract-inventory.md). Seed a new descriptor's skeleton with `test-genie phases scaffold <name>`.
 
 ## Phase Summary
 
@@ -74,7 +74,7 @@ Every phase declares a **[Phase Capability Contract](../concepts/phase-capabilit
 ## Running Phases
 
 ```bash
-test-genie execute my-scenario --phases structure,unit
+test-genie execute my-scenario --phases <descriptor-a>,<descriptor-b>
 test-genie execute my-scenario --preset comprehensive
 ```
 

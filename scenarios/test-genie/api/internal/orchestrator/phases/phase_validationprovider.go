@@ -35,6 +35,7 @@ type Delegated struct {
 	DisplayName      string
 	Description      string
 	IncludeExecution bool
+	CapabilitySubset []string
 	DeliveryMode     string
 	GateEnvVar       string
 	DefaultGateMode  validationprovider.GateMode
@@ -116,6 +117,15 @@ func ValidationProviderSpecFromDescriptor(descriptor providerdescriptor.Descript
 	spec.PhaseClass = descriptor.PhaseClass
 	spec.RuntimeClass = descriptor.RuntimeClass
 	spec.Concurrency = Concurrency{Mode: descriptor.Concurrency.Mode, Reason: descriptor.Concurrency.Reason}
+	spec.Determinism = Determinism{
+		Default:      descriptor.Determinism.Default,
+		Inputs:       append([]string(nil), descriptor.Determinism.Inputs...),
+		Reason:       descriptor.Determinism.Reason,
+		Capabilities: map[string]DeterminismOverride{},
+	}
+	for capability, override := range descriptor.Determinism.Capabilities {
+		spec.Determinism.Capabilities[capability] = DeterminismOverride{Mode: override.Mode, Inputs: append([]string(nil), override.Inputs...), Reason: override.Reason}
+	}
 	spec.Dimensions = append([]string(nil), descriptor.Dimensions...)
 	spec.Capabilities = runnability.PhaseCapabilities{
 		Phase:                     name.String(),
@@ -161,6 +171,7 @@ func (d Delegated) provider() validationprovider.Provider {
 		Optional:         d.Optional,
 		Timeout:          d.Timeout,
 		IncludeExecution: d.IncludeExecution,
+		CapabilitySubset: append([]string(nil), d.CapabilitySubset...),
 		DeliveryMode:     d.DeliveryMode,
 		GateEnvVar:       d.GateEnvVar,
 		DefaultGateMode:  d.DefaultGateMode,
@@ -206,6 +217,9 @@ func targetKindProto(kind string) commonv1.ValidationTargetKind {
 }
 
 func runValidationProviderPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer, provider validationprovider.Provider, client DelegatedClient) RunReport {
+	if len(env.CapabilitySubset) > 0 {
+		provider.CapabilitySubset = append(append([]string(nil), provider.CapabilitySubset...), env.CapabilitySubset...)
+	}
 	var summary validationprovider.Summary
 	var findings []*architecturev1.ArchitectureFinding
 	var maturityAssessment *commonv1.MaturityAssessment

@@ -499,6 +499,44 @@ func TestDeriveBaselineScopeUsesExplicitNarrowPhaseScope(t *testing.T) { // [REQ
 	require.Empty(t, scope.Commands, "legacy per-scenario commands are never rendered for a collection-backed plan")
 }
 
+func TestDeriveBaselineScopeDefaultsToPhaseAffectedAreas(t *testing.T) {
+	plan := planWith(nil, nil)
+	plan.ChangeBoundary.AcceptanceAllow = []string{"scenarios/foo/**", "scenarios/bar/**"}
+	plan.RegressionAnchor.BaselineName = "impl"
+	plan.Phases = []internalplans.Phase{{
+		ID: "phase-1", AffectedAreas: []string{"scenarios/foo/api/handler.go"},
+	}}
+	scope, err := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}}).DeriveBaselineScope(context.Background(), "p1", "phase-1")
+	require.NoError(t, err)
+	require.Equal(t, "derived", scope.Provenance)
+	require.Contains(t, scope.Locations, "scenarios/foo")
+	require.NotContains(t, scope.Locations, "scenarios/bar")
+}
+
+func TestDeriveBaselineScopeExplicitFullPlanRemainsWide(t *testing.T) {
+	plan := planWith(nil, nil)
+	plan.ChangeBoundary.AcceptanceAllow = []string{"scenarios/foo/**", "scenarios/bar/**"}
+	plan.RegressionAnchor.BaselineName = "impl"
+	plan.Phases = []internalplans.Phase{{
+		ID: "phase-1", AffectedAreas: []string{"scenarios/foo/api/handler.go"},
+		ValidationScope: planmodel.ValidationScope{Mode: planmodel.ValidationScopeFullPlan, Rationale: "cross-scenario contract"},
+	}}
+	scope, err := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}}).DeriveBaselineScope(context.Background(), "p1", "phase-1")
+	require.NoError(t, err)
+	require.Equal(t, "explicit", scope.Provenance)
+	require.Contains(t, scope.Locations, "scenarios/foo")
+	require.Contains(t, scope.Locations, "scenarios/bar")
+}
+
+func TestDeriveBaselineScopeWithoutPhaseAreasFallsBackToPlan(t *testing.T) {
+	plan := planWith(nil, nil)
+	plan.ChangeBoundary.AcceptanceAllow = []string{"scenarios/foo/**"}
+	plan.Phases = []internalplans.Phase{{ID: "phase-1"}}
+	scope, err := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}}).DeriveBaselineScope(context.Background(), "p1", "phase-1")
+	require.NoError(t, err)
+	require.Equal(t, "plan", scope.Provenance)
+	}
+
 func TestDeriveBaselineScopeDoesNotFabricateGCTCommandWithoutName(t *testing.T) {
 	plan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/x.go"}}, nil)
 	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})

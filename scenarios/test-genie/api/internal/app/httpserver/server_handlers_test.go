@@ -343,8 +343,16 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 			},
 			wantStatus: http.StatusOK,
 			assert: func(t *testing.T, exec *stubSuiteExecutor) {
-				if got := strings.Join(exec.input.Request.Phases, ","); got != "structure,unit" {
-					t.Fatalf("execution phases = %s, want adaptive preview selection", got)
+				// The budget-trimmed selection must reach the executor — it
+				// cannot re-derive a profile fit — but it travels as a planner
+				// resolution, not as explicit operator intent. Explicit phases
+				// carry no preset, which is what erased preset_used on every
+				// durable run and broke baseline reuse eligibility.
+				if got := strings.Join(exec.input.Request.ResolvedPhases, ","); got != "structure,unit" {
+					t.Fatalf("resolved phases = %s, want adaptive preview selection", got)
+				}
+				if len(exec.input.Request.Phases) != 0 {
+					t.Fatalf("explicit phases = %v, want none for a preset request", exec.input.Request.Phases)
 				}
 				if exec.input.Request.Preset != "quick" {
 					t.Fatalf("preset should remain quick for run metadata, got %q", exec.input.Request.Preset)
