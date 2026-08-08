@@ -210,6 +210,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeGatewayBuilder` records every `(class, role, profile)` triple it was asked for and can be primed to fail, so a test can assert *what was requested* rather than only what came back. Route-level behavior is faked separately at the gateway client. |
 | **Why it exists** | **This seam is the product's central claim.** AI Gateway's fail-closed behavior is a property of the *profile*, not of the privacy class: `PROFILE_LOCAL_FIRST` is documented to fall back to a permitted remote provider, so a confidential document sent under `local-first` routes remote and the gateway is behaving *correctly*. The residency guarantee therefore lives entirely in the class→profile mapping, and a second construction site anywhere in the tree voids it silently — no test fails, no finding fires, the document just leaves. Enforced by an AST check (`internal/gatewayreq/exclusivity_test.go`) asserting exactly one construction site exists, in the same spirit as `storage-manager`'s routed-database check. Covers `DOC-P0-013` and `DOC-P0-026`. |
 
+### Corpus authority boundary (no ledger content indexed here)
+
+| | |
+|---|---|
+| **Seam** | The `retrieval` domain's index population path, and what it is structurally forbidden to reach |
+| **Interface** | `internal/retrieval/indexer.go::Indexer` (`Index(ctx, DerivationVersion) error`) sources rows exclusively from `anchors` (units), `enrichment` (embeddings) and `corpus` (collection membership). It takes no ledger client, no `handoff` repository, and no federated result reader in its dependency set. |
+| **Production wiring** | Composed in `main.go` from those three repositories only. The `handoff` domain publishes *outward* and is never a source for the indexer; the dependency edge runs one way by construction. |
+| **Test fake** | Not a fake — an **AST check** (`internal/retrieval/authority_test.go`) asserting that no file under `internal/retrieval/` imports a ledger client, `internal/handoff`, or a search-hub result type. Same pattern and same spirit as the `gatewayreq` exclusivity check. |
+| **Why it exists** | This is the boundary that has already drifted once, in both directions. An early decision forbade a `retrieval` domain outright — an over-correction — and the superseding decision narrowed the real obligation to: *never index ledger content here, and never expose recall over another scenario's corpus.* The failure mode is not "two vector stores exist"; it is the same content indexed twice with no defined authority, which produces answers that disagree with no way to say which is right. Sources and findings are separate content classes with separate lifecycles, and each store's authority over its own class is what keeps `search-hub` federation coherent rather than duplicative. Prose alone did not hold this boundary before; an AST check makes it survive an agent who has not read `DECISIONS.md`. |
+
 ### Anchor resolver (version-crossing resolution)
 
 | | |
@@ -219,6 +229,64 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Production wiring** | `main.go` composes `GeometricResolver` (reads original bytes through the routed file-store seam) and `LogicalResolver` (reads `anchor_alignments` from SQLite). Neither reads a parse output from the artifact store. |
 | **Test fake** | `internal/anchors/mocks::FakeResolver` plus a fixture corpus with a known v1→v2 reparse, so cross-version cases are table tests rather than integration runs. |
 | **Why it exists** | `DOC-P0-009` promises a v1 anchor still resolves after v2, while parse outputs are `regenerable: true` and prunable. Those two facts are only compatible if resolution never depends on a prior version's parse output. Making resolution a seam with two typed implementations forces that: `geometric` resolves against the original bytes (`regenerable: false`), `logical` resolves through a stored alignment, and an unaligned `logical` anchor returns `ErrUnresolved` rather than a plausible wrong region. Without the seam, the natural implementation reads the old parse output and works perfectly until the first prune. |
+
+## Write-spine seams (P2 — designed, not scaffolded)
+
+The five seams below belong to the generation spine (`templates`,
+`composition`, `render`). They are declared now so the boundary is
+designed before anyone implements it, and **no code exists for them
+yet** — the same treatment `handoff` received. See the write-spine rows
+in [`DECISIONS.md`](DECISIONS.md).
+
+### Spec authority boundary (nothing writes rendered bytes)
+
+| | |
+|---|---|
+| **Seam** | The `composition` domain's mutation path, and what it is structurally forbidden to touch |
+| **Interface** | `internal/composition/mutator.go::Mutator` (`Apply(ctx, SpecVersion, Mutation) (SpecVersion, error)`) writes only `spec_versions`, `blocks`, `source_bindings` and `overrides`. It takes no artifact-store writer, no render client, and no blob handle in its dependency set. |
+| **Production wiring** | Composed in `main.go` from the composition repositories only. `render` reads specs and writes bytes; `composition` writes specs and never bytes. The dependency edge runs one way by construction. |
+| **Test fake** | Not a fake — an **AST check** (`internal/composition/authority_test.go`) asserting no file under `internal/composition/` imports the artifact store, a blob writer, or `internal/render`. Same pattern as the `gatewayreq` exclusivity check and the corpus-authority boundary. |
+| **Why it exists** | **The spec is the write spine's authority** and rendered bytes are a derivation of it. An edit path that could write bytes would let the artifact diverge from the record that explains it — and the moment it does, template switching, `refresh`, revert-as-undo and document diff all silently stop being correct while every test still passes. The natural implementation of "let the user nudge this heading" reaches for the output file; the seam is what makes that a compile-time impossibility rather than a code-review habit. Covers `DOC-P2-010` and `DOC-P2-022`. |
+
+### Renderer registry and router
+
+| | |
+|---|---|
+| **Seam** | Selecting a renderer chain for a (spec, template, target) triple |
+| **Interface** | `internal/render/router.go::Router` (`Select(ctx, Spec, TemplateVersion, Target) (Chain, error)`) reads `registry.json` and dispatches on declared **fidelity**, never on a target name. Each `Renderer` is `Render(ctx, Chain, Spec) (Bytes, Alignment, []Unrepresentable, error)`. |
+| **Production wiring** | `main.go` loads the embedded registry once and constructs the router; each renderer is a resource-CLI-backed implementation behind the `Renderer` interface. No renderer type is referenced outside its constructor. |
+| **Test fake** | `internal/render/mocks::FakeRenderer` (canned bytes, canned alignment, primeable `Unrepresentable` list and per-call error knobs), plus a registry fixture. A test asserting the registry↔`render-matrix.md` agreement runs alongside, mirroring the format-matrix test. |
+| **Why it exists** | Mirrors the handler registry exactly, for the reason the `anydoc` rows record: a good library is not the architecture. Returning `Alignment` and `[]Unrepresentable` from the same call is deliberate — both are byproducts the renderer alone knows, and a signature that made either optional would let a renderer succeed while silently dropping an element or losing the anchor mapping. Covers `DOC-P2-012`, `DOC-P2-016`, `DOC-P2-017`. |
+
+### Source binding resolver (refresh is not render)
+
+| | |
+|---|---|
+| **Seam** | Re-running a source binding to a snapshotted value |
+| **Interface** | `internal/composition/sources.go::Resolver` (`Resolve(ctx, SourceBinding) (Resolution, error)`) with one implementation per binding kind — corpus anchor, `command-center` query, `content-desk` claim, `chart-generator` render id. |
+| **Production wiring** | `main.go` composes the resolvers a deployment actually has; an unconfigured kind resolves to `ErrBindingUnresolvable` rather than being absent, so the failure is named. |
+| **Test fake** | `internal/composition/mocks::FakeResolver` returning canned resolutions with controllable timestamps, so `refresh` semantics are table tests rather than cross-scenario integration runs. |
+| **Why it exists** | A binding is a **re-runnable descriptor, not a captured value** — that is the entire reason `refresh` can exist as a verb distinct from `render`. But a live binding with no snapshot makes every past render unexplainable, so each resolution is recorded with its timestamp. The seam holds both halves together and keeps four upstream scenarios out of the render path. Covers `DOC-P2-011` and `DOC-P2-019`. |
+
+### Brand token resolver (templates never hold literals)
+
+| | |
+|---|---|
+| **Seam** | Resolving a template's presentation references to concrete values |
+| **Interface** | `internal/templates/brand.go::TokenResolver` (`Resolve(ctx, TokenRef) (Value, error)`). Template validation rejects any presentation value that is not a `TokenRef`. |
+| **Production wiring** | `main.go` wires a `brand-manager`-backed resolver. On resolution failure, template validation **fails loudly and never falls back to a literal**. |
+| **Test fake** | `internal/templates/mocks::FakeTokenResolver` (canned token table, primeable failures) so template tests need no running `brand-manager`. |
+| **Why it exists** | A template carrying a literal color or font drifts from brand permanently and silently, and the drift is only visible to someone who remembers what the brand used to be. Making the resolver a seam lets validation reject literals structurally, which is what turns a rebrand into a corpus-wide re-render rather than a corpus-wide template edit. The no-fallback rule matters as much as the seam: a silently un-branded render is worse than no render, because it ships. Covers `DOC-P2-013`. |
+
+### Composer chat client boundary (no privileged path)
+
+| | |
+|---|---|
+| **Seam** | What the in-UI agent chat is allowed to call |
+| **Interface** | `ui/src/features/composer/agent/` may construct only generated Connect clients (`compositionClient`, `templatesClient`, `renderClient`). It has no bespoke endpoint, no direct repository access, and no server-side companion that bypasses the proto surface. |
+| **Production wiring** | The chat panel composes the same public verbs the CLI binds. Server-side, an agent turn enters through the ordinary handlers and through `internal/gatewayreq` under the document's privacy class. |
+| **Test fake** | Not a fake — an **AST check** (`ui/src/features/composer/agent/parity_test.ts`) asserting the agent surface imports only generated clients, plus a CLI-parity test asserting every verb the chat can invoke has a `cli/manifest.json` binding. |
+| **Why it exists** | **This seam is the parity guarantee.** The requirement is that an agent spawned outside this scenario, loading the same skill, can do everything the chat panel can. Stated as prose that decays the first time someone adds a convenient shortcut; stated as a check it holds. Its corollary is the useful one: a chat interaction that cannot be expressed as a sequence of public verbs is a **missing verb, not a chat feature** — which is why there is no `chat` domain. Covers `DOC-P2-021`, `DOC-P2-023`, `DOC-P2-025`, `DOC-P2-027`. |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)

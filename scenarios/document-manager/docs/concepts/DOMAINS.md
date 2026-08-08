@@ -4,19 +4,31 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-Document Manager has nine product domains plus the scaffold `health`
-domain. Each product domain owns exactly one noun. A file enters at
-`intake`, is judged for exposure in `sensitivity`, becomes structure in
-`derivation`, becomes citable in `anchors`, gains meaning in
+Document Manager has twelve product domains plus the scaffold `health`
+domain, arranged as **two spines that share one corpus**.
+
+The **read spine** (P0/P1, nine domains) runs one direction: a file
+enters at `intake`, is judged for exposure in `sensitivity`, becomes
+structure in `derivation`, becomes citable in `anchors`, gains meaning in
 `enrichment`, becomes findable through `retrieval`, is accounted for in
 `custody`, is held in `corpus`, and — optionally — is cited from
 elsewhere through `handoff`.
 
-Two boundaries in that list are load-bearing and are argued in
+The **write spine** (P2, three domains) is the same machine mirrored: a
+`templates` entry declares how a document of some type should look, a
+`composition` spec declares what it should say, and `render` turns the
+two into bytes — which are then ingested back through the read spine, so
+a generated document is an ordinary citable corpus document with no
+special class. `corpus`, `custody`, `anchors` and `intake` are shared by
+both spines rather than duplicated.
+
+Three boundaries are load-bearing and are argued in
 [`../internal/DECISIONS.md`](../internal/DECISIONS.md): `sensitivity`
-resolves *before* `derivation` picks a tier, and `retrieval` answers over
-**this** corpus only. `handoff` is optional — the scenario is fully
-useful with it absent.
+resolves *before* `derivation` picks a tier, `retrieval` answers over
+**this** corpus only, and on the write spine **the spec is the authority
+while rendered bytes are a derivation of it**. `handoff` is optional —
+the scenario is fully useful with it absent — and the entire write spine
+is optional in the same sense and at a later milestone.
 
 The scaffold also ships one clearly fenced worked example domain (never
 product scope) as a copyable reference; `template-manager detemplate
@@ -46,6 +58,25 @@ than being blocked from it after the fact. Reversing this turns a
 structural residency guarantee into an advisory one, which is the entire
 product claim.
 
+## The Authority Rule (write spine)
+
+The write spine has one equivalent, equally unrearrangeable rule:
+**the spec is the authority and rendered bytes are a derivation of it.**
+
+Read-side authority runs bytes → derivations: bytes are
+`regenerable: false`, derivations are `regenerable: true`, and a parser
+upgrade re-derives without touching the source. Write-side authority is
+that mirrored: the spec is `regenerable: false`, render versions are
+`regenerable: true`, and a template change re-renders without touching
+the spec. That single alignment is why a template switch never re-asks
+for content, why `refresh` and `render` are different verbs, and why
+document diff works across deck revisions with no new mechanism.
+
+Inverting it — treating the rendered `.pptx` as the thing being edited —
+makes a template switch a rewrite, makes chat edits unreproducible, and
+diverges the artifact from the record that explains it. Every generation
+verb assumes this direction.
+
 ## Domain Inventory
 
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
@@ -60,6 +91,9 @@ product claim.
 | custody | Record what happened to a document, where, and under whose authority. | Produce the evidence a compliance reviewer accepts. | Custody records, receipts, access events, legal holds. | ledger | reporting | Receipt, CustodyRecord, Attestation, LegalHold | `api/internal/custody/` |
 | corpus | Hold collections, govern the artifact store, and let everything leave. | Keep the corpus durable, bounded, and portable. | Collections, membership, retention state, exports. | crud | service | Collection, ArtifactStore, Export | `api/internal/corpus/` |
 | handoff | Publish *findings* — never units — into a declared ledger scope. | Let a consumer cite this corpus from a ledger without either system depending on the other. | Publication state, scope bindings, sync cursors. | integration | service | Publication, ScopeBinding, Finding | `api/internal/handoff/` |
+| templates | Hold the declarations that decide how a generated document looks. | Make consistency a stored artifact instead of a habit, and make restyling a re-render instead of a rewrite. | Templates, slot contracts, presentation bindings, fidelity declarations, template proposals. | crud | policy | Template, SlotContract, FidelityDeclaration, TemplateProposal | `api/internal/templates/` |
+| composition | Hold what a generated document says and where each fact came from. | Keep content template-agnostic so it survives every restyle, and keep every figure traceable to its origin. | Specs, spec versions, blocks, source bindings, resolutions, overrides. | mutation | service | Spec, SpecVersion, Block, SourceBinding, Override | `api/internal/composition/` |
+| render | Turn a spec plus a template into bytes, and record what the target could not express. | Produce the artifact, and never lie about what was lost producing it. | Render versions, renderer registry, target routing decisions, block→region alignments. | pipeline | projection | RenderVersion, Renderer, Fidelity, RenderTarget, Alignment | `api/internal/render/` |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)
@@ -173,9 +207,14 @@ upload exception. Copy its shape for your own domains, then remove it.
   exact document, and keep doing so after the document is re-derived.
 - Primary archetype: projection.
 - Secondary traits: query.
-- Owns: unit segmentation, anchor minting, anchor resolution, and the
+- Owns: unit segmentation, anchor minting, anchor resolution, the
   alignment maps that carry `logical` anchors across derivation
-  versions.
+  versions, and **the anchor URI — the citation format itself**
+  ([`../reference/anchor-uri.md`](../reference/anchor-uri.md),
+  `DOC-P0-028`). That URI is the only identifier this scenario emits
+  designed to outlive its own database, which is why it carries no
+  database identity, no corpus identity and no content-derived token,
+  and why minting has no non-canonical path.
 - Does not own: what a unit *means* (that is `enrichment`), how it is
   found (that is `retrieval`), or where it ends up (that is `handoff`).
 - **Two anchor kinds, and the distinction is load-bearing:**
@@ -202,8 +241,10 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Storage: `units`, `anchors` (with `kind` from the first migration),
   `anchor_alignments`; an index supporting resolution by
   (document, version, offset) and by (document, page, bbox).
-- Requirements: `DOC-P0-008`, `DOC-P0-009`, `DOC-P0-019`.
-- Tests: anchor round-trip resolution per kind, cross-version resolution
+- Requirements: `DOC-P0-008`, `DOC-P0-009`, `DOC-P0-019`, `DOC-P0-028`.
+- Tests: URI mint/parse round-trip per kind, rejection of non-canonical
+  input, each of the six resolution outcomes reachable and distinct,
+  anchor round-trip resolution per kind, cross-version resolution
   (a v1 `geometric` anchor resolves after v2 with no alignment; a v1
   `logical` anchor resolves only with one and reports `unresolved`
   without), boundary cases at page and block edges, and an assertion
@@ -408,6 +449,12 @@ upload exception. Copy its shape for your own domains, then remove it.
   useful with this domain absent. It exists so a consumer — a research
   or investigation scenario — can write "this branch is ruled out,
   see anchor X" without either sibling importing the other.
+- **Documented but not scaffolded** (decided 2026-08-07). It is the only
+  one of the nine domains with zero P0 requirements, and P0 is already
+  recorded as over-scoped for a first milestone. Its rows stay in this
+  map, in `DATA.md` and in `FLOWS.md` so the boundary remains designed,
+  but no proto, schema, repository, service, handler, mocks or tests are
+  generated for it until `DOC-P1-020` is scheduled.
 - Owns: publication state, scope bindings, sync cursors, provenance
   construction from an anchor, and re-derivation propagation to
   already-published entries.
@@ -431,6 +478,142 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Related docs: [`INTEGRATIONS.md`](INTEGRATIONS.md),
   [`FLOWS.md`](FLOWS.md).
 
+### templates
+
+- Purpose: hold the declarations that decide how a generated document
+  looks, so consistency is a stored artifact rather than a habit.
+- Primary archetype: CRUD.
+- Secondary traits: policy, versioning.
+- **P2, and unscaffolded** — see the write-spine rows in
+  [`../internal/DECISIONS.md`](../internal/DECISIONS.md). Documented so
+  the boundary is designed; no code until the read spine ships.
+- Owns: template records and their versions, the **slot contract** (what
+  a document of this type must supply), the **presentation** half, the
+  per-target **fidelity declarations**, and template-edit proposals
+  awaiting confirmation.
+- Does not own: brand values. Presentation **references `brand-manager`
+  tokens and never redefines them** — a template carrying a literal color
+  or font fails validation. A rebrand therefore re-renders the corpus
+  without editing a single template.
+- **A template is stored as a corpus document** under a distinguished
+  kind, so it inherits versioning, custody, export, diff and access
+  control from machinery that already exists, and is excluded from
+  `retrieval` by kind rather than by a parallel store. This is the
+  deliberately clever choice on the write spine; the watched risk is
+  recorded in [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
+- **A template pins a target family, not one format.** It declares one or
+  more render targets *and its fidelity for each*. An undeclared target
+  is `no_renderer_for_target`, never a best-effort attempt.
+- API: `api/internal/templates/`, `api/handlers/templates/`.
+- CLI: `cli/domains/templates/` — `list`, `show`, `fork`, `propose`,
+  `confirm`, `diff`.
+- UI: the Templates surface — registry, declared fidelity per target,
+  brand-token bindings, and the proposal queue.
+- Storage: `templates`, `template_versions`, `template_proposals`,
+  `fidelity_declarations`.
+- Requirements: `DOC-P2-013`, `DOC-P2-014`, `DOC-P2-024`.
+- Tests: literal-value rejection in presentation, brand-token resolution,
+  fidelity declared for every declared target, proposal requiring
+  confirmation before it affects any document, fork affecting nothing
+  existing.
+- Related docs: [`../reference/render-matrix.md`](../reference/render-matrix.md).
+
+### composition
+
+- Purpose: hold what a generated document says, template-agnostically,
+  and where each fact came from.
+- Primary archetype: mutation.
+- Secondary traits: service, versioning.
+- **P2, and unscaffolded.**
+- Owns: specs and their append-only versions, blocks, **source
+  bindings** and their snapshotted resolutions, per-document overrides,
+  and the spec-level edit verbs the Composer's chat composes.
+- Does not own: presentation (that is `templates`), byte production (that
+  is `render`), what the document *should* say (that is a skill, and the
+  caller's judgement), or any non-text asset — charts, diagrams and
+  images arrive as *references* and belong to `chart-generator`,
+  `graph-studio` and `asset-studio`.
+- **Three layers, and separating them is the requirement.** *Sources* are
+  re-runnable bindings whose resolutions are snapshotted with timestamps.
+  *Spec* is content and intent. *Bindings* are how this spec resolved
+  against this template, and are the only layer discarded on a switch.
+  Collapsing them means every template change re-asks for content and
+  every figure update re-authors the document.
+- **`refresh` and `render` are different verbs and must not merge.**
+  `refresh` re-runs source bindings and mints a new *spec* version;
+  `render` re-renders a *fixed* spec. Only the first can change what the
+  document claims.
+- **Edits are spec-level, never byte-level.** Editing rendered bytes
+  diverges the artifact from its authority and voids reproducibility,
+  undo and diff at once. Undo is free: spec versions are append-only, so
+  revert-to-version *is* undo.
+- A block carries `provenance: sourced | authored`. Unsourced content is
+  allowed and always visible as such; "every claim cited" is a
+  per-template policy, not a global rule.
+- API: `api/internal/composition/`, `api/handlers/composition/`.
+- CLI: `cli/domains/composition/` — `specs`, `blocks`, `bind`, `refresh`,
+  `override`, `versions`, `revert`.
+- UI: the Composer surface — spec beside live preview, the agent chat
+  panel, the active template, and the document's overrides listed rather
+  than implied.
+- Storage: `specs`, `spec_versions`, `blocks`, `source_bindings`,
+  `source_resolutions`, `overrides`.
+- Requirements: `DOC-P2-010`, `DOC-P2-011`, `DOC-P2-015`, `DOC-P2-019`,
+  `DOC-P2-022`, `DOC-P2-025`.
+- Tests: spec-version monotonicity, `refresh` minting a spec version
+  while `render` does not, override enumerability, revert-to-version as
+  undo, an assertion that no verb mutates rendered bytes, and a custody
+  record per mutation carrying actor and inference involvement.
+- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md).
+
+### render
+
+- Purpose: turn a spec plus a template into bytes, and record honestly
+  what the target could not express.
+- Primary archetype: pipeline.
+- Secondary traits: projection, routing policy.
+- **P2, and unscaffolded.**
+- Owns: the renderer registry, target routing, append-only render
+  versions, the write-side terminal states, and the **block→region
+  alignment** each render emits.
+- Does not own: the spec (that is `composition`), presentation rules
+  (that is `templates`), or ingestion of the result — a rendered
+  artifact goes back through `intake` like any other bytes.
+- **Renderers declare fidelity, not formats.** A renderer declares what
+  it can honor — `paged-geometry`, `cell-structure`, `speaker-notes`,
+  `vector-embed`, `styled-text` — and a spec declares what it requires.
+  `api/internal/render/registry.json` is the source of truth, projected
+  into [`../reference/render-matrix.md`](../reference/render-matrix.md)
+  with a test asserting they agree. Adding a target is registry data; if
+  it needs router changes, the router has drifted.
+- **The alignment is a byproduct, and it closes the read side's hardest
+  case.** Logical anchors normally need alignment maps no parse chain
+  produces for free. A renderer *placed* every element, so it already
+  knows the mapping and emits it — making generated `logical` anchors
+  durable without a computed alignment. Not a new anchor kind; the
+  existing kind with an author-minted stable identity.
+- **The default path is pure.** A deterministic render makes no gateway
+  call, which is why it is permanently free and why its receipt is
+  trivially green.
+- API: `api/internal/render/`, `api/handlers/render/`.
+- CLI: `cli/domains/render/` — `render`, `targets`, `versions`,
+  `preview`, `switch`.
+- UI: preview and target selection in the Composer; the switch
+  confirmation that lists unrepresentable elements before committing.
+- Storage: `render_versions` (append-only), `render_targets`,
+  `block_alignments`; rendered bytes in the artifact store under a
+  `regenerable: true` kind.
+- Requirements: `DOC-P2-012`, `DOC-P2-014`, `DOC-P2-016`, `DOC-P2-017`,
+  `DOC-P2-018`, `DOC-P2-020`, `DOC-P2-026`.
+- Tests: registry↔matrix agreement, the round-trip fidelity gate
+  (`render → ingest → derive` and assert the derived model matches the
+  spec), each of the six terminal states reachable and distinct,
+  alignment emitted for every declared target, an assertion that the
+  default render path constructs no `GatewayRequest`, and that a switch
+  reports every unrepresentable element rather than dropping any.
+- Related docs: [`../reference/render-matrix.md`](../reference/render-matrix.md),
+  [`FLOWS.md`](FLOWS.md).
+
 ## Cross-Cutting Requirements
 
 These are not domains; they are obligations every domain shares.
@@ -443,6 +626,9 @@ These are not domains; they are obligations every domain shares.
 | `DOC-P0-026` | Every outbound `GatewayRequest` is built at the single `internal/gatewayreq` choke point, asserted by an AST check. Spans `enrichment`, `sensitivity` and `derivation` tier 3. |
 | `DOC-P1-019` | Agent tools and widgets declared and discoverable via `cli-health`. |
 | `DOC-P1-021`, `DOC-P1-022` | Metering through LPBS on the paid tier, with BYOK never charged. |
+| `DOC-P2-021` | The Composer's agent chat calls only generated clients — no privileged path, asserted by an AST check. Spans `composition`, `templates` and `render`; owned by none of them, because chat is a client rather than a domain. |
+| `DOC-P2-023` | A chat-driven edit builds its request at the same `internal/gatewayreq` choke point under the document's privacy class and fails closed identically. Extends `DOC-P0-026` to the write spine. |
+| `DOC-P2-027` | One mechanism skill teaches the generation contract; thin per-type judgment skills compose it. Parity between an external agent and the in-UI agent is a property of the verb surface, not of the UI. |
 
 ## Shared Concepts
 
@@ -457,6 +643,11 @@ These are not domains; they are obligations every domain shares.
 | Unit | A citable fragment of a derivation carrying an anchor. | `anchors`. |
 | Receipt | The record of where every step for one document executed. | `custody`. |
 | Scope | The ledger partition units are published into. | `handoff` (defined by `vrooli-memory`). |
+| Spec | The authoritative, template-agnostic statement of what a generated document says. `regenerable: false`. | `composition`. |
+| Template | The declaration of how a document of some type looks: slot contract plus brand-token-referencing presentation. Stored as a corpus document. | `templates`. |
+| Render version | One versioned production of bytes from a spec under a template. `regenerable: true`. | `render`. |
+| Fidelity | What a render target can actually represent — the write-side counterpart of a handler capability. | `render` (declared in its registry). |
+| Override | An explicit, enumerable per-document deviation from its template. | `composition`. |
 
 ## Deferred Domains
 
@@ -465,6 +656,7 @@ These are not domains; they are obligations every domain shares.
 | `graph` (citation network) | Reference extraction (`DOC-P1-007`) produces the edges, but the traversal and visualization surface is P2 scope. | When `DOC-P2-004` is scheduled and reference extraction is proven accurate. |
 | `annotation` (collaborative) | A genuinely different product with its own multi-user concerns. Deliberately last. | When `DOC-P2-009` is scheduled and multi-user access control exists beyond `DOC-P1-014`. |
 | `transcripts` (audio/video) | A transcript is a document with time anchors instead of page anchors; it may fold into `intake` plus `anchors` rather than becoming its own domain. | When `DOC-P2-003` is scheduled — decide fold-in versus split at that point. |
+| `variants` (per-audience derivation of one spec) | A fourth authoring layer — "the same deck for investors and for customers" — on top of sources/spec/bindings. Premature before one spec has rendered end to end under two templates; deriving variants first would fix the wrong shape. | When template switching is proven in practice. Decide fold-into-`composition` versus split at that point rather than overloading `spec` by default. |
 
 ## Non-Domains
 
@@ -486,6 +678,24 @@ These are important but should not become product domains:
   `sensitivity`.
 - Recall over any other scenario's corpus — `retrieval` answers over
   this corpus only. Cross-corpus questions go through `search-hub`.
+- **`chat` — the Composer's agent panel is a client, not a domain.**
+  Every action it takes is a public proto verb owned by `composition`,
+  `templates` or `render`, which is what makes an external agent using
+  the same skill exactly as capable. A chat interaction that cannot be
+  expressed as a sequence of public verbs is a **missing verb, not a
+  chat feature**, and creating a `chat` domain to hold it would break
+  the parity guarantee the moment it was used.
+- **Authoring judgement** — what a deck should argue or a report should
+  conclude. That lives in skills, per the write-spine decision and the
+  precedent `content-desk` set when it rejected a `generation` domain.
+  A domain here would freeze prompt iteration behind a deploy.
+- **Non-text asset production** — charts (`chart-generator`), diagrams
+  (`graph-studio`), images and media (`asset-studio`), brand tokens
+  (`brand-manager`), verified marketing claims (`content-desk`), project
+  facts (`command-center`). These arrive as *references in a spec*; this
+  scenario embeds them and owns nothing about producing them.
+- Rendering runtimes — owned by resources, never vendored into a domain,
+  exactly as parsing runtimes are.
 
 If one of these starts using product vocabulary, split the product
 piece into an owning domain instead of growing infrastructure.

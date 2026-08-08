@@ -1,0 +1,197 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "composer",
+    "title": "Composer",
+    "routes": ["/compose/:specId", "/compose/:specId/versions/:specVersion"],
+    "purpose": "Let an operator or an agent author a generated document as a spec — content and intent, never presentation — see it rendered live under the active template, and change it by talking to an agent that has exactly the capability an external agent has.",
+    "prd_refs": ["OT-P2-010", "OT-P2-011", "OT-P2-015", "OT-P2-019", "OT-P2-021", "OT-P2-022", "OT-P2-023", "OT-P2-025", "OT-P2-026"]
+  },
+  "priorities": [
+    {
+      "statement": "The spec is visibly the thing being edited; the preview is visibly the thing being produced.",
+      "notes": "The write spine's authority rule is that the spec is authoritative and rendered bytes are a derivation of it. If the UI makes the preview feel like the document, users will ask for byte-level edits and the whole reproducibility story dies at the interaction layer."
+    },
+    {
+      "statement": "Whether a block is sourced or authored is visible on the block, never behind a click.",
+      "notes": "Unsourced content is allowed by design — a pitch deck is mostly operator voice. It must never be invisible, because the difference between a cited figure and a remembered one is the difference between a report and a guess."
+    },
+    {
+      "statement": "The document's deviations from its template are listed, not implied.",
+      "notes": "Every override is a bet against future template changes. A corpus where most documents carry overrides has silently lost switchability."
+    },
+    {
+      "statement": "Anything the agent chat can do, a command can do.",
+      "notes": "Parity is the requirement. The chat composes public verbs; it is a client, not a privileged surface."
+    },
+    {
+      "statement": "Where the agent's reasoning ran is as visible here as where a parse ran is in the Corpus.",
+      "notes": "A chat turn on a confidential document routes through the same choke point and fails closed identically. The claim that nothing left the machine has to be checkable in the surface where the talking happens."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "A spec is open beside its live preview under the active template, with per-block provenance and the override list visible." },
+    { "id": "empty", "description": "No spec exists yet; the primary action is creating one, which requires choosing a template." },
+    { "id": "chat-thinking", "description": "An agent turn is in flight; the locality of the inference is shown while it runs, not after." },
+    { "id": "awaiting-confirmation", "description": "The agent has proposed a change whose blast radius exceeds this document — a template edit, or a corpus-scoped action — and is waiting for a human decision." },
+    { "id": "rendering", "description": "A render is in flight for the selected target." },
+    { "id": "partial-render", "description": "Bytes were produced but a desirable fidelity was unavailable; what was skipped is named per element." },
+    { "id": "stale-sources", "description": "One or more source bindings could not be re-resolved; the prior snapshotted values are still shown and marked stale." },
+    { "id": "error", "description": "A render or mutation failed and the reason names which of the six terminal states applies." }
+  ],
+  "elements": [
+    { "id": "composer-region", "role": "region", "name": "Composer" },
+    { "id": "spec-outline", "role": "list", "name": "Spec blocks", "description": "Content and intent per block. Each row shows whether the block is sourced or authored." },
+    { "id": "preview-pane", "role": "region", "name": "Rendered preview", "description": "The spec rendered under the active template for the selected target. Read-only by construction." },
+    { "id": "block-provenance", "role": "status", "name": "Block provenance", "description": "Sourced or authored, conveyed by text and shape as well as color." },
+    { "id": "override-list", "role": "list", "name": "Deviations from template", "description": "Every per-document override, enumerated." },
+    { "id": "template-picker", "role": "combobox", "name": "Active template" },
+    { "id": "render-target-select", "role": "combobox", "name": "Render target", "description": "Limited to targets the active template declares fidelity for." },
+    { "id": "refresh-sources", "role": "button", "name": "Refresh sources", "description": "Re-runs source bindings and mints a new spec version. Distinct from re-rendering." },
+    { "id": "agent-chat", "role": "region", "name": "Agent" },
+    { "id": "chat-input", "role": "textbox", "name": "Ask the agent to change something" },
+    { "id": "chat-locality", "role": "status", "name": "Where this turn ran", "description": "Local or remote, on the turn itself." },
+    { "id": "version-history", "role": "list", "name": "Spec versions", "description": "Append-only. Reverting to a version is how undo works." }
+  ],
+  "claims": [
+    {
+      "id": "composer-region-present",
+      "type": "element-present",
+      "statement": "The composer page exposes a named authoring region.",
+      "tier": "machine",
+      "elements": ["composer-region"],
+      "states": ["default", "empty", "chat-thinking", "awaiting-confirmation", "rendering", "partial-render", "stale-sources", "error"]
+    },
+    {
+      "id": "spec-beside-preview",
+      "type": "element-present",
+      "statement": "The spec and its rendered preview are both present, with the spec presented as the editable surface.",
+      "tier": "machine",
+      "elements": ["spec-outline", "preview-pane"],
+      "states": ["default", "partial-render", "stale-sources"]
+    },
+    {
+      "id": "preview-is-not-editable",
+      "type": "custom",
+      "statement": "The preview offers no editing affordance; every change is made against the spec.",
+      "tier": "manual",
+      "elements": ["preview-pane", "spec-outline"],
+      "states": ["default"],
+      "rationale": "DOC-P2-010. Editing rendered bytes diverges the artifact from its authority and voids reproducibility, undo and diff at once. A UI that invites byte-level editing creates pressure for a verb that must never exist."
+    },
+    {
+      "id": "provenance-visible-per-block",
+      "type": "element-present",
+      "statement": "Every spec block shows whether its content is sourced or authored without the operator opening it.",
+      "tier": "machine",
+      "elements": ["spec-outline", "block-provenance"],
+      "states": ["default", "stale-sources"]
+    },
+    {
+      "id": "provenance-not-color-only",
+      "type": "custom",
+      "statement": "The sourced-versus-authored distinction is conveyed by text and shape, never by color alone.",
+      "tier": "manual",
+      "elements": ["block-provenance"],
+      "states": ["default", "stale-sources"],
+      "rationale": "Consistent with the locality rule on the Corpus surface, and required by WCAG 2.1 AA. A reviewer checking which figures are cited cannot be asked to distinguish two hues."
+    },
+    {
+      "id": "overrides-enumerated",
+      "type": "custom",
+      "statement": "The document's deviations from its template are listed with a count, not merely implied by appearance.",
+      "tier": "manual",
+      "elements": ["override-list"],
+      "states": ["default"],
+      "rationale": "DOC-P2-015. Overrides are bets against future template changes; a deviation nobody can enumerate is a switch that will fail later for reasons nobody can reconstruct."
+    },
+    {
+      "id": "refresh-distinct-from-render",
+      "type": "custom",
+      "statement": "Refreshing sources and re-rendering are separate actions with separate outcomes, and the surface never implies one performs the other.",
+      "tier": "manual",
+      "elements": ["refresh-sources", "render-target-select"],
+      "states": ["default", "stale-sources"],
+      "rationale": "DOC-P2-019. Only refresh can change what the document claims. Collapsing them into one button means a restyle can silently alter a figure."
+    },
+    {
+      "id": "stale-sources-keep-prior-values",
+      "type": "custom",
+      "statement": "When a binding cannot be re-resolved, the prior snapshotted value stays visible and is marked stale rather than blanked.",
+      "tier": "manual",
+      "elements": ["spec-outline", "block-provenance"],
+      "states": ["stale-sources"],
+      "rationale": "A refresh that silently blanked a figure would be worse than a stale one: the document still ships, and the missing number is harder to notice than a wrong one."
+    },
+    {
+      "id": "chat-turn-shows-locality",
+      "type": "custom",
+      "statement": "Each agent turn shows where its inference executed, while it runs and afterwards.",
+      "tier": "manual",
+      "elements": ["agent-chat", "chat-locality"],
+      "states": ["chat-thinking", "default"],
+      "rationale": "DOC-P2-023. Chat is the newest path to a confidential document and the one a user is most likely to assume is hosted. The residency claim has to be visible in the surface where the talking happens."
+    },
+    {
+      "id": "escalation-requires-confirmation",
+      "type": "custom",
+      "statement": "A proposed change whose blast radius exceeds this document — a template edit, or a corpus-scoped action — is never applied without an explicit human decision.",
+      "tier": "manual",
+      "elements": ["agent-chat"],
+      "states": ["awaiting-confirmation"],
+      "rationale": "DOC-P2-024 and DOC-P2-025. Per-document overrides are cheap and reversible; template edits change documents the operator never opened, including ones already sent. The two must not feel the same in a chat window, where they read identically."
+    },
+    {
+      "id": "undo-is-version-revert",
+      "type": "custom",
+      "statement": "Undoing an agent change is reverting to a spec version, and the surface presents it that way rather than as a separate undo stack.",
+      "tier": "manual",
+      "elements": ["version-history"],
+      "states": ["default"],
+      "rationale": "DOC-P2-010. Spec versions are append-only, so revert-to-version is already a complete undo. A parallel undo stack would be a second history that can disagree with the first."
+    },
+    {
+      "id": "partial-render-names-what-was-lost",
+      "type": "custom",
+      "statement": "A partial render names which elements or fidelities were skipped, per element, rather than reporting generic success.",
+      "tier": "manual",
+      "elements": ["preview-pane"],
+      "states": ["partial-render"],
+      "rationale": "The write-side equivalent of an anchor that lies. A render that quietly drops speaker notes produces a file the operator will present from."
+    },
+    {
+      "id": "composer-states-covered",
+      "type": "state-covered",
+      "statement": "Empty, populated, in-flight, awaiting-confirmation, partial and error states are all reachable and distinct.",
+      "tier": "machine",
+      "elements": ["composer-region"],
+      "states": ["default", "empty", "chat-thinking", "awaiting-confirmation", "rendering", "partial-render", "error"]
+    },
+    {
+      "id": "composer-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Block navigation, the template picker, the target select, refresh and the chat input are reachable by keyboard alone.",
+      "tier": "machine",
+      "elements": ["spec-outline", "template-picker", "render-target-select", "refresh-sources", "chat-input"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "composer-region": { "testid": "page-composer" },
+      "spec-outline": { "testid": "composer-spec-outline" },
+      "preview-pane": { "testid": "composer-preview" },
+      "block-provenance": { "testid": "composer-block-provenance" },
+      "override-list": { "testid": "composer-overrides" },
+      "template-picker": { "testid": "composer-template-picker" },
+      "render-target-select": { "testid": "composer-render-target" },
+      "refresh-sources": { "testid": "composer-refresh-sources" },
+      "agent-chat": { "testid": "composer-agent" },
+      "chat-input": { "testid": "composer-chat-input" },
+      "chat-locality": { "testid": "composer-chat-locality" },
+      "version-history": { "testid": "composer-versions" }
+    }
+  }
+}

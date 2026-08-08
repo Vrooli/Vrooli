@@ -4,6 +4,14 @@ What this scenario accepts, which handler chain parses it, what that
 chain can prove about position, and what happens when nothing can parse
 it at all.
 
+This is the **read** side. Its twin is
+[`render-matrix.md`](render-matrix.md), which answers what this scenario
+can *produce*. The two share one normalized document model and the same
+routing philosophy — handlers declare capabilities, renderers declare
+fidelity — and a generated document goes back through *this* matrix on
+ingest, so a target that renders something this matrix cannot parse is a
+defect on both sides.
+
 ## Purpose Of This Document
 
 Use this document to answer:
@@ -64,8 +72,8 @@ whichever handler has it.
 
 | Handler | Tier | Provides | Runtime | Formats |
 |---|---|---|---|---|
-| `anydoc` | 1 | `content`, `tables` | In-process Rust via CLI/bindings; no service, no ML models | 14 document formats (see matrix) |
-| `pdf-inspector` | 1 | `geometry`, page classification | In-process Rust; embedded in `anydoc` but its geometry is not surfaced there, so it is called directly | PDF only |
+| `anydoc` | 1 | `content`, `tables` | Rust, invoked as a **subprocess** through a CLI-shaped resource — there is no Go binding. No service, no ML weights. | 14 document formats (see matrix) |
+| `pdf-inspector` | 1 | `geometry`, page classification | Rust, same subprocess model. Embedded inside `anydoc` but its geometry is not surfaced there, so it is invoked separately. | PDF only |
 | `native-text` | 1 | `content` | In-process Go | `.txt`, `.md`, `.ipynb` |
 | `unstructured-io` | 2 | `content`, `geometry`, `tables`, `elements`, `ocr` | Docker service; Tesseract for OCR, layout model for `hi_res` | 24+ formats including everything `anydoc` misses |
 | `gateway-vision` | 3 | `content`, `geometry`, `ocr` | AI Gateway `vision.default` role — **metered** | Any rasterizable source |
@@ -128,6 +136,16 @@ none of which `anydoc` touches at all.
 `unstructured-io` remains a declared dependency and still needs its
 docker-service migration verified. It is not optional, and its absence
 degrades specific formats in specific ways rather than being invisible.
+
+**One caveat on the speed comparison.** `anydoc`'s ~4.4 ms is measured
+in-process in Rust. Neither it nor `pdf-inspector` ships a Go binding, so
+our call path is a subprocess per handler per document — two spawns for a
+text-native PDF, which needs `anydoc` for content and `pdf-inspector` for
+geometry. Process spawn and serialization sit on top of the published
+figure and are not yet measured. The resource-packaging work owns that
+measurement, and a long-lived handler process is the escape hatch if the
+free tier's latency claim comes to depend on it. Treat the published
+number as a floor, not a budget.
 
 ## Degradation And Anchor Kind
 
@@ -223,7 +241,7 @@ shape: headers, body and each attachment are distinct addressable parts.
 
 | Gap | Detail | Owner |
 |---|---|---|
-| Image intake has no requirement | The matrix and `DECISIONS.md` both assume raster image support; no operational target funds it. Marginal cost is near zero once `unstructured-io` is verified, since images share its OCR path. | Needs a P1 target |
+| ~~Image intake has no requirement~~ **Closed 2026-08-07** | Funded by `OT-P1-024` / `DOC-P1-024`. Raster images are parsed by local Tesseract OCR at **tier 2**, alongside scanned PDFs — not tier 3 — so they carry geometric anchors and do not wait on `vision.default`. | Closed |
 | `unstructured-io` migration unverified | Its README describes a mid-flight move to the current `docker-service` structure. Six matrix rows depend on it, including all of HTML, email and images. | Verify before `derivation` is built |
 | Encoding and language detection | Absent from every document. Affects FTS5 tokenization in `DOC-P0-023` before it affects the P2 multilingual target. `unstructured-io` reports language and can inform this. | Unassigned |
 | Archive expansion bounds | `.zip` routing has no declared depth, count or expansion-ratio limit. Decompression bombs are a real intake surface for every ZIP-container format, which includes OOXML, ODF and EPUB. | Resolve with `SECURITY.md` |
@@ -270,6 +288,8 @@ shape: headers, body and each attachment are distinct addressable parts.
 
 ## Cross-References
 
+- [`anchor-uri.md`](anchor-uri.md) — the citation format these anchor kinds are encoded into
+- [`render-matrix.md`](render-matrix.md) — the write-side twin: render targets, fidelity, and the six write-side terminal states
 - [`../internal/DECISIONS.md`](../internal/DECISIONS.md) — handler registry, the two-parser split, and the anchor-kind decisions
 - [`../concepts/DATA.md`](../concepts/DATA.md) — anchor storage and the anchor-format rule
 - [`../concepts/FLOWS.md`](../concepts/FLOWS.md) — the runtime routing sequence and the sensitivity gate

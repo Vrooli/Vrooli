@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "description": "Requirement stubs scaffolded from the P2 operational targets. DOC-P2-010 through DOC-P2-027 are the generation (write) spine: designed in full, deliberately unscaffolded until the read spine ships.",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -136,6 +136,276 @@
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "A generated document's spec is regenerable:false; rendered bytes are a regenerable:true render version. Re-rendering never mutates a spec, and render versions are append-only",
+      "id": "DOC-P2-010",
+      "prd_ref": "OT-P2-010",
+      "status": "planned",
+      "title": "Spec is the authority",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-010] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Sources, spec and bindings persist as separate layers; a template switch discards and recomputes bindings only, and never asks the caller to re-supply content",
+      "id": "DOC-P2-011",
+      "prd_ref": "OT-P2-011",
+      "status": "planned",
+      "title": "Three-layer authoring record",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-011] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "A declarative registry is the source of truth for render targets, keyed by the fidelity each renderer can honor, projected into docs/reference/render-matrix.md with a test asserting the two agree",
+      "id": "DOC-P2-012",
+      "prd_ref": "OT-P2-012",
+      "status": "planned",
+      "title": "Renderer registry declares fidelity",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-012] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "A template declares a slot contract plus presentation that references brand-manager tokens rather than literal values; a template carrying a literal color or font fails validation",
+      "id": "DOC-P2-013",
+      "prd_ref": "OT-P2-013",
+      "status": "planned",
+      "title": "Template registry with brand binding",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-013] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "An existing spec re-renders under a different template without re-authoring; anything the new template cannot express surfaces as unrepresentable_element, named per element, never silently dropped",
+      "id": "DOC-P2-014",
+      "prd_ref": "OT-P2-014",
+      "status": "planned",
+      "title": "Template switching",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-014] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Per-document deviations from a template are explicit, enumerable, and surfaced at switch time with which of them the target template cannot honor",
+      "id": "DOC-P2-015",
+      "prd_ref": "OT-P2-015",
+      "status": "planned",
+      "title": "Override ledger",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-015] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "no_renderer_for_target, renderer_unavailable, render_failed, missing_required_slot, unrepresentable_element and blocked_by_policy are six distinct states with six remedies, mirroring the read side",
+      "id": "DOC-P2-016",
+      "prd_ref": "OT-P2-016",
+      "status": "planned",
+      "title": "Write-side terminal states",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-016] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The renderer emits its spec-block to output-region mapping as a byproduct, so a generated document's logical anchors are durable without a computed alignment map",
+      "id": "DOC-P2-017",
+      "prd_ref": "OT-P2-017",
+      "status": "planned",
+      "title": "Authored anchors from render alignment",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-017] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "render(spec) then ingest then derive, asserting the derived model matches the spec it was rendered from; a fidelity oracle available only because one scenario owns both directions",
+      "id": "DOC-P2-018",
+      "prd_ref": "OT-P2-018",
+      "status": "planned",
+      "title": "Round-trip fidelity gate",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-018] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "refresh re-runs source bindings and mints a new spec version; render re-renders a fixed spec. Each resolution is snapshotted with its timestamp so a rendered document stays reproducible",
+      "id": "DOC-P2-019",
+      "prd_ref": "OT-P2-019",
+      "status": "planned",
+      "title": "Source refresh is a distinct verb from re-render",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-019] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Content-addressed, derived, anchored, retrievable, custody-tracked and exportable like any other document, and never ledger entries",
+      "id": "DOC-P2-020",
+      "prd_ref": "OT-P2-020",
+      "status": "planned",
+      "title": "Generated documents are corpus documents",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-020] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Every action the in-UI chat can take is a public proto verb with CLI parity, asserted by an AST check that the chat surface calls only generated clients",
+      "id": "DOC-P2-021",
+      "prd_ref": "OT-P2-021",
+      "status": "planned",
+      "title": "The agent chat has no privileged path",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-021] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Every agent- or operator-driven edit records actor, verb, before/after spec version, and whether inference was involved",
+      "id": "DOC-P2-022",
+      "prd_ref": "OT-P2-022",
+      "status": "planned",
+      "title": "Spec mutations are custody events",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-022] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "A chat-driven edit on a confidential document builds its request at the same gatewayreq choke point under the document's privacy class, and fails closed identically",
+      "id": "DOC-P2-023",
+      "prd_ref": "OT-P2-023",
+      "status": "planned",
+      "title": "Chat inherits the sensitivity gate",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-023] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "A per-document override applies immediately and is reversible by spec version. A template edit is a proposal a human confirms, because its blast radius is every document using that template",
+      "id": "DOC-P2-024",
+      "prd_ref": "OT-P2-024",
+      "status": "planned",
+      "title": "Template edits are proposals; overrides are direct",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-024] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Corpus-scoped agent action requires an explicit, separately authorized scope binding rather than inheriting document access",
+      "id": "DOC-P2-025",
+      "prd_ref": "OT-P2-025",
+      "status": "planned",
+      "title": "The agent is document-scoped by default",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-025] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The default render path makes no gateway call, so it is permanently free and its receipt is trivially green; only genuinely inferential steps meter",
+      "id": "DOC-P2-026",
+      "prd_ref": "OT-P2-026",
+      "status": "planned",
+      "title": "Deterministic render is free",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-026] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "One mechanism skill teaches the contract; thin per-type judgment skills compose it. An external agent loading the mechanism skill has exactly the capability the in-UI agent has",
+      "id": "DOC-P2-027",
+      "prd_ref": "OT-P2-027",
+      "status": "planned",
+      "title": "Generation skill parity",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P2-027] tag) once the behavior exists. Write-spine target: unscaffolded until the read spine ships.",
           "status": "planned",
           "type": "manual"
         }

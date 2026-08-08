@@ -1,0 +1,148 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "templates",
+    "title": "Templates",
+    "routes": ["/templates", "/templates/:templateId", "/templates/:templateId/switch/:specId"],
+    "purpose": "Let an operator see how generated documents are allowed to look — what each template can honor on each target, which brand tokens it binds, which documents it governs — and decide template changes with the blast radius visible before, not after.",
+    "prd_refs": ["OT-P2-012", "OT-P2-013", "OT-P2-014", "OT-P2-015", "OT-P2-016", "OT-P2-024"]
+  },
+  "priorities": [
+    {
+      "statement": "What a template can actually honor is stated per target, not inferred from its name.",
+      "notes": "A deck template that supports speaker notes in .pptx and not in PDF is telling the truth about both. Fidelity is a declaration; a target with no declaration is refused rather than attempted."
+    },
+    {
+      "statement": "A template switch shows what will be lost before it commits.",
+      "notes": "This is the highest-weight moment on this surface. A silent drop during a switch is the write-side equivalent of an anchor that lies, and the operator finds out from the audience."
+    },
+    {
+      "statement": "The blast radius of a template edit is visible on the edit.",
+      "notes": "A per-document override and a template edit read identically as intentions. They differ by how many documents change, including ones already sent — so the count belongs on the decision, not in a confirmation dialog's small print."
+    },
+    {
+      "statement": "Presentation is shown as bound tokens, never as literal values.",
+      "notes": "A template carrying a literal color or font drifts from brand permanently and silently. Showing bindings rather than swatches makes the rule legible instead of merely enforced."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "Templates are listed with their declared targets, fidelity per target, brand bindings and the number of documents each governs." },
+    { "id": "empty", "description": "No templates exist yet; the primary action is creating one, which requires declaring at least one target and its fidelity." },
+    { "id": "proposal-pending", "description": "A proposed template edit is awaiting a human decision, with the count of affected documents shown." },
+    { "id": "switch-preview", "description": "A specific spec is being previewed under a different template, with unrepresentable elements and unhonored overrides listed before anything commits." },
+    { "id": "error", "description": "Template validation or a switch preview failed, naming which terminal state applies." }
+  ],
+  "elements": [
+    { "id": "templates-region", "role": "region", "name": "Template registry" },
+    { "id": "template-list", "role": "list", "name": "Templates", "description": "Each row shows declared targets and the number of documents governed." },
+    { "id": "fidelity-matrix", "role": "table", "name": "Fidelity by target", "description": "Which of paged-geometry, cell-structure, speaker-notes, vector-embed and styled-text the template honors for each declared target." },
+    { "id": "brand-bindings", "role": "list", "name": "Brand token bindings", "description": "The tokens this template's presentation references. Literal values are a validation failure, not a row." },
+    { "id": "proposal-queue", "role": "list", "name": "Proposed edits", "description": "Template changes awaiting confirmation, each with its affected-document count." },
+    { "id": "blast-radius", "role": "status", "name": "Documents affected" },
+    { "id": "switch-preview-report", "role": "region", "name": "What this switch changes", "description": "Unrepresentable elements and overrides the target template cannot honor." },
+    { "id": "confirm-switch", "role": "button", "name": "Commit switch" },
+    { "id": "fork-template", "role": "button", "name": "Fork as new template" }
+  ],
+  "claims": [
+    {
+      "id": "templates-region-present",
+      "type": "element-present",
+      "statement": "The templates page exposes a named registry region.",
+      "tier": "machine",
+      "elements": ["templates-region"],
+      "states": ["default", "empty", "proposal-pending", "switch-preview", "error"]
+    },
+    {
+      "id": "fidelity-declared-per-target",
+      "type": "element-present",
+      "statement": "Every template shows its declared fidelity for each target it claims.",
+      "tier": "machine",
+      "elements": ["template-list", "fidelity-matrix"],
+      "states": ["default"]
+    },
+    {
+      "id": "undeclared-target-is-refused",
+      "type": "custom",
+      "statement": "A target a template does not declare is presented as unavailable, never offered as a best-effort attempt.",
+      "tier": "manual",
+      "elements": ["fidelity-matrix"],
+      "states": ["default"],
+      "rationale": "OT-P2-016. no_renderer_for_target is a roadmap item and renderer_unavailable is a one-command fix; offering an undeclared target collapses that distinction into a failure the operator cannot act on."
+    },
+    {
+      "id": "presentation-shown-as-bindings",
+      "type": "custom",
+      "statement": "Template presentation is displayed as brand-token bindings rather than literal color or font values.",
+      "tier": "manual",
+      "elements": ["brand-bindings"],
+      "states": ["default"],
+      "rationale": "OT-P2-013. A literal in a template is a validation failure precisely so a rebrand is a corpus-wide re-render rather than a corpus-wide template edit. Showing bindings makes the invariant visible instead of merely enforced."
+    },
+    {
+      "id": "switch-preview-lists-losses",
+      "type": "custom",
+      "statement": "A template switch lists every unrepresentable element and every override the target cannot honor, before the commit action is available.",
+      "tier": "manual",
+      "elements": ["switch-preview-report", "confirm-switch"],
+      "states": ["switch-preview"],
+      "rationale": "OT-P2-014 and OT-P2-015. This is the load-bearing moment of the surface. Committing first and reporting after means the operator discovers the loss from the audience."
+    },
+    {
+      "id": "blast-radius-visible-on-decision",
+      "type": "custom",
+      "statement": "A proposed template edit shows how many documents it would change, on the decision itself.",
+      "tier": "manual",
+      "elements": ["proposal-queue", "blast-radius"],
+      "states": ["proposal-pending"],
+      "rationale": "OT-P2-024. An override and a template edit are indistinguishable as intentions and differ only in blast radius, so the count is the thing that makes the decision a real one."
+    },
+    {
+      "id": "proposals-never-auto-apply",
+      "type": "custom",
+      "statement": "A proposed template edit is never applied without an explicit human decision, and the decision is recorded.",
+      "tier": "manual",
+      "elements": ["proposal-queue"],
+      "states": ["proposal-pending"],
+      "rationale": "Mirrors the redaction-review pattern already in this scenario, for the same reason: an automated change with corpus-wide reach is not defensible after the fact."
+    },
+    {
+      "id": "fork-is-always-available",
+      "type": "element-present",
+      "statement": "Forking to a new template is offered wherever editing an existing one is.",
+      "tier": "machine",
+      "elements": ["fork-template"],
+      "states": ["default", "proposal-pending"]
+    },
+    {
+      "id": "templates-states-covered",
+      "type": "state-covered",
+      "statement": "Empty, populated, proposal-pending, switch-preview and error states are all reachable and distinct.",
+      "tier": "machine",
+      "elements": ["templates-region"],
+      "states": ["default", "empty", "proposal-pending", "switch-preview", "error"]
+    },
+    {
+      "id": "templates-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Template navigation, the fidelity matrix, the proposal queue and the switch confirmation are reachable by keyboard alone.",
+      "tier": "machine",
+      "elements": ["template-list", "fidelity-matrix", "proposal-queue", "confirm-switch"],
+      "states": ["default", "switch-preview"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "templates-region": { "testid": "page-templates" },
+      "template-list": { "testid": "templates-list" },
+      "fidelity-matrix": { "testid": "templates-fidelity" },
+      "brand-bindings": { "testid": "templates-brand-bindings" },
+      "proposal-queue": { "testid": "templates-proposals" },
+      "blast-radius": { "testid": "templates-blast-radius" },
+      "switch-preview-report": { "testid": "templates-switch-report" },
+      "confirm-switch": { "testid": "templates-confirm-switch" },
+      "fork-template": { "testid": "templates-fork" }
+    }
+  }
+}

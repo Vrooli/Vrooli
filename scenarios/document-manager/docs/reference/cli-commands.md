@@ -123,6 +123,21 @@ The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
+The command groups each domain will expose are listed in
+[`../concepts/DOMAINS.md`](../concepts/DOMAINS.md) under each domain's
+`CLI:` line — nine read-spine groups plus, at P2, `templates`,
+`composition` and `render`.
+
+**CLI parity is load-bearing on the write spine, not merely tidy.**
+`DOC-P2-021` requires that every action the in-UI agent chat can take is
+a public proto verb with a CLI binding, because that is what makes an
+external agent loading the same skill exactly as capable as the chat
+panel. So the usual rule — a new RPC needs a binding or an `omitted[]`
+entry with a reason — carries an extra consequence there: an RPC the
+chat uses and the manifest omits is a **parity break**, not a
+documentation gap. A chat interaction that cannot be expressed as a
+sequence of these commands is a missing verb.
+
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)
 

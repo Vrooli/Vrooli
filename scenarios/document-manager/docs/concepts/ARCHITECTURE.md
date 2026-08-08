@@ -209,6 +209,7 @@ when they are deliberate and durable.
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
 | 2026-08-05 | None yet. | Generated from `react-vite`. | Update when the scenario intentionally diverges. |
+| 2026-08-07 | **Two spines share one corpus.** The template assumes a single directional flow through a set of peer domains. This scenario adds a second, mirrored flow: `templates` + `composition` + `render` produce bytes that re-enter through `intake`, so `corpus`, `custody`, `anchors` and `intake` are shared by both directions rather than duplicated. | Generation is genuinely the same machine backwards — the spec is authority and rendered bytes are its derivation, mirroring bytes-are-authority on the read side. Splitting it into a sibling scenario would duplicate the whole shared spine and put the round-trip fidelity gate across a process boundary. | P2 and unscaffolded. Revisit if the authoring surface grows its own designer UI and multi-user editing, which is the same line `DOC-P2-009` sits behind. See the write-spine rows in [`../internal/DECISIONS.md`](../internal/DECISIONS.md). |
 
 ## Documentation Architecture
 

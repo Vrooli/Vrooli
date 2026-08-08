@@ -68,11 +68,11 @@
     },
     {
       "criticality": "P0",
-      "description": "DOCX, HTML, EPUB, Markdown and plain text parsed through the structural resource",
+      "description": "Word, OpenDocument, RTF, EPUB, presentations, spreadsheets, delimited text, HTML/XML, Markdown and plain text parsed locally through the declared handler chain for their format",
       "id": "DOC-P0-005",
       "prd_ref": "OT-P0-005",
       "status": "planned",
-      "title": "Tier-2 structural parse",
+      "title": "Local structural parse",
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-005] tag) once the behavior exists.",
@@ -113,7 +113,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Every unit carries document hash, page and character range, plus bounding box where the tier supplies one",
+      "description": "Every unit carries a document hash plus the coordinates its handler chain could prove \u2014 page and bounding box, sheet and cell range, or structural path and character offset",
       "id": "DOC-P0-008",
       "prd_ref": "OT-P0-008",
       "status": "planned",
@@ -128,7 +128,7 @@
     },
     {
       "criticality": "P0",
-      "description": "A geometric anchor minted against v1 resolves unchanged after v2; a logical anchor resolves through a recorded alignment or reports unresolved, never a wrong region",
+      "description": "Geometric and tabular anchors minted against v1 resolve unchanged after v2; a logical anchor resolves through a recorded alignment or reports unresolved, never a wrong region",
       "id": "DOC-P0-009",
       "prd_ref": "OT-P0-009",
       "status": "planned",
@@ -263,7 +263,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Registered and active so corpus content is discoverable from federated search; the only path by which a caller that does not already know this corpus can find it, and the only place sources and findings are queryable together",
+      "description": "Registered and active so corpus content is discoverable from federated search. Because the federation contract carries no caller identity, exposure is per-collection opt-in (default off) with a hard ceiling: confidential and secret units never federate regardless of the flag",
       "id": "DOC-P0-018",
       "prd_ref": "OT-P0-018",
       "status": "planned",
@@ -278,7 +278,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Every anchor carries geometric or logical from the first migration; resolution dispatches on kind and never reads a prunable parse output",
+      "description": "Every anchor carries geometric, tabular or logical from the first migration, recording the kind its handler chain could actually prove; resolution dispatches on kind and never reads a prunable parse output",
       "id": "DOC-P0-019",
       "prd_ref": "OT-P0-019",
       "status": "planned",
@@ -338,7 +338,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Hybrid query over units — FTS5 lexical plus in-process cosine over SQLite-resident vectors, fused by reciprocal rank — returning results that each carry a resolvable anchor, and degrading to lexical-only with the index marked partial when embeddings are unavailable",
+      "description": "Hybrid query over units \u2014 FTS5 lexical plus in-process cosine over SQLite-resident vectors, fused by reciprocal rank \u2014 returning results that each carry a resolvable anchor, and degrading to lexical-only with the index marked partial when embeddings are unavailable",
       "id": "DOC-P0-023",
       "prd_ref": "OT-P0-023",
       "status": "planned",
@@ -391,6 +391,36 @@
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-026] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Bytes are retained and a custody record written for a document nothing can parse; it surfaces carrying one of no_handler_for_format, handler_unavailable, handler_failed, blocked_by_policy or unsupported_variant, each naming its own reason and remedy, and partial success records which capability was skipped",
+      "id": "DOC-P0-027",
+      "prd_ref": "OT-P0-027",
+      "status": "planned",
+      "title": "Unsupported is a terminal state, not a rejected upload",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-027] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Every citation is a vrooli-anchor: URI carrying content address, derivation version, anchor kind and coordinates, minted only in canonical form and compared by byte equality; resolution returns one of six outcomes and never a guessed region",
+      "id": "DOC-P0-028",
+      "prd_ref": "OT-P0-028",
+      "status": "planned",
+      "title": "Canonical anchor URI",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-028] tag) once the behavior exists. Must cover round-trip mint/parse, canonical-form rejection of non-canonical input, and each of the six resolution outcomes.",
           "status": "planned",
           "type": "manual"
         }

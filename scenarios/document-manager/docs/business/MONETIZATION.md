@@ -81,6 +81,31 @@ this scenario. Closing that gap upstream is what upgrades the pitch from
 self-report to corroborated evidence — see
 [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md).
 
+### The same wedge, run backwards (P2)
+
+The write spine is not a second product with a second pitch. It is the
+same claim pointed the other way, and it reuses the entire residency
+spine rather than adding one:
+
+- A **generated** document carries a receipt showing its assembly made no
+  outbound call — a claim no hosted deck or document tool can make,
+  because for them the answer never varies.
+- Because chat-driven editing routes through the same `gatewayreq` choke
+  point under the document's privacy class (`DOC-P2-023`), the resulting
+  proposition is unusual and checkable: **you can talk to your privileged
+  documents and nothing leaves the machine.** Every hosted competitor's
+  chat panel is, structurally, an upload.
+- The buyer is the same buyer. Compliance already refuses to send
+  privileged material to a third-party API for *reading*; it refuses at
+  least as hard for *drafting*, where the output is the thing that gets
+  filed or sent.
+
+This changes the free/metered line in the right direction rather than
+weakening it: deterministic render is free because it costs nothing, and
+only the conversation meters. It is worth stating plainly that this is
+**hypothesis, not measurement** — the write spine is P2 and unbuilt, and
+no buyer has been shown a generated document with its receipt.
+
 ## Packaging
 
 | Packaging Option | Status | Details |
@@ -124,8 +149,10 @@ Per `path:docs/concepts/PAID_FEATURES.md`:
 | Capability | Mode | Reasoning |
 |---|---|---|
 | Tier-1 and tier-2 parse, anchoring, versioning, corpus, custody receipts, export | **free** | Deterministic, local, no marginal cost. Permanently free — it competes with genuinely good free tools, and gating it would gate something a self-hoster could already run. |
+| Deterministic render, template switching, source refresh (P2) | **free** | Same reasoning, applied to the write spine: the default render path constructs no `GatewayRequest`, so there is no marginal cost to recover. `DOC-P2-026`. |
 | Tier-3 vision parse, enrichment, embeddings | **metered** | Real token cost. Reserve → execute → finalize through LPBS. |
 | Bulk re-derivation at corpus scale | **metered** | Same mechanism, larger volume. |
+| Chat-driven authoring assistance (P2) | **metered** | The only genuinely inferential step on the write spine, and the one with a real per-turn cost. Metering the *conversation* rather than the *document* keeps the free/metered line where the compute actually is. |
 | — | **gated** | Nothing. Deliberate: the value is real compute or nothing. A gated feature appearing later signals the framing drifted. |
 
 **BYOK must remain free of credit charge** (`DOC-P1-022`). This is a hard

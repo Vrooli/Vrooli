@@ -113,7 +113,7 @@ orientation gate is the last one for a reason.
 
 ### 2026-08-06 — Three P0 requirements hide multi-phase complexity behind one line
 
-**Symptom:** All 57 requirements are single-line stubs with one manual
+**Symptom:** All 60 requirements are single-line stubs with one manual
 validation entry each. `business-health validate` passes, which makes the
 set look uniformly sized. It is not.
 
@@ -171,7 +171,7 @@ engineering one.
 
 ### 2026-08-06 — Every requirement validation is a `manual` stub, so the registry gates nothing
 
-**Symptom:** All 57 requirements carry exactly one validation entry of
+**Symptom:** All 60 requirements carry exactly one validation entry of
 `"type": "manual"`, `"status": "planned"`. `business-health validate`
 passes. Read quickly, the registry looks like a working quality gate.
 
@@ -232,6 +232,18 @@ the viability bar itself does not move.
 
 ### 2026-08-06 — PRD format wording predates `anydoc` and is read-only
 
+> **RESOLVED 2026-08-07** by an operator-authorized amendment pass. Six
+> statements were wrong, not three — a review found `OT-P0-009` and
+> `OT-P0-019` still describing a two-value anchor enum after `tabular`
+> was added, and `OT-P1-001` still calling ordinary scanned pages tier 3
+> after Tesseract was placed at tier 2. All six are corrected in `PRD.md`,
+> the matching requirement descriptions are synced so `prd_ref` stays
+> honest, and `vrooli scenario requirements validate` passes at L3. Two
+> previously unfunded targets were added in the same pass: `OT-P0-027`
+> (unsupported terminal states) and `OT-P1-024` (raster image intake).
+> Kept rather than deleted because the *shape* of the failure recurs —
+> a decision row lands, and the targets it invalidates are not swept.
+
 **Symptom:** Three statements in `PRD.md` are now wrong, and `PRD.md` is
 read-only after the orientation gate (`docs/START-HERE.md`), so they
 cannot simply be edited here.
@@ -284,6 +296,12 @@ Dependencies), `docs/reference/format-matrix.md`,
 
 ### 2026-08-06 — Image intake is assumed by the anchor design but funded by no target
 
+> **RESOLVED 2026-08-07.** `OT-P1-024` / `DOC-P1-024` now fund raster
+> image intake, taking the recommended option rather than narrowing the
+> anchor decision to PDF. Images route to local OCR at tier 2 alongside
+> scanned PDFs, so the marginal cost is close to zero and it does not wait
+> on `vision.default`.
+
 **Symptom:** `DECISIONS.md` states geometric anchors are available for
 "PDF and image sources", and the format matrix lists raster images at
 tier 3. No operational target ingests an image.
@@ -303,6 +321,270 @@ cost is close to zero once `vision.default` lands.
 
 **Refs:** `docs/reference/format-matrix.md` (Gaps),
 `docs/internal/DECISIONS.md` (anchor-kinds row).
+
+### 2026-08-07 — search-hub cannot express caller identity, so federation serves only the unrestricted corpus
+
+**Symptom:** `DOC-P0-018` requires the corpus to be discoverable through
+federated search. `DOC-P0-024` requires that a unit never surface to a
+caller who cannot read its collection or privacy class. Both are P0 and
+they cannot both be fully satisfied, because a federated query arrives
+with no caller attached.
+
+**Root cause:** Upstream contract shape, not a defect here.
+`search-hub/v1/routing.QueryRequest` carries `query`, `types`, `all`,
+`limit`, `group`, `explain`, `overrides` and `control_token` — no
+principal. The provider side is thinner still: registration is a
+descriptor whose `body_template` interpolates only `{{query}}` and
+`{{limit}}`, so there is no seam through which an identity could travel
+even if the caller had one. `control_token` is not a substitute; it
+proves provider ownership for tuning overrides, not caller authorization.
+
+**Workaround:** Per-collection opt-in, decided 2026-08-07 and recorded in
+`DECISIONS.md`. A collection carries a `federated` flag, default off,
+with a ceiling no flag overrides: confidential and secret units never
+federate. Honest and safe, but it is a policy substitute for an identity
+the contract cannot express, and the cost is real — **federation cannot
+serve the restricted half of the corpus, which is the half the product
+exists for.** Direct Connect callers are unaffected.
+
+**Real fix:** A caller principal on `search-hub`'s query contract,
+propagated to providers, so this scenario can apply `DOC-P0-024`'s filter
+to federated queries the same way it applies it to direct ones. Filed as
+an upstream ask. Until then the per-collection flag stands and
+`DOC-P0-018` should be read as "discoverable to the extent an anonymous
+caller may see," not "fully queryable."
+
+**Owner:** `search-hub` for the contract; this scenario for the flag.
+
+**Refs:** `packages/proto/schemas/search-hub/v1/routing/routing.proto`,
+`scenarios/vrooli-memory/.vrooli/search.json` (descriptor shape),
+`docs/internal/DECISIONS.md` (federation row).
+
+### 2026-08-07 — The tier-1 speed claim is unmeasured across the Go/Rust boundary
+
+**Symptom:** The free tier's latency story rests on `anydoc`'s ~4.4 ms
+median. Nothing has measured what that costs from this scenario.
+
+**Root cause:** Neither `anydoc` nor `pdf-inspector` ships a Go binding —
+both are Rust with Node, Python, browser and CLI bindings. The API is Go,
+so the call path is a subprocess per handler per document: two spawns for
+a text-native PDF, which needs `anydoc` for content and `pdf-inspector`
+for the geometry `anydoc` discards. The published figure is in-process
+Rust and excludes spawn, argument marshalling and result deserialization.
+`format-matrix.md` described this as "In-process Rust via CLI/bindings",
+which is true of the library and false of our call path; corrected
+2026-08-07.
+
+**Workaround:** None needed yet — no code exists, and the first slice is
+tier-2-only, so this blocks nothing at milestone one.
+
+**Real fix:** The resource-packaging work measures real per-document cost
+including spawn, and states it in `PERFORMANCE.md` next to the retrieval
+budget. If it threatens the latency claim, promote a long-lived handler
+process — a resource-shape change, not an architecture change. Both
+libraries must also clear `scenario-dependency-analyzer` before use;
+neither is in `.vrooli/dependencies/approved-dependencies.json` today,
+and both are days old, so treat the maturity risk as live.
+
+**Owner:** whoever packages the tier-1 resources.
+
+**Refs:** `docs/reference/format-matrix.md` (The Handlers),
+`docs/internal/DECISIONS.md` (CLI-shaped resources row).
+
+### 2026-08-07 — The anchor URI is the ledger contract and has no specified scheme
+
+> **RESOLVED 2026-08-07** by [`../reference/anchor-uri.md`](../reference/anchor-uri.md),
+> funded by `DOC-P0-028` and recorded as four decision rows. Specifying it
+> against the real proto rather than the prose corrected two working
+> assumptions that had been repeated across three documents: provenance is
+> **not a single opaque string** but `ImportProvenance{runtime,
+> source_locator, content_hash}`, and the ledger's dedupe key is a
+> **byte-exact join** — `runtime + ":" + source_locator + ":" +
+> content_hash`, unique on `(scope, import_key)`. That second fact
+> promoted canonical form from a style rule to a correctness requirement:
+> a trailing zero or an attribute reorder makes two identical citations
+> distinct to the ledger, and `DOC-P1-023` silently stops deduplicating.
+> Kept rather than deleted because the *shape* of the failure recurs — a
+> contract described in prose on both sides and specified on neither, with
+> each side assuming the other had defined it.
+
+**Symptom:** `INTEGRATIONS.md`, `DATA.md` and the ledger integration row
+all say a publication carries "an anchor URI as provenance". No document
+anywhere defines what that string looks like.
+
+**Root cause:** The ledger treats provenance as an **opaque URI it never
+dereferences** — deliberately, so it cannot learn what a PDF is. That
+design is correct and has a consequence nobody wrote down: the URI string
+*is* the entire interface between this scenario and the ledger. It was
+described in prose on both sides and specified on neither.
+
+**Workaround:** None needed today. `handoff` is P1 and unscaffolded, so
+nothing depends on it yet.
+
+**Real fix:** Specify the scheme — how it names a document, derivation
+version, unit and anchor kind, and how it degrades when an anchor
+resolves to its minting version — alongside the first consumer, not
+after. Two independent things now depend on it: the sources-plus-findings
+pattern the sibling pair exists to enable, and the write spine, where a
+generated report's citations are anchor URIs pointing back into this
+corpus.
+
+**Owner:** this scenario, before `DOC-P1-020` is scheduled.
+
+**Refs:** `docs/concepts/INTEGRATIONS.md` (ledger row, Known Gaps),
+`docs/concepts/DATA.md` (Publications, Import/Export).
+
+### 2026-08-07 — The write spine roughly doubles the scenario and must not enter milestone one
+
+**Symptom:** Three new domains (`templates`, `composition`, `render`),
+two new UI surfaces, an agent chat, a renderer registry and 18 new
+operational targets — added to a scenario whose P0 is already recorded
+above as "a program, not a first milestone", with zero domains
+implemented and two parse resources unpackaged.
+
+**Root cause:** Not drift. The generation boundary was designed
+deliberately and in full, because a boundary improvised later is a
+boundary that will be wrong. But designing it in full makes its size
+visible, and visible size invites scheduling.
+
+**Workaround:** Everything is P2 and explicitly unscaffolded. The
+decision rows, domain map, data ownership, flows, seams and requirements
+all exist; no proto, schema, repository, service, handler, mocks or tests
+do. This is the same treatment `handoff` received on the same date.
+
+**Real fix:** Open the write spine only at launch-sequencing step 8. The
+ordering is not preference: the round-trip fidelity gate needs the read
+spine to parse what it renders, generated anchors reuse the read spine's
+resolver, and custody and corpus are shared. Building generation earlier
+means building it twice. When it is scheduled, split it the way P0 should
+be split — one vertical slice (`spec → render one target → ingest back →
+round-trip assertion`) before the template registry, the switch, or the
+chat.
+
+**Owner:** whoever authors the implementation plan.
+
+**Refs:** `PRD.md` (P2 generation spine, Launch sequencing),
+`docs/internal/DECISIONS.md` (write-spine rows), the "P0 as written is a
+program" entry above.
+
+### 2026-08-07 — No render toolchain exists anywhere in the repo
+
+**Symptom:** Nothing produces `.pptx`, `.docx`, `.xlsx` or PDF. A search
+across `scenarios/`, `docs/` and `resources/` for pandoc, typst,
+gotenberg, docxtemplater, unioffice, python-pptx, reportlab, weasyprint,
+headless-Chrome PDF, marp and reveal.js returned no toolchain — only
+unrelated build artifacts and log noise.
+
+**Root cause:** Generation was never anyone's charter. `chart-generator`
+owns charts, `graph-studio` diagrams, `asset-studio` media,
+`content-desk` copy, `brand-manager` tokens — and the container layer
+that assembles them into a file fell between all of them.
+
+**Workaround:** None. The write spine cannot start without this
+selection, which is exactly why it is P2 rather than optimistically P1.
+
+**Real fix:** Select and package a renderer as a resource, governed
+through `scenario-dependency-analyzer` like the parse resources. Two
+selection criteria are non-negotiable and are easy to discover too late:
+**fidelity coverage** (which of `paged-geometry`, `cell-structure`,
+`speaker-notes`, `vector-embed`, `styled-text` it can honor) and
+**whether it can emit a block→region alignment** — a renderer that
+cannot is a renderer whose generated documents lose their durable-anchor
+guarantee, which is one of the two strongest reasons generation lives in
+this scenario at all. Measure real per-document cost including spawn;
+the read side already learned that a published in-process figure is not
+a budget.
+
+**Owner:** whoever opens the write spine.
+
+**Refs:** `docs/reference/render-matrix.md` (Gaps),
+`docs/concepts/INTEGRATIONS.md` (render toolchain row).
+
+### 2026-08-07 — Template-agnostic specs are an authoring discipline nothing enforces
+
+**Symptom:** `DOC-P2-014` promises an existing spec re-renders under a
+different template. That holds only if the spec never encoded
+presentation — and nothing structurally prevents a spec block from
+saying "two-column, image right".
+
+**Root cause:** The rule ("the spec declares content and intent; the
+template decides presentation") is a contract about *what authors write*,
+not about what the schema permits. A spec schema permissive enough to be
+useful is permissive enough to be abused, and the abuse is invisible
+until the first switch fails.
+
+**Workaround:** None yet — nothing is built. Recorded before it can bite,
+because the failure surfaces long after the authoring mistake.
+
+**Real fix:** Make the spec schema refuse presentation vocabulary
+outright rather than relying on discipline, and treat a switch failure
+across two well-formed templates as a **spec defect** rather than a
+template gap. The related hazard is overrides: every per-document
+override is a bet against future template changes, so `DOC-P2-015`'s
+enumerability requirement is load-bearing, not reporting polish. A
+corpus where most documents carry overrides has lost switchability
+without anyone deciding to give it up.
+
+**Owner:** whoever designs the spec schema.
+
+**Refs:** `docs/internal/DECISIONS.md` (template-switching row),
+`docs/reference/render-matrix.md` (Templates Declare Fidelity Per Target).
+
+### 2026-08-07 — Templates stored as corpus documents is the deliberately clever choice
+
+**Symptom:** Not yet observable. Templates are declared as corpus
+documents under a distinguished kind so they inherit versioning, custody,
+export, diff and access control for free.
+
+**Root cause:** It is genuinely the right trade today — the alternative
+reimplements five mechanisms this scenario already has — but it makes a
+template subject to a schema designed for *received* material. Documents
+carry a privacy class, parse confidence, OCR provenance, page geometry
+and a derivation chain. A template has none of those, and the fit is
+comfortable only while nobody asks it to be.
+
+**Workaround:** None needed. Recorded as a watched risk rather than a
+settled comfort, so that whoever hits the friction recognises it as the
+predicted failure rather than a puzzle.
+
+**Real fix:** If template kinds start needing document fields that make
+no sense, or start needing document fields *suppressed* in more than one
+or two places, split templates into their own store. That is a
+mechanical migration while templates are few, and an expensive one after
+a corpus of them exists — so the decision point is early, not when the
+pain is large.
+
+**Owner:** whoever builds `templates`.
+
+**Refs:** `docs/internal/DECISIONS.md` (templates-as-documents row),
+`docs/concepts/DATA.md` (Templates rows).
+
+### 2026-08-07 — The Composer's agent chat is an unowned build, not a panel
+
+**Symptom:** `DOC-P2-021` through `DOC-P2-025` describe an in-UI agent
+that edits documents conversationally. A search for a reusable or
+embeddable chat surface in this repo found nothing adoptable.
+
+**Root cause:** Chat surfaces look like a component and are a feature
+area: streaming responses, tool access, approval gates on destructive
+edits, session and turn state, stale-completion handling, and undo
+semantics. Treating it as "add a panel" is how it gets underestimated.
+
+**Workaround:** None. Flagged so it is scoped as a build rather than
+discovered mid-implementation.
+
+**Real fix:** At launch-sequencing step 8, either find an existing
+scenario willing to own a reusable chat surface, or build one here and
+publish it through `react-component-library` so the next scenario that
+needs one does not repeat this. Either way the parity constraint holds:
+the chat constructs only generated clients (`DOC-P2-021`), so whatever
+is built is a *client* and cannot acquire a privileged path by
+convenience.
+
+**Owner:** unassigned.
+
+**Refs:** `docs/concepts/INTEGRATIONS.md` (Known Gaps),
+`docs/internal/SEAMS.md` (Composer chat client boundary).
 
 ## Architecture Drift
 

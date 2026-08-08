@@ -2,6 +2,17 @@
 
 Local-first document ingestion and understanding: tiered parsing, citable anchors, sensitivity-aware routing, and a per-document custody receipt
 
+**Two spines, one corpus.** The **read spine** (P0/P1) turns any document
+into citable, re-derivable units. The **write spine** (P2, designed and
+deliberately unscaffolded) runs the same machine backwards: a declarative
+spec plus a template becomes rendered bytes, which are ingested back as
+an ordinary citable document. It renders; it never authors — charts,
+diagrams, images, brand tokens and verified claims stay with their
+existing owners and arrive as references in a spec. See
+[`docs/reference/render-matrix.md`](docs/reference/render-matrix.md) and
+the write-spine rows in
+[`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md).
+
 This scenario was generated from the `react-vite` template and packages
 the standard full-stack Vrooli scenario shape:
 
@@ -119,6 +130,9 @@ finer-grained presets.
 | Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
 | Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
 | Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| Know which formats are accepted | [`docs/reference/format-matrix.md`](docs/reference/format-matrix.md) |
+| Know which formats can be produced | [`docs/reference/render-matrix.md`](docs/reference/render-matrix.md) |
+| Cite a passage, or read a citation | [`docs/reference/anchor-uri.md`](docs/reference/anchor-uri.md) |
 
 ## Working Rules
 

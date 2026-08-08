@@ -32,6 +32,17 @@ fail-closed behavior attaches to the *profile*, not the privacy class —
 so a second construction site anywhere in the tree silently voids the
 residency guarantee. An AST check asserts there is exactly one.
 
+**The write spine is inside that rule, not beside it.** The Composer's
+agent chat is an inference caller like any other, and it is the one path
+that would otherwise reach a confidential document without passing the
+class→profile mapping. It builds its request at the same choke point and
+fails closed identically (`DOC-P2-023`). That is not overhead — it
+produces a claim no hosted competitor can make: *you can talk to your
+privileged documents and nothing leaves the machine.* Separately, the
+**default render path constructs no `GatewayRequest` at all**, which is
+why deterministic render is permanently free and its receipt is
+trivially green.
+
 ## Declaration Status
 
 Dependencies below are **planned, not yet declared**.
@@ -56,6 +67,10 @@ then edit the service manifest.
 | ledger engine (via `vrooli-memory` today) | scenario | **no (P1)** | `handoff` | Connect-RPC; scoped append of *findings* | Publication queues locally and retries. **The corpus stays fully usable — this is an optional integration, not a dependency.** |
 | `landing-page-business-suite` | scenario | no (P1) | `enrichment`, `derivation` (tier 3) | credit reserve/execute/finalize | Metered tier unavailable; free tiers and BYOK unaffected. |
 | `file-tools` | scenario | no | `intake` | CLI | Archive expansion unavailable; single-file intake unaffected. |
+| render toolchain | resource | no (P2) | `render` | resource CLI | Target unavailable → `renderer_unavailable`, a named recoverable state. Other targets keep rendering. |
+| `brand-manager` | scenario | no (P2) | `templates` | token resolution | Templates cannot resolve presentation tokens → template validation fails loudly rather than falling back to literals. Read-side spine unaffected. |
+| `chart-generator`, `graph-studio`, `asset-studio` | scenario | no (P2) | `composition` (by reference only) | asset identity in a spec block | An unresolvable asset reference is a `missing_required_slot` on render, never a silent blank. These are **never runtime dependencies of the render path** — a spec carries an identity, the renderer embeds the bytes. |
+| `command-center`, `content-desk` | scenario | no (P2) | `composition` (source bindings) | re-runnable query descriptors | `refresh` reports the binding as unresolved and keeps the prior snapshotted resolution. The document still renders, marked stale. |
 
 ## Vrooli Resources
 
@@ -67,6 +82,7 @@ then edit the service manifest.
 | `postgres` | not-applicable | SQLite covers metadata, derivations, anchors and custody. The retired scenarios used Postgres for CRUD that no longer exists. | Only if multi-writer concurrency becomes real. |
 | `vault` | deferred | The retired `secure-document-processing` used Vault for an encryption story that was never the differentiator. Encryption at rest is table stakes, not the wedge. | If a buyer requires managed key custody beyond OS-level disk encryption. |
 | `minio` | deferred | The artifact store is filesystem-backed through the routed seam. Object storage matters only for multi-host deployment. | At `DOC-P2-005` (air-gapped/deployed profiles) or multi-host operation. |
+| render toolchain | **planned — not selected (P2)** | Nothing in this repo renders `.pptx`, `.docx`, `.xlsx` or PDF. A search across `scenarios/`, `docs/` and `resources/` for pandoc, typst, gotenberg, docxtemplater, unioffice, python-pptx, reportlab, weasyprint, headless-Chrome PDF, marp and reveal.js found **no existing toolchain**, so this is a genuine build rather than a wiring job. It must be packaged as a resource and governed through `scenario-dependency-analyzer` like the parse resources, and it inherits their subprocess-cost question. | Select and package at launch-sequencing step 8. Blocks every `DOC-P2-012`-dependent target. Selection criteria are fidelity coverage (which of `paged-geometry`, `cell-structure`, `speaker-notes`, `vector-embed`, `styled-text` it can honor) and whether it can emit a block→region alignment — a renderer that cannot is a renderer whose generated anchors degrade. |
 
 ## Scenario Dependencies
 
@@ -75,10 +91,13 @@ then edit the service manifest.
 | `ai-gateway` | **planned — required** | Every inference call. Also the source of the `RouteEvidence` records the custody receipt is assembled from, and the enforcer of fail-closed routing for confidential documents. | Connect-RPC. Requests carry `role`, `profile`, `privacy_class`, and a `required_vram_bytes` footprint for local vision work. |
 | `storage-manager` | **planned — required** | Governs artifact-store retention. Raw bytes are `regenerable: false`; derivation outputs and the retrieval index are `regenerable: true`. | Storage kind declarations plus budgets. |
 | `search-hub` | **planned — required** | The only **discovery** path into this corpus, and the only place a caller can query sources and findings together. Promoted from P1: without it the corpus is undiscoverable, even though it is not unreachable. A caller that already knows it wants this corpus can and should call the Connect API directly — `DOC-P0-020` exists precisely so that path is a first-class contract. | `.vrooli/search.json` provider descriptor; boot-time self-registration through `packages/searchregister-go`. |
-| ledger engine | **planned — optional (P1)** | A consumer may record a *finding* about this corpus into a ledger scope, citing an anchor. Not a dependency: this scenario neither imports the ledger nor requires it to be running. | Scoped, idempotent append of small entries with an anchor URI as provenance. Needs per-scope CRUD, which does not exist yet — and no P0 waits on it. |
+| ledger engine | **planned — optional (P1)** | A consumer may record a *finding* about this corpus into a ledger scope, citing an anchor. Not a dependency: this scenario neither imports the ledger nor requires it to be running. | `JournalService.AppendEntry` with `scope` set and `ImportProvenance` populated as `runtime = "document-manager"`, `source_locator` = the canonical anchor URI ([`../reference/anchor-uri.md`](../reference/anchor-uri.md)), `content_hash` = the finding body's hash. Idempotency comes from the ledger's own unique `(scope, import_key)` index over the byte-exact join of those three fields, which is why canonical form is a correctness requirement rather than a style rule. Still needs per-scope CRUD, which does not exist yet — and no P0 waits on it. |
 | `landing-page-business-suite` | **planned — P1** | Credits for the metered tier. | Reserve → execute → finalize; HTTP 402 handled with an upgrade path. |
 | `file-tools` | **planned — optional** | Archive and container expansion during intake rather than reimplementing it. | CLI. |
 | `text-tools` | evaluate | Some normalization may already exist there. Check before writing our own. | CLI. |
+| `brand-manager` | **planned — optional (P2)** | Supplies the tokens a template's presentation half references. The rule is one-directional and load-bearing: **templates reference brand tokens and never redefine them**, so a rebrand re-renders the corpus without editing a single template. A template carrying a literal color or font fails validation. | Token resolution at template validation and render time. |
+| `chart-generator`, `graph-studio`, `asset-studio` | **planned — optional (P2)** | The non-text assets a generated document embeds. This scenario **renders; it does not produce them** — a spec block carries an asset identity and the renderer embeds the bytes, so none of these becomes a runtime dependency of the render path and none of their charters is duplicated here. | Asset identity in a spec block; bytes fetched at render time. |
+| `command-center`, `content-desk` | **planned — optional (P2)** | Source bindings. `command-center` supplies facts about this project (the numbers a pitch deck must get right); `content-desk` supplies claims already verified against re-runnable evidence. Both are *re-runnable descriptors* rather than captured values, which is what makes `refresh` a distinct verb from `render`. | Query descriptor stored per binding; each resolution snapshotted with a timestamp. |
 
 ### Known Gaps In Upstream Contracts
 
@@ -92,6 +111,8 @@ facts, not scenario-internal ones.
 | `RouteEvidence` carries no caller correlation key, and `ListRouteEvidence` filters only by `limit` and `scenario`. | A receipt built today is self-attested by this scenario, with no independent gateway-side record to corroborate it. Weakens `DOC-P1-013` (attestation export) from evidence to self-report. | `ai-gateway`. |
 | OpenRouter `embedding.default` is unverified. | BYOK embeddings — this scenario's most frequent paid operation — are local-only. | `resource-openrouter`. |
 | The ledger engine is not yet its own scenario — the engine still lives inside `vrooli-memory`, which has no verb that creates, lists, or seeds a scope. | Blocks `DOC-P1-023` only. **No P0 depends on it**, and the extraction is deliberately off this scenario's critical path. Extracting it should wait until `vrooli-memory`'s own production-readiness work lands, since that plan's phase order is load-bearing. | `vrooli-memory`, then a new ledger-engine scenario. |
+| ~~The anchor URI has no specified scheme anywhere.~~ **Closed 2026-08-07** by [`../reference/anchor-uri.md`](../reference/anchor-uri.md), funded by `DOC-P0-028`. | Reading the real proto corrected two working assumptions: provenance is **not one opaque string** but `ImportProvenance{runtime, source_locator, content_hash}`, and the dedupe key is a byte-exact join `runtime + ":" + source_locator + ":" + content_hash` unique on `(scope, import_key)`. The URI is the `source_locator`; `content_hash` carries the **finding body**, not the document. | Closed |
+| No reusable agent-chat surface exists in the repo. A search for an embeddable or shared chat panel found no adoptable component. | The Composer's chat (`DOC-P2-021`…`DOC-P2-025`) is an unowned build carrying its own streaming, tool-access, approval-on-destructive-edit and session-state concerns. It is large enough to deserve its own decision rather than being treated as a panel. | Unassigned. Resolve at launch-sequencing step 8 — either an existing scenario grows a reusable surface, or this one builds and ideally publishes one. |
 
 ## Third-Party Services
 
@@ -112,6 +133,11 @@ facts, not scenario-internal ones.
 | `search-hub` unreachable | registration or query error | Local `retrieval` continues to answer; the corpus is simply not federated. Surfaced as a warning, never silent. | retrieval provider tests |
 | `storage-manager` absent | no enforcement | Retention unenforced. Surfaced as a warning, never silent. | corpus retention tests |
 | LPBS insufficient credits | HTTP 402 | Short-circuit with a clear top-up path. Never partially deliver. Free tiers unaffected. | metering tests |
+| Render toolchain unavailable (P2) | missing binary, non-zero exit | `renderer_unavailable` — a named, recoverable state naming which renderer and how to start it. Other targets keep rendering; the spec is untouched, so nothing is lost. | render router tests |
+| Render target cannot express an element (P2) | fidelity mismatch at routing | `unrepresentable_element`, reported **per element** before the switch commits. Never a silent drop — that is the write-side equivalent of an anchor that lies. | template-switch tests |
+| `brand-manager` unreachable (P2) | token resolution error | Template validation fails loudly. **Never fall back to a literal value** — a silently un-branded render is worse than no render, because it ships. | template validation tests |
+| Referenced asset unresolvable (P2) | unknown asset identity | `missing_required_slot` naming the block and the asset. Never a blank region, which reads as a design choice. | render routing tests |
+| Source binding unresolvable on `refresh` (P2) | upstream query error | The binding reports unresolved and the **prior snapshotted resolution is retained**; the document still renders and is marked stale. A refresh that silently blanked a figure would be worse than a stale one. | composition refresh tests |
 
 ## Cross-References
 

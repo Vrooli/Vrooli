@@ -8,7 +8,7 @@
   "requirements": [
     {
       "criticality": "P1",
-      "description": "Scanned pages parsed through the gateway vision role, metered; blocked on the vision.default gateway role landing",
+      "description": "What local OCR cannot recover \u2014 handwriting, complex layout, figures \u2014 parsed through the gateway vision role, metered; blocked on the vision.default gateway role landing. Ordinary scanned pages are tier 2 via local OCR and are not gated on this",
       "id": "DOC-P1-001",
       "prd_ref": "OT-P1-001",
       "status": "planned",
@@ -338,7 +338,7 @@
     },
     {
       "criticality": "P1",
-      "description": "Re-running publish produces no duplicate entries, matching the ledger composite import key",
+      "description": "Re-running publish produces no duplicate entries, matching the ledger composite import key runtime + \":\" + source_locator + \":\" + content_hash unique on (scope, import_key), where source_locator is the canonical anchor URI from DOC-P0-028 and content_hash is the finding body's hash rather than the document's",
       "id": "DOC-P1-023",
       "prd_ref": "OT-P1-023",
       "status": "planned",
@@ -346,6 +346,21 @@
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-023] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "PNG, JPEG, TIFF, BMP, HEIC and WebP accepted as first-class sources, parsed by local OCR at tier 2 and carrying geometric anchors; the anchor design already assumes fixed-geometry image sources",
+      "id": "DOC-P1-024",
+      "prd_ref": "OT-P1-024",
+      "status": "planned",
+      "title": "Raster image intake",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P1-024] tag) once the behavior exists.",
           "status": "planned",
           "type": "manual"
         }
