@@ -50,12 +50,6 @@ func NewHandler(d Deps) http.HandlerFunc {
 	return b.Handler()
 }
 
-// CanopyBacklogFactor is how far the compaction-eligible frontier may exceed
-// its target before the canopy is reported as lagging. The frontier is a
-// context-budget device, so a backlog degrades ambient recall quality without
-// making the corpus unreadable.
-const CanopyBacklogFactor = 10
-
 // CanopyReporter is the seam onto the maintenance record. Health reads the
 // engine's own recorded numbers through it rather than opening the database,
 // which keeps raw SQL out of the handler layer.
@@ -94,7 +88,7 @@ func canopyCheck(reporter CanopyReporter) apihealth.Checker {
 				Error: fmt.Errorf("last compaction pass failed: %s", c.Error),
 			}
 		}
-		if c.Target > 0 && c.FrontierAfter > c.Target*CanopyBacklogFactor {
+		if c.FrontierAfter > c.Target {
 			return apihealth.CheckResult{
 				Name: "canopy", Connected: true, Database: detail + " status=lagging",
 				Error: fmt.Errorf("compaction backlog: %d eligible nodes against target %d", c.FrontierAfter, c.Target),

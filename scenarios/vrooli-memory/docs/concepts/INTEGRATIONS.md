@@ -79,28 +79,39 @@ Capture channels, in priority order:
    `~/.claude/projects/<slug>/<uuid>.jsonl`. Reserve for harnesses the first two
    cannot cover.
 
-### Projection size ceiling
+### Projection ceilings
 
 The generated projection must stay under whatever size each harness tolerates,
 or the runtime edits the projection itself — producing writes this scenario
 caused and must then chase.
 
-The projection service enforces a 32,768-byte ceiling for every configured
-runtime. The live dry-run sweep on 2026-08-06 measured the rendered files at
-9,532–20,241 bytes, all below that ceiling. The controlled over-cap test used a
-pinned item for each runtime; every target returned the pinned-overflow error
-before any file write. This is the behavior owned by this scenario. Native
-runtime behavior beyond the scenario guard is intentionally not exercised by
-writing oversized production files.
+The projection service enforces two ceilings on the complete consumer file for
+every configured runtime: 32,768 bytes and 200 rendered text lines. The line
+ceiling is deliberately shared because Claude Code previously truncated a
+200-line projection; the other runtimes use the same conservative contract
+until a runtime-specific limit is measured. The live dry-run sweep on
+2026-08-06 measured the rendered files at 9,532–20,241 bytes, all below the
+byte ceiling. Every projection subtracts the existing curated region — the
+bytes and rendered lines outside the managed wake markers — before asking the
+ledger for a wake budget. The final splice is checked again, including marker
+lines, so a multiline excerpt cannot pass an approximate entry-cost check.
 
-| Harness | Measured ceiling | At-ceiling behavior | Projection rule |
-|---|---|---|---|
-| Codex | 32,768 bytes by default for `AGENTS.md` injection; configurable | Codex clips instruction bytes supplied to the first turn. It does not alter the file. | Emit pins first. Keep the projection at or below 32 KiB unless the active Codex configuration proves a higher limit. |
-| Claude Code | 32,768 bytes (scenario guard); live dry-run 20,241 bytes | Scenario returns a pinned-overflow error before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
-| Gemini CLI | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | Scenario returns a pinned-overflow error before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
-| opencode | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | Scenario returns a pinned-overflow error before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
-| grok | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | Scenario returns a pinned-overflow error before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
-| antigravity | 32,768 bytes (scenario guard); live dry-run 9,532 bytes | Scenario returns a pinned-overflow error before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
+If the curated region already exceeds a ceiling, it is preserved byte-for-byte
+and the generated wake block is empty; the result is reported as overflow. A
+non-pinned entry that would exceed the remaining capacity is omitted and the
+projection reports overflow honestly. Pinned entries are emitted first and a
+pinned overflow fails before any file write. Native runtime behavior beyond
+these scenario guards is intentionally not exercised by writing oversized
+production files.
+
+| Harness | Byte ceiling | Rendered-line ceiling | At-ceiling behavior | Projection rule |
+|---|---|---|---|---|
+| Codex | 32,768 bytes by default for `AGENTS.md` injection; configurable | 200 | Codex clips instruction bytes supplied to the first turn. It does not alter the file. | Emit pins first; keep the complete file at or below both scenario ceilings. |
+| Claude Code | 32,768 bytes (scenario guard); live dry-run 20,241 bytes | 200 | Scenario returns overflow before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
+| Gemini CLI | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | 200 | Scenario returns overflow before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
+| opencode | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | 200 | Scenario returns overflow before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
+| grok | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | 200 | Scenario returns overflow before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
+| antigravity | 32,768 bytes (scenario guard); live dry-run 9,532 bytes | 200 | Scenario returns overflow before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
 
 No live harness memory file was modified for this measurement. Codex's native
 injection clipping remains documented separately; the other installed runtimes

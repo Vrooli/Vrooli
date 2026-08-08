@@ -219,6 +219,316 @@
         "rerank_shortlist": 50
       },
       "type": "record"
+    },
+    {
+      "bucket": "BUCKET_KNOW",
+      "class": "local_live",
+      "description": "Scoped durable memory ledger for team:director-swarm.",
+      "endpoint": {
+        "http_json": {
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"scope\":\"team:director-swarm\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "method": "HTTP_METHOD_POST",
+          "path": "/vrooli.source_ledger.v1.recall.RecallService/Recall",
+          "scenario_id": "source-ledger"
+        }
+      },
+      "performance": {
+        "degraded_rate_max": 0.1,
+        "minimum_samples": 2,
+        "p95_ms": 1500,
+        "telemetry_required": true
+      },
+      "provider_group": "source-ledger",
+      "provider_id": "source-ledger.scope.team:director-swarm",
+      "result_mapping": {
+        "id_field": "entryId",
+        "results_path": "hits",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1",
+        "snippet_field": "text",
+        "title_field": "facetId"
+      },
+      "scope": "SCOPE_PROJECT",
+      "scoring": {
+        "deep_k": 50,
+        "mrr_at": 3,
+        "recall_at": 5,
+        "recall_target": 0.8
+      },
+      "status_endpoint": {
+        "http_json": {
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "method": "HTTP_METHOD_GET",
+          "path": "/health",
+          "scenario_id": "source-ledger"
+        }
+      },
+      "tuning": {
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "engine": "dense",
+        "floor": {
+          "hard_floor": 0,
+          "max_gap": 0
+        },
+        "rerank_blend": false,
+        "rerank_enabled": false,
+        "rerank_shortlist": 50
+      },
+      "type": "record"
+    },
+    {
+      "bucket": "BUCKET_KNOW",
+      "class": "local_live",
+      "description": "Scoped durable memory ledger for team:infra-health.",
+      "endpoint": {
+        "http_json": {
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"scope\":\"team:infra-health\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "method": "HTTP_METHOD_POST",
+          "path": "/vrooli.source_ledger.v1.recall.RecallService/Recall",
+          "scenario_id": "source-ledger"
+        }
+      },
+      "performance": {
+        "degraded_rate_max": 0.1,
+        "minimum_samples": 2,
+        "p95_ms": 1500,
+        "telemetry_required": true
+      },
+      "provider_group": "source-ledger",
+      "provider_id": "source-ledger.scope.team:infra-health",
+      "result_mapping": {
+        "id_field": "entryId",
+        "results_path": "hits",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1",
+        "snippet_field": "text",
+        "title_field": "facetId"
+      },
+      "scope": "SCOPE_PROJECT",
+      "scoring": {
+        "deep_k": 50,
+        "mrr_at": 3,
+        "recall_at": 5,
+        "recall_target": 0.8
+      },
+      "status_endpoint": {
+        "http_json": {
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "method": "HTTP_METHOD_GET",
+          "path": "/health",
+          "scenario_id": "source-ledger"
+        }
+      },
+      "tuning": {
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "engine": "dense",
+        "floor": {
+          "hard_floor": 0,
+          "max_gap": 0
+        },
+        "rerank_blend": false,
+        "rerank_enabled": false,
+        "rerank_shortlist": 50
+      },
+      "type": "record"
+    },
+    {
+      "bucket": "BUCKET_KNOW",
+      "class": "local_live",
+      "description": "Scoped durable memory ledger for team:meta-optimization.",
+      "endpoint": {
+        "http_json": {
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"scope\":\"team:meta-optimization\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "method": "HTTP_METHOD_POST",
+          "path": "/vrooli.source_ledger.v1.recall.RecallService/Recall",
+          "scenario_id": "source-ledger"
+        }
+      },
+      "performance": {
+        "degraded_rate_max": 0.1,
+        "minimum_samples": 2,
+        "p95_ms": 1500,
+        "telemetry_required": true
+      },
+      "provider_group": "source-ledger",
+      "provider_id": "source-ledger.scope.team:meta-optimization",
+      "result_mapping": {
+        "id_field": "entryId",
+        "results_path": "hits",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1",
+        "snippet_field": "text",
+        "title_field": "facetId"
+      },
+      "scope": "SCOPE_PROJECT",
+      "scoring": {
+        "deep_k": 50,
+        "mrr_at": 3,
+        "recall_at": 5,
+        "recall_target": 0.8
+      },
+      "status_endpoint": {
+        "http_json": {
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "method": "HTTP_METHOD_GET",
+          "path": "/health",
+          "scenario_id": "source-ledger"
+        }
+      },
+      "tuning": {
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "engine": "dense",
+        "floor": {
+          "hard_floor": 0,
+          "max_gap": 0
+        },
+        "rerank_blend": false,
+        "rerank_enabled": false,
+        "rerank_shortlist": 50
+      },
+      "type": "record"
+    },
+    {
+      "bucket": "BUCKET_KNOW",
+      "class": "local_live",
+      "description": "Scoped durable memory ledger for team:monetization.",
+      "endpoint": {
+        "http_json": {
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"scope\":\"team:monetization\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "method": "HTTP_METHOD_POST",
+          "path": "/vrooli.source_ledger.v1.recall.RecallService/Recall",
+          "scenario_id": "source-ledger"
+        }
+      },
+      "performance": {
+        "degraded_rate_max": 0.1,
+        "minimum_samples": 2,
+        "p95_ms": 1500,
+        "telemetry_required": true
+      },
+      "provider_group": "source-ledger",
+      "provider_id": "source-ledger.scope.team:monetization",
+      "result_mapping": {
+        "id_field": "entryId",
+        "results_path": "hits",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1",
+        "snippet_field": "text",
+        "title_field": "facetId"
+      },
+      "scope": "SCOPE_PROJECT",
+      "scoring": {
+        "deep_k": 50,
+        "mrr_at": 3,
+        "recall_at": 5,
+        "recall_target": 0.8
+      },
+      "status_endpoint": {
+        "http_json": {
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "method": "HTTP_METHOD_GET",
+          "path": "/health",
+          "scenario_id": "source-ledger"
+        }
+      },
+      "tuning": {
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "engine": "dense",
+        "floor": {
+          "hard_floor": 0,
+          "max_gap": 0
+        },
+        "rerank_blend": false,
+        "rerank_enabled": false,
+        "rerank_shortlist": 50
+      },
+      "type": "record"
+    },
+    {
+      "bucket": "BUCKET_KNOW",
+      "class": "local_live",
+      "description": "Scoped durable memory ledger for team:scenario-qa.",
+      "endpoint": {
+        "http_json": {
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"scope\":\"team:scenario-qa\"}",
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "method": "HTTP_METHOD_POST",
+          "path": "/vrooli.source_ledger.v1.recall.RecallService/Recall",
+          "scenario_id": "source-ledger"
+        }
+      },
+      "performance": {
+        "degraded_rate_max": 0.1,
+        "minimum_samples": 2,
+        "p95_ms": 1500,
+        "telemetry_required": true
+      },
+      "provider_group": "source-ledger",
+      "provider_id": "source-ledger.scope.team:scenario-qa",
+      "result_mapping": {
+        "id_field": "entryId",
+        "results_path": "hits",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1",
+        "snippet_field": "text",
+        "title_field": "facetId"
+      },
+      "scope": "SCOPE_PROJECT",
+      "scoring": {
+        "deep_k": 50,
+        "mrr_at": 3,
+        "recall_at": 5,
+        "recall_target": 0.8
+      },
+      "status_endpoint": {
+        "http_json": {
+          "headers": {
+            "Content-Type": "application/json"
+          },
+          "method": "HTTP_METHOD_GET",
+          "path": "/health",
+          "scenario_id": "source-ledger"
+        }
+      },
+      "tuning": {
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "engine": "dense",
+        "floor": {
+          "hard_floor": 0,
+          "max_gap": 0
+        },
+        "rerank_blend": false,
+        "rerank_enabled": false,
+        "rerank_shortlist": 50
+      },
+      "type": "record"
     }
   ],
   "version": "1.0.0"

@@ -1,6 +1,10 @@
 package domains
 
 import (
+	"source-ledger/cli/domains/journal"
+	"source-ledger/cli/domains/recall"
+	"source-ledger/cli/domains/scopes"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -35,5 +39,18 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
+	scopesGroup, err := scopes.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	journalGroup, err := journal.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	recallGroup, err := recall.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, scopesGroup, journalGroup, recallGroup)
 	return groups, nil
 }

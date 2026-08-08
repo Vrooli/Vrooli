@@ -23,21 +23,21 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/import_test.go::TestAppendPreservesWriteOrderAndFacetEmbeddings",
+          "ref": "../source-ledger/api/internal/journal/service_test.go::TestAppendPreservesWriteOrderAndFacetEmbeddings",
           "phase": "unit",
           "status": "implemented",
           "notes": "Appending N entries then reading yields exactly N entries in write order with stable ids."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestRunCompactsOnlyEligibleOldEpisodesAndPreservesLeaves",
+          "ref": "../source-ledger/api/internal/forest/service_test.go::TestRunCompactsOnlyEligibleOldEpisodesAndPreservesLeaves",
           "phase": "unit",
           "status": "implemented",
           "notes": "No repository method exposes update or delete of a journal entry; a compaction pass leaves leaf count unchanged."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestRecallKeepsAbsorbedLeafAndCollapsesDescendants",
+          "ref": "../source-ledger/api/internal/recall/service_test.go::TestRecallKeepsAbsorbedLeafAndCollapsesDescendants",
           "phase": "integration",
           "status": "implemented",
           "notes": "After a compaction pass reduces the frontier, every original leaf is still individually retrievable by id."
@@ -60,21 +60,21 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/import_test.go::TestAppendPreservesWriteOrderAndFacetEmbeddings",
+          "ref": "../source-ledger/api/internal/journal/service_test.go::TestAppendPreservesWriteOrderAndFacetEmbeddings",
           "phase": "unit",
           "status": "implemented",
           "notes": "A note with a stubbed classifier is appended with the returned facet and its derived texts embedded."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/import_test.go::TestClassifierFailureStillAppendsUnclassifiedEntry",
+          "ref": "../source-ledger/api/internal/journal/service_test.go::TestClassifierFailureStillAppendsUnclassifiedEntry",
           "phase": "unit",
           "status": "implemented",
           "notes": "When the classifier errors, the entry is still appended, marked unclassified, and enqueued for retry."
         },
         {
           "type": "test",
-          "ref": "api/handlers/recall/connect_handler_test.go::TestConnectHandlerAppendGetAndList",
+          "ref": "../source-ledger/api/handlers/journal/connect_handler_test.go::TestConnectHandlerAppendGetAndList",
           "phase": "integration",
           "status": "implemented",
           "notes": "CLI note round-trips through Connect to a retrievable journal entry."
@@ -97,21 +97,21 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestRecallKeepsAbsorbedLeafAndCollapsesDescendants",
+          "ref": "../source-ledger/api/internal/recall/service_test.go::TestRecallKeepsAbsorbedLeafAndCollapsesDescendants",
           "phase": "unit",
           "status": "implemented",
           "notes": "A leaf that has been absorbed into a summary is still returned for a query matching its text."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestRecallCollapsesDescendantsWhenAncestorWins",
+          "ref": "../source-ledger/api/internal/recall/service_test.go::TestRecallCollapsesDescendantsWhenAncestorWins",
           "phase": "unit",
           "status": "implemented",
           "notes": "A summary node is returned for a query matching the summary text but no individual leaf."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestSQLiteSourceReturnsDepthTwoNodes",
+          "ref": "../source-ledger/api/internal/recall/sqlite_source_test.go::TestSQLiteSourceReturnsDepthTwoNodes",
           "phase": "integration",
           "status": "implemented",
           "notes": "Recall over a corpus compacted to depth 2 returns hits drawn from all three depths."
@@ -133,14 +133,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestRecallKeepsAbsorbedLeafAndCollapsesDescendants",
+          "ref": "../source-ledger/api/internal/recall/service_test.go::TestRecallKeepsAbsorbedLeafAndCollapsesDescendants",
           "phase": "unit",
           "status": "implemented",
           "notes": "A query matching a leaf verbatim returns that leaf, not its vaguer ancestor summary."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestRecallCollapsesDescendantsWhenAncestorWins",
+          "ref": "../source-ledger/api/internal/recall/service_test.go::TestRecallCollapsesDescendantsWhenAncestorWins",
           "phase": "unit",
           "status": "implemented",
           "notes": "When a summary and two of its children all score above threshold, the summary is returned once with children collapsed."
@@ -163,21 +163,21 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/import_test.go::TestOnlyEpisodeIsCompactionEligibleAndPinExemptsIt",
+          "ref": "../source-ledger/api/internal/facets/service_test.go::TestOnlyEpisodeIsCompactionEligibleAndPinExemptsIt",
           "phase": "unit",
           "status": "implemented",
           "notes": "Compaction candidate selection admits episode-facet entries and rejects all five other facets."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/import_test.go::TestUnknownFacetIsHardError",
+          "ref": "../source-ledger/api/internal/facets/service_test.go::TestUnknownFacetIsHardError",
           "phase": "unit",
           "status": "implemented",
           "notes": "An entry with an unknown facet value is rejected at write rather than silently defaulted."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/import_test.go::TestResolvedThreadExcludedFromWakeAndCompaction",
+          "ref": "../source-ledger/api/internal/facets/service_test.go::TestResolvedThreadExcludedFromWakeAndCompaction",
           "phase": "unit",
           "status": "implemented",
           "notes": "A thread entry marked resolved is excluded from wake and from compaction candidacy."
@@ -201,21 +201,21 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestWakePinsFirstAndNeverSilentlyTruncatesPins",
+          "ref": "../source-ledger/api/internal/recall/service_test.go::TestWakePinsFirstAndNeverSilentlyTruncatesPins",
           "phase": "unit",
           "status": "implemented",
           "notes": "A pinned rule semantically unrelated to every other memory still appears in wake output."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestWakePinsFirstAndNeverSilentlyTruncatesPins",
+          "ref": "../source-ledger/api/internal/recall/service_test.go::TestWakePinsFirstAndNeverSilentlyTruncatesPins",
           "phase": "unit",
           "status": "implemented",
           "notes": "With a budget smaller than the pinned set, wake emits all pinned entries and reports explicit overflow."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestCompactionPreservesPinnedEntry",
+          "ref": "../source-ledger/api/internal/forest/service_test.go::TestCompactionPreservesPinnedEntry",
           "phase": "integration",
           "status": "implemented",
           "notes": "Pinned entries survive a compaction pass that collapses the rest of the frontier."
@@ -238,35 +238,35 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestRunWithFrontierUnderTargetIsNoop",
+          "ref": "../source-ledger/api/internal/forest/service_test.go::TestRunWithFrontierUnderTargetIsNoop",
           "phase": "unit",
           "status": "implemented",
           "notes": "With the frontier under target, a compaction pass is a no-op."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestRunRepeatsUntilEligibleFrontierReachesTarget",
+          "ref": "../source-ledger/api/internal/forest/service_test.go::TestRunRepeatsUntilEligibleFrontierReachesTarget",
           "phase": "unit",
           "status": "implemented",
           "notes": "Given two candidate clusters, the higher cohesion-times-slots-freed score is collapsed first."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestRunLeavesOrphanUntilTightClusterCompacts",
+          "ref": "../source-ledger/api/internal/forest/service_test.go::TestRunLeavesOrphanUntilTightClusterCompacts",
           "phase": "unit",
           "status": "implemented",
           "notes": "An orphan entry with no near neighbours is not collapsed while any tighter cluster remains."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestRunRepeatsUntilEligibleFrontierReachesTarget",
+          "ref": "../source-ledger/api/internal/forest/service_test.go::TestRunRepeatsUntilEligibleFrontierReachesTarget",
           "phase": "unit",
           "status": "implemented",
           "notes": "Entries inside the recency floor are excluded from candidacy regardless of cohesion."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestSummaryAndEdgesCommitAtomicallyAndRebuild",
+          "ref": "../source-ledger/api/internal/forest/sqlite_test.go::TestSummaryAndEdgesCommitAtomicallyAndRebuild",
           "phase": "integration",
           "status": "implemented",
           "notes": "A newly created summary is embedded and appears as a frontier node eligible for further collapse."
@@ -289,21 +289,21 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestWakeBudgetStableAcrossCorpusSize",
+          "ref": "../source-ledger/api/internal/recall/service_test.go::TestWakeBudgetStableAcrossCorpusSize",
           "phase": "unit",
           "status": "implemented",
           "notes": "Wake output stays within the configured line budget across corpus sizes spanning three orders of magnitude."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestWakeBudgetStableAcrossCorpusSize",
+          "ref": "../source-ledger/api/internal/recall/service_test.go::TestWakeBudgetStableAcrossCorpusSize",
           "phase": "unit",
           "status": "implemented",
           "notes": "Cover selection returns finer-grained nodes for recent spans and coarser nodes for old spans."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestWakeBudgetStableAcrossCorpusSize",
+          "ref": "../source-ledger/api/internal/recall/service_test.go::TestWakeBudgetStableAcrossCorpusSize",
           "phase": "unit",
           "status": "implemented",
           "notes": "Raising the frontier target does not change wake output size."
@@ -361,28 +361,28 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestProjectionIsPinFirstDryRunAndDoesNotWrite",
+          "ref": "api/internal/harness/projection_test.go::TestProjectionSplicedFileStaysWithinConsumerLineCeiling",
           "phase": "unit",
           "status": "implemented",
           "notes": "Projection writes a generated-artifact header followed by the current wake output."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestProjectionIsPinFirstDryRunAndDoesNotWrite",
+          "ref": "api/internal/harness/projection_test.go::TestProjectionSplicedFileStaysWithinConsumerLineCeiling",
           "phase": "unit",
           "status": "implemented",
           "notes": "No read path ingests the projected file as a memory source."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestProjectionPreservesBytesOutsideManagedWakeBlock",
+          "ref": "api/internal/harness/projection_test.go::TestProjectionPreservesCuratedBytes",
           "phase": "integration",
           "status": "implemented",
           "notes": "Hand edits to the projected file are discarded on the next projection and the journal is unchanged."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestProjectionRefusesPinnedOverflowForEveryConfiguredRuntime",
+          "ref": "api/internal/harness/projection_test.go::TestProjectionLeavesCuratedRegionWhenItAlreadyExceedsCeiling",
           "phase": "integration",
           "status": "implemented",
           "notes": "Every configured harness target refuses a pinned item beyond the measured scenario ceiling before writing."
@@ -407,21 +407,21 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/import_test.go::TestClaudeImportIsContentAddressedAndReadOnly",
+          "ref": "api/internal/harness/import_test.go::TestImportAndCaptureAreRemoteAndContentAddressed",
           "phase": "unit",
           "status": "implemented",
           "notes": "Running import twice over an unchanged source creates zero additional journal entries."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/import_test.go::TestClaudeImportIsContentAddressedAndReadOnly",
+          "ref": "api/internal/harness/import_test.go::TestImportAndCaptureAreRemoteAndContentAddressed",
           "phase": "unit",
           "status": "implemented",
           "notes": "Reordering entries within a source markdown file produces zero new entries, proving the key is content-addressed rather than positional."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/import_test.go::TestClaudeImportIsContentAddressedAndReadOnly",
+          "ref": "api/internal/harness/import_test.go::TestImportAndCaptureAreRemoteAndContentAddressed",
           "phase": "unit",
           "status": "implemented",
           "notes": "Editing a source entry in place creates a new journal entry rather than mutating the original, preserving append-only semantics."
@@ -442,7 +442,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/import_test.go::TestClaudeImportIsContentAddressedAndReadOnly",
+          "ref": "api/internal/harness/import_test.go::TestImportAndCaptureAreRemoteAndContentAddressed",
           "phase": "unit",
           "status": "implemented",
           "notes": "Imported entries are never written with a pinned facet without operator confirmation."

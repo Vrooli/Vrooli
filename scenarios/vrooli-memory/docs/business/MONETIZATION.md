@@ -64,7 +64,7 @@ ai-gateway: `OT-P0-002` keeps provider credentials in the provider resource
 `OT-P1-004` enforces local-only / local-first / cheap-first / max-cost policies,
 and `OT-P1-008` does capacity-aware local routing with policy-respecting remote
 fallback. **The Vrooli subscription as a third option is settled strategy but
-unbuilt runtime.** `path:docs/monetization/evidence/FINANCIAL_MODEL.md` (Tier 1)
+unbuilt runtime.** `path:../../docs/monetization/evidence/FINANCIAL_MODEL.md` (Tier 1)
 already states that paid subscriptions include the integrated gateway with a
 credit allowance and that *"that IS the core reason to pay rather than running
 the OSS apps with bring-your-own keys."* What does not exist is enforcement:
@@ -214,4 +214,4 @@ is explicitly not the revenue case — decision **D-005 stays closed**.
 - [`../internal/DECISIONS.md`](../internal/DECISIONS.md) — D-005 (unified read, no partitioning) stays closed under this plan; D-014 records the revenue mechanism
 - [`../concepts/REPLACEMENT.md`](../concepts/REPLACEMENT.md) — the harness-agnostic design that makes a standalone product possible
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — telemetry needed for business validation
-- Project-level monetization strategy: `path:docs/monetization/README.md`.
+- Project-level monetization strategy: `path:../../docs/monetization/README.md`.

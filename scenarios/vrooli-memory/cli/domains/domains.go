@@ -12,18 +12,12 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// CommandGroups aggregates flat command groups from domain packages.
-//
-// Keep app.go focused on CLI metadata and cli-core wiring. As the scenario
-// grows, add domains like domains/tasks or domains/projects and append their
-// registrations here. For greenfield scenarios, domain packages are the
-// default architecture; do not treat flat command files as the long-term plan.
+// CommandGroups intentionally returns no flat aliases. The manifest-backed
+// subcommand groups are the CLI surface of record; duplicating their commands
+// at the root makes help discovery ambiguous and causes cli-health to observe
+// two different paths for one operation.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
-	commands := append([]cliapp.Command{}, journal.Commands(core)...)
-	commands = append(commands, recall.Commands(core)...)
-	commands = append(commands, harness.Commands(core)...)
-	commands = append(commands, forest.Commands(core)...)
-	return []cliapp.CommandGroup{{Title: "Memory", Commands: commands}}
+	return nil
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.

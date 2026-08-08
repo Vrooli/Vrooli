@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS maintenance_outcomes (
   import_error TEXT NOT NULL DEFAULT '',
   projection_status TEXT NOT NULL,
   projection_error TEXT NOT NULL DEFAULT '',
+  projection_size_bytes INTEGER NOT NULL DEFAULT 0,
+  projection_size_lines INTEGER NOT NULL DEFAULT 0,
+  projection_byte_cap INTEGER NOT NULL DEFAULT 0,
+  projection_line_cap INTEGER NOT NULL DEFAULT 0,
   started_at TEXT NOT NULL,
   completed_at TEXT NOT NULL DEFAULT '',
   PRIMARY KEY(run_id,runtime)

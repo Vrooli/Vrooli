@@ -1,21 +1,82 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "source-ledger",
-  "description": "Source Ledger operator CLI surface. The first implementation slice exposes health and contract discovery while ledger domain commands are introduced at the service-boundary phase.",
+  "description": "Source Ledger operator CLI for named team scopes, append-only journal entries, bounded ambient wake, and scoped semantic recall.",
   "groups": [
     {
-      "name": "health",
-      "description": "Inspect Source Ledger readiness",
+      "name": "scopes",
+      "description": "Register and inspect team ledger scopes",
       "commands": [
         {
-          "name": "status",
-          "description": "Show Source Ledger health and readiness",
-          "binding": { "kind": "local" },
+          "name": "create",
+          "description": "Create or verify a named team scope",
+          "positionals": [{ "name": "id", "required": true, "description": "Scope id" }],
+          "flags": [
+            { "name": "label", "description": "Human-readable label" },
+            { "name": "frontier-target", "description": "Compaction frontier target", "default": "16" },
+            { "name": "wake-budget", "description": "Ambient wake line budget", "default": "96" },
+            { "name": "max-entry-lines", "description": "Maximum lines per wake entry", "default": "2" },
+            { "name": "facets-json", "description": "Facet vocabulary as a JSON array", "bind": { "field": "scope" }, "bind_waiver": "facets-json is decoded by the CLI handler into Scope.facets" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ScopesService", "method": "CreateScope" },
           "governance": {
-            "effect": "read",
+            "effect": "write",
             "run_eligible": true,
             "permissions": ["network:internal"]
-          }
+          },
+          "architecture": { "primitive": "proto_mutation" }
+        },
+        {
+          "name": "list",
+          "description": "List registered team scopes and budgets",
+          "binding": { "kind": "connect-rpc", "service": "ScopesService", "method": "ListScopes" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        }
+      ]
+    },
+    {
+      "name": "journal",
+      "description": "Append durable team-corpus entries",
+      "commands": [
+        {
+          "name": "note",
+          "description": "Append a prose entry to a team scope",
+          "positionals": [{ "name": "body", "required": true, "description": "Entry prose" }],
+          "flags": [
+            { "name": "scope", "description": "Team ledger scope", "default": "agent-memory" },
+            { "name": "kind", "description": "Entry kind" },
+            { "name": "trigger", "description": "Why the entry was written" },
+            { "name": "approach", "description": "Approach used" },
+            { "name": "evidence", "description": "Evidence supporting the entry" },
+            { "name": "outcome", "description": "Observed outcome" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "JournalService", "method": "AppendEntry" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_mutation" }
+        }
+      ]
+    },
+    {
+      "name": "recall",
+      "description": "Read bounded or semantic team context",
+      "commands": [
+        {
+          "name": "recall",
+          "description": "Search one team scope semantically",
+          "positionals": [{ "name": "query", "required": true, "description": "Semantic query" }],
+          "flags": [{ "name": "scope", "description": "Team ledger scope", "default": "agent-memory" }, { "name": "limit", "description": "Maximum hits" }],
+          "binding": { "kind": "connect-rpc", "service": "RecallService", "method": "Recall" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
+          "name": "wake",
+          "description": "Render bounded ambient context for one team scope",
+          "flags": [{ "name": "scope", "description": "Team ledger scope", "default": "agent-memory" }, { "name": "budget", "description": "Maximum line budget" }],
+          "binding": { "kind": "connect-rpc", "service": "RecallService", "method": "Wake" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
         }
       ]
     }
@@ -25,7 +86,7 @@
   },
   "exceptions": [],
   "omitted": [
-    { "service": "FacetsService", "method": "AssignFacet", "reason": "The moved engine API is validated first; the source-ledger operator CLI is introduced in the following adoption phase." },
+    { "service": "FacetsService", "method": "AssignFacet", "reason": "Facet curation remains API-only until the operator surface is expanded." },
     { "service": "FacetsService", "method": "ListFacets", "reason": "The moved engine API is validated first; the source-ledger operator CLI is introduced in the following adoption phase." },
     { "service": "FacetsService", "method": "ListPinCandidates", "reason": "Pin curation is deferred until the source-ledger operator surface is introduced." },
     { "service": "FacetsService", "method": "ListPinProposals", "reason": "Pin proposal review is deferred until the source-ledger operator surface is introduced." },
@@ -37,15 +98,12 @@
     { "service": "ForestService", "method": "GetFrontier", "reason": "Frontier inspection is deferred until the source-ledger operator surface is introduced." },
     { "service": "ForestService", "method": "GetNode", "reason": "Node inspection is deferred until the source-ledger operator surface is introduced." },
     { "service": "ForestService", "method": "RebuildForest", "reason": "Forest rebuild is API-only until the source-ledger operator surface is introduced." },
-    { "service": "JournalService", "method": "AppendEntry", "reason": "The moved engine API is validated first; the source-ledger operator CLI is introduced in the following adoption phase." },
-    { "service": "JournalService", "method": "GetEntry", "reason": "Entry inspection is deferred until the source-ledger operator surface is introduced." },
-    { "service": "JournalService", "method": "ListEntries", "reason": "Timeline browsing is deferred until the source-ledger operator surface is introduced." },
+    { "service": "JournalService", "method": "GetEntry", "reason": "Entry inspection is deferred until the source-ledger operator surface is expanded." },
+    { "service": "JournalService", "method": "ListEntries", "reason": "Timeline browsing is deferred until the source-ledger operator surface is expanded." },
     { "service": "JournalService", "method": "ProcessClassificationRetries", "reason": "Retry operations remain API-only until the source-ledger operator surface is introduced." },
     { "service": "JournalService", "method": "ProcessEmbeddingRetries", "reason": "Retry operations remain API-only until the source-ledger operator surface is introduced." },
-    { "service": "RecallService", "method": "Recall", "reason": "The moved engine API is validated first; the source-ledger operator CLI is introduced in the following adoption phase." },
-    { "service": "RecallService", "method": "ListSiblingEvents", "reason": "Timeline browsing is deferred until the source-ledger operator surface is introduced." },
-    { "service": "RecallService", "method": "Wake", "reason": "The moved engine API is validated first; the source-ledger operator CLI is introduced in the following adoption phase." },
-    { "service": "RecallService", "method": "Zoom", "reason": "Tree exploration is deferred until the source-ledger operator surface is introduced." },
+    { "service": "RecallService", "method": "Zoom", "reason": "Tree exploration is deferred until the source-ledger operator surface is expanded." },
+    { "service": "RecallService", "method": "ListSiblingEvents", "reason": "Timeline browsing is deferred until the source-ledger operator surface is expanded." },
     { "service": "ClassificationRulesService", "method": "CreateRule", "reason": "Rule administration is deferred until the source-ledger operator surface is introduced." },
     { "service": "ClassificationRulesService", "method": "DryRunRule", "reason": "Rule administration is deferred until the source-ledger operator surface is introduced." },
     { "service": "ClassificationRulesService", "method": "EnableRule", "reason": "Rule administration is deferred until the source-ledger operator surface is introduced." },

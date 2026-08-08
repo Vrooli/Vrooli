@@ -13,7 +13,7 @@
 package httpx
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -57,7 +57,7 @@ const (
 // overhead for a branch that cannot fire in practice (the marshal
 // failure below is unreachable for the ErrorEnvelope shape — no
 // oneofs, no recursion, no Any, no large payloads). The fallback
-// uses the global log package by intent, gated by a comment so a
+// uses the default structured logger by intent, gated by a comment so a
 // scenario adding a new envelope shape remembers to revisit if the
 // new shape introduces a real failure mode. If that day comes, the
 // right move is to thread the logger; do not silently drop the log.
@@ -72,7 +72,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		// comment). If a future shape change makes this firable, the
 		// scenario MUST thread a logger through WriteError instead of
 		// keeping this global-log fallback.
-		log.Printf("httpx.WriteError: protojson marshal failed: %v", err)
+		slog.Default().Error("httpx.WriteError: protojson marshal failed", "error", err)
 		body = []byte(`{"code":"internal","message":"error envelope marshal failed"}`)
 		status = http.StatusInternalServerError
 	}
@@ -86,7 +86,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 func WriteProto(w http.ResponseWriter, status int, msg proto.Message) {
 	body, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(msg)
 	if err != nil {
-		log.Printf("httpx.WriteProto: protojson marshal failed: %v", err)
+		slog.Default().Error("httpx.WriteProto: protojson marshal failed", "error", err)
 		WriteError(w, http.StatusInternalServerError, CodeInternal, "response marshal failed")
 		return
 	}

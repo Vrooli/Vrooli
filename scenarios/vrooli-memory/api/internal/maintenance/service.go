@@ -28,14 +28,20 @@ const (
 	// Compaction is the only maintenance step whose cost scales with the
 	// backlog rather than with the number of runtimes, so it needs its own
 	// bound and its own timeout. Zero disables scheduled compaction.
-	CompactLimitEnv     = "VROOLI_MEMORY_MAINTENANCE_COMPACT_LIMIT"
-	DefaultCompactLimit = 200
+	CompactLimitEnv = "VROOLI_MEMORY_MAINTENANCE_COMPACT_LIMIT"
+	// The source-ledger API uses the shared api-core 30-second write timeout.
+	// A small default keeps one synchronous bounded pass inside that transport
+	// envelope while callers may raise it explicitly when they own a longer
+	// request path.
+	DefaultCompactLimit = 2
 	CompactTimeout      = 30 * time.Minute
 )
 
 type (
 	Outcome struct {
 		Runtime, ImportStatus, ImportError, ProjectionStatus, ProjectionError string
+		ProjectionSizeBytes, ProjectionSizeLines                              int64
+		ProjectionByteCap, ProjectionLineCap                                  int64
 		StartedAt, CompletedAt                                                time.Time
 	}
 	// Compaction is run-level, not per-runtime: the canopy belongs to the
@@ -175,8 +181,12 @@ func (s *Service) RunOnce(ctx context.Context) (bool, error) {
 	for _, runtime := range s.projector.Runtimes() {
 		o := outcomes[runtime]
 		runCtx, cancel := context.WithTimeout(ctx, RuntimeTimeout)
-		_, err := s.projector.Project(runCtx, runtime, false)
+		projection, err := s.projector.Project(runCtx, runtime, false)
 		cancel()
+		o.ProjectionSizeBytes = projection.SizeBytes
+		o.ProjectionSizeLines = projection.SizeLines
+		o.ProjectionByteCap = projection.ByteCap
+		o.ProjectionLineCap = projection.LineCap
 		if err != nil {
 			o.ProjectionStatus, o.ProjectionError = "failed", err.Error()
 		} else {

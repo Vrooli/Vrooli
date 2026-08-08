@@ -80,6 +80,21 @@
           "type": "manual"
         }
       ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When a team adopts the ledger, the service shall register or reuse one named scope, append prose entries with provenance, return a bounded wake block within the scope wake budget, and support scoped semantic recall without introducing a second team-memory vocabulary.",
+      "id": "SL-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Team corpus adoption contract",
+      "validation": [
+        {
+          "notes": "Validate scope registration, journal append, recall, and wake through the generated Connect/API/CLI surfaces after the governed CLI bindings are available. Adoption gap capture: cap-ec8f3c2ee6b5f2ab.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
     }
   ]
 }

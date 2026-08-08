@@ -1,13 +1,16 @@
 package recall
 
 import (
-	"connectrpc.com/connect"
 	"context"
+	"log"
+
+	"connectrpc.com/connect"
+
 	sourcev1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
 	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
 	memoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall"
 	memoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall/recall_v1connect"
-	"log"
+
 	"vrooli-memory/internal/ledgerclient"
 )
 
@@ -22,6 +25,7 @@ func NewConnectHandler(client sourceconnect.RecallServiceClient, logger *log.Log
 	}
 	return &connectHandler{client: client, logger: logger}
 }
+
 func (h *connectHandler) Recall(ctx context.Context, in *connect.Request[memoryv1.RecallRequest]) (*connect.Response[memoryv1.RecallResponse], error) {
 	req := connect.NewRequest(&sourcev1.RecallRequest{})
 	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
@@ -38,6 +42,7 @@ func (h *connectHandler) Recall(ctx context.Context, in *connect.Request[memoryv
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h *connectHandler) Wake(ctx context.Context, in *connect.Request[memoryv1.WakeRequest]) (*connect.Response[memoryv1.WakeResponse], error) {
 	req := connect.NewRequest(&sourcev1.WakeRequest{})
 	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
@@ -54,6 +59,7 @@ func (h *connectHandler) Wake(ctx context.Context, in *connect.Request[memoryv1.
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h *connectHandler) Zoom(ctx context.Context, in *connect.Request[memoryv1.ZoomRequest]) (*connect.Response[memoryv1.ZoomResponse], error) {
 	req := connect.NewRequest(&sourcev1.ZoomRequest{})
 	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {
@@ -69,6 +75,7 @@ func (h *connectHandler) Zoom(ctx context.Context, in *connect.Request[memoryv1.
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h *connectHandler) ListSiblingEvents(ctx context.Context, in *connect.Request[memoryv1.ListSiblingEventsRequest]) (*connect.Response[memoryv1.ListSiblingEventsResponse], error) {
 	req := connect.NewRequest(&sourcev1.ListSiblingEventsRequest{})
 	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, in.Msg.GetScope()); err != nil {

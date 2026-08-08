@@ -93,15 +93,15 @@ func TestCanopyReportsRecordedFrontierWithoutRecomputing(t *testing.T) {
 			wantHealthy: true,
 		},
 		{
-			name:        "inside the backlog factor",
-			compaction:  maintenance.Compaction{Status: "completed", FrontierAfter: 160, Target: 16},
-			wantDetail:  "eligible_frontier=160 target=16 last_pass=completed status=ok",
-			wantHealthy: true,
+			name:        "above target",
+			compaction:  maintenance.Compaction{Status: "completed", FrontierAfter: 17, Target: 16},
+			wantDetail:  "eligible_frontier=17 target=16 last_pass=completed status=lagging",
+			wantHealthy: false,
 		},
 		{
-			name:        "beyond the backlog factor",
-			compaction:  maintenance.Compaction{Status: "completed", FrontierAfter: 161, Target: 16},
-			wantDetail:  "eligible_frontier=161 target=16 last_pass=completed status=lagging",
+			name:        "zero target still reports backlog",
+			compaction:  maintenance.Compaction{Status: "completed", FrontierAfter: 1, Target: 0},
+			wantDetail:  "eligible_frontier=1 target=0 last_pass=completed status=lagging",
 			wantHealthy: false,
 		},
 	}

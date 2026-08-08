@@ -536,7 +536,7 @@
               "name": "budget",
               "description": "Line budget",
               "bind": {
-                "field": "token_budget"
+                "field": "line_budget"
               }
             }
           ],
@@ -1119,93 +1119,6 @@
   "measures": {
     "domains": []
   },
-  "exceptions": [
-    {
-      "command": "note",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound journal note command; preserves the agent-facing write contract without requiring group topology."
-    },
-    {
-      "command": "retry-classifications",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound journal retry command so durable enrichment recovery is directly operable."
-    },
-    {
-      "command": "retry-embeddings",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound journal retry command so durable enrichment recovery is directly operable."
-    },
-    {
-      "command": "import",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound harness import command; import is a primary migration workflow."
-    },
-    {
-      "command": "import-status",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound harness status command; exposes durable import progress without group topology."
-    },
-    {
-      "command": "project",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound projection command."
-    },
-    {
-      "command": "capture",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound native-memory capture command."
-    },
-    {
-      "command": "install-prompt",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound prompt installation command."
-    },
-    {
-      "command": "compact",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound forest compaction command."
-    },
-    {
-      "command": "rebuild-forest",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound forest rebuild command."
-    },
-    {
-      "command": "recall",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound recall command; semantic recall is the primary agent read workflow."
-    },
-    {
-      "command": "wake",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound recall wake command; ambient projection is intentionally topology-free."
-    },
-    {
-      "command": "siblings",
-      "class": "passthrough",
-      "reason": "Root alias for same-run memory event inspection."
-    },
-    {
-      "command": "frontier",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound forest frontier inspection command."
-    },
-    {
-      "command": "maintenance-status",
-      "class": "passthrough",
-      "reason": "Root alias for the manifest-bound maintenance status command."
-    },
-    {
-      "command": "hook",
-      "class": "passthrough",
-      "reason": "Hook input is a streaming harness integration and cannot use the standard proto primitive."
-    },
-    {
-      "command": "hooks",
-      "class": "passthrough",
-      "reason": "Hook installation manages local harness configuration and cannot use the standard proto primitive."
-    }
-  ],
   "omitted": [
     {
       "service": "JournalService",

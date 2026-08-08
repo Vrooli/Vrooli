@@ -76,7 +76,7 @@ func (h *connectHandler) RefreshProjection(ctx context.Context, req *connect.Req
 	if result.DryRun {
 		content = result.Content
 	}
-	return connect.NewResponse(&harnessv1.RefreshProjectionResponse{Path: result.Path, SizeBytes: result.SizeBytes, Overflow: result.Overflow, DryRun: result.DryRun, RenderedContent: content}), nil
+	return connect.NewResponse(&harnessv1.RefreshProjectionResponse{Path: result.Path, SizeBytes: result.SizeBytes, Overflow: result.Overflow, DryRun: result.DryRun, RenderedContent: content, SizeLines: result.SizeLines, ByteCap: result.ByteCap, LineCap: result.LineCap}), nil
 }
 
 func (h *connectHandler) InstallPromptBlock(_ context.Context, req *connect.Request[harnessv1.InstallPromptBlockRequest]) (*connect.Response[harnessv1.InstallPromptBlockResponse], error) {
@@ -118,7 +118,7 @@ func maintenanceRunMessage(run maintenance.Run) *harnessv1.MaintenanceRun {
 	}
 	out := &harnessv1.MaintenanceRun{Id: run.ID, StartedAt: format(run.StartedAt), CompletedAt: format(run.CompletedAt)}
 	for _, item := range run.Outcomes {
-		out.Outcomes = append(out.Outcomes, &harnessv1.MaintenanceOutcome{Runtime: item.Runtime, ImportStatus: item.ImportStatus, ImportError: item.ImportError, ProjectionStatus: item.ProjectionStatus, ProjectionError: item.ProjectionError, StartedAt: format(item.StartedAt), CompletedAt: format(item.CompletedAt)})
+		out.Outcomes = append(out.Outcomes, &harnessv1.MaintenanceOutcome{Runtime: item.Runtime, ImportStatus: item.ImportStatus, ImportError: item.ImportError, ProjectionStatus: item.ProjectionStatus, ProjectionError: item.ProjectionError, StartedAt: format(item.StartedAt), CompletedAt: format(item.CompletedAt), ProjectionSizeBytes: item.ProjectionSizeBytes, ProjectionSizeLines: item.ProjectionSizeLines, ProjectionByteCap: item.ProjectionByteCap, ProjectionLineCap: item.ProjectionLineCap})
 	}
 	return out
 }

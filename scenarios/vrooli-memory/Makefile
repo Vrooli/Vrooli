@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints validate-requirement-test-refs
 
 .DEFAULT_GOAL := help
 
@@ -33,6 +33,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
 	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
+	@printf "  make validate-requirement-test-refs  Resolve requirement test symbols\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
@@ -114,7 +115,10 @@ lint-ui: ## Lint UI code
 		cd ui && pnpm run lint && pnpm run type-check; \
 	fi
 
-check: fmt lint test ## Run full quality gates
+check: fmt lint test validate-requirement-test-refs ## Run full quality gates
+
+validate-requirement-test-refs: ## Resolve executable requirement validation symbols
+	@bash scripts/validate-requirement-test-refs.sh vrooli-memory
 
 setup: ## Run scenario setup lifecycle
 	@vrooli scenario setup "$(SCENARIO_NAME)"

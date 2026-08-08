@@ -37,14 +37,15 @@ func (e ErrMalformedManagedBlock) Error() string {
 
 type projectionTarget struct {
 	Runtime, Path string
-	Cap           int
+	Cap, LineCap  int
 }
 
 type ProjectionResult struct {
-	Path, Content string
-	SizeBytes     int64
-	Overflow      bool
-	DryRun        bool
+	Path, Content        string
+	SizeBytes, SizeLines int64
+	ByteCap, LineCap     int64
+	Overflow             bool
+	DryRun               bool
 }
 
 type Projector struct {
@@ -56,13 +57,18 @@ type Projector struct {
 
 func NewProjector(db *sql.DB, wake sourceconnect.RecallServiceClient, roots ...*filerouting.RoutedRoots) *Projector {
 	home, _ := os.UserHomeDir()
+	// The line ceiling is a conservative configuration derived from the only
+	// consumer limit observable in this repository: Claude Code previously
+	// truncated MEMORY.md at 200 rendered lines. The other targets use the same
+	// ceiling until their harnesses publish a more specific contract.
+	const consumerLineCap = 200
 	p := &Projector{db: db, wake: wake, targets: map[string]projectionTarget{
-		"claude-code": {Runtime: "claude-code", Path: filepath.Join(home, ".claude", "projects", "-home-matthalloran8-Vrooli", "memory", "MEMORY.md"), Cap: 32768},
-		"gemini":      {Runtime: "gemini", Path: filepath.Join(home, ".gemini", "GEMINI.md"), Cap: 32768},
-		"codex":       {Runtime: "codex", Path: filepath.Join(home, ".codex", "AGENTS.md"), Cap: 32768},
-		"opencode":    {Runtime: "opencode", Path: filepath.Join(home, ".config", "opencode", "AGENTS.md"), Cap: 32768},
-		"grok":        {Runtime: "grok", Path: filepath.Join(home, ".grok", "memory", "MEMORY.md"), Cap: 32768},
-		"antigravity": {Runtime: "antigravity", Path: filepath.Join(home, ".gemini", "antigravity", "brain", "MEMORY.md"), Cap: 32768},
+		"claude-code": {Runtime: "claude-code", Path: filepath.Join(home, ".claude", "projects", "-home-matthalloran8-Vrooli", "memory", "MEMORY.md"), Cap: 32768, LineCap: consumerLineCap},
+		"gemini":      {Runtime: "gemini", Path: filepath.Join(home, ".gemini", "GEMINI.md"), Cap: 32768, LineCap: consumerLineCap},
+		"codex":       {Runtime: "codex", Path: filepath.Join(home, ".codex", "AGENTS.md"), Cap: 32768, LineCap: consumerLineCap},
+		"opencode":    {Runtime: "opencode", Path: filepath.Join(home, ".config", "opencode", "AGENTS.md"), Cap: 32768, LineCap: consumerLineCap},
+		"grok":        {Runtime: "grok", Path: filepath.Join(home, ".grok", "memory", "MEMORY.md"), Cap: 32768, LineCap: consumerLineCap},
+		"antigravity": {Runtime: "antigravity", Path: filepath.Join(home, ".gemini", "antigravity", "brain", "MEMORY.md"), Cap: 32768, LineCap: consumerLineCap},
 	}}
 	if len(roots) > 0 {
 		p.roots = roots[0]
@@ -101,22 +107,6 @@ func (p *Projector) Project(ctx context.Context, runtime string, dryRun bool) (P
 	if !ok {
 		return ProjectionResult{}, fmt.Errorf("unsupported projection runtime %q", runtime)
 	}
-	wakeResponse, err := p.wake.Wake(ctx, connect.NewRequest(&sourcerecall.WakeRequest{Scope: "agent-memory"}))
-	if err != nil {
-		return ProjectionResult{}, err
-	}
-	content := generatedHeader + "# Unified Vrooli Memory\n\n"
-	for _, hit := range wakeResponse.Msg.GetHits() {
-		chunk := "- " + strings.TrimSpace(hit.GetText()) + "\n\n"
-		if len(content)+len(chunk) > t.Cap {
-			return p.finish(ctx, t, content, true, dryRun)
-		}
-		content += chunk
-	}
-	return p.finish(ctx, t, content, wakeResponse.Msg.GetOverflow(), dryRun)
-}
-
-func (p *Projector) finish(ctx context.Context, t projectionTarget, content string, overflow, dryRun bool) (ProjectionResult, error) {
 	path, err := p.targetPath(ctx, t)
 	if err != nil {
 		return ProjectionResult{}, err
@@ -125,14 +115,96 @@ func (p *Projector) finish(ctx context.Context, t projectionTarget, content stri
 	if err != nil && !os.IsNotExist(err) {
 		return ProjectionResult{}, err
 	}
+	curated := curatedBytes(string(existing))
+	curatedLines := renderedLineCount(curated)
+	remaining := t.LineCap - curatedLines
+	if remaining < 0 {
+		remaining = 0
+	}
+	if _, err := spliceWakeBlock(path, string(existing), ""); err != nil {
+		return ProjectionResult{}, err
+	}
+	wakeResponse, err := p.wake.Wake(ctx, connect.NewRequest(&sourcerecall.WakeRequest{LineBudget: int32(remaining), Scope: "agent-memory"}))
+	if err != nil {
+		return ProjectionResult{}, err
+	}
+	content := ""
+	fits := func(candidate string) (bool, error) {
+		projected, err := spliceWakeBlock(path, string(existing), candidate)
+		if err != nil {
+			return false, err
+		}
+		return len(projected) <= t.Cap && renderedLineCount(projected) <= t.LineCap, nil
+	}
+	const header = generatedHeader + "# Unified Vrooli Memory\n\n"
+	if ok, err := fits(header); err != nil {
+		return ProjectionResult{}, err
+	} else if ok {
+		content = header
+	}
+	overflow := wakeResponse.Msg.GetOverflow() || curatedLines > t.LineCap || content == ""
+	for _, hit := range wakeResponse.Msg.GetHits() {
+		chunk, cost := renderedHit(hit.GetText())
+		if content == "" || renderedLineCount(content)+cost+curatedLines > t.LineCap || len(content)+len(chunk) > t.Cap {
+			overflow = true
+			break
+		}
+		ok, err := fits(content + chunk)
+		if err != nil {
+			return ProjectionResult{}, err
+		}
+		if !ok {
+			overflow = true
+			break
+		}
+		content += chunk
+	}
+	return p.finish(ctx, t, path, string(existing), content, overflow, dryRun)
+}
+
+func renderedHit(text string) (string, int) {
+	chunk := "- " + strings.TrimSpace(text) + "\n\n"
+	return chunk, strings.Count(chunk, "\n")
+}
+
+func renderedLineCount(content string) int {
+	if content == "" {
+		return 0
+	}
+	lines := strings.Count(content, "\n")
+	if !strings.HasSuffix(content, "\n") {
+		lines++
+	}
+	return lines
+}
+
+func curatedBytes(existing string) string {
+	startCount := strings.Count(existing, wakeStart)
+	endCount := strings.Count(existing, wakeEnd)
+	if startCount == 0 && endCount == 0 {
+		return existing
+	}
+	if startCount != 1 || endCount != 1 {
+		return existing
+	}
+	start := strings.Index(existing, wakeStart)
+	end := strings.Index(existing, wakeEnd)
+	if end < start {
+		return existing
+	}
+	return existing[:start] + existing[end+len(wakeEnd):]
+}
+
+func (p *Projector) finish(ctx context.Context, t projectionTarget, path, existing, content string, overflow, dryRun bool) (ProjectionResult, error) {
 	projected, err := spliceWakeBlock(path, string(existing), content)
 	if err != nil {
 		return ProjectionResult{}, err
 	}
-	if len(projected) > t.Cap {
+	projectedLines := renderedLineCount(projected)
+	if len(projected) > t.Cap || projectedLines > t.LineCap {
 		overflow = true
 	}
-	r := ProjectionResult{Path: path, Content: projected, SizeBytes: int64(len(projected)), Overflow: overflow, DryRun: dryRun}
+	r := ProjectionResult{Path: path, Content: projected, SizeBytes: int64(len(projected)), SizeLines: int64(projectedLines), ByteCap: int64(t.Cap), LineCap: int64(t.LineCap), Overflow: overflow, DryRun: dryRun}
 	if dryRun {
 		return r, nil
 	}
@@ -163,7 +235,7 @@ func (p *Projector) finish(ctx context.Context, t projectionTarget, content stri
 		p.roots.RecordWrite(ctx)
 	}
 	sum := sha256.Sum256([]byte(projected))
-	_, err = p.db.ExecContext(ctx, `INSERT INTO harness_projections(runtime,target_path,content_hash,size_bytes,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(runtime) DO UPDATE SET target_path=excluded.target_path,content_hash=excluded.content_hash,size_bytes=excluded.size_bytes,updated_at=excluded.updated_at`, t.Runtime, path, hex.EncodeToString(sum[:]), len(content), time.Now().UTC().Format(time.RFC3339Nano))
+	_, err = p.db.ExecContext(ctx, `INSERT INTO harness_projections(runtime,target_path,content_hash,size_bytes,size_lines,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(runtime) DO UPDATE SET target_path=excluded.target_path,content_hash=excluded.content_hash,size_bytes=excluded.size_bytes,size_lines=excluded.size_lines,updated_at=excluded.updated_at`, t.Runtime, path, hex.EncodeToString(sum[:]), len(projected), projectedLines, time.Now().UTC().Format(time.RFC3339Nano))
 	return r, err
 }
 

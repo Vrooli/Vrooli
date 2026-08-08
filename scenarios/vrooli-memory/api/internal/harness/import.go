@@ -32,6 +32,8 @@ type (
 		Runtime                  string
 		Seen, Imported, Existing int
 		Sources                  []string
+		Cursor                   string
+		Bounded                  bool
 	}
 )
 
@@ -58,6 +60,9 @@ func (i *Importer) Import(ctx context.Context, runtime string, dryRun bool) (Imp
 	if err != nil {
 		return result, err
 	}
+	if adapter.HarnessID == "swarm-manager-records" && !dryRun && i.runs != nil {
+		return i.importSwarmBatch(ctx, adapter, items)
+	}
 	for _, item := range items {
 		if err := i.importItem(ctx, adapter, item, dryRun, &result); err != nil {
 			return result, err
@@ -71,6 +76,54 @@ func (i *Importer) Import(ctx context.Context, runtime string, dryRun bool) (Imp
 			return result, nil
 		}
 		return result, fmt.Errorf("non-empty harness %q store yielded zero importable items", runtime)
+	}
+	return result, nil
+}
+
+const swarmImportBatchSize = 128
+
+// importSwarmBatch makes the large append-only record tree converge across
+// maintenance ticks. The cursor advances only after an item has been handed to
+// source-ledger; a timeout before that checkpoint leaves the item eligible for
+// the next pass, while source-ledger's content key makes a replay harmless.
+func (i *Importer) importSwarmBatch(ctx context.Context, adapter AdapterDescriptor, items []sourceItem) (ImportResult, error) {
+	result := ImportResult{Runtime: adapter.HarnessID, Bounded: true}
+	root := strings.Join(adapter.Locations, ",")
+	cursor, err := i.runs.cursor(ctx, adapter.HarnessID, root)
+	if err != nil {
+		return result, err
+	}
+	start := 0
+	for start < len(items) && items[start].Path <= cursor {
+		start++
+	}
+	if start == len(items) {
+		if err := i.runs.setCursor(ctx, adapter.HarnessID, root, ""); err != nil {
+			return result, err
+		}
+		return result, nil
+	}
+	end := start + swarmImportBatchSize
+	if end > len(items) {
+		end = len(items)
+	}
+	for _, item := range items[start:end] {
+		if err := i.importItem(ctx, adapter, item, false, &result); err != nil {
+			if ctx.Err() != nil {
+				return result, nil
+			}
+			return result, err
+		}
+		if err := i.runs.setCursor(ctx, adapter.HarnessID, root, item.Path); err != nil {
+			return result, err
+		}
+		result.Cursor = item.Path
+	}
+	if end == len(items) {
+		if err := i.runs.setCursor(ctx, adapter.HarnessID, root, ""); err != nil {
+			return result, err
+		}
+		result.Cursor = ""
 	}
 	return result, nil
 }
@@ -161,10 +214,14 @@ func (i *Importer) run(ctx context.Context, adapter AdapterDescriptor, id string
 		}()
 	}
 	go func() {
+		defer close(jobs)
 		for _, item := range items {
-			jobs <- item
+			select {
+			case jobs <- item:
+			case <-ctx.Done():
+				return
+			}
 		}
-		close(jobs)
 		workers.Wait()
 		close(completed)
 	}()

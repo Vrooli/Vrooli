@@ -43,19 +43,17 @@ vocabulary is deliberately source-shaped rather than agent-memory-shaped:
 
 | Facet | Source file | Retention | Resident budget |
 |---|---|---|---:|
-| `handoff` | `handoff-history.jsonl` | expire on resolution | 8 |
-| `knowledge` | `knowledge.jsonl` | retain | 8 |
-| `audience-finding` | `audience-scans.jsonl` | retain | 8 |
-| `campaign` | `campaign-drafts.jsonl` | retain | 8 |
-| `decision` | `decisions.jsonl` | pin or review | 16 |
-| `publication` | `published-scenario-mentions.jsonl` | retain | 4 |
+| `handoff` | handoff history | expire on resolution | 8 |
+| `knowledge` | durable team context | retain | 8 |
+| `audience-finding` | audience findings | retain | 8 |
+| `campaign` | campaign drafts | retain | 8 |
+| `decision` | operator disposition context | pin or review | 16 |
+| `publication` | publication mentions | retain | 4 |
 
 The scope uses a frontier target of 32, a 256-line wake budget, and a
-four-line per-entry wake excerpt. The adapter imports each JSONL line as the
-immutable body, attaches `prompt-manager` source provenance and a content
-hash, and can be replayed without inference work. `heartbeat-attempts.jsonl`
-and empty publish telemetry logs remain outside the ledger because they are
-operational telemetry, not durable team knowledge.
+four-line per-entry wake excerpt. Team context is appended as immutable prose
+with `prompt-manager` provenance. Heartbeat telemetry remains outside the
+ledger because it is operational telemetry, not durable team knowledge.
 
 ## Non-Domains
 

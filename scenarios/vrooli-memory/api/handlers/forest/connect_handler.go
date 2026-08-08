@@ -1,13 +1,16 @@
 package forest
 
 import (
-	"connectrpc.com/connect"
 	"context"
+	"log"
+
+	"connectrpc.com/connect"
+
 	sourcev1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/forest"
 	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/forest/forest_v1connect"
 	memoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/forest"
 	memoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/forest/forest_v1connect"
-	"log"
+
 	"vrooli-memory/internal/ledgerclient"
 )
 
@@ -22,6 +25,7 @@ func NewConnectHandler(client sourceconnect.ForestServiceClient, logger *log.Log
 	}
 	return &connectHandler{client: client, logger: logger}
 }
+
 func (h *connectHandler) RunCompactionPass(ctx context.Context, in *connect.Request[memoryv1.RunCompactionPassRequest]) (*connect.Response[memoryv1.RunCompactionPassResponse], error) {
 	req := connect.NewRequest(&sourcev1.RunCompactionPassRequest{})
 	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
@@ -38,6 +42,7 @@ func (h *connectHandler) RunCompactionPass(ctx context.Context, in *connect.Requ
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h *connectHandler) GetFrontier(ctx context.Context, in *connect.Request[memoryv1.GetFrontierRequest]) (*connect.Response[memoryv1.GetFrontierResponse], error) {
 	req := connect.NewRequest(&sourcev1.GetFrontierRequest{})
 	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
@@ -53,6 +58,7 @@ func (h *connectHandler) GetFrontier(ctx context.Context, in *connect.Request[me
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h *connectHandler) GetNode(ctx context.Context, in *connect.Request[memoryv1.GetNodeRequest]) (*connect.Response[memoryv1.GetNodeResponse], error) {
 	req := connect.NewRequest(&sourcev1.GetNodeRequest{})
 	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {
@@ -68,6 +74,7 @@ func (h *connectHandler) GetNode(ctx context.Context, in *connect.Request[memory
 	}
 	return connect.NewResponse(out), nil
 }
+
 func (h *connectHandler) RebuildForest(ctx context.Context, in *connect.Request[memoryv1.RebuildForestRequest]) (*connect.Response[memoryv1.RebuildForestResponse], error) {
 	req := connect.NewRequest(&sourcev1.RebuildForestRequest{})
 	if err := ledgerclient.TranslateWithScope(in.Msg, req.Msg, "agent-memory"); err != nil {

@@ -4,6 +4,47 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "source-ledger",
   "generator": "v1.0.0",
-  "manifest_hash": "959f8b8d5c7e260d6b3b53d180cdf28867988fac15fdff9575ad11c6df848e9c",
-  "commands": null
+  "manifest_hash": "2666a4621db540b724912e378d4ca7fba6cacc61568053aa4276cbe952581b9d",
+  "commands": [
+    {
+      "path": "journal note",
+      "group": "journal",
+      "command": "note",
+      "binding": "JournalService.AppendEntry",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "recall recall",
+      "group": "recall",
+      "command": "recall",
+      "binding": "RecallService.Recall",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "recall wake",
+      "group": "recall",
+      "command": "wake",
+      "binding": "RecallService.Wake",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "scopes create",
+      "group": "scopes",
+      "command": "create",
+      "binding": "ScopesService.CreateScope",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "scopes list",
+      "group": "scopes",
+      "command": "list",
+      "binding": "ScopesService.ListScopes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
 }

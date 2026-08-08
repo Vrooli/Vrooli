@@ -151,10 +151,10 @@ func RPCError(operation string, err error) error {
 
 type CompactionResult struct{ CompactedCount, EligibleFrontierBefore, EligibleFrontierAfter, Target int }
 
-func (c *Client) RunBounded(ctx context.Context, _ int) (CompactionResult, error) {
-	resp, err := c.Forest.RunCompactionPass(ctx, connect.NewRequest(&sourceforest.RunCompactionPassRequest{Scope: DefaultScope}))
+func (c *Client) RunBounded(ctx context.Context, maxClusters int) (CompactionResult, error) {
+	resp, err := c.Forest.RunCompactionPass(ctx, connect.NewRequest(&sourceforest.RunCompactionPassRequest{Scope: DefaultScope, MaxClusters: int32(maxClusters)}))
 	if err != nil {
 		return CompactionResult{}, NormalizeError("compaction", err)
 	}
-	return CompactionResult{CompactedCount: int(resp.Msg.GetCompactedCount())}, nil
+	return CompactionResult{CompactedCount: int(resp.Msg.GetCompactedCount()), EligibleFrontierBefore: int(resp.Msg.GetEligibleFrontierBefore()), EligibleFrontierAfter: int(resp.Msg.GetEligibleFrontierAfter()), Target: int(resp.Msg.GetTarget())}, nil
 }

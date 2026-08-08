@@ -133,9 +133,9 @@ func importProgressEstimate(run *harnessv1.ImportRun, now time.Time) (float64, t
 
 func (h *handlers) projectReport(_ cliapp.OperationContext, msg *harnessv1.RefreshProjectionResponse) cliapp.MutationReport {
 	if msg.DryRun {
-		return cliapp.MutationReport{Result: []string{fmt.Sprintf("Dry run rendered %d bytes for %s (overflow=%t).", msg.SizeBytes, msg.Path, msg.Overflow), msg.RenderedContent}}
+		return cliapp.MutationReport{Result: []string{fmt.Sprintf("Dry run rendered %d lines / %d bytes for %s (ceilings %d lines / %d bytes, overflow=%t).", msg.SizeLines, msg.SizeBytes, msg.Path, msg.LineCap, msg.ByteCap, msg.Overflow), msg.RenderedContent}}
 	}
-	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Projected %d bytes to %s (overflow=%t).", msg.SizeBytes, msg.Path, msg.Overflow)}}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Projected %d lines / %d bytes to %s (ceilings %d lines / %d bytes, overflow=%t).", msg.SizeLines, msg.SizeBytes, msg.Path, msg.LineCap, msg.ByteCap, msg.Overflow)}}
 }
 
 func (h *handlers) captureReport(_ cliapp.OperationContext, msg *harnessv1.CaptureWriteResponse) cliapp.MutationReport {
@@ -152,7 +152,7 @@ func (h *handlers) maintenanceReport(_ cliapp.OperationContext, msg *harnessv1.G
 	}
 	results := make([]string, 0, len(msg.Run.Outcomes))
 	for _, outcome := range msg.Run.Outcomes {
-		results = append(results, fmt.Sprintf("%s: import=%s projection=%s", outcome.Runtime, outcome.ImportStatus, outcome.ProjectionStatus))
+		results = append(results, fmt.Sprintf("%s: import=%s projection=%s usage=%d/%d lines, %d/%d bytes", outcome.Runtime, outcome.ImportStatus, outcome.ProjectionStatus, outcome.ProjectionSizeLines, outcome.ProjectionLineCap, outcome.ProjectionSizeBytes, outcome.ProjectionByteCap))
 		if outcome.ImportError != "" {
 			results = append(results, "  import error: "+outcome.ImportError)
 		}

@@ -30,6 +30,21 @@ type (
 )
 
 func newRunStore(db *sql.DB) *runStore { return &runStore{db: db} }
+
+func (s *runStore) cursor(ctx context.Context, runtime, root string) (string, error) {
+	var value string
+	err := s.db.QueryRowContext(ctx, `SELECT cursor_path FROM harness_import_cursors WHERE runtime=? AND source_root=?`, runtime, root).Scan(&value)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return value, err
+}
+
+func (s *runStore) setCursor(ctx context.Context, runtime, root, path string) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO harness_import_cursors(runtime,source_root,cursor_path,updated_at) VALUES(?,?,?,?) ON CONFLICT(runtime) DO UPDATE SET source_root=excluded.source_root,cursor_path=excluded.cursor_path,updated_at=excluded.updated_at`, runtime, root, path, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+
 func (s *runStore) create(ctx context.Context, runtime, root string, total int) (ImportRun, error) {
 	now := time.Now().UTC()
 	r := ImportRun{ID: uuid.NewString(), Runtime: runtime, SourceRoot: root, Status: ImportRunQueued, TotalSources: total, StartedAt: now, UpdatedAt: now}

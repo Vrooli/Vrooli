@@ -25,7 +25,7 @@ func (s *SQLiteStore) Begin(ctx context.Context, run Run) error {
 }
 
 func (s *SQLiteStore) PutOutcome(ctx context.Context, runID string, o Outcome) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO maintenance_outcomes(run_id,runtime,import_status,import_error,projection_status,projection_error,started_at,completed_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(run_id,runtime) DO UPDATE SET import_status=excluded.import_status,import_error=excluded.import_error,projection_status=excluded.projection_status,projection_error=excluded.projection_error,completed_at=excluded.completed_at`, runID, o.Runtime, o.ImportStatus, o.ImportError, o.ProjectionStatus, o.ProjectionError, o.StartedAt.Format(time.RFC3339Nano), formatTime(o.CompletedAt))
+	_, err := s.db.ExecContext(ctx, `INSERT INTO maintenance_outcomes(run_id,runtime,import_status,import_error,projection_status,projection_error,projection_size_bytes,projection_size_lines,projection_byte_cap,projection_line_cap,started_at,completed_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(run_id,runtime) DO UPDATE SET import_status=excluded.import_status,import_error=excluded.import_error,projection_status=excluded.projection_status,projection_error=excluded.projection_error,projection_size_bytes=excluded.projection_size_bytes,projection_size_lines=excluded.projection_size_lines,projection_byte_cap=excluded.projection_byte_cap,projection_line_cap=excluded.projection_line_cap,completed_at=excluded.completed_at`, runID, o.Runtime, o.ImportStatus, o.ImportError, o.ProjectionStatus, o.ProjectionError, o.ProjectionSizeBytes, o.ProjectionSizeLines, o.ProjectionByteCap, o.ProjectionLineCap, o.StartedAt.Format(time.RFC3339Nano), formatTime(o.CompletedAt))
 	return err
 }
 
@@ -50,7 +50,7 @@ func (s *SQLiteStore) Latest(ctx context.Context) (Run, error) {
 	}
 	run.StartedAt, _ = time.Parse(time.RFC3339Nano, started)
 	run.CompletedAt, _ = time.Parse(time.RFC3339Nano, completed)
-	rows, err := s.db.QueryContext(ctx, `SELECT runtime,import_status,import_error,projection_status,projection_error,started_at,completed_at FROM maintenance_outcomes WHERE run_id=? ORDER BY runtime`, run.ID)
+	rows, err := s.db.QueryContext(ctx, `SELECT runtime,import_status,import_error,projection_status,projection_error,projection_size_bytes,projection_size_lines,projection_byte_cap,projection_line_cap,started_at,completed_at FROM maintenance_outcomes WHERE run_id=? ORDER BY runtime`, run.ID)
 	if err != nil {
 		return run, err
 	}
@@ -58,7 +58,7 @@ func (s *SQLiteStore) Latest(ctx context.Context) (Run, error) {
 	for rows.Next() {
 		var o Outcome
 		var start, end string
-		if err := rows.Scan(&o.Runtime, &o.ImportStatus, &o.ImportError, &o.ProjectionStatus, &o.ProjectionError, &start, &end); err != nil {
+		if err := rows.Scan(&o.Runtime, &o.ImportStatus, &o.ImportError, &o.ProjectionStatus, &o.ProjectionError, &o.ProjectionSizeBytes, &o.ProjectionSizeLines, &o.ProjectionByteCap, &o.ProjectionLineCap, &start, &end); err != nil {
 			return run, err
 		}
 		o.StartedAt, _ = time.Parse(time.RFC3339Nano, start)
