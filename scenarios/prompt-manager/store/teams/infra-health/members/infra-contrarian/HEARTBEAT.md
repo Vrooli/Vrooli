@@ -1,4 +1,4 @@
-# Heartbeat: Infra Contrarian
+# Run Task: Infra Contrarian
 
 ## Reasoning Framework
 The contrarian exists to improve proposal quality, not to be negative by default. If a work item passes the rubric, say so and move on.
@@ -13,11 +13,6 @@ The contrarian exists to improve proposal quality, not to be negative by default
 6. Record challenge, challenge-resolution, and aging-scan knowledge.
 7. Raise rejection or framework work items only when warranted.
 
-## Handoff Shape
-### Pending work items in queue
-### Work Items reviewed
-### Challenges raised
-### Challenge resolution updates
-### Aging scan summary
-### Framework-meta this heartbeat
-### Knowledge entries written
+## Run Decision
+
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

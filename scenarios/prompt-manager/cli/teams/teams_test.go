@@ -215,9 +215,9 @@ func TestCmdPromptPreviewStructuredFormatsSections(t *testing.T) {
 			TeamID:  "team-a",
 			AgentID: "agent-a",
 			Sections: []PromptSection{{
-				Kind:    "active-task-brief",
-				Label:   "Active Task Brief",
-				Content: "# Active Task Brief\n\nYou are running one prompt-manager heartbeat as `agent-a`.",
+				Kind:    "operating-policy-team",
+				Label:   "Operating Policy (Team)",
+				Content: "# Operating Policy (Team)\n\nTeam policy.",
 			}},
 		},
 	}
@@ -229,7 +229,7 @@ func TestCmdPromptPreviewStructuredFormatsSections(t *testing.T) {
 		t.Fatalf("cmdPromptPreviewStructured: %v", err)
 	}
 	fc.assertMethodPath(t, "POST", "/prompt-preview-structured")
-	if !strings.Contains(out, "Kind: active-task-brief") || !strings.Contains(out, "# Active Task Brief") {
+	if !strings.Contains(out, "Kind: operating-policy-team") || !strings.Contains(out, "# Operating Policy (Team)") {
 		t.Fatalf("unexpected structured output:\n%s", out)
 	}
 }
@@ -244,7 +244,7 @@ func TestCmdPromptMatrixUsesBackendOrder(t *testing.T) {
 				DisplayName: "Agent A",
 				Sections: []PromptSection{
 					{Kind: "agent-file", Label: "SOUL.md", Content: "abc"},
-					{Kind: "active-task-brief", Label: "Active Task Brief", Content: "abcdef"},
+					{Kind: "operating-policy-team", Label: "Operating Policy (Team)", Content: "abcdef"},
 				},
 			}},
 		},
@@ -257,7 +257,7 @@ func TestCmdPromptMatrixUsesBackendOrder(t *testing.T) {
 		t.Fatalf("cmdPromptMatrix: %v", err)
 	}
 	fc.assertMethodPath(t, "GET", "/teams/team-a/prompt-matrix")
-	header := "Member\tagent-file\tactive-task-brief"
+	header := "Member\tagent-file\toperating-policy-team"
 	if !strings.Contains(out, header) {
 		t.Fatalf("expected backend-order header %q, got:\n%s", header, out)
 	}

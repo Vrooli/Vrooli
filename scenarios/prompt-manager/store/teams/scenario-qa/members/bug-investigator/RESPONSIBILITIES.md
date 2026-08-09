@@ -1,4 +1,4 @@
-# Responsibilities: Bug Investigator
+# Standing Responsibilities: Bug Investigator
 
 ## Primary Duties
 - Drain `bug-inbox/*` (universal-source intake — any team's members may write via the `report-bug` skill).

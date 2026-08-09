@@ -2,23 +2,40 @@ package heartbeat
 
 import "fmt"
 
+// Prompt sections follow a strict volatility gradient: universal, team, member,
+// volatile, then the task. The flat prompt is wrapped in one XML context so
+// providers can cache every stable band before live ledger and validation data
+// changes. If a run-volatile section moves above a stable section, the first
+// differing byte moves up with it and the cacheable prefix collapses. Volatility
+// outranks scope when the two conflict; a changing team-shaped value belongs in
+// the volatile band rather than weakening the prefix for every member.
+
 const (
-	promptSectionKindAgentFile        = "agent-file"
-	promptSectionKindSharedDoctrine   = "shared-doctrine"
-	promptSectionKindActiveTaskBrief  = "active-task-brief"
-	promptSectionKindTeamInbox        = "team-inbox"
-	promptSectionKindTeamWake         = "team-context-wake"
-	promptSectionKindLastHandoff      = "last-handoff"
-	promptSectionKindChallengeReview  = "challenge-review"
-	promptSectionKindStorageMap       = "team-storage-map"
-	promptSectionKindOrgContext       = "team-org-context"
-	promptSectionKindOperatingPolicy  = "team-operating-policy"
-	promptSectionKindTopicContract    = "topic-contract"
-	promptSectionKindInboxFlow        = "inbox-flow"
-	promptSectionKindContractFindings = "contract-findings"
-	promptSectionKindResponsibilities = "team-responsibilities"
-	promptSectionKindHeartbeatTask    = "heartbeat-task"
-	promptSectionKindTaskReminder     = "task-reminder"
+	promptSectionKindAgentFile          = "agent-file"
+	promptSectionKindSharedDoctrine     = "shared-doctrine"
+	promptSectionKindTeamInbox          = "team-inbox"
+	promptSectionKindTeamWake           = "team-context-wake"
+	promptSectionKindChallengeReview    = "challenge-review"
+	promptSectionKindStorageMap         = "team-storage-map"
+	promptSectionKindOrgContext         = "team-org-context"
+	promptSectionKindOperatingPolicy    = "team-operating-policy"
+	promptSectionKindMemberPolicy       = "member-operating-policy"
+	promptSectionKindTopicContract      = "topic-contract"
+	promptSectionKindInboxFlow          = "inbox-flow"
+	promptSectionKindContractFindings   = "contract-findings"
+	promptSectionKindResponsibilities   = "team-responsibilities"
+	promptSectionKindHeartbeatTask      = "heartbeat-task"
+	promptSectionKindContinuityFallback = "continuity-fallback"
+)
+
+type promptSectionScope string
+
+const (
+	promptScopeUniversal promptSectionScope = "universal"
+	promptScopeTeam      promptSectionScope = "team"
+	promptScopeMember    promptSectionScope = "member"
+	promptScopeVolatile  promptSectionScope = "volatile"
+	promptScopeTask      promptSectionScope = "task"
 )
 
 // promptSectionKind describes a stable section identity emitted by the
@@ -37,30 +54,31 @@ const (
 type promptSectionKind struct {
 	Label   string
 	Heading string
+	Element string
+	Scope   promptSectionScope
 }
 
 var promptSectionKinds = map[string]promptSectionKind{
 	// The agent-file heading belongs to the merged block that buildSections
 	// wraps around every adjacent agent-file section, not to each section.
-	promptSectionKindAgentFile: {Label: "Agent File", Heading: "# Agent Files (Markdown)"},
+	promptSectionKindAgentFile: {Label: "Agent File", Heading: "# Agent Files (Markdown)", Element: "agent-files", Scope: promptScopeMember},
 	// Emitted first and byte-identical for every member in a given build mode.
 	// Anything member-specific belongs in a later section: a single varying byte
 	// here destroys the shared prefix this section exists to create.
-	promptSectionKindSharedDoctrine:   {Label: "Standing Rules", Heading: "# Standing Rules"},
-	promptSectionKindActiveTaskBrief:  {Label: "Active Task Brief", Heading: "# Active Task Brief"},
-	promptSectionKindTeamInbox:        {Label: "Team Inbox", Heading: "# Team Inbox"},
-	promptSectionKindTeamWake:         {Label: "Team Context Wake", Heading: "# Team Context Wake"},
-	promptSectionKindLastHandoff:      {Label: "Previous Handoff", Heading: "# Previous Heartbeat Handoff"},
-	promptSectionKindChallengeReview:  {Label: "Challenge Review", Heading: "# Challenge Review"},
-	promptSectionKindStorageMap:       {Label: "Storage Map", Heading: "# Storage Map"},
-	promptSectionKindOrgContext:       {Label: "Team Org Context", Heading: "# Team Org Context"},
-	promptSectionKindOperatingPolicy:  {Label: "Operating Policy", Heading: "# Operating Policy"},
-	promptSectionKindTopicContract:    {Label: "Topic Contract", Heading: "# Topic Contract"},
-	promptSectionKindInboxFlow:        {Label: "Inbox Flow", Heading: "# Inbox Flow"},
-	promptSectionKindContractFindings: {Label: "Contract Findings", Heading: "# Contract Findings"},
-	promptSectionKindResponsibilities: {Label: "RESPONSIBILITIES.md", Heading: "# Team Responsibilities (RESPONSIBILITIES.md)"},
-	promptSectionKindHeartbeatTask:    {Label: "Heartbeat Task", Heading: "# Heartbeat Task (HEARTBEAT.md)"},
-	promptSectionKindTaskReminder:     {Label: "Task Reminder", Heading: "# Task Reminder"},
+	promptSectionKindSharedDoctrine:     {Label: "Standing Rules", Heading: "# Standing Rules", Element: "standing-rules", Scope: promptScopeUniversal},
+	promptSectionKindTeamInbox:          {Label: "Team Inbox", Heading: "# Team Inbox", Element: "team-inbox", Scope: promptScopeVolatile},
+	promptSectionKindTeamWake:           {Label: "Team Context Wake", Heading: "# Team Context Wake", Element: "team-context-wake", Scope: promptScopeVolatile},
+	promptSectionKindChallengeReview:    {Label: "Challenge Review", Heading: "# Challenge Review", Element: "challenge-review", Scope: promptScopeVolatile},
+	promptSectionKindStorageMap:         {Label: "Storage Map", Heading: "# Storage Map", Element: "storage-map", Scope: promptScopeTeam},
+	promptSectionKindOrgContext:         {Label: "Team Org Context", Heading: "# Team Org Context", Element: "org-context", Scope: promptScopeMember},
+	promptSectionKindOperatingPolicy:    {Label: "Operating Policy (Team)", Heading: "# Operating Policy (Team)", Element: "operating-policy-team", Scope: promptScopeTeam},
+	promptSectionKindMemberPolicy:       {Label: "Operating Policy (Member)", Heading: "# Operating Policy (Member)", Element: "operating-policy-member", Scope: promptScopeMember},
+	promptSectionKindTopicContract:      {Label: "Topic Contract", Heading: "# Topic Contract", Element: "topic-contract", Scope: promptScopeMember},
+	promptSectionKindInboxFlow:          {Label: "Inbox Flow", Heading: "# Inbox Flow", Element: "inbox-flow", Scope: promptScopeMember},
+	promptSectionKindContractFindings:   {Label: "Contract Findings", Heading: "# Contract Findings", Element: "contract-findings", Scope: promptScopeVolatile},
+	promptSectionKindResponsibilities:   {Label: "RESPONSIBILITIES.md", Heading: "# Team Responsibilities (RESPONSIBILITIES.md)", Element: "responsibilities", Scope: promptScopeMember},
+	promptSectionKindHeartbeatTask:      {Label: "Heartbeat Task", Heading: "# Heartbeat Task (HEARTBEAT.md)", Element: "heartbeat-task", Scope: promptScopeTask},
+	promptSectionKindContinuityFallback: {Label: "Continuity Fallback", Heading: "# Continuity Fallback", Element: "continuity-fallback", Scope: promptScopeVolatile},
 }
 
 // promptHeading returns the registered level-one heading for a section kind.
@@ -100,24 +118,61 @@ func promptSectionHeadings() map[string]string {
 	return headings
 }
 
-// promptPrecedenceKinds are the section kinds the `# Active Task Brief`
-// precedence list ranks, in rank order. The list is built from these rather
-// than from hand-typed heading strings, so a heading rename cannot leave the
-// precedence list pointing at a section that no longer exists.
+// promptPrecedenceKinds are the reference and task sections ranked by the
+// standing rules. They are built from registry entries so a rename cannot leave
+// the authority list pointing at a section that no longer exists.
 var promptPrecedenceKinds = []string{
-	promptSectionKindActiveTaskBrief,
 	promptSectionKindOperatingPolicy,
+	promptSectionKindMemberPolicy,
 	promptSectionKindTopicContract,
 	promptSectionKindHeartbeatTask,
 	promptSectionKindResponsibilities,
 	promptSectionKindAgentFile,
 }
 
+func promptElement(kind string) string {
+	entry, ok := promptSectionKinds[kind]
+	if !ok || entry.Element == "" {
+		panic(fmt.Sprintf("unregistered prompt section element %q", kind))
+	}
+	return entry.Element
+}
+
 func validatePromptSections(sections []PromptSection) error {
+	previousScope := -1
 	for _, section := range sections {
-		if _, ok := promptSectionKinds[section.Kind]; !ok {
+		entry, ok := promptSectionKinds[section.Kind]
+		if !ok {
 			return fmt.Errorf("unregistered prompt section kind %q", section.Kind)
 		}
+		if entry.Element == "" {
+			return fmt.Errorf("prompt section kind %q has no XML element", section.Kind)
+		}
+		if entry.Scope == "" {
+			return fmt.Errorf("prompt section kind %q has no volatility scope", section.Kind)
+		}
+		scope := promptScopeRank(entry.Scope)
+		if scope < previousScope {
+			return fmt.Errorf("prompt sections violate volatility order at %q", section.Kind)
+		}
+		previousScope = scope
 	}
 	return nil
+}
+
+func promptScopeRank(scope promptSectionScope) int {
+	switch scope {
+	case promptScopeUniversal:
+		return 0
+	case promptScopeTeam:
+		return 1
+	case promptScopeMember:
+		return 2
+	case promptScopeVolatile:
+		return 3
+	case promptScopeTask:
+		return 4
+	default:
+		return -1
+	}
 }

@@ -109,50 +109,46 @@ store/teams/{team-id}/
 
 ## Prompt Building
 
-When a heartbeat executes, the prompt is built from multiple sources in order:
+When a heartbeat executes, the prompt is built from a volatility-ordered
+context followed by the task:
 
 ```
-┌─────────────────────────────────────────────────┐
-│ 1. Active Task Brief                            │
-│    Generated run orientation and write surface  │
-├─────────────────────────────────────────────────┤
-│ 2. Team Inbox / Previous Handoff                │
-│    Current messages and next-run continuity     │
-├─────────────────────────────────────────────────┤
-│ 3. Storage Map                                  │
-│    Continue/Observe/Propose/Operate guidance    │
-├─────────────────────────────────────────────────┤
-│ 4. Team Org Context                             │
-│    Reporting lines when enabled by team policy  │
-├─────────────────────────────────────────────────┤
-│ 5. Operating Policy                             │
-│    Charter, runtime, coordination, governance,  │
-│    member policy, authority, and write rules    │
-├─────────────────────────────────────────────────┤
-│ 6. RESPONSIBILITIES.md (from team members/)     │
-│    Role-specific instructions for this team     │
-├─────────────────────────────────────────────────┤
-│ 7. Agent .md files (from store/agents/{agent})  │
-│    Personality + global operating notes         │
-├─────────────────────────────────────────────────┤
-│ 8. HEARTBEAT.md (from team members/)            │
-│    The specific task to execute now             │
-├─────────────────────────────────────────────────┤
-│ 9. Task Reminder                                │
-│    Generated final anchor for recency           │
-└─────────────────────────────────────────────────┘
+<context>
+  <standing-rules>universal guidance</standing-rules>
+  <operating-policy-team>team-stable policy</operating-policy-team>
+  <operating-policy-member>member contract</operating-policy-member>
+  <topic-contract>member topic declarations</topic-contract>
+  <responsibilities>standing member duty</responsibilities>
+  <agent-files>agent identity</agent-files>
+  <team-inbox>live inbox, when enabled</team-inbox>
+  <team-context-wake>live Source Ledger wake</team-context-wake>
+  <contract-findings>live validation findings</contract-findings>
+</context>
+<heartbeat-task>the job to do now, in prose</heartbeat-task>
 ```
 
 This layered approach means:
-- **Active Task Brief**: "What run am I in and what can I write" (generated from the member contract and heartbeat task)
-- **Team Inbox / Previous Handoff**: "What current inputs should I account for" (conditional runtime state)
-- **Storage Map**: generated Continue/Observe/Propose/Operate guidance plus team-specific storage surfaces
-- **Team Org Context**: "Who I report to + who I direct" (when enabled by team policy)
-- **Operating Policy**: "Why this team exists and what runtime, coordination, governance, and member policy applies to me" (generated from `shared/TEAM.md`, `team.json`, and `team.json.operatingContract`)
+- **Standing Rules**: universal routing, authority, and safety guidance.
+- **Operating Policy (Team)**: team charter, runtime, coordination, and governance.
+- **Operating Policy (Member)**: the member's declared lane and constraints.
+- **Storage Map**: declared storage surfaces and available commands.
+- **Team Org Context**: "Who I report to + who I direct" (when enabled by team policy).
 - **RESPONSIBILITIES.md**: "What I do in this team" (team-specific)
 - **Agent .md files**: "Who I am + how I operate" (global, persists across teams)
 - **HEARTBEAT.md**: "What I need to do right now" (cron task)
-- **Task Reminder**: generated final focus and output reminder
+- **Volatile sections**: current inbox, Source Ledger wake, fallback, and validation findings.
+
+The sections are emitted inside one `<context>` element with named child
+elements. The task remains outside that element because it is an instruction to
+execute, not reference material. Universal, team, and member sections precede
+run-volatile sections so a provider can reuse the stable prefix. Volatility
+outranks nominal scope when the two conflict.
+
+The Source Ledger is the normal continuity surface. A healthy ledger produces
+no handoff instruction. If the ledger is unavailable or its wake read fails,
+the builder emits a bounded `<continuity-fallback>` section asking the agent to
+record concise continuity in the final response. Attribution receipts, not a
+run's own final response, confirm declared-topic writes.
 
 Every team must define `operatingContract` in `team.json`. The prompt builder fails rather than inferring missing contract policy from `TEAM.md`, `RESPONSIBILITIES.md`, `HEARTBEAT.md`, or agent files. Contract-owned policy includes work types, numeric caps, read-only behavior, supersession rules, knowledge topics, source documents, and write surfaces.
 
@@ -178,7 +174,11 @@ This keeps judgment in skills and execution in Actions without bloating every he
 
 ## Prompt Pipeline UI
 
-The Team Members heartbeat UI exposes a **Prompt Pipeline** view that renders the backend-provided structured prompt order (Active Task Brief → Inbox → Previous Handoff → Storage Map → Org Context → Operating Policy → Responsibilities → Agent Files → Heartbeat Task → Task Reminder, omitting sections that are not present for a member). The pipeline lives in the member detail panel's **Overview** tab and is shared between the graph and list layouts.
+The Team Members heartbeat UI exposes a **Prompt Pipeline** view that renders
+the backend-provided structured prompt order (universal → team → member →
+volatile → task, omitting sections that are not present for a member). The
+pipeline lives in the member detail panel's **Overview** tab and is shared
+between the graph and list layouts.
 
 The UI loads `/prompt-preview-structured` and renders the returned `sections[]` directly. Backend prompt assembly is the source of truth for section order; the UI does not parse flat markdown to infer pipeline order. `/prompt-preview` remains the exact flat runtime prompt used to audit what a heartbeat receives.
 

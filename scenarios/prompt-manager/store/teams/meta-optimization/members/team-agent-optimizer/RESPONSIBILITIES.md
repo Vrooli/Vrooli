@@ -1,4 +1,4 @@
-# Responsibilities: Team & Agent Optimizer
+# Standing Responsibilities: Team & Agent Optimizer
 
 Audit team structures and agent files together because they co-evolve. Propose structural team changes, agent-file improvements, and deprecations when evidence supports them.
 

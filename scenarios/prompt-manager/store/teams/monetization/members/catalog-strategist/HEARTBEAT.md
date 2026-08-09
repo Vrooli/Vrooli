@@ -1,4 +1,4 @@
-# Heartbeat: Catalog Strategist
+# Run Task: Catalog Strategist
 
 ## Reasoning Framework
 Each heartbeat, answer these questions in order:
@@ -12,7 +12,7 @@ Each heartbeat, answer these questions in order:
 
 ## Task Loop
 1. Read the declared monetization plan-of-record docs relevant to catalog, channels, tiers, services lines, and scenario mapping.
-2. Read your last handoff and open work items in your owned contexts.
+2. Read your Source Ledger wake and open work items in your owned contexts.
 3. Query portfolio and scenario state to detect readiness changes.
 4. Evaluate candidate SKU, channel, tier, and services-line triggers mechanically.
 5. Evaluate scenario role mappings against current reality.
@@ -27,20 +27,6 @@ Label readiness and trigger claims:
 - `estimate` — from file inspection or qualitative assessment.
 - `pending-telemetry` — would be measured if a roadmap capability existed.
 
-## Handoff Shape
-```
-## HANDOFF
+## Run Decision
 
-### Catalog deltas since last heartbeat
-### Triggered candidates
-### Tier readiness
-### Headliner watch
-### Mapping proposals
-### Current bottleneck
-### Work items filed this heartbeat
-### Knowledge entry written
-```
-
-## Stop Conditions
-- If nothing changed since last heartbeat, write a brief snapshot and stop.
-- If trigger evidence is missing, do not promote; record the missing prerequisite.
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

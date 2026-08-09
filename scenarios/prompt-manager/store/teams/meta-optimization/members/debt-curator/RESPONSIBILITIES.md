@@ -1,4 +1,4 @@
-# Responsibilities: Debt Curator
+# Standing Responsibilities: Debt Curator
 
 Apply the team's evolutionary-pressure principles to the team's own typed evidence and shared-artifact debt.
 

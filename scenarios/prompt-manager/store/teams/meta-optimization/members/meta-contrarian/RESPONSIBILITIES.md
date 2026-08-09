@@ -1,4 +1,4 @@
-# Responsibilities: Meta Contrarian
+# Standing Responsibilities: Meta Contrarian
 
 Challenge material proposals before they reach the operator's vision walk, using the failure-mode framework below (this file is the framework's home; `shared/TEAM.md` cites it).
 

@@ -1,4 +1,4 @@
-# Heartbeat: Portfolio Manager
+# Run Task: Portfolio Manager
 
 ## Resume Protocol
 
@@ -13,10 +13,6 @@ On the first heartbeat after the team is re-enabled (or after any long pause), r
 6. Record portfolio markers or snapshots.
 7. Propose corrections when they are not duplicative. `goal-proposal` and `goal-portfolio` work items carry the prediction block required by the Outcomes Charter.
 
-## Handoff Shape
-### Portfolio state
-### Accepted work items applied
-### Coverage checks
-### Proposed corrections
-### Work items filed
-### Knowledge entries written
+## Run Decision
+
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

@@ -1,4 +1,4 @@
-# Heartbeat: Runtime Health Scanner
+# Run Task: Runtime Health Scanner
 
 ## Reasoning Framework
 Single-incident systems can hide repeated patterns. A successful heal can mask a deeper issue; a closed investigation can still be part of a repeated class. Pick one aggregate signal and investigate it deeply.
@@ -24,14 +24,6 @@ When the team resumes after a pause, the first heartbeat is a re-baselining pass
 
 For validation-cost scans, treat the Test Genie report as the source of truth. Do not rerun a comprehensive suite merely to obtain a cost sample when the report already has a recent reliable sample. If calibration is due, record the scheduler work item and wait for the server-owned run once; do not start a duplicate run because the cost command is slow.
 
-## Handoff Shape
-### Window inspected
-### Signal counts
-### Signal picked
-### Pattern observed
-### Hypothesized root cause
-### Proposed action
-### Measurement plan
-### Missing CLI or telemetry surfaces
-### Work items filed
-### Knowledge entries written
+## Run Decision
+
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

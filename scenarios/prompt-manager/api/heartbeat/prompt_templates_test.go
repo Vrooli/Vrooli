@@ -3,7 +3,7 @@ package heartbeat
 import "testing"
 
 func TestPromptSectionRegistryContainsEveryEmittedKind(t *testing.T) {
-	if err := validatePromptSections([]PromptSection{{Kind: promptSectionKindActiveTaskBrief}}); err != nil {
+	if err := validatePromptSections([]PromptSection{{Kind: promptSectionKindMemberPolicy}}); err != nil {
 		t.Fatalf("registered section rejected: %v", err)
 	}
 	if err := validatePromptSections([]PromptSection{{Kind: "unregistered"}}); err == nil {

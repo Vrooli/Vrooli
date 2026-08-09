@@ -55,7 +55,7 @@ func TestPreviewPromptHandler(t *testing.T) {
 		t.Fatalf("decode response: %v", err)
 	}
 
-	if !strings.Contains(resp.Prompt, "# Agent Files (Markdown)") {
+	if !strings.Contains(resp.Prompt, "<agent-files") {
 		t.Fatalf("expected prompt preview to include agent files section")
 	}
 }

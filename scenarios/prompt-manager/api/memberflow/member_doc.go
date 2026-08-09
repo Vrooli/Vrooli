@@ -63,12 +63,13 @@ var memberDocContracts = []memberDocContract{
 		Sections: map[string]memberDocStatus{
 			"Reasoning Framework": memberDocOptional,
 			"Task Loop":           memberDocRequired,
-			"Handoff Shape":       memberDocRequired,
+			"Run Decision":        memberDocRequired,
 			"Stop Conditions":     memberDocRecommended,
 		},
 		Aliases: map[string]string{
 			"Required Loop":            "Task Loop",
-			"Required Output Sections": "Handoff Shape",
+			"Required Output Sections": "Run Decision",
+			"Handoff Shape":            "Run Decision",
 		},
 		AbsentSeverity: SeverityError,
 	},
@@ -214,9 +215,9 @@ func checkMemberDoc(storeDir string, ref MemberRef, contract memberDocContract) 
 // markdownH2Headings returns the trimmed text of every level-two heading in
 // src, skipping fenced code blocks.
 //
-// The fence skip is load-bearing, not defensive: every HEARTBEAT.md embeds its
-// handoff template as a fenced block whose first line is "## HANDOFF". A
-// naive scan reads that as a section and reports it on 27 of 27 members.
+// The fence skip is load-bearing, not defensive: member documents may include
+// fenced examples, and a naive scan would mistake headings inside them for
+// document sections.
 func markdownH2Headings(src string) []string {
 	var out []string
 	inFence := false

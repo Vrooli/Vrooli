@@ -1,4 +1,4 @@
-# Responsibilities: Marketing Contrarian
+# Standing Responsibilities: Marketing Contrarian
 
 ## Primary Duties
 - Score pending marketing proposals against the framework-level and applicable type-level failure modes.

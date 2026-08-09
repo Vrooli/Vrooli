@@ -1,4 +1,4 @@
-# Responsibilities: Friction Curator
+# Standing Responsibilities: Friction Curator
 
 ## Primary Duties
 - Drain `friction-inbox/*` (universal-source intake — any team's members may write via the `report-friction` skill).
@@ -9,10 +9,10 @@
   - `prompt-team-agent-storage` → `friction-report/prompt-team-agent-storage/<date>/<slug>` (team-agent-optimizer)
   - `recurring-workaround` → `friction-report/recurring-workaround/<date>/<slug>` (debt-curator)
 - Drop `one-off`-severity entries with a triage note explaining the drop. Never silently delete.
-- Hand off to `debt-curator` (via handoff, not a direct write) when:
+- Hand off to `debt-curator` (via continuity record, not a direct write) when:
   - Scope is `unknown` and reclassification fails after one heartbeat
   - Inbox volume exceeds `dailyInboxDrainCap` (default 25/day) — emit `inbox-overflow` triage entry and pause further routing this heartbeat
-- Maintain the daily `friction-triage-record/<YYYY-MM-DD>` snapshot (supersedesPrevious=true within a day). Each heartbeat overwrites the day's snapshot with the latest aggregated state. Records: counts received/routed/dropped/reclassified/handoffs, by-scope breakdown, by-reporter-team breakdown, overflow flag.
+- Maintain the daily `friction-triage-record/<YYYY-MM-DD>` snapshot (supersedesPrevious=true within a day). Each heartbeat overwrites the day's snapshot with the latest aggregated state. Records: counts received/routed/dropped/reclassified/continuity records, by-scope breakdown, by-reporter-team breakdown, overflow flag.
 
 ## Boundaries
 - **Never write to `friction-inbox/*`.** That is the producer side; the curator only drains.

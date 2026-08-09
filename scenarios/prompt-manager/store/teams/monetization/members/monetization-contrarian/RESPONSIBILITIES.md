@@ -1,4 +1,4 @@
-# Responsibilities: Monetization Contrarian
+# Standing Responsibilities: Monetization Contrarian
 
 ## Primary Duties
 - Challenge material proposals before the operator's vision walk.

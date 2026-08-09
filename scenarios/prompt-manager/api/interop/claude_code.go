@@ -241,7 +241,7 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 	b.WriteString(fmt.Sprintf("- The team already exists in prompt-manager as `%s`.\n", ctx.TeamID))
 	b.WriteString("- Do not create, import, or rename a team in this run.\n")
 	b.WriteString("- Your stored lead context below defines team-specific operating rules; follow it when it is more specific than the generic guidance here.\n")
-	b.WriteString("- Your job is to coordinate this heartbeat, persist state, emit a final handoff, and exit cleanly.\n\n")
+	b.WriteString("- Your job is to coordinate this heartbeat, persist durable continuity in the declared Source Ledger topics, and exit cleanly.\n\n")
 
 	// Team roster
 	b.WriteString("## 2. Team Roster\n\n")
@@ -276,11 +276,11 @@ func (c *ClaudeCodeConverter) FormatSpawnPrompt(config *ToolTeamConfig, ctx Spaw
 
 	// Operating loop
 	b.WriteString("## 5. Operating Loop\n\n")
-	b.WriteString("1. Review the latest handoff, active tasks, open Swarm Manager work, and any team-specific planning surface named in your lead context.\n")
+	b.WriteString("1. Review the Source Ledger wake, active tasks, open Swarm Manager work, and any team-specific planning surface named in your lead context.\n")
 	b.WriteString("2. Spawn direct reports and collect structured briefs from them.\n")
 	b.WriteString("3. Synthesize the team's current priorities, blockers, and recommended next moves.\n")
 	b.WriteString("4. Persist useful state with prompt-manager commands.\n")
-	b.WriteString("5. End your final response with a `## HANDOFF` section as the last section, then stop.\n\n")
+	b.WriteString("5. Record durable continuity in the declared Source Ledger topics, state the disposition supported by evidence, then stop.\n\n")
 
 	// Org chart
 	b.WriteString("## 7. Org Chart\n\n")

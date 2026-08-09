@@ -1,4 +1,4 @@
-# Responsibilities: Market Validator
+# Standing Responsibilities: Market Validator
 
 ## Primary Duties
 - **Sweep market-scan staleness first.** Run `benchmark-staleness-sweep` at the top of every heartbeat. The sweep auto-populates `validation-inbox/benchmark-staleness/<slug>` for any scan past its dimension-aware threshold (pricing 90d, retention/activation 180d, channel-cac 120d, other 365d). The sweep itself never re-fetches — it only enqueues.

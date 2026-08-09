@@ -1,4 +1,4 @@
-# Heartbeat: Marketing Contrarian
+# Run Task: Marketing Contrarian
 
 ## Reasoning Framework
 Use the marketing failure-mode framework and any applicable post-type or strategy specialization. A challenge must cite the failed mode, what is missing, and what would make the proposal pass.
@@ -17,14 +17,6 @@ Challenge records, resolution state, and the aging scan move to the `content-des
 7. Check supersession on owned open work items.
 8. Raise rejection or framework work items only when warranted.
 
-## Handoff Shape
-### Pending work items
-### Proposals scored
-### Undeclared claims found
-### Challenge notes written
-### Challenge resolution updates
-### Aging scan
-### Rejections raised
-### Framework updates
-### Supersessions
-### Knowledge entries written
+## Run Decision
+
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

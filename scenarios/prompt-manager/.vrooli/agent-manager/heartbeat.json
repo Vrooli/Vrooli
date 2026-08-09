@@ -7,6 +7,7 @@
   "maxTurns": 50,
   "timeout": "600s",
   "allowedTools": ["read", "write", "shell"],
+  "toolRestrictionPolicy": "advisory",
   "skipPermissionPrompt": false,
   "sandboxConfig": {
     "mode": "SANDBOX_MODE_PROTECTED"

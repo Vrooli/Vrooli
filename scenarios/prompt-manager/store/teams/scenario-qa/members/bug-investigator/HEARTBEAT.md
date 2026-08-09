@@ -1,7 +1,7 @@
-# Heartbeat: Bug Investigator
+# Run Task: Bug Investigator
 
 ## Reasoning Framework
-The Inbox Flow section above is generated from `topics.json`; it is authoritative for taxonomy, drain procedure, and write contract. This file adds only the per-heartbeat task loop and handoff shape.
+The Inbox Flow section above is generated from `topics.json`; it is authoritative for taxonomy, drain procedure, and write contract. This file adds only the per-heartbeat task loop and Source Ledger continuity decision.
 
 Investigation method comes from `docs/scenario-qa/methods/investigation/<slug>.md` paired with the matching skill. Default for every signal type is `scientific-debugging` (load with `prompt-manager skill read scientific-debugging`); other techniques activate via `meta-self-improvement` work items.
 
@@ -14,12 +14,6 @@ Investigation method comes from `docs/scenario-qa/methods/investigation/<slug>.m
 6. Write a `bug-investigation-report/<slug>` entry conforming to the schema (front-matter + body sections "Findings" and "Action taken"). The slug should match the bug's slug for traceability.
 7. Close the original bug-inbox entry per the action taken (delete on `drop`, retag on `route-to-another-topic`, leave-with-pointer on `capability work item`).
 
-## Handoff Shape
-### Inbox state
-### Investigation in flight
-### Investigation closed this heartbeat
-### Technique applied
-### Action taken
-### Backlog item / work item created
-### Capability work filed
-### Surface for technique graduation
+## Run Decision
+
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

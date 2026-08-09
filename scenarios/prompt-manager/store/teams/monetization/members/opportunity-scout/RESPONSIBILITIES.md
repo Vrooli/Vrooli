@@ -1,4 +1,4 @@
-# Responsibilities: Opportunity Scout
+# Standing Responsibilities: Opportunity Scout
 
 ## Primary Duties
 - **Maintain the opportunity pool.** New SKU / add-on / services-line / channel candidates land as knowledge entries under `candidate-sku-record/<slug>` with the front-matter declared in `docs/monetization/taxonomies/monetization-opportunity/README.md` (`kind`, `catalog.proposed_sku`, `catalog.parent_bundle`, `revisit_trigger`, `acquisition_hypothesis`, `retention_hypothesis`, `capability_reuse`, `tam`, `effort`, `status`).

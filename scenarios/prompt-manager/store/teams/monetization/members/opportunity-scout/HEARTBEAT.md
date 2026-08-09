@@ -1,4 +1,4 @@
-# Heartbeat: Opportunity Scout
+# Run Task: Opportunity Scout
 
 ## Reasoning Framework
 1. Scan external signal: market trends, competitor moves, and capability arrivals.
@@ -11,7 +11,7 @@
 
 ## Task Loop
 1. Read declared catalog, channel, and strategy docs relevant to this heartbeat's signal.
-2. Read your last handoff, recent vision-walk knowledge, recent monetization knowledge, and recent candidate-pool entries.
+2. Read your Source Ledger wake, recent vision-walk knowledge, recent monetization knowledge, and recent candidate-pool entries.
 3. Drain your inbox per the generated `# Inbox Flow` section above. Generate or capture candidate ideas only to the extent the signal supports them.
 4. Dedupe against the existing pool; update the interpretation rather than re-adding duplicates.
 5. Append new candidate-pool entries when the idea is distinct and triggerable.
@@ -50,17 +50,6 @@
 }
 ```
 
-## Handoff Shape
-```
-## HANDOFF
+## Run Decision
 
-### Signal scanned this heartbeat
-### Ideas captured this heartbeat
-### Ideas proposed for promotion
-### Pool snapshot
-### Knowledge entry written
-```
-
-## Stop Conditions
-- If external signal is thin, emit fewer ideas rather than fabricating.
-- If an idea lacks a concrete trigger, do not add it.
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

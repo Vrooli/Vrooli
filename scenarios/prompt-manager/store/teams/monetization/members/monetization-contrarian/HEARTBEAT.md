@@ -1,4 +1,4 @@
-# Heartbeat: Monetization Contrarian
+# Run Task: Monetization Contrarian
 
 ## Reasoning Framework
 For each open work item or fresh proposal:
@@ -27,19 +27,6 @@ A good challenge note states:
 - specific missing element,
 - concrete revision that would pass.
 
-## Handoff Shape
-```
-## HANDOFF
+## Run Decision
 
-### Proposals reviewed this heartbeat
-### Passed cleanly
-### Challenge notes written
-### Challenge resolution updates
-### Rejection recommendations raised
-### Framework-update candidates
-### Knowledge entries written
-```
-
-## Stop Conditions
-- If there are no open work items, fresh proposals, or aged work items, write a brief no-proposals note and stop.
-- Quiet is valid; do not manufacture objections.
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

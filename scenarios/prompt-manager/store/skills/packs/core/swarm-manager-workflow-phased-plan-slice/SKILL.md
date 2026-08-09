@@ -13,6 +13,11 @@ Execute exactly one coherent slice of the accepted plan. This is a fresh convers
 7. Mark the bound phase complete through `plan-manager exec` only after validation passes.
 8. Write a handoff with local nuance for the next slice.
 
+When the plan's item kind is `research`, execute the slice as investigation work. A valid slice may
+produce a proposal, a goal, an answer, or evidence that the item should be resolved as `dropped`;
+it does not need to produce a code diff. Use the swarm-manager CLI for project changes and decisions,
+the same way the slice would use any other scenario CLI.
+
 ## Outcome work table
 
 | Observable end state | Outcome |

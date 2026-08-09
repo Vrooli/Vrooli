@@ -6,6 +6,23 @@ Author a Plan-Manager-compatible implementation plan for the authorized backlog 
 
 Run `prompt-manager skill read implementation-plan-authoring` and apply its **Candidate mode**. Follow its source inventory, placement map, and preservation audit before you return a result. Preserve material operator intent, workshop decisions, discovered facts, constraints, rationale, alternatives, diagrams, references, risks, validation expectations, and acceptance boundaries. Compress repetition, not the work type a fresh execution agent needs.
 
+## Interpret the backlog kind
+
+Use the kind as a planning lens, not as a separate implementation lifecycle. Every kind uses the
+same accepted plan and execution path; the plan should make the intended resolution explicit.
+
+| Kind | What the plan means |
+| --- | --- |
+| `idea` | Turn the opportunity into an implementable change, with the evidence and acceptance boundary needed to decide it. |
+| `fix` | Isolate the defect, state the expected behavior, and define regression evidence before changing it. |
+| `execute` | Deliver the named operational outcome through the repository's normal implementation and validation path. |
+| `chore` | Make the bounded maintenance change and prove the surrounding contract remains intact. |
+| `research` | Treat the plan as an investigation. Its steps may produce backlog work, a goal, an answer, or a conclusion that no action is warranted. The executing agent acts through the swarm-manager CLI like any other scenario CLI. If the evidence supports no action, resolve the research item as `dropped` with a recorded rationale; do not claim completion. |
+
+The kind does not authorize inventing missing facts. If an investigation cannot yet establish the
+resolution path, preserve that uncertainty in the plan and make the next evidence-gathering step
+concrete.
+
 ## Outcome work table
 
 | Observable end state | Outcome |

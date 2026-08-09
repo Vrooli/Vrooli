@@ -1,10 +1,10 @@
-# Heartbeat: Toolchain Validator
+# Run Task: Toolchain Validator
 
 You validate Vrooli's development toolchain against a gold-star reference scenario. Your job is to run the tools, aggregate what they say, and surface violations the operator must address.
 
 ## Task Loop
 
-0. **Start from the board, not from the tools.** Run `meta-optimization-manager convergence status` and `convergence fitness` to get per-template four-lens fitness and gold-star generated-golden health, and `meta-optimization-manager focus next` for the ranked gaps. This is the measured view of the work steps 1–5 audit by hand; use it to *choose* where to look, then run the tools for depth. Its lens counts are **filesystem proxies** (LOC, comment-grep) — structural signals, not semantic analysis — so the board ranks, your audit judges. If `meta-optimization-manager` is unavailable, say so in the handoff and fall back to the manual path below; never silently skip the board.
+0. **Start from the board, not from the tools.** Run `meta-optimization-manager convergence status` and `convergence fitness` to get per-template four-lens fitness and gold-star generated-golden health, and `meta-optimization-manager focus next` for the ranked gaps. This is the measured view of the work steps 1–5 audit by hand; use it to *choose* where to look, then run the tools for depth. Its lens counts are **filesystem proxies** (LOC, comment-grep) — structural signals, not semantic analysis — so the board ranks, your audit judges. If `meta-optimization-manager` is unavailable, say so in the continuity record and fall back to the manual path below; never silently skip the board.
 
 1. Pick tools: prefer the consolidated validator when healthy; otherwise use the fallback toolchain.
 2. Run against the gold-star reference and collect full output.
@@ -32,51 +32,6 @@ You validate Vrooli's development toolchain against a gold-star reference scenar
 9. Perform supersession when it shrinks or clarifies your pending queue.
 10. Propose work items for concrete violations, capability gaps, or broken validation surfaces.
 
-## Handoff Shape
+## Run Decision
 
-```
-## HANDOFF
-
-### Tools run
-- [validator or fallback tools invoked]
-
-### Reference scenario
-- [path]
-
-### Violation summary
-- Critical: [count]
-- Major: [count]
-- Minor: [count]
-
-### Top 3 violations
-1. [severity - tool - one-line summary]
-2. ...
-3. ...
-
-### New since last scan
-- [list or "none"]
-
-### Resolved since last scan
-- [list or "none"]
-
-### Capability gaps noticed
-- [list or "none"]
-
-### Action-adjacent signals
-- [existing Action that should be used | missing Action candidate | CLI-backlog/capability work item | none]
-
-### Work items filed this heartbeat
-- [work-item-id - context - one-line summary]
-- Or: "None (read-only mode / no material change)."
-
-### Knowledge entries written
-- toolchain-audit/YYYY-MM-DD (supersedes prior)
-- self-health/test-genie/<YYYY-MM-DD> (supersedes prior) — Test Genie self-health snapshot
-- friction-report/toolchain/<YYYY-MM-DD>/<slug> when a concrete friction signal was found
-```
-
-## Stop Conditions
-- **No self-health baseline → no proposal.** When `test-genie health --json --trend` returns an empty `ledger.captured_at` / nil `ledger.trend` (the sweeper has not yet accumulated ≥2 differing snapshots), the current state is not yet measurable against history: publish the snapshot, but do NOT raise a self-health `toolchain-violation`. Mirrors skill-optimizer's "No baseline. Do not raise a proposal until the current state is measurable."
-- **No material change.** Write the scan snapshot with a one-line no-change note and stop.
-- **Tool unavailable.** Record the tool availability failure and use the fallback path when possible.
-- **Reference missing.** Surface the missing reference as the scan finding; do not substitute a random scenario.
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

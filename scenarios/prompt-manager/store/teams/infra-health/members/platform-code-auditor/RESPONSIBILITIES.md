@@ -1,4 +1,4 @@
-# Responsibilities: Platform Code Auditor
+# Standing Responsibilities: Platform Code Auditor
 
 ## Primary Duties
 - Audit one internal Vrooli platform slice per heartbeat.

@@ -1,4 +1,4 @@
-# Heartbeat: Financial Tracker
+# Run Task: Financial Tracker
 
 ## Reasoning Framework
 Each heartbeat, compute and label:
@@ -56,20 +56,6 @@ Each heartbeat, compute and label:
 
 Do not emit bare numbers.
 
-## Handoff Shape
-```
-## HANDOFF
+## Run Decision
 
-### Inputs needed from operator
-### Stale operator inputs
-### Snapshot summary
-### Material deltas since last snapshot
-### Flags raised
-### Work items filed this heartbeat
-### Assumptions checked
-### Pending-telemetry fields
-### Knowledge entry written
-```
-
-## Stop Conditions
-- If there is no new information since the last heartbeat, write a minimal snapshot and stop.
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

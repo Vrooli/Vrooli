@@ -1,4 +1,4 @@
-# Responsibilities: Producer
+# Standing Responsibilities: Producer
 
 ## Primary Duties
 - Draw open work from active campaigns and draft against it. Lane (`oss`, `subscription`, `community`, `persona`) is a field on the draft, not a separate pipeline.

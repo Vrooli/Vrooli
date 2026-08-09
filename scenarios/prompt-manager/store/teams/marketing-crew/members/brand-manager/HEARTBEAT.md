@@ -1,4 +1,4 @@
-# Heartbeat: Brand Manager
+# Run Task: Brand Manager
 
 ## Task Loop
 1. Scan typed marketing-craft observations and recent team outputs for stabilized patterns or obsolete entries.
@@ -9,13 +9,6 @@
 6. Record the brand snapshot.
 7. Propose work items when supported by concrete evidence.
 
-## Handoff Shape
-### Typed observation scan
-### Promotion candidates
-### Retirement candidates
-### Drift flags
-### Campaign signals
-### Campaign slots opened
-### Work items filed
-### Supersessions
-### Knowledge entry written
+## Run Decision
+
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

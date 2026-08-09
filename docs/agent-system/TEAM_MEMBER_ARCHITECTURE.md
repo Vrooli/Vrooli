@@ -97,7 +97,7 @@ Two per-member Markdown files reach the running agent verbatim, and they are the
 
 | File | Layer it carries | Answers |
 |---|---|---|
-| `HEARTBEAT.md` | the run | What do I do *this* heartbeat, in what order, and what must my output contain? |
+| `HEARTBEAT.md` | the run | What do I do *this* heartbeat, in what order, and what durable disposition must I record? |
 | `RESPONSIBILITIES.md` | ownership (per `LAYERS.md`) | What is standing true about my role between runs? |
 
 ### Canonical section vocabulary
@@ -110,7 +110,7 @@ Headings are exact level-two text. `required` sections are validation errors whe
 |---|---|---|
 | `## Reasoning Framework` | optional | The judgment frame applied before the loop runs. |
 | `## Task Loop` | required | The ordered procedure for one heartbeat. |
-| `## Handoff Shape` | required | Fenced template of the `## HANDOFF` block the run must end with. |
+| `## Run Decision` | required | The durable continuity surface and the disposition vocabulary for this run. |
 | `## Stop Conditions` | recommended | When to write a minimal snapshot and stop early. |
 
 **`RESPONSIBILITIES.md`**
@@ -131,7 +131,7 @@ These names are validation errors. Each was the same concept under a second word
 | Retired | Canonical | File |
 |---|---|---|
 | `Required Loop` | `Task Loop` | `HEARTBEAT.md` |
-| `Required Output Sections` | `Handoff Shape` | `HEARTBEAT.md` |
+| `Required Output Sections`, `Handoff Shape` | `Run Decision` | `HEARTBEAT.md` |
 | `Judgment Notes` | `Judgment` | `RESPONSIBILITIES.md` |
 | `Failure-Mode Rubric`, `Failure-Mode Framework` | `Failure Modes` | `RESPONSIBILITIES.md` |
 | `Forbidden`, `What I do NOT do`, `Authority Boundaries` | `Boundaries` | `RESPONSIBILITIES.md` |

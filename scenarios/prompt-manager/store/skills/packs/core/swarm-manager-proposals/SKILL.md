@@ -10,7 +10,7 @@ prior proposals, and item-folder index. An unattached backlog item has its own
 standalone scope: use only its allowed metadata and lifecycle operations, and
 do not propose graph changes for it.
 
-**Goal targets use a different vocabulary.** A proposal aimed at a goal may use
+**Goal targets use a different vocabulary.** A proposal aimed at an existing goal may use
 only `create_milestone`, `update_milestone`, `archive_milestone`,
 `assign_milestone_items`, `unassign_milestone_items`, `add_goal_target`,
 `remove_goal_target`, and `add_item`; the server rejects every other op on a
@@ -62,17 +62,19 @@ Use these validated operations only:
 
 | Op | Use |
 |---|---|
+| `create_goal` | Create a new project goal, its initial targets, and its acceptance-defined milestones from grounded intake. |
 | `add_item` | Add newly discovered work. |
 | `update_item` | Patch an existing item's `title`, `description`, `priority`, `tags`, `depends_on`, `effort`, acceptance globs, or note. Put fields inside `patch`. |
 | `change_status` | Only `backlog`, `researching`, or `ready`; never lifecycle or terminal states. |
 | `change_priority` | Set a priority from 1 through 10. |
+| `create_milestone` | Add an acceptance-defined delivery checkpoint to an existing goal. |
 | `add_edge` / `remove_edge` | Change a dependency within the shown goal scope. |
 | `archive_item` | Retire irrelevant work; never use `remove_item`. |
 | `interrupt_in_progress` | Separately propose stopping a running execution. |
 | `split_item` | Replace one oversized item with at least two explicit `into` item specs and explicit dependency edits as needed. |
 | `merge_items` | Merge at least two coupled sources into one item; explain every source contribution. |
 | `recreate_item` | Archive a stale backlog item and create a fresh clone. Use `target: "kind/name"`; lineage and inbound dependencies are retained. |
-| `reset_artifacts` | Remove derived state while retaining the item spec. Use `target: "kind/name"` and a non-empty `reset_scope` list of `workshop`, `clarifications`, `review`, `handoff_executions`, and/or `plan_unbind`. |
+| `reset_artifacts` | Remove derived state while retaining the item spec. Use `target: "kind/name"` and a non-empty `reset_scope` list of `review`, `handoff_executions`, and/or `plan_unbind`. |
 
 ## Staleness triage
 

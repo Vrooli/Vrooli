@@ -1,4 +1,4 @@
-# Responsibilities: Portfolio Manager
+# Standing Responsibilities: Portfolio Manager
 
 ## Primary Duties
 - Keep the goal portfolio healthy inside Swarm Manager. Entity vocabulary (Goal, Milestone, Proposal, Execution Strategy) and the operator loop this team feeds live in `path:scenarios/swarm-manager/docs/concepts/OPERATOR-JOURNEYS.md` — cite it, do not restate it.
@@ -13,5 +13,5 @@
 | Skill | Purpose |
 |-------|---------|
 | `prompt-manager skill read swarm-manager-goal-context` | Load a goal's current portfolio context before proposing changes to it. |
-| `prompt-manager skill read swarm-manager-backlog-tools` | Work the backlog surface this member proposes against. |
+| `prompt-manager skill read swarm-manager-work-authoring` | Work the backlog surface this member proposes against. |
 | `prompt-manager skill read ecosystem-fit` | Classify a candidate's role, interfaces, and compound value before it becomes a goal proposal. |

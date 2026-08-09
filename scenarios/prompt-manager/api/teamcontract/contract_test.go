@@ -240,7 +240,6 @@ func TestRenderTeamStorageIncludesDocumentSemantics(t *testing.T) {
 		"Primitive availability for this member:",
 		"- unified work filing: file findings and requests once into swarm-manager",
 		"- knowledge: `write-allowed`",
-		"- handoff: `allowed`",
 		"- task board: `review-only`",
 	} {
 		if !strings.Contains(rendered, want) {

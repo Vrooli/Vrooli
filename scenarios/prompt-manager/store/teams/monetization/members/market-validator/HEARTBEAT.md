@@ -1,4 +1,4 @@
-# Heartbeat: Market Validator
+# Run Task: Market Validator
 
 ## Reasoning Framework
 Pick the highest-leverage market-validation tasks for this heartbeat:
@@ -13,7 +13,7 @@ Do not attempt all of these every heartbeat. 1-2 queue items + the staleness swe
 
 ## Task Loop
 1. **Staleness sweep first.** Run `benchmark-staleness-sweep` to enqueue any scans past their dimension-aware threshold. Pricing-only sweep every heartbeat; full sweep weekly.
-2. **Read context.** Last handoff, recent work items in owned contexts (`benchmark-update`, `pricing-work-item`, `financial-model-assumption-update`), and the BENCHMARKS / STRATEGY / REVENUE_LINES docs relevant to in-flight queue items.
+2. **Read context.** Source Ledger wake, recent work items in owned contexts (`benchmark-update`, `pricing-work-item`, `financial-model-assumption-update`), and the BENCHMARKS / STRATEGY / REVENUE_LINES docs relevant to in-flight queue items.
 3. **Drain your queues per the generated `# Inbox Flow` section.** Pick the 1-2 highest-leverage items per the reasoning framework above. Defer the rest with a note.
 4. **Apply the method skill.** For pricing-dimension requests, use `pricing-comp-capture`. For other dimensions, follow inline guidance from `docs/monetization/taxonomies/monetization-validation/README.md` until a dedicated method skill emerges.
 5. **Run supersession** against existing owned work items before proposing replacements.
@@ -27,29 +27,6 @@ Do not attempt all of these every heartbeat. 1-2 queue items + the staleness swe
 - Mixed external data stays conflicting; do not average it into a fake clean number.
 - `pricing-comp-capture` §5 lists the full flag taxonomy (`light-interpretation`, `temporarily-unavailable`, `partial-pricing`, `enterprise-gated`, `localized-pricing`, `g2-user-reported`, `archived-source-<date>`, `founder-post-<date>`, `mixed-evidence`).
 
-## Handoff Shape
-```
-## HANDOFF
+## Run Decision
 
-### Scope this heartbeat
-### Staleness sweep summary
-(scans inspected, stale enqueued, aging surfaced)
-
-### Queue triage summary
-(queue depth, items triaged, deferred with reasons)
-
-### Scans written
-(slug, comp, dimension, applicability, one-line takeaway)
-
-### Work items filed this heartbeat
-(context, rationale, threshold met)
-
-### Capability gaps
-(missing source/tool/scenario, if any)
-
-### Notes for next heartbeat
-```
-
-## Stop Conditions
-- If the staleness sweep produced no new enqueues AND the queue is empty AND no proactive benchmark gap is known, write a brief no-validation-needed handoff and stop.
-- If the queue has >10 unresolved entries, skip the staleness sweep this heartbeat and focus on triage.
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

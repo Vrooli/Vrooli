@@ -1,4 +1,4 @@
-# Responsibilities: Infra Contrarian
+# Standing Responsibilities: Infra Contrarian
 
 ## Primary Duties
 - Score pending infra-health work items against the team's failure-mode rubric.

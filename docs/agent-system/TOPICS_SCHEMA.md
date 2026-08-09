@@ -18,7 +18,7 @@ Once this layer ships, prose claims like "the researcher drains `research-inbox/
 scenarios/prompt-manager/store/teams/<team>/members/<member>/topics.json
 ```
 
-Sibling to `HEARTBEAT.md`, `RESPONSIBILITIES.md`, `last-handoff.md`. One file per member.
+Sibling to `HEARTBEAT.md` and `RESPONSIBILITIES.md`. Durable continuity belongs in the declared Source Ledger topics; legacy runtime snapshots are not prompt authority. One file per member.
 
 Team-level topic-family metadata lives in:
 
@@ -204,7 +204,7 @@ _Generated from the validation rule catalog by `prompt-manager graph rules`. Do 
 | `stalled_drain` | `topic` | `warning` | `runtime` | A declared intake has unrouted entries older than the team's drain threshold. | Route the declaration or runtime-state correction through the owning team |
 | `sweep_population_missing` | `topic` | `warning` | `declaration` | A sweep loop does not declare its population. | Route the declaration or runtime-state correction through the owning team |
 | `sweep_without_ledger` | `topic` | `error` | `declaration` | A sweep loop has no evidence ledger. | Route the declaration or runtime-state correction through the owning team |
-| `team_role_member_drift` | `topic` | `error` | `declaration` | A team role and its member declaration disagree. | Route the declaration or runtime-state correction through the owning team |
+| `team_role_member_drift` | `topic` | `error` | `declaration` | A team's membership surfaces disagree: roles.json, the team contract, and the relation store must name the same members. | Route the declaration or runtime-state correction through the owning team |
 | `topic_key_prefix_mismatch` | `topic` | `warning` | `runtime` | A live knowledge key does not match the prefix its member declares. | Route the declaration or runtime-state correction through the owning team |
 | `topic_key_query_unavailable` | `topic` | `warning` | `runtime` | The knowledge key query failed, so prefix conformance is unknown this cycle. | Route the declaration or runtime-state correction through the owning team |
 | `unknown_taxonomy` | `topic` | `error` | `declaration` | A topic declaration names an unregistered taxonomy. | Route the declaration or runtime-state correction through the owning team |

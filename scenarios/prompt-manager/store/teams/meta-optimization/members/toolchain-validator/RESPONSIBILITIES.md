@@ -1,4 +1,4 @@
-# Responsibilities: Toolchain Validator
+# Standing Responsibilities: Toolchain Validator
 
 Validate Vrooli's development toolchain against the gold-star reference scenario, preserve the tool output faithfully, and surface violations that need operator attention.
 

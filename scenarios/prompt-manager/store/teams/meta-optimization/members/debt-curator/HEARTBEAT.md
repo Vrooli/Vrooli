@@ -1,4 +1,4 @@
-# Heartbeat: Debt Curator
+# Run Task: Debt Curator
 
 You curate meta-optimization's own debt. Typed evidence entries are not failures; they are the incubator. Debt becomes harmful only when it stays in prose after the pattern has stabilized.
 
@@ -13,44 +13,6 @@ You curate meta-optimization's own debt. Typed evidence entries are not failures
 7. Perform supersession when it shrinks or clarifies your pending queue.
 8. Raise a work item only when the selected candidate is ripe for promotion or retirement.
 
-## Handoff Shape
+## Run Decision
 
-```
-## HANDOFF
-
-### Docs scanned
-- [list of files]
-
-### Entries reviewed this heartbeat
-- [count]
-
-### Promotion candidates
-- [each with: source entry, criterion hit, proposed direction]
-- Or: "No candidates ripe for promotion."
-
-### Classifier
-- Truth: [Plan of Record candidates or none]
-- Judgment: [Skill candidates or none]
-- Execution: [Action candidates or none]
-- Implementation: [CLI-backlog candidates or none]
-- Missing capability: [capability work item candidates or none]
-- Unripe typed evidence: [count]
-
-### Retirement candidates
-- [each with: source entry, what superseded it]
-- Or: "No entries ripe for retirement."
-
-### Work Item raised this heartbeat
-- [work-item-id - one-line summary + owning implementer]
-- Or: "None (read-only mode / no candidate warranted promotion)."
-
-### Knowledge entries written
-- debt-scan/YYYY-MM-DD (supersedes prior)
-- friction-report/recurring-workaround/<YYYY-MM-DD>/<slug> when recurring friction was found
-```
-
-## Stop Conditions
-- **No ripe debt.** Write a minimal scan snapshot and stop.
-- **Only vague intuition.** If you cannot cite concrete source entries, do not file a work item.
-- **Implementation temptation.** If you are about to edit permanent structure directly, stop and file a proposal instead.
-- **Action temptation.** If a typed evidence entry still needs judgment or multiple commands, do not promote it to Action; route to Skill or CLI-backlog first.
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

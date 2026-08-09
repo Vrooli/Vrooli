@@ -1,4 +1,4 @@
-# Responsibilities: Brand Manager
+# Standing Responsibilities: Brand Manager
 
 ## Primary Duties
 - Steward marketing and narrative canon through operator-approved work items.

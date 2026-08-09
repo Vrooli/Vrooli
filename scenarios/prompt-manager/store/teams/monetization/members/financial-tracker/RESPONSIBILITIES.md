@@ -1,4 +1,4 @@
-# Responsibilities: Financial Tracker
+# Standing Responsibilities: Financial Tracker
 
 ## Primary Duties
 - Maintain the monetization ledger: cash, costs, revenue, channel attribution, time allocation, runway, and default-alive gap.

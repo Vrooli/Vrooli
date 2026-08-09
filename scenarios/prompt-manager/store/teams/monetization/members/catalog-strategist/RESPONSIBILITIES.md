@@ -1,4 +1,4 @@
-# Responsibilities: Catalog Strategist
+# Standing Responsibilities: Catalog Strategist
 
 ## Primary Duties
 - Maintain the SKU, discovery-channel, delivery-tier, services-line, and scenario-role graph that forms the canonical monetization catalog.
@@ -22,6 +22,6 @@ Services-line lifecycle transitions are SKU-adjacent. Own activation, conversion
 - Do not write code in target scenarios.
 
 ## Available Skills
-- `prompt-manager skill read swarm-manager-backlog-tools`
+- `prompt-manager skill read swarm-manager-work-authoring`
 - `prompt-manager skill read documentation-health`
 - `prompt-manager skill read systematic-exploration`

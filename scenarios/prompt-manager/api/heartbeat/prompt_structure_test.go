@@ -130,8 +130,8 @@ func promptSectionBody(prompt, heading string) (string, bool) {
 }
 
 func TestPromptPrecedenceListNamesNonEmptySections(t *testing.T) {
-	// The headings the `# Active Task Brief` precedence list ranks, read from
-	// the registry rather than restated here. A section that is ranked but
+	// The headings the prompt precedence list ranks, read from the registry
+	// rather than restated here. A section that is ranked but
 	// empty tells an agent to obey nothing.
 	ranked := make([]string, 0, len(promptPrecedenceKinds))
 	for _, kind := range promptPrecedenceKinds {
@@ -246,11 +246,10 @@ func TestEmittedSectionHeadingsMatchTheRegistry(t *testing.T) {
 	})
 }
 
-// TestWriteSurfaceSitesMoveTogether changes one declared write and proves both
-// places that describe the member's write surface change with it. Before this,
-// `# Active Task Brief` and `# Storage Map` derived the surface independently,
-// so one could describe a permission the other denied.
-func TestWriteSurfaceSitesMoveTogether(t *testing.T) {
+// TestStorageMapFollowsMemberContract changes one declared write and proves
+// the rendered storage capability changes with it. The task is no longer a
+// second policy surface, so there is no duplicate brief to keep in sync.
+func TestStorageMapFollowsMemberContract(t *testing.T) {
 	ctx := context.Background()
 	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
@@ -264,10 +263,9 @@ func TestWriteSurfaceSitesMoveTogether(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build baseline prompt: %v", err)
 	}
-	briefBefore, _ := promptSectionBody(before, promptHeading(promptSectionKindActiveTaskBrief))
 	storageBefore, _ := promptSectionBody(before, promptHeading(promptSectionKindStorageMap))
-	if !strings.Contains(briefBefore, "knowledge observations") {
-		t.Fatalf("fixture member does not declare a knowledge write; pick another member")
+	if storageBefore == "" {
+		t.Fatal("fixture member has no storage map")
 	}
 
 	team, err := teamStore.Get(ctx, teamID)
@@ -278,19 +276,12 @@ func TestWriteSurfaceSitesMoveTogether(t *testing.T) {
 	member.ForbiddenWrites = append(member.ForbiddenWrites, teamcontract.WriteRef{Kind: "knowledge"})
 	team.OperatingContract.Members[agentID] = member
 
-	briefAfter := buildActiveTaskBriefSection(team, agentID, true, "", teamStore.StoreDir())
 	storageAfter, err := builder.buildStorageMapSection(team, agentID)
 	if err != nil {
 		t.Fatalf("rebuild storage map: %v", err)
 	}
 
-	if briefAfter == briefBefore {
-		t.Error("forbidding a knowledge write did not change the Active Task Brief write surface")
-	}
 	if storageAfter == storageBefore {
 		t.Error("forbidding a knowledge write did not change the Storage Map write surface")
-	}
-	if strings.Contains(briefAfter, "Forbidden: none declared") {
-		t.Error("Active Task Brief still reports no forbidden writes after one was declared")
 	}
 }

@@ -1,4 +1,4 @@
-# Heartbeat: Platform Code Auditor
+# Run Task: Platform Code Auditor
 
 ## Reasoning Framework
 Audit one platform slice deeply. The goal is actionable reliability signal, not broad inspection theater. Track grades honestly and choose the finding with the largest practical impact.
@@ -13,11 +13,6 @@ Audit one platform slice deeply. The goal is actionable reliability signal, not 
 7. Propose work items when backed by concrete evidence.
 8. Attach proposed plan-of-record diffs inside work items when relevant.
 
-## Handoff Shape
-### Slice audited
-### Dimension grades
-### Top finding
-### Measurement plan
-### Plan-of-record diffs proposed
-### Work items filed
-### Knowledge entries written
+## Run Decision
+
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.

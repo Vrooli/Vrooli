@@ -2,19 +2,19 @@
 
 Action health and adoption snapshot. Maintained by `skill-optimizer`.
 
-## Baseline - 2026-05-01
+## Baseline - 2026-08-09
 
 | Action | Status | Validation | Discoverability | Disposition | Notes |
 |--------|--------|------------|-----------------|-------------|-------|
-| action:scenario.status.show | active | valid; dry-run passes | mixed discovery returns `show scenario status`; graph health 0.725 with inbound references | adopted | First active read-only seed Action. |
-| action:team.swarm.work.list | active | valid; dry-run passes | mixed discovery returns `list team work`; graph health 0.725 with inbound references | adopted | Read-only Swarm Manager work lookup with `apiRead` permission. |
+| action:scenario.status.show | active | valid; dry-run passes with `--scenario=prompt-manager` | discoverability verified by `prompt-manager action list`; live registry entry | adopted | Active read-only seed Action; owner `project:vrooli`. |
+| action:team.swarm.work.list | missing | 404 on show/validate/run | absent from `prompt-manager action list` | stale-register | Previously recorded seed is not in the live Action registry; do not count it as active or propose consumers until reintroduced and revalidated. |
 
 ## Measurement Signals
 
-- Action count by status: 2 active.
-- Active runnable Action count: 2.
+- Action count by status: 1 active, 1 stale register entry.
+- Active runnable Action count: 1.
 - Validation failures: 0 in targeted seed validation.
-- Graph inbound warnings: 0 after Action references landed.
+- Graph inbound warnings: 0 for the one registered seed; the missing `team.swarm.work.list` entry has no live contract to validate.
 - Run history signals: no post-adoption usage baseline yet.
 - Skill prose collapsed to Action references: 0.
 - Repeated manual operation count from run-introspector: not yet measured.

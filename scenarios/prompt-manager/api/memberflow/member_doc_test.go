@@ -19,17 +19,13 @@ func writeMemberDoc(t *testing.T, storeDir, team, member, file, body string) {
 	}
 }
 
-const conformingHeartbeat = `# Heartbeat: Example
+const conformingHeartbeat = `# Run Task: Example
 
 ## Task Loop
 1. Do the thing.
 
-## Handoff Shape
-` + "```" + `
-## HANDOFF
-
-### Things done
-` + "```" + `
+## Run Decision
+Record durable continuity and choose the disposition supported by the evidence.
 
 ## Stop Conditions
 - Nothing changed.
@@ -78,9 +74,8 @@ func TestMemberDocConformingFilesProduceNoFindings(t *testing.T) {
 	}
 }
 
-// The handoff template inside every HEARTBEAT.md opens with "## HANDOFF".
-// Reading that as a section would report a bogus heading on every member, so
-// fence skipping is a correctness requirement rather than a nicety.
+// Headings inside fenced examples are not document sections, so fence
+// skipping is a correctness requirement rather than a nicety.
 func TestMemberDocIgnoresHeadingsInsideFencedBlocks(t *testing.T) {
 	store := t.TempDir()
 	// The fenced block contains a retired alias and a duplicate of a real
@@ -90,8 +85,10 @@ func TestMemberDocIgnoresHeadingsInsideFencedBlocks(t *testing.T) {
 ## Task Loop
 1. Step.
 
-## Handoff Shape
+## Run Decision
+Record durable continuity.
 ` + "```" + `
+## Handoff Shape
 ## HANDOFF
 ## Required Loop
 ## Task Loop
@@ -164,8 +161,8 @@ func TestMemberDocReportsMissingRequiredSection(t *testing.T) {
 			if f.Severity != SeverityError {
 				t.Fatalf("required section absence must be an error, got %s", f.Severity)
 			}
-			if !strings.Contains(f.Detail, "Handoff Shape") {
-				t.Fatalf("want Handoff Shape named, got %q", f.Detail)
+			if !strings.Contains(f.Detail, "Run Decision") {
+				t.Fatalf("want Run Decision named, got %q", f.Detail)
 			}
 		}
 	}
@@ -289,7 +286,7 @@ func TestRuleMemberDocUnreadableFiresOnAnUnreadableFile(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 	path := filepath.Join(memberDir, "HEARTBEAT.md")
-	if err := os.WriteFile(path, []byte("# Heartbeat\n\n## Task Loop\n\n## Handoff Shape\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("# Run Task\n\n## Task Loop\n\n## Run Decision\n"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	// Present but unreadable: the branch under test.

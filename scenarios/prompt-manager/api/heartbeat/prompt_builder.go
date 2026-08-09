@@ -3,13 +3,13 @@ package heartbeat
 import (
 	"context"
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"prompt-manager/interop"
-	"prompt-manager/memberflow"
 	"prompt-manager/sourceledger"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
@@ -58,30 +58,35 @@ func (b *PromptBuilder) buildSections(ctx context.Context, req PromptBuildReques
 		return "", err
 	}
 
-	// Reassemble structured sections into the flat prompt format used by
-	// heartbeat executors and prompt preview endpoints.
-	// Adjacent agent-file sections are merged into a single block prefixed
-	// with "# Agent Files (Markdown)\n\n".
-	var parts []string
-	for i := 0; i < len(sections); i++ {
-		if sections[i].Kind == promptSectionKindAgentFile {
-			block := promptHeading(promptSectionKindAgentFile) + "\n\n"
-			for i < len(sections) && sections[i].Kind == promptSectionKindAgentFile {
-				block += sections[i].Content
-				i++
-			}
-			i-- // compensate for outer loop increment
-			parts = append(parts, block)
-		} else {
-			parts = append(parts, sections[i].Content)
+	// Reference sections live in one named XML context. The task stays outside
+	// it so the model sees the difference between material to consult and the
+	// job to do. This also leaves every stable band contiguous for prefix cache
+	// reuse.
+	var contextParts []string
+	var taskParts []string
+	for _, section := range sections {
+		entry := promptSectionKinds[section.Kind]
+		if entry.Scope == promptScopeTask {
+			taskParts = append(taskParts, section.Content)
+			continue
 		}
+		attrs := ""
+		if section.SourcePath != "" {
+			attrs = ` source="` + html.EscapeString(section.SourcePath) + `"`
+		}
+		contextParts = append(contextParts, fmt.Sprintf("<%s%s>\n%s\n</%s>", promptElement(section.Kind), attrs, strings.TrimSpace(section.Content), promptElement(section.Kind)))
 	}
 
+	var parts []string
+	if len(contextParts) > 0 {
+		parts = append(parts, "<context>\n\n"+strings.Join(contextParts, "\n\n")+"\n\n</context>")
+	}
+	parts = append(parts, taskParts...)
 	if len(parts) == 0 {
 		return "", fmt.Errorf("no content available for heartbeat prompt")
 	}
 
-	return strings.Join(parts, "\n\n---\n\n"), nil
+	return strings.Join(parts, "\n\n"), nil
 }
 
 // buildSectionList returns the structured list of prompt sections.
@@ -156,34 +161,16 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			}
 		}
 
-		// Standing rules lead so the prompt opens with a block that is identical
-		// for every member; the task sandwich still holds because the brief
-		// precedes every *context* section, and standing rules are framing
-		// rather than context.
+		// Emit in volatility order. The stable team band must stay ahead of all
+		// member and live-run material; otherwise one member's task or one live
+		// ledger entry destroys the cache prefix for everyone behind it.
 		sections = append(sections, newPromptSection(promptSectionKindSharedDoctrine, "", buildSharedDoctrineSection(includeHeartbeat)))
 
-		// The heartbeat prompt uses an intentional task sandwich: the active
-		// brief comes first so every later context section is read through the
-		// current job, while the full HEARTBEAT.md and final reminder stay near
-		// the end for recency. Middle sections should not duplicate doctrine
-		// already owned by generated storage, contract, or coordination context.
-		sections = append(sections, newPromptSection(promptSectionKindActiveTaskBrief, fmt.Sprintf("teams/%s/team.json#operatingContract.members.%s", teamID, agentID), buildActiveTaskBriefSection(team, agentID, includeHeartbeat, heartbeatInstructions, b.teamStore.StoreDir())))
-
-		if teamconfig.ShouldInjectInbox(contract) {
-			if section := b.buildInboxSection(ctx, teamID, agentID); section != "" {
-				sections = append(sections, newPromptSection(promptSectionKindTeamInbox, "", section))
-			}
-		}
-
-		if section, err := b.buildTeamContextWakeSection(ctx, teamID); err != nil {
+		teamPolicy, err := b.buildOperatingPolicyTeamSection(team, teamCharter)
+		if err != nil {
 			return nil, err
-		} else if section != "" {
-			sections = append(sections, newPromptSection(promptSectionKindTeamWake, "source-ledger:team:"+teamID, section))
 		}
-
-		if handoff, err := b.teamStore.GetLastHandoff(ctx, teamID, agentID); err == nil && handoff != "" {
-			sections = append(sections, newPromptSection(promptSectionKindLastHandoff, fmt.Sprintf("teams/%s/members/%s/last-handoff.md", teamID, agentID), promptHeading(promptSectionKindLastHandoff)+"\n\nThis is what you noted at the end of your last heartbeat:\n\n"+shiftMarkdownHeadings(handoff, 2)))
-		}
+		sections = append(sections, newPromptSection(promptSectionKindOperatingPolicy, fmt.Sprintf("teams/%s/team.json", teamID), teamPolicy))
 
 		if section, err := b.buildStorageMapSection(team, agentID); err != nil {
 			return nil, err
@@ -191,17 +178,17 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			sections = append(sections, newPromptSection(promptSectionKindStorageMap, "", section))
 		}
 
+		memberPolicy, err := b.buildOperatingPolicyMemberSection(team, agentID)
+		if err != nil {
+			return nil, err
+		}
+		sections = append(sections, newPromptSection(promptSectionKindMemberPolicy, fmt.Sprintf("teams/%s/team.json#operatingContract.members.%s", teamID, agentID), memberPolicy))
+
 		if teamconfig.ShouldShowOrgContext(contract) {
 			if section := b.buildOrgContextSection(ctx, team, agentID); section != "" {
 				sections = append(sections, newPromptSection(promptSectionKindOrgContext, "", section))
 			}
 		}
-
-		operatingPolicy, err := b.buildOperatingPolicySection(team, agentID, teamCharter)
-		if err != nil {
-			return nil, err
-		}
-		sections = append(sections, newPromptSection(promptSectionKindOperatingPolicy, fmt.Sprintf("teams/%s/team.json", teamID), operatingPolicy))
 
 		if section := b.buildTopicContractSection(teamID, agentID); section != "" {
 			sections = append(sections, newPromptSection(promptSectionKindTopicContract, fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID), section))
@@ -211,18 +198,35 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			sections = append(sections, newPromptSection(promptSectionKindInboxFlow, fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID), section))
 		}
 
-		// Sits directly after the declarations it reports on, so the contract
-		// and the ways this member is currently breaking it read together.
-		if section := b.buildContractFindingsSection(ctx, teamID, agentID); section != "" {
-			sections = append(sections, newPromptSection(promptSectionKindContractFindings, fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID), section))
-		}
-
 		responsibilities, err := b.teamStore.GetResponsibilities(ctx, teamID, agentID)
 		if err == nil && responsibilities != "" {
 			sections = append(sections, newPromptSection(promptSectionKindResponsibilities, fmt.Sprintf("teams/%s/members/%s/RESPONSIBILITIES.md", teamID, agentID), promptHeading(promptSectionKindResponsibilities)+"\n\n"+shiftMarkdownHeadings(responsibilities, 2)))
 		}
 
 		sections = append(sections, agentSections...)
+
+		// Live inbox, Source Ledger wake, and contract findings form the volatile
+		// band. They must remain below every stable member section.
+		if teamconfig.ShouldInjectInbox(contract) {
+			if section := b.buildInboxSection(ctx, teamID, agentID); section != "" {
+				sections = append(sections, newPromptSection(promptSectionKindTeamInbox, "", section))
+			}
+		}
+		ledgerHealthy := b.teamStore.HasSourceLedger()
+		if section, err := b.buildTeamContextWakeSection(ctx, teamID); err != nil {
+			sections = append(sections, newPromptSection(promptSectionKindContinuityFallback, "source-ledger:team:"+teamID, renderContinuityFallbackSection(teamID, err)))
+		} else if section != "" {
+			sections = append(sections, newPromptSection(promptSectionKindTeamWake, "source-ledger:team:"+teamID, section))
+		}
+		if !ledgerHealthy {
+			sections = append(sections, newPromptSection(promptSectionKindContinuityFallback, "source-ledger:team:"+teamID, renderContinuityFallbackSection(teamID, nil)))
+		}
+
+		// Findings are run-volatile and belong after the declarations they
+		// describe, not between stable team and member bands.
+		if section := b.buildContractFindingsSection(ctx, teamID, agentID); section != "" {
+			sections = append(sections, newPromptSection(promptSectionKindContractFindings, fmt.Sprintf("teams/%s/members/%s/topics.json", teamID, agentID), section))
+		}
 
 		if includeHeartbeat {
 			if heartbeatInstructions != "" {
@@ -235,7 +239,7 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 				sections = append(sections, newPromptSection(promptSectionKindHeartbeatTask, "",
 					promptHeading(promptSectionKindHeartbeatTask)+"\n\nNo specific heartbeat instructions defined. Please review your responsibilities and perform any pending work."))
 			}
-			sections = append(sections, newPromptSection(promptSectionKindTaskReminder, fmt.Sprintf("teams/%s/team.json#operatingContract.members.%s", teamID, agentID), buildTaskReminderSection(team, agentID, heartbeatInstructions)))
+			sections[len(sections)-1].Content = buildHeartbeatTaskSection(team, agentID, heartbeatInstructions, sections[len(sections)-1].Content)
 		}
 	} else {
 		sections = append(sections, agentSections...)
@@ -288,6 +292,21 @@ func renderTeamContextWakeSection(teamID string, wake sourceledger.WakeResult) s
 	return strings.TrimRight(section.String(), "\n")
 }
 
+// renderContinuityFallbackSection is emitted only when the Source Ledger is
+// unavailable or its wake read fails. Healthy ledger-backed prompts contain no
+// continuity-template language; an unhealthy dependency gets a bounded,
+// actionable fallback so the next run is not silently disconnected.
+func renderContinuityFallbackSection(teamID string, err error) string {
+	var section strings.Builder
+	section.WriteString(promptHeading(promptSectionKindContinuityFallback) + "\n\n")
+	section.WriteString(fmt.Sprintf("The Source Ledger scope `team:%s` is not healthy for this run", teamID))
+	if err != nil {
+		section.WriteString(fmt.Sprintf(" (%v)", err))
+	}
+	section.WriteString(". Record concise continuity in the final response so an operator can recover it, then stop.\n")
+	return strings.TrimRight(section.String(), "\n")
+}
+
 // BuildStructured returns the prompt as a list of structured sections.
 func (b *PromptBuilder) BuildStructured(ctx context.Context, req PromptBuildRequest) ([]PromptSection, error) {
 	return b.buildSectionList(ctx, req, true)
@@ -307,11 +326,8 @@ func (b *PromptBuilder) buildTopicContractSection(teamID, agentID string) string
 // buildSharedDoctrineSection renders the standing rules every member gets.
 //
 // It is emitted first and is byte-identical for every member in a given build
-// mode. That is the entire point: the doctrine below was previously interleaved
-// with member-specific text inside `# Storage Map` and `# Active Task Brief`,
-// so no two prompts shared a prefix and the same ~1.6k tokens were re-sent to
-// every member on every tick with nothing cacheable. Keep it constant — one
-// member-specific byte here and the shared prefix is gone.
+// mode. Keep it constant: one member-specific byte here destroys the shared
+// prefix this section exists to create.
 //
 // includeHeartbeat is the only permitted variation: naming the heartbeat
 // section in the precedence list when the build omits it would rank a heading
@@ -322,17 +338,17 @@ func buildSharedDoctrineSection(includeHeartbeat bool) string {
 	section.WriteString("## Where things go\n\n")
 	section.WriteString("Use persistent storage only when information must survive this run.\n\n")
 	section.WriteString("| To record | Use | Notes |\n|---|---|---|\n")
-	section.WriteString("| Continuity for your next run | final `## HANDOFF` section | Next-run memory, not canonical truth |\n")
+	section.WriteString("| Continuity for your next run | declared Source Ledger topic | Durable context, not a self-reported completion claim |\n")
 	section.WriteString("| Evidence, measurements, findings | `source-ledger journal note` in scope `team:<id>` | Typed-topic registry: `docs/agent-system/TOPICS.md` |\n")
 	section.WriteString("| Broken code or scenario behavior | `prompt-manager skill read report-bug` | Writes `bug-inbox/*` on `scenario-qa` |\n")
 	section.WriteString("| Something missing, confusing, or repeatedly worked around | `prompt-manager skill read report-friction` | Writes `friction-inbox/*` on `meta-optimization` |\n")
 	section.WriteString("| A raw observation | `swarm-manager captures create` | Read dispositions with `swarm-manager backlog list --actor-id=<verified-profile-key>` |\n")
 	section.WriteString("| A shaped outcome | `swarm-manager backlog create` | Same disposition read path |\n")
 	section.WriteString("| Live team objects you maintain | team working state | Only the files named in your operating contract |\n\n")
-	section.WriteString("One-off friction not worth filing goes in handoff. When your contract requires a handoff, write it as the last section of your final response and then stop — do not wait for confirmation inside the same run.\n\n")
+	section.WriteString("Record what a later run needs in your declared Source Ledger topics. Confirm writes from `X-Vrooli-Attribution` receipts; do not treat your final response as proof that a write happened.\n\n")
 	section.WriteString("## Authority order — the world\n\n")
 	section.WriteString("When sources disagree about what is true or accepted:\n\n")
-	section.WriteString("1. Operator instruction in the current run\n2. Accepted plan-of-record docs\n3. Accepted work dispositions\n4. Team working state\n5. Knowledge log evidence\n6. Handoff\n\n")
+	section.WriteString("1. Operator instruction in the current run\n2. Accepted plan-of-record docs\n3. Accepted work dispositions\n4. Team working state\n5. Source Ledger evidence\n\n")
 	section.WriteString("## Authority order — this prompt\n\n")
 	section.WriteString("When sections of this prompt disagree, the later rule yields to the earlier one:\n\n")
 	rank := 1
@@ -341,30 +357,23 @@ func buildSharedDoctrineSection(includeHeartbeat bool) string {
 		rank++
 	}
 	writeRank("Operator instruction given during this run")
-	writeRank("Your contract — `" + promptHeading(promptSectionKindActiveTaskBrief) + "`, `" + promptHeading(promptSectionKindOperatingPolicy) + "`, `" + promptHeading(promptSectionKindTopicContract) + "`. Write surfaces and safety-critical rules bind the task; the task cannot widen them.")
+	writeRank("Your contract — `" + promptElement(promptSectionKindOperatingPolicy) + "`, `" + promptElement(promptSectionKindMemberPolicy) + "`, and `" + promptElement(promptSectionKindTopicContract) + "`. Write surfaces and safety-critical rules bind the task; the task cannot widen them.")
 	if includeHeartbeat {
-		writeRank("`" + promptHeading(promptSectionKindHeartbeatTask) + "` — the job for this run")
+		writeRank("`" + promptElement(promptSectionKindHeartbeatTask) + "` — the job for this run")
 	}
-	writeRank("`" + promptHeading(promptSectionKindResponsibilities) + "` and `" + promptHeading(promptSectionKindAgentFile) + "` — standing guidance that a task may override")
-	writeRank("`" + promptHeading(promptSectionKindLastHandoff) + "` — prior-run notes, never authority")
+	writeRank("`" + promptElement(promptSectionKindResponsibilities) + "` and `" + promptElement(promptSectionKindAgentFile) + "` — standing guidance that a task may override")
 	return strings.TrimRight(section.String(), "\n")
 }
 
 type memberStoragePolicy struct {
-	CanWriteKnowledge         bool
-	RequiresHandoff           bool
-	CanWriteTask              bool
-	CanWriteWorkingStatePaths []string
-	AllowedWriteLabels        []string
-	ForbiddenWriteLabels      []string
-	RequiredReadPrefixes      []string
+	CanWriteKnowledge bool
+	CanWriteTask      bool
 }
 
-func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartbeat bool, heartbeatInstructions string, configDir string) string {
+func buildHeartbeatTaskSection(team *store.Team, agentID, heartbeatInstructions, heartbeatSection string) string {
 	teamID := ""
 	teamName := ""
 	lane := ""
-	policy := memberStoragePolicy{}
 	if team != nil {
 		teamID = team.ID
 		teamName = team.DisplayName
@@ -375,152 +384,25 @@ func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartb
 			if member, ok := team.OperatingContract.Members[agentID]; ok {
 				lane = strings.TrimSpace(member.Lane)
 			}
-			policy = buildMemberStoragePolicy(team, agentID, configDir)
 		}
 	}
 	if lane == "" {
 		lane = "Apply the team mission within this member's assigned scope."
 	}
-	task := firstHeartbeatTaskHeading(heartbeatInstructions)
-	if task == "" {
-		task = lane
-	}
-
 	var section strings.Builder
-	section.WriteString(promptHeading(promptSectionKindActiveTaskBrief) + "\n\n")
+	section.WriteString(promptHeading(promptSectionKindHeartbeatTask) + "\n\n")
 	section.WriteString(fmt.Sprintf("You are running one prompt-manager heartbeat as `%s` on `%s`", agentID, teamID))
 	if teamName != "" && teamName != teamID {
 		section.WriteString(fmt.Sprintf(" (`%s`)", teamName))
 	}
 	section.WriteString(".\n\n")
-	section.WriteString("## Mission This Run\n\n")
-	section.WriteString(lane + "\n\n")
-	section.WriteString("## Primary Task\n\n")
-	if includeHeartbeat {
-		section.WriteString(task + "\n\n")
-		section.WriteString("The complete task source is included later in `# Heartbeat Task (HEARTBEAT.md)`. Use this brief to stay oriented while reading the context pack.\n\n")
-	} else {
-		section.WriteString("The active heartbeat task is intentionally omitted from member context.\n\n")
+	section.WriteString("Your lane: " + lane + "\n\n")
+	section.WriteString("Follow the task loop below. Keep standing duties in `responsibilities` and use only the declared storage surfaces.\n\n")
+	section.WriteString(strings.TrimSpace(strings.TrimPrefix(heartbeatSection, promptHeading(promptSectionKindHeartbeatTask))))
+	if !strings.Contains(heartbeatSection, "Run Decision") {
+		section.WriteString("\n\nRecord durable continuity in your declared Source Ledger topics. Choose one disposition — `existing-action-reference`, `new-action-candidate`, `cli-backlog`, `capability-work-item`, `prune`, `improve`, `graduate`, or `no-action` — and give the observable reason.\n")
 	}
-	section.WriteString(renderWriteSurface(policy))
-	// Omit rather than negate: a line saying a member has nothing declared
-	// costs tokens on every tick and tells the reader nothing it could act on.
-	if len(policy.RequiredReadPrefixes) > 0 {
-		section.WriteString("## Required Memory\n\nKnowledge topics:\n")
-		for _, topic := range policy.RequiredReadPrefixes {
-			section.WriteString("- `" + topic + "`\n")
-		}
-		section.WriteString("\n")
-	}
-	if policy.RequiresHandoff {
-		section.WriteString("Handoff: end with `## HANDOFF` as the final response section.\n")
-	}
-	// Conflict precedence and work-filing routes are in `# Standing Rules`.
 	return strings.TrimRight(section.String(), "\n")
-}
-
-func buildTaskReminderSection(team *store.Team, agentID string, heartbeatInstructions string) string {
-	teamID := ""
-	lane := "Apply the team mission within this member's assigned scope."
-	policy := memberStoragePolicy{}
-	if team != nil {
-		teamID = team.ID
-		if team.OperatingContract != nil {
-			if member, ok := team.OperatingContract.Members[agentID]; ok && strings.TrimSpace(member.Lane) != "" {
-				lane = strings.TrimSpace(member.Lane)
-			}
-			policy = buildMemberStoragePolicy(team, agentID, "")
-		}
-	}
-	focus := firstHeartbeatTaskHeading(heartbeatInstructions)
-	if focus == "" {
-		focus = lane
-	}
-
-	var section strings.Builder
-	section.WriteString(promptHeading(promptSectionKindTaskReminder) + "\n\n")
-	section.WriteString(fmt.Sprintf("Run this heartbeat as `%s` on `%s`.\n\n", agentID, teamID))
-	section.WriteString(fmt.Sprintf("Focus on: %s.\n\n", focus))
-	section.WriteString("Do now:\n")
-	section.WriteString("1. Follow the task loop in `HEARTBEAT.md`.\n")
-	section.WriteString("2. Use only the write surfaces allowed in `# Active Task Brief`.\n")
-	itemThree := "3. Record observations, friction, and shaped work"
-	if len(policy.CanWriteWorkingStatePaths) > 0 {
-		itemThree += ", working-state updates"
-	}
-	if policy.RequiresHandoff {
-		itemThree += ", and handoff"
-	}
-	itemThree += " according to `# Storage Map`"
-	section.WriteString(itemThree + ".\n")
-	if policy.RequiresHandoff {
-		section.WriteString("4. End with `## HANDOFF` when required, then stop.")
-	}
-	return section.String()
-}
-
-func firstContentLine(content string) string {
-	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimSpace(line)
-		line = strings.TrimPrefix(line, "- ")
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		const maxLen = 220
-		if len(line) > maxLen {
-			line = line[:maxLen] + "..."
-		}
-		return line
-	}
-	return ""
-}
-
-func emptyAs(value, fallback string) string {
-	if strings.TrimSpace(value) == "" {
-		return fallback
-	}
-	return value
-}
-
-func firstHeartbeatTaskHeading(markdown string) string {
-	for _, line := range strings.Split(markdown, "\n") {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "#") {
-			continue
-		}
-		title := strings.TrimSpace(strings.TrimLeft(line, "#"))
-		if title == "" || strings.EqualFold(title, "Heartbeat") {
-			continue
-		}
-		return title
-	}
-	return ""
-}
-
-// renderWriteSurface renders the member's declared write surface for the
-// Active Task Brief. It is the one place that turns the storage policy into
-// prose, so the brief and `# Storage Map` cannot describe different surfaces
-// for the same member: both read the same policy, computed once per build.
-// TestWriteSurfaceSitesMoveTogether pins that across a declaration change.
-func renderWriteSurface(policy memberStoragePolicy) string {
-	if len(policy.AllowedWriteLabels) == 0 && len(policy.ForbiddenWriteLabels) == 0 {
-		return ""
-	}
-	var out strings.Builder
-	out.WriteString("## Write Surface\n\n")
-	writeList := func(heading string, labels []string) {
-		if len(labels) == 0 {
-			return
-		}
-		out.WriteString(heading + ":\n")
-		for _, label := range labels {
-			out.WriteString("- " + label + "\n")
-		}
-		out.WriteString("\n")
-	}
-	writeList("Allowed", policy.AllowedWriteLabels)
-	writeList("Forbidden", policy.ForbiddenWriteLabels)
-	return out.String()
 }
 
 func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string) memberStoragePolicy {
@@ -531,182 +413,30 @@ func buildMemberStoragePolicy(team *store.Team, agentID string, configDir string
 	if !ok {
 		return memberStoragePolicy{}
 	}
-	policy := memberStoragePolicy{
-		RequiresHandoff:      teamconfig.RequiresHandoff(team.Contract()) && !writeRefsContainKind(member.ForbiddenWrites, "handoff"),
-		RequiredReadPrefixes: loadRequiredReadPrefixes(configDir, team.ID, agentID),
-	}
+	policy := memberStoragePolicy{}
 	for _, ref := range member.AllowedWrites {
-		label := describeWriteRef(ref, team, agentID, configDir)
-		if label != "" {
-			policy.AllowedWriteLabels = append(policy.AllowedWriteLabels, label)
-		}
 		if ref.Kind != "" {
 			switch ref.Kind {
 			case "knowledge":
 				policy.CanWriteKnowledge = true
-			case "handoff":
-				policy.RequiresHandoff = teamconfig.RequiresHandoff(team.Contract())
 			case "task":
 				policy.CanWriteTask = true
 			}
 			continue
 		}
-		normalized := normalizedWritePath(ref, team, agentID, configDir)
-		if normalized != "" {
-			policy.CanWriteWorkingStatePaths = append(policy.CanWriteWorkingStatePaths, normalized)
-		}
 	}
 	for _, ref := range member.ForbiddenWrites {
-		label := describeWriteRef(ref, team, agentID, configDir)
-		if label != "" {
-			policy.ForbiddenWriteLabels = append(policy.ForbiddenWriteLabels, label)
-		}
 		if ref.Kind == "" {
 			continue
 		}
 		switch ref.Kind {
 		case "knowledge":
 			policy.CanWriteKnowledge = false
-		case "handoff":
-			policy.RequiresHandoff = false
 		case "task":
 			policy.CanWriteTask = false
 		}
 	}
-	policy.AllowedWriteLabels = sortedUniqueStrings(policy.AllowedWriteLabels)
-	policy.ForbiddenWriteLabels = sortedUniqueStrings(policy.ForbiddenWriteLabels)
-	sort.Strings(policy.RequiredReadPrefixes)
-	sort.Strings(policy.CanWriteWorkingStatePaths)
 	return policy
-}
-
-// loadRequiredReadPrefixes returns the topic prefixes the member must keep
-// in working memory every heartbeat. The list comes from the member's
-// topics.json `required_read[]` declaration — the single declaration source
-// of truth for read relationships. When configDir is empty (e.g., the
-// task-reminder section, which only needs decision/handoff hints) or
-// topics.json is absent (a positive empty declaration), the function
-// returns nil and the rendering falls back to "Knowledge topics: none
-// declared".
-//
-// Errors loading topics.json are intentionally swallowed as "no required
-// reads" rather than propagated: the prompt builder must not refuse to
-// emit a heartbeat just because a topics.json read failed. The validator
-// (api/memberflow/validation.go) catches malformed topics.json on every
-// `prompt-manager team validate` run so drift surfaces there, not here.
-func loadRequiredReadPrefixes(configDir, teamID, agentID string) []string {
-	if strings.TrimSpace(configDir) == "" {
-		return nil
-	}
-	mt, err := memberflow.LoadMember(configDir, teamID, agentID)
-	if err != nil || len(mt.Topics.RequiredRead) == 0 {
-		return nil
-	}
-	prefixes := make([]string, 0, len(mt.Topics.RequiredRead))
-	for _, e := range mt.Topics.RequiredRead {
-		if p := strings.TrimSpace(e.Prefix); p != "" {
-			prefixes = append(prefixes, p)
-		}
-	}
-	return prefixes
-}
-
-func sortedUniqueStrings(values []string) []string {
-	if len(values) == 0 {
-		return values
-	}
-	seen := make(map[string]struct{}, len(values))
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	sort.Strings(out)
-	return out
-}
-
-func describeWriteRef(ref teamcontract.WriteRef, team *store.Team, agentID string, configDir string) string {
-	if ref.Kind != "" {
-		switch ref.Kind {
-		case "knowledge":
-			return "knowledge observations and friction signals"
-		case "handoff":
-			return "final `## HANDOFF` continuity"
-		case "task":
-			return "team task board updates"
-		case "inbox-message":
-			return "async inbox messages"
-		default:
-			return ref.Kind
-		}
-	}
-	if path := normalizedWritePath(ref, team, agentID, configDir); path != "" {
-		if label := describeKnownWritePath(path, team, agentID, configDir); label != "" {
-			return label
-		}
-		return "`" + path + "`"
-	}
-	return ""
-}
-
-func describeKnownWritePath(path string, team *store.Team, agentID string, configDir string) string {
-	switch {
-	case strings.HasSuffix(path, "/tasks.json"):
-		return "team task board updates"
-	}
-	if team == nil || team.OperatingContract == nil {
-		return ""
-	}
-	for _, doc := range team.OperatingContract.Documents.SharedState {
-		normalized, err := teamcontract.NormalizePath(doc.Path, teamcontract.ValidationInput{
-			TeamID:   team.ID,
-			StoreDir: configDir,
-		}, agentID)
-		if err != nil || normalized != path {
-			continue
-		}
-		meta, ok := teamcontract.TeamWorkingStateKindMetadata(doc.Kind)
-		if !ok {
-			return fmt.Sprintf("team working state `%s`", path)
-		}
-		return fmt.Sprintf("team working state `%s` (%s)", path, strings.ToLower(meta.Label))
-	}
-	return ""
-}
-
-func normalizedWritePath(ref teamcontract.WriteRef, team *store.Team, agentID string, configDir string) string {
-	if team == nil {
-		return ""
-	}
-	path, err := teamcontract.NormalizePath(teamcontract.PathRef{
-		Base:     ref.Base,
-		Path:     ref.Path,
-		MemberID: ref.MemberID,
-		AgentID:  ref.AgentID,
-	}, teamcontract.ValidationInput{
-		TeamID:   team.ID,
-		StoreDir: configDir,
-	}, agentID)
-	if err != nil {
-		return ""
-	}
-	return path
-}
-
-func writeRefsContainKind(refs []teamcontract.WriteRef, kind string) bool {
-	for _, ref := range refs {
-		if ref.Kind == kind {
-			return true
-		}
-	}
-	return false
 }
 
 func orderAgentMarkdownFiles(files []store.AgentFileEntry, fileOrder []string) []store.AgentFileEntry {
@@ -764,7 +494,7 @@ func orderAgentMarkdownFiles(files []store.AgentFileEntry, fileOrder []string) [
 	return append(ordered, remaining...)
 }
 
-func (b *PromptBuilder) buildOperatingPolicySection(team *store.Team, agentID string, teamCharter string) (string, error) {
+func (b *PromptBuilder) buildOperatingPolicyTeamSection(team *store.Team, teamCharter string) (string, error) {
 	if team == nil {
 		return "", nil
 	}
@@ -808,6 +538,13 @@ func (b *PromptBuilder) buildOperatingPolicySection(team *store.Team, agentID st
 	if teamconfig.AllowsPeerTriggers(contract) {
 		section.WriteString(fmt.Sprintf("- Peer triggers are enabled. You may request a teammate run by calling `prompt-manager team heartbeat-trigger %s <agent-id>` when the heartbeat task explicitly benefits from it.\n", team.ID))
 	}
+	return strings.TrimRight(section.String(), "\n"), nil
+}
+
+func (b *PromptBuilder) buildOperatingPolicyMemberSection(team *store.Team, agentID string) (string, error) {
+	if team == nil {
+		return "", nil
+	}
 	memberPolicy, err := teamcontract.RenderMemberPolicy(team.OperatingContract, teamcontract.RenderInput{
 		TeamID:   team.ID,
 		TeamName: team.DisplayName,
@@ -817,7 +554,10 @@ func (b *PromptBuilder) buildOperatingPolicySection(team *store.Team, agentID st
 	if err != nil {
 		return "", err
 	}
+	var section strings.Builder
+	section.WriteString(promptHeading(promptSectionKindMemberPolicy) + "\n\n")
 	section.WriteString(memberPolicy)
+	section.WriteString("\n\nThe member policy is authoritative for this member's declared permissions; the task cannot widen it.\n")
 	return strings.TrimRight(section.String(), "\n"), nil
 }
 

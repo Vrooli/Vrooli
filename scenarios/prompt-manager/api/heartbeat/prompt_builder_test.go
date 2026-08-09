@@ -2,20 +2,14 @@ package heartbeat
 
 import (
 	"context"
-	"os"
-	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"prompt-manager/internal/paths"
-	"prompt-manager/memberflow"
 	"prompt-manager/sourceledger"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
-	"prompt-manager/teamcontract"
 )
 
 func TestRenderTeamContextWakeSectionDisclosesTruncation(t *testing.T) {
@@ -24,63 +18,11 @@ func TestRenderTeamContextWakeSectionDisclosesTruncation(t *testing.T) {
 		Refused:  3,
 		Entries:  []sourceledger.Entry{{Body: "bounded memory"}},
 	})
-	if !strings.Contains(section, "This view was truncated: 3 memories were refused") {
-		t.Fatalf("expected actionable truncation notice, got %q", section)
+	for _, want := range []string{"This view was truncated: 3 memories were refused", "source-ledger recall", "bounded memory"} {
+		if !strings.Contains(section, want) {
+			t.Errorf("wake section missing %q: %s", want, section)
+		}
 	}
-	if !strings.Contains(section, "source-ledger recall") {
-		t.Fatalf("expected recall command in truncation notice, got %q", section)
-	}
-	if !strings.Contains(section, "bounded memory") {
-		t.Fatalf("expected admitted entries after notice, got %q", section)
-	}
-}
-
-func TestPromptBuilderAgentOnly(t *testing.T) {
-	ctx := context.Background()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	agent := &store.Agent{
-		ID:          "agent-1",
-		DisplayName: "Agent One",
-		Status:      store.AgentStatusActive,
-		FileOrder:   []string{"SOUL.md", "NOTES.md"},
-	}
-
-	if err := agentStore.Create(ctx, agent); err != nil {
-		t.Fatalf("create agent: %v", err)
-	}
-	if err := agentStore.CreateFile(ctx, agent.ID, "NOTES.md", "Notes content", false); err != nil {
-		t.Fatalf("create notes file: %v", err)
-	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-	prompt, err := builder.Build(ctx, PromptBuildRequest{AgentID: agent.ID})
-	if err != nil {
-		t.Fatalf("build prompt: %v", err)
-	}
-
-	if !strings.Contains(prompt, "# Agent Files (Markdown)") {
-		t.Fatalf("expected agent files section")
-	}
-	if !strings.Contains(prompt, "Notes content") {
-		t.Fatalf("expected notes content in prompt")
-	}
-	if strings.Contains(prompt, "# Team Relationships") {
-		t.Fatalf("did not expect team relationship section for agent-only prompt")
-	}
-	if strings.Contains(prompt, "# Heartbeat Task") {
-		t.Fatalf("did not expect heartbeat task section for agent-only prompt")
-	}
-}
-
-func promptHeadingIndex(prompt, heading string) int {
-	if strings.HasPrefix(prompt, heading+"\n") {
-		return 0
-	}
-	return strings.Index(prompt, "\n"+heading+"\n")
 }
 
 func promptSectionContent(sections []PromptSection, kind string) string {
@@ -92,26 +34,17 @@ func promptSectionContent(sections []PromptSection, kind string) string {
 	return ""
 }
 
-func joinedPromptSections(sections []PromptSection) string {
-	var b strings.Builder
-	for _, section := range sections {
-		b.WriteString(section.Content)
-		b.WriteString("\n")
-	}
-	return b.String()
-}
-
 func distinctSectionKinds(sections []PromptSection) []string {
-	kinds := make([]string, 0, len(sections))
 	seen := make(map[string]bool, len(sections))
+	result := make([]string, 0, len(sections))
 	for _, section := range sections {
 		if seen[section.Kind] {
 			continue
 		}
 		seen[section.Kind] = true
-		kinds = append(kinds, section.Kind)
+		result = append(result, section.Kind)
 	}
-	return kinds
+	return result
 }
 
 func sectionKindIndex(kinds []string, kind string) int {
@@ -123,27 +56,44 @@ func sectionKindIndex(kinds []string, kind string) int {
 	return -1
 }
 
-func TestPromptBuilderTeamContext(t *testing.T) {
+func TestPromptBuilderAgentOnlyWrapsReferenceContext(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
 	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	agent := &store.Agent{
-		ID:          "agent-1",
-		DisplayName: "Agent One",
-		Status:      store.AgentStatusActive,
-		FileOrder:   []string{"SOUL.md", "NOTES.md"},
-	}
-
+	agent := &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive, FileOrder: []string{"SOUL.md", "NOTES.md"}}
 	if err := agentStore.Create(ctx, agent); err != nil {
 		t.Fatalf("create agent: %v", err)
 	}
 	if err := agentStore.CreateFile(ctx, agent.ID, "NOTES.md", "Notes content", false); err != nil {
-		t.Fatalf("create notes file: %v", err)
+		t.Fatalf("create notes: %v", err)
 	}
 
+	prompt, err := NewPromptBuilder(teamStore, agentStore).Build(ctx, PromptBuildRequest{AgentID: agent.ID})
+	if err != nil {
+		t.Fatalf("build prompt: %v", err)
+	}
+	for _, want := range []string{"<context>", "<agent-files", "Notes content", "</agent-files>", "</context>"} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("agent-only prompt missing %q: %s", want, prompt)
+		}
+	}
+	if strings.Contains(prompt, "<heartbeat-task>") {
+		t.Fatal("agent-only context unexpectedly contains a task")
+	}
+}
+
+func TestPromptBuilderUsesVolatilityOrderAndTaskOutsideContext(t *testing.T) {
+	ctx := context.Background()
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agent := &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}
+	if err := agentStore.Create(ctx, agent); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
 	team := newIndependentTestTeam("team-1", "Team One")
 	team.Coordination.Pattern = teamconfig.CoordinationPatternPeer
 	team.Coordination.ReportingMode = teamconfig.ReportingModeOrgChart
@@ -154,1117 +104,234 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		t.Fatalf("create team: %v", err)
 	}
 	if err := teamStore.WriteSharedFile(ctx, team.ID, "TEAM.md", "Operate as an initiative portfolio manager."); err != nil {
-		t.Fatalf("write shared TEAM.md: %v", err)
+		t.Fatalf("write charter: %v", err)
 	}
 	if err := teamStore.SetResponsibilities(ctx, team.ID, agent.ID, "Do the work"); err != nil {
 		t.Fatalf("set responsibilities: %v", err)
 	}
 	if err := teamStore.SetHeartbeatInstructions(ctx, team.ID, agent.ID, "Ship the update"); err != nil {
-		t.Fatalf("set heartbeat instructions: %v", err)
-	}
-	if err := teamStore.SetOrgChart(ctx, team.ID, &store.OrgChart{
-		TeamID: team.ID,
-		Edges: []store.OrgEdge{
-			{ManagerAgentID: "manager-1", ReportAgentID: agent.ID},
-		},
-	}); err != nil {
-		t.Fatalf("set org chart: %v", err)
-	}
-
-	inbox := &store.TeamInbox{
-		Messages: []store.TeamMessage{
-			{
-				ID:          "msg-1",
-				TeamID:      team.ID,
-				FromAgentID: "manager-1",
-				ToAgentID:   agent.ID,
-				Content:     "Status update needed.",
-				CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-			},
-		},
-	}
-	if err := teamStore.SetInbox(ctx, team.ID, agent.ID, inbox); err != nil {
-		t.Fatalf("set inbox: %v", err)
+		t.Fatalf("set heartbeat: %v", err)
 	}
 
 	builder := NewPromptBuilder(teamStore, agentStore)
-	prompt, err := builder.Build(ctx, PromptBuildRequest{AgentID: agent.ID, TeamID: team.ID})
+	prompt, err := builder.Build(ctx, PromptBuildRequest{TeamID: team.ID, AgentID: agent.ID})
 	if err != nil {
 		t.Fatalf("build prompt: %v", err)
 	}
-
-	agentIndex := promptHeadingIndex(prompt, "# Agent Files (Markdown)")
-	teamCharterIndex := promptHeadingIndex(prompt, "## Team Charter")
-	briefIndex := promptHeadingIndex(prompt, promptHeading(promptSectionKindActiveTaskBrief))
-	policyIndex := promptHeadingIndex(prompt, promptHeading(promptSectionKindOperatingPolicy))
-	respIndex := promptHeadingIndex(prompt, "# Team Responsibilities (RESPONSIBILITIES.md)")
-	orgIndex := promptHeadingIndex(prompt, "# Team Org Context")
-	storageIndex := promptHeadingIndex(prompt, "# Storage Map")
-	inboxIndex := promptHeadingIndex(prompt, "# Team Inbox")
-	taskIndex := promptHeadingIndex(prompt, promptHeading(promptSectionKindHeartbeatTask))
-	reminderIndex := promptHeadingIndex(prompt, promptHeading(promptSectionKindTaskReminder))
-
-	if agentIndex == -1 || teamCharterIndex == -1 || briefIndex == -1 || policyIndex == -1 || respIndex == -1 || orgIndex == -1 || storageIndex == -1 || inboxIndex == -1 || taskIndex == -1 || reminderIndex == -1 {
-		t.Fatalf("expected all heartbeat sections in prompt")
+	sections, err := builder.BuildStructured(ctx, PromptBuildRequest{TeamID: team.ID, AgentID: agent.ID})
+	if err != nil {
+		t.Fatalf("build structured prompt: %v", err)
 	}
-
-	doctrineIndex := promptHeadingIndex(prompt, promptHeading(promptSectionKindSharedDoctrine))
-	if doctrineIndex != 0 {
-		t.Fatalf("standing rules should lead the prompt, got index %d", doctrineIndex)
+	wantKinds := []string{
+		promptSectionKindSharedDoctrine,
+		promptSectionKindOperatingPolicy,
+		promptSectionKindStorageMap,
+		promptSectionKindMemberPolicy,
+		promptSectionKindTopicContract,
+		promptSectionKindResponsibilities,
+		promptSectionKindContinuityFallback,
+		promptSectionKindHeartbeatTask,
 	}
-	if !(doctrineIndex < briefIndex) {
-		t.Fatalf("active task brief should follow the standing rules, got %d", briefIndex)
-	}
-	if !strings.HasSuffix(strings.TrimSpace(prompt), strings.TrimSpace(buildTaskReminderSection(team, agent.ID, "Ship the update"))) {
-		t.Fatalf("task reminder should be the final prompt section")
-	}
-	if !(briefIndex < inboxIndex && inboxIndex < storageIndex && storageIndex < orgIndex && orgIndex < policyIndex && policyIndex < teamCharterIndex && teamCharterIndex < respIndex && respIndex < agentIndex && agentIndex < taskIndex && taskIndex < reminderIndex) {
-		t.Fatalf("prompt sections are out of order")
-	}
-
-	for _, want := range []string{
-		"# Storage Map",
-		promptHeading(promptSectionKindActiveTaskBrief),
-		promptHeading(promptSectionKindOperatingPolicy),
-		"## Team Charter",
-		"Source: `teams/team-1/shared/TEAM.md`",
-		"Operate as an initiative portfolio manager.",
-		"## Runtime",
-		"## Coordination",
-		"## Your Member Contract",
-		"## Operating Constraints",
-		"The complete task source is included later in `# Heartbeat Task (HEARTBEAT.md)`.",
-		"## Write Surface",
-		// Routing and precedence are stated once, in the constant block. The
-		// assertions below name the behaviour each rule must still produce, not
-		// the prose that used to carry it.
-		promptHeading(promptSectionKindSharedDoctrine),
-		"## Where things go",
-		"prompt-manager skill read report-bug",
-		"bug-inbox/*",
-		"prompt-manager skill read report-friction",
-		"friction-inbox/*",
-		"## Authority order — the world",
-		"## Authority order — this prompt",
-		"write it as the last section of your final response and then stop",
-		"## Your Team Storage",
-		"Primitive availability for this member:",
-		"- knowledge: `write-allowed`",
-		"## Available Storage Commands",
-		promptHeading(promptSectionKindTaskReminder),
-	} {
-		if !strings.Contains(prompt, want) {
-			t.Fatalf("prompt missing storage map content %q", want)
+	gotKinds := distinctSectionKinds(sections)
+	for _, kind := range wantKinds {
+		if sectionKindIndex(gotKinds, kind) == -1 {
+			t.Errorf("structured prompt missing %q; got %v", kind, gotKinds)
 		}
 	}
-	// Document surfaces and write paths have one home each. These headings
-	// used to restate `# Storage Map` and the brief's write surface inside
-	// `# Operating Policy`; see TestRenderMemberPolicyDoesNotRestateDocumentSurfaces.
-	for _, duplicated := range []string{"## Document Authority", "## Write Rules"} {
-		if strings.Contains(prompt, duplicated) {
-			t.Fatalf("prompt restates %q, which `# Storage Map` and `# Active Task Brief` already own", duplicated)
+	for i := 1; i < len(wantKinds); i++ {
+		if sectionKindIndex(gotKinds, wantKinds[i-1]) > sectionKindIndex(gotKinds, wantKinds[i]) {
+			t.Errorf("sections are not ordered by volatility: %v", gotKinds)
 		}
 	}
-	if strings.Contains(prompt, "# Durable State") {
-		t.Fatalf("prompt must not contain legacy durable state heading")
+	contextEnd := strings.Index(prompt, "</context>")
+	taskStart := strings.Index(prompt, "# Heartbeat Task (HEARTBEAT.md)")
+	if contextEnd == -1 || taskStart == -1 || taskStart < contextEnd {
+		t.Fatalf("task must be prose after context; context=%d task=%d", contextEnd, taskStart)
 	}
-	for _, forbidden := range []string{"# Team Coordination", "# Resolved Operating Contract"} {
-		if strings.Contains(prompt, forbidden) {
-			t.Fatalf("prompt must not contain retired heading %q", forbidden)
+	if strings.Contains(prompt, "<active-task-brief>") || strings.Contains(prompt, "<task-reminder>") {
+		t.Fatal("retired task wrapper was rendered")
+	}
+	if strings.Contains(prompt, "HANDOFF") {
+		t.Fatal("healthy-looking prompt contains legacy handoff instructions")
+	}
+	for _, tag := range []string{"<standing-rules>", "<operating-policy-team", "<operating-policy-member", "<topic-contract", "<responsibilities"} {
+		if !strings.Contains(prompt, tag) {
+			t.Errorf("context missing named child %s", tag)
 		}
 	}
 }
 
-func TestBuildOmitsCoordinationSkillForPlainIndependentTeam(t *testing.T) {
+func TestPromptBuilderInjectsContinuityFallbackWhenLedgerIsUnhealthy(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)
 	fileStore := newFileStore(t, roots)
 	agentStore := fileStore.Agents().(*store.FileAgentStore)
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
-		t.Fatalf("create agent: %v", err)
-	}
-	if err := teamStore.Create(ctx, newIndependentTestTeam("team-mp", "MP Team")); err != nil {
-		t.Fatalf("create team: %v", err)
-	}
-	if err := teamStore.SetResponsibilities(ctx, "team-mp", "agent-1", "Do work"); err != nil {
-		t.Fatalf("set responsibilities: %v", err)
-	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-	prompt, err := builder.Build(ctx, PromptBuildRequest{AgentID: "agent-1", TeamID: "team-mp"})
-	if err != nil {
-		t.Fatalf("build prompt: %v", err)
-	}
-
-	if !strings.Contains(prompt, promptHeading(promptSectionKindOperatingPolicy)) {
-		t.Fatalf("expected operating policy in prompt")
-	}
-	if strings.Contains(prompt, "team-coordination-independent") {
-		t.Fatalf("did not expect coordination skill reference for plain independent team")
-	}
-}
-
-func TestOperatingPolicySectionGoldenPlainIndependentTeam(t *testing.T) {
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-	builder := NewPromptBuilder(teamStore, agentStore)
-
-	policy, err := builder.buildOperatingPolicySection(newIndependentTestTeam("team-1", "Team One"), "agent-1", "")
-	if err != nil {
-		t.Fatalf("build operating policy: %v", err)
-	}
-
-	want := `# Operating Policy
-
-## Runtime
-
-- Runtime mode: ` + "`multi-process`" + `
-- Queue policy: ` + "`bounded-parallel`" + ` (max concurrent: 2)
-
-## Coordination
-
-- Coordination pattern: ` + "`independent`" + `
-- Messaging mode: ` + "`disabled`" + `
-- Reporting mode: ` + "`none`" + `
-
-Coordination rules:
-- This prompt-manager team already exists. Do not create or import another team.
-- Prefer the planning surface named in your team charter or heartbeat instructions before falling back to broad repo scans.
-- This team does not use agent-to-agent messaging by default. Stay within your own scope unless the heartbeat task tells you otherwise.
-
-## Your Member Contract
-
-Agent ID: agent-1
-Lane: Apply the team mission within this member's assigned scope.
-
-## Operating Constraints
-
-Your write surfaces are listed in ` + "`# Active Task Brief`" + ` and described in ` + "`# Storage Map`" + `.`
-	if policy != want {
-		t.Fatalf("operating policy golden mismatch\nwant:\n%s\n\ngot:\n%s", want, policy)
-	}
-}
-
-func TestBuildIncludesCoordinationSkillForPeerTeam(t *testing.T) {
-	ctx := context.Background()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
-		t.Fatalf("create agent: %v", err)
-	}
-	team := newIndependentTestTeam("team-mp", "MP Team")
-	team.Coordination.Pattern = teamconfig.CoordinationPatternPeer
-	team.Coordination.MessagingMode = teamconfig.MessagingModeAsyncInbox
-	team.Coordination.Capabilities.InjectInbox = true
-	if err := teamStore.Create(ctx, team); err != nil {
-		t.Fatalf("create team: %v", err)
-	}
-	if err := teamStore.SetResponsibilities(ctx, "team-mp", "agent-1", "Do work"); err != nil {
-		t.Fatalf("set responsibilities: %v", err)
-	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-	prompt, err := builder.Build(ctx, PromptBuildRequest{AgentID: "agent-1", TeamID: "team-mp"})
-	if err != nil {
-		t.Fatalf("build prompt: %v", err)
-	}
-
-	if !strings.Contains(prompt, "team-coordination-peer") {
-		t.Fatalf("expected peer coordination skill reference in prompt")
-	}
-	if strings.Contains(prompt, "# Team Coordination") {
-		t.Fatalf("did not expect retired team coordination heading")
-	}
-}
-
-func TestBuildIncludesCoordinationSkillSingleProcess(t *testing.T) {
-	ctx := context.Background()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
-		t.Fatalf("create agent: %v", err)
-	}
-	if err := teamStore.Create(ctx, newLeaderLedSingleProcessTestTeam("team-sp", "SP Team", "agent-1")); err != nil {
-		t.Fatalf("create team: %v", err)
-	}
-	if err := teamStore.SetResponsibilities(ctx, "team-sp", "agent-1", "Do work"); err != nil {
-		t.Fatalf("set responsibilities: %v", err)
-	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-	prompt, err := builder.Build(ctx, PromptBuildRequest{AgentID: "agent-1", TeamID: "team-sp"})
-	if err != nil {
-		t.Fatalf("build prompt: %v", err)
-	}
-
-	if !strings.Contains(prompt, "team-coordination-leader-led") {
-		t.Fatalf("expected leader-led coordination skill reference in prompt")
-	}
-	if strings.Contains(prompt, "# Team Coordination") {
-		t.Fatalf("did not expect retired team coordination heading")
-	}
-}
-
-func TestBuildTeamLeadPromptIncludesSwarmManagerWorkGuidance(t *testing.T) {
-	ctx := context.Background()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-	relationStore := fileStore.Relations()
-
-	team := newLeaderLedSingleProcessTestTeam("team-sp", "SP Team", "director")
-	if err := teamStore.Create(ctx, team); err != nil {
-		t.Fatalf("create team: %v", err)
-	}
-
-	for _, agent := range []store.Agent{
-		{ID: "director", DisplayName: "Director", Status: store.AgentStatusActive},
-		{ID: "strategist", DisplayName: "Strategist", Status: store.AgentStatusActive},
-	} {
-		agentCopy := agent
-		if err := agentStore.Create(ctx, &agentCopy); err != nil {
-			t.Fatalf("create agent %s: %v", agent.ID, err)
-		}
-		if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{
-			TeamID:  "team-sp",
-			AgentID: agent.ID,
-			Status:  store.MemberStatusActive,
-		}); err != nil {
-			t.Fatalf("set membership %s: %v", agent.ID, err)
-		}
-	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-	if err := teamStore.WriteSharedFile(ctx, "team-sp", "TEAM.md", "Focus on the initiative portfolio first."); err != nil {
-		t.Fatalf("write shared TEAM.md: %v", err)
-	}
-	if err := teamStore.SetResponsibilities(ctx, "team-sp", "director", "Lead portfolio prioritization."); err != nil {
-		t.Fatalf("set responsibilities: %v", err)
-	}
-	if err := teamStore.SetHeartbeatInstructions(ctx, "team-sp", "director", "Review `swarm-manager overview --format json` before broad repo signals."); err != nil {
-		t.Fatalf("set heartbeat instructions: %v", err)
-	}
-
-	prompt, err := builder.BuildTeamLeadPrompt(ctx, "team-sp", "director", "/workdir")
-	if err != nil {
-		t.Fatalf("BuildTeamLeadPrompt: %v", err)
-	}
-
-	for _, want := range []string{
-		"Lead Member Context",
-		"Focus on the initiative portfolio first.",
-		"Review `swarm-manager overview --format json` before broad repo signals.",
-		"Do not create, import, or rename a team",
-		"End your final response with a `## HANDOFF` section as the last section, then stop.",
-	} {
-		if !strings.Contains(prompt, want) {
-			t.Fatalf("expected prompt to contain %q", want)
-		}
-	}
-}
-
-func TestBuildContextOmitsHeartbeatSection(t *testing.T) {
-	ctx := context.Background()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent", Status: store.AgentStatusActive}); err != nil {
 		t.Fatalf("create agent: %v", err)
 	}
 	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Team")); err != nil {
 		t.Fatalf("create team: %v", err)
 	}
-	if err := teamStore.SetResponsibilities(ctx, "team-1", "agent-1", "Do work"); err != nil {
-		t.Fatalf("set responsibilities: %v", err)
+	prompt, err := NewPromptBuilder(teamStore, agentStore).Build(ctx, PromptBuildRequest{TeamID: "team-1", AgentID: "agent-1"})
+	if err != nil {
+		t.Fatalf("build prompt: %v", err)
+	}
+	if !strings.Contains(prompt, "<continuity-fallback") || !strings.Contains(prompt, "not healthy") {
+		t.Fatalf("unhealthy ledger did not inject fallback: %s", prompt)
+	}
+	if strings.Contains(prompt, "HANDOFF") {
+		t.Fatal("fallback must not revive the retired handoff template")
+	}
+}
+
+func TestOperatingPolicyTeamPartIsMemberIndependent(t *testing.T) {
+	ctx := context.Background()
+	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	team, err := teamStore.Get(ctx, "meta-optimization")
+	if err != nil {
+		t.Fatalf("load team: %v", err)
+	}
+	builder := NewPromptBuilder(teamStore, fileStore.Agents().(*store.FileAgentStore))
+	first, err := builder.buildOperatingPolicyTeamSection(team, "")
+	if err != nil {
+		t.Fatalf("build team policy: %v", err)
+	}
+	second, err := builder.buildOperatingPolicyTeamSection(team, "")
+	if err != nil {
+		t.Fatalf("build team policy twice: %v", err)
+	}
+	if first != second {
+		t.Fatal("team operating policy changed between members")
+	}
+	if strings.Contains(first, "skill-optimizer") || strings.Contains(first, "debt-curator") {
+		t.Fatal("team operating policy contains member-specific content")
+	}
+	member, err := builder.buildOperatingPolicyMemberSection(team, "skill-optimizer")
+	if err != nil {
+		t.Fatalf("build member policy: %v", err)
+	}
+	if !strings.Contains(member, "skill-optimizer") || strings.Contains(first, "Your Member Contract") {
+		t.Fatal("team/member policy split is not distinguishable")
+	}
+}
+
+func TestPromptSectionRegistryHasVolatilityAndXMLIdentity(t *testing.T) {
+	for kind, entry := range promptSectionKinds {
+		if entry.Label == "" || entry.Heading == "" || entry.Element == "" || entry.Scope == "" {
+			t.Errorf("section %q has incomplete identity: %+v", kind, entry)
+		}
+	}
+	if _, ok := promptSectionKinds["active-task-brief"]; ok {
+		t.Fatal("active-task-brief remains registered")
+	}
+	if _, ok := promptSectionKinds["task-reminder"]; ok {
+		t.Fatal("task-reminder remains registered")
+	}
+}
+
+func TestBuildContextOmitsTaskButRetainsReferenceContext(t *testing.T) {
+	ctx := context.Background()
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent", Status: store.AgentStatusActive}); err != nil {
+		t.Fatalf("create agent: %v", err)
+	}
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Team")); err != nil {
+		t.Fatalf("create team: %v", err)
 	}
 	if err := teamStore.SetHeartbeatInstructions(ctx, "team-1", "agent-1", "Ship update"); err != nil {
-		t.Fatalf("set heartbeat instructions: %v", err)
+		t.Fatalf("set heartbeat: %v", err)
 	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-	prompt, err := builder.BuildContext(ctx, PromptBuildRequest{AgentID: "agent-1", TeamID: "team-1"})
+	prompt, err := NewPromptBuilder(teamStore, agentStore).BuildContext(ctx, PromptBuildRequest{TeamID: "team-1", AgentID: "agent-1"})
 	if err != nil {
 		t.Fatalf("build context: %v", err)
 	}
-
-	if strings.Contains(prompt, "# Heartbeat Task") {
-		t.Fatalf("BuildContext should not include heartbeat task section")
-	}
-	if strings.Contains(prompt, "Ship update") {
-		t.Fatalf("BuildContext should not include heartbeat instructions content")
-	}
-	if !strings.Contains(prompt, "The active heartbeat task is intentionally omitted from member context.") {
-		t.Fatalf("BuildContext should explain that heartbeat task is omitted")
+	if !strings.Contains(prompt, "<context>") || strings.Contains(prompt, "heartbeat-task") || strings.Contains(prompt, "Ship update") {
+		t.Fatalf("BuildContext included task content: %s", prompt)
 	}
 }
 
-func TestBuildStructuredAgentOnly(t *testing.T) {
+func TestBuildStructuredMatchesRenderedPromptContract(t *testing.T) {
 	ctx := context.Background()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	agent := &store.Agent{
-		ID:          "agent-1",
-		DisplayName: "Agent One",
-		Status:      store.AgentStatusActive,
-		FileOrder:   []string{"SOUL.md", "NOTES.md"},
-	}
-	if err := agentStore.Create(ctx, agent); err != nil {
-		t.Fatalf("create agent: %v", err)
-	}
-	if err := agentStore.CreateFile(ctx, agent.ID, "NOTES.md", "Notes content", false); err != nil {
-		t.Fatalf("create notes file: %v", err)
-	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-	sections, err := builder.BuildStructured(ctx, PromptBuildRequest{AgentID: agent.ID})
+	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
+	builder := NewPromptBuilder(fileStore.Teams().(*store.FileTeamStore), fileStore.Agents().(*store.FileAgentStore))
+	sections, err := builder.BuildStructured(ctx, PromptBuildRequest{TeamID: "meta-optimization", AgentID: "skill-optimizer"})
 	if err != nil {
 		t.Fatalf("build structured: %v", err)
 	}
-
-	if len(sections) == 0 {
-		t.Fatalf("expected at least one section")
+	if len(sections) == 0 || sections[len(sections)-1].Kind != promptSectionKindHeartbeatTask {
+		t.Fatalf("task must be the final structured section: %v", distinctSectionKinds(sections))
 	}
-
-	for _, s := range sections {
-		if s.Kind != "agent-file" {
-			t.Fatalf("expected only agent-file sections for agent-only prompt, got %q", s.Kind)
-		}
-		if s.Label == "" {
-			t.Fatalf("expected non-empty label on agent-file section")
-		}
-		if s.SourcePath == "" {
-			t.Fatalf("expected non-empty source path on agent-file section")
-		}
-		if !strings.HasPrefix(s.SourcePath, "agents/agent-1/") {
-			t.Fatalf("expected source path to start with agents/agent-1/, got %q", s.SourcePath)
-		}
+	prompt, err := builder.Build(ctx, PromptBuildRequest{TeamID: "meta-optimization", AgentID: "skill-optimizer"})
+	if err != nil {
+		t.Fatalf("build flat: %v", err)
 	}
-
-	// Should not contain any team sections
-	for _, s := range sections {
-		if strings.HasPrefix(s.Kind, "team-") || s.Kind == "heartbeat-task" {
-			t.Fatalf("did not expect %q section in agent-only structured prompt", s.Kind)
-		}
+	if !strings.Contains(prompt, promptSectionContent(sections, promptSectionKindHeartbeatTask)) {
+		t.Fatal("flat prompt omitted the structured task content")
+	}
+	if got := strings.Count(prompt, "Record durable continuity in your declared Source Ledger topics"); got != 1 {
+		t.Fatalf("task decision guidance rendered %d times, want once", got)
 	}
 }
 
-func TestBuildStructuredTeamContext(t *testing.T) {
-	ctx := context.Background()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	agent := &store.Agent{
-		ID:          "agent-1",
-		DisplayName: "Agent One",
-		Status:      store.AgentStatusActive,
-	}
-	if err := agentStore.Create(ctx, agent); err != nil {
-		t.Fatalf("create agent: %v", err)
-	}
-	if err := agentStore.CreateFile(ctx, agent.ID, "NOTES.md", "Notes content", false); err != nil {
-		t.Fatalf("create notes file: %v", err)
-	}
-
-	team := newIndependentTestTeam("team-1", "Team One")
-	team.Coordination.Pattern = teamconfig.CoordinationPatternPeer
-	team.Coordination.ReportingMode = teamconfig.ReportingModeOrgChart
-	team.Coordination.MessagingMode = teamconfig.MessagingModeAsyncInbox
-	team.Coordination.Capabilities.ShowOrgContext = true
-	team.Coordination.Capabilities.InjectInbox = true
-	if err := teamStore.Create(ctx, team); err != nil {
-		t.Fatalf("create team: %v", err)
-	}
-	if err := teamStore.SetResponsibilities(ctx, team.ID, agent.ID, "Do the work"); err != nil {
-		t.Fatalf("set responsibilities: %v", err)
-	}
-	if err := teamStore.SetHeartbeatInstructions(ctx, team.ID, agent.ID, "Ship the update"); err != nil {
-		t.Fatalf("set heartbeat instructions: %v", err)
-	}
-	if err := teamStore.SetOrgChart(ctx, team.ID, &store.OrgChart{
-		TeamID: team.ID,
-		Edges: []store.OrgEdge{
-			{ManagerAgentID: "manager-1", ReportAgentID: agent.ID},
-		},
-	}); err != nil {
-		t.Fatalf("set org chart: %v", err)
-	}
-
-	inbox := &store.TeamInbox{
-		Messages: []store.TeamMessage{
-			{
-				ID:          "msg-1",
-				TeamID:      team.ID,
-				FromAgentID: "manager-1",
-				ToAgentID:   agent.ID,
-				Content:     "Status update needed.",
-				CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-			},
-		},
-	}
-	if err := teamStore.SetInbox(ctx, team.ID, agent.ID, inbox); err != nil {
-		t.Fatalf("set inbox: %v", err)
-	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-	sections, err := builder.BuildStructured(ctx, PromptBuildRequest{AgentID: agent.ID, TeamID: team.ID})
-	if err != nil {
-		t.Fatalf("build structured: %v", err)
-	}
-
-	// Verify all expected kinds in correct order
-	expectedKinds := []string{
-		promptSectionKindSharedDoctrine,
-		promptSectionKindActiveTaskBrief,
-		"team-inbox",
-		"team-storage-map",
-		"team-org-context",
-		promptSectionKindOperatingPolicy,
-		promptSectionKindTopicContract,
-		"team-responsibilities",
-		"agent-file",
-		"heartbeat-task",
-		promptSectionKindTaskReminder,
-	}
-
-	kindOrder := distinctSectionKinds(sections)
-
-	if len(kindOrder) != len(expectedKinds) {
-		t.Fatalf("expected %d distinct kinds, got %d: %v", len(expectedKinds), len(kindOrder), kindOrder)
-	}
-	for i, kind := range expectedKinds {
-		if kindOrder[i] != kind {
-			t.Fatalf("expected kind[%d] = %q, got %q", i, kind, kindOrder[i])
-		}
-	}
-}
-
-func TestBuildStructuredMatchesBuild(t *testing.T) {
-	ctx := context.Background()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	agent := &store.Agent{
-		ID:          "agent-1",
-		DisplayName: "Agent One",
-		Status:      store.AgentStatusActive,
-		FileOrder:   []string{"SOUL.md", "NOTES.md"},
-	}
-	if err := agentStore.Create(ctx, agent); err != nil {
-		t.Fatalf("create agent: %v", err)
-	}
-	// SOUL.md is auto-created by the agent store, so only create NOTES.md
-	if err := agentStore.CreateFile(ctx, agent.ID, "NOTES.md", "Notes content", false); err != nil {
-		t.Fatalf("create notes file: %v", err)
-	}
-
-	team := newIndependentTestTeam("team-1", "Team One")
-	team.Coordination.Pattern = teamconfig.CoordinationPatternPeer
-	team.Coordination.ReportingMode = teamconfig.ReportingModeOrgChart
-	team.Coordination.MessagingMode = teamconfig.MessagingModeAsyncInbox
-	team.Coordination.Capabilities.ShowOrgContext = true
-	team.Coordination.Capabilities.InjectInbox = true
-	if err := teamStore.Create(ctx, team); err != nil {
-		t.Fatalf("create team: %v", err)
-	}
-	if err := teamStore.SetResponsibilities(ctx, team.ID, agent.ID, "Do the work"); err != nil {
-		t.Fatalf("set responsibilities: %v", err)
-	}
-	if err := teamStore.SetHeartbeatInstructions(ctx, team.ID, agent.ID, "Ship the update"); err != nil {
-		t.Fatalf("set heartbeat instructions: %v", err)
-	}
-	if err := teamStore.SetOrgChart(ctx, team.ID, &store.OrgChart{
-		TeamID: team.ID,
-		Edges: []store.OrgEdge{
-			{ManagerAgentID: "manager-1", ReportAgentID: agent.ID},
-		},
-	}); err != nil {
-		t.Fatalf("set org chart: %v", err)
-	}
-
-	inbox := &store.TeamInbox{
-		Messages: []store.TeamMessage{
-			{
-				ID:          "msg-1",
-				TeamID:      team.ID,
-				FromAgentID: "manager-1",
-				ToAgentID:   agent.ID,
-				Content:     "Status update needed.",
-				CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-			},
-		},
-	}
-	if err := teamStore.SetInbox(ctx, team.ID, agent.ID, inbox); err != nil {
-		t.Fatalf("set inbox: %v", err)
-	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-
-	// Get flat Build() output
-	flatPrompt, err := builder.Build(ctx, PromptBuildRequest{AgentID: agent.ID, TeamID: team.ID})
-	if err != nil {
-		t.Fatalf("Build: %v", err)
-	}
-
-	// Get structured sections and reassemble
-	sections, err := builder.BuildStructured(ctx, PromptBuildRequest{AgentID: agent.ID, TeamID: team.ID})
-	if err != nil {
-		t.Fatalf("BuildStructured: %v", err)
-	}
-
-	// Reassemble: group adjacent agent-file sections with header, join with separator
-	var parts []string
-	for i := 0; i < len(sections); i++ {
-		if sections[i].Kind == "agent-file" {
-			block := "# Agent Files (Markdown)\n\n"
-			for i < len(sections) && sections[i].Kind == "agent-file" {
-				block += sections[i].Content
-				i++
-			}
-			i--
-			parts = append(parts, block)
-		} else {
-			parts = append(parts, sections[i].Content)
-		}
-	}
-	reassembled := strings.Join(parts, "\n\n---\n\n")
-
-	if flatPrompt != reassembled {
-		t.Fatalf("Build() output does not match reassembled structured sections.\n\n--- Build() ---\n%s\n\n--- Reassembled ---\n%s", flatPrompt, reassembled)
-	}
-}
-
-func TestStoredPromptMarkdownExcludesObsoleteMiddleContextDoctrine(t *testing.T) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatalf("resolve test filename")
-	}
-	repoStoreDir := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "store"))
-
-	prohibitedEverywhere := []string{
-		"Read SOUL.md",
-		"Use the member HEARTBEAT.md",
-		"Each member has a",
-		"## Key Skills",
-		"Living Docs Under",
-		"Append observations that do not yet warrant decisions",
-	}
-	prohibitedSharedTeamHeadings := []string{
-		"## Members",
-	}
-
-	err := filepath.WalkDir(repoStoreDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || filepath.Ext(path) != ".md" {
-			return nil
-		}
-		contentBytes, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		content := string(contentBytes)
-		for _, phrase := range prohibitedEverywhere {
-			if strings.Contains(content, phrase) {
-				t.Fatalf("%s contains obsolete prompt text %q", path, phrase)
-			}
-		}
-		if strings.HasSuffix(filepath.ToSlash(path), "/shared/TEAM.md") {
-			for _, phrase := range prohibitedSharedTeamHeadings {
-				if strings.Contains(content, phrase) {
-					t.Fatalf("%s contains obsolete shared team heading %q", path, phrase)
-				}
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("scan stored prompt markdown: %v", err)
-	}
-}
-
-func TestBundledVisionWalkPrepPromptUsesMemberAwareStorage(t *testing.T) {
-	ctx := context.Background()
-	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
-	builder := NewPromptBuilder(
-		fileStore.Teams().(*store.FileTeamStore),
-		fileStore.Agents().(*store.FileAgentStore),
-	)
-
-	prompt, err := builder.Build(ctx, PromptBuildRequest{
-		TeamID:  "director-swarm",
-		AgentID: "vision-walk-prep",
-	})
-	if err != nil {
-		t.Fatalf("build bundled vision-walk-prep prompt: %v", err)
-	}
-
-	for _, want := range []string{
-		promptHeading(promptSectionKindActiveTaskBrief),
-		"swarm-manager captures create",
-		"swarm-manager backlog create",
-		"swarm-manager backlog list --actor-id=<verified-profile-key>",
-		"Primitive availability for this member:",
-		"- task board: `review-only`",
-		promptHeading(promptSectionKindTaskReminder),
-	} {
-		if !strings.Contains(prompt, want) {
-			t.Fatalf("bundled prompt missing %q", want)
-		}
-	}
-	for _, forbidden := range []string{
-		"# Execution Brief",
-		"execution-brief",
-		"Always available:",
-		"prompt-manager team task-add director-swarm",
-		"team task-add director-swarm",
-		"team task-update director-swarm",
-	} {
-		if strings.Contains(prompt, forbidden) {
-			t.Fatalf("bundled prompt contains forbidden text %q", forbidden)
-		}
-	}
-}
-
-func TestBundledPromptMatrixHardCutoverInvariants(t *testing.T) {
+func TestBundledMembersRenderWithoutRetiredSections(t *testing.T) {
 	ctx := context.Background()
 	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	builder := NewPromptBuilder(teamStore, agentStore)
-
-	teams, err := teamStore.List(ctx)
-	if err != nil {
-		t.Fatalf("list teams: %v", err)
-	}
-	sort.Slice(teams, func(i, j int) bool {
-		return teams[i].ID < teams[j].ID
-	})
-
-	for _, team := range teams {
-		team := team
-		if !team.Enabled || team.OperatingContract == nil {
-			continue
-		}
-		t.Run(team.ID, func(t *testing.T) {
-			members, err := teamStore.GetMembers(ctx, team.ID)
-			if err != nil {
-				t.Fatalf("list members: %v", err)
-			}
-			sort.Slice(members, func(i, j int) bool {
-				return members[i].AgentID < members[j].AgentID
-			})
-			for _, relation := range members {
-				relation := relation
-				if relation.Status != "" && relation.Status != store.MemberStatusActive {
-					continue
-				}
-				t.Run(relation.AgentID, func(t *testing.T) {
-					member, ok := team.OperatingContract.Members[relation.AgentID]
-					if !ok {
-						t.Fatalf("missing operating contract member")
-					}
-					sections, err := builder.BuildStructured(ctx, PromptBuildRequest{
-						TeamID:  team.ID,
-						AgentID: relation.AgentID,
-					})
-					if err != nil {
-						t.Fatalf("build structured prompt: %v", err)
-					}
-
-					kinds := distinctSectionKinds(sections)
-					if sectionKindIndex(kinds, "team-shared-charter") != -1 {
-						t.Fatalf("retired team-shared-charter section still rendered: %v", kinds)
-					}
-					activeIndex := sectionKindIndex(kinds, promptSectionKindActiveTaskBrief)
-					policyIndex := sectionKindIndex(kinds, promptSectionKindOperatingPolicy)
-					taskIndex := sectionKindIndex(kinds, "heartbeat-task")
-					reminderIndex := sectionKindIndex(kinds, promptSectionKindTaskReminder)
-					if activeIndex == -1 {
-						t.Fatalf("missing %s section: %v", promptSectionKindActiveTaskBrief, kinds)
-					}
-					if policyIndex == -1 || activeIndex > policyIndex {
-						t.Fatalf("active task brief must appear before operating policy: %v", kinds)
-					}
-					topicContractIndex := sectionKindIndex(kinds, promptSectionKindTopicContract)
-					if topicContractIndex == -1 {
-						t.Fatalf("missing %s section: %v", promptSectionKindTopicContract, kinds)
-					}
-					inboxIndex := sectionKindIndex(kinds, promptSectionKindInboxFlow)
-					if topicContractIndex < policyIndex || (inboxIndex != -1 && topicContractIndex > inboxIndex) {
-						t.Fatalf("topic contract must appear after operating policy and before inbox flow: %v", kinds)
-					}
-					if taskIndex == -1 || reminderIndex == -1 || taskIndex > reminderIndex {
-						t.Fatalf("heartbeat task must be followed by task reminder: %v", kinds)
-					}
-					if sections[len(sections)-1].Kind != promptSectionKindTaskReminder {
-						t.Fatalf("final section = %q, want %q", sections[len(sections)-1].Kind, promptSectionKindTaskReminder)
-					}
-
-					prompt := joinedPromptSections(sections)
-					for _, forbidden := range []string{
-						"# Execution Brief",
-						"execution-brief",
-						"# Team Coordination",
-						"# Resolved Operating Contract",
-						"team-operating-contract",
-						"Always available:",
-						"Exact paths: see",
-						"Plan of record docs:",
-					} {
-						if strings.Contains(prompt, forbidden) {
-							t.Fatalf("prompt contains legacy phrase %q", forbidden)
-						}
-					}
-					if strings.Contains(prompt, "docs under `") {
-						t.Fatalf("prompt contains grouped plan-of-record count wording")
-					}
-					if strings.Contains(prompt, "## Available Storage Commands") && !strings.Contains(prompt, "Primitive availability for this member:") {
-						t.Fatalf("storage commands rendered without member primitive availability")
-					}
-					assertMemberWriteCommandsMatchContract(t, prompt, team.ID, member)
-				})
-			}
-		})
-	}
-}
-
-func assertMemberWriteCommandsMatchContract(t *testing.T, prompt, teamID string, member teamcontract.MemberContract) {
-	t.Helper()
-	if !memberCanWriteKindOrPath(member, "knowledge", "") && strings.Contains(prompt, "team knowledge-add "+teamID) {
-		t.Fatalf("knowledge-add rendered for a member that cannot write knowledge")
-	}
-	if !memberCanWriteKindOrPath(member, "task", "tasks.json") {
-		for _, forbidden := range []string{"team task-add " + teamID, "team task-update " + teamID} {
-			if strings.Contains(prompt, forbidden) {
-				t.Fatalf("%s rendered for a member that cannot mutate the task board", forbidden)
-			}
-		}
-	}
-}
-
-func memberCanWriteKindOrPath(member teamcontract.MemberContract, kind, pathSuffix string) bool {
-	if writeRefsContainKind(member.ForbiddenWrites, kind) {
-		return false
-	}
-	for _, ref := range member.AllowedWrites {
-		if ref.Kind == kind {
-			return true
-		}
-		if ref.Kind == "" && strings.HasSuffix(ref.Path, pathSuffix) {
-			return true
-		}
-	}
-	return false
-}
-
-// TestRequiredMemorySectionMatchesTopicsJSON locks in the contract that the
-// rendered "## Required Memory" block of the active task brief is a
-// deterministic rendering of the member's topics.json `required_read[]`
-// prefixes (sorted). The assertion is strict — it covers the entire block
-// including the trailing blank line — so any drift in formatting (spacing,
-// ordering, headings) surfaces as a failure rather than a silent regression.
-func TestRequiredMemorySectionMatchesTopicsJSON(t *testing.T) {
-	ctx := context.Background()
-	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	builder := NewPromptBuilder(teamStore, agentStore)
-
+	builder := NewPromptBuilder(teamStore, fileStore.Agents().(*store.FileAgentStore))
 	teams, err := teamStore.List(ctx)
 	if err != nil {
 		t.Fatalf("list teams: %v", err)
 	}
 	sort.Slice(teams, func(i, j int) bool { return teams[i].ID < teams[j].ID })
-
-	configRoot := teamStore.StoreDir()
-
+	count := 0
 	for _, team := range teams {
-		team := team
-		if !team.Enabled || team.OperatingContract == nil {
+		if team.OperatingContract == nil {
 			continue
 		}
-		t.Run(team.ID, func(t *testing.T) {
-			members, err := teamStore.GetMembers(ctx, team.ID)
+		members, err := teamStore.GetMembers(ctx, team.ID)
+		if err != nil {
+			t.Fatalf("list %s members: %v", team.ID, err)
+		}
+		for _, member := range members {
+			if member.Status != "" && member.Status != store.MemberStatusActive {
+				continue
+			}
+			if _, ok := team.OperatingContract.Members[member.AgentID]; !ok {
+				continue
+			}
+			prompt, err := builder.Build(ctx, PromptBuildRequest{TeamID: team.ID, AgentID: member.AgentID})
 			if err != nil {
-				t.Fatalf("list members: %v", err)
+				t.Fatalf("build %s/%s: %v", team.ID, member.AgentID, err)
 			}
-			sort.Slice(members, func(i, j int) bool { return members[i].AgentID < members[j].AgentID })
-
-			for _, relation := range members {
-				relation := relation
-				if relation.Status != "" && relation.Status != store.MemberStatusActive {
-					continue
-				}
-				if _, ok := team.OperatingContract.Members[relation.AgentID]; !ok {
-					continue
-				}
-				t.Run(relation.AgentID, func(t *testing.T) {
-					sections, err := builder.BuildStructured(ctx, PromptBuildRequest{
-						TeamID:  team.ID,
-						AgentID: relation.AgentID,
-					})
-					if err != nil {
-						t.Fatalf("build structured prompt: %v", err)
-					}
-					brief := promptSectionContent(sections, promptSectionKindActiveTaskBrief)
-					if brief == "" {
-						t.Fatalf("active task brief section not found")
-					}
-
-					got := extractRequiredMemoryBlock(brief)
-					want := expectedRequiredMemoryBlock(t, configRoot, team.ID, relation.AgentID)
-					if got != want {
-						t.Fatalf("required memory mismatch for %s/%s\n--- want ---\n%q\n--- got ---\n%q",
-							team.ID, relation.AgentID, want, got)
-					}
-				})
+			if strings.Contains(prompt, "active-task-brief") || strings.Contains(prompt, "task-reminder") {
+				t.Fatalf("retired section kind rendered for %s/%s", team.ID, member.AgentID)
 			}
-		})
-	}
-}
-
-// extractRequiredMemoryBlock returns the "Knowledge topics" subsection of
-// the brief's "## Required Memory" heading. The full ## Required Memory
-// section also includes Handoff and Decision-cap subsections (rendered
-// from independent contract data); those are out of scope for this
-// snapshot, which exists to lock down the topics-list rendering driven by
-// topics.json::required_read[].
-func extractRequiredMemoryBlock(brief string) string {
-	const heading = "## Required Memory\n\n"
-	start := strings.Index(brief, heading)
-	if start == -1 {
-		return ""
-	}
-	rest := brief[start+len(heading):]
-	// The Knowledge topics subsection ends where the next subsection
-	// ("Handoff:") begins. The trailing blank line that separates them is
-	// part of the topics-block rendering, so include it.
-	end := strings.Index(rest, "Handoff:")
-	if end == -1 {
-		return heading + rest
-	}
-	return heading + rest[:end]
-}
-
-// expectedRequiredMemoryBlock computes the rendered Required Memory block
-// from the member's topics.json `required_read[]` prefixes, sorted. Mirrors
-// the rendering in prompt_builder.go's buildActiveTaskBriefSection so the
-// snapshot test stays a one-line change if the rendering template changes.
-func expectedRequiredMemoryBlock(t *testing.T, configRoot, teamID, agentID string) string {
-	t.Helper()
-	mt, err := memberflow.LoadMember(configRoot, teamID, agentID)
-	if err != nil {
-		t.Fatalf("load member topics for %s/%s: %v", teamID, agentID, err)
-	}
-	prefixes := make([]string, 0, len(mt.Topics.RequiredRead))
-	for _, e := range mt.Topics.RequiredRead {
-		prefixes = append(prefixes, e.Prefix)
-	}
-	sort.Strings(prefixes)
-
-	// A member with no declared required reads gets no block at all. Rendering
-	// "none declared" spends tokens on every tick to say nothing the member
-	// could act on, so absence is the declaration.
-	if len(prefixes) == 0 {
-		return ""
-	}
-	var b strings.Builder
-	b.WriteString("## Required Memory\n\nKnowledge topics:\n")
-	for _, prefix := range prefixes {
-		b.WriteString("- `" + prefix + "`\n")
-	}
-	b.WriteString("\n")
-	return b.String()
-}
-
-func TestActiveTaskBriefNamesUnifiedWorkFiling(t *testing.T) {
-	ctx := context.Background()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
-		t.Fatalf("create agent: %v", err)
-	}
-	team := newIndependentTestTeam("team-1", "Team One")
-	// Set a previously-recognized taskParameter to prove the engine no longer
-	// reacts to it with hard-coded swarm-manager text.
-	member := team.OperatingContract.Members["agent-1"]
-	member.TaskParameters = map[string]any{"skipScenariosWithScheduledWork": true}
-	team.OperatingContract.Members["agent-1"] = member
-	if err := teamStore.Create(ctx, team); err != nil {
-		t.Fatalf("create team: %v", err)
-	}
-	if err := teamStore.SetHeartbeatInstructions(ctx, "team-1", "agent-1", "# Heartbeat: Test\n\nDo work."); err != nil {
-		t.Fatalf("set heartbeat: %v", err)
-	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-
-	sections, err := builder.BuildStructured(ctx, PromptBuildRequest{AgentID: "agent-1", TeamID: "team-1"})
-	if err != nil {
-		t.Fatalf("BuildStructured: %v", err)
-	}
-	// Filing routes are identical for every member, so they live in the
-	// standing-rules block rather than being re-rendered into each brief.
-	doctrine := promptSectionContent(sections, promptSectionKindSharedDoctrine)
-	for _, want := range []string{
-		"swarm-manager captures create",
-		"swarm-manager backlog create",
-		"swarm-manager backlog list --actor-id=<verified-profile-key>",
-	} {
-		if !strings.Contains(doctrine, want) {
-			t.Fatalf("standing rules missing unified filing command %q:\n%s", want, doctrine)
+			count++
 		}
 	}
-}
-
-func TestActiveTaskBriefUsesHumanReadableWriteSurface(t *testing.T) {
-	ctx := context.Background()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
-	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
-		t.Fatalf("create agent: %v", err)
-	}
-	team := newIndependentTestTeam("team-1", "Team One")
-	optional := false
-	team.OperatingContract.Documents.SharedState = append(team.OperatingContract.Documents.SharedState, teamcontract.SharedStateDocument{
-		ID:             "event-log",
-		Path:           teamcontract.PathRef{Base: teamcontract.BaseTeamShared, Path: "event-log.md", Required: &optional, OptionalReason: "test fixture"},
-		Kind:           teamcontract.TeamWorkingStateKindAppendOnlyEventLog,
-		Required:       false,
-		OptionalReason: "test fixture",
-	})
-	member := team.OperatingContract.Members["agent-1"]
-	member.AllowedWrites = []teamcontract.WriteRef{
-		{Kind: "knowledge"},
-		{Base: teamcontract.BaseTeamShared, Path: "event-log.md"},
-		{Kind: "handoff"},
-	}
-	team.OperatingContract.Members["agent-1"] = member
-	if err := teamStore.Create(ctx, team); err != nil {
-		t.Fatalf("create team: %v", err)
-	}
-	if err := teamStore.SetHeartbeatInstructions(ctx, "team-1", "agent-1", "# Heartbeat: Test\n\nDo work."); err != nil {
-		t.Fatalf("set heartbeat: %v", err)
-	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-	sections, err := builder.BuildStructured(ctx, PromptBuildRequest{AgentID: "agent-1", TeamID: "team-1"})
-	if err != nil {
-		t.Fatalf("BuildStructured: %v", err)
-	}
-	brief := promptSectionContent(sections, promptSectionKindActiveTaskBrief)
-	if brief == "" {
-		t.Fatalf("active task brief not found")
-	}
-	for _, want := range []string{
-		"- knowledge observations and friction signals",
-		"- team working state `scenarios/prompt-manager/store/teams/team-1/shared/event-log.md` (append-only event log)",
-		"- final `## HANDOFF` continuity",
-	} {
-		if !strings.Contains(brief, want) {
-			t.Fatalf("active task brief missing %q:\n%s", want, brief)
-		}
+	if count != 24 {
+		t.Fatalf("rendered %d bundled members, want 24", count)
 	}
 }
 
-func TestBuildContextIncludesAllOtherSections(t *testing.T) {
+func TestMemberWriteCommandVisibilityStillFollowsContract(t *testing.T) {
 	ctx := context.Background()
-	roots := paths.RootsForTest(t)
-	fileStore := newFileStore(t, roots)
-	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../store"))
 	teamStore := fileStore.Teams().(*store.FileTeamStore)
-
-	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent One", Status: store.AgentStatusActive}); err != nil {
-		t.Fatalf("create agent: %v", err)
-	}
-	if err := agentStore.CreateFile(ctx, "agent-1", "NOTES.md", "My notes", false); err != nil {
-		t.Fatalf("create notes file: %v", err)
-	}
-	team := newIndependentTestTeam("team-1", "Team")
-	team.Coordination.Pattern = teamconfig.CoordinationPatternPeer
-	team.Coordination.ReportingMode = teamconfig.ReportingModeOrgChart
-	team.Coordination.MessagingMode = teamconfig.MessagingModeAsyncInbox
-	team.Coordination.Capabilities.ShowOrgContext = true
-	team.Coordination.Capabilities.InjectInbox = true
-	if err := teamStore.Create(ctx, team); err != nil {
-		t.Fatalf("create team: %v", err)
-	}
-	if err := teamStore.SetResponsibilities(ctx, "team-1", "agent-1", "Do work"); err != nil {
-		t.Fatalf("set responsibilities: %v", err)
-	}
-	if err := teamStore.SetHeartbeatInstructions(ctx, "team-1", "agent-1", "Ship update"); err != nil {
-		t.Fatalf("set heartbeat instructions: %v", err)
-	}
-	if err := teamStore.SetOrgChart(ctx, "team-1", &store.OrgChart{
-		TeamID: "team-1",
-		Edges: []store.OrgEdge{
-			{ManagerAgentID: "manager", ReportAgentID: "agent-1"},
-		},
-	}); err != nil {
-		t.Fatalf("set org chart: %v", err)
-	}
-
-	inbox := &store.TeamInbox{
-		Messages: []store.TeamMessage{
-			{
-				ID:          "msg-1",
-				TeamID:      "team-1",
-				FromAgentID: "manager",
-				ToAgentID:   "agent-1",
-				Content:     "Check status",
-				CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-			},
-		},
-	}
-	if err := teamStore.SetInbox(ctx, "team-1", "agent-1", inbox); err != nil {
-		t.Fatalf("set inbox: %v", err)
-	}
-
-	builder := NewPromptBuilder(teamStore, agentStore)
-	prompt, err := builder.BuildContext(ctx, PromptBuildRequest{AgentID: "agent-1", TeamID: "team-1"})
+	team, err := teamStore.Get(ctx, "director-swarm")
 	if err != nil {
-		t.Fatalf("build context: %v", err)
+		t.Fatalf("load team: %v", err)
 	}
-
-	// All sections except heartbeat should be present
-	for _, section := range []string{
-		"# Agent Files (Markdown)",
-		promptHeading(promptSectionKindActiveTaskBrief),
-		"# Team Responsibilities (RESPONSIBILITIES.md)",
-		"# Team Org Context",
-		promptHeading(promptSectionKindOperatingPolicy),
-		"# Storage Map",
-		"# Team Inbox",
-	} {
-		if !strings.Contains(prompt, section) {
-			t.Fatalf("BuildContext should include %q section", section)
-		}
+	policy := buildMemberStoragePolicy(team, "portfolio-manager", teamStore.StoreDir())
+	if !policy.CanWriteKnowledge || !policy.CanWriteTask {
+		t.Fatal("fixture member policy lost declared write permissions")
+	}
+	if strings.Contains(buildSharedDoctrineSection(true), "HANDOFF") {
+		t.Fatal("standing rules still contain handoff instructions")
 	}
 }

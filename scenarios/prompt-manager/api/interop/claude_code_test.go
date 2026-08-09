@@ -311,8 +311,11 @@ func TestFormatSpawnPrompt(t *testing.T) {
 	if !strings.Contains(prompt, ctx.AdditionalCtx) {
 		t.Errorf("prompt missing AdditionalCtx %q", ctx.AdditionalCtx)
 	}
-	if !strings.Contains(prompt, "## HANDOFF") {
-		t.Errorf("prompt missing handoff contract")
+	if !strings.Contains(prompt, "Source Ledger") {
+		t.Errorf("prompt missing Source Ledger continuity contract")
+	}
+	if strings.Contains(prompt, "## HANDOFF") {
+		t.Errorf("prompt still carries retired handoff output contract")
 	}
 	if !strings.Contains(prompt, "Do not create, import, or rename a team") {
 		t.Errorf("prompt missing existing-team constraint")

@@ -51,7 +51,7 @@ Cross-reference: [docs/monetization/catalogs/skus/base/business.md](../../moneti
 | `goal:gct-release-pipeline` | GCT's own release path. |
 | `goal:swarm-manager-graph-workspace` | Core UX of the Swarm Manager scenario. |
 | `goal:swarm-manager-dashboard` | Surface parity work. |
-| `goal:swarm-manager-feature-parity` | Swarm Manager must cover everything the deprecated app-issue-tracker covered. |
+| `goal:swarm-manager-feature-parity` | Swarm Manager must cover everything the deprecated issue-tracking surface covered. Capture grounding, goal/milestone proposals, and the unified suggested-work decision rail close the intake/parity gap addressed by this plan; remaining parity work stays portfolio-owned. |
 | `goal:swarm-manager-quality-gates` | Self-correction for agent-driven Swarm Manager work. |
 | `goal:goal-driven-execution-and-estimation` | Goal-scoped execution strategy and estimation — the operator loop's planning depth. |
 | `goal:decision-question-visuals` | Visual grounding for decision questions — operator decides faster with mockups than prose. |

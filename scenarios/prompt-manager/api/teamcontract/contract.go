@@ -333,13 +333,13 @@ func renderMemberPolicyBody(b *strings.Builder, contract *OperatingContract, mem
 	}
 	// Document authority and the allowed/forbidden write paths are deliberately
 	// absent here. Both were rendered a second time in this section while
-	// `# Storage Map` (RenderTeamStorage) and `# Active Task Brief`
+	// `<storage-map>` (RenderTeamStorage) and the task's declared surfaces
 	// (Write Surface) already carry them with more context — Storage Map adds
 	// each surface's kind, owner, and purpose; the brief names what each write
 	// surface is for. A contract restated in two vocabularies is a contract an
 	// agent has to reconcile at read time.
 	b.WriteString("\n## Operating Constraints\n\n")
-	b.WriteString("Your write surfaces are listed in `# Active Task Brief` and described in `# Storage Map`.\n")
+	b.WriteString("Your write surfaces are declared in `<storage-map>` and cannot be widened by the task.\n")
 	writeStringList(b, "Safety-critical rules", member.SafetyCriticalRules)
 	if len(member.TaskParameters) > 0 {
 		b.WriteString("\nTask parameters:\n")
@@ -630,7 +630,6 @@ func RenderTeamStorage(contract *OperatingContract, input RenderInput) (string, 
 	b.WriteString("Primitive availability for this member:\n")
 	b.WriteString("- unified work filing: file findings and requests once into swarm-manager\n")
 	b.WriteString("- knowledge: " + primitiveKnowledgeAvailability(member) + "\n")
-	b.WriteString("- handoff: " + primitiveHandoffAvailability(member, input.RequireHandoff) + "\n")
 	b.WriteString("- task board: " + primitiveTaskAvailability(member) + "\n")
 	return strings.TrimRight(b.String(), "\n") + "\n", nil
 }
@@ -643,19 +642,6 @@ func primitiveKnowledgeAvailability(member MemberContract) string {
 		return "`write-allowed` - record structured observations and friction signals using required topics"
 	}
 	return "`unavailable` - no knowledge surface is declared for this member"
-}
-
-func primitiveHandoffAvailability(member MemberContract, requireHandoff bool) string {
-	if writeRefsContainKind(member.ForbiddenWrites, "handoff") {
-		return "`unavailable` - do not write a persistent handoff"
-	}
-	if writeRefsContainKind(member.AllowedWrites, "handoff") {
-		if requireHandoff {
-			return "`required` - preserve next-run continuity with final ## HANDOFF"
-		}
-		return "`allowed` - preserve next-run continuity when useful"
-	}
-	return "`unavailable` - no handoff surface is declared for this member"
 }
 
 func primitiveTaskAvailability(member MemberContract) string {

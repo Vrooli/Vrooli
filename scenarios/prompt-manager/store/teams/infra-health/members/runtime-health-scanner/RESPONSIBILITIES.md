@@ -1,4 +1,4 @@
-# Responsibilities: Runtime Health Scanner
+# Standing Responsibilities: Runtime Health Scanner
 
 ## Primary Duties
 - Inspect aggregate runtime health since the previous heartbeat.

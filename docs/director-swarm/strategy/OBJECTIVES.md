@@ -35,6 +35,8 @@ Objective ids are stable and citable. Do not renumber a retired objective's id; 
 
 A self-improving system whose only written objectives are about its own improvement will improve itself indefinitely, because those are the only objectives it can score against. Instrumental objectives must always be justified by a terminal one. `I1`, `I2`, and `I3` are in this file only because `T1`, `T2`, and `T3` are.
 
+**Where the instrumental set is explained in narrative form.** This table is the declaration; [`RECURSIVE_SELF_IMPROVEMENT.md`](../../concepts/RECURSIVE_SELF_IMPROVEMENT.md) is the prose spine that says how `I1`, `I2`, and `I3` are pursued as one loop — the four projections, the maturation gradient, and the control topology. Edit the ids here; edit the story there.
+
 **`T1` is terminal, not instrumental.** Revenue funds the system, which makes monetization look like a supporting function. It is not. "Earn a living from my business" is a thing the operator wants; it only appears self-referential because this operator's business is Vrooli itself. Another operator would run a different business and staff the same team shape against it. `team:marketing-crew` sits on the same side for the same reason.
 
 ## Operator-invariant and operator-specific
