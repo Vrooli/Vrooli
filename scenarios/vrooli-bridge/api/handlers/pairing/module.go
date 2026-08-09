@@ -17,10 +17,11 @@ import (
 // wired to the registry domain) and the control-plane public key are built in
 // main.go and passed in, because the same pairing repository is also shared
 // with the nodeauth verifier and the registry atomic-revoke.
-func Module(svc *internalpairing.Service, controlPlanePublicKey string, logger *log.Logger) module.Module {
+func Module(svc *internalpairing.Service, controlPlanePublicKey string, defaultScopes []string, logger *log.Logger) module.Module {
 	path, handler := pairingconnect.NewPairingServiceHandler(NewConnectHandler(Deps{
 		Service:               svc,
 		ControlPlanePublicKey: controlPlanePublicKey,
+		DefaultScopes:         defaultScopes,
 		Logger:                logger,
 	}))
 	return module.Module{

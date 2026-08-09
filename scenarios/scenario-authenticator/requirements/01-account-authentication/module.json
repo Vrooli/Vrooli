@@ -1,80 +1,65 @@
 {
-  "description": "Email/password registration and sign-in work end-to-end through the Connect API, with input validation and faithful error relay that does not leak account existence.",
-  "module_id": "MOD-P0-001",
-  "prd_ref": "OT-P0-001",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-09T01:12:20-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": [
-        "REQ-P0-004",
-        "REQ-P0-010",
-        "REQ-P0-011"
-      ],
-      "description": "Implement end-to-end email/password registration and sign-in through the Connect RPC API. Input validation must be thorough (email format, password strength policy). Error responses must faithfully relay backend errors without leaking account existence (no enumeration: same error shape for unknown email vs wrong password). Registration must reject duplicate emails with a non-enumerating response.",
       "id": "REQ-P0-001",
-      "prd_ref": "OT-P0-001",
-      "status": "implemented",
       "title": "Email/Password Registration and Sign-In via Connect API",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "description": "Implement end-to-end email/password registration and sign-in through the Connect RPC API. Input validation must be thorough (email format, password strength policy). Error responses must faithfully relay backend errors without leaking account existence (no enumeration: same error shape for unknown email vs wrong password). Registration must reject duplicate emails with a non-enumerating response.",
       "validation": [
         {
-          "notes": "api/internal/auth/validation_test.go: verify email format and password-strength rules reject malformed inputs and return structured errors",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/auth/validation_test.go: verify email format and password-strength rules reject malformed inputs and return structured errors"
         },
         {
-          "notes": "api/internal/auth/validation_test.go: verify error messages for unknown-email and wrong-password paths are indistinguishable (same code, same message shape)",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/auth/validation_test.go: verify error messages for unknown-email and wrong-password paths are indistinguishable (same code, same message shape)"
         },
         {
-          "notes": "api/internal/auth/registration_test.go: verify duplicate-email registration returns a non-enumerating error identical in shape to a generic failure",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/auth/registration_test.go: verify duplicate-email registration returns a non-enumerating error identical in shape to a generic failure"
         },
         {
-          "notes": "api/handlers/auth/register_e2e_test.go: POST register with valid credentials → 200 + account created in SQLite; re-register same email → error that does not reveal existence",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/register_e2e_test.go: POST register with valid credentials → 200 + account created in SQLite; re-register same email → error that does not reveal existence"
         },
         {
-          "notes": "api/handlers/auth/signin_e2e_test.go: sign-in with correct credentials → access token + refresh token issued; wrong password → generic error; unknown email → same generic error shape",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/signin_e2e_test.go: sign-in with correct credentials → access token + refresh token issued; wrong password → generic error; unknown email → same generic error shape"
         },
         {
-          "notes": "api/handlers/auth/signin_e2e_test.go: connect RPC surface returns Connect-typed errors, not raw HTTP error strings",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/signin_e2e_test.go: connect RPC surface returns Connect-typed errors, not raw HTTP error strings"
         },
         {
-          "notes": "bas/auth/registration_flow_test: user can complete registration form, submit, and receive confirmation without server errors",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "implemented",
+          "notes": "bas/auth/registration_flow_test: user can complete registration form, submit, and receive confirmation without server errors"
         },
         {
-          "notes": "bas/auth/signin_flow_test: user can sign in with registered credentials and reach authenticated state",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "implemented",
+          "notes": "bas/auth/signin_flow_test: user can sign in with registered credentials and reach authenticated state"
         }
       ]
     }
-  ],
-  "title": "Account Authentication"
+  ]
 }

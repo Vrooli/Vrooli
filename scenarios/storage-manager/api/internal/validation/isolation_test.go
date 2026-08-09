@@ -169,6 +169,50 @@ func main() { _ = os.WriteFile("state.json", nil, 0o644) }
 	}
 }
 
+func TestFileRoutedSeamsExcludesStorageSeamedSigningKeys(t *testing.T) {
+	ac := isoCtx(t, "package main\nfunc main() {}\n", nil, "go")
+	writeFile(t, filepath.Join(ac.ScenarioDir, "api", "internal", "authcrypto", "keys.go"), `package authcrypto
+import "os"
+func persist(path string, data []byte) error { return os.WriteFile(path, data, 0o600) }
+`)
+	if (isoFileRoutedSeams{}).Applies(ac) {
+		t.Fatal("storage-seamed signing keys must not enter request file-routing validation")
+	}
+}
+
+func TestFileRoutedSeamsExcludesStorageSeamedControlPlaneKeys(t *testing.T) {
+	ac := isoCtx(t, "package main\nfunc main() {}\n", nil, "go")
+	writeFile(t, filepath.Join(ac.ScenarioDir, "api", "internal", "cpkeys", "keys.go"), `package cpkeys
+import "os"
+func persist(path string, data []byte) error { return os.WriteFile(path, data, 0o600) }
+`)
+	if (isoFileRoutedSeams{}).Applies(ac) {
+		t.Fatal("storage-seamed control-plane keys must not enter request file-routing validation")
+	}
+}
+
+func TestFileRoutedSeamsExcludesStorageSeamedOnboardingTrustState(t *testing.T) {
+	ac := isoCtx(t, "package main\nfunc main() {}\n", nil, "go")
+	writeFile(t, filepath.Join(ac.ScenarioDir, "api", "internal", "onboard", "ssh", "hostkey.go"), `package ssh
+import "os"
+func persist(path string, data []byte) error { return os.WriteFile(path, data, 0o600) }
+`)
+	if (isoFileRoutedSeams{}).Applies(ac) {
+		t.Fatal("storage-seamed onboarding trust state must not enter request file-routing validation")
+	}
+}
+
+func TestFileRoutedSeamsExcludesTransientArtifactBuilder(t *testing.T) {
+	ac := isoCtx(t, "package main\nfunc main() {}\n", nil, "go")
+	writeFile(t, filepath.Join(ac.ScenarioDir, "api", "internal", "onboard", "artifact_builder.go"), `package onboard
+import "os"
+func stage(path string, data []byte) error { return os.WriteFile(path, data, 0o600) }
+`)
+	if (isoFileRoutedSeams{}).Applies(ac) {
+		t.Fatal("temporary artifact staging must not enter request file-routing validation")
+	}
+}
+
 func TestUnverified_NonGoWithEngineFlagged(t *testing.T) {
 	ac := AnalyzerContext{Scenario: "ts-demo", APIDir: "/x/api", Language: "typescript", Engines: []Engine{EnginePostgres}}
 	if !(isoUnverified{}).Applies(ac) {
@@ -223,6 +267,18 @@ func sessionKey(rdb *redis.Client, id string) string { return sessionPrefix + id
 	got := isoScanNamespaceFile(src, "api/internal/auth/redis.go")
 	if len(got) == 0 {
 		t.Fatalf("expected a Redis namespace finding, got none")
+	}
+}
+
+func TestNamespaceHardcoded_LocalRedisDomainPrefixAllowed(t *testing.T) {
+	src := `package auth
+
+import "github.com/redis/go-redis/v9"
+
+func sessionKey(rdb *redis.Client, id string) string { return "session:" + id }
+`
+	if got := isoScanNamespaceFile(src, "api/internal/auth/redis.go"); len(got) != 0 {
+		t.Fatalf("local domain key prefix must not be treated as a namespace, got %+v", got)
 	}
 }
 

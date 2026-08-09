@@ -4,12 +4,10 @@ Get the fleet's Identity Provider (IdP) running locally in under five
 minutes. The lifecycle handles ports, environment variables, and
 dependencies — you should not need to set anything by hand.
 
-> **Status: documentation-first orientation.** This describes the
-> **target** first-run experience from [`../PRD.md`](../PRD.md). Setup,
-> start, open, and test (steps 1–3, 5) work today on the scaffold. The
-> IdP-specific steps (create the default realm, first user, JWKS verify
-> — step 4) depend on the `realms`/`identity`/`tokens` domains, which are
-> **not implemented yet**; those commands are marked clearly below.
+> **Status: implemented local IdP workflow.** Setup, lifecycle, health,
+> default-realm account registration/login, JWKS verification, refresh, and
+> session operations are live. True multi-realm administration, MFA, and
+> recovery remain explicitly deferred and are marked below.
 
 ## Prerequisites
 
@@ -82,13 +80,12 @@ curl -s "http://localhost:${API_PORT}/health"
 curl -s "http://localhost:${API_PORT}/.well-known/jwks.json"   # active public key (target)
 ```
 
-Then create the **default realm** (which issues `aud`-scoped tokens) and
-the first admin user. These commands depend on the **unbuilt P0
-`realms`/`identity` domains** — they are the target shape, not working
-yet:
+Then use the default realm (which issues `aud`-scoped tokens) and register
+the first account. The default realm and account/auth commands are live;
+true multi-realm administration and role-management remain deferred:
 
 ```bash
-# TARGET — depends on unbuilt domains (realms, identity):
+# Default realm/account operations:
 scenario-authenticator realms ensure-default                  # idempotent default realm
 scenario-authenticator users create --realm default \
   --email admin@example.com --role admin                      # first admin (Argon2id-hashed)

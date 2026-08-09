@@ -37,6 +37,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/api-core/trustposture"
 	_ "modernc.org/sqlite"
 
 	artifactsH "vrooli-bridge/handlers/artifacts"
@@ -315,7 +316,35 @@ func main() {
 	// authenticator's URL by name via api-core/discovery (no env var); the
 	// client verifies owner JWTs offline against its published RS256 key.
 	authResolver := discovery.NewResolver(discovery.ResolverConfig{})
-	authClient := auth.NewClient(auth.Config{Resolver: authResolver})
+	posture, err := trustposture.LoadWorkingTree()
+	if err != nil {
+		log.Fatalf("load trust posture: %v", err)
+	}
+	postureDefaults, err := trustposture.DefaultsFor(posture.Posture)
+	if err != nil {
+		log.Fatalf("resolve trust posture defaults: %v", err)
+	}
+	log.Printf("trust posture %q selects %d default Bridge execution scope(s)", posture.Posture, len(postureDefaults.NodeExecutionScopes))
+	var breakGlassPublic []byte
+	publicKeyPath := strings.TrimSpace(os.Getenv("VROOLI_BREAK_GLASS_PUBLIC_KEY"))
+	if publicKeyPath == "" {
+		if paths, pathErr := trustposture.ResolveKeyPaths(); pathErr == nil {
+			publicKeyPath = paths.Public
+		}
+	}
+	if publicKeyPath != "" {
+		breakGlassPublic, err = os.ReadFile(publicKeyPath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				log.Fatalf("read pinned break-glass public key: %v", err)
+			}
+		}
+	}
+	authClient := auth.NewClient(auth.Config{
+		Resolver:            authResolver,
+		JWKSGrace:           postureDefaults.JWKSCacheGrace,
+		BreakGlassPublicKey: breakGlassPublic,
+	})
 
 	// The presence hub is the in-memory view of which nodes hold a dial-out
 	// channel and their self-reported health. It is shared with the registry
@@ -435,6 +464,7 @@ func main() {
 	endpointStore := internalreadiness.NewStore(db, internalreadiness.Endpoint{URL: readinessEndpoint, Mode: fallbackMode, Source: readinessSource})
 	onboardOpts := []internalonboard.Option{
 		internalonboard.WithRevisionResolver(revResolver),
+		internalonboard.WithDefaultScopes(postureDefaults.NodeExecutionScopes),
 		internalonboard.WithWorkingTreeSource(internalonboard.NewWorkingTreeSource(strings.TrimSpace(os.Getenv("BRIDGE_CP_REPO_DIR")))),
 		internalonboard.WithArtifactBuilder(internalonboard.NewArtifactBuilder()),
 		internalonboard.WithNodeRevisionRecorder(onboardH.NewNodeRevisionRecorder(registrySvc)),
@@ -489,7 +519,7 @@ func main() {
 		// credential destruction (pairingSvc) + live-channel drop (presenceHub).
 		registryH.Module(db, clk, presenceHub, pairingSvc, presenceHub, logger),
 		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger),
-		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), logger),
+		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), postureDefaults.NodeExecutionScopes, logger),
 		// dispatch (OT-P0-004): the allowlist gate. It reads node scopes
 		// (registrySvc), checks presence + protocol compatibility, creates durable
 		// runs (runsSvc), audits (auditStore), and submits typed jobs to the
@@ -524,7 +554,7 @@ func main() {
 		// artifacts (OT-P1-003): non-git artifact distribution. Validates node
 		// revocation (registrySvc) and delegates the byte move to device-sync-hub
 		// directed delivery (bridge stores no blob).
-		artifactsH.Module(db, clk, registrySvc, logger),
+		artifactsH.Module(db, clk, registrySvc, runsSvc, nodeVerifier, logger),
 		// audit (OT-P0-008): owner-gated read of the append-only trail.
 		auditH.Module(auditStore, logger),
 	)
@@ -537,7 +567,15 @@ func main() {
 
 	// auth.Middleware best-effort-injects the owner Identity when a valid
 	// bearer token is present; owner-gated RPCs fail closed via RequireOwner.
-	rootMux.Handle("/", auth.Middleware(authClient, logger)(srv.Handler()))
+	rootMux.Handle("/", auth.MiddlewareWithAudit(authClient, logger, auth.BreakGlassAuditFunc(func(ctx context.Context, id auth.Identity) error {
+		_, err := auditStore.Append(ctx, internalaudit.Record{
+			Action: internalaudit.ActionBreakGlass,
+			Actor:  id.OwnerID, NodeID: "local-control-plane",
+			Scenario: "scenario-authenticator", Verb: "break-glass",
+			Outcome: internalaudit.OutcomeAccepted,
+		})
+		return err
+	}))(srv.Handler()))
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the

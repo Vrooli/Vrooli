@@ -20,7 +20,10 @@ type Deps struct {
 	// ControlPlanePublicKey is the standard-base64 CP Ed25519 public key handed
 	// to nodes to pin (from internal/cpkeys).
 	ControlPlanePublicKey string
-	Logger                *log.Logger
+	// DefaultScopes are the posture-selected scopes applied when the owner does
+	// not provide a narrower grant at enrollment time.
+	DefaultScopes []string
+	Logger        *log.Logger
 }
 
 type connectHandler struct {
@@ -41,7 +44,11 @@ func (h *connectHandler) IssuePairingCode(ctx context.Context, req *connect.Requ
 		return nil, auth.ToConnectError(err)
 	}
 	ttl := time.Duration(req.Msg.GetTtlSeconds()) * time.Second
-	issued, err := h.deps.Service.IssueCode(ctx, req.Msg.GetName(), req.Msg.GetScopes(), ttl)
+	scopes := req.Msg.GetScopes()
+	if len(scopes) == 0 {
+		scopes = append([]string(nil), h.deps.DefaultScopes...)
+	}
+	issued, err := h.deps.Service.IssueCode(ctx, req.Msg.GetName(), scopes, ttl)
 	if err != nil {
 		return nil, h.toConnectError("IssuePairingCode", err)
 	}

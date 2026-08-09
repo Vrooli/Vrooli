@@ -36,6 +36,10 @@ func (f *fakeIdentityClient) Register(context.Context, *connect.Request[identity
 	return nil, errors.New("unexpected Register call")
 }
 
+func (f *fakeIdentityClient) Refresh(context.Context, *connect.Request[identityv1.RefreshRequest]) (*connect.Response[identityv1.RefreshResponse], error) {
+	return nil, errors.New("unexpected Refresh call")
+}
+
 func loginSchema() cliapp.ArgSchema {
 	return cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "email", Required: true}, {Name: "password-stdin", Bool: true}}}
 }

@@ -13,6 +13,7 @@ import (
 	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs/runs_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"vrooli-bridge/cli/internal/session"
 )
 
 type handlers struct {
@@ -21,7 +22,7 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := session.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
 		client: runsconnect.NewRunsServiceClient(httpClient, baseURL),

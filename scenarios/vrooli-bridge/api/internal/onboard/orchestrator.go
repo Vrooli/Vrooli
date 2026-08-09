@@ -179,7 +179,11 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	if op, getErr := s.repo.Get(ctx, opID); getErr == nil && op.CorrelationID != "" {
 		correlationID = op.CorrelationID
 	}
-	code, err := s.issuer.Issue(ctx, IssueParams{NodeName: in.NodeName, Scopes: nil, CorrelationID: correlationID})
+	code, err := s.issuer.Issue(ctx, IssueParams{
+		NodeName:      in.NodeName,
+		Scopes:        append([]string(nil), s.defaultScopes...),
+		CorrelationID: correlationID,
+	})
 	if err != nil {
 		s.finishFailed(ctx, opID, &seq, FailurePairingIssue, 0, "could not issue pairing code", "")
 		return
@@ -197,25 +201,60 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		s.handleMarker(ctx, opID, &seq, m)
 	}
 	res, runErr := s.driver.RunBootstrap(ctx, RunParams{
-		Conn: conn, RemotePath: remotePath, Args: buildBootstrapArgs(in, wtSourceDir, wtDigest, remoteArtifacts), PairingCode: code, SetupPassphrase: in.SetupPassphrase,
+		Conn: conn, RemotePath: remotePath, Args: buildBootstrapArgsForScopes(in, wtSourceDir, wtDigest, remoteArtifacts, s.defaultScopes), PairingCode: code, SetupPassphrase: in.SetupPassphrase,
 	}, onMarker)
 	// The code has served its one purpose — destroy our copy immediately.
 	zeroBytes(code)
 	zeroBytes(in.SetupPassphrase)
-	// Pairing may have completed before a later bootstrap/service-install failure.
-	// Resolve the durable correlation before interpreting that terminal process
-	// result so the recovery record never depends on free-text stdout markers.
+
+	if runErr != nil {
+		if s.cancelled(ctx) {
+			s.finishCancelled(ctx, opID, &seq)
+			return
+		}
+		s.finishFailed(ctx, opID, &seq, FailureBootstrap, int32(res.ExitCode), "bootstrap transport error: "+runErr.Error(), res.Diagnostics)
+		return
+	}
+	if reason, ok := failureForExit(res.ExitCode); ok {
+		// A bootstrap/service-install failure is still a bootstrap failure even
+		// when the pairing row is absent. Pairing resolution is only required for
+		// successful convergence (or an explicit pairing failure); otherwise an
+		// unrelated host/setup error would be mislabeled as FailurePairing.
+		if reason != FailurePairing {
+			// Preserve lineage when pairing completed before the later failure, but
+			// never turn a missing pairing row into a different terminal reason.
+			if s.resolver != nil {
+				resolved, paired, resolveErr := s.resolver.ResolveEnrollment(ctx, correlationID)
+				if resolveErr == nil && paired {
+					nodeID = resolved
+				} else if errors.Is(resolveErr, sql.ErrNoRows) && res.NodeID != "" {
+					nodeID, paired = res.NodeID, true
+				}
+				if paired {
+					s.recordNodeID(ctx, opID, nodeID)
+					if s.linker != nil {
+						if err := s.linker.LinkCorrelatedNode(ctx, correlationID, nodeID); err != nil {
+							s.finishFailed(ctx, opID, &seq, FailurePairing, int32(res.ExitCode), "could not persist machine node lineage: "+err.Error(), res.Diagnostics)
+							return
+						}
+					}
+				}
+			}
+			s.finishFailed(ctx, opID, &seq, reason, int32(res.ExitCode), fmt.Sprintf("bootstrap exited %d", res.ExitCode), res.Diagnostics)
+			return
+		}
+	}
+
+	// Resolve the durable enrollment only after transport and bootstrap result
+	// classification. A re-run after an interrupted install may find the node
+	// already paired, so bootstrap can legitimately emit its identity without a
+	// new enrollment row; accept that typed no-row case only with that identity.
 	if s.resolver == nil {
 		s.finishFailed(ctx, opID, &seq, FailurePairing, int32(res.ExitCode), "durable pairing result resolver is not configured", res.Diagnostics)
 		return
 	}
 	resolved, paired, resolveErr := s.resolver.ResolveEnrollment(ctx, correlationID)
 	if resolveErr != nil {
-		// A re-run after an interrupted install may find the node already paired,
-		// so bootstrap correctly skips code redemption and no new enrollment row is
-		// created. Accept only that typed no-row case and only with the node identity
-		// emitted by the local convergence marker; fresh pairing remains strictly
-		// correlation-resolved.
 		if errors.Is(resolveErr, sql.ErrNoRows) && res.NodeID != "" {
 			resolved, paired, resolveErr = res.NodeID, true, nil
 		}
@@ -233,15 +272,6 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 				return
 			}
 		}
-	}
-
-	if runErr != nil {
-		if s.cancelled(ctx) {
-			s.finishCancelled(ctx, opID, &seq)
-			return
-		}
-		s.finishFailed(ctx, opID, &seq, FailureBootstrap, int32(res.ExitCode), "bootstrap transport error: "+runErr.Error(), res.Diagnostics)
-		return
 	}
 	if reason, ok := failureForExit(res.ExitCode); ok {
 		s.finishFailed(ctx, opID, &seq, reason, int32(res.ExitCode), fmt.Sprintf("bootstrap exited %d", res.ExitCode), res.Diagnostics)
@@ -337,6 +367,10 @@ func (s *service) handleMarker(ctx context.Context, opID string, seq *uint64, m 
 // orchestrator pre-shipped and its content digest); the script then verifies that
 // tree instead of cloning, and keys its setup sentinel on the digest.
 func buildBootstrapArgs(in StartInput, wtSourceDir, wtDigest string, artifacts RemoteArtifacts) []string {
+	return buildBootstrapArgsForScopes(in, wtSourceDir, wtDigest, artifacts, nil)
+}
+
+func buildBootstrapArgsForScopes(in StartInput, wtSourceDir, wtDigest string, artifacts RemoteArtifacts, defaultScopes []string) []string {
 	// Bridge-owned onboarding always reconciles pairing. The node may contain a
 	// partial install from an earlier control-plane database or interrupted run;
 	// the pairing service makes same-key redemption idempotent while the explicit
@@ -373,6 +407,15 @@ func buildBootstrapArgs(in StartInput, wtSourceDir, wtDigest string, artifacts R
 	}
 	if caps := joinCapabilities(in.Capabilities); caps != "" {
 		args = append(args, "--capabilities", caps)
+	}
+	// The bootstrap script defaults new agents to presence-only. The control
+	// plane, not the node's self-reported capabilities, owns execution grants:
+	// posture defaults are carried by the pairing/registry record and must also
+	// select the agent's local frame policy. Otherwise a personal node with a
+	// durable vrooli-bridge:write grant can remain permanently unable to accept
+	// the typed work it was authorized for.
+	if len(defaultScopes) > 0 || len(in.Capabilities) > 0 {
+		args = append(args, "--presence-only", "false")
 	}
 	if in.SkipSetup {
 		args = append(args, "--skip-setup")

@@ -36,8 +36,12 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, meta Request
 	if err != nil {
 		return AuthResult{}, err
 	}
+	scopes, err := s.scopes(ctx, acc)
+	if err != nil {
+		return AuthResult{}, err
+	}
 	access, err := s.signer.Sign(authcrypto.TokenInput{
-		UserID: acc.ID, Email: acc.Email, Roles: acc.Roles, Audience: aud,
+		UserID: acc.ID, Email: acc.Email, Roles: acc.Roles, Scopes: scopes, Audience: aud,
 	})
 	if err != nil {
 		return AuthResult{}, err
@@ -46,6 +50,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, meta Request
 		return AuthResult{}, err
 	}
 	s.logEvent(ctx, acc.ID, acc.RealmID, "token.refreshed", meta, true, nil)
+	acc.Scopes = scopes
 	return AuthResult{
 		Account: acc, AccessToken: access, RefreshToken: newRefresh,
 		AccessExpiresAt: s.clock.Now().Add(s.signer.Expiry()),

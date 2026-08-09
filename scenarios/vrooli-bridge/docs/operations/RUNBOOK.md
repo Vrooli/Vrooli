@@ -103,6 +103,9 @@ password without echoing it and saves the returned owner session in the
 per-user CLI config. For non-interactive use, pipe the password to
 `vrooli-bridge auth login --email "you@example.com" --password-stdin`.
 `VROOLI_BRIDGE_API_TOKEN` remains available for managed environments. In the
+normal CLI flow, `vrooli-bridge auth refresh` can rotate the saved owner
+session explicitly, and owner-gated commands make one transparent refresh
+attempt on an expired access token.
 **UI**, the console shows a sign-in screen instead: sign in (or create the
 owner account) and it proxies same-origin to scenario-authenticator via the
 bridge's `IdentityService`, keeping the JWT in browser storage until you sign
@@ -156,7 +159,11 @@ commit; pass an explicit already-pushed SHA/branch when HEAD is
 unpushed), `--name`, `--capabilities`, `--control-plane-url` (the dial-back
 URL the node pairs to; defaults to the server's `$BRIDGE_CONTROL_PLANE_URL`,
 else the control plane's own derived LAN address — zero configuration
-required), `--verify-timeout`, `--skip-setup`, `--skip-prereqs`. The UI path
+required), `--verify-timeout`, `--skip-setup`, `--skip-prereqs`. A non-empty
+`--capabilities` value during onboarding enables the agent's typed control
+frame handler; it does not grant authority. The registry's approved execution
+scopes still decide which jobs may run, and an empty scope grant remains
+presence-only. The UI path
 is the **OnboardNodeForm** on the fleet dashboard (same durable op, live step
 states, failure-taxonomy rendering), including the same password,
 control-plane-URL, setup-profile, and source-mode inputs.

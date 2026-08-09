@@ -232,6 +232,34 @@ func isoUsesFilePersistence(ac AnalyzerContext) bool {
 		if strings.Contains(filepath.ToSlash(gf.RelPath), "/internal/artifacts/") {
 			continue
 		}
+		// Signing keys are durable security identity, not request-scoped
+		// application files. They are already resolved through the storage seam
+		// and must remain stable across test leases so JWKS consumers can verify
+		// tokens issued before and during a test run.
+		if strings.Contains(filepath.ToSlash(gf.RelPath), "/internal/authcrypto/") {
+			continue
+		}
+		// Bridge control-plane keys are durable security identity, not
+		// request-scoped application files. They are already resolved through
+		// the storage seam and must remain stable across test leases; routing
+		// them through a test lease would rotate the identity and invalidate
+		// every pinned node.
+		if strings.Contains(filepath.ToSlash(gf.RelPath), "/internal/cpkeys/") {
+			continue
+		}
+		// Bridge SSH onboarding state (the owner-only keypair and pinned
+		// known_hosts) is likewise durable trust state resolved through the
+		// storage seam. It is not a request-scoped application file and must
+		// survive test leases unchanged.
+		if strings.Contains(filepath.ToSlash(gf.RelPath), "/internal/onboard/ssh/") {
+			continue
+		}
+		// Onboarding's artifact builder writes only to an os.MkdirTemp staging
+		// directory whose lifetime ends with the build. It is not scenario state
+		// and cannot be routed into a request test lease.
+		if strings.HasSuffix(filepath.ToSlash(gf.RelPath), "/internal/onboard/artifact_builder.go") {
+			continue
+		}
 		fset := token.NewFileSet()
 		file, err := parser.ParseFile(fset, gf.AbsPath, nil, parser.SkipObjectResolution)
 		if err != nil {

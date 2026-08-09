@@ -1,13 +1,11 @@
 # UI Manifest Reference — Scenario Authenticator
 
-> **Target/planned surface — generated from proto + `cli/manifest.json`
-> during implementation (Gate 6); not yet shipped.** Only the scaffold UI
-> features (`health` and the fenced `notes` example) exist today. The
-> three audiences, their routes, feature folders, and declared
-> widgets/selectors below are the *planned* UI contract authored during
-> the documentation-first orientation pass. Route paths, feature-folder
-> names, and `data-testid` selectors here are the *target* shapes and may
-> be refined when the features are built. Each UI feature talks
+> **Current UI reference with planned extensions.** The shipped UI contains
+> health, the shared shell, settings, and accessibility primitives. The
+> three audiences, routes, feature folders, and declared widgets/selectors
+> below are planned extensions; the old `notes` example is not shipped.
+> Route paths and selectors are therefore not a claim that those future
+> screens already exist. Each UI feature talks
 > **same-origin** to its own API (`ui/server.js` proxies to the API
 > process); it never makes a cross-origin call to the authenticator.
 

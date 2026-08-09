@@ -14,7 +14,10 @@
       "description": "Realms must be fully manageable via CRUD RPCs (create, read, update, delete/disable). Each realm carries: display name, branding (logo URL, colors), password policy (min length, complexity, history), token TTLs (access, refresh), enabled authentication methods, and allowed redirect URIs for OAuth. User accounts are realm-scoped: the same email address is a distinct principal in each realm with no shared credential or session state. Realm administrators are users with admin role scoped to a specific realm.",
       "id": "REQ-P1-001",
       "prd_ref": "OT-P1-001",
-      "status": "planned",
+  "status": "not_implemented",
+  "delivery_scope": "roadmap",
+  "deferred_reason": "The shipped authenticator intentionally remains default-realm-only; true multi-realm tenant isolation is outside this plan.",
+  "revisit_trigger": "A second tenant or household requires independent realm administration and data isolation.",
       "title": "Realm CRUD as True Tenant Boundary with Per-Realm Configuration",
       "validation": [
         {

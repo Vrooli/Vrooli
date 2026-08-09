@@ -26,6 +26,7 @@ type service struct {
 	audit          AuditSink
 	pusher         JobPusher
 	manifest       []string
+	outputs        map[string][]ArtifactOutput
 	defaultTimeout int64
 }
 
@@ -35,6 +36,10 @@ type Option func(*service)
 // WithManifest overrides the recognised verb-namespace allowlist.
 func WithManifest(manifest []string) Option {
 	return func(s *service) { s.manifest = manifest }
+}
+
+func WithManifestOutputs(outputs map[string][]ArtifactOutput) Option {
+	return func(s *service) { s.outputs = outputs }
 }
 
 // WithDefaultTimeout overrides the timeout applied when a job passes <= 0.
@@ -55,6 +60,7 @@ func NewService(nodes NodeReader, presence Presence, runsCtl RunController, sink
 		audit:          sink,
 		pusher:         pusher,
 		manifest:       DefaultManifest,
+		outputs:        defaultManifestOutputs,
 		defaultTimeout: DefaultTimeoutSeconds,
 	}
 	for _, opt := range opts {
@@ -146,6 +152,7 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 	//    adds a durable per-node queue that redelivers instead.
 	delivered, err := s.pusher.PushJob(ctx, job.NodeID, PushedJob{
 		RunID: runID, Scenario: job.Scenario, Verb: job.Verb, Args: job.Args, TimeoutSeconds: timeout,
+		Outputs: append([]ArtifactOutput(nil), s.outputs[job.Verb]...),
 	})
 	if err != nil || delivered == 0 {
 		_ = s.runs.AbortRun(ctx, runID, "job delivery failed")

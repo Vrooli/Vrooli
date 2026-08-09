@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"vrooli-bridge/cli/internal/session"
 
 	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
 	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
@@ -19,7 +20,7 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := session.NewConnectHTTPClient(core)
 	return &handlers{client: machinesconnect.NewMachineServiceClient(httpClient, baseURL)}
 }
 
@@ -37,6 +38,7 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Created machine %s.", resp.Msg.Machine.Id)}, Changes: []string{formatMachine(resp.Msg.Machine)}, NextCommand: []string{fmt.Sprintf("`machines get %s` — show machine intent and lineage", resp.Msg.Machine.Id)}})
 }
+
 func (h *handlers) get(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
 	resp, err := h.client.GetMachine(context.Background(), connect.NewRequest(&machinesv1.GetMachineRequest{Id: id}))
@@ -48,6 +50,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Fetched machine %s.", id)}, ResultsHeading: "Machine", Results: []string{formatMachine(resp.Msg.Machine)}})
 }
+
 func (h *handlers) list(ctx cliapp.RunContext) error {
 	resp, err := h.client.ListMachines(context.Background(), connect.NewRequest(&machinesv1.ListMachinesRequest{}))
 	if err != nil {
@@ -173,6 +176,7 @@ func (h *handlers) revokeNode(ctx cliapp.RunContext) error {
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Revoked Node %s for Machine %s.", resp.Msg.RevokedNodeId, id)}, Changes: []string{"Durable Node identity, credential, and live channel were revoked locally. SSH cleanup remains a separate explicit effect."}})
 }
+
 func parseLocators(raw string) ([]*machinesv1.ConnectionLocator, error) {
 	parts := strings.Split(raw, ",")
 	out := make([]*machinesv1.ConnectionLocator, 0, len(parts))
@@ -185,6 +189,7 @@ func parseLocators(raw string) ([]*machinesv1.ConnectionLocator, error) {
 	}
 	return out, nil
 }
+
 func parseVersion(raw string) (int64, error) {
 	version, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil || version < 1 {
@@ -192,6 +197,7 @@ func parseVersion(raw string) (int64, error) {
 	}
 	return version, nil
 }
+
 func formatMachine(m *machinesv1.Machine) string {
 	if m == nil {
 		return "(nil)"

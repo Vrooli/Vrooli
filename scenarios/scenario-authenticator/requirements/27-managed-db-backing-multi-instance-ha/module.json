@@ -13,6 +13,9 @@
       "id": "REQ-P2-006",
       "prd_ref": "OT-P2-006",
       "status": "planned",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Local SQLite plus required Redis is the supported deployment boundary; managed database adapters and HA qualification are outside this delivery.",
+      "revisit_trigger": "A production deployment requires multiple authenticator replicas or a managed database backend.",
       "title": "Managed-Database Backing and Multi-Instance High Availability",
       "validation": [
         {

@@ -15,6 +15,9 @@
       "id": "REQ-P1-009",
       "prd_ref": "OT-P1-009",
       "status": "planned",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Email-backed recovery and verification require a delivery provider and are outside this local-first plan; password change and machine binding cover the shipped recovery paths.",
+      "revisit_trigger": "A deployment needs self-service recovery without an already authenticated session or linked machine.",
       "title": "Account Recovery via Password Reset and Email Verification",
       "validation": [
         {

@@ -64,13 +64,17 @@ Code: `internal/dispatch`, `internal/runs`, `agent/internal/exec`. Tests:
 `internal/runs/durable_test.go`, `internal/runs/results_test.go`,
 `handlers/runs/connect_handler_test.go`.
 
-### Current one-shot onboarding (legacy path to replace)
+### Current one-shot onboarding
 
 ### Machine enrollment and recovery
 
 The Machine is created before contact. An enrollment request creates a fresh
 EnrollmentAttempt with an immutable input snapshot and opaque correlation ID;
-the attempt does not reuse a failed terminal operation.
+the attempt does not reuse a failed terminal operation. First-time CLI onboarding
+creates the Machine and returns its durable ID. Reconnects and retries must pass
+that explicit ID (`onboard start --machine-id <id>`), which reuses the Machine's
+Bridge-managed SSH key and trust record. Bridge never infers historic Machine
+identity from a hostname, IP, username, display name, or Node name.
 
 | Checkpoint | Durable write before proceeding | Retry class | Reconciliation / compensation |
 |---|---|---|---|
@@ -104,7 +108,7 @@ before service installation can fail. The operator receives a typed
 `interrupted_or_repair_required` result, not an uncorrelated bootstrap log; a
 retry must converge on that Node or create an explicit replacement lineage.
 
-The current `onboard` domain is the **legacy orchestration tier** that turns a raw,
+The current `onboard` domain is the orchestration tier that turns a raw,
 SSH-reachable host into a paired, ONLINE, auto-starting fleet node in one durable
 `OnboardingOp`. It sequences the artifacts the earlier phases built — SSH
 first-touch (phase 1), the server-side pairing code (phase 3), and the idempotent
@@ -113,7 +117,7 @@ walks away.
 
 It is now the execution engine beneath the Machine/EnrollmentAttempt path.
 `StartMachineEnrollment` creates immutable pre-contact intent and an opaque
-correlation before SSH starts; the legacy operation remains progress transport,
+correlation before SSH starts; the operation remains progress transport,
 not the aggregate of record.
 
 **States (persisted):** `pending → ssh_setup → pushing_script → bootstrapping →

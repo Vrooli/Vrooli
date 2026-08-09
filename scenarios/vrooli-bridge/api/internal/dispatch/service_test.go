@@ -54,6 +54,20 @@ func TestDispatch_HappyPath(t *testing.T) {
 	require.Equal(t, []string{"web-search"}, pushed[0].Args)
 }
 
+func TestDispatch_ScreenshotCarriesManifestSelectedOutput(t *testing.T) {
+	svc, nodes, _, _, _, pusher := newSvc(t)
+	nodes.Nodes["n1"] = dispatch.TargetNode{ID: "n1", Scopes: []string{"vrooli-bridge:write"}}
+	_, err := svc.Dispatch(context.Background(), dispatch.DispatchInput{Actor: "owner-1", Job: dispatch.Job{
+		NodeID: "n1", Verb: "scenario screenshot",
+	}})
+	require.NoError(t, err)
+	pushed := pusher.PushedJobs()
+	require.Len(t, pushed, 1)
+	require.Equal(t, []dispatch.ArtifactOutput{{
+		Name: "screenshot.png", MediaType: "image/png", OutputFlag: "--output", MaxBytes: 33554432,
+	}}, pushed[0].Outputs)
+}
+
 // [REQ:BRG-P1-001] A node that is online but whose agent protocol version is
 // flagged (needs-update / incompatible) is EXCLUDED from dispatch: the job is
 // rejected (FailedPrecondition) and audited as rejected before any run is

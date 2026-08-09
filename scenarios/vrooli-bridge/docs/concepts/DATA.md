@@ -35,7 +35,13 @@ the schema file that is the source of truth, the retention rule, and any
 remarks. Keep blob/opaque bytes outside proto payloads, behind a seam
 such as BlobStore.
 
-All control-plane data lives in SQLite via `api-core/storage`. Bridge deliberately stores **no large binaries** — build artifacts move through device-sync-hub, and job logs/artifacts stream back as references. The audit trail is routed to workspace-sandbox, not a bespoke local table.
+Control-plane metadata lives in SQLite via `api-core/storage`. The inbound
+distribution path remains metadata-only: build artifacts move through
+device-sync-hub and bridge stores only their delivery reference. Typed outputs
+produced by an authenticated run are the deliberate exception: bridge stores
+their bounded bytes in the artifacts domain, keyed by run and name, so an
+owner can retrieve plan evidence without reading a node-local path. The audit
+trail is routed to workspace-sandbox, not a bespoke local table.
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
@@ -113,7 +119,7 @@ and display-name matching are forbidden adoption rules.
 
 ## Privacy Notes
 
-Bridge stores **operational metadata about the owner's own machines** — node identities, OS/arch/revision, reachable endpoints, permission scopes, command/job history, and an immutable audit trail. It stores no third-party personal data. Two areas warrant care and are detailed in [`../internal/SECURITY.md`](../internal/SECURITY.md): (1) **node credentials** are mutual-auth secret material and are hashed at rest; (2) **job logs/artifacts** streamed back from a node can contain whatever the executed command emitted, so they inherit the sensitivity of the scenario under test and follow the same retention/access controls as the run records that own them.
+Bridge stores **operational metadata about the owner's own machines** — node identities, OS/arch/revision, reachable endpoints, permission scopes, command/job history, and an immutable audit trail. It stores no third-party personal data. Three areas warrant care and are detailed in [`../internal/SECURITY.md`](../internal/SECURITY.md): (1) **node credentials** are mutual-auth secret material and are hashed at rest; (2) **distributed artifacts** remain references because device-sync-hub owns their bytes; (3) **produced run artifacts** can contain whatever the executed command emitted, so their bounded bytes inherit the sensitivity of the scenario under test and are owner-gated by run identity.
 
 ## Cross-References
 

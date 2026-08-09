@@ -2,11 +2,15 @@ package auth
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/trustposture"
 )
 
 // fakeBase64URL JSON-encodes v and base64url's it (no padding) — the JWS
@@ -77,4 +81,31 @@ func TestAudienceUnmarshal_StringOrArray(t *testing.T) {
 	var many audience
 	require.NoError(t, json.Unmarshal([]byte(`["a","b"]`), &many))
 	require.True(t, many.contains("b"))
+}
+
+func TestIdentityCarriesVerifiedScopes(t *testing.T) {
+	id, err := (ownerClaims{
+		UserID: "owner-1", Iss: AuthScenarioSlug, Aud: audience{AuthExpectedAudience},
+		Scopes: []string{"vrooli-bridge:write"}, Exp: time.Now().Add(time.Hour).Unix(),
+	}).toIdentity(time.Now())
+	require.NoError(t, err)
+	require.Equal(t, []string{"vrooli-bridge:write"}, id.Scopes)
+}
+
+func TestBreakGlassValidatorIsOfflineAndDistinct(t *testing.T) {
+	public, private, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	now := time.Unix(1000, 0).UTC()
+	token, err := trustposture.Issue(private, trustposture.BreakGlassClaims{
+		Subject: "owner-1", Audience: AuthExpectedAudience,
+		Scopes: []string{"vrooli-bridge:read"}, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Minute).Unix(),
+	})
+	require.NoError(t, err)
+	c := NewClient(Config{Now: func() time.Time { return now }, BreakGlassPublicKey: public})
+	id, err := c.ValidateBreakGlass(context.Background(), token)
+	require.NoError(t, err)
+	require.Equal(t, "owner-1", id.OwnerID)
+	require.Equal(t, AuthMethodBreakGlass, id.AuthMethod)
+	_, err = c.ValidateBreakGlass(context.Background(), token+"x")
+	require.ErrorIs(t, err, ErrUnauthenticated)
 }

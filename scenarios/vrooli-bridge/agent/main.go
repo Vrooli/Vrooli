@@ -189,7 +189,10 @@ func serviceDefinition(cfg config.Config) (service.Definition, error) {
 	if len(cfg.Capabilities) > 0 {
 		args = append(args, "--capabilities", strings.Join(cfg.Capabilities, ","))
 	}
-	args = append(args, "--presence-only", strconv.FormatBool(cfg.PresenceOnly))
+	// Keep the boolean value in one argv token. Go's flag package treats a bare
+	// --presence-only as true, so the separated form would silently turn a
+	// granted execution node back into presence-only when rendering its service.
+	args = append(args, "--presence-only="+strconv.FormatBool(cfg.PresenceOnly))
 	return service.Definition{
 		Name:              "vrooli-bridge-agent",
 		Description:       "Vrooli Bridge node agent",

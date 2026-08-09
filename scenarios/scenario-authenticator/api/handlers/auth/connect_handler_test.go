@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/localprincipal"
 
 	apidb "github.com/vrooli/api-core/database"
 	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
@@ -15,6 +16,7 @@ import (
 	"scenario-authenticator/internal/audit"
 	"scenario-authenticator/internal/authcrypto"
 	"scenario-authenticator/internal/clock"
+	"scenario-authenticator/internal/localexchange"
 	"scenario-authenticator/internal/realm"
 	"scenario-authenticator/internal/redisstate"
 	"scenario-authenticator/internal/sessions"
@@ -25,6 +27,7 @@ type harness struct {
 	h      *connectHandler
 	svc    *accounts.Service
 	signer *authcrypto.Signer
+	audit  audit.Logger
 }
 
 func newHarness(t *testing.T) *harness {
@@ -43,14 +46,17 @@ func newHarness(t *testing.T) *harness {
 	keys := authcrypto.NewKeysFromPair(priv, &priv.PublicKey)
 	signer := authcrypto.NewSigner(keys, authcrypto.SignerConfig{Issuer: realm.Issuer})
 	clk := clock.System{}
+	repo := accounts.NewSQLiteRepository(d, clk)
+	auditLogger := audit.NewSQLiteLogger(d, clk)
 	svc := accounts.NewService(accounts.ServiceConfig{
-		Repo:     accounts.NewSQLiteRepository(d, clk),
-		Signer:   signer,
-		Sessions: sessions.NewManager(redisstate.NewMemory(), nil),
-		Audit:    audit.NewSQLiteLogger(d, clk),
-		Clock:    clk,
+		Repo:            repo,
+		Signer:          signer,
+		Sessions:        sessions.NewManager(redisstate.NewMemory(), nil),
+		Audit:           auditLogger,
+		MachineBindings: repo.(accounts.MachineBindingStore),
+		Clock:           clk,
 	})
-	return &harness{h: NewConnectHandler(Deps{Service: svc}), svc: svc, signer: signer}
+	return &harness{h: NewConnectHandler(Deps{Service: svc}), svc: svc, signer: signer, audit: auditLogger}
 }
 
 func (h *harness) register(t *testing.T, email, pw string) *accountsv1.RegisterResponse {
@@ -118,6 +124,37 @@ func TestLoginAntiEnumeration(t *testing.T) {
 	}
 	if errWrong.Error() != errUnknown.Error() {
 		t.Fatalf("anti-enumeration leak: %q vs %q", errWrong.Error(), errUnknown.Error())
+	}
+}
+
+func TestChangePasswordRehashesAndRevokesSessions(t *testing.T) {
+	h := newHarness(t)
+	reg := h.register(t, "change@b.co", "Passw0rd")
+	second, err := h.h.Login(context.Background(), connect.NewRequest(&accountsv1.LoginRequest{Email: "change@b.co", Password: "Passw0rd"}))
+	if err != nil {
+		t.Fatalf("second login: %v", err)
+	}
+	if sessions, err := h.svc.ListSessions(context.Background(), reg.Tokens.AccessToken); err != nil || len(sessions) != 2 {
+		t.Fatalf("sessions before change = %d, err=%v", len(sessions), err)
+	}
+
+	changed, err := h.h.ChangePassword(context.Background(), connect.NewRequest(&accountsv1.ChangePasswordRequest{
+		AccessToken: reg.Tokens.AccessToken, CurrentPassword: "Passw0rd", NewPassword: "Newpass9",
+	}))
+	if err != nil {
+		t.Fatalf("change password: %v", err)
+	}
+	if changed.Msg.RevokedSessions != 2 {
+		t.Fatalf("revoked sessions = %d, want 2", changed.Msg.RevokedSessions)
+	}
+	if sessions, err := h.svc.ListSessions(context.Background(), second.Msg.Tokens.AccessToken); err != nil || len(sessions) != 0 {
+		t.Fatalf("sessions after change = %d, err=%v", len(sessions), err)
+	}
+	if _, err := h.h.Login(context.Background(), connect.NewRequest(&accountsv1.LoginRequest{Email: "change@b.co", Password: "Passw0rd"})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("old password accepted: %v", err)
+	}
+	if _, err := h.h.Login(context.Background(), connect.NewRequest(&accountsv1.LoginRequest{Email: "change@b.co", Password: "Newpass9"})); err != nil {
+		t.Fatalf("new password rejected: %v", err)
 	}
 }
 
@@ -207,5 +244,50 @@ func TestAccountLockout(t *testing.T) {
 	_, err := h.Login(context.Background(), connect.NewRequest(&accountsv1.LoginRequest{Email: "lock@b.co", Password: "Passw0rd"}))
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("want PermissionDenied (locked), got %v", err)
+	}
+}
+
+func TestMachinePrincipalExchangeBoundAndUnbound(t *testing.T) {
+	h := newHarness(t)
+	reg := h.register(t, "machine@b.co", "Passw0rd")
+	const (
+		machineID = "linux-workstation"
+		bound     = "unix:1000"
+		unbound   = "unix:1001"
+	)
+
+	linked, err := h.h.LinkMachineAccount(context.Background(), connect.NewRequest(&accountsv1.LinkMachineAccountRequest{
+		AccessToken:    reg.Tokens.AccessToken,
+		MachineId:      machineID,
+		LocalPrincipal: bound,
+		IsDefault:      true,
+	}))
+	if err != nil {
+		t.Fatalf("link machine account: %v", err)
+	}
+	if linked.Msg.MachineId != machineID || linked.Msg.LocalPrincipal != bound {
+		t.Fatalf("unexpected binding: %+v", linked.Msg)
+	}
+
+	ctx := localexchange.WithPeerPrincipal(context.Background(), localprincipal.Principal(bound))
+	exchanged, err := h.h.ExchangeMachinePrincipal(ctx, connect.NewRequest(&accountsv1.ExchangeMachinePrincipalRequest{MachineId: machineID}))
+	if err != nil {
+		t.Fatalf("bound exchange: %v", err)
+	}
+	if exchanged.Msg.Account.Id != reg.Account.Id || exchanged.Msg.Tokens.AccessToken == "" {
+		t.Fatalf("unexpected exchange response: %+v", exchanged.Msg)
+	}
+
+	_, err = h.h.ExchangeMachinePrincipal(localexchange.WithPeerPrincipal(context.Background(), localprincipal.Principal(unbound)), connect.NewRequest(&accountsv1.ExchangeMachinePrincipalRequest{MachineId: machineID}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unbound exchange code = %v, want unauthenticated", err)
+	}
+	accepted, err := h.audit.List(context.Background(), audit.Filter{Action: "machine.exchange.accepted"})
+	if err != nil || len(accepted) != 1 || !accepted[0].Success {
+		t.Fatalf("accepted exchange audit = %+v, err=%v", accepted, err)
+	}
+	refused, err := h.audit.List(context.Background(), audit.Filter{Action: "machine.exchange.refused"})
+	if err != nil || len(refused) != 1 || refused[0].Success {
+		t.Fatalf("refused exchange audit = %+v, err=%v", refused, err)
 	}
 }

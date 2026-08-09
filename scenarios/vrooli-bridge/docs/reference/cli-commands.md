@@ -97,6 +97,16 @@ vrooli-bridge auth login --email you@example.com
 password-manager read bridge-owner | vrooli-bridge auth login --email you@example.com --password-stdin
 ```
 
+### `vrooli-bridge auth refresh`
+
+Rotate the saved owner refresh token and replace both saved session tokens. The
+same rotation is attempted once automatically when an owner-gated command
+receives `unauthenticated`; the original command remains the reported outcome.
+
+```bash
+vrooli-bridge auth refresh
+```
+
 Read values back without an argument:
 
 ```bash

@@ -1,6 +1,6 @@
 {
-  "_metadata": {
-    "description": "Typed jobs validated against the scenario-CLI manifest; per-node verb-namespace scopes; never raw shell.",
+    "_metadata": {
+        "description": "Typed jobs validated against the scope-catalog-derived scenario-CLI manifest and registry-owned execution scopes; never raw shell. The typed scenario screenshot verb remains Mode A, uses the operator-configured vrooli binary, and returns a bounded authenticated run artifact when the target has a usable display session.",
     "last_validated_at": "2026-07-17T21:50:26-04:00",
     "module": "job-dispatch",
     "prd_ref": "OT-P0-004",
@@ -14,21 +14,21 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "security",
-      "description": "The control plane dispatches typed jobs — {scenario, verb, args} validated against the scenario-CLI manifest — never raw shell strings. Each node grants which verb-namespaces it accepts (e.g. `scenario test*` yes, `secrets*` / `scenario deploy*` no). Execution is constrained to declared operations with per-node permission scopes.",
+    "description": "The control plane dispatches typed jobs — {scenario, verb, args} validated against a manifest derived from scenario CLI governance — never raw shell strings. The node registry owns the execution scopes that intersect the derived manifest; a node with no execution scopes is presence-only. Typed output declarations are also manifest-controlled: the node writes only to a private generated path, uploads bounded bytes over authenticated node RPC, and the owner retrieves them through the owner-gated artifacts RPC. `vrooli-bridge:session` is reserved for a future interactive protocol and is not implemented here.",
       "validation": [
         {
           "type": "test",
           "ref": "api/internal/dispatch/allowlist_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A job whose verb is absent from the manifest or outside the node's scopes is rejected before reaching the node."
         },
         {
           "type": "test",
           "ref": "agent/internal/exec/typedjob_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "The node-agent executes only typed verbs via the local vrooli CLI; it never constructs or runs an arbitrary shell string."
+          "status": "implemented",
+          "notes": "The node-agent executes only typed verbs via the local vrooli CLI; it never constructs or runs an arbitrary shell string. Declared outputs are uploaded only after bounded file reads through the authenticated artifact seam."
         },
         {
           "type": "manual",

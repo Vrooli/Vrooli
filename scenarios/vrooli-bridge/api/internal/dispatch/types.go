@@ -44,8 +44,8 @@ func (j Job) trimmed() Job {
 }
 
 // TargetNode is the minimal node shape the dispatch policy needs: its id, the
-// granted verb-namespace scopes that authorize what it may run, and whether it
-// is revoked. The handler adapter projects a registry node down to this.
+// granted execution scopes that authorize what it may run, and whether it is
+// revoked. The handler adapter projects a registry node down to this.
 type TargetNode struct {
 	ID      string
 	OS      string

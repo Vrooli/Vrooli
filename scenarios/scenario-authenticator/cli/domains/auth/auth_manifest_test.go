@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,6 +17,30 @@ import (
 func TestAuthManifestCoversAccountsService(t *testing.T) {
 	manifest := readManifest(t)
 	cliapp.RequireProtoServiceCoverage(t, manifest, accountsv1.File_scenario_authenticator_v1_accounts_accounts_proto, "AccountsService")
+}
+
+func TestAuthManifestNeverDeclaresPasswordFlag(t *testing.T) {
+	var manifest struct {
+		Groups []struct {
+			Commands []struct {
+				Flags []struct {
+					Name string `json:"name"`
+				} `json:"flags"`
+			} `json:"commands"`
+		} `json:"groups"`
+	}
+	if err := json.Unmarshal(readManifest(t), &manifest); err != nil {
+		t.Fatalf("decode manifest: %v", err)
+	}
+	for _, group := range manifest.Groups {
+		for _, command := range group.Commands {
+			for _, flag := range command.Flags {
+				if flag.Name == "password" {
+					t.Fatalf("command declares insecure --password flag")
+				}
+			}
+		}
+	}
 }
 
 func readManifest(t *testing.T) []byte {

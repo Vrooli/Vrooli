@@ -13,6 +13,9 @@
       "id": "REQ-P2-001",
       "prd_ref": "OT-P2-001",
       "status": "planned",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Enterprise SAML is outside the local household and delegated-principal scope of this plan.",
+      "revisit_trigger": "An enterprise deployment requires SAML service-provider integration.",
       "title": "SAML 2.0 Service Provider Support and Enterprise SSO Integration",
       "validation": [
         {

@@ -48,6 +48,16 @@ func TestFailureGuidance_NamesTheTargetAndNextStep(t *testing.T) {
 	require.Contains(t, msg, "onboard start") // every retryable failure points at the retry
 }
 
+func TestFailureGuidance_ReusesMachineIdentityOnRetry(t *testing.T) {
+	msg := failureGuidance(&onboardv1.OnboardingOp{
+		FailureReason: failSSHSetup,
+		Host:          "minimouse.local",
+		User:          "matthalloran8",
+		MachineId:     "machine-existing",
+	})
+	require.Contains(t, msg, "onboard start --machine-id machine-existing")
+}
+
 func TestFailureGuidance_UnsupportedPlatformDoesNotMisclassifyMacOS(t *testing.T) {
 	msg := failureGuidance(&onboardv1.OnboardingOp{FailureReason: failUnsupportedPlatform, Host: "mac", User: "admin"})
 	require.Contains(t, msg, "does not support")

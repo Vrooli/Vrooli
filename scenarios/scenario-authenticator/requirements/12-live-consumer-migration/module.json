@@ -1,60 +1,47 @@
 {
-  "description": "device-sync-hub continues to verify tokens unchanged, and its identity forwarder migrates from REST to the typed Connect client; the live first-run owner-bootstrap flow is proven end-to-end before P1 begins.",
-  "module_id": "MOD-P0-012",
-  "prd_ref": "OT-P0-012",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-09T01:12:20-04:00"
+  },
   "requirements": [
     {
-      "category": "integration",
-      "dependencies": [
-        "REQ-P0-002",
-        "REQ-P0-005",
-        "REQ-P0-010",
-        "REQ-P0-011"
-      ],
-      "description": "The device-sync-hub service must migrate its identity forwarder from the old REST client to the typed Connect client generated from the authenticator's protobuf schemas, with no changes to its local token-verification logic (JWKS-based RS256). The first-run owner-bootstrap flow (initial admin account creation on a fresh deployment) must be proven end-to-end with the new Connect surface before P1 work begins. No compatibility shims are permitted in the authenticator.",
       "id": "REQ-P0-012",
-      "prd_ref": "OT-P0-012",
-      "status": "implemented",
       "title": "Live Consumer Migration: device-sync-hub Connect Client and First-Run Owner Bootstrap",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-012",
+      "category": "integration",
+      "description": "The device-sync-hub service must migrate its identity forwarder from the old REST client to the typed Connect client generated from the authenticator's protobuf schemas, with no changes to its local token-verification logic (JWKS-based RS256). The first-run owner-bootstrap flow (initial admin account creation on a fresh deployment) must be proven end-to-end with the new Connect surface before P1 work begins. No compatibility shims are permitted in the authenticator.",
       "validation": [
         {
-          "notes": "api/internal/token/local_verify_test.go: device-sync-hub's local JWKS verifier (imported or replicated) verifies a token issued by scenario-authenticator without any code change to the verifier",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/token/local_verify_test.go: device-sync-hub's local JWKS verifier (imported or replicated) verifies a token issued by scenario-authenticator without any code change to the verifier"
         },
         {
-          "notes": "api/handlers/auth/device_sync_hub_e2e_test.go: stand up scenario-authenticator and an in-process device-sync-hub stub using the typed Connect client; perform register → login → receive token → device-sync-hub local-verifies token using JWKS fetched from /.well-known/jwks.json → success",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/device_sync_hub_e2e_test.go: stand up scenario-authenticator and an in-process device-sync-hub stub using the typed Connect client; perform register → login → receive token → device-sync-hub local-verifies token using JWKS fetched from /.well-known/jwks.json → success"
         },
         {
-          "notes": "api/handlers/auth/device_sync_hub_e2e_test.go: first-run owner bootstrap — fresh SQLite, call the bootstrap RPC/flow via the Connect client, assert admin account created, admin token issued, device-sync-hub local-verifies the token",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/device_sync_hub_e2e_test.go: first-run owner bootstrap — fresh SQLite, call the bootstrap RPC/flow via the Connect client, assert admin account created, admin token issued, device-sync-hub local-verifies the token"
         },
         {
-          "notes": "api/handlers/session/device_sync_hub_revoke_e2e_test.go: device-sync-hub calls session revoke via the Connect equivalent endpoint; assert session is revoked in Redis and subsequent token use is rejected",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/session/device_sync_hub_revoke_e2e_test.go: device-sync-hub calls session revoke via the Connect equivalent endpoint; assert session is revoked in Redis and subsequent token use is rejected"
         },
         {
-          "notes": "bas/integration/device_sync_hub_migration_test: end-to-end browser test simulates first-run setup, confirms owner account creation, and verifies device-sync-hub can authenticate subsequent requests using the new Connect surface",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "implemented",
+          "notes": "bas/integration/device_sync_hub_migration_test: end-to-end browser test simulates first-run setup, confirms owner account creation, and verifies device-sync-hub can authenticate subsequent requests using the new Connect surface"
         }
       ]
     }
-  ],
-  "title": "Live Consumer Migration"
+  ]
 }

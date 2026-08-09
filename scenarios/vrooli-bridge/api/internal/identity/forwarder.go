@@ -1,7 +1,7 @@
 // Package identity is the integration boundary for owner sign-in and
 // registration. Vrooli Bridge does not own identity — accounts, passwords, and
 // JWT signing live in the scenario-authenticator scenario. This package
-// forwards a same-origin Login/Register call (made by the control plane's own
+// forwards same-origin Login/Register/Refresh calls (made by the control plane's own
 // UI) to scenario-authenticator's typed Connect AccountsService, resolving its
 // URL by name via api-core/discovery (no env var, no hardcoded port), and
 // relays the issued owner JWT back. It owns no credential logic: it stores
@@ -54,9 +54,10 @@ var (
 
 // Owner is the issued owner identity + token relayed back to the caller.
 type Owner struct {
-	Token  string
-	Email  string
-	UserID string
+	Token        string
+	RefreshToken string
+	Email        string
+	UserID       string
 }
 
 // Credentials is a sign-in request.
@@ -138,6 +139,30 @@ func (f *Forwarder) Register(ctx context.Context, r Registration) (Owner, error)
 	return ownerFrom(resp.Msg.GetAccount(), resp.Msg.GetTokens())
 }
 
+// Refresh rotates an authenticator refresh token and relays the replacement
+// pair. The refresh token is never persisted by the bridge API.
+func (f *Forwarder) Refresh(ctx context.Context, refreshToken string) (Owner, error) {
+	if strings.TrimSpace(refreshToken) == "" {
+		return Owner{}, fmt.Errorf("%w: refresh token is required", ErrInvalidInput)
+	}
+	client, err := f.client(ctx)
+	if err != nil {
+		return Owner{}, err
+	}
+	resp, err := client.Refresh(ctx, connect.NewRequest(&accountsv1.RefreshRequest{RefreshToken: refreshToken}))
+	if err != nil {
+		return Owner{}, mapConnectError(err)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetTokens() == nil {
+		return Owner{}, fmt.Errorf("%w: authenticator returned no refreshed tokens", ErrAuthUnavailable)
+	}
+	tokens := resp.Msg.GetTokens()
+	if tokens.GetAccessToken() == "" || tokens.GetRefreshToken() == "" {
+		return Owner{}, fmt.Errorf("%w: authenticator returned an incomplete token pair", ErrAuthUnavailable)
+	}
+	return Owner{Token: tokens.GetAccessToken(), RefreshToken: tokens.GetRefreshToken()}, nil
+}
+
 // client builds an AccountsService Connect client against the discovery-resolved
 // authenticator base URL. The httpc.Doer satisfies connect.HTTPClient directly.
 func (f *Forwarder) client(ctx context.Context) (accountsconnect.AccountsServiceClient, error) {
@@ -169,9 +194,7 @@ func ownerFrom(account *accountsv1.Account, tokens *accountsv1.TokenPair) (Owner
 	if tokens == nil || tokens.GetAccessToken() == "" {
 		return Owner{}, fmt.Errorf("%w: authenticator returned no token", ErrAuthUnavailable)
 	}
-	// The authenticator also issues a refresh token; the bridge deliberately
-	// drops it — there is no refresh flow, so expiry means signing in again.
-	o := Owner{Token: tokens.GetAccessToken()}
+	o := Owner{Token: tokens.GetAccessToken(), RefreshToken: tokens.GetRefreshToken()}
 	if account != nil {
 		o.Email = account.GetEmail()
 		o.UserID = account.GetId()

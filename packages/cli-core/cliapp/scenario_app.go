@@ -238,12 +238,18 @@ func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) 
 		BuildSourceRoot:       opts.BuildSourceRoot,
 		SourceContextPath:     "..",
 		ManifestSourcePath:    defaultIfEmpty(opts.ManifestSourcePath, ".vrooli/service.json"),
-		FreshnessInputs:       resolveFreshnessInputs(opts.FreshnessInputs, []string{"cli/**", ".vrooli/service.json", "../../packages/cli-core"}),
-		HTTPClientOptions:     opts.HTTPClientOptions,
-		HTTPTimeoutEnvVars:    env.HTTPTimeoutEnvVars,
-		DefaultHTTPTimeout:    opts.DefaultHTTPTimeout,
-		AllowAnonymous:        opts.AllowAnonymous,
-		HealthFetcher:         opts.HealthFetcher,
+		// api/** is in the default because a scenario CLI that declares
+		// `replace <scenario> => ../api` compiles api code into its own binary.
+		// Watching only cli/** left those edits invisible: the source
+		// fingerprint never moved, no rebuild fired, and the installed CLI
+		// silently served stale behavior. A scenario with no api/ directory is
+		// unaffected — a glob that matches nothing is skipped.
+		FreshnessInputs:    resolveFreshnessInputs(opts.FreshnessInputs, []string{"api/**", "cli/**", ".vrooli/service.json", "../../packages/cli-core"}),
+		HTTPClientOptions:  opts.HTTPClientOptions,
+		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
+		DefaultHTTPTimeout: opts.DefaultHTTPTimeout,
+		AllowAnonymous:     opts.AllowAnonymous,
+		HealthFetcher:      opts.HealthFetcher,
 	})
 	if err != nil {
 		return nil, err

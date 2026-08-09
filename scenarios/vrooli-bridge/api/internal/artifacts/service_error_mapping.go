@@ -19,11 +19,14 @@ func ToConnectError(err error) error {
 		return nil
 	}
 	var (
-		invalid ErrInvalidDistribution
-		nodeNF  ErrNodeNotFound
-		distNF  ErrDistributionNotFound
-		revoked ErrNodeRevoked
-		deliv   ErrDeliveryFailed
+		invalid         ErrInvalidDistribution
+		nodeNF          ErrNodeNotFound
+		distNF          ErrDistributionNotFound
+		revoked         ErrNodeRevoked
+		deliv           ErrDeliveryFailed
+		invalidProduced ErrInvalidProducedArtifact
+		mismatch        ErrArtifactNodeMismatch
+		producedNF      ErrProducedArtifactNotFound
 	)
 	switch {
 	case errors.As(err, &invalid):
@@ -36,6 +39,12 @@ func ToConnectError(err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, revoked)
 	case errors.As(err, &deliv):
 		return connect.NewError(connect.CodeUnavailable, deliv)
+	case errors.As(err, &invalidProduced):
+		return connect.NewError(connect.CodeInvalidArgument, invalidProduced)
+	case errors.As(err, &mismatch):
+		return connect.NewError(connect.CodePermissionDenied, mismatch)
+	case errors.As(err, &producedNF):
+		return connect.NewError(connect.CodeNotFound, producedNF)
 	default:
 		return connect.NewError(connect.CodeInternal, err)
 	}

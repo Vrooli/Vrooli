@@ -60,6 +60,15 @@ type Job struct {
 	Verb           string
 	Args           []string
 	TimeoutSeconds int64
+	Outputs        []Output
+}
+
+// Output is a typed artifact declaration carried to the node.
+type Output struct {
+	Name       string
+	MediaType  string
+	OutputFlag string
+	MaxBytes   int64
 }
 
 // Entry is one job's line in a node's live queue view.

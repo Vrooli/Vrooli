@@ -86,6 +86,7 @@ type service struct {
 	defaultControlPlaneURL string
 	endpointResolver       EndpointResolver
 	defaultRevision        string
+	defaultScopes          []string
 	revResolver            RevisionResolver
 	worktree               WorkingTreeSource
 	artifacts              ArtifactBuilder
@@ -128,6 +129,14 @@ func WithEndpointResolver(resolver EndpointResolver) Option {
 // no RevisionResolver is wired (the legacy fallback).
 func WithDefaultRevision(rev string) Option {
 	return func(s *service) { s.defaultRevision = rev }
+}
+
+// WithDefaultScopes sets the posture-selected execution scopes carried by a
+// newly issued onboarding pairing code. The slice is copied so the policy
+// remains immutable after service construction; an explicit narrower grant is
+// still owned by the pairing API and can replace these defaults.
+func WithDefaultScopes(scopes []string) Option {
+	return func(s *service) { s.defaultScopes = append([]string(nil), scopes...) }
 }
 
 // WithRevisionResolver wires the control-plane revision resolver. When set, the

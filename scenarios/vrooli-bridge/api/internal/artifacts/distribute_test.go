@@ -113,3 +113,40 @@ func TestDistribute_DeliveryFailureRecordedFailed(t *testing.T) {
 	require.NoError(t, gerr)
 	require.Equal(t, artifacts.StatusFailed, got.Status, "the failed delivery leaves a FAILED trail")
 }
+
+func TestProducedArtifactUploadRequiresRunOwnerAndRoundTrips(t *testing.T) {
+	produced := mocks.NewFakeProducedRepository()
+	runs := &mocks.FakeRunReader{Targets: map[string]artifacts.RunTarget{"run-1": {ID: "run-1", NodeID: "n1"}}}
+	clk := testmocks.NewFakeClock(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	svc := artifacts.NewService(mocks.NewFakeRepository(), okNodes(), &mocks.FakeDelivery{}, clk,
+		artifacts.WithProducedRepository(produced), artifacts.WithRunReader(runs))
+
+	got, err := svc.UploadRunArtifact(context.Background(), "n1", artifacts.ProducedArtifact{
+		RunID: "run-1", Name: "screenshot.png", MediaType: "image/png", Data: []byte("png"),
+	})
+	require.NoError(t, err)
+	require.Equal(t, "bridge://run/run-1/screenshot.png", got.ArtifactRef)
+	require.Equal(t, int64(3), got.SizeBytes)
+
+	read, err := svc.GetRunArtifact(context.Background(), "run-1", "screenshot.png")
+	require.NoError(t, err)
+	require.Equal(t, []byte("png"), read.Data)
+
+	_, err = svc.UploadRunArtifact(context.Background(), "other-node", artifacts.ProducedArtifact{
+		RunID: "run-1", Name: "forged.png", Data: []byte("png"),
+	})
+	var mismatch artifacts.ErrArtifactNodeMismatch
+	require.ErrorAs(t, err, &mismatch)
+}
+
+func TestProducedArtifactUploadRejectsOversize(t *testing.T) {
+	clk := testmocks.NewFakeClock(time.Unix(0, 0).UTC())
+	svc := artifacts.NewService(mocks.NewFakeRepository(), okNodes(), &mocks.FakeDelivery{}, clk,
+		artifacts.WithProducedRepository(mocks.NewFakeProducedRepository()),
+		artifacts.WithRunReader(&mocks.FakeRunReader{Targets: map[string]artifacts.RunTarget{"run-1": {NodeID: "n1"}}}))
+	_, err := svc.UploadRunArtifact(context.Background(), "n1", artifacts.ProducedArtifact{
+		RunID: "run-1", Name: "too-large", Data: make([]byte, artifacts.MaxProducedArtifactBytes+1),
+	})
+	var invalid artifacts.ErrInvalidProducedArtifact
+	require.ErrorAs(t, err, &invalid)
+}

@@ -5,10 +5,11 @@ runtime dependencies, and deployment readiness for the fleet's
 foundational Identity Provider (IdP) — a Go API (Connect-RPC + a thin
 REST edge), a React UI, and a Go CLI sharing one binary.
 
-> **Status: documentation-first orientation.** Nothing below is built,
-> tested, or deployed yet. These are the **target** deployment shapes
-> and procedures derived from [`../../PRD.md`](../../PRD.md); only the
-> scaffold (SQLite, lifecycle) is wired today.
+> **Status: local deployment is implemented and tested.** The Go API,
+> Connect/REST edges, CLI, UI shell, SQLite storage, required Redis
+> integration, persisted RS256 signing material, sessions, and JWKS are
+> wired through the lifecycle. HA/managed-database deployment, true
+> multi-realm tenancy, and enterprise packaging remain future tiers.
 
 ## Purpose Of This Document
 
@@ -61,7 +62,7 @@ rotation is OT-P2-005.
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Local same-network (Tier 1) | target (P0/P1) | Vrooli lifecycle, Go, Node/pnpm, SQLite via storage seam, **required Redis**, persisted signing keypair | Pre-implementation — P0 auth core not built. |
+| Local same-network (Tier 1) | supported | Vrooli lifecycle, Go, Node/pnpm, SQLite via storage seam, **required Redis**, persisted signing keypair | Scenario suite and focused API/CLI tests. |
 | Desktop / mobile | deferred | Packaged UI/API, storage resolver | Local-network IdP is the design; no standalone packaging planned near-term. |
 | Hosted / SaaS (cloud-as-a-dependency) | deferred (P2) | Managed DB via storage seam, load balancer, Redis-shared state, per-realm provisioning | OT-P2-006 (managed-DB + HA) and OT-P2-005 (per-realm key isolation/rotation) not built. |
 | Enterprise / self-host | deferred (P2) | Install docs, key backup/rotation runbook, SAML/SCIM | Requires P1+ feature surface and operational hardening. |
@@ -125,7 +126,7 @@ token trust:
   load-or-generate mint a *fresh* key, silently invalidating every live
   token. Persistence and backup are the guardrails against this.
 
-## Release Checklist (target)
+## Release Checklist
 
 - [ ] `make setup` passes.
 - [ ] `make test` passes (all required test-genie phases green).

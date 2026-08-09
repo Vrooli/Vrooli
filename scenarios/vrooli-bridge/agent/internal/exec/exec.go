@@ -11,6 +11,8 @@ package exec
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -41,6 +43,14 @@ type EventReporter interface {
 	Report(ctx context.Context, ev *channelv1.RunEvent) error
 }
 
+// ArtifactUploader is the authenticated node-to-control-plane seam for small
+// produced evidence files. It is deliberately separate from EventReporter so
+// run lifecycle events remain replayable and artifact bytes have their own
+// bounded request contract.
+type ArtifactUploader interface {
+	Upload(ctx context.Context, runID, name, mediaType string, data []byte) (artifactRef string, err error)
+}
+
 // CommandRunner executes an argv in dir, streaming combined stdout/stderr to
 // onLog line-by-line, and returns the process exit code. Production wires
 // osCommandRunner (command.go); tests substitute a fake. It NEVER receives a
@@ -51,11 +61,13 @@ type CommandRunner interface {
 
 // Runner executes typed jobs and reports their progress.
 type Runner struct {
-	bin      string
-	workDir  string
-	command  CommandRunner
-	reporter EventReporter
-	now      func() time.Time
+	bin         string
+	workDir     string
+	command     CommandRunner
+	reporter    EventReporter
+	uploader    ArtifactUploader
+	artifactDir string
+	now         func() time.Time
 }
 
 // Option customises a Runner.
@@ -67,15 +79,22 @@ func WithClock(now func() time.Time) Option { return func(r *Runner) { r.now = n
 // WithCommandRunner overrides the command execution seam (tests).
 func WithCommandRunner(c CommandRunner) Option { return func(r *Runner) { r.command = c } }
 
+// WithArtifactUploader wires the node-authenticated produced-artifact sink.
+func WithArtifactUploader(u ArtifactUploader) Option { return func(r *Runner) { r.uploader = u } }
+
+// WithArtifactDir selects the private directory used for typed output files.
+func WithArtifactDir(dir string) Option { return func(r *Runner) { r.artifactDir = dir } }
+
 // NewRunner constructs a Runner. bin is the local vrooli CLI (default "vrooli"),
 // workDir the directory jobs run in, reporter the event sink.
 func NewRunner(bin, workDir string, reporter EventReporter, opts ...Option) *Runner {
 	r := &Runner{
-		bin:      strings.TrimSpace(bin),
-		workDir:  workDir,
-		reporter: reporter,
-		command:  osCommandRunner{},
-		now:      time.Now,
+		bin:         strings.TrimSpace(bin),
+		workDir:     workDir,
+		reporter:    reporter,
+		command:     osCommandRunner{},
+		artifactDir: filepath.Join(os.TempDir(), "vrooli-bridge-artifacts"),
+		now:         time.Now,
 	}
 	if r.bin == "" {
 		r.bin = "vrooli"
@@ -138,7 +157,7 @@ func (r *Runner) Execute(ctx context.Context, job *channelv1.JobPush) error {
 		return r.reporter.Report(ctx, ev)
 	}
 
-	argv, err := BuildArgv(r.bin, job)
+	argv, outputs, err := r.buildArgvWithOutputs(job)
 	if err != nil {
 		_ = emit(statusEvent("rejected: " + err.Error()))
 		return emit(exitEvent(rejectExitCode))
@@ -163,7 +182,66 @@ func (r *Runner) Execute(ctx context.Context, job *channelv1.JobPush) error {
 		_ = emit(statusEvent("error: " + runErr.Error()))
 		exitCode = startFailureExitCode
 	}
+	if exitCode == 0 {
+		for _, output := range outputs {
+			data, readErr := os.ReadFile(output.path)
+			if readErr != nil {
+				_ = emit(statusEvent("artifact upload failed: " + readErr.Error()))
+				return emit(exitEvent(startFailureExitCode))
+			}
+			if output.maxBytes > 0 && int64(len(data)) > output.maxBytes {
+				_ = emit(statusEvent(fmt.Sprintf("artifact %q exceeds its byte limit", output.name)))
+				return emit(exitEvent(rejectExitCode))
+			}
+			if r.uploader == nil {
+				_ = emit(statusEvent("artifact upload failed: no uploader configured"))
+				return emit(exitEvent(startFailureExitCode))
+			}
+			ref, uploadErr := r.uploader.Upload(runCtx, job.GetRunId(), output.name, output.mediaType, data)
+			if uploadErr != nil {
+				_ = emit(statusEvent("artifact upload failed: " + uploadErr.Error()))
+				return emit(exitEvent(startFailureExitCode))
+			}
+			if err := emit(&channelv1.RunEvent{Kind: channelv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF, ArtifactRef: ref}); err != nil {
+				return err
+			}
+		}
+	}
 	return emit(exitEvent(exitCode))
+}
+
+type preparedOutput struct {
+	name      string
+	mediaType string
+	maxBytes  int64
+	path      string
+}
+
+func (r *Runner) buildArgvWithOutputs(job *channelv1.JobPush) ([]string, []preparedOutput, error) {
+	argv, err := BuildArgv(r.bin, job)
+	if err != nil {
+		return nil, nil, err
+	}
+	outputs := make([]preparedOutput, 0, len(job.GetOutputs()))
+	if len(job.GetOutputs()) > 0 {
+		if strings.TrimSpace(job.GetRunId()) == "" {
+			return nil, nil, fmt.Errorf("artifact output requires a run id")
+		}
+		if err := os.MkdirAll(r.artifactDir, 0o700); err != nil {
+			return nil, nil, fmt.Errorf("create artifact directory: %w", err)
+		}
+		for _, spec := range job.GetOutputs() {
+			name := strings.TrimSpace(spec.GetName())
+			flag := strings.TrimSpace(spec.GetOutputFlag())
+			if name == "" || flag == "" || strings.ContainsAny(name, `/\\`) || strings.ContainsAny(flag, " \t\r\n") {
+				return nil, nil, fmt.Errorf("invalid typed artifact output")
+			}
+			path := filepath.Join(r.artifactDir, job.GetRunId()+"-"+name)
+			argv = append(argv, flag, path)
+			outputs = append(outputs, preparedOutput{name: name, mediaType: strings.TrimSpace(spec.GetMediaType()), maxBytes: spec.GetMaxBytes(), path: path})
+		}
+	}
+	return argv, outputs, nil
 }
 
 func statusEvent(status string) *channelv1.RunEvent {

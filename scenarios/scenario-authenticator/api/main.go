@@ -22,6 +22,8 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	"github.com/vrooli/api-core/trustposture"
+	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect"
 	authH "scenario-authenticator/handlers/auth"
 	healthH "scenario-authenticator/handlers/health"
 	jwksH "scenario-authenticator/handlers/jwks"
@@ -29,6 +31,8 @@ import (
 	"scenario-authenticator/internal/accounts"
 	"scenario-authenticator/internal/audit"
 	"scenario-authenticator/internal/authcrypto"
+	"scenario-authenticator/internal/authorization"
+	"scenario-authenticator/internal/localexchange"
 	"scenario-authenticator/internal/ratelimit"
 	"scenario-authenticator/internal/realm"
 	"scenario-authenticator/internal/redisstate"
@@ -97,6 +101,30 @@ func sqliteFileDSN(path string) (string, error) {
 	), nil
 }
 
+type breakGlassProvisioner struct {
+	paths     trustposture.KeyPaths
+	available bool
+	ttl       time.Duration
+}
+
+func (p breakGlassProvisioner) Provision(_ context.Context, accountID, realmID string, scopes []string, linkedAt time.Time) error {
+	if !p.available {
+		return fmt.Errorf("break-glass is unavailable under the configured trust posture")
+	}
+	return trustposture.Provision(p.paths, accountID, realm.AudienceFor(realmID), scopes, linkedAt)
+}
+
+func (p breakGlassProvisioner) Issue(_ context.Context, accountID, realmID string, requested []string, now time.Time) (string, time.Time, error) {
+	if !p.available || p.ttl <= 0 {
+		return "", time.Time{}, fmt.Errorf("break-glass is unavailable under the configured trust posture")
+	}
+	token, err := trustposture.IssueFromProvision(p.paths, requested, now, p.ttl)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	return token, now.Add(p.ttl), nil
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -138,20 +166,88 @@ func main() {
 	if err != nil {
 		log.Fatalf("load/generate signing key: %v", err)
 	}
-	signer := authcrypto.NewSigner(keys, authcrypto.SignerConfig{Issuer: realm.Issuer})
+	posture, err := trustposture.LoadWorkingTree()
+	if err != nil {
+		log.Fatalf("load trust posture: %v", err)
+	}
+	defaults, err := trustposture.DefaultsFor(posture.Posture)
+	if err != nil {
+		log.Fatalf("resolve trust posture defaults: %v", err)
+	}
+	breakGlassPaths, err := trustposture.ResolveKeyPaths()
+	if err != nil {
+		log.Fatalf("resolve break-glass key paths: %v", err)
+	}
+	signer := authcrypto.NewSigner(keys, authcrypto.SignerConfig{
+		Issuer: realm.Issuer,
+		Expiry: authcrypto.ResolveExpiry(defaults.AccessTokenTTL),
+	})
 
 	redisStore, err := redisstate.NewRedisStore(context.Background())
 	if err != nil {
 		log.Fatalf("redis (required resource) unavailable: %v", err)
 	}
-	sessionMgr := sessions.NewManager(redisStore, nil)
+	storageNamespace, err := storage.ResolveNamespace(storage.NamespaceConfig{FallbackScenario: "scenario-authenticator"})
+	if err != nil {
+		log.Fatalf("resolve Redis storage namespace: %v", err)
+	}
+	authRedisStore, err := redisstate.NewNamespacedStore(redisStore, storageNamespace, "auth")
+	if err != nil {
+		log.Fatalf("scope Redis storage namespace: %v", err)
+	}
+	sessionMgr := sessions.NewManager(authRedisStore, nil)
+	repo := accounts.NewSQLiteRepository(db, clk)
+	auditLogger := audit.NewSQLiteLogger(db, clk)
+	authorizationService := authorization.NewService(repo.(authorization.ScopeStore), auditLogger)
 	authService := accounts.NewService(accounts.ServiceConfig{
-		Repo:     accounts.NewSQLiteRepository(db, clk),
-		Signer:   signer,
-		Sessions: sessionMgr,
-		Audit:    audit.NewSQLiteLogger(db, clk),
-		Clock:    clk,
+		Repo:             repo,
+		Signer:           signer,
+		Sessions:         sessionMgr,
+		Audit:            auditLogger,
+		Authorization:    authorizationService,
+		MachineBindings:  repo.(accounts.MachineBindingStore),
+		BreakGlass:       breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL},
+		BreakGlassIssuer: breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL},
+		Clock:            clk,
 	})
+	_, localHandler := accountsconnect.NewAccountsServiceHandler(authH.NewConnectHandler(authH.Deps{Service: authService, Logger: log.Default()}))
+	exchangeLimiter := localexchange.NewRateLimiter(20, time.Minute)
+	localSocketPath := strings.TrimSpace(os.Getenv("VROOLI_AUTH_SOCKET"))
+	if localSocketPath == "" {
+		socketName := "vrooli-scenario-authenticator"
+		if namespace := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_NAMESPACE")); namespace != "" {
+			namespace = strings.Map(func(r rune) rune {
+				if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+					return r
+				}
+				return '-'
+			}, namespace)
+			socketName += "-" + namespace
+		}
+		localSocketPath = filepath.Join(os.TempDir(), socketName+".sock")
+	}
+	localMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != accountsconnect.AccountsServiceExchangeMachinePrincipalProcedure {
+			http.NotFound(w, r)
+			return
+		}
+		principal, ok := localexchange.PeerPrincipal(r.Context())
+		if !ok {
+			_ = auditLogger.Log(r.Context(), audit.Event{Action: "machine.exchange.refused", Success: false, Metadata: map[string]any{"reason": "peer_credential_unavailable"}})
+			http.Error(w, "local peer credential unavailable", http.StatusUnauthorized)
+			return
+		}
+		if !exchangeLimiter.Allow(principal.String(), time.Now().UTC()) {
+			_ = auditLogger.Log(r.Context(), audit.Event{Action: "machine.exchange.refused", Success: false, Metadata: map[string]any{"reason": "rate_limited", "local_principal": principal.String()}})
+			http.Error(w, "local exchange rate limited", http.StatusTooManyRequests)
+			return
+		}
+		localHandler.ServeHTTP(w, r)
+	})
+	localStop, err := localexchange.Start(context.Background(), localSocketPath, localMux)
+	if err != nil {
+		log.Fatalf("start local identity exchange: %v", err)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
@@ -172,7 +268,7 @@ func main() {
 	// Backend-authoritative fixed-window rate limit on the brute-force surface
 	// (login/register). Scoped by Connect service path so health/JWKS probes are
 	// never throttled. Defense-in-depth on top of per-account lockout.
-	limiter := ratelimit.New(redisStore, ratelimit.Config{
+	limiter := ratelimit.New(authRedisStore, ratelimit.Config{
 		Limit:  20,
 		Window: time.Minute,
 		PathPrefixes: []string{
@@ -189,6 +285,7 @@ func main() {
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
+			localStop()
 			_ = redisStore.Close()
 			return db.Close()
 		},

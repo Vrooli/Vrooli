@@ -7,8 +7,8 @@ here is not a local bug — it is a fleet-wide authentication failure. Read
 this before touching crypto, tokens, hashing, sessions, realms, or any
 verification path.
 
-> **Status: documentation-first.** Nothing in this document is built yet.
-> The auth core is a **verbatim crypto-port** of the working old scenario
+> **Status: implemented foundation.** The auth core is a **verbatim
+> crypto-port** of the working old scenario
 > (see [`../../PRD.md`](../../PRD.md) Appendix C), not a clean-room
 > reimplementation. The single biggest risk in the rewrite is re-deriving
 > proven crypto incorrectly; the discipline below is "port, do not
@@ -26,8 +26,8 @@ Use this document to answer:
 
 ## The governing principle — port the proven crypto, do not re-derive it
 
-This rewrite is a scaffold-regen onto react-vite + the `api-core/storage`
-seam, **plus** a faithful port of the old scenario's crypto. The old
+This implementation uses the `api-core/storage` seam, **plus** a faithful
+port of the old scenario's crypto. The old
 scenario's RS256/JWKS/claims/keypair-persistence is correct and is
 verified in production today by device-sync-hub. Re-deriving any of it
 risks breaking a live consumer or, worse, silently weakening it.
@@ -75,6 +75,11 @@ signed material are stored at rest; never a plaintext secret.**
 | Audit events | medium | `audit` | Security-relevant events (who/what/when/result). Must not contain plaintext credentials or raw tokens. |
 | Realm config (policy, branding, redirect URIs) | medium | `realms` | Per-tenant policy; misconfiguration is a tenant-isolation risk (see below). |
 
+## Auth And Authorization
+
+The IdP authenticates and issues signed claims; relying parties enforce
+explicit scope claims locally. This boundary is expanded below.
+
 ## Auth And Authorization — the IdP↔RP boundary
 
 scenario-authenticator answers **"valid principal + coarse realm
@@ -120,23 +125,24 @@ token minted for realm A accepted by realm B.
 
 ## Threat Model
 
-This scenario is **pre-implementation**; the table below enumerates the
-defenses that must be built (or ported), not deficiencies in shipped code.
+This table distinguishes defenses already present in the shipped auth core
+from deliberately deferred capabilities. It is not a list of work that all
+remains undone.
 
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
-| Algorithm confusion (`none` / HS256 forgery) | Attacker forges tokens by downgrading the verify algorithm. | Lock verification to RS256; reject `none` and HS-family by asserting the signing method is RSA before trusting the key. Unit-tested with crafted `alg=none`/`alg=HS256` tokens. | to-port |
-| Cross-tenant token acceptance (`aud` not enforced) | A token for realm A is accepted by realm B — cross-tenant breach. | Stamp `aud` at issuance from the issuing realm; reject mismatched `aud` at verification. Mandatory cross-realm rejection test. | to-build |
-| Refresh-token theft / replay | A stolen refresh token is reused to mint access tokens. | Rotating refresh tokens with **reuse detection**: presenting a rotated (already-redeemed) refresh token revokes the entire token family and is audited. | to-build |
-| Password brute-force / credential stuffing | Online guessing of credentials. | Rate limiting on auth endpoints + account lockout after repeated failures (in-memory primary state, Redis for cross-replica coordination). | to-port |
-| Credential-store compromise (DB exfiltration) | Stolen hashes are cracked offline. | Argon2id (memory-hard) at a documented cost; per-hash salt; only hashes at rest. No plaintext, ever. | to-build |
-| Account enumeration | Differential responses reveal which emails are registered. | Enumeration-resistant messaging on login, register, and password-reset — generic "invalid credentials" / "if the email exists…" responses that don't distinguish "no such account" from "wrong password." (The old scenario already does this for reset; the port keeps and extends it.) | to-port |
-| Signing-key loss / churn | Restart regenerates the key and invalidates every live token. | Load-or-generate persisted keypair; the key is stable across restarts. Private key file-perm `0600`, never logged. | to-port |
-| Stale-token / post-logout access | A revoked session's token is still honored. | Server-tracked sessions with per-session and per-user revocation; revocation state in Redis; access tokens are short-lived so the revocation window is bounded. | to-port |
-| Privilege escalation via forged roles | A user mints/edits their own role claims. | Roles are claims **signed** by the authenticator and verified by RPs against JWKS; a tampered token fails signature verification. Role assignment is an RBAC-gated admin operation. | to-build |
-| OAuth CSRF (login-flow forgery) (P1) | Forged callback links a victim's session to an attacker account. | CSRF `state` is generated server-side, one-time-use, validated and deleted on callback (ported from the old OAuth flow). | to-port |
-| Leakage via logs / errors | Secrets or tokens end up in logs or error bodies. | Never log plaintext passwords, raw tokens, or the private key. Error messages relay validation reasons faithfully without echoing secrets (see [`ERROR-HANDLING.md`](ERROR-HANDLING.md)). | to-build |
-| MFA bypass / replay (P1) | TOTP code reuse or weak recovery-code handling. | TOTP challenge with replay-window handling; recovery codes single-use and hashed; per-realm enforcement policy. | to-port |
+| Algorithm confusion (`none` / HS256 forgery) | Attacker forges tokens by downgrading the verify algorithm. | Lock verification to RS256; reject `none` and HS-family by asserting the signing method is RSA before trusting the key. Unit-tested with crafted `alg=none`/`alg=HS256` tokens. | shipped |
+| Cross-tenant token acceptance (`aud` not enforced) | A token for realm A is accepted by realm B — cross-tenant breach. | The default realm stamps and verifies `aud`; true multi-realm tenancy is deferred and must add the cross-realm test before a second tenant exists. | default-realm shipped; multi-realm deferred |
+| Refresh-token theft / replay | A stolen refresh token is reused to mint access tokens. | Rotating refresh tokens with **reuse detection**: presenting a rotated (already-redeemed) refresh token revokes the entire token family and is audited. | shipped |
+| Password brute-force / credential stuffing | Online guessing of credentials. | Rate limiting on auth endpoints with Redis-backed state and safe failure behavior. | shipped; aggregate alerting deferred |
+| Credential-store compromise (DB exfiltration) | Stolen hashes are cracked offline. | Argon2id (memory-hard) at a documented cost; per-hash salt; only hashes at rest. No plaintext, ever. | shipped |
+| Account enumeration | Differential responses reveal which emails are registered. | Enumeration-resistant messaging on login/register paths; reset/recovery messaging remains deferred with the recovery domain. | login/register shipped; recovery deferred |
+| Signing-key loss / churn | Restart regenerates the key and invalidates every live token. | Load-or-generate persisted keypair; the key is stable across restarts. Private key file-perm `0600`, never logged. | shipped |
+| Stale-token / post-logout access | A revoked session's token is still honored. | Server-tracked sessions with per-session and per-user revocation; revocation state in Redis; access tokens are short-lived so the revocation window is bounded. | shipped |
+| Privilege escalation via forged roles | A user mints/edits their own role claims. | Signed claims cannot be forged; scope assignment and token authorization are the shipped control-plane path. Role-admin UI/RBAC remains deferred. | signed claims shipped; role-admin deferred |
+| OAuth CSRF (login-flow forgery) (P1) | Forged callback links a victim's session to an attacker account. | OAuth federation is not part of this implementation; add state validation before enabling a provider. | deferred |
+| Leakage via logs / errors | Secrets or tokens end up in logs or error bodies. | Never log plaintext passwords, raw tokens, or the private key; CLI password input is stdin/TTY based. | shipped |
+| MFA bypass / replay (P1) | TOTP code reuse or weak recovery-code handling. | MFA is outside the current default realm implementation. Add replay-window and recovery-code tests before enabling MFA. | deferred |
 
 ## Signing-key persistence and rotation
 
@@ -162,18 +168,13 @@ defenses that must be built (or ported), not deficiencies in shipped code.
 
 ## Security Gaps
 
-Pre-implementation gaps — defenses that must be built/ported before the
-relevant surface ships:
+Open gaps and follow-up triggers:
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| RS256 lock + `none`/HS rejection not yet ported | critical | Before any token is issued or verified. |
-| `aud` issuance + cross-realm rejection not yet built | critical | Before more than one realm exists; ship in P0 regardless. |
-| Refresh reuse-detection / family-revoke not yet built | high | Before refresh tokens are issued (P0). |
-| Argon2id hashing not yet implemented (old scenario is bcrypt) | high | Before the first account is registered. |
-| Rate limiting + account lockout not yet ported | high | Before auth endpoints accept external traffic. |
-| Audit log not yet built | medium | Before P0 close — security events must be recorded from day one. |
-| Enumeration-safe messaging not yet verified across login/register | medium | Before the auth endpoints ship. |
+| True multi-realm `aud` isolation and realm administration | critical | Before a second tenant/realm is enabled. |
+| MFA, OAuth federation, and password recovery | high | Before any corresponding endpoint is exposed. |
+| Aggregate security metrics and alerting | medium | When an operator defines retention and alert thresholds. |
 
 ## Cross-References
 

@@ -7,9 +7,10 @@ callbacks, SAML ACS). Because this is an auth boundary, error handling is
 wrong code tells a caller "retry" when it should say "stop." This document
 defines the typed-error contract and the rules that keep it safe.
 
-> **Status: documentation-first.** The mapping below is the target
-> contract; the `notes` rows are the template's worked example and are
-> removed by `vrooli scenario detemplate`.
+> **Status: implemented contract with planned extensions.** The typed error
+> mapping below describes the live Connect/API boundary. Rows or domains
+> explicitly marked future apply only to deferred MFA, federation, recovery,
+> or multi-realm work; no `notes` template domain ships.
 
 ## Proto-Typed Operations
 
@@ -28,6 +29,8 @@ through three layers:
 The CLI uses the same `connect.Error` values through cli-core. Human output
 is English for now; future CLI i18n should use the same code names as the
 UI catalog instead of string-matching messages.
+
+## Sentinel Mapping
 
 ## Connect-code contract (auth domain errors)
 

@@ -1,78 +1,65 @@
 {
-  "description": "Security-relevant events (sign-in, sign-out, token-family revoke, MFA changes, admin actions) are recorded to a queryable audit log.",
-  "module_id": "MOD-P0-007",
-  "prd_ref": "OT-P0-007",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-09T01:12:20-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": [
-        "REQ-P0-011"
-      ],
-      "description": "All security-relevant events must be written to a queryable audit log persisted in SQLite. Events include: sign-in (success/failure), sign-out, token-family revocation, MFA enrollment/change/removal, admin actions (role change, user disable), and account lockout. Each log entry must capture: timestamp, event type, actor identity, target identity, realm, IP address, and outcome. The log must be queryable by event type, user, realm, and time range.",
       "id": "REQ-P0-007",
-      "prd_ref": "OT-P0-007",
-      "status": "implemented",
       "title": "Auth-Event Audit Log for Security-Relevant Events",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "api",
+      "description": "All security-relevant events must be written to a queryable audit log persisted in SQLite. Events include: sign-in (success/failure), sign-out, token-family revocation, MFA enrollment/change/removal, admin actions (role change, user disable), and account lockout. Each log entry must capture: timestamp, event type, actor identity, target identity, realm, IP address, and outcome. The log must be queryable by event type, user, realm, and time range.",
       "validation": [
         {
-          "notes": "api/internal/audit/audit_test.go: write a sign-in event and query it back by user ID — fields match exactly",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/audit/audit_test.go: write a sign-in event and query it back by user ID — fields match exactly"
         },
         {
-          "notes": "api/internal/audit/audit_test.go: write events of multiple types and filter by event type — only matching events returned",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/audit/audit_test.go: write events of multiple types and filter by event type — only matching events returned"
         },
         {
-          "notes": "api/internal/audit/audit_test.go: audit write is non-blocking and does not fail the primary auth operation if the write is slow",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/audit/audit_test.go: audit write is non-blocking and does not fail the primary auth operation if the write is slow"
         },
         {
-          "notes": "api/handlers/auth/audit_e2e_test.go: perform sign-in → audit log contains entry with correct user, realm, IP, outcome=success",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/audit_e2e_test.go: perform sign-in → audit log contains entry with correct user, realm, IP, outcome=success"
         },
         {
-          "notes": "api/handlers/auth/audit_e2e_test.go: trigger token-family revocation via reuse detection → audit log contains family-revoke entry with family ID",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/audit_e2e_test.go: trigger token-family revocation via reuse detection → audit log contains family-revoke entry with family ID"
         },
         {
-          "notes": "api/handlers/auth/audit_e2e_test.go: admin changes user role → audit log records actor (admin), target (user), old role, new role",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/audit_e2e_test.go: admin changes user role → audit log records actor (admin), target (user), old role, new role"
         },
         {
-          "notes": "api/handlers/audit/query_e2e_test.go: query audit log by time range and event type returns paginated results in chronological order",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/audit/query_e2e_test.go: query audit log by time range and event type returns paginated results in chronological order"
         },
         {
-          "notes": "bas/admin/audit_log_test: admin navigates to audit log view, filters by event type, and sees timestamped entries with actor and outcome details",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "implemented",
+          "notes": "bas/admin/audit_log_test: admin navigates to audit log view, filters by event type, and sees timestamped entries with actor and outcome details"
         }
       ]
     }
-  ],
-  "title": "Auth-Event Audit Log"
+  ]
 }

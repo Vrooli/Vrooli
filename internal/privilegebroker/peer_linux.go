@@ -4,22 +4,19 @@ package privilegebroker
 
 import (
 	"fmt"
+	shared "github.com/vrooli/api-core/localprincipal"
+	"github.com/vrooli/vrooli/internal/localprincipal"
 	"net"
-
-	"golang.org/x/sys/unix"
 )
 
 func peerUID(conn *net.UnixConn) (uint32, error) {
-	var credential *unix.Ucred
-	raw, err := conn.SyscallConn()
+	principal, err := localprincipal.Peer(conn)
 	if err != nil {
-		return 0, fmt.Errorf("access peer socket: %w", err)
+		return 0, err
 	}
-	err = raw.Control(func(fd uintptr) {
-		credential, _ = unix.GetsockoptUcred(int(fd), unix.SOL_SOCKET, unix.SO_PEERCRED)
-	})
-	if err != nil || credential == nil {
-		return 0, fmt.Errorf("read peer credentials")
+	uid, err := shared.ParseUnixUID(principal)
+	if err != nil {
+		return 0, fmt.Errorf("parse local principal %q: %w", principal, err)
 	}
-	return credential.Uid, nil
+	return uint32(uid), nil
 }

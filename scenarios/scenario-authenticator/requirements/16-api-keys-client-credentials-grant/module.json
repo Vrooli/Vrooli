@@ -15,7 +15,10 @@
       "description": "Service accounts must be able to authenticate without a human session using either hashed API keys or an OAuth2 client-credentials grant. API keys are generated as cryptographically random strings, displayed once, then stored only as an Argon2id hash. Client-credentials clients are registered per realm with a client ID and secret. Both credential types issue short-lived access tokens with explicitly assigned roles and scopes. API key and client operations are audited.",
       "id": "REQ-P1-004",
       "prd_ref": "OT-P1-004",
-      "status": "planned",
+      "status": "not_implemented",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Peer-credential machine binding and the owner-only token-file fallback cover the principals in scope; a full apikeys domain is intentionally excluded.",
+      "revisit_trigger": "A third-party integration requires client-credentials authentication without a linked machine or owner session.",
       "title": "API Keys and Client-Credentials Grant for Machine Principals",
       "validation": [
         {

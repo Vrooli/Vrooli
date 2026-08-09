@@ -36,9 +36,9 @@ type Limiter struct {
 	now   func() time.Time
 }
 
-// New constructs a Limiter. A nil store disables limiting (Middleware becomes a
-// pass-through) so the scenario still boots if hot state is degraded — the
-// limiter is defense-in-depth on top of account lockout, not the only control.
+// New constructs a Limiter. Redis is required for this control, so a nil store
+// or a store error fails the protected request closed instead of silently
+// bypassing the limiter.
 func New(store redisstate.Store, cfg Config, now func() time.Time) *Limiter {
 	if now == nil {
 		now = time.Now
@@ -55,15 +55,17 @@ func New(store redisstate.Store, cfg Config, now func() time.Time) *Limiter {
 // Middleware wraps next, enforcing the limit on matching paths.
 func (l *Limiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if l.store == nil || !l.applies(r.URL.Path) {
+		if !l.applies(r.URL.Path) {
 			next.ServeHTTP(w, r)
+			return
+		}
+		if l.store == nil {
+			unavailable(w)
 			return
 		}
 		allowed, remaining, resetAt, err := l.allow(r.Context(), identifier(r)+":"+r.URL.Path)
 		if err != nil {
-			// Fail-open on a store error: never let a limiter outage lock
-			// everyone out (account lockout still defends brute force).
-			next.ServeHTTP(w, r)
+			unavailable(w)
 			return
 		}
 		w.Header().Set("X-RateLimit-Limit", strconv.Itoa(l.cfg.Limit))
@@ -76,6 +78,11 @@ func (l *Limiter) Middleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func unavailable(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	http.Error(w, `{"code":"unavailable","message":"rate limit store unavailable"}`, http.StatusServiceUnavailable)
 }
 
 func (l *Limiter) applies(path string) bool {

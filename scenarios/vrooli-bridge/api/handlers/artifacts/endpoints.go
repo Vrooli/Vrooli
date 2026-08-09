@@ -77,4 +77,37 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "List distributions", Curl: "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/ListDistributions -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"},
 		},
 	},
+	{
+		ID:          "artifacts_upload_run_artifact",
+		Path:        artifactsconnect.ArtifactsServiceUploadRunArtifactProcedure,
+		Method:      "POST",
+		Summary:     "Upload bounded evidence for a dispatched run",
+		Description: "Node-facing authenticated upload of a bounded produced artifact. The node may upload only evidence for its own run; the bytes are retained for owner retrieval.",
+		Category:    "artifacts",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"run_id": "string (required)", "name": "string (required)", "media_type": "string", "data": "bytes (bounded)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"artifact_ref": "string", "size_bytes": "int64"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Invalid or oversized artifact"},
+			{Status: 401, Code: "unauthenticated", Description: "Node credential required"},
+			{Status: 403, Code: "permission_denied", Description: "Node does not own the run"},
+			{Status: 404, Code: "not_found", Description: "Unknown run"},
+		},
+	},
+	{
+		ID:          "artifacts_get_run_artifact",
+		Path:        artifactsconnect.ArtifactsServiceGetRunArtifactProcedure,
+		Method:      "POST",
+		Summary:     "Retrieve bounded evidence from a dispatched run",
+		Description: "Owner-gated retrieval of a node-produced artifact. The response is suitable for saving plan evidence without a direct node connection.",
+		Category:    "artifacts",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"run_id": "string (required)", "name": "string (required)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"run_id": "string", "name": "string", "media_type": "string", "data": "bytes", "artifact_ref": "string"}},
+		Errors: []module.ErrorDesc{
+			{Status: 401, Code: "unauthenticated", Description: "Owner token required"},
+			{Status: 404, Code: "not_found", Description: "Produced artifact not found"},
+		},
+		Examples: []module.Example{
+			{Name: "Retrieve screenshot evidence", Curl: "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/GetRunArtifact -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"run_id\":\"run-123\",\"name\":\"screenshot.png\"}'"},
+		},
+	},
 }

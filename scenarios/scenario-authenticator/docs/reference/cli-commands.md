@@ -1,14 +1,11 @@
 # CLI Commands — Scenario Authenticator
 
-> **Target/planned surface — generated from proto + `cli/manifest.json`
-> during implementation (Gate 6); not yet shipped.** Only `status` and
-> `configure` (auto-provided by `cli-core`) exist today. Every scenario
-> command group below is the *planned* full-parity mirror of the Connect
-> API in [`api-endpoints.md`](api-endpoints.md); the concrete surface is
-> generated from the proto services and validated against
-> [`cli/manifest.json`](../../cli/manifest.json) during implementation.
-> Command names, flags, and groupings here are the *target* shapes and
-> may be refined when the manifest is authored.
+> **Current reference with explicit deferred sections.** The `auth` and
+> `sessions` groups are shipped from `cli/manifest.json`, alongside the
+> `status` and `configure` built-ins. Sections for MFA, federation, API keys,
+> and true multi-realm administration remain planned and are not claims about
+> the current binary. Keep command names, flags, and bindings aligned with
+> [`cli/manifest.json`](../../cli/manifest.json).
 
 The scenario CLI is a **thin Go translation layer over the Connect API**.
 Every command calls a single API RPC and renders the result; there is no
@@ -104,15 +101,18 @@ Read values back without an argument:
 scenario-authenticator configure api_base
 ```
 
-## Planned scenario commands (by tier)
+## Scenario commands
 
-Each product domain exposes its commands as a subcommand group
+The current command groups are shipped and deferred by tier as described
+below.
+
+Each shipped product domain exposes its commands as a subcommand group
 (`scenario-authenticator <domain> <verb>`). Every command mirrors a
 single Connect RPC in [`api-endpoints.md`](api-endpoints.md). The groups
 below are the target parity surface; tiers track the PRD operational
 targets.
 
-### `auth` — identity + token + session lifecycle (P0–P1)
+### `auth` — identity + token lifecycle (shipped)
 
 The end-user authentication lifecycle. Mirrors `IdentityService`,
 `TokensService`, and `SessionsService`.
@@ -157,7 +157,7 @@ scenario-authenticator token validate --token "$ACCESS_TOKEN"
 `token validate` is a diagnostic — RPs verify tokens locally against
 JWKS and never call this on the hot path.
 
-### `session` — session list + revoke (P0)
+### `sessions` — session list + revoke (shipped)
 
 Server-tracked sessions. Mirrors `SessionsService`.
 

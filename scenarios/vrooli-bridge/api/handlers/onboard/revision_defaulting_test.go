@@ -2,12 +2,14 @@ package onboard_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	onboardhandler "vrooli-bridge/handlers/onboard"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/cprev"
+	internalmachines "vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/onboard"
 	"vrooli-bridge/internal/onboard/mocks"
 
@@ -16,6 +18,18 @@ import (
 
 	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 )
+
+type selectedMachineReader struct {
+	machine internalmachines.Machine
+	err     error
+}
+
+func (r selectedMachineReader) Get(context.Context, string) (internalmachines.Machine, error) {
+	if r.err != nil {
+		return internalmachines.Machine{}, r.err
+	}
+	return r.machine, nil
+}
 
 // stubResolver is a handler-test onboard.RevisionResolver.
 type stubResolver struct {
@@ -92,6 +106,60 @@ func TestStartOnboarding_RequiresMachineOutsideDryRun(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	require.Contains(t, err.Error(), "machine_id is required")
+}
+
+func TestStartOnboarding_ValidatesExplicitMachineTarget(t *testing.T) {
+	svc := onboard.NewService(
+		mocks.NewFakeRepository(),
+		&mocks.FakeSSHDriver{},
+		&mocks.FakeCodeIssuer{Code: "PAIRINGCODEABCDEF0123456789ABCDEF"},
+		&mocks.FakeOnlineConfirmer{Online: true},
+		clock.System{},
+		onboard.WithRevisionResolver(&stubResolver{resolved: "1111111111111111111111111111111111111111"}),
+	)
+	h := onboardhandler.NewConnectHandler(onboardhandler.Deps{
+		Service:  svc,
+		Machines: selectedMachineReader{err: errors.New("not found")},
+	})
+	ownerCtx := auth.WithIdentity(context.Background(), auth.Identity{OwnerID: "owner-1"})
+
+	_, err := h.StartOnboarding(ownerCtx, connect.NewRequest(&onboardv1.StartOnboardingRequest{
+		MachineId: "machine-existing",
+		Host:      "minimouse.local",
+		User:      "matthalloran8",
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func TestStartOnboardingRejectsLocatorMismatch(t *testing.T) {
+	svc := onboard.NewService(
+		mocks.NewFakeRepository(),
+		&mocks.FakeSSHDriver{},
+		&mocks.FakeCodeIssuer{Code: "PAIRINGCODEABCDEF0123456789ABCDEF"},
+		&mocks.FakeOnlineConfirmer{Online: true},
+		clock.System{},
+		onboard.WithRevisionResolver(&stubResolver{resolved: "1111111111111111111111111111111111111111"}),
+	)
+	h := onboardhandler.NewConnectHandler(onboardhandler.Deps{
+		Service: svc,
+		Machines: selectedMachineReader{machine: internalmachines.Machine{
+			ID:        "machine-existing",
+			Lifecycle: internalmachines.LifecycleActive,
+			Locators:  []internalmachines.Locator{{Kind: "hostname", Value: "minimouse.local"}},
+		}},
+	})
+	ownerCtx := auth.WithIdentity(context.Background(), auth.Identity{OwnerID: "owner-1"})
+
+	_, err := h.StartOnboarding(ownerCtx, connect.NewRequest(&onboardv1.StartOnboardingRequest{
+		MachineId:      "machine-existing",
+		Host:           "another-host.local",
+		User:           "matthalloran8",
+		TargetRevision: "1111111111111111111111111111111111111111",
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Contains(t, err.Error(), "does not match")
 }
 
 // TestStartOnboarding_MetacharRevisionFriendlyRejection asserts a relative ref is

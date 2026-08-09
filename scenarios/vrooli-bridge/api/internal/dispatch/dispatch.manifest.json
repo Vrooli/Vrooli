@@ -1,0 +1,12 @@
+{
+  "source": "audited-typed-dispatch-bindings-with-catalog-scope-ceilings",
+  "entries": [
+    {"verb": "scenario test", "effect": "write"},
+    {"verb": "scenario build", "effect": "write"},
+    {"verb": "scenario start", "effect": "write"},
+    {"verb": "scenario stop", "effect": "write"},
+    {"verb": "scenario status", "effect": "read"},
+    {"verb": "scenario logs", "effect": "read"},
+    {"verb": "scenario screenshot", "effect": "write", "outputs": [{"name": "screenshot.png", "media_type": "image/png", "output_flag": "--output", "max_bytes": 33554432}]}
+  ]
+}

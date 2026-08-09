@@ -46,6 +46,7 @@ func Module(svc internalonboard.Service, db internalonboard.SQLExecutor, clk clo
 	path, handler := onboardconnect.NewOnboardServiceHandler(NewConnectHandler(Deps{
 		Service:  svc,
 		Attempts: attempts,
+		Machines: machines.NewService(machines.NewSQLiteRepository(db, clk)),
 		Logger:   logger,
 	}))
 	return module.Module{

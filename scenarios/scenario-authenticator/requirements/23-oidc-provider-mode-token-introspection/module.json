@@ -15,6 +15,9 @@
       "id": "REQ-P2-002",
       "prd_ref": "OT-P2-002",
       "status": "planned",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "OIDC provider mode and introspection are separate federation surfaces and are deliberately excluded from this delivery.",
+      "revisit_trigger": "A relying party needs third-party sign-in through scenario-authenticator or opaque-token introspection.",
       "title": "OIDC Provider Mode and Token Introspection",
       "validation": [
         {

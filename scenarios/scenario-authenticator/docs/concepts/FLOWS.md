@@ -20,11 +20,10 @@ workflow model.
 
 ## Flow Inventory
 
-> **Status: documentation-first orientation.** Every flow below is
-> **planned (pre-implementation)** — at maturity Level 1 (inventoried),
-> targeting the level it lists when its domain is built. No formal Quint
-> model exists yet. `health` is a stateless reporting domain and ships
-> no workflows.
+> **Status: mixed shipped and planned flows.** Account registration/login,
+> refresh-token rotation, local JWKS verification, session revocation, and
+> password change are implemented and covered by API/Connect tests. MFA,
+> federation, password recovery, and formal state models remain planned.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
@@ -35,7 +34,6 @@ workflow model.
 | Session revoke / log-out-everywhere | sessions | User/admin revokes a session or all sessions. | Session(s) dropped from Redis; subsequent use rejected. | Terminal revoke; idempotent. | Target Level 2–3. |
 | OAuth social callback | federation | External IdP redirects to the callback with code + state. | CSRF state validated; external identity linked; tokens issued. | Stateful: `state_issued → callback_received → linked/authenticated`. | Target Level 4–5 (CSRF + linking). |
 | Password reset | identity | User requests reset; later submits new password with token. | Single-use, expiring reset token consumed; credential rehashed. | Stateful: `requested → token_issued → consumed/expired`. | Target Level 4. |
-| Attachment upload (**template example, remove**) | notes | User/CLI uploads a file for a note. | Blob stored, metadata persisted. | Stateful upload request with failure paths. | Template Level 5 reference. |
 
 ## Flow Details
 
@@ -320,7 +318,7 @@ To add or rename a state/event:
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| All auth flows above | None — these are inventoried (Level 1) but unbuilt; the risk is building them without modeling the stateful ones. | Model sign-in-with-MFA, refresh-family, OAuth callback, and password-reset as `*.flow.json` contracts as their domains land. |
+| Deferred auth flows | MFA, OAuth callback, password recovery, and formal flow models are not shipped. | Model each stateful flow as a `*.flow.json` contract when its owning domain is scheduled. |
 | TOTP/passkey MFA enrollment (P1) | Stateful enrollment + challenge not yet inventoried in detail. | Add when the `mfa` domain is built. |
 | Client-credentials grant (P1) | Non-human auth path not yet detailed. | Add when the `apikeys` domain is built. |
 | SAML ACS (P2) | Enterprise SSO assertion flow. | Add when the `federation` SAML path is built. |

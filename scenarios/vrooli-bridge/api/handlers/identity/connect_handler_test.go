@@ -26,10 +26,15 @@ func (f fakeForwarder) Register(context.Context, internalidentity.Registration) 
 	return f.owner, f.err
 }
 
+func (f fakeForwarder) Refresh(context.Context, string) (internalidentity.Owner, error) {
+	return f.owner, f.err
+}
+
 // handler is the subset of the (unexported) connect handler the tests drive.
 type handler interface {
 	Login(context.Context, *connect.Request[identityv1.LoginRequest]) (*connect.Response[identityv1.LoginResponse], error)
 	Register(context.Context, *connect.Request[identityv1.RegisterRequest]) (*connect.Response[identityv1.RegisterResponse], error)
+	Refresh(context.Context, *connect.Request[identityv1.RefreshRequest]) (*connect.Response[identityv1.RefreshResponse], error)
 }
 
 func newHandler(f internalidentity.Owner, err error) handler {

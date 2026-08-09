@@ -275,7 +275,10 @@ agent_service_args() {
   [ -n "$WORK_DIR" ] && args+=(--work-dir "$WORK_DIR")
   [ -n "$SERVICE_USER" ] && args+=(--service-user "$SERVICE_USER")
   [ -n "$RUNTIME_VROOLI_BIN" ] && args+=(--vrooli-bin "$RUNTIME_VROOLI_BIN")
-  args+=(--presence-only "$PRESENCE_ONLY")
+  # Go's flag package treats a bare boolean flag as true; keep the value in the
+  # same argv token so `false` cannot be mistaken for a positional argument by
+  # the service-install subcommand.
+  args+=("--presence-only=${PRESENCE_ONLY}")
   printf '%s\n' "${args[@]}"
 }
 
@@ -719,6 +722,10 @@ step_build_native_vrooli() {
 
 step_finalize_setup() {
   step_start setup-finalize "complete setup with the host-native CLI"
+  if [ "$SKIP_SETUP" -eq 1 ]; then
+    step_skip "--skip-setup (native setup deferred)"
+    return
+  fi
   if [ "$PREBUILT_MODE" -eq 0 ] || [ "$OS" != "darwin" ]; then
     step_skip "setup completed with the received Vrooli CLI"
     return
@@ -875,7 +882,7 @@ step_service_install() {
   local running
   running="$(printf '%s' "$install_json" | jq -r '.running // false')"
   [ "$running" = "true" ] || fail 1 "service installed but not running — inspect: journalctl --user -u ${UNIT_NAME}"
-  step_ok "service installed and running"
+  step_ok "service installed and running (presence-only=${PRESENCE_ONLY})"
 }
 
 step_autostart() {

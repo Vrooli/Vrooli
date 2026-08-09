@@ -39,3 +39,20 @@ CREATE TABLE IF NOT EXISTS accounts (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_realm_email ON accounts(realm_id, email);
+
+-- A local principal may have many account bindings. Resolution is deliberately
+-- single-valued: exactly one is_default row must exist or exchange refuses.
+CREATE TABLE IF NOT EXISTS machine_bindings (
+  id               TEXT PRIMARY KEY,
+  machine_id       TEXT NOT NULL,
+  local_principal  TEXT NOT NULL,
+  account_id       TEXT NOT NULL,
+  realm_id         TEXT NOT NULL,
+  is_default       INTEGER NOT NULL DEFAULT 0,
+  linked_at        TEXT NOT NULL,
+  FOREIGN KEY (account_id) REFERENCES accounts(id),
+  FOREIGN KEY (realm_id) REFERENCES realms(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_machine_bindings_lookup
+  ON machine_bindings(machine_id, local_principal, is_default, linked_at);

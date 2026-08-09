@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/browser-automation-studio/internal/resilience"
@@ -47,4 +48,11 @@ func TestForceCloseSessionUsesConfiguredAdministrativeSecret(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, client.ForceCloseSession(context.Background(), "orphan-session"))
 	require.Equal(t, "recovery-secret", doer.header.Get("X-Playwright-Admin-Secret"))
+}
+
+func TestNewClientWithURLHonorsConfiguredExecutionTimeout(t *testing.T) {
+	t.Setenv(DriverExecutionTimeoutEnv, "3900000")
+	client, err := NewClientWithURL("http://127.0.0.1:39400", WithoutCircuitBreaker())
+	require.NoError(t, err)
+	require.Equal(t, 3900*time.Second, client.httpClient.(*http.Client).Timeout)
 }

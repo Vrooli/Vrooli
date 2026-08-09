@@ -66,6 +66,29 @@ func TestKIDInHeader(t *testing.T) {
 	}
 }
 
+func TestScopeClaimIsAlwaysExplicit(t *testing.T) {
+	s := newTestSigner(t, t.TempDir())
+	tok, err := s.Sign(TokenInput{UserID: "u1", Audience: testAud})
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+	claims, err := s.Validate(tok, testAud)
+	if err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if claims.Scopes == nil || len(claims.Scopes) != 0 {
+		t.Fatalf("empty scope claim = %#v, want explicit empty list", claims.Scopes)
+	}
+	tok, err = s.Sign(TokenInput{UserID: "u1", Scopes: []string{"bridge:read"}, Audience: testAud})
+	if err != nil {
+		t.Fatalf("sign scoped: %v", err)
+	}
+	claims, err = s.Validate(tok, testAud)
+	if err != nil || len(claims.Scopes) != 1 || claims.Scopes[0] != "bridge:read" {
+		t.Fatalf("scoped claim = %#v, err=%v", claims.Scopes, err)
+	}
+}
+
 // TestRS256MethodLockRejectsNoneAndHS is the algorithm-confusion defense: a
 // `none` or HS256 token must never validate against the RSA verifier.
 func TestRS256MethodLockRejectsNoneAndHS(t *testing.T) {

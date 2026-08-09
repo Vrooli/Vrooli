@@ -3,9 +3,11 @@
 This document records performance budgets, the performance *model*, known
 constraints, and regression procedures.
 
-> **Status: documentation-first.** No code is implemented yet, so every
-> number below is a **target budget**, not a measurement. The
-> "Measurements" table is intentionally empty.
+> **Status: implemented foundation; budgets are not blanket benchmarks.**
+> The auth and verification paths are live and unit-tested. Values in the
+> budget table are engineering targets until a dedicated benchmark run records
+> measurements; the absence of a benchmark must not be read as absence of
+> implementation.
 
 ## Purpose Of This Document
 
@@ -51,7 +53,7 @@ expensive thing (per-request verification) was deliberately moved off it.
 | Login (verify Argon2id hash + mint RS256 + persist session) | Dominated by the deliberate Argon2id cost; tens-of-ms class, not sub-ms (hashing is *meant* to be expensive) | login latency measure | planned |
 | Refresh (rotate refresh token + mint RS256 + reuse check) | Single-digit-ms class; Redis lookups + one RSA sign, no Argon2id | refresh latency measure | planned |
 | Token validation RPC (`Validate`, for RPs that can't verify locally) | Single-digit-ms; signature + claims, no DB | validate latency measure | planned |
-| Rate-limiter check (per auth request) | Negligible overhead; in-memory primary counter, Redis only for cross-replica coordination | rate-limit overhead measure | planned |
+| Rate-limiter check (per auth request) | Negligible Redis-authoritative counter operation; protected requests fail closed if Redis is unavailable | rate-limit overhead measure | planned |
 | Session revoke / "log out everywhere" | Fast Redis op(s); bounded by session-set size for a user | revoke latency measure | planned |
 | UI build | 5-10 minutes accepted for current Vite module graph | lifecycle/test-genie build logs | inherited |
 | API / UI health | Responsive under lifecycle health timeout | `/health` check | active |
@@ -99,7 +101,7 @@ expensive thing (per-request verification) was deliberately moved off it.
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet (pre-implementation). | n/a | n/a | 2026-06-18 |
+| No dedicated benchmark captured in this document yet. | n/a | benchmark suite not run | 2026-06-18 |
 
 ## Regression Procedure
 

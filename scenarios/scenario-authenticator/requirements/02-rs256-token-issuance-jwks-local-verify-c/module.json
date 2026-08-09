@@ -1,93 +1,77 @@
 {
-  "description": "Access tokens are RS256-signed with a persisted load-or-generate keypair in the storage root; the public key is published at `/.well-known/jwks.json`; the JWT claims/issuer (`user_id`/`sub`, `email`, `roles`, `iss: scenario-authenticator`, `aud`) match the carried-over contract so device-sync-hub's local verifier needs zero changes.",
-  "module_id": "MOD-P0-002",
-  "prd_ref": "OT-P0-002",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-09T01:12:20-04:00"
+  },
   "requirements": [
     {
-      "category": "security",
-      "dependencies": [
-        "REQ-P0-008",
-        "REQ-P0-011"
-      ],
-      "description": "Access tokens must be signed with RS256 using a keypair that is loaded from storage if it exists or generated and persisted on first start, so tokens and JWKS survive service restarts. The JWKS endpoint /.well-known/jwks.json must publish the public key in standard JWK format. JWT claims must carry: sub (== user_id), email, roles, iss: 'scenario-authenticator', and aud matching the issuing realm. Algorithm must be locked to RS256; none and HS-family algorithms must be rejected at verify time.",
       "id": "REQ-P0-002",
-      "prd_ref": "OT-P0-002",
-      "status": "implemented",
       "title": "RS256 Token Issuance with Persisted Keypair and JWKS Publication",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "security",
+      "description": "Access tokens must be signed with RS256 using a keypair that is loaded from storage if it exists or generated and persisted on first start, so tokens and JWKS survive service restarts. The JWKS endpoint /.well-known/jwks.json must publish the public key in standard JWK format. JWT claims must carry: sub (== user_id), email, roles, iss: 'scenario-authenticator', and aud matching the issuing realm. Algorithm must be locked to RS256; none and HS-family algorithms must be rejected at verify time.",
       "validation": [
         {
-          "notes": "api/internal/crypto/rs256_test.go: sign a token with RS256 and verify with the corresponding public key; assert alg header == RS256",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/crypto/rs256_test.go: sign a token with RS256 and verify with the corresponding public key; assert alg header == RS256"
         },
         {
-          "notes": "api/internal/crypto/rs256_test.go: attempt verification with alg=none → must be rejected with an explicit algorithm-mismatch error",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/crypto/rs256_test.go: attempt verification with alg=none → must be rejected with an explicit algorithm-mismatch error"
         },
         {
-          "notes": "api/internal/crypto/rs256_test.go: attempt verification with alg=HS256 (confusion attack) → must be rejected",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/crypto/rs256_test.go: attempt verification with alg=HS256 (confusion attack) → must be rejected"
         },
         {
-          "notes": "api/internal/crypto/jwks_test.go: marshal public key to JWK, parse it back, reconstruct RSA public key, verify a token signed with the original private key",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/crypto/jwks_test.go: marshal public key to JWK, parse it back, reconstruct RSA public key, verify a token signed with the original private key"
         },
         {
-          "notes": "api/internal/crypto/keypair_test.go: load-or-generate: first call creates and persists keypair; second call loads the same key; tokens signed before restart verify after restart",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/crypto/keypair_test.go: load-or-generate: first call creates and persists keypair; second call loads the same key; tokens signed before restart verify after restart"
         },
         {
-          "notes": "api/internal/token/claims_test.go: assert emitted JWT contains sub, email, roles, iss=scenario-authenticator, aud, iat, exp fields with correct values",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/token/claims_test.go: assert emitted JWT contains sub, email, roles, iss=scenario-authenticator, aud, iat, exp fields with correct values"
         },
         {
-          "notes": "api/handlers/jwks/jwks_e2e_test.go: GET /.well-known/jwks.json returns 200 JSON with keys array containing RS256 public key; parse JWKS and verify a freshly issued token locally without calling back to the service",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/jwks/jwks_e2e_test.go: GET /.well-known/jwks.json returns 200 JSON with keys array containing RS256 public key; parse JWKS and verify a freshly issued token locally without calling back to the service"
         },
         {
-          "notes": "api/handlers/jwks/jwks_e2e_test.go: restart the server process and verify a token issued before restart still validates against the JWKS served after restart",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/jwks/jwks_e2e_test.go: restart the server process and verify a token issued before restart still validates against the JWKS served after restart"
         },
         {
-          "notes": "api/handlers/auth/token_contract_e2e_test.go: issue token, decode claims, assert sub==user_id, email matches registered email, roles present, iss==scenario-authenticator, aud matches realm",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/auth/token_contract_e2e_test.go: issue token, decode claims, assert sub==user_id, email matches registered email, roles present, iss==scenario-authenticator, aud matches realm"
         },
         {
-          "notes": "api/internal/crypto/rs256_bench_test.go: local RS256 verify (public key in memory, no network) completes in under 1 ms on reference hardware; benchmark 10 000 iterations",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "implemented",
+          "notes": "api/internal/crypto/rs256_bench_test.go: local RS256 verify (public key in memory, no network) completes in under 1 ms on reference hardware; benchmark 10 000 iterations"
         }
       ]
     }
-  ],
-  "title": "RS256 Token Issuance + JWKS + Local-Verify Contract"
+  ]
 }

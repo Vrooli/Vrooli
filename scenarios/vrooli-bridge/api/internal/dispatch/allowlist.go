@@ -1,21 +1,95 @@
 package dispatch
 
-import "strings"
+import (
+	_ "embed"
+	"encoding/json"
+	"fmt"
+	"strings"
 
-// DefaultManifest is the control-plane allowlist of recognised verb namespaces —
-// the "scenario-CLI manifest" half of the dispatch check. A job whose verb is
-// not one of these is rejected as not-in-manifest before the per-node scope
-// check even runs. It is deliberately limited to the safe operational/test
-// verbs; privileged or destructive namespaces (`scenario deploy`, `secrets …`)
-// are absent and therefore never dispatchable through bridge, regardless of any
-// node scope. Override per deployment if a node legitimately needs more.
-var DefaultManifest = []string{
-	"scenario test",
-	"scenario build",
-	"scenario start",
-	"scenario stop",
-	"scenario status",
-	"scenario logs",
+	"github.com/vrooli/api-core/scopecatalog"
+	repocontract "github.com/vrooli/repo-contract-go"
+)
+
+// dispatch.manifest.json is the checked-in binding artifact for the currently
+// supported typed dispatch verbs. It names each binding's governance effect;
+// the concrete vrooli-bridge:<effect> scope is resolved from the catalog built
+// from existing CLI governance metadata below. This keeps the typed dispatch
+// vocabulary auditable without creating a second hand-maintained scope list.
+//
+//go:embed dispatch.manifest.json
+var dispatchManifestJSON []byte
+
+type manifestArtifact struct {
+	Entries []struct {
+		Verb    string `json:"verb"`
+		Effect  string `json:"effect"`
+		Outputs []struct {
+			Name       string `json:"name"`
+			MediaType  string `json:"media_type"`
+			OutputFlag string `json:"output_flag"`
+			MaxBytes   int64  `json:"max_bytes"`
+		} `json:"outputs"`
+	} `json:"entries"`
+}
+
+// DefaultManifest is the constructor's immutable artifact input for the pure
+// decision tests. It is resolved from the checked-in typed bindings plus the
+// derived scope catalog, not maintained as a Go verb list or scope list.
+var (
+	DefaultManifest        = loadManifest()
+	defaultManifestOutputs = loadManifestOutputs()
+)
+
+func loadManifest() []string {
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		panic(fmt.Sprintf("locate repository for dispatch scope catalog: %v", err))
+	}
+	catalog, err := scopecatalog.Build(root)
+	if err != nil {
+		panic(fmt.Sprintf("build dispatch scope catalog: %v", err))
+	}
+
+	var artifact manifestArtifact
+	if err := json.Unmarshal(dispatchManifestJSON, &artifact); err != nil {
+		panic(fmt.Sprintf("decode dispatch manifest: %v", err))
+	}
+	result := make([]string, 0, len(artifact.Entries))
+	for _, entry := range artifact.Entries {
+		if trimmed := strings.TrimSpace(entry.Verb); trimmed != "" {
+			effect := strings.TrimSpace(entry.Effect)
+			if effect != string(scopecatalog.EffectRead) && effect != string(scopecatalog.EffectWrite) && effect != string(scopecatalog.EffectDestructive) {
+				panic(fmt.Sprintf("dispatch manifest entry %q has invalid governance effect %q", trimmed, effect))
+			}
+			required := "vrooli-bridge:" + effect
+			if !catalog.HasScope(required) {
+				panic(fmt.Sprintf("dispatch manifest entry %q requires missing derived scope %q", trimmed, required))
+			}
+			result = append(result, encodeManifestEntry(trimmed, []string{required}))
+		}
+	}
+	return result
+}
+
+func loadManifestOutputs() map[string][]ArtifactOutput {
+	var artifact manifestArtifact
+	if err := json.Unmarshal(dispatchManifestJSON, &artifact); err != nil {
+		panic(fmt.Sprintf("decode dispatch manifest outputs: %v", err))
+	}
+	result := make(map[string][]ArtifactOutput)
+	for _, entry := range artifact.Entries {
+		verb := strings.TrimSpace(entry.Verb)
+		if verb == "" || len(entry.Outputs) == 0 {
+			continue
+		}
+		for _, output := range entry.Outputs {
+			result[verb] = append(result[verb], ArtifactOutput{
+				Name: strings.TrimSpace(output.Name), MediaType: strings.TrimSpace(output.MediaType),
+				OutputFlag: strings.TrimSpace(output.OutputFlag), MaxBytes: output.MaxBytes,
+			})
+		}
+	}
+	return result
 }
 
 // shellMetachars are characters that would have meaning to a shell. A typed job
@@ -49,7 +123,7 @@ func Allow(job Job, scopes, manifest []string) error {
 	if !inManifest(j.Verb, manifest) {
 		return ErrVerbNotInManifest{Verb: j.Verb}
 	}
-	if !anyScopeMatches(scopes, j.Verb) {
+	if !anyScopeMatches(scopes, j.Verb, manifest) {
 		return ErrVerbOutOfScope{Verb: j.Verb}
 	}
 	return nil
@@ -58,7 +132,7 @@ func Allow(job Job, scopes, manifest []string) error {
 // inManifest reports whether verb is exactly one of the manifest entries.
 func inManifest(verb string, manifest []string) bool {
 	for _, m := range manifest {
-		if strings.TrimSpace(m) == verb {
+		if manifestEntryVerb(m) == verb {
 			return true
 		}
 	}
@@ -66,13 +140,54 @@ func inManifest(verb string, manifest []string) bool {
 }
 
 // anyScopeMatches reports whether any granted scope covers verb.
-func anyScopeMatches(scopes []string, verb string) bool {
+func anyScopeMatches(scopes []string, verb string, manifest []string) bool {
+	for _, entry := range manifest {
+		if manifestEntryVerb(entry) != verb {
+			continue
+		}
+		for _, required := range manifestEntryScopes(entry) {
+			if scopeMatchesAny(scopes, required) {
+				return true
+			}
+		}
+	}
+	return scopeMatchesAny(scopes, verb)
+}
+
+func scopeMatchesAny(scopes []string, required string) bool {
 	for _, s := range scopes {
-		if scopeMatches(strings.TrimSpace(s), verb) {
+		if scopeMatches(strings.TrimSpace(s), required) {
 			return true
 		}
 	}
 	return false
+}
+
+const manifestSeparator = "\x00"
+
+func encodeManifestEntry(verb string, scopes []string) string {
+	clean := make([]string, 0, len(scopes))
+	for _, scope := range scopes {
+		if value := strings.TrimSpace(scope); value != "" {
+			clean = append(clean, value)
+		}
+	}
+	return verb + manifestSeparator + strings.Join(clean, manifestSeparator)
+}
+
+func manifestEntryVerb(entry string) string {
+	if index := strings.Index(entry, manifestSeparator); index >= 0 {
+		return entry[:index]
+	}
+	return strings.TrimSpace(entry)
+}
+
+func manifestEntryScopes(entry string) []string {
+	index := strings.Index(entry, manifestSeparator)
+	if index < 0 || index+len(manifestSeparator) >= len(entry) {
+		return nil
+	}
+	return strings.Split(entry[index+len(manifestSeparator):], manifestSeparator)
 }
 
 // scopeMatches implements the scope glob grammar: an exact match, a trailing-`*`

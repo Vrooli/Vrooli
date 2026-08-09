@@ -34,6 +34,22 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "refresh",
+          "description": "Rotate the saved owner refresh token and save the replacement session",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "IdentityService",
+            "method": "Refresh"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -890,6 +906,51 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "get-run",
+          "description": "Retrieve a bounded produced run artifact to a local evidence file",
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true,
+              "description": "Bridge run id",
+              "bind": {
+                "field": "run_id"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Produced artifact name",
+              "bind": {
+                "field": "name"
+              }
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "Local path to write the artifact",
+              "bind": {
+                "field": "output_path"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "GetRunArtifact"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -1511,6 +1572,10 @@
               "description": "SSH host to onboard (hostname or IP)"
             },
             {
+              "name": "machine-id",
+              "description": "Existing durable Machine identity to reconnect or retry. When omitted, a new Machine is created for first-time onboarding; Bridge never infers historic identity from a hostname."
+            },
+            {
               "name": "user",
               "description": "SSH user (default: root)"
             },
@@ -1785,6 +1850,11 @@
       "service": "IdentityService",
       "method": "Register",
       "reason": "Browser-facing owner account-creation facade. The CLI supports sign-in for an existing owner but deliberately does not create accounts; registration remains the UI's guided first-run flow."
+    },
+    {
+      "service": "ArtifactsService",
+      "method": "UploadRunArtifact",
+      "reason": "Node-facing authenticated upload called by the bridge agent after a typed job produces bounded evidence; there is no operator upload command."
     }
   ]
 }

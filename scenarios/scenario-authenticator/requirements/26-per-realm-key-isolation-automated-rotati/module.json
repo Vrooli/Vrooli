@@ -14,6 +14,9 @@
       "id": "REQ-P2-005",
       "prd_ref": "OT-P2-005",
       "status": "planned",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "The shipped deployment has one default realm and one persisted signing keypair; per-realm rotation depends on true multi-realm support.",
+      "revisit_trigger": "Multi-realm support is activated and independent signing-key lifecycle becomes necessary.",
       "title": "Per-Realm Key Isolation and Automated Key Rotation with Overlapping kid",
       "validation": [
         {

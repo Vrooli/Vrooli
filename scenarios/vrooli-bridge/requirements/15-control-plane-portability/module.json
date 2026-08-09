@@ -11,7 +11,10 @@
     {
       "id": "BRG-P2-001",
       "title": "Control Plane on macOS / Windows",
-      "status": "complete",
+      "status": "not_implemented",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Bridge is source-portable, but qualifying Vrooli control-plane installation on macOS and Windows is a separate platform track outside this scenario plan.",
+      "revisit_trigger": "The Vrooli control plane becomes an approved macOS or Windows deployment target requiring qualification.",
       "prd_ref": "OT-P2-001",
       "category": "core",
       "description": "The control plane itself runs on a macOS or Windows host, not only Linux. Bridge is written cross-platform from day one so it is never the blocker, but full support is gated on Vrooli-the-platform becoming installable/runnable on those OSes (a separate project-level track outside this scenario's scope). P2: designed and recorded as a future seam, not built here.",

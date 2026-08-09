@@ -129,3 +129,14 @@ func TestConfigDefaultProfileHonorsEnv(t *testing.T) {
 		t.Fatalf("full default should collect DOM snapshots")
 	}
 }
+
+func TestConfigExplicitExecutionTimeoutCapHonorsEnv(t *testing.T) {
+	t.Setenv("BAS_EXECUTION_MAX_EXPLICIT_TIMEOUT_MS", "5400000")
+	cfg := loadFromEnv()
+	if got := cfg.Execution.ExplicitMaxTimeout.Milliseconds(); got != 5400000 {
+		t.Fatalf("explicit timeout cap = %dms, want 5400000ms", got)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("explicit timeout cap should validate: %v", err)
+	}
+}

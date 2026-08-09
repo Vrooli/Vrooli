@@ -2,7 +2,7 @@
 
 This document records how the scenario relates to revenue. Keep it
 honest: `not-applicable` is better than inventing a commercial story.
-Everything below is a pre-implementation **hypothesis** derived from
+Everything below is a pre-launch **hypothesis** derived from
 [`../../PRD.md`](../../PRD.md) (Appendix D), not a committed plan, and it
 **sets no prices** — pricing posture is routed to canon below.
 
@@ -99,8 +99,8 @@ third-party API spend and no per-call cost to pass through.
 
 ## Current Status
 
-Pre-implementation. PRD and docs foundation authored during orientation;
-nothing is built. Monetization is hypothesis-stage and **indirect by
+The local IdP foundation is implemented, but monetization remains
+hypothesis-stage and **indirect by
 design**: free/BYOK for self-hosters, value realized by enabling metered
 tiers in adopting products. This document states the hypothesis and routes
 to canon — it does not price anything.

@@ -25,6 +25,7 @@ type fakeAccounts struct {
 	accountsconnect.UnimplementedAccountsServiceHandler
 	loginFn    func(*accountsv1.LoginRequest) (*accountsv1.LoginResponse, error)
 	registerFn func(*accountsv1.RegisterRequest) (*accountsv1.RegisterResponse, error)
+	refreshFn  func(*accountsv1.RefreshRequest) (*accountsv1.RefreshResponse, error)
 }
 
 func (f *fakeAccounts) Login(_ context.Context, req *connect.Request[accountsv1.LoginRequest]) (*connect.Response[accountsv1.LoginResponse], error) {
@@ -37,6 +38,14 @@ func (f *fakeAccounts) Login(_ context.Context, req *connect.Request[accountsv1.
 
 func (f *fakeAccounts) Register(_ context.Context, req *connect.Request[accountsv1.RegisterRequest]) (*connect.Response[accountsv1.RegisterResponse], error) {
 	resp, err := f.registerFn(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (f *fakeAccounts) Refresh(_ context.Context, req *connect.Request[accountsv1.RefreshRequest]) (*connect.Response[accountsv1.RefreshResponse], error) {
+	resp, err := f.refreshFn(req.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -156,6 +165,18 @@ func TestForwarderRegister(t *testing.T) {
 		assert.ErrorIs(t, err, identity.ErrInvalidInput)
 		assert.Contains(t, err.Error(), "at least 8 characters")
 	})
+}
+
+func TestForwarderRefresh(t *testing.T) {
+	srv := newAuthStub(t, &fakeAccounts{refreshFn: func(req *accountsv1.RefreshRequest) (*accountsv1.RefreshResponse, error) {
+		assert.Equal(t, "r-1", req.GetRefreshToken())
+		return &accountsv1.RefreshResponse{Tokens: &accountsv1.TokenPair{AccessToken: "jwt-new", RefreshToken: "r-2"}}, nil
+	}})
+	f := newForwarder(t, srv.URL)
+	o, err := f.Refresh(context.Background(), "r-1")
+	require.NoError(t, err)
+	assert.Equal(t, "jwt-new", o.Token)
+	assert.Equal(t, "r-2", o.RefreshToken)
 }
 
 type failingResolver struct{}

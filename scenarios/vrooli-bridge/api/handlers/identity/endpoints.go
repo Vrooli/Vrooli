@@ -46,4 +46,18 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "Create account", Curl: "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.identity.IdentityService/Register -H 'Content-Type: application/json' -d '{\"email\":\"you@example.com\",\"password\":\"…\"}'"},
 		},
 	},
+	{
+		ID:          "identity_refresh",
+		Path:        identityconnect.IdentityServiceRefreshProcedure,
+		Method:      "POST",
+		Summary:     "Refresh owner session",
+		Description: "Rotates a scenario-authenticator refresh token and relays the replacement owner token pair. The bridge stores nothing server-side.",
+		Category:    "identity",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"refresh_token": "string"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"token": "string (owner JWT)", "refresh_token": "string"}}, //nolint:gosec // schema field labels in an API descriptor, not hardcoded credentials
+		Errors: []module.ErrorDesc{
+			{Status: 401, Code: "unauthenticated", Description: "Refresh token rejected"},
+			{Status: 503, Code: "unavailable", Description: "scenario-authenticator could not be reached"},
+		},
+	},
 }

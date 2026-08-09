@@ -110,13 +110,13 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `api-core/databasetest::FakeExecer` is the canonical fake when a test needs to assert schema application order or injected execution failures without opening a real database. |
 | **Why it exists** | Schema application is shared-package behavior, but each scenario owns its provider list. Keep scenario-specific schema composition local; use `databasetest.FakeExecer` only for tests of code that consumes the shared `SchemaExecer` interface directly. |
 
-## Auth-specific seams (target design — not yet implemented)
+## Auth-specific seams (implemented and planned boundaries)
 
-These seams are the boundaries the auth core needs that go beyond the
-template's generic substrate. They are documented here during the
-documentation-first pass so the implementation wires them once and tests
-substitute through them. None are built yet. They realize the invariants
-in [`SECURITY.md`](SECURITY.md) and the IdP↔RP contract in PRD Appendix A.
+These seams are the boundaries the auth core needs beyond the generic
+substrate. The signing, storage, Redis, Connect, CLI, and endpoint seams are
+wired today; rows that name future federation or managed-database behavior
+remain design boundaries for deferred work. They realize the invariants in
+[`SECURITY.md`](SECURITY.md) and the IdP↔RP contract in PRD Appendix A.
 
 ### SigningKeyProvider (load-or-generate RSA keypair)
 
@@ -143,8 +143,8 @@ in [`SECURITY.md`](SECURITY.md) and the IdP↔RP contract in PRD Appendix A.
 | | |
 |---|---|
 | **Seam** | The Redis client used for hot/shared state — sessions, token-family revocation, OAuth CSRF `state`, and cross-replica rate-limit counters. |
-| **Interface** | `internal/redisstore/client.go::Store` — a narrow domain interface (e.g. `Set`/`Get`/`Del`/`SAdd`/`SMembers`/`Exists` with TTL), **not** the raw `*redis.Client`, so tests don't need a live Redis. |
-| **Production wiring** | `main.go` constructs the real Redis-backed `Store` from the resolved Redis address and passes it to the domains that need hot state (`sessions`, `tokens`, `federation`). Redis is a **required** dependency, not optional — session-revocation correctness and distributed rate-limit accuracy depend on it. |
+| **Interface** | `api/internal/redisstate/store.go::Store` — a narrow domain interface (e.g. `Set`/`Get`/`Del`/`SAdd`/`SMembers`/`Exists` with TTL), **not** the raw `*redis.Client`, so tests don't need a live Redis. The `NamespacedStore` wrapper applies the lifecycle-selected Redis prefix. |
+| **Production wiring** | `main.go` constructs the real Redis-backed `Store`, resolves the variant-aware `api-core/storage` namespace, and passes the namespaced store to `sessions` and `ratelimit`. Redis is a **required** dependency, not optional — session-revocation correctness and distributed rate-limit accuracy depend on it. |
 | **Test fake** | An in-memory `Store` fake (map + TTL simulation) substitutes in session/revocation/rate-limit tests. Integration tests run against a real Redis (see [`TESTING.md`](TESTING.md)); unit tests use the fake. |
 | **Why it exists** | The old scenario reaches a package-global `db.RedisClient` directly from every auth function — untestable without a live Redis and impossible to assert revocation/CSRF semantics on. A narrow `Store` interface makes "the session was revoked," "the CSRF state is one-time-use," and "the rate-limit counter incremented" one-line assertions, and keeps the raw Redis SDK out of domain code. |
 

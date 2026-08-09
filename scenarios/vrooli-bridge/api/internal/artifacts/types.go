@@ -13,6 +13,7 @@
 package artifacts
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -63,6 +64,29 @@ type Distribution struct {
 	UpdatedAt       time.Time
 }
 
+// MaxProducedArtifactBytes bounds node-produced evidence retained by bridge.
+// Large input/distribution artifacts continue to use device-sync-hub; this
+// bounded path exists for small, directly reviewable evidence such as PNGs.
+const MaxProducedArtifactBytes int64 = 32 << 20
+
+// ProducedArtifact is one bounded file emitted by a dispatched run.
+type ProducedArtifact struct {
+	RunID       string
+	Name        string
+	MediaType   string
+	Data        []byte
+	SizeBytes   int64
+	ArtifactRef string
+	CreatedAt   time.Time
+}
+
+// RunTarget is the node ownership projection needed by the produced-artifact
+// write path. The artifacts domain does not import the runs domain.
+type RunTarget struct {
+	ID     string
+	NodeID string
+}
+
 // TargetNode is the minimal node shape distribution needs: its id and whether it
 // is revoked.
 type TargetNode struct {
@@ -92,6 +116,12 @@ type Decision struct {
 type ListFilter struct {
 	NodeID string
 	Limit  int
+}
+
+// ProducedArtifactRepository persists bounded run evidence.
+type ProducedArtifactRepository interface {
+	Put(ctx context.Context, artifact ProducedArtifact) (ProducedArtifact, error)
+	Get(ctx context.Context, runID, name string) (ProducedArtifact, error)
 }
 
 // ---- Typed error sentinels (translated to Connect codes at the handler) ----
@@ -126,6 +156,32 @@ type ErrDeliveryFailed struct{ NodeID string }
 
 func (e ErrDeliveryFailed) Error() string {
 	return fmt.Sprintf("directed delivery to node %q failed", e.NodeID)
+}
+
+// ErrInvalidProducedArtifact is a node-upload validation failure.
+type ErrInvalidProducedArtifact struct {
+	Field  string
+	Reason string
+}
+
+func (e ErrInvalidProducedArtifact) Error() string { return fmt.Sprintf("%s: %s", e.Field, e.Reason) }
+
+// ErrArtifactNodeMismatch prevents a node from uploading evidence for another
+// node's run.
+type ErrArtifactNodeMismatch struct{ RunID string }
+
+func (e ErrArtifactNodeMismatch) Error() string {
+	return fmt.Sprintf("node does not own run %q", e.RunID)
+}
+
+// ErrProducedArtifactNotFound indicates the run has not uploaded this output.
+type ErrProducedArtifactNotFound struct {
+	RunID string
+	Name  string
+}
+
+func (e ErrProducedArtifactNotFound) Error() string {
+	return fmt.Sprintf("produced artifact %q for run %q not found", e.Name, e.RunID)
 }
 
 func trim(s string) string { return strings.TrimSpace(s) }

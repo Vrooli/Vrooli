@@ -33,6 +33,10 @@ const (
 	// DefaultExecutionTimeout is the timeout for execution operations (longer, for slow playwright ops).
 	DefaultExecutionTimeout = 5 * time.Minute
 
+	// DriverExecutionTimeoutEnv allows operators to raise the HTTP deadline when
+	// a single driver operation itself is expected to run longer than five minutes.
+	DriverExecutionTimeoutEnv = "BAS_DRIVER_EXECUTION_TIMEOUT_MS"
+
 	// PlaywrightDriverEnv is the environment variable for the driver URL.
 	PlaywrightDriverEnv = "PLAYWRIGHT_DRIVER_URL"
 	// PlaywrightDriverAdminSecretEnv authorizes only the loopback recovery
@@ -159,7 +163,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 
 	c := &Client{
 		baseURL:     strings.TrimRight(driverURL, "/"),
-		httpClient:  &http.Client{Timeout: DefaultExecutionTimeout},
+		httpClient:  &http.Client{Timeout: configuredExecutionTimeout()},
 		log:         log,
 		breaker:     resilience.NewBreaker(cfg),
 		adminSecret: strings.TrimSpace(os.Getenv(PlaywrightDriverAdminSecretEnv)),
@@ -191,7 +195,7 @@ func NewClientWithURL(driverURL string, opts ...ClientOption) (*Client, error) {
 
 	c := &Client{
 		baseURL:     strings.TrimRight(driverURL, "/"),
-		httpClient:  &http.Client{Timeout: DefaultExecutionTimeout},
+		httpClient:  &http.Client{Timeout: configuredExecutionTimeout()},
 		log:         log,
 		breaker:     resilience.NewBreaker(cfg),
 		adminSecret: strings.TrimSpace(os.Getenv(PlaywrightDriverAdminSecretEnv)),
@@ -208,6 +212,15 @@ func NewClientWithURL(driverURL string, opts ...ClientOption) (*Client, error) {
 	}
 
 	return c, nil
+}
+
+func configuredExecutionTimeout() time.Duration {
+	if raw := strings.TrimSpace(os.Getenv(DriverExecutionTimeoutEnv)); raw != "" {
+		if milliseconds, err := strconv.ParseInt(raw, 10, 64); err == nil && milliseconds > 0 {
+			return time.Duration(milliseconds) * time.Millisecond
+		}
+	}
+	return DefaultExecutionTimeout
 }
 
 // NewRecordingClient creates a client optimized for recording operations (shorter timeout).

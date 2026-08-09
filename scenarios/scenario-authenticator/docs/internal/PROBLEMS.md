@@ -7,6 +7,11 @@ re-discovering the same constraint.
 This file ships empty in newly generated scenarios. Append entries as
 they appear.
 
+> **Historical-entry notice:** the dated orientation entry below records the
+> state of the freshly generated scenario on 2026-06-18. It predates the
+> implemented account/token/session foundation and the current identity plan;
+> read it as a resolved historical handoff, not as an as-built statement.
+
 ## What belongs here
 
 - **Known bugs** that are real but not yet worth fixing

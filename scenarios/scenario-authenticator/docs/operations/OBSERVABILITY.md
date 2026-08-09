@@ -3,12 +3,12 @@
 This document records logs, metrics, telemetry, health checks, and
 security signals for the fleet's Identity Provider (IdP).
 
-> **Status: documentation-first orientation.** The signals and metrics
-> below are the **target** observability contract derived from
-> [`../../PRD.md`](../../PRD.md). The measures are **not wired yet** —
-> only the scaffold `/health` and test-genie results exist today. An IdP
-> is a security boundary, so its defining observability signal is the
-> **audit log as a security event stream**, not just liveness.
+> **Status: implemented foundation with explicit telemetry gaps.** Health,
+> JWKS, audit, session, and rate-limit paths are wired in the API. The tables
+> below distinguish signals available from structured audit/health output from
+> future aggregate dashboards and metrics. An IdP is a security boundary, so
+> its defining observability signal is the audit log as a security event
+> stream, not just liveness.
 
 ## Purpose Of This Document
 
@@ -55,8 +55,9 @@ output. An accidental token in a log is a credential leak.
 ## Metrics
 
 Metrics are the **`cli/manifest.json` measure blocks** — the metrics
-contract enforced by the test-genie measures phase. **None are wired
-yet** (pre-implementation); the table is the target contract.
+contract enforced by the test-genie measures phase. Audit and health output
+are wired; aggregate metric blocks and dashboards remain explicit gaps in
+the table below.
 
 | Metric | Status | Notes |
 |---|---|---|
@@ -85,12 +86,11 @@ operator expectations are defined.
 
 ## Telemetry Gaps
 
-Telemetry is at the pre-implementation stage — measures are not wired.
-Known gaps:
+Known telemetry gaps:
 
 | Gap | Impact | Revisit Trigger |
 |---|---|---|
-| Auth metrics not wired (success/failure, lockouts, issuance, reuse, sessions) | No live security signal yet. | When the P0 auth core lands and its measure blocks ship. |
+| Aggregate auth metrics (success/failure, lockouts, issuance, reuse, sessions) | Structured audit/security signals exist, but no aggregate dashboard is shipped. | When a deployment defines metric retention and alert thresholds. |
 | RP-side token-verify latency | Verify cost is borne by consumers; not yet instrumented. | When the first RP (device-sync-hub) migration is green (OT-P0-012). |
 | Anomaly/attack detection (impossible-travel, brute-force trends) | Audit stream exists but no derived alerting. | Post-P0, when an attack-signal baseline is meaningful. |
 | Per-realm metric isolation | Single default realm at P0; multi-realm cardinality not yet modeled. | When multi-realm lands (OT-P1-001). |

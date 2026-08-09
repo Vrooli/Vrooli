@@ -38,7 +38,7 @@ belong in [`DATA.md`](DATA.md).
 | audit | Append-only trail of every dispatch and provisioning op (actor/node/verb/args/outcome). | Reporting / security | Audit records (via workspace-sandbox). | API, UI | OT-P0-008 | `api/internal/audit/` |
 | fleet | Fleet-wide version roll: pin every (or named) node to a target revision by fanning provisioning out across the fleet; per-node rollout ledger + protocol-compat gating. | Aggregation / workflow | `rollouts`, `rollout_results`. | API, CLI, UI | OT-P1-001 | `api/internal/fleet/`, `api/handlers/fleet/`, `cli/domains/fleet/` |
 | queue | Per-node bounded-concurrency + fair-FIFO scheduler on the dispatch→push path; read-only control-plane view of running-vs-queued. | Policy / realtime | In-memory scheduler state (the run is the durable record). | API, CLI, UI | OT-P1-004 | `api/internal/queue/`, `api/handlers/queue/`, `cli/domains/queue/` |
-| artifacts | Distribute non-git artifacts (installers, fixtures) to nodes via device-sync-hub directed delivery; bridge stores no bytes. | Integration / workflow | `distributions` (reference + metadata only). | API, CLI, UI | OT-P1-003 | `api/internal/artifacts/`, `api/handlers/artifacts/`, `cli/domains/artifacts/` |
+| artifacts | Distribute non-git artifacts (installers, fixtures) to nodes via device-sync-hub directed delivery, and accept bounded typed outputs produced by authenticated runs for owner retrieval. | Integration / workflow | `distributions` plus run-produced artifact bytes and references. | API, CLI, agent | OT-P1-003 | `api/internal/artifacts/`, `api/handlers/artifacts/`, `cli/domains/artifacts/` |
 | machines | Durable operator intent for a managed machine: stable identity, ordered connection locators, lifecycle, desired policy reference, trust references, and immutable Node lineage. | Entity / lifecycle | `machines`, `machine_locators`, `machine_node_lineage`, migration-review records. | API, CLI, UI | BRG-MEC-001, BRG-MEC-002 | `api/internal/machines/`, `packages/proto/schemas/vrooli-bridge/v1/machines/` |
 | enrollment | Immutable attempts to enroll a Machine, including checkpoints, typed pairing correlation, retry lineage, and recovery diagnostics. | Workflow / recovery | `enrollment_attempts`, checkpoint and reconciliation records. | API, CLI, UI | BRG-MEC-003 | `api/internal/onboard/attempts.go`, `packages/proto/schemas/vrooli-bridge/v1/onboard/onboard.proto`, and the Machine detail projection |
 
@@ -122,7 +122,7 @@ belong in [`DATA.md`](DATA.md).
 
 - Purpose: durable, server-owned remote execution — a dispatched job survives client/agent disconnect, is re-attachable by id with a block-once wait, and streams exit status, logs, and artifacts back for aggregation. Reuses test-genie's run-lifecycle philosophy (no polling).
 - Primary archetype: workflow / lifecycle.
-- Owns: the `runs` table, log/artifact references. Does not own: cross-OS verdict aggregation (gate).
+- Owns: the `runs` table, log/artifact references. Produced artifact bytes are owned by the artifacts domain and remain owner-scoped to their run. Does not own: cross-OS verdict aggregation (gate).
 - Related docs: [`FLOWS.md`](FLOWS.md), [`INTEGRATIONS.md`](INTEGRATIONS.md).
 
 ### provisioning

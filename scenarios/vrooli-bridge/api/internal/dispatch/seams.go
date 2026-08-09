@@ -74,4 +74,14 @@ type PushedJob struct {
 	Verb           string
 	Args           []string
 	TimeoutSeconds int64
+	Outputs        []ArtifactOutput
+}
+
+// ArtifactOutput is a typed, manifest-selected output declaration. It carries
+// no path or executable text; the node chooses the private path.
+type ArtifactOutput struct {
+	Name       string
+	MediaType  string
+	OutputFlag string
+	MaxBytes   int64
 }

@@ -6,12 +6,11 @@ authenticator-specific layering, then points to the specialized
 documents that own product domains, workflows, data, integrations,
 deployment, operations, and business strategy.
 
-> **Status: documentation-first orientation.** This scenario was
-> freshly regenerated from the `react-vite` template. Nothing below the
-> `health` domain and the fenced `notes` example is implemented yet.
-> The shapes described here are the **target** design carried over from
-> [`../../PRD.md`](../../PRD.md) and [`DOMAINS.md`](DOMAINS.md); treat
-> them as the contract to build toward, not as built behavior.
+> **Status: implemented foundation.** The scenario is detemplated and the
+> account, token, session, JWKS, rate-limit, audit, realm, and Connect
+> handler paths described below are live. Future capabilities are marked
+> planned or deferred in the requirements registry. This document describes
+> the current architecture and its remaining extension points.
 
 Keep this file high-signal. Do not turn it into a warehouse for every
 domain, endpoint, workflow, or decision. If a concern has a dedicated
@@ -295,17 +294,16 @@ temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
 ## Architecture Maturity
 
-The scenario carries a mature template shape but **no auth code is
-implemented yet** — this is a documentation-first orientation pass. The
-table below is honest about that: only `health` and the fenced `notes`
-example exist.
+The scenario carries the standard lifecycle shape and a live authentication
+foundation. The table below distinguishes shipped paths from future product
+work; it does not describe the removed `notes` example.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Scaffold only | Template vertical-slice stack, module registry, per-domain schema pattern, `health` domain. | Every auth domain (`realms`…`apikeys`) is unimplemented; crypto must be **ported verbatim** from the old scenario (PRD Appendix C). |
-| UI | Scaffold only | Feature folders, typed API clients, selector/i18n registries. | Admin console, self-service, and hosted login/consent screens are unbuilt (see [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md)). |
-| CLI | Scaffold only | Domain command-group pattern. | Connect-parity commands for every auth domain are unbuilt. |
-| Docs | Orientation in progress | Concepts cluster authored from PRD + DOMAINS; manifest v2 registers docs. | Internal/operations/business docs and per-domain deep docs still to fill as domains land. |
+| API | Implemented foundation | Account, token, session, JWKS, realm, rate-limit, audit, and handler seams in `api/`. | Authorization, machine binding, and delegated token extensions are delivered by this plan; MFA/federation/apikeys/multi-realm remain deferred. |
+| UI | Implemented shell | Health dashboard, shared shell, settings, typed client/test infrastructure, selector/i18n registries. | Admin console, self-service, and hosted login/consent screens remain future UI work (see [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md)). |
+| CLI | Implemented foundation | Auth and session command groups use generated Connect clients. | Refresh, password-change, scope, and machine-link commands are delivered by this plan. |
+| Docs | Maintained foundation | Concepts, internal, operations, business, and reference docs are present and being reconciled against code. | Deferred capability sections require updates when MFA/federation/multi-realm land. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later

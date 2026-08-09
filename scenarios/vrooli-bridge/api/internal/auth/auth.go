@@ -28,6 +28,7 @@ package auth
 import (
 	"context"
 	"crypto"
+	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
@@ -42,6 +43,8 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/httpc"
+
+	"github.com/vrooli/api-core/trustposture"
 )
 
 // AuthScenarioSlug is the scenario whose API issues and signs owner JWTs, and
@@ -54,21 +57,21 @@ const AuthExpectedAudience = "scenario-authenticator:default"
 
 // Identity is the owner identity resolved from a validated authenticator token.
 type Identity struct {
-	OwnerID   string
-	Email     string
-	Roles     []string
-	ExpiresAt time.Time
+	OwnerID    string
+	Email      string
+	Roles      []string
+	Scopes     []string
+	ExpiresAt  time.Time
+	AuthMethod AuthMethod
 }
 
-// HasRole reports whether the identity carries the named role.
-func (id Identity) HasRole(role string) bool {
-	for _, r := range id.Roles {
-		if r == role {
-			return true
-		}
-	}
-	return false
-}
+// AuthMethod is a typed distinction for audit and policy consumers.
+type AuthMethod string
+
+const (
+	AuthMethodNormal     AuthMethod = "normal"
+	AuthMethodBreakGlass AuthMethod = "break_glass"
+)
 
 // Validator is the seam the middleware depends on. Production wires *Client;
 // handler/middleware tests substitute a fake so they never touch the network.
@@ -105,17 +108,23 @@ type Client struct {
 	keys      []*rsa.PublicKey
 	fetchedAt time.Time
 
-	now        func() time.Time
-	minRefetch time.Duration
+	now                func() time.Time
+	minRefetch         time.Duration
+	maxJWKSGrace       time.Duration
+	breakGlassPublic   ed25519.PublicKey
+	breakGlassAudience string
 }
 
 // Config configures the production Client.
 type Config struct {
-	Resolver     URLResolver
-	Doer         httpc.Doer
-	AuthScenario string
-	Now          func() time.Time
-	MinRefetch   time.Duration
+	Resolver            URLResolver
+	Doer                httpc.Doer
+	AuthScenario        string
+	Now                 func() time.Time
+	MinRefetch          time.Duration
+	JWKSGrace           time.Duration
+	BreakGlassPublicKey []byte
+	BreakGlassAudience  string
 }
 
 // NewClient constructs the production Validator, filling defaults. A nil Doer
@@ -140,12 +149,27 @@ func NewClient(cfg Config) *Client {
 	if refetch <= 0 {
 		refetch = 5 * time.Second
 	}
+	grace := cfg.JWKSGrace
+	if grace <= 0 {
+		grace = 24 * time.Hour
+	}
+	audience := strings.TrimSpace(cfg.BreakGlassAudience)
+	if audience == "" {
+		audience = AuthExpectedAudience
+	}
+	var public ed25519.PublicKey
+	if len(cfg.BreakGlassPublicKey) == ed25519.PublicKeySize {
+		public = append(ed25519.PublicKey(nil), cfg.BreakGlassPublicKey...)
+	}
 	return &Client{
-		resolver:     cfg.Resolver,
-		doer:         doer,
-		authScenario: scenario,
-		now:          now,
-		minRefetch:   refetch,
+		resolver:           cfg.Resolver,
+		doer:               doer,
+		authScenario:       scenario,
+		now:                now,
+		minRefetch:         refetch,
+		maxJWKSGrace:       grace,
+		breakGlassPublic:   public,
+		breakGlassAudience: audience,
 	}
 }
 
@@ -183,13 +207,34 @@ func (c *Client) Validate(ctx context.Context, bearerToken string) (Identity, er
 	return Identity{}, ErrUnauthenticated
 }
 
+// ValidateBreakGlass verifies the pre-provisioned credential entirely
+// offline. It is a separate authorization scheme, never a fallback from a
+// failed bearer-token verification.
+func (c *Client) ValidateBreakGlass(_ context.Context, token string) (Identity, error) {
+	if len(c.breakGlassPublic) != ed25519.PublicKeySize {
+		return Identity{}, ErrUnauthenticated
+	}
+	claims, err := trustposture.Verify(c.breakGlassPublic, strings.TrimSpace(token), c.breakGlassAudience, c.now())
+	if err != nil {
+		return Identity{}, ErrUnauthenticated
+	}
+	return Identity{
+		OwnerID:    claims.Subject,
+		Scopes:     append([]string(nil), claims.Scopes...),
+		ExpiresAt:  time.Unix(claims.ExpiresAt, 0).UTC(),
+		AuthMethod: AuthMethodBreakGlass,
+	}, nil
+}
+
 func (c *Client) ensureKeys(ctx context.Context, forceRefetch bool) ([]*rsa.PublicKey, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if len(c.keys) > 0 {
 		if !forceRefetch {
-			return c.keys, nil
+			if c.now().Sub(c.fetchedAt) <= c.maxJWKSGrace {
+				return c.keys, nil
+			}
 		}
 		if c.now().Sub(c.fetchedAt) < c.minRefetch {
 			return c.keys, nil
@@ -198,7 +243,7 @@ func (c *Client) ensureKeys(ctx context.Context, forceRefetch bool) ([]*rsa.Publ
 
 	keys, err := c.fetchJWKS(ctx)
 	if err != nil {
-		if len(c.keys) > 0 {
+		if len(c.keys) > 0 && c.now().Sub(c.fetchedAt) <= c.maxJWKSGrace {
 			return c.keys, nil
 		}
 		return nil, err
@@ -272,6 +317,7 @@ type ownerClaims struct {
 	UserID string   `json:"user_id"`
 	Email  string   `json:"email"`
 	Roles  []string `json:"roles"`
+	Scopes []string `json:"scope"`
 	Exp    int64    `json:"exp"`
 	Nbf    int64    `json:"nbf"`
 	Iss    string   `json:"iss"`
@@ -325,7 +371,14 @@ func (c ownerClaims) toIdentity(now time.Time) (Identity, error) {
 	if c.Exp > 0 {
 		exp = time.Unix(c.Exp, 0).UTC()
 	}
-	return Identity{OwnerID: c.UserID, Email: c.Email, Roles: c.Roles, ExpiresAt: exp}, nil
+	return Identity{OwnerID: c.UserID, Email: c.Email, Roles: c.Roles, Scopes: nonNilStrings(c.Scopes), ExpiresAt: exp, AuthMethod: AuthMethodNormal}, nil
+}
+
+func nonNilStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return append([]string(nil), values...)
 }
 
 // parseRS256 splits a compact JWS, rejects any algorithm other than RS256, and

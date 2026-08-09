@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+
 	"vrooli-bridge/internal/clock"
 )
 
@@ -87,6 +89,7 @@ func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Machine,
 	}
 	return s.Get(ctx, id)
 }
+
 func (s *sqliteRepository) Get(ctx context.Context, id string) (Machine, error) {
 	var m Machine
 	var created, updated, arch, removed string
@@ -148,26 +151,42 @@ func (s *sqliteRepository) Get(ctx context.Context, id string) (Machine, error) 
 	}
 	return m, lines.Err()
 }
+
 func (s *sqliteRepository) List(ctx context.Context) ([]Machine, error) {
 	rows, e := s.db.QueryContext(ctx, "SELECT id FROM machines ORDER BY created_at DESC")
 	if e != nil {
 		return nil, e
 	}
 	defer rows.Close()
-	var out []Machine
+	ids := make([]string, 0)
 	for rows.Next() {
 		var id string
 		if e = rows.Scan(&id); e != nil {
 			return nil, e
 		}
+		ids = append(ids, id)
+	}
+	if e = rows.Err(); e != nil {
+		return nil, e
+	}
+	if e = rows.Close(); e != nil {
+		return nil, e
+	}
+
+	// The production pool is deliberately capped at one SQLite connection.
+	// Materialize and close the id query before loading each aggregate; nesting
+	// Get while rows is open would wait forever for that same connection.
+	out := make([]Machine, 0, len(ids))
+	for _, id := range ids {
 		m, e := s.Get(ctx, id)
 		if e != nil {
 			return nil, e
 		}
 		out = append(out, m)
 	}
-	return out, rows.Err()
+	return out, nil
 }
+
 func (s *sqliteRepository) Archive(ctx context.Context, id string, version int64) (Machine, error) {
 	m, e := s.Get(ctx, id)
 	if e != nil {
@@ -216,6 +235,7 @@ func (s *sqliteRepository) Remove(ctx context.Context, id string, version int64)
 	}
 	return s.Get(ctx, id)
 }
+
 func (s *sqliteRepository) LinkNode(ctx context.Context, id, node, correlation string) (Machine, error) {
 	if _, e := s.Get(ctx, id); e != nil {
 		return Machine{}, e
@@ -640,6 +660,7 @@ func policyRemoves(previous, next []string) bool {
 	}
 	return false
 }
+
 func nullableTime(v string) (time.Time, error) {
 	if v == "" {
 		return time.Time{}, nil

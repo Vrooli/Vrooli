@@ -13,20 +13,25 @@ import (
 	"golang.org/x/term"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"vrooli-bridge/cli/internal/session"
 )
 
 type handlers struct {
-	core     *cliapp.ScenarioApp
-	client   identityconnect.IdentityServiceClient
-	password passwordSource
+	core          *cliapp.ScenarioApp
+	client        identityconnect.IdentityServiceClient
+	password      passwordSource
+	localExchange func(context.Context) (string, string, error)
+	tokenFile     func() (string, error)
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := session.NewConnectHTTPClient(core)
 	return &handlers{
-		core:     core,
-		client:   identityconnect.NewIdentityServiceClient(httpClient, baseURL),
-		password: newPasswordSource(),
+		core:          core,
+		client:        identityconnect.NewIdentityServiceClient(httpClient, baseURL),
+		password:      newPasswordSource(),
+		localExchange: session.ExchangeLocal,
+		tokenFile:     session.TokenFile,
 	}
 }
 
@@ -37,6 +42,24 @@ func (h *handlers) login(ctx cliapp.RunContext) error {
 	email := strings.TrimSpace(ctx.Flag("email"))
 	if email == "" {
 		return fmt.Errorf("--email is required")
+	}
+	if h.localExchange != nil {
+		if token, refresh, err := h.localExchange(context.Background()); err == nil {
+			if err := h.saveSession(token, refresh); err != nil {
+				return err
+			}
+			fmt.Fprintln(ctx.Stdout(), "Signed in through the local machine binding. Owner session saved for this CLI.")
+			return nil
+		}
+	}
+	if h.tokenFile != nil {
+		if token, err := h.tokenFile(); err == nil {
+			if err := h.saveSession(token, ""); err != nil {
+				return err
+			}
+			fmt.Fprintln(ctx.Stdout(), "Loaded the owner session from the configured token file.")
+			return nil
+		}
 	}
 	password, err := h.password.resolve(ctx.BoolFlag("password-stdin"))
 	if err != nil {
@@ -59,12 +82,47 @@ func (h *handlers) login(ctx cliapp.RunContext) error {
 	}
 
 	// Do not alter an existing token until a complete new login has succeeded.
-	h.core.Config.Token = resp.Msg.Token
-	if err := h.core.SaveConfig(); err != nil {
-		return fmt.Errorf("save owner session: %w", err)
+	if err := h.saveSession(resp.Msg.Token, resp.Msg.RefreshToken); err != nil {
+		return err
 	}
 	// Deliberately custom output: generic proto rendering could expose Token.
 	fmt.Fprintf(ctx.Stdout(), "Signed in as %s. Owner session saved for this CLI.\n", displayIdentity(resp.Msg.Email, resp.Msg.UserId))
+	return nil
+}
+
+func (h *handlers) saveSession(token, refresh string) error {
+	if strings.TrimSpace(token) == "" {
+		return fmt.Errorf("sign in returned no access token")
+	}
+	h.core.Config.Token = token
+	h.core.Config.RefreshToken = refresh
+	if err := h.core.SaveConfig(); err != nil {
+		return fmt.Errorf("save owner session: %w", err)
+	}
+	return nil
+}
+
+func (h *handlers) refresh(ctx cliapp.RunContext) error {
+	if strings.TrimSpace(h.core.Config.RefreshToken) == "" {
+		return fmt.Errorf("no refresh token is saved; run `auth login` first")
+	}
+	resp, err := h.client.Refresh(context.Background(), connect.NewRequest(&identityv1.RefreshRequest{
+		RefreshToken: h.core.Config.RefreshToken,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("refresh owner session", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || strings.TrimSpace(resp.Msg.Token) == "" || strings.TrimSpace(resp.Msg.RefreshToken) == "" {
+		return fmt.Errorf("refresh returned no complete owner session")
+	}
+	previous := h.core.Config
+	h.core.Config.Token = resp.Msg.Token
+	h.core.Config.RefreshToken = resp.Msg.RefreshToken
+	if err := h.core.SaveConfig(); err != nil {
+		h.core.Config = previous
+		return fmt.Errorf("save refreshed owner session: %w", err)
+	}
+	fmt.Fprintln(ctx.Stdout(), "Owner session refreshed and saved.")
 	return nil
 }
 

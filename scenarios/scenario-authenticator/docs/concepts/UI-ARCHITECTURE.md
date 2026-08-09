@@ -1,9 +1,10 @@
 # UI Architecture
 
-> **Status: documentation-first orientation.** The UI is the template
-> scaffold today (only `health` and the fenced `notes` example exist).
-> The three audiences and feature folders below are the **target** UI
-> design from [`../../PRD.md`](../../PRD.md); none are built yet.
+> **Status: implemented UI shell; auth administration is not yet a UI
+> surface.** The shipped UI contains the health dashboard, shared shell,
+> settings, accessibility primitives, and test infrastructure. The audience
+> and feature taxonomy below is the planned extension for account and
+> administration screens; the old `notes` example is not shipped.
 
 ## Purpose Of This Document
 

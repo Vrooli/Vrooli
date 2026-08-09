@@ -210,6 +210,33 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/auth.FakeValidator` (canned Identity/Err); handler tests inject identity directly via `auth.WithIdentity(ctx, Identity{...})`. |
 | **Why it exists** | Bridge does not own user identity; it verifies the owner JWT locally so a momentarily-unavailable authenticator never breaks a live session. Trimmed from device-sync-hub's auth (no `RevokeSession` — bridge revokes node credentials, not auth sessions). The alg-lock (RS256 only) rejects "none"/HS* confusion. |
 
+### auth.BreakGlassValidator / auth.BreakGlassAuditor (offline outage path)
+
+| | |
+|---|---|
+| **Seam** | Explicit offline owner capability verification and accountability |
+| **Interface** | `internal/auth/middleware.go::BreakGlassValidator` and `BreakGlassAuditor`; `internal/auth/auth.go::Client.ValidateBreakGlass` |
+| **Production wiring** | `main.go` pins the public Ed25519 key supplied by the machine-linking path, accepts only the `BreakGlass` authorization scheme, and appends `audit.ActionBreakGlass` before injecting identity. A missing or failed audit sink refuses the request. |
+| **Test fake** | `auth.BreakGlassAuditFunc` and `auth.FakeValidator`; pure credential and scope-ceiling tests live in `api-core/trustposture`. |
+| **Why it exists** | Outage recovery must be a positive, signed, scoped capability. Keeping it structurally separate from `Validator.Validate` prevents an authenticator error from becoming an implicit allow path, while the audit seam makes emergency access observable and testable. |
+
+## Decision Points
+
+The major authorization decisions are now grouped in named seams rather than
+scattered conditionals:
+
+- `api-core/trustposture.DefaultsFor` chooses operational defaults from the
+  declared posture; it never chooses verification behavior.
+- `auth.Client.ensureKeys` chooses fresh JWKS, bounded cached-JWKS reuse, or
+  refusal based on the posture grace window.
+- `auth.MiddlewareWithAudit` chooses normal bearer validation or the explicit
+  `BreakGlass` scheme from the authorization scheme name; no validation error
+  selects break-glass.
+- `api-core/trustposture.ScopeCeiling` chooses whether each emergency scope is
+  within the account grant, refusing any widening request.
+
+These decisions have table or boundary tests and are wired once at `main.go`.
+
 ### registry.Repository / registry.Service (node persistence + application surface)
 
 | | |
@@ -351,6 +378,16 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 | **Production wiring** | `handlers/artifacts/adapter.go::deviceSyncDelivery` produces a device-sync-hub delivery ref; the concrete device-sync-hub TransferService client is the documented drop-in behind this seam (mirroring audit's workspace-sandbox Sink — device-sync-hub carries an environmental authenticator blocker). |
 | **Test fake** | `internal/artifacts/mocks.FakeDelivery`; `distribute_test.go`, `devicesync_integration_test.go` (real sqlite). |
 | **Why it exists** | Bridge never reinvents file transport; the seam keeps the artifacts domain proto-free and lets the real device-sync-hub client drop in without touching the domain. |
+
+### artifacts.ProducedArtifactRepository (authenticated run output)
+
+| | |
+|---|---|
+| **Seam** | Bounded bytes produced by a typed node run and later retrieved by its owner. |
+| **Interface** | `internal/artifacts/repository.go::ProducedArtifactRepository` (`PutProducedArtifact`, `GetProducedArtifact`) plus `RunReader` for node ownership validation. |
+| **Production wiring** | `handlers/artifacts/module.go` wires the SQLite repository and the runs-service adapter; `connect_handler.go` verifies node signatures for upload and owner identity for retrieval. |
+| **Test fake** | `internal/artifacts/mocks.FakeProducedRepository` and `FakeRunReader`; handler coverage exercises the signed upload → owner retrieval round trip. |
+| **Why it exists** | A node-local screenshot path is not evidence. This seam makes the transfer explicit, bounded, owner-scoped, and replaceable without granting the node arbitrary filesystem access or making the control plane trust an untyped path. |
 
 ### node-agent discovery.Browser (mDNS LAN discovery, OT-P1-006)
 

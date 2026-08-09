@@ -37,6 +37,8 @@ const (
 	ActionDispatch Action = 1
 	// ActionProvision records a provisioning operation (Phase 4).
 	ActionProvision Action = 2
+	// ActionBreakGlass records a positively verified offline owner capability.
+	ActionBreakGlass Action = 3
 )
 
 // Outcome is the result recorded for an audited operation.

@@ -15,6 +15,7 @@ import (
 	onboardconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard/onboard_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"vrooli-bridge/cli/internal/session"
 )
 
 // defaultRevision is the presentation/value for "bring the node to the control
@@ -36,7 +37,7 @@ type machineCreator interface {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := session.NewConnectHTTPClient(core)
 	return &handlers{
 		core:     core,
 		client:   onboardconnect.NewOnboardServiceClient(httpClient, baseURL),
@@ -54,9 +55,12 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 func (h *handlers) start(ctx cliapp.RunContext) error {
 	host := strings.TrimSpace(ctx.Flag("host"))
 	user := strings.TrimSpace(ctx.Flag("user"))
+	machineID := strings.TrimSpace(ctx.Flag("machine-id"))
 
 	// Resolve the password BEFORE the RPC so a credential-intake failure never
-	// half-starts. This never prompts unless --prompt-password was given.
+	// half-starts. An explicitly selected Machine reuses its Bridge-managed key
+	// without prompting; an explicit stdin/prompt/env credential remains
+	// available if that key is genuinely missing or revoked.
 	fromStdin := ctx.BoolFlag("password-stdin")
 	setupPassphraseStdin := ctx.BoolFlag("setup-passphrase-stdin")
 	if setupPassphraseStdin && !fromStdin {
@@ -84,17 +88,18 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 			return fmt.Errorf("setup credential-store passphrase from stdin must not be empty")
 		}
 	}
-	machineID := ""
-	machineResp, err := h.machines.CreateMachine(context.Background(), connect.NewRequest(&machinesv1.CreateMachineRequest{
-		Locators: []*machinesv1.ConnectionLocator{{Kind: "hostname", Value: host, Ordinal: 0}},
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("create Machine before onboarding", err, nil)
+	if machineID == "" {
+		machineResp, createErr := h.machines.CreateMachine(context.Background(), connect.NewRequest(&machinesv1.CreateMachineRequest{
+			Locators: []*machinesv1.ConnectionLocator{{Kind: "hostname", Value: host, Ordinal: 0}},
+		}))
+		if createErr != nil {
+			return cliapp.WrapAPIError("create Machine before onboarding", createErr, nil)
+		}
+		if machineResp == nil || machineResp.Msg == nil || machineResp.Msg.Machine == nil || strings.TrimSpace(machineResp.Msg.Machine.Id) == "" {
+			return fmt.Errorf("server returned no machine for onboarding")
+		}
+		machineID = machineResp.Msg.Machine.Id
 	}
-	if machineResp == nil || machineResp.Msg == nil || machineResp.Msg.Machine == nil || strings.TrimSpace(machineResp.Msg.Machine.Id) == "" {
-		return fmt.Errorf("server returned no machine for onboarding")
-	}
-	machineID = machineResp.Msg.Machine.Id
 
 	revision := strings.TrimSpace(ctx.Flag("revision"))
 	if revision == "" {

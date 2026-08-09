@@ -208,6 +208,12 @@ type ExecutionConfig struct {
 	// Env: BAS_EXECUTION_MAX_TIMEOUT_MS (default: 270000, 4.5 minutes)
 	MaxTimeout time.Duration
 
+	// ExplicitMaxTimeout bounds a workflow's opt-in settings.timeout_ms value.
+	// It is intentionally separate from MaxTimeout so existing workflows keep
+	// their conservative dynamic timeout while long-running workflows can opt in.
+	// Env: BAS_EXECUTION_MAX_EXPLICIT_TIMEOUT_MS (default: 7200000, 2 hours)
+	ExplicitMaxTimeout time.Duration
+
 	// MaxSubflowDepth limits recursion depth for nested subflows.
 	// Env: BAS_EXECUTION_MAX_SUBFLOW_DEPTH (default: 5)
 	MaxSubflowDepth int
@@ -664,6 +670,7 @@ func loadFromEnv() *Config {
 			PerStepSubflowTimeout:  parseDurationMs("BAS_EXECUTION_PER_STEP_SUBFLOW_TIMEOUT_MS", 15000),
 			MinTimeout:             parseDurationMs("BAS_EXECUTION_MIN_TIMEOUT_MS", 90000),
 			MaxTimeout:             parseDurationMs("BAS_EXECUTION_MAX_TIMEOUT_MS", 270000),
+			ExplicitMaxTimeout:     parseDurationMs("BAS_EXECUTION_MAX_EXPLICIT_TIMEOUT_MS", 7200000),
 			MaxSubflowDepth:        parseInt("BAS_EXECUTION_MAX_SUBFLOW_DEPTH", 5),
 			DefaultEntryTimeout:    parseDurationMs("BAS_EXECUTION_DEFAULT_ENTRY_TIMEOUT_MS", 3000),
 			MinEntryTimeout:        parseDurationMs("BAS_EXECUTION_MIN_ENTRY_TIMEOUT_MS", 250),
@@ -792,6 +799,9 @@ func (c *Config) Validate() error {
 	// Execution validation
 	if c.Execution.MinTimeout > c.Execution.MaxTimeout {
 		return fmt.Errorf("MinTimeout (%v) cannot be greater than MaxTimeout (%v)", c.Execution.MinTimeout, c.Execution.MaxTimeout)
+	}
+	if c.Execution.ExplicitMaxTimeout < c.Execution.MinTimeout {
+		return fmt.Errorf("ExplicitMaxTimeout (%v) cannot be less than MinTimeout (%v)", c.Execution.ExplicitMaxTimeout, c.Execution.MinTimeout)
 	}
 	if c.Execution.MaxSubflowDepth < 1 {
 		return fmt.Errorf("MaxSubflowDepth must be at least 1, got %d", c.Execution.MaxSubflowDepth)

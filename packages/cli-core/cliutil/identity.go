@@ -46,6 +46,8 @@ type IdentityEnv struct {
 type VerifiedClaims struct {
 	RunID      string            `json:"run_id"`
 	TaskID     string            `json:"task_id"`
+	Subject    string            `json:"subject"`
+	Scopes     []string          `json:"scopes"`
 	ProfileKey string            `json:"profile_key"`
 	ScopePath  string            `json:"scope_path"`
 	IssuedAt   int64             `json:"iat"`

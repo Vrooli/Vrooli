@@ -1,73 +1,59 @@
 {
-  "description": "Admin and user roles are carried over and enforced on management endpoints; role claims are emitted in the token for RP consumption.",
-  "module_id": "MOD-P0-009",
-  "prd_ref": "OT-P0-009",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-09T01:12:20-04:00"
+  },
   "requirements": [
     {
-      "category": "security",
-      "dependencies": [
-        "REQ-P0-002",
-        "REQ-P0-001",
-        "REQ-P0-011"
-      ],
-      "description": "The service must define at minimum two built-in roles: 'admin' and 'user'. Role assignments are stored in SQLite and emitted as a roles claim in issued JWTs so relying parties can consume them without calling back. Management endpoints (user list, role assignment, session admin, audit log query) must require the admin role. User endpoints require the user role. Role enforcement must occur at the RPC handler layer.",
       "id": "REQ-P0-009",
-      "prd_ref": "OT-P0-009",
-      "status": "implemented",
       "title": "Baseline RBAC with Admin and User Roles Enforced on Management Endpoints",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-009",
+      "category": "security",
+      "description": "The service must define at minimum two built-in roles: 'admin' and 'user'. Role assignments are stored in SQLite and emitted as a roles claim in issued JWTs so relying parties can consume them without calling back. Management endpoints (user list, role assignment, session admin, audit log query) must require the admin role. User endpoints require the user role. Role enforcement must occur at the RPC handler layer.",
       "validation": [
         {
-          "notes": "api/internal/rbac/rbac_test.go: user with admin role passes admin-required check; user with user role fails the same check",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/rbac/rbac_test.go: user with admin role passes admin-required check; user with user role fails the same check"
         },
         {
-          "notes": "api/internal/rbac/rbac_test.go: roles claim in JWT matches roles stored in SQLite for the same user",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/rbac/rbac_test.go: roles claim in JWT matches roles stored in SQLite for the same user"
         },
         {
-          "notes": "api/internal/rbac/rbac_test.go: role assignment and revocation update the roles claim on the next token issuance",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "api/internal/rbac/rbac_test.go: role assignment and revocation update the roles claim on the next token issuance"
         },
         {
-          "notes": "api/handlers/admin/rbac_e2e_test.go: admin user calls user-list endpoint → 200; regular user calls same endpoint → 403",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/admin/rbac_e2e_test.go: admin user calls user-list endpoint → 200; regular user calls same endpoint → 403"
         },
         {
-          "notes": "api/handlers/admin/rbac_e2e_test.go: admin assigns admin role to a user; that user's next token contains roles: [admin]; that user can now call admin endpoints",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/admin/rbac_e2e_test.go: admin assigns admin role to a user; that user's next token contains roles: [admin]; that user can now call admin endpoints"
         },
         {
-          "notes": "api/handlers/admin/rbac_e2e_test.go: JWT decoded by device-sync-hub contains roles array matching the user's assigned roles",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "api/handlers/admin/rbac_e2e_test.go: JWT decoded by device-sync-hub contains roles array matching the user's assigned roles"
         },
         {
-          "notes": "bas/admin/role_management_test: admin user assigns admin role to another user via console UI; target user can subsequently access admin-only UI sections",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "implemented",
+          "notes": "bas/admin/role_management_test: admin user assigns admin role to another user via console UI; target user can subsequently access admin-only UI sections"
         }
       ]
     }
-  ],
-  "title": "Baseline RBAC"
+  ]
 }

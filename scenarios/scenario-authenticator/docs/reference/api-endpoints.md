@@ -1,15 +1,15 @@
 # API Endpoints — Scenario Authenticator
 
-> **Target/planned surface — generated from proto + `cli/manifest.json`
-> during implementation (Gate 6); not yet shipped.** Nothing below the
-> `health` domain is implemented. This document describes the *target*
-> contract authored during the documentation-first orientation pass so
-> the proto/handler/CLI work has a contract to build against. The
+> **Current reference with explicit planned sections.** The live surface is
+> generated from proto + `cli/manifest.json`; account/auth, sessions, JWKS,
+> and health handlers are shipped. Sections or fields explicitly labelled
+> planned describe deferred MFA, federation, recovery, or multi-realm
+> capabilities. The concrete surface is generated from
 > concrete surface is generated from
 > `packages/proto/schemas/scenario-authenticator/v1/<domain>/` and bound
-> in [`cli/manifest.json`](../../cli/manifest.json) during implementation;
-> RPC method names, request/response field names, and error codes here
-> are the *planned* shapes and may be refined when the proto is authored.
+> in [`cli/manifest.json`](../../cli/manifest.json); RPC method names,
+> request/response field names, and error codes here should be kept aligned
+> with the generated handlers and proto schemas.
 
 Human-readable reference for the API. Once implemented, the
 machine-readable source of truth is

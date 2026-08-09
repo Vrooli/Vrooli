@@ -1665,21 +1665,16 @@ const (
 func executionTimeout(plan contracts.ExecutionPlan) time.Duration {
 	// Check for explicit timeout in metadata (takes precedence)
 	if plan.Metadata != nil {
-		if v, ok := plan.Metadata["executionTimeoutMs"]; ok {
-			switch t := v.(type) {
-			case int:
-				if t > 0 {
-					return time.Duration(t) * time.Millisecond
-				}
-			case int64:
-				if t > 0 {
-					return time.Duration(t) * time.Millisecond
-				}
-			case float64:
-				if t > 0 {
-					return time.Duration(t) * time.Millisecond
-				}
+		if requestedMs := readInt(plan.Metadata, "executionTimeoutMs", "execution_timeout_ms"); requestedMs > 0 {
+			maxExplicit := config.Load().Execution.ExplicitMaxTimeout
+			if maxExplicit <= 0 {
+				maxExplicit = 2 * time.Hour
 			}
+			requested := time.Duration(requestedMs) * time.Millisecond
+			if requested > maxExplicit {
+				return maxExplicit
+			}
+			return requested
 		}
 	}
 

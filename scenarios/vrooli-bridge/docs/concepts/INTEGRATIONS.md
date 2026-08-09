@@ -42,7 +42,7 @@ These are the compositions that keep bridge from reinventing solved problems. Ea
 |---|---|---|---|
 | scenario-authenticator | required | Owner identity for control-plane access; bridge does not reimplement auth. | HTTP validate/login, fail-closed. |
 | test-genie | required (runs) | Durable server-owned run lifecycle is reused for remote execution; when a job *is* a scenario test, test-genie is the actual mechanism on the node. | run-lifecycle semantics (start/wait/follow/abort by id, no polling). |
-| device-sync-hub | required (P1) | Byte transport for non-git artifacts (built installers, large fixtures) — "bridge orchestrates, device-sync-hub moves the bytes." | directed-delivery seam. |
+| device-sync-hub | required (P1) | Byte transport for inbound non-git artifacts (built installers, large fixtures) — "bridge orchestrates, device-sync-hub moves the bytes." Produced run outputs use bridge's bounded authenticated artifact RPC instead. | directed-delivery seam. |
 | tunnel-manager | required (off-LAN) | Reach for nodes in another location; the node-agent dials the control plane's tunnel URL. | tunnel route to the control-plane endpoint. |
 | workspace-sandbox | required | Accountability substrate for the immutable audit trail of dispatch + provisioning. | audit-record sink. |
 | deployment-manager + scenario-to-desktop | consumer (P1) | Consumers of the cross-OS validation gate; deployment-manager owns the verdict, bridge supplies the capability. | gate API contract. |

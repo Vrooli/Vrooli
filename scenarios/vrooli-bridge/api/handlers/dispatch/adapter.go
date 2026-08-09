@@ -108,6 +108,18 @@ func (a jobPusherAdapter) PushJob(ctx context.Context, nodeID string, job dispat
 		Verb:           job.Verb,
 		Args:           append([]string(nil), job.Args...),
 		TimeoutSeconds: job.TimeoutSeconds,
+		Outputs:        outputsToQueue(job.Outputs),
 	})
 	return delivered, err
+}
+
+func outputsToQueue(outputs []dispatch.ArtifactOutput) []queue.Output {
+	if len(outputs) == 0 {
+		return nil
+	}
+	out := make([]queue.Output, 0, len(outputs))
+	for _, output := range outputs {
+		out = append(out, queue.Output{Name: output.Name, MediaType: output.MediaType, OutputFlag: output.OutputFlag, MaxBytes: output.MaxBytes})
+	}
+	return out
 }

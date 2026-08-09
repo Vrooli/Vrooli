@@ -115,6 +115,42 @@ func TestBuildSyncRemoteCommand_DefaultAndExplicit(t *testing.T) {
 	}
 }
 
+func TestBuildBootstrapArgs_DerivesAgentPostureFromCapabilities(t *testing.T) {
+	active := buildBootstrapArgs(StartInput{
+		ControlPlaneURL: "http://control-plane",
+		TargetRevision:  "revision",
+		Capabilities:    []string{"scenario screenshot", "scenario test*"},
+	}, "", "", RemoteArtifacts{})
+	activeArgs := strings.Join(active, "\x00")
+	if !strings.Contains(activeArgs, "--capabilities\x00scenario screenshot,scenario test*") {
+		t.Fatalf("capabilities were not forwarded: %#v", active)
+	}
+	if !strings.Contains(activeArgs, "--presence-only\x00false") {
+		t.Fatalf("execution capabilities must opt the agent out of presence-only posture: %#v", active)
+	}
+
+	presence := buildBootstrapArgs(StartInput{
+		ControlPlaneURL: "http://control-plane",
+		TargetRevision:  "revision",
+	}, "", "", RemoteArtifacts{})
+	presenceArgs := strings.Join(presence, "\x00")
+	if strings.Contains(presenceArgs, "--presence-only") {
+		t.Fatalf("scope-less onboarding should retain the bootstrap presence-only default: %#v", presence)
+	}
+}
+
+func TestBuildBootstrapArgs_DerivesAgentPostureFromGrantedDefaults(t *testing.T) {
+	service := &service{defaultScopes: []string{"vrooli-bridge:read", "vrooli-bridge:write"}}
+	args := buildBootstrapArgsForScopes(StartInput{
+		ControlPlaneURL: "http://control-plane",
+		TargetRevision:  "revision",
+	}, "", "", RemoteArtifacts{}, service.defaultScopes)
+	joined := strings.Join(args, "\x00")
+	if !strings.Contains(joined, "--presence-only\x00false") {
+		t.Fatalf("posture-selected execution grants must opt the agent out of presence-only posture: %#v", args)
+	}
+}
+
 func TestWriteTarStream_PreservesNamesWithSpaces(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "plain.txt", "one")

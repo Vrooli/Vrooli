@@ -45,6 +45,7 @@ func (p channelPusher) Push(_ context.Context, job queue.Job) (int, error) {
 				Verb:           job.Verb,
 				Args:           append([]string(nil), job.Args...),
 				TimeoutSeconds: job.TimeoutSeconds,
+				Outputs:        outputsToProto(job.Outputs),
 			},
 		},
 	}
@@ -53,6 +54,19 @@ func (p channelPusher) Push(_ context.Context, job queue.Job) (int, error) {
 		return 0, err
 	}
 	return p.hub.Push(job.NodeID, payload), nil
+}
+
+func outputsToProto(outputs []queue.Output) []*channelv1.ArtifactOutput {
+	if len(outputs) == 0 {
+		return nil
+	}
+	out := make([]*channelv1.ArtifactOutput, 0, len(outputs))
+	for _, output := range outputs {
+		out = append(out, &channelv1.ArtifactOutput{
+			Name: output.Name, MediaType: output.MediaType, OutputFlag: output.OutputFlag, MaxBytes: output.MaxBytes,
+		})
+	}
+	return out
 }
 
 // channelCanceller pushes a signed AbortJob frame to a node so it STOPS an

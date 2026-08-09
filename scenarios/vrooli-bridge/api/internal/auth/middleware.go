@@ -10,6 +10,25 @@ import (
 // ctxKey is the unexported context key for the request-scoped owner Identity.
 type ctxKey struct{}
 
+// BreakGlassValidator is the explicit offline validation seam. A normal
+// bearer failure never selects this path implicitly.
+type BreakGlassValidator interface {
+	ValidateBreakGlass(ctx context.Context, token string) (Identity, error)
+}
+
+// BreakGlassAuditor records accepted break-glass uses as typed audit events.
+// Audit failure is refusal: emergency access remains accountable.
+type BreakGlassAuditor interface {
+	AuditBreakGlass(ctx context.Context, id Identity) error
+}
+
+// BreakGlassAuditFunc adapts a function to BreakGlassAuditor.
+type BreakGlassAuditFunc func(context.Context, Identity) error
+
+func (f BreakGlassAuditFunc) AuditBreakGlass(ctx context.Context, id Identity) error {
+	return f(ctx, id)
+}
+
 // WithIdentity returns a child context carrying id. Exported for tests that
 // drive handlers directly without the HTTP middleware in front.
 func WithIdentity(ctx context.Context, id Identity) context.Context {
@@ -52,13 +71,36 @@ func BearerToken(header string) string {
 // owner-gated handlers reject when no Identity is present, which is fail-closed
 // for both an invalid token and an unreachable authenticator.
 func Middleware(v Validator, logger *log.Logger) func(http.Handler) http.Handler {
+	return MiddlewareWithAudit(v, logger, nil)
+}
+
+// MiddlewareWithAudit adds the explicit BreakGlass authorization scheme while
+// preserving the pairing endpoint's best-effort identity injection.
+func MiddlewareWithAudit(v Validator, logger *log.Logger, auditor BreakGlassAuditor) func(http.Handler) http.Handler {
 	if logger == nil {
 		logger = log.Default()
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := BearerToken(r.Header.Get("Authorization"))
-			if token != "" {
+			header := strings.TrimSpace(r.Header.Get("Authorization"))
+			parts := strings.SplitN(header, " ", 2)
+			if len(parts) == 2 && strings.EqualFold(parts[0], "BreakGlass") {
+				if bg, ok := v.(BreakGlassValidator); ok {
+					if id, err := bg.ValidateBreakGlass(r.Context(), strings.TrimSpace(parts[1])); err == nil {
+						if auditor == nil {
+							logger.Printf("auth: break-glass rejected: no audit sink")
+						} else if err := auditor.AuditBreakGlass(r.Context(), id); err != nil {
+							logger.Printf("auth: break-glass rejected: audit failed: %v", err)
+						} else {
+							r = r.WithContext(WithIdentity(r.Context(), id))
+						}
+					} else {
+						logger.Printf("auth: break-glass rejected: %v", err)
+					}
+				} else {
+					logger.Printf("auth: break-glass rejected: verifier unavailable")
+				}
+			} else if token := BearerToken(header); token != "" {
 				if id, err := v.Validate(r.Context(), token); err == nil {
 					r = r.WithContext(WithIdentity(r.Context(), id))
 				} else {

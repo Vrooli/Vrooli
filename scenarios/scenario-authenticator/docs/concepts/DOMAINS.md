@@ -13,11 +13,10 @@ that realize the PRD operational targets. The admin console, end-user
 self-service, and hosted login/consent screens are **UI surfaces** that
 compose these domains; they are not themselves domains.
 
-> The scaffold still ships the fenced `notes` worked example and the real
-> `health` domain. The auth domains below are the **target** map authored
-> during orientation (documentation-first); they are not yet implemented.
-> `vrooli scenario detemplate scenario-authenticator` removes the fenced
-> example once the first real domain is green (Gate 7 — not yet reached).
+> The scenario is detemplated. The implemented API domains are `auth`,
+> `health`, `jwks`, and `sessions`; account, token, session, rate-limit, audit,
+> realm, and authorization internals support those handlers. There is no
+> shipped `notes` example.
 
 ## Purpose Of This Document
 
@@ -35,18 +34,18 @@ realm tenant model are in [`../../PRD.md`](../../PRD.md) Appendix A/B.
 
 ## Domain Inventory
 
-| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Tier |
-|---|---|---|---|---|---|---|
-| health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Scaffold health. | shipped |
-| realms | The tenant boundary. Isolated identity namespaces with per-realm policy, branding, token TTLs, redirect URIs, and `aud` scope. | Entity / policy | Realm records, per-realm config. | API, CLI, UI | OT-P0-008, OT-P1-001 | P0 (default realm) → P1 (multi-realm) |
-| identity | Accounts and credentials. Realm-scoped principals, Argon2id password hashes, email-verification state. | CRUD / entity | Users, credentials, verification state. | API, CLI, UI | OT-P0-001, OT-P0-004, OT-P1-009 | P0 |
-| tokens | Token issuance + RS256 signing + JWKS publication + refresh-token families with rotation and reuse detection. Owns the signing keypair. | Crypto / lifecycle | Signing keypair, refresh-token families, JWKS. | API (Connect + JWKS REST), CLI | OT-P0-002, OT-P0-003 | P0 |
-| sessions | Server-tracked sessions and revocation ("log out everywhere"). | Lifecycle / cache | Session records (Redis hot state). | API, CLI, UI | OT-P0-005 | P0 |
-| authorization | Role and scope *definitions* per realm and their assignment; emitted as token claims. Enforcement is delegated to RPs. | Policy / reference | Roles, scopes, assignments. | API, CLI, UI | OT-P0-009, OT-P1-005 | P0 (admin/user) → P1 (scopes) |
-| audit | Append-only log of security-relevant auth events. | Reporting / ledger | Audit events. | API, CLI, UI | OT-P0-007 | P0 |
-| mfa | Second factors: TOTP enrollment/challenge/recovery codes; WebAuthn passkeys. | Credential / lifecycle | TOTP secrets, recovery codes, passkey credentials. | API, CLI, UI | OT-P1-002, OT-P1-006 | P1 |
-| federation | Inbound external identity: OAuth2/OIDC social providers (P1) and SAML (P2), with account linking and CSRF state. | Integration / adapter | Linked external identities, provider config, CSRF state. | API (+ REST callbacks), UI | OT-P1-003, OT-P2-001, OT-P2-002 | P1–P2 |
-| apikeys | Non-human principals: hashed API keys and the client-credentials grant. | Credential / lifecycle | Hashed API keys, client records. | API, CLI, UI | OT-P1-004 | P1 |
+| Domain | Responsibility | Primary Archetype | Owns Data | Surfaces | Requirements | Tier | Source Paths |
+|---|---|---|---|---|---|---|---|
+| health | Report runtime readiness and dependency reachability. | reporting | No product data. | API, UI | Scaffold health. | shipped | `api/handlers/health/`, `ui/src/features/health/` |
+| realms | Own the default tenant boundary and realm audience; true multi-realm isolation is deferred. | service | Realm records, per-realm config. | API, CLI, UI | OT-P0-008, OT-P1-001 | default realm shipped; multi-realm deferred | `api/internal/realm/`, `packages/proto/schemas/scenario-authenticator/v1/` |
+| identity | Own accounts and credentials, including realm-scoped principals and Argon2id hashes. | service | Users, credentials, verification state. | API, CLI, UI | OT-P0-001, OT-P0-004, OT-P1-009 | P0 | `api/internal/accounts/`, `api/handlers/auth/`, `cli/domains/auth/` |
+| tokens | Own RS256 issuance, JWKS publication, and refresh-family rotation/reuse detection. | service | Signing keypair, refresh-token families, JWKS. | API (Connect + JWKS REST), CLI | OT-P0-002, OT-P0-003 | P0 | `api/internal/authcrypto/`, `api/internal/jwks/`, `api/internal/accounts/` |
+| sessions | Own server-tracked sessions and revocation. | service | Session records (Redis hot state). | API, CLI, UI | OT-P0-005 | P0 | `api/internal/sessions/`, `api/handlers/sessions/` |
+| authorization | Own opaque scope assignment and token-claim emission; RPs enforce claims. | service | Scope assignments. | API, CLI | OT-P0-009, OT-P1-005 | built by this plan | `api/internal/authorization/`, `api/handlers/auth/` |
+| audit | Own the append-only log of security-relevant auth events. | reporting | Audit events. | API, CLI, UI | OT-P0-007 | P0 | `api/internal/audit/` |
+| mfa | Own second-factor credentials; implementation is deferred. | service | TOTP secrets, recovery codes, passkey credentials. | API, CLI, UI | OT-P1-002, OT-P1-006 | deferred | `api/internal/` (reserved) |
+| federation | Own external identity providers; implementation is deferred. | service | Linked identities, provider config, CSRF state. | API (+ REST callbacks), UI | OT-P1-003, OT-P2-001, OT-P2-002 | deferred | `api/internal/` (reserved) |
+| apikeys | Own non-human API-key/client credentials; implementation is deferred. | service | Hashed API keys, client records. | API, CLI, UI | OT-P1-004 | deferred; revisit for a third-party integration needing client credentials | `api/internal/` (reserved) |
 
 ## Domain Details
 
@@ -58,15 +57,15 @@ realm tenant model are in [`../../PRD.md`](../../PRD.md) Appendix A/B.
 - Owns: health response construction and dependency status mapping.
 - Source: `api/handlers/health/`, `ui/src/features/health/`.
 
-### realms (P0 default realm → P1 multi-realm)
+### realms (P0 default realm; multi-realm deferred)
 
 - Purpose: the tenant boundary. A realm is an isolated identity namespace
   with its own user pool (the same email is distinct principals across
   realms), branding, password policy, token TTLs, enabled methods,
   allowed redirect URIs, and an `aud`-scoped token audience.
-- Why it exists from day one: even a single-realm local deployment issues
-  `aud`-scoped tokens and rejects cross-realm tokens, so multi-tenancy is
-  a configuration change later, not a re-architecture (OT-P0-008).
+- The shipped implementation has one `default` realm and issues
+  `aud`-scoped tokens. True multi-realm CRUD and tenant isolation remain a P1
+  requirement and are not claimed by this scenario today.
 - Owns: realm records and per-realm policy/branding/config.
 - Does not own: the users inside a realm (that is `identity`, realm-scoped).
 - Surfaces: Connect API (realm CRUD), CLI, admin-console UI.
@@ -106,13 +105,14 @@ realm tenant model are in [`../../PRD.md`](../../PRD.md) Appendix A/B.
 - Owns: session records, kept hot in Redis.
 - Surfaces: Connect API + the carried-over REST revoke, CLI, self-service UI.
 
-### authorization (P0 baseline → P1 scopes)
+### authorization (built by this plan)
 
 - Purpose: define realm-level roles and scopes and assign them; emit them
   as token claims. Enforcement of fine-grained "can-they" stays with the
   Relying Party (a delegated policy engine is P2, OT-P2-004).
 - Owns: role/scope definitions and assignments.
-- Surfaces: Connect API, CLI, admin-console UI.
+- Surfaces: Connect API and CLI. The authenticator stores opaque scope strings
+  and does not read scenario manifests; relying parties enforce them.
 
 ### audit (P0)
 
@@ -138,12 +138,15 @@ realm tenant model are in [`../../PRD.md`](../../PRD.md) Appendix A/B.
 - Surfaces: Connect API, REST OAuth/OIDC callbacks (a non-RPC web
   standard), UI consent.
 
-### apikeys (P1)
+### apikeys (deferred)
 
 - Purpose: non-human principals — hashed API keys and a client-credentials
   grant so machine/service callers authenticate without a human session.
 - Owns: hashed API keys and client records.
 - Surfaces: Connect API, CLI, admin/self-service UI.
+- Revisit when a third-party integration needs client credentials; peer
+  bindings and the token-file fallback cover the machine principals in scope
+  for this plan.
 
 ## Shared Concepts
 

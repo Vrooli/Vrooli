@@ -31,8 +31,19 @@ func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
+type sqliteProducedRepository struct {
+	db    SQLExecutor
+	clock clock.Clock
+}
+
+// NewSQLiteProducedRepository constructs the bounded produced-artifact store.
+func NewSQLiteProducedRepository(db SQLExecutor, clk clock.Clock) ProducedArtifactRepository {
+	return &sqliteProducedRepository{db: db, clock: clk}
+}
+
 // Compile-time guarantee.
 var _ Repository = (*sqliteRepository)(nil)
+var _ ProducedArtifactRepository = (*sqliteProducedRepository)(nil)
 
 // timeFormat sorts lexicographically in time order for a fixed zone, so a string
 // order comparison is a correct newest-first filter.
@@ -173,4 +184,48 @@ func scan(sc rowScanner) (Distribution, error) {
 		}
 	}
 	return d, nil
+}
+
+const (
+	putProducedSQL = `
+INSERT INTO produced_artifacts (run_id, name, media_type, data, size_bytes, artifact_ref, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(run_id, name) DO UPDATE SET media_type = excluded.media_type, data = excluded.data, size_bytes = excluded.size_bytes, artifact_ref = excluded.artifact_ref, created_at = excluded.created_at
+`
+	getProducedSQL = `
+SELECT run_id, name, media_type, data, size_bytes, artifact_ref, created_at
+FROM produced_artifacts WHERE run_id = ? AND name = ?
+`
+)
+
+func (s *sqliteProducedRepository) Put(ctx context.Context, a ProducedArtifact) (ProducedArtifact, error) {
+	if a.CreatedAt.IsZero() {
+		a.CreatedAt = s.clock.Now().UTC()
+	}
+	if a.SizeBytes == 0 {
+		a.SizeBytes = int64(len(a.Data))
+	}
+	if _, err := s.db.ExecContext(ctx, putProducedSQL, a.RunID, a.Name, a.MediaType, a.Data, a.SizeBytes, a.ArtifactRef, a.CreatedAt.Format(timeFormat)); err != nil {
+		return ProducedArtifact{}, fmt.Errorf("store produced artifact %q/%q: %w", a.RunID, a.Name, err)
+	}
+	return a, nil
+}
+
+func (s *sqliteProducedRepository) Get(ctx context.Context, runID, name string) (ProducedArtifact, error) {
+	var a ProducedArtifact
+	var createdRaw string
+	err := s.db.QueryRowContext(ctx, getProducedSQL, runID, name).Scan(
+		&a.RunID, &a.Name, &a.MediaType, &a.Data, &a.SizeBytes, &a.ArtifactRef, &createdRaw,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ProducedArtifact{}, ErrProducedArtifactNotFound{RunID: runID, Name: name}
+	}
+	if err != nil {
+		return ProducedArtifact{}, fmt.Errorf("get produced artifact %q/%q: %w", runID, name, err)
+	}
+	a.CreatedAt, err = time.Parse(timeFormat, createdRaw)
+	if err != nil {
+		return ProducedArtifact{}, fmt.Errorf("parse produced artifact created_at: %w", err)
+	}
+	return a, nil
 }

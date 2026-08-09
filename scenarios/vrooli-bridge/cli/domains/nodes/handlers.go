@@ -11,6 +11,7 @@ import (
 	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry/registry_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"vrooli-bridge/cli/internal/session"
 )
 
 // handlers bundles the closure over *cliapp.ScenarioApp so each RunCtx-func has
@@ -22,7 +23,7 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := session.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
 		client: registryconnect.NewNodeRegistryServiceClient(httpClient, baseURL),

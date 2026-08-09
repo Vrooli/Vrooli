@@ -13,10 +13,10 @@ Use this document to answer:
 - What is the failure or degradation behavior?
 - Where is the dependency declared or configured?
 
-> **Status: documentation-first orientation.** The resources and
-> consumer contracts below are the **target** integration model from
-> [`../../PRD.md`](../../PRD.md); only the scaffold (`SQLite`, lifecycle)
-> is wired today. No auth integration code is implemented yet.
+> **Status: shipped foundation.** SQLite, lifecycle wiring, account
+> authentication, RS256/JWKS, sessions, refresh-token rotation, rate limiting,
+> and audit integration are implemented. The remaining rows marked planned or
+> deferred are future product capabilities, not current runtime dependencies.
 
 scenario-authenticator is a **foundational, bottom-of-the-stack
 capability with no upstream scenario dependencies of its own.** Its
@@ -37,9 +37,8 @@ cross-origin browser calls anywhere in the model.**
 
 ## Vrooli Resources
 
-Unlike the template's SQLite-only default, this scenario declares
-**Redis as a required resource** because session revocation and
-distributed rate limiting depend on shared hot state. It does **not** use
+The scenario declares **Redis as a required resource** because session
+revocation and distributed rate limiting depend on shared hot state. It does **not** use
 shared Postgres — moving off the shared database is the reason for the
 rewrite (the shared-DB blast radius); persistence is SQLite via the
 `api-core/storage` seam, which keeps a clean path to a managed DB at

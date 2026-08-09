@@ -157,6 +157,9 @@ func CompileWorkflowWithOptions(workflow *basapi.WorkflowSummary, opts *CompileO
 			metadata["entrySelectorTimeoutMs"] = timeout
 		}
 	}
+	if timeout := extractExecutionTimeoutFromSettings(raw.Settings); timeout > 0 {
+		metadata["executionTimeoutMs"] = timeout
+	}
 	// Workflow labels are the contract-native extension point for execution
 	// policy. Keep the external label spelling stable while exposing the
 	// executor's typed metadata key. In particular, adhoc validation callers can
@@ -512,6 +515,19 @@ func extractEntryFromSettings(settings map[string]any) (string, int) {
 		timeout = toPositiveInt(settings["entryTimeoutMs"])
 	}
 	return strings.TrimSpace(selector), timeout
+}
+
+// extractExecutionTimeoutFromSettings reads the typed workflow-level timeout.
+// The compiler accepts both proto-name JSON and default protojson casing so
+// persisted and API-created workflows receive the same execution policy.
+func extractExecutionTimeoutFromSettings(settings map[string]any) int {
+	if settings == nil {
+		return 0
+	}
+	if timeout := toPositiveInt(settings["timeout_ms"]); timeout > 0 {
+		return timeout
+	}
+	return toPositiveInt(settings["timeoutMs"])
 }
 
 type planner struct {

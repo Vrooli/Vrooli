@@ -15,6 +15,9 @@
       "id": "REQ-P1-003",
       "prd_ref": "OT-P1-003",
       "status": "planned",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Inbound social federation is outside this plan; the authenticator remains a local account authority with typed relying-party integration.",
+      "revisit_trigger": "An operator needs Google, GitHub, Microsoft, or another external identity provider for sign-in.",
       "title": "OAuth2/OIDC Social Federation with Account Linking and CSRF Protection",
       "validation": [
         {

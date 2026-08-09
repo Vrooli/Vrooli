@@ -145,6 +145,40 @@
       ]
     },
     {
+      "id": "auth_change_password",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ChangePassword",
+      "method": "POST",
+      "summary": "Change account password",
+      "description": "Verifies the current password, stores a new Argon2id hash, revokes every live session, and records an audit event.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "current_password": "string (required)",
+          "new_password": "string (required, >=8 chars, upper+lower+digit)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "revoked_sessions": "int64"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "New password does not meet policy"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token or current password"
+        }
+      ]
+    },
+    {
       "id": "auth_logout",
       "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Logout",
       "method": "POST",
@@ -187,6 +221,7 @@
           "expires_at": "timestamp",
           "realm": "string",
           "roles": "array<string>",
+          "scopes": "array<string>",
           "user_id": "string",
           "valid": "bool"
         }
@@ -195,6 +230,213 @@
         {
           "name": "Validate",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.accounts.AccountsService/Validate -H 'Content-Type: application/json' -d '{\"access_token\":\"...\"}'"
+        }
+      ]
+    },
+    {
+      "id": "auth_grant_scope",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/GrantScope",
+      "method": "POST",
+      "summary": "Grant a principal scope",
+      "description": "Assigns an opaque scope to the authenticated principal and records an audit event.",
+      "category": "authorization",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "principal_id": "string",
+          "scope": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "principal_id": "string",
+          "scopes": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scope must not be empty"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token"
+        }
+      ]
+    },
+    {
+      "id": "auth_revoke_scope",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/RevokeScope",
+      "method": "POST",
+      "summary": "Revoke a principal scope",
+      "description": "Removes an opaque scope from the authenticated principal and records an audit event.",
+      "category": "authorization",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "principal_id": "string",
+          "scope": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "principal_id": "string",
+          "scopes": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scope must not be empty"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token"
+        }
+      ]
+    },
+    {
+      "id": "auth_list_scopes",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ListScopes",
+      "method": "POST",
+      "summary": "List principal scopes",
+      "description": "Lists opaque scopes assigned to the authenticated principal.",
+      "category": "authorization",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "principal_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "principal_id": "string",
+          "scopes": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token"
+        }
+      ]
+    },
+    {
+      "id": "auth_link_machine_account",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/LinkMachineAccount",
+      "method": "POST",
+      "summary": "Link a local machine principal",
+      "description": "Binds the signed-in account to a machine and opaque local principal. A default binding is required for password-free exchange.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "is_default": "bool",
+          "local_principal": "string (required)",
+          "machine_id": "string (required)",
+          "realm": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "account_id": "string",
+          "is_default": "bool",
+          "linked_at": "timestamp",
+          "local_principal": "string",
+          "machine_id": "string",
+          "realm": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid machine binding"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token"
+        }
+      ]
+    },
+    {
+      "id": "auth_exchange_machine_principal",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ExchangeMachinePrincipal",
+      "method": "POST",
+      "summary": "Exchange a local principal for a token",
+      "description": "Local Unix-socket-only exchange of a kernel-verified principal for a normal short-lived access and refresh token.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "account": "Account",
+          "tokens": "TokenPair"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Unbound or unverified local principal"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Ambiguous default binding"
+        }
+      ]
+    },
+    {
+      "id": "auth_issue_break_glass",
+      "path": "/vrooli.scenario_authenticator.v1.accounts.AccountsService/IssueBreakGlass",
+      "method": "POST",
+      "summary": "Issue a short-lived break-glass credential",
+      "description": "Issues an offline-verifiable credential from provisioned owner-only material, bounded by the account's current scopes.",
+      "category": "auth",
+      "request": {
+        "type": "object",
+        "properties": {
+          "access_token": "string (required)",
+          "scopes": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "credential": "string",
+          "expires_at": "int64"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Invalid access token or unavailable provision"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Requested scope exceeds account ceiling"
         }
       ]
     },

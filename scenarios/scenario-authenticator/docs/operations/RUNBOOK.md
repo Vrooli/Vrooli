@@ -3,12 +3,11 @@
 This document records operator procedures for running, diagnosing,
 recovering, and maintaining the fleet's Identity Provider (IdP).
 
-> **Status: documentation-first orientation.** The procedures below are
-> the **target** operator workflow derived from [`../../PRD.md`](../../PRD.md);
-> the auth domains they drive are not implemented yet. Lifecycle
-> commands (start/stop/logs/test) are real today; the auth-specific
-> procedures (realm/admin creation, key rotation, revocation, audit) are
-> the intended shape, not working commands.
+> **Status: implemented foundation.** Lifecycle, account registration and
+> login, RS256/JWKS publication, refresh-token rotation, session revocation,
+> audit, rate limiting, and password change are live. The procedures below
+> identify shipped paths and explicitly label future capabilities such as
+> true multi-realm administration and automated key rotation.
 
 ## Purpose Of This Document
 
@@ -48,7 +47,7 @@ curl -s "http://localhost:${API_PORT}/.well-known/jwks.json"   # public key RPs 
 
 `/health` should report SQLite (storage seam) and Redis reachable. JWKS
 must return the active public key — if it is empty or 404s, RPs cannot
-verify tokens. (Target endpoints; not wired yet.)
+verify tokens.
 
 ## Create The Default Realm + First Admin
 
@@ -58,7 +57,8 @@ one-time, first-run step (the device-sync-hub live first-run owner
 bootstrap is the reference flow, OT-P0-012):
 
 ```bash
-# Target shape — depends on the realms + identity + authorization domains (P0, unbuilt):
+# Default-realm account operations are implemented; true multi-realm
+# administration remains deferred:
 scenario-authenticator realms list                       # confirm the default realm exists
 scenario-authenticator realms ensure-default             # idempotent: create if missing
 scenario-authenticator users create --realm default \
@@ -83,7 +83,7 @@ live tokens are not invalidated mid-flight:
 4. **Retire the old key** from JWKS.
 
 ```bash
-# Target shape — depends on the tokens domain (P0) / per-realm rotation (OT-P2-005, P2):
+# Key publication is implemented; automated overlapping-key rotation remains planned:
 scenario-authenticator tokens keys list                  # show kids and active key
 scenario-authenticator tokens keys rotate                # add new kid, keep old published
 scenario-authenticator tokens keys retire --kid <old>    # after access-token TTL elapses
@@ -101,7 +101,7 @@ Sessions are server-tracked with Redis hot state (OT-P0-005). The live
 (or delivered as the Connect equivalent in lockstep).
 
 ```bash
-# Target shape — depends on the sessions domain (P0, unbuilt):
+# Session listing and revocation are implemented:
 scenario-authenticator sessions list --user <user-id>    # enumerate active sessions
 scenario-authenticator sessions revoke --id <session-id> # revoke one session
 scenario-authenticator sessions revoke-all --user <user-id>   # "log out everywhere"
@@ -112,6 +112,8 @@ principal, then force a password reset (identity domain). Presenting a
 **rotated/reused refresh token** automatically revokes the entire token
 family (reuse detection, OT-P0-003) and is recorded in the audit log.
 Every revoke is an audited security event.
+
+## Common Incidents
 
 ## Redis Outage — Behavior & Recovery
 
@@ -135,6 +137,8 @@ curl -s "http://localhost:${API_PORT}/health"   # confirm Redis reachable again
 After recovery, treat any sessions that should have been revoked during
 the outage as suspect and re-revoke. See
 [`../guides/troubleshooting.md`](../guides/troubleshooting.md).
+
+## Backup / Restore
 
 ## SQLite Location + Backup / Restore
 
@@ -164,7 +168,8 @@ changes, admin actions) are recorded to a queryable audit log
 [`OBSERVABILITY.md`](OBSERVABILITY.md).
 
 ```bash
-# Target shape — depends on the audit domain (P0, unbuilt):
+# Audit inspection is implemented through the audit repository/API; broader
+# operator dashboards remain future work:
 scenario-authenticator audit list --realm default --since 1h
 scenario-authenticator audit list --user <user-id> --event token_family_revoked
 ```

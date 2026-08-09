@@ -15,6 +15,9 @@
       "id": "REQ-P1-002",
       "prd_ref": "OT-P1-002",
       "status": "planned",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "MFA enrollment, challenge, and recovery are outside the one-owner delegation and machine-binding delivery; the shipped owner path remains password plus local machine binding.",
+      "revisit_trigger": "A household or deployment requires a second factor or recovery codes for owner accounts.",
       "title": "TOTP MFA Enrollment, Challenge, and Recovery Codes with Per-Realm Enforcement",
       "validation": [
         {

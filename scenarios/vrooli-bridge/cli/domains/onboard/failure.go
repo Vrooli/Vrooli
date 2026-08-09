@@ -12,21 +12,21 @@ import (
 // here as the branch keys — a drift-catching test asserts each renders a
 // distinct, non-generic message.
 const (
-	failSSHSetup            = "ssh_setup_failed"
-	failScriptPush          = "script_push_failed"
-	failControlPlaneUnreachable = "control_plane_unreachable"
+	failSSHSetup                 = "ssh_setup_failed"
+	failScriptPush               = "script_push_failed"
+	failControlPlaneUnreachable  = "control_plane_unreachable"
 	failEndpointNameUnresolvable = "endpoint_name_unresolvable"
-	failEndpointInvalid = "endpoint_invalid"
-	failControlPlaneUnhealthy = "control_plane_unhealthy"
-	failDependencyUnavailable = "dependency_unavailable"
-	failPairingIssue        = "pairing_issue_failed"
-	failBootstrapUsage      = "bootstrap_usage_error"
-	failUnsupportedPlatform = "unsupported_platform"
-	failPairing             = "pairing_failed"
-	failBootstrap           = "bootstrap_failed"
-	failVerifyOnline        = "verify_online_failed"
-	failInterrupted         = "interrupted_by_restart"
-	failInternal            = "internal_error"
+	failEndpointInvalid          = "endpoint_invalid"
+	failControlPlaneUnhealthy    = "control_plane_unhealthy"
+	failDependencyUnavailable    = "dependency_unavailable"
+	failPairingIssue             = "pairing_issue_failed"
+	failBootstrapUsage           = "bootstrap_usage_error"
+	failUnsupportedPlatform      = "unsupported_platform"
+	failPairing                  = "pairing_failed"
+	failBootstrap                = "bootstrap_failed"
+	failVerifyOnline             = "verify_online_failed"
+	failInterrupted              = "interrupted_by_restart"
+	failInternal                 = "internal_error"
 )
 
 // failureGuidance maps a terminal FAILED op's taxonomy code to a distinct,
@@ -38,8 +38,12 @@ const (
 func failureGuidance(op *onboardv1.OnboardingOp) string {
 	reason := ""
 	target := "the host"
+	retry := "`onboard start`"
 	if op != nil {
 		reason = op.FailureReason
+		if op.MachineId != "" {
+			retry = fmt.Sprintf("`onboard start --machine-id %s`", op.MachineId)
+		}
 		if op.Host != "" {
 			user := op.User
 			if user == "" {
@@ -59,14 +63,14 @@ func failureGuidance(op *onboardv1.OnboardingOp) string {
 		return "The candidate reached Bridge but its health endpoint was unhealthy. Restore control-plane health before retrying; no pairing code was issued."
 	case failSSHSetup:
 		return fmt.Sprintf("SSH setup failed: could not establish passwordless SSH to %s. "+
-			"Confirm the host is reachable on the SSH port, the user is correct, and the SSH password was right, then re-run `onboard start` "+
-			"(supply the password via --password-stdin, --prompt-password, $%s, or the UI onboard form).", target, sshPasswordEnvVar)
+			"Confirm the host is reachable on the SSH port, the user is correct, and the SSH password was right, then re-run %s "+
+			"(supply the password via --password-stdin, --prompt-password, $%s, or the UI onboard form).", target, retry, sshPasswordEnvVar)
 	case failScriptPush:
 		return fmt.Sprintf("Could not copy the bootstrap script to %s over SSH. "+
-			"Check remote disk space and write access to the temp dir, then re-run `onboard start`.", target)
+			"Check remote disk space and write access to the temp dir, then re-run %s.", target, retry)
 	case failPairingIssue:
 		return "The control plane could not issue a pairing code. " +
-			"Check the control-plane owner credentials and health, then re-run `onboard start`."
+			"Check the control-plane owner credentials and health, then re-run " + retry + "."
 	case failBootstrapUsage:
 		return "The bootstrap script rejected its arguments (exit 2). This is a control-plane defect in how the op was built, " +
 			"not a host problem — capture the op id and file a bug (report-bug → scenario-qa)."
@@ -75,21 +79,21 @@ func failureGuidance(op *onboardv1.OnboardingOp) string {
 			"Use a supported target or update Bridge when support for that platform is available.", target)
 	case failPairing:
 		return "Pairing was rejected on the node (exit 4): the single-use code was already consumed or expired. " +
-			"Re-run `onboard start` to reissue a fresh code."
+			"Re-run " + retry + " to reissue a fresh code."
 	case failBootstrap:
 		return "The bootstrap script failed on the node (exit 1). Inspect the failing step above, fix the node condition, " +
-			"then re-run `onboard start` — every step is idempotent, so a re-run converges."
+			"then re-run " + retry + " — every step is idempotent, so a re-run converges."
 	case failVerifyOnline:
 		return "The node bootstrapped but did not come ONLINE within the verification budget. " +
-			"Check the node-agent service (autostart) and its dial-out path to the control plane, then re-run `onboard start` or raise --verify-timeout."
+			"Check the node-agent service (autostart) and its dial-out path to the control plane, then re-run " + retry + " or raise --verify-timeout."
 	case failInterrupted:
-		return "The control plane restarted mid-onboarding. The op is safe to retry — re-run `onboard start` (every step is idempotent)."
+		return "The control plane restarted mid-onboarding. The op is safe to retry — re-run " + retry + " (every step is idempotent)."
 	case failInternal:
-		return "An unexpected control-plane error ended the op. Capture the op id and control-plane logs, then re-run `onboard start`."
+		return "An unexpected control-plane error ended the op. Capture the op id and control-plane logs, then re-run " + retry + "."
 	default:
 		if reason != "" {
-			return fmt.Sprintf("Onboarding failed (%s). Inspect the step history above, then re-run `onboard start`.", reason)
+			return fmt.Sprintf("Onboarding failed (%s). Inspect the step history above, then re-run %s.", reason, retry)
 		}
-		return "Onboarding failed. Inspect the step history above, then re-run `onboard start`."
+		return "Onboarding failed. Inspect the step history above, then re-run " + retry + "."
 	}
 }

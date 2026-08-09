@@ -274,6 +274,22 @@ func TestCompileWorkflowEntryMetadata(t *testing.T) {
 	}
 }
 
+func TestCompileWorkflowExecutionTimeoutMetadata(t *testing.T) {
+	timeoutMs := int32(3900000)
+	workflow := makeTestWorkflowWithSettings(
+		uuid.New(),
+		"long-running-flow",
+		[]*basworkflows.WorkflowNodeV2{{Id: "a", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}}},
+		[]*basworkflows.WorkflowEdgeV2{},
+		&basworkflows.WorkflowSettingsV2{TimeoutMs: &timeoutMs},
+	)
+
+	plan, err := CompileWorkflow(workflow)
+	require.NoError(t, err)
+	require.NotNil(t, plan.Metadata)
+	assert.Equal(t, 3900000, plan.Metadata["executionTimeoutMs"])
+}
+
 func TestCompileWorkflowMapsSessionReuseLabelToExecutionPolicy(t *testing.T) {
 	workflow := makeTestWorkflow(
 		uuid.New(),

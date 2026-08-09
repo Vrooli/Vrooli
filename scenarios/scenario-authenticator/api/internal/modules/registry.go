@@ -27,6 +27,7 @@ import (
 	jwksH "scenario-authenticator/handlers/jwks"
 	sessionsH "scenario-authenticator/handlers/sessions"
 	auditdb "scenario-authenticator/internal/audit"
+	authz "scenario-authenticator/internal/authorization"
 	localdb "scenario-authenticator/internal/database"
 
 	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
@@ -87,5 +88,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(authH.Schema),
 		apidb.SchemaProviderFunc(auditdb.Schema),
+		apidb.SchemaProviderFunc(authz.Schema),
 	}
 }

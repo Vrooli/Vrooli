@@ -602,3 +602,14 @@ resolved, err := store.Resolve("API_KEY")
 err = store.SaveKey("API_KEY", "value")
 deleted, err := store.DeleteKey("API_KEY")
 ```
+# Scope catalog
+
+The `scopecatalog` package builds a deterministic authorization vocabulary from
+the `governance.effect` entries already present in scenario CLI manifests. It
+schema-validates each manifest, records connect-RPC and omitted-method
+coverage, and exposes `Catalog.WriteJSON` for build-time consumers. Building
+the catalog is read-only over `scenarios/`; no scenario registers a scope.
+
+`Resolve` is deliberately pure and exact-match: held `*`, `<scenario>:*`, and
+`*:<effect>` wildcards are supported, while case differences and whitespace do
+not grant access.

@@ -4,7 +4,66 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
+
+func TestNamespacedStoreIsolatesVariants(t *testing.T) {
+	ctx := context.Background()
+	base := NewMemory()
+	liveNS, err := storage.ResolveNamespace(storage.NamespaceConfig{Root: "scenario-authenticator"})
+	if err != nil {
+		t.Fatalf("resolve live namespace: %v", err)
+	}
+	shadowNS, err := storage.ResolveNamespace(storage.NamespaceConfig{Root: "scenario-authenticator_shadow", Variant: "shadow"})
+	if err != nil {
+		t.Fatalf("resolve shadow namespace: %v", err)
+	}
+	live, err := NewNamespacedStore(base, liveNS, "auth")
+	if err != nil {
+		t.Fatalf("create live store: %v", err)
+	}
+	shadow, err := NewNamespacedStore(base, shadowNS, "auth")
+	if err != nil {
+		t.Fatalf("create shadow store: %v", err)
+	}
+
+	if err := live.Set(ctx, "session:same", "live", time.Minute); err != nil {
+		t.Fatalf("write live key: %v", err)
+	}
+	if err := shadow.Set(ctx, "session:same", "shadow", time.Minute); err != nil {
+		t.Fatalf("write shadow key: %v", err)
+	}
+	liveValue, liveFound, err := live.Get(ctx, "session:same")
+	if err != nil || !liveFound || liveValue != "live" {
+		t.Fatalf("live key = %q, found=%v, err=%v", liveValue, liveFound, err)
+	}
+	shadowValue, shadowFound, err := shadow.Get(ctx, "session:same")
+	if err != nil || !shadowFound || shadowValue != "shadow" {
+		t.Fatalf("shadow key = %q, found=%v, err=%v", shadowValue, shadowFound, err)
+	}
+
+	if err := live.SAdd(ctx, "usersessions:user", "session:same"); err != nil {
+		t.Fatalf("write live set: %v", err)
+	}
+	members, err := shadow.SMembers(ctx, "usersessions:user")
+	if err != nil {
+		t.Fatalf("read shadow set: %v", err)
+	}
+	if len(members) != 0 {
+		t.Fatalf("shadow set leaked live members: %v", members)
+	}
+}
+
+func TestNewNamespacedStoreRejectsNilStore(t *testing.T) {
+	ns, err := storage.ResolveNamespace(storage.NamespaceConfig{Root: "scenario-authenticator"})
+	if err != nil {
+		t.Fatalf("resolve namespace: %v", err)
+	}
+	if _, err := NewNamespacedStore(nil, ns, "auth"); err == nil {
+		t.Fatal("expected nil store to be rejected")
+	}
+}
 
 func TestMemorySetGetDelExists(t *testing.T) {
 	ctx := context.Background()

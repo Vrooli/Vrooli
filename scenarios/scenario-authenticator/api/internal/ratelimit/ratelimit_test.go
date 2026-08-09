@@ -68,15 +68,15 @@ func TestLimiterPerIPIsolation(t *testing.T) {
 	}
 }
 
-func TestNilStorePassThrough(t *testing.T) {
+func TestNilStoreFailsClosed(t *testing.T) {
 	l := New(nil, Config{Limit: 1, Window: time.Minute}, nil)
 	h := l.Middleware(okHandler())
 	for i := 0; i < 5; i++ {
 		req := httptest.NewRequest(http.MethodPost, "/login", nil)
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("nil-store limiter should pass through, got %d", rec.Code)
+		if rec.Code != http.StatusServiceUnavailable {
+			t.Fatalf("nil-store limiter should fail closed, got %d", rec.Code)
 		}
 	}
 }

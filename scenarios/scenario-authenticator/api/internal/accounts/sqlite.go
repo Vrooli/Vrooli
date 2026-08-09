@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"scenario-authenticator/internal/authorization"
 	"scenario-authenticator/internal/clock"
 
 	"github.com/google/uuid"
@@ -35,7 +36,76 @@ func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
-var _ Repository = (*sqliteRepository)(nil)
+var (
+	_ Repository               = (*sqliteRepository)(nil)
+	_ authorization.ScopeStore = (*sqliteRepository)(nil)
+	_ MachineBindingStore      = (*sqliteRepository)(nil)
+)
+
+func (s *sqliteRepository) LinkMachineBinding(ctx context.Context, binding MachineBinding) (MachineBinding, error) {
+	if err := validateMachineBinding(binding); err != nil {
+		return MachineBinding{}, err
+	}
+	if binding.ID == "" {
+		binding.ID = uuid.NewString()
+	}
+	if binding.LinkedAt.IsZero() {
+		binding.LinkedAt = s.clock.Now().UTC()
+	}
+	if binding.IsDefault {
+		if _, err := s.db.ExecContext(ctx, `UPDATE machine_bindings SET is_default = 0 WHERE machine_id = ? AND local_principal = ?`, binding.MachineID, binding.LocalPrincipal); err != nil {
+			return MachineBinding{}, fmt.Errorf("clear machine binding default: %w", err)
+		}
+	}
+	_, err := s.db.ExecContext(ctx, `
+INSERT INTO machine_bindings (id, machine_id, local_principal, account_id, realm_id, is_default, linked_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)`, binding.ID, binding.MachineID, binding.LocalPrincipal, binding.AccountID, binding.RealmID, boolToInt(binding.IsDefault), binding.LinkedAt.Format(timeFormat))
+	if err != nil {
+		return MachineBinding{}, fmt.Errorf("insert machine binding: %w", err)
+	}
+	return binding, nil
+}
+
+func (s *sqliteRepository) ResolveDefaultMachineBinding(ctx context.Context, machineID, localPrincipal string) (MachineBinding, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, machine_id, local_principal, account_id, realm_id, is_default, linked_at FROM machine_bindings WHERE machine_id = ? AND local_principal = ? AND is_default = 1 ORDER BY linked_at, id`, machineID, localPrincipal)
+	if err != nil {
+		return MachineBinding{}, fmt.Errorf("query machine binding: %w", err)
+	}
+	defer rows.Close()
+	var bindings []MachineBinding
+	for rows.Next() {
+		var b MachineBinding
+		var defaultInt int
+		var linkedRaw string
+		if err := rows.Scan(&b.ID, &b.MachineID, &b.LocalPrincipal, &b.AccountID, &b.RealmID, &defaultInt, &linkedRaw); err != nil {
+			return MachineBinding{}, fmt.Errorf("scan machine binding: %w", err)
+		}
+		b.IsDefault = defaultInt != 0
+		b.LinkedAt, err = parseTime(linkedRaw)
+		if err != nil {
+			return MachineBinding{}, err
+		}
+		bindings = append(bindings, b)
+	}
+	if err := rows.Err(); err != nil {
+		return MachineBinding{}, err
+	}
+	switch len(bindings) {
+	case 0:
+		return MachineBinding{}, ErrMachineBindingNotFound
+	case 1:
+		return bindings[0], nil
+	default:
+		return MachineBinding{}, ErrMachineBindingAmbiguous
+	}
+}
+
+func boolToInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
+}
 
 func (s *sqliteRepository) Create(ctx context.Context, in CreateInput) (Account, error) {
 	now := s.clock.Now().UTC()
@@ -124,6 +194,16 @@ WHERE id = ?`, attempts, formatNullable(lockedUntil), s.clock.Now().UTC().Format
 	return nil
 }
 
+func (s *sqliteRepository) UpdatePasswordHash(ctx context.Context, id, passwordHash string) error {
+	_, err := s.db.ExecContext(ctx, `
+UPDATE accounts SET password_hash = ?, updated_at = ? WHERE id = ?`,
+		passwordHash, s.clock.Now().UTC().Format(timeFormat), id)
+	if err != nil {
+		return fmt.Errorf("update password hash: %w", err)
+	}
+	return nil
+}
+
 func (s *sqliteRepository) RealmAudience(ctx context.Context, realmID string) (string, error) {
 	var aud string
 	err := s.db.QueryRowContext(ctx, `SELECT audience FROM realms WHERE id = ?`, realmID).Scan(&aud)
@@ -134,6 +214,67 @@ func (s *sqliteRepository) RealmAudience(ctx context.Context, realmID string) (s
 		return "", fmt.Errorf("realm audience: %w", err)
 	}
 	return aud, nil
+}
+
+func (s *sqliteRepository) GrantScope(ctx context.Context, principalID, scope string) ([]string, error) {
+	if err := s.requirePrincipal(ctx, principalID); err != nil {
+		return nil, err
+	}
+	_, err := s.db.ExecContext(ctx, `
+INSERT OR IGNORE INTO account_scopes (account_id, scope, created_at) VALUES (?, ?, ?)`,
+		principalID, scope, s.clock.Now().UTC().Format(timeFormat))
+	if err != nil {
+		return nil, fmt.Errorf("grant scope: %w", err)
+	}
+	return s.ListScopes(ctx, principalID)
+}
+
+func (s *sqliteRepository) RevokeScope(ctx context.Context, principalID, scope string) ([]string, error) {
+	if err := s.requirePrincipal(ctx, principalID); err != nil {
+		return nil, err
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM account_scopes WHERE account_id = ? AND scope = ?`, principalID, scope); err != nil {
+		return nil, fmt.Errorf("revoke scope: %w", err)
+	}
+	return s.ListScopes(ctx, principalID)
+}
+
+func (s *sqliteRepository) ListScopes(ctx context.Context, principalID string) ([]string, error) {
+	if err := s.requirePrincipal(ctx, principalID); err != nil {
+		return nil, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT scope FROM account_scopes WHERE account_id = ? ORDER BY scope`, principalID)
+	if err != nil {
+		return nil, fmt.Errorf("list scopes: %w", err)
+	}
+	defer rows.Close()
+	var scopes []string
+	for rows.Next() {
+		var scope string
+		if err := rows.Scan(&scope); err != nil {
+			return nil, fmt.Errorf("scan scope: %w", err)
+		}
+		scopes = append(scopes, scope)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list scopes rows: %w", err)
+	}
+	if scopes == nil {
+		scopes = []string{}
+	}
+	return scopes, nil
+}
+
+func (s *sqliteRepository) requirePrincipal(ctx context.Context, principalID string) error {
+	var found int
+	err := s.db.QueryRowContext(ctx, `SELECT 1 FROM accounts WHERE id = ?`, principalID).Scan(&found)
+	if errors.Is(err, sql.ErrNoRows) {
+		return authorization.ErrPrincipalNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("find principal: %w", err)
+	}
+	return nil
 }
 
 type rowScanner interface {

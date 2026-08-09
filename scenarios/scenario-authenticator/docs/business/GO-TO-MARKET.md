@@ -2,8 +2,9 @@
 
 This document records the adoption path, positioning, audiences, and
 sequencing for the fleet's Identity Provider (IdP). Everything below is a
-pre-implementation **hypothesis** derived from [`../../PRD.md`](../../PRD.md),
-not a committed plan — the scenario is pre-launch and nothing is built.
+pre-launch **hypothesis** derived from [`../../PRD.md`](../../PRD.md), not a
+committed commercial plan. The local IdP foundation is implemented; product
+adoption and hosted packaging remain future validation questions.
 
 ## Purpose Of This Document
 
@@ -14,7 +15,7 @@ Use this document to answer:
 - How does adoption sequencing track the PRD launch plan?
 - What evidence advances the plan?
 
-## Positioning
+## Audience And Positioning
 
 scenario-authenticator is **the highest-leverage compound-value seam in
 the fleet**: every future product that needs users adopts it as a scenario
@@ -41,7 +42,7 @@ and is free/BYOK for self-hosters.
 | **Self-hosters / operators** | The complete capability, free, with their own signing keys and SQLite storage; single default realm "feels single-tenant." | Run private identity for their own stack with no metering and no lock-in. | P1 |
 | **Hosted SaaS products built on it** | A realm per customer (B2B) or product (B2C); managed-DB backing + multi-instance HA via the storage seam. | Ship a product with users without building an IdP; monetize *their* tiers on the identity issued here. | P2 |
 
-## Adoption Sequencing (mirrors the PRD launch plan)
+## Launch Motion (mirrors the PRD launch plan)
 
 1. **P0 — unblock the first consumer.** Land the auth core (accounts +
    Argon2id + RS256/JWKS/keypair persistence + refresh rotation with reuse
@@ -65,6 +66,13 @@ and is free/BYOK for self-hosters.
 The compounding effect: each adopter that reuses this instead of
 hand-rolling auth makes the next product cheaper to build, which is the
 recursive-value argument for prioritizing it as foundational infra.
+
+## Messaging
+
+The message is local ownership with production-grade identity primitives:
+linked machines renew short-lived credentials invisibly, while relying
+parties retain local verification and explicit authorization. Hosted and
+commercial packaging are not claimed by this scenario yet.
 
 ## Channels
 

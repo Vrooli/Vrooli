@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/vrooli v0.0.0
+	github.com/vrooli/platform-go v0.0.0
 	golang.org/x/sys v0.42.0
 )
 
@@ -19,6 +20,8 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 

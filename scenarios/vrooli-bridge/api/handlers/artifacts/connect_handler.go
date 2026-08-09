@@ -2,10 +2,12 @@ package artifacts
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"vrooli-bridge/internal/artifacts"
 	"vrooli-bridge/internal/auth"
+	"vrooli-bridge/internal/nodeauth"
 
 	"connectrpc.com/connect"
 
@@ -20,8 +22,9 @@ const dryRunHeader = "X-Dry-Run"
 // Deps wires the seams the Connect artifacts handler needs. All verbs are
 // owner-gated via auth.RequireOwner.
 type Deps struct {
-	Service artifacts.Service
-	Logger  *log.Logger
+	Service  artifacts.Service
+	Verifier *nodeauth.Verifier
+	Logger   *log.Logger
 }
 
 type connectHandler struct {
@@ -109,4 +112,42 @@ func (h *connectHandler) ListDistributions(ctx context.Context, req *connect.Req
 		resp.Distributions = append(resp.Distributions, domainToProto(d))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// UploadRunArtifact is node-facing. The node credential identifies the source
+// node, and the service verifies that node owns the run before storing bytes.
+func (h *connectHandler) UploadRunArtifact(ctx context.Context, req *connect.Request[artifactsv1.UploadRunArtifactRequest]) (*connect.Response[artifactsv1.UploadRunArtifactResponse], error) {
+	if h.deps.Verifier == nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("node authentication is required"))
+	}
+	proof, err := nodeauth.ParseHeaders(req.Header().Get(nodeauth.HeaderNode), req.Header().Get(nodeauth.HeaderTS), req.Header().Get(nodeauth.HeaderSig))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	if err := h.deps.Verifier.VerifyProof(ctx, proof); err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	artifact, err := h.deps.Service.UploadRunArtifact(ctx, proof.NodeID, artifacts.ProducedArtifact{
+		RunID: req.Msg.GetRunId(), Name: req.Msg.GetName(), MediaType: req.Msg.GetMediaType(), Data: req.Msg.GetData(),
+	})
+	if err != nil {
+		return nil, artifacts.ToConnectError(err)
+	}
+	return connect.NewResponse(&artifactsv1.UploadRunArtifactResponse{ArtifactRef: artifact.ArtifactRef, SizeBytes: artifact.SizeBytes}), nil
+}
+
+// GetRunArtifact is owner-facing and returns the bounded bytes for plan
+// evidence retrieval.
+func (h *connectHandler) GetRunArtifact(ctx context.Context, req *connect.Request[artifactsv1.GetRunArtifactRequest]) (*connect.Response[artifactsv1.GetRunArtifactResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	artifact, err := h.deps.Service.GetRunArtifact(ctx, req.Msg.GetRunId(), req.Msg.GetName())
+	if err != nil {
+		return nil, artifacts.ToConnectError(err)
+	}
+	return connect.NewResponse(&artifactsv1.GetRunArtifactResponse{
+		RunId: artifact.RunID, Name: artifact.Name, MediaType: artifact.MediaType,
+		Data: artifact.Data, ArtifactRef: artifact.ArtifactRef,
+	}), nil
 }

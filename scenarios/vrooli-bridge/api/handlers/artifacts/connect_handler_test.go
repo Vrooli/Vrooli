@@ -2,12 +2,17 @@ package artifacts
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
+	"strconv"
 	"testing"
 	"time"
 
 	internalartifacts "vrooli-bridge/internal/artifacts"
 	amocks "vrooli-bridge/internal/artifacts/mocks"
 	"vrooli-bridge/internal/auth"
+	"vrooli-bridge/internal/nodeauth"
 	testmocks "vrooli-bridge/internal/testutil/mocks"
 
 	"connectrpc.com/connect"
@@ -65,4 +70,41 @@ func TestArtifactsHandler_DistributeAndGet(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, dryResp.Msg.DryRun)
 	require.Empty(t, dryResp.Msg.DistributionId)
+}
+
+type fakeCredentialStore struct{ public ed25519.PublicKey }
+
+func (f fakeCredentialStore) ActivePublicKey(context.Context, string) (ed25519.PublicKey, bool, error) {
+	return f.public, true, nil
+}
+
+func TestArtifactsHandler_NodeUploadAndOwnerRetrieval(t *testing.T) {
+	public, private, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	clk := testmocks.NewFakeClock(time.Unix(1_700_000_000, 0).UTC())
+	produced := amocks.NewFakeProducedRepository()
+	runs := &amocks.FakeRunReader{Targets: map[string]internalartifacts.RunTarget{"run-1": {ID: "run-1", NodeID: "n1"}}}
+	svc := internalartifacts.NewService(amocks.NewFakeRepository(),
+		&amocks.FakeNodeReader{Nodes: map[string]internalartifacts.TargetNode{"n1": {ID: "n1"}}},
+		&amocks.FakeDelivery{}, clk,
+		internalartifacts.WithProducedRepository(produced), internalartifacts.WithRunReader(runs))
+	verifier := nodeauth.NewVerifier(fakeCredentialStore{public: public}, nodeauth.WithClock(clk.Now))
+	h := NewConnectHandler(Deps{Service: svc, Verifier: verifier})
+
+	ts := clk.Now().UTC()
+	signed := connect.NewRequest(&artifactsv1.UploadRunArtifactRequest{
+		RunId: "run-1", Name: "screenshot.png", MediaType: "image/png", Data: []byte("png-bytes"),
+	})
+	signed.Header().Set(nodeauth.HeaderNode, "n1")
+	signed.Header().Set(nodeauth.HeaderTS, strconv.FormatInt(ts.Unix(), 10))
+	signed.Header().Set(nodeauth.HeaderSig, base64.StdEncoding.EncodeToString(ed25519.Sign(private, nodeauth.SigningPayload("n1", ts))))
+	upload, err := h.UploadRunArtifact(context.Background(), signed)
+	require.NoError(t, err)
+	require.Equal(t, "bridge://run/run-1/screenshot.png", upload.Msg.ArtifactRef)
+
+	get, err := h.GetRunArtifact(ownerCtx(), connect.NewRequest(&artifactsv1.GetRunArtifactRequest{RunId: "run-1", Name: "screenshot.png"}))
+	require.NoError(t, err)
+	require.Equal(t, []byte("png-bytes"), get.Msg.Data)
+	_, err = h.GetRunArtifact(context.Background(), connect.NewRequest(&artifactsv1.GetRunArtifactRequest{RunId: "run-1", Name: "screenshot.png"}))
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }

@@ -68,20 +68,10 @@ type Identity struct {
 	OwnerID string
 	Email   string
 	Roles   []string
+	Scopes  []string
 	// ExpiresAt is the token's own expiry (the JWT "exp" claim), surfaced so a
 	// brief validation cache never re-admits a token past its own expiry.
 	ExpiresAt time.Time
-}
-
-// HasRole reports whether the identity carries the named role. Owner-level
-// destructive operations (clear-all) gate on this.
-func (id Identity) HasRole(role string) bool {
-	for _, r := range id.Roles {
-		if r == role {
-			return true
-		}
-	}
-	return false
 }
 
 // Validator is the seam the middleware depends on. Production wires *Client;
@@ -335,6 +325,7 @@ type ownerClaims struct {
 	UserID string   `json:"user_id"`
 	Email  string   `json:"email"`
 	Roles  []string `json:"roles"`
+	Scopes []string `json:"scope"`
 	Exp    int64    `json:"exp"`
 	Nbf    int64    `json:"nbf"`
 	Iss    string   `json:"iss"`
@@ -392,7 +383,14 @@ func (c ownerClaims) toIdentity(now time.Time) (Identity, error) {
 	if c.Exp > 0 {
 		exp = time.Unix(c.Exp, 0).UTC()
 	}
-	return Identity{OwnerID: c.UserID, Email: c.Email, Roles: c.Roles, ExpiresAt: exp}, nil
+	return Identity{OwnerID: c.UserID, Email: c.Email, Roles: c.Roles, Scopes: nonNilStrings(c.Scopes), ExpiresAt: exp}, nil
+}
+
+func nonNilStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return append([]string(nil), values...)
 }
 
 // parseRS256 splits a compact JWS, rejects any algorithm other than RS256, and

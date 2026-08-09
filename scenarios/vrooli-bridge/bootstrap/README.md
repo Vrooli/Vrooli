@@ -75,7 +75,7 @@ BRIDGE_PAIRING_CODE="$(vrooli-bridge pair issue --name web-01 --json | jq -r .co
 | `--state-dir` | `BRIDGE_AGENT_STATE_DIR` | `$XDG_STATE_HOME/vrooli-bridge-agent` | Credential/pin/state dir. |
 | `--work-dir` | `BRIDGE_WORK_DIR` | checkout dir | Dir the agent runs jobs in. |
 | `--service-user` | `BRIDGE_SERVICE_USER` | current user | OS principal the service runs as. |
-| `--capabilities` | `BRIDGE_CAPABILITIES` | *(none)* | Comma-separated verb namespaces to self-report. |
+| `--capabilities` | `BRIDGE_CAPABILITIES` | *(none)* | Comma-separated verb namespaces to self-report. When supplied by Bridge onboarding, it also opts the agent into typed control frames; the registry's approved execution scopes remain the authorization source. |
 | `--verify-timeout` | `BRIDGE_VERIFY_TIMEOUT` | `120` | Dial-out verification budget (seconds). |
 | `--setup-environment` | `BRIDGE_SETUP_ENVIRONMENT` | *(node default)* | Node-side `vrooli setup --environment`: `development` \| `production` \| `minimal`. |
 | `--setup-resources` | `BRIDGE_SETUP_RESOURCES` | *(node default)* | Node-side `vrooli setup --resources`: `enabled` \| `none` \| `<comma-list>`. |

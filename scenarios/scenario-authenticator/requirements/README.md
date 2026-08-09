@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains the requirements definitions for this scenario, organized by operational target.
+This directory contains the requirements definitions for this scenario, organized by operational target. The registry currently contains 28 modules (the older orientation text incorrectly said 20).
 
 ## Structure
 
@@ -17,6 +17,21 @@ requirements/
 ## Operational Targets
 
 Requirements are linked to PRD operational targets using the `prd_ref` field.
+
+## One-owner delegation reconciliation
+
+The following is the authoritative disposition for every current module:
+
+| Modules | Disposition |
+|---|---|
+| 01–08, 11–12, 19–20 | Built foundation; later phases may extend the existing contracts. |
+| 09, 10, 17 | Built by the identity/delegation plan: real scope claims and enforcement, complete Connect/CLI lifecycle, and opaque scope assignment. |
+| 13 | Deferred: default realm remains the shipped boundary. Revisit when a second tenant requires true multi-realm isolation. |
+| 14–16, 18, 21–28 | Deferred: MFA, federation, API keys, passkeys, recovery, enterprise SSO, provider mode, groups, policy engine, per-realm keys, managed HA, and SCIM are outside this plan. Each is revisited when its corresponding PRD target becomes an active product commitment. |
+
+“Deferred” is an intentional product boundary, not an assertion that the
+capability is partially implemented. Validation rows inside those modules
+remain pending until their revisit trigger occurs.
 
 | Priority | Target ID | Title | Requirements |
 |----------|-----------|-------|-------------|

@@ -21,6 +21,7 @@ type Claims struct {
 	UserID string   `json:"user_id"`
 	Email  string   `json:"email"`
 	Roles  []string `json:"roles"`
+	Scopes []string `json:"scope"`
 	jwt.RegisteredClaims
 }
 
@@ -29,6 +30,7 @@ type TokenInput struct {
 	UserID   string
 	Email    string
 	Roles    []string
+	Scopes   []string
 	Audience string // realm-qualified aud; empty is rejected by Sign
 }
 
@@ -70,6 +72,20 @@ func (s *Signer) Keys() *Keys { return s.keys }
 // Expiry reports the configured access-token TTL.
 func (s *Signer) Expiry() time.Duration { return s.expiry }
 
+// ResolveExpiry applies the explicit operator-selected default, while
+// retaining JWT_EXPIRY_MINUTES as a deliberate deployment override.
+func ResolveExpiry(defaultExpiry time.Duration) time.Duration {
+	if defaultExpiry <= 0 {
+		defaultExpiry = 60 * time.Minute
+	}
+	if env := os.Getenv("JWT_EXPIRY_MINUTES"); env != "" {
+		if minutes, err := strconv.Atoi(env); err == nil && minutes > 0 && minutes <= 1440 {
+			return time.Duration(minutes) * time.Minute
+		}
+	}
+	return defaultExpiry
+}
+
 // Sign mints a signed RS256 access token for the input. CORRECTION (§8): the
 // token header carries `kid` so a rotation-aware verifier can select the key.
 func (s *Signer) Sign(in TokenInput) (string, error) {
@@ -84,6 +100,7 @@ func (s *Signer) Sign(in TokenInput) (string, error) {
 		UserID: in.UserID,
 		Email:  in.Email,
 		Roles:  in.Roles,
+		Scopes: nonNilStrings(in.Scopes),
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   in.UserID, // additive mirror of user_id for OIDC friendliness
 			Issuer:    s.issuer,
@@ -95,6 +112,13 @@ func (s *Signer) Sign(in TokenInput) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = s.keys.kid
 	return token.SignedString(s.keys.private)
+}
+
+func nonNilStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return append([]string(nil), values...)
 }
 
 // Validate parses and verifies a token, enforcing the RS256 method-lock
@@ -135,13 +159,7 @@ func hasAudience(auds jwt.ClaimStrings, want string) bool {
 // resolveExpiry ports the old GenerateToken expiry resolution: 60 minutes
 // default, overridable by JWT_EXPIRY_MINUTES, clamped to (0, 1440].
 func resolveExpiry() time.Duration {
-	minutes := 60
-	if env := os.Getenv("JWT_EXPIRY_MINUTES"); env != "" {
-		if m, err := strconv.Atoi(env); err == nil && m > 0 && m <= 1440 {
-			minutes = m
-		}
-	}
-	return time.Duration(minutes) * time.Minute
+	return ResolveExpiry(60 * time.Minute)
 }
 
 // GenerateRefreshToken returns a 32-byte hex-encoded random refresh token.

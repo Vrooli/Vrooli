@@ -15,6 +15,7 @@ type Account struct {
 	Email               string
 	Username            string
 	Roles               []string
+	Scopes              []string
 	EmailVerified       bool
 	FailedLoginAttempts int
 	LockedUntil         time.Time // zero when not locked
@@ -64,6 +65,8 @@ type Repository interface {
 	// SetLoginFailure records the new failed-attempt count and lock expiry
 	// (zero lockedUntil clears the lock).
 	SetLoginFailure(ctx context.Context, id string, attempts int, lockedUntil time.Time) error
+	// UpdatePasswordHash replaces the stored Argon2id password hash.
+	UpdatePasswordHash(ctx context.Context, id, passwordHash string) error
 	// RealmAudience returns the aud string for a realm, or ErrRealmNotFound.
 	RealmAudience(ctx context.Context, realmID string) (string, error)
 }

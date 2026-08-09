@@ -103,6 +103,7 @@ func connectAPI(svc *fakeOnboard) http.Handler {
 func startSchema() cliapp.ArgSchema {
 	return cliapp.ArgSchema{Flags: []cliapp.Flag{
 		{Name: "host", Required: true},
+		{Name: "machine-id"},
 		{Name: "user"},
 		{Name: "port"},
 		{Name: "name"},
@@ -126,6 +127,33 @@ func startSchema() cliapp.ArgSchema {
 		{Name: "setup-passphrase-stdin", Bool: true},
 		{Name: "prompt-password", Bool: true},
 	}}
+}
+
+func TestStart_ExplicitMachineIDReusesDurableIdentity(t *testing.T) {
+	svc := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{
+		OpId: "op-existing", Host: "minimouse.local", Port: 22, User: "matthalloran8",
+	}}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	h.password = passwordSource{
+		lookupEnv:  func(string) (string, bool) { return "", false },
+		isTerminal: func() bool { return false },
+		readSecret: func() ([]byte, error) { t.Fatal("password prompt must not run"); return nil, nil },
+		prompt:     io.Discard,
+	}
+
+	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{
+		Flags: map[string]string{
+			"host":       "minimouse.local",
+			"machine-id": "machine-existing",
+			"user":       "matthalloran8",
+		},
+		RawArgs: []string{"--host", "minimouse.local", "--machine-id", "machine-existing", "--user", "matthalloran8"},
+	})
+
+	require.NoError(t, h.start(ctx))
+	require.Nil(t, svc.createMachineReq, "an explicit durable Machine must not create a replacement identity")
+	require.Equal(t, "machine-existing", svc.startReq.GetMachineId())
 }
 
 // envPassword is an injected password source that yields a fixed secret via the

@@ -2,6 +2,7 @@ package onboard_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"testing"
@@ -132,6 +133,24 @@ func TestStart_SuccessFullFlow(t *testing.T) {
 	for i := 1; i < len(events); i++ {
 		require.Greater(t, events[i].Sequence, events[i-1].Sequence)
 	}
+}
+
+func TestStart_ThreadsPostureDefaultScopesIntoPairing(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
+	issuer := &mocks.FakeCodeIssuer{Code: testCode}
+	confirmer := &mocks.FakeOnlineConfirmer{Online: true}
+	svc := onboard.NewService(repo, driver, issuer, confirmer, clock.System{},
+		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
+		onboard.WithDefaultScopes([]string{"vrooli-bridge:read", "vrooli-bridge:write"}),
+	)
+
+	dec, err := svc.Start(context.Background(), validInput())
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Equal(t, []string{"vrooli-bridge:read", "vrooli-bridge:write"}, issuer.LastParams.Scopes)
+	requireArgPair(t, driver.CapturedArgs, "--presence-only", "false")
 }
 
 func TestStart_ProvisionSudoThreadsAndNamesOutcome(t *testing.T) {
@@ -412,6 +431,26 @@ func TestStart_FailedOpPersistsNodeDiagnostics(t *testing.T) {
 	require.Equal(t, onboard.StateFailed, op.State)
 	require.Equal(t, onboard.FailureBootstrap, op.FailureReason)
 	require.Equal(t, nodeOutput, op.FailureDetail, "the node's failing-step output must be persisted on the op")
+}
+
+func TestStart_BootstrapFailureDoesNotRequirePairingRow(t *testing.T) {
+	driver := &mocks.FakeSSHDriver{
+		RunBootstrapExit:        1,
+		RunBootstrapDiagnostics: "vrooli setup failed: required tool missing",
+	}
+	resolver := fixedEnrollmentResolver{err: sql.ErrNoRows}
+	svc := onboard.NewService(
+		mocks.NewFakeRepository(), driver, &mocks.FakeCodeIssuer{Code: testCode},
+		&mocks.FakeOnlineConfirmer{Online: true}, clock.System{}, onboard.WithEnrollmentResolver(resolver),
+	)
+
+	dec, err := svc.Start(context.Background(), validInput())
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateFailed, op.State)
+	require.Equal(t, onboard.FailureBootstrap, op.FailureReason)
+	require.Equal(t, int32(1), op.ExitCode)
+	require.Equal(t, "vrooli setup failed: required tool missing", op.FailureDetail)
 }
 
 func TestStart_ControlPlaneSideFailureHasNoDiagnostics(t *testing.T) {

@@ -2,6 +2,8 @@ package exec_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -48,6 +50,17 @@ type fakeCommand struct {
 	gotDir  string
 	exit    int
 	logs    []string
+}
+
+type fakeUploader struct {
+	runID, name, mediaType string
+	data                   []byte
+}
+
+func (f *fakeUploader) Upload(_ context.Context, runID, name, mediaType string, data []byte) (string, error) {
+	f.runID, f.name, f.mediaType = runID, name, mediaType
+	f.data = append([]byte(nil), data...)
+	return "bridge://run/" + runID + "/" + name, nil
 }
 
 func (f *fakeCommand) Run(_ context.Context, argv []string, dir string, onLog func(string)) (int, error) {
@@ -153,4 +166,45 @@ func TestExecute_RejectedJobNeverRuns(t *testing.T) {
 	require.NotEqual(t, int32(0), last.ExitCode, "a rejected job terminates non-zero")
 	// The rejection reason is surfaced as a STATUS event.
 	require.True(t, strings.HasPrefix(rep.events[0].Status, "rejected:"))
+}
+
+func TestExecute_AppendsTypedOutputFlagAndUploadsProducedArtifact(t *testing.T) {
+	dir := t.TempDir()
+	cmd := &fakeCommand{exit: 0}
+	cmd.logs = nil
+	// The command fake writes to the final argv token, exactly as the real
+	// screenshot command writes to its typed --output path.
+	cmdRun := func(_ context.Context, argv []string, workDir string, onLog func(string)) (int, error) {
+		cmd.gotArgv, cmd.gotDir = argv, workDir
+		if err := os.WriteFile(argv[len(argv)-1], []byte("png-bytes"), 0o600); err != nil {
+			return 127, err
+		}
+		onLog("captured\n")
+		return 0, nil
+	}
+	cmdRunner := commandFunc(cmdRun)
+	uploader := &fakeUploader{}
+	rep := &fakeReporter{}
+	runner := exec.NewRunner("vrooli", "/work", rep,
+		exec.WithCommandRunner(cmdRunner), exec.WithArtifactUploader(uploader), exec.WithArtifactDir(dir))
+
+	err := runner.Execute(context.Background(), &channelv1.JobPush{
+		RunId: "run-1", Verb: "scenario screenshot",
+		Outputs: []*channelv1.ArtifactOutput{{Name: "screenshot.png", MediaType: "image/png", OutputFlag: "--output", MaxBytes: 1024}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"vrooli", "scenario", "screenshot", "--output", filepath.Join(dir, "run-1-screenshot.png")}, cmd.gotArgv)
+	require.Equal(t, "run-1", uploader.runID)
+	require.Equal(t, "screenshot.png", uploader.name)
+	require.Equal(t, "image/png", uploader.mediaType)
+	require.Equal(t, []byte("png-bytes"), uploader.data)
+	lastBeforeExit := rep.events[len(rep.events)-2]
+	require.Equal(t, channelv1.RunEventKind_RUN_EVENT_KIND_ARTIFACT_REF, lastBeforeExit.Kind)
+	require.Equal(t, "bridge://run/run-1/screenshot.png", lastBeforeExit.ArtifactRef)
+}
+
+type commandFunc func(context.Context, []string, string, func(string)) (int, error)
+
+func (f commandFunc) Run(ctx context.Context, argv []string, dir string, onLog func(string)) (int, error) {
+	return f(ctx, argv, dir, onLog)
 }

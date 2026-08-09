@@ -47,6 +47,6 @@ func TestServiceDefinition_EmbedsDialArgs(t *testing.T) {
 		"--state-dir", dir,
 		"--vrooli-bin", "/Users/test/.vrooli/bin/vrooli",
 		"--capabilities", "scenario status*,scenario test*",
-		"--presence-only", "false",
+		"--presence-only=false",
 	}, def.Args)
 }

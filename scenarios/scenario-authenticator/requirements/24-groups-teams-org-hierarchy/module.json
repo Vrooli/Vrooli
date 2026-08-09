@@ -14,6 +14,9 @@
       "id": "REQ-P2-003",
       "prd_ref": "OT-P2-003",
       "status": "planned",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Groups, teams, and organization inheritance are multi-user product surfaces beyond the one-owner, many-principals model delivered here.",
+      "revisit_trigger": "Multiple households or organizations require inherited membership and permissions.",
       "title": "Groups, Teams, and Organization Hierarchy with Inherited Roles",
       "validation": [
         {

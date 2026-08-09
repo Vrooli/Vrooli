@@ -1,15 +1,11 @@
 # Configuration — Scenario Authenticator
 
-> **Target/planned surface — generated from proto + `cli/manifest.json`
-> during implementation (Gate 6); not yet shipped.** The auth-specific
-> variables below (signing-key path, token TTLs, realm policy knobs,
-> OAuth secrets, Argon2id cost) are the *planned* configuration contract
-> authored during the documentation-first orientation pass. Only the
-> scaffold variables (`API_PORT`, `UI_PORT`, `SQLITE_PATH`) are wired
-> today; the rest land with the domains that consume them. Variable names
-> and defaults here are the *target* shapes and may be refined during
-> implementation. **Secrets are always referenced by name, never inlined
-> — only hashes and signed material are ever stored at rest.**
+> **Current configuration reference.** `API_PORT`, `UI_PORT`, `SQLITE_PATH`,
+> `REDIS_URL`, and the persisted signing-key settings are wired through the
+> lifecycle and API composition. Values marked planned or deferred below are
+> intentionally not runtime knobs yet (for example managed DB, automated key
+> rotation, and federation). **Secrets are always referenced by name, never
+> inlined — only hashes and signed material are ever stored at rest.**
 
 How this scenario is configured — env vars consumed by the binaries, the
 `.vrooli/service.json` manifest, and the per-user CLI config file.
@@ -107,9 +103,9 @@ runtime source of truth thereafter.
 
 ### Rate-limit / lockout thresholds
 
-Rate limiting uses in-memory state as the primary layer with Redis for
-cross-replica coordination. Defaults are conservative; per-realm lockout
-policy (above) refines them.
+Rate limiting is Redis-authoritative so the protected budget is consistent
+across replicas and fails closed when Redis is unavailable. Defaults are
+conservative; per-realm lockout policy (above) refines them.
 
 | Variable | Default (planned) | Purpose |
 |---|---|---|

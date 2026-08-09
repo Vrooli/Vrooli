@@ -21,9 +21,11 @@ Bridge's security posture is unusually load-bearing: it executes code and runs p
 |---|---|---|---|
 | Node credentials | high | pairing | Mutual-auth secret material; hashed at rest; theft = ability to impersonate a node or the control plane. |
 | Audit trail | high (integrity) | audit | Append-only record of every dispatch/provision; must be tamper-evident (workspace-sandbox). |
-| Job logs / result artifacts | variable | runs | Inherit the sensitivity of whatever the executed command emitted; treated as at least as sensitive as the scenario under test. |
+| Job logs / result artifacts | variable | runs/artifacts | Inherit the sensitivity of whatever the executed command emitted; treated as at least as sensitive as the scenario under test. Node-produced artifacts are bounded, owner-scoped, and stored only for their run. |
 | Node metadata | medium | registry | Machine identities, OS/arch/revision, reachable endpoints, permission scopes — operational intelligence about the owner's fleet. |
 | Pairing tokens | high (briefly) | pairing | Single-use, short-TTL; a live token can pair a rogue node. |
+| Local owner token file | high | CLI/session | Optional owner-only `VROOLI_BRIDGE_TOKEN_FILE` fallback for CI or unlinked machines; unlike peer credentials it can be copied and replayed. |
+| Break-glass credential | high (briefly) | authenticator/CLI | Issued from owner-only provisioned material into a 0600 token file and sent only as `Authorization: BreakGlass`; it is short-lived, scope-ceilinged and audited. |
 
 ## Auth And Authorization
 
@@ -33,9 +35,83 @@ Bridge has three distinct authorization boundaries, all enforced at the API/serv
 2. **Control plane ↔ node (mutual auth).** Every exchange is mutually authenticated — the node proves it is the paired node, and the control plane proves it is the legitimate coordinator (so a node never executes a job from an impostor). **Mechanism (decided 2026-06-18, see `DECISIONS.md`): per-node Ed25519 keypair pinned both directions at pairing.** The node generates an Ed25519 keypair at pairing and registers its public key in `node_credentials`; the control plane holds its own long-lived keypair, and the node pins the control-plane public key at bootstrap (delivered out-of-band alongside the pairing code). Node→CP calls (Connect-RPC: register, heartbeat, run results) carry a signature over the request verifiable against the stored node key; the dial-out SSE token is bound to the node key. CP→node pushes are verifiable against the pinned control-plane key, so a node rejects an impostor coordinator. TLS provides transport confidentiality; the pinned keys provide identity. Full PKI/mTLS-CA was rejected as heavier than a single owner needs.
 
    **Status: built + tested (Phase 3 / G7).** CP→node: the control plane signs every server frame with its long-lived Ed25519 key and wraps it in a `SignedServerFrame` envelope (`api/internal/channelsign`, signature over the exact serialized frame bytes); the agent verifies each frame against the pinned control-plane key (`agent/internal/cpverify`) before acting on it. The pin is written to `<state-dir>/control_plane.pub` (0600, dir 0700) by `vrooli-bridge pair redeem --state-dir …`, **before** the single-use pairing code is burned; a redeem that cannot pin surfaces the key so the operator can pin by hand. At startup a paired agent that finds **no pin fails hard** (`cpverify.ErrNoPin`, no TOFU fallback), and any frame that fails verification is dropped and surfaced in the `rejected_cp_frames` health counter on the agent heartbeat. Node→CP: node calls carry an Ed25519 signature verifiable against the public key stored in `node_credentials` at pairing.
-3. **Per-node verb scopes + trust tiers.** Authorization for *what a node will run* is the manifest-validated verb allowlist plus that node's granted verb-namespaces (e.g. `scenario test*` yes, `secrets*` / `scenario deploy*` no). **Trust-tier mechanism (decided 2026-06-18, see `DECISIONS.md`): the runner executes as a dedicated non-privileged service user with no escalation path; a structurally separate privileged provisioning helper (a distinct root/admin process installed at bootstrap) performs only whitelisted provisioning ops over a local IPC the runner cannot forge.** The two tiers are different OS principals, not a flag. The non-privileged runner cannot invoke the privileged provisioning tier. Revocation is atomic and kills both job and provisioning rights immediately.
+3. **Per-node execution scopes + trust tiers.** Authorization for *what a node will run* is the manifest-validated typed-verb allowlist intersected with that node's registry-owned execution scopes. The posture defaults are concrete catalog scopes such as `vrooli-bridge:read` and `vrooli-bridge:write`; an owner may also grant a narrower explicit verb namespace such as `scenario test*`. `secrets*` and `scenario deploy*` remain absent from the Bridge binding manifest. **Trust-tier mechanism (decided 2026-06-18, see `DECISIONS.md`): the runner executes as a dedicated non-privileged service user with no escalation path; a structurally separate privileged provisioning helper (a distinct root/admin process installed at bootstrap) performs only whitelisted provisioning ops over a local IPC the runner cannot forge.** The two tiers are different OS principals, not a flag. The non-privileged runner cannot invoke the privileged provisioning tier. Revocation is atomic and kills both job and provisioning rights immediately.
 
-   New enrollments are additionally **presence-only by default** (`--presence-only=true` / `BRIDGE_PRESENCE_ONLY=true`): the agent continues signed heartbeats but drops even correctly signed job and provisioning frames. Enabling control actions is a separate, explicit policy-approved change; profile selection or self-reported capability cannot enable it implicitly.
+   New enrollments hold no execution scopes by default on shared and hosted
+   posture. That scope-less state is the presence-only behavior: signed
+   heartbeats continue while correctly signed job and provisioning frames are
+   refused. `--presence-only` remains an alias that grants no execution
+   scopes, and observed capabilities never approve registry grants.
+
+### Trust posture and execution scopes
+
+The installation declares its trust stance in `.vrooli/operator-state.json` as
+`trust_posture`. The typed reader defaults a missing field to `personal` and
+rejects every other value. Posture is readable by scenario agents but there is
+no agent write path; changing it is an operator action and must be recorded as
+the typed `trust_posture.transition` event by the control-plane operator
+workflow.
+
+The shared defaults table is:
+
+| Posture | Access-token TTL | Break-glass | Default node execution scopes | JWKS cache grace |
+|---|---:|---|---|---:|
+| `personal` | 60 minutes | available, 15-minute credential | `vrooli-bridge:read`, `vrooli-bridge:write` | 24 hours |
+| `shared` | 15 minutes | available, 10-minute credential | none | 4 hours |
+| `hosted` | 10 minutes | unavailable | none | 1 hour |
+
+These values tune duration and newly enrolled-node defaults only. Every
+posture verifies normal tokens. A cached JWKS is usable only within its
+posture-selected grace window; an unavailable authenticator never grants
+access.
+
+Break-glass is a separate, positive capability. Phase 6 provisions an Ed25519
+private key with owner-only permissions and pins its public half on the
+verifier. The `BreakGlass` authorization scheme verifies the signed,
+time-boxed credential offline, requires an explicit scope list, and applies the
+account's scope ceiling before issuance. Every accepted use appends the typed
+`ActionBreakGlass` audit record; an audit failure refuses the request. It is not
+a fail-open branch and cannot be obtained merely by taking the authenticator
+offline.
+
+The local owner exchange is the preferred CLI acquisition path. It uses the
+authenticator's Unix socket and kernel peer credential, and returns a normal
+short-lived JWT. If the socket is unavailable or the principal is unbound, the
+CLI falls back to the owner-only token file (`VROOLI_BRIDGE_TOKEN_FILE` or
+`VROOLI_AUTH_TOKEN_FILE`), then to the masked password flow. Unlinking a
+machine binding does not revoke tokens already issued; they remain valid until
+expiry or explicit session revocation.
+
+The node registry is the sole owner of approved execution scopes. The
+dispatch manifest is derived from the shared CLI governance catalog and then
+intersected with those grants; it is not widened by a Go literal or by a
+self-reported capability. `vrooli-bridge:session` is reserved for a future
+interactive PTY protocol and is not implemented here. The no-shell typed argv
+path remains Mode A; interactive sessions are a separate future Mode B.
+
+Presence-only is represented by an empty execution-scope grant. The
+`--presence-only` configuration remains a compatibility alias for that empty
+grant. On personal posture a newly enrolled node may receive operational and
+test scopes; shared and hosted posture receive none by default. Gap G8 stays
+open: the live onboarding path has not installed a separate privileged helper
+under a second operating-system principal.
+
+The reserved `scenario screenshot` verb is a typed Mode-A job. On macOS it
+requires an active GUI login/window-server session; an SSH-only launchd user
+domain is not treated as screenshot evidence and the run fails closed when no
+display is available. The node runs
+the operator-configured `vrooli` binary, which selects the platform capture
+utility (`screencapture` on macOS) with an explicit output path; no shell or
+arbitrary binary dispatch is introduced. Its manifest declares the expected
+output name, media type, output flag, and 32 MiB bound. The node resolves the
+output path inside its private run directory, uploads the bounded bytes through
+the node-authenticated `ArtifactsService.UploadRunArtifact` RPC, and emits the
+opaque `bridge://run/<run>/<name>` reference in the run event stream. The owner
+retrieves bytes only through the owner-gated `ArtifactsService.GetRunArtifact`
+RPC (for example, `vrooli-bridge artifacts get-run`); arbitrary filesystem
+paths and arbitrary output flags never cross the dispatch boundary. The
+distribution path remains metadata-only and delegates inbound byte transport
+to device-sync-hub.
 
 ## Secrets
 
@@ -110,8 +186,16 @@ accidentally move a secret to weaker custody.
   posture, with XSS as the threat model. The token is short-lived (authenticator
   expiry), attached per request as `Authorization: Bearer`, never logged by the
   control plane, and a `401` on a token-bearing request clears the session and
-  returns the console to the sign-in screen. There is deliberately no refresh
-  flow: expiry means signing in again.
+  returns the console to the sign-in screen. The authenticator already exposes
+  rotating refresh tokens; the bridge identity facade and CLI now expose the
+  rotation. The CLI keeps the opaque refresh token in its per-user config,
+  never in the bridge API, and retries one expired owner call transparently
+  before reporting the original operation's result.
+- **CLI password intake — masked TTY or stdin only.** The bridge owner login
+  and authenticator account commands do not declare a `--password` value flag;
+  interactive use reads a masked terminal prompt and unattended use reads
+  `--password-stdin`. Passwords are not placed in argv, environment variables,
+  reports, or logs.
 - **Credential authority is the ordinary boundary.** A dev-mode, root-token
   Vault on the same host is not stronger than the native credential authority
   or operator-controlled encrypted backup and adds a hard runtime dependency to
@@ -143,7 +227,9 @@ the process. The named future fix is changing the `KeyCopier` interface to take 
 
 ## Security Gaps
 
-These are open because this is the documentation-first foundation — the threat model is designed but not yet implemented or tested.
+These are the remaining security gaps after the implemented bridge foundation.
+Each row is either a deliberately deferred capability or a hardening item with
+an explicit revisit trigger.
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
@@ -158,11 +244,10 @@ These are open because this is the documentation-first foundation — the threat
 The allowlist gate (OT-P0-004, `internal/dispatch`) is the only path to remote
 execution and is enforced in two layers:
 
-1. **Control plane (`dispatch.Allow`)** — a job's `verb` must be a recognised
-   manifest verb (`dispatch.DefaultManifest`: the safe operational/test
-   namespaces — `scenario test/build/start/stop/status/logs`; `scenario deploy`
-   and `secrets …` are deliberately absent and therefore never dispatchable),
-   AND covered by the target node's granted scopes (glob), AND free of shell
+1. **Control plane (`dispatch.Allow`)** — a job's `verb` must be in the
+   manifest resolved from CLI governance and the target node's granted
+   scopes. `scenario deploy` and `secrets …` remain absent unless their source
+   governance declares them. The verb must also be free of shell
    metacharacters in every token. Each failure is a distinct typed rejection
    (`ErrVerbNotInManifest` / `ErrVerbOutOfScope` / `ErrUnsafeToken`), is
    **audited as rejected**, and surfaces as `PermissionDenied` before any run is

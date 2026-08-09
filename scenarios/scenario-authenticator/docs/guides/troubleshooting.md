@@ -1,15 +1,15 @@
 # Troubleshooting — Scenario Authenticator
 
-Identity-Provider-specific issues first, then the common
-`react-vite`-template issues that surface in any scenario.
+Identity-Provider-specific issues first, then common lifecycle and build
+issues that can surface in any scenario.
 Scenario-specific tech debt belongs in
 [`internal/PROBLEMS.md`](../internal/PROBLEMS.md), not here.
 
-> **Status: documentation-first orientation.** The auth-specific section
-> below describes the **target** failure modes and fixes from
-> [`../../PRD.md`](../../PRD.md); the auth domains are not implemented yet,
-> so these are the intended diagnoses, not reproduced bugs. The
-> template-issues sections are live today.
+> **Status: current operational guidance.** The auth-specific section below
+> describes live account, token, session, JWKS, Redis, and rate-limit paths.
+> Deferred MFA, federation, recovery, and multi-realm issues are labelled as
+> future work. The generic lifecycle guidance remains applicable to this
+> scenario.
 
 ## Identity Provider issues
 

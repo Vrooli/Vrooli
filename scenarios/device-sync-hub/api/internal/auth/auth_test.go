@@ -72,6 +72,7 @@ func ownerClaims(exp time.Time) map[string]any {
 		"user_id": "owner-1",
 		"email":   "o@x.io",
 		"roles":   []string{"user", "admin"},
+		"scope":   []string{"device-sync-hub:read"},
 		"iss":     auth.AuthScenarioSlug,
 		"aud":     auth.AuthExpectedAudience,
 		"iat":     time.Now().Add(-time.Minute).Unix(),
@@ -131,8 +132,7 @@ func TestClientValidate(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "owner-1", id.OwnerID)
 		assert.Equal(t, "o@x.io", id.Email)
-		assert.True(t, id.HasRole("admin"))
-		assert.False(t, id.HasRole("nope"))
+		assert.Equal(t, []string{"device-sync-hub:read"}, id.Scopes)
 
 		// Second call must reuse the cached key — no second JWKS fetch.
 		_, err = c.Validate(context.Background(), tok)

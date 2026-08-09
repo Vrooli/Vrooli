@@ -68,6 +68,20 @@ func TestMachineCreateAndNodeLineage(t *testing.T) {
 	require.Equal(t, "corr-2", current.CorrelationID)
 }
 
+func TestListClosesIDRowsBeforeLoadingAggregates(t *testing.T) {
+	d, clk := newDB(t)
+	repo := machines.NewSQLiteRepository(d, clk)
+	_, err := repo.Create(context.Background(), machines.CreateInput{Locators: []machines.Locator{{Kind: "hostname", Value: "mac.local"}}})
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	listed, err := repo.List(ctx)
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.Len(t, listed[0].Locators, 1)
+}
+
 func TestArchiveUsesOptimisticVersion(t *testing.T) {
 	d, clk := newDB(t)
 	repo := machines.NewSQLiteRepository(d, clk)

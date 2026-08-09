@@ -1,7 +1,7 @@
 // Package registry is the domain-scoped home for trusted-node identity
 // (OT-P0-001). It owns the durable `nodes` record: a node's stable id, OS/arch,
 // provisioned revision, reachable endpoint, self-reported capabilities, and the
-// granted verb-namespace scopes that authorize what it may be asked to run.
+// registry-owned execution scopes that authorize what it may be asked to run.
 //
 // Layering mirrors the canonical Vrooli domain pattern (see the device-sync-hub
 // devices domain):

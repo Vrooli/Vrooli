@@ -27,6 +27,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -45,6 +46,8 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts/artifacts_v1connect"
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence/presence_v1connect"
@@ -83,6 +86,7 @@ type Client struct {
 	httpClient   *http.Client
 	rpc          presence_v1connect.PresenceServiceClient
 	runsRPC      runs_v1connect.RunsServiceClient
+	artifactsRPC artifacts_v1connect.ArtifactsServiceClient
 	provisionRPC provision_v1connect.ProvisionServiceClient
 	sampler      health.Sampler
 	cred         *nodecred.Credential
@@ -167,6 +171,7 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	base := strings.TrimRight(cfg.ControlPlaneURL, "/")
 	c.rpc = presence_v1connect.NewPresenceServiceClient(c.httpClient, base)
 	c.runsRPC = runs_v1connect.NewRunsServiceClient(c.httpClient, base)
+	c.artifactsRPC = artifacts_v1connect.NewArtifactsServiceClient(c.httpClient, base)
 	c.provisionRPC = provision_v1connect.NewProvisionServiceClient(c.httpClient, base)
 	return c
 }
@@ -447,10 +452,38 @@ func (c *Client) runJob(job *channelv1.JobPush) {
 	}()
 
 	reporter := &runEventReporter{rpc: c.runsRPC, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
-	runner := exec.NewRunner(c.cfg.VrooliBin, c.cfg.WorkDir, reporter, exec.WithClock(c.now))
+	uploader := &artifactUploader{rpc: c.artifactsRPC, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
+	runner := exec.NewRunner(c.cfg.VrooliBin, c.cfg.WorkDir, reporter,
+		exec.WithClock(c.now), exec.WithArtifactUploader(uploader),
+		exec.WithArtifactDir(filepath.Join(c.cfg.StateDir, "artifacts")))
 	if err := runner.Execute(ctx, job); err != nil && base.Err() == nil {
 		c.logger.Printf("channel: run %q: reporting events failed: %v", job.GetRunId(), err)
 	}
+}
+
+type artifactUploader struct {
+	rpc    artifacts_v1connect.ArtifactsServiceClient
+	cred   *nodecred.Credential
+	nodeID string
+	now    func() time.Time
+}
+
+var _ exec.ArtifactUploader = (*artifactUploader)(nil)
+
+func (u *artifactUploader) Upload(ctx context.Context, runID, name, mediaType string, data []byte) (string, error) {
+	req := connect.NewRequest(&artifactsv1.UploadRunArtifactRequest{
+		RunId: runID, Name: name, MediaType: mediaType, Data: data,
+	})
+	if u.cred != nil {
+		for k, v := range u.cred.Headers(u.nodeID, u.now().UTC()) {
+			req.Header().Set(k, v)
+		}
+	}
+	resp, err := u.rpc.UploadRunArtifact(ctx, req)
+	if err != nil {
+		return "", err
+	}
+	return resp.Msg.GetArtifactRef(), nil
 }
 
 // runProvision executes a pushed privileged provisioning command via the

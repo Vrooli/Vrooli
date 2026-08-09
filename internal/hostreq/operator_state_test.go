@@ -64,4 +64,25 @@ func TestLoadOperatorStateMissingFileIsEmpty(t *testing.T) {
 	if got := state.choice(hostreqspec.KindSafeguard, "missing"); got != hostreqspec.OperatorChoiceNotRecorded {
 		t.Fatalf("missing state choice = %q, want %q", got, hostreqspec.OperatorChoiceNotRecorded)
 	}
+	if got := state.TrustPosture().Posture; got != "personal" {
+		t.Fatalf("missing state posture = %q, want personal default", got)
+	}
+}
+
+func TestLoadOperatorStateReadsTypedTrustPosture(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	data := []byte(`{"version":"1.0.0","updated_at":"2026-08-05T17:24:03Z","trust_posture":"shared"}`)
+	if err := os.WriteFile(filepath.Join(root, operatorStateFileName), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	state, err := LoadOperatorState(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.TrustPosture().Posture != "shared" || state.TrustPosture().Source == "" {
+		t.Fatalf("typed posture = %+v", state.TrustPosture())
+	}
 }

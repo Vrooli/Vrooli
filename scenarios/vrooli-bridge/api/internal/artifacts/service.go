@@ -3,6 +3,7 @@ package artifacts
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"vrooli-bridge/internal/clock"
 )
@@ -22,18 +23,38 @@ type Service interface {
 
 	// ListDistributions returns distributions newest-first, narrowed by filter.
 	ListDistributions(ctx context.Context, filter ListFilter) ([]Distribution, error)
+	UploadRunArtifact(ctx context.Context, nodeID string, in ProducedArtifact) (ProducedArtifact, error)
+	GetRunArtifact(ctx context.Context, runID, name string) (ProducedArtifact, error)
 }
 
 type service struct {
 	repo     Repository
+	produced ProducedArtifactRepository
+	runs     RunReader
 	nodes    NodeReader
 	delivery DirectedDelivery
 	clock    clock.Clock
 }
 
+// Option wires the produced-artifact dependencies without changing the
+// distribution constructor's existing call shape.
+type Option func(*service)
+
+func WithProducedRepository(repo ProducedArtifactRepository) Option {
+	return func(s *service) { s.produced = repo }
+}
+
+func WithRunReader(reader RunReader) Option {
+	return func(s *service) { s.runs = reader }
+}
+
 // NewService constructs the production Service.
-func NewService(repo Repository, nodes NodeReader, delivery DirectedDelivery, clk clock.Clock) Service {
-	return &service{repo: repo, nodes: nodes, delivery: delivery, clock: clk}
+func NewService(repo Repository, nodes NodeReader, delivery DirectedDelivery, clk clock.Clock, opts ...Option) Service {
+	s := &service{repo: repo, nodes: nodes, delivery: delivery, clock: clk}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Compile-time guarantee.
@@ -115,4 +136,53 @@ func (s *service) GetDistribution(ctx context.Context, id string) (Distribution,
 
 func (s *service) ListDistributions(ctx context.Context, filter ListFilter) ([]Distribution, error) {
 	return s.repo.List(ctx, filter)
+}
+
+func (s *service) UploadRunArtifact(ctx context.Context, nodeID string, in ProducedArtifact) (ProducedArtifact, error) {
+	if s.produced == nil || s.runs == nil {
+		return ProducedArtifact{}, errors.New("produced artifact service is not configured")
+	}
+	if strings.TrimSpace(nodeID) == "" {
+		return ProducedArtifact{}, ErrInvalidProducedArtifact{Field: "node_id", Reason: "required"}
+	}
+	if strings.TrimSpace(in.RunID) == "" {
+		return ProducedArtifact{}, ErrInvalidProducedArtifact{Field: "run_id", Reason: "required"}
+	}
+	if strings.TrimSpace(in.Name) == "" {
+		return ProducedArtifact{}, ErrInvalidProducedArtifact{Field: "name", Reason: "required"}
+	}
+	if strings.ContainsAny(in.Name, `/\\`) || in.Name == "." || in.Name == ".." {
+		return ProducedArtifact{}, ErrInvalidProducedArtifact{Field: "name", Reason: "must be a base name"}
+	}
+	if len(in.Data) == 0 {
+		return ProducedArtifact{}, ErrInvalidProducedArtifact{Field: "data", Reason: "must not be empty"}
+	}
+	if int64(len(in.Data)) > MaxProducedArtifactBytes {
+		return ProducedArtifact{}, ErrInvalidProducedArtifact{Field: "data", Reason: "exceeds the produced-artifact limit"}
+	}
+	target, err := s.runs.GetRunTarget(ctx, in.RunID)
+	if err != nil {
+		return ProducedArtifact{}, err
+	}
+	if target.NodeID != nodeID {
+		return ProducedArtifact{}, ErrArtifactNodeMismatch{RunID: in.RunID}
+	}
+	in.MediaType = strings.TrimSpace(in.MediaType)
+	if in.MediaType == "" {
+		in.MediaType = "application/octet-stream"
+	}
+	in.SizeBytes = int64(len(in.Data))
+	in.ArtifactRef = "bridge://run/" + in.RunID + "/" + in.Name
+	in.CreatedAt = s.clock.Now().UTC()
+	return s.produced.Put(ctx, in)
+}
+
+func (s *service) GetRunArtifact(ctx context.Context, runID, name string) (ProducedArtifact, error) {
+	if s.produced == nil {
+		return ProducedArtifact{}, errors.New("produced artifact service is not configured")
+	}
+	if strings.TrimSpace(runID) == "" || strings.TrimSpace(name) == "" {
+		return ProducedArtifact{}, ErrInvalidProducedArtifact{Field: "request", Reason: "run_id and name are required"}
+	}
+	return s.produced.Get(ctx, runID, name)
 }

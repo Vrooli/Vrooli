@@ -15,6 +15,9 @@
       "id": "REQ-P1-006",
       "prd_ref": "OT-P1-006",
       "status": "planned",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "WebAuthn is not required for the owner-to-principal delegation path and is deliberately outside this delivery.",
+      "revisit_trigger": "Passwordless browser sign-in or phishing-resistant second-factor support becomes an active product requirement.",
       "title": "Passkeys / WebAuthn as First-Class Credential and Second Factor",
       "validation": [
         {

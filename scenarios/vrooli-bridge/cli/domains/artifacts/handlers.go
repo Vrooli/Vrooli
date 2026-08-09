@@ -3,6 +3,7 @@ package artifacts
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	artifactsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts/artifacts_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"vrooli-bridge/cli/internal/session"
 )
 
 type handlers struct {
@@ -20,7 +22,7 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := session.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
 		client: artifactsconnect.NewArtifactsServiceClient(httpClient, baseURL),
@@ -94,6 +96,26 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		ResultsHeading: "Distributions",
 		Results:        results,
 		RetrievalHints: []string{"`artifacts get <id>` — show one distribution's status"},
+	})
+}
+
+func (h *handlers) getRunArtifact(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetRunArtifact(context.Background(), connect.NewRequest(&artifactsv1.GetRunArtifactRequest{
+		RunId: ctx.Positional("run-id"), Name: ctx.Flag("name"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("get run artifact", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || len(resp.Msg.Data) == 0 {
+		return fmt.Errorf("server returned no artifact bytes")
+	}
+	path := ctx.Flag("output")
+	if err := os.WriteFile(path, resp.Msg.Data, 0o600); err != nil {
+		return fmt.Errorf("write artifact %q: %w", path, err)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Retrieved %s (%d bytes) to %s [ref=%s].", resp.Msg.Name, len(resp.Msg.Data), path, emptyDash(resp.Msg.ArtifactRef))},
+		Changes: []string{fmt.Sprintf("wrote owner-retrieved run evidence to %s", path)},
 	})
 }
 

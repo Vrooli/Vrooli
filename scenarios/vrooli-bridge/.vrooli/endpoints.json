@@ -186,6 +186,95 @@
       ]
     },
     {
+      "id": "artifacts_upload_run_artifact",
+      "path": "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/UploadRunArtifact",
+      "method": "POST",
+      "summary": "Upload bounded evidence for a dispatched run",
+      "description": "Node-facing authenticated upload of a bounded produced artifact. The node may upload only evidence for its own run; the bytes are retained for owner retrieval.",
+      "category": "artifacts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "data": "bytes (bounded)",
+          "media_type": "string",
+          "name": "string (required)",
+          "run_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_ref": "string",
+          "size_bytes": "int64"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid or oversized artifact"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Node credential required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Node does not own the run"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown run"
+        }
+      ]
+    },
+    {
+      "id": "artifacts_get_run_artifact",
+      "path": "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/GetRunArtifact",
+      "method": "POST",
+      "summary": "Retrieve bounded evidence from a dispatched run",
+      "description": "Owner-gated retrieval of a node-produced artifact. The response is suitable for saving plan evidence without a direct node connection.",
+      "category": "artifacts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string (required)",
+          "run_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "artifact_ref": "string",
+          "data": "bytes",
+          "media_type": "string",
+          "name": "string",
+          "run_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Produced artifact not found"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Retrieve screenshot evidence",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/GetRunArtifact -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"run_id\":\"run-123\",\"name\":\"screenshot.png\"}'"
+        }
+      ]
+    },
+    {
       "id": "audit_list_records",
       "path": "/vrooli.vrooli_bridge.v1.audit.AuditService/ListAuditRecords",
       "method": "POST",
@@ -768,6 +857,39 @@
         {
           "name": "Create account",
           "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.identity.IdentityService/Register -H 'Content-Type: application/json' -d '{\"email\":\"you@example.com\",\"password\":\"…\"}'"
+        }
+      ]
+    },
+    {
+      "id": "identity_refresh",
+      "path": "/vrooli.vrooli_bridge.v1.identity.IdentityService/Refresh",
+      "method": "POST",
+      "summary": "Refresh owner session",
+      "description": "Rotates a scenario-authenticator refresh token and relays the replacement owner token pair. The bridge stores nothing server-side.",
+      "category": "identity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "refresh_token": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "refresh_token": "string",
+          "token": "string (owner JWT)"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Refresh token rejected"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "scenario-authenticator could not be reached"
         }
       ]
     },

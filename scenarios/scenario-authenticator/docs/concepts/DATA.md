@@ -14,11 +14,11 @@ Use this document to answer:
 - What is the retention/deletion story?
 - How are schema changes handled?
 
-> **Status: documentation-first orientation.** Nothing below the
-> `health` domain and the fenced `notes` example is implemented yet. The
-> entities and schema files named here are the **target** data model
-> carried over from [`../../PRD.md`](../../PRD.md) and
-> [`DOMAINS.md`](DOMAINS.md). No tables exist beyond the scaffold.
+> **Status: implemented foundation.** The account, refresh-token, session,
+> realm, rate-limit, and audit entities described here are persisted by the
+> current API. Future entities are marked planned or deferred in the
+> requirements registry; this document does not claim that the `notes`
+> template `notes` example exists.
 
 ## Storage Overview
 

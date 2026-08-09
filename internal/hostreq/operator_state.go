@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/trustposture"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
@@ -33,6 +34,7 @@ type operatorStateDocument struct {
 type OperatorState struct {
 	hostTools      map[string]operatorStateEntry
 	hostSafeguards map[string]operatorStateEntry
+	trustPosture   trustposture.State
 }
 
 // LoadOperatorState loads the project's durable operator choices. The file is
@@ -42,7 +44,7 @@ func LoadOperatorState(root string) (OperatorState, error) {
 	path := filepath.Join(root, operatorStateFileName)
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return OperatorState{}, nil
+		return OperatorState{trustPosture: trustposture.State{Posture: trustposture.Personal, Source: "default"}}, nil
 	}
 	if err != nil {
 		return OperatorState{}, fmt.Errorf("read operator state %s: %w", path, err)
@@ -59,11 +61,23 @@ func LoadOperatorState(root string) (OperatorState, error) {
 	if _, err := time.Parse(time.RFC3339, document.UpdatedAt); err != nil {
 		return OperatorState{}, fmt.Errorf("operator state %s: updated_at must be RFC3339: %w", path, err)
 	}
+	posture, err := trustposture.Parse(data, path)
+	if err != nil {
+		return OperatorState{}, err
+	}
 
 	return OperatorState{
 		hostTools:      document.HostTools,
 		hostSafeguards: document.HostSafeguards,
+		trustPosture:   posture,
 	}, nil
+}
+
+// TrustPosture returns the immutable, typed posture and the source selected by
+// the operator-state reader. Callers cannot mutate the durable state through
+// this value.
+func (s OperatorState) TrustPosture() trustposture.State {
+	return s.trustPosture
 }
 
 func (s OperatorState) choice(kind hostreqspec.Kind, name string) hostreqspec.OperatorChoice {

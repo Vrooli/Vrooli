@@ -21,3 +21,9 @@ type Repository interface {
 	// detail, updated_at) matched by id and returns the stored distribution.
 	UpdateStatus(ctx context.Context, id string, status DeliveryStatus, deliveryRef, detail string) (Distribution, error)
 }
+
+// RunReader resolves the node owner of a durable run for node-authenticated
+// artifact uploads.
+type RunReader interface {
+	GetRunTarget(ctx context.Context, runID string) (RunTarget, error)
+}

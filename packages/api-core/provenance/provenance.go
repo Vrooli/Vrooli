@@ -42,6 +42,8 @@ type Provenance struct {
 	VerificationStatus  string     `json:"verification_status"`
 	RunID               string     `json:"run_id,omitempty"`
 	TaskID              string     `json:"task_id,omitempty"`
+	Subject             string     `json:"subject,omitempty"`
+	Scopes              []string   `json:"scopes,omitempty"`
 	ProfileKey          string     `json:"profile_key,omitempty"`
 	ScopePath           string     `json:"scope_path,omitempty"`
 	WorkflowExecutionID string     `json:"workflow_execution_id,omitempty"`
@@ -53,11 +55,50 @@ type Provenance struct {
 	Invocation          Invocation `json:"invocation,omitempty"`
 }
 
+// ScopeDeniedError is returned when a verified agent token lacks a required
+// capability. It is deliberately distinct from absent or invalid identity so
+// handlers can audit the refusal without treating an unverified request as an
+// authorization decision.
+type ScopeDeniedError struct {
+	Required string
+}
+
+func (e ScopeDeniedError) Error() string { return "agent identity lacks required scope: " + e.Required }
+
+// RequireScope is the relying-party authorization seam. Callers should record
+// the returned typed refusal in their domain audit stream before translating it
+// to PermissionDenied at the transport boundary.
+func (p Provenance) RequireScope(required string) error {
+	if p.HasScope(required) {
+		return nil
+	}
+	return ScopeDeniedError{Required: strings.TrimSpace(required)}
+}
+
 func (p Provenance) IsVerifiedAgent() bool {
 	return p.Actor == ActorAgent && p.VerificationStatus == VerificationVerified && strings.TrimSpace(p.RunID) != ""
 }
 
 func (p Provenance) IsAgent() bool { return p.Actor == ActorAgent }
+
+// HasScope reports whether a verified agent capability covers required. It
+// never treats an unverified or absent provenance value as authorized.
+func (p Provenance) HasScope(required string) bool {
+	if !p.IsVerifiedAgent() || strings.TrimSpace(required) == "" {
+		return false
+	}
+	required = strings.TrimSpace(required)
+	for _, grant := range p.Scopes {
+		grant = strings.TrimSpace(grant)
+		if grant == "*" || grant == required {
+			return true
+		}
+		if strings.HasSuffix(grant, "*") && strings.HasPrefix(required, strings.TrimSuffix(grant, "*")) {
+			return true
+		}
+	}
+	return false
+}
 
 // WriteFields returns the bounded attribution fields that a write seam may
 // persist. A caller-supplied run id is never treated as proof: only the
@@ -80,7 +121,10 @@ func (p Provenance) WriteFields() (actorID, actorKind, sourceRuntime, verificati
 		sourceRuntime = strings.TrimSpace(p.Source)
 	}
 	if p.IsVerifiedAgent() {
-		actorID = strings.TrimSpace(p.ProfileKey)
+		actorID = strings.TrimSpace(p.Subject)
+		if actorID == "" {
+			actorID = strings.TrimSpace(p.ProfileKey)
+		}
 		runID = strings.TrimSpace(p.RunID)
 		workflowExecutionID = strings.TrimSpace(p.WorkflowExecutionID)
 	}
@@ -241,6 +285,8 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 			provenance.VerificationStatus = VerificationVerified
 			provenance.RunID = strings.TrimSpace(result.Claims.RunID)
 			provenance.TaskID = strings.TrimSpace(result.Claims.TaskID)
+			provenance.Subject = strings.TrimSpace(result.Claims.Subject)
+			provenance.Scopes = append([]string(nil), result.Claims.Scopes...)
 			provenance.ProfileKey = strings.TrimSpace(result.Claims.ProfileKey)
 			provenance.ScopePath = strings.TrimSpace(result.Claims.ScopePath)
 			// Claims.Meta is part of the verified identity response. These optional

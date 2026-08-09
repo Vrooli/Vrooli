@@ -15,6 +15,9 @@
       "id": "REQ-P2-004",
       "prd_ref": "OT-P2-004",
       "status": "planned",
+      "delivery_scope": "roadmap",
+      "deferred_reason": "Relying-party policy evaluation remains owned by each consumer; this plan delivers explicit scope claims and local enforcement, not a central policy engine.",
+      "revisit_trigger": "Two or more relying parties need a shared resource-level authorization policy service.",
       "title": "Delegated Authorization and Fine-Grained Policy Engine",
       "validation": [
         {

@@ -13,6 +13,7 @@ import (
 	pairingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing/pairing_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"vrooli-bridge/cli/internal/session"
 )
 
 // controlPlaneKeyFileName is the file the redeemed control-plane public key is
@@ -29,7 +30,7 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := session.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
 		client: pairingconnect.NewPairingServiceClient(httpClient, baseURL),

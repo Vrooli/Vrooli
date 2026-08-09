@@ -8,7 +8,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-func TestAuthManifestCoversIdentityLogin(t *testing.T) {
+func TestAuthManifestCoversIdentityLifecycle(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
 	if err != nil {
 		t.Fatalf("read manifest: %v", err)
@@ -18,8 +18,15 @@ func TestAuthManifestCoversIdentityLogin(t *testing.T) {
 		t.Fatalf("parse manifest: %v", err)
 	}
 	group := manifest.FindGroup(GroupName)
-	if group == nil || len(group.Commands) != 1 || group.Commands[0].Binding.BindingKey() != "IdentityService.Login" {
-		t.Fatal("auth login must bind IdentityService.Login")
+	if group == nil || len(group.Commands) != 2 {
+		t.Fatal("auth must expose login and refresh")
+	}
+	bindings := map[string]bool{}
+	for _, command := range group.Commands {
+		bindings[command.Binding.BindingKey()] = true
+	}
+	if !bindings["IdentityService.Login"] || !bindings["IdentityService.Refresh"] {
+		t.Fatal("auth login and refresh must bind their IdentityService RPCs")
 	}
 	for _, omitted := range manifest.Omitted {
 		if omitted.Service == "IdentityService" && omitted.Method == "Login" {

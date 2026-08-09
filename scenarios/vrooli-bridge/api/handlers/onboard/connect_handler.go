@@ -3,11 +3,14 @@ package onboard
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/cprev"
+	"vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/onboard"
 
 	"connectrpc.com/connect"
@@ -25,6 +28,7 @@ const dryRunHeader = "X-Dry-Run"
 type Deps struct {
 	Service  onboard.Service
 	Attempts attemptLookup
+	Machines machineReader
 	Logger   *log.Logger
 }
 
@@ -34,6 +38,13 @@ type attemptLookup interface {
 
 type connectHandler struct {
 	deps Deps
+}
+
+// machineReader validates an explicitly selected Machine before onboarding can
+// use its Bridge-owned SSH key. Locator matching here is validation, not
+// identity discovery: the caller must provide the durable Machine ID.
+type machineReader interface {
+	Get(context.Context, string) (machines.Machine, error)
 }
 
 // NewConnectHandler constructs the handler, defaulting the logger.
@@ -64,6 +75,11 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 	dryRun := req.Header().Get(dryRunHeader) == "true"
 	if !dryRun && req.Msg.GetMachineId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("machine_id is required for onboarding; create or select a Machine first"))
+	}
+	if !dryRun && h.deps.Machines != nil {
+		if err := validateMachineTarget(ctx, h.deps.Machines, req.Msg.GetMachineId(), req.Msg.GetHost()); err != nil {
+			return nil, err
+		}
 	}
 
 	// Copy the password into an owned mutable slice for the service to zero; the
@@ -140,6 +156,25 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		MachineId:           machineID,
 		EnrollmentAttemptId: attemptID,
 	}), nil
+}
+
+func validateMachineTarget(ctx context.Context, reader machineReader, machineID, host string) error {
+	machine, err := reader.Get(ctx, strings.TrimSpace(machineID))
+	if err != nil {
+		return connect.NewError(connect.CodeNotFound, fmt.Errorf("selected Machine %q is unavailable: %w", machineID, err))
+	}
+	if machine.Lifecycle != machines.LifecycleActive {
+		return connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("selected Machine %q is %s and cannot be onboarded", machineID, machine.Lifecycle))
+	}
+	target := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(host), "."))
+	for _, locator := range machine.Locators {
+		kind := strings.ToLower(strings.TrimSpace(locator.Kind))
+		value := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(locator.Value), "."))
+		if (kind == "hostname" || kind == "ip" || kind == "ssh") && value == target {
+			return nil
+		}
+	}
+	return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("host %q does not match any locator on selected Machine %q; select the correct durable Machine instead of creating a replacement", host, machineID))
 }
 
 func (h *connectHandler) GetOnboarding(ctx context.Context, req *connect.Request[onboardv1.GetOnboardingRequest]) (*connect.Response[onboardv1.GetOnboardingResponse], error) {

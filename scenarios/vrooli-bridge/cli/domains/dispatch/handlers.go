@@ -11,6 +11,7 @@ import (
 	dispatchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch/dispatch_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"vrooli-bridge/cli/internal/session"
 )
 
 // handlers closes over *cliapp.ScenarioApp so each RunContext-func has typed
@@ -22,7 +23,7 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := session.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
 		client: dispatchconnect.NewDispatchServiceClient(httpClient, baseURL),

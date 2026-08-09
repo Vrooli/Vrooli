@@ -80,6 +80,8 @@ func actionToProto(a audit.Action) auditv1.AuditAction {
 		return auditv1.AuditAction_AUDIT_ACTION_DISPATCH
 	case audit.ActionProvision:
 		return auditv1.AuditAction_AUDIT_ACTION_PROVISION
+	case audit.ActionBreakGlass:
+		return auditv1.AuditAction_AUDIT_ACTION_BREAK_GLASS
 	default:
 		return auditv1.AuditAction_AUDIT_ACTION_UNSPECIFIED
 	}

@@ -126,8 +126,10 @@ func isoScanNamespaceFile(content, relPath string) []Finding {
 }
 
 // isoRedisKeyShape reports whether a quoted literal looks like a
-// scenario-prefixed Redis key or prefix, rejecting URLs, host:port, and
-// timestamps. Ported from the auditor rule.
+// namespace-prefixed Redis key or prefix, rejecting local domain key prefixes
+// ("session:"), URLs, host:port, and timestamps. A namespace has at least a
+// root and a domain, so it necessarily contains two separators. Ported from
+// the auditor rule.
 func isoRedisKeyShape(lit string) bool {
 	s := strings.TrimSuffix(strings.TrimPrefix(lit, `"`), `"`)
 	if s == "" || !strings.Contains(s, ":") {
@@ -143,10 +145,7 @@ func isoRedisKeyShape(lit string) bool {
 	if first == "" || first[0] < 'a' || first[0] > 'z' {
 		return false
 	}
-	if strings.Count(s, ":") >= 2 {
-		return true
-	}
-	return strings.HasSuffix(s, ":") || strings.HasSuffix(s, ":*")
+	return strings.Count(s, ":") >= 2
 }
 
 func isoLoc(relPath string, line int) string {

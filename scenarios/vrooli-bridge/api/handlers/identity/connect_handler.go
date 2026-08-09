@@ -22,6 +22,7 @@ import (
 type Forwarder interface {
 	Login(ctx context.Context, c internalidentity.Credentials) (internalidentity.Owner, error)
 	Register(ctx context.Context, r internalidentity.Registration) (internalidentity.Owner, error)
+	Refresh(ctx context.Context, refreshToken string) (internalidentity.Owner, error)
 }
 
 // Deps wires the seams the Connect identity handler needs.
@@ -57,9 +58,10 @@ func (h *connectHandler) Login(ctx context.Context, req *connect.Request[identit
 		return nil, toConnectError(err)
 	}
 	return connect.NewResponse(&identityv1.LoginResponse{
-		Token:  owner.Token,
-		Email:  owner.Email,
-		UserId: owner.UserID,
+		Token:        owner.Token,
+		Email:        owner.Email,
+		UserId:       owner.UserID,
+		RefreshToken: owner.RefreshToken,
 	}), nil
 }
 
@@ -76,9 +78,23 @@ func (h *connectHandler) Register(ctx context.Context, req *connect.Request[iden
 		return nil, toConnectError(err)
 	}
 	return connect.NewResponse(&identityv1.RegisterResponse{
-		Token:  owner.Token,
-		Email:  owner.Email,
-		UserId: owner.UserID,
+		Token:        owner.Token,
+		Email:        owner.Email,
+		UserId:       owner.UserID,
+		RefreshToken: owner.RefreshToken,
+	}), nil
+}
+
+func (h *connectHandler) Refresh(ctx context.Context, req *connect.Request[identityv1.RefreshRequest]) (*connect.Response[identityv1.RefreshResponse], error) {
+	owner, err := h.deps.Forwarder.Refresh(ctx, req.Msg.GetRefreshToken())
+	if err != nil {
+		if !errors.Is(err, internalidentity.ErrInvalidCredentials) && !errors.Is(err, internalidentity.ErrInvalidInput) {
+			h.deps.Logger.Printf("identity.Refresh: %v", err)
+		}
+		return nil, toConnectError(err)
+	}
+	return connect.NewResponse(&identityv1.RefreshResponse{
+		Token: owner.Token, RefreshToken: owner.RefreshToken,
 	}), nil
 }
 

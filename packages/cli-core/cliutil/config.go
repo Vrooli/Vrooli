@@ -11,8 +11,9 @@ import (
 
 // APIConfig stores common CLI connection settings.
 type APIConfig struct {
-	APIBase string `json:"api_base"`
-	Token   string `json:"token,omitempty"`
+	APIBase      string `json:"api_base"`
+	Token        string `json:"token,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
 }
 
 // ResolveConfigDir determines where to store CLI config, preferring explicit env

@@ -53,6 +53,7 @@ const (
 	CommandStopAll         CommandID = "stop-all"
 	CommandTest            CommandID = "test"
 	CommandLogs            CommandID = "logs"
+	CommandScreenshot      CommandID = "screenshot"
 	CommandOpen            CommandID = "open"
 	CommandPort            CommandID = "port"
 	CommandRequirements    CommandID = "requirements"
@@ -130,6 +131,10 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandTest), Group: "Lifecycle and Utility Commands", Summary: "Run scenario tests", Handler: CommandTest, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandLogs), Group: "Lifecycle and Utility Commands", Summary: "View logs for a scenario", Handler: CommandLogs, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{
+			Name: string(CommandScreenshot), Group: "Lifecycle and Utility Commands", Summary: "Capture a screenshot without a shell", Handler: CommandScreenshot, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--output", ValueName: "path", Description: "Output PNG path"}, commandtree.JSONOption()}},
+		},
+		{
 			Name: string(CommandOpen), Group: "Lifecycle and Utility Commands", Summary: "Open a scenario in the browser", Handler: CommandOpen, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
@@ -198,6 +203,11 @@ type (
 		TimeoutSeconds int
 	}
 )
+
+type ScreenshotRequest struct {
+	Output string
+	JSON   bool
+}
 
 type WaitRequest struct {
 	Name           string
@@ -379,6 +389,19 @@ func ParseStopRequest(globalsJSON bool, args []string) (StopRequest, error) {
 		return StopRequest{}, err
 	}
 	return StopRequest{Name: slug, JSON: globalsJSON || parsed.HasFlag("--json")}, nil
+}
+
+func ParseScreenshotRequest(globalsJSON bool, args []string) (ScreenshotRequest, error) {
+	spec := commandSpec(CommandScreenshot)
+	parsed, err := commandtree.ParseArgs("scenario screenshot", commandHelpText(CommandScreenshot), spec.Args, args)
+	if err != nil {
+		return ScreenshotRequest{}, err
+	}
+	output := strings.TrimSpace(parsed.FlagValue("--output"))
+	if output == "" {
+		return ScreenshotRequest{}, clipolicy.UsageErrorf("scenario screenshot", "--output is required")
+	}
+	return ScreenshotRequest{Output: output, JSON: globalsJSON || parsed.HasFlag("--json")}, nil
 }
 
 func ParseRestartRequest(globalsJSON bool, args []string) (RestartRequest, error) {

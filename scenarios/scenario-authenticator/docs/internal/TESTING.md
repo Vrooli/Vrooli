@@ -37,10 +37,10 @@ These files are the source of truth. When in doubt, copy their shape:
 If your test doesn't look like one of those three, ask why before
 shipping.
 
-## Auth test strategy by phase (target — not yet implemented)
+## Auth test strategy by shipped and deferred domain
 
-> **Status: documentation-first.** None of these tests exist yet. This
-> section defines *what* must be tested for an Identity Provider and ties
+> **Status: live testing contract.** Tests for shipped auth domains are
+> present and tied
 > each cluster to the requirements registry (`requirements/`, IDs
 > `REQ-P0-001`…`REQ-P2-007`). The *mechanics* (live server, fakes,
 > proto decode, coverage gates) are the template patterns in the sections

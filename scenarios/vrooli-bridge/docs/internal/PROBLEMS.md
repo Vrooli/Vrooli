@@ -348,3 +348,20 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Work ladder
+
+Current identity/delegation work remains on the typed Mode-A ladder:
+
+1. Keep the control-plane manifest derived from CLI governance and enforce the
+   registry-owned execution scopes before run creation.
+2. Keep presence-only equivalent to an empty execution-scope grant; the agent
+   flag is only the bootstrap alias and must be serialized as an explicit
+   boolean value.
+3. Use the existing SSH onboarding path to converge a node when its agent is
+   presence-only; do not weaken the signed-frame gate or add a shell path.
+4. Treat macOS screenshot proof as hardware evidence only when a real GUI
+   login/window-server session exists. An SSH-only launchd domain is a recorded
+   environment finding, not a reason to fabricate an artifact or broaden Mode A.
+5. Keep `vrooli-bridge:session` reserved for a later Mode-B protocol; PTY,
+   stdin, and interactive-session lifecycle remain outside this ladder.

@@ -3,10 +3,11 @@
 package privilegebroker
 
 import (
-	"fmt"
 	"net"
+
+	"github.com/vrooli/vrooli/internal/localprincipal"
 )
 
 func peerUID(*net.UnixConn) (uint32, error) {
-	return 0, fmt.Errorf("unix peer credentials are unsupported on this platform")
+	return 0, localprincipal.ErrUnsupported
 }

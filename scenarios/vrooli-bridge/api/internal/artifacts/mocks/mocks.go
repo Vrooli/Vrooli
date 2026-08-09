@@ -67,6 +67,52 @@ type FakeRepository struct {
 	seq   int
 }
 
+// FakeProducedRepository stores bounded evidence in memory.
+type FakeProducedRepository struct {
+	mu    sync.Mutex
+	items map[string]artifacts.ProducedArtifact
+}
+
+var _ artifacts.ProducedArtifactRepository = (*FakeProducedRepository)(nil)
+
+func NewFakeProducedRepository() *FakeProducedRepository {
+	return &FakeProducedRepository{items: map[string]artifacts.ProducedArtifact{}}
+}
+
+func producedKey(runID, name string) string { return runID + "\x00" + name }
+
+func (f *FakeProducedRepository) Put(_ context.Context, a artifacts.ProducedArtifact) (artifacts.ProducedArtifact, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.items[producedKey(a.RunID, a.Name)] = a
+	return a, nil
+}
+
+func (f *FakeProducedRepository) Get(_ context.Context, runID, name string) (artifacts.ProducedArtifact, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	a, ok := f.items[producedKey(runID, name)]
+	if !ok {
+		return artifacts.ProducedArtifact{}, artifacts.ErrProducedArtifactNotFound{RunID: runID, Name: name}
+	}
+	return a, nil
+}
+
+// FakeRunReader exposes one run-to-node ownership mapping.
+type FakeRunReader struct {
+	Targets map[string]artifacts.RunTarget
+}
+
+var _ artifacts.RunReader = (*FakeRunReader)(nil)
+
+func (f *FakeRunReader) GetRunTarget(_ context.Context, runID string) (artifacts.RunTarget, error) {
+	target, ok := f.Targets[runID]
+	if !ok {
+		return artifacts.RunTarget{}, artifacts.ErrProducedArtifactNotFound{RunID: runID}
+	}
+	return target, nil
+}
+
 var _ artifacts.Repository = (*FakeRepository)(nil)
 
 // NewFakeRepository constructs an empty fake repository.

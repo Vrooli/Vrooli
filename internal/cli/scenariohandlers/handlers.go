@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"os/signal"
+	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -406,6 +409,34 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 		),
 		CommandTest: TestHandler(deps),
 		CommandLogs: LogsHandler(deps),
+		CommandScreenshot: func(ctx C, args []string) error {
+			req, err := ParseScreenshotRequest(deps.Globals(ctx).JSON, args)
+			if err != nil {
+				return err
+			}
+			var command string
+			var commandArgs []string
+			switch runtime.GOOS {
+			case "darwin":
+				command, commandArgs = "screencapture", []string{"-x", req.Output}
+			case "linux":
+				command, commandArgs = "gnome-screenshot", []string{"-f", req.Output}
+			default:
+				return fmt.Errorf("scenario screenshot: unsupported operating system %q", runtime.GOOS)
+			}
+			if err := exec.Command(command, commandArgs...).Run(); err != nil {
+				return fmt.Errorf("scenario screenshot: capture failed: %w", err)
+			}
+			if _, err := os.Stat(req.Output); err != nil {
+				return fmt.Errorf("scenario screenshot: capture did not create %q: %w", req.Output, err)
+			}
+			if req.JSON {
+				_, err = fmt.Fprintf(deps.Stdout(ctx), "{\"path\":%s}\n", strconv.Quote(req.Output))
+				return err
+			}
+			_, err = fmt.Fprintf(deps.Stdout(ctx), "%s\n", req.Output)
+			return err
+		},
 		CommandOpen: bindGlobal(deps.Stdout,
 			func(ctx C, args []string) (OpenRequest, error) { return ParseOpenRequest(deps.Globals(ctx).JSON, args) },
 			func(ctx C, req OpenRequest) (cliout.Format, OpenOutput, error) {
