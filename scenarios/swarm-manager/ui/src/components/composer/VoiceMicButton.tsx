@@ -1,4 +1,4 @@
-import { VoiceInputButton } from "../../audio-integration/SharedVoiceInputButton";
+import { VoiceInputButton } from "../../audio-integration/VoiceInputButton";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../../audio-integration";
 
 export interface VoiceMicButtonProps {
@@ -33,27 +33,37 @@ export default function VoiceMicButton({
   error,
   audioLevel = 0,
   voiceActivity,
-  partialTranscript,
   onStart,
   onStop,
   onPrepare,
+  onCancel,
+  onExitPassive,
   className,
+  buttonClassName,
   testId,
 }: VoiceMicButtonProps & { onPrepare?: () => void }) {
   const state = !supported ? "unavailable" : isTranscribing ? "transcribing" : isPreparing ? "preparing" : isPassive ? "recovering" : isRecording || isListening ? "recording" : error ? "error" : "idle";
   return (
-    <VoiceInputButton
-      state={state}
-      mode={isListening ? "always-on" : "timeout"}
-      level={audioLevel}
-      timeoutProgress={voiceActivity?.autoStopProgress ?? 0}
-      error={error ?? undefined}
-      partialTranscript={partialTranscript}
-      onStart={() => onStart?.()}
-      onStop={onStop}
-      onPrepare={onPrepare}
-      className={className}
-      data-testid={testId}
-    />
+    <div className={className}>
+      <VoiceInputButton
+        state={state}
+        mode={isListening ? "always-on" : "timeout"}
+        level={audioLevel}
+        timeoutProgress={voiceActivity?.autoStopProgress ?? 0}
+        onStart={() => onStart?.()}
+        onStop={onStop}
+        onPrepare={onPrepare}
+        onExitPassive={onExitPassive}
+        onPointerCancel={() => onCancel?.()}
+        className={buttonClassName}
+        data-testid={testId}
+      />
+      {error && <div role="alert" className="mt-1 text-center text-xs text-app-danger">{error}</div>}
+      {state === "transcribing" && onCancel && (
+        <button type="button" className="mt-1 rounded border border-app-border px-1.5 py-0.5 text-xs text-app-muted-foreground" onClick={onCancel}>
+          Cancel
+        </button>
+      )}
+    </div>
   );
 }

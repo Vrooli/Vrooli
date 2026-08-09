@@ -1567,12 +1567,12 @@ func (s *FileTeamStore) ListTeamCorpus(ctx context.Context, teamID, topicFilter,
 // WakeTeamCorpus returns the bounded ambient context for a team from its
 // Source Ledger scope. A nil result is intentional for isolated file-store
 // fixtures that do not attach the production ledger client.
-func (s *FileTeamStore) WakeTeamCorpus(ctx context.Context, teamID string) ([]sourceledger.Entry, error) {
+func (s *FileTeamStore) WakeTeamCorpus(ctx context.Context, teamID string) (sourceledger.WakeResult, error) {
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.WakeTeamCorpus(ctx, teamID)
 	}
 	if s.ledger == nil {
-		return nil, nil
+		return sourceledger.WakeResult{}, nil
 	}
 	return s.ledger.Wake(ctx, sourceLedgerScope(teamID), 0)
 }

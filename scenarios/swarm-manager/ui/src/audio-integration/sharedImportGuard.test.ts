@@ -25,6 +25,29 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 }
 
 describe("shared audio substrate boundary", () => {
+  it("keeps shared type and PCM paths as explicit package shims", () => {
+    for (const relativePath of ["hooks/voice/types.ts", "hooks/voice/PcmVoiceStreamProvider.ts"]) {
+      const source = readFileSync(join(AUDIO_ROOT, relativePath), "utf8");
+      expect(source).toContain('from "@vrooli/audio-capture-browser"');
+    }
+  });
+
+  it("names every retained production difference", () => {
+    const hostSpecific = [
+      "api/voice.ts",
+      "api/tts.ts",
+      "features.ts",
+      "index.ts",
+      "voiceCoreServices.ts",
+      "hooks/useVoiceCore.ts",
+      "hooks/voice/WhisperProvider.ts",
+      "hooks/voice/WebSpeechProvider.ts",
+    ];
+    for (const relativePath of hostSpecific) {
+      expect(readFileSync(join(AUDIO_ROOT, relativePath), "utf8"), relativePath).toContain("HOST DIFFERENCE:");
+    }
+  });
+
   it("keeps orchestration in the shared browser package", () => {
     const hook = readFileSync(join(AUDIO_ROOT, "hooks", "useVoiceCore.ts"), "utf8");
     expect(hook).toContain('from "./useVoiceInput"');

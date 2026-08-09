@@ -8,15 +8,29 @@
 // transient `chunks` buffer into `lastTurn` so the hook can offer a
 // "Transcribe anyway" retry on speaker-verification rejection. The blob is
 // released on `disposeLastTurn()` or on the next `start()`.
+// HOST DIFFERENCE: the HTTP endpoint is swarm-manager's local RPC adapter;
+// capture ownership, error classification, and the provider contract are
+// shared with web-console through @vrooli/audio-capture-browser.
 
 import { transcribeAudioWithRetry } from "../../api/voice";
-import type { LastTurnAudio, TranscriptionProvider } from "./types";
-import { AUDIO_BITRATE, WHISPER_FAILED_SENTINEL } from "./types";
+import {
+  acquireMicStream,
+  releaseMicLease,
+  type LastTurnAudio,
+  type MicLease,
+  type MicReleaseReason,
+  type TranscriptionProvider,
+  AUDIO_BITRATE,
+  WHISPER_FAILED_SENTINEL,
+  classifyMicError,
+} from "@vrooli/audio-capture-browser";
 
 export class WhisperProvider implements TranscriptionProvider {
   private mediaRecorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
   private stream: MediaStream | null = null;
+  /** Registry lease for the provider-acquired mic stream. */
+  private lease: MicLease | null = null;
   /** Retained audio from the most recent completed turn, or null. */
   private lastTurn: LastTurnAudio | null = null;
   language = "en";
@@ -25,6 +39,15 @@ export class WhisperProvider implements TranscriptionProvider {
 
   getStream(): MediaStream | null {
     return this.stream;
+  }
+
+  /** Release the provider-owned mic stream. Idempotent by construction. */
+  private releaseOwnStream(reason: MicReleaseReason): void {
+    if (this.lease) {
+      releaseMicLease(this.lease, reason);
+      this.lease = null;
+    }
+    this.stream = null;
   }
 
   getLastTurnAudio(): LastTurnAudio | null {
@@ -44,27 +67,23 @@ export class WhisperProvider implements TranscriptionProvider {
   private recordingStartTime = 0;
 
   // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition
-  async start(preWarmedStream?: MediaStream): Promise<void> {
+  async start(): Promise<void> {
     // A new turn starts — the previous turn's retained audio is no longer
     // relevant and would grow unbounded if we didn't drop it here.
     this.lastTurn = null;
 
-    // Accept a pre-warmed stream (low-latency mode) or acquire a fresh one.
-    if (preWarmedStream && preWarmedStream.getTracks().every((t) => t.readyState === "live")) {
-      this.stream = preWarmedStream;
-      this.micAcquireTime = 0;
-      console.info("[voice] WhisperHTTP: using pre-warmed stream");
-    } else {
-      const micStart = Date.now();
-      try {
-        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
-        this.onError?.("Microphone access denied");
-        return;
-      }
-      this.micAcquireTime = Date.now() - micStart;
-      console.info("[voice] WhisperHTTP: getUserMedia took %dms", this.micAcquireTime);
+    // Always acquire and own a fresh stream. The registry prevents this batch
+    // provider from racing a passive listener or another active capture.
+    const micStart = Date.now();
+    try {
+      this.lease = await acquireMicStream("whisper", { audio: true });
+      this.stream = this.lease.stream;
+    } catch (err) {
+      this.onError?.(classifyMicError(err));
+      return;
     }
+    this.micAcquireTime = Date.now() - micStart;
+    console.info("[voice] WhisperHTTP: getUserMedia took %dms", this.micAcquireTime);
     this.chunks = [];
     this.recordingStartTime = Date.now();
     const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -80,8 +99,7 @@ export class WhisperProvider implements TranscriptionProvider {
     this.mediaRecorder.onstop = async () => {
       const stopTime = Date.now();
       const recordingDuration = stopTime - this.recordingStartTime;
-      this.stream?.getTracks().forEach((t) => t.stop());
-      this.stream = null;
+      this.releaseOwnStream("manual-stop");
 
       const blob = new Blob(this.chunks, { type: "audio/webm" });
       this.chunks = [];
@@ -103,7 +121,9 @@ export class WhisperProvider implements TranscriptionProvider {
       try {
         const text = await transcribeAudioWithRetry(blob, 2, this.language);
         console.info("[voice] WhisperHTTP: transcription took %dms, %d chars", Date.now() - transcribeStart, text.trim().length);
-        if (text.trim()) this.onResult?.(text.trim());
+        // Resolve every completed turn, including an empty result, so the
+        // host cannot remain stuck in "transcribing" after a silent loss.
+        this.onResult?.(text.trim());
       } catch {
         console.warn("[voice] WhisperHTTP: transcription failed after %dms", Date.now() - transcribeStart);
         this.onError?.(WHISPER_FAILED_SENTINEL);
@@ -117,8 +137,7 @@ export class WhisperProvider implements TranscriptionProvider {
       this.mediaRecorder.stop();
       // Mic release happens in onstop after final data is flushed.
     } else {
-      this.stream?.getTracks().forEach((t) => t.stop());
-      this.stream = null;
+      this.releaseOwnStream("manual-stop");
     }
   }
 
@@ -126,8 +145,7 @@ export class WhisperProvider implements TranscriptionProvider {
     if (this.mediaRecorder?.state === "recording") {
       this.mediaRecorder.stop();
     }
-    this.stream?.getTracks().forEach((t) => t.stop());
-    this.stream = null;
+    this.releaseOwnStream("unmount");
     // Dispose is a full cleanup event; drop retained audio too.
     this.lastTurn = null;
   }

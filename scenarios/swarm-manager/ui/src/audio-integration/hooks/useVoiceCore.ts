@@ -5,6 +5,8 @@ import {
 } from "./useVoiceInput";
 import { voiceCoreServices } from "../voiceCoreServices";
 
+// HOST DIFFERENCE: this hook only injects swarm's service bundle; state
+// transitions and ownership policy are implemented by the package.
 export type { VoiceCapabilityProbe };
 
 export type UseVoiceCoreOptions = Omit<AdoptedVoiceInputOptions, "services"> & {

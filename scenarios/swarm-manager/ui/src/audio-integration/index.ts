@@ -3,6 +3,8 @@
 // Calls are made via the same-origin Connect transport to swarm-manager's
 // own AudioAdminService and AudioRuntimeService. The browser never sees
 // audio-tools' host; swarm-manager's API owns the inter-scenario hop.
+// HOST DIFFERENCE: swarm exports its local config/client context and
+// scenario-specific RPC adapters; capture orchestration remains package-owned.
 
 import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
 import { buildVoiceStreamWsUrl, transcribeAudioWithRetry } from "./api/voice";

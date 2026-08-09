@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { Database, ImagePlus, Loader2, MessageSquarePlus, SendHorizontal } from "lucide-react";
 import { useAutoResizeTextarea } from "../../hooks/useAutoResizeTextarea";
@@ -80,7 +80,52 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
 }: MessageComposerProps, ref) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const materializedInterimRef = useRef("");
   useAutoResizeTextarea(textareaRef, value, { maxHeight: MAX_TEXTAREA_HEIGHT });
+
+  const appendInterim = useCallback((base: string, interim: string) => {
+    const left = base.trimEnd();
+    const right = interim.trim();
+    if (!right) return left;
+    if (!left) return right;
+    return /^[,.!?;:]/.test(right) ? `${left}${right}` : `${left} ${right}`;
+  }, []);
+
+  const materializeInterim = useCallback(() => {
+    if (!interimTranscript.trim()) return;
+    onChange(appendInterim(value, interimTranscript));
+    materializedInterimRef.current = interimTranscript.trim();
+    setInterimTranscript("");
+  }, [appendInterim, interimTranscript, onChange, value]);
+
+  const handleTranscript = useCallback((text: string) => {
+    const incoming = text.trim();
+    const materialized = materializedInterimRef.current.trim();
+    materializedInterimRef.current = "";
+    setInterimTranscript("");
+    if (!incoming || !onTranscript) return;
+    // If the user edited while a partial was visible, that partial is already
+    // settled in the textarea. Replace only its overlapping prefix when the
+    // provider later emits the corresponding segment-final.
+    if (materialized && incoming === materialized) return;
+    if (materialized && incoming.startsWith(materialized)) {
+      const remainder = incoming.slice(materialized.length).trim();
+      if (remainder) onTranscript(remainder);
+      return;
+    }
+    onTranscript(text);
+  }, [onTranscript]);
+
+  const handleComposerChange = useCallback((next: string) => {
+    if (interimTranscript.trim()) {
+      onChange(appendInterim(next, interimTranscript));
+      materializedInterimRef.current = interimTranscript.trim();
+      setInterimTranscript("");
+      return;
+    }
+    onChange(next);
+  }, [appendInterim, interimTranscript, onChange]);
 
   useImperativeHandle(ref, () => ({
     replaceText: (text: string) => {
@@ -152,21 +197,37 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
           </button>
         )}
 
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          rows={2}
-          disabled={disabled || isSubmitting}
-          className="min-h-[2.5rem] w-full resize-none bg-transparent text-base text-slate-200 placeholder-slate-500 outline-none disabled:opacity-50"
-          data-testid={inputTestId ?? testId}
-        />
+        <div className="relative min-w-0 flex-1">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 min-h-[2.5rem] whitespace-pre-wrap break-words text-base text-slate-200"
+          >
+            <span>{value}</span>
+            {interimTranscript && (
+              <span data-testid={testId ? `${testId}-interim` : "composer-interim"} className="border-b border-dotted border-cyan-400/90 text-cyan-200">
+                {value && !/[\s,.!?;:]$/.test(value) && !/^[,.!?;:]/.test(interimTranscript) ? " " : ""}
+                {interimTranscript}
+              </span>
+            )}
+          </div>
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(event) => handleComposerChange(event.target.value)}
+            onFocus={materializeInterim}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            rows={2}
+            disabled={disabled || isSubmitting}
+            className="relative min-h-[2.5rem] w-full resize-none bg-transparent text-base text-transparent caret-slate-200 placeholder:text-slate-500 outline-none selection:bg-cyan-500/30 disabled:opacity-50"
+            data-testid={inputTestId ?? testId}
+          />
+        </div>
 
         {onTranscript && (
           <MicButton
-            onTranscript={onTranscript}
+            onTranscript={handleTranscript}
+            onPartialTranscript={setInterimTranscript}
             disabled={disabled || isSubmitting}
             testId={micTestId ?? (testId ? `${testId}-mic` : undefined)}
           />

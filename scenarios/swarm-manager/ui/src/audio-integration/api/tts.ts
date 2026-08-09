@@ -3,6 +3,9 @@
 // Calls swarm-manager's own AudioAdminService + AudioRuntimeService via
 // the same-origin Connect transport. The UI never talks to audio-tools
 // directly; swarm-manager's API owns the inter-scenario hop.
+// HOST DIFFERENCE: swarm-manager's generated TTS proto predates web-console's
+// chunk_index cache field, so this adapter intentionally keeps the common
+// event/version cache contract and does not invent an unsupported field.
 
 import { create } from "@bufbuild/protobuf";
 import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";

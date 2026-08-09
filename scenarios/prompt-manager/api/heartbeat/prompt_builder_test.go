@@ -12,10 +12,28 @@ import (
 
 	"prompt-manager/internal/paths"
 	"prompt-manager/memberflow"
+	"prompt-manager/sourceledger"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
 )
+
+func TestRenderTeamContextWakeSectionDisclosesTruncation(t *testing.T) {
+	section := renderTeamContextWakeSection("marketing-crew", sourceledger.WakeResult{
+		Overflow: true,
+		Refused:  3,
+		Entries:  []sourceledger.Entry{{Body: "bounded memory"}},
+	})
+	if !strings.Contains(section, "This view was truncated: 3 memories were refused") {
+		t.Fatalf("expected actionable truncation notice, got %q", section)
+	}
+	if !strings.Contains(section, "source-ledger recall") {
+		t.Fatalf("expected recall command in truncation notice, got %q", section)
+	}
+	if !strings.Contains(section, "bounded memory") {
+		t.Fatalf("expected admitted entries after notice, got %q", section)
+	}
+}
 
 func TestPromptBuilderAgentOnly(t *testing.T) {
 	ctx := context.Background()
@@ -190,8 +208,12 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		t.Fatalf("expected all heartbeat sections in prompt")
 	}
 
-	if briefIndex != 0 {
-		t.Fatalf("active task brief should be first, got index %d", briefIndex)
+	doctrineIndex := promptHeadingIndex(prompt, promptHeading(promptSectionKindSharedDoctrine))
+	if doctrineIndex != 0 {
+		t.Fatalf("standing rules should lead the prompt, got index %d", doctrineIndex)
+	}
+	if !(doctrineIndex < briefIndex) {
+		t.Fatalf("active task brief should follow the standing rules, got %d", briefIndex)
 	}
 	if !strings.HasSuffix(strings.TrimSpace(prompt), strings.TrimSpace(buildTaskReminderSection(team, agent.ID, "Ship the update"))) {
 		t.Fatalf("task reminder should be the final prompt section")
@@ -213,19 +235,18 @@ func TestPromptBuilderTeamContext(t *testing.T) {
 		"## Operating Constraints",
 		"The complete task source is included later in `# Heartbeat Task (HEARTBEAT.md)`.",
 		"## Write Surface",
-		"## Required Memory",
-		"## Continue",
-		"Use your final `## HANDOFF` for short-term continuity.",
-		"## Observe",
+		// Routing and precedence are stated once, in the constant block. The
+		// assertions below name the behaviour each rule must still produce, not
+		// the prose that used to carry it.
+		promptHeading(promptSectionKindSharedDoctrine),
+		"## Where things go",
 		"prompt-manager skill read report-bug",
-		"bug-inbox/<signal-type>/<slug>",
-		"If something expected was missing, broken, confusing, slow, undocumented, or harder than it should have been, capture it as friction.",
+		"bug-inbox/*",
 		"prompt-manager skill read report-friction",
-		"friction-inbox/<scope>/<slug>",
-		"friction-curator",
-		"## Propose",
-		"## Operate",
-		"## Authority Order",
+		"friction-inbox/*",
+		"## Authority order — the world",
+		"## Authority order — this prompt",
+		"write it as the last section of your final response and then stop",
 		"## Your Team Storage",
 		"Primitive availability for this member:",
 		"- knowledge: `write-allowed`",
@@ -610,6 +631,7 @@ func TestBuildStructuredTeamContext(t *testing.T) {
 
 	// Verify all expected kinds in correct order
 	expectedKinds := []string{
+		promptSectionKindSharedDoctrine,
 		promptSectionKindActiveTaskBrief,
 		"team-inbox",
 		"team-storage-map",
@@ -1061,13 +1083,14 @@ func expectedRequiredMemoryBlock(t *testing.T, configRoot, teamID, agentID strin
 	}
 	sort.Strings(prefixes)
 
-	var b strings.Builder
-	b.WriteString("## Required Memory\n\n")
+	// A member with no declared required reads gets no block at all. Rendering
+	// "none declared" spends tokens on every tick to say nothing the member
+	// could act on, so absence is the declaration.
 	if len(prefixes) == 0 {
-		b.WriteString("Knowledge topics: none declared\n\n")
-		return b.String()
+		return ""
 	}
-	b.WriteString("Knowledge topics:\n")
+	var b strings.Builder
+	b.WriteString("## Required Memory\n\nKnowledge topics:\n")
 	for _, prefix := range prefixes {
 		b.WriteString("- `" + prefix + "`\n")
 	}
@@ -1104,14 +1127,16 @@ func TestActiveTaskBriefNamesUnifiedWorkFiling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildStructured: %v", err)
 	}
-	brief := promptSectionContent(sections, promptSectionKindActiveTaskBrief)
+	// Filing routes are identical for every member, so they live in the
+	// standing-rules block rather than being re-rendered into each brief.
+	doctrine := promptSectionContent(sections, promptSectionKindSharedDoctrine)
 	for _, want := range []string{
 		"swarm-manager captures create",
 		"swarm-manager backlog create",
 		"swarm-manager backlog list --actor-id=<verified-profile-key>",
 	} {
-		if !strings.Contains(brief, want) {
-			t.Fatalf("brief missing unified filing command %q:\n%s", want, brief)
+		if !strings.Contains(doctrine, want) {
+			t.Fatalf("standing rules missing unified filing command %q:\n%s", want, doctrine)
 		}
 	}
 }

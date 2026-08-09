@@ -8,18 +8,19 @@
 //   - quick-capture-input.tsx (Quick Capture dialog)
 //   - MessageComposer.tsx (generic composer)
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
 import { useVoiceCore, useAudioToolsUnavailableReason, useVoiceConfigStore, useServerVadStateStore } from "../../audio-integration";
 import VoiceMicButton from "./VoiceMicButton";
 
 interface MicButtonProps {
   onTranscript: (text: string) => void;
+  onPartialTranscript?: (text: string) => void;
   disabled?: boolean;
   testId?: string;
 }
 
-export function MicButton({ onTranscript, disabled, testId }: MicButtonProps) {
+export function MicButton({ onTranscript, onPartialTranscript, disabled, testId }: MicButtonProps) {
   const unavailableReason = useAudioToolsUnavailableReason();
   const vadSilenceTimeoutMs = useVoiceConfigStore((s) => s.vadSilenceTimeoutMs);
   const segmentSilenceMs = useVoiceConfigStore((s) => s.segmentSilenceMs);
@@ -42,6 +43,10 @@ export function MicButton({ onTranscript, disabled, testId }: MicButtonProps) {
       if (trimmed) onTranscript(trimmed);
     },
   });
+
+  useEffect(() => {
+    onPartialTranscript?.(voice.partialTranscript);
+  }, [onPartialTranscript, voice.partialTranscript]);
 
   const handleStart = useCallback(() => {
     void voice.startRecording();

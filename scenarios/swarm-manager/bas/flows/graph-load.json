@@ -1,78 +1,91 @@
 {
-  "metadata": {
-    "name": "graph-load",
-    "description": "Load-only performance capture for the canonical Graph surface. Opens /graph, waits for rendered React Flow nodes and edges, and records graph size without driving interaction input.",
-    "labels": {
-      "intent": "performance",
-      "reset": "none",
-      "interaction": "load-only"
-    },
-    "version": "1",
-    "execution_mode": "EXECUTION_MODE_OBSERVER"
-  },
-  "settings": {
-    "viewport_width": 1600,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "open-graph",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "swarm-manager",
-          "scenario_path": "/graph",
-          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Open the canonical Graph surface"
-        }
-      }
-    },
-    {
-      "id": "wait-canvas",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid='graph-canvas']",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Wait for the graph canvas"
-        }
-      }
-    },
-    {
-      "id": "wait-rendered-topology",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(async () => { const deadline = Date.now() + 45000; while (Date.now() < deadline) { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; if (nodes >= 250 && edges >= 200) return { nodes, edges }; await new Promise((resolve) => setTimeout(resolve, 250)); } const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; throw new Error(`graph-load: topology evidence too small; nodes=${nodes}, edges=${edges}`); })()"
-        },
-        "metadata": {
-          "label": "Wait for large rendered topology"
-        }
-      }
-    },
-    {
-      "id": "record-graph-size",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; performance.mark('bas.graph-load.ready'); window.localStorage.setItem('swarm-manager.perf.graph-load.size', JSON.stringify({ nodes, edges })); return { nodes, edges }; })()"
-        },
-        "metadata": {
-          "label": "Record rendered graph size for trace notes"
-        }
-      }
-    }
+  "id": "ccf0e82f-0ffd-488e-a588-5156a1a95043",
+  "project_id": "5139074a-06f7-4b93-a47f-9a9aaf3b4cd4",
+  "name": "graph-load",
+  "folder_path": "/bas/flows",
+  "description": "Load-only performance capture for the canonical Graph surface. Opens /graph, waits for rendered React Flow nodes and edges, and records graph size without driving interaction input.",
+  "tags": [
+    "interaction:load-only",
+    "intent:performance",
+    "reset:none"
   ],
-  "edges": [
-    { "source": "open-graph", "target": "wait-canvas" },
-    { "source": "wait-canvas", "target": "wait-rendered-topology" },
-    { "source": "wait-rendered-topology", "target": "record-graph-size" }
-  ]
+  "version": 1,
+  "created_at": "2026-08-09T11:26:50.615934176Z",
+  "updated_at": "2026-08-09T11:26:50.615934176Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1600,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-graph",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "swarm-manager",
+            "scenario_path": "/graph"
+          },
+          "metadata": {
+            "label": "Open the canonical Graph surface"
+          }
+        }
+      },
+      {
+        "id": "wait-canvas",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid='graph-canvas']",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Wait for the graph canvas"
+          }
+        }
+      },
+      {
+        "id": "wait-rendered-topology",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const deadline = Date.now() + 45000; while (Date.now() < deadline) { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; if (nodes >= 250 && edges >= 200) return { nodes, edges }; await new Promise((resolve) => setTimeout(resolve, 250)); } const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; throw new Error(`graph-load: topology evidence too small; nodes=${nodes}, edges=${edges}`); })()"
+          },
+          "metadata": {
+            "label": "Wait for large rendered topology"
+          }
+        }
+      },
+      {
+        "id": "record-graph-size",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; performance.mark('bas.graph-load.ready'); window.localStorage.setItem('swarm-manager.perf.graph-load.size', JSON.stringify({ nodes, edges })); return { nodes, edges }; })()"
+          },
+          "metadata": {
+            "label": "Record rendered graph size for trace notes"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "open-graph",
+        "target": "wait-canvas"
+      },
+      {
+        "source": "wait-canvas",
+        "target": "wait-rendered-topology"
+      },
+      {
+        "source": "wait-rendered-topology",
+        "target": "record-graph-size"
+      }
+    ]
+  }
 }

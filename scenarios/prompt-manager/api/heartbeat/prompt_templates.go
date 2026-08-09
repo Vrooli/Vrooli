@@ -4,6 +4,7 @@ import "fmt"
 
 const (
 	promptSectionKindAgentFile        = "agent-file"
+	promptSectionKindSharedDoctrine   = "shared-doctrine"
 	promptSectionKindActiveTaskBrief  = "active-task-brief"
 	promptSectionKindTeamInbox        = "team-inbox"
 	promptSectionKindTeamWake         = "team-context-wake"
@@ -41,7 +42,11 @@ type promptSectionKind struct {
 var promptSectionKinds = map[string]promptSectionKind{
 	// The agent-file heading belongs to the merged block that buildSections
 	// wraps around every adjacent agent-file section, not to each section.
-	promptSectionKindAgentFile:        {Label: "Agent File", Heading: "# Agent Files (Markdown)"},
+	promptSectionKindAgentFile: {Label: "Agent File", Heading: "# Agent Files (Markdown)"},
+	// Emitted first and byte-identical for every member in a given build mode.
+	// Anything member-specific belongs in a later section: a single varying byte
+	// here destroys the shared prefix this section exists to create.
+	promptSectionKindSharedDoctrine:   {Label: "Standing Rules", Heading: "# Standing Rules"},
 	promptSectionKindActiveTaskBrief:  {Label: "Active Task Brief", Heading: "# Active Task Brief"},
 	promptSectionKindTeamInbox:        {Label: "Team Inbox", Heading: "# Team Inbox"},
 	promptSectionKindTeamWake:         {Label: "Team Context Wake", Heading: "# Team Context Wake"},

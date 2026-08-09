@@ -1,99 +1,115 @@
 {
-  "metadata": {
-    "name": "graph-pinch-zoom",
-    "description": "Pinch-style interaction performance capture for the canonical Graph surface. Current BAS pinch support is wheel-backed, so this is a separate marked workload rather than proof of true multi-touch parity.",
-    "labels": {
-      "intent": "performance",
-      "reset": "none",
-      "interaction": "pinch-style-wheel"
-    },
-    "version": "1",
-    "execution_mode": "EXECUTION_MODE_OBSERVER"
-  },
-  "settings": {
-    "viewport_width": 390,
-    "viewport_height": 844
-  },
-  "nodes": [
-    {
-      "id": "open-graph",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "swarm-manager",
-          "scenario_path": "/graph",
-          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Open the canonical Graph surface"
-        }
-      }
-    },
-    {
-      "id": "wait-canvas",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid='graph-canvas']",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Wait for the graph canvas"
-        }
-      }
-    },
-    {
-      "id": "wait-rendered-topology",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(async () => { const deadline = Date.now() + 45000; while (Date.now() < deadline) { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; if (nodes >= 250 && edges >= 200) return { nodes, edges }; await new Promise((resolve) => setTimeout(resolve, 250)); } const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; throw new Error(`graph-pinch-zoom: topology evidence too small; nodes=${nodes}, edges=${edges}`); })()"
-        },
-        "metadata": {
-          "label": "Wait for large rendered topology"
-        }
-      }
-    },
-    {
-      "id": "record-graph-size",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; window.localStorage.setItem('swarm-manager.perf.graph-pinch-zoom.size', JSON.stringify({ nodes, edges })); return { nodes, edges }; })()"
-        },
-        "metadata": {
-          "label": "Record rendered graph size for trace notes"
-        }
-      }
-    },
-    {
-      "id": "pinch-style-zoom",
-      "action": {
-        "type": "ACTION_TYPE_GESTURE",
-        "gesture": {
-          "gesture_type": "GESTURE_TYPE_PINCH",
-          "selector": "[data-testid='graph-canvas']",
-          "duration_ms": 720,
-          "steps": 18,
-          "step_delay_ms": 40,
-          "wheel_delta_y": 170,
-          "ctrl_key": true,
-          "trace_label": "graph-pinch-zoom",
-          "idle_after_ms": 220
-        },
-        "metadata": {
-          "label": "Sustain a pinch-style graph zoom workload"
-        }
-      }
-    }
+  "id": "323b91bb-f74f-4ec5-a021-da65e64cfdc4",
+  "project_id": "5139074a-06f7-4b93-a47f-9a9aaf3b4cd4",
+  "name": "graph-pinch-zoom",
+  "folder_path": "/bas/flows",
+  "description": "Pinch-style interaction performance capture for the canonical Graph surface. Current BAS pinch support is wheel-backed, so this is a separate marked workload rather than proof of true multi-touch parity.",
+  "tags": [
+    "intent:performance",
+    "reset:none",
+    "interaction:pinch-style-wheel"
   ],
-  "edges": [
-    { "source": "open-graph", "target": "wait-canvas" },
-    { "source": "wait-canvas", "target": "wait-rendered-topology" },
-    { "source": "wait-rendered-topology", "target": "record-graph-size" },
-    { "source": "record-graph-size", "target": "pinch-style-zoom" }
-  ]
+  "version": 1,
+  "created_at": "2026-08-09T11:26:50.616672016Z",
+  "updated_at": "2026-08-09T11:26:50.616672016Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-graph",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "swarm-manager",
+            "scenario_path": "/graph"
+          },
+          "metadata": {
+            "label": "Open the canonical Graph surface"
+          }
+        }
+      },
+      {
+        "id": "wait-canvas",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid='graph-canvas']",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Wait for the graph canvas"
+          }
+        }
+      },
+      {
+        "id": "wait-rendered-topology",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const deadline = Date.now() + 45000; while (Date.now() < deadline) { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; if (nodes >= 250 && edges >= 200) return { nodes, edges }; await new Promise((resolve) => setTimeout(resolve, 250)); } const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; throw new Error(`graph-pinch-zoom: topology evidence too small; nodes=${nodes}, edges=${edges}`); })()"
+          },
+          "metadata": {
+            "label": "Wait for large rendered topology"
+          }
+        }
+      },
+      {
+        "id": "record-graph-size",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; window.localStorage.setItem('swarm-manager.perf.graph-pinch-zoom.size', JSON.stringify({ nodes, edges })); return { nodes, edges }; })()"
+          },
+          "metadata": {
+            "label": "Record rendered graph size for trace notes"
+          }
+        }
+      },
+      {
+        "id": "pinch-style-zoom",
+        "action": {
+          "type": "ACTION_TYPE_GESTURE",
+          "gesture": {
+            "gesture_type": "GESTURE_TYPE_PINCH",
+            "selector": "[data-testid='graph-canvas']",
+            "duration_ms": 720,
+            "steps": 18,
+            "step_delay_ms": 40,
+            "trace_label": "graph-pinch-zoom",
+            "idle_after_ms": 220,
+            "wheel_delta_y": 170,
+            "ctrl_key": true
+          },
+          "metadata": {
+            "label": "Sustain a pinch-style graph zoom workload"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "open-graph",
+        "target": "wait-canvas"
+      },
+      {
+        "source": "wait-canvas",
+        "target": "wait-rendered-topology"
+      },
+      {
+        "source": "wait-rendered-topology",
+        "target": "record-graph-size"
+      },
+      {
+        "source": "record-graph-size",
+        "target": "pinch-style-zoom"
+      }
+    ]
+  }
 }

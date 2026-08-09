@@ -1,65 +1,75 @@
 {
-  "metadata": {
-    "name": "plan-decision-drawer",
-    "description": "Performance capture for the ranked decision drawer. Opens /plan with the decision drawer routed open, waits for the ranked next-action list, and records how many entries rendered.",
-    "labels": {
-      "intent": "performance",
-      "reset": "none",
-      "interaction": "load-only"
-    },
-    "version": "1",
-    "execution_mode": "EXECUTION_MODE_OBSERVER"
-  },
-  "settings": {
-    "viewport_width": 1600,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "open-drawer",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "swarm-manager",
-          "scenario_path": "/plan?drawer=decisions",
-          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Open the Plan board with the decision drawer routed open"
-        }
-      }
-    },
-    {
-      "id": "wait-ranked-feed",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid='ranked-next-action-feed']",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Wait for the ranked next-action list"
-        }
-      }
-    },
-    {
-      "id": "record-feed-size",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const list = document.querySelector('[data-testid=\"ranked-next-action-feed\"]'); const entries = list ? list.querySelectorAll('article').length : 0; performance.mark('bas.plan-decision-drawer.ready'); window.localStorage.setItem('swarm-manager.perf.plan-decision-drawer.size', JSON.stringify({ entries })); return { entries }; })()"
-        },
-        "metadata": {
-          "label": "Record rendered ranked-entry count for trace notes"
-        }
-      }
-    }
+  "id": "a8fae3bf-e3d9-48ba-8cba-59ee6349911c",
+  "project_id": "5139074a-06f7-4b93-a47f-9a9aaf3b4cd4",
+  "name": "plan-decision-drawer",
+  "folder_path": "/bas/flows",
+  "description": "Performance capture for the ranked decision drawer. Opens /plan with the decision drawer routed open, waits for the ranked next-action list, and records how many entries rendered.",
+  "tags": [
+    "intent:performance",
+    "reset:none",
+    "interaction:load-only"
   ],
-  "edges": [
-    { "source": "open-drawer", "target": "wait-ranked-feed" },
-    { "source": "wait-ranked-feed", "target": "record-feed-size" }
-  ]
+  "version": 1,
+  "created_at": "2026-08-09T11:26:50.619649355Z",
+  "updated_at": "2026-08-09T11:26:50.619649355Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1600,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-drawer",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "swarm-manager",
+            "scenario_path": "/plan?drawer=decisions"
+          },
+          "metadata": {
+            "label": "Open the Plan board with the decision drawer routed open"
+          }
+        }
+      },
+      {
+        "id": "wait-ranked-feed",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid='ranked-next-action-feed']",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Wait for the ranked next-action list"
+          }
+        }
+      },
+      {
+        "id": "record-feed-size",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const list = document.querySelector('[data-testid=\"ranked-next-action-feed\"]'); const entries = list ? list.querySelectorAll('article').length : 0; performance.mark('bas.plan-decision-drawer.ready'); window.localStorage.setItem('swarm-manager.perf.plan-decision-drawer.size', JSON.stringify({ entries })); return { entries }; })()"
+          },
+          "metadata": {
+            "label": "Record rendered ranked-entry count for trace notes"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "open-drawer",
+        "target": "wait-ranked-feed"
+      },
+      {
+        "source": "wait-ranked-feed",
+        "target": "record-feed-size"
+      }
+    ]
+  }
 }

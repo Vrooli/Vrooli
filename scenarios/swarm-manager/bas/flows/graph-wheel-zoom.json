@@ -1,120 +1,139 @@
 {
-  "metadata": {
-    "name": "graph-wheel-zoom",
-    "description": "Interaction performance capture for sustained driver-level ctrl-wheel zoom in and out on the canonical Graph surface.",
-    "labels": {
-      "intent": "performance",
-      "reset": "none",
-      "interaction": "wheel-zoom"
-    },
-    "version": "1",
-    "execution_mode": "EXECUTION_MODE_OBSERVER"
-  },
-  "settings": {
-    "viewport_width": 1600,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "open-graph",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "swarm-manager",
-          "scenario_path": "/graph",
-          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Open the canonical Graph surface"
-        }
-      }
-    },
-    {
-      "id": "wait-canvas",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid='graph-canvas']",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Wait for the graph canvas"
-        }
-      }
-    },
-    {
-      "id": "wait-rendered-topology",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(async () => { const deadline = Date.now() + 45000; while (Date.now() < deadline) { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; if (nodes >= 250 && edges >= 200) return { nodes, edges }; await new Promise((resolve) => setTimeout(resolve, 250)); } const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; throw new Error(`graph-wheel-zoom: topology evidence too small; nodes=${nodes}, edges=${edges}`); })()"
-        },
-        "metadata": {
-          "label": "Wait for large rendered topology"
-        }
-      }
-    },
-    {
-      "id": "record-graph-size",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; window.localStorage.setItem('swarm-manager.perf.graph-wheel-zoom.size', JSON.stringify({ nodes, edges })); return { nodes, edges }; })()"
-        },
-        "metadata": {
-          "label": "Record rendered graph size for trace notes"
-        }
-      }
-    },
-    {
-      "id": "wheel-zoom-in",
-      "action": {
-        "type": "ACTION_TYPE_GESTURE",
-        "gesture": {
-          "gesture_type": "GESTURE_TYPE_ZOOM",
-          "selector": "[data-testid='graph-canvas']",
-          "duration_ms": 640,
-          "steps": 16,
-          "step_delay_ms": 40,
-          "wheel_delta_y": -150,
-          "ctrl_key": true,
-          "trace_label": "graph-wheel-zoom-in",
-          "idle_after_ms": 160
-        },
-        "metadata": {
-          "label": "Sustain driver-level wheel zoom in"
-        }
-      }
-    },
-    {
-      "id": "wheel-zoom-out",
-      "action": {
-        "type": "ACTION_TYPE_GESTURE",
-        "gesture": {
-          "gesture_type": "GESTURE_TYPE_ZOOM",
-          "selector": "[data-testid='graph-canvas']",
-          "duration_ms": 640,
-          "steps": 16,
-          "step_delay_ms": 40,
-          "wheel_delta_y": 150,
-          "ctrl_key": true,
-          "trace_label": "graph-wheel-zoom-out",
-          "idle_after_ms": 220
-        },
-        "metadata": {
-          "label": "Sustain driver-level wheel zoom out"
-        }
-      }
-    }
+  "id": "5dbb857f-3f12-4b9e-8656-9c7e55e3940b",
+  "project_id": "5139074a-06f7-4b93-a47f-9a9aaf3b4cd4",
+  "name": "graph-wheel-zoom",
+  "folder_path": "/bas/flows",
+  "description": "Interaction performance capture for sustained driver-level ctrl-wheel zoom in and out on the canonical Graph surface.",
+  "tags": [
+    "intent:performance",
+    "reset:none",
+    "interaction:wheel-zoom"
   ],
-  "edges": [
-    { "source": "open-graph", "target": "wait-canvas" },
-    { "source": "wait-canvas", "target": "wait-rendered-topology" },
-    { "source": "wait-rendered-topology", "target": "record-graph-size" },
-    { "source": "record-graph-size", "target": "wheel-zoom-in" },
-    { "source": "wheel-zoom-in", "target": "wheel-zoom-out" }
-  ]
+  "version": 1,
+  "created_at": "2026-08-09T11:26:50.618359686Z",
+  "updated_at": "2026-08-09T11:26:50.618359686Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1600,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-graph",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "swarm-manager",
+            "scenario_path": "/graph"
+          },
+          "metadata": {
+            "label": "Open the canonical Graph surface"
+          }
+        }
+      },
+      {
+        "id": "wait-canvas",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid='graph-canvas']",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Wait for the graph canvas"
+          }
+        }
+      },
+      {
+        "id": "wait-rendered-topology",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const deadline = Date.now() + 45000; while (Date.now() < deadline) { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; if (nodes >= 250 && edges >= 200) return { nodes, edges }; await new Promise((resolve) => setTimeout(resolve, 250)); } const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; throw new Error(`graph-wheel-zoom: topology evidence too small; nodes=${nodes}, edges=${edges}`); })()"
+          },
+          "metadata": {
+            "label": "Wait for large rendered topology"
+          }
+        }
+      },
+      {
+        "id": "record-graph-size",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; window.localStorage.setItem('swarm-manager.perf.graph-wheel-zoom.size', JSON.stringify({ nodes, edges })); return { nodes, edges }; })()"
+          },
+          "metadata": {
+            "label": "Record rendered graph size for trace notes"
+          }
+        }
+      },
+      {
+        "id": "wheel-zoom-in",
+        "action": {
+          "type": "ACTION_TYPE_GESTURE",
+          "gesture": {
+            "gesture_type": "GESTURE_TYPE_ZOOM",
+            "selector": "[data-testid='graph-canvas']",
+            "duration_ms": 640,
+            "steps": 16,
+            "step_delay_ms": 40,
+            "trace_label": "graph-wheel-zoom-in",
+            "idle_after_ms": 160,
+            "wheel_delta_y": -150,
+            "ctrl_key": true
+          },
+          "metadata": {
+            "label": "Sustain driver-level wheel zoom in"
+          }
+        }
+      },
+      {
+        "id": "wheel-zoom-out",
+        "action": {
+          "type": "ACTION_TYPE_GESTURE",
+          "gesture": {
+            "gesture_type": "GESTURE_TYPE_ZOOM",
+            "selector": "[data-testid='graph-canvas']",
+            "duration_ms": 640,
+            "steps": 16,
+            "step_delay_ms": 40,
+            "trace_label": "graph-wheel-zoom-out",
+            "idle_after_ms": 220,
+            "wheel_delta_y": 150,
+            "ctrl_key": true
+          },
+          "metadata": {
+            "label": "Sustain driver-level wheel zoom out"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "open-graph",
+        "target": "wait-canvas"
+      },
+      {
+        "source": "wait-canvas",
+        "target": "wait-rendered-topology"
+      },
+      {
+        "source": "wait-rendered-topology",
+        "target": "record-graph-size"
+      },
+      {
+        "source": "record-graph-size",
+        "target": "wheel-zoom-in"
+      },
+      {
+        "source": "wheel-zoom-in",
+        "target": "wheel-zoom-out"
+      }
+    ]
+  }
 }

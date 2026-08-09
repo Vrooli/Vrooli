@@ -640,6 +640,85 @@ func ruleTeamRoleMemberDrift(opts ValidationOptions) []Finding {
 					memberID, teamID),
 			})
 		}
+
+		out = append(out, checkRelationBindingDrift(opts.StoreDir, teamID, memberIDs)...)
+	}
+	return out
+}
+
+// checkRelationBindingDrift compares store/relations/team-member/ against the
+// team contract's member set, in both directions.
+//
+// Membership is written on three surfaces — roles.json, the team contract, and
+// the relation store — and the two loops above compare only the first two. The
+// relation store was the unchecked one, which is how the 2026-07-28
+// marketing-crew consolidation left four relation records binding agents that
+// had been retired: roles.json and the contract agreed, so nothing fired, and
+// the records survived twelve days. They were not inert. The prompt-matrix
+// endpoint enumerates members from the relation store, so a stale record puts
+// a member that cannot run into a team's rendered roster.
+//
+// Silent when StoreDir is unset or the relations directory is absent: unit
+// tests that pass synthetic contracts with no backing tree get no findings
+// rather than spurious drift.
+func checkRelationBindingDrift(storeDir, teamID string, memberIDs map[string]bool) []Finding {
+	storeDir = strings.TrimSpace(storeDir)
+	if storeDir == "" {
+		return nil
+	}
+	dir := filepath.Join(storeDir, "relations", "team-member")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+
+	prefix := teamID + "__"
+	bound := map[string]bool{}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, ".json") {
+			continue
+		}
+		agentID := strings.TrimSuffix(strings.TrimPrefix(name, prefix), ".json")
+		if agentID == "" {
+			continue
+		}
+		bound[agentID] = true
+	}
+
+	var out []Finding
+	orphaned := make([]string, 0, len(bound))
+	for agentID := range bound {
+		if !memberIDs[agentID] {
+			orphaned = append(orphaned, agentID)
+		}
+	}
+	sort.Strings(orphaned)
+	for _, agentID := range orphaned {
+		out = append(out, Finding{
+			Rule:     "team_role_member_drift",
+			Severity: SeverityError,
+			Team:     teamID, Member: agentID,
+			Detail: fmt.Sprintf("relations/team-member/%s%s.json binds agent %q to team %q but the team contract has no such member; delete the relation record, or add the member if the binding is intended",
+				prefix, agentID, agentID, teamID),
+		})
+	}
+
+	unbound := make([]string, 0, len(memberIDs))
+	for memberID := range memberIDs {
+		if !bound[memberID] {
+			unbound = append(unbound, memberID)
+		}
+	}
+	sort.Strings(unbound)
+	for _, memberID := range unbound {
+		out = append(out, Finding{
+			Rule:     "team_role_member_drift",
+			Severity: SeverityError,
+			Team:     teamID, Member: memberID,
+			Detail: fmt.Sprintf("member %q on team %q has no relations/team-member/%s%s.json record; create it, or drop the member from the contract",
+				memberID, teamID, prefix, memberID),
+		})
 	}
 	return out
 }

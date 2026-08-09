@@ -10,6 +10,7 @@ import (
 
 	"prompt-manager/interop"
 	"prompt-manager/memberflow"
+	"prompt-manager/sourceledger"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/teamcontract"
@@ -155,6 +156,12 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			}
 		}
 
+		// Standing rules lead so the prompt opens with a block that is identical
+		// for every member; the task sandwich still holds because the brief
+		// precedes every *context* section, and standing rules are framing
+		// rather than context.
+		sections = append(sections, newPromptSection(promptSectionKindSharedDoctrine, "", buildSharedDoctrineSection(includeHeartbeat)))
+
 		// The heartbeat prompt uses an intentional task sandwich: the active
 		// brief comes first so every later context section is read through the
 		// current job, while the full HEARTBEAT.md and final reminder stay near
@@ -244,22 +251,32 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 // view. The wake is context, not authority: the section tells the member to
 // use the authoritative storage map and unified work feed for current state.
 func (b *PromptBuilder) buildTeamContextWakeSection(ctx context.Context, teamID string) (string, error) {
-	entries, err := b.teamStore.WakeTeamCorpus(ctx, teamID)
+	wake, err := b.teamStore.WakeTeamCorpus(ctx, teamID)
 	if err != nil {
 		return "", fmt.Errorf("reading team source-ledger wake: %w", err)
 	}
 	if !b.teamStore.HasSourceLedger() {
 		return "", nil
 	}
+	return renderTeamContextWakeSection(teamID, wake), nil
+}
 
+func renderTeamContextWakeSection(teamID string, wake sourceledger.WakeResult) string {
 	var section strings.Builder
 	section.WriteString(promptHeading(promptSectionKindTeamWake) + "\n\n")
 	section.WriteString("Bounded ambient context from the `team:" + teamID + "` Source Ledger scope. This is orientation, not authority; use the Storage Map and unified work feed for current state.\n\n")
-	if len(entries) == 0 {
-		section.WriteString("No durable team context has been recorded yet.")
-		return section.String(), nil
+	if wake.Overflow {
+		section.WriteString(fmt.Sprintf("This view was truncated: %d memories were refused by the Source Ledger ceilings. Retrieve the complete context with `source-ledger recall \"<query>\" --scope=team:%s`.", wake.Refused, teamID))
+		if len(wake.Entries) == 0 {
+			return section.String()
+		}
+		section.WriteString("\n\n")
 	}
-	for _, entry := range entries {
+	if len(wake.Entries) == 0 {
+		section.WriteString("No durable team context has been recorded yet.")
+		return section.String()
+	}
+	for _, entry := range wake.Entries {
 		body := strings.TrimSpace(entry.Body)
 		if body == "" {
 			continue
@@ -268,7 +285,7 @@ func (b *PromptBuilder) buildTeamContextWakeSection(ctx context.Context, teamID 
 		section.WriteString(strings.ReplaceAll(body, "\n", "\n  "))
 		section.WriteString("\n")
 	}
-	return strings.TrimRight(section.String(), "\n"), nil
+	return strings.TrimRight(section.String(), "\n")
 }
 
 // BuildStructured returns the prompt as a list of structured sections.
@@ -285,6 +302,52 @@ func (b *PromptBuilder) buildTopicContractSection(teamID, agentID string) string
 		return ""
 	}
 	return RenderTopicContract(in)
+}
+
+// buildSharedDoctrineSection renders the standing rules every member gets.
+//
+// It is emitted first and is byte-identical for every member in a given build
+// mode. That is the entire point: the doctrine below was previously interleaved
+// with member-specific text inside `# Storage Map` and `# Active Task Brief`,
+// so no two prompts shared a prefix and the same ~1.6k tokens were re-sent to
+// every member on every tick with nothing cacheable. Keep it constant — one
+// member-specific byte here and the shared prefix is gone.
+//
+// includeHeartbeat is the only permitted variation: naming the heartbeat
+// section in the precedence list when the build omits it would rank a heading
+// the reader cannot find. All heartbeat builds still share one prefix.
+func buildSharedDoctrineSection(includeHeartbeat bool) string {
+	var section strings.Builder
+	section.WriteString(promptHeading(promptSectionKindSharedDoctrine) + "\n\n")
+	section.WriteString("## Where things go\n\n")
+	section.WriteString("Use persistent storage only when information must survive this run.\n\n")
+	section.WriteString("| To record | Use | Notes |\n|---|---|---|\n")
+	section.WriteString("| Continuity for your next run | final `## HANDOFF` section | Next-run memory, not canonical truth |\n")
+	section.WriteString("| Evidence, measurements, findings | `source-ledger journal note` in scope `team:<id>` | Typed-topic registry: `docs/agent-system/TOPICS.md` |\n")
+	section.WriteString("| Broken code or scenario behavior | `prompt-manager skill read report-bug` | Writes `bug-inbox/*` on `scenario-qa` |\n")
+	section.WriteString("| Something missing, confusing, or repeatedly worked around | `prompt-manager skill read report-friction` | Writes `friction-inbox/*` on `meta-optimization` |\n")
+	section.WriteString("| A raw observation | `swarm-manager captures create` | Read dispositions with `swarm-manager backlog list --actor-id=<verified-profile-key>` |\n")
+	section.WriteString("| A shaped outcome | `swarm-manager backlog create` | Same disposition read path |\n")
+	section.WriteString("| Live team objects you maintain | team working state | Only the files named in your operating contract |\n\n")
+	section.WriteString("One-off friction not worth filing goes in handoff. When your contract requires a handoff, write it as the last section of your final response and then stop — do not wait for confirmation inside the same run.\n\n")
+	section.WriteString("## Authority order — the world\n\n")
+	section.WriteString("When sources disagree about what is true or accepted:\n\n")
+	section.WriteString("1. Operator instruction in the current run\n2. Accepted plan-of-record docs\n3. Accepted work dispositions\n4. Team working state\n5. Knowledge log evidence\n6. Handoff\n\n")
+	section.WriteString("## Authority order — this prompt\n\n")
+	section.WriteString("When sections of this prompt disagree, the later rule yields to the earlier one:\n\n")
+	rank := 1
+	writeRank := func(text string) {
+		section.WriteString(fmt.Sprintf("%d. %s\n", rank, text))
+		rank++
+	}
+	writeRank("Operator instruction given during this run")
+	writeRank("Your contract — `" + promptHeading(promptSectionKindActiveTaskBrief) + "`, `" + promptHeading(promptSectionKindOperatingPolicy) + "`, `" + promptHeading(promptSectionKindTopicContract) + "`. Write surfaces and safety-critical rules bind the task; the task cannot widen them.")
+	if includeHeartbeat {
+		writeRank("`" + promptHeading(promptSectionKindHeartbeatTask) + "` — the job for this run")
+	}
+	writeRank("`" + promptHeading(promptSectionKindResponsibilities) + "` and `" + promptHeading(promptSectionKindAgentFile) + "` — standing guidance that a task may override")
+	writeRank("`" + promptHeading(promptSectionKindLastHandoff) + "` — prior-run notes, never authority")
+	return strings.TrimRight(section.String(), "\n")
 }
 
 type memberStoragePolicy struct {
@@ -340,47 +403,20 @@ func buildActiveTaskBriefSection(team *store.Team, agentID string, includeHeartb
 		section.WriteString("The active heartbeat task is intentionally omitted from member context.\n\n")
 	}
 	section.WriteString(renderWriteSurface(policy))
-	section.WriteString("## Required Memory\n\n")
-	if len(policy.RequiredReadPrefixes) == 0 {
-		section.WriteString("Knowledge topics: none declared\n\n")
-	} else {
-		section.WriteString("Knowledge topics:\n")
+	// Omit rather than negate: a line saying a member has nothing declared
+	// costs tokens on every tick and tells the reader nothing it could act on.
+	if len(policy.RequiredReadPrefixes) > 0 {
+		section.WriteString("## Required Memory\n\nKnowledge topics:\n")
 		for _, topic := range policy.RequiredReadPrefixes {
 			section.WriteString("- `" + topic + "`\n")
 		}
 		section.WriteString("\n")
 	}
-	section.WriteString("Handoff:\n")
 	if policy.RequiresHandoff {
-		section.WriteString("- End with `## HANDOFF` as the final response section when the team requires handoff persistence.\n\n")
-	} else {
-		section.WriteString("- No required handoff declared for this member.\n\n")
+		section.WriteString("Handoff: end with `## HANDOFF` as the final response section.\n")
 	}
-	section.WriteString("Findings: file raw observations with `swarm-manager captures create`; file shaped outcomes with `swarm-manager backlog create`. Read your filed items with `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.\n\n")
-	// This block used to point at `# Storage Map`'s authority order to resolve
-	// section conflicts. That list ranks sources of truth about the world
-	// (plan of record, decisions, working state, knowledge, handoff) and names
-	// no prompt section, so it could not settle the conflicts it was cited for
-	// — for example RESPONSIBILITIES.md against the generated Topic Contract.
-	// The two questions are separate and now have separate answers.
-	section.WriteString("## Operating Rule\n\n")
-	section.WriteString("When sections of this prompt disagree, the later rule yields to the earlier one:\n\n")
-	rank := 1
-	writeRank := func(text string) {
-		section.WriteString(fmt.Sprintf("%d. %s\n", rank, text))
-		rank++
-	}
-	writeRank("Operator instruction given during this run")
-	writeRank("Your contract — `" + promptHeading(promptSectionKindActiveTaskBrief) + "`, `" + promptHeading(promptSectionKindOperatingPolicy) + "`, `" + promptHeading(promptSectionKindTopicContract) + "`. Write surfaces and safety-critical rules bind the task; the task cannot widen them.")
-	// The context-only build omits the heartbeat task, so naming it here would
-	// rank a section the reader cannot find.
-	if includeHeartbeat {
-		writeRank("`" + promptHeading(promptSectionKindHeartbeatTask) + "` — the job for this run")
-	}
-	writeRank("`" + promptHeading(promptSectionKindResponsibilities) + "` and `" + promptHeading(promptSectionKindAgentFile) + "` — standing guidance that a task may override")
-	writeRank("`" + promptHeading(promptSectionKindLastHandoff) + "` — prior-run notes, never authority")
-	section.WriteString("\nThat order settles disagreements between sections. For disagreements about the state of the world — what is accepted, current, or true — use the authority order in `" + promptHeading(promptSectionKindStorageMap) + "` instead.")
-	return section.String()
+	// Conflict precedence and work-filing routes are in `# Standing Rules`.
+	return strings.TrimRight(section.String(), "\n")
 }
 
 func buildTaskReminderSection(team *store.Team, agentID string, heartbeatInstructions string) string {
@@ -467,11 +503,13 @@ func firstHeartbeatTaskHeading(markdown string) string {
 // for the same member: both read the same policy, computed once per build.
 // TestWriteSurfaceSitesMoveTogether pins that across a declaration change.
 func renderWriteSurface(policy memberStoragePolicy) string {
+	if len(policy.AllowedWriteLabels) == 0 && len(policy.ForbiddenWriteLabels) == 0 {
+		return ""
+	}
 	var out strings.Builder
 	out.WriteString("## Write Surface\n\n")
 	writeList := func(heading string, labels []string) {
 		if len(labels) == 0 {
-			out.WriteString(heading + ": none declared\n\n")
 			return
 		}
 		out.WriteString(heading + ":\n")
@@ -881,50 +919,12 @@ func (b *PromptBuilder) buildStorageMapSection(team *store.Team, agentID string)
 		return "", nil
 	}
 
+	// Doctrine that is the same for every member lives in
+	// `# Standing Rules`. This section carries only what differs by team and
+	// member: the declared storage surfaces and the commands this member may
+	// actually run.
 	var section strings.Builder
-	section.WriteString(promptHeading(promptSectionKindStorageMap) + `
-
-Use persistent storage only when information should survive this run.
-
-## Continue
-
-Use your final ` + "`## HANDOFF`" + ` for short-term continuity.
-
-Write what your next run needs to know: what changed, what remains open, what to check first, and any blockers. Handoff is not canonical truth. It is next-run memory.
-
-## Observe
-
-Use the knowledge log for structured observations from this heartbeat: evidence, measurements, snapshots, findings, and concrete friction signals.
-
-When an observation has a clear typed destination — another member's inbox topic, or a concrete-typed topic that another member drains — record the prose once with ` + "`source-ledger journal note`" + ` in the team's ` + "`team:<id>`" + ` scope, then file any resulting work through swarm-manager. If no typed topic fits, use ` + "`report-friction`" + ` for system/process friction. The full registry of inboxes and other typed topics is ` + "`docs/agent-system/TOPICS.md`" + `.
-
-For broken scenario or code behavior — bugs of any kind: code defects, regressions, prompt confusion, data-shape mismatches, unexpected errors — load ` + "`prompt-manager skill read report-bug`" + ` and follow it. The skill writes to ` + "`bug-inbox/<signal-type>/<slug>`" + ` on ` + "`scenario-qa`" + `, where the bug-investigator drains. ` + "`bug-inbox/*`" + ` is the universal-source intake any team's members write to.
-
-If something expected was missing, broken, confusing, slow, undocumented, or harder than it should have been, capture it as friction. For structural friction — a skill that misled you, a tool that's missing, a doc you couldn't find, a workaround you keep repeating — load ` + "`prompt-manager skill read report-friction`" + ` and follow it. The skill writes to ` + "`friction-inbox/<scope>/<slug>`" + ` on ` + "`meta-optimization`" + `, where the friction-curator drains and routes to the appropriate sub-member or to debt-curator for synthesis. For situational, one-off friction not worth filing, mention it in handoff.
-
-## Propose
-
-File work for review in the unified swarm-manager stream.
-
-Use ` + "`swarm-manager captures create`" + ` for a raw observation and ` + "`swarm-manager backlog create`" + ` for a shaped outcome. Include the evidence, intended result, and target destination. Read the operator disposition later with ` + "`swarm-manager backlog list --actor-id=<verified-profile-key>`" + ` and ` + "`swarm-manager backlog get`" + `.
-
-## Operate
-
-Use team working state for live team objects you are assigned to maintain.
-
-Working state is team-local operational memory: task boards, ledgers, registers, rolling audits, append-only logs, and operator input files. It is not automatically canonical outside the team. Update only the working-state files named in your operating contract.
-
-## Authority Order
-
-When sources disagree, prefer:
-
-1. Operator instruction in the current run
-2. Accepted plan-of-record docs
-3. Accepted work dispositions
-4. Team working state
-5. Knowledge log evidence
-6. Handoff
-`)
+	section.WriteString(promptHeading(promptSectionKindStorageMap) + "\n\nYour declared surfaces. Routing rules and authority order are in `" + promptHeading(promptSectionKindSharedDoctrine) + "`.\n")
 
 	teamStorage, err := teamcontract.RenderTeamStorage(team.OperatingContract, teamcontract.RenderInput{
 		TeamID:         team.ID,
@@ -967,6 +967,9 @@ func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team, a
 		lines = append(lines, "")
 	}
 
+	// Every block below is omitted when the member cannot use it. A command
+	// list that says a command is unavailable is pure prompt weight: the
+	// member cannot act on it, and its absence carries the same information.
 	if teamconfig.ShouldShowTaskBoardGuidance(contract) {
 		lines = append(lines, "### Task Board")
 		lines = append(lines, "")
@@ -974,18 +977,9 @@ func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team, a
 		if policy.CanWriteTask {
 			lines = append(lines, fmt.Sprintf("- Add a task: `prompt-manager team task-add %s --by=<agent-id> --title \"...\"`", team.ID))
 			lines = append(lines, fmt.Sprintf("- Update a task: `prompt-manager team task-update %s <task-id> --status=in-progress`", team.ID))
-		} else {
-			lines = append(lines, "- Task writes are not allowed for this member.")
 		}
 		lines = append(lines, "")
 	}
-
-	lines = append(lines, "### Unified Work Filing")
-	lines = append(lines, "")
-	lines = append(lines, "- File a raw observation once: `swarm-manager captures create`.")
-	lines = append(lines, "- File a shaped outcome once: `swarm-manager backlog create`.")
-	lines = append(lines, "- Read your dispositions: `swarm-manager backlog list --actor-id=<verified-profile-key>` and `swarm-manager backlog get`.")
-	lines = append(lines, "")
 
 	if teamconfig.ShouldShowKnowledgeLogGuidance(contract) {
 		lines = append(lines, "### Knowledge Log")
@@ -993,17 +987,7 @@ func (b *PromptBuilder) buildAvailableStorageCommandsSection(team *store.Team, a
 		lines = append(lines, fmt.Sprintf("- Recall team context: `source-ledger recall \"<query>\" --scope=team:%s`", team.ID))
 		if policy.CanWriteKnowledge {
 			lines = append(lines, fmt.Sprintf("- Record durable team context: `source-ledger journal note \"<prose>\" --scope=team:%s --kind=team-knowledge`", team.ID))
-		} else {
-			lines = append(lines, "- Knowledge writes are not allowed for this member.")
 		}
-		lines = append(lines, "")
-	}
-
-	if teamconfig.RequiresHandoff(contract) {
-		lines = append(lines, "### Handoff")
-		lines = append(lines, "")
-		lines = append(lines, "- End your final response with `## HANDOFF` as the last section so prompt-manager can persist continuity automatically.")
-		lines = append(lines, "- After writing the handoff, stop. Do not wait for extra confirmation inside the same run.")
 		lines = append(lines, "")
 	}
 

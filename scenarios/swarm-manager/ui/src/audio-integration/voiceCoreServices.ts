@@ -11,6 +11,8 @@ import { WhisperProvider } from "./hooks/voice/WhisperProvider";
 import { WebSpeechProvider } from "./hooks/voice/WebSpeechProvider";
 import { PcmVoiceStreamProvider } from "./hooks/voice/PcmVoiceStreamProvider";
 
+// HOST DIFFERENCE: narrow swarm adapter for its API/proto clients and browser
+// fallback providers; lifecycle/orchestration lives in the shared package.
 // The package owns orchestration and lifecycle policy. This object is the
 // deliberately narrow scenario boundary for API calls and browser-provider
 // implementations that cannot be shared across hosts.

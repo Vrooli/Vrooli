@@ -1,78 +1,91 @@
 {
-  "metadata": {
-    "name": "plan-board-load",
-    "description": "Load-only performance capture for the Plan board. Opens /plan, waits for the board frame and rendered cards, and records card counts without driving interaction input.",
-    "labels": {
-      "intent": "performance",
-      "reset": "none",
-      "interaction": "load-only"
-    },
-    "version": "1",
-    "execution_mode": "EXECUTION_MODE_OBSERVER"
-  },
-  "settings": {
-    "viewport_width": 1600,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "open-plan",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "swarm-manager",
-          "scenario_path": "/plan",
-          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Open the Plan board"
-        }
-      }
-    },
-    {
-      "id": "wait-board",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid='plan-board']",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Wait for the board frame"
-        }
-      }
-    },
-    {
-      "id": "wait-rendered-cards",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(async () => { const deadline = Date.now() + 45000; while (Date.now() < deadline) { const cards = document.querySelectorAll('[data-testid^=\"plan-card\"], article').length; if (cards >= 20) return { cards }; await new Promise((resolve) => setTimeout(resolve, 250)); } const cards = document.querySelectorAll('[data-testid^=\"plan-card\"], article').length; throw new Error(`plan-board-load: board evidence too small; cards=${cards}`); })()"
-        },
-        "metadata": {
-          "label": "Wait for rendered board cards"
-        }
-      }
-    },
-    {
-      "id": "record-board-size",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const cards = document.querySelectorAll('[data-testid^=\"plan-card\"], article').length; performance.mark('bas.plan-board-load.ready'); window.localStorage.setItem('swarm-manager.perf.plan-board-load.size', JSON.stringify({ cards })); return { cards }; })()"
-        },
-        "metadata": {
-          "label": "Record rendered board size for trace notes"
-        }
-      }
-    }
+  "id": "d90ec19e-7e5e-4a84-9887-82b39ef960b3",
+  "project_id": "5139074a-06f7-4b93-a47f-9a9aaf3b4cd4",
+  "name": "plan-board-load",
+  "folder_path": "/bas/flows",
+  "description": "Load-only performance capture for the Plan board. Opens /plan, waits for the board frame and rendered cards, and records card counts without driving interaction input.",
+  "tags": [
+    "intent:performance",
+    "reset:none",
+    "interaction:load-only"
   ],
-  "edges": [
-    { "source": "open-plan", "target": "wait-board" },
-    { "source": "wait-board", "target": "wait-rendered-cards" },
-    { "source": "wait-rendered-cards", "target": "record-board-size" }
-  ]
+  "version": 1,
+  "created_at": "2026-08-09T11:26:50.619069426Z",
+  "updated_at": "2026-08-09T11:26:50.619069426Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1600,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-plan",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "swarm-manager",
+            "scenario_path": "/plan"
+          },
+          "metadata": {
+            "label": "Open the Plan board"
+          }
+        }
+      },
+      {
+        "id": "wait-board",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid='plan-board']",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Wait for the board frame"
+          }
+        }
+      },
+      {
+        "id": "wait-rendered-cards",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const deadline = Date.now() + 45000; while (Date.now() < deadline) { const cards = document.querySelectorAll('[data-testid^=\"plan-card\"], article').length; if (cards >= 20) return { cards }; await new Promise((resolve) => setTimeout(resolve, 250)); } const cards = document.querySelectorAll('[data-testid^=\"plan-card\"], article').length; throw new Error(`plan-board-load: board evidence too small; cards=${cards}`); })()"
+          },
+          "metadata": {
+            "label": "Wait for rendered board cards"
+          }
+        }
+      },
+      {
+        "id": "record-board-size",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const cards = document.querySelectorAll('[data-testid^=\"plan-card\"], article').length; performance.mark('bas.plan-board-load.ready'); window.localStorage.setItem('swarm-manager.perf.plan-board-load.size', JSON.stringify({ cards })); return { cards }; })()"
+          },
+          "metadata": {
+            "label": "Record rendered board size for trace notes"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "open-plan",
+        "target": "wait-board"
+      },
+      {
+        "source": "wait-board",
+        "target": "wait-rendered-cards"
+      },
+      {
+        "source": "wait-rendered-cards",
+        "target": "record-board-size"
+      }
+    ]
+  }
 }

@@ -20,6 +20,9 @@
 // IMPORTANT: this file lives verbatim in audio-tools/ui (canonical) and
 // is copied into each consumer scenario. Update the source here, then
 // copy to web-console/ui and swarm-manager/ui.
+// HOST DIFFERENCE: swarm-manager imports the canonical audio-tools enum;
+// web-console uses a local string-facing enum to avoid a foreign scenario
+// proto. The wire-level slugs remain identical.
 
 import { AudioToolsFeature } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 

@@ -191,7 +191,7 @@ The discriminator is: gates replace pipeline-stage separation and never replace 
 2. Author its tool skill against that surface. Route to `team-tool-mapping`.
 3. Run the state import. Verify counts per source file.
 4. Edit the team contract. Remove the absorbed declarations.
-5. Collapse the roster. Delete the removed members' files.
+5. Collapse the roster. A removed member is written on four surfaces; delete all four. `path:scenarios/prompt-manager/store/teams/<team>/members/<member>/`, `path:scenarios/prompt-manager/store/relations/team-member/<team>__<member>.json`, the member's entry in that team's `roles.json`, and `path:scenarios/prompt-manager/store/agents/<agent-id>/` when no other team binds that agent.
 6. Propose the canon edits by decision.
 7. Run the team's contract validators.
 8. Resume the team.
@@ -247,7 +247,7 @@ You may:
 You must:
 - Preserve every state surface an importer has not yet consumed.
 - Keep adversarial separation.
-- Reassign every ownership reference held by a removed member, and confirm no reference points at a member that no longer exists.
+- Reassign every ownership reference held by a removed member, then run `prompt-manager graph topics` and confirm it reports zero `team_role_member_drift` findings. That rule compares `roles.json`, the team contract, and the relation store against each other in both directions; a removed member surviving on any one surface fails it.
 - Route plan-of-record canon edits through the owning work type.
 - Report the validator state after the pass, including findings you left open and why.
 

@@ -29,12 +29,20 @@ future agents more capable. Full vision: VISION.md.
 4. **Scenario lifecycle**: manage via `make start|test|logs|stop` (preferred) or
    `vrooli scenario start <name>`. **NEVER** run binaries directly (`./api/…`, `nohup …`,
    `cd scenario && ./lib/develop.sh`) — it bypasses process naming, ports, and health checks.
+   **Host remediation ownership**: detection and remediation of host state belong in the
+   control plane (`internal/`); scenarios may observe, schedule, and report that state but
+   must not carry a private host-repair implementation. Enforcement is by review of the
+   owning control-plane handler and its package tests.
 5. **Bug reports & work logging**: Unless the active workflow explicitly owns these operations,
    defect outside your scope → `prompt-manager skill read report-bug` (a skill, not a shell
-   command) and file to scenario-qa. Completed non-trivial work → `swarm-manager records create`
+   command) and file to scenario-qa. Completed non-trivial work → `vrooli-memory journal note --kind work-record` with trigger, approach, evidence, and outcome.
    (the write side of the learning loop).
 6. **Recall → Discover → Capture** (reflex, not a checklist):
    - Recall: before non-trivial work, `search-hub query "<intent>" --type record,skill,doc`.
+     Plan status is computed from the phase set, not from intent: `draft` = no phase started
+     (a finalized, never-started plan reports `draft` forever), `active` = some phase started
+     (an abandoned run reports `active` forever). Neither is an ownership claim — judge by last
+     activity, and never report an existing plan as a reason to stop.
    - Discover: before hand-rolling ops, `prompt-manager discover "<operation-1>" "<operation-2>" --type all`; decompose broad work into generic reusable operations/capabilities, not scenario-specific plan titles.
    - Capture: reusable win → `prompt-manager action create …`; messy/partial → `swarm-manager
      captures create …`.
@@ -53,6 +61,7 @@ What is the user doing?
 ├─ Brainstorming/workshopping a new idea  → prompt-manager skill read idea-workshop
 ├─ Debugging a non-obvious issue          → prompt-manager skill read scientific-debugging
 ├─ Creating an implementation plan        → prompt-manager skill read implementation-plan-authoring
+├─ Executing/implementing an existing plan → prompt-manager skill read implementation-plan-execution
 ├─ Changing a scenario that already exists → prompt-manager skill read scenario-work-ladder
 ├─ Creating a scenario that does not exist yet → prompt-manager skill read ecosystem-fit
 ├─ Deploying/publishing a scenario        → prompt-manager skill read deployment-coordinator
@@ -84,3 +93,11 @@ When reading docs, treat marked references like `path:docs/README.md` or `topic:
 ---
 
 **For detailed documentation, development guidelines, and comprehensive examples, see [/docs/README.md](/docs/README.md)**
+<!-- vrooli-memory:prompt-block:start -->
+## Durable memory
+Record durable rules, important environment facts, decisions, outcomes, and hard-won gotchas in your native memory when they will help a future agent. Do not record transient chat or telemetry. The generated memory wake block is read-only ambient context: never edit, compact, reorder, or summarize it. When this harness exposes a native memory tool, use it; supported native writes are captured by vrooli-memory. When it does not, use `vrooli-memory journal note` to write directly to the shared ledger. Never edit a generated projection file to save a memory.
+<!-- vrooli-memory:prompt-block:end -->
+
+
+
+

@@ -1,168 +1,196 @@
 {
-  "metadata": {
-    "name": "graph-large-topology",
-    "description": "Performance capture for the single Graph surface: open /graph, wait for React Flow topology nodes, pan and zoom the canvas, then select a representative node so performance-health can attribute large-graph load and interaction cost. Assertion-free by design.",
-    "labels": {
-      "intent": "performance",
-      "reset": "none"
-    },
-    "version": "1",
-    "execution_mode": "EXECUTION_MODE_OBSERVER"
-  },
-  "settings": {
-    "viewport_width": 1600,
-    "viewport_height": 900
-  },
-  "nodes": [
-    {
-      "id": "open-graph",
-      "action": {
-        "type": "ACTION_TYPE_NAVIGATE",
-        "navigate": {
-          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
-          "scenario": "swarm-manager",
-          "scenario_path": "/graph",
-          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Open the canonical Graph surface"
-        }
-      }
-    },
-    {
-      "id": "wait-canvas",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid='graph-canvas']",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 30000
-        },
-        "metadata": {
-          "label": "Wait for the graph canvas"
-        }
-      }
-    },
-    {
-      "id": "wait-rendered-nodes",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(async () => { const deadline = Date.now() + 45000; while (Date.now() < deadline) { const nodes = document.querySelectorAll('.react-flow__node').length; if (nodes > 0) return nodes; await new Promise((resolve) => setTimeout(resolve, 250)); } throw new Error('graph-large-topology: timed out waiting for rendered topology nodes'); })()"
-        },
-        "metadata": {
-          "label": "Wait for topology nodes"
-        }
-      }
-    },
-    {
-      "id": "record-graph-size",
-      "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; window.localStorage.setItem('swarm-manager.perf.graph-large-topology.size', JSON.stringify({ nodes, edges })); return { nodes, edges }; })()"
-        },
-        "metadata": {
-          "label": "Record rendered graph size for the trace notes"
-        }
-      }
-    },
-    {
-      "id": "sustained-pan",
-      "action": {
-        "type": "ACTION_TYPE_GESTURE",
-        "gesture": {
-          "gesture_type": "GESTURE_TYPE_SWIPE",
-          "selector": "[data-testid='graph-canvas']",
-          "direction": "SWIPE_DIRECTION_RIGHT",
-          "distance": 520,
-          "duration_ms": 900,
-          "steps": 36,
-          "step_delay_ms": 25,
-          "trace_label": "graph-sustained-pan",
-          "idle_after_ms": 150
-        },
-        "metadata": {
-          "label": "Sustain a driver-level graph pan"
-        }
-      }
-    },
-    {
-      "id": "wheel-zoom-in",
-      "action": {
-        "type": "ACTION_TYPE_GESTURE",
-        "gesture": {
-          "gesture_type": "GESTURE_TYPE_ZOOM",
-          "selector": "[data-testid='graph-canvas']",
-          "duration_ms": 480,
-          "steps": 12,
-          "step_delay_ms": 40,
-          "wheel_delta_y": -160,
-          "ctrl_key": true,
-          "trace_label": "graph-wheel-zoom-in",
-          "idle_after_ms": 120
-        },
-        "metadata": {
-          "label": "Sustain driver-level wheel zoom in"
-        }
-      }
-    },
-    {
-      "id": "wheel-zoom-out",
-      "action": {
-        "type": "ACTION_TYPE_GESTURE",
-        "gesture": {
-          "gesture_type": "GESTURE_TYPE_PINCH",
-          "selector": "[data-testid='graph-canvas']",
-          "duration_ms": 360,
-          "steps": 9,
-          "step_delay_ms": 40,
-          "wheel_delta_y": 180,
-          "ctrl_key": true,
-          "trace_label": "graph-wheel-zoom-out",
-          "idle_after_ms": 120
-        },
-        "metadata": {
-          "label": "Sustain driver-level wheel zoom out"
-        }
-      }
-    },
-    {
-      "id": "select-node",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": ".react-flow__node"
-        },
-        "metadata": {
-          "label": "Select a rendered topology node"
-        }
-      }
-    },
-    {
-      "id": "wait-selection-panel",
-      "action": {
-        "type": "ACTION_TYPE_WAIT",
-        "wait": {
-          "selector": "[data-testid='node-inspector']",
-          "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 15000
-        },
-        "metadata": {
-          "label": "Wait for selected-node inspector"
-        }
-      }
-    }
+  "id": "a4805cde-c7ad-4fab-abcc-af5ced632073",
+  "project_id": "5139074a-06f7-4b93-a47f-9a9aaf3b4cd4",
+  "name": "graph-large-topology",
+  "folder_path": "/bas/flows",
+  "description": "Performance capture for the single Graph surface: open /graph, wait for React Flow topology nodes, pan and zoom the canvas, then select a representative node so performance-health can attribute large-graph load and interaction cost. Assertion-free by design.",
+  "tags": [
+    "intent:performance",
+    "reset:none"
   ],
-  "edges": [
-    { "source": "open-graph", "target": "wait-canvas" },
-    { "source": "wait-canvas", "target": "wait-rendered-nodes" },
-    { "source": "wait-rendered-nodes", "target": "record-graph-size" },
-    { "source": "record-graph-size", "target": "sustained-pan" },
-    { "source": "sustained-pan", "target": "wheel-zoom-in" },
-    { "source": "wheel-zoom-in", "target": "wheel-zoom-out" },
-    { "source": "wheel-zoom-out", "target": "select-node" },
-    { "source": "select-node", "target": "wait-selection-panel" }
-  ]
+  "version": 1,
+  "created_at": "2026-08-09T11:26:50.615137446Z",
+  "updated_at": "2026-08-09T11:26:50.615137446Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1600,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-graph",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "swarm-manager",
+            "scenario_path": "/graph"
+          },
+          "metadata": {
+            "label": "Open the canonical Graph surface"
+          }
+        }
+      },
+      {
+        "id": "wait-canvas",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid='graph-canvas']",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Wait for the graph canvas"
+          }
+        }
+      },
+      {
+        "id": "wait-rendered-nodes",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const deadline = Date.now() + 45000; while (Date.now() < deadline) { const nodes = document.querySelectorAll('.react-flow__node').length; if (nodes > 0) return nodes; await new Promise((resolve) => setTimeout(resolve, 250)); } throw new Error('graph-large-topology: timed out waiting for rendered topology nodes'); })()"
+          },
+          "metadata": {
+            "label": "Wait for topology nodes"
+          }
+        }
+      },
+      {
+        "id": "record-graph-size",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const nodes = document.querySelectorAll('.react-flow__node').length; const edges = document.querySelectorAll('.react-flow__edge').length; window.localStorage.setItem('swarm-manager.perf.graph-large-topology.size', JSON.stringify({ nodes, edges })); return { nodes, edges }; })()"
+          },
+          "metadata": {
+            "label": "Record rendered graph size for the trace notes"
+          }
+        }
+      },
+      {
+        "id": "sustained-pan",
+        "action": {
+          "type": "ACTION_TYPE_GESTURE",
+          "gesture": {
+            "gesture_type": "GESTURE_TYPE_SWIPE",
+            "selector": "[data-testid='graph-canvas']",
+            "direction": "SWIPE_DIRECTION_RIGHT",
+            "distance": 520,
+            "duration_ms": 900,
+            "steps": 36,
+            "step_delay_ms": 25,
+            "trace_label": "graph-sustained-pan",
+            "idle_after_ms": 150
+          },
+          "metadata": {
+            "label": "Sustain a driver-level graph pan"
+          }
+        }
+      },
+      {
+        "id": "wheel-zoom-in",
+        "action": {
+          "type": "ACTION_TYPE_GESTURE",
+          "gesture": {
+            "gesture_type": "GESTURE_TYPE_ZOOM",
+            "selector": "[data-testid='graph-canvas']",
+            "duration_ms": 480,
+            "steps": 12,
+            "step_delay_ms": 40,
+            "trace_label": "graph-wheel-zoom-in",
+            "idle_after_ms": 120,
+            "wheel_delta_y": -160,
+            "ctrl_key": true
+          },
+          "metadata": {
+            "label": "Sustain driver-level wheel zoom in"
+          }
+        }
+      },
+      {
+        "id": "wheel-zoom-out",
+        "action": {
+          "type": "ACTION_TYPE_GESTURE",
+          "gesture": {
+            "gesture_type": "GESTURE_TYPE_PINCH",
+            "selector": "[data-testid='graph-canvas']",
+            "duration_ms": 360,
+            "steps": 9,
+            "step_delay_ms": 40,
+            "trace_label": "graph-wheel-zoom-out",
+            "idle_after_ms": 120,
+            "wheel_delta_y": 180,
+            "ctrl_key": true
+          },
+          "metadata": {
+            "label": "Sustain driver-level wheel zoom out"
+          }
+        }
+      },
+      {
+        "id": "select-node",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": ".react-flow__node"
+          },
+          "metadata": {
+            "label": "Select a rendered topology node"
+          }
+        }
+      },
+      {
+        "id": "wait-selection-panel",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid='node-inspector']",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for selected-node inspector"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "open-graph",
+        "target": "wait-canvas"
+      },
+      {
+        "source": "wait-canvas",
+        "target": "wait-rendered-nodes"
+      },
+      {
+        "source": "wait-rendered-nodes",
+        "target": "record-graph-size"
+      },
+      {
+        "source": "record-graph-size",
+        "target": "sustained-pan"
+      },
+      {
+        "source": "sustained-pan",
+        "target": "wheel-zoom-in"
+      },
+      {
+        "source": "wheel-zoom-in",
+        "target": "wheel-zoom-out"
+      },
+      {
+        "source": "wheel-zoom-out",
+        "target": "select-node"
+      },
+      {
+        "source": "select-node",
+        "target": "wait-selection-panel"
+      }
+    ]
+  }
 }

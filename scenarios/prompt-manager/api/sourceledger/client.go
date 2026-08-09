@@ -52,6 +52,19 @@ type Entry struct {
 	ID, Body, FacetID, Kind, CreatedAt string
 }
 
+// WakeResult preserves the Source Ledger's bounded-view signal at the
+// prompt-manager boundary. Entries are the view; the remaining fields explain
+// whether the view is complete and which ceilings governed it.
+type WakeResult struct {
+	Entries     []Entry
+	Overflow    bool
+	Refused     int
+	LinesUsed   int
+	CharsUsed   int
+	BudgetLines int
+	BudgetChars int
+}
+
 type Client struct {
 	Journal       journalconnect.JournalServiceClient
 	RecallService recallconnect.RecallServiceClient
@@ -133,16 +146,20 @@ func (c *Client) Recall(ctx context.Context, scope, query string, limit int) ([]
 	return entries, nil
 }
 
-func (c *Client) Wake(ctx context.Context, scope string, budget int) ([]Entry, error) {
+func (c *Client) Wake(ctx context.Context, scope string, budget int) (WakeResult, error) {
 	response, err := c.RecallService.Wake(ctx, connect.NewRequest(&recallv1.WakeRequest{Scope: scope, LineBudget: int32(budget)}))
 	if err != nil {
-		return nil, fmt.Errorf("wake source-ledger scope: %w", err)
+		return WakeResult{}, fmt.Errorf("wake source-ledger scope: %w", err)
 	}
 	entries := make([]Entry, 0, len(response.Msg.GetHits()))
 	for _, hit := range response.Msg.GetHits() {
 		entries = append(entries, Entry{ID: hit.GetEntryId(), Body: hit.GetText(), FacetID: hit.GetFacetId()})
 	}
-	return entries, nil
+	return WakeResult{
+		Entries: entries, Overflow: response.Msg.GetOverflow(), Refused: int(response.Msg.GetRefused()),
+		LinesUsed: int(response.Msg.GetLinesUsed()), CharsUsed: int(response.Msg.GetCharsUsed()),
+		BudgetLines: int(response.Msg.GetBudgetLines()), BudgetChars: int(response.Msg.GetBudgetChars()),
+	}, nil
 }
 
 func fromProto(entry *journalv1.Entry) Entry {

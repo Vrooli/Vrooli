@@ -1,8 +1,15 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
     "design": {
       "id": "vrooli-default",
       "version": "0.2.0",
@@ -299,6 +306,7 @@
     },
     "freshness": {
       "inputs": [
+        "api/**",
         "cli/**",
         ".vrooli/service.json"
       ]

@@ -24,7 +24,7 @@ func TopicRuleCatalog() (RuleCatalog, error) {
 		entry("unknown_taxonomy", SeverityError, "A topic declaration names an unregistered taxonomy."),
 		entry("missing_destination_schema", SeverityWarning, "A destination topic has no declared storage schema."),
 		entry("dangling_por_sink", SeverityError, "A topic flow points to a missing plan-of-record sink."),
-		entry("team_role_member_drift", SeverityError, "A team role and its member declaration disagree."),
+		entry("team_role_member_drift", SeverityError, "A team's membership surfaces disagree: roles.json, the team contract, and the relation store must name the same members."),
 		runtime("stalled_drain", SeverityWarning, "A declared intake has unrouted entries older than the team's drain threshold."),
 		runtime("piling_inbox", SeverityWarning, "A declared intake is accumulating unrouted entries faster than it drains."),
 		runtime("drain_status_unavailable", SeverityWarning, "Drain status cannot be read, so intake health is unknown this cycle."),

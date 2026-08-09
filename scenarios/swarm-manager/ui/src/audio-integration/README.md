@@ -10,5 +10,9 @@ New adopters must follow
 and use the shared `@vrooli/audio-capture-browser` package with a scenario
 transport adapter.
 
-The files that remain here are swarm-manager's themed adapters during the
-shared-package migration.
+The shipped model is deliberately split: `@vrooli/audio-capture-browser`
+owns the protocol, journal, capture lifecycle, state machine, provider
+contract, and shared UI-facing types. This directory contains only
+swarm-manager's same-origin API/proto adapters, configuration context, and
+presentation bindings. A local file must either re-export the package or
+document a genuine host difference with `HOST DIFFERENCE`.

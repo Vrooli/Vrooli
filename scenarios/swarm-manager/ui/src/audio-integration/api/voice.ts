@@ -3,6 +3,8 @@
 // Calls swarm-manager's own AudioAdminService + AudioRuntimeService via
 // the same-origin Connect transport. The UI never talks to audio-tools
 // directly — swarm-manager's API owns the inter-scenario hop.
+// HOST DIFFERENCE: this adapter uses swarm-manager's Connect transport and
+// generated scenario proto package; the browser substrate is shared below it.
 
 import { create } from "@bufbuild/protobuf";
 import { createClient as createConnectClient } from "@connectrpc/connect";
