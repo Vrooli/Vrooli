@@ -28,16 +28,16 @@ func TestDetectWindowsPackageManagerOrder(t *testing.T) {
 	}
 }
 
-func TestWindowsHostSupportsProvisioningOnly(t *testing.T) {
+func TestWindowsHostSupportsProvisioningAndDevelopment(t *testing.T) {
 	hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
 	host := currentHost()
-	if !host.SupportsSetup || host.SupportsDevelop {
+	if !host.SupportsSetup || !host.SupportsDevelop {
 		t.Fatalf("host support = setup %t develop %t", host.SupportsSetup, host.SupportsDevelop)
 	}
 	if err := host.ValidateSetup(); err != nil {
 		t.Fatalf("ValidateSetup: %v", err)
 	}
-	if err := host.ValidateDevelop(); err == nil {
-		t.Fatal("ValidateDevelop should remain unsupported on Windows")
+	if err := host.ValidateDevelop(); err != nil {
+		t.Fatalf("ValidateDevelop: %v", err)
 	}
 }

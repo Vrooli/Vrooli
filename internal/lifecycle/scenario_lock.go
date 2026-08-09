@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	platform "github.com/vrooli/platform-go"
 )
 
 // scenarioLockDirName is the subdirectory under Home where per-scenario
@@ -25,9 +27,12 @@ const scenarioLockDirName = ".vrooli/state/locks"
 // "another invocation is already running for this scenario."
 var ErrScenarioBusy = errors.New("scenario is already being started, stopped, or restarted")
 
-// lockFileFlockFn is the kernel call used to take the advisory lock.
-// Tests override it to simulate contention without taking real kernel
-// locks.
+// lockFileFn is the platform seam used to take the advisory lock. Tests
+// override it to simulate contention without taking real kernel locks.
+var lockFileFn = func(file *os.File, nonBlocking bool) (func(), error) {
+	return platform.LockFile(file, nonBlocking)
+}
+
 // lockFileOpenFn opens the lock file; tests override to inject failures.
 var lockFileOpenFn = func(name string, flag int, perm os.FileMode) (*os.File, error) {
 	return os.OpenFile(name, flag, perm)
@@ -86,11 +91,12 @@ func (r *Runner) acquireScenarioLock(name string) (func(), error) {
 		mu.Unlock()
 		return nil, fmt.Errorf("open scenario lock %s: %w", lockPath, err)
 	}
-	if err := lockFileFlockFn(int(f.Fd()), scenarioLockExclusiveNonblock); err != nil {
+	releaseFile, err := lockFileFn(f, true)
+	if err != nil {
 		holder := readLockHolderPID(f)
 		_ = f.Close()
 		mu.Unlock()
-		if isScenarioLockContention(err) {
+		if errors.Is(err, platform.ErrLockUnavailable) {
 			if holder > 0 {
 				return nil, fmt.Errorf("%w: %q (held by pid %d)", ErrScenarioBusy, name, holder)
 			}
@@ -112,7 +118,7 @@ func (r *Runner) acquireScenarioLock(name string) (func(), error) {
 			return
 		}
 		released = true
-		_ = lockFileFlockFn(int(f.Fd()), scenarioLockUnlock)
+		releaseFile()
 		_ = f.Close()
 		mu.Unlock()
 	}, nil

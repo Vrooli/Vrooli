@@ -89,18 +89,24 @@ class RefreshProjectionRequest(_message.Message):
     def __init__(self, runtime: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class RefreshProjectionResponse(_message.Message):
-    __slots__ = ("path", "size_bytes", "overflow", "dry_run", "rendered_content")
+    __slots__ = ("path", "size_bytes", "overflow", "dry_run", "rendered_content", "size_lines", "byte_cap", "line_cap")
     PATH_FIELD_NUMBER: _ClassVar[int]
     SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
     OVERFLOW_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     RENDERED_CONTENT_FIELD_NUMBER: _ClassVar[int]
+    SIZE_LINES_FIELD_NUMBER: _ClassVar[int]
+    BYTE_CAP_FIELD_NUMBER: _ClassVar[int]
+    LINE_CAP_FIELD_NUMBER: _ClassVar[int]
     path: str
     size_bytes: int
     overflow: bool
     dry_run: bool
     rendered_content: str
-    def __init__(self, path: _Optional[str] = ..., size_bytes: _Optional[int] = ..., overflow: _Optional[bool] = ..., dry_run: _Optional[bool] = ..., rendered_content: _Optional[str] = ...) -> None: ...
+    size_lines: int
+    byte_cap: int
+    line_cap: int
+    def __init__(self, path: _Optional[str] = ..., size_bytes: _Optional[int] = ..., overflow: _Optional[bool] = ..., dry_run: _Optional[bool] = ..., rendered_content: _Optional[str] = ..., size_lines: _Optional[int] = ..., byte_cap: _Optional[int] = ..., line_cap: _Optional[int] = ...) -> None: ...
 
 class InstallPromptBlockRequest(_message.Message):
     __slots__ = ("runtime",)
@@ -153,7 +159,7 @@ class MaintenanceRun(_message.Message):
     def __init__(self, id: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., outcomes: _Optional[_Iterable[_Union[MaintenanceOutcome, _Mapping]]] = ...) -> None: ...
 
 class MaintenanceOutcome(_message.Message):
-    __slots__ = ("runtime", "import_status", "import_error", "projection_status", "projection_error", "started_at", "completed_at")
+    __slots__ = ("runtime", "import_status", "import_error", "projection_status", "projection_error", "started_at", "completed_at", "projection_size_bytes", "projection_size_lines", "projection_byte_cap", "projection_line_cap")
     RUNTIME_FIELD_NUMBER: _ClassVar[int]
     IMPORT_STATUS_FIELD_NUMBER: _ClassVar[int]
     IMPORT_ERROR_FIELD_NUMBER: _ClassVar[int]
@@ -161,6 +167,10 @@ class MaintenanceOutcome(_message.Message):
     PROJECTION_ERROR_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_SIZE_LINES_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_BYTE_CAP_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_LINE_CAP_FIELD_NUMBER: _ClassVar[int]
     runtime: str
     import_status: str
     import_error: str
@@ -168,4 +178,8 @@ class MaintenanceOutcome(_message.Message):
     projection_error: str
     started_at: str
     completed_at: str
-    def __init__(self, runtime: _Optional[str] = ..., import_status: _Optional[str] = ..., import_error: _Optional[str] = ..., projection_status: _Optional[str] = ..., projection_error: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ...) -> None: ...
+    projection_size_bytes: int
+    projection_size_lines: int
+    projection_byte_cap: int
+    projection_line_cap: int
+    def __init__(self, runtime: _Optional[str] = ..., import_status: _Optional[str] = ..., import_error: _Optional[str] = ..., projection_status: _Optional[str] = ..., projection_error: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., projection_size_bytes: _Optional[int] = ..., projection_size_lines: _Optional[int] = ..., projection_byte_cap: _Optional[int] = ..., projection_line_cap: _Optional[int] = ...) -> None: ...

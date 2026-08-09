@@ -270,6 +270,11 @@ func TestRepairIsIdempotent(t *testing.T) {
 
 // TestEncryptedKeyringIsNotADefect keeps password-protected hosts — the
 // majority — from being told their keyring is broken because it is binary.
+//
+// It must not swing to the opposite error either. This test previously asserted
+// Loadable==true for an opaque file, which made "we could not look" and "we
+// looked and it is fine" the same answer. A wedged host then read as healthy.
+// The contract is now: no defects claimed, and no verdict claimed.
 func TestEncryptedKeyringIsNotADefect(t *testing.T) {
 	path := writeKeyring(t, "GnomeKeyring\n\r\x00\n\x00\x01binary payload")
 
@@ -277,8 +282,35 @@ func TestEncryptedKeyringIsNotADefect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InspectKeyringFile: %v", err)
 	}
-	if !report.Loadable || len(report.Defects) != 0 {
+	if len(report.Defects) != 0 {
 		t.Fatalf("encrypted keyring reported defective: %+v", report)
+	}
+	if report.Format != keyringFormatEncrypted {
+		t.Fatalf("Format = %q, want %q", report.Format, keyringFormatEncrypted)
+	}
+	if report.Assessed {
+		t.Fatalf("Assessed = true for an opaque file: %+v", report)
+	}
+	if report.Loadable {
+		t.Fatal("Loadable = true without an assessment; an unreadable file must never report a clean verdict")
+	}
+}
+
+// TestPlaintextKeyringIsAssessed is the other half of the contract: a file this
+// package really can parse must carry a real verdict, or the honesty fix would
+// have been achieved by never answering anything.
+func TestPlaintextKeyringIsAssessed(t *testing.T) {
+	path := writeKeyring(t, keyringFixture(keyringEntry("1", "One", "a", "org.gnome.RemoteDesktop", "rdp")))
+
+	report, err := InspectKeyringFile(path)
+	if err != nil {
+		t.Fatalf("InspectKeyringFile: %v", err)
+	}
+	if report.Format != keyringFormatPlaintext {
+		t.Fatalf("Format = %q, want %q", report.Format, keyringFormatPlaintext)
+	}
+	if !report.Assessed || !report.Loadable {
+		t.Fatalf("a clean plaintext keyring must report an affirmative verdict: %+v", report)
 	}
 }
 

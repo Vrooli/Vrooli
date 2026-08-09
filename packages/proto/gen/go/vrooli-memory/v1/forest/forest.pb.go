@@ -108,6 +108,7 @@ func (x *Node) GetCompactionScore() float64 {
 type RunCompactionPassRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	MaxClusters   int32                  `protobuf:"varint,2,opt,name=max_clusters,json=maxClusters,proto3" json:"max_clusters,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -149,11 +150,21 @@ func (x *RunCompactionPassRequest) GetScope() string {
 	return ""
 }
 
+func (x *RunCompactionPassRequest) GetMaxClusters() int32 {
+	if x != nil {
+		return x.MaxClusters
+	}
+	return 0
+}
+
 type RunCompactionPassResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	CompactedCount int32                  `protobuf:"varint,1,opt,name=compacted_count,json=compactedCount,proto3" json:"compacted_count,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	CompactedCount         int32                  `protobuf:"varint,1,opt,name=compacted_count,json=compactedCount,proto3" json:"compacted_count,omitempty"`
+	EligibleFrontierBefore int32                  `protobuf:"varint,2,opt,name=eligible_frontier_before,json=eligibleFrontierBefore,proto3" json:"eligible_frontier_before,omitempty"`
+	EligibleFrontierAfter  int32                  `protobuf:"varint,3,opt,name=eligible_frontier_after,json=eligibleFrontierAfter,proto3" json:"eligible_frontier_after,omitempty"`
+	Target                 int32                  `protobuf:"varint,4,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *RunCompactionPassResponse) Reset() {
@@ -189,6 +200,27 @@ func (*RunCompactionPassResponse) Descriptor() ([]byte, []int) {
 func (x *RunCompactionPassResponse) GetCompactedCount() int32 {
 	if x != nil {
 		return x.CompactedCount
+	}
+	return 0
+}
+
+func (x *RunCompactionPassResponse) GetEligibleFrontierBefore() int32 {
+	if x != nil {
+		return x.EligibleFrontierBefore
+	}
+	return 0
+}
+
+func (x *RunCompactionPassResponse) GetEligibleFrontierAfter() int32 {
+	if x != nil {
+		return x.EligibleFrontierAfter
+	}
+	return 0
+}
+
+func (x *RunCompactionPassResponse) GetTarget() int32 {
+	if x != nil {
+		return x.Target
 	}
 	return 0
 }
@@ -500,11 +532,15 @@ const file_vrooli_memory_v1_forest_forest_proto_rawDesc = "" +
 	"\bfacet_id\x18\x03 \x01(\tR\afacetId\x12\x14\n" +
 	"\x05depth\x18\x04 \x01(\x05R\x05depth\x12\x1b\n" +
 	"\tchild_ids\x18\x05 \x03(\tR\bchildIds\x12)\n" +
-	"\x10compaction_score\x18\x06 \x01(\x01R\x0fcompactionScore\"0\n" +
+	"\x10compaction_score\x18\x06 \x01(\x01R\x0fcompactionScore\"S\n" +
 	"\x18RunCompactionPassRequest\x12\x14\n" +
-	"\x05scope\x18\x01 \x01(\tR\x05scope\"D\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12!\n" +
+	"\fmax_clusters\x18\x02 \x01(\x05R\vmaxClusters\"\xce\x01\n" +
 	"\x19RunCompactionPassResponse\x12'\n" +
-	"\x0fcompacted_count\x18\x01 \x01(\x05R\x0ecompactedCount\"@\n" +
+	"\x0fcompacted_count\x18\x01 \x01(\x05R\x0ecompactedCount\x128\n" +
+	"\x18eligible_frontier_before\x18\x02 \x01(\x05R\x16eligibleFrontierBefore\x126\n" +
+	"\x17eligible_frontier_after\x18\x03 \x01(\x05R\x15eligibleFrontierAfter\x12\x16\n" +
+	"\x06target\x18\x04 \x01(\x05R\x06target\"@\n" +
 	"\x12GetFrontierRequest\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n" +
 	"\x05scope\x18\x02 \x01(\tR\x05scope\"\x90\x01\n" +

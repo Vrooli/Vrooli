@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPromptBlockIsIdempotentAndDoesNotNameMemoryCommand(t *testing.T) { // [REQ:VMEM-P1-007]
+func TestPromptBlockIsIdempotentAndExplainsTheManagedWriteBoundary(t *testing.T) { // [REQ:VMEM-P1-007]
 	path := filepath.Join(t.TempDir(), "AGENTS.md")
 	require.NoError(t, os.WriteFile(path, []byte("# Existing\n"), 0o600))
 	require.NoError(t, InstallPromptBlock(path))
@@ -17,7 +17,9 @@ func TestPromptBlockIsIdempotentAndDoesNotNameMemoryCommand(t *testing.T) { // [
 	b, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, 1, strings.Count(string(b), promptStart))
-	require.NotContains(t, strings.ToLower(PromptBlock()), "vrooli-memory ")
+	require.Contains(t, PromptBlock(), "read-only ambient context")
+	require.Contains(t, PromptBlock(), "vrooli-memory journal note")
+	require.Contains(t, strings.ToLower(PromptBlock()), "never edit, compact, reorder, or summarize")
 }
 
 func TestPromptBlockMismatchIsRepairedToTheCanonicalBlock(t *testing.T) {
@@ -36,8 +38,12 @@ func TestPromptTargetsAreSeparateFromProjectionFiles(t *testing.T) {
 	require.NoError(t, err)
 	codex, err := PromptTarget("codex", root)
 	require.NoError(t, err)
+	gemini, err := PromptTarget("gemini", root)
+	require.NoError(t, err)
+	grok, err := PromptTarget("grok", root)
+	require.NoError(t, err)
 	require.Equal(t, filepath.Join(root, "CLAUDE.md"), claude)
 	require.Equal(t, filepath.Join(root, "AGENTS.md"), codex)
-	_, err = PromptTarget("grok", root)
-	require.Error(t, err)
+	require.Equal(t, filepath.Join(root, "GEMINI.md"), gemini)
+	require.Equal(t, filepath.Join(root, "MEMORY.md"), grok)
 }

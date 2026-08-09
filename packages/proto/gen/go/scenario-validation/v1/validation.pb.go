@@ -515,6 +515,10 @@ type ValidateScenarioRequest struct {
 	// runs Lighthouse-if-UI, persisting a sample), then gates on the result.
 	// Providers that only inspect ignore this flag.
 	IncludeExecution bool `protobuf:"varint,3,opt,name=include_execution,json=includeExecution,proto3" json:"include_execution,omitempty"`
+	// Optional capability-level execution subset. An empty list means the
+	// provider must evaluate its normal full capability set. Providers that
+	// honor this field must skip work for capabilities not named here.
+	CapabilitySubset []string `protobuf:"bytes,4,rep,name=capability_subset,json=capabilitySubset,proto3" json:"capability_subset,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -570,15 +574,23 @@ func (x *ValidateScenarioRequest) GetIncludeExecution() bool {
 	return false
 }
 
+func (x *ValidateScenarioRequest) GetCapabilitySubset() []string {
+	if x != nil {
+		return x.CapabilitySubset
+	}
+	return nil
+}
+
 type ValidateTargetRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Target           *v1.ValidationTarget   `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	IncludeExecution bool                   `protobuf:"varint,2,opt,name=include_execution,json=includeExecution,proto3" json:"include_execution,omitempty"`
 	// Physical path resolved by Test Genie for providers that need filesystem
 	// access. The target.root remains the stable repo-relative identity.
-	Path          string `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Path             string   `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	CapabilitySubset []string `protobuf:"bytes,4,rep,name=capability_subset,json=capabilitySubset,proto3" json:"capability_subset,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ValidateTargetRequest) Reset() {
@@ -630,6 +642,13 @@ func (x *ValidateTargetRequest) GetPath() string {
 		return x.Path
 	}
 	return ""
+}
+
+func (x *ValidateTargetRequest) GetCapabilitySubset() []string {
+	if x != nil {
+		return x.CapabilitySubset
+	}
+	return nil
 }
 
 type ValidateTargetResponse struct {
@@ -1021,9 +1040,10 @@ type StartValidationRunRequest struct {
 	// Optional target binding for an execution-backed validation run. The
 	// provider persists this identity and supplies it to the owned execution
 	// engine; omission means the normal static/browser validation path.
-	DesktopBinding *DesktopValidationBinding `protobuf:"bytes,5,opt,name=desktop_binding,json=desktopBinding,proto3" json:"desktop_binding,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	DesktopBinding   *DesktopValidationBinding `protobuf:"bytes,5,opt,name=desktop_binding,json=desktopBinding,proto3" json:"desktop_binding,omitempty"`
+	CapabilitySubset []string                  `protobuf:"bytes,6,rep,name=capability_subset,json=capabilitySubset,proto3" json:"capability_subset,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *StartValidationRunRequest) Reset() {
@@ -1087,6 +1107,13 @@ func (x *StartValidationRunRequest) GetParentRunId() string {
 func (x *StartValidationRunRequest) GetDesktopBinding() *DesktopValidationBinding {
 	if x != nil {
 		return x.DesktopBinding
+	}
+	return nil
+}
+
+func (x *StartValidationRunRequest) GetCapabilitySubset() []string {
+	if x != nil {
+		return x.CapabilitySubset
 	}
 	return nil
 }
@@ -1814,15 +1841,17 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\x12supports_execution\x18\x01 \x01(\bR\x11supportsExecution\x12#\n" +
 	"\rdelivery_mode\x18\x02 \x01(\tR\fdeliveryMode\x12%\n" +
 	"\x0esupports_fixes\x18\x03 \x01(\bR\rsupportsFixes\x12B\n" +
-	"\ftarget_kinds\x18\x04 \x03(\x0e2\x1f.common.v1.ValidationTargetKindR\vtargetKinds\"v\n" +
+	"\ftarget_kinds\x18\x04 \x03(\x0e2\x1f.common.v1.ValidationTargetKindR\vtargetKinds\"\xa3\x01\n" +
 	"\x17ValidateScenarioRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12+\n" +
-	"\x11include_execution\x18\x03 \x01(\bR\x10includeExecution\"\x8d\x01\n" +
+	"\x11include_execution\x18\x03 \x01(\bR\x10includeExecution\x12+\n" +
+	"\x11capability_subset\x18\x04 \x03(\tR\x10capabilitySubset\"\xba\x01\n" +
 	"\x15ValidateTargetRequest\x123\n" +
 	"\x06target\x18\x01 \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\x12+\n" +
 	"\x11include_execution\x18\x02 \x01(\bR\x10includeExecution\x12\x12\n" +
-	"\x04path\x18\x03 \x01(\tR\x04path\"\xc7\x02\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\x12+\n" +
+	"\x11capability_subset\x18\x04 \x03(\tR\x10capabilitySubset\"\xc7\x02\n" +
 	"\x16ValidateTargetResponse\x123\n" +
 	"\x06target\x18\x01 \x01(\v2\x1b.common.v1.ValidationTargetR\x06target\x12G\n" +
 	"\x06status\x18\x02 \x01(\x0e2/.vrooli.scenario_validation.v1.ValidationStatusR\x06status\x12=\n" +
@@ -1861,13 +1890,14 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\x0fterminal_result\x18\f \x01(\v27.vrooli.scenario_validation.v1.ValidateScenarioResponseR\x0eterminalResult\x12G\n" +
 	"\x05error\x18\r \x01(\v21.vrooli.scenario_validation.v1.ValidationRunErrorR\x05error\x12E\n" +
 	"\x13artifact_references\x18\x0e \x03(\v2\x14.google.protobuf.AnyR\x12artifactReferences\x125\n" +
-	"\x16cancellation_requested\x18\x0f \x01(\bR\x15cancellationRequested\"\xfa\x01\n" +
+	"\x16cancellation_requested\x18\x0f \x01(\bR\x15cancellationRequested\"\xa7\x02\n" +
 	"\x19StartValidationRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12'\n" +
 	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12\"\n" +
 	"\rparent_run_id\x18\x04 \x01(\tR\vparentRunId\x12`\n" +
-	"\x0fdesktop_binding\x18\x05 \x01(\v27.vrooli.scenario_validation.v1.DesktopValidationBindingR\x0edesktopBinding\"\xbc\x03\n" +
+	"\x0fdesktop_binding\x18\x05 \x01(\v27.vrooli.scenario_validation.v1.DesktopValidationBindingR\x0edesktopBinding\x12+\n" +
+	"\x11capability_subset\x18\x06 \x03(\tR\x10capabilitySubset\"\xbc\x03\n" +
 	"\x18DesktopValidationBinding\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12!\n" +
 	"\fcdp_endpoint\x18\x02 \x01(\tR\vcdpEndpoint\x12\x1f\n" +

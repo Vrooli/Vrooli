@@ -53,6 +53,9 @@ type RunParams struct {
 	RemotePath  string
 	Args        []string
 	PairingCode []byte
+	// SetupPassphrase follows PairingCode on the same stdin channel and is
+	// consumed only by the native final setup phase on a headless node.
+	SetupPassphrase []byte
 }
 
 // BootstrapResult is the terminal outcome of a remote bootstrap run.
@@ -68,6 +71,11 @@ type BootstrapResult struct {
 	// when the node produced no output. It never carries secret material: the
 	// pairing code rides stdin and the SSH password never reaches the node.
 	Diagnostics string
+	// NodeID is the locally converged node identity emitted by an idempotent
+	// bootstrap when the node was already paired. It is only a recovery fallback
+	// when no new enrollment row exists; fresh pairing still resolves through the
+	// durable enrollment correlation.
+	NodeID string
 }
 
 // SyncParams drives the working-tree ship: tar the RepoDir-relative Files and
@@ -121,6 +129,11 @@ type PrebuiltArtifacts struct {
 	AgentSidecar  string
 	Fingerprint   string
 	Target        NodePlatform
+	// VrooliBootstrapOnly is true for Darwin artifacts built on a non-Darwin
+	// control plane. Such an artifact may only run the bootstrap-only setup
+	// phase; the node must replace it with a native CGO-enabled build before
+	// pairing the agent or accepting jobs.
+	VrooliBootstrapOnly bool
 }
 
 // ArtifactBuilder cross-compiles the exact live tree for one detected node

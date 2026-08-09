@@ -1096,7 +1096,6 @@ func rebuildTestEnv(t *testing.T) (root, executable string) {
 	originalExecFn := execFn
 	originalNowFunc := nowFunc
 	originalExecutablePathFn := executablePathFn
-	originalFlockFn := flockFn
 	originalOpenFileFn := openFileFn
 	originalRenameFn := renameFn
 	t.Cleanup(func() {
@@ -1104,7 +1103,6 @@ func rebuildTestEnv(t *testing.T) (root, executable string) {
 		execFn = originalExecFn
 		nowFunc = originalNowFunc
 		executablePathFn = originalExecutablePathFn
-		flockFn = originalFlockFn
 		openFileFn = originalOpenFileFn
 		renameFn = originalRenameFn
 	})

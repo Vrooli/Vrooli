@@ -38,7 +38,7 @@
 - [x] OT-P1-004 | Supersession-aware summarization | When a candidate cluster contains contradicting entries, the summarization prompt should resolve them by recency rather than conjoining both claims.
 - [x] OT-P1-005 | Multi-space facet embedding | The system should embed several derived facet texts per memory so that clustering can group entries by more than one notion of relatedness.
 - [x] OT-P1-006 | Operator review surface | The system should provide a UI for browsing the journal, inspecting the frontier, and correcting a memory's facet or pinned state.
-- [x] OT-P1-007 | Harness prompt-block install | The system should install and update a prompt block that describes what is worth remembering, and shall not instruct the agent to call a specific memory command.
+- [x] OT-P1-007 | Harness prompt-block install | The system should install and update a prompt block that describes what is worth remembering, keeps the generated wake block read-only, prefers the harness's native memory write surface, and names `vrooli-memory journal note` as the explicit fallback when no native write surface exists.
 - [x] OT-P1-008 | Harness write capture | The system should capture native memory writes made through each harness's own tooling, via a pre-write hook where the runtime exposes one and store diff everywhere else.
 - [x] OT-P1-010 | Pinned-set bounding | The system should bound the pinned set by operator curation — proposing merges of redundant pins, lapsing pins that are not reconfirmed, and prompting a trade-off when a new pin would exceed the configured budget.
 

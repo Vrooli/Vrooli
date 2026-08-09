@@ -2,6 +2,8 @@ package onboard
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -195,10 +197,11 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		s.handleMarker(ctx, opID, &seq, m)
 	}
 	res, runErr := s.driver.RunBootstrap(ctx, RunParams{
-		Conn: conn, RemotePath: remotePath, Args: buildBootstrapArgs(in, wtSourceDir, wtDigest, remoteArtifacts), PairingCode: code,
+		Conn: conn, RemotePath: remotePath, Args: buildBootstrapArgs(in, wtSourceDir, wtDigest, remoteArtifacts), PairingCode: code, SetupPassphrase: in.SetupPassphrase,
 	}, onMarker)
 	// The code has served its one purpose — destroy our copy immediately.
 	zeroBytes(code)
+	zeroBytes(in.SetupPassphrase)
 	// Pairing may have completed before a later bootstrap/service-install failure.
 	// Resolve the durable correlation before interpreting that terminal process
 	// result so the recovery record never depends on free-text stdout markers.
@@ -207,6 +210,16 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		return
 	}
 	resolved, paired, resolveErr := s.resolver.ResolveEnrollment(ctx, correlationID)
+	if resolveErr != nil {
+		// A re-run after an interrupted install may find the node already paired,
+		// so bootstrap correctly skips code redemption and no new enrollment row is
+		// created. Accept only that typed no-row case and only with the node identity
+		// emitted by the local convergence marker; fresh pairing remains strictly
+		// correlation-resolved.
+		if errors.Is(resolveErr, sql.ErrNoRows) && res.NodeID != "" {
+			resolved, paired, resolveErr = res.NodeID, true, nil
+		}
+	}
 	if resolveErr != nil {
 		s.finishFailed(ctx, opID, &seq, FailurePairing, int32(res.ExitCode), "could not resolve durable pairing result: "+resolveErr.Error(), res.Diagnostics)
 		return
@@ -324,7 +337,11 @@ func (s *service) handleMarker(ctx context.Context, opID string, seq *uint64, m 
 // orchestrator pre-shipped and its content digest); the script then verifies that
 // tree instead of cloning, and keys its setup sentinel on the digest.
 func buildBootstrapArgs(in StartInput, wtSourceDir, wtDigest string, artifacts RemoteArtifacts) []string {
-	args := []string{"--control-plane-url", in.ControlPlaneURL, "--revision", in.TargetRevision}
+	// Bridge-owned onboarding always reconciles pairing. The node may contain a
+	// partial install from an earlier control-plane database or interrupted run;
+	// the pairing service makes same-key redemption idempotent while the explicit
+	// flag keeps direct/manual bootstrap conservative by default.
+	args := []string{"--control-plane-url", in.ControlPlaneURL, "--revision", in.TargetRevision, "--reconcile-pairing"}
 	if wtSourceDir != "" {
 		// Working-tree mode: point the script at the pre-synced tree and give it the
 		// content digest so a re-ship of changed work re-runs node-side setup.
@@ -377,6 +394,9 @@ func buildBootstrapArgs(in StartInput, wtSourceDir, wtDigest string, artifacts R
 	}
 	if in.IncludeOptional {
 		args = append(args, "--include-optional")
+	}
+	if len(in.SetupPassphrase) > 0 {
+		args = append(args, "--credential-passphrase-stdin")
 	}
 	return args
 }

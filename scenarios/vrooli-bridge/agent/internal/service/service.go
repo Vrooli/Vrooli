@@ -48,6 +48,12 @@ type Definition struct {
 	// for the provisioning helper. Empty installs under the installing user.
 	User string
 
+	// StandardOutPath and StandardErrorPath are optional native-supervisor log
+	// destinations. They are especially important for headless LaunchDaemons,
+	// where stdout/stderr otherwise point at /dev/null.
+	StandardOutPath   string
+	StandardErrorPath string
+
 	// RestartSeconds is the auto-restart backoff. 0 uses a sane default.
 	RestartSeconds int
 }
@@ -141,6 +147,12 @@ func LaunchdPlist(d Definition) (string, error) {
 	}
 	if d.User != "" {
 		fmt.Fprintf(&b, "  <key>UserName</key>\n  <string>%s</string>\n", plistValue(d.User))
+	}
+	if d.StandardOutPath != "" {
+		fmt.Fprintf(&b, "  <key>StandardOutPath</key>\n  <string>%s</string>\n", plistValue(d.StandardOutPath))
+	}
+	if d.StandardErrorPath != "" {
+		fmt.Fprintf(&b, "  <key>StandardErrorPath</key>\n  <string>%s</string>\n", plistValue(d.StandardErrorPath))
 	}
 	b.WriteString("  <key>RunAtLoad</key>\n  <true/>\n")
 	b.WriteString("  <key>KeepAlive</key>\n  <true/>\n")

@@ -42,12 +42,12 @@ const opTimeFormat = time.RFC3339Nano
 
 const (
 	insertOpSQL = `
-INSERT INTO onboarding_ops (id, host, port, user_name, node_name, target_revision, repo_url, state, node_id, correlation_id, failure_reason, failure_detail, control_plane_url, reachability_mode, exit_code, created_at, started_at, finished_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO onboarding_ops (id, host, port, user_name, node_name, target_revision, source_mode, repo_url, state, node_id, correlation_id, failure_reason, failure_detail, control_plane_url, reachability_mode, exit_code, created_at, started_at, finished_at)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	selectOpColumns = `
-SELECT id, host, port, user_name, node_name, target_revision, repo_url, state, node_id, correlation_id, failure_reason, failure_detail, control_plane_url, reachability_mode, exit_code, created_at, started_at, finished_at
+	SELECT id, host, port, user_name, node_name, target_revision, source_mode, repo_url, state, node_id, correlation_id, failure_reason, failure_detail, control_plane_url, reachability_mode, exit_code, created_at, started_at, finished_at
 FROM onboarding_ops
 `
 
@@ -86,7 +86,7 @@ func (s *sqliteRepository) Create(ctx context.Context, op Op) (Op, error) {
 		op.State = StatePending
 	}
 	if _, err := s.db.ExecContext(ctx, insertOpSQL,
-		op.ID, op.Host, op.Port, op.User, op.NodeName, op.TargetRevision, op.RepoURL,
+		op.ID, op.Host, op.Port, op.User, op.NodeName, op.TargetRevision, op.SourceMode.String(), op.RepoURL,
 		int(op.State), op.NodeID, op.CorrelationID, string(op.FailureReason), op.FailureDetail, op.ControlPlaneURL, op.ReachabilityMode, op.ExitCode,
 		op.CreatedAt.Format(opTimeFormat), formatNullableTime(op.StartedAt), formatNullableTime(op.FinishedAt),
 	); err != nil {
@@ -254,10 +254,16 @@ func scanOp(sc rowScanner) (Op, error) {
 		createdRaw  string
 		startedRaw  string
 		finishedRaw string
+		sourceMode  string
 	)
-	if err := sc.Scan(&op.ID, &op.Host, &op.Port, &op.User, &op.NodeName, &op.TargetRevision, &op.RepoURL,
+	if err := sc.Scan(&op.ID, &op.Host, &op.Port, &op.User, &op.NodeName, &op.TargetRevision, &sourceMode, &op.RepoURL,
 		&state, &op.NodeID, &op.CorrelationID, &failure, &op.FailureDetail, &op.ControlPlaneURL, &op.ReachabilityMode, &op.ExitCode, &createdRaw, &startedRaw, &finishedRaw); err != nil {
 		return Op{}, err
+	}
+	if sourceMode == "working-tree" {
+		op.SourceMode = SourceModeWorkingTree
+	} else {
+		op.SourceMode = SourceModePinned
 	}
 	op.State = State(state)
 	op.FailureReason = FailureReason(failure)

@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
+	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -163,13 +164,13 @@ func TestWaitScenarioReportsAbandonedOwner(t *testing.T) {
 // ErrScenarioBusy — the true-conflict path (e.g. concurrent stop).
 func TestStartBusyLockWithoutStartRecordStaysBusy(t *testing.T) {
 	runner, _, _ := newWaitTestRunner(t, func(int) bool { return true })
-	origFlock := lockFileFlockFn
-	defer func() { lockFileFlockFn = origFlock }()
-	lockFileFlockFn = func(fd int, how int) error {
-		if how == syscall.LOCK_UN {
-			return nil
+	origLock := lockFileFn
+	defer func() { lockFileFn = origLock }()
+	lockFileFn = func(_ *os.File, nonBlocking bool) (func(), error) {
+		if !nonBlocking {
+			return func() {}, nil
 		}
-		return syscall.EWOULDBLOCK
+		return nil, platform.ErrLockUnavailable
 	}
 
 	_, err := runner.Start("alpha", StartOptions{})
@@ -186,13 +187,13 @@ func TestStartAttachesAndReturnsOwnersFailure(t *testing.T) {
 	store := openWaitTestStore(t, home)
 	op := seedRunningStartOperation(t, store, "alpha", 99999)
 
-	origFlock := lockFileFlockFn
-	defer func() { lockFileFlockFn = origFlock }()
-	lockFileFlockFn = func(fd int, how int) error {
-		if how == syscall.LOCK_UN {
-			return nil
+	origLock := lockFileFn
+	defer func() { lockFileFn = origLock }()
+	lockFileFn = func(_ *os.File, nonBlocking bool) (func(), error) {
+		if !nonBlocking {
+			return func() {}, nil
 		}
-		return syscall.EWOULDBLOCK
+		return nil, platform.ErrLockUnavailable
 	}
 
 	sleeps := 0
@@ -241,18 +242,18 @@ func TestStartTakesOverAbandonedInFlightStart(t *testing.T) {
 	store := openWaitTestStore(t, home)
 	seedRunningStartOperation(t, store, "alpha", 999999) // dead pid
 
-	origFlock := lockFileFlockFn
-	defer func() { lockFileFlockFn = origFlock }()
+	origLock := lockFileFn
+	defer func() { lockFileFn = origLock }()
 	flockAttempts := 0
-	lockFileFlockFn = func(fd int, how int) error {
-		if how == syscall.LOCK_UN {
-			return nil
+	lockFileFn = func(_ *os.File, nonBlocking bool) (func(), error) {
+		if !nonBlocking {
+			return func() {}, nil
 		}
 		flockAttempts++
 		if flockAttempts == 1 {
-			return syscall.EWOULDBLOCK // simulate the (now dead) owner's lock
+			return nil, platform.ErrLockUnavailable // simulate the (now dead) owner's lock
 		}
-		return nil
+		return func() {}, nil
 	}
 
 	result, err := runner.Start("alpha", StartOptions{})

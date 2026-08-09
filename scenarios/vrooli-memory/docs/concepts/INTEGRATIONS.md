@@ -100,9 +100,11 @@ If the curated region already exceeds a ceiling, it is preserved byte-for-byte
 and the generated wake block is empty; the result is reported as overflow. A
 non-pinned entry that would exceed the remaining capacity is omitted and the
 projection reports overflow honestly. Pinned entries are emitted first and a
-pinned overflow fails before any file write. Native runtime behavior beyond
-these scenario guards is intentionally not exercised by writing oversized
-production files.
+pinned overflow fails before any file write. During migration, a file beginning
+with the old whole-file generated header is recognized as a legacy projection
+and replaced by the marker-owned block; it is not treated as curated memory.
+Native runtime behavior beyond these scenario guards is intentionally not
+exercised by writing oversized production files.
 
 | Harness | Byte ceiling | Rendered-line ceiling | At-ceiling behavior | Projection rule |
 |---|---|---|---|---|

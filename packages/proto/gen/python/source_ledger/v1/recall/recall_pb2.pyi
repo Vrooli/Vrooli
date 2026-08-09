@@ -43,12 +43,12 @@ class RecallResponse(_message.Message):
     def __init__(self, hits: _Optional[_Iterable[_Union[RecallHit, _Mapping]]] = ...) -> None: ...
 
 class WakeRequest(_message.Message):
-    __slots__ = ("token_budget", "scope")
-    TOKEN_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("line_budget", "scope")
+    LINE_BUDGET_FIELD_NUMBER: _ClassVar[int]
     SCOPE_FIELD_NUMBER: _ClassVar[int]
-    token_budget: int
+    line_budget: int
     scope: str
-    def __init__(self, token_budget: _Optional[int] = ..., scope: _Optional[str] = ...) -> None: ...
+    def __init__(self, line_budget: _Optional[int] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class WakeResponse(_message.Message):
     __slots__ = ("hits", "overflow")

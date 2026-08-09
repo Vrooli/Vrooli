@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
@@ -106,7 +107,9 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 	cmd := exec.Command(bin, c.Args...)
 	cmd.Stdout = logf
 	cmd.Stderr = logf
-	cmd.SysProcAttr = detachSysProcAttr()
+	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
+		return err
+	}
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -115,6 +118,10 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 	_ = cmd.Process.Release()
 	clearCompanionFailure(dir, c.Name)
 	return os.WriteFile(pidPath, []byte(strconv.Itoa(pid)), 0o644)
+}
+
+func terminateCompanion(pid int) error {
+	return platform.KillProcess(pid, false)
 }
 
 func stopCompanion(resourceName string, c ResourceCompanion) error {

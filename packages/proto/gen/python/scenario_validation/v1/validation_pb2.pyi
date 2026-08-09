@@ -111,24 +111,28 @@ class ProviderCapabilities(_message.Message):
     def __init__(self, supports_execution: _Optional[bool] = ..., delivery_mode: _Optional[str] = ..., supports_fixes: _Optional[bool] = ..., target_kinds: _Optional[_Iterable[_Union[_validation_target_pb2.ValidationTargetKind, str]]] = ...) -> None: ...
 
 class ValidateScenarioRequest(_message.Message):
-    __slots__ = ("scenario", "path", "include_execution")
+    __slots__ = ("scenario", "path", "include_execution", "capability_subset")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_SUBSET_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     path: str
     include_execution: bool
-    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., include_execution: _Optional[bool] = ...) -> None: ...
+    capability_subset: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., include_execution: _Optional[bool] = ..., capability_subset: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ValidateTargetRequest(_message.Message):
-    __slots__ = ("target", "include_execution", "path")
+    __slots__ = ("target", "include_execution", "path", "capability_subset")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_SUBSET_FIELD_NUMBER: _ClassVar[int]
     target: _validation_target_pb2.ValidationTarget
     include_execution: bool
     path: str
-    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., include_execution: _Optional[bool] = ..., path: _Optional[str] = ...) -> None: ...
+    capability_subset: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., include_execution: _Optional[bool] = ..., path: _Optional[str] = ..., capability_subset: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ValidateTargetResponse(_message.Message):
     __slots__ = ("target", "status", "assessment", "native_detail", "metrics")
@@ -203,18 +207,20 @@ class ValidationRun(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., state: _Optional[_Union[ValidationRunState, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., estimated_remaining: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., preliminary_static_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., terminal_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., error: _Optional[_Union[ValidationRunError, _Mapping]] = ..., artifact_references: _Optional[_Iterable[_Union[_any_pb2.Any, _Mapping]]] = ..., cancellation_requested: _Optional[bool] = ...) -> None: ...
 
 class StartValidationRunRequest(_message.Message):
-    __slots__ = ("scenario", "path", "idempotency_key", "parent_run_id", "desktop_binding")
+    __slots__ = ("scenario", "path", "idempotency_key", "parent_run_id", "desktop_binding", "capability_subset")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     DESKTOP_BINDING_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_SUBSET_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     path: str
     idempotency_key: str
     parent_run_id: str
     desktop_binding: DesktopValidationBinding
-    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., desktop_binding: _Optional[_Union[DesktopValidationBinding, _Mapping]] = ...) -> None: ...
+    capability_subset: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., desktop_binding: _Optional[_Union[DesktopValidationBinding, _Mapping]] = ..., capability_subset: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DesktopValidationBinding(_message.Message):
     __slots__ = ("target_id", "cdp_endpoint", "renderer_id", "renderer_url", "renderer_title", "scenario_name", "artifact_digest", "context_id", "profile_id", "cdp_transport", "workflow_path", "workflow_id")

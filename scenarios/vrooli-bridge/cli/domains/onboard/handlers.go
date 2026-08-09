@@ -57,10 +57,32 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 
 	// Resolve the password BEFORE the RPC so a credential-intake failure never
 	// half-starts. This never prompts unless --prompt-password was given.
-	password, credSource, err := h.password.resolve(user, host,
-		ctx.BoolFlag("password-stdin"), ctx.BoolFlag("prompt-password"))
+	fromStdin := ctx.BoolFlag("password-stdin")
+	setupPassphraseStdin := ctx.BoolFlag("setup-passphrase-stdin")
+	if setupPassphraseStdin && !fromStdin {
+		return fmt.Errorf("--setup-passphrase-stdin requires --password-stdin so both secrets can be read from one protected pipe")
+	}
+	var password string
+	var credSource credentialSource
+	var err error
+	if setupPassphraseStdin {
+		password, err = h.password.resolveLine()
+		credSource = credentialFromStdin
+	} else {
+		password, credSource, err = h.password.resolve(user, host, fromStdin, ctx.BoolFlag("prompt-password"))
+	}
 	if err != nil {
 		return err
+	}
+	setupPassphrase := ""
+	if setupPassphraseStdin {
+		setupPassphrase, err = h.password.resolveLine()
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(setupPassphrase) == "" {
+			return fmt.Errorf("setup credential-store passphrase from stdin must not be empty")
+		}
 	}
 	machineID := ""
 	machineResp, err := h.machines.CreateMachine(context.Background(), connect.NewRequest(&machinesv1.CreateMachineRequest{
@@ -90,6 +112,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		Port:                 int32(parseInt(ctx.Flag("port"))),
 		User:                 user,
 		SshPassword:          password,
+		SetupPassphrase:      setupPassphrase,
 		NodeName:             ctx.Flag("name"),
 		TargetRevision:       revision,
 		RepoUrl:              ctx.Flag("repo-url"),

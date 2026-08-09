@@ -22,6 +22,16 @@ func TestNativeHookFailureAlwaysReturnsSuccess(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestNativeHookAllowsImplicitMemoryDestination(t *testing.T) {
+	var captured nativeWrite
+	err := processNativeHook("claude-code", []byte(`{"tool_name":"memory","tool_input":{"content":"durable fact"}}`), func(write nativeWrite) error {
+		captured = write
+		return nil
+	})
+	require.NoError(t, err)
+	require.Equal(t, nativeWrite{Runtime: "claude-code", Body: "durable fact"}, captured)
+}
+
 func TestReconcileHooksPreservesClaudeEntriesAndIsReversible(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.Setenv("VROOLI_MEMORY_HOOK_HOME", dir))

@@ -120,6 +120,14 @@ func (s *Service) Redeem(ctx context.Context, code, nodePublicKeyB64 string, fac
 	if stored.CorrelationID != "" {
 		return s.redeemCorrelated(ctx, stored, nodePublicKeyB64, facts)
 	}
+	if nodeID, ok, err := s.existingNodeByPublicKey(ctx, nodePublicKeyB64); err != nil {
+		return "", err
+	} else if ok {
+		if err := s.repo.BurnCode(ctx, stored.ID, nodeID); err != nil {
+			return "", err
+		}
+		return nodeID, nil
+	}
 
 	// The owner-assigned name/scopes from the code win; os/arch/endpoint/caps are
 	// the node's self-report.
@@ -162,6 +170,21 @@ func (s *Service) redeemCorrelated(ctx context.Context, code PairingCode, public
 	if saga.State == "completed" {
 		return saga.NodeID, nil
 	}
+	if nodeID, ok, err := s.existingNodeByPublicKey(ctx, publicKey); err != nil {
+		return "", err
+	} else if ok && saga.State == "prepared" {
+		// Reconciliation is still a normal correlated saga: claim and finalize
+		// the newly issued code, but bind it to the existing credential instead
+		// of creating a duplicate registry node.
+		if err := repo.ClaimCode(ctx, code.ID); err != nil && err != ErrCodeUsed {
+			return "", err
+		}
+		saga.NodeID, saga.State = nodeID, "claimed"
+		if err := repo.UpdateEnrollmentSaga(ctx, saga); err != nil {
+			return "", err
+		}
+		return s.continueEnrollment(ctx, repo, registrar, saga)
+	}
 	if saga.State == "prepared" {
 		if err := repo.ClaimCode(ctx, code.ID); err != nil && err != ErrCodeUsed {
 			return "", err
@@ -172,6 +195,20 @@ func (s *Service) redeemCorrelated(ctx context.Context, code PairingCode, public
 		}
 	}
 	return s.continueEnrollment(ctx, repo, registrar, saga)
+}
+
+func (s *Service) existingNodeByPublicKey(ctx context.Context, publicKey string) (string, bool, error) {
+	lookup, ok := s.repo.(interface {
+		ActiveNodeByPublicKey(context.Context, string) (string, bool, error)
+	})
+	if !ok {
+		return "", false, nil
+	}
+	nodeID, found, err := lookup.ActiveNodeByPublicKey(ctx, publicKey)
+	if err != nil {
+		return "", false, fmt.Errorf("lookup existing node credential: %w", err)
+	}
+	return nodeID, found, nil
 }
 
 func (s *Service) continueEnrollment(ctx context.Context, repo EnrollmentRepository, registrar CorrelatedNodeRegistrar, saga EnrollmentSaga) (string, error) {

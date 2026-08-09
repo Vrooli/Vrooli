@@ -62,10 +62,18 @@ func (b *controlPlaneArtifactBuilder) Build(ctx context.Context, p ArtifactBuild
 	agentPath := filepath.Join(dir, "vrooli-bridge-agent"+ext)
 	env := crossBuildEnv(p.Target)
 
-	if err := b.run(ctx, root, []string{
+	vrooliArgs := []string{
 		"run", "./cmd/vrooli-dist", "--root", root,
 		"--goos", p.Target.OS, "--goarch", p.Target.Arch, "--output", vrooliPath,
-	}, "go", nil); err != nil {
+	}
+	if p.Target.OS == "darwin" {
+		// A Linux control plane cannot link the macOS Security framework. The
+		// resulting Darwin binary is explicitly bootstrap-only: the remote
+		// bootstrap applies host requirements, then rebuilds the final Vrooli
+		// CLI natively with CGO and the macOS SDK before installing the agent.
+		vrooliArgs = append(vrooliArgs, "--allow-missing-darwin-keychain")
+	}
+	if err := b.run(ctx, root, vrooliArgs, "go", nil); err != nil {
 		return PrebuiltArtifacts{}, fmt.Errorf("build vrooli with shared distribution primitive: %w", err)
 	}
 	if err := b.run(ctx, filepath.Join(root, "scenarios", "vrooli-bridge", "cli"), []string{
@@ -102,6 +110,7 @@ func (b *controlPlaneArtifactBuilder) Build(ctx context.Context, p ArtifactBuild
 		BridgeCLI: bridgePath, BridgeSidecar: bridgeSidecar,
 		Agent: agentPath, AgentSidecar: agentSidecar,
 		Fingerprint: fingerprint, Target: p.Target,
+		VrooliBootstrapOnly: p.Target.OS == "darwin",
 	}, nil
 }
 

@@ -14,6 +14,7 @@ Use this README first, then choose the file that matches the work:
 
 | Question | Start with |
 |---|---|
+| What loop does this team run, and why does it exist? | [`docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md`](../concepts/RECURSIVE_SELF_IMPROVEMENT.md) — the spine: the four projections, the maturation gradient, and the objectives (`I1`/`I2`/`I3`) this team serves. Do not restate it here; cite it. |
 | How do I report friction I just hit? | [`taxonomies/friction-report/README.md`](taxonomies/friction-report/README.md) — invoke `prompt-manager skill read report-friction` |
 | How does the meta-optimization team work end to end? | [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) |
 | Why is friction reporting cross-team rather than per-team? | this README §"Why cross-team" |

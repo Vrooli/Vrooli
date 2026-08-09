@@ -23,16 +23,24 @@ class Node(_message.Message):
     def __init__(self, id: _Optional[str] = ..., entry_id: _Optional[str] = ..., facet_id: _Optional[str] = ..., depth: _Optional[int] = ..., child_ids: _Optional[_Iterable[str]] = ..., compaction_score: _Optional[float] = ...) -> None: ...
 
 class RunCompactionPassRequest(_message.Message):
-    __slots__ = ("scope",)
+    __slots__ = ("scope", "max_clusters")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
+    MAX_CLUSTERS_FIELD_NUMBER: _ClassVar[int]
     scope: str
-    def __init__(self, scope: _Optional[str] = ...) -> None: ...
+    max_clusters: int
+    def __init__(self, scope: _Optional[str] = ..., max_clusters: _Optional[int] = ...) -> None: ...
 
 class RunCompactionPassResponse(_message.Message):
-    __slots__ = ("compacted_count",)
+    __slots__ = ("compacted_count", "eligible_frontier_before", "eligible_frontier_after", "target")
     COMPACTED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ELIGIBLE_FRONTIER_BEFORE_FIELD_NUMBER: _ClassVar[int]
+    ELIGIBLE_FRONTIER_AFTER_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
     compacted_count: int
-    def __init__(self, compacted_count: _Optional[int] = ...) -> None: ...
+    eligible_frontier_before: int
+    eligible_frontier_after: int
+    target: int
+    def __init__(self, compacted_count: _Optional[int] = ..., eligible_frontier_before: _Optional[int] = ..., eligible_frontier_after: _Optional[int] = ..., target: _Optional[int] = ...) -> None: ...
 
 class GetFrontierRequest(_message.Message):
     __slots__ = ("limit", "scope")

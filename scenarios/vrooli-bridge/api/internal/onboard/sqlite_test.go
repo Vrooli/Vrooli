@@ -40,6 +40,7 @@ func TestSQLiteRepository_CreateGetRoundTrip(t *testing.T) {
 		NodeName:       "web-01",
 		TargetRevision: "a1b2c3d",
 		RepoURL:        "https://example.com/repo.git",
+		SourceMode:     onboard.SourceModeWorkingTree,
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, created.ID)
@@ -51,6 +52,7 @@ func TestSQLiteRepository_CreateGetRoundTrip(t *testing.T) {
 	require.Equal(t, 2222, got.Port)
 	require.Equal(t, "deploy", got.User)
 	require.Equal(t, "a1b2c3d", got.TargetRevision)
+	require.Equal(t, onboard.SourceModeWorkingTree, got.SourceMode)
 	require.Equal(t, clk.Now().UTC(), got.CreatedAt)
 }
 

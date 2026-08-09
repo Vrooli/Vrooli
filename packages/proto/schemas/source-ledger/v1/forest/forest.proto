@@ -16,9 +16,15 @@ message Node {
   repeated string child_ids = 5;
   double compaction_score = 6;
 }
-message RunCompactionPassRequest { string scope = 1; }
+message RunCompactionPassRequest {
+  string scope = 1;
+  int32 max_clusters = 2;
+}
 message RunCompactionPassResponse {
   int32 compacted_count = 1;
+  int32 eligible_frontier_before = 2;
+  int32 eligible_frontier_after = 3;
+  int32 target = 4;
 }
 message GetFrontierRequest {
   int32 limit = 1;

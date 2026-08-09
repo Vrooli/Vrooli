@@ -1399,6 +1399,15 @@ type CostPhaseSummary struct {
 	PassingP90WallClockMs              int64                  `protobuf:"varint,20,opt,name=passing_p90_wall_clock_ms,json=passingP90WallClockMs,proto3" json:"passing_p90_wall_clock_ms,omitempty"`
 	FailingMedianWallClockMs           int64                  `protobuf:"varint,21,opt,name=failing_median_wall_clock_ms,json=failingMedianWallClockMs,proto3" json:"failing_median_wall_clock_ms,omitempty"`
 	FailingP90WallClockMs              int64                  `protobuf:"varint,22,opt,name=failing_p90_wall_clock_ms,json=failingP90WallClockMs,proto3" json:"failing_p90_wall_clock_ms,omitempty"`
+	CacheHitCount                      int32                  `protobuf:"varint,23,opt,name=cache_hit_count,json=cacheHitCount,proto3" json:"cache_hit_count,omitempty"`
+	ExecutedSampleCount                int32                  `protobuf:"varint,24,opt,name=executed_sample_count,json=executedSampleCount,proto3" json:"executed_sample_count,omitempty"`
+	CacheHitRatePercent                float64                `protobuf:"fixed64,25,opt,name=cache_hit_rate_percent,json=cacheHitRatePercent,proto3" json:"cache_hit_rate_percent,omitempty"`
+	CacheAuditCount                    int32                  `protobuf:"varint,26,opt,name=cache_audit_count,json=cacheAuditCount,proto3" json:"cache_audit_count,omitempty"`
+	CacheAuditMismatchCount            int32                  `protobuf:"varint,27,opt,name=cache_audit_mismatch_count,json=cacheAuditMismatchCount,proto3" json:"cache_audit_mismatch_count,omitempty"`
+	CacheNoSavingCount                 int32                  `protobuf:"varint,28,opt,name=cache_no_saving_count,json=cacheNoSavingCount,proto3" json:"cache_no_saving_count,omitempty"`
+	CacheAuditWallClockMs              int64                  `protobuf:"varint,29,opt,name=cache_audit_wall_clock_ms,json=cacheAuditWallClockMs,proto3" json:"cache_audit_wall_clock_ms,omitempty"`
+	EstimatedGrossSavedWallClockMs     int64                  `protobuf:"varint,30,opt,name=estimated_gross_saved_wall_clock_ms,json=estimatedGrossSavedWallClockMs,proto3" json:"estimated_gross_saved_wall_clock_ms,omitempty"`
+	EstimatedNetSavedWallClockMs       int64                  `protobuf:"varint,31,opt,name=estimated_net_saved_wall_clock_ms,json=estimatedNetSavedWallClockMs,proto3" json:"estimated_net_saved_wall_clock_ms,omitempty"`
 	unknownFields                      protoimpl.UnknownFields
 	sizeCache                          protoimpl.SizeCache
 }
@@ -1583,6 +1592,69 @@ func (x *CostPhaseSummary) GetFailingMedianWallClockMs() int64 {
 func (x *CostPhaseSummary) GetFailingP90WallClockMs() int64 {
 	if x != nil {
 		return x.FailingP90WallClockMs
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetCacheHitCount() int32 {
+	if x != nil {
+		return x.CacheHitCount
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetExecutedSampleCount() int32 {
+	if x != nil {
+		return x.ExecutedSampleCount
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetCacheHitRatePercent() float64 {
+	if x != nil {
+		return x.CacheHitRatePercent
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetCacheAuditCount() int32 {
+	if x != nil {
+		return x.CacheAuditCount
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetCacheAuditMismatchCount() int32 {
+	if x != nil {
+		return x.CacheAuditMismatchCount
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetCacheNoSavingCount() int32 {
+	if x != nil {
+		return x.CacheNoSavingCount
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetCacheAuditWallClockMs() int64 {
+	if x != nil {
+		return x.CacheAuditWallClockMs
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetEstimatedGrossSavedWallClockMs() int64 {
+	if x != nil {
+		return x.EstimatedGrossSavedWallClockMs
+	}
+	return 0
+}
+
+func (x *CostPhaseSummary) GetEstimatedNetSavedWallClockMs() int64 {
+	if x != nil {
+		return x.EstimatedNetSavedWallClockMs
 	}
 	return 0
 }
@@ -7888,7 +7960,7 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x14GetCostReportRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
 	"\x0ewindow_seconds\x18\x02 \x01(\x03R\rwindowSeconds\x124\n" +
-	"\x16compare_window_seconds\x18\x03 \x01(\x03R\x14compareWindowSeconds\"\xf3\b\n" +
+	"\x16compare_window_seconds\x18\x03 \x01(\x03R\x14compareWindowSeconds\"\xf0\f\n" +
 	"\x10CostPhaseSummary\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x14\n" +
 	"\x05phase\x18\x02 \x01(\tR\x05phase\x12!\n" +
@@ -7912,7 +7984,16 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\x1cpassing_median_wall_clock_ms\x18\x13 \x01(\x03R\x18passingMedianWallClockMs\x128\n" +
 	"\x19passing_p90_wall_clock_ms\x18\x14 \x01(\x03R\x15passingP90WallClockMs\x12>\n" +
 	"\x1cfailing_median_wall_clock_ms\x18\x15 \x01(\x03R\x18failingMedianWallClockMs\x128\n" +
-	"\x19failing_p90_wall_clock_ms\x18\x16 \x01(\x03R\x15failingP90WallClockMs\"\xb9\x01\n" +
+	"\x19failing_p90_wall_clock_ms\x18\x16 \x01(\x03R\x15failingP90WallClockMs\x12&\n" +
+	"\x0fcache_hit_count\x18\x17 \x01(\x05R\rcacheHitCount\x122\n" +
+	"\x15executed_sample_count\x18\x18 \x01(\x05R\x13executedSampleCount\x123\n" +
+	"\x16cache_hit_rate_percent\x18\x19 \x01(\x01R\x13cacheHitRatePercent\x12*\n" +
+	"\x11cache_audit_count\x18\x1a \x01(\x05R\x0fcacheAuditCount\x12;\n" +
+	"\x1acache_audit_mismatch_count\x18\x1b \x01(\x05R\x17cacheAuditMismatchCount\x121\n" +
+	"\x15cache_no_saving_count\x18\x1c \x01(\x05R\x12cacheNoSavingCount\x128\n" +
+	"\x19cache_audit_wall_clock_ms\x18\x1d \x01(\x03R\x15cacheAuditWallClockMs\x12K\n" +
+	"#estimated_gross_saved_wall_clock_ms\x18\x1e \x01(\x03R\x1eestimatedGrossSavedWallClockMs\x12G\n" +
+	"!estimated_net_saved_wall_clock_ms\x18\x1f \x01(\x03R\x1cestimatedNetSavedWallClockMs\"\xb9\x01\n" +
 	"\x15GetCostReportResponse\x12C\n" +
 	"\x06phases\x18\x01 \x03(\v2+.vrooli.test_genie.v1.runs.CostPhaseSummaryR\x06phases\x12%\n" +
 	"\x0ewindow_seconds\x18\x02 \x01(\x03R\rwindowSeconds\x124\n" +

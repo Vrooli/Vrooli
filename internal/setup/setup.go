@@ -13,9 +13,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
+	"github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cliinstall"
@@ -45,8 +45,18 @@ const (
 var inspectDockerHealthFn = dockerhost.InspectHealth
 
 type Options struct {
-	DryRun   bool
-	SudoMode string
+	DryRun bool
+	// BootstrapOnly applies host requirements needed to make the native Vrooli
+	// CLI build possible, then returns before credential, resource, and
+	// completion side effects. It is used only by cross-platform bootstrap
+	// flows whose temporary CLI cannot yet link the host credential backend.
+	BootstrapOnly bool
+	// CredentialPassphraseStdin reads one credential-store passphrase from
+	// standard input instead of opening /dev/tty. It is intended for the
+	// Bridge's secret-safe bootstrap channel; the passphrase is never logged or
+	// written to the setup result.
+	CredentialPassphraseStdin bool
+	SudoMode                  string
 	// MaintenanceWindow acknowledges that a setup safeguard may interrupt
 	// an active graphical or remote-desktop session.
 	MaintenanceWindow bool
@@ -241,8 +251,20 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Dry-run mode skips git configuration, resource installation, and setup completion markers")
 		return nil
 	}
+	if opts.BootstrapOnly {
+		_, _ = fmt.Fprintln(stdout, "[INFO]    Bootstrap-only setup applied host requirements; native CLI finalization is still required")
+		return nil
+	}
 	stage = "credentials"
-	if err := s.deps.configureCredentialBackend(stdout, stderr); err != nil {
+	if opts.CredentialPassphraseStdin {
+		passphrase, readErr := readCredentialPassphraseStdin()
+		if readErr != nil {
+			return readErr
+		}
+		if err := configureCredentialBackendWithPassphrase(stdout, stderr, passphrase); err != nil {
+			return err
+		}
+	} else if err := s.deps.configureCredentialBackend(stdout, stderr); err != nil {
 		return err
 	}
 	stage = "privilege-broker"
@@ -975,12 +997,14 @@ func startProjectAPI(root string, spec apiLaunchSpec, stdout, stderr io.Writer) 
 	cmd.Env = spec.Env
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
-	cmd.SysProcAttr = detachedProcessAttr()
+	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
+		return err
+	}
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 	time.Sleep(200 * time.Millisecond)
-	if err := cmd.Process.Signal(syscall.Signal(0)); err != nil {
+	if !platform.IsPIDRunning(cmd.Process.Pid) {
 		return fmt.Errorf("vrooli-api exited immediately: %w", err)
 	}
 	return nil
@@ -1151,7 +1175,9 @@ func launchDetachedOnboarding(root, executable string) error {
 	cmd.Stdin = devNull
 	cmd.Stdout = devNull
 	cmd.Stderr = devNull
-	cmd.SysProcAttr = detachedProcessAttr()
+	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
+		return err
+	}
 	return cmd.Start()
 }
 

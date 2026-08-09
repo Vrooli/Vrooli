@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/shell"
 )
@@ -67,6 +68,7 @@ var (
 			Stdin:  os.Stdin,
 		})
 	}
+	execFn = platform.ReplaceProcess
 	// openFileFn opens lock files; injectable for test fault injection.
 	openFileFn = func(name string, flag int, perm os.FileMode) (*os.File, error) {
 		return os.OpenFile(name, flag, perm)

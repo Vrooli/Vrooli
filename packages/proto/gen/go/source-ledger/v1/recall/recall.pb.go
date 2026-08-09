@@ -226,9 +226,10 @@ func (x *RecallResponse) GetHits() []*RecallHit {
 }
 
 type WakeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TokenBudget   int32                  `protobuf:"varint,1,opt,name=token_budget,json=tokenBudget,proto3" json:"token_budget,omitempty"`
-	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Counts rendered text lines selected for the ambient view, not tokens.
+	LineBudget    int32  `protobuf:"varint,1,opt,name=line_budget,json=lineBudget,proto3" json:"line_budget,omitempty"`
+	Scope         string `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -263,9 +264,9 @@ func (*WakeRequest) Descriptor() ([]byte, []int) {
 	return file_source_ledger_v1_recall_recall_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *WakeRequest) GetTokenBudget() int32 {
+func (x *WakeRequest) GetLineBudget() int32 {
 	if x != nil {
-		return x.TokenBudget
+		return x.LineBudget
 	}
 	return 0
 }
@@ -540,9 +541,10 @@ const file_source_ledger_v1_recall_recall_proto_rawDesc = "" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x14\n" +
 	"\x05scope\x18\x03 \x01(\tR\x05scope\"O\n" +
 	"\x0eRecallResponse\x12=\n" +
-	"\x04hits\x18\x01 \x03(\v2).vrooli.source_ledger.v1.recall.RecallHitR\x04hits\"F\n" +
-	"\vWakeRequest\x12!\n" +
-	"\ftoken_budget\x18\x01 \x01(\x05R\vtokenBudget\x12\x14\n" +
+	"\x04hits\x18\x01 \x03(\v2).vrooli.source_ledger.v1.recall.RecallHitR\x04hits\"D\n" +
+	"\vWakeRequest\x12\x1f\n" +
+	"\vline_budget\x18\x01 \x01(\x05R\n" +
+	"lineBudget\x12\x14\n" +
 	"\x05scope\x18\x02 \x01(\tR\x05scope\"i\n" +
 	"\fWakeResponse\x12=\n" +
 	"\x04hits\x18\x01 \x03(\v2).vrooli.source_ledger.v1.recall.RecallHitR\x04hits\x12\x1a\n" +

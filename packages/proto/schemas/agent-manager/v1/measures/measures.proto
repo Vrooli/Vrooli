@@ -28,6 +28,7 @@ service MeasuresService {
   rpc TerminalRunTrend(TerminalRunTrendRequest) returns (TerminalRunTrendResponse);
   rpc ToolUsage(ToolUsageRequest) returns (ToolUsageResponse);
   rpc ToolCommandBreakdown(ToolCommandBreakdownRequest) returns (ToolCommandBreakdownResponse);
+  rpc TokenAttribution(TokenAttributionRequest) returns (TokenAttributionResponse);
   rpc ErrorPatterns(ErrorPatternsRequest) returns (ErrorPatternsResponse);
   rpc FileRereadRate(FileRereadRateRequest) returns (FileRereadRateResponse);
   rpc FindingRecurrenceRate(FindingRecurrenceRateRequest) returns (FindingRecurrenceRateResponse);
@@ -416,6 +417,8 @@ message ToolUsageRow {
   int64 call_count = 2;
   int64 success_count = 3;
   int64 failed_count = 4;
+  int64 total_tokens = 5;
+  double estimated_token_share = 6;
 }
 message ToolUsageResponse {
   repeated ToolUsageRow rows = 1;
@@ -438,10 +441,47 @@ message ToolCommandBreakdownRow {
   int64 failed_count = 5;
   int64 run_count = 6;
   bool truncated = 7;
+  int64 total_tokens = 8;
+  double estimated_token_share = 9;
+  int64 p50_footprint_tokens = 10;
+  int64 p95_footprint_tokens = 11;
+  int64 max_footprint_tokens = 12;
 }
 message ToolCommandBreakdownResponse {
   repeated ToolCommandBreakdownRow rows = 1;
   string executed_query = 2 [deprecated = true];
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+// TokenAttribution groups the same durable invocation facts by one declared
+// dimension. group_by accepts capability, executable, command_path, or
+// target_scenario_operation. view accepts footprint, residency, or incurred.
+message TokenAttributionRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+  string group_by = 3;
+  string view = 4;
+  int32 limit = 5;
+}
+message TokenAttributionRow {
+  string group_by = 1;
+  string value = 2;
+  int64 call_count = 3;
+  int64 total_tokens = 4;
+  int64 estimated_tokens = 5;
+  double estimated_token_share = 6;
+  int64 p50_footprint_tokens = 7;
+  int64 p95_footprint_tokens = 8;
+  int64 max_footprint_tokens = 9;
+}
+message TokenAttributionResponse {
+  repeated TokenAttributionRow rows = 1;
+  string group_by = 2;
+  string view = 3;
+  double estimated_token_share = 4;
+  string executed_query = 5 [deprecated = true];
   MeasureValidity validity = 100;
   MeasureProvenance provenance = 101;
   string definition_id = 102;
@@ -459,6 +499,8 @@ message CapabilityUsageRow {
   int64 success_count = 4;
   int64 failed_count = 5;
   uint64 total_duration_ms = 6;
+  int64 total_tokens = 7;
+  double estimated_token_share = 8;
 }
 
 message CapabilityUsageResponse {

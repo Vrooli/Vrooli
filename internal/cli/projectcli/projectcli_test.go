@@ -21,7 +21,7 @@ func TestParseStatusRequestRejectsConflictingFilters(t *testing.T) {
 }
 
 func TestParseSetupOptionsAcceptsFlags(t *testing.T) {
-	opts, err := ParseSetupOptions([]string{"--environment", "minimal", "--resources", "none", "--yes", "yes", "--sudo-mode", "skip", "--result-file", "/tmp/setup-result.json", "--dry-run", "--maintenance-window"})
+	opts, err := ParseSetupOptions([]string{"--environment", "minimal", "--resources", "none", "--yes", "yes", "--sudo-mode", "skip", "--result-file", "/tmp/setup-result.json", "--dry-run", "--bootstrap-only", "--maintenance-window"})
 	if err != nil {
 		t.Fatalf("ParseSetupOptions: %v", err)
 	}
@@ -33,6 +33,7 @@ func TestParseSetupOptionsAcceptsFlags(t *testing.T) {
 		MaintenanceWindow: true,
 		ResultPath:        "/tmp/setup-result.json",
 		DryRun:            true,
+		BootstrapOnly:     true,
 	}
 	if opts != want {
 		t.Fatalf("opts = %+v, want %+v", opts, want)

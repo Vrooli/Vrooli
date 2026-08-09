@@ -142,6 +142,10 @@ message ValidateScenarioRequest {
   // runs Lighthouse-if-UI, persisting a sample), then gates on the result.
   // Providers that only inspect ignore this flag.
   bool include_execution = 3;
+  // Optional capability-level execution subset. An empty list means the
+  // provider must evaluate its normal full capability set. Providers that
+  // honor this field must skip work for capabilities not named here.
+  repeated string capability_subset = 4;
 }
 
 message ValidateTargetRequest {
@@ -150,6 +154,7 @@ message ValidateTargetRequest {
   // Physical path resolved by Test Genie for providers that need filesystem
   // access. The target.root remains the stable repo-relative identity.
   string path = 3;
+  repeated string capability_subset = 4;
 }
 
 message ValidateTargetResponse {
@@ -248,6 +253,7 @@ message StartValidationRunRequest {
   // provider persists this identity and supplies it to the owned execution
   // engine; omission means the normal static/browser validation path.
   DesktopValidationBinding desktop_binding = 5;
+  repeated string capability_subset = 6;
 }
 
 // DesktopValidationBinding identifies a target-owned desktop renderer for a

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -62,14 +63,15 @@ func acquireToolInstallLock(tool string) (func(), error) {
 	}
 	_ = os.Chmod(path, 0o666)
 	_ = config.ChownToInvokingUser(path)
-	if err := lockToolInstallFile(file); err != nil {
+	releaseFile, err := platform.LockFile(file, false)
+	if err != nil {
 		_ = file.Close()
 		mutex.Unlock()
 		return nil, fmt.Errorf("lock host-tool %q: %w", key, err)
 	}
 
 	return func() {
-		_ = unlockToolInstallFile(file)
+		releaseFile()
 		_ = file.Close()
 		mutex.Unlock()
 	}, nil

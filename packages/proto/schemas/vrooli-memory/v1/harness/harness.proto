@@ -57,6 +57,9 @@ message RefreshProjectionResponse {
   bool overflow = 3;
   bool dry_run = 4;
   string rendered_content = 5;
+  int64 size_lines = 6;
+  int64 byte_cap = 7;
+  int64 line_cap = 8;
 }
 message InstallPromptBlockRequest {
   string runtime = 1;
@@ -90,4 +93,8 @@ message MaintenanceOutcome {
   string projection_error = 5;
   string started_at = 6;
   string completed_at = 7;
+  int64 projection_size_bytes = 8;
+  int64 projection_size_lines = 9;
+  int64 projection_byte_cap = 10;
+  int64 projection_line_cap = 11;
 }

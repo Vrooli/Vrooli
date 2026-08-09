@@ -161,7 +161,7 @@ func (d AdapterDescriptor) extractPath(path string) (items []sourceItem, managed
 	// Older whole-file projections predate managed markers. Keep their
 	// generated-only guard for relocated stores; current projections are
 	// removed by stripManagedWakeBlock below.
-	if strings.HasPrefix(string(b), generatedHeader) {
+	if strings.HasPrefix(string(b), generatedHeader) || strings.HasPrefix(string(b), legacyGeneratedHeader) {
 		return nil, true, nil
 	}
 	extracted, err := d.Extract(path, b)

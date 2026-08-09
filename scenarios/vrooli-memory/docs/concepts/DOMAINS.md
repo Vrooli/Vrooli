@@ -145,8 +145,9 @@ belong in [`DATA.md`](DATA.md).
   back as a memory source, so there is no bidirectional sync to conflict.
   Captured native writes are a *separate* input path — they read the harness's
   own store, never the projection this scenario wrote.
-- Invariant: the prompt block describes what to remember and names no memory
-  command (D-015).
+- Invariant: the prompt block marks the generated wake block read-only,
+  prefers the harness-native memory tool, and names `vrooli-memory journal note` only
+  as the fallback when the runtime has no native write surface (D-041).
 - Invariant: import is idempotent by content hash, so a sweep may run at any
   frequency without duplicating (D-016).
 - Requirements: `VMEM-P0-010`, `VMEM-P1-002`, `VMEM-P1-007`,

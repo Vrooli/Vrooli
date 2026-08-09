@@ -55,13 +55,15 @@ type PinRecord struct {
 // PhaseRecord is a compact per-phase summary stored in the index for fast
 // enumeration without reading per-run phase-results files.
 type PhaseRecord struct {
-	Name            string `json:"name"`
-	Status          string `json:"status"`
-	DurationSeconds int    `json:"duration_seconds"`
-	Comparable      bool   `json:"comparable,omitempty"`
-	Advisory        bool   `json:"advisory,omitempty"`
-	ArtifactBacked  bool   `json:"artifact_backed,omitempty"`
-	NonComparable   bool   `json:"non_comparable,omitempty"`
+	Name             string `json:"name"`
+	Status           string `json:"status"`
+	DurationSeconds  int    `json:"duration_seconds"`
+	Comparable       bool   `json:"comparable,omitempty"`
+	Advisory         bool   `json:"advisory,omitempty"`
+	ArtifactBacked   bool   `json:"artifact_backed,omitempty"`
+	NonComparable    bool   `json:"non_comparable,omitempty"`
+	CacheHit         bool   `json:"cache_hit,omitempty"`
+	CacheSourceRunID string `json:"cache_source_run_id,omitempty"`
 }
 
 // RunRecord is the index entry for a single test-genie execution.

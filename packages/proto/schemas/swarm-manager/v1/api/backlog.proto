@@ -237,6 +237,8 @@ message ListBacklogItemsRequest {
   optional bool has_plan_ref = 6;
   optional string plan_ref = 7;
   optional bool stale = 8;
+  // Verified team-member/profile identity that filed the item.
+  optional string actor_id = 9;
 }
 
 // DeleteBacklogItemRequest identifies one backlog item to delete. Deletion is

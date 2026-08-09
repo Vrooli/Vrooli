@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -212,18 +213,24 @@ func atoiSafe(s string) int {
 type launchdManager struct {
 	agentDir func() (string, error)
 	uid      func() int
+	domain   func() string
 	runner   commandRunner
 }
 
 func newLaunchdManager() launchdManager {
-	return launchdManager{agentDir: launchdAgentDir, uid: os.Getuid, runner: execRunner{}}
+	return launchdManager{agentDir: launchdAgentDir, uid: os.Getuid, domain: func() string { return resolveLaunchdDomain(os.Getuid()) }, runner: execRunner{}}
 }
 
 func (launchdManager) Kind() platform.ServiceManagerKind { return platform.ServiceManagerLaunchd }
 
 func (launchdManager) Render(d Definition) (string, error) { return LaunchdPlist(d) }
 
-func (m launchdManager) domainTarget() string { return fmt.Sprintf("gui/%d", m.uid()) }
+func (m launchdManager) domainTarget() string {
+	if m.domain != nil {
+		return m.domain()
+	}
+	return fmt.Sprintf("gui/%d", m.uid())
+}
 
 func (m launchdManager) serviceTarget(d Definition) string {
 	return m.domainTarget() + "/" + LaunchdLabel(d.Name)
@@ -237,35 +244,108 @@ func (m launchdManager) plistPath(d Definition) (string, error) {
 	return filepath.Join(dir, LaunchdLabel(d.Name)+".plist"), nil
 }
 
+const launchdSystemDir = "/Library/LaunchDaemons"
+
+func launchdSystemPath(d Definition) string {
+	return filepath.Join(launchdSystemDir, LaunchdLabel(d.Name)+".plist")
+}
+
+func runSudo(ctx context.Context, runner commandRunner, argv ...string) (string, error) {
+	return runner.run(ctx, append([]string{"sudo", "-n"}, argv...)...)
+}
+
+func currentLaunchdUser() (string, error) {
+	u, err := user.Current()
+	if err != nil {
+		return "", fmt.Errorf("resolve launchd service user: %w", err)
+	}
+	if strings.TrimSpace(u.Username) == "" {
+		return "", errors.New("resolve launchd service user: empty username")
+	}
+	return u.Username, nil
+}
+
 func (m launchdManager) Install(ctx context.Context, d Definition) (InstallResult, error) {
 	plist, err := LaunchdPlist(d)
 	if err != nil {
 		return InstallResult{}, err
 	}
-	dir, err := m.agentDir()
-	if err != nil {
-		return InstallResult{}, err
+	domain := m.domainTarget()
+	systemScope := strings.HasPrefix(domain, "user/")
+	plistPath := ""
+	stagedPath := ""
+	if systemScope {
+		// SSH-only macOS sessions have no gui/<uid> bootstrap. A LaunchAgent
+		// cannot be loaded into the background user domain, so use a
+		// LaunchDaemon and explicitly retain the unprivileged agent identity.
+		if strings.TrimSpace(d.User) == "" {
+			d.User, err = currentLaunchdUser()
+			if err != nil {
+				return InstallResult{}, err
+			}
+		}
+		plist, err = LaunchdPlist(d)
+		if err != nil {
+			return InstallResult{}, err
+		}
+		stagedFile, createErr := os.CreateTemp("", "vrooli-bridge-agent-*.plist")
+		if createErr != nil {
+			return InstallResult{}, fmt.Errorf("stage launchd daemon plist: %w", createErr)
+		}
+		stagedPath = stagedFile.Name()
+		if closeErr := stagedFile.Close(); closeErr != nil {
+			_ = os.Remove(stagedPath)
+			return InstallResult{}, fmt.Errorf("close staged launchd daemon plist: %w", closeErr)
+		}
+		if err := os.WriteFile(stagedPath, []byte(plist), 0o644); err != nil {
+			_ = os.Remove(stagedPath)
+			return InstallResult{}, fmt.Errorf("write staged launchd daemon plist: %w", err)
+		}
+		defer os.Remove(stagedPath)
+		plistPath = launchdSystemPath(d)
+		if _, err := runSudo(ctx, m.runner, "/usr/bin/install", "-o", "root", "-g", "wheel", "-m", "0644", stagedPath, plistPath); err != nil {
+			return InstallResult{}, fmt.Errorf("install launchd daemon plist %q: %w", plistPath, err)
+		}
+	} else {
+		dir, dirErr := m.agentDir()
+		if dirErr != nil {
+			return InstallResult{}, dirErr
+		}
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return InstallResult{}, fmt.Errorf("create LaunchAgents dir %q: %w", dir, err)
+		}
+		plistPath = filepath.Join(dir, LaunchdLabel(d.Name)+".plist")
+		if err := os.WriteFile(plistPath, []byte(plist), 0o644); err != nil {
+			return InstallResult{}, fmt.Errorf("write launchd plist %q: %w", plistPath, err)
+		}
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return InstallResult{}, fmt.Errorf("create LaunchAgents dir %q: %w", dir, err)
+	serviceDomain := domain
+	if systemScope {
+		serviceDomain = "system"
 	}
-	plistPath := filepath.Join(dir, LaunchdLabel(d.Name)+".plist")
-	if err := os.WriteFile(plistPath, []byte(plist), 0o644); err != nil {
-		return InstallResult{}, fmt.Errorf("write launchd plist %q: %w", plistPath, err)
+	target := serviceDomain + "/" + LaunchdLabel(d.Name)
+	run := m.runner.run
+	if systemScope {
+		run = func(ctx context.Context, argv ...string) (string, error) {
+			return runSudo(ctx, m.runner, argv...)
+		}
 	}
-	// bootstrapping an already-loaded agent errors, so boot it out first and
+	// Bootstrapping an already-loaded agent errors, so boot it out first and
 	// ignore the "not loaded" failure on a fresh install. This is what makes a
 	// re-install idempotent: it always converges on the freshly-written plist.
-	_, _ = m.runner.run(ctx, "launchctl", "bootout", m.serviceTarget(d))
-	if _, err := m.runner.run(ctx, "launchctl", "enable", m.serviceTarget(d)); err != nil {
+	_, _ = run(ctx, "launchctl", "bootout", target)
+	if _, err := run(ctx, "launchctl", "bootstrap", serviceDomain, plistPath); err != nil {
 		return InstallResult{}, err
 	}
-	if _, err := m.runner.run(ctx, "launchctl", "bootstrap", m.domainTarget(), plistPath); err != nil {
+	// A launchd service must be loaded before its per-service enable state can
+	// be changed. Enabling before bootstrap is rejected by modern macOS with
+	// exit 125 ("Domain does not support specified action").
+	if _, err := run(ctx, "launchctl", "enable", target); err != nil {
 		return InstallResult{}, err
 	}
 	// kickstart -k restarts the service if it was already running so a re-install
 	// always ends with the current plist's process live.
-	if _, err := m.runner.run(ctx, "launchctl", "kickstart", "-k", m.serviceTarget(d)); err != nil {
+	if _, err := run(ctx, "launchctl", "kickstart", "-k", target); err != nil {
 		return InstallResult{}, err
 	}
 	return InstallResult{
@@ -278,9 +358,14 @@ func (m launchdManager) Install(ctx context.Context, d Definition) (InstallResul
 }
 
 func (m launchdManager) Status(ctx context.Context, d Definition) (StatusResult, error) {
+	domain := m.domainTarget()
+	systemScope := strings.HasPrefix(domain, "user/")
 	plistPath, err := m.plistPath(d)
 	if err != nil {
 		return StatusResult{}, err
+	}
+	if systemScope {
+		plistPath = launchdSystemPath(d)
 	}
 	res := StatusResult{Kind: platform.ServiceManagerLaunchd, UnitName: LaunchdLabel(d.Name), UnitPath: plistPath}
 	if _, statErr := os.Stat(plistPath); statErr == nil {
@@ -291,7 +376,17 @@ func (m launchdManager) Status(ctx context.Context, d Definition) (StatusResult,
 	}
 	// `launchctl print` exits non-zero when the label is not bootstrapped; parse
 	// the output rather than the exit code.
-	out, _ := m.runner.run(ctx, "launchctl", "print", m.serviceTarget(d))
+	serviceDomain := domain
+	if systemScope {
+		serviceDomain = "system"
+	}
+	target := serviceDomain + "/" + LaunchdLabel(d.Name)
+	var out string
+	if systemScope {
+		out, _ = runSudo(ctx, m.runner, "launchctl", "print", target)
+	} else {
+		out, _ = m.runner.run(ctx, "launchctl", "print", target)
+	}
 	res.Running = strings.Contains(out, "state = running")
 	res.PID = parseLaunchctlPID(out)
 	res.Detail = launchctlStateDetail(out)
@@ -299,14 +394,35 @@ func (m launchdManager) Status(ctx context.Context, d Definition) (StatusResult,
 }
 
 func (m launchdManager) Uninstall(ctx context.Context, d Definition) (UninstallResult, error) {
+	domain := m.domainTarget()
+	systemScope := strings.HasPrefix(domain, "user/")
 	plistPath, err := m.plistPath(d)
 	if err != nil {
 		return UninstallResult{}, err
 	}
+	if systemScope {
+		plistPath = launchdSystemPath(d)
+	}
 	// Ignore bootout failure: the agent may already be unloaded, and removing the
 	// plist below is the durable part of the uninstall.
-	_, _ = m.runner.run(ctx, "launchctl", "bootout", m.serviceTarget(d))
+	serviceDomain := domain
+	if systemScope {
+		serviceDomain = "system"
+	}
+	target := serviceDomain + "/" + LaunchdLabel(d.Name)
+	if systemScope {
+		_, _ = runSudo(ctx, m.runner, "launchctl", "bootout", target)
+	} else {
+		_, _ = m.runner.run(ctx, "launchctl", "bootout", target)
+	}
 	res := UninstallResult{Kind: platform.ServiceManagerLaunchd, UnitName: LaunchdLabel(d.Name), UnitPath: plistPath}
+	if systemScope {
+		if _, rmErr := runSudo(ctx, m.runner, "/bin/rm", "-f", plistPath); rmErr != nil {
+			return UninstallResult{}, fmt.Errorf("remove launchd daemon plist %q: %w", plistPath, rmErr)
+		}
+		res.Removed = true
+		return res, nil
+	}
 	if err := os.Remove(plistPath); err == nil {
 		res.Removed = true
 	} else if !os.IsNotExist(err) {
@@ -321,6 +437,19 @@ func launchdAgentDir() (string, error) {
 		return "", fmt.Errorf("resolve user home dir: %w", err)
 	}
 	return filepath.Join(home, "Library", "LaunchAgents"), nil
+}
+
+// resolveLaunchdDomain selects the per-user launchd namespace that exists in
+// the current session. A logged-in desktop user has a gui/<uid> bootstrap;
+// SSH-only/headless sessions on modern macOS expose user/<uid> instead. Using
+// gui/<uid> unconditionally makes bootstrap fail with exit 125 on a headless
+// Mac mini even though the user launchd domain is available.
+func resolveLaunchdDomain(uid int) string {
+	gui := fmt.Sprintf("gui/%d", uid)
+	if exec.Command("launchctl", "print", gui).Run() == nil {
+		return gui
+	}
+	return fmt.Sprintf("user/%d", uid)
 }
 
 // parseLaunchctlPID extracts the `pid = N` line from `launchctl print` output.

@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -43,6 +44,7 @@ var excludedDirs = map[string]struct{}{
 	"build":        {},
 	"node_modules": {},
 	"logs":         {},
+	"phase-cache":  {},
 	"tmp":          {},
 	".cache":       {},
 }
@@ -66,6 +68,106 @@ func defaultRunner(dir string, name string, args ...string) ([]byte, error) {
 // tree, as a "td:"-prefixed hex string.
 func Compute(scenarioDir string) (string, error) {
 	return ComputeWithRunner(scenarioDir, defaultRunner)
+}
+
+// ComputeScoped hashes only files under root matching inputs. Inputs are
+// provider-owned, repo-relative-style globs; callers commonly use "**" for a
+// scenario-local file-determined phase. The same exclusions and byte-exact
+// ordering as Compute apply, so runtime state can never invalidate a result.
+func ComputeScoped(root string, inputs []string) (string, error) {
+	return computeScopedWithRunner(root, inputs, defaultRunner)
+}
+
+func computeScopedWithRunner(root string, inputs []string, run Runner) (string, error) {
+	root = strings.TrimSpace(root)
+	if root == "" {
+		return "", fmt.Errorf("scope root is required")
+	}
+	info, err := os.Stat(root)
+	if err != nil || !info.IsDir() {
+		return "", fmt.Errorf("scope root %q is not a readable directory", root)
+	}
+	files, err := listFiles(root, run)
+	if err != nil {
+		return "", err
+	}
+	patterns := make([]string, 0, len(inputs))
+	for _, input := range inputs {
+		input = strings.TrimSpace(strings.ReplaceAll(input, "\\", "/"))
+		if input != "" && !strings.HasPrefix(input, "!") {
+			patterns = append(patterns, input)
+		}
+	}
+	if len(patterns) == 0 {
+		return "", fmt.Errorf("at least one scoped input glob is required")
+	}
+	entries := make([]string, 0, len(files))
+	for _, rel := range files {
+		matched := false
+		for _, pattern := range patterns {
+			if scopedGlobMatch(pattern, rel) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			continue
+		}
+		sum := sha256.Sum256(data)
+		entries = append(entries, rel+"\x00"+hex.EncodeToString(sum[:])+"\n")
+	}
+	sort.Strings(entries)
+	h := sha256.New()
+	for _, entry := range entries {
+		_, _ = h.Write([]byte(entry))
+	}
+	return "td:scoped:" + hex.EncodeToString(h.Sum(nil)), nil
+}
+
+var globMeta = regexp.MustCompile(`[.+^$(){}|\\]`)
+
+func scopedGlobMatch(pattern, rel string) bool {
+	pattern = strings.TrimPrefix(filepath.ToSlash(pattern), "./")
+	re := strings.Builder{}
+	re.WriteString("^")
+	for i := 0; i < len(pattern); {
+		switch pattern[i] {
+		case '*':
+			if i+1 < len(pattern) && pattern[i+1] == '*' {
+				i += 2
+				if i < len(pattern) && pattern[i] == '/' {
+					i++
+					re.WriteString("(?:.*/)?")
+				} else {
+					// A terminal ** covers root files as well as nested files.
+					re.WriteString(".*")
+				}
+			} else {
+				i++
+				re.WriteString("[^/]*")
+			}
+		case '?':
+			i++
+			re.WriteString("[^/]")
+		default:
+			start := i
+			for i < len(pattern) && !strings.ContainsRune("*?", rune(pattern[i])) {
+				i++
+			}
+			literal := pattern[start:i]
+			if globMeta.MatchString(literal) {
+				literal = regexp.QuoteMeta(literal)
+			}
+			re.WriteString(literal)
+		}
+	}
+	re.WriteString("$")
+	matched, err := regexp.MatchString(re.String(), filepath.ToSlash(rel))
+	return err == nil && matched
 }
 
 // ComputeWithRunner is Compute with an injectable command runner.

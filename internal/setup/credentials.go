@@ -17,6 +17,10 @@ var (
 )
 
 func configureCredentialBackend(stdout, stderr io.Writer) error {
+	return configureCredentialBackendWithPassphrase(stdout, stderr, "")
+}
+
+func configureCredentialBackendWithPassphrase(stdout, stderr io.Writer, passphrase string) error {
 	status, err := securestore.EnsureSetupBackend()
 	if err != nil {
 		return fmt.Errorf("configure credential backend: %w", err)
@@ -32,6 +36,13 @@ func configureCredentialBackend(stdout, stderr io.Writer) error {
 	// wrap gets one Vrooli-owned passphrase prompt instead of a second manual
 	// repair workflow outside setup.
 	if status.SelectedBackend == securestore.BackendEncryptedFile {
+		if passphrase != "" {
+			description, describeErr := securestore.DescribeStore()
+			if describeErr != nil {
+				return fmt.Errorf("inspect encrypted credential store: %w", describeErr)
+			}
+			return initializeEncryptedBackendWithPassphrase(stdout, passphrase, description.Initialized)
+		}
 		if err := initializeEncryptedBackend(stdout, stderr); err != nil {
 			return err
 		}
@@ -49,6 +60,22 @@ func configureCredentialBackend(stdout, stderr io.Writer) error {
 	if status.OperatorAction != "" {
 		_, _ = fmt.Fprintf(stdout, "[WARN]    Credential next step: %s\n", status.OperatorAction)
 	}
+	return nil
+}
+
+func initializeEncryptedBackendWithPassphrase(stdout io.Writer, passphrase string, initialized bool) error {
+	executable, err := credentialStoreExecutableFn()
+	if err != nil {
+		return fmt.Errorf("resolve Vrooli executable for credential-store setup: %w", err)
+	}
+	command := []string{"credentials", "store", "init", "--format", "json"}
+	if initialized {
+		command = []string{"credentials", "store", "unlock"}
+	}
+	if err := runCredentialStoreFn(executable, command, passphrase, commandOptions(stdout, io.Discard)); err != nil {
+		return fmt.Errorf("initialize or unlock encrypted credential store: %w", err)
+	}
+	_, _ = fmt.Fprintln(stdout, "[INFO]    Credential backend selected: encrypted-file (write-ready)")
 	return nil
 }
 

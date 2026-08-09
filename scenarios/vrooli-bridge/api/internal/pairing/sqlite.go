@@ -237,6 +237,20 @@ func (s *sqliteRepository) ActivePublicKey(ctx context.Context, nodeID string) (
 	return ed25519.PublicKey(pub), true, nil
 }
 
+func (s *sqliteRepository) ActiveNodeByPublicKey(ctx context.Context, publicKey string) (string, bool, error) {
+	var nodeID string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT node_id FROM node_credentials WHERE public_key = ? AND revoked_at = '' ORDER BY created_at DESC LIMIT 1`, publicKey).
+		Scan(&nodeID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("lookup node by credential: %w", err)
+	}
+	return nodeID, true, nil
+}
+
 func (s *sqliteRepository) CreateRequest(ctx context.Context, r PairingRequest) (PairingRequest, error) {
 	if r.ID == "" {
 		r.ID = uuid.NewString()

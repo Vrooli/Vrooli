@@ -3,8 +3,8 @@ package onboard
 import "strings"
 
 // markerPrefix is the leading token every bootstrap progress line carries on
-// stdout. Markers are diagnostic/progress data only; pairing identity is never
-// extracted from their text.
+// stdout. Pairing authorization is never extracted from marker text; the
+// structured node-id marker is only a recovery hint for an already-paired node.
 const markerPrefix = "VBOOTSTRAP "
 
 const (
@@ -15,9 +15,10 @@ const (
 	eventStepOK    = "step-ok"
 	eventStepSkip  = "step-skip"
 	eventStepFail  = "step-fail"
+	eventNodeID    = "node-id"
 )
 
-type Marker struct{ Event, Step, Detail string }
+type Marker struct{ Event, Step, NodeID, Detail string }
 
 func parseMarker(line string) (Marker, bool) {
 	line = strings.TrimRight(line, "\r\n")
@@ -46,6 +47,8 @@ func parseMarker(line string) (Marker, bool) {
 			marker.Event = value
 		case "step":
 			marker.Step = value
+		case "node-id":
+			marker.NodeID = value
 		}
 	}
 	return marker, marker.Event != ""

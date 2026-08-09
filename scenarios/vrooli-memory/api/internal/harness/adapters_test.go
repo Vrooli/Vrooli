@@ -54,6 +54,16 @@ func TestGeneratedProjectionIsNeverAnImportItem(t *testing.T) {
 	require.True(t, managedOnly)
 }
 
+func TestLegacyGeneratedProjectionIsNeverAnImportItem(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "MEMORY.md")
+	require.NoError(t, os.WriteFile(path, []byte(legacyGeneratedHeader+"# old projection\n"), 0o600))
+	d := AdapterDescriptor{HarnessID: "claude-code", Locations: []string{path}, Format: MarkdownPerFile, Extract: wholeMarkdown}
+	items, managed, err := d.extractPath(path)
+	require.NoError(t, err)
+	require.True(t, managed)
+	require.Empty(t, items)
+}
+
 func TestEmptyStoreErrorsAreClassifiedForHonestDryRuns(t *testing.T) {
 	require.True(t, IsEmptyStoreError(fmt.Errorf(`harness %q store is not present`, "gemini")))
 	require.True(t, IsEmptyStoreError(fmt.Errorf(`non-empty harness %q store yielded zero importable items`, "codex")))

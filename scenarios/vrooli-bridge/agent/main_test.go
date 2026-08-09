@@ -33,6 +33,9 @@ func TestServiceDefinition_EmbedsDialArgs(t *testing.T) {
 		ControlPlaneURL: "https://cp.example",
 		NodeID:          "n1",
 		StateDir:        dir,
+		VrooliBin:       "/Users/test/.vrooli/bin/vrooli",
+		Capabilities:    []string{"scenario status*", "scenario test*"},
+		PresenceOnly:    false,
 	}
 	def, err := serviceDefinition(cfg)
 	require.NoError(t, err)
@@ -42,5 +45,8 @@ func TestServiceDefinition_EmbedsDialArgs(t *testing.T) {
 		"--control-plane-url", "https://cp.example",
 		"--node-id", "n1",
 		"--state-dir", dir,
+		"--vrooli-bin", "/Users/test/.vrooli/bin/vrooli",
+		"--capabilities", "scenario status*,scenario test*",
+		"--presence-only", "false",
 	}, def.Args)
 }

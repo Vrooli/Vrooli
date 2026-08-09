@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P0 requirements — the journal, the retrieval contract, facet-routed retention, and the compaction loop. Nothing here is implemented yet: every status is planned, and every validation entry declares intended evidence without asserting a ref to a test that does not exist.",
-    "last_validated_at": "2026-08-06T17:11:53-04:00",
+    "last_validated_at": "2026-08-08T19:45:08-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"

@@ -15,7 +15,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"web-console/backends/claude"
@@ -23,6 +22,7 @@ import (
 	"web-console/internal/pty"
 
 	creackpty "github.com/creack/pty/v2"
+	platform "github.com/vrooli/platform-go"
 )
 
 // errPTYClosed is returned when I/O is attempted on a closed tmuxPTY.
@@ -546,7 +546,7 @@ func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 		"--user", "--scope", "--unit=" + resolveTmuxScopeName(),
 		"tmux", "-L", socketName,
 	}, sessionArgs...)...)
-	createCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	_ = platform.ConfigureCommand(createCmd, platform.ProcessOptions{Detached: true})
 	createCmd.Env = buildSessionEnv(spec)
 	if err := createCmd.Run(); err != nil {
 		// Fallback: if systemd-run fails (e.g., no systemd user session),
@@ -554,7 +554,7 @@ func tmuxPTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 		// that's better than failing entirely.
 		log.Printf("tmux: systemd-run scope creation failed, falling back to direct: %v", err)
 		fallbackCmd := tmuxCmd(sessionArgs...)
-		fallbackCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		_ = platform.ConfigureCommand(fallbackCmd, platform.ProcessOptions{Detached: true})
 		fallbackCmd.Env = buildSessionEnv(spec)
 		if err := fallbackCmd.Run(); err != nil {
 			return nil, fmt.Errorf("tmux new-session: %w", err)
@@ -604,7 +604,7 @@ func tmuxAttach(sessionName string) (*tmuxPTY, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), tmuxAttachTimeout)
 	defer cancel()
 	hasCmd := tmuxCmdContext(ctx, "has-session", "-t", sessionName)
-	hasCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	_ = platform.ConfigureCommand(hasCmd, platform.ProcessOptions{Detached: true})
 	if err := hasCmd.Run(); err != nil {
 		return nil, fmt.Errorf("tmux has-session %s: %w", sessionName, err)
 	}

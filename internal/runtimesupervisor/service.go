@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
@@ -869,7 +870,9 @@ func EnsureRunning(ctx context.Context, cfg Config) error {
 	if cmd.Stderr == nil {
 		cmd.Stderr = io.Discard
 	}
-	cmd.SysProcAttr = backgroundProcessAttr()
+	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
+		return err
+	}
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start runtime supervisor: %w", err)
 	}

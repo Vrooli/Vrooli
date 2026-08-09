@@ -13,7 +13,7 @@ const (
 )
 
 func PromptBlock() string {
-	return promptStart + "\n## Durable memory\nRecord durable rules, important environment facts, decisions, outcomes, and hard-won gotchas in your native memory when they will help a future agent. Do not record transient chat or telemetry. The generated memory wake block is maintained by the memory service; curate your native memory outside that managed block.\n" + promptEnd + "\n"
+	return promptStart + "\n## Durable memory\nRecord durable rules, important environment facts, decisions, outcomes, and hard-won gotchas in your native memory when they will help a future agent. Do not record transient chat or telemetry. The generated memory wake block is read-only ambient context: never edit, compact, reorder, or summarize it. When this harness exposes a native memory tool, use it; supported native writes are captured by vrooli-memory. When it does not, use `vrooli-memory journal note` to write directly to the shared ledger. Never edit a generated projection file to save a memory.\n" + promptEnd + "\n"
 }
 
 func InstallPromptBlock(path string) error {
@@ -57,6 +57,10 @@ func PromptTarget(runtime, root string) (string, error) {
 		return filepath.Join(root, "CLAUDE.md"), nil
 	case "codex", "opencode":
 		return filepath.Join(root, "AGENTS.md"), nil
+	case "gemini":
+		return filepath.Join(root, "GEMINI.md"), nil
+	case "grok":
+		return filepath.Join(root, "MEMORY.md"), nil
 	default:
 		return "", fmt.Errorf("runtime %q has no independent prompt convention file", runtime)
 	}

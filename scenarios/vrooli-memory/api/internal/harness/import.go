@@ -333,8 +333,14 @@ func (i *Importer) Capture(ctx context.Context, runtime, path, body string) (*so
 	}
 	body = strings.TrimSpace(body)
 	path = strings.TrimSpace(path)
-	if body == "" || path == "" {
-		return nil, fmt.Errorf("capture requires content and source path")
+	if body == "" {
+		return nil, fmt.Errorf("capture requires content")
+	}
+	// Native memory tools often identify the destination implicitly and omit a
+	// filesystem path. Use one stable logical locator so those writes still
+	// reach the ledger and replaying the same body remains idempotent.
+	if path == "" {
+		path = "native-memory:" + runtime
 	}
 	resp, err := i.journal.AppendEntry(ctx, connect.NewRequest(&sourcejournal.AppendEntryRequest{Body: body, Kind: "capture", Scope: "agent-memory", ImportProvenance: &sourcejournal.ImportProvenance{Runtime: runtime, SourceLocator: path, ContentHash: importKey(runtime, path, body)}}))
 	if err != nil {

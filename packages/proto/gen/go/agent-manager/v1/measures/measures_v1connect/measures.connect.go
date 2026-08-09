@@ -89,6 +89,9 @@ const (
 	// MeasuresServiceToolCommandBreakdownProcedure is the fully-qualified name of the MeasuresService's
 	// ToolCommandBreakdown RPC.
 	MeasuresServiceToolCommandBreakdownProcedure = "/agent_manager.v1.measures.MeasuresService/ToolCommandBreakdown"
+	// MeasuresServiceTokenAttributionProcedure is the fully-qualified name of the MeasuresService's
+	// TokenAttribution RPC.
+	MeasuresServiceTokenAttributionProcedure = "/agent_manager.v1.measures.MeasuresService/TokenAttribution"
 	// MeasuresServiceErrorPatternsProcedure is the fully-qualified name of the MeasuresService's
 	// ErrorPatterns RPC.
 	MeasuresServiceErrorPatternsProcedure = "/agent_manager.v1.measures.MeasuresService/ErrorPatterns"
@@ -136,6 +139,7 @@ type MeasuresServiceClient interface {
 	TerminalRunTrend(context.Context, *connect.Request[measures.TerminalRunTrendRequest]) (*connect.Response[measures.TerminalRunTrendResponse], error)
 	ToolUsage(context.Context, *connect.Request[measures.ToolUsageRequest]) (*connect.Response[measures.ToolUsageResponse], error)
 	ToolCommandBreakdown(context.Context, *connect.Request[measures.ToolCommandBreakdownRequest]) (*connect.Response[measures.ToolCommandBreakdownResponse], error)
+	TokenAttribution(context.Context, *connect.Request[measures.TokenAttributionRequest]) (*connect.Response[measures.TokenAttributionResponse], error)
 	ErrorPatterns(context.Context, *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error)
 	FileRereadRate(context.Context, *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error)
 	FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error)
@@ -273,6 +277,12 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("ToolCommandBreakdown")),
 			connect.WithClientOptions(opts...),
 		),
+		tokenAttribution: connect.NewClient[measures.TokenAttributionRequest, measures.TokenAttributionResponse](
+			httpClient,
+			baseURL+MeasuresServiceTokenAttributionProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("TokenAttribution")),
+			connect.WithClientOptions(opts...),
+		),
 		errorPatterns: connect.NewClient[measures.ErrorPatternsRequest, measures.ErrorPatternsResponse](
 			httpClient,
 			baseURL+MeasuresServiceErrorPatternsProcedure,
@@ -345,6 +355,7 @@ type measuresServiceClient struct {
 	terminalRunTrend      *connect.Client[measures.TerminalRunTrendRequest, measures.TerminalRunTrendResponse]
 	toolUsage             *connect.Client[measures.ToolUsageRequest, measures.ToolUsageResponse]
 	toolCommandBreakdown  *connect.Client[measures.ToolCommandBreakdownRequest, measures.ToolCommandBreakdownResponse]
+	tokenAttribution      *connect.Client[measures.TokenAttributionRequest, measures.TokenAttributionResponse]
 	errorPatterns         *connect.Client[measures.ErrorPatternsRequest, measures.ErrorPatternsResponse]
 	fileRereadRate        *connect.Client[measures.FileRereadRateRequest, measures.FileRereadRateResponse]
 	findingRecurrenceRate *connect.Client[measures.FindingRecurrenceRateRequest, measures.FindingRecurrenceRateResponse]
@@ -450,6 +461,11 @@ func (c *measuresServiceClient) ToolCommandBreakdown(ctx context.Context, req *c
 	return c.toolCommandBreakdown.CallUnary(ctx, req)
 }
 
+// TokenAttribution calls agent_manager.v1.measures.MeasuresService.TokenAttribution.
+func (c *measuresServiceClient) TokenAttribution(ctx context.Context, req *connect.Request[measures.TokenAttributionRequest]) (*connect.Response[measures.TokenAttributionResponse], error) {
+	return c.tokenAttribution.CallUnary(ctx, req)
+}
+
 // ErrorPatterns calls agent_manager.v1.measures.MeasuresService.ErrorPatterns.
 func (c *measuresServiceClient) ErrorPatterns(ctx context.Context, req *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error) {
 	return c.errorPatterns.CallUnary(ctx, req)
@@ -512,6 +528,7 @@ type MeasuresServiceHandler interface {
 	TerminalRunTrend(context.Context, *connect.Request[measures.TerminalRunTrendRequest]) (*connect.Response[measures.TerminalRunTrendResponse], error)
 	ToolUsage(context.Context, *connect.Request[measures.ToolUsageRequest]) (*connect.Response[measures.ToolUsageResponse], error)
 	ToolCommandBreakdown(context.Context, *connect.Request[measures.ToolCommandBreakdownRequest]) (*connect.Response[measures.ToolCommandBreakdownResponse], error)
+	TokenAttribution(context.Context, *connect.Request[measures.TokenAttributionRequest]) (*connect.Response[measures.TokenAttributionResponse], error)
 	ErrorPatterns(context.Context, *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error)
 	FileRereadRate(context.Context, *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error)
 	FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error)
@@ -645,6 +662,12 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("ToolCommandBreakdown")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceTokenAttributionHandler := connect.NewUnaryHandler(
+		MeasuresServiceTokenAttributionProcedure,
+		svc.TokenAttribution,
+		connect.WithSchema(measuresServiceMethods.ByName("TokenAttribution")),
+		connect.WithHandlerOptions(opts...),
+	)
 	measuresServiceErrorPatternsHandler := connect.NewUnaryHandler(
 		MeasuresServiceErrorPatternsProcedure,
 		svc.ErrorPatterns,
@@ -733,6 +756,8 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 			measuresServiceToolUsageHandler.ServeHTTP(w, r)
 		case MeasuresServiceToolCommandBreakdownProcedure:
 			measuresServiceToolCommandBreakdownHandler.ServeHTTP(w, r)
+		case MeasuresServiceTokenAttributionProcedure:
+			measuresServiceTokenAttributionHandler.ServeHTTP(w, r)
 		case MeasuresServiceErrorPatternsProcedure:
 			measuresServiceErrorPatternsHandler.ServeHTTP(w, r)
 		case MeasuresServiceFileRereadRateProcedure:
@@ -832,6 +857,10 @@ func (UnimplementedMeasuresServiceHandler) ToolUsage(context.Context, *connect.R
 
 func (UnimplementedMeasuresServiceHandler) ToolCommandBreakdown(context.Context, *connect.Request[measures.ToolCommandBreakdownRequest]) (*connect.Response[measures.ToolCommandBreakdownResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) TokenAttribution(context.Context, *connect.Request[measures.TokenAttributionRequest]) (*connect.Response[measures.TokenAttributionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.TokenAttribution is not implemented"))
 }
 
 func (UnimplementedMeasuresServiceHandler) ErrorPatterns(context.Context, *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error) {

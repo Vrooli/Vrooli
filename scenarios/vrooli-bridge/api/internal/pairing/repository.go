@@ -23,6 +23,11 @@ type Repository interface {
 	// StoreCredential persists (or replaces) a node's Ed25519 public key.
 	StoreCredential(ctx context.Context, c Credential) error
 
+	// ActiveNodeByPublicKey returns the existing node identity for an active
+	// credential. It lets a re-run of Bridge-owned onboarding converge an
+	// interrupted local install without registering a duplicate node.
+	ActiveNodeByPublicKey(ctx context.Context, publicKey string) (nodeID string, ok bool, err error)
+
 	// RevokeCredential severs a node's credential (idempotent). A no-op when no
 	// credential exists.
 	RevokeCredential(ctx context.Context, nodeID string) error

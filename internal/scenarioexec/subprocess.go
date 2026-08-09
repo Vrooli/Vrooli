@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/scenariocli"
+	"github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/config"
@@ -132,7 +133,9 @@ func LaunchDetachedScenario(executable, root string, globals rootcli.GlobalOptio
 		Stdout: devNull,
 		Stderr: devNull,
 	})
-	cmd.SysProcAttr = detachedProcessAttr()
+	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
+		return err
+	}
 	return cmd.Start()
 }
 

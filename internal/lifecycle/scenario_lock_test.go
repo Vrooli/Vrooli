@@ -5,9 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
+
+	platform "github.com/vrooli/platform-go"
 )
 
 func TestAcquireScenarioLockBlocksSecondCallerSameProcess(t *testing.T) {
@@ -61,13 +62,13 @@ func TestAcquireScenarioLockReturnsErrBusyAcrossSimulatedProcesses(t *testing.T)
 		t.Fatalf("seed lock file: %v", err)
 	}
 
-	origFlock := lockFileFlockFn
-	defer func() { lockFileFlockFn = origFlock }()
-	lockFileFlockFn = func(fd int, how int) error {
-		if how == syscall.LOCK_UN {
-			return nil
+	origLock := lockFileFn
+	defer func() { lockFileFn = origLock }()
+	lockFileFn = func(_ *os.File, nonBlocking bool) (func(), error) {
+		if !nonBlocking {
+			return func() {}, nil
 		}
-		return syscall.EWOULDBLOCK
+		return nil, platform.ErrLockUnavailable
 	}
 
 	_, err := r.acquireScenarioLock("web-console")
@@ -181,13 +182,13 @@ func TestAcquireDependencyScenarioLockReusesReadyDependencyWhileBusy(t *testing.
 	}
 	seedScenarioLockFile(t, home, "test-genie", "99999\n")
 
-	origFlock := lockFileFlockFn
-	defer func() { lockFileFlockFn = origFlock }()
-	lockFileFlockFn = func(fd int, how int) error {
-		if how == syscall.LOCK_UN {
-			return nil
+	origLock := lockFileFn
+	defer func() { lockFileFn = origLock }()
+	lockFileFn = func(_ *os.File, nonBlocking bool) (func(), error) {
+		if !nonBlocking {
+			return func() {}, nil
 		}
-		return syscall.EWOULDBLOCK
+		return nil, platform.ErrLockUnavailable
 	}
 
 	checks := 0
@@ -220,18 +221,18 @@ func TestAcquireDependencyScenarioLockRetriesUntilLockAvailable(t *testing.T) {
 	}
 	seedScenarioLockFile(t, home, "test-genie", "99999\n")
 
-	origFlock := lockFileFlockFn
-	defer func() { lockFileFlockFn = origFlock }()
+	origLock := lockFileFn
+	defer func() { lockFileFn = origLock }()
 	attempts := 0
-	lockFileFlockFn = func(fd int, how int) error {
-		if how == syscall.LOCK_UN {
-			return nil
+	lockFileFn = func(_ *os.File, nonBlocking bool) (func(), error) {
+		if !nonBlocking {
+			return func() {}, nil
 		}
 		attempts++
 		if attempts < 3 {
-			return syscall.EWOULDBLOCK
+			return nil, platform.ErrLockUnavailable
 		}
-		return nil
+		return func() {}, nil
 	}
 
 	release, reused, err := r.acquireDependencyScenarioLock("test-genie", func() (bool, error) {
@@ -266,13 +267,13 @@ func TestAcquireDependencyScenarioLockTimesOutWhenBusy(t *testing.T) {
 	}
 	seedScenarioLockFile(t, home, "test-genie", "99999\n")
 
-	origFlock := lockFileFlockFn
-	defer func() { lockFileFlockFn = origFlock }()
-	lockFileFlockFn = func(fd int, how int) error {
-		if how == syscall.LOCK_UN {
-			return nil
+	origLock := lockFileFn
+	defer func() { lockFileFn = origLock }()
+	lockFileFn = func(_ *os.File, nonBlocking bool) (func(), error) {
+		if !nonBlocking {
+			return func() {}, nil
 		}
-		return syscall.EWOULDBLOCK
+		return nil, platform.ErrLockUnavailable
 	}
 
 	_, _, err := r.acquireDependencyScenarioLock("test-genie", func() (bool, error) {

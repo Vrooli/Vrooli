@@ -72,6 +72,15 @@ func TestImportAndCaptureAreRemoteAndContentAddressed(t *testing.T) {
 	require.Len(t, client.entries, 1)
 }
 
+func TestCaptureUsesStableLogicalPathWhenNativeToolOmitsOne(t *testing.T) {
+	client := &fakeJournal{}
+	importer := NewImporter(client, t.TempDir(), nil)
+	_, err := importer.Capture(context.Background(), "claude-code", "", "implicit destination")
+	require.NoError(t, err)
+	require.Len(t, client.entries, 1)
+	require.Equal(t, "native-memory:claude-code", client.entries[0].GetImportProvenance().GetSourceLocator())
+}
+
 func TestImportWorkerCountIsBoundedAndConfigurable(t *testing.T) {
 	t.Setenv("VROOLI_MEMORY_IMPORT_CONCURRENCY", "8")
 	require.Equal(t, 8, importWorkerCount())

@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS onboarding_ops (
   user_name       TEXT NOT NULL DEFAULT '',
   node_name       TEXT NOT NULL DEFAULT '',
   target_revision TEXT NOT NULL DEFAULT '',
+  source_mode     TEXT NOT NULL DEFAULT 'pinned',
   repo_url        TEXT NOT NULL DEFAULT '',
   state           INTEGER NOT NULL DEFAULT 0,
   node_id         TEXT NOT NULL DEFAULT '',

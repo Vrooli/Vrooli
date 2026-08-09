@@ -88,7 +88,11 @@ func main() {
 	router.Use(loggingMiddleware)
 
 	// Session domain (virtual display + remote access)
-	backend := livedesktop.NewLinuxBackend(logger)
+	backend, err := livedesktop.NewPlatformBackend(logger)
+	if err != nil {
+		log.Printf("vrooli-emulator local desktop backend unavailable: %v", err)
+		return
+	}
 	store := livedesktop.NewInMemoryStore()
 	sessionSvc := livedesktop.NewService(store, backend, logger)
 

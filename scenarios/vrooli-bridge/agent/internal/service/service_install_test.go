@@ -180,7 +180,7 @@ func TestSystemdUninstall_Idempotent(t *testing.T) {
 }
 
 // [REQ:BRG-P0-007] launchd Install writes the plist to the LaunchAgents dir and
-// drives bootout → enable → bootstrap → kickstart against gui/<uid>/<label>. The
+// drives bootout → bootstrap → enable → kickstart against gui/<uid>/<label>. The
 // darwin path is covered by argv-level assertions (no real mac run this phase).
 func TestLaunchdInstall_WritesPlistAndBootstraps(t *testing.T) {
 	dir := t.TempDir()
@@ -206,8 +206,8 @@ func TestLaunchdInstall_WritesPlistAndBootstraps(t *testing.T) {
 
 	require.Equal(t, []string{
 		"launchctl bootout gui/501/com.vrooli.bridge.vrooli-bridge-agent",
-		"launchctl enable gui/501/com.vrooli.bridge.vrooli-bridge-agent",
 		"launchctl bootstrap gui/501 " + plistPath,
+		"launchctl enable gui/501/com.vrooli.bridge.vrooli-bridge-agent",
 		"launchctl kickstart -k gui/501/com.vrooli.bridge.vrooli-bridge-agent",
 	}, runner.argvStrings())
 }
@@ -231,6 +231,33 @@ func TestLaunchdInstall_Idempotent(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, first, second)
 	require.Equal(t, "launchctl bootout gui/501/com.vrooli.bridge.vrooli-bridge-agent", runner2.argvStrings()[0])
+}
+
+// A headless SSH session has no gui/<uid> bootstrap. The manager must use a
+// root-owned LaunchDaemon, retain the unprivileged service user, and keep every
+// privileged operation behind non-interactive sudo.
+func TestLaunchdInstall_HeadlessUsesSystemDaemon(t *testing.T) {
+	runner := &fakeRunner{}
+	m := launchdManager{
+		agentDir: func() (string, error) { return t.TempDir(), nil },
+		uid:      func() int { return 501 },
+		domain:   func() string { return "user/501" },
+		runner:   runner,
+	}
+
+	res, err := m.Install(context.Background(), installDef())
+	require.NoError(t, err)
+	require.Equal(t, "/Library/LaunchDaemons/com.vrooli.bridge.vrooli-bridge-agent.plist", res.UnitPath)
+	require.True(t, res.Enabled)
+	require.True(t, res.Running)
+	calls := runner.argvStrings()
+	require.Len(t, calls, 5)
+	require.True(t, strings.HasPrefix(calls[0], "sudo -n /usr/bin/install -o root -g wheel -m 0644 "))
+	require.Contains(t, calls[0], " /Library/LaunchDaemons/com.vrooli.bridge.vrooli-bridge-agent.plist")
+	require.Equal(t, "sudo -n launchctl bootout system/com.vrooli.bridge.vrooli-bridge-agent", calls[1])
+	require.Equal(t, "sudo -n launchctl bootstrap system /Library/LaunchDaemons/com.vrooli.bridge.vrooli-bridge-agent.plist", calls[2])
+	require.Equal(t, "sudo -n launchctl enable system/com.vrooli.bridge.vrooli-bridge-agent", calls[3])
+	require.Equal(t, "sudo -n launchctl kickstart -k system/com.vrooli.bridge.vrooli-bridge-agent", calls[4])
 }
 
 // [REQ:BRG-P0-007] launchd Status parses `launchctl print` state = running / pid.

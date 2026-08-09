@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	platform "github.com/vrooli/platform-go"
 )
 
 type CommandRunner interface {
@@ -71,6 +73,17 @@ func runOSCommand(ctx context.Context, env []string, name string, args ...string
 	command.Cancel = func() error { return terminateCommandProcessGroup(command) }
 	command.WaitDelay = 250 * time.Millisecond
 	return command.CombinedOutput()
+}
+
+func configureCommandProcessGroup(command *exec.Cmd) {
+	_ = platform.ConfigureCommand(command, platform.ProcessOptions{Detached: true})
+}
+
+func terminateCommandProcessGroup(command *exec.Cmd) error {
+	if command == nil || command.Process == nil {
+		return nil
+	}
+	return platform.KillProcess(command.Process.Pid, true)
 }
 
 func (osFileReader) ReadFile(name string) ([]byte, error) { return os.ReadFile(name) }

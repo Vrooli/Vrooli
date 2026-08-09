@@ -1,6 +1,7 @@
 package onboard
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -35,6 +36,7 @@ type passwordSource struct {
 	isTerminal func() bool
 	readSecret func() ([]byte, error)
 	stdin      io.Reader
+	stdinLines *bufio.Reader
 	prompt     io.Writer
 }
 
@@ -49,8 +51,25 @@ func newPasswordSource() passwordSource {
 		isTerminal: func() bool { return term.IsTerminal(fd) },
 		readSecret: func() ([]byte, error) { return term.ReadPassword(fd) },
 		stdin:      os.Stdin,
+		stdinLines: bufio.NewReader(os.Stdin),
 		prompt:     os.Stderr,
 	}
+}
+
+// resolveLine consumes exactly one stdin line. It is used only when the
+// onboarding request deliberately carries a second secret after the SSH
+// first-touch password; a shared buffered reader prevents the first read from
+// swallowing that second line.
+func (p passwordSource) resolveLine() (string, error) {
+	reader := p.stdinLines
+	if reader == nil {
+		reader = bufio.NewReader(p.stdin)
+	}
+	line, err := reader.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return "", fmt.Errorf("read secret from stdin: %w", err)
+	}
+	return trimTrailingNewline(line), nil
 }
 
 // resolve returns the SSH password to send once in the StartOnboarding request

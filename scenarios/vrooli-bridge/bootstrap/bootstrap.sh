@@ -55,6 +55,14 @@ marker() {
   printf '%s\n' "$line"
 }
 
+# node-id is a typed, non-secret convergence marker. It lets the control plane
+# recover an existing node identity when a retry correctly skips redemption and
+# therefore creates no new enrollment row; fresh pairing still resolves through
+# the durable correlation record.
+marker_node_id() {
+  printf 'VBOOTSTRAP event=node-id node-id=%s detail=""\n' "$NODE_ID"
+}
+
 # Current step id, tracked so an unexpected error (set -e trap) can attribute a
 # step-fail + run-fail to the right place before exiting.
 CURRENT_STEP=""
@@ -114,6 +122,8 @@ SETUP_ENVIRONMENT="${BRIDGE_SETUP_ENVIRONMENT:-}"
 SETUP_RESOURCES="${BRIDGE_SETUP_RESOURCES:-}"
 SETUP_SCENARIOS="${BRIDGE_SETUP_SCENARIOS:-}"
 INCLUDE_OPTIONAL=0
+CREDENTIAL_PASSPHRASE_STDIN=0
+RECONCILE_PAIRING=0
 
 SKIP_PREREQS=0
 SKIP_SETUP=0
@@ -155,6 +165,12 @@ Setup profile (shapes the node-side `vrooli setup`; empty = vrooli setup default
   --setup-resources SEL     enabled|none|<comma-list>.        (BRIDGE_SETUP_RESOURCES)
   --setup-scenarios SEL     none|all|<comma-list>.            (BRIDGE_SETUP_SCENARIOS)
   --include-optional        Also apply optional host safeguards.
+  --credential-passphrase-stdin
+                            Read one credential-store passphrase from the
+                            bootstrap stdin channel after the pairing code.
+  --reconcile-pairing       Redeem the supplied code even when local pairing
+                            state exists, allowing an interrupted install to
+                            converge against the current control plane.
 
 Pre-satisfied-prerequisite shortcuts (each documented in README.md):
   --skip-prereqs            Assume git/curl (the clone prerequisites) are present.
@@ -188,6 +204,8 @@ while [ $# -gt 0 ]; do
     --setup-resources)   SETUP_RESOURCES="$2"; shift 2 ;;
     --setup-scenarios)   SETUP_SCENARIOS="$2"; shift 2 ;;
     --include-optional)  INCLUDE_OPTIONAL=1; shift ;;
+    --credential-passphrase-stdin) CREDENTIAL_PASSPHRASE_STDIN=1; shift ;;
+    --reconcile-pairing) RECONCILE_PAIRING=1; shift ;;
     --skip-prereqs)      SKIP_PREREQS=1; shift ;;
     --skip-setup)        SKIP_SETUP=1; shift ;;
     --force-setup)       FORCE_SETUP=1; shift ;;
@@ -242,6 +260,7 @@ readonly BOOTSTRAP_STATE_DIR="${STATE_DIR}/.bootstrap"
 readonly NODE_ID_FILE="${STATE_DIR}/node_id"
 AGENT_BIN="$AGENT_BIN_OVERRIDE"
 BRIDGE_CLI="$BRIDGE_CLI_OVERRIDE"
+RUNTIME_VROOLI_BIN=""
 PREBUILT_MODE=0
 if [ -n "$VROOLI_BIN_OVERRIDE" ] && [ -n "$AGENT_BIN_OVERRIDE" ] && [ -n "$BRIDGE_CLI_OVERRIDE" ]; then
   PREBUILT_MODE=1
@@ -255,6 +274,8 @@ agent_service_args() {
   local args=(--control-plane-url "$CONTROL_PLANE_URL" --node-id "$NODE_ID" --state-dir "$STATE_DIR")
   [ -n "$WORK_DIR" ] && args+=(--work-dir "$WORK_DIR")
   [ -n "$SERVICE_USER" ] && args+=(--service-user "$SERVICE_USER")
+  [ -n "$RUNTIME_VROOLI_BIN" ] && args+=(--vrooli-bin "$RUNTIME_VROOLI_BIN")
+  args+=(--presence-only "$PRESENCE_ONLY")
   printf '%s\n' "${args[@]}"
 }
 
@@ -536,6 +557,11 @@ step_setup() {
     # the shipped tree.  Setup intentionally runs before Go is available, so
     # its own stale-binary guard must not attempt a node-side rebuild here.
     cmd=(env "VROOLI_SOURCE_ROOT=${CHECKOUT_DIR}" "$VROOLI_BIN_OVERRIDE" --no-stale-check setup)
+    # A Linux control plane can only ship a cgo-free Darwin bootstrap CLI. It
+    # is limited to host requirement installation; after Go is available,
+    # step_build_native_vrooli creates the real Keychain-enabled binary and
+    # step_finalize_setup runs the complete setup lifecycle.
+    [ "$OS" = "darwin" ] && cmd+=(--bootstrap-only)
     [ -n "$SETUP_ENVIRONMENT" ] && cmd+=(--environment "$SETUP_ENVIRONMENT")
     [ -n "$SETUP_RESOURCES" ] && cmd+=(--resources "$SETUP_RESOURCES")
     [ -n "$SETUP_SCENARIOS" ] && cmd+=(--scenarios "$SETUP_SCENARIOS")
@@ -637,7 +663,7 @@ step_toolchain_guard() {
   # found". Also repairs the non-interactive-SSH PATH gap: a tool present only in a
   # known install dir is recovered onto PATH for the rest of this run.
   step_start toolchain "verify build toolchains resolve"
-  if [ "$PREBUILT_MODE" -eq 1 ]; then
+  if [ "$PREBUILT_MODE" -eq 1 ] && [ "$OS" != "darwin" ]; then
     step_skip "prebuilt binaries received; no node-side source build toolchain required"
     return
   fi
@@ -667,6 +693,63 @@ step_toolchain_guard() {
   else
     step_ok "build toolchains resolve on PATH"
   fi
+}
+
+step_build_native_vrooli() {
+  step_start native-vrooli "build the host-native Vrooli CLI"
+  if [ "$PREBUILT_MODE" -eq 0 ] || [ "$OS" != "darwin" ]; then
+    step_skip "native Vrooli build is only required for Darwin bootstrap artifacts"
+    return
+  fi
+
+  local install_dir="$HOME/.vrooli/bin"
+  RUNTIME_VROOLI_BIN="${install_dir}/vrooli"
+  mkdir -p "$install_dir"
+  # This executes on the Mac after bootstrap-only setup installed Go. The
+  # distribution primitive now runs natively, so CGO links the Security
+  # framework and emits the same fingerprint sidecar contract as releases.
+  if ! ( cd "$CHECKOUT_DIR" && CGO_ENABLED=1 GOWORK=off go run ./cmd/vrooli-dist \
+      --root "$CHECKOUT_DIR" --goos "$OS" --goarch "$ARCH" \
+      --output "$RUNTIME_VROOLI_BIN" ) >&2; then
+    fail 1 "native macOS Vrooli build failed; the final CLI must link the Keychain backend"
+  fi
+  [ -x "$RUNTIME_VROOLI_BIN" ] || fail 1 "native macOS Vrooli build produced no executable at ${RUNTIME_VROOLI_BIN}"
+  step_ok "native CGO-enabled Vrooli CLI installed at ${RUNTIME_VROOLI_BIN}"
+}
+
+step_finalize_setup() {
+  step_start setup-finalize "complete setup with the host-native CLI"
+  if [ "$PREBUILT_MODE" -eq 0 ] || [ "$OS" != "darwin" ]; then
+    step_skip "setup completed with the received Vrooli CLI"
+    return
+  fi
+
+  local setup_args profile_token sentinel setup_result out rc
+  setup_args="$(compose_setup_args)"
+  profile_token="$(profile_hash "${REVISION_SHA}|${setup_args}|${SETUP_DIGEST_KEY}")"
+  sentinel="${BOOTSTRAP_STATE_DIR}/setup-${REVISION_SHA}-${profile_token}.done"
+  setup_result="$(mktemp "${BOOTSTRAP_STATE_DIR}/setup-final-result.XXXXXX")"
+  out="$(mktemp)"
+  local -a cmd=(env "VROOLI_SOURCE_ROOT=${CHECKOUT_DIR}" "$RUNTIME_VROOLI_BIN" --no-stale-check setup)
+  [ -n "$SETUP_ENVIRONMENT" ] && cmd+=(--environment "$SETUP_ENVIRONMENT")
+  [ -n "$SETUP_RESOURCES" ] && cmd+=(--resources "$SETUP_RESOURCES")
+  [ -n "$SETUP_SCENARIOS" ] && cmd+=(--scenarios "$SETUP_SCENARIOS")
+  [ "$INCLUDE_OPTIONAL" -eq 1 ] && cmd+=(--include-optional)
+  [ "$CREDENTIAL_PASSPHRASE_STDIN" -eq 1 ] && cmd+=(--credential-passphrase-stdin)
+  cmd+=(--result-file "$setup_result")
+  if ( cd "$CHECKOUT_DIR" && "${cmd[@]}" ) >"$out" 2>&1; then
+    rc=0
+  else
+    rc=$?
+  fi
+  cat "$out" >&2
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$out" "$setup_result"
+    fail 1 "native macOS vrooli setup failed (exit ${rc}) — see output above"
+  fi
+  rm -f "$out" "$setup_result"
+  touch "$sentinel"
+  step_ok "complete setup applied with the native Keychain-enabled CLI"
 }
 
 step_build_agent() {
@@ -712,7 +795,7 @@ step_pair_redeem() {
   step_start pair-redeem "redeem pairing code + pin control-plane key"
   # Already paired? The pin file + recorded node id together mean a prior redeem
   # succeeded; never spend another code.
-  if [ -s "${STATE_DIR}/${PIN_FILE}" ] && [ -s "$NODE_ID_FILE" ]; then
+  if [ "$RECONCILE_PAIRING" -eq 0 ] && [ -s "${STATE_DIR}/${PIN_FILE}" ] && [ -s "$NODE_ID_FILE" ]; then
     NODE_ID="$(cat "$NODE_ID_FILE")"
     step_skip "already paired as ${NODE_ID}"
     return
@@ -723,7 +806,6 @@ step_pair_redeem() {
     --public-key "$NODE_PUBLIC_KEY" --name "$NODE_NAME"
     --os "$OS" --arch "$ARCH" --state-dir "$STATE_DIR" --json)
   [ -n "$CAPABILITIES" ] && args+=(--capabilities "$CAPABILITIES")
-  args+=(--presence-only "$PRESENCE_ONLY")
 
   # The code rides the environment (BRIDGE_PAIRING_CODE), never argv. The CLI
   # pins control_plane.pub BEFORE burning the single-use code, so a redeem that
@@ -898,10 +980,13 @@ main() {
   [ -n "$WORK_DIR" ] || WORK_DIR="$CHECKOUT_DIR"
   step_setup
   step_toolchain_guard
+  step_build_native_vrooli
+  step_finalize_setup
   step_build_agent
   step_build_cli
   step_node_key
   step_pair_redeem
+  marker_node_id
   step_pin_verify
   step_service_install
   step_autostart

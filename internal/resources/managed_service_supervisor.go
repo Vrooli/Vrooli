@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/process"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
@@ -125,7 +126,9 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 	cmd.Dir = workingDir
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
-	cmd.SysProcAttr = detachSysProcAttr()
+	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
+		return ManagedServiceState{}, err
+	}
 	if err := s.start(cmd); err != nil {
 		return ManagedServiceState{}, fmt.Errorf("start managed-service artifact: %w", err)
 	}

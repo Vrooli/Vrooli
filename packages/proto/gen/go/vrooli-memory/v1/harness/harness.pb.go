@@ -496,6 +496,9 @@ type RefreshProjectionResponse struct {
 	Overflow        bool                   `protobuf:"varint,3,opt,name=overflow,proto3" json:"overflow,omitempty"`
 	DryRun          bool                   `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	RenderedContent string                 `protobuf:"bytes,5,opt,name=rendered_content,json=renderedContent,proto3" json:"rendered_content,omitempty"`
+	SizeLines       int64                  `protobuf:"varint,6,opt,name=size_lines,json=sizeLines,proto3" json:"size_lines,omitempty"`
+	ByteCap         int64                  `protobuf:"varint,7,opt,name=byte_cap,json=byteCap,proto3" json:"byte_cap,omitempty"`
+	LineCap         int64                  `protobuf:"varint,8,opt,name=line_cap,json=lineCap,proto3" json:"line_cap,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -563,6 +566,27 @@ func (x *RefreshProjectionResponse) GetRenderedContent() string {
 		return x.RenderedContent
 	}
 	return ""
+}
+
+func (x *RefreshProjectionResponse) GetSizeLines() int64 {
+	if x != nil {
+		return x.SizeLines
+	}
+	return 0
+}
+
+func (x *RefreshProjectionResponse) GetByteCap() int64 {
+	if x != nil {
+		return x.ByteCap
+	}
+	return 0
+}
+
+func (x *RefreshProjectionResponse) GetLineCap() int64 {
+	if x != nil {
+		return x.LineCap
+	}
+	return 0
 }
 
 type InstallPromptBlockRequest struct {
@@ -906,16 +930,20 @@ func (x *MaintenanceRun) GetOutcomes() []*MaintenanceOutcome {
 }
 
 type MaintenanceOutcome struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Runtime          string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"`
-	ImportStatus     string                 `protobuf:"bytes,2,opt,name=import_status,json=importStatus,proto3" json:"import_status,omitempty"`
-	ImportError      string                 `protobuf:"bytes,3,opt,name=import_error,json=importError,proto3" json:"import_error,omitempty"`
-	ProjectionStatus string                 `protobuf:"bytes,4,opt,name=projection_status,json=projectionStatus,proto3" json:"projection_status,omitempty"`
-	ProjectionError  string                 `protobuf:"bytes,5,opt,name=projection_error,json=projectionError,proto3" json:"projection_error,omitempty"`
-	StartedAt        string                 `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	CompletedAt      string                 `protobuf:"bytes,7,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Runtime             string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"`
+	ImportStatus        string                 `protobuf:"bytes,2,opt,name=import_status,json=importStatus,proto3" json:"import_status,omitempty"`
+	ImportError         string                 `protobuf:"bytes,3,opt,name=import_error,json=importError,proto3" json:"import_error,omitempty"`
+	ProjectionStatus    string                 `protobuf:"bytes,4,opt,name=projection_status,json=projectionStatus,proto3" json:"projection_status,omitempty"`
+	ProjectionError     string                 `protobuf:"bytes,5,opt,name=projection_error,json=projectionError,proto3" json:"projection_error,omitempty"`
+	StartedAt           string                 `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	CompletedAt         string                 `protobuf:"bytes,7,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	ProjectionSizeBytes int64                  `protobuf:"varint,8,opt,name=projection_size_bytes,json=projectionSizeBytes,proto3" json:"projection_size_bytes,omitempty"`
+	ProjectionSizeLines int64                  `protobuf:"varint,9,opt,name=projection_size_lines,json=projectionSizeLines,proto3" json:"projection_size_lines,omitempty"`
+	ProjectionByteCap   int64                  `protobuf:"varint,10,opt,name=projection_byte_cap,json=projectionByteCap,proto3" json:"projection_byte_cap,omitempty"`
+	ProjectionLineCap   int64                  `protobuf:"varint,11,opt,name=projection_line_cap,json=projectionLineCap,proto3" json:"projection_line_cap,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *MaintenanceOutcome) Reset() {
@@ -997,6 +1025,34 @@ func (x *MaintenanceOutcome) GetCompletedAt() string {
 	return ""
 }
 
+func (x *MaintenanceOutcome) GetProjectionSizeBytes() int64 {
+	if x != nil {
+		return x.ProjectionSizeBytes
+	}
+	return 0
+}
+
+func (x *MaintenanceOutcome) GetProjectionSizeLines() int64 {
+	if x != nil {
+		return x.ProjectionSizeLines
+	}
+	return 0
+}
+
+func (x *MaintenanceOutcome) GetProjectionByteCap() int64 {
+	if x != nil {
+		return x.ProjectionByteCap
+	}
+	return 0
+}
+
+func (x *MaintenanceOutcome) GetProjectionLineCap() int64 {
+	if x != nil {
+		return x.ProjectionLineCap
+	}
+	return 0
+}
+
 var File_vrooli_memory_v1_harness_harness_proto protoreflect.FileDescriptor
 
 const file_vrooli_memory_v1_harness_harness_proto_rawDesc = "" +
@@ -1039,14 +1095,18 @@ const file_vrooli_memory_v1_harness_harness_proto_rawDesc = "" +
 	"updated_at\x18\x0e \x01(\tR\tupdatedAt\"M\n" +
 	"\x18RefreshProjectionRequest\x12\x18\n" +
 	"\aruntime\x18\x01 \x01(\tR\aruntime\x12\x17\n" +
-	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"\xae\x01\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"\x83\x02\n" +
 	"\x19RefreshProjectionResponse\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1d\n" +
 	"\n" +
 	"size_bytes\x18\x02 \x01(\x03R\tsizeBytes\x12\x1a\n" +
 	"\boverflow\x18\x03 \x01(\bR\boverflow\x12\x17\n" +
 	"\adry_run\x18\x04 \x01(\bR\x06dryRun\x12)\n" +
-	"\x10rendered_content\x18\x05 \x01(\tR\x0frenderedContent\"5\n" +
+	"\x10rendered_content\x18\x05 \x01(\tR\x0frenderedContent\x12\x1d\n" +
+	"\n" +
+	"size_lines\x18\x06 \x01(\x03R\tsizeLines\x12\x19\n" +
+	"\bbyte_cap\x18\a \x01(\x03R\abyteCap\x12\x19\n" +
+	"\bline_cap\x18\b \x01(\x03R\alineCap\"5\n" +
 	"\x19InstallPromptBlockRequest\x12\x18\n" +
 	"\aruntime\x18\x01 \x01(\tR\aruntime\":\n" +
 	"\x1aInstallPromptBlockResponse\x12\x1c\n" +
@@ -1066,7 +1126,7 @@ const file_vrooli_memory_v1_harness_harness_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\x02 \x01(\tR\tstartedAt\x12!\n" +
 	"\fcompleted_at\x18\x03 \x01(\tR\vcompletedAt\x12O\n" +
-	"\boutcomes\x18\x04 \x03(\v23.vrooli.vrooli_memory.v1.harness.MaintenanceOutcomeR\boutcomes\"\x90\x02\n" +
+	"\boutcomes\x18\x04 \x03(\v23.vrooli.vrooli_memory.v1.harness.MaintenanceOutcomeR\boutcomes\"\xd8\x03\n" +
 	"\x12MaintenanceOutcome\x12\x18\n" +
 	"\aruntime\x18\x01 \x01(\tR\aruntime\x12#\n" +
 	"\rimport_status\x18\x02 \x01(\tR\fimportStatus\x12!\n" +
@@ -1075,7 +1135,12 @@ const file_vrooli_memory_v1_harness_harness_proto_rawDesc = "" +
 	"\x10projection_error\x18\x05 \x01(\tR\x0fprojectionError\x12\x1d\n" +
 	"\n" +
 	"started_at\x18\x06 \x01(\tR\tstartedAt\x12!\n" +
-	"\fcompleted_at\x18\a \x01(\tR\vcompletedAt2\xbb\x06\n" +
+	"\fcompleted_at\x18\a \x01(\tR\vcompletedAt\x122\n" +
+	"\x15projection_size_bytes\x18\b \x01(\x03R\x13projectionSizeBytes\x122\n" +
+	"\x15projection_size_lines\x18\t \x01(\x03R\x13projectionSizeLines\x12.\n" +
+	"\x13projection_byte_cap\x18\n" +
+	" \x01(\x03R\x11projectionByteCap\x12.\n" +
+	"\x13projection_line_cap\x18\v \x01(\x03R\x11projectionLineCap2\xbb\x06\n" +
 	"\x0eHarnessService\x12r\n" +
 	"\tRunImport\x121.vrooli.vrooli_memory.v1.harness.RunImportRequest\x1a2.vrooli.vrooli_memory.v1.harness.RunImportResponse\x12\x84\x01\n" +
 	"\x0fGetImportStatus\x127.vrooli.vrooli_memory.v1.harness.GetImportStatusRequest\x1a8.vrooli.vrooli_memory.v1.harness.GetImportStatusResponse\x12\x8a\x01\n" +

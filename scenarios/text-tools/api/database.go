@@ -12,7 +12,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
 
-	textSchema "github.com/vrooli/vrooli/scenarios/text-tools/api/internal/text"
+	textSchema "text-tools/internal/text"
 )
 
 const (

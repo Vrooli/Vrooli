@@ -3636,13 +3636,15 @@ func (x *ToolUsageRequest) GetFilter() *InvocationFilter {
 }
 
 type ToolUsageRow struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ToolName      string                 `protobuf:"bytes,1,opt,name=tool_name,json=toolName,proto3" json:"tool_name,omitempty"`
-	CallCount     int64                  `protobuf:"varint,2,opt,name=call_count,json=callCount,proto3" json:"call_count,omitempty"`
-	SuccessCount  int64                  `protobuf:"varint,3,opt,name=success_count,json=successCount,proto3" json:"success_count,omitempty"`
-	FailedCount   int64                  `protobuf:"varint,4,opt,name=failed_count,json=failedCount,proto3" json:"failed_count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	ToolName            string                 `protobuf:"bytes,1,opt,name=tool_name,json=toolName,proto3" json:"tool_name,omitempty"`
+	CallCount           int64                  `protobuf:"varint,2,opt,name=call_count,json=callCount,proto3" json:"call_count,omitempty"`
+	SuccessCount        int64                  `protobuf:"varint,3,opt,name=success_count,json=successCount,proto3" json:"success_count,omitempty"`
+	FailedCount         int64                  `protobuf:"varint,4,opt,name=failed_count,json=failedCount,proto3" json:"failed_count,omitempty"`
+	TotalTokens         int64                  `protobuf:"varint,5,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	EstimatedTokenShare float64                `protobuf:"fixed64,6,opt,name=estimated_token_share,json=estimatedTokenShare,proto3" json:"estimated_token_share,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ToolUsageRow) Reset() {
@@ -3699,6 +3701,20 @@ func (x *ToolUsageRow) GetSuccessCount() int64 {
 func (x *ToolUsageRow) GetFailedCount() int64 {
 	if x != nil {
 		return x.FailedCount
+	}
+	return 0
+}
+
+func (x *ToolUsageRow) GetTotalTokens() int64 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *ToolUsageRow) GetEstimatedTokenShare() float64 {
+	if x != nil {
+		return x.EstimatedTokenShare
 	}
 	return 0
 }
@@ -3842,16 +3858,21 @@ func (x *ToolCommandBreakdownRequest) GetLimit() int32 {
 }
 
 type ToolCommandBreakdownRow struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Executable    string                 `protobuf:"bytes,1,opt,name=executable,proto3" json:"executable,omitempty"`
-	CommandPath   string                 `protobuf:"bytes,2,opt,name=command_path,json=commandPath,proto3" json:"command_path,omitempty"`
-	CallCount     int64                  `protobuf:"varint,3,opt,name=call_count,json=callCount,proto3" json:"call_count,omitempty"`
-	SuccessCount  int64                  `protobuf:"varint,4,opt,name=success_count,json=successCount,proto3" json:"success_count,omitempty"`
-	FailedCount   int64                  `protobuf:"varint,5,opt,name=failed_count,json=failedCount,proto3" json:"failed_count,omitempty"`
-	RunCount      int64                  `protobuf:"varint,6,opt,name=run_count,json=runCount,proto3" json:"run_count,omitempty"`
-	Truncated     bool                   `protobuf:"varint,7,opt,name=truncated,proto3" json:"truncated,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Executable          string                 `protobuf:"bytes,1,opt,name=executable,proto3" json:"executable,omitempty"`
+	CommandPath         string                 `protobuf:"bytes,2,opt,name=command_path,json=commandPath,proto3" json:"command_path,omitempty"`
+	CallCount           int64                  `protobuf:"varint,3,opt,name=call_count,json=callCount,proto3" json:"call_count,omitempty"`
+	SuccessCount        int64                  `protobuf:"varint,4,opt,name=success_count,json=successCount,proto3" json:"success_count,omitempty"`
+	FailedCount         int64                  `protobuf:"varint,5,opt,name=failed_count,json=failedCount,proto3" json:"failed_count,omitempty"`
+	RunCount            int64                  `protobuf:"varint,6,opt,name=run_count,json=runCount,proto3" json:"run_count,omitempty"`
+	Truncated           bool                   `protobuf:"varint,7,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	TotalTokens         int64                  `protobuf:"varint,8,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	EstimatedTokenShare float64                `protobuf:"fixed64,9,opt,name=estimated_token_share,json=estimatedTokenShare,proto3" json:"estimated_token_share,omitempty"`
+	P50FootprintTokens  int64                  `protobuf:"varint,10,opt,name=p50_footprint_tokens,json=p50FootprintTokens,proto3" json:"p50_footprint_tokens,omitempty"`
+	P95FootprintTokens  int64                  `protobuf:"varint,11,opt,name=p95_footprint_tokens,json=p95FootprintTokens,proto3" json:"p95_footprint_tokens,omitempty"`
+	MaxFootprintTokens  int64                  `protobuf:"varint,12,opt,name=max_footprint_tokens,json=maxFootprintTokens,proto3" json:"max_footprint_tokens,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ToolCommandBreakdownRow) Reset() {
@@ -3933,6 +3954,41 @@ func (x *ToolCommandBreakdownRow) GetTruncated() bool {
 	return false
 }
 
+func (x *ToolCommandBreakdownRow) GetTotalTokens() int64 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *ToolCommandBreakdownRow) GetEstimatedTokenShare() float64 {
+	if x != nil {
+		return x.EstimatedTokenShare
+	}
+	return 0
+}
+
+func (x *ToolCommandBreakdownRow) GetP50FootprintTokens() int64 {
+	if x != nil {
+		return x.P50FootprintTokens
+	}
+	return 0
+}
+
+func (x *ToolCommandBreakdownRow) GetP95FootprintTokens() int64 {
+	if x != nil {
+		return x.P95FootprintTokens
+	}
+	return 0
+}
+
+func (x *ToolCommandBreakdownRow) GetMaxFootprintTokens() int64 {
+	if x != nil {
+		return x.MaxFootprintTokens
+	}
+	return 0
+}
+
 type ToolCommandBreakdownResponse struct {
 	state protoimpl.MessageState     `protogen:"open.v1"`
 	Rows  []*ToolCommandBreakdownRow `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
@@ -4011,6 +4067,295 @@ func (x *ToolCommandBreakdownResponse) GetDefinitionId() string {
 	return ""
 }
 
+// TokenAttribution groups the same durable invocation facts by one declared
+// dimension. group_by accepts capability, executable, command_path, or
+// target_scenario_operation. view accepts footprint, residency, or incurred.
+type TokenAttributionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Window        *v1.TimeWindow         `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
+	Filter        *InvocationFilter      `protobuf:"bytes,2,opt,name=filter,proto3" json:"filter,omitempty"`
+	GroupBy       string                 `protobuf:"bytes,3,opt,name=group_by,json=groupBy,proto3" json:"group_by,omitempty"`
+	View          string                 `protobuf:"bytes,4,opt,name=view,proto3" json:"view,omitempty"`
+	Limit         int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TokenAttributionRequest) Reset() {
+	*x = TokenAttributionRequest{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TokenAttributionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TokenAttributionRequest) ProtoMessage() {}
+
+func (x *TokenAttributionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TokenAttributionRequest.ProtoReflect.Descriptor instead.
+func (*TokenAttributionRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *TokenAttributionRequest) GetWindow() *v1.TimeWindow {
+	if x != nil {
+		return x.Window
+	}
+	return nil
+}
+
+func (x *TokenAttributionRequest) GetFilter() *InvocationFilter {
+	if x != nil {
+		return x.Filter
+	}
+	return nil
+}
+
+func (x *TokenAttributionRequest) GetGroupBy() string {
+	if x != nil {
+		return x.GroupBy
+	}
+	return ""
+}
+
+func (x *TokenAttributionRequest) GetView() string {
+	if x != nil {
+		return x.View
+	}
+	return ""
+}
+
+func (x *TokenAttributionRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type TokenAttributionRow struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	GroupBy             string                 `protobuf:"bytes,1,opt,name=group_by,json=groupBy,proto3" json:"group_by,omitempty"`
+	Value               string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	CallCount           int64                  `protobuf:"varint,3,opt,name=call_count,json=callCount,proto3" json:"call_count,omitempty"`
+	TotalTokens         int64                  `protobuf:"varint,4,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	EstimatedTokens     int64                  `protobuf:"varint,5,opt,name=estimated_tokens,json=estimatedTokens,proto3" json:"estimated_tokens,omitempty"`
+	EstimatedTokenShare float64                `protobuf:"fixed64,6,opt,name=estimated_token_share,json=estimatedTokenShare,proto3" json:"estimated_token_share,omitempty"`
+	P50FootprintTokens  int64                  `protobuf:"varint,7,opt,name=p50_footprint_tokens,json=p50FootprintTokens,proto3" json:"p50_footprint_tokens,omitempty"`
+	P95FootprintTokens  int64                  `protobuf:"varint,8,opt,name=p95_footprint_tokens,json=p95FootprintTokens,proto3" json:"p95_footprint_tokens,omitempty"`
+	MaxFootprintTokens  int64                  `protobuf:"varint,9,opt,name=max_footprint_tokens,json=maxFootprintTokens,proto3" json:"max_footprint_tokens,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *TokenAttributionRow) Reset() {
+	*x = TokenAttributionRow{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TokenAttributionRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TokenAttributionRow) ProtoMessage() {}
+
+func (x *TokenAttributionRow) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TokenAttributionRow.ProtoReflect.Descriptor instead.
+func (*TokenAttributionRow) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *TokenAttributionRow) GetGroupBy() string {
+	if x != nil {
+		return x.GroupBy
+	}
+	return ""
+}
+
+func (x *TokenAttributionRow) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *TokenAttributionRow) GetCallCount() int64 {
+	if x != nil {
+		return x.CallCount
+	}
+	return 0
+}
+
+func (x *TokenAttributionRow) GetTotalTokens() int64 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *TokenAttributionRow) GetEstimatedTokens() int64 {
+	if x != nil {
+		return x.EstimatedTokens
+	}
+	return 0
+}
+
+func (x *TokenAttributionRow) GetEstimatedTokenShare() float64 {
+	if x != nil {
+		return x.EstimatedTokenShare
+	}
+	return 0
+}
+
+func (x *TokenAttributionRow) GetP50FootprintTokens() int64 {
+	if x != nil {
+		return x.P50FootprintTokens
+	}
+	return 0
+}
+
+func (x *TokenAttributionRow) GetP95FootprintTokens() int64 {
+	if x != nil {
+		return x.P95FootprintTokens
+	}
+	return 0
+}
+
+func (x *TokenAttributionRow) GetMaxFootprintTokens() int64 {
+	if x != nil {
+		return x.MaxFootprintTokens
+	}
+	return 0
+}
+
+type TokenAttributionResponse struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Rows                []*TokenAttributionRow `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
+	GroupBy             string                 `protobuf:"bytes,2,opt,name=group_by,json=groupBy,proto3" json:"group_by,omitempty"`
+	View                string                 `protobuf:"bytes,3,opt,name=view,proto3" json:"view,omitempty"`
+	EstimatedTokenShare float64                `protobuf:"fixed64,4,opt,name=estimated_token_share,json=estimatedTokenShare,proto3" json:"estimated_token_share,omitempty"`
+	// Deprecated: Marked as deprecated in agent-manager/v1/measures/measures.proto.
+	ExecutedQuery string             `protobuf:"bytes,5,opt,name=executed_query,json=executedQuery,proto3" json:"executed_query,omitempty"`
+	Validity      *MeasureValidity   `protobuf:"bytes,100,opt,name=validity,proto3" json:"validity,omitempty"`
+	Provenance    *MeasureProvenance `protobuf:"bytes,101,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	DefinitionId  string             `protobuf:"bytes,102,opt,name=definition_id,json=definitionId,proto3" json:"definition_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TokenAttributionResponse) Reset() {
+	*x = TokenAttributionResponse{}
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TokenAttributionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TokenAttributionResponse) ProtoMessage() {}
+
+func (x *TokenAttributionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TokenAttributionResponse.ProtoReflect.Descriptor instead.
+func (*TokenAttributionResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *TokenAttributionResponse) GetRows() []*TokenAttributionRow {
+	if x != nil {
+		return x.Rows
+	}
+	return nil
+}
+
+func (x *TokenAttributionResponse) GetGroupBy() string {
+	if x != nil {
+		return x.GroupBy
+	}
+	return ""
+}
+
+func (x *TokenAttributionResponse) GetView() string {
+	if x != nil {
+		return x.View
+	}
+	return ""
+}
+
+func (x *TokenAttributionResponse) GetEstimatedTokenShare() float64 {
+	if x != nil {
+		return x.EstimatedTokenShare
+	}
+	return 0
+}
+
+// Deprecated: Marked as deprecated in agent-manager/v1/measures/measures.proto.
+func (x *TokenAttributionResponse) GetExecutedQuery() string {
+	if x != nil {
+		return x.ExecutedQuery
+	}
+	return ""
+}
+
+func (x *TokenAttributionResponse) GetValidity() *MeasureValidity {
+	if x != nil {
+		return x.Validity
+	}
+	return nil
+}
+
+func (x *TokenAttributionResponse) GetProvenance() *MeasureProvenance {
+	if x != nil {
+		return x.Provenance
+	}
+	return nil
+}
+
+func (x *TokenAttributionResponse) GetDefinitionId() string {
+	if x != nil {
+		return x.DefinitionId
+	}
+	return ""
+}
+
 type CapabilityUsageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Window        *v1.TimeWindow         `protobuf:"bytes,1,opt,name=window,proto3" json:"window,omitempty"`
@@ -4021,7 +4366,7 @@ type CapabilityUsageRequest struct {
 
 func (x *CapabilityUsageRequest) Reset() {
 	*x = CapabilityUsageRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[51]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4033,7 +4378,7 @@ func (x *CapabilityUsageRequest) String() string {
 func (*CapabilityUsageRequest) ProtoMessage() {}
 
 func (x *CapabilityUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[51]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4046,7 +4391,7 @@ func (x *CapabilityUsageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityUsageRequest.ProtoReflect.Descriptor instead.
 func (*CapabilityUsageRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{51}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *CapabilityUsageRequest) GetWindow() *v1.TimeWindow {
@@ -4064,20 +4409,22 @@ func (x *CapabilityUsageRequest) GetFilter() *InvocationFilter {
 }
 
 type CapabilityUsageRow struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	TargetScenario  string                 `protobuf:"bytes,1,opt,name=target_scenario,json=targetScenario,proto3" json:"target_scenario,omitempty"`
-	Operation       string                 `protobuf:"bytes,2,opt,name=operation,proto3" json:"operation,omitempty"`
-	CallCount       int64                  `protobuf:"varint,3,opt,name=call_count,json=callCount,proto3" json:"call_count,omitempty"`
-	SuccessCount    int64                  `protobuf:"varint,4,opt,name=success_count,json=successCount,proto3" json:"success_count,omitempty"`
-	FailedCount     int64                  `protobuf:"varint,5,opt,name=failed_count,json=failedCount,proto3" json:"failed_count,omitempty"`
-	TotalDurationMs uint64                 `protobuf:"varint,6,opt,name=total_duration_ms,json=totalDurationMs,proto3" json:"total_duration_ms,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	TargetScenario      string                 `protobuf:"bytes,1,opt,name=target_scenario,json=targetScenario,proto3" json:"target_scenario,omitempty"`
+	Operation           string                 `protobuf:"bytes,2,opt,name=operation,proto3" json:"operation,omitempty"`
+	CallCount           int64                  `protobuf:"varint,3,opt,name=call_count,json=callCount,proto3" json:"call_count,omitempty"`
+	SuccessCount        int64                  `protobuf:"varint,4,opt,name=success_count,json=successCount,proto3" json:"success_count,omitempty"`
+	FailedCount         int64                  `protobuf:"varint,5,opt,name=failed_count,json=failedCount,proto3" json:"failed_count,omitempty"`
+	TotalDurationMs     uint64                 `protobuf:"varint,6,opt,name=total_duration_ms,json=totalDurationMs,proto3" json:"total_duration_ms,omitempty"`
+	TotalTokens         int64                  `protobuf:"varint,7,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	EstimatedTokenShare float64                `protobuf:"fixed64,8,opt,name=estimated_token_share,json=estimatedTokenShare,proto3" json:"estimated_token_share,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CapabilityUsageRow) Reset() {
 	*x = CapabilityUsageRow{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[52]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4089,7 +4436,7 @@ func (x *CapabilityUsageRow) String() string {
 func (*CapabilityUsageRow) ProtoMessage() {}
 
 func (x *CapabilityUsageRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[52]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4102,7 +4449,7 @@ func (x *CapabilityUsageRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityUsageRow.ProtoReflect.Descriptor instead.
 func (*CapabilityUsageRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{52}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *CapabilityUsageRow) GetTargetScenario() string {
@@ -4147,6 +4494,20 @@ func (x *CapabilityUsageRow) GetTotalDurationMs() uint64 {
 	return 0
 }
 
+func (x *CapabilityUsageRow) GetTotalTokens() int64 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *CapabilityUsageRow) GetEstimatedTokenShare() float64 {
+	if x != nil {
+		return x.EstimatedTokenShare
+	}
+	return 0
+}
+
 type CapabilityUsageResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Rows  []*CapabilityUsageRow  `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
@@ -4161,7 +4522,7 @@ type CapabilityUsageResponse struct {
 
 func (x *CapabilityUsageResponse) Reset() {
 	*x = CapabilityUsageResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[53]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4173,7 +4534,7 @@ func (x *CapabilityUsageResponse) String() string {
 func (*CapabilityUsageResponse) ProtoMessage() {}
 
 func (x *CapabilityUsageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[53]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4186,7 +4547,7 @@ func (x *CapabilityUsageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityUsageResponse.ProtoReflect.Descriptor instead.
 func (*CapabilityUsageResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{53}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *CapabilityUsageResponse) GetRows() []*CapabilityUsageRow {
@@ -4235,7 +4596,7 @@ type CapabilityEfficacyRequest struct {
 
 func (x *CapabilityEfficacyRequest) Reset() {
 	*x = CapabilityEfficacyRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[54]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4247,7 +4608,7 @@ func (x *CapabilityEfficacyRequest) String() string {
 func (*CapabilityEfficacyRequest) ProtoMessage() {}
 
 func (x *CapabilityEfficacyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[54]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4260,7 +4621,7 @@ func (x *CapabilityEfficacyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityEfficacyRequest.ProtoReflect.Descriptor instead.
 func (*CapabilityEfficacyRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{54}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *CapabilityEfficacyRequest) GetWindow() *v1.TimeWindow {
@@ -4291,7 +4652,7 @@ type CapabilityEfficacyRow struct {
 
 func (x *CapabilityEfficacyRow) Reset() {
 	*x = CapabilityEfficacyRow{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[55]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4303,7 +4664,7 @@ func (x *CapabilityEfficacyRow) String() string {
 func (*CapabilityEfficacyRow) ProtoMessage() {}
 
 func (x *CapabilityEfficacyRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[55]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4316,7 +4677,7 @@ func (x *CapabilityEfficacyRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityEfficacyRow.ProtoReflect.Descriptor instead.
 func (*CapabilityEfficacyRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{55}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *CapabilityEfficacyRow) GetTargetScenario() string {
@@ -4375,7 +4736,7 @@ type CapabilityEfficacyResponse struct {
 
 func (x *CapabilityEfficacyResponse) Reset() {
 	*x = CapabilityEfficacyResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[56]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4387,7 +4748,7 @@ func (x *CapabilityEfficacyResponse) String() string {
 func (*CapabilityEfficacyResponse) ProtoMessage() {}
 
 func (x *CapabilityEfficacyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[56]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4400,7 +4761,7 @@ func (x *CapabilityEfficacyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityEfficacyResponse.ProtoReflect.Descriptor instead.
 func (*CapabilityEfficacyResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{56}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *CapabilityEfficacyResponse) GetRows() []*CapabilityEfficacyRow {
@@ -4449,7 +4810,7 @@ type ErrorPatternsRequest struct {
 
 func (x *ErrorPatternsRequest) Reset() {
 	*x = ErrorPatternsRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[57]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4461,7 +4822,7 @@ func (x *ErrorPatternsRequest) String() string {
 func (*ErrorPatternsRequest) ProtoMessage() {}
 
 func (x *ErrorPatternsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[57]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4474,7 +4835,7 @@ func (x *ErrorPatternsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorPatternsRequest.ProtoReflect.Descriptor instead.
 func (*ErrorPatternsRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{57}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ErrorPatternsRequest) GetWindow() *v1.TimeWindow {
@@ -4503,7 +4864,7 @@ type ErrorPatternRow struct {
 
 func (x *ErrorPatternRow) Reset() {
 	*x = ErrorPatternRow{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[58]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4515,7 +4876,7 @@ func (x *ErrorPatternRow) String() string {
 func (*ErrorPatternRow) ProtoMessage() {}
 
 func (x *ErrorPatternRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[58]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4528,7 +4889,7 @@ func (x *ErrorPatternRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorPatternRow.ProtoReflect.Descriptor instead.
 func (*ErrorPatternRow) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{58}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *ErrorPatternRow) GetErrorCode() string {
@@ -4573,7 +4934,7 @@ type ErrorPatternsResponse struct {
 
 func (x *ErrorPatternsResponse) Reset() {
 	*x = ErrorPatternsResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[59]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4585,7 +4946,7 @@ func (x *ErrorPatternsResponse) String() string {
 func (*ErrorPatternsResponse) ProtoMessage() {}
 
 func (x *ErrorPatternsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[59]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4598,7 +4959,7 @@ func (x *ErrorPatternsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorPatternsResponse.ProtoReflect.Descriptor instead.
 func (*ErrorPatternsResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{59}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ErrorPatternsResponse) GetRows() []*ErrorPatternRow {
@@ -4647,7 +5008,7 @@ type FileRereadRateRequest struct {
 
 func (x *FileRereadRateRequest) Reset() {
 	*x = FileRereadRateRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[60]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4659,7 +5020,7 @@ func (x *FileRereadRateRequest) String() string {
 func (*FileRereadRateRequest) ProtoMessage() {}
 
 func (x *FileRereadRateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[60]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4672,7 +5033,7 @@ func (x *FileRereadRateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileRereadRateRequest.ProtoReflect.Descriptor instead.
 func (*FileRereadRateRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{60}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *FileRereadRateRequest) GetWindow() *v1.TimeWindow {
@@ -4705,7 +5066,7 @@ type FileRereadRateResponse struct {
 
 func (x *FileRereadRateResponse) Reset() {
 	*x = FileRereadRateResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[61]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4717,7 +5078,7 @@ func (x *FileRereadRateResponse) String() string {
 func (*FileRereadRateResponse) ProtoMessage() {}
 
 func (x *FileRereadRateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[61]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4730,7 +5091,7 @@ func (x *FileRereadRateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileRereadRateResponse.ProtoReflect.Descriptor instead.
 func (*FileRereadRateResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{61}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *FileRereadRateResponse) GetRate() float64 {
@@ -4793,7 +5154,7 @@ type FindingRecurrenceRateRequest struct {
 
 func (x *FindingRecurrenceRateRequest) Reset() {
 	*x = FindingRecurrenceRateRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[62]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4805,7 +5166,7 @@ func (x *FindingRecurrenceRateRequest) String() string {
 func (*FindingRecurrenceRateRequest) ProtoMessage() {}
 
 func (x *FindingRecurrenceRateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[62]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4818,7 +5179,7 @@ func (x *FindingRecurrenceRateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingRecurrenceRateRequest.ProtoReflect.Descriptor instead.
 func (*FindingRecurrenceRateRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{62}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *FindingRecurrenceRateRequest) GetWindow() *v1.TimeWindow {
@@ -4852,7 +5213,7 @@ type FindingRecurrenceRateResponse struct {
 
 func (x *FindingRecurrenceRateResponse) Reset() {
 	*x = FindingRecurrenceRateResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[63]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4864,7 +5225,7 @@ func (x *FindingRecurrenceRateResponse) String() string {
 func (*FindingRecurrenceRateResponse) ProtoMessage() {}
 
 func (x *FindingRecurrenceRateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[63]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4877,7 +5238,7 @@ func (x *FindingRecurrenceRateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingRecurrenceRateResponse.ProtoReflect.Descriptor instead.
 func (*FindingRecurrenceRateResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{63}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *FindingRecurrenceRateResponse) GetRate() float64 {
@@ -4948,7 +5309,7 @@ type SelectCohortRequest struct {
 
 func (x *SelectCohortRequest) Reset() {
 	*x = SelectCohortRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[64]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4960,7 +5321,7 @@ func (x *SelectCohortRequest) String() string {
 func (*SelectCohortRequest) ProtoMessage() {}
 
 func (x *SelectCohortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[64]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4973,7 +5334,7 @@ func (x *SelectCohortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectCohortRequest.ProtoReflect.Descriptor instead.
 func (*SelectCohortRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{64}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *SelectCohortRequest) GetWindow() *v1.TimeWindow {
@@ -5018,7 +5379,7 @@ type CohortRun struct {
 
 func (x *CohortRun) Reset() {
 	*x = CohortRun{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[65]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5030,7 +5391,7 @@ func (x *CohortRun) String() string {
 func (*CohortRun) ProtoMessage() {}
 
 func (x *CohortRun) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[65]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5043,7 +5404,7 @@ func (x *CohortRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CohortRun.ProtoReflect.Descriptor instead.
 func (*CohortRun) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{65}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *CohortRun) GetRunId() string {
@@ -5153,7 +5514,7 @@ type SelectCohortResponse struct {
 
 func (x *SelectCohortResponse) Reset() {
 	*x = SelectCohortResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[66]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5165,7 +5526,7 @@ func (x *SelectCohortResponse) String() string {
 func (*SelectCohortResponse) ProtoMessage() {}
 
 func (x *SelectCohortResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[66]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5178,7 +5539,7 @@ func (x *SelectCohortResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectCohortResponse.ProtoReflect.Descriptor instead.
 func (*SelectCohortResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{66}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *SelectCohortResponse) GetRunIds() []string {
@@ -5245,7 +5606,7 @@ type EpisodeCohortRequest struct {
 
 func (x *EpisodeCohortRequest) Reset() {
 	*x = EpisodeCohortRequest{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[67]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5257,7 +5618,7 @@ func (x *EpisodeCohortRequest) String() string {
 func (*EpisodeCohortRequest) ProtoMessage() {}
 
 func (x *EpisodeCohortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[67]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5270,7 +5631,7 @@ func (x *EpisodeCohortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EpisodeCohortRequest.ProtoReflect.Descriptor instead.
 func (*EpisodeCohortRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{67}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *EpisodeCohortRequest) GetWindow() *v1.TimeWindow {
@@ -5308,7 +5669,7 @@ type EpisodeCohortSignal struct {
 
 func (x *EpisodeCohortSignal) Reset() {
 	*x = EpisodeCohortSignal{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[68]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5320,7 +5681,7 @@ func (x *EpisodeCohortSignal) String() string {
 func (*EpisodeCohortSignal) ProtoMessage() {}
 
 func (x *EpisodeCohortSignal) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[68]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5333,7 +5694,7 @@ func (x *EpisodeCohortSignal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EpisodeCohortSignal.ProtoReflect.Descriptor instead.
 func (*EpisodeCohortSignal) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{68}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *EpisodeCohortSignal) GetFingerprint() string {
@@ -5394,7 +5755,7 @@ type EpisodeCohortResponse struct {
 
 func (x *EpisodeCohortResponse) Reset() {
 	*x = EpisodeCohortResponse{}
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[69]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5406,7 +5767,7 @@ func (x *EpisodeCohortResponse) String() string {
 func (*EpisodeCohortResponse) ProtoMessage() {}
 
 func (x *EpisodeCohortResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[69]
+	mi := &file_agent_manager_v1_measures_measures_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5419,7 +5780,7 @@ func (x *EpisodeCohortResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EpisodeCohortResponse.ProtoReflect.Descriptor instead.
 func (*EpisodeCohortResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{69}
+	return file_agent_manager_v1_measures_measures_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *EpisodeCohortResponse) GetAvailabilityState() string {
@@ -5817,13 +6178,15 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\x8f\x01\n" +
 	"\x10ToolUsageRequest\x126\n" +
 	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\x12C\n" +
-	"\x06filter\x18\x02 \x01(\v2+.agent_manager.v1.measures.InvocationFilterR\x06filter\"\x92\x01\n" +
+	"\x06filter\x18\x02 \x01(\v2+.agent_manager.v1.measures.InvocationFilterR\x06filter\"\xe9\x01\n" +
 	"\fToolUsageRow\x12\x1b\n" +
 	"\ttool_name\x18\x01 \x01(\tR\btoolName\x12\x1d\n" +
 	"\n" +
 	"call_count\x18\x02 \x01(\x03R\tcallCount\x12#\n" +
 	"\rsuccess_count\x18\x03 \x01(\x03R\fsuccessCount\x12!\n" +
-	"\ffailed_count\x18\x04 \x01(\x03R\vfailedCount\"\xb6\x02\n" +
+	"\ffailed_count\x18\x04 \x01(\x03R\vfailedCount\x12!\n" +
+	"\ftotal_tokens\x18\x05 \x01(\x03R\vtotalTokens\x122\n" +
+	"\x15estimated_token_share\x18\x06 \x01(\x01R\x13estimatedTokenShare\"\xb6\x02\n" +
 	"\x11ToolUsageResponse\x12;\n" +
 	"\x04rows\x18\x01 \x03(\v2'.agent_manager.v1.measures.ToolUsageRowR\x04rows\x12)\n" +
 	"\x0eexecuted_query\x18\x02 \x01(\tB\x02\x18\x01R\rexecutedQuery\x12F\n" +
@@ -5835,7 +6198,7 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\x1bToolCommandBreakdownRequest\x126\n" +
 	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\x12C\n" +
 	"\x06filter\x18\x02 \x01(\v2+.agent_manager.v1.measures.InvocationFilterR\x06filter\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\xfe\x01\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"\xeb\x03\n" +
 	"\x17ToolCommandBreakdownRow\x12\x1e\n" +
 	"\n" +
 	"executable\x18\x01 \x01(\tR\n" +
@@ -5846,7 +6209,13 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\rsuccess_count\x18\x04 \x01(\x03R\fsuccessCount\x12!\n" +
 	"\ffailed_count\x18\x05 \x01(\x03R\vfailedCount\x12\x1b\n" +
 	"\trun_count\x18\x06 \x01(\x03R\brunCount\x12\x1c\n" +
-	"\ttruncated\x18\a \x01(\bR\ttruncated\"\xcc\x02\n" +
+	"\ttruncated\x18\a \x01(\bR\ttruncated\x12!\n" +
+	"\ftotal_tokens\x18\b \x01(\x03R\vtotalTokens\x122\n" +
+	"\x15estimated_token_share\x18\t \x01(\x01R\x13estimatedTokenShare\x120\n" +
+	"\x14p50_footprint_tokens\x18\n" +
+	" \x01(\x03R\x12p50FootprintTokens\x120\n" +
+	"\x14p95_footprint_tokens\x18\v \x01(\x03R\x12p95FootprintTokens\x120\n" +
+	"\x14max_footprint_tokens\x18\f \x01(\x03R\x12maxFootprintTokens\"\xcc\x02\n" +
 	"\x1cToolCommandBreakdownResponse\x12F\n" +
 	"\x04rows\x18\x01 \x03(\v22.agent_manager.v1.measures.ToolCommandBreakdownRowR\x04rows\x12)\n" +
 	"\x0eexecuted_query\x18\x02 \x01(\tB\x02\x18\x01R\rexecutedQuery\x12F\n" +
@@ -5854,10 +6223,38 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\n" +
 	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
 	"provenance\x12#\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\xdb\x01\n" +
+	"\x17TokenAttributionRequest\x126\n" +
+	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\x12C\n" +
+	"\x06filter\x18\x02 \x01(\v2+.agent_manager.v1.measures.InvocationFilterR\x06filter\x12\x19\n" +
+	"\bgroup_by\x18\x03 \x01(\tR\agroupBy\x12\x12\n" +
+	"\x04view\x18\x04 \x01(\tR\x04view\x12\x14\n" +
+	"\x05limit\x18\x05 \x01(\x05R\x05limit\"\xfd\x02\n" +
+	"\x13TokenAttributionRow\x12\x19\n" +
+	"\bgroup_by\x18\x01 \x01(\tR\agroupBy\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\x12\x1d\n" +
+	"\n" +
+	"call_count\x18\x03 \x01(\x03R\tcallCount\x12!\n" +
+	"\ftotal_tokens\x18\x04 \x01(\x03R\vtotalTokens\x12)\n" +
+	"\x10estimated_tokens\x18\x05 \x01(\x03R\x0festimatedTokens\x122\n" +
+	"\x15estimated_token_share\x18\x06 \x01(\x01R\x13estimatedTokenShare\x120\n" +
+	"\x14p50_footprint_tokens\x18\a \x01(\x03R\x12p50FootprintTokens\x120\n" +
+	"\x14p95_footprint_tokens\x18\b \x01(\x03R\x12p95FootprintTokens\x120\n" +
+	"\x14max_footprint_tokens\x18\t \x01(\x03R\x12maxFootprintTokens\"\xa7\x03\n" +
+	"\x18TokenAttributionResponse\x12B\n" +
+	"\x04rows\x18\x01 \x03(\v2..agent_manager.v1.measures.TokenAttributionRowR\x04rows\x12\x19\n" +
+	"\bgroup_by\x18\x02 \x01(\tR\agroupBy\x12\x12\n" +
+	"\x04view\x18\x03 \x01(\tR\x04view\x122\n" +
+	"\x15estimated_token_share\x18\x04 \x01(\x01R\x13estimatedTokenShare\x12)\n" +
+	"\x0eexecuted_query\x18\x05 \x01(\tB\x02\x18\x01R\rexecutedQuery\x12F\n" +
+	"\bvalidity\x18d \x01(\v2*.agent_manager.v1.measures.MeasureValidityR\bvalidity\x12L\n" +
+	"\n" +
+	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
+	"provenance\x12#\n" +
 	"\rdefinition_id\x18f \x01(\tR\fdefinitionId\"\x95\x01\n" +
 	"\x16CapabilityUsageRequest\x126\n" +
 	"\x06window\x18\x01 \x01(\v2\x1e.vrooli.measures.v1.TimeWindowR\x06window\x12C\n" +
-	"\x06filter\x18\x02 \x01(\v2+.agent_manager.v1.measures.InvocationFilterR\x06filter\"\xee\x01\n" +
+	"\x06filter\x18\x02 \x01(\v2+.agent_manager.v1.measures.InvocationFilterR\x06filter\"\xc5\x02\n" +
 	"\x12CapabilityUsageRow\x12'\n" +
 	"\x0ftarget_scenario\x18\x01 \x01(\tR\x0etargetScenario\x12\x1c\n" +
 	"\toperation\x18\x02 \x01(\tR\toperation\x12\x1d\n" +
@@ -5865,7 +6262,9 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"call_count\x18\x03 \x01(\x03R\tcallCount\x12#\n" +
 	"\rsuccess_count\x18\x04 \x01(\x03R\fsuccessCount\x12!\n" +
 	"\ffailed_count\x18\x05 \x01(\x03R\vfailedCount\x12*\n" +
-	"\x11total_duration_ms\x18\x06 \x01(\x04R\x0ftotalDurationMs\"\xc2\x02\n" +
+	"\x11total_duration_ms\x18\x06 \x01(\x04R\x0ftotalDurationMs\x12!\n" +
+	"\ftotal_tokens\x18\a \x01(\x03R\vtotalTokens\x122\n" +
+	"\x15estimated_token_share\x18\b \x01(\x01R\x13estimatedTokenShare\"\xc2\x02\n" +
 	"\x17CapabilityUsageResponse\x12A\n" +
 	"\x04rows\x18\x01 \x03(\v2-.agent_manager.v1.measures.CapabilityUsageRowR\x04rows\x12)\n" +
 	"\x0eexecuted_query\x18\x02 \x01(\tB\x02\x18\x01R\rexecutedQuery\x12F\n" +
@@ -5996,7 +6395,7 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\n" +
 	"provenance\x18e \x01(\v2,.agent_manager.v1.measures.MeasureProvenanceR\n" +
 	"provenance\x12#\n" +
-	"\rdefinition_id\x18f \x01(\tR\fdefinitionId2\x82\x1a\n" +
+	"\rdefinition_id\x18f \x01(\tR\fdefinitionId2\xff\x1a\n" +
 	"\x0fMeasuresService\x12~\n" +
 	"\x11ExternalToolShare\x123.agent_manager.v1.measures.ExternalToolShareRequest\x1a4.agent_manager.v1.measures.ExternalToolShareResponse\x12f\n" +
 	"\tRetryRate\x12+.agent_manager.v1.measures.RetryRateRequest\x1a,.agent_manager.v1.measures.RetryRateResponse\x12{\n" +
@@ -6016,7 +6415,8 @@ const file_agent_manager_v1_measures_measures_proto_rawDesc = "" +
 	"\x12WorkloadEfficiency\x124.agent_manager.v1.measures.WorkloadEfficiencyRequest\x1a5.agent_manager.v1.measures.WorkloadEfficiencyResponse\x12{\n" +
 	"\x10TerminalRunTrend\x122.agent_manager.v1.measures.TerminalRunTrendRequest\x1a3.agent_manager.v1.measures.TerminalRunTrendResponse\x12f\n" +
 	"\tToolUsage\x12+.agent_manager.v1.measures.ToolUsageRequest\x1a,.agent_manager.v1.measures.ToolUsageResponse\x12\x87\x01\n" +
-	"\x14ToolCommandBreakdown\x126.agent_manager.v1.measures.ToolCommandBreakdownRequest\x1a7.agent_manager.v1.measures.ToolCommandBreakdownResponse\x12r\n" +
+	"\x14ToolCommandBreakdown\x126.agent_manager.v1.measures.ToolCommandBreakdownRequest\x1a7.agent_manager.v1.measures.ToolCommandBreakdownResponse\x12{\n" +
+	"\x10TokenAttribution\x122.agent_manager.v1.measures.TokenAttributionRequest\x1a3.agent_manager.v1.measures.TokenAttributionResponse\x12r\n" +
 	"\rErrorPatterns\x12/.agent_manager.v1.measures.ErrorPatternsRequest\x1a0.agent_manager.v1.measures.ErrorPatternsResponse\x12u\n" +
 	"\x0eFileRereadRate\x120.agent_manager.v1.measures.FileRereadRateRequest\x1a1.agent_manager.v1.measures.FileRereadRateResponse\x12\x8a\x01\n" +
 	"\x15FindingRecurrenceRate\x127.agent_manager.v1.measures.FindingRecurrenceRateRequest\x1a8.agent_manager.v1.measures.FindingRecurrenceRateResponse\x12r\n" +
@@ -6038,7 +6438,7 @@ func file_agent_manager_v1_measures_measures_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_measures_measures_proto_rawDescData
 }
 
-var file_agent_manager_v1_measures_measures_proto_msgTypes = make([]protoimpl.MessageInfo, 70)
+var file_agent_manager_v1_measures_measures_proto_msgTypes = make([]protoimpl.MessageInfo, 73)
 var file_agent_manager_v1_measures_measures_proto_goTypes = []any{
 	(*InvocationFilter)(nil),              // 0: agent_manager.v1.measures.InvocationFilter
 	(*MeasureValidity)(nil),               // 1: agent_manager.v1.measures.MeasureValidity
@@ -6091,208 +6491,218 @@ var file_agent_manager_v1_measures_measures_proto_goTypes = []any{
 	(*ToolCommandBreakdownRequest)(nil),   // 48: agent_manager.v1.measures.ToolCommandBreakdownRequest
 	(*ToolCommandBreakdownRow)(nil),       // 49: agent_manager.v1.measures.ToolCommandBreakdownRow
 	(*ToolCommandBreakdownResponse)(nil),  // 50: agent_manager.v1.measures.ToolCommandBreakdownResponse
-	(*CapabilityUsageRequest)(nil),        // 51: agent_manager.v1.measures.CapabilityUsageRequest
-	(*CapabilityUsageRow)(nil),            // 52: agent_manager.v1.measures.CapabilityUsageRow
-	(*CapabilityUsageResponse)(nil),       // 53: agent_manager.v1.measures.CapabilityUsageResponse
-	(*CapabilityEfficacyRequest)(nil),     // 54: agent_manager.v1.measures.CapabilityEfficacyRequest
-	(*CapabilityEfficacyRow)(nil),         // 55: agent_manager.v1.measures.CapabilityEfficacyRow
-	(*CapabilityEfficacyResponse)(nil),    // 56: agent_manager.v1.measures.CapabilityEfficacyResponse
-	(*ErrorPatternsRequest)(nil),          // 57: agent_manager.v1.measures.ErrorPatternsRequest
-	(*ErrorPatternRow)(nil),               // 58: agent_manager.v1.measures.ErrorPatternRow
-	(*ErrorPatternsResponse)(nil),         // 59: agent_manager.v1.measures.ErrorPatternsResponse
-	(*FileRereadRateRequest)(nil),         // 60: agent_manager.v1.measures.FileRereadRateRequest
-	(*FileRereadRateResponse)(nil),        // 61: agent_manager.v1.measures.FileRereadRateResponse
-	(*FindingRecurrenceRateRequest)(nil),  // 62: agent_manager.v1.measures.FindingRecurrenceRateRequest
-	(*FindingRecurrenceRateResponse)(nil), // 63: agent_manager.v1.measures.FindingRecurrenceRateResponse
-	(*SelectCohortRequest)(nil),           // 64: agent_manager.v1.measures.SelectCohortRequest
-	(*CohortRun)(nil),                     // 65: agent_manager.v1.measures.CohortRun
-	(*SelectCohortResponse)(nil),          // 66: agent_manager.v1.measures.SelectCohortResponse
-	(*EpisodeCohortRequest)(nil),          // 67: agent_manager.v1.measures.EpisodeCohortRequest
-	(*EpisodeCohortSignal)(nil),           // 68: agent_manager.v1.measures.EpisodeCohortSignal
-	(*EpisodeCohortResponse)(nil),         // 69: agent_manager.v1.measures.EpisodeCohortResponse
-	(*v1.TimeWindow)(nil),                 // 70: vrooli.measures.v1.TimeWindow
+	(*TokenAttributionRequest)(nil),       // 51: agent_manager.v1.measures.TokenAttributionRequest
+	(*TokenAttributionRow)(nil),           // 52: agent_manager.v1.measures.TokenAttributionRow
+	(*TokenAttributionResponse)(nil),      // 53: agent_manager.v1.measures.TokenAttributionResponse
+	(*CapabilityUsageRequest)(nil),        // 54: agent_manager.v1.measures.CapabilityUsageRequest
+	(*CapabilityUsageRow)(nil),            // 55: agent_manager.v1.measures.CapabilityUsageRow
+	(*CapabilityUsageResponse)(nil),       // 56: agent_manager.v1.measures.CapabilityUsageResponse
+	(*CapabilityEfficacyRequest)(nil),     // 57: agent_manager.v1.measures.CapabilityEfficacyRequest
+	(*CapabilityEfficacyRow)(nil),         // 58: agent_manager.v1.measures.CapabilityEfficacyRow
+	(*CapabilityEfficacyResponse)(nil),    // 59: agent_manager.v1.measures.CapabilityEfficacyResponse
+	(*ErrorPatternsRequest)(nil),          // 60: agent_manager.v1.measures.ErrorPatternsRequest
+	(*ErrorPatternRow)(nil),               // 61: agent_manager.v1.measures.ErrorPatternRow
+	(*ErrorPatternsResponse)(nil),         // 62: agent_manager.v1.measures.ErrorPatternsResponse
+	(*FileRereadRateRequest)(nil),         // 63: agent_manager.v1.measures.FileRereadRateRequest
+	(*FileRereadRateResponse)(nil),        // 64: agent_manager.v1.measures.FileRereadRateResponse
+	(*FindingRecurrenceRateRequest)(nil),  // 65: agent_manager.v1.measures.FindingRecurrenceRateRequest
+	(*FindingRecurrenceRateResponse)(nil), // 66: agent_manager.v1.measures.FindingRecurrenceRateResponse
+	(*SelectCohortRequest)(nil),           // 67: agent_manager.v1.measures.SelectCohortRequest
+	(*CohortRun)(nil),                     // 68: agent_manager.v1.measures.CohortRun
+	(*SelectCohortResponse)(nil),          // 69: agent_manager.v1.measures.SelectCohortResponse
+	(*EpisodeCohortRequest)(nil),          // 70: agent_manager.v1.measures.EpisodeCohortRequest
+	(*EpisodeCohortSignal)(nil),           // 71: agent_manager.v1.measures.EpisodeCohortSignal
+	(*EpisodeCohortResponse)(nil),         // 72: agent_manager.v1.measures.EpisodeCohortResponse
+	(*v1.TimeWindow)(nil),                 // 73: vrooli.measures.v1.TimeWindow
 }
 var file_agent_manager_v1_measures_measures_proto_depIdxs = []int32{
-	70,  // 0: agent_manager.v1.measures.InvocationFilter.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 0: agent_manager.v1.measures.InvocationFilter.window:type_name -> vrooli.measures.v1.TimeWindow
 	2,   // 1: agent_manager.v1.measures.MeasureProvenance.applied_filters:type_name -> agent_manager.v1.measures.MeasureFilter
 	4,   // 2: agent_manager.v1.measures.AllMeasureDefinitionsResponse.definitions:type_name -> agent_manager.v1.measures.MeasureDefinition
-	70,  // 3: agent_manager.v1.measures.ExternalToolShareRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 3: agent_manager.v1.measures.ExternalToolShareRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 4: agent_manager.v1.measures.ExternalToolShareRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 5: agent_manager.v1.measures.ExternalToolShareResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 6: agent_manager.v1.measures.ExternalToolShareResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 7: agent_manager.v1.measures.RetryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 7: agent_manager.v1.measures.RetryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 8: agent_manager.v1.measures.RetryRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 9: agent_manager.v1.measures.RetryRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 10: agent_manager.v1.measures.RetryRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 11: agent_manager.v1.measures.HelpRecoveryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 11: agent_manager.v1.measures.HelpRecoveryRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 12: agent_manager.v1.measures.HelpRecoveryRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 13: agent_manager.v1.measures.HelpRecoveryRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 14: agent_manager.v1.measures.HelpRecoveryRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 15: agent_manager.v1.measures.RepeatedWorkRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 15: agent_manager.v1.measures.RepeatedWorkRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 16: agent_manager.v1.measures.RepeatedWorkRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 17: agent_manager.v1.measures.RepeatedWorkRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 18: agent_manager.v1.measures.RepeatedWorkRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 19: agent_manager.v1.measures.ToolFailureRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 19: agent_manager.v1.measures.ToolFailureRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 20: agent_manager.v1.measures.ToolFailureRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 21: agent_manager.v1.measures.ToolFailureRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 22: agent_manager.v1.measures.ToolFailureRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 23: agent_manager.v1.measures.RunSuccessRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 23: agent_manager.v1.measures.RunSuccessRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 24: agent_manager.v1.measures.RunSuccessRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 25: agent_manager.v1.measures.RunSuccessRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 26: agent_manager.v1.measures.RunSuccessRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 27: agent_manager.v1.measures.RunCycleTimeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 27: agent_manager.v1.measures.RunCycleTimeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 28: agent_manager.v1.measures.RunCycleTimeRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 29: agent_manager.v1.measures.RunCycleTimeResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 30: agent_manager.v1.measures.RunCycleTimeResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 31: agent_manager.v1.measures.RunDurationStatisticsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 31: agent_manager.v1.measures.RunDurationStatisticsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 32: agent_manager.v1.measures.RunDurationStatisticsRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 33: agent_manager.v1.measures.RunDurationStatisticsResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 34: agent_manager.v1.measures.RunDurationStatisticsResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 35: agent_manager.v1.measures.RunCostRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 35: agent_manager.v1.measures.RunCostRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 36: agent_manager.v1.measures.RunCostRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 37: agent_manager.v1.measures.RunCostResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	24,  // 38: agent_manager.v1.measures.RunCostResponse.charge_by_basis:type_name -> agent_manager.v1.measures.ChargeByBasis
 	3,   // 39: agent_manager.v1.measures.RunCostResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 40: agent_manager.v1.measures.RunVolumeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 40: agent_manager.v1.measures.RunVolumeRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 41: agent_manager.v1.measures.RunVolumeRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 42: agent_manager.v1.measures.RunVolumeResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 43: agent_manager.v1.measures.RunVolumeResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 44: agent_manager.v1.measures.RunStatusDistributionRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 44: agent_manager.v1.measures.RunStatusDistributionRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 45: agent_manager.v1.measures.RunStatusDistributionRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	29,  // 46: agent_manager.v1.measures.RunStatusDistributionResponse.rows:type_name -> agent_manager.v1.measures.RunStatusCount
 	1,   // 47: agent_manager.v1.measures.RunStatusDistributionResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 48: agent_manager.v1.measures.RunStatusDistributionResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 49: agent_manager.v1.measures.RunnerBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 49: agent_manager.v1.measures.RunnerBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 50: agent_manager.v1.measures.RunnerBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	31,  // 51: agent_manager.v1.measures.RunnerBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
 	1,   // 52: agent_manager.v1.measures.RunnerBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 53: agent_manager.v1.measures.RunnerBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 54: agent_manager.v1.measures.ModelBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 54: agent_manager.v1.measures.ModelBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 55: agent_manager.v1.measures.ModelBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	31,  // 56: agent_manager.v1.measures.ModelBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
 	1,   // 57: agent_manager.v1.measures.ModelBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 58: agent_manager.v1.measures.ModelBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 59: agent_manager.v1.measures.ProfileBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 59: agent_manager.v1.measures.ProfileBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 60: agent_manager.v1.measures.ProfileBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	31,  // 61: agent_manager.v1.measures.ProfileBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
 	1,   // 62: agent_manager.v1.measures.ProfileBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 63: agent_manager.v1.measures.ProfileBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 64: agent_manager.v1.measures.WorkloadBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 64: agent_manager.v1.measures.WorkloadBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 65: agent_manager.v1.measures.WorkloadBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	31,  // 66: agent_manager.v1.measures.WorkloadBreakdownResponse.rows:type_name -> agent_manager.v1.measures.RunBreakdownRow
 	1,   // 67: agent_manager.v1.measures.WorkloadBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 68: agent_manager.v1.measures.WorkloadBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 69: agent_manager.v1.measures.WorkloadEfficiencyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 69: agent_manager.v1.measures.WorkloadEfficiencyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 70: agent_manager.v1.measures.WorkloadEfficiencyRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	1,   // 71: agent_manager.v1.measures.WorkloadEfficiencyResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 72: agent_manager.v1.measures.WorkloadEfficiencyResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 73: agent_manager.v1.measures.TerminalRunTrendRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 73: agent_manager.v1.measures.TerminalRunTrendRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 74: agent_manager.v1.measures.TerminalRunTrendRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	43,  // 75: agent_manager.v1.measures.TerminalRunTrendResponse.rows:type_name -> agent_manager.v1.measures.TerminalRunTrendRow
 	1,   // 76: agent_manager.v1.measures.TerminalRunTrendResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 77: agent_manager.v1.measures.TerminalRunTrendResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 78: agent_manager.v1.measures.ToolUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 78: agent_manager.v1.measures.ToolUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 79: agent_manager.v1.measures.ToolUsageRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	46,  // 80: agent_manager.v1.measures.ToolUsageResponse.rows:type_name -> agent_manager.v1.measures.ToolUsageRow
 	1,   // 81: agent_manager.v1.measures.ToolUsageResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 82: agent_manager.v1.measures.ToolUsageResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 83: agent_manager.v1.measures.ToolCommandBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	73,  // 83: agent_manager.v1.measures.ToolCommandBreakdownRequest.window:type_name -> vrooli.measures.v1.TimeWindow
 	0,   // 84: agent_manager.v1.measures.ToolCommandBreakdownRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
 	49,  // 85: agent_manager.v1.measures.ToolCommandBreakdownResponse.rows:type_name -> agent_manager.v1.measures.ToolCommandBreakdownRow
 	1,   // 86: agent_manager.v1.measures.ToolCommandBreakdownResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
 	3,   // 87: agent_manager.v1.measures.ToolCommandBreakdownResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 88: agent_manager.v1.measures.CapabilityUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 89: agent_manager.v1.measures.CapabilityUsageRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	52,  // 90: agent_manager.v1.measures.CapabilityUsageResponse.rows:type_name -> agent_manager.v1.measures.CapabilityUsageRow
-	1,   // 91: agent_manager.v1.measures.CapabilityUsageResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 92: agent_manager.v1.measures.CapabilityUsageResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 93: agent_manager.v1.measures.CapabilityEfficacyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 94: agent_manager.v1.measures.CapabilityEfficacyRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	55,  // 95: agent_manager.v1.measures.CapabilityEfficacyResponse.rows:type_name -> agent_manager.v1.measures.CapabilityEfficacyRow
-	1,   // 96: agent_manager.v1.measures.CapabilityEfficacyResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 97: agent_manager.v1.measures.CapabilityEfficacyResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 98: agent_manager.v1.measures.ErrorPatternsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 99: agent_manager.v1.measures.ErrorPatternsRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	58,  // 100: agent_manager.v1.measures.ErrorPatternsResponse.rows:type_name -> agent_manager.v1.measures.ErrorPatternRow
-	1,   // 101: agent_manager.v1.measures.ErrorPatternsResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 102: agent_manager.v1.measures.ErrorPatternsResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 103: agent_manager.v1.measures.FileRereadRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 104: agent_manager.v1.measures.FileRereadRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	1,   // 105: agent_manager.v1.measures.FileRereadRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 106: agent_manager.v1.measures.FileRereadRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 107: agent_manager.v1.measures.FindingRecurrenceRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 108: agent_manager.v1.measures.FindingRecurrenceRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	1,   // 109: agent_manager.v1.measures.FindingRecurrenceRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 110: agent_manager.v1.measures.FindingRecurrenceRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 111: agent_manager.v1.measures.SelectCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 112: agent_manager.v1.measures.SelectCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	1,   // 113: agent_manager.v1.measures.SelectCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	65,  // 114: agent_manager.v1.measures.SelectCohortResponse.rows:type_name -> agent_manager.v1.measures.CohortRun
-	3,   // 115: agent_manager.v1.measures.SelectCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	70,  // 116: agent_manager.v1.measures.EpisodeCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
-	0,   // 117: agent_manager.v1.measures.EpisodeCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
-	68,  // 118: agent_manager.v1.measures.EpisodeCohortResponse.signals:type_name -> agent_manager.v1.measures.EpisodeCohortSignal
-	1,   // 119: agent_manager.v1.measures.EpisodeCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
-	3,   // 120: agent_manager.v1.measures.EpisodeCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
-	7,   // 121: agent_manager.v1.measures.MeasuresService.ExternalToolShare:input_type -> agent_manager.v1.measures.ExternalToolShareRequest
-	9,   // 122: agent_manager.v1.measures.MeasuresService.RetryRate:input_type -> agent_manager.v1.measures.RetryRateRequest
-	11,  // 123: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:input_type -> agent_manager.v1.measures.HelpRecoveryRateRequest
-	13,  // 124: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:input_type -> agent_manager.v1.measures.RepeatedWorkRateRequest
-	15,  // 125: agent_manager.v1.measures.MeasuresService.ToolFailureRate:input_type -> agent_manager.v1.measures.ToolFailureRateRequest
-	17,  // 126: agent_manager.v1.measures.MeasuresService.RunSuccessRate:input_type -> agent_manager.v1.measures.RunSuccessRateRequest
-	19,  // 127: agent_manager.v1.measures.MeasuresService.RunCycleTime:input_type -> agent_manager.v1.measures.RunCycleTimeRequest
-	21,  // 128: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:input_type -> agent_manager.v1.measures.RunDurationStatisticsRequest
-	23,  // 129: agent_manager.v1.measures.MeasuresService.RunCost:input_type -> agent_manager.v1.measures.RunCostRequest
-	26,  // 130: agent_manager.v1.measures.MeasuresService.RunVolume:input_type -> agent_manager.v1.measures.RunVolumeRequest
-	28,  // 131: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:input_type -> agent_manager.v1.measures.RunStatusDistributionRequest
-	32,  // 132: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:input_type -> agent_manager.v1.measures.RunnerBreakdownRequest
-	34,  // 133: agent_manager.v1.measures.MeasuresService.ModelBreakdown:input_type -> agent_manager.v1.measures.ModelBreakdownRequest
-	36,  // 134: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:input_type -> agent_manager.v1.measures.ProfileBreakdownRequest
-	38,  // 135: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:input_type -> agent_manager.v1.measures.WorkloadBreakdownRequest
-	40,  // 136: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:input_type -> agent_manager.v1.measures.WorkloadEfficiencyRequest
-	42,  // 137: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:input_type -> agent_manager.v1.measures.TerminalRunTrendRequest
-	45,  // 138: agent_manager.v1.measures.MeasuresService.ToolUsage:input_type -> agent_manager.v1.measures.ToolUsageRequest
-	48,  // 139: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:input_type -> agent_manager.v1.measures.ToolCommandBreakdownRequest
-	57,  // 140: agent_manager.v1.measures.MeasuresService.ErrorPatterns:input_type -> agent_manager.v1.measures.ErrorPatternsRequest
-	60,  // 141: agent_manager.v1.measures.MeasuresService.FileRereadRate:input_type -> agent_manager.v1.measures.FileRereadRateRequest
-	62,  // 142: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:input_type -> agent_manager.v1.measures.FindingRecurrenceRateRequest
-	67,  // 143: agent_manager.v1.measures.MeasuresService.EpisodeCohort:input_type -> agent_manager.v1.measures.EpisodeCohortRequest
-	51,  // 144: agent_manager.v1.measures.MeasuresService.CapabilityUsage:input_type -> agent_manager.v1.measures.CapabilityUsageRequest
-	54,  // 145: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:input_type -> agent_manager.v1.measures.CapabilityEfficacyRequest
-	5,   // 146: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:input_type -> agent_manager.v1.measures.AllMeasureDefinitionsRequest
-	64,  // 147: agent_manager.v1.measures.MeasuresService.SelectCohort:input_type -> agent_manager.v1.measures.SelectCohortRequest
-	8,   // 148: agent_manager.v1.measures.MeasuresService.ExternalToolShare:output_type -> agent_manager.v1.measures.ExternalToolShareResponse
-	10,  // 149: agent_manager.v1.measures.MeasuresService.RetryRate:output_type -> agent_manager.v1.measures.RetryRateResponse
-	12,  // 150: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:output_type -> agent_manager.v1.measures.HelpRecoveryRateResponse
-	14,  // 151: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:output_type -> agent_manager.v1.measures.RepeatedWorkRateResponse
-	16,  // 152: agent_manager.v1.measures.MeasuresService.ToolFailureRate:output_type -> agent_manager.v1.measures.ToolFailureRateResponse
-	18,  // 153: agent_manager.v1.measures.MeasuresService.RunSuccessRate:output_type -> agent_manager.v1.measures.RunSuccessRateResponse
-	20,  // 154: agent_manager.v1.measures.MeasuresService.RunCycleTime:output_type -> agent_manager.v1.measures.RunCycleTimeResponse
-	22,  // 155: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:output_type -> agent_manager.v1.measures.RunDurationStatisticsResponse
-	25,  // 156: agent_manager.v1.measures.MeasuresService.RunCost:output_type -> agent_manager.v1.measures.RunCostResponse
-	27,  // 157: agent_manager.v1.measures.MeasuresService.RunVolume:output_type -> agent_manager.v1.measures.RunVolumeResponse
-	30,  // 158: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:output_type -> agent_manager.v1.measures.RunStatusDistributionResponse
-	33,  // 159: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:output_type -> agent_manager.v1.measures.RunnerBreakdownResponse
-	35,  // 160: agent_manager.v1.measures.MeasuresService.ModelBreakdown:output_type -> agent_manager.v1.measures.ModelBreakdownResponse
-	37,  // 161: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:output_type -> agent_manager.v1.measures.ProfileBreakdownResponse
-	39,  // 162: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:output_type -> agent_manager.v1.measures.WorkloadBreakdownResponse
-	41,  // 163: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:output_type -> agent_manager.v1.measures.WorkloadEfficiencyResponse
-	44,  // 164: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:output_type -> agent_manager.v1.measures.TerminalRunTrendResponse
-	47,  // 165: agent_manager.v1.measures.MeasuresService.ToolUsage:output_type -> agent_manager.v1.measures.ToolUsageResponse
-	50,  // 166: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:output_type -> agent_manager.v1.measures.ToolCommandBreakdownResponse
-	59,  // 167: agent_manager.v1.measures.MeasuresService.ErrorPatterns:output_type -> agent_manager.v1.measures.ErrorPatternsResponse
-	61,  // 168: agent_manager.v1.measures.MeasuresService.FileRereadRate:output_type -> agent_manager.v1.measures.FileRereadRateResponse
-	63,  // 169: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:output_type -> agent_manager.v1.measures.FindingRecurrenceRateResponse
-	69,  // 170: agent_manager.v1.measures.MeasuresService.EpisodeCohort:output_type -> agent_manager.v1.measures.EpisodeCohortResponse
-	53,  // 171: agent_manager.v1.measures.MeasuresService.CapabilityUsage:output_type -> agent_manager.v1.measures.CapabilityUsageResponse
-	56,  // 172: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:output_type -> agent_manager.v1.measures.CapabilityEfficacyResponse
-	6,   // 173: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:output_type -> agent_manager.v1.measures.AllMeasureDefinitionsResponse
-	66,  // 174: agent_manager.v1.measures.MeasuresService.SelectCohort:output_type -> agent_manager.v1.measures.SelectCohortResponse
-	148, // [148:175] is the sub-list for method output_type
-	121, // [121:148] is the sub-list for method input_type
-	121, // [121:121] is the sub-list for extension type_name
-	121, // [121:121] is the sub-list for extension extendee
-	0,   // [0:121] is the sub-list for field type_name
+	73,  // 88: agent_manager.v1.measures.TokenAttributionRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 89: agent_manager.v1.measures.TokenAttributionRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	52,  // 90: agent_manager.v1.measures.TokenAttributionResponse.rows:type_name -> agent_manager.v1.measures.TokenAttributionRow
+	1,   // 91: agent_manager.v1.measures.TokenAttributionResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 92: agent_manager.v1.measures.TokenAttributionResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	73,  // 93: agent_manager.v1.measures.CapabilityUsageRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 94: agent_manager.v1.measures.CapabilityUsageRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	55,  // 95: agent_manager.v1.measures.CapabilityUsageResponse.rows:type_name -> agent_manager.v1.measures.CapabilityUsageRow
+	1,   // 96: agent_manager.v1.measures.CapabilityUsageResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 97: agent_manager.v1.measures.CapabilityUsageResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	73,  // 98: agent_manager.v1.measures.CapabilityEfficacyRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 99: agent_manager.v1.measures.CapabilityEfficacyRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	58,  // 100: agent_manager.v1.measures.CapabilityEfficacyResponse.rows:type_name -> agent_manager.v1.measures.CapabilityEfficacyRow
+	1,   // 101: agent_manager.v1.measures.CapabilityEfficacyResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 102: agent_manager.v1.measures.CapabilityEfficacyResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	73,  // 103: agent_manager.v1.measures.ErrorPatternsRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 104: agent_manager.v1.measures.ErrorPatternsRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	61,  // 105: agent_manager.v1.measures.ErrorPatternsResponse.rows:type_name -> agent_manager.v1.measures.ErrorPatternRow
+	1,   // 106: agent_manager.v1.measures.ErrorPatternsResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 107: agent_manager.v1.measures.ErrorPatternsResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	73,  // 108: agent_manager.v1.measures.FileRereadRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 109: agent_manager.v1.measures.FileRereadRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	1,   // 110: agent_manager.v1.measures.FileRereadRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 111: agent_manager.v1.measures.FileRereadRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	73,  // 112: agent_manager.v1.measures.FindingRecurrenceRateRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 113: agent_manager.v1.measures.FindingRecurrenceRateRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	1,   // 114: agent_manager.v1.measures.FindingRecurrenceRateResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 115: agent_manager.v1.measures.FindingRecurrenceRateResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	73,  // 116: agent_manager.v1.measures.SelectCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 117: agent_manager.v1.measures.SelectCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	1,   // 118: agent_manager.v1.measures.SelectCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	68,  // 119: agent_manager.v1.measures.SelectCohortResponse.rows:type_name -> agent_manager.v1.measures.CohortRun
+	3,   // 120: agent_manager.v1.measures.SelectCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	73,  // 121: agent_manager.v1.measures.EpisodeCohortRequest.window:type_name -> vrooli.measures.v1.TimeWindow
+	0,   // 122: agent_manager.v1.measures.EpisodeCohortRequest.filter:type_name -> agent_manager.v1.measures.InvocationFilter
+	71,  // 123: agent_manager.v1.measures.EpisodeCohortResponse.signals:type_name -> agent_manager.v1.measures.EpisodeCohortSignal
+	1,   // 124: agent_manager.v1.measures.EpisodeCohortResponse.validity:type_name -> agent_manager.v1.measures.MeasureValidity
+	3,   // 125: agent_manager.v1.measures.EpisodeCohortResponse.provenance:type_name -> agent_manager.v1.measures.MeasureProvenance
+	7,   // 126: agent_manager.v1.measures.MeasuresService.ExternalToolShare:input_type -> agent_manager.v1.measures.ExternalToolShareRequest
+	9,   // 127: agent_manager.v1.measures.MeasuresService.RetryRate:input_type -> agent_manager.v1.measures.RetryRateRequest
+	11,  // 128: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:input_type -> agent_manager.v1.measures.HelpRecoveryRateRequest
+	13,  // 129: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:input_type -> agent_manager.v1.measures.RepeatedWorkRateRequest
+	15,  // 130: agent_manager.v1.measures.MeasuresService.ToolFailureRate:input_type -> agent_manager.v1.measures.ToolFailureRateRequest
+	17,  // 131: agent_manager.v1.measures.MeasuresService.RunSuccessRate:input_type -> agent_manager.v1.measures.RunSuccessRateRequest
+	19,  // 132: agent_manager.v1.measures.MeasuresService.RunCycleTime:input_type -> agent_manager.v1.measures.RunCycleTimeRequest
+	21,  // 133: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:input_type -> agent_manager.v1.measures.RunDurationStatisticsRequest
+	23,  // 134: agent_manager.v1.measures.MeasuresService.RunCost:input_type -> agent_manager.v1.measures.RunCostRequest
+	26,  // 135: agent_manager.v1.measures.MeasuresService.RunVolume:input_type -> agent_manager.v1.measures.RunVolumeRequest
+	28,  // 136: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:input_type -> agent_manager.v1.measures.RunStatusDistributionRequest
+	32,  // 137: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:input_type -> agent_manager.v1.measures.RunnerBreakdownRequest
+	34,  // 138: agent_manager.v1.measures.MeasuresService.ModelBreakdown:input_type -> agent_manager.v1.measures.ModelBreakdownRequest
+	36,  // 139: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:input_type -> agent_manager.v1.measures.ProfileBreakdownRequest
+	38,  // 140: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:input_type -> agent_manager.v1.measures.WorkloadBreakdownRequest
+	40,  // 141: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:input_type -> agent_manager.v1.measures.WorkloadEfficiencyRequest
+	42,  // 142: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:input_type -> agent_manager.v1.measures.TerminalRunTrendRequest
+	45,  // 143: agent_manager.v1.measures.MeasuresService.ToolUsage:input_type -> agent_manager.v1.measures.ToolUsageRequest
+	48,  // 144: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:input_type -> agent_manager.v1.measures.ToolCommandBreakdownRequest
+	51,  // 145: agent_manager.v1.measures.MeasuresService.TokenAttribution:input_type -> agent_manager.v1.measures.TokenAttributionRequest
+	60,  // 146: agent_manager.v1.measures.MeasuresService.ErrorPatterns:input_type -> agent_manager.v1.measures.ErrorPatternsRequest
+	63,  // 147: agent_manager.v1.measures.MeasuresService.FileRereadRate:input_type -> agent_manager.v1.measures.FileRereadRateRequest
+	65,  // 148: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:input_type -> agent_manager.v1.measures.FindingRecurrenceRateRequest
+	70,  // 149: agent_manager.v1.measures.MeasuresService.EpisodeCohort:input_type -> agent_manager.v1.measures.EpisodeCohortRequest
+	54,  // 150: agent_manager.v1.measures.MeasuresService.CapabilityUsage:input_type -> agent_manager.v1.measures.CapabilityUsageRequest
+	57,  // 151: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:input_type -> agent_manager.v1.measures.CapabilityEfficacyRequest
+	5,   // 152: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:input_type -> agent_manager.v1.measures.AllMeasureDefinitionsRequest
+	67,  // 153: agent_manager.v1.measures.MeasuresService.SelectCohort:input_type -> agent_manager.v1.measures.SelectCohortRequest
+	8,   // 154: agent_manager.v1.measures.MeasuresService.ExternalToolShare:output_type -> agent_manager.v1.measures.ExternalToolShareResponse
+	10,  // 155: agent_manager.v1.measures.MeasuresService.RetryRate:output_type -> agent_manager.v1.measures.RetryRateResponse
+	12,  // 156: agent_manager.v1.measures.MeasuresService.HelpRecoveryRate:output_type -> agent_manager.v1.measures.HelpRecoveryRateResponse
+	14,  // 157: agent_manager.v1.measures.MeasuresService.RepeatedWorkRate:output_type -> agent_manager.v1.measures.RepeatedWorkRateResponse
+	16,  // 158: agent_manager.v1.measures.MeasuresService.ToolFailureRate:output_type -> agent_manager.v1.measures.ToolFailureRateResponse
+	18,  // 159: agent_manager.v1.measures.MeasuresService.RunSuccessRate:output_type -> agent_manager.v1.measures.RunSuccessRateResponse
+	20,  // 160: agent_manager.v1.measures.MeasuresService.RunCycleTime:output_type -> agent_manager.v1.measures.RunCycleTimeResponse
+	22,  // 161: agent_manager.v1.measures.MeasuresService.RunDurationStatistics:output_type -> agent_manager.v1.measures.RunDurationStatisticsResponse
+	25,  // 162: agent_manager.v1.measures.MeasuresService.RunCost:output_type -> agent_manager.v1.measures.RunCostResponse
+	27,  // 163: agent_manager.v1.measures.MeasuresService.RunVolume:output_type -> agent_manager.v1.measures.RunVolumeResponse
+	30,  // 164: agent_manager.v1.measures.MeasuresService.RunStatusDistribution:output_type -> agent_manager.v1.measures.RunStatusDistributionResponse
+	33,  // 165: agent_manager.v1.measures.MeasuresService.RunnerBreakdown:output_type -> agent_manager.v1.measures.RunnerBreakdownResponse
+	35,  // 166: agent_manager.v1.measures.MeasuresService.ModelBreakdown:output_type -> agent_manager.v1.measures.ModelBreakdownResponse
+	37,  // 167: agent_manager.v1.measures.MeasuresService.ProfileBreakdown:output_type -> agent_manager.v1.measures.ProfileBreakdownResponse
+	39,  // 168: agent_manager.v1.measures.MeasuresService.WorkloadBreakdown:output_type -> agent_manager.v1.measures.WorkloadBreakdownResponse
+	41,  // 169: agent_manager.v1.measures.MeasuresService.WorkloadEfficiency:output_type -> agent_manager.v1.measures.WorkloadEfficiencyResponse
+	44,  // 170: agent_manager.v1.measures.MeasuresService.TerminalRunTrend:output_type -> agent_manager.v1.measures.TerminalRunTrendResponse
+	47,  // 171: agent_manager.v1.measures.MeasuresService.ToolUsage:output_type -> agent_manager.v1.measures.ToolUsageResponse
+	50,  // 172: agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown:output_type -> agent_manager.v1.measures.ToolCommandBreakdownResponse
+	53,  // 173: agent_manager.v1.measures.MeasuresService.TokenAttribution:output_type -> agent_manager.v1.measures.TokenAttributionResponse
+	62,  // 174: agent_manager.v1.measures.MeasuresService.ErrorPatterns:output_type -> agent_manager.v1.measures.ErrorPatternsResponse
+	64,  // 175: agent_manager.v1.measures.MeasuresService.FileRereadRate:output_type -> agent_manager.v1.measures.FileRereadRateResponse
+	66,  // 176: agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate:output_type -> agent_manager.v1.measures.FindingRecurrenceRateResponse
+	72,  // 177: agent_manager.v1.measures.MeasuresService.EpisodeCohort:output_type -> agent_manager.v1.measures.EpisodeCohortResponse
+	56,  // 178: agent_manager.v1.measures.MeasuresService.CapabilityUsage:output_type -> agent_manager.v1.measures.CapabilityUsageResponse
+	59,  // 179: agent_manager.v1.measures.MeasuresService.CapabilityEfficacy:output_type -> agent_manager.v1.measures.CapabilityEfficacyResponse
+	6,   // 180: agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions:output_type -> agent_manager.v1.measures.AllMeasureDefinitionsResponse
+	69,  // 181: agent_manager.v1.measures.MeasuresService.SelectCohort:output_type -> agent_manager.v1.measures.SelectCohortResponse
+	154, // [154:182] is the sub-list for method output_type
+	126, // [126:154] is the sub-list for method input_type
+	126, // [126:126] is the sub-list for extension type_name
+	126, // [126:126] is the sub-list for extension extendee
+	0,   // [0:126] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_measures_measures_proto_init() }
@@ -6300,14 +6710,14 @@ func file_agent_manager_v1_measures_measures_proto_init() {
 	if File_agent_manager_v1_measures_measures_proto != nil {
 		return
 	}
-	file_agent_manager_v1_measures_measures_proto_msgTypes[65].OneofWrappers = []any{}
+	file_agent_manager_v1_measures_measures_proto_msgTypes[68].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_measures_measures_proto_rawDesc), len(file_agent_manager_v1_measures_measures_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   70,
+			NumMessages:   73,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

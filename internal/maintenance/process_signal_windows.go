@@ -2,15 +2,11 @@
 
 package maintenance
 
-import "os"
+import "github.com/vrooli/platform-go"
 
 func killProcess(pid int, force bool) error {
 	if pid <= 0 {
 		return nil
 	}
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return err
-	}
-	return process.Kill()
+	return platform.KillProcess(pid, force)
 }

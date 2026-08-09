@@ -72,6 +72,10 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 	if pw := req.Msg.GetSshPassword(); pw != "" {
 		password = []byte(pw)
 	}
+	var setupPassphrase []byte
+	if passphrase := req.Msg.GetSetupPassphrase(); passphrase != "" {
+		setupPassphrase = []byte(passphrase)
+	}
 
 	input := onboard.StartInput{
 		Actor:                actor,
@@ -79,6 +83,7 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		Port:                 int(req.Msg.GetPort()),
 		User:                 req.Msg.GetUser(),
 		Password:             password,
+		SetupPassphrase:      setupPassphrase,
 		NodeName:             req.Msg.GetNodeName(),
 		TargetRevision:       req.Msg.GetTargetRevision(),
 		RepoURL:              req.Msg.GetRepoUrl(),

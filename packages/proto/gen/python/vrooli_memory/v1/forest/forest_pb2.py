@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$vrooli-memory/v1/forest/forest.proto\x12\x1evrooli.vrooli_memory.v1.forest\"\xaa\x01\n\x04Node\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n\x08\x65ntry_id\x18\x02 \x01(\tR\x07\x65ntryId\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x03 \x01(\tR\x07\x66\x61\x63\x65tId\x12\x14\n\x05\x64\x65pth\x18\x04 \x01(\x05R\x05\x64\x65pth\x12\x1b\n\tchild_ids\x18\x05 \x03(\tR\x08\x63hildIds\x12)\n\x10\x63ompaction_score\x18\x06 \x01(\x01R\x0f\x63ompactionScore\"0\n\x18RunCompactionPassRequest\x12\x14\n\x05scope\x18\x01 \x01(\tR\x05scope\"D\n\x19RunCompactionPassResponse\x12\'\n\x0f\x63ompacted_count\x18\x01 \x01(\x05R\x0e\x63ompactedCount\"@\n\x12GetFrontierRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"\x90\x01\n\x13GetFrontierResponse\x12:\n\x05nodes\x18\x01 \x03(\x0b\x32$.vrooli.vrooli_memory.v1.forest.NodeR\x05nodes\x12%\n\x0e\x65ligible_count\x18\x02 \x01(\x05R\religibleCount\x12\x16\n\x06target\x18\x03 \x01(\x05R\x06target\"6\n\x0eGetNodeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"K\n\x0fGetNodeResponse\x12\x38\n\x04node\x18\x01 \x01(\x0b\x32$.vrooli.vrooli_memory.v1.forest.NodeR\x04node\",\n\x14RebuildForestRequest\x12\x14\n\x05scope\x18\x01 \x01(\tR\x05scope\"6\n\x15RebuildForestResponse\x12\x1d\n\nnode_count\x18\x01 \x01(\x05R\tnodeCount2\xfc\x03\n\rForestService\x12\x88\x01\n\x11RunCompactionPass\x12\x38.vrooli.vrooli_memory.v1.forest.RunCompactionPassRequest\x1a\x39.vrooli.vrooli_memory.v1.forest.RunCompactionPassResponse\x12v\n\x0bGetFrontier\x12\x32.vrooli.vrooli_memory.v1.forest.GetFrontierRequest\x1a\x33.vrooli.vrooli_memory.v1.forest.GetFrontierResponse\x12j\n\x07GetNode\x12..vrooli.vrooli_memory.v1.forest.GetNodeRequest\x1a/.vrooli.vrooli_memory.v1.forest.GetNodeResponse\x12|\n\rRebuildForest\x12\x34.vrooli.vrooli_memory.v1.forest.RebuildForestRequest\x1a\x35.vrooli.vrooli_memory.v1.forest.RebuildForestResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/forest;forest_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$vrooli-memory/v1/forest/forest.proto\x12\x1evrooli.vrooli_memory.v1.forest\"\xaa\x01\n\x04Node\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n\x08\x65ntry_id\x18\x02 \x01(\tR\x07\x65ntryId\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x03 \x01(\tR\x07\x66\x61\x63\x65tId\x12\x14\n\x05\x64\x65pth\x18\x04 \x01(\x05R\x05\x64\x65pth\x12\x1b\n\tchild_ids\x18\x05 \x03(\tR\x08\x63hildIds\x12)\n\x10\x63ompaction_score\x18\x06 \x01(\x01R\x0f\x63ompactionScore\"S\n\x18RunCompactionPassRequest\x12\x14\n\x05scope\x18\x01 \x01(\tR\x05scope\x12!\n\x0cmax_clusters\x18\x02 \x01(\x05R\x0bmaxClusters\"\xce\x01\n\x19RunCompactionPassResponse\x12\'\n\x0f\x63ompacted_count\x18\x01 \x01(\x05R\x0e\x63ompactedCount\x12\x38\n\x18\x65ligible_frontier_before\x18\x02 \x01(\x05R\x16\x65ligibleFrontierBefore\x12\x36\n\x17\x65ligible_frontier_after\x18\x03 \x01(\x05R\x15\x65ligibleFrontierAfter\x12\x16\n\x06target\x18\x04 \x01(\x05R\x06target\"@\n\x12GetFrontierRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"\x90\x01\n\x13GetFrontierResponse\x12:\n\x05nodes\x18\x01 \x03(\x0b\x32$.vrooli.vrooli_memory.v1.forest.NodeR\x05nodes\x12%\n\x0e\x65ligible_count\x18\x02 \x01(\x05R\religibleCount\x12\x16\n\x06target\x18\x03 \x01(\x05R\x06target\"6\n\x0eGetNodeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"K\n\x0fGetNodeResponse\x12\x38\n\x04node\x18\x01 \x01(\x0b\x32$.vrooli.vrooli_memory.v1.forest.NodeR\x04node\",\n\x14RebuildForestRequest\x12\x14\n\x05scope\x18\x01 \x01(\tR\x05scope\"6\n\x15RebuildForestResponse\x12\x1d\n\nnode_count\x18\x01 \x01(\x05R\tnodeCount2\xfc\x03\n\rForestService\x12\x88\x01\n\x11RunCompactionPass\x12\x38.vrooli.vrooli_memory.v1.forest.RunCompactionPassRequest\x1a\x39.vrooli.vrooli_memory.v1.forest.RunCompactionPassResponse\x12v\n\x0bGetFrontier\x12\x32.vrooli.vrooli_memory.v1.forest.GetFrontierRequest\x1a\x33.vrooli.vrooli_memory.v1.forest.GetFrontierResponse\x12j\n\x07GetNode\x12..vrooli.vrooli_memory.v1.forest.GetNodeRequest\x1a/.vrooli.vrooli_memory.v1.forest.GetNodeResponse\x12|\n\rRebuildForest\x12\x34.vrooli.vrooli_memory.v1.forest.RebuildForestRequest\x1a\x35.vrooli.vrooli_memory.v1.forest.RebuildForestResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/forest;forest_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,21 +35,21 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_NODE']._serialized_start=73
   _globals['_NODE']._serialized_end=243
   _globals['_RUNCOMPACTIONPASSREQUEST']._serialized_start=245
-  _globals['_RUNCOMPACTIONPASSREQUEST']._serialized_end=293
-  _globals['_RUNCOMPACTIONPASSRESPONSE']._serialized_start=295
-  _globals['_RUNCOMPACTIONPASSRESPONSE']._serialized_end=363
-  _globals['_GETFRONTIERREQUEST']._serialized_start=365
-  _globals['_GETFRONTIERREQUEST']._serialized_end=429
-  _globals['_GETFRONTIERRESPONSE']._serialized_start=432
-  _globals['_GETFRONTIERRESPONSE']._serialized_end=576
-  _globals['_GETNODEREQUEST']._serialized_start=578
-  _globals['_GETNODEREQUEST']._serialized_end=632
-  _globals['_GETNODERESPONSE']._serialized_start=634
-  _globals['_GETNODERESPONSE']._serialized_end=709
-  _globals['_REBUILDFORESTREQUEST']._serialized_start=711
-  _globals['_REBUILDFORESTREQUEST']._serialized_end=755
-  _globals['_REBUILDFORESTRESPONSE']._serialized_start=757
-  _globals['_REBUILDFORESTRESPONSE']._serialized_end=811
-  _globals['_FORESTSERVICE']._serialized_start=814
-  _globals['_FORESTSERVICE']._serialized_end=1322
+  _globals['_RUNCOMPACTIONPASSREQUEST']._serialized_end=328
+  _globals['_RUNCOMPACTIONPASSRESPONSE']._serialized_start=331
+  _globals['_RUNCOMPACTIONPASSRESPONSE']._serialized_end=537
+  _globals['_GETFRONTIERREQUEST']._serialized_start=539
+  _globals['_GETFRONTIERREQUEST']._serialized_end=603
+  _globals['_GETFRONTIERRESPONSE']._serialized_start=606
+  _globals['_GETFRONTIERRESPONSE']._serialized_end=750
+  _globals['_GETNODEREQUEST']._serialized_start=752
+  _globals['_GETNODEREQUEST']._serialized_end=806
+  _globals['_GETNODERESPONSE']._serialized_start=808
+  _globals['_GETNODERESPONSE']._serialized_end=883
+  _globals['_REBUILDFORESTREQUEST']._serialized_start=885
+  _globals['_REBUILDFORESTREQUEST']._serialized_end=929
+  _globals['_REBUILDFORESTRESPONSE']._serialized_start=931
+  _globals['_REBUILDFORESTRESPONSE']._serialized_end=985
+  _globals['_FORESTSERVICE']._serialized_start=988
+  _globals['_FORESTSERVICE']._serialized_end=1496
 # @@protoc_insertion_point(module_scope)

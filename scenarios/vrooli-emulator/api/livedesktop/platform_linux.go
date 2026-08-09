@@ -29,6 +29,10 @@ func NewLinuxBackend(logger *slog.Logger) *LinuxBackend {
 	}
 }
 
+func NewPlatformBackend(logger *slog.Logger) (PlatformBackend, error) {
+	return NewLinuxBackend(logger), nil
+}
+
 func (b *LinuxBackend) PlatformID() string { return "linux-xvfb" }
 
 // --- Display lifecycle ---

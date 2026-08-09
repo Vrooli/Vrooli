@@ -66,7 +66,7 @@ The magic happens when these layers interact:
 5. Better solutions become more powerful capabilities
 6. The cycle accelerates exponentially
 
-> **From thesis to machinery:** this section is the *why*. For the operational form of the loop — how it is measured, prioritized, and run via the three projections (Answer / Validate / Guide) — see [`docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md`](docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md).
+> **From thesis to machinery:** this section is the *why*. For the operational form of the loop — how it is measured, prioritized, and run via the four projections (Answer / Validate / Guide / Act) — see [`docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md`](docs/concepts/RECURSIVE_SELF_IMPROVEMENT.md).
 
 ## The Scenario System: The Core Innovation
 

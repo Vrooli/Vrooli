@@ -57,10 +57,12 @@ func NewResourceManager(config *Config) *ResourceManager {
 		}
 	}
 
-	// Ollama is reached via `resource-ollama status` (no HTTP polling).
-	rm.resources["ollama"] = &ResourceStatus{
-		Name: "ollama",
-		URL:  "resource-ollama://status",
+	if config.OllamaURL != "" {
+		// Ollama is reached via `resource-ollama status` (no HTTP polling).
+		rm.resources["ollama"] = &ResourceStatus{
+			Name: "ollama",
+			URL:  "resource-ollama://status",
+		}
 	}
 
 	if config.QdrantURL != "" {
@@ -152,7 +154,7 @@ func (rm *ResourceManager) checkResource(resource *ResourceStatus) {
 		rm.checkRedis(resource)
 		return
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), resourceTimeout)
 	defer cancel()
 
@@ -343,7 +345,7 @@ func (rm *ResourceManager) checkRedis(resource *ResourceStatus) {
 	// For now, just assume Redis is available if the port is accessible
 	// In a production system, we would use a proper Redis client
 	// TODO: Implement proper Redis health check with go-redis client
-	
+
 	// Simple TCP connection check to Redis port (Vrooli uses 6380)
 	conn, err := net.DialTimeout("tcp", "localhost:6380", resourceTimeout)
 	if err != nil {
@@ -381,7 +383,7 @@ func (rm *ResourceManager) GetResourceMetrics() map[string]interface{} {
 			"total_checks":         resource.CheckCount,
 			"successful_checks":    resource.SuccessCount,
 			"currently_available":  resource.Available,
-			"last_check":          resource.LastCheck.Unix(),
+			"last_check":           resource.LastCheck.Unix(),
 		}
 	}
 

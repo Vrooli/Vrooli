@@ -123,6 +123,7 @@ func startSchema() cliapp.ArgSchema {
 		{Name: "no-provision-sudo", Bool: true},
 		{Name: "source"},
 		{Name: "password-stdin", Bool: true},
+		{Name: "setup-passphrase-stdin", Bool: true},
 		{Name: "prompt-password", Bool: true},
 	}}
 }

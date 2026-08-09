@@ -385,6 +385,11 @@ message StartOnboardingRequest {
   // A retry must name the terminal immutable attempt it supersedes. The same
   // Machine remains durable; a new linked attempt and correlation are created.
   string retry_of_enrollment_attempt_id = 22;
+
+  // Optional credential-store passphrase for a headless bootstrap. It is
+  // request-scoped, rides the SSH bootstrap stdin channel after the pairing
+  // code, and is never persisted, logged, or accepted on argv.
+  string setup_passphrase = 23;
 }
 
 message StartOnboardingResponse {

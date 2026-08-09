@@ -142,12 +142,12 @@ func admissionRunOptions() ssh.RunOptions {
 }
 
 // SyncTree ships the control plane's working tree to the node by piping a tar
-// archive of p.Files (relative to p.RepoDir) into a remote `tar -xf -`. The remote
-// command resolves the destination ($HOME/vrooli by default, or the explicit
-// DestDir), creates it, reports it back on stdout, then extracts. Filenames with
-// spaces/newlines survive because the tar format encodes names — nothing is
-// shell-word-split. The tar is streamed (never buffered whole in memory) and its
-// byte count is measured for the step detail.
+// archive of p.Files (relative to p.RepoDir) into a remote staging directory.
+// The staging directory is atomically swapped into the requested destination,
+// so deleted local files cannot survive from an earlier working-tree shipment.
+// Filenames with spaces/newlines survive because the tar format encodes names —
+// nothing is shell-word-split. The tar is streamed (never buffered whole in
+// memory) and its byte count is measured for the step detail.
 func (d *sshDriver) SyncTree(ctx context.Context, p SyncParams) (SyncResult, error) {
 	cfg := d.config(p.Conn)
 	remoteCmd := buildSyncRemoteCommand(p.DestDir)
@@ -337,7 +337,11 @@ func remoteArtifactDirName() (string, error) {
 }
 
 // buildSyncRemoteCommand renders the remote shell that resolves the destination,
-// creates it, reports it (the VBSYNCDEST marker), then extracts the incoming tar.
+// extracts into a same-parent staging directory, reports the destination (the
+// VBSYNCDEST marker), and swaps the complete snapshot into place. The old
+// destination is removed only after the new tree is fully extracted; this is the
+// convergence guarantee that makes deleted working-tree files disappear without
+// exposing a partially extracted checkout to the bootstrap.
 // An explicit destDir is shell-quoted; an empty one defaults to $HOME/vrooli,
 // resolved on the node (the control plane cannot know the node's home).
 func buildSyncRemoteCommand(destDir string) string {
@@ -347,7 +351,7 @@ func buildSyncRemoteCommand(destDir string) string {
 	} else {
 		assign = `dest="$HOME/vrooli"`
 	}
-	return assign + `; mkdir -p "$dest" && printf '` + syncDestMarker + `%s\n' "$dest" && tar -xf - -C "$dest"`
+	return assign + `; parent=$(dirname "$dest"); base=$(basename "$dest"); stage="$parent/.${base}.bridge-sync-$$"; backup="$parent/.${base}.bridge-old-$$"; rm -rf "$stage" "$backup"; mkdir -p "$stage" && printf '` + syncDestMarker + `%s\n' "$dest" && tar -xf - -C "$stage" && { [ ! -e "$dest" ] || mv "$dest" "$backup"; } && mv "$stage" "$dest" && rm -rf "$backup"`
 }
 
 // writeTarStream writes a tar archive of the repo-relative files (rooted at
@@ -422,6 +426,7 @@ func syncRunOptions() ssh.RunOptions {
 
 func (d *sshDriver) RunBootstrap(ctx context.Context, p RunParams, onMarker func(Marker)) (BootstrapResult, error) {
 	cfg := d.config(p.Conn)
+	var nodeID string
 
 	// The pairing code rides stdin (env-only, never argv/logs): the remote shell
 	// reads one line into BRIDGE_PAIRING_CODE, exports it, then execs the script.
@@ -431,9 +436,13 @@ func (d *sshDriver) RunBootstrap(ctx context.Context, p RunParams, onMarker func
 
 	// stdin = code + newline. Built here and zeroed on return so the only lasting
 	// copy of the secret is the caller's, which the orchestrator wipes too.
-	stdin := make([]byte, 0, len(p.PairingCode)+1)
+	stdin := make([]byte, 0, len(p.PairingCode)+len(p.SetupPassphrase)+2)
 	stdin = append(stdin, p.PairingCode...)
 	stdin = append(stdin, '\n')
+	if len(p.SetupPassphrase) > 0 {
+		stdin = append(stdin, p.SetupPassphrase...)
+		stdin = append(stdin, '\n')
+	}
 	defer zeroBytes(stdin)
 
 	res, err := d.svc.RunStreaming(ctx, cfg, remoteCmd, ssh.StreamOptions{
@@ -441,14 +450,17 @@ func (d *sshDriver) RunBootstrap(ctx context.Context, p RunParams, onMarker func
 		Stdin: stdin,
 		OnStdoutLine: func(line string) {
 			if m, ok := parseMarker(line); ok {
+				if m.Event == eventNodeID {
+					nodeID = m.NodeID
+				}
 				onMarker(m)
 			}
 		},
 	})
 	if err != nil {
-		return BootstrapResult{ExitCode: res.ExitCode, Diagnostics: diagnosticsTail(res.Stderr)}, err
+		return BootstrapResult{ExitCode: res.ExitCode, Diagnostics: diagnosticsTail(res.Stderr), NodeID: nodeID}, err
 	}
-	return BootstrapResult{ExitCode: res.ExitCode, Diagnostics: diagnosticsTail(res.Stderr)}, nil
+	return BootstrapResult{ExitCode: res.ExitCode, Diagnostics: diagnosticsTail(res.Stderr), NodeID: nodeID}, nil
 }
 
 // diagnosticsTailMaxBytes bounds the node-side diagnostic tail carried on a

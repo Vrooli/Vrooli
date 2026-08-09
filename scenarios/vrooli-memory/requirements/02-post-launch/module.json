@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P1 requirements — records absorption, run linkage, operator surfaces, and the multi-space embedding refinement. All planned; validation entries declare intended evidence without asserting refs that do not exist. Note: id P1-009 is intentionally vacant. Harness memory import was promoted to P0 as VMEM-P0-011 (D-022); the id was retired rather than reused, and P1-010 was not renumbered, so that existing cross-references stay valid and no reader mistakes a renumber for a different requirement.",
-    "last_validated_at": "2026-08-06T17:11:53-04:00",
+    "last_validated_at": "2026-08-08T19:45:08-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -246,7 +246,7 @@
       "prd_ref": "OT-P1-007",
       "category": "harness",
       "criticality": "P1",
-      "description": "A command installs and updates the prompt block in each harness convention file (CLAUDE.md, AGENTS.md, and equivalents). The block describes WHAT is worth remembering and MUST NOT instruct the agent to call a specific memory command. Telling an agent to use a foreign write verb is an instruction-compliance problem — it may comply, may not, or may write to both stores and fork memory silently. Describing what to remember lets the agent use its native memory tool, which it does reliably, and the harness domain captures that write. The block is idempotent and delimited so re-running updates in place rather than appending duplicates.",
+      "description": "A command installs and updates the prompt block in each harness convention file (CLAUDE.md, AGENTS.md, and equivalents). The block distinguishes the read-only generated wake block from native memory, tells agents never to edit or compact generated projections, prefers the harness native memory tool where it exists, and supplies `vrooli-memory journal note` as the direct ledger fallback where it does not. The block is idempotent and delimited so re-running updates in place rather than appending duplicates.",
       "tags": [
         "harness",
         "adoption",
@@ -255,7 +255,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/prompt_test.go::TestPromptBlockIsIdempotentAndDoesNotNameMemoryCommand",
+          "ref": "api/internal/harness/prompt_test.go::TestPromptBlockIsIdempotentAndExplainsTheManagedWriteBoundary",
           "phase": "unit",
           "status": "implemented",
           "notes": "Installing twice leaves exactly one delimited block with the current content."
@@ -269,10 +269,10 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/prompt_test.go::TestPromptBlockIsIdempotentAndDoesNotNameMemoryCommand",
+          "ref": "api/internal/harness/prompt_test.go::TestPromptBlockIsIdempotentAndExplainsTheManagedWriteBoundary",
           "phase": "unit",
           "status": "implemented",
-          "notes": "The rendered block contains no imperative to invoke a memory CLI command, guarding the describe-what-not-how contract against drift."
+          "notes": "The rendered block explicitly protects the generated wake block and names the direct ledger fallback for runtimes without a native memory tool."
         }
       ]
     },
@@ -283,7 +283,7 @@
       "prd_ref": "OT-P1-008",
       "category": "harness",
       "criticality": "P1",
-      "description": "Native memory writes made by an agent through its own harness tooling are captured into the journal. Two channels, selected per harness by the capability matrix in docs/concepts/INTEGRATIONS.md: a pre-write hook where the runtime exposes one, and store diff as the universal floor. The Go-native vrooli-memory hook reconciler writes only documented Claude/Grok configuration and never touches agent binaries; it preserves unrelated native hook entries and swallows capture failures. Capture is required, not hardening: single-blob harnesses (Codex, opencode) cannot be diffed reliably into discrete memories, so their governed store sweep remains the fallback until a native hook exists.",
+      "description": "Native memory writes made by an agent through its own harness tooling are captured into the journal. Two channels, selected per harness by the capability matrix in docs/concepts/INTEGRATIONS.md: a pre-write hook where the runtime exposes one, and store diff as the universal floor. The Go-native vrooli-memory hook reconciler writes only documented configuration and never touches agent binaries; it preserves unrelated native hook entries and swallows capture failures. A native hook may omit a filesystem destination, so capture uses a stable logical source locator. Runtimes without a verified hook use the governed store sweep or the prompt's direct `vrooli-memory journal note` fallback.",
       "tags": [
         "harness",
         "capture",

@@ -112,9 +112,22 @@ func SweepAbandonedTemporaries(dir string, now time.Time) ([]string, error) {
 // KeyringReport is the result of inspecting or repairing a keyring file.
 type KeyringReport struct {
 	Path string `json:"path"`
+	// Format is the on-disk representation: "plaintext" for the GKeyFile text
+	// form this package can parse, "encrypted" for the binary form it cannot,
+	// and "unknown" for anything else. It exists because Loadable is only
+	// meaningful for one of them.
+	Format string `json:"format,omitempty"`
+	// Assessed reports whether Loadable is an actual verdict. It is false for an
+	// encrypted keyring, whose bytes are opaque to this package.
+	//
+	// This field exists because the absence of it was a live defect: an
+	// encrypted keyring returned Loadable=true by falling through to the zero
+	// path, so a host whose daemon was wedged read as healthy. A diagnostic that
+	// cannot see a fault must say so, never report the fault's absence.
+	Assessed bool `json:"assessed"`
 	// Loadable reports whether GNOME Keyring can parse this file. It is false
 	// whenever any defect is present, which is the whole failure: one bad entry
-	// takes the file down, not just itself.
+	// takes the file down, not just itself. Read it only when Assessed is true.
 	Loadable bool            `json:"loadable"`
 	Defects  []KeyringDefect `json:"defects,omitempty"`
 	// Repaired counts entries this call rewrote. Always zero for an inspection.
@@ -142,6 +155,31 @@ type keyringField struct {
 }
 
 func (field keyringField) multiline() bool { return field.end > field.start }
+
+// Keyring on-disk representations. GNOME Keyring writes the textual GKeyFile
+// form only for a passwordless keyring; a passphrase-protected one is an opaque
+// binary blob whose magic is "GnomeKeyring".
+const (
+	keyringFormatPlaintext = "plaintext"
+	keyringFormatEncrypted = "encrypted"
+	keyringFormatUnknown   = "unknown"
+
+	keyringPlaintextPrefix = "[keyring]"
+	keyringEncryptedMagic  = "GnomeKeyring"
+)
+
+// keyringFormat classifies a keyring file by its leading bytes. It never guesses
+// from the filename: two files in the same directory routinely differ.
+func keyringFormat(contents []byte) string {
+	switch {
+	case strings.HasPrefix(string(contents), keyringPlaintextPrefix):
+		return keyringFormatPlaintext
+	case strings.HasPrefix(string(contents), keyringEncryptedMagic):
+		return keyringFormatEncrypted
+	default:
+		return keyringFormatUnknown
+	}
+}
 
 // DefaultKeyringDir reports where GNOME Keyring keeps its keyring files.
 func DefaultKeyringDir() (string, error) {
@@ -311,17 +349,21 @@ func InspectKeyringFile(path string) (KeyringReport, error) {
 	if err != nil {
 		return KeyringReport{Path: path}, fmt.Errorf("stat keyring file: %w", err)
 	}
-	report := KeyringReport{Path: path, Loadable: true}
+	report := KeyringReport{Path: path, Format: keyringFormat(contents)}
 	addStaleDaemonReport(&report, info)
-	if !strings.HasPrefix(string(contents), "[keyring]") {
+	if report.Format != keyringFormatPlaintext {
 		// An encrypted keyring is binary and is not this file's problem. Saying
-		// so beats reporting a false defect on every password-protected host.
+		// so beats reporting a false defect on every password-protected host —
+		// but it must not report a clean bill of health either, so Assessed
+		// stays false and Loadable carries no verdict.
 		return report, nil
 	}
+	report.Assessed = true
+	report.Loadable = true
 
 	fields, _, err := parseKeyringFile(string(contents))
 	if err != nil {
-		return KeyringReport{Path: path}, err
+		return KeyringReport{Path: path, Format: report.Format}, err
 	}
 	attributes := keyringAttributes(fields)
 	labels := keyringLabels(fields)
@@ -373,15 +415,17 @@ func RepairKeyringFile(path string) (KeyringReport, error) {
 		return KeyringReport{Path: path}, fmt.Errorf("stat keyring file: %w", err)
 	}
 
-	report := KeyringReport{Path: path, Loadable: true}
+	report := KeyringReport{Path: path, Format: keyringFormat(contents)}
 	addStaleDaemonReport(&report, info)
-	if !strings.HasPrefix(string(contents), "[keyring]") {
+	if report.Format != keyringFormatPlaintext {
 		return report, nil
 	}
+	report.Assessed = true
+	report.Loadable = true
 
 	fields, lines, err := parseKeyringFile(string(contents))
 	if err != nil {
-		return KeyringReport{Path: path}, err
+		return KeyringReport{Path: path, Format: report.Format}, err
 	}
 	attributes := keyringAttributes(fields)
 	labels := keyringLabels(fields)

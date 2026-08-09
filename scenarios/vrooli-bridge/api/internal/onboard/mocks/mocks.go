@@ -184,6 +184,7 @@ type FakeSSHDriver struct {
 	RunBootstrapExit        int
 	RunBootstrapMarkers     []onboard.Marker
 	RunBootstrapDiagnostics string
+	RunBootstrapNodeID      string
 
 	// FirstTouchSudoState, when set, is echoed back on the returned Conn so a test
 	// can assert the orchestrator surfaces the sudo outcome in the step detail.
@@ -335,9 +336,9 @@ func (d *FakeSSHDriver) RunBootstrap(ctx context.Context, p onboard.RunParams, o
 		onMarker(m)
 	}
 	if d.RunBootstrapErr != nil {
-		return onboard.BootstrapResult{ExitCode: d.RunBootstrapExit, Diagnostics: d.RunBootstrapDiagnostics}, d.RunBootstrapErr
+		return onboard.BootstrapResult{ExitCode: d.RunBootstrapExit, Diagnostics: d.RunBootstrapDiagnostics, NodeID: d.RunBootstrapNodeID}, d.RunBootstrapErr
 	}
-	return onboard.BootstrapResult{ExitCode: d.RunBootstrapExit, Diagnostics: d.RunBootstrapDiagnostics}, nil
+	return onboard.BootstrapResult{ExitCode: d.RunBootstrapExit, Diagnostics: d.RunBootstrapDiagnostics, NodeID: d.RunBootstrapNodeID}, nil
 }
 
 // PairingCode returns a copy of the code the driver was handed.

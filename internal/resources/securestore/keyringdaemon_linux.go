@@ -36,7 +36,7 @@ func readKeyringDaemonStartTime() (time.Time, bool) {
 			continue
 		}
 		comm, err := os.ReadFile(filepath.Join("/proc", entry.Name(), "comm"))
-		if err != nil || strings.TrimSpace(string(comm)) != "gnome-keyring-daemon" {
+		if err != nil || !isKeyringDaemonComm(strings.TrimSpace(string(comm))) {
 			continue
 		}
 		stat, err := os.ReadFile(filepath.Join("/proc", entry.Name(), "stat"))
@@ -58,6 +58,27 @@ func readKeyringDaemonStartTime() (time.Time, bool) {
 		return boot.Add(time.Duration(float64(ticks) * float64(time.Second) / clockTicks)), true
 	}
 	return time.Time{}, false
+}
+
+// keyringDaemonComm is the process name to match. procCommLimit is the kernel's
+// TASK_COMM_LEN minus its NUL terminator: /proc/<pid>/comm is truncated to that
+// many bytes, so "gnome-keyring-daemon" appears there as "gnome-keyring-d".
+//
+// Comparing the full name against that truncated value never matched, which
+// silently disabled the stale-daemon check on every Linux host — it reported
+// "not-run" rather than a wrong answer, so nothing ever failed loudly.
+const (
+	keyringDaemonComm = "gnome-keyring-daemon"
+	procCommLimit     = 15
+)
+
+func isKeyringDaemonComm(comm string) bool {
+	if comm == keyringDaemonComm {
+		return true
+	}
+	// Only accept the truncated form at exactly the kernel's limit. A shorter
+	// prefix would match an unrelated "gnome-keyring-d" helper.
+	return len(comm) == procCommLimit && strings.HasPrefix(keyringDaemonComm, comm)
 }
 
 func readProcClockTicks() (float64, bool) {

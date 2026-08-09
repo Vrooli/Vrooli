@@ -69,6 +69,7 @@ func TestArtifactBuilderBuildsExactlyOneTargetWithSharedSidecars(t *testing.T) {
 	require.Len(t, calls, 3)
 	require.Contains(t, strings.Join(calls[0].args, " "), "run ./cmd/vrooli-dist")
 	require.Contains(t, strings.Join(calls[0].args, " "), "--goos darwin --goarch arm64")
+	require.Contains(t, calls[0].args, "--allow-missing-darwin-keychain")
 	for _, call := range calls[1:] {
 		env := strings.Join(call.env, "\n")
 		require.Contains(t, env, "CGO_ENABLED=0")
@@ -82,6 +83,7 @@ func TestArtifactBuilderBuildsExactlyOneTargetWithSharedSidecars(t *testing.T) {
 		require.Equal(t, "same-live-tree", strings.TrimSpace(string(contents)))
 	}
 	require.Equal(t, "same-live-tree", got.Fingerprint)
+	require.True(t, got.VrooliBootstrapOnly, "Darwin artifacts built on the control plane must be bootstrap-only")
 }
 
 func TestArtifactBuilderRealTarget(t *testing.T) {

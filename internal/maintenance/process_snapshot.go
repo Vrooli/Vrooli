@@ -309,7 +309,10 @@ func isTrackedOrAncestorTracked(pid int, tracked, trackedSIDs map[int]struct{}, 
 func listProcessTable() (map[int]processTableEntry, error) {
 	output, err := shell.Output(shell.Spec{
 		Name: "ps",
-		Args: []string{"-eo", "pid=,ppid=,pgid=,sid=,state=,command="},
+		// `-axo` and `sess` are accepted by both procps (Linux) and the
+		// BSD-derived macOS ps. The previous `-eo ... sid=` form is Linux-only
+		// and made every Mac health/cleanup probe fail before parsing a row.
+		Args: []string{"-axo", "pid=,ppid=,pgid=,sess=,state=,command="},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("inspect process table: %w", err)

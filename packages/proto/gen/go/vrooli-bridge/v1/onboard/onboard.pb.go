@@ -661,8 +661,12 @@ type StartOnboardingRequest struct {
 	// A retry must name the terminal immutable attempt it supersedes. The same
 	// Machine remains durable; a new linked attempt and correlation are created.
 	RetryOfEnrollmentAttemptId string `protobuf:"bytes,22,opt,name=retry_of_enrollment_attempt_id,json=retryOfEnrollmentAttemptId,proto3" json:"retry_of_enrollment_attempt_id,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	// Optional credential-store passphrase for a headless bootstrap. It is
+	// request-scoped, rides the SSH bootstrap stdin channel after the pairing
+	// code, and is never persisted, logged, or accepted on argv.
+	SetupPassphrase string `protobuf:"bytes,23,opt,name=setup_passphrase,json=setupPassphrase,proto3" json:"setup_passphrase,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *StartOnboardingRequest) Reset() {
@@ -845,6 +849,13 @@ func (x *StartOnboardingRequest) GetMachineId() string {
 func (x *StartOnboardingRequest) GetRetryOfEnrollmentAttemptId() string {
 	if x != nil {
 		return x.RetryOfEnrollmentAttemptId
+	}
+	return ""
+}
+
+func (x *StartOnboardingRequest) GetSetupPassphrase() string {
+	if x != nil {
+		return x.SetupPassphrase
 	}
 	return ""
 }
@@ -1463,7 +1474,7 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\x06status\x18\x04 \x01(\x0e25.vrooli.vrooli_bridge.v1.onboard.OnboardingStepStatusR\x06status\x12\x16\n" +
 	"\x06detail\x18\x05 \x01(\tR\x06detail\x129\n" +
 	"\n" +
-	"emitted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\temittedAt\"\xf2\x06\n" +
+	"emitted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\temittedAt\"\x9d\a\n" +
 	"\x16StartOnboardingRequest\x12\x12\n" +
 	"\x04host\x18\x01 \x01(\tR\x04host\x12\x12\n" +
 	"\x04port\x18\x02 \x01(\x05R\x04port\x12\x12\n" +
@@ -1490,7 +1501,8 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\x11reachability_mode\x18\x14 \x01(\tR\x10reachabilityMode\x12\x1d\n" +
 	"\n" +
 	"machine_id\x18\x15 \x01(\tR\tmachineId\x12B\n" +
-	"\x1eretry_of_enrollment_attempt_id\x18\x16 \x01(\tR\x1aretryOfEnrollmentAttemptId\"\xd6\x01\n" +
+	"\x1eretry_of_enrollment_attempt_id\x18\x16 \x01(\tR\x1aretryOfEnrollmentAttemptId\x12)\n" +
+	"\x10setup_passphrase\x18\x17 \x01(\tR\x0fsetupPassphrase\"\xd6\x01\n" +
 	"\x17StartOnboardingResponse\x12\x13\n" +
 	"\x05op_id\x18\x01 \x01(\tR\x04opId\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12\x12\n" +

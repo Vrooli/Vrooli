@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 )
@@ -40,8 +41,8 @@ type ScenarioRuntime struct {
 
 var (
 	isPIDRunningFn           = IsPIDRunning
-	pidIsAliveFn             = pidIsAlive
-	readProcessEnvironmentFn = readProcessEnvironment
+	pidIsAliveFn             = platform.IsPIDRunning
+	readProcessEnvironmentFn = platform.ReadProcessEnvironment
 )
 
 func HomeDir() (string, error) {

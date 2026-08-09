@@ -5,9 +5,9 @@ import (
 	"errors"
 	"os"
 	"os/signal"
-	"syscall"
 	"time"
 
+	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
@@ -78,7 +78,7 @@ func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) *star
 	// eventually, but the explicit mark carries the reason). The handler
 	// re-raises the signal so the process still terminates normally.
 	rec.sigCh = make(chan os.Signal, 1)
-	signal.Notify(rec.sigCh, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(rec.sigCh, platform.TerminationSignals()...)
 	go func(operationID, home string, sigCh chan os.Signal) {
 		sig, ok := <-sigCh
 		if !ok {

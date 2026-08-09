@@ -356,6 +356,8 @@ func parseLifecycleOptions(command string, args []string, helpText string) (proj
 		return projectsetup.Options{}, err
 	}
 	opts := projectsetup.Options{DryRun: parsed.HasFlag("--dry-run")}
+	opts.BootstrapOnly = parsed.HasFlag("--bootstrap-only")
+	opts.CredentialPassphraseStdin = parsed.HasFlag("--credential-passphrase-stdin")
 	if value := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--sudo-mode"))); value != "" {
 		switch value {
 		case "ask", "skip", "error":
@@ -428,6 +430,8 @@ func lifecycleOptionsSchema() commandtree.ArgSchema {
 	return commandtree.ArgSchema{
 		Options: []commandtree.OptionArg{
 			{Name: "--dry-run", Description: "Preview actions without mutating the host"},
+			{Name: "--bootstrap-only", Description: "Apply only host requirements needed to build a native CLI; internal bootstrap use"},
+			{Name: "--credential-passphrase-stdin", Description: "Read the credential-store passphrase from standard input; internal automation use"},
 			{Name: "--sudo-mode", ValueName: "mode", Description: "Sudo policy (ask|skip|error)"},
 			{Name: "--maintenance-window", Description: "Acknowledge graphical/remote-session interruption risk"},
 			{Name: "--environment", Aliases: []string{"--env"}, ValueName: "name", Description: "Environment profile (development|production|minimal)"},

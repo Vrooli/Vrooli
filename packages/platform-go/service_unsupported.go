@@ -1,0 +1,14 @@
+//go:build !linux && !darwin && !windows
+
+package platform
+
+import "fmt"
+
+func installService(ServiceInstallOptions) (ServiceInstallResult, error) {
+	return ServiceInstallResult{}, fmt.Errorf("platform: service supervisor unsupported on this operating system")
+}
+func uninstallService(ServiceInstallOptions) (ServiceInstallResult, error) {
+	return ServiceInstallResult{}, fmt.Errorf("platform: service supervisor unsupported on this operating system")
+}
+func supportsService(bool) bool { return false }
+func serviceStartHint() string  { return "" }

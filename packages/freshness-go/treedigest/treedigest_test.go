@@ -89,10 +89,11 @@ func TestComputeIgnoresExcludedDirs(t *testing.T) {
 	writeFile(t, dir, "data/state.db", "binary")
 	writeFile(t, dir, "node_modules/dep/index.js", "x")
 	writeFile(t, dir, "dist/bundle.js", "x")
+	writeFile(t, dir, "phase-cache/entry.json", "runtime cache\n")
 
 	after, _ := ComputeWithRunner(dir, walkOnlyRunner)
 	if after != base {
-		t.Fatal("digest must ignore coverage/, data/, node_modules/, dist/")
+		t.Fatal("digest must ignore coverage/, data/, node_modules/, dist/, phase-cache/")
 	}
 }
 
@@ -136,6 +137,35 @@ func TestComputeSkipsTrackedButDeletedFiles(t *testing.T) {
 	}
 	if _, err := ComputeWithRunner(dir, gitRunner); err != nil {
 		t.Fatalf("deleted tracked file must not fail digest: %v", err)
+	}
+}
+
+func TestComputeScopedIgnoresUnselectedChangesAndSupportsDoubleStar(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "src/a.go", "package a\n")
+	writeFile(t, dir, "docs/readme.md", "before\n")
+	base, err := computeScopedWithRunner(dir, []string{"src/**/*.go"}, walkOnlyRunner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, dir, "docs/readme.md", "after\n")
+	unchanged, err := computeScopedWithRunner(dir, []string{"src/**/*.go"}, walkOnlyRunner)
+	if err != nil || unchanged != base {
+		t.Fatalf("unselected edit changed scoped digest: %s %v", unchanged, err)
+	}
+	writeFile(t, dir, "src/a.go", "package changed\n")
+	changed, err := computeScopedWithRunner(dir, []string{"src/**/*.go"}, walkOnlyRunner)
+	if err != nil || changed == base {
+		t.Fatalf("selected edit did not change scoped digest: %s %v", changed, err)
+	}
+	allBefore, err := ComputeScoped(dir, []string{"**"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, dir, "root.txt", "root-before\n")
+	allAfterRoot, err := ComputeScoped(dir, []string{"**"})
+	if err != nil || allAfterRoot == allBefore {
+		t.Fatalf("terminal ** did not include root file: before=%s after=%s err=%v", allBefore, allAfterRoot, err)
 	}
 }
 

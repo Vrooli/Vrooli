@@ -352,6 +352,15 @@ message CostPhaseSummary {
   int64 passing_p90_wall_clock_ms = 20;
   int64 failing_median_wall_clock_ms = 21;
   int64 failing_p90_wall_clock_ms = 22;
+  int32 cache_hit_count = 23;
+  int32 executed_sample_count = 24;
+  double cache_hit_rate_percent = 25;
+  int32 cache_audit_count = 26;
+  int32 cache_audit_mismatch_count = 27;
+  int32 cache_no_saving_count = 28;
+  int64 cache_audit_wall_clock_ms = 29;
+  int64 estimated_gross_saved_wall_clock_ms = 30;
+  int64 estimated_net_saved_wall_clock_ms = 31;
 }
 
 message GetCostReportResponse {

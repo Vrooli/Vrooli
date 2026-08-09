@@ -297,6 +297,10 @@ type StartInput struct {
 	Port     int
 	User     string
 	Password []byte
+	// SetupPassphrase is an optional credential-store passphrase for headless
+	// bootstrap. It follows the pairing code over the SSH stdin channel and is
+	// zeroed after the bootstrap returns; it is never persisted or logged.
+	SetupPassphrase []byte
 
 	NodeName             string
 	TargetRevision       string

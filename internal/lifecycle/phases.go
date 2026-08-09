@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
+	"github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/ports"
@@ -426,7 +426,9 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 		Stdout: file,
 		Stderr: file,
 	})
-	cmd.SysProcAttr = backgroundProcessAttr()
+	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
+		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
+	}
 
 	if err := cmd.Start(); err != nil {
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
@@ -458,7 +460,7 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	}
 
 	r.runtimeDeps().sleep(200 * time.Millisecond)
-	if err := cmd.Process.Signal(syscall.Signal(0)); err != nil {
+	if !platform.IsPIDRunning(cmd.Process.Pid) {
 		record.Status = "failed"
 		_ = process.WriteScenarioRecord(r.Home, slug, step.Name, record)
 		return newPhaseStepError(

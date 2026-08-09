@@ -27,7 +27,8 @@ message RecallResponse {
   repeated RecallHit hits = 1;
 }
 message WakeRequest {
-  int32 token_budget = 1;
+  // Counts rendered text lines selected for the ambient view, not tokens.
+  int32 line_budget = 1;
   string scope = 2;
 }
 message WakeResponse {

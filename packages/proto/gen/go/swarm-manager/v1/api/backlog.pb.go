@@ -695,15 +695,17 @@ func (x *ListBacklogItemsResponse) GetBlocking() map[string]*ItemBlockingInfo {
 // ListBacklogItemsRequest carries every filter supported by the operator list
 // surface. Optional booleans distinguish an omitted filter from false.
 type ListBacklogItemsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kinds         []string               `protobuf:"bytes,1,rep,name=kinds,proto3" json:"kinds,omitempty"`
-	Statuses      []string               `protobuf:"bytes,2,rep,name=statuses,proto3" json:"statuses,omitempty"`
-	Archived      ArchivedFilter         `protobuf:"varint,3,opt,name=archived,proto3,enum=vrooli.swarm_manager.v1.api.ArchivedFilter" json:"archived,omitempty"`
-	Scenarios     []string               `protobuf:"bytes,4,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
-	SpawnedFrom   *string                `protobuf:"bytes,5,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
-	HasPlanRef    *bool                  `protobuf:"varint,6,opt,name=has_plan_ref,json=hasPlanRef,proto3,oneof" json:"has_plan_ref,omitempty"`
-	PlanRef       *string                `protobuf:"bytes,7,opt,name=plan_ref,json=planRef,proto3,oneof" json:"plan_ref,omitempty"`
-	Stale         *bool                  `protobuf:"varint,8,opt,name=stale,proto3,oneof" json:"stale,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Kinds       []string               `protobuf:"bytes,1,rep,name=kinds,proto3" json:"kinds,omitempty"`
+	Statuses    []string               `protobuf:"bytes,2,rep,name=statuses,proto3" json:"statuses,omitempty"`
+	Archived    ArchivedFilter         `protobuf:"varint,3,opt,name=archived,proto3,enum=vrooli.swarm_manager.v1.api.ArchivedFilter" json:"archived,omitempty"`
+	Scenarios   []string               `protobuf:"bytes,4,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
+	SpawnedFrom *string                `protobuf:"bytes,5,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
+	HasPlanRef  *bool                  `protobuf:"varint,6,opt,name=has_plan_ref,json=hasPlanRef,proto3,oneof" json:"has_plan_ref,omitempty"`
+	PlanRef     *string                `protobuf:"bytes,7,opt,name=plan_ref,json=planRef,proto3,oneof" json:"plan_ref,omitempty"`
+	Stale       *bool                  `protobuf:"varint,8,opt,name=stale,proto3,oneof" json:"stale,omitempty"`
+	// Verified team-member/profile identity that filed the item.
+	ActorId       *string `protobuf:"bytes,9,opt,name=actor_id,json=actorId,proto3,oneof" json:"actor_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -792,6 +794,13 @@ func (x *ListBacklogItemsRequest) GetStale() bool {
 		return *x.Stale
 	}
 	return false
+}
+
+func (x *ListBacklogItemsRequest) GetActorId() string {
+	if x != nil && x.ActorId != nil {
+		return *x.ActorId
+	}
+	return ""
 }
 
 // DeleteBacklogItemRequest identifies one backlog item to delete. Deletion is
@@ -3959,7 +3968,7 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\bblocking\x18\x02 \x03(\v2C.vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.BlockingEntryR\bblocking\x1aj\n" +
 	"\rBlockingEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12C\n" +
-	"\x05value\x18\x02 \x01(\v2-.vrooli.swarm_manager.v1.api.ItemBlockingInfoR\x05value:\x028\x01\"\xf5\x02\n" +
+	"\x05value\x18\x02 \x01(\v2-.vrooli.swarm_manager.v1.api.ItemBlockingInfoR\x05value:\x028\x01\"\xa2\x03\n" +
 	"\x17ListBacklogItemsRequest\x12\x14\n" +
 	"\x05kinds\x18\x01 \x03(\tR\x05kinds\x12\x1a\n" +
 	"\bstatuses\x18\x02 \x03(\tR\bstatuses\x12G\n" +
@@ -3969,11 +3978,13 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\fhas_plan_ref\x18\x06 \x01(\bH\x01R\n" +
 	"hasPlanRef\x88\x01\x01\x12\x1e\n" +
 	"\bplan_ref\x18\a \x01(\tH\x02R\aplanRef\x88\x01\x01\x12\x19\n" +
-	"\x05stale\x18\b \x01(\bH\x03R\x05stale\x88\x01\x01B\x0f\n" +
+	"\x05stale\x18\b \x01(\bH\x03R\x05stale\x88\x01\x01\x12\x1e\n" +
+	"\bactor_id\x18\t \x01(\tH\x04R\aactorId\x88\x01\x01B\x0f\n" +
 	"\r_spawned_fromB\x0f\n" +
 	"\r_has_plan_refB\v\n" +
 	"\t_plan_refB\b\n" +
-	"\x06_stale\"T\n" +
+	"\x06_staleB\v\n" +
+	"\t_actor_id\"T\n" +
 	"\x18DeleteBacklogItemRequest\x12\x1b\n" +
 	"\x04kind\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04kind\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"5\n" +

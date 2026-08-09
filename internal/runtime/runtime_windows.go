@@ -10,12 +10,10 @@ func currentHost() Host {
 		OS:              "windows",
 		PackageManager:  detectWindowsPackageManager(),
 		SupportsSetup:   true,
-		SupportsDevelop: false,
+		SupportsDevelop: true,
 		SupportsSysctl:  facts.SupportsSysctl,
 		SupportsSystemd: facts.SupportsSystemd,
-		Notes: []string{
-			"Windows host-provisioning and scenario-runtime support are separate rungs; see docs/configuration/host/tools.md",
-		},
+		Notes: []string{"Windows uses native process, lock, and SCM lifecycle backends; host-tool availability remains capability-driven."},
 	}
 }
 

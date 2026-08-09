@@ -11,7 +11,11 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/health"
 )
+
+var healthHandler = health.New(serviceName).Version(apiVersion).Check(health.DB(db), health.Optional).Handler()
 
 // TestLogger provides controlled logging during tests
 type TestLogger struct {
@@ -152,11 +156,11 @@ func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedSta
 
 // TestTimeFormat provides common test time formats and values
 type TestTimeFormat struct {
-	RFC3339    string
-	Unix       int64
-	DateTime   string
-	Date       string
-	Time       string
+	RFC3339  string
+	Unix     int64
+	DateTime string
+	Date     string
+	Time     string
 }
 
 // getTestTime returns a consistent test time

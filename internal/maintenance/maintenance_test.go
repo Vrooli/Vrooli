@@ -1461,6 +1461,20 @@ func TestListOrphansExcludesControlPlaneAPIs(t *testing.T) {
 	}
 }
 
+func TestLooksLikeVrooliProcessExcludesManagedBridgeAgent(t *testing.T) {
+	root := "/Users/alice/vrooli"
+	home := "/Users/alice"
+	entry := processTableEntry{
+		PID:     6200,
+		PPID:    1,
+		PGID:    6200,
+		Command: "/Users/alice/.local/lib/vrooli-bridge/vrooli-bridge-agent --control-plane-url http://127.0.0.1:18767",
+	}
+	if looksLikeVrooliProcess(root, home, entry) {
+		t.Fatal("managed Bridge agent must not be classified as a Vrooli orphan")
+	}
+}
+
 // TestParseProcessTableLineParsesSIDColumn covers the new ps -o sid= parse.
 func TestParseProcessTableLineParsesSIDColumn(t *testing.T) {
 	entry, ok := parseProcessTableLine("  4100  1  4100  4100  S  /usr/bin/node server.js")

@@ -600,6 +600,16 @@ var controlPlaneAPIExecutableBasenames = map[string]struct{}{
 	"workspace-sandbox-api.exe": {},
 }
 
+// bridgeAgentExecutableBasenames are OS-managed Bridge node agents. They are
+// intentionally outside Vrooli's scenario runtime registry: launchd/systemd
+// owns their lifetime and the Bridge control plane owns their health. On
+// macOS /proc is unavailable, so ps gives us the full command line rather than
+// a separate executable path; isBridgeAgentExecutable handles both forms.
+var bridgeAgentExecutableBasenames = map[string]struct{}{
+	"vrooli-bridge-agent":     {},
+	"vrooli-bridge-agent.exe": {},
+}
+
 // vrooliCLIExecutableBasenames are the `vrooli` CLI entrypoint basenames.
 // These are transient user-initiated commands (e.g. `vrooli scenario restart`)
 // that don't register a process record, so orphan detection must not
@@ -625,6 +635,28 @@ func isControlPlaneAPIExecutable(entry processTableEntry) bool {
 	return false
 }
 
+func isBridgeAgentExecutable(entry processTableEntry) bool {
+	for _, candidate := range []string{entry.Executable, entry.Command} {
+		if base, ok := commandExecutableBase(candidate); ok {
+			if _, known := bridgeAgentExecutableBasenames[base]; known {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// commandExecutableBase returns the basename of the executable token in a
+// process command line. It is separate from processPathBase because Darwin's
+// ps reports `path/to/bin arg1 arg2` as one command field.
+func commandExecutableBase(command string) (string, bool) {
+	fields := strings.Fields(strings.TrimSpace(command))
+	if len(fields) == 0 {
+		return "", false
+	}
+	return processPathBase(fields[0]), true
+}
+
 func looksLikeVrooliProcess(root, home string, entry processTableEntry) bool {
 	root = filepath.Clean(root)
 	home = filepath.Clean(home)
@@ -643,6 +675,9 @@ func looksLikeVrooliProcess(root, home string, entry processTableEntry) bool {
 		return false
 	}
 	if _, ok := protectedVrooliExecutableBasenames[commandBasename]; ok {
+		return false
+	}
+	if isBridgeAgentExecutable(entry) {
 		return false
 	}
 

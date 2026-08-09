@@ -668,16 +668,20 @@ class ToolUsageRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class ToolUsageRow(_message.Message):
-    __slots__ = ("tool_name", "call_count", "success_count", "failed_count")
+    __slots__ = ("tool_name", "call_count", "success_count", "failed_count", "total_tokens", "estimated_token_share")
     TOOL_NAME_FIELD_NUMBER: _ClassVar[int]
     CALL_COUNT_FIELD_NUMBER: _ClassVar[int]
     SUCCESS_COUNT_FIELD_NUMBER: _ClassVar[int]
     FAILED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_TOKEN_SHARE_FIELD_NUMBER: _ClassVar[int]
     tool_name: str
     call_count: int
     success_count: int
     failed_count: int
-    def __init__(self, tool_name: _Optional[str] = ..., call_count: _Optional[int] = ..., success_count: _Optional[int] = ..., failed_count: _Optional[int] = ...) -> None: ...
+    total_tokens: int
+    estimated_token_share: float
+    def __init__(self, tool_name: _Optional[str] = ..., call_count: _Optional[int] = ..., success_count: _Optional[int] = ..., failed_count: _Optional[int] = ..., total_tokens: _Optional[int] = ..., estimated_token_share: _Optional[float] = ...) -> None: ...
 
 class ToolUsageResponse(_message.Message):
     __slots__ = ("rows", "executed_query", "validity", "provenance", "definition_id")
@@ -704,7 +708,7 @@ class ToolCommandBreakdownRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ..., limit: _Optional[int] = ...) -> None: ...
 
 class ToolCommandBreakdownRow(_message.Message):
-    __slots__ = ("executable", "command_path", "call_count", "success_count", "failed_count", "run_count", "truncated")
+    __slots__ = ("executable", "command_path", "call_count", "success_count", "failed_count", "run_count", "truncated", "total_tokens", "estimated_token_share", "p50_footprint_tokens", "p95_footprint_tokens", "max_footprint_tokens")
     EXECUTABLE_FIELD_NUMBER: _ClassVar[int]
     COMMAND_PATH_FIELD_NUMBER: _ClassVar[int]
     CALL_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -712,6 +716,11 @@ class ToolCommandBreakdownRow(_message.Message):
     FAILED_COUNT_FIELD_NUMBER: _ClassVar[int]
     RUN_COUNT_FIELD_NUMBER: _ClassVar[int]
     TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_TOKEN_SHARE_FIELD_NUMBER: _ClassVar[int]
+    P50_FOOTPRINT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    P95_FOOTPRINT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    MAX_FOOTPRINT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     executable: str
     command_path: str
     call_count: int
@@ -719,7 +728,12 @@ class ToolCommandBreakdownRow(_message.Message):
     failed_count: int
     run_count: int
     truncated: bool
-    def __init__(self, executable: _Optional[str] = ..., command_path: _Optional[str] = ..., call_count: _Optional[int] = ..., success_count: _Optional[int] = ..., failed_count: _Optional[int] = ..., run_count: _Optional[int] = ..., truncated: _Optional[bool] = ...) -> None: ...
+    total_tokens: int
+    estimated_token_share: float
+    p50_footprint_tokens: int
+    p95_footprint_tokens: int
+    max_footprint_tokens: int
+    def __init__(self, executable: _Optional[str] = ..., command_path: _Optional[str] = ..., call_count: _Optional[int] = ..., success_count: _Optional[int] = ..., failed_count: _Optional[int] = ..., run_count: _Optional[int] = ..., truncated: _Optional[bool] = ..., total_tokens: _Optional[int] = ..., estimated_token_share: _Optional[float] = ..., p50_footprint_tokens: _Optional[int] = ..., p95_footprint_tokens: _Optional[int] = ..., max_footprint_tokens: _Optional[int] = ...) -> None: ...
 
 class ToolCommandBreakdownResponse(_message.Message):
     __slots__ = ("rows", "executed_query", "validity", "provenance", "definition_id")
@@ -735,6 +749,62 @@ class ToolCommandBreakdownResponse(_message.Message):
     definition_id: str
     def __init__(self, rows: _Optional[_Iterable[_Union[ToolCommandBreakdownRow, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
 
+class TokenAttributionRequest(_message.Message):
+    __slots__ = ("window", "filter", "group_by", "view", "limit")
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    GROUP_BY_FIELD_NUMBER: _ClassVar[int]
+    VIEW_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    window: _measures_pb2.TimeWindow
+    filter: InvocationFilter
+    group_by: str
+    view: str
+    limit: int
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ..., group_by: _Optional[str] = ..., view: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class TokenAttributionRow(_message.Message):
+    __slots__ = ("group_by", "value", "call_count", "total_tokens", "estimated_tokens", "estimated_token_share", "p50_footprint_tokens", "p95_footprint_tokens", "max_footprint_tokens")
+    GROUP_BY_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    CALL_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_TOKEN_SHARE_FIELD_NUMBER: _ClassVar[int]
+    P50_FOOTPRINT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    P95_FOOTPRINT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    MAX_FOOTPRINT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    group_by: str
+    value: str
+    call_count: int
+    total_tokens: int
+    estimated_tokens: int
+    estimated_token_share: float
+    p50_footprint_tokens: int
+    p95_footprint_tokens: int
+    max_footprint_tokens: int
+    def __init__(self, group_by: _Optional[str] = ..., value: _Optional[str] = ..., call_count: _Optional[int] = ..., total_tokens: _Optional[int] = ..., estimated_tokens: _Optional[int] = ..., estimated_token_share: _Optional[float] = ..., p50_footprint_tokens: _Optional[int] = ..., p95_footprint_tokens: _Optional[int] = ..., max_footprint_tokens: _Optional[int] = ...) -> None: ...
+
+class TokenAttributionResponse(_message.Message):
+    __slots__ = ("rows", "group_by", "view", "estimated_token_share", "executed_query", "validity", "provenance", "definition_id")
+    ROWS_FIELD_NUMBER: _ClassVar[int]
+    GROUP_BY_FIELD_NUMBER: _ClassVar[int]
+    VIEW_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_TOKEN_SHARE_FIELD_NUMBER: _ClassVar[int]
+    EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    rows: _containers.RepeatedCompositeFieldContainer[TokenAttributionRow]
+    group_by: str
+    view: str
+    estimated_token_share: float
+    executed_query: str
+    validity: MeasureValidity
+    provenance: MeasureProvenance
+    definition_id: str
+    def __init__(self, rows: _Optional[_Iterable[_Union[TokenAttributionRow, _Mapping]]] = ..., group_by: _Optional[str] = ..., view: _Optional[str] = ..., estimated_token_share: _Optional[float] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., provenance: _Optional[_Union[MeasureProvenance, _Mapping]] = ..., definition_id: _Optional[str] = ...) -> None: ...
+
 class CapabilityUsageRequest(_message.Message):
     __slots__ = ("window", "filter")
     WINDOW_FIELD_NUMBER: _ClassVar[int]
@@ -744,20 +814,24 @@ class CapabilityUsageRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class CapabilityUsageRow(_message.Message):
-    __slots__ = ("target_scenario", "operation", "call_count", "success_count", "failed_count", "total_duration_ms")
+    __slots__ = ("target_scenario", "operation", "call_count", "success_count", "failed_count", "total_duration_ms", "total_tokens", "estimated_token_share")
     TARGET_SCENARIO_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     CALL_COUNT_FIELD_NUMBER: _ClassVar[int]
     SUCCESS_COUNT_FIELD_NUMBER: _ClassVar[int]
     FAILED_COUNT_FIELD_NUMBER: _ClassVar[int]
     TOTAL_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_TOKEN_SHARE_FIELD_NUMBER: _ClassVar[int]
     target_scenario: str
     operation: str
     call_count: int
     success_count: int
     failed_count: int
     total_duration_ms: int
-    def __init__(self, target_scenario: _Optional[str] = ..., operation: _Optional[str] = ..., call_count: _Optional[int] = ..., success_count: _Optional[int] = ..., failed_count: _Optional[int] = ..., total_duration_ms: _Optional[int] = ...) -> None: ...
+    total_tokens: int
+    estimated_token_share: float
+    def __init__(self, target_scenario: _Optional[str] = ..., operation: _Optional[str] = ..., call_count: _Optional[int] = ..., success_count: _Optional[int] = ..., failed_count: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., total_tokens: _Optional[int] = ..., estimated_token_share: _Optional[float] = ...) -> None: ...
 
 class CapabilityUsageResponse(_message.Message):
     __slots__ = ("rows", "executed_query", "validity", "provenance", "definition_id")

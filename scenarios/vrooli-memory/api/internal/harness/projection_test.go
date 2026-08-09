@@ -95,6 +95,36 @@ func TestProjectionPreservesCuratedBytes(t *testing.T) {
 	require.NotContains(t, string(got), "old\n")
 }
 
+func TestProjectionMigratesLegacyWholeFileProjection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "MEMORY.md")
+	legacy := legacyGeneratedHeader + "# Unified Vrooli Memory\n\n- stale generated entry\n"
+	require.NoError(t, os.WriteFile(path, []byte(legacy), 0o600))
+	p, db := newProjectionTest(t, &fakeRecall{hits: []*sourcerecall.RecallHit{{Text: "fresh generated memory"}}}, path)
+	defer db.Close()
+
+	result, err := p.Project(context.Background(), "claude-code", true)
+	require.NoError(t, err)
+	require.Contains(t, result.Content, "fresh generated memory")
+	require.NotContains(t, result.Content, "stale generated entry")
+	require.Equal(t, 1, strings.Count(result.Content, wakeStart))
+	require.Equal(t, 1, strings.Count(result.Content, wakeEnd))
+}
+
+func TestProjectionRemovesLegacyPrefixBeforeExistingManagedBlock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "MEMORY.md")
+	legacy := legacyGeneratedHeader + "# Old generated content\n\n" + wakeStart + "\n- old wake\n" + wakeEnd + "\n"
+	require.NoError(t, os.WriteFile(path, []byte(legacy), 0o600))
+	p, db := newProjectionTest(t, &fakeRecall{}, path)
+	defer db.Close()
+
+	result, err := p.Project(context.Background(), "claude-code", true)
+	require.NoError(t, err)
+	require.NotContains(t, result.Content, "Old generated content")
+	require.NotContains(t, result.Content, "old wake")
+	require.Equal(t, 1, strings.Count(result.Content, wakeStart))
+	require.Equal(t, 1, strings.Count(result.Content, wakeEnd))
+}
+
 func TestProjectionSplicedFileStaysWithinConsumerLineCeiling(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "MEMORY.md")
 	curated := "# Curated operator index\n\n- Keep this byte-for-byte\n"

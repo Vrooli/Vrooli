@@ -24,9 +24,11 @@ None of them can read the others. Per-harness detail is in
 
 - **Reads are uniform.** Every harness gets a *generated projection* of
   `memory wake`, written to the file it already loads at session start.
-- **Writes are captured, not redirected.** The agent keeps using its own memory
-  tool; the harness domain captures that write via a pre-write hook where the
-  runtime exposes one, and store diff everywhere else.
+- **Writes are captured or routed.** The agent keeps using its own memory tool
+  where the runtime exposes one; the harness domain captures that write via a
+  pre-write hook and recovers it through store diff. Runtimes without a native
+  memory tool get an explicit `vrooli-memory journal note` fallback in the installed
+  prompt, so the durable write still lands in the shared ledger immediately.
 
 **Why the projection rather than a sync.** Bidirectional sync between an
 editable file and a database is a conflict problem with no clean answer. A
@@ -34,15 +36,15 @@ one-directional projection also gives something better than interception: a
 harness with **no hook API at all** still receives memory, because reading its
 own memory file is native behaviour.
 
-**Why capture rather than instruction.** An earlier revision had the prompt
-block tell each harness to call `memory note` instead of writing its own store.
-That is an instruction-compliance problem with three outcomes — the agent
-complies, ignores it, or **writes to both stores and forks memory silently**.
-The third is the worst, because it looks like success. Describing *what* is
-worth remembering and letting the agent use its native tool converts a soft
-adoption failure into a hard, testable capture problem. The prompt block
-(`VMEM-P1-007`) therefore never names a command; capture is
-`VMEM-P1-008`. Recorded as D-015.
+**Why native-first plus an explicit fallback.** Native capture remains the
+best experience because the agent keeps using the memory feature it already
+understands. But a prompt that only describes *what* to remember leaves
+runtimes with no native memory tool in an eventual store-diff window. The
+prompt block therefore marks the generated wake block read-only, prefers
+native memory, and names `vrooli-memory journal note` only as the fallback for
+runtimes that cannot provide a native write surface. This is an honest
+degraded path rather than pretending store diff is real-time. Recorded as
+D-041.
 
 **Hooks are load-bearing, not hardening.** Two findings moved them:
 `pretooluse-bash-deny.sh` already ships in the `claude-code` and `grok`

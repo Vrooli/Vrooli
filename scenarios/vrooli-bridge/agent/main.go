@@ -25,6 +25,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"vrooli-bridge/agent/internal/buildinfo"
@@ -175,13 +178,27 @@ func serviceDefinition(cfg config.Config) (service.Definition, error) {
 	if cfg.WorkDir != "" {
 		args = append(args, "--work-dir", cfg.WorkDir)
 	}
+	// Persist the runner policy in the native service unit. The bootstrap
+	// installer supplies these flags while installing the service; dropping
+	// them here would make a reboot silently restore the safe presence-only
+	// default and would also make the runner fall back to PATH, which is not
+	// reliable for launchd/systemd services.
+	if cfg.VrooliBin != "" {
+		args = append(args, "--vrooli-bin", cfg.VrooliBin)
+	}
+	if len(cfg.Capabilities) > 0 {
+		args = append(args, "--capabilities", strings.Join(cfg.Capabilities, ","))
+	}
+	args = append(args, "--presence-only", strconv.FormatBool(cfg.PresenceOnly))
 	return service.Definition{
-		Name:        "vrooli-bridge-agent",
-		Description: "Vrooli Bridge node agent",
-		ExecPath:    exe,
-		Args:        args,
-		WorkingDir:  cfg.WorkDir,
-		User:        cfg.ServiceUser,
+		Name:              "vrooli-bridge-agent",
+		Description:       "Vrooli Bridge node agent",
+		ExecPath:          exe,
+		Args:              args,
+		WorkingDir:        cfg.WorkDir,
+		User:              cfg.ServiceUser,
+		StandardOutPath:   filepath.Join(cfg.StateDir, "agent.stdout.log"),
+		StandardErrorPath: filepath.Join(cfg.StateDir, "agent.stderr.log"),
 	}, nil
 }
 
