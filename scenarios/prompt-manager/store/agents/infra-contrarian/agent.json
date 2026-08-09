@@ -17,9 +17,7 @@
     "aging-scan"
   ],
   "fileOrder": [
-    "SOUL.md",
-    "AGENTS.md",
-    "TOOLS.md"
+    "AGENT.md"
   ],
   "revision": 1,
   "createdAt": "2026-04-28T00:00:00Z",

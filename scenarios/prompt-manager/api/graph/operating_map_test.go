@@ -92,6 +92,7 @@ func (s *stubOperatingMapSource) List(_ context.Context, _ memberflow.OperatingM
 	s.listCalls++
 	return s.models, nil
 }
+
 func (s *stubOperatingMapSource) Validate(_ context.Context, _ memberflow.OperatingModelFilter) (memberflow.OperatingModelValidationResponse, error) {
 	s.validateCalls++
 	return s.validation, nil

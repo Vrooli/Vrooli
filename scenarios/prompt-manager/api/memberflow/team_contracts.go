@@ -321,9 +321,17 @@ func (r TeamContractRegistry) HasPlanOfRecordPath(teamID, path string) bool {
 	return false
 }
 
+// documentRefPathMatches reports whether a declared plan-of-record ref covers
+// path. A ref ending in "/" is a canon root and covers everything beneath it,
+// so a document inside a root-declared folder counts as registered without
+// being enumerated.
 func documentRefPathMatches(ref *teamcontract.PathRef, path string) bool {
-	if ref == nil {
+	if ref == nil || ref.Base != "repo-root" {
 		return false
 	}
-	return ref.Base == "repo-root" && filepath.ToSlash(strings.TrimSpace(ref.Path)) == path
+	refPath := filepath.ToSlash(strings.TrimSpace(ref.Path))
+	if strings.HasSuffix(refPath, "/") {
+		return strings.HasPrefix(path, refPath)
+	}
+	return refPath == path
 }

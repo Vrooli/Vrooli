@@ -6,6 +6,7 @@ const (
 	promptSectionKindAgentFile        = "agent-file"
 	promptSectionKindActiveTaskBrief  = "active-task-brief"
 	promptSectionKindTeamInbox        = "team-inbox"
+	promptSectionKindTeamWake         = "team-context-wake"
 	promptSectionKindLastHandoff      = "last-handoff"
 	promptSectionKindChallengeReview  = "challenge-review"
 	promptSectionKindStorageMap       = "team-storage-map"
@@ -43,6 +44,7 @@ var promptSectionKinds = map[string]promptSectionKind{
 	promptSectionKindAgentFile:        {Label: "Agent File", Heading: "# Agent Files (Markdown)"},
 	promptSectionKindActiveTaskBrief:  {Label: "Active Task Brief", Heading: "# Active Task Brief"},
 	promptSectionKindTeamInbox:        {Label: "Team Inbox", Heading: "# Team Inbox"},
+	promptSectionKindTeamWake:         {Label: "Team Context Wake", Heading: "# Team Context Wake"},
 	promptSectionKindLastHandoff:      {Label: "Previous Handoff", Heading: "# Previous Heartbeat Handoff"},
 	promptSectionKindChallengeReview:  {Label: "Challenge Review", Heading: "# Challenge Review"},
 	promptSectionKindStorageMap:       {Label: "Storage Map", Heading: "# Storage Map"},

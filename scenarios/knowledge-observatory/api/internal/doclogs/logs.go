@@ -90,7 +90,7 @@ func resetWithClock(filePath string, op doccontract.AppendLogOperation, config R
 	}
 	lines := strings.Split(text, "\n")
 	body := lines[region.bodyStart:region.end]
-	keep, keptCount, removedLabels := pruneEntries(op, body, config, now)
+	keep, keptCount, removedLabels := pruneLogEntries(op, body, config, now)
 	if len(removedLabels) == 0 {
 		return &ResetResult{KeptCount: keptCount, NewContent: text}, nil
 	}
@@ -259,7 +259,7 @@ func emptyMarkerLine(op doccontract.AppendLogOperation) string {
 	return "| " + strings.Join(cells, " | ") + " |"
 }
 
-func pruneEntries(op doccontract.AppendLogOperation, lines []string, config ResetConfig, now time.Time) ([]string, int, []string) {
+func pruneLogEntries(op doccontract.AppendLogOperation, lines []string, config ResetConfig, now time.Time) ([]string, int, []string) {
 	entries := parseEntries(op, lines)
 	if len(entries) == 0 {
 		return removeEmptyMarker(lines, op.EmptyMarker), 0, nil

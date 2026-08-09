@@ -3,10 +3,11 @@ package aisearch
 import (
 	"context"
 	"errors"
-	"prompt-manager/internal/testutil/assertx"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"prompt-manager/internal/testutil/assertx"
 )
 
 func TestSyncLoop_RunOnce_NoWork_AppliesEmptyPlan(t *testing.T) {

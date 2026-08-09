@@ -3,8 +3,9 @@ package search
 import (
 	"context"
 	"errors"
-	"prompt-manager/store"
 	"testing"
+
+	"prompt-manager/store"
 )
 
 type mockAgentStore struct {

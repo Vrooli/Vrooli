@@ -41,24 +41,21 @@ func (s *FileAgentStore) recordWrite(ctx context.Context) {
 	}
 }
 
-var defaultAgentMarkdownOrder = []string{"SOUL.md", "AGENTS.md", "TOOLS.md"}
+// agentProseFile is the single standing-prose file an agent owns. It replaced
+// SOUL.md + AGENTS.md + TOOLS.md, which were three files averaging seven lines
+// each and whose AGENTS.md body was byte-identical across 21 of 24 agents.
+const agentProseFile = "AGENT.md"
+
+var defaultAgentMarkdownOrder = []string{agentProseFile}
 
 var defaultAgentMarkdownFiles = []struct {
 	name    string
 	content string
 }{
 	{
-		name:    "SOUL.md",
-		content: "# SOUL\n\nWho I am, how I communicate, and my boundaries.\n",
-	},
-	{
-		name: "AGENTS.md",
-		content: "# AGENTS\n\nOperating procedures for this agent.\n\n## Skills\n\n" +
-			"List skills as markdown references.\n\nExample:\n- e2e-testing: `prompt-manager skill read e2e-testing`\n",
-	},
-	{
-		name:    "TOOLS.md",
-		content: "# TOOLS\n\nTooling notes and preferences.\n",
+		name: agentProseFile,
+		content: "# SOUL\n\nWho I am, how I communicate, and my boundaries.\n\n" +
+			"# TOOLS\n\nTooling notes and preferences.\n",
 	},
 }
 
@@ -220,8 +217,11 @@ func (s *FileAgentStore) loadAgent(agentID string) (*Agent, error) {
 	return LoadJSON[Agent](agentPath)
 }
 
-// GetSoul reads the SOUL.md content for an agent
-func (s *FileAgentStore) GetSoul(ctx context.Context, agentID string) (string, error) {
+// GetProse reads an agent's standing-prose content. Callers depend on the
+// concept ("the agent's standing prose"), not on a filename: agents are the
+// only indexed entity whose embedding source used to be a hardcoded file, while
+// skills and topics already take a generic content string.
+func (s *FileAgentStore) GetProse(ctx context.Context, agentID string) (string, error) {
 	var err error
 	s, err = s.forContext(ctx)
 	if err != nil {
@@ -232,16 +232,16 @@ func (s *FileAgentStore) GetSoul(ctx context.Context, agentID string) (string, e
 		return "", err
 	}
 
-	soulPath := filepath.Join(s.agentsDir(), agentID, "SOUL.md")
-	if !FileExists(soulPath) {
-		return "", nil // Return empty string if no SOUL.md exists
+	prosePath := filepath.Join(s.agentsDir(), agentID, agentProseFile)
+	if !FileExists(prosePath) {
+		return "", nil // Return empty string if the agent has no standing prose
 	}
 
-	return ReadContent(soulPath)
+	return ReadContent(prosePath)
 }
 
-// SetSoul writes the SOUL.md content for an agent
-func (s *FileAgentStore) SetSoul(ctx context.Context, agentID string, content string) error {
+// SetProse writes an agent's standing-prose content.
+func (s *FileAgentStore) SetProse(ctx context.Context, agentID string, content string) error {
 	original := s
 	var err error
 	s, err = s.forContext(ctx)
@@ -253,8 +253,8 @@ func (s *FileAgentStore) SetSoul(ctx context.Context, agentID string, content st
 		return err
 	}
 
-	soulPath := filepath.Join(s.agentsDir(), agentID, "SOUL.md")
-	if err := WriteContent(soulPath, content); err != nil {
+	prosePath := filepath.Join(s.agentsDir(), agentID, agentProseFile)
+	if err := WriteContent(prosePath, content); err != nil {
 		return err
 	}
 	original.recordWrite(ctx)

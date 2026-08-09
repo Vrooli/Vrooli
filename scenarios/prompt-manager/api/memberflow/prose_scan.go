@@ -71,7 +71,7 @@ type proseTargetKind string
 const (
 	proseTargetMember proseTargetKind = "member" // teams/<t>/members/<m>/{RESPONSIBILITIES,HEARTBEAT}.md
 	proseTargetTeam   proseTargetKind = "team"   // teams/<t>/shared/*.md and teams/<t>/*.md
-	proseTargetAgent  proseTargetKind = "agent"  // agents/<id>/{SOUL,AGENTS,TOOLS}.md
+	proseTargetAgent  proseTargetKind = "agent"  // agents/<id>/*.md (standing prose)
 	proseTargetSkill  proseTargetKind = "skill"  // skills/packs/<pack>/<id>/SKILL.md
 	proseTargetDocs   proseTargetKind = "docs"   // docs/<domain>/**/*.md
 )
@@ -417,8 +417,10 @@ func discoverTeamAndMemberTargets(configDir string) ([]proseTarget, error) {
 	return out, nil
 }
 
-// discoverAgentTargets walks <configDir>/agents/<agent-id>/ and emits a
-// target for each of SOUL.md, AGENTS.md, TOOLS.md that exists.
+// discoverAgentTargets walks <configDir>/agents/<agent-id>/ and emits a target
+// for every markdown file it finds. It globs rather than naming files so the
+// scanner does not go blind when the store's prose layout changes — which is
+// exactly what happened when SOUL.md/AGENTS.md/TOOLS.md merged into AGENT.md.
 func discoverAgentTargets(configDir string) ([]proseTarget, error) {
 	agentsDir := filepath.Join(configDir, "agents")
 	agents, err := os.ReadDir(agentsDir)
@@ -435,11 +437,18 @@ func discoverAgentTargets(configDir string) ([]proseTarget, error) {
 		}
 		agentID := ae.Name()
 		agentRoot := filepath.Join(agentsDir, agentID)
-		for _, name := range []string{"SOUL.md", "AGENTS.md", "TOOLS.md"} {
-			p := filepath.Join(agentRoot, name)
-			if !fileExists(p) {
+		files, err := os.ReadDir(agentRoot)
+		if err != nil {
+			continue
+		}
+		for _, fe := range files {
+			if fe.IsDir() || strings.HasPrefix(fe.Name(), ".") {
 				continue
 			}
+			if !strings.EqualFold(filepath.Ext(fe.Name()), ".md") {
+				continue
+			}
+			p := filepath.Join(agentRoot, fe.Name())
 			out = append(out, proseTarget{
 				Path:     p,
 				Kind:     proseTargetAgent,

@@ -455,7 +455,19 @@ func planOfRecordHubInPaths(doc PlanOfRecordDocument, input ValidationInput) boo
 	}
 	for _, ref := range doc.Paths {
 		path, err := NormalizePath(ref, input, "")
-		if err == nil && path == hubPath {
+		if err != nil {
+			continue
+		}
+		if path == hubPath {
+			return true
+		}
+		// A declared path ending in "/" is a canon root covering everything
+		// beneath it, so a hub inside a root is listed by containment. Without
+		// this, declaring a root instead of a file list makes the hub look
+		// unlisted and fails the whole team contract. NormalizePath runs
+		// filepath.Clean, which strips the trailing slash, so root-ness is read
+		// from the raw ref rather than the normalized path.
+		if strings.HasSuffix(strings.TrimSpace(ref.Path), "/") && strings.HasPrefix(hubPath, path+"/") {
 			return true
 		}
 	}

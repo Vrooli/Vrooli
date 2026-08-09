@@ -4,10 +4,12 @@ Before treating a scenario as a standalone app, decide how it becomes a good cit
 
 Required reading:
 - `path:docs/concepts/ECOSYSTEM.md` — the canonical model (the two axes, the interface/enabler tables, worked examples). This skill is the on-demand walkthrough of that doc; do not restate its taxonomy, apply it.
+- `path:docs/director-swarm/strategy/OBJECTIVES.md` — the objective set cluster 4 names an id from. Read live state with `prompt-manager graph objectives`.
+- `path:docs/agent-system/PROMOTION_LADDER.md` — the retirement and retention criteria cluster 5 claims against.
 
 Optional reading:
 - `path:VISION.md` — the *why* behind the loop.
-- `path:docs/concepts/PAID_FEATURES.md` — the free / metered / gated contract, for cluster 5 (monetization).
+- `path:docs/concepts/PAID_FEATURES.md` — the free / metered / gated contract, for cluster 6 (monetization).
 - `prompt-manager skill read morning-vision-walk` — the same lens applied at the portfolio level.
 
 **Where this hands off.** After placement is decided: build a scenario that does not exist yet with `prompt-manager skill read scenario-generation`; change a scenario that already exists with `prompt-manager skill read scenario-work-ladder`, which locates the layer to change before any change is made.
@@ -16,13 +18,13 @@ Optional reading:
 
 ### 1. When to Use This Skill
 
-Apply the lens with **depth scaled to the work**. Do not run a four-cluster review on a one-line bugfix.
+Apply the lens with **depth scaled to the work**. Do not run a full-cluster review on a one-line bugfix.
 
 ```
 What kind of work is this?
-├─ New scenario                     → apply ALL FIVE clusters; record the answers in the plan
-├─ Significant refactor / repurpose → apply ALL FIVE; re-check role + interfaces may have shifted
-├─ New feature on a scenario        → clusters 1 (interfaces) + 3 (compound value); + 5 if it is a paid/expensive feature
+├─ New scenario                     → apply ALL SIX clusters; record the answers in the plan
+├─ Significant refactor / repurpose → apply ALL SIX; re-check role + interfaces may have shifted
+├─ New feature on a scenario        → clusters 1 (interfaces), 3 (compound value), 5 (retirement claim); + 6 if it is a paid/expensive feature
 ├─ Small feature / polish           → cluster 1 only (does "done" mean a new interface obligation?)
 └─ Bugfix / chore                   → skip; note fit only if the fix reveals a missing interface/seam
 ```
@@ -47,35 +49,39 @@ What kind of work is this?
 - The actual implementation plan structure — that is `implementation-plan-authoring`.
 - Skill discovery for the plan — that is the plan-manager authoring wizard's server-side context discovery.
 - Editing the canonical taxonomy itself — that is a change to `path:docs/concepts/ECOSYSTEM.md` (operator-reviewed).
+- Editing the objective set — that is a change to `path:docs/director-swarm/strategy/OBJECTIVES.md`, actuated by `director-swarm`.
 - Portfolio prioritization — that is `morning-vision-walk`.
 - Monetization *strategy* (whether to monetize, pricing, bundle membership) — operator-curated `path:docs/monetization/` canon; this skill only routes there, it never decides or edits it.
 - Paid-feature *wiring* detail — `path:docs/concepts/PAID_FEATURES.md` + `prompt-manager skill read bundle-integration-steer`.
 
 ---
 
-### 3. The Four Clusters
+### 3. The Clusters
 
 Walk these in order. Each row names the question and what a *good* answer looks like — not a step to mechanically perform.
 
 | Cluster | Ask | A good answer names… |
 |---|---|---|
-| **1. Interfaces** | Which channel(s) does this serve or enable, and what does that make "done" mean? | Direct UI → polished/production-ready. Conversational → widgets + tools declared **and discoverable** via `cli-health`/`ui-health`. Voice → actually wired into consumers, not just present. Programmatic → a clean CLI/Connect surface other scenarios can call. |
+| **1. Interfaces** | Which channel(s) does this serve or enable, and what does that make "done" mean? | Every interface the scenario touches, and its "done" obligation from the interface map below. |
 | **2. Role & multiplier** | Which functional role does this play, and is there a cheap way to raise its multiplier? | The role (meta / interface-enabler / integration / product) **and** at least a quick check for: an LLM step that could become deterministic code or a `prompt-manager action`; a capability worth exposing instead of burying. |
-| **3. Compound value** | Is it built to be extended and composed later? What seams make that cheap? | The concrete seam(s) (data surface, declared widgets/tools, stable CLI) that let a *future* scenario reuse this one instead of re-implementing it. |
-| **4. Self-improvement** | Could this cheaply advance a Vrooli meta-capability (engineering, testing, deployment, monetization, upkeep, or operator/user interaction)? | Either a concrete meta-capability it advances, or an explicit "no — pure product," which is a valid answer. |
-| **5. Monetization & bundle fit** | How does this earn its keep, and which bundle does it serve? | The bundle (business / lifestyle) + headliner-or-depth, **and** whether each capability is free / metered / gated. Strategy (whether to monetize, pricing) is deferred to canon — routed, not decided here. |
+| **3. Compound value** | Is it built to be extended and composed later? What seams make that cheap? | The concrete seam(s) (data surface, declared widgets/tools, stable CLI) that let a *future* scenario reuse this one instead of re-implementing it. `tech-tree-designer` answers this programmatically when it is running; treat its output as advisory — the scenario is built but unvalidated. |
+| **4. Objective served** | Which objective does this advance, and which team owns it? | An objective id (`T1`–`T3`, `I1`–`I3`) plus the team that declares it, read from `prompt-manager graph objectives` — or "none — pure product." Name the id even when the sensor reports it unserved. No id fits → file the gap to `director-swarm`; never edit `OBJECTIVES.md`. |
+| **5. Retirement claim** | What does this let the system delete? | A file path and section that becomes retireable, plus the trigger that makes it eligible, per `PROMOTION_LADDER.md` §Retirement criteria — or "nothing retires." Check §Retention criteria first. Do not claim a retirement you have not opened. |
+| **6. Monetization & bundle fit** | How does this earn its keep, and which bundle does it serve? | The bundle (business / lifestyle) + headliner-or-depth, **and** whether each capability is free / metered / gated. Strategy (whether to monetize, pricing) is deferred to canon — routed, not decided here. |
+
+**Why clusters 4 and 5 exist, and when they retire.** The intent chain in `path:docs/agent-system/README.md` is validated downward from objective to member surface. Nothing validates upward from a new capability, so a scenario can ship, work, and stay invisible to the strategy layer. Cluster 5 is that same README's ratchet — *every capability added to the system is supposed to make the system smaller* — claimed at design time rather than measured after the fact by `prompt-manager graph orientation-cost`. Both clusters retire from this skill once a scenario declares its objective edge and its retirement claim as data the sensors read directly, which is `PROMOTION_LADDER.md` step 2.
 
 #### The interface "done" map (cluster 1 detail)
 
 | If the scenario touches… | "Done" additionally requires |
 |---|---|
-| Direct UI | Polished, production-ready UI (handles loading/error/empty states) |
+| Direct UI | Polished, production-ready UI that renders loading, error, and empty states |
 | Conversational / agentic | Widgets + tools declared per the contract **and** discoverable (`cli-health` / `ui-health`) |
 | Voice | Voice features wired into the actual consuming scenarios, not merely available |
 | Programmatic | A clean, reusable CLI / Connect surface — assume other scenarios will call it |
 | Embodied / embedded | A connector seam; do not hand-roll the outbound integration inside the scenario |
 
-#### Monetization routing (cluster 5 detail)
+#### Monetization routing (cluster 6 detail)
 
 This skill **routes**, it does not decide strategy. Read the canon, pick the integration pattern:
 
@@ -90,45 +96,31 @@ Two hard rules carried from `PAID_FEATURES.md`: never gate a capability a self-h
 
 ---
 
-### 4. The `tech-tree-designer` hook (optional, graceful degradation)
-
-Cluster 3 ("where does this sit / what does it unlock") can be answered programmatically **if** `tech-tree-designer` is available — it models the map of all possible software (domain × maturity) and what each node unlocks.
-
-```
-Is tech-tree-designer discoverable and running?
-(prompt-manager discover "tech tree" --type all  /  scenario status)
-├─ YES → query it for the closest node and downstream unlocks
-│        (e.g. tech-tree-designer graph dependencies / catalog list)
-│        Treat results as advisory — it may be unvalidated.
-└─ NO  → reason about compound value manually from
-         path:docs/concepts/ECOSYSTEM.md (the default path)
-```
-
-Never block fit analysis on `tech-tree-designer`. It is a power-up, not a prerequisite — the lens is fully usable from this skill alone. (As of this writing the scenario is built but unvalidated, with no functional-role dimension or semantic search; the manual path is the reliable one.)
-
----
-
-### **5. Output Expectations**
+### **4. Output Expectations**
 
 When this skill is applied during planning, you **must** produce:
 - A one-line **role** classification and the **interface(s)** the scenario serves/enables.
 - The resulting **"done" obligations** from cluster 1's interface map (these belong in the plan's Target End State / Definition of Done).
 - At least a **compound-value seam** note (cluster 3) — or an explicit "no extension foreseen; minimal seam is X."
+- The **objective id** this advances and its owning team (cluster 4) — or an explicit "none — pure product."
+- The **retirement claim** with its trigger (cluster 5) — or an explicit "nothing retires," stated rather than omitted.
 
 You **should** also:
 - Note any cheap multiplier raise spotted in cluster 2 (LLM→action/code, capability to expose).
-- When cluster 5 applies, name the **bundle** and the **free / metered / gated** mode per chargeable capability — routing to `path:docs/concepts/PAID_FEATURES.md`, never deciding pricing.
+- When cluster 6 applies, name the **bundle** and the **free / metered / gated** mode per chargeable capability — routing to `path:docs/concepts/PAID_FEATURES.md`, never deciding pricing.
 - Keep the output to a few lines — this is a lens, not a deliverable. The depth tree in §1 governs how much to write.
 
 You **must not:**
-- Run all five clusters on work the §1 tree says to skip.
+- Run all six clusters on work the §1 tree says to skip.
 - Invent interface or voice obligations for a scenario that genuinely has none — an honest "pure product, direct UI only" is a complete answer.
 - Restate the taxonomy from `path:docs/concepts/ECOSYSTEM.md` in the plan; cite it and apply it.
+- Edit `path:docs/director-swarm/strategy/OBJECTIVES.md` or invent an objective id. `director-swarm` owns the objective set; this skill names and routes.
+- Claim a retirement you have not opened. Name the file and section, or say nothing retires — an unverifiable claim satisfies the ratchet on paper while the prose stays.
 
 ---
 
-### 6. Troubleshooting & Edge Cases
+### 5. Troubleshooting & Edge Cases
 
 - **Scenario spans multiple roles.** Expected and fine — classify by the *dominant* role for the multiplier question, but answer cluster 1 for *every* interface it touches.
-- **`tech-tree-designer` errors or returns nothing.** Fall back to the manual path (§4); do not treat its absence as a blocker or its output as authoritative.
-- **The lens feels like overhead on small work.** That is the §1 depth tree doing its job — skip clusters the tree says to skip. Forcing a full review on a bugfix is the anti-pattern, not diligence.
+- **`tech-tree-designer` errors or returns nothing.** Reason about compound value from `path:docs/concepts/ECOSYSTEM.md` instead; do not treat its absence as a blocker or its output as authoritative.
+- **No objective id fits the work.** This is the cluster 4 rejection branch, not a stall. Record "no id fits", file the gap to `director-swarm`, and continue the remaining clusters.

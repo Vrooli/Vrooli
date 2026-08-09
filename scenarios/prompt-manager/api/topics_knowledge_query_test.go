@@ -4,10 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"prompt-manager/memberflow"
-	"prompt-manager/store"
 	"testing"
 	"time"
+
+	"prompt-manager/memberflow"
+	"prompt-manager/store"
 )
 
 func TestTeamKnowledgeQuery_StripsWildcardAndDelegates(t *testing.T) {

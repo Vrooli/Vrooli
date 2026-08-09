@@ -22,6 +22,7 @@
 package memberflow
 
 import (
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -145,6 +146,14 @@ func countTeamMembers(configDir, teamID string, contract *LoadedTeamContract) in
 
 // canonLineCount sums the line counts of a team's declared plan-of-record
 // documents.
+//
+// A declared path ending in "/" is a canon *root*: every .md beneath it counts,
+// and no per-file declaration is kept. Roots exist because an enumerated file
+// list is a second source of truth that drifts silently — a canon file added to
+// the folder but not to the list was invisible here, so framework growth cost
+// nothing and the ratchet could not fire on it. A root cannot drift: the folder
+// is the declaration. The trade is that everything markdown under a root counts,
+// including generated projections, so a folder is charged for what it contains.
 func canonLineCount(repoRoot string, contract *LoadedTeamContract) (int, []string) {
 	if contract == nil {
 		return 0, nil
@@ -165,6 +174,15 @@ func canonLineCount(repoRoot string, contract *LoadedTeamContract) (int, []strin
 				continue
 			}
 			seen[path] = true
+			if strings.HasSuffix(path, "/") {
+				lines, err := canonRootLineCount(repoRoot, path)
+				if err != nil {
+					missing = append(missing, path)
+					continue
+				}
+				total += lines
+				continue
+			}
 			data, err := os.ReadFile(filepath.Join(repoRoot, path))
 			if err != nil {
 				missing = append(missing, path)
@@ -175,6 +193,39 @@ func canonLineCount(repoRoot string, contract *LoadedTeamContract) (int, []strin
 	}
 	sort.Strings(missing)
 	return total, missing
+}
+
+// canonRootLineCount sums every .md beneath a declared canon root. Only .md
+// counts: sidecar JSON in a plan-of-record folder is machine config the reader
+// never orients into, and the manifest already validates it.
+func canonRootLineCount(repoRoot, root string) (int, error) {
+	dir := filepath.Join(repoRoot, filepath.FromSlash(strings.TrimSuffix(root, "/")))
+	info, err := os.Stat(dir)
+	if err != nil {
+		return 0, err
+	}
+	if !info.IsDir() {
+		return 0, fs.ErrInvalid
+	}
+	total := 0
+	err = filepath.WalkDir(dir, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil || entry.IsDir() {
+			return nil //nolint:nilerr // an unreadable child is skipped, not fatal
+		}
+		if !strings.EqualFold(filepath.Ext(entry.Name()), ".md") {
+			return nil
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+		total += strings.Count(string(data), "\n") + 1
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
 }
 
 // externalScenariosByTeam collects the distinct external nodes each team's

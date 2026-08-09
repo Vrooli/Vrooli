@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"prompt-manager/store"
 	"sync"
+
+	"prompt-manager/store"
 )
 
 // BudgetConfig maps complexity tiers to character budgets for skill discovery.
@@ -24,7 +25,7 @@ type BudgetConfigProvider interface {
 // BudgetConfigStore persists budget config under the scenario store.
 type BudgetConfigStore struct {
 	configDir string
-	mu       sync.RWMutex
+	mu        sync.RWMutex
 }
 
 const budgetConfigRelativePath = "config/budgets.json"

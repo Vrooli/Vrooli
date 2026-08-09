@@ -3,9 +3,10 @@ package search
 
 import (
 	"errors"
-	"prompt-manager/skills"
 	"regexp"
 	"strings"
+
+	"prompt-manager/skills"
 )
 
 // Service handles search logic.

@@ -11,10 +11,11 @@ package main
 
 import (
 	"context"
-	"prompt-manager/memberflow"
-	"prompt-manager/store"
 	"strings"
 	"time"
+
+	"prompt-manager/memberflow"
+	"prompt-manager/store"
 )
 
 type teamKnowledgeQuery struct {

@@ -5,11 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"prompt-manager/skills"
-	"prompt-manager/store"
 	"sort"
 	"sync"
 	"time"
+
+	"prompt-manager/skills"
+	"prompt-manager/store"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -403,15 +404,14 @@ func NewSkillDescriptor(store VectorStore, skillStore skills.SkillStore) Collect
 
 type agentSnap struct {
 	Agent *store.Agent
-	Soul  string
+	Prose string
 }
 
 // NewAgentDescriptor wires a CollectionDescriptor for the agent collection.
-// soulReader may be nil — when nil, agent SOUL.md content is omitted from the
-// embedding text (matching pre-refactor behavior when AgentSoulReader was
-// unavailable).
+// proseReader may be nil — when nil, the agent's standing prose is omitted from
+// the embedding text and only its metadata is indexed.
 func NewAgentDescriptor(vstore VectorStore, agentStore AgentStoreReader) CollectionDescriptor {
-	soulReader, _ := agentStore.(AgentSoulReader)
+	proseReader, _ := agentStore.(AgentProseReader)
 	return CollectionDescriptor{
 		Kind:  KindAgent,
 		Store: vstore,
@@ -424,9 +424,9 @@ func NewAgentDescriptor(vstore VectorStore, agentStore AgentStoreReader) Collect
 			for i := range agents {
 				a := agents[i]
 				snap := &agentSnap{Agent: &a}
-				if soulReader != nil {
-					if c, err := soulReader.GetSoul(ctx, a.ID); err == nil {
-						snap.Soul = c
+				if proseReader != nil {
+					if c, err := proseReader.GetProse(ctx, a.ID); err == nil {
+						snap.Prose = c
 					}
 				}
 				out = append(out, snap)
@@ -435,7 +435,7 @@ func NewAgentDescriptor(vstore VectorStore, agentStore AgentStoreReader) Collect
 		},
 		ComposeText: func(snap ItemSnapshot) string {
 			as := snap.(*agentSnap)
-			return composeAgentEmbeddingText(as.Agent, as.Soul)
+			return composeAgentEmbeddingText(as.Agent, as.Prose)
 		},
 		BuildPayload: func(snap ItemSnapshot, text string) map[string]interface{} {
 			return buildAgentPayload(snap.(*agentSnap).Agent, text)

@@ -17,9 +17,7 @@
     "triage"
   ],
   "fileOrder": [
-    "SOUL.md",
-    "AGENTS.md",
-    "TOOLS.md"
+    "AGENT.md"
   ],
   "revision": 1,
   "createdAt": "2026-05-03T00:00:00Z",

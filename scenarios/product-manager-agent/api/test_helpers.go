@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/vrooli/api-core/health"
 )
 
 // TestLogger provides controlled logging during tests
@@ -143,7 +144,7 @@ func makeHTTPRequest(t *testing.T, app *App, req HTTPTestRequest) *httptest.Resp
 	// Route the request to the appropriate handler
 	switch {
 	case req.Path == "/health":
-		app.healthHandler(w, httpReq)
+		health.New("product-manager-agent-api").Version("1.0.0").Check(health.DB(app.DB), health.Critical).Handler()(w, httpReq)
 	case req.Path == "/api/features":
 		app.featuresHandler(w, httpReq)
 	case req.Path == "/api/features/prioritize":

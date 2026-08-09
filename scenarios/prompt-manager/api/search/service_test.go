@@ -2,8 +2,9 @@ package search
 
 import (
 	"errors"
-	"prompt-manager/skills"
 	"testing"
+
+	"prompt-manager/skills"
 )
 
 type mockSkillStore struct {

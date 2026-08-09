@@ -168,6 +168,12 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 			}
 		}
 
+		if section, err := b.buildTeamContextWakeSection(ctx, teamID); err != nil {
+			return nil, err
+		} else if section != "" {
+			sections = append(sections, newPromptSection(promptSectionKindTeamWake, "source-ledger:team:"+teamID, section))
+		}
+
 		if handoff, err := b.teamStore.GetLastHandoff(ctx, teamID, agentID); err == nil && handoff != "" {
 			sections = append(sections, newPromptSection(promptSectionKindLastHandoff, fmt.Sprintf("teams/%s/members/%s/last-handoff.md", teamID, agentID), promptHeading(promptSectionKindLastHandoff)+"\n\nThis is what you noted at the end of your last heartbeat:\n\n"+shiftMarkdownHeadings(handoff, 2)))
 		}
@@ -232,6 +238,37 @@ func (b *PromptBuilder) buildSectionList(ctx context.Context, req PromptBuildReq
 		return nil, err
 	}
 	return sections, nil
+}
+
+// buildTeamContextWakeSection injects only Source Ledger's bounded ambient
+// view. The wake is context, not authority: the section tells the member to
+// use the authoritative storage map and unified work feed for current state.
+func (b *PromptBuilder) buildTeamContextWakeSection(ctx context.Context, teamID string) (string, error) {
+	entries, err := b.teamStore.WakeTeamCorpus(ctx, teamID)
+	if err != nil {
+		return "", fmt.Errorf("reading team source-ledger wake: %w", err)
+	}
+	if !b.teamStore.HasSourceLedger() {
+		return "", nil
+	}
+
+	var section strings.Builder
+	section.WriteString(promptHeading(promptSectionKindTeamWake) + "\n\n")
+	section.WriteString("Bounded ambient context from the `team:" + teamID + "` Source Ledger scope. This is orientation, not authority; use the Storage Map and unified work feed for current state.\n\n")
+	if len(entries) == 0 {
+		section.WriteString("No durable team context has been recorded yet.")
+		return section.String(), nil
+	}
+	for _, entry := range entries {
+		body := strings.TrimSpace(entry.Body)
+		if body == "" {
+			continue
+		}
+		section.WriteString("- ")
+		section.WriteString(strings.ReplaceAll(body, "\n", "\n  "))
+		section.WriteString("\n")
+	}
+	return strings.TrimRight(section.String(), "\n"), nil
 }
 
 // BuildStructured returns the prompt as a list of structured sections.

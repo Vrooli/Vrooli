@@ -165,6 +165,11 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 		result.Status = store.HeartbeatStatusFailed
 		return result, result.Error
 	}
+	if err := e.teamStore.EnsureTeamScope(ctx, teamID); err != nil {
+		result.Error = fmt.Errorf("ensuring team source-ledger scope: %w", err)
+		result.Status = store.HeartbeatStatusFailed
+		return result, result.Error
+	}
 
 	// Auto-prune stale shared state before building the prompt.
 	if _, pruneErr := e.teamStore.PruneSharedState(ctx, teamID); pruneErr != nil {

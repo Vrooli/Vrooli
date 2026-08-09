@@ -2,8 +2,9 @@ package search
 
 import (
 	"context"
-	"prompt-manager/store"
 	"strings"
+
+	"prompt-manager/store"
 )
 
 // TeamFileReader abstracts file operations for team content search.

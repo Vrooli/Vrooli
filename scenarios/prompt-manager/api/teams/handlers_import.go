@@ -6,10 +6,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+
 	"prompt-manager/interop"
 	"prompt-manager/store"
 	"prompt-manager/validation"
-	"strings"
 )
 
 // AvailableCCTeam represents a Claude Code team found on disk.

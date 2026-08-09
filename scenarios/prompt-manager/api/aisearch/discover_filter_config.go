@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"prompt-manager/store"
 	"sync"
+
+	"prompt-manager/store"
 )
 
 // DiscoverFilterConfig controls which skills are excluded from discovery results.
@@ -25,7 +26,7 @@ type DiscoverFilterConfigProvider interface {
 // DiscoverFilterConfigStore persists discover filter config under the scenario store.
 type DiscoverFilterConfigStore struct {
 	configDir string
-	mu       sync.RWMutex
+	mu        sync.RWMutex
 }
 
 const discoverFilterConfigRelativePath = "config/discover-filters.json"

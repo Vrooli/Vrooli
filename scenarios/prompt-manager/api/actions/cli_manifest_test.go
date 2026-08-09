@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"prompt-manager/store"
 	"testing"
+
+	"prompt-manager/store"
 )
 
 // TestManifestResolverCertaintyMatrix exercises the certainty derivation

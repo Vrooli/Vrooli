@@ -67,9 +67,10 @@ type AgentStoreReader interface {
 	Get(ctx context.Context, id string) (*store.Agent, error)
 }
 
-// AgentSoulReader provides access to agent SOUL.md content.
-type AgentSoulReader interface {
-	GetSoul(ctx context.Context, agentID string) (string, error)
+// AgentProseReader provides access to an agent's standing prose. It names the
+// concept rather than a file so the indexer does not depend on store layout.
+type AgentProseReader interface {
+	GetProse(ctx context.Context, agentID string) (string, error)
 }
 
 // TeamStoreReader provides read access to teams for AI search.

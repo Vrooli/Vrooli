@@ -17,9 +17,7 @@
     "swarm-manager"
   ],
   "fileOrder": [
-    "SOUL.md",
-    "AGENTS.md",
-    "TOOLS.md"
+    "AGENT.md"
   ],
   "revision": 2,
   "createdAt": "2026-04-09T19:58:09Z",

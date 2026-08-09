@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/vrooli/api-core/storage"
 
 	"git-control-tower/internal/git"
+	platform "github.com/vrooli/platform-go"
 )
 
 const maxPathSnapshotRepositoryBytes int64 = 64 << 20
@@ -631,10 +631,11 @@ func (s *Storage) withLock(dir, name string, fn func() error) error {
 		return fmt.Errorf("open baseline lock: %w", err)
 	}
 	defer lf.Close()
-	if err := syscall.Flock(int(lf.Fd()), syscall.LOCK_EX); err != nil {
+	release, err := platform.LockFile(lf, false)
+	if err != nil {
 		return fmt.Errorf("acquire baseline lock: %w", err)
 	}
-	defer func() { _ = syscall.Flock(int(lf.Fd()), syscall.LOCK_UN) }()
+	defer release()
 	return fn()
 }
 

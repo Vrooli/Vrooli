@@ -85,6 +85,7 @@ export function TeamDashboardTab({
   const [hasMoreLogs, setHasMoreLogs] = useState(false)
   const [isLoadingLogs, setIsLoadingLogs] = useState(false)
   const [memberFilter, setMemberFilter] = useState('')
+  const [openWorkCount, setOpenWorkCount] = useState<number | null>(null)
 
   // --- Agents lookup ---
   const agentsById = useMemo(() => {
@@ -106,6 +107,39 @@ export function TeamDashboardTab({
   const resolvedLeadAgentId = useMemo(() => {
     return team.coordination.leadAgentId || team.members[0]?.agentId || ''
   }, [team.coordination.leadAgentId, team.members])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadOpenWorkCount = async () => {
+      try {
+        const response = await fetch('/embedded/swarm-manager/api/v1/backlog?archived=false')
+        if (!response.ok) throw new Error(`Swarm Manager responded with ${response.status}`)
+        const payload = (await response.json()) as {
+          items?: Array<{
+            status?: string
+            tags?: string[]
+            created_by?: { profile_key?: string }
+          }>
+        }
+        const terminalStatuses = new Set(['done', 'completed', 'cancelled', 'dropped', 'archived'])
+        const teamPrefix = `${team.id}/`
+        const count = (payload.items ?? []).filter((item) => {
+          const belongsToTeam =
+            (item.tags ?? []).includes(team.id) || item.created_by?.profile_key?.startsWith(teamPrefix)
+          return belongsToTeam && !terminalStatuses.has((item.status ?? '').toLowerCase())
+        }).length
+        if (!cancelled) setOpenWorkCount(count)
+      } catch {
+        if (!cancelled) setOpenWorkCount(null)
+      }
+    }
+
+    void loadOpenWorkCount()
+    return () => {
+      cancelled = true
+    }
+  }, [team.id])
 
   const buildCoordinationPreset = useCallback(
     (pattern: CoordinationPattern, runtimeMode: RuntimeMode): Coordination => {
@@ -780,7 +814,10 @@ export function TeamDashboardTab({
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Swarm Manager work</h3>
             <p className="mt-1 text-sm text-foreground">Team requests and operator dispositions live in the unified work feed.</p>
-            <p className="mt-1 text-xs text-muted-foreground">Open the feed to review this team&apos;s filed work and its current disposition.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {openWorkCount === null ? 'Open work count unavailable.' : `${openWorkCount} open work item${openWorkCount === 1 ? '' : 's'}.`}{' '}
+              Open the feed to review this team&apos;s filed work and its current disposition.
+            </p>
           </div>
           <a
             href="/swarm-manager"

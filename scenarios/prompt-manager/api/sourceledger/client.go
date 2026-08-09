@@ -22,6 +22,18 @@ import (
 
 const DefaultScope = "agent-memory"
 
+// TeamScopeFacets returns the stable facet vocabulary shared by the
+// prompt-manager teams. Facet ids are globally keyed by source-ledger, so the
+// team id is part of each id even though the semantic labels stay consistent.
+func TeamScopeFacets(teamID string) []*scopesv1.FacetSpec {
+	teamID = strings.TrimPrefix(strings.TrimSpace(teamID), "team:")
+	return []*scopesv1.FacetSpec{
+		{Id: "prompt-manager-" + teamID + "-knowledge", Label: "Team knowledge", Guidance: "Durable team context and operating lessons", CompactionEligible: true, ResidentBudget: 32},
+		{Id: "prompt-manager-" + teamID + "-handoff", Label: "Team handoff", Guidance: "Member handoff context", CompactionEligible: true, ResidentBudget: 16},
+		{Id: "prompt-manager-" + teamID + "-work", Label: "Team work", Guidance: "Work context and evidence", CompactionEligible: true, ResidentBudget: 16},
+	}
+}
+
 // UnavailableError identifies the typed dependency failure returned when the
 // shared source-ledger cannot be resolved or used. Callers can classify this
 // without matching fragile transport text.
@@ -79,6 +91,14 @@ func (c *Client) EnsureScope(ctx context.Context, id, label string, facets []*sc
 		return &UnavailableError{Operation: fmt.Sprintf("create scope %q", id), Err: err}
 	}
 	return nil
+}
+
+// EnsureTeamScope provisions the scope required before a team member can
+// build a heartbeat. It is intentionally idempotent and leaves unavailability
+// as the typed UnavailableError instead of permitting a local fallback.
+func (c *Client) EnsureTeamScope(ctx context.Context, teamID string) error {
+	teamID = strings.TrimPrefix(strings.TrimSpace(teamID), "team:")
+	return c.EnsureScope(ctx, "team:"+teamID, "prompt-manager team "+teamID, TeamScopeFacets(teamID))
 }
 
 func (c *Client) Append(ctx context.Context, scope, body, kind string) (Entry, error) {

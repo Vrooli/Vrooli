@@ -2,8 +2,9 @@ package search
 
 import (
 	"context"
-	"prompt-manager/store"
 	"strings"
+
+	"prompt-manager/store"
 )
 
 // AgentFileReader abstracts file operations for agent content search.

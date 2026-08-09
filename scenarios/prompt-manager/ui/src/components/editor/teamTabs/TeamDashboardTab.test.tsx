@@ -52,6 +52,7 @@ const pendingBackgroundRequest = new Promise<never>(() => {})
 describe('TeamDashboardTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [] }), { status: 200 })))
     vi.mocked(heartbeatService.listHeartbeats).mockReturnValue(pendingBackgroundRequest)
     vi.mocked(heartbeatService.listTeamLogs).mockReturnValue(pendingBackgroundRequest)
   })
@@ -129,5 +130,28 @@ describe('TeamDashboardTab', () => {
         maxConcurrentRuns: 5,
       },
     })
+  })
+
+  it('shows the team open-work count and keeps the feed as the disposition link', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            items: [
+              { status: 'backlog', tags: ['scenario-qa'] },
+              { status: 'done', tags: ['scenario-qa'] },
+              { status: 'backlog', tags: ['other-team'] },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    )
+    const onUpdate = vi.fn().mockResolvedValue(undefined)
+    renderDashboard(baseTeam, onUpdate)
+
+    expect(await screen.findByText(/1 open work item\./)).toBeDefined()
+    expect(screen.getByRole('link', { name: /Open work feed/ })).toHaveAttribute('href', '/swarm-manager')
   })
 })

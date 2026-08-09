@@ -8,9 +8,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+
 	"prompt-manager/store"
 	"prompt-manager/validation"
-	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -34,7 +35,7 @@ type Handlers struct {
 	teamStore        store.TeamStore
 	graphInvalidator GraphInvalidator
 	aiIndexer        AIAgentIndexer
-	configDir         string
+	configDir        string
 }
 
 // NewHandlers creates a new agents handler.
@@ -44,7 +45,7 @@ func NewHandlers(agentStore store.AgentStore, indexStore store.IndexStore, confi
 		indexStore:    indexStore,
 		relationStore: relationStore,
 		teamStore:     teamStore,
-		configDir:      configDir,
+		configDir:     configDir,
 	}
 }
 
@@ -431,20 +432,20 @@ func (h *Handlers) ListTeams(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-// GetSoul handles GET /agents/{id}/soul - returns the SOUL.md content for an agent.
+// GetSoul handles GET /agents/{id}/soul - returns the agent's standing prose.
 func (h *Handlers) GetSoul(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	// Type assert to FileAgentStore to access GetSoul
+	// Type assert to FileAgentStore to access GetProse
 	fileStore, ok := h.agentStore.(*store.FileAgentStore)
 	if !ok {
-		http.Error(w, "GetSoul not supported", http.StatusInternalServerError)
+		http.Error(w, "GetProse not supported", http.StatusInternalServerError)
 		return
 	}
 
-	content, err := fileStore.GetSoul(ctx, id)
+	content, err := fileStore.GetProse(ctx, id)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, "Agent not found", http.StatusNotFound)
@@ -463,7 +464,7 @@ func (h *Handlers) GetSoul(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-// SetSoul handles PUT /agents/{id}/soul - sets the SOUL.md content for an agent.
+// SetSoul handles PUT /agents/{id}/soul - sets the agent's standing prose.
 func (h *Handlers) SetSoul(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -475,14 +476,14 @@ func (h *Handlers) SetSoul(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Type assert to FileAgentStore to access SetSoul
+	// Type assert to FileAgentStore to access SetProse
 	fileStore, ok := h.agentStore.(*store.FileAgentStore)
 	if !ok {
-		http.Error(w, "SetSoul not supported", http.StatusInternalServerError)
+		http.Error(w, "SetProse not supported", http.StatusInternalServerError)
 		return
 	}
 
-	if err := fileStore.SetSoul(ctx, id, req.Content); err != nil {
+	if err := fileStore.SetProse(ctx, id, req.Content); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, "Agent not found", http.StatusNotFound)
 			return

@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"prompt-manager/internal/testutil/assertx"
-	"prompt-manager/internal/testutil/httpx"
 	"strings"
 	"testing"
+
+	"prompt-manager/internal/testutil/assertx"
+	"prompt-manager/internal/testutil/httpx"
 )
 
 func TestHandleGetReturnsDefaultConfigWhenMissing(t *testing.T) {

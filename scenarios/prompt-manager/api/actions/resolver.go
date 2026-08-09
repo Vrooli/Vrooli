@@ -414,7 +414,7 @@ func teamCommandEntries(read, write, writeProcess, destructive commandCatalogEnt
 		"org-set": write, "org-remove": write, "message-send": write,
 		"heartbeat-enable": write, "heartbeat-disable": write, "heartbeat-trigger": write,
 		"import-cc": write, "trigger": writeProcess, "task-add": write, "task-update": write,
-		"prune": write,
+		"prune":  write,
 		"delete": destructive, "rm": {Canonical: "delete", Effect: EffectDestructive, Permissions: []string{"api:write"}},
 		"message-delete": destructive, "message-clear": destructive, "task-delete": destructive,
 	})

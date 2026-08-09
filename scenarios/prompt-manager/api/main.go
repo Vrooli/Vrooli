@@ -54,7 +54,6 @@ import (
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
-	scopesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -337,14 +336,7 @@ func main() {
 	}
 	teamScopes := []string{"director-swarm", "infra-health", "marketing-crew", "meta-optimization", "monetization", "scenario-qa"}
 	for _, teamID := range teamScopes {
-		// Facet ids are globally keyed by source-ledger, so include the team
-		// scope in each id while retaining the shared semantic vocabulary.
-		teamFacets := []*scopesv1.FacetSpec{
-			{Id: "prompt-manager-" + teamID + "-knowledge", Label: "Team knowledge", Guidance: "Durable team context and operating lessons", CompactionEligible: true, ResidentBudget: 32},
-			{Id: "prompt-manager-" + teamID + "-handoff", Label: "Team handoff", Guidance: "Member handoff context", CompactionEligible: true, ResidentBudget: 16},
-			{Id: "prompt-manager-" + teamID + "-work", Label: "Team work", Guidance: "Work context and evidence", CompactionEligible: true, ResidentBudget: 16},
-		}
-		if err := ledger.EnsureScope(dbCtx, "team:"+teamID, "prompt-manager team "+teamID, teamFacets); err != nil {
+		if err := ledger.EnsureTeamScope(dbCtx, teamID); err != nil {
 			log.Fatalf("register source-ledger scope %q: %v", teamID, err)
 		}
 	}

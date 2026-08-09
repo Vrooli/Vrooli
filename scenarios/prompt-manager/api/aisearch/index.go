@@ -8,10 +8,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"prompt-manager/skills"
-	"prompt-manager/store"
 	"sort"
 	"strings"
+
+	"prompt-manager/skills"
+	"prompt-manager/store"
 )
 
 // payloadHashKey is the field added to every vector-store payload so the
@@ -222,7 +223,7 @@ func agentPointID(agentID string) string {
 }
 
 // composeAgentEmbeddingText creates a rich text representation for agent embedding.
-func composeAgentEmbeddingText(agent *store.Agent, soulContent string) string {
+func composeAgentEmbeddingText(agent *store.Agent, content string) string {
 	var parts []string
 
 	parts = append(parts, agent.DisplayName)
@@ -239,8 +240,8 @@ func composeAgentEmbeddingText(agent *store.Agent, soulContent string) string {
 		parts = append(parts, "Status: "+agent.Status)
 	}
 
-	if soulContent != "" {
-		truncated := soulContent
+	if content != "" {
+		truncated := content
 		if len(truncated) > 2000 {
 			truncated = truncated[:2000] + "..."
 		}
@@ -261,16 +262,16 @@ func (s *Service) IndexAgent(ctx context.Context, agentID string) error {
 		return fmt.Errorf("agent not found: %w", err)
 	}
 
-	// Try to load SOUL.md content
-	var soulContent string
-	if soulReader, ok := s.agentStore.(AgentSoulReader); ok {
-		content, err := soulReader.GetSoul(ctx, agentID)
+	// Load the agent's standing prose, if the store exposes it.
+	var prose string
+	if proseReader, ok := s.agentStore.(AgentProseReader); ok {
+		content, err := proseReader.GetProse(ctx, agentID)
 		if err == nil {
-			soulContent = content
+			prose = content
 		}
 	}
 
-	embeddingText := composeAgentEmbeddingText(agent, soulContent)
+	embeddingText := composeAgentEmbeddingText(agent, prose)
 
 	vector, err := s.embedder.Embed(ctx, embeddingText)
 	if err != nil {

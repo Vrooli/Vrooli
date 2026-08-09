@@ -76,6 +76,21 @@ func NewFileTeamStore(configRoot, runtimeDataRoot string, relationStore Relation
 // runtime paths. Nil is retained only for isolated file-store tests.
 func (s *FileTeamStore) SetSourceLedger(client *sourceledger.Client) { s.ledger = client }
 
+// HasSourceLedger reports whether this store is wired to the production
+// Source Ledger dependency. Isolated file-store fixtures intentionally return
+// false so prompt tests do not need a live ledger.
+func (s *FileTeamStore) HasSourceLedger() bool { return s != nil && s.ledger != nil }
+
+// EnsureTeamScope makes the Source Ledger dependency explicit at the member
+// boundary. Production stores have a ledger client; isolated file-store tests
+// intentionally keep the nil client and exercise their local fixture seam.
+func (s *FileTeamStore) EnsureTeamScope(ctx context.Context, teamID string) error {
+	if s == nil || s.ledger == nil {
+		return nil
+	}
+	return s.ledger.EnsureTeamScope(ctx, teamID)
+}
+
 // SetEventsEndpoint attaches the durable event stream used for heartbeat
 // attempts. Production never falls back to a local attempts file; nil is
 // retained only for isolated fixture stores.
@@ -1547,6 +1562,19 @@ func (s *FileTeamStore) ListTeamCorpus(ctx context.Context, teamID, topicFilter,
 	}
 
 	return entries, nil
+}
+
+// WakeTeamCorpus returns the bounded ambient context for a team from its
+// Source Ledger scope. A nil result is intentional for isolated file-store
+// fixtures that do not attach the production ledger client.
+func (s *FileTeamStore) WakeTeamCorpus(ctx context.Context, teamID string) ([]sourceledger.Entry, error) {
+	if scoped := s.forContext(ctx); scoped != s {
+		return scoped.WakeTeamCorpus(ctx, teamID)
+	}
+	if s.ledger == nil {
+		return nil, nil
+	}
+	return s.ledger.Wake(ctx, sourceLedgerScope(teamID), 0)
 }
 
 // UpdateTeamCorpus updates a team-corpus entry by ID using the provided updater function.

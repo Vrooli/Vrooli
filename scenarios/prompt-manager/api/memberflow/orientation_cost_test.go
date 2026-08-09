@@ -146,3 +146,73 @@ func TestOrientationCostToleratesAnEmptyStore(t *testing.T) {
 		t.Fatalf("teams = %+v, want none", report.Teams)
 	}
 }
+
+// writeCanonRootFixture builds a store whose team declares a canon *root*
+// (trailing slash) instead of an enumerated file list.
+func writeCanonRootFixture(t *testing.T) (string, string) {
+	t.Helper()
+	root := t.TempDir()
+	storeDir := filepath.Join(root, "scenarios", "prompt-manager", "store")
+	teamDir := filepath.Join(storeDir, "teams", "fixture-team")
+	if err := os.MkdirAll(filepath.Join(teamDir, "members", "member-a"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	canonDir := filepath.Join(root, "docs", "fixture")
+	if err := os.MkdirAll(filepath.Join(canonDir, "nested"), 0o755); err != nil {
+		t.Fatalf("mkdir canon: %v", err)
+	}
+	// 10 + 20 nested = 30 markdown lines; the JSON sidecar must not count.
+	write := func(rel string, lines int) {
+		body := make([]byte, 0, lines)
+		for i := 0; i < lines-1; i++ {
+			body = append(body, '\n')
+		}
+		if err := os.WriteFile(filepath.Join(canonDir, rel), body, 0o644); err != nil {
+			t.Fatalf("write %s: %v", rel, err)
+		}
+	}
+	write("A.md", 10)
+	write(filepath.Join("nested", "B.md"), 20)
+	write("manifest.json", 500)
+
+	team := `{"kind":"team","schemaVersion":1,"id":"fixture-team","topicCatalog":[],` +
+		`"operatingContract":{"schemaVersion":1,"documents":{"planOfRecord":[{"id":"fixture-canon",` +
+		`"paths":[{"base":"repo-root","path":"docs/fixture/"}],"writePolicy":"operator-curated"}]}}}`
+	if err := os.WriteFile(filepath.Join(teamDir, "team.json"), []byte(team), 0o644); err != nil {
+		t.Fatalf("write team.json: %v", err)
+	}
+	return storeDir, root
+}
+
+func TestCanonRootCountsEveryMarkdownBeneathIt(t *testing.T) {
+	storeDir, repoRoot := writeCanonRootFixture(t)
+	report, err := ComputeOrientationCost(storeDir, repoRoot)
+	if err != nil {
+		t.Fatalf("ComputeOrientationCost: %v", err)
+	}
+	got := report.Teams[0]
+	if got.Components.CanonLines != 30 {
+		t.Fatalf("canonLines = %d, want 30 (10 + 20 nested; manifest.json excluded)", got.Components.CanonLines)
+	}
+	if len(got.MissingCanon) != 0 {
+		t.Fatalf("missingCanon = %v, want none", got.MissingCanon)
+	}
+}
+
+func TestCanonRootThatDoesNotExistIsReportedMissing(t *testing.T) {
+	storeDir, repoRoot := writeCanonRootFixture(t)
+	if err := os.RemoveAll(filepath.Join(repoRoot, "docs", "fixture")); err != nil {
+		t.Fatalf("rm: %v", err)
+	}
+	report, err := ComputeOrientationCost(storeDir, repoRoot)
+	if err != nil {
+		t.Fatalf("ComputeOrientationCost: %v", err)
+	}
+	got := report.Teams[0]
+	if got.Components.CanonLines != 0 {
+		t.Fatalf("canonLines = %d, want 0", got.Components.CanonLines)
+	}
+	if len(got.MissingCanon) != 1 || got.MissingCanon[0] != "docs/fixture/" {
+		t.Fatalf("missingCanon = %v, want [docs/fixture/]", got.MissingCanon)
+	}
+}

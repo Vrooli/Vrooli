@@ -17,9 +17,7 @@
     "validation"
   ],
   "fileOrder": [
-    "SOUL.md",
-    "AGENTS.md",
-    "TOOLS.md"
+    "AGENT.md"
   ],
   "revision": 2,
   "createdAt": "2026-02-09T12:00:00Z",
