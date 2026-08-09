@@ -201,9 +201,6 @@ type EventLogger interface {
 	EmitBacklogDeleted(entityID string)
 	EmitWorkshopRoundCompleted(entityID string, payload eventlog.WorkshopRoundPayload)
 	EmitBacklogViewed(entityID, kind string)
-	EmitClarificationStarted(entityID string, roundNumber int, itemID string, hasMessage bool)
-	EmitClarificationResolved(entityID string, roundNumber int, itemID string, messageCount int, impactLevel string)
-	EmitClarificationAction(entityID string, roundNumber int, itemID string, action string)
 }
 
 // NewHandler creates a new backlog handler.

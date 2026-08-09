@@ -110,7 +110,10 @@ func (s orchestratorReportSource) DurableTimeAccounting(ctx context.Context, id 
 }
 
 func (s orchestratorReportSource) Events(ctx context.Context, id uuid.UUID) ([]*domain.RunEvent, error) {
-	return s.o.GetRunEvents(ctx, id, event.GetOptions{AfterSequence: -1, Limit: 10000})
+	// The run report derives time accounting and evidence from this stream, so
+	// a capped read silently describes part of a long run as the whole run —
+	// the same defect the invocation projection carried.
+	return s.o.allRunEvents(ctx, id, event.GetOptions{AfterSequence: -1})
 }
 
 func (s orchestratorReportSource) Diff(ctx context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {

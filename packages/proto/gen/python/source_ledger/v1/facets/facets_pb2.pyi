@@ -7,14 +7,20 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Facet(_message.Message):
-    __slots__ = ("id", "label", "retention_policy")
+    __slots__ = ("id", "label", "retention_policy", "guidance", "compaction_eligible", "resident_budget")
     ID_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     RETENTION_POLICY_FIELD_NUMBER: _ClassVar[int]
+    GUIDANCE_FIELD_NUMBER: _ClassVar[int]
+    COMPACTION_ELIGIBLE_FIELD_NUMBER: _ClassVar[int]
+    RESIDENT_BUDGET_FIELD_NUMBER: _ClassVar[int]
     id: str
     label: str
     retention_policy: str
-    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., retention_policy: _Optional[str] = ...) -> None: ...
+    guidance: str
+    compaction_eligible: bool
+    resident_budget: int
+    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., retention_policy: _Optional[str] = ..., guidance: _Optional[str] = ..., compaction_eligible: _Optional[bool] = ..., resident_budget: _Optional[int] = ...) -> None: ...
 
 class PinProposal(_message.Message):
     __slots__ = ("id", "entry_ids", "rationale")
@@ -37,6 +43,26 @@ class ListFacetsResponse(_message.Message):
     FACETS_FIELD_NUMBER: _ClassVar[int]
     facets: _containers.RepeatedCompositeFieldContainer[Facet]
     def __init__(self, facets: _Optional[_Iterable[_Union[Facet, _Mapping]]] = ...) -> None: ...
+
+class SetFacetPolicyRequest(_message.Message):
+    __slots__ = ("scope", "facet_id", "retention_policy", "compaction_eligible", "resident_budget")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    FACET_ID_FIELD_NUMBER: _ClassVar[int]
+    RETENTION_POLICY_FIELD_NUMBER: _ClassVar[int]
+    COMPACTION_ELIGIBLE_FIELD_NUMBER: _ClassVar[int]
+    RESIDENT_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    scope: str
+    facet_id: str
+    retention_policy: str
+    compaction_eligible: bool
+    resident_budget: int
+    def __init__(self, scope: _Optional[str] = ..., facet_id: _Optional[str] = ..., retention_policy: _Optional[str] = ..., compaction_eligible: _Optional[bool] = ..., resident_budget: _Optional[int] = ...) -> None: ...
+
+class SetFacetPolicyResponse(_message.Message):
+    __slots__ = ("facet",)
+    FACET_FIELD_NUMBER: _ClassVar[int]
+    facet: Facet
+    def __init__(self, facet: _Optional[_Union[Facet, _Mapping]] = ...) -> None: ...
 
 class AssignFacetRequest(_message.Message):
     __slots__ = ("entry_id", "facet_id", "scope")

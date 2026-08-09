@@ -34,6 +34,11 @@ message WakeRequest {
 message WakeResponse {
   repeated RecallHit hits = 1;
   bool overflow = 2;
+  int32 refused = 3;
+  int32 lines_used = 4;
+  int32 chars_used = 5;
+  int32 budget_lines = 6;
+  int32 budget_chars = 7;
 }
 message ZoomRequest {
   string node_id = 1;

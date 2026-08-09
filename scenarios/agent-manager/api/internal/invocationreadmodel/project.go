@@ -76,19 +76,28 @@ func project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, 
 	incurredByCall, _, _ := attributeIncurred(events, preambleInjectedTokens, preambleFixedTokens)
 	facts := make([]Fact, 0)
 	for _, fact := range runsignal.DeriveInvocationFactsWithResolver(events, capability, command) {
-		fact.ArgTokens = argTokens[fact.CallEventID]
+		// Token quantities are per call, but a compound command emits one fact
+		// per segment. Apportion them so a SUM over facts reconciles to the run
+		// instead of multiplying the call's payload by its segment count.
+		// Residency turns are a multiplier rather than a token quantity, so it
+		// stays whole: result_tokens * residency_turns then apportions with the
+		// result share it is paired with.
+		share := func(total int64) int64 {
+			return tokenaccounting.SegmentShare(total, fact.SegmentCount, fact.SegmentIndex)
+		}
+		fact.ArgTokens = share(argTokens[fact.CallEventID])
 		fact.ResidencyTurns = residencyTurns[fact.ResultEventID]
 		if incurred, ok := incurredByCall[fact.CallEventID]; ok {
-			fact.IncurredInputTokens = incurred.Input
-			fact.IncurredOutputTokens = incurred.Output
-			fact.IncurredCacheReadTokens = incurred.CacheRead
-			fact.IncurredCacheCreationTokens = incurred.CacheCreation
+			fact.IncurredInputTokens = share(incurred.Input)
+			fact.IncurredOutputTokens = share(incurred.Output)
+			fact.IncurredCacheReadTokens = share(incurred.CacheRead)
+			fact.IncurredCacheCreationTokens = share(incurred.CacheCreation)
 		}
 		// A result is required before an estimated footprint can be treated as
 		// a complete call footprint. Unpaired calls retain their argument count
 		// but are explicitly unknown rather than silently estimated.
 		if result, ok := resultTokens[fact.ResultEventID]; ok {
-			fact.ResultTokens = result
+			fact.ResultTokens = share(result)
 			fact.TokenBasis = tokenBases[fact.ResultEventID]
 		} else {
 			fact.TokenBasis = tokenaccounting.BasisUnknown

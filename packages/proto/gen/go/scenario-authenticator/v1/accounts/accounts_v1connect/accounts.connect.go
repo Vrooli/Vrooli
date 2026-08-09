@@ -38,6 +38,9 @@ const (
 	AccountsServiceRegisterProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Register"
 	// AccountsServiceLoginProcedure is the fully-qualified name of the AccountsService's Login RPC.
 	AccountsServiceLoginProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Login"
+	// AccountsServiceChangePasswordProcedure is the fully-qualified name of the AccountsService's
+	// ChangePassword RPC.
+	AccountsServiceChangePasswordProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ChangePassword"
 	// AccountsServiceRefreshProcedure is the fully-qualified name of the AccountsService's Refresh RPC.
 	AccountsServiceRefreshProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Refresh"
 	// AccountsServiceLogoutProcedure is the fully-qualified name of the AccountsService's Logout RPC.
@@ -45,6 +48,24 @@ const (
 	// AccountsServiceValidateProcedure is the fully-qualified name of the AccountsService's Validate
 	// RPC.
 	AccountsServiceValidateProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Validate"
+	// AccountsServiceGrantScopeProcedure is the fully-qualified name of the AccountsService's
+	// GrantScope RPC.
+	AccountsServiceGrantScopeProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/GrantScope"
+	// AccountsServiceRevokeScopeProcedure is the fully-qualified name of the AccountsService's
+	// RevokeScope RPC.
+	AccountsServiceRevokeScopeProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/RevokeScope"
+	// AccountsServiceListScopesProcedure is the fully-qualified name of the AccountsService's
+	// ListScopes RPC.
+	AccountsServiceListScopesProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ListScopes"
+	// AccountsServiceLinkMachineAccountProcedure is the fully-qualified name of the AccountsService's
+	// LinkMachineAccount RPC.
+	AccountsServiceLinkMachineAccountProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/LinkMachineAccount"
+	// AccountsServiceExchangeMachinePrincipalProcedure is the fully-qualified name of the
+	// AccountsService's ExchangeMachinePrincipal RPC.
+	AccountsServiceExchangeMachinePrincipalProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ExchangeMachinePrincipal"
+	// AccountsServiceIssueBreakGlassProcedure is the fully-qualified name of the AccountsService's
+	// IssueBreakGlass RPC.
+	AccountsServiceIssueBreakGlassProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/IssueBreakGlass"
 )
 
 // AccountsServiceClient is a client for the
@@ -60,6 +81,9 @@ type AccountsServiceClient interface {
 	// identical message (anti-enumeration). A locked account yields
 	// PERMISSION_DENIED.
 	Login(context.Context, *connect.Request[accounts.LoginRequest]) (*connect.Response[accounts.LoginResponse], error)
+	// ChangePassword verifies the current password, stores a new Argon2id hash,
+	// and revokes every live session for the authenticated account.
+	ChangePassword(context.Context, *connect.Request[accounts.ChangePasswordRequest]) (*connect.Response[accounts.ChangePasswordResponse], error)
 	// Refresh rotates a refresh token single-use and mints a new access token.
 	// Presenting an already-rotated token revokes the entire token family
 	// (reuse detection) and yields UNAUTHENTICATED.
@@ -72,6 +96,23 @@ type AccountsServiceClient interface {
 	// rejected. RPs should prefer local JWKS verification; this is for callers
 	// that cannot verify locally.
 	Validate(context.Context, *connect.Request[accounts.ValidateRequest]) (*connect.Response[accounts.ValidateResponse], error)
+	// GrantScope assigns an opaque authorization scope to a principal.
+	GrantScope(context.Context, *connect.Request[accounts.GrantScopeRequest]) (*connect.Response[accounts.ScopeResponse], error)
+	// RevokeScope removes an opaque authorization scope from a principal.
+	RevokeScope(context.Context, *connect.Request[accounts.RevokeScopeRequest]) (*connect.Response[accounts.ScopeResponse], error)
+	// ListScopes returns the opaque scopes assigned to a principal.
+	ListScopes(context.Context, *connect.Request[accounts.ListScopesRequest]) (*connect.Response[accounts.ListScopesResponse], error)
+	// LinkMachineAccount binds an operator's current local principal to an
+	// account. The local exchange listener supplies the peer credential; this
+	// RPC is also exposed to the signed-in CLI for explicit linking.
+	LinkMachineAccount(context.Context, *connect.Request[accounts.LinkMachineAccountRequest]) (*connect.Response[accounts.LinkMachineAccountResponse], error)
+	// ExchangeMachinePrincipal trades a verified local-socket peer credential
+	// for a normal short-lived JWT. It is refused unless the socket listener has
+	// injected a bound principal into the request context.
+	ExchangeMachinePrincipal(context.Context, *connect.Request[accounts.ExchangeMachinePrincipalRequest]) (*connect.Response[accounts.LoginResponse], error)
+	// Issue a short-lived offline credential from already-provisioned local
+	// break-glass material. The caller must save the response owner-only.
+	IssueBreakGlass(context.Context, *connect.Request[accounts.IssueBreakGlassRequest]) (*connect.Response[accounts.IssueBreakGlassResponse], error)
 }
 
 // NewAccountsServiceClient constructs a client for the
@@ -98,6 +139,12 @@ func NewAccountsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(accountsServiceMethods.ByName("Login")),
 			connect.WithClientOptions(opts...),
 		),
+		changePassword: connect.NewClient[accounts.ChangePasswordRequest, accounts.ChangePasswordResponse](
+			httpClient,
+			baseURL+AccountsServiceChangePasswordProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("ChangePassword")),
+			connect.WithClientOptions(opts...),
+		),
 		refresh: connect.NewClient[accounts.RefreshRequest, accounts.RefreshResponse](
 			httpClient,
 			baseURL+AccountsServiceRefreshProcedure,
@@ -116,16 +163,59 @@ func NewAccountsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(accountsServiceMethods.ByName("Validate")),
 			connect.WithClientOptions(opts...),
 		),
+		grantScope: connect.NewClient[accounts.GrantScopeRequest, accounts.ScopeResponse](
+			httpClient,
+			baseURL+AccountsServiceGrantScopeProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("GrantScope")),
+			connect.WithClientOptions(opts...),
+		),
+		revokeScope: connect.NewClient[accounts.RevokeScopeRequest, accounts.ScopeResponse](
+			httpClient,
+			baseURL+AccountsServiceRevokeScopeProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("RevokeScope")),
+			connect.WithClientOptions(opts...),
+		),
+		listScopes: connect.NewClient[accounts.ListScopesRequest, accounts.ListScopesResponse](
+			httpClient,
+			baseURL+AccountsServiceListScopesProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("ListScopes")),
+			connect.WithClientOptions(opts...),
+		),
+		linkMachineAccount: connect.NewClient[accounts.LinkMachineAccountRequest, accounts.LinkMachineAccountResponse](
+			httpClient,
+			baseURL+AccountsServiceLinkMachineAccountProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("LinkMachineAccount")),
+			connect.WithClientOptions(opts...),
+		),
+		exchangeMachinePrincipal: connect.NewClient[accounts.ExchangeMachinePrincipalRequest, accounts.LoginResponse](
+			httpClient,
+			baseURL+AccountsServiceExchangeMachinePrincipalProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("ExchangeMachinePrincipal")),
+			connect.WithClientOptions(opts...),
+		),
+		issueBreakGlass: connect.NewClient[accounts.IssueBreakGlassRequest, accounts.IssueBreakGlassResponse](
+			httpClient,
+			baseURL+AccountsServiceIssueBreakGlassProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("IssueBreakGlass")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // accountsServiceClient implements AccountsServiceClient.
 type accountsServiceClient struct {
-	register *connect.Client[accounts.RegisterRequest, accounts.RegisterResponse]
-	login    *connect.Client[accounts.LoginRequest, accounts.LoginResponse]
-	refresh  *connect.Client[accounts.RefreshRequest, accounts.RefreshResponse]
-	logout   *connect.Client[accounts.LogoutRequest, accounts.LogoutResponse]
-	validate *connect.Client[accounts.ValidateRequest, accounts.ValidateResponse]
+	register                 *connect.Client[accounts.RegisterRequest, accounts.RegisterResponse]
+	login                    *connect.Client[accounts.LoginRequest, accounts.LoginResponse]
+	changePassword           *connect.Client[accounts.ChangePasswordRequest, accounts.ChangePasswordResponse]
+	refresh                  *connect.Client[accounts.RefreshRequest, accounts.RefreshResponse]
+	logout                   *connect.Client[accounts.LogoutRequest, accounts.LogoutResponse]
+	validate                 *connect.Client[accounts.ValidateRequest, accounts.ValidateResponse]
+	grantScope               *connect.Client[accounts.GrantScopeRequest, accounts.ScopeResponse]
+	revokeScope              *connect.Client[accounts.RevokeScopeRequest, accounts.ScopeResponse]
+	listScopes               *connect.Client[accounts.ListScopesRequest, accounts.ListScopesResponse]
+	linkMachineAccount       *connect.Client[accounts.LinkMachineAccountRequest, accounts.LinkMachineAccountResponse]
+	exchangeMachinePrincipal *connect.Client[accounts.ExchangeMachinePrincipalRequest, accounts.LoginResponse]
+	issueBreakGlass          *connect.Client[accounts.IssueBreakGlassRequest, accounts.IssueBreakGlassResponse]
 }
 
 // Register calls vrooli.scenario_authenticator.v1.accounts.AccountsService.Register.
@@ -136,6 +226,11 @@ func (c *accountsServiceClient) Register(ctx context.Context, req *connect.Reque
 // Login calls vrooli.scenario_authenticator.v1.accounts.AccountsService.Login.
 func (c *accountsServiceClient) Login(ctx context.Context, req *connect.Request[accounts.LoginRequest]) (*connect.Response[accounts.LoginResponse], error) {
 	return c.login.CallUnary(ctx, req)
+}
+
+// ChangePassword calls vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword.
+func (c *accountsServiceClient) ChangePassword(ctx context.Context, req *connect.Request[accounts.ChangePasswordRequest]) (*connect.Response[accounts.ChangePasswordResponse], error) {
+	return c.changePassword.CallUnary(ctx, req)
 }
 
 // Refresh calls vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh.
@@ -153,6 +248,38 @@ func (c *accountsServiceClient) Validate(ctx context.Context, req *connect.Reque
 	return c.validate.CallUnary(ctx, req)
 }
 
+// GrantScope calls vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope.
+func (c *accountsServiceClient) GrantScope(ctx context.Context, req *connect.Request[accounts.GrantScopeRequest]) (*connect.Response[accounts.ScopeResponse], error) {
+	return c.grantScope.CallUnary(ctx, req)
+}
+
+// RevokeScope calls vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope.
+func (c *accountsServiceClient) RevokeScope(ctx context.Context, req *connect.Request[accounts.RevokeScopeRequest]) (*connect.Response[accounts.ScopeResponse], error) {
+	return c.revokeScope.CallUnary(ctx, req)
+}
+
+// ListScopes calls vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes.
+func (c *accountsServiceClient) ListScopes(ctx context.Context, req *connect.Request[accounts.ListScopesRequest]) (*connect.Response[accounts.ListScopesResponse], error) {
+	return c.listScopes.CallUnary(ctx, req)
+}
+
+// LinkMachineAccount calls
+// vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount.
+func (c *accountsServiceClient) LinkMachineAccount(ctx context.Context, req *connect.Request[accounts.LinkMachineAccountRequest]) (*connect.Response[accounts.LinkMachineAccountResponse], error) {
+	return c.linkMachineAccount.CallUnary(ctx, req)
+}
+
+// ExchangeMachinePrincipal calls
+// vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal.
+func (c *accountsServiceClient) ExchangeMachinePrincipal(ctx context.Context, req *connect.Request[accounts.ExchangeMachinePrincipalRequest]) (*connect.Response[accounts.LoginResponse], error) {
+	return c.exchangeMachinePrincipal.CallUnary(ctx, req)
+}
+
+// IssueBreakGlass calls vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass.
+func (c *accountsServiceClient) IssueBreakGlass(ctx context.Context, req *connect.Request[accounts.IssueBreakGlassRequest]) (*connect.Response[accounts.IssueBreakGlassResponse], error) {
+	return c.issueBreakGlass.CallUnary(ctx, req)
+}
+
 // AccountsServiceHandler is an implementation of the
 // vrooli.scenario_authenticator.v1.accounts.AccountsService service.
 type AccountsServiceHandler interface {
@@ -166,6 +293,9 @@ type AccountsServiceHandler interface {
 	// identical message (anti-enumeration). A locked account yields
 	// PERMISSION_DENIED.
 	Login(context.Context, *connect.Request[accounts.LoginRequest]) (*connect.Response[accounts.LoginResponse], error)
+	// ChangePassword verifies the current password, stores a new Argon2id hash,
+	// and revokes every live session for the authenticated account.
+	ChangePassword(context.Context, *connect.Request[accounts.ChangePasswordRequest]) (*connect.Response[accounts.ChangePasswordResponse], error)
 	// Refresh rotates a refresh token single-use and mints a new access token.
 	// Presenting an already-rotated token revokes the entire token family
 	// (reuse detection) and yields UNAUTHENTICATED.
@@ -178,6 +308,23 @@ type AccountsServiceHandler interface {
 	// rejected. RPs should prefer local JWKS verification; this is for callers
 	// that cannot verify locally.
 	Validate(context.Context, *connect.Request[accounts.ValidateRequest]) (*connect.Response[accounts.ValidateResponse], error)
+	// GrantScope assigns an opaque authorization scope to a principal.
+	GrantScope(context.Context, *connect.Request[accounts.GrantScopeRequest]) (*connect.Response[accounts.ScopeResponse], error)
+	// RevokeScope removes an opaque authorization scope from a principal.
+	RevokeScope(context.Context, *connect.Request[accounts.RevokeScopeRequest]) (*connect.Response[accounts.ScopeResponse], error)
+	// ListScopes returns the opaque scopes assigned to a principal.
+	ListScopes(context.Context, *connect.Request[accounts.ListScopesRequest]) (*connect.Response[accounts.ListScopesResponse], error)
+	// LinkMachineAccount binds an operator's current local principal to an
+	// account. The local exchange listener supplies the peer credential; this
+	// RPC is also exposed to the signed-in CLI for explicit linking.
+	LinkMachineAccount(context.Context, *connect.Request[accounts.LinkMachineAccountRequest]) (*connect.Response[accounts.LinkMachineAccountResponse], error)
+	// ExchangeMachinePrincipal trades a verified local-socket peer credential
+	// for a normal short-lived JWT. It is refused unless the socket listener has
+	// injected a bound principal into the request context.
+	ExchangeMachinePrincipal(context.Context, *connect.Request[accounts.ExchangeMachinePrincipalRequest]) (*connect.Response[accounts.LoginResponse], error)
+	// Issue a short-lived offline credential from already-provisioned local
+	// break-glass material. The caller must save the response owner-only.
+	IssueBreakGlass(context.Context, *connect.Request[accounts.IssueBreakGlassRequest]) (*connect.Response[accounts.IssueBreakGlassResponse], error)
 }
 
 // NewAccountsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -199,6 +346,12 @@ func NewAccountsServiceHandler(svc AccountsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(accountsServiceMethods.ByName("Login")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountsServiceChangePasswordHandler := connect.NewUnaryHandler(
+		AccountsServiceChangePasswordProcedure,
+		svc.ChangePassword,
+		connect.WithSchema(accountsServiceMethods.ByName("ChangePassword")),
+		connect.WithHandlerOptions(opts...),
+	)
 	accountsServiceRefreshHandler := connect.NewUnaryHandler(
 		AccountsServiceRefreshProcedure,
 		svc.Refresh,
@@ -217,18 +370,68 @@ func NewAccountsServiceHandler(svc AccountsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(accountsServiceMethods.ByName("Validate")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountsServiceGrantScopeHandler := connect.NewUnaryHandler(
+		AccountsServiceGrantScopeProcedure,
+		svc.GrantScope,
+		connect.WithSchema(accountsServiceMethods.ByName("GrantScope")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountsServiceRevokeScopeHandler := connect.NewUnaryHandler(
+		AccountsServiceRevokeScopeProcedure,
+		svc.RevokeScope,
+		connect.WithSchema(accountsServiceMethods.ByName("RevokeScope")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountsServiceListScopesHandler := connect.NewUnaryHandler(
+		AccountsServiceListScopesProcedure,
+		svc.ListScopes,
+		connect.WithSchema(accountsServiceMethods.ByName("ListScopes")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountsServiceLinkMachineAccountHandler := connect.NewUnaryHandler(
+		AccountsServiceLinkMachineAccountProcedure,
+		svc.LinkMachineAccount,
+		connect.WithSchema(accountsServiceMethods.ByName("LinkMachineAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountsServiceExchangeMachinePrincipalHandler := connect.NewUnaryHandler(
+		AccountsServiceExchangeMachinePrincipalProcedure,
+		svc.ExchangeMachinePrincipal,
+		connect.WithSchema(accountsServiceMethods.ByName("ExchangeMachinePrincipal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountsServiceIssueBreakGlassHandler := connect.NewUnaryHandler(
+		AccountsServiceIssueBreakGlassProcedure,
+		svc.IssueBreakGlass,
+		connect.WithSchema(accountsServiceMethods.ByName("IssueBreakGlass")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.scenario_authenticator.v1.accounts.AccountsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AccountsServiceRegisterProcedure:
 			accountsServiceRegisterHandler.ServeHTTP(w, r)
 		case AccountsServiceLoginProcedure:
 			accountsServiceLoginHandler.ServeHTTP(w, r)
+		case AccountsServiceChangePasswordProcedure:
+			accountsServiceChangePasswordHandler.ServeHTTP(w, r)
 		case AccountsServiceRefreshProcedure:
 			accountsServiceRefreshHandler.ServeHTTP(w, r)
 		case AccountsServiceLogoutProcedure:
 			accountsServiceLogoutHandler.ServeHTTP(w, r)
 		case AccountsServiceValidateProcedure:
 			accountsServiceValidateHandler.ServeHTTP(w, r)
+		case AccountsServiceGrantScopeProcedure:
+			accountsServiceGrantScopeHandler.ServeHTTP(w, r)
+		case AccountsServiceRevokeScopeProcedure:
+			accountsServiceRevokeScopeHandler.ServeHTTP(w, r)
+		case AccountsServiceListScopesProcedure:
+			accountsServiceListScopesHandler.ServeHTTP(w, r)
+		case AccountsServiceLinkMachineAccountProcedure:
+			accountsServiceLinkMachineAccountHandler.ServeHTTP(w, r)
+		case AccountsServiceExchangeMachinePrincipalProcedure:
+			accountsServiceExchangeMachinePrincipalHandler.ServeHTTP(w, r)
+		case AccountsServiceIssueBreakGlassProcedure:
+			accountsServiceIssueBreakGlassHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -246,6 +449,10 @@ func (UnimplementedAccountsServiceHandler) Login(context.Context, *connect.Reque
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.Login is not implemented"))
 }
 
+func (UnimplementedAccountsServiceHandler) ChangePassword(context.Context, *connect.Request[accounts.ChangePasswordRequest]) (*connect.Response[accounts.ChangePasswordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword is not implemented"))
+}
+
 func (UnimplementedAccountsServiceHandler) Refresh(context.Context, *connect.Request[accounts.RefreshRequest]) (*connect.Response[accounts.RefreshResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh is not implemented"))
 }
@@ -256,4 +463,28 @@ func (UnimplementedAccountsServiceHandler) Logout(context.Context, *connect.Requ
 
 func (UnimplementedAccountsServiceHandler) Validate(context.Context, *connect.Request[accounts.ValidateRequest]) (*connect.Response[accounts.ValidateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.Validate is not implemented"))
+}
+
+func (UnimplementedAccountsServiceHandler) GrantScope(context.Context, *connect.Request[accounts.GrantScopeRequest]) (*connect.Response[accounts.ScopeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope is not implemented"))
+}
+
+func (UnimplementedAccountsServiceHandler) RevokeScope(context.Context, *connect.Request[accounts.RevokeScopeRequest]) (*connect.Response[accounts.ScopeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope is not implemented"))
+}
+
+func (UnimplementedAccountsServiceHandler) ListScopes(context.Context, *connect.Request[accounts.ListScopesRequest]) (*connect.Response[accounts.ListScopesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes is not implemented"))
+}
+
+func (UnimplementedAccountsServiceHandler) LinkMachineAccount(context.Context, *connect.Request[accounts.LinkMachineAccountRequest]) (*connect.Response[accounts.LinkMachineAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount is not implemented"))
+}
+
+func (UnimplementedAccountsServiceHandler) ExchangeMachinePrincipal(context.Context, *connect.Request[accounts.ExchangeMachinePrincipalRequest]) (*connect.Response[accounts.LoginResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal is not implemented"))
+}
+
+func (UnimplementedAccountsServiceHandler) IssueBreakGlass(context.Context, *connect.Request[accounts.IssueBreakGlassRequest]) (*connect.Response[accounts.IssueBreakGlassResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass is not implemented"))
 }

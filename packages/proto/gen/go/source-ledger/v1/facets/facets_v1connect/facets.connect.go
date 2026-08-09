@@ -36,6 +36,9 @@ const (
 	// FacetsServiceListFacetsProcedure is the fully-qualified name of the FacetsService's ListFacets
 	// RPC.
 	FacetsServiceListFacetsProcedure = "/vrooli.source_ledger.v1.facets.FacetsService/ListFacets"
+	// FacetsServiceSetFacetPolicyProcedure is the fully-qualified name of the FacetsService's
+	// SetFacetPolicy RPC.
+	FacetsServiceSetFacetPolicyProcedure = "/vrooli.source_ledger.v1.facets.FacetsService/SetFacetPolicy"
 	// FacetsServiceAssignFacetProcedure is the fully-qualified name of the FacetsService's AssignFacet
 	// RPC.
 	FacetsServiceAssignFacetProcedure = "/vrooli.source_ledger.v1.facets.FacetsService/AssignFacet"
@@ -61,6 +64,7 @@ const (
 // FacetsServiceClient is a client for the vrooli.source_ledger.v1.facets.FacetsService service.
 type FacetsServiceClient interface {
 	ListFacets(context.Context, *connect.Request[facets.ListFacetsRequest]) (*connect.Response[facets.ListFacetsResponse], error)
+	SetFacetPolicy(context.Context, *connect.Request[facets.SetFacetPolicyRequest]) (*connect.Response[facets.SetFacetPolicyResponse], error)
 	AssignFacet(context.Context, *connect.Request[facets.AssignFacetRequest]) (*connect.Response[facets.AssignFacetResponse], error)
 	SetPin(context.Context, *connect.Request[facets.SetPinRequest]) (*connect.Response[facets.SetPinResponse], error)
 	ListPinProposals(context.Context, *connect.Request[facets.ListPinProposalsRequest]) (*connect.Response[facets.ListPinProposalsResponse], error)
@@ -85,6 +89,12 @@ func NewFacetsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+FacetsServiceListFacetsProcedure,
 			connect.WithSchema(facetsServiceMethods.ByName("ListFacets")),
+			connect.WithClientOptions(opts...),
+		),
+		setFacetPolicy: connect.NewClient[facets.SetFacetPolicyRequest, facets.SetFacetPolicyResponse](
+			httpClient,
+			baseURL+FacetsServiceSetFacetPolicyProcedure,
+			connect.WithSchema(facetsServiceMethods.ByName("SetFacetPolicy")),
 			connect.WithClientOptions(opts...),
 		),
 		assignFacet: connect.NewClient[facets.AssignFacetRequest, facets.AssignFacetResponse](
@@ -135,6 +145,7 @@ func NewFacetsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 // facetsServiceClient implements FacetsServiceClient.
 type facetsServiceClient struct {
 	listFacets         *connect.Client[facets.ListFacetsRequest, facets.ListFacetsResponse]
+	setFacetPolicy     *connect.Client[facets.SetFacetPolicyRequest, facets.SetFacetPolicyResponse]
 	assignFacet        *connect.Client[facets.AssignFacetRequest, facets.AssignFacetResponse]
 	setPin             *connect.Client[facets.SetPinRequest, facets.SetPinResponse]
 	listPinProposals   *connect.Client[facets.ListPinProposalsRequest, facets.ListPinProposalsResponse]
@@ -147,6 +158,11 @@ type facetsServiceClient struct {
 // ListFacets calls vrooli.source_ledger.v1.facets.FacetsService.ListFacets.
 func (c *facetsServiceClient) ListFacets(ctx context.Context, req *connect.Request[facets.ListFacetsRequest]) (*connect.Response[facets.ListFacetsResponse], error) {
 	return c.listFacets.CallUnary(ctx, req)
+}
+
+// SetFacetPolicy calls vrooli.source_ledger.v1.facets.FacetsService.SetFacetPolicy.
+func (c *facetsServiceClient) SetFacetPolicy(ctx context.Context, req *connect.Request[facets.SetFacetPolicyRequest]) (*connect.Response[facets.SetFacetPolicyResponse], error) {
+	return c.setFacetPolicy.CallUnary(ctx, req)
 }
 
 // AssignFacet calls vrooli.source_ledger.v1.facets.FacetsService.AssignFacet.
@@ -188,6 +204,7 @@ func (c *facetsServiceClient) ResolveThread(ctx context.Context, req *connect.Re
 // service.
 type FacetsServiceHandler interface {
 	ListFacets(context.Context, *connect.Request[facets.ListFacetsRequest]) (*connect.Response[facets.ListFacetsResponse], error)
+	SetFacetPolicy(context.Context, *connect.Request[facets.SetFacetPolicyRequest]) (*connect.Response[facets.SetFacetPolicyResponse], error)
 	AssignFacet(context.Context, *connect.Request[facets.AssignFacetRequest]) (*connect.Response[facets.AssignFacetResponse], error)
 	SetPin(context.Context, *connect.Request[facets.SetPinRequest]) (*connect.Response[facets.SetPinResponse], error)
 	ListPinProposals(context.Context, *connect.Request[facets.ListPinProposalsRequest]) (*connect.Response[facets.ListPinProposalsResponse], error)
@@ -208,6 +225,12 @@ func NewFacetsServiceHandler(svc FacetsServiceHandler, opts ...connect.HandlerOp
 		FacetsServiceListFacetsProcedure,
 		svc.ListFacets,
 		connect.WithSchema(facetsServiceMethods.ByName("ListFacets")),
+		connect.WithHandlerOptions(opts...),
+	)
+	facetsServiceSetFacetPolicyHandler := connect.NewUnaryHandler(
+		FacetsServiceSetFacetPolicyProcedure,
+		svc.SetFacetPolicy,
+		connect.WithSchema(facetsServiceMethods.ByName("SetFacetPolicy")),
 		connect.WithHandlerOptions(opts...),
 	)
 	facetsServiceAssignFacetHandler := connect.NewUnaryHandler(
@@ -256,6 +279,8 @@ func NewFacetsServiceHandler(svc FacetsServiceHandler, opts ...connect.HandlerOp
 		switch r.URL.Path {
 		case FacetsServiceListFacetsProcedure:
 			facetsServiceListFacetsHandler.ServeHTTP(w, r)
+		case FacetsServiceSetFacetPolicyProcedure:
+			facetsServiceSetFacetPolicyHandler.ServeHTTP(w, r)
 		case FacetsServiceAssignFacetProcedure:
 			facetsServiceAssignFacetHandler.ServeHTTP(w, r)
 		case FacetsServiceSetPinProcedure:
@@ -281,6 +306,10 @@ type UnimplementedFacetsServiceHandler struct{}
 
 func (UnimplementedFacetsServiceHandler) ListFacets(context.Context, *connect.Request[facets.ListFacetsRequest]) (*connect.Response[facets.ListFacetsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.facets.FacetsService.ListFacets is not implemented"))
+}
+
+func (UnimplementedFacetsServiceHandler) SetFacetPolicy(context.Context, *connect.Request[facets.SetFacetPolicyRequest]) (*connect.Response[facets.SetFacetPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.facets.FacetsService.SetFacetPolicy is not implemented"))
 }
 
 func (UnimplementedFacetsServiceHandler) AssignFacet(context.Context, *connect.Request[facets.AssignFacetRequest]) (*connect.Response[facets.AssignFacetResponse], error) {

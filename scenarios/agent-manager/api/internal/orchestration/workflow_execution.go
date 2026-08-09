@@ -269,10 +269,11 @@ func (o *Orchestrator) enforceWorkflowTrigger(ctx context.Context, revision *dom
 		var err error
 		verified, err = o.VerifyIdentityToken(ctx, strings.TrimSpace(req.IdentityToken))
 		if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
-			// A missing or unverifiable token cannot prove an agent origin. Keep the
-			// documented fail-open behavior, but make it visible to operators.
+			// A missing or unverifiable token cannot prove an agent origin. Never
+			// downgrade it to a programmatic caller: that would turn an identity
+			// outage or invalid credential into an authorization grant.
 			evidence = append(evidence, "identity=unverified")
-			initiator = domain.WorkflowInitiatorProgrammatic
+			return o.denyWorkflowTrigger(revision.Key, domain.WorkflowInitiatorAgent, "identity_unverified", evidence)
 		}
 	}
 	if !policy.Allows(initiator) {

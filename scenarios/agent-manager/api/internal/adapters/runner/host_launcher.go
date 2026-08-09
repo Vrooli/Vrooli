@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -39,7 +41,7 @@ func (l *HostLauncher) Launch(ctx context.Context, req LaunchRequest) (LaunchedP
 	}
 	cmd := exec.CommandContext(ctx, req.Command, req.Args...)
 	cmd.Dir = req.WorkingDir
-	cmd.Env = req.Env
+	cmd.Env = mergeRequestedEnv(scrubInheritedIdentity(os.Environ()), req.Env)
 	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
 		return nil, err
 	}
@@ -65,6 +67,50 @@ func (l *HostLauncher) Launch(ctx context.Context, req LaunchRequest) (LaunchedP
 	}
 
 	return &hostLaunchedProcess{cmd: cmd, mp: mp, stderr: mp.Stderr()}, nil
+}
+
+func scrubInheritedIdentity(env []string) []string {
+	if env == nil {
+		env = os.Environ()
+	}
+	result := make([]string, 0, len(env))
+	for _, entry := range env {
+		if strings.HasPrefix(entry, "VROOLI_AGENT_IDENTITY_TOKEN=") {
+			continue
+		}
+		result = append(result, entry)
+	}
+	return result
+}
+
+// mergeRequestedEnv removes inherited entries that would otherwise leak a
+// parent run token, then overlays the explicitly assembled child environment.
+// This is the critical distinction: a freshly minted child token supplied in
+// req.Env must survive, while the process-wide inherited token must not.
+func mergeRequestedEnv(base, requested []string) []string {
+	result := make([]string, 0, len(base)+len(requested))
+	index := make(map[string]int, len(base)+len(requested))
+	for _, entry := range base {
+		key, _, ok := strings.Cut(entry, "=")
+		if !ok || key == "" {
+			continue
+		}
+		index[key] = len(result)
+		result = append(result, entry)
+	}
+	for _, entry := range requested {
+		key, _, ok := strings.Cut(entry, "=")
+		if !ok || key == "" {
+			continue
+		}
+		if i, exists := index[key]; exists {
+			result[i] = entry
+			continue
+		}
+		index[key] = len(result)
+		result = append(result, entry)
+	}
+	return result
 }
 
 // hostLaunchedProcess implements LaunchedProcess for HostLauncher.

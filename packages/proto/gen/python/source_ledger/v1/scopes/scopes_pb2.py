@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$source-ledger/v1/scopes/scopes.proto\x12\x1evrooli.source_ledger.v1.scopes\"\xd2\x01\n\tFacetSpec\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n\x08guidance\x18\x03 \x01(\tR\x08guidance\x12)\n\x10retention_policy\x18\x04 \x01(\tR\x0fretentionPolicy\x12/\n\x13\x63ompaction_eligible\x18\x05 \x01(\x08R\x12\x63ompactionEligible\x12\'\n\x0fresident_budget\x18\x06 \x01(\x05R\x0eresidentBudget\"\xe2\x01\n\x05Scope\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12\'\n\x0f\x66rontier_target\x18\x03 \x01(\x05R\x0e\x66rontierTarget\x12\x1f\n\x0bwake_budget\x18\x04 \x01(\x05R\nwakeBudget\x12&\n\x0fmax_entry_lines\x18\x05 \x01(\x05R\rmaxEntryLines\x12\x41\n\x06\x66\x61\x63\x65ts\x18\x06 \x03(\x0b\x32).vrooli.source_ledger.v1.scopes.FacetSpecR\x06\x66\x61\x63\x65ts\"Q\n\x12\x43reateScopeRequest\x12;\n\x05scope\x18\x01 \x01(\x0b\x32%.vrooli.source_ledger.v1.scopes.ScopeR\x05scope\"R\n\x13\x43reateScopeResponse\x12;\n\x05scope\x18\x01 \x01(\x0b\x32%.vrooli.source_ledger.v1.scopes.ScopeR\x05scope\")\n\x11ListScopesRequest\x12\x14\n\x05scope\x18\x01 \x01(\tR\x05scope\"S\n\x12ListScopesResponse\x12=\n\x06scopes\x18\x01 \x03(\x0b\x32%.vrooli.source_ledger.v1.scopes.ScopeR\x06scopes2\xfc\x01\n\rScopesService\x12v\n\x0b\x43reateScope\x12\x32.vrooli.source_ledger.v1.scopes.CreateScopeRequest\x1a\x33.vrooli.source_ledger.v1.scopes.CreateScopeResponse\x12s\n\nListScopes\x12\x31.vrooli.source_ledger.v1.scopes.ListScopesRequest\x1a\x32.vrooli.source_ledger.v1.scopes.ListScopesResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes;scopesv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$source-ledger/v1/scopes/scopes.proto\x12\x1evrooli.source_ledger.v1.scopes\"\xd2\x01\n\tFacetSpec\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n\x08guidance\x18\x03 \x01(\tR\x08guidance\x12)\n\x10retention_policy\x18\x04 \x01(\tR\x0fretentionPolicy\x12/\n\x13\x63ompaction_eligible\x18\x05 \x01(\x08R\x12\x63ompactionEligible\x12\'\n\x0fresident_budget\x18\x06 \x01(\x05R\x0eresidentBudget\"\xb6\x02\n\x05Scope\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12\'\n\x0f\x66rontier_target\x18\x03 \x01(\x05R\x0e\x66rontierTarget\x12\x1f\n\x0bwake_budget\x18\x04 \x01(\x05R\nwakeBudget\x12&\n\x0fmax_entry_lines\x18\x05 \x01(\x05R\rmaxEntryLines\x12\x41\n\x06\x66\x61\x63\x65ts\x18\x06 \x03(\x0b\x32).vrooli.source_ledger.v1.scopes.FacetSpecR\x06\x66\x61\x63\x65ts\x12*\n\x11wake_budget_chars\x18\x07 \x01(\x05R\x0fwakeBudgetChars\x12&\n\x0fmax_entry_chars\x18\x08 \x01(\x05R\rmaxEntryChars\"Q\n\x12\x43reateScopeRequest\x12;\n\x05scope\x18\x01 \x01(\x0b\x32%.vrooli.source_ledger.v1.scopes.ScopeR\x05scope\"R\n\x13\x43reateScopeResponse\x12;\n\x05scope\x18\x01 \x01(\x0b\x32%.vrooli.source_ledger.v1.scopes.ScopeR\x05scope\")\n\x11ListScopesRequest\x12\x14\n\x05scope\x18\x01 \x01(\tR\x05scope\"S\n\x12ListScopesResponse\x12=\n\x06scopes\x18\x01 \x03(\x0b\x32%.vrooli.source_ledger.v1.scopes.ScopeR\x06scopes\"\xf3\x03\n\x0ePolicySnapshot\x12\'\n\x0f\x66rontier_target\x18\x01 \x01(\x05R\x0e\x66rontierTarget\x12*\n\x11wake_budget_lines\x18\x02 \x01(\x05R\x0fwakeBudgetLines\x12*\n\x11wake_budget_chars\x18\x03 \x01(\x05R\x0fwakeBudgetChars\x12&\n\x0fmax_entry_lines\x18\x04 \x01(\x05R\rmaxEntryLines\x12&\n\x0fmax_entry_chars\x18\x05 \x01(\x05R\rmaxEntryChars\x12\x34\n\x16\x66rontier_target_origin\x18\x06 \x01(\tR\x14\x66rontierTargetOrigin\x12\x37\n\x18wake_budget_lines_origin\x18\x07 \x01(\tR\x15wakeBudgetLinesOrigin\x12\x37\n\x18wake_budget_chars_origin\x18\x08 \x01(\tR\x15wakeBudgetCharsOrigin\x12\x33\n\x16max_entry_lines_origin\x18\t \x01(\tR\x13maxEntryLinesOrigin\x12\x33\n\x16max_entry_chars_origin\x18\n \x01(\tR\x13maxEntryCharsOrigin\"(\n\x10GetPolicyRequest\x12\x14\n\x05scope\x18\x01 \x01(\tR\x05scope\"\xfd\x01\n\x11GetPolicyResponse\x12L\n\teffective\x18\x01 \x01(\x0b\x32..vrooli.source_ledger.v1.scopes.PolicySnapshotR\teffective\x12J\n\x08\x64\x65\x66\x61ults\x18\x02 \x01(\x0b\x32..vrooli.source_ledger.v1.scopes.PolicySnapshotR\x08\x64\x65\x66\x61ults\x12N\n\x08liveness\x18\x03 \x01(\x0b\x32\x32.vrooli.source_ledger.v1.scopes.CompactionLivenessR\x08liveness\"\xb3\x01\n\x12\x43ompactionLiveness\x12\x36\n\x17unsummarized_leaf_count\x18\x01 \x01(\x05R\x15unsummarizedLeafCount\x12=\n\x1boldest_unsummarized_leaf_at\x18\x02 \x01(\tR\x18oldestUnsummarizedLeafAt\x12&\n\x0flast_summary_at\x18\x03 \x01(\tR\rlastSummaryAt\"\xfa\x02\n\x10SetPolicyRequest\x12\x14\n\x05scope\x18\x01 \x01(\tR\x05scope\x12,\n\x0f\x66rontier_target\x18\x02 \x01(\x05H\x00R\x0e\x66rontierTarget\x88\x01\x01\x12/\n\x11wake_budget_lines\x18\x03 \x01(\x05H\x01R\x0fwakeBudgetLines\x88\x01\x01\x12/\n\x11wake_budget_chars\x18\x04 \x01(\x05H\x02R\x0fwakeBudgetChars\x88\x01\x01\x12+\n\x0fmax_entry_lines\x18\x05 \x01(\x05H\x03R\rmaxEntryLines\x88\x01\x01\x12+\n\x0fmax_entry_chars\x18\x06 \x01(\x05H\x04R\rmaxEntryChars\x88\x01\x01\x42\x12\n\x10_frontier_targetB\x14\n\x12_wake_budget_linesB\x14\n\x12_wake_budget_charsB\x12\n\x10_max_entry_linesB\x12\n\x10_max_entry_chars\"\xfd\x01\n\x11SetPolicyResponse\x12L\n\teffective\x18\x01 \x01(\x0b\x32..vrooli.source_ledger.v1.scopes.PolicySnapshotR\teffective\x12J\n\x08\x64\x65\x66\x61ults\x18\x02 \x01(\x0b\x32..vrooli.source_ledger.v1.scopes.PolicySnapshotR\x08\x64\x65\x66\x61ults\x12N\n\x08liveness\x18\x03 \x01(\x0b\x32\x32.vrooli.source_ledger.v1.scopes.CompactionLivenessR\x08liveness\"*\n\x12ResetPolicyRequest\x12\x14\n\x05scope\x18\x01 \x01(\tR\x05scope\"\xff\x01\n\x13ResetPolicyResponse\x12L\n\teffective\x18\x01 \x01(\x0b\x32..vrooli.source_ledger.v1.scopes.PolicySnapshotR\teffective\x12J\n\x08\x64\x65\x66\x61ults\x18\x02 \x01(\x0b\x32..vrooli.source_ledger.v1.scopes.PolicySnapshotR\x08\x64\x65\x66\x61ults\x12N\n\x08liveness\x18\x03 \x01(\x0b\x32\x32.vrooli.source_ledger.v1.scopes.CompactionLivenessR\x08liveness2\xd8\x04\n\rScopesService\x12v\n\x0b\x43reateScope\x12\x32.vrooli.source_ledger.v1.scopes.CreateScopeRequest\x1a\x33.vrooli.source_ledger.v1.scopes.CreateScopeResponse\x12s\n\nListScopes\x12\x31.vrooli.source_ledger.v1.scopes.ListScopesRequest\x1a\x32.vrooli.source_ledger.v1.scopes.ListScopesResponse\x12p\n\tGetPolicy\x12\x30.vrooli.source_ledger.v1.scopes.GetPolicyRequest\x1a\x31.vrooli.source_ledger.v1.scopes.GetPolicyResponse\x12p\n\tSetPolicy\x12\x30.vrooli.source_ledger.v1.scopes.SetPolicyRequest\x1a\x31.vrooli.source_ledger.v1.scopes.SetPolicyResponse\x12v\n\x0bResetPolicy\x12\x32.vrooli.source_ledger.v1.scopes.ResetPolicyRequest\x1a\x33.vrooli.source_ledger.v1.scopes.ResetPolicyResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes;scopesv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,15 +35,31 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_FACETSPEC']._serialized_start=73
   _globals['_FACETSPEC']._serialized_end=283
   _globals['_SCOPE']._serialized_start=286
-  _globals['_SCOPE']._serialized_end=512
-  _globals['_CREATESCOPEREQUEST']._serialized_start=514
-  _globals['_CREATESCOPEREQUEST']._serialized_end=595
-  _globals['_CREATESCOPERESPONSE']._serialized_start=597
-  _globals['_CREATESCOPERESPONSE']._serialized_end=679
-  _globals['_LISTSCOPESREQUEST']._serialized_start=681
-  _globals['_LISTSCOPESREQUEST']._serialized_end=722
-  _globals['_LISTSCOPESRESPONSE']._serialized_start=724
-  _globals['_LISTSCOPESRESPONSE']._serialized_end=807
-  _globals['_SCOPESSERVICE']._serialized_start=810
-  _globals['_SCOPESSERVICE']._serialized_end=1062
+  _globals['_SCOPE']._serialized_end=596
+  _globals['_CREATESCOPEREQUEST']._serialized_start=598
+  _globals['_CREATESCOPEREQUEST']._serialized_end=679
+  _globals['_CREATESCOPERESPONSE']._serialized_start=681
+  _globals['_CREATESCOPERESPONSE']._serialized_end=763
+  _globals['_LISTSCOPESREQUEST']._serialized_start=765
+  _globals['_LISTSCOPESREQUEST']._serialized_end=806
+  _globals['_LISTSCOPESRESPONSE']._serialized_start=808
+  _globals['_LISTSCOPESRESPONSE']._serialized_end=891
+  _globals['_POLICYSNAPSHOT']._serialized_start=894
+  _globals['_POLICYSNAPSHOT']._serialized_end=1393
+  _globals['_GETPOLICYREQUEST']._serialized_start=1395
+  _globals['_GETPOLICYREQUEST']._serialized_end=1435
+  _globals['_GETPOLICYRESPONSE']._serialized_start=1438
+  _globals['_GETPOLICYRESPONSE']._serialized_end=1691
+  _globals['_COMPACTIONLIVENESS']._serialized_start=1694
+  _globals['_COMPACTIONLIVENESS']._serialized_end=1873
+  _globals['_SETPOLICYREQUEST']._serialized_start=1876
+  _globals['_SETPOLICYREQUEST']._serialized_end=2254
+  _globals['_SETPOLICYRESPONSE']._serialized_start=2257
+  _globals['_SETPOLICYRESPONSE']._serialized_end=2510
+  _globals['_RESETPOLICYREQUEST']._serialized_start=2512
+  _globals['_RESETPOLICYREQUEST']._serialized_end=2554
+  _globals['_RESETPOLICYRESPONSE']._serialized_start=2557
+  _globals['_RESETPOLICYRESPONSE']._serialized_end=2812
+  _globals['_SCOPESSERVICE']._serialized_start=2815
+  _globals['_SCOPESSERVICE']._serialized_end=3415
 # @@protoc_insertion_point(module_scope)

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/artifacts/artifacts.proto.
  */
 export const file_vrooli_bridge_v1_artifacts_artifacts: GenFile = /*@__PURE__*/
-  fileDesc("Cip2cm9vbGktYnJpZGdlL3YxL2FydGlmYWN0cy9hcnRpZmFjdHMucHJvdG8SIXZyb29saS52cm9vbGlfYnJpZGdlLnYxLmFydGlmYWN0cyKwAgoMRGlzdHJpYnV0aW9uEgoKAmlkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRISCgpzb3VyY2VfcmVmGAQgASgJEhgKEGRlc3RpbmF0aW9uX3BhdGgYBSABKAkSQQoGc3RhdHVzGAYgASgOMjEudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXJ0aWZhY3RzLkRlbGl2ZXJ5U3RhdHVzEhQKDGRlbGl2ZXJ5X3JlZhgHIAEoCRIOCgZkZXRhaWwYCCABKAkSLgoKY3JlYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiaAoZRGlzdHJpYnV0ZUFydGlmYWN0UmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSEgoKc291cmNlX3JlZhgDIAEoCRIYChBkZXN0aW5hdGlvbl9wYXRoGAQgASgJIp8BChpEaXN0cmlidXRlQXJ0aWZhY3RSZXNwb25zZRIXCg9kaXN0cmlidXRpb25faWQYASABKAkSDwoHZHJ5X3J1bhgCIAEoCBJBCgZzdGF0dXMYAyABKA4yMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hcnRpZmFjdHMuRGVsaXZlcnlTdGF0dXMSFAoMZGVsaXZlcnlfcmVmGAQgASgJIiQKFkdldERpc3RyaWJ1dGlvblJlcXVlc3QSCgoCaWQYASABKAkiYAoXR2V0RGlzdHJpYnV0aW9uUmVzcG9uc2USRQoMZGlzdHJpYnV0aW9uGAEgASgLMi8udnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXJ0aWZhY3RzLkRpc3RyaWJ1dGlvbiI6ChhMaXN0RGlzdHJpYnV0aW9uc1JlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCRINCgVsaW1pdBgCIAEoBSJjChlMaXN0RGlzdHJpYnV0aW9uc1Jlc3BvbnNlEkYKDWRpc3RyaWJ1dGlvbnMYASADKAsyLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hcnRpZmFjdHMuRGlzdHJpYnV0aW9uKokBCg5EZWxpdmVyeVN0YXR1cxIfChtERUxJVkVSWV9TVEFUVVNfVU5TUEVDSUZJRUQQABIbChdERUxJVkVSWV9TVEFUVVNfUEVORElORxABEh0KGURFTElWRVJZX1NUQVRVU19ERUxJVkVSRUQQAhIaChZERUxJVkVSWV9TVEFUVVNfRkFJTEVEEAMywgMKEEFydGlmYWN0c1NlcnZpY2USkQEKEkRpc3RyaWJ1dGVBcnRpZmFjdBI8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmFydGlmYWN0cy5EaXN0cmlidXRlQXJ0aWZhY3RSZXF1ZXN0Gj0udnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXJ0aWZhY3RzLkRpc3RyaWJ1dGVBcnRpZmFjdFJlc3BvbnNlEogBCg9HZXREaXN0cmlidXRpb24SOS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hcnRpZmFjdHMuR2V0RGlzdHJpYnV0aW9uUmVxdWVzdBo6LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmFydGlmYWN0cy5HZXREaXN0cmlidXRpb25SZXNwb25zZRKOAQoRTGlzdERpc3RyaWJ1dGlvbnMSOy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hcnRpZmFjdHMuTGlzdERpc3RyaWJ1dGlvbnNSZXF1ZXN0GjwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXJ0aWZhY3RzLkxpc3REaXN0cmlidXRpb25zUmVzcG9uc2VCWFpWZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL2FydGlmYWN0czthcnRpZmFjdHNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("Cip2cm9vbGktYnJpZGdlL3YxL2FydGlmYWN0cy9hcnRpZmFjdHMucHJvdG8SIXZyb29saS52cm9vbGlfYnJpZGdlLnYxLmFydGlmYWN0cyKwAgoMRGlzdHJpYnV0aW9uEgoKAmlkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRISCgpzb3VyY2VfcmVmGAQgASgJEhgKEGRlc3RpbmF0aW9uX3BhdGgYBSABKAkSQQoGc3RhdHVzGAYgASgOMjEudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXJ0aWZhY3RzLkRlbGl2ZXJ5U3RhdHVzEhQKDGRlbGl2ZXJ5X3JlZhgHIAEoCRIOCgZkZXRhaWwYCCABKAkSLgoKY3JlYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiaAoZRGlzdHJpYnV0ZUFydGlmYWN0UmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSEgoKc291cmNlX3JlZhgDIAEoCRIYChBkZXN0aW5hdGlvbl9wYXRoGAQgASgJIp8BChpEaXN0cmlidXRlQXJ0aWZhY3RSZXNwb25zZRIXCg9kaXN0cmlidXRpb25faWQYASABKAkSDwoHZHJ5X3J1bhgCIAEoCBJBCgZzdGF0dXMYAyABKA4yMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hcnRpZmFjdHMuRGVsaXZlcnlTdGF0dXMSFAoMZGVsaXZlcnlfcmVmGAQgASgJIiQKFkdldERpc3RyaWJ1dGlvblJlcXVlc3QSCgoCaWQYASABKAkiYAoXR2V0RGlzdHJpYnV0aW9uUmVzcG9uc2USRQoMZGlzdHJpYnV0aW9uGAEgASgLMi8udnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXJ0aWZhY3RzLkRpc3RyaWJ1dGlvbiI6ChhMaXN0RGlzdHJpYnV0aW9uc1JlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCRINCgVsaW1pdBgCIAEoBSJjChlMaXN0RGlzdHJpYnV0aW9uc1Jlc3BvbnNlEkYKDWRpc3RyaWJ1dGlvbnMYASADKAsyLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hcnRpZmFjdHMuRGlzdHJpYnV0aW9uIloKGFVwbG9hZFJ1bkFydGlmYWN0UmVxdWVzdBIOCgZydW5faWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgptZWRpYV90eXBlGAMgASgJEgwKBGRhdGEYBCABKAwiRQoZVXBsb2FkUnVuQXJ0aWZhY3RSZXNwb25zZRIUCgxhcnRpZmFjdF9yZWYYASABKAkSEgoKc2l6ZV9ieXRlcxgCIAEoAyI1ChVHZXRSdW5BcnRpZmFjdFJlcXVlc3QSDgoGcnVuX2lkGAEgASgJEgwKBG5hbWUYAiABKAkibgoWR2V0UnVuQXJ0aWZhY3RSZXNwb25zZRIOCgZydW5faWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgptZWRpYV90eXBlGAMgASgJEgwKBGRhdGEYBCABKAwSFAoMYXJ0aWZhY3RfcmVmGAUgASgJKokBCg5EZWxpdmVyeVN0YXR1cxIfChtERUxJVkVSWV9TVEFUVVNfVU5TUEVDSUZJRUQQABIbChdERUxJVkVSWV9TVEFUVVNfUEVORElORxABEh0KGURFTElWRVJZX1NUQVRVU19ERUxJVkVSRUQQAhIaChZERUxJVkVSWV9TVEFUVVNfRkFJTEVEEAMy2wUKEEFydGlmYWN0c1NlcnZpY2USkQEKEkRpc3RyaWJ1dGVBcnRpZmFjdBI8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmFydGlmYWN0cy5EaXN0cmlidXRlQXJ0aWZhY3RSZXF1ZXN0Gj0udnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXJ0aWZhY3RzLkRpc3RyaWJ1dGVBcnRpZmFjdFJlc3BvbnNlEogBCg9HZXREaXN0cmlidXRpb24SOS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hcnRpZmFjdHMuR2V0RGlzdHJpYnV0aW9uUmVxdWVzdBo6LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmFydGlmYWN0cy5HZXREaXN0cmlidXRpb25SZXNwb25zZRKOAQoRTGlzdERpc3RyaWJ1dGlvbnMSOy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hcnRpZmFjdHMuTGlzdERpc3RyaWJ1dGlvbnNSZXF1ZXN0GjwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXJ0aWZhY3RzLkxpc3REaXN0cmlidXRpb25zUmVzcG9uc2USjgEKEVVwbG9hZFJ1bkFydGlmYWN0EjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEuYXJ0aWZhY3RzLlVwbG9hZFJ1bkFydGlmYWN0UmVxdWVzdBo8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmFydGlmYWN0cy5VcGxvYWRSdW5BcnRpZmFjdFJlc3BvbnNlEoUBCg5HZXRSdW5BcnRpZmFjdBI4LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmFydGlmYWN0cy5HZXRSdW5BcnRpZmFjdFJlcXVlc3QaOS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5hcnRpZmFjdHMuR2V0UnVuQXJ0aWZhY3RSZXNwb25zZUJYWlZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvYXJ0aWZhY3RzO2FydGlmYWN0c192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * Distribution is the durable, server-owned record of one artifact delivery. It
@@ -251,6 +251,119 @@ export const ListDistributionsResponseSchema: GenMessage<ListDistributionsRespon
   messageDesc(file_vrooli_bridge_v1_artifacts_artifacts, 6);
 
 /**
+ * @generated from message vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactRequest
+ */
+export type UploadRunArtifactRequest = Message<"vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactRequest"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string media_type = 3;
+   */
+  mediaType: string;
+
+  /**
+   * @generated from field: bytes data = 4;
+   */
+  data: Uint8Array;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactRequest.
+ * Use `create(UploadRunArtifactRequestSchema)` to create a new message.
+ */
+export const UploadRunArtifactRequestSchema: GenMessage<UploadRunArtifactRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_artifacts_artifacts, 7);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactResponse
+ */
+export type UploadRunArtifactResponse = Message<"vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactResponse"> & {
+  /**
+   * @generated from field: string artifact_ref = 1;
+   */
+  artifactRef: string;
+
+  /**
+   * @generated from field: int64 size_bytes = 2;
+   */
+  sizeBytes: bigint;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactResponse.
+ * Use `create(UploadRunArtifactResponseSchema)` to create a new message.
+ */
+export const UploadRunArtifactResponseSchema: GenMessage<UploadRunArtifactResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_artifacts_artifacts, 8);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactRequest
+ */
+export type GetRunArtifactRequest = Message<"vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactRequest"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactRequest.
+ * Use `create(GetRunArtifactRequestSchema)` to create a new message.
+ */
+export const GetRunArtifactRequestSchema: GenMessage<GetRunArtifactRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_artifacts_artifacts, 9);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactResponse
+ */
+export type GetRunArtifactResponse = Message<"vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactResponse"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string media_type = 3;
+   */
+  mediaType: string;
+
+  /**
+   * @generated from field: bytes data = 4;
+   */
+  data: Uint8Array;
+
+  /**
+   * @generated from field: string artifact_ref = 5;
+   */
+  artifactRef: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactResponse.
+ * Use `create(GetRunArtifactResponseSchema)` to create a new message.
+ */
+export const GetRunArtifactResponseSchema: GenMessage<GetRunArtifactResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_artifacts_artifacts, 10);
+
+/**
  * DeliveryStatus is a distribution's lifecycle state.
  *
  * @generated from enum vrooli.vrooli_bridge.v1.artifacts.DeliveryStatus
@@ -328,6 +441,28 @@ export const ArtifactsService: GenService<{
     methodKind: "unary";
     input: typeof ListDistributionsRequestSchema;
     output: typeof ListDistributionsResponseSchema;
+  },
+  /**
+   * UploadRunArtifact is node-facing. A paired node uploads one bounded file
+   * produced by its own dispatched run; the node credential identifies and
+   * authorizes the source run. Owner-facing retrieval is GetRunArtifact.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.UploadRunArtifact
+   */
+  uploadRunArtifact: {
+    methodKind: "unary";
+    input: typeof UploadRunArtifactRequestSchema;
+    output: typeof UploadRunArtifactResponseSchema;
+  },
+  /**
+   * GetRunArtifact returns one bounded produced artifact for an owner-gated run.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.GetRunArtifact
+   */
+  getRunArtifact: {
+    methodKind: "unary";
+    input: typeof GetRunArtifactRequestSchema;
+    output: typeof GetRunArtifactResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_bridge_v1_artifacts_artifacts, 0);

@@ -42,9 +42,6 @@ const (
 	// HarnessServiceRefreshProjectionProcedure is the fully-qualified name of the HarnessService's
 	// RefreshProjection RPC.
 	HarnessServiceRefreshProjectionProcedure = "/vrooli.vrooli_memory.v1.harness.HarnessService/RefreshProjection"
-	// HarnessServiceInstallPromptBlockProcedure is the fully-qualified name of the HarnessService's
-	// InstallPromptBlock RPC.
-	HarnessServiceInstallPromptBlockProcedure = "/vrooli.vrooli_memory.v1.harness.HarnessService/InstallPromptBlock"
 	// HarnessServiceCaptureWriteProcedure is the fully-qualified name of the HarnessService's
 	// CaptureWrite RPC.
 	HarnessServiceCaptureWriteProcedure = "/vrooli.vrooli_memory.v1.harness.HarnessService/CaptureWrite"
@@ -58,7 +55,6 @@ type HarnessServiceClient interface {
 	RunImport(context.Context, *connect.Request[harness.RunImportRequest]) (*connect.Response[harness.RunImportResponse], error)
 	GetImportStatus(context.Context, *connect.Request[harness.GetImportStatusRequest]) (*connect.Response[harness.GetImportStatusResponse], error)
 	RefreshProjection(context.Context, *connect.Request[harness.RefreshProjectionRequest]) (*connect.Response[harness.RefreshProjectionResponse], error)
-	InstallPromptBlock(context.Context, *connect.Request[harness.InstallPromptBlockRequest]) (*connect.Response[harness.InstallPromptBlockResponse], error)
 	CaptureWrite(context.Context, *connect.Request[harness.CaptureWriteRequest]) (*connect.Response[harness.CaptureWriteResponse], error)
 	GetMaintenanceStatus(context.Context, *connect.Request[harness.GetMaintenanceStatusRequest]) (*connect.Response[harness.GetMaintenanceStatusResponse], error)
 }
@@ -93,12 +89,6 @@ func NewHarnessServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(harnessServiceMethods.ByName("RefreshProjection")),
 			connect.WithClientOptions(opts...),
 		),
-		installPromptBlock: connect.NewClient[harness.InstallPromptBlockRequest, harness.InstallPromptBlockResponse](
-			httpClient,
-			baseURL+HarnessServiceInstallPromptBlockProcedure,
-			connect.WithSchema(harnessServiceMethods.ByName("InstallPromptBlock")),
-			connect.WithClientOptions(opts...),
-		),
 		captureWrite: connect.NewClient[harness.CaptureWriteRequest, harness.CaptureWriteResponse](
 			httpClient,
 			baseURL+HarnessServiceCaptureWriteProcedure,
@@ -119,7 +109,6 @@ type harnessServiceClient struct {
 	runImport            *connect.Client[harness.RunImportRequest, harness.RunImportResponse]
 	getImportStatus      *connect.Client[harness.GetImportStatusRequest, harness.GetImportStatusResponse]
 	refreshProjection    *connect.Client[harness.RefreshProjectionRequest, harness.RefreshProjectionResponse]
-	installPromptBlock   *connect.Client[harness.InstallPromptBlockRequest, harness.InstallPromptBlockResponse]
 	captureWrite         *connect.Client[harness.CaptureWriteRequest, harness.CaptureWriteResponse]
 	getMaintenanceStatus *connect.Client[harness.GetMaintenanceStatusRequest, harness.GetMaintenanceStatusResponse]
 }
@@ -139,11 +128,6 @@ func (c *harnessServiceClient) RefreshProjection(ctx context.Context, req *conne
 	return c.refreshProjection.CallUnary(ctx, req)
 }
 
-// InstallPromptBlock calls vrooli.vrooli_memory.v1.harness.HarnessService.InstallPromptBlock.
-func (c *harnessServiceClient) InstallPromptBlock(ctx context.Context, req *connect.Request[harness.InstallPromptBlockRequest]) (*connect.Response[harness.InstallPromptBlockResponse], error) {
-	return c.installPromptBlock.CallUnary(ctx, req)
-}
-
 // CaptureWrite calls vrooli.vrooli_memory.v1.harness.HarnessService.CaptureWrite.
 func (c *harnessServiceClient) CaptureWrite(ctx context.Context, req *connect.Request[harness.CaptureWriteRequest]) (*connect.Response[harness.CaptureWriteResponse], error) {
 	return c.captureWrite.CallUnary(ctx, req)
@@ -160,7 +144,6 @@ type HarnessServiceHandler interface {
 	RunImport(context.Context, *connect.Request[harness.RunImportRequest]) (*connect.Response[harness.RunImportResponse], error)
 	GetImportStatus(context.Context, *connect.Request[harness.GetImportStatusRequest]) (*connect.Response[harness.GetImportStatusResponse], error)
 	RefreshProjection(context.Context, *connect.Request[harness.RefreshProjectionRequest]) (*connect.Response[harness.RefreshProjectionResponse], error)
-	InstallPromptBlock(context.Context, *connect.Request[harness.InstallPromptBlockRequest]) (*connect.Response[harness.InstallPromptBlockResponse], error)
 	CaptureWrite(context.Context, *connect.Request[harness.CaptureWriteRequest]) (*connect.Response[harness.CaptureWriteResponse], error)
 	GetMaintenanceStatus(context.Context, *connect.Request[harness.GetMaintenanceStatusRequest]) (*connect.Response[harness.GetMaintenanceStatusResponse], error)
 }
@@ -190,12 +173,6 @@ func NewHarnessServiceHandler(svc HarnessServiceHandler, opts ...connect.Handler
 		connect.WithSchema(harnessServiceMethods.ByName("RefreshProjection")),
 		connect.WithHandlerOptions(opts...),
 	)
-	harnessServiceInstallPromptBlockHandler := connect.NewUnaryHandler(
-		HarnessServiceInstallPromptBlockProcedure,
-		svc.InstallPromptBlock,
-		connect.WithSchema(harnessServiceMethods.ByName("InstallPromptBlock")),
-		connect.WithHandlerOptions(opts...),
-	)
 	harnessServiceCaptureWriteHandler := connect.NewUnaryHandler(
 		HarnessServiceCaptureWriteProcedure,
 		svc.CaptureWrite,
@@ -216,8 +193,6 @@ func NewHarnessServiceHandler(svc HarnessServiceHandler, opts ...connect.Handler
 			harnessServiceGetImportStatusHandler.ServeHTTP(w, r)
 		case HarnessServiceRefreshProjectionProcedure:
 			harnessServiceRefreshProjectionHandler.ServeHTTP(w, r)
-		case HarnessServiceInstallPromptBlockProcedure:
-			harnessServiceInstallPromptBlockHandler.ServeHTTP(w, r)
 		case HarnessServiceCaptureWriteProcedure:
 			harnessServiceCaptureWriteHandler.ServeHTTP(w, r)
 		case HarnessServiceGetMaintenanceStatusProcedure:
@@ -241,10 +216,6 @@ func (UnimplementedHarnessServiceHandler) GetImportStatus(context.Context, *conn
 
 func (UnimplementedHarnessServiceHandler) RefreshProjection(context.Context, *connect.Request[harness.RefreshProjectionRequest]) (*connect.Response[harness.RefreshProjectionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.harness.HarnessService.RefreshProjection is not implemented"))
-}
-
-func (UnimplementedHarnessServiceHandler) InstallPromptBlock(context.Context, *connect.Request[harness.InstallPromptBlockRequest]) (*connect.Response[harness.InstallPromptBlockResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_memory.v1.harness.HarnessService.InstallPromptBlock is not implemented"))
 }
 
 func (UnimplementedHarnessServiceHandler) CaptureWrite(context.Context, *connect.Request[harness.CaptureWriteRequest]) (*connect.Response[harness.CaptureWriteResponse], error) {

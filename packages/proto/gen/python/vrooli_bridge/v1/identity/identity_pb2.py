@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/identity/identity.proto\x12 vrooli.vrooli_bridge.v1.identity\"@\n\x0cLoginRequest\x12\x14\n\x05\x65mail\x18\x01 \x01(\tR\x05\x65mail\x12\x1a\n\x08password\x18\x02 \x01(\tR\x08password\"T\n\rLoginResponse\x12\x14\n\x05token\x18\x01 \x01(\tR\x05token\x12\x14\n\x05\x65mail\x18\x02 \x01(\tR\x05\x65mail\x12\x17\n\x07user_id\x18\x03 \x01(\tR\x06userId\"_\n\x0fRegisterRequest\x12\x14\n\x05\x65mail\x18\x01 \x01(\tR\x05\x65mail\x12\x1a\n\x08password\x18\x02 \x01(\tR\x08password\x12\x1a\n\x08username\x18\x03 \x01(\tR\x08username\"W\n\x10RegisterResponse\x12\x14\n\x05token\x18\x01 \x01(\tR\x05token\x12\x14\n\x05\x65mail\x18\x02 \x01(\tR\x05\x65mail\x12\x17\n\x07user_id\x18\x03 \x01(\tR\x06userId2\xee\x01\n\x0fIdentityService\x12h\n\x05Login\x12..vrooli.vrooli_bridge.v1.identity.LoginRequest\x1a/.vrooli.vrooli_bridge.v1.identity.LoginResponse\x12q\n\x08Register\x12\x31.vrooli.vrooli_bridge.v1.identity.RegisterRequest\x1a\x32.vrooli.vrooli_bridge.v1.identity.RegisterResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity;identity_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/identity/identity.proto\x12 vrooli.vrooli_bridge.v1.identity\"@\n\x0cLoginRequest\x12\x14\n\x05\x65mail\x18\x01 \x01(\tR\x05\x65mail\x12\x1a\n\x08password\x18\x02 \x01(\tR\x08password\"y\n\rLoginResponse\x12\x14\n\x05token\x18\x01 \x01(\tR\x05token\x12\x14\n\x05\x65mail\x18\x02 \x01(\tR\x05\x65mail\x12\x17\n\x07user_id\x18\x03 \x01(\tR\x06userId\x12#\n\rrefresh_token\x18\x04 \x01(\tR\x0crefreshToken\"_\n\x0fRegisterRequest\x12\x14\n\x05\x65mail\x18\x01 \x01(\tR\x05\x65mail\x12\x1a\n\x08password\x18\x02 \x01(\tR\x08password\x12\x1a\n\x08username\x18\x03 \x01(\tR\x08username\"|\n\x10RegisterResponse\x12\x14\n\x05token\x18\x01 \x01(\tR\x05token\x12\x14\n\x05\x65mail\x18\x02 \x01(\tR\x05\x65mail\x12\x17\n\x07user_id\x18\x03 \x01(\tR\x06userId\x12#\n\rrefresh_token\x18\x04 \x01(\tR\x0crefreshToken\"5\n\x0eRefreshRequest\x12#\n\rrefresh_token\x18\x01 \x01(\tR\x0crefreshToken\"L\n\x0fRefreshResponse\x12\x14\n\x05token\x18\x01 \x01(\tR\x05token\x12#\n\rrefresh_token\x18\x02 \x01(\tR\x0crefreshToken2\xde\x02\n\x0fIdentityService\x12h\n\x05Login\x12..vrooli.vrooli_bridge.v1.identity.LoginRequest\x1a/.vrooli.vrooli_bridge.v1.identity.LoginResponse\x12q\n\x08Register\x12\x31.vrooli.vrooli_bridge.v1.identity.RegisterRequest\x1a\x32.vrooli.vrooli_bridge.v1.identity.RegisterResponse\x12n\n\x07Refresh\x12\x30.vrooli.vrooli_bridge.v1.identity.RefreshRequest\x1a\x31.vrooli.vrooli_bridge.v1.identity.RefreshResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity;identity_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,11 +35,15 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_LOGINREQUEST']._serialized_start=78
   _globals['_LOGINREQUEST']._serialized_end=142
   _globals['_LOGINRESPONSE']._serialized_start=144
-  _globals['_LOGINRESPONSE']._serialized_end=228
-  _globals['_REGISTERREQUEST']._serialized_start=230
-  _globals['_REGISTERREQUEST']._serialized_end=325
-  _globals['_REGISTERRESPONSE']._serialized_start=327
-  _globals['_REGISTERRESPONSE']._serialized_end=414
-  _globals['_IDENTITYSERVICE']._serialized_start=417
-  _globals['_IDENTITYSERVICE']._serialized_end=655
+  _globals['_LOGINRESPONSE']._serialized_end=265
+  _globals['_REGISTERREQUEST']._serialized_start=267
+  _globals['_REGISTERREQUEST']._serialized_end=362
+  _globals['_REGISTERRESPONSE']._serialized_start=364
+  _globals['_REGISTERRESPONSE']._serialized_end=488
+  _globals['_REFRESHREQUEST']._serialized_start=490
+  _globals['_REFRESHREQUEST']._serialized_end=543
+  _globals['_REFRESHRESPONSE']._serialized_start=545
+  _globals['_REFRESHRESPONSE']._serialized_end=621
+  _globals['_IDENTITYSERVICE']._serialized_start=624
+  _globals['_IDENTITYSERVICE']._serialized_end=974
 # @@protoc_insertion_point(module_scope)

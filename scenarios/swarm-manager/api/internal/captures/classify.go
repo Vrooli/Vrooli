@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"swarm-manager/internal/agentmanager"
@@ -80,10 +81,14 @@ func (h *Handler) buildClassificationInput(_ context.Context, id string) (transi
 	}
 	attachments := make([]any, len(cap.Attachments))
 	for i, attachment := range cap.Attachments {
-		attachments[i] = attachment
+		// Agent Manager bindings are text-only and the capture is stored in the
+		// cache class. Pass an absolute, readable path so the read-only agent
+		// workspace can inspect the actual image rather than a project-root
+		// relative path that does not exist there.
+		attachments[i] = filepath.Join(h.captureDir(cap.ID), filepath.FromSlash(attachment))
 	}
 	version := captureVersion(cap)
-	input, err := structpb.NewValue(map[string]any{"capture": map[string]any{"id": cap.ID, "text": cap.Text, "attachments": attachments, "version": version}})
+	input, err := structpb.NewValue(map[string]any{"capture": map[string]any{"id": cap.ID, "text": cap.Text, "attachments": attachments, "note": cap.Note, "version": version}})
 	if err != nil {
 		return transitionrunner.Snapshot{}, fmt.Errorf("classification input: %w", err)
 	}
@@ -187,7 +192,8 @@ func captureVersion(cap *capture) string {
 		ID          string   `json:"id"`
 		Text        string   `json:"text"`
 		Attachments []string `json:"attachments"`
-	}{cap.ID, cap.Text, cap.Attachments})
+		Note        string   `json:"note"`
+	}{cap.ID, cap.Text, cap.Attachments, cap.Note})
 	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:])
 }

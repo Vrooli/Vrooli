@@ -10,7 +10,7 @@
 package captures
 
 import (
-	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -30,10 +30,23 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// BacklogItemCreator abstracts backlog item creation for the create-item endpoint.
+// BacklogItemDraft is the complete capture-derived item contract handed to the
+// backlog adapter. Keeping the draft here prevents the capture endpoint from
+// silently discarding classification fields before the domain adapter sees
+// them.
+type BacklogItemDraft struct {
+	Kind        string
+	Name        string
+	Title       string
+	Description string
+	Priority    int
+	Tags        []string
+	SpawnedFrom string
+}
+
+// BacklogItemCreator abstracts backlog item creation for capture-derived items.
 type BacklogItemCreator interface {
-	ItemDir(kind string, name string) string
-	SaveItem(kind, name, title, description string, tags []string) error
+	SaveItem(draft BacklogItemDraft) error
 }
 
 // EventLogger records view events for analytics.
@@ -123,7 +136,7 @@ func (h *Handler) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActi
 	}
 }
 
-// SetBacklogCreator sets the backlog item creator for the create-item endpoint.
+// SetBacklogCreator sets the backlog item creator for capture-derived items.
 func (h *Handler) SetBacklogCreator(creator BacklogItemCreator) {
 	h.backlogCreator = creator
 }
@@ -268,13 +281,10 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// createItemRequest is the JSON body for CreateItem.
-type createItemRequest struct {
-	Kind string `json:"kind"`
-}
-
 // CreateItem creates a backlog item from a classified capture.
-// It pre-fills the item with text from the capture and tags from the classification.
+// Each classified item becomes one backlog item and carries the capture ID as
+// provenance. The endpoint remains temporarily available for compatibility;
+// the proposal-rail migration removes it in the later intake phase.
 func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	if h.backlogCreator == nil {
 		apierr.MapError(w, "[captures] create-item", apierr.Internal("backlog creator not configured"))
@@ -292,61 +302,76 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse optional kind override from request body.
-	kind := "execute"
-	var req createItemRequest
-	if r.Body != nil {
-		if decErr := json.NewDecoder(r.Body).Decode(&req); decErr == nil && req.Kind != "" {
-			kind = strings.ToLower(strings.TrimSpace(req.Kind))
+	if cap.Classification == nil || len(cap.Classification.Items) == 0 {
+		apierr.MapError(w, "[captures] create-item", apierr.Conflict("capture has no classified items"))
+		return
+	}
+
+	created := make([]map[string]any, 0, len(cap.Classification.Items))
+	for index, classificationItem := range cap.Classification.Items {
+		kind := strings.ToLower(strings.TrimSpace(classificationItem.Kind))
+		title := strings.TrimSpace(classificationItem.Title)
+		if title == "" {
+			title = truncate(cap.Text, 80)
 		}
-	}
-
-	// Build item title from capture text (truncated).
-	title := truncate(cap.Text, 80)
-
-	// Collect tags from classification items.
-	var tags []string
-	if cap.Classification != nil {
-		for _, ci := range cap.Classification.Items {
-			tags = append(tags, ci.Tags...)
+		name := sanitizeCaptureItemName(title)
+		if name == "" {
+			name = "capture-item-" + id
 		}
-	}
-	// Deduplicate tags.
-	seen := make(map[string]bool, len(tags))
-	dedupTags := make([]string, 0, len(tags))
-	for _, t := range tags {
-		if !seen[t] {
-			seen[t] = true
-			dedupTags = append(dedupTags, t)
+		if index > 0 {
+			name = fmt.Sprintf("%s-%d", name, index+1)
 		}
-	}
-
-	// Generate a name from the title.
-	name := sanitizeCaptureItemName(title)
-	if name == "" {
-		name = "capture-item-" + id
-	}
-
-	if err := h.backlogCreator.SaveItem(kind, name, title, cap.Text, dedupTags); err != nil {
-		if strings.Contains(err.Error(), "already exists") {
-			apierr.MapError(w, "[captures] create-item", apierr.Conflict("backlog item already exists"))
+		priority := classificationItem.Priority
+		if priority < 1 || priority > 10 {
+			priority = 5
+		}
+		if err := h.backlogCreator.SaveItem(BacklogItemDraft{
+			Kind:        kind,
+			Name:        name,
+			Title:       title,
+			Description: classificationItem.Description,
+			Priority:    priority,
+			Tags:        deduplicateTags(classificationItem.Tags),
+			SpawnedFrom: id,
+		}); err != nil {
+			if strings.Contains(err.Error(), "already exists") {
+				apierr.MapError(w, "[captures] create-item", apierr.Conflict("backlog item already exists"))
+				return
+			}
+			slog.Error("failed to create backlog item from capture", "error", err, "capture_id", id, "item_index", index)
+			apierr.MapError(w, "[captures] create-item", apierr.Internal("failed to create backlog item"))
 			return
 		}
-		slog.Error("failed to create backlog item from capture", "error", err)
-		apierr.MapError(w, "[captures] create-item", apierr.Internal("failed to create backlog item"))
-		return
+		created = append(created, map[string]any{"kind": kind, "name": name, "priority": priority, "spawned_from": id})
 	}
 
 	// Mark capture as classified.
 	cap.Status = "classified"
 	_ = h.writeCapture(cap)
 
-	slog.Info("created backlog item from capture", "kind", kind, "name", name, "capture_id", id)
+	slog.Info("created backlog items from capture", "count", len(created), "capture_id", id)
 	h.invalidateAllGraphLenses()
 	_ = httputil.JSONWithStatus(w, http.StatusCreated, map[string]any{
-		"kind": kind,
-		"name": name,
+		"items": created,
+		"count": len(created),
 	})
+}
+
+func deduplicateTags(tags []string) []string {
+	result := make([]string, 0, len(tags))
+	seen := make(map[string]struct{}, len(tags))
+	for _, tag := range tags {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		if _, ok := seen[tag]; ok {
+			continue
+		}
+		seen[tag] = struct{}{}
+		result = append(result, tag)
+	}
+	return result
 }
 
 // sanitizeCaptureItemName converts a title to a folder-safe name.

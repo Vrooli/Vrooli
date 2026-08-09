@@ -93,4 +93,4 @@ Rules:
 6. Search before proposing new work: run `swarm-manager backlog search-ai "<intent>" --json` and say what you found. Propose `add_item` only when nothing existing can absorb the work.
 7. `update_item` must use `{"target":"kind/name","patch":{...}}`, never top-level title or description fields.
 
-References: `swarm-manager-work-authoring` for the text of any item you add or patch, `swarm-manager-backlog-tools`, `swarm-manager-goal-context`, and `implementation-plan-authoring`.
+References: `swarm-manager-work-authoring` for the text and live backlog contract of any item you add or patch, `swarm-manager-goal-context`, and `implementation-plan-authoring`.

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-authenticator",
-  "input_digest": "sha256:bb67d5096cb39c82694dfb136166b856e97e24afc812d5e466ca88ecaf0d6f61",
+  "input_digest": "sha256:ae43db6a86a37ddbb9a728c92b6757773e188554fab4d322548bb25dc762bb40",
   "input_files": [
     "schemas/scenario-authenticator/v1/accounts/accounts.proto",
     "schemas/scenario-authenticator/v1/errors/errors.proto",
@@ -19,15 +19,15 @@
     }
   },
   "outputs": {
-    "gen/go/scenario-authenticator/v1/accounts/accounts.pb.go": "sha256:289ab6d0ee95ab51cb13ad5dd3f2e1a37885f502e67aa8330b85d19c1536da12",
-    "gen/go/scenario-authenticator/v1/accounts/accounts_v1connect/accounts.connect.go": "sha256:41adfbb47907cc936d666dbd7b847b6c7684a47a503c49829907a18b9598e33b",
+    "gen/go/scenario-authenticator/v1/accounts/accounts.pb.go": "sha256:9909f3c0b2ef08c28426b32089831ba6c4f89aee969bd0cdd571c8ca89270e23",
+    "gen/go/scenario-authenticator/v1/accounts/accounts_v1connect/accounts.connect.go": "sha256:133a8075ba68ad2c3ae00b1461e6b56f33d0215800cc009a0be9c3b80b9744fd",
     "gen/go/scenario-authenticator/v1/errors/errors.pb.go": "sha256:aeca959868aaf8acfe81ee2a6865e5dcb719d851dd1dcf030d9b8d92d526cc05",
     "gen/go/scenario-authenticator/v1/health/health.pb.go": "sha256:f0bf96e3a7a9d44ab2cb87077c0db90aa04fc13252f9def41c433013375a9ef0",
     "gen/go/scenario-authenticator/v1/sessions/sessions.pb.go": "sha256:7f7c8011d947c52de10250b5709878d765bd49963bbfabf386935e70dd37a992",
     "gen/go/scenario-authenticator/v1/sessions/sessions_v1connect/sessions.connect.go": "sha256:c3c3bdf42c4e98b2474e3690bb06509c0e6f5c537ef24908010aef57255c143a",
     "gen/python/scenario_authenticator/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/scenario_authenticator/v1/accounts/accounts_pb2.py": "sha256:49867aac662a9083a1c76467dba68b5a248ebde34dfc45da9c06e61c0a083dec",
-    "gen/python/scenario_authenticator/v1/accounts/accounts_pb2.pyi": "sha256:0088e7afe247548e1becfd84143d0d2413d8eba44d5dd6bd2c410214aa238f7b",
+    "gen/python/scenario_authenticator/v1/accounts/accounts_pb2.py": "sha256:f4302a8bf4cc973a8f457d6a872f2bc6a74cefe9c129fc30bbae7d7834688516",
+    "gen/python/scenario_authenticator/v1/accounts/accounts_pb2.pyi": "sha256:4479ba76df56fcd240a30f83876bca8aad3415bec23dc04638f3728f37055378",
     "gen/python/scenario_authenticator/v1/accounts/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_authenticator/v1/errors/errors_pb2.py": "sha256:c59b073a5176b381e848ca5639136c6d4b4e6f848249b4119f1b4ca5fd496bac",
     "gen/python/scenario_authenticator/v1/errors/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
@@ -39,11 +39,11 @@
     "gen/python/scenario_authenticator/v1/sessions/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_authenticator/v1/sessions/sessions_pb2.py": "sha256:007eb0866836fb36663a160e149164ae541e725a16467933f77461ee10309647",
     "gen/python/scenario_authenticator/v1/sessions/sessions_pb2.pyi": "sha256:bfba2cd9b982e90ff20befdb2b89803a7758cc5b6dc9b1bcc9f573d8e4fc1e27",
-    "gen/typescript/js/scenario-authenticator/v1/accounts/accounts_pb.js": "sha256:cbd3cb54adba7f62634506625ba667f8469f7502070b51afa3dcdd082ab2de25",
+    "gen/typescript/js/scenario-authenticator/v1/accounts/accounts_pb.js": "sha256:dfa7a1654f4af0e57b42fc48133a52a08a869854fffafb3d8665d06db49f3f67",
     "gen/typescript/js/scenario-authenticator/v1/errors/errors_pb.js": "sha256:42a7644247b4d2fa1d4a7930f33b398c4b6a6f3d0c9e5b131caefd51d208ceaf",
     "gen/typescript/js/scenario-authenticator/v1/health/health_pb.js": "sha256:39097531b940125a5ff1fb4365bcc940c1aff33d256b7adf823f7ad6c937692b",
     "gen/typescript/js/scenario-authenticator/v1/sessions/sessions_pb.js": "sha256:57e59824e746b55fe830e4a1faf9775f4d5f29c648820a1593602f21e92c54cf",
-    "gen/typescript/scenario-authenticator/v1/accounts/accounts_pb.ts": "sha256:4d301ccb62682ffd926cb56603388da2669812be727bf093fe6c10123954875b",
+    "gen/typescript/scenario-authenticator/v1/accounts/accounts_pb.ts": "sha256:23e67396be51d4a8bf78cefcf69230aab51f1e4ac5a440b77b86380c44b1faf0",
     "gen/typescript/scenario-authenticator/v1/errors/errors_pb.ts": "sha256:754768724049441d7cc120faf2be688044e59b2fe243d4459fc3a36fbf75e57e",
     "gen/typescript/scenario-authenticator/v1/health/health_pb.ts": "sha256:5aa4cf734d2e7227357f86400fc7966ab3cf5400a41d9db81f9c166024e523ea",
     "gen/typescript/scenario-authenticator/v1/sessions/sessions_pb.ts": "sha256:3e58d728c482dba0ced449da9471201056d849ed78007c0c7da0e2819a55ed77"

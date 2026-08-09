@@ -20,7 +20,7 @@ holds the placement map only; each owning skill carries the applied detail.
 | Goal / milestone `title` + intent statement | Outcome statement + Gherkin acceptance | `swarm-manager-work-authoring` §"Writing Standard: goals and milestones" |
 | Test suites after feature removal | Positive validation of replacement; no tombstone/absence tests | `test` §6; `e2e-testing` §4 |
 | Bug/friction reports (repro, expected/actual) | STE-100 steps; Given/When/Then shape | `report-bug` §2; `report-friction` §2 |
-| Research evidence and implementation-plan Findings/Actions | STE-100 | `swarm-manager-initialize-research` |
+| Research evidence and implementation-plan Findings/Actions | STE-100 | `swarm-manager-work-authoring` |
 | Skill procedural prose itself | STE-100 | `docs/agent-system/SKILL_AUTHORING.md` "Universal quality bars" |
 | Workflow prompt contracts | STE-100 | `docs/agent-system/SKILL_AUTHORING.md` §"Contract skills: machine-invoked workflow prompts" |
 | Procedural docs (operations/, guides/, runbooks) | STE-100 | this skill (no dedicated doc-style skill yet) |

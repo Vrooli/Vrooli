@@ -346,31 +346,6 @@ func (e *Emitter) EmitCaptureViewed(captureID string) {
 	e.emit(EntityCapture, captureID, EventCaptureViewed, nil)
 }
 
-func (e *Emitter) EmitClarificationStarted(entityID string, roundNumber int, itemID string, hasMessage bool) {
-	e.emit(EntityBacklogItem, entityID, EventClarificationStarted, ClarificationStartedPayload{
-		RoundNumber: roundNumber,
-		ItemID:      itemID,
-		HasMessage:  hasMessage,
-	})
-}
-
-func (e *Emitter) EmitClarificationResolved(entityID string, roundNumber int, itemID string, messageCount int, impactLevel string) {
-	e.emit(EntityBacklogItem, entityID, EventClarificationResolved, ClarificationResolvedPayload{
-		RoundNumber:  roundNumber,
-		ItemID:       itemID,
-		MessageCount: messageCount,
-		ImpactLevel:  impactLevel,
-	})
-}
-
-func (e *Emitter) EmitClarificationAction(entityID string, roundNumber int, itemID string, action string) {
-	e.emit(EntityBacklogItem, entityID, EventClarificationAction, ClarificationActionPayload{
-		RoundNumber: roundNumber,
-		ItemID:      itemID,
-		Action:      action,
-	})
-}
-
 // --- Review evidence events ---
 
 func (e *Emitter) EmitReviewStarted(executionID string, roundNumber int) {

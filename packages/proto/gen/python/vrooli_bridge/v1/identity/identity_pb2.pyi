@@ -13,14 +13,16 @@ class LoginRequest(_message.Message):
     def __init__(self, email: _Optional[str] = ..., password: _Optional[str] = ...) -> None: ...
 
 class LoginResponse(_message.Message):
-    __slots__ = ("token", "email", "user_id")
+    __slots__ = ("token", "email", "user_id", "refresh_token")
     TOKEN_FIELD_NUMBER: _ClassVar[int]
     EMAIL_FIELD_NUMBER: _ClassVar[int]
     USER_ID_FIELD_NUMBER: _ClassVar[int]
+    REFRESH_TOKEN_FIELD_NUMBER: _ClassVar[int]
     token: str
     email: str
     user_id: str
-    def __init__(self, token: _Optional[str] = ..., email: _Optional[str] = ..., user_id: _Optional[str] = ...) -> None: ...
+    refresh_token: str
+    def __init__(self, token: _Optional[str] = ..., email: _Optional[str] = ..., user_id: _Optional[str] = ..., refresh_token: _Optional[str] = ...) -> None: ...
 
 class RegisterRequest(_message.Message):
     __slots__ = ("email", "password", "username")
@@ -33,11 +35,27 @@ class RegisterRequest(_message.Message):
     def __init__(self, email: _Optional[str] = ..., password: _Optional[str] = ..., username: _Optional[str] = ...) -> None: ...
 
 class RegisterResponse(_message.Message):
-    __slots__ = ("token", "email", "user_id")
+    __slots__ = ("token", "email", "user_id", "refresh_token")
     TOKEN_FIELD_NUMBER: _ClassVar[int]
     EMAIL_FIELD_NUMBER: _ClassVar[int]
     USER_ID_FIELD_NUMBER: _ClassVar[int]
+    REFRESH_TOKEN_FIELD_NUMBER: _ClassVar[int]
     token: str
     email: str
     user_id: str
-    def __init__(self, token: _Optional[str] = ..., email: _Optional[str] = ..., user_id: _Optional[str] = ...) -> None: ...
+    refresh_token: str
+    def __init__(self, token: _Optional[str] = ..., email: _Optional[str] = ..., user_id: _Optional[str] = ..., refresh_token: _Optional[str] = ...) -> None: ...
+
+class RefreshRequest(_message.Message):
+    __slots__ = ("refresh_token",)
+    REFRESH_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    refresh_token: str
+    def __init__(self, refresh_token: _Optional[str] = ...) -> None: ...
+
+class RefreshResponse(_message.Message):
+    __slots__ = ("token", "refresh_token")
+    TOKEN_FIELD_NUMBER: _ClassVar[int]
+    REFRESH_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    token: str
+    refresh_token: str
+    def __init__(self, token: _Optional[str] = ..., refresh_token: _Optional[str] = ...) -> None: ...

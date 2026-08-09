@@ -34,6 +34,7 @@ import (
 	agentconfig "agent-manager/internal/config"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/owneridentity"
 )
 
 // -----------------------------------------------------------------------------
@@ -99,6 +100,16 @@ type PurgeResult struct {
 // CreateRunRequest contains parameters for creating a new run.
 type CreateRunRequest struct {
 	TaskID uuid.UUID `json:"taskId"`
+
+	// OwnerToken is supplied only by the HTTP boundary and is never persisted.
+	// The verified projection is stored on the run so later token minting does
+	// not depend on the authenticator being reachable.
+	OwnerToken   string   `json:"-"`
+	OwnerSubject string   `json:"-"`
+	OwnerScopes  []string `json:"-"`
+	// RequestedScopes is an optional caller narrowing. It is never a source of
+	// authority: minting intersects it with the verified owner ceiling.
+	RequestedScopes []string `json:"scopes,omitempty"`
 
 	// Profile-based config (optional - can be nil if inline config provided)
 	AgentProfileID *uuid.UUID `json:"agentProfileId,omitempty"`
@@ -679,6 +690,11 @@ type Orchestrator struct {
 
 	// Identity signing secret for agent identity tokens.
 	identitySecret []byte
+	// ownerIdentity verifies an owner JWT before its subject and scope ceiling
+	// are admitted into a run. A missing provider is permitted for internal
+	// callers that do not present an owner token; a presented token never
+	// falls back to an unverified identity.
+	ownerIdentity owneridentity.Validator
 
 	// dispatcher serializes runner startups and exposes queue depth.
 	// All run-spawn paths (CreateRun, ResumeRun) MUST go through it —
@@ -834,6 +850,14 @@ func (f ReceiptSummaryReaderFunc) ReadReceiptSummary(ctx context.Context, id uui
 func WithConfig(cfg OrchestratorConfig) Option {
 	return func(o *Orchestrator) {
 		o.config = cfg
+	}
+}
+
+// WithOwnerIdentity installs the verifier for presented scenario-authenticator
+// owner tokens. Validation remains fail-closed whenever a token is supplied.
+func WithOwnerIdentity(provider owneridentity.Validator) Option {
+	return func(o *Orchestrator) {
+		o.ownerIdentity = provider
 	}
 }
 

@@ -22,6 +22,53 @@ import (
 
 const invocationEvidenceLimit = 1_000_000
 
+// projectionEventPage bounds one database round trip while a run's retained
+// event stream is loaded. It is a page size, never a cap on the run.
+const projectionEventPage = 10_000
+
+// projectionEventCeiling stops an unbounded read if a run's retained stream is
+// corrupt or pathological. Reaching it is an error rather than a truncation:
+// the failure this guards against is a projection that silently describes part
+// of a run as though it were the whole run.
+const projectionEventCeiling = 5_000_000
+
+// allRunEvents loads every retained event for a run, in sequence order.
+//
+// Projection must see the whole stream. A single capped Get drops the tail of
+// a long run, and because the run total is derived from the same truncated
+// slice, the conservation ledger still reconciles — against a partial universe.
+// That makes the longest, most expensive runs the least accurately measured,
+// which is precisely backwards for a prioritization signal. Paging by sequence
+// keeps each round trip bounded without bounding the run.
+func (o *Orchestrator) allRunEvents(ctx context.Context, runID uuid.UUID, opts event.GetOptions) ([]*domain.RunEvent, error) {
+	opts.Limit = projectionEventPage
+	opts.Offset = 0
+	after := opts.AfterSequence
+	var all []*domain.RunEvent
+	for {
+		opts.AfterSequence = after
+		batch, err := o.GetRunEvents(ctx, runID, opts)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, batch...)
+		if len(batch) < projectionEventPage {
+			return all, nil
+		}
+		next := batch[len(batch)-1].Sequence
+		if next <= after {
+			// Retained sequences are monotonic per run, so a cursor that fails
+			// to advance is a corrupt stream rather than a long one. Returning
+			// here prevents an infinite read.
+			return nil, fmt.Errorf("run %s event sequence did not advance past %d", runID, after)
+		}
+		after = next
+		if len(all) >= projectionEventCeiling {
+			return nil, fmt.Errorf("run %s exceeded the %d retained event ceiling", runID, projectionEventCeiling)
+		}
+	}
+}
+
 func (o *Orchestrator) EpisodeCohort(ctx context.Context, filter invocationreadmodel.Filter, limit int) (runreport.EpisodeCohort, error) {
 	if o.invocationReadModel == nil {
 		return runreport.EpisodeCohort{}, fmt.Errorf("invocation read model is not configured")
@@ -272,14 +319,14 @@ func (o *Orchestrator) ReplayInvocationFacts(ctx context.Context, runID uuid.UUI
 	if err != nil {
 		return nil, err
 	}
-	events, err := o.GetRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1, Limit: 10000})
+	events, err := o.allRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1})
 	if err != nil {
 		return nil, fmt.Errorf("load retained run events: %w", err)
 	}
 	if len(events) == 0 {
 		if run != nil && run.ExecutionMode.Normalized() == domain.ExecutionModeImported && strings.TrimSpace(run.TranscriptPath) != "" {
 			if err := o.rehydrateImportedTranscript(ctx, run); err == nil {
-				events, err = o.GetRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1, Limit: 10000})
+				events, err = o.allRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1})
 				if err != nil {
 					return nil, fmt.Errorf("load rehydrated run events: %w", err)
 				}
@@ -438,7 +485,7 @@ func (o *Orchestrator) projectInvocationReadModel(ctx context.Context, run *doma
 	if o.invocationReadModel == nil || o.events == nil || run == nil {
 		return nil
 	}
-	events, err := o.GetRunEvents(ctx, run.ID, event.GetOptions{AfterSequence: -1, Limit: 10000})
+	events, err := o.allRunEvents(ctx, run.ID, event.GetOptions{AfterSequence: -1})
 	if err != nil {
 		return fmt.Errorf("load run events: %w", err)
 	}

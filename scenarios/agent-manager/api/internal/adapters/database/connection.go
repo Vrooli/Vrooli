@@ -497,7 +497,7 @@ func (db *DB) initSchema() error {
 		}
 		return err
 	}
-	if err := db.migrateColumns(ctx, "agent_profiles", []columnMigration{{column: "tool_restriction_policy", ddl: "ALTER TABLE agent_profiles ADD COLUMN tool_restriction_policy TEXT NOT NULL DEFAULT 'enforced'"}, {column: "effort", ddl: "ALTER TABLE agent_profiles ADD COLUMN effort TEXT NOT NULL DEFAULT ''"}}); err != nil {
+	if err := db.migrateColumns(ctx, "agent_profiles", []columnMigration{{column: "tool_restriction_policy", ddl: "ALTER TABLE agent_profiles ADD COLUMN tool_restriction_policy TEXT NOT NULL DEFAULT 'enforced'"}, {column: "effort", ddl: "ALTER TABLE agent_profiles ADD COLUMN effort TEXT NOT NULL DEFAULT ''"}, {column: "declared_scopes", ddl: "ALTER TABLE agent_profiles ADD COLUMN declared_scopes TEXT DEFAULT '[]'"}}); err != nil {
 		return err
 	}
 	if err := db.migrateColumns(ctx, "workflow_executions", []columnMigration{{column: "parent_attempt_id", ddl: "ALTER TABLE workflow_executions ADD COLUMN parent_attempt_id TEXT"}, {column: "depth", ddl: "ALTER TABLE workflow_executions ADD COLUMN depth INTEGER NOT NULL DEFAULT 0"}}); err != nil {
@@ -907,6 +907,9 @@ var runColumnMigrations = []columnMigration{
 	{column: "label", ddl: "ALTER TABLE runs ADD COLUMN label TEXT NOT NULL DEFAULT ''"},
 	{column: "label_source", ddl: "ALTER TABLE runs ADD COLUMN label_source TEXT NOT NULL DEFAULT ''"},
 	{column: "subject", ddl: "ALTER TABLE runs ADD COLUMN subject TEXT NOT NULL DEFAULT '[]'"},
+	{column: "owner_subject", ddl: "ALTER TABLE runs ADD COLUMN owner_subject TEXT NOT NULL DEFAULT ''"},
+	{column: "owner_scopes", ddl: "ALTER TABLE runs ADD COLUMN owner_scopes TEXT NOT NULL DEFAULT '[]'"},
+	{column: "requested_scopes", ddl: "ALTER TABLE runs ADD COLUMN requested_scopes TEXT NOT NULL DEFAULT '[]'"},
 	{column: "execution_mode", ddl: "ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe'"},
 	{column: "web_console_session_id", ddl: "ALTER TABLE runs ADD COLUMN web_console_session_id TEXT DEFAULT ''"},
 	{column: "run_result", ddl: "ALTER TABLE runs ADD COLUMN run_result TEXT"},

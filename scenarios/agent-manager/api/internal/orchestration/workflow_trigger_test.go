@@ -112,7 +112,7 @@ func TestEnforceWorkflowTriggerDoesNotTreatUnverifiedTokenAsAgent(t *testing.T) 
 	revision := &domain.WorkflowRevision{Key: "owner/agent-only", Definition: domain.WorkflowDefinition{Trigger: domain.WorkflowTriggerPolicy{Initiators: []domain.WorkflowInitiator{domain.WorkflowInitiatorAgent}}}}
 	err := o.enforceWorkflowTrigger(context.Background(), revision, StartWorkflowExecutionRequest{Initiator: domain.WorkflowInitiatorAgent, IdentityToken: "not-verifiable"})
 	var denied *TriggerPolicyError
-	if !errors.As(err, &denied) || denied.Initiator != domain.WorkflowInitiatorProgrammatic {
-		t.Fatalf("unverified identity must be governed as programmatic, got %#v (%v)", denied, err)
+	if !errors.As(err, &denied) || denied.Initiator != domain.WorkflowInitiatorAgent || denied.Decision != "identity_unverified" {
+		t.Fatalf("unverified identity must be denied as an agent request, got %#v (%v)", denied, err)
 	}
 }

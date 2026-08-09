@@ -187,7 +187,23 @@ message JobPush {
   // Wall-clock budget after which the node aborts the run.
   int64 timeout_seconds = 5;
 
-  reserved 6 to 15; // env scoping, artifact inputs, queue metadata
+  // Typed output produced by the job. The node resolves the output path under
+  // its private artifact directory, appends the declared output flag to argv,
+  // and uploads the bounded bytes through ArtifactsService after the command
+  // exits. This is output metadata, never an arbitrary command fragment.
+  repeated ArtifactOutput outputs = 6;
+
+  reserved 7 to 15; // env scoping, artifact inputs, queue metadata
+}
+
+// ArtifactOutput describes one bounded file a typed job is allowed to produce.
+// The output_flag is a fixed flag name selected by the control-plane manifest;
+// it is not caller-supplied shell text.
+message ArtifactOutput {
+  string name = 1;
+  string media_type = 2;
+  string output_flag = 3;
+  int64 max_bytes = 4;
 }
 
 // ProvisionCommand is the privileged-tier push that brings a node to a target

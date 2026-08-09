@@ -58,18 +58,6 @@ type Entry struct {
 
 var staticEntries = []Entry{
 	{
-		ID:           "capture-classify",
-		Title:        "Capture Classification",
-		Group:        GroupCapture,
-		UsageType:    UsageDirectRuntime,
-		SourceType:   SourceSkill,
-		Trigger:      "Capture classify action",
-		SkillID:      "swarm-manager-classify-capture",
-		Purpose:      "Analyze raw capture text and classify it into suggested backlog items.",
-		OutputPaths:  []string{"classification.json", "capture.json"},
-		VariableKeys: []string{"CAPTURE_ID", "CAPTURE_TEXT"},
-	},
-	{
 		ID:         "execution-process",
 		Title:      "Execution Process Prompt",
 		Group:      GroupExecution,
@@ -128,28 +116,6 @@ var staticEntries = []Entry{
 		VariableKeys: []string{"TARGET"},
 	},
 	{
-		ID:           "support-backlog-tools",
-		Title:        "Backlog Tools Reference",
-		Group:        GroupSupport,
-		UsageType:    UsageSupportReference,
-		SourceType:   SourceSkill,
-		Trigger:      "Referenced by backlog prompt skills",
-		SkillID:      "swarm-manager-backlog-tools",
-		Purpose:      "Canonical backlog folder structure, artifact schemas, and CLI interaction rules.",
-		VariableKeys: []string{"ITEM_FOLDER"},
-	},
-	{
-		ID:           "support-processing-guidance",
-		Title:        "Processing Guidance Reference",
-		Group:        GroupSupport,
-		UsageType:    UsageSupportReference,
-		SourceType:   SourceSkill,
-		Trigger:      "Referenced by initialize and processing-oriented prompt skills",
-		SkillID:      "swarm-manager-processing-guidance",
-		Purpose:      "Shared processing workflow guidance for backlog items.",
-		VariableKeys: []string{"ITEM_FOLDER"},
-	},
-	{
 		ID:         "support-implementation-plan-authoring",
 		Title:      "Implementation Plan Authoring Reference",
 		Group:      GroupSupport,
@@ -169,7 +135,6 @@ var staticEntries = []Entry{
 		SkillID:    "swarm-manager-proposals",
 		Purpose:    "Produce an operator-reviewed mutation-list proposal from hydrated goal context, including item renewal and scoped dependency changes when stale work needs controlled renewal.",
 		ReferenceSkillIDs: []string{
-			"swarm-manager-backlog-tools",
 			"swarm-manager-goal-context",
 			"implementation-plan-authoring",
 		},
@@ -220,10 +185,6 @@ func Lookup(id string) (Entry, bool) {
 		}
 	}
 	return Entry{}, false
-}
-
-func ResolveCaptureSkill() (Entry, bool) {
-	return Lookup("capture-classify")
 }
 
 func ResolveSpecSyncSkill() (Entry, bool) {

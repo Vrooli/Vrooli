@@ -9,33 +9,6 @@ import (
 	"swarm-manager/internal/backlog"
 )
 
-func TestBacklogItemCreatorAdapter_ItemDir(t *testing.T) {
-	rootDir := t.TempDir()
-	store := backlog.NewFileStore(rootDir)
-	adapter := NewBacklogItemCreatorAdapter(store)
-
-	dir := adapter.ItemDir("execute", "my-task")
-	expected := store.ItemDir(backlog.KindExecute, "my-task")
-	if dir != expected {
-		t.Errorf("expected %q, got %q", expected, dir)
-	}
-}
-
-func TestBacklogItemCreatorAdapter_ItemDir_AllKinds(t *testing.T) {
-	rootDir := t.TempDir()
-	store := backlog.NewFileStore(rootDir)
-	adapter := NewBacklogItemCreatorAdapter(store)
-
-	kinds := []string{"idea", "research", "fix", "execute", "chore"}
-	for _, kind := range kinds {
-		dir := adapter.ItemDir(kind, "test-item")
-		expected := store.ItemDir(backlog.BacklogKind(kind), "test-item")
-		if dir != expected {
-			t.Errorf("kind %q: expected %q, got %q", kind, expected, dir)
-		}
-	}
-}
-
 func TestBacklogItemCreatorAdapter_SaveItem(t *testing.T) {
 	rootDir := t.TempDir()
 	store := backlog.NewFileStore(rootDir)
@@ -47,7 +20,7 @@ func TestBacklogItemCreatorAdapter_SaveItem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := adapter.SaveItem("execute", "my-task", "My Task", "A test task", []string{"ops", "infra"})
+	err := adapter.SaveItem(BacklogItemDraft{Kind: "execute", Name: "my-task", Title: "My Task", Description: "A test task", Priority: 7, Tags: []string{"ops", "infra"}, SpawnedFrom: "cap-test"})
 	if err != nil {
 		t.Fatalf("SaveItem: %v", err)
 	}
@@ -69,14 +42,17 @@ func TestBacklogItemCreatorAdapter_SaveItem(t *testing.T) {
 	if item.Status != backlog.StatusBacklog {
 		t.Errorf("expected status backlog, got %q", item.Status)
 	}
-	if item.Priority != 5 {
-		t.Errorf("expected priority 5, got %d", item.Priority)
+	if item.Priority != 7 {
+		t.Errorf("expected priority 7, got %d", item.Priority)
 	}
 	if len(item.Tags) != 2 || item.Tags[0] != "ops" || item.Tags[1] != "infra" {
 		t.Errorf("unexpected tags: %v", item.Tags)
 	}
 	if item.Kind != backlog.KindExecute {
 		t.Errorf("expected kind execute, got %q", item.Kind)
+	}
+	if item.SpawnedFrom != "cap-test" {
+		t.Errorf("expected spawned_from cap-test, got %q", item.SpawnedFrom)
 	}
 }
 
@@ -90,12 +66,12 @@ func TestBacklogItemCreatorAdapter_SaveItem_DuplicateReturnsError(t *testing.T) 
 		t.Fatal(err)
 	}
 
-	err := adapter.SaveItem("idea", "dup-item", "First", "first desc", nil)
+	err := adapter.SaveItem(BacklogItemDraft{Kind: "idea", Name: "dup-item", Title: "First", Description: "first desc", Priority: 5})
 	if err != nil {
 		t.Fatalf("first SaveItem: %v", err)
 	}
 
-	err = adapter.SaveItem("idea", "dup-item", "Second", "second desc", nil)
+	err = adapter.SaveItem(BacklogItemDraft{Kind: "idea", Name: "dup-item", Title: "Second", Description: "second desc", Priority: 5})
 	if err == nil {
 		t.Fatal("expected error for duplicate item")
 	}
@@ -111,7 +87,7 @@ func TestBacklogItemCreatorAdapter_SaveItem_SetsTimestamps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := adapter.SaveItem("fix", "ts-test", "Timestamp Test", "desc", nil)
+	err := adapter.SaveItem(BacklogItemDraft{Kind: "fix", Name: "ts-test", Title: "Timestamp Test", Description: "desc", Priority: 5})
 	if err != nil {
 		t.Fatalf("SaveItem: %v", err)
 	}

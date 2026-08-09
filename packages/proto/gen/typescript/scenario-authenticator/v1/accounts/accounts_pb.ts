@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scenario-authenticator/v1/accounts/accounts.proto.
  */
 export const file_scenario_authenticator_v1_accounts_accounts: GenFile = /*@__PURE__*/
-  fileDesc("CjFzY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL2FjY291bnRzL2FjY291bnRzLnByb3RvEil2cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cyKcAQoHQWNjb3VudBIKCgJpZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIQCgh1c2VybmFtZRgDIAEoCRINCgVyb2xlcxgEIAMoCRINCgVyZWFsbRgFIAEoCRIWCg5lbWFpbF92ZXJpZmllZBgGIAEoCBIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ1CglUb2tlblBhaXISFAoMYWNjZXNzX3Rva2VuGAEgASgJEhUKDXJlZnJlc2hfdG9rZW4YAiABKAkSOwoXYWNjZXNzX3Rva2VuX2V4cGlyZXNfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlMKD1JlZ2lzdGVyUmVxdWVzdBINCgVlbWFpbBgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRIQCgh1c2VybmFtZRgDIAEoCRINCgVyZWFsbRgEIAEoCSKdAQoQUmVnaXN0ZXJSZXNwb25zZRJDCgdhY2NvdW50GAEgASgLMjIudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuQWNjb3VudBJECgZ0b2tlbnMYAiABKAsyNC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Ub2tlblBhaXIiPgoMTG9naW5SZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJEg0KBXJlYWxtGAMgASgJIpoBCg1Mb2dpblJlc3BvbnNlEkMKB2FjY291bnQYASABKAsyMi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5BY2NvdW50EkQKBnRva2VucxgCIAEoCzI0LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlRva2VuUGFpciInCg5SZWZyZXNoUmVxdWVzdBIVCg1yZWZyZXNoX3Rva2VuGAEgASgJIlcKD1JlZnJlc2hSZXNwb25zZRJECgZ0b2tlbnMYASABKAsyNC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Ub2tlblBhaXIiJQoNTG9nb3V0UmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkiEAoOTG9nb3V0UmVzcG9uc2UiJwoPVmFsaWRhdGVSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCSKPAQoQVmFsaWRhdGVSZXNwb25zZRINCgV2YWxpZBgBIAEoCBIPCgd1c2VyX2lkGAIgASgJEg0KBWVtYWlsGAMgASgJEg0KBXJvbGVzGAQgAygJEg0KBXJlYWxtGAUgASgJEi4KCmV4cGlyZXNfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wMpsFCg9BY2NvdW50c1NlcnZpY2USgwEKCFJlZ2lzdGVyEjoudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVnaXN0ZXJSZXF1ZXN0GjsudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVnaXN0ZXJSZXNwb25zZRJ6CgVMb2dpbhI3LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ2luUmVxdWVzdBo4LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ2luUmVzcG9uc2USgAEKB1JlZnJlc2gSOS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWZyZXNoUmVxdWVzdBo6LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlJlZnJlc2hSZXNwb25zZRJ9CgZMb2dvdXQSOC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Mb2dvdXRSZXF1ZXN0GjkudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9nb3V0UmVzcG9uc2USgwEKCFZhbGlkYXRlEjoudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVmFsaWRhdGVSZXF1ZXN0GjsudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVmFsaWRhdGVSZXNwb25zZUJfWl1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NjZW5hcmlvLWF1dGhlbnRpY2F0b3IvdjEvYWNjb3VudHM7YWNjb3VudHNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CjFzY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL2FjY291bnRzL2FjY291bnRzLnByb3RvEil2cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cyKsAQoHQWNjb3VudBIKCgJpZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIQCgh1c2VybmFtZRgDIAEoCRINCgVyb2xlcxgEIAMoCRINCgVyZWFsbRgFIAEoCRIWCg5lbWFpbF92ZXJpZmllZBgGIAEoCBIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzY29wZXMYCCADKAkidQoJVG9rZW5QYWlyEhQKDGFjY2Vzc190b2tlbhgBIAEoCRIVCg1yZWZyZXNoX3Rva2VuGAIgASgJEjsKF2FjY2Vzc190b2tlbl9leHBpcmVzX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJTCg9SZWdpc3RlclJlcXVlc3QSDQoFZW1haWwYASABKAkSEAoIcGFzc3dvcmQYAiABKAkSEAoIdXNlcm5hbWUYAyABKAkSDQoFcmVhbG0YBCABKAkinQEKEFJlZ2lzdGVyUmVzcG9uc2USQwoHYWNjb3VudBgBIAEoCzIyLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkFjY291bnQSRAoGdG9rZW5zGAIgASgLMjQudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVG9rZW5QYWlyIj4KDExvZ2luUmVxdWVzdBINCgVlbWFpbBgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRINCgVyZWFsbRgDIAEoCSKaAQoNTG9naW5SZXNwb25zZRJDCgdhY2NvdW50GAEgASgLMjIudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuQWNjb3VudBJECgZ0b2tlbnMYAiABKAsyNC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Ub2tlblBhaXIiXQoVQ2hhbmdlUGFzc3dvcmRSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRIYChBjdXJyZW50X3Bhc3N3b3JkGAIgASgJEhQKDG5ld19wYXNzd29yZBgDIAEoCSIyChZDaGFuZ2VQYXNzd29yZFJlc3BvbnNlEhgKEHJldm9rZWRfc2Vzc2lvbnMYASABKAMiJwoOUmVmcmVzaFJlcXVlc3QSFQoNcmVmcmVzaF90b2tlbhgBIAEoCSJXCg9SZWZyZXNoUmVzcG9uc2USRAoGdG9rZW5zGAEgASgLMjQudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVG9rZW5QYWlyIiUKDUxvZ291dFJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJIhAKDkxvZ291dFJlc3BvbnNlIicKD1ZhbGlkYXRlUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkinwEKEFZhbGlkYXRlUmVzcG9uc2USDQoFdmFsaWQYASABKAgSDwoHdXNlcl9pZBgCIAEoCRINCgVlbWFpbBgDIAEoCRINCgVyb2xlcxgEIAMoCRINCgVyZWFsbRgFIAEoCRIuCgpleHBpcmVzX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzY29wZXMYByADKAkiTgoRR3JhbnRTY29wZVJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEhQKDHByaW5jaXBhbF9pZBgCIAEoCRINCgVzY29wZRgDIAEoCSJPChJSZXZva2VTY29wZVJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEhQKDHByaW5jaXBhbF9pZBgCIAEoCRINCgVzY29wZRgDIAEoCSI/ChFMaXN0U2NvcGVzUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFAoMcHJpbmNpcGFsX2lkGAIgASgJIjUKDVNjb3BlUmVzcG9uc2USFAoMcHJpbmNpcGFsX2lkGAEgASgJEg4KBnNjb3BlcxgCIAMoCSI6ChJMaXN0U2NvcGVzUmVzcG9uc2USFAoMcHJpbmNpcGFsX2lkGAEgASgJEg4KBnNjb3BlcxgCIAMoCSKBAQoZTGlua01hY2hpbmVBY2NvdW50UmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSEgoKbWFjaGluZV9pZBgCIAEoCRIXCg9sb2NhbF9wcmluY2lwYWwYAyABKAkSDQoFcmVhbG0YBCABKAkSEgoKaXNfZGVmYXVsdBgFIAEoCCKvAQoaTGlua01hY2hpbmVBY2NvdW50UmVzcG9uc2USEgoKbWFjaGluZV9pZBgBIAEoCRIXCg9sb2NhbF9wcmluY2lwYWwYAiABKAkSEgoKYWNjb3VudF9pZBgDIAEoCRINCgVyZWFsbRgEIAEoCRISCgppc19kZWZhdWx0GAUgASgIEi0KCWxpbmtlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiNQofRXhjaGFuZ2VNYWNoaW5lUHJpbmNpcGFsUmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJIj4KFklzc3VlQnJlYWtHbGFzc1JlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEg4KBnNjb3BlcxgCIAMoCSJBChdJc3N1ZUJyZWFrR2xhc3NSZXNwb25zZRISCgpjcmVkZW50aWFsGAEgASgJEhIKCmV4cGlyZXNfYXQYAiABKAMysQ0KD0FjY291bnRzU2VydmljZRKDAQoIUmVnaXN0ZXISOi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWdpc3RlclJlcXVlc3QaOy52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWdpc3RlclJlc3BvbnNlEnoKBUxvZ2luEjcudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9naW5SZXF1ZXN0GjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9naW5SZXNwb25zZRKVAQoOQ2hhbmdlUGFzc3dvcmQSQC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5DaGFuZ2VQYXNzd29yZFJlcXVlc3QaQS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5DaGFuZ2VQYXNzd29yZFJlc3BvbnNlEoABCgdSZWZyZXNoEjkudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVmcmVzaFJlcXVlc3QaOi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWZyZXNoUmVzcG9uc2USfQoGTG9nb3V0EjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9nb3V0UmVxdWVzdBo5LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ291dFJlc3BvbnNlEoMBCghWYWxpZGF0ZRI6LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlZhbGlkYXRlUmVxdWVzdBo7LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlZhbGlkYXRlUmVzcG9uc2UShAEKCkdyYW50U2NvcGUSPC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5HcmFudFNjb3BlUmVxdWVzdBo4LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlNjb3BlUmVzcG9uc2UShgEKC1Jldm9rZVNjb3BlEj0udnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmV2b2tlU2NvcGVSZXF1ZXN0GjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuU2NvcGVSZXNwb25zZRKJAQoKTGlzdFNjb3BlcxI8LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxpc3RTY29wZXNSZXF1ZXN0Gj0udnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTGlzdFNjb3Blc1Jlc3BvbnNlEqEBChJMaW5rTWFjaGluZUFjY291bnQSRC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5MaW5rTWFjaGluZUFjY291bnRSZXF1ZXN0GkUudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTGlua01hY2hpbmVBY2NvdW50UmVzcG9uc2USoAEKGEV4Y2hhbmdlTWFjaGluZVByaW5jaXBhbBJKLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkV4Y2hhbmdlTWFjaGluZVByaW5jaXBhbFJlcXVlc3QaOC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Mb2dpblJlc3BvbnNlEpgBCg9Jc3N1ZUJyZWFrR2xhc3MSQS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Jc3N1ZUJyZWFrR2xhc3NSZXF1ZXN0GkIudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuSXNzdWVCcmVha0dsYXNzUmVzcG9uc2VCX1pdZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL2FjY291bnRzO2FjY291bnRzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * Account is the wire shape for a single account resource. Never carries a
@@ -70,6 +70,13 @@ export type Account = Message<"vrooli.scenario_authenticator.v1.accounts.Account
    * @generated from field: google.protobuf.Timestamp created_at = 7;
    */
   createdAt?: Timestamp | undefined;
+
+  /**
+   * Opaque scopes assigned to the account.
+   *
+   * @generated from field: repeated string scopes = 8;
+   */
+  scopes: string[];
 };
 
 /**
@@ -223,6 +230,52 @@ export const LoginResponseSchema: GenMessage<LoginResponse> = /*@__PURE__*/
   messageDesc(file_scenario_authenticator_v1_accounts_accounts, 5);
 
 /**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest
+ */
+export type ChangePasswordRequest = Message<"vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest"> & {
+  /**
+   * Access token identifying the account whose password is changing.
+   *
+   * @generated from field: string access_token = 1;
+   */
+  accessToken: string;
+
+  /**
+   * @generated from field: string current_password = 2;
+   */
+  currentPassword: string;
+
+  /**
+   * @generated from field: string new_password = 3;
+   */
+  newPassword: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest.
+ * Use `create(ChangePasswordRequestSchema)` to create a new message.
+ */
+export const ChangePasswordRequestSchema: GenMessage<ChangePasswordRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 6);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse
+ */
+export type ChangePasswordResponse = Message<"vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse"> & {
+  /**
+   * @generated from field: int64 revoked_sessions = 1;
+   */
+  revokedSessions: bigint;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse.
+ * Use `create(ChangePasswordResponseSchema)` to create a new message.
+ */
+export const ChangePasswordResponseSchema: GenMessage<ChangePasswordResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 7);
+
+/**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.RefreshRequest
  */
 export type RefreshRequest = Message<"vrooli.scenario_authenticator.v1.accounts.RefreshRequest"> & {
@@ -237,7 +290,7 @@ export type RefreshRequest = Message<"vrooli.scenario_authenticator.v1.accounts.
  * Use `create(RefreshRequestSchema)` to create a new message.
  */
 export const RefreshRequestSchema: GenMessage<RefreshRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 6);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 8);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.RefreshResponse
@@ -254,7 +307,7 @@ export type RefreshResponse = Message<"vrooli.scenario_authenticator.v1.accounts
  * Use `create(RefreshResponseSchema)` to create a new message.
  */
 export const RefreshResponseSchema: GenMessage<RefreshResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 7);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 9);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.LogoutRequest
@@ -273,7 +326,7 @@ export type LogoutRequest = Message<"vrooli.scenario_authenticator.v1.accounts.L
  * Use `create(LogoutRequestSchema)` to create a new message.
  */
 export const LogoutRequestSchema: GenMessage<LogoutRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 8);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 10);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.LogoutResponse
@@ -286,7 +339,7 @@ export type LogoutResponse = Message<"vrooli.scenario_authenticator.v1.accounts.
  * Use `create(LogoutResponseSchema)` to create a new message.
  */
 export const LogoutResponseSchema: GenMessage<LogoutResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 9);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 11);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ValidateRequest
@@ -303,7 +356,7 @@ export type ValidateRequest = Message<"vrooli.scenario_authenticator.v1.accounts
  * Use `create(ValidateRequestSchema)` to create a new message.
  */
 export const ValidateRequestSchema: GenMessage<ValidateRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 10);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 12);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ValidateResponse
@@ -347,6 +400,13 @@ export type ValidateResponse = Message<"vrooli.scenario_authenticator.v1.account
    * @generated from field: google.protobuf.Timestamp expires_at = 6;
    */
   expiresAt?: Timestamp | undefined;
+
+  /**
+   * Explicitly present even when the principal has no scopes.
+   *
+   * @generated from field: repeated string scopes = 7;
+   */
+  scopes: string[];
 };
 
 /**
@@ -354,7 +414,267 @@ export type ValidateResponse = Message<"vrooli.scenario_authenticator.v1.account
  * Use `create(ValidateResponseSchema)` to create a new message.
  */
 export const ValidateResponseSchema: GenMessage<ValidateResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 11);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 13);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest
+ */
+export type GrantScopeRequest = Message<"vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest"> & {
+  /**
+   * @generated from field: string access_token = 1;
+   */
+  accessToken: string;
+
+  /**
+   * @generated from field: string principal_id = 2;
+   */
+  principalId: string;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest.
+ * Use `create(GrantScopeRequestSchema)` to create a new message.
+ */
+export const GrantScopeRequestSchema: GenMessage<GrantScopeRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 14);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest
+ */
+export type RevokeScopeRequest = Message<"vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest"> & {
+  /**
+   * @generated from field: string access_token = 1;
+   */
+  accessToken: string;
+
+  /**
+   * @generated from field: string principal_id = 2;
+   */
+  principalId: string;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest.
+ * Use `create(RevokeScopeRequestSchema)` to create a new message.
+ */
+export const RevokeScopeRequestSchema: GenMessage<RevokeScopeRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 15);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.ListScopesRequest
+ */
+export type ListScopesRequest = Message<"vrooli.scenario_authenticator.v1.accounts.ListScopesRequest"> & {
+  /**
+   * @generated from field: string access_token = 1;
+   */
+  accessToken: string;
+
+  /**
+   * @generated from field: string principal_id = 2;
+   */
+  principalId: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.ListScopesRequest.
+ * Use `create(ListScopesRequestSchema)` to create a new message.
+ */
+export const ListScopesRequestSchema: GenMessage<ListScopesRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 16);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.ScopeResponse
+ */
+export type ScopeResponse = Message<"vrooli.scenario_authenticator.v1.accounts.ScopeResponse"> & {
+  /**
+   * @generated from field: string principal_id = 1;
+   */
+  principalId: string;
+
+  /**
+   * @generated from field: repeated string scopes = 2;
+   */
+  scopes: string[];
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.ScopeResponse.
+ * Use `create(ScopeResponseSchema)` to create a new message.
+ */
+export const ScopeResponseSchema: GenMessage<ScopeResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 17);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.ListScopesResponse
+ */
+export type ListScopesResponse = Message<"vrooli.scenario_authenticator.v1.accounts.ListScopesResponse"> & {
+  /**
+   * @generated from field: string principal_id = 1;
+   */
+  principalId: string;
+
+  /**
+   * @generated from field: repeated string scopes = 2;
+   */
+  scopes: string[];
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.ListScopesResponse.
+ * Use `create(ListScopesResponseSchema)` to create a new message.
+ */
+export const ListScopesResponseSchema: GenMessage<ListScopesResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 18);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
+ */
+export type LinkMachineAccountRequest = Message<"vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest"> & {
+  /**
+   * @generated from field: string access_token = 1;
+   */
+  accessToken: string;
+
+  /**
+   * @generated from field: string machine_id = 2;
+   */
+  machineId: string;
+
+  /**
+   * @generated from field: string local_principal = 3;
+   */
+  localPrincipal: string;
+
+  /**
+   * @generated from field: string realm = 4;
+   */
+  realm: string;
+
+  /**
+   * @generated from field: bool is_default = 5;
+   */
+  isDefault: boolean;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest.
+ * Use `create(LinkMachineAccountRequestSchema)` to create a new message.
+ */
+export const LinkMachineAccountRequestSchema: GenMessage<LinkMachineAccountRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 19);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
+ */
+export type LinkMachineAccountResponse = Message<"vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse"> & {
+  /**
+   * @generated from field: string machine_id = 1;
+   */
+  machineId: string;
+
+  /**
+   * @generated from field: string local_principal = 2;
+   */
+  localPrincipal: string;
+
+  /**
+   * @generated from field: string account_id = 3;
+   */
+  accountId: string;
+
+  /**
+   * @generated from field: string realm = 4;
+   */
+  realm: string;
+
+  /**
+   * @generated from field: bool is_default = 5;
+   */
+  isDefault: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp linked_at = 6;
+   */
+  linkedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse.
+ * Use `create(LinkMachineAccountResponseSchema)` to create a new message.
+ */
+export const LinkMachineAccountResponseSchema: GenMessage<LinkMachineAccountResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 20);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
+ */
+export type ExchangeMachinePrincipalRequest = Message<"vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest"> & {
+  /**
+   * @generated from field: string machine_id = 1;
+   */
+  machineId: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest.
+ * Use `create(ExchangeMachinePrincipalRequestSchema)` to create a new message.
+ */
+export const ExchangeMachinePrincipalRequestSchema: GenMessage<ExchangeMachinePrincipalRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 21);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
+ */
+export type IssueBreakGlassRequest = Message<"vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest"> & {
+  /**
+   * @generated from field: string access_token = 1;
+   */
+  accessToken: string;
+
+  /**
+   * @generated from field: repeated string scopes = 2;
+   */
+  scopes: string[];
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest.
+ * Use `create(IssueBreakGlassRequestSchema)` to create a new message.
+ */
+export const IssueBreakGlassRequestSchema: GenMessage<IssueBreakGlassRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 22);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
+ */
+export type IssueBreakGlassResponse = Message<"vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse"> & {
+  /**
+   * @generated from field: string credential = 1;
+   */
+  credential: string;
+
+  /**
+   * @generated from field: int64 expires_at = 2;
+   */
+  expiresAt: bigint;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse.
+ * Use `create(IssueBreakGlassResponseSchema)` to create a new message.
+ */
+export const IssueBreakGlassResponseSchema: GenMessage<IssueBreakGlassResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 23);
 
 /**
  * @generated from service vrooli.scenario_authenticator.v1.accounts.AccountsService
@@ -385,6 +705,17 @@ export const AccountsService: GenService<{
     methodKind: "unary";
     input: typeof LoginRequestSchema;
     output: typeof LoginResponseSchema;
+  },
+  /**
+   * ChangePassword verifies the current password, stores a new Argon2id hash,
+   * and revokes every live session for the authenticated account.
+   *
+   * @generated from rpc vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword
+   */
+  changePassword: {
+    methodKind: "unary";
+    input: typeof ChangePasswordRequestSchema;
+    output: typeof ChangePasswordResponseSchema;
   },
   /**
    * Refresh rotates a refresh token single-use and mints a new access token.
@@ -421,6 +752,71 @@ export const AccountsService: GenService<{
     methodKind: "unary";
     input: typeof ValidateRequestSchema;
     output: typeof ValidateResponseSchema;
+  },
+  /**
+   * GrantScope assigns an opaque authorization scope to a principal.
+   *
+   * @generated from rpc vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope
+   */
+  grantScope: {
+    methodKind: "unary";
+    input: typeof GrantScopeRequestSchema;
+    output: typeof ScopeResponseSchema;
+  },
+  /**
+   * RevokeScope removes an opaque authorization scope from a principal.
+   *
+   * @generated from rpc vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope
+   */
+  revokeScope: {
+    methodKind: "unary";
+    input: typeof RevokeScopeRequestSchema;
+    output: typeof ScopeResponseSchema;
+  },
+  /**
+   * ListScopes returns the opaque scopes assigned to a principal.
+   *
+   * @generated from rpc vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes
+   */
+  listScopes: {
+    methodKind: "unary";
+    input: typeof ListScopesRequestSchema;
+    output: typeof ListScopesResponseSchema;
+  },
+  /**
+   * LinkMachineAccount binds an operator's current local principal to an
+   * account. The local exchange listener supplies the peer credential; this
+   * RPC is also exposed to the signed-in CLI for explicit linking.
+   *
+   * @generated from rpc vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount
+   */
+  linkMachineAccount: {
+    methodKind: "unary";
+    input: typeof LinkMachineAccountRequestSchema;
+    output: typeof LinkMachineAccountResponseSchema;
+  },
+  /**
+   * ExchangeMachinePrincipal trades a verified local-socket peer credential
+   * for a normal short-lived JWT. It is refused unless the socket listener has
+   * injected a bound principal into the request context.
+   *
+   * @generated from rpc vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal
+   */
+  exchangeMachinePrincipal: {
+    methodKind: "unary";
+    input: typeof ExchangeMachinePrincipalRequestSchema;
+    output: typeof LoginResponseSchema;
+  },
+  /**
+   * Issue a short-lived offline credential from already-provisioned local
+   * break-glass material. The caller must save the response owner-only.
+   *
+   * @generated from rpc vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass
+   */
+  issueBreakGlass: {
+    methodKind: "unary";
+    input: typeof IssueBreakGlassRequestSchema;
+    output: typeof IssueBreakGlassResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_scenario_authenticator_v1_accounts_accounts, 0);

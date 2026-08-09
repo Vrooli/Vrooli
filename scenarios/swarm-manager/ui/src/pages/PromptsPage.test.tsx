@@ -30,14 +30,14 @@ describe("PromptsPage", () => {
     vi.clearAllMocks();
     vi.mocked(promptService.listCatalog).mockResolvedValue([
       {
-        id: "capture-classify",
-        title: "Capture Classification",
-        group: "capture",
+        id: "execution-review-agent",
+        title: "Execution Review Agent",
+        group: "execution",
         usage_type: "direct_runtime",
         source_type: "skill",
-        trigger: "Capture classify action",
-        skill_id: "swarm-manager-classify-capture",
-        purpose: "Analyze a capture and suggest backlog items.",
+        trigger: "Post-finalization evidence gathering",
+        skill_id: "swarm-manager-review",
+        purpose: "Gather typed evidence after execution.",
       },
       {
         id: "execution-process",
@@ -53,29 +53,29 @@ describe("PromptsPage", () => {
     ]);
     vi.mocked(promptService.listSkills).mockResolvedValue([
       {
-        id: "swarm-manager-classify-capture",
-        name: "Capture Classification",
-        description: "Capture classification prompts",
+        id: "swarm-manager-review",
+        name: "Execution Review Agent",
+        description: "Review prompts",
         draft: false,
         usage_type: "direct_runtime",
-        groups: ["capture"],
+        groups: ["execution"],
         trigger_count: 1,
         impact_summary: "Used directly by 1 runtime prompt path.",
       },
     ]);
     vi.mocked(promptService.getSkill).mockResolvedValue({
-        id: "swarm-manager-classify-capture",
-        name: "Capture Classification",
-        description: "Capture classification prompts",
+        id: "swarm-manager-review",
+        name: "Execution Review Agent",
+        description: "Review prompts",
       draft: false,
       usage_type: "direct_runtime",
         groups: ["capture"],
       trigger_count: 1,
       impact_summary: "Used directly by 1 runtime prompt path.",
-      current_content: "Use {{ITEM_TITLE}} in {{ITEM_FOLDER}}",
+      current_content: "Use {{ITEM_FOLDER}} for review evidence",
     });
     vi.mocked(promptService.getSkillVersions).mockResolvedValue({
-      skillId: "swarm-manager-classify-capture",
+      skillId: "swarm-manager-review",
       current: 1,
       versions: [],
     });

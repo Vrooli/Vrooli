@@ -202,3 +202,58 @@ func TestReplayInvocationFacts_RebuildsRetainedAndPreservesPruned(t *testing.T) 
 		t.Fatalf("pruned facts=%+v err=%v", facts, err)
 	}
 }
+
+// TestReplayInvocationFacts_ProjectsRunsLongerThanOneEventPage guards the
+// defect where projection loaded a single capped page of retained events. The
+// run total was derived from the same truncated slice, so the conservation
+// ledger still reconciled — against a partial run — and the longest, most
+// expensive runs were the least accurately measured.
+func TestReplayInvocationFacts_ProjectsRunsLongerThanOneEventPage(t *testing.T) {
+	repos, events, cleanup := testutil.SetupTestRepos(t)
+	defer cleanup()
+	ctx := context.Background()
+	now := time.Date(2026, 8, 9, 4, 0, 0, 0, time.UTC)
+	task := &domain.Task{ID: uuid.New(), Title: "long-run", ScopePath: "fixture", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, StartedAt: &now, EndedAt: &now, Tag: "fixture", ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex}}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+
+	appendEvent := func(evt *domain.RunEvent) {
+		t.Helper()
+		evt.Timestamp = now
+		if err := events.Append(ctx, run.ID, evt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// One call inside the first page and one past it. A truncating load keeps
+	// the leading call and silently drops the trailing one.
+	appendEvent(domain.NewToolCallEvent(run.ID, "shell", "call-first", map[string]any{"command": "vrooli help"}))
+	for i := 0; i < projectionEventPage; i++ {
+		appendEvent(domain.NewLogEvent(run.ID, "info", "filler"))
+	}
+	appendEvent(domain.NewToolCallEvent(run.ID, "shell", "call-last", map[string]any{"command": "vrooli status"}))
+
+	o := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(events), WithInvocationReadModel(repos.InvocationReadModel), WithClock(func() time.Time { return now }))
+	result, err := o.ReplayInvocationFacts(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("replay err=%v", err)
+	}
+	if result.FactCount != 2 {
+		t.Fatalf("FactCount=%d, want 2: the call past the first page of %d events was dropped", result.FactCount, projectionEventPage)
+	}
+	facts, err := repos.InvocationReadModel.Facts(ctx, run.ID.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, fact := range facts {
+		seen[fact.ToolCallID] = true
+	}
+	if !seen["call-first"] || !seen["call-last"] {
+		t.Fatalf("projected tool calls=%v, want both the leading and trailing call", seen)
+	}
+}

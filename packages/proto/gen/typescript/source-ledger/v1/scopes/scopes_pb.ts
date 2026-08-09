@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file source-ledger/v1/scopes/scopes.proto.
  */
 export const file_source_ledger_v1_scopes_scopes: GenFile = /*@__PURE__*/
-  fileDesc("CiRzb3VyY2UtbGVkZ2VyL3YxL3Njb3Blcy9zY29wZXMucHJvdG8SHnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnNjb3BlcyKIAQoJRmFjZXRTcGVjEgoKAmlkGAEgASgJEg0KBWxhYmVsGAIgASgJEhAKCGd1aWRhbmNlGAMgASgJEhgKEHJldGVudGlvbl9wb2xpY3kYBCABKAkSGwoTY29tcGFjdGlvbl9lbGlnaWJsZRgFIAEoCBIXCg9yZXNpZGVudF9idWRnZXQYBiABKAUipAEKBVNjb3BlEgoKAmlkGAEgASgJEg0KBWxhYmVsGAIgASgJEhcKD2Zyb250aWVyX3RhcmdldBgDIAEoBRITCgt3YWtlX2J1ZGdldBgEIAEoBRIXCg9tYXhfZW50cnlfbGluZXMYBSABKAUSOQoGZmFjZXRzGAYgAygLMikudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuc2NvcGVzLkZhY2V0U3BlYyJKChJDcmVhdGVTY29wZVJlcXVlc3QSNAoFc2NvcGUYASABKAsyJS52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuU2NvcGUiSwoTQ3JlYXRlU2NvcGVSZXNwb25zZRI0CgVzY29wZRgBIAEoCzIlLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnNjb3Blcy5TY29wZSIiChFMaXN0U2NvcGVzUmVxdWVzdBINCgVzY29wZRgBIAEoCSJLChJMaXN0U2NvcGVzUmVzcG9uc2USNQoGc2NvcGVzGAEgAygLMiUudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuc2NvcGVzLlNjb3BlMvwBCg1TY29wZXNTZXJ2aWNlEnYKC0NyZWF0ZVNjb3BlEjIudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuc2NvcGVzLkNyZWF0ZVNjb3BlUmVxdWVzdBozLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnNjb3Blcy5DcmVhdGVTY29wZVJlc3BvbnNlEnMKCkxpc3RTY29wZXMSMS52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuTGlzdFNjb3Blc1JlcXVlc3QaMi52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuTGlzdFNjb3Blc1Jlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc291cmNlLWxlZGdlci92MS9zY29wZXM7c2NvcGVzdjFiBnByb3RvMw");
+  fileDesc("CiRzb3VyY2UtbGVkZ2VyL3YxL3Njb3Blcy9zY29wZXMucHJvdG8SHnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnNjb3BlcyKIAQoJRmFjZXRTcGVjEgoKAmlkGAEgASgJEg0KBWxhYmVsGAIgASgJEhAKCGd1aWRhbmNlGAMgASgJEhgKEHJldGVudGlvbl9wb2xpY3kYBCABKAkSGwoTY29tcGFjdGlvbl9lbGlnaWJsZRgFIAEoCBIXCg9yZXNpZGVudF9idWRnZXQYBiABKAUi2AEKBVNjb3BlEgoKAmlkGAEgASgJEg0KBWxhYmVsGAIgASgJEhcKD2Zyb250aWVyX3RhcmdldBgDIAEoBRITCgt3YWtlX2J1ZGdldBgEIAEoBRIXCg9tYXhfZW50cnlfbGluZXMYBSABKAUSOQoGZmFjZXRzGAYgAygLMikudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuc2NvcGVzLkZhY2V0U3BlYxIZChF3YWtlX2J1ZGdldF9jaGFycxgHIAEoBRIXCg9tYXhfZW50cnlfY2hhcnMYCCABKAUiSgoSQ3JlYXRlU2NvcGVSZXF1ZXN0EjQKBXNjb3BlGAEgASgLMiUudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuc2NvcGVzLlNjb3BlIksKE0NyZWF0ZVNjb3BlUmVzcG9uc2USNAoFc2NvcGUYASABKAsyJS52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuU2NvcGUiIgoRTGlzdFNjb3Blc1JlcXVlc3QSDQoFc2NvcGUYASABKAkiSwoSTGlzdFNjb3Blc1Jlc3BvbnNlEjUKBnNjb3BlcxgBIAMoCzIlLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnNjb3Blcy5TY29wZSK1AgoOUG9saWN5U25hcHNob3QSFwoPZnJvbnRpZXJfdGFyZ2V0GAEgASgFEhkKEXdha2VfYnVkZ2V0X2xpbmVzGAIgASgFEhkKEXdha2VfYnVkZ2V0X2NoYXJzGAMgASgFEhcKD21heF9lbnRyeV9saW5lcxgEIAEoBRIXCg9tYXhfZW50cnlfY2hhcnMYBSABKAUSHgoWZnJvbnRpZXJfdGFyZ2V0X29yaWdpbhgGIAEoCRIgChh3YWtlX2J1ZGdldF9saW5lc19vcmlnaW4YByABKAkSIAoYd2FrZV9idWRnZXRfY2hhcnNfb3JpZ2luGAggASgJEh4KFm1heF9lbnRyeV9saW5lc19vcmlnaW4YCSABKAkSHgoWbWF4X2VudHJ5X2NoYXJzX29yaWdpbhgKIAEoCSIhChBHZXRQb2xpY3lSZXF1ZXN0Eg0KBXNjb3BlGAEgASgJIt4BChFHZXRQb2xpY3lSZXNwb25zZRJBCgllZmZlY3RpdmUYASABKAsyLi52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuUG9saWN5U25hcHNob3QSQAoIZGVmYXVsdHMYAiABKAsyLi52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuUG9saWN5U25hcHNob3QSRAoIbGl2ZW5lc3MYAyABKAsyMi52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuQ29tcGFjdGlvbkxpdmVuZXNzInMKEkNvbXBhY3Rpb25MaXZlbmVzcxIfChd1bnN1bW1hcml6ZWRfbGVhZl9jb3VudBgBIAEoBRIjChtvbGRlc3RfdW5zdW1tYXJpemVkX2xlYWZfYXQYAiABKAkSFwoPbGFzdF9zdW1tYXJ5X2F0GAMgASgJIqMCChBTZXRQb2xpY3lSZXF1ZXN0Eg0KBXNjb3BlGAEgASgJEhwKD2Zyb250aWVyX3RhcmdldBgCIAEoBUgAiAEBEh4KEXdha2VfYnVkZ2V0X2xpbmVzGAMgASgFSAGIAQESHgoRd2FrZV9idWRnZXRfY2hhcnMYBCABKAVIAogBARIcCg9tYXhfZW50cnlfbGluZXMYBSABKAVIA4gBARIcCg9tYXhfZW50cnlfY2hhcnMYBiABKAVIBIgBAUISChBfZnJvbnRpZXJfdGFyZ2V0QhQKEl93YWtlX2J1ZGdldF9saW5lc0IUChJfd2FrZV9idWRnZXRfY2hhcnNCEgoQX21heF9lbnRyeV9saW5lc0ISChBfbWF4X2VudHJ5X2NoYXJzIt4BChFTZXRQb2xpY3lSZXNwb25zZRJBCgllZmZlY3RpdmUYASABKAsyLi52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuUG9saWN5U25hcHNob3QSQAoIZGVmYXVsdHMYAiABKAsyLi52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuUG9saWN5U25hcHNob3QSRAoIbGl2ZW5lc3MYAyABKAsyMi52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuQ29tcGFjdGlvbkxpdmVuZXNzIiMKElJlc2V0UG9saWN5UmVxdWVzdBINCgVzY29wZRgBIAEoCSLgAQoTUmVzZXRQb2xpY3lSZXNwb25zZRJBCgllZmZlY3RpdmUYASABKAsyLi52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuUG9saWN5U25hcHNob3QSQAoIZGVmYXVsdHMYAiABKAsyLi52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuUG9saWN5U25hcHNob3QSRAoIbGl2ZW5lc3MYAyABKAsyMi52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuQ29tcGFjdGlvbkxpdmVuZXNzMtgECg1TY29wZXNTZXJ2aWNlEnYKC0NyZWF0ZVNjb3BlEjIudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuc2NvcGVzLkNyZWF0ZVNjb3BlUmVxdWVzdBozLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnNjb3Blcy5DcmVhdGVTY29wZVJlc3BvbnNlEnMKCkxpc3RTY29wZXMSMS52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuTGlzdFNjb3Blc1JlcXVlc3QaMi52cm9vbGkuc291cmNlX2xlZGdlci52MS5zY29wZXMuTGlzdFNjb3Blc1Jlc3BvbnNlEnAKCUdldFBvbGljeRIwLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnNjb3Blcy5HZXRQb2xpY3lSZXF1ZXN0GjEudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuc2NvcGVzLkdldFBvbGljeVJlc3BvbnNlEnAKCVNldFBvbGljeRIwLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnNjb3Blcy5TZXRQb2xpY3lSZXF1ZXN0GjEudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuc2NvcGVzLlNldFBvbGljeVJlc3BvbnNlEnYKC1Jlc2V0UG9saWN5EjIudnJvb2xpLnNvdXJjZV9sZWRnZXIudjEuc2NvcGVzLlJlc2V0UG9saWN5UmVxdWVzdBozLnZyb29saS5zb3VyY2VfbGVkZ2VyLnYxLnNjb3Blcy5SZXNldFBvbGljeVJlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc291cmNlLWxlZGdlci92MS9zY29wZXM7c2NvcGVzdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.source_ledger.v1.scopes.FacetSpec
@@ -87,6 +87,16 @@ export type Scope = Message<"vrooli.source_ledger.v1.scopes.Scope"> & {
    * @generated from field: repeated vrooli.source_ledger.v1.scopes.FacetSpec facets = 6;
    */
   facets: FacetSpec[];
+
+  /**
+   * @generated from field: int32 wake_budget_chars = 7;
+   */
+  wakeBudgetChars: number;
+
+  /**
+   * @generated from field: int32 max_entry_chars = 8;
+   */
+  maxEntryChars: number;
 };
 
 /**
@@ -165,6 +175,252 @@ export const ListScopesResponseSchema: GenMessage<ListScopesResponse> = /*@__PUR
   messageDesc(file_source_ledger_v1_scopes_scopes, 5);
 
 /**
+ * @generated from message vrooli.source_ledger.v1.scopes.PolicySnapshot
+ */
+export type PolicySnapshot = Message<"vrooli.source_ledger.v1.scopes.PolicySnapshot"> & {
+  /**
+   * @generated from field: int32 frontier_target = 1;
+   */
+  frontierTarget: number;
+
+  /**
+   * @generated from field: int32 wake_budget_lines = 2;
+   */
+  wakeBudgetLines: number;
+
+  /**
+   * @generated from field: int32 wake_budget_chars = 3;
+   */
+  wakeBudgetChars: number;
+
+  /**
+   * @generated from field: int32 max_entry_lines = 4;
+   */
+  maxEntryLines: number;
+
+  /**
+   * @generated from field: int32 max_entry_chars = 5;
+   */
+  maxEntryChars: number;
+
+  /**
+   * @generated from field: string frontier_target_origin = 6;
+   */
+  frontierTargetOrigin: string;
+
+  /**
+   * @generated from field: string wake_budget_lines_origin = 7;
+   */
+  wakeBudgetLinesOrigin: string;
+
+  /**
+   * @generated from field: string wake_budget_chars_origin = 8;
+   */
+  wakeBudgetCharsOrigin: string;
+
+  /**
+   * @generated from field: string max_entry_lines_origin = 9;
+   */
+  maxEntryLinesOrigin: string;
+
+  /**
+   * @generated from field: string max_entry_chars_origin = 10;
+   */
+  maxEntryCharsOrigin: string;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.scopes.PolicySnapshot.
+ * Use `create(PolicySnapshotSchema)` to create a new message.
+ */
+export const PolicySnapshotSchema: GenMessage<PolicySnapshot> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_scopes_scopes, 6);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.scopes.GetPolicyRequest
+ */
+export type GetPolicyRequest = Message<"vrooli.source_ledger.v1.scopes.GetPolicyRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.scopes.GetPolicyRequest.
+ * Use `create(GetPolicyRequestSchema)` to create a new message.
+ */
+export const GetPolicyRequestSchema: GenMessage<GetPolicyRequest> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_scopes_scopes, 7);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.scopes.GetPolicyResponse
+ */
+export type GetPolicyResponse = Message<"vrooli.source_ledger.v1.scopes.GetPolicyResponse"> & {
+  /**
+   * @generated from field: vrooli.source_ledger.v1.scopes.PolicySnapshot effective = 1;
+   */
+  effective?: PolicySnapshot | undefined;
+
+  /**
+   * @generated from field: vrooli.source_ledger.v1.scopes.PolicySnapshot defaults = 2;
+   */
+  defaults?: PolicySnapshot | undefined;
+
+  /**
+   * @generated from field: vrooli.source_ledger.v1.scopes.CompactionLiveness liveness = 3;
+   */
+  liveness?: CompactionLiveness | undefined;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.scopes.GetPolicyResponse.
+ * Use `create(GetPolicyResponseSchema)` to create a new message.
+ */
+export const GetPolicyResponseSchema: GenMessage<GetPolicyResponse> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_scopes_scopes, 8);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.scopes.CompactionLiveness
+ */
+export type CompactionLiveness = Message<"vrooli.source_ledger.v1.scopes.CompactionLiveness"> & {
+  /**
+   * @generated from field: int32 unsummarized_leaf_count = 1;
+   */
+  unsummarizedLeafCount: number;
+
+  /**
+   * @generated from field: string oldest_unsummarized_leaf_at = 2;
+   */
+  oldestUnsummarizedLeafAt: string;
+
+  /**
+   * @generated from field: string last_summary_at = 3;
+   */
+  lastSummaryAt: string;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.scopes.CompactionLiveness.
+ * Use `create(CompactionLivenessSchema)` to create a new message.
+ */
+export const CompactionLivenessSchema: GenMessage<CompactionLiveness> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_scopes_scopes, 9);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.scopes.SetPolicyRequest
+ */
+export type SetPolicyRequest = Message<"vrooli.source_ledger.v1.scopes.SetPolicyRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: optional int32 frontier_target = 2;
+   */
+  frontierTarget?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 wake_budget_lines = 3;
+   */
+  wakeBudgetLines?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 wake_budget_chars = 4;
+   */
+  wakeBudgetChars?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 max_entry_lines = 5;
+   */
+  maxEntryLines?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 max_entry_chars = 6;
+   */
+  maxEntryChars?: number | undefined;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.scopes.SetPolicyRequest.
+ * Use `create(SetPolicyRequestSchema)` to create a new message.
+ */
+export const SetPolicyRequestSchema: GenMessage<SetPolicyRequest> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_scopes_scopes, 10);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.scopes.SetPolicyResponse
+ */
+export type SetPolicyResponse = Message<"vrooli.source_ledger.v1.scopes.SetPolicyResponse"> & {
+  /**
+   * @generated from field: vrooli.source_ledger.v1.scopes.PolicySnapshot effective = 1;
+   */
+  effective?: PolicySnapshot | undefined;
+
+  /**
+   * @generated from field: vrooli.source_ledger.v1.scopes.PolicySnapshot defaults = 2;
+   */
+  defaults?: PolicySnapshot | undefined;
+
+  /**
+   * @generated from field: vrooli.source_ledger.v1.scopes.CompactionLiveness liveness = 3;
+   */
+  liveness?: CompactionLiveness | undefined;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.scopes.SetPolicyResponse.
+ * Use `create(SetPolicyResponseSchema)` to create a new message.
+ */
+export const SetPolicyResponseSchema: GenMessage<SetPolicyResponse> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_scopes_scopes, 11);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.scopes.ResetPolicyRequest
+ */
+export type ResetPolicyRequest = Message<"vrooli.source_ledger.v1.scopes.ResetPolicyRequest"> & {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.scopes.ResetPolicyRequest.
+ * Use `create(ResetPolicyRequestSchema)` to create a new message.
+ */
+export const ResetPolicyRequestSchema: GenMessage<ResetPolicyRequest> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_scopes_scopes, 12);
+
+/**
+ * @generated from message vrooli.source_ledger.v1.scopes.ResetPolicyResponse
+ */
+export type ResetPolicyResponse = Message<"vrooli.source_ledger.v1.scopes.ResetPolicyResponse"> & {
+  /**
+   * @generated from field: vrooli.source_ledger.v1.scopes.PolicySnapshot effective = 1;
+   */
+  effective?: PolicySnapshot | undefined;
+
+  /**
+   * @generated from field: vrooli.source_ledger.v1.scopes.PolicySnapshot defaults = 2;
+   */
+  defaults?: PolicySnapshot | undefined;
+
+  /**
+   * @generated from field: vrooli.source_ledger.v1.scopes.CompactionLiveness liveness = 3;
+   */
+  liveness?: CompactionLiveness | undefined;
+};
+
+/**
+ * Describes the message vrooli.source_ledger.v1.scopes.ResetPolicyResponse.
+ * Use `create(ResetPolicyResponseSchema)` to create a new message.
+ */
+export const ResetPolicyResponseSchema: GenMessage<ResetPolicyResponse> = /*@__PURE__*/
+  messageDesc(file_source_ledger_v1_scopes_scopes, 13);
+
+/**
  * @generated from service vrooli.source_ledger.v1.scopes.ScopesService
  */
 export const ScopesService: GenService<{
@@ -183,6 +439,30 @@ export const ScopesService: GenService<{
     methodKind: "unary";
     input: typeof ListScopesRequestSchema;
     output: typeof ListScopesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.source_ledger.v1.scopes.ScopesService.GetPolicy
+   */
+  getPolicy: {
+    methodKind: "unary";
+    input: typeof GetPolicyRequestSchema;
+    output: typeof GetPolicyResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.source_ledger.v1.scopes.ScopesService.SetPolicy
+   */
+  setPolicy: {
+    methodKind: "unary";
+    input: typeof SetPolicyRequestSchema;
+    output: typeof SetPolicyResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.source_ledger.v1.scopes.ScopesService.ResetPolicy
+   */
+  resetPolicy: {
+    methodKind: "unary";
+    input: typeof ResetPolicyRequestSchema;
+    output: typeof ResetPolicyResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_source_ledger_v1_scopes_scopes, 0);

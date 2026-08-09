@@ -25,6 +25,20 @@ import (
 )
 
 func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error) {
+	if strings.TrimSpace(req.OwnerToken) != "" {
+		if o.ownerIdentity == nil {
+			return nil, domain.NewConfigMissingError("owner_identity", "verifier not configured", nil)
+		}
+		owner, err := o.ownerIdentity.Validate(ctx, req.OwnerToken)
+		if err != nil {
+			// A presented owner credential is never treated as optional. In
+			// particular, authenticator outages do not turn into an unscoped run.
+			return nil, domain.NewValidationErrorWithHint("authorization", "owner token could not be verified", "obtain a fresh owner token and retry")
+		}
+		req.OwnerSubject = strings.TrimSpace(owner.Subject)
+		req.OwnerScopes = append([]string(nil), owner.Scopes...)
+	}
+
 	// IDEMPOTENCY: Check if this request has already been processed
 	if req.IdempotencyKey != "" && o.idempotency != nil {
 		existing, err := o.idempotency.Check(ctx, req.IdempotencyKey)
@@ -309,6 +323,9 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		Tag:                      tag,       // Custom tag for identification
 		Label:                    strings.TrimSpace(task.Title),
 		LabelSource:              domain.RunLabelSourceDerived,
+		OwnerSubject:             req.OwnerSubject,
+		OwnerScopes:              append([]string(nil), req.OwnerScopes...),
+		RequestedScopes:          append([]string(nil), req.RequestedScopes...),
 		Workload:                 workload,
 		Billing:                  billing,
 		SourceRunIDs:             req.SourceRunIDs,

@@ -36,6 +36,9 @@ type runRow struct {
 	Label               string             `db:"label"`
 	LabelSource         string             `db:"label_source"`
 	Subject             sql.NullString     `db:"subject"`
+	OwnerSubject        sql.NullString     `db:"owner_subject"`
+	OwnerScopes         sql.NullString     `db:"owner_scopes"`
+	RequestedScopes     sql.NullString     `db:"requested_scopes"`
 	WorkloadKind        string             `db:"workload_kind"`
 	WorkloadKey         string             `db:"workload_key"`
 	WorkloadInstance    string             `db:"workload_instance"`
@@ -117,6 +120,9 @@ func (row *runRow) toDomain() *domain.Run {
 		Label:                    row.Label,
 		LabelSource:              domain.RunLabelSource(row.LabelSource),
 		Subject:                  parseStringSliceJSON(row.Subject),
+		OwnerSubject:             row.OwnerSubject.String,
+		OwnerScopes:              parseStringSliceJSON(row.OwnerScopes),
+		RequestedScopes:          parseStringSliceJSON(row.RequestedScopes),
 		Workload:                 domain.WorkloadRef{Kind: domain.WorkloadKind(row.WorkloadKind), Key: row.WorkloadKey, Instance: row.WorkloadInstance},
 		Billing:                  decodeBillingSnapshot(row.BillingSnapshot),
 		SandboxID:                row.SandboxID.ToPtr(),
@@ -198,6 +204,10 @@ func runFromDomain(r *domain.Run) *runRow {
 		Tag:                      r.Tag,
 		Label:                    r.Label,
 		LabelSource:              string(r.LabelSource),
+		Subject:                  sql.NullString{String: marshalStringSliceJSON(r.Subject), Valid: true},
+		OwnerSubject:             sql.NullString{String: r.OwnerSubject, Valid: true},
+		OwnerScopes:              sql.NullString{String: marshalStringSliceJSON(r.OwnerScopes), Valid: true},
+		RequestedScopes:          sql.NullString{String: marshalStringSliceJSON(r.RequestedScopes), Valid: true},
 		WorkloadKind:             string(r.Workload.Kind),
 		WorkloadKey:              r.Workload.Key,
 		WorkloadInstance:         r.Workload.Instance,
@@ -300,6 +310,17 @@ func parseStringSliceJSON(raw sql.NullString) []string {
 	return values
 }
 
+func marshalStringSliceJSON(values []string) string {
+	if len(values) == 0 {
+		return "[]"
+	}
+	data, err := json.Marshal(values)
+	if err != nil {
+		return "[]"
+	}
+	return string(data)
+}
+
 func marshalBillingSnapshot(value domain.BillingSnapshot) string {
 	data, err := json.Marshal(value)
 	if err != nil {
@@ -391,7 +412,7 @@ func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 	return string(data)
 }
 
-const runColumns = `id, task_id, agent_profile_id, tag, label, label_source, subject, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
+const runColumns = `id, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_scopes, requested_scopes, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 	execution_mode, web_console_session_id, status,
 	started_at, ended_at, goal_id, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
@@ -410,7 +431,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, label, label_source, sub
 // approved_by, approved_at.
 // NOTE: last_heartbeat MUST be included — the reconciler depends on it
 // to detect stale runs. Without it, every run appears stale after creation.
-const listRunColumns = `id, task_id, agent_profile_id, tag, label, label_source, subject, workload_kind, workload_key, workload_instance, billing_snapshot, run_mode,
+const listRunColumns = `id, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_scopes, requested_scopes, workload_kind, workload_key, workload_instance, billing_snapshot, run_mode,
 	execution_mode, web_console_session_id, status,
 	started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
@@ -429,6 +450,9 @@ type listRunLiteRow struct {
 	Label               string         `db:"label"`
 	LabelSource         string         `db:"label_source"`
 	Subject             sql.NullString `db:"subject"`
+	OwnerSubject        sql.NullString `db:"owner_subject"`
+	OwnerScopes         sql.NullString `db:"owner_scopes"`
+	RequestedScopes     sql.NullString `db:"requested_scopes"`
 	WorkloadKind        string         `db:"workload_kind"`
 	WorkloadKey         string         `db:"workload_key"`
 	WorkloadInstance    string         `db:"workload_instance"`
@@ -486,6 +510,9 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		Label:                    row.Label,
 		LabelSource:              domain.RunLabelSource(row.LabelSource),
 		Subject:                  parseStringSliceJSON(row.Subject),
+		OwnerSubject:             row.OwnerSubject.String,
+		OwnerScopes:              parseStringSliceJSON(row.OwnerScopes),
+		RequestedScopes:          parseStringSliceJSON(row.RequestedScopes),
 		Workload:                 domain.WorkloadRef{Kind: domain.WorkloadKind(row.WorkloadKind), Key: row.WorkloadKey, Instance: row.WorkloadInstance},
 		Billing:                  decodeBillingSnapshot(row.BillingSnapshot),
 		RunMode:                  domain.RunMode(row.RunMode),
@@ -541,7 +568,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	run.UpdatedAt = now
 
 	row := runFromDomain(run)
-	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, label, label_source, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
+	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_scopes, requested_scopes, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 			execution_mode, web_console_session_id, status,
 			started_at, ended_at, goal_id, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 			idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
@@ -553,7 +580,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 			requested_model, actual_model, canary_arm,
 			created_at, updated_at)
-			VALUES (:id, :task_id, :agent_profile_id, :tag, :label, :label_source, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
+			VALUES (:id, :task_id, :agent_profile_id, :tag, :label, :label_source, :subject, :owner_subject, :owner_scopes, :requested_scopes, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
 			:execution_mode, :web_console_session_id, :status,
 			:started_at, :ended_at, :goal_id, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 			:idempotency_key, :summary, :run_result, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
@@ -682,7 +709,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 	row := runFromDomain(run)
 
 	query := `UPDATE runs SET task_id = :task_id, agent_profile_id = :agent_profile_id,
-			tag = :tag, label = :label, label_source = :label_source, sandbox_id = :sandbox_id, run_mode = :run_mode,
+			tag = :tag, label = :label, label_source = :label_source, subject = :subject, owner_subject = :owner_subject, owner_scopes = :owner_scopes, requested_scopes = :requested_scopes, sandbox_id = :sandbox_id, run_mode = :run_mode,
 			execution_mode = :execution_mode, web_console_session_id = :web_console_session_id, status = :status,
 		started_at = :started_at, ended_at = :ended_at, phase = :phase,
 		last_checkpoint_id = :last_checkpoint_id, last_heartbeat = :last_heartbeat,

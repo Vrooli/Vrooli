@@ -395,7 +395,9 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 	// Step 3.5: Generate identity token (before execution so it's in env).
 	e.identityToken = phases.GenerateIdentityToken(execCtx, phases.GenerateIdentityTokenInput{
 		Deps: e.deps(), Run: e.run, Profile: e.profile, Task: e.task, Secret: e.identitySecret,
-		Meta: workflowIdentityMeta(e.run.CustomEnv),
+		Meta:            workflowIdentityMeta(e.run.CustomEnv),
+		AccountScopes:   e.run.OwnerScopes,
+		RequestedScopes: e.run.RequestedScopes,
 	})
 
 	// Step 4: Execute, walking the preset chain on model-unavailable errors.

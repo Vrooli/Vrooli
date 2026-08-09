@@ -580,17 +580,6 @@ Swarm Manager owns the prompt inventory contract. Prompt-manager still owns prom
 {
   "items": [
     {
-      "id": "capture-classify",
-      "title": "Capture Classification",
-      "group": "capture",
-      "usage_type": "direct_runtime",
-      "source_type": "skill",
-      "trigger": "Capture classify action",
-      "skill_id": "swarm-manager-classify-capture",
-      "purpose": "Analyze raw capture text and classify it into suggested backlog items.",
-      "output_paths": ["classification.json", "capture.json"]
-    },
-    {
       "id": "execution-process",
       "title": "Execution Process Prompt",
       "group": "execution",

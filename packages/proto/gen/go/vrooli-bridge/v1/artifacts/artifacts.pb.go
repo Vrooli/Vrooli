@@ -536,6 +536,254 @@ func (x *ListDistributionsResponse) GetDistributions() []*Distribution {
 	return nil
 }
 
+type UploadRunArtifactRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	MediaType     string                 `protobuf:"bytes,3,opt,name=media_type,json=mediaType,proto3" json:"media_type,omitempty"`
+	Data          []byte                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadRunArtifactRequest) Reset() {
+	*x = UploadRunArtifactRequest{}
+	mi := &file_vrooli_bridge_v1_artifacts_artifacts_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadRunArtifactRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadRunArtifactRequest) ProtoMessage() {}
+
+func (x *UploadRunArtifactRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_artifacts_artifacts_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadRunArtifactRequest.ProtoReflect.Descriptor instead.
+func (*UploadRunArtifactRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *UploadRunArtifactRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *UploadRunArtifactRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UploadRunArtifactRequest) GetMediaType() string {
+	if x != nil {
+		return x.MediaType
+	}
+	return ""
+}
+
+func (x *UploadRunArtifactRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type UploadRunArtifactResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ArtifactRef   string                 `protobuf:"bytes,1,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
+	SizeBytes     int64                  `protobuf:"varint,2,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadRunArtifactResponse) Reset() {
+	*x = UploadRunArtifactResponse{}
+	mi := &file_vrooli_bridge_v1_artifacts_artifacts_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadRunArtifactResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadRunArtifactResponse) ProtoMessage() {}
+
+func (x *UploadRunArtifactResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_artifacts_artifacts_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadRunArtifactResponse.ProtoReflect.Descriptor instead.
+func (*UploadRunArtifactResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UploadRunArtifactResponse) GetArtifactRef() string {
+	if x != nil {
+		return x.ArtifactRef
+	}
+	return ""
+}
+
+func (x *UploadRunArtifactResponse) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+type GetRunArtifactRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRunArtifactRequest) Reset() {
+	*x = GetRunArtifactRequest{}
+	mi := &file_vrooli_bridge_v1_artifacts_artifacts_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRunArtifactRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRunArtifactRequest) ProtoMessage() {}
+
+func (x *GetRunArtifactRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_artifacts_artifacts_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRunArtifactRequest.ProtoReflect.Descriptor instead.
+func (*GetRunArtifactRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetRunArtifactRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *GetRunArtifactRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type GetRunArtifactResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	MediaType     string                 `protobuf:"bytes,3,opt,name=media_type,json=mediaType,proto3" json:"media_type,omitempty"`
+	Data          []byte                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	ArtifactRef   string                 `protobuf:"bytes,5,opt,name=artifact_ref,json=artifactRef,proto3" json:"artifact_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRunArtifactResponse) Reset() {
+	*x = GetRunArtifactResponse{}
+	mi := &file_vrooli_bridge_v1_artifacts_artifacts_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRunArtifactResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRunArtifactResponse) ProtoMessage() {}
+
+func (x *GetRunArtifactResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_artifacts_artifacts_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRunArtifactResponse.ProtoReflect.Descriptor instead.
+func (*GetRunArtifactResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetRunArtifactResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *GetRunArtifactResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetRunArtifactResponse) GetMediaType() string {
+	if x != nil {
+		return x.MediaType
+	}
+	return ""
+}
+
+func (x *GetRunArtifactResponse) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *GetRunArtifactResponse) GetArtifactRef() string {
+	if x != nil {
+		return x.ArtifactRef
+	}
+	return ""
+}
+
 var File_vrooli_bridge_v1_artifacts_artifacts_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_artifacts_artifacts_proto_rawDesc = "" +
@@ -575,16 +823,38 @@ const file_vrooli_bridge_v1_artifacts_artifacts_proto_rawDesc = "" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"r\n" +
 	"\x19ListDistributionsResponse\x12U\n" +
-	"\rdistributions\x18\x01 \x03(\v2/.vrooli.vrooli_bridge.v1.artifacts.DistributionR\rdistributions*\x89\x01\n" +
+	"\rdistributions\x18\x01 \x03(\v2/.vrooli.vrooli_bridge.v1.artifacts.DistributionR\rdistributions\"x\n" +
+	"\x18UploadRunArtifactRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"media_type\x18\x03 \x01(\tR\tmediaType\x12\x12\n" +
+	"\x04data\x18\x04 \x01(\fR\x04data\"]\n" +
+	"\x19UploadRunArtifactResponse\x12!\n" +
+	"\fartifact_ref\x18\x01 \x01(\tR\vartifactRef\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x02 \x01(\x03R\tsizeBytes\"B\n" +
+	"\x15GetRunArtifactRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\x99\x01\n" +
+	"\x16GetRunArtifactResponse\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"media_type\x18\x03 \x01(\tR\tmediaType\x12\x12\n" +
+	"\x04data\x18\x04 \x01(\fR\x04data\x12!\n" +
+	"\fartifact_ref\x18\x05 \x01(\tR\vartifactRef*\x89\x01\n" +
 	"\x0eDeliveryStatus\x12\x1f\n" +
 	"\x1bDELIVERY_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17DELIVERY_STATUS_PENDING\x10\x01\x12\x1d\n" +
 	"\x19DELIVERY_STATUS_DELIVERED\x10\x02\x12\x1a\n" +
-	"\x16DELIVERY_STATUS_FAILED\x10\x032\xc2\x03\n" +
+	"\x16DELIVERY_STATUS_FAILED\x10\x032\xdb\x05\n" +
 	"\x10ArtifactsService\x12\x91\x01\n" +
 	"\x12DistributeArtifact\x12<.vrooli.vrooli_bridge.v1.artifacts.DistributeArtifactRequest\x1a=.vrooli.vrooli_bridge.v1.artifacts.DistributeArtifactResponse\x12\x88\x01\n" +
 	"\x0fGetDistribution\x129.vrooli.vrooli_bridge.v1.artifacts.GetDistributionRequest\x1a:.vrooli.vrooli_bridge.v1.artifacts.GetDistributionResponse\x12\x8e\x01\n" +
-	"\x11ListDistributions\x12;.vrooli.vrooli_bridge.v1.artifacts.ListDistributionsRequest\x1a<.vrooli.vrooli_bridge.v1.artifacts.ListDistributionsResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts;artifacts_v1b\x06proto3"
+	"\x11ListDistributions\x12;.vrooli.vrooli_bridge.v1.artifacts.ListDistributionsRequest\x1a<.vrooli.vrooli_bridge.v1.artifacts.ListDistributionsResponse\x12\x8e\x01\n" +
+	"\x11UploadRunArtifact\x12;.vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactRequest\x1a<.vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactResponse\x12\x85\x01\n" +
+	"\x0eGetRunArtifact\x128.vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactRequest\x1a9.vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts;artifacts_v1b\x06proto3"
 
 var (
 	file_vrooli_bridge_v1_artifacts_artifacts_proto_rawDescOnce sync.Once
@@ -599,7 +869,7 @@ func file_vrooli_bridge_v1_artifacts_artifacts_proto_rawDescGZIP() []byte {
 }
 
 var file_vrooli_bridge_v1_artifacts_artifacts_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_vrooli_bridge_v1_artifacts_artifacts_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_vrooli_bridge_v1_artifacts_artifacts_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_vrooli_bridge_v1_artifacts_artifacts_proto_goTypes = []any{
 	(DeliveryStatus)(0),                // 0: vrooli.vrooli_bridge.v1.artifacts.DeliveryStatus
 	(*Distribution)(nil),               // 1: vrooli.vrooli_bridge.v1.artifacts.Distribution
@@ -609,26 +879,34 @@ var file_vrooli_bridge_v1_artifacts_artifacts_proto_goTypes = []any{
 	(*GetDistributionResponse)(nil),    // 5: vrooli.vrooli_bridge.v1.artifacts.GetDistributionResponse
 	(*ListDistributionsRequest)(nil),   // 6: vrooli.vrooli_bridge.v1.artifacts.ListDistributionsRequest
 	(*ListDistributionsResponse)(nil),  // 7: vrooli.vrooli_bridge.v1.artifacts.ListDistributionsResponse
-	(*timestamppb.Timestamp)(nil),      // 8: google.protobuf.Timestamp
+	(*UploadRunArtifactRequest)(nil),   // 8: vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactRequest
+	(*UploadRunArtifactResponse)(nil),  // 9: vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactResponse
+	(*GetRunArtifactRequest)(nil),      // 10: vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactRequest
+	(*GetRunArtifactResponse)(nil),     // 11: vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactResponse
+	(*timestamppb.Timestamp)(nil),      // 12: google.protobuf.Timestamp
 }
 var file_vrooli_bridge_v1_artifacts_artifacts_proto_depIdxs = []int32{
-	0, // 0: vrooli.vrooli_bridge.v1.artifacts.Distribution.status:type_name -> vrooli.vrooli_bridge.v1.artifacts.DeliveryStatus
-	8, // 1: vrooli.vrooli_bridge.v1.artifacts.Distribution.created_at:type_name -> google.protobuf.Timestamp
-	8, // 2: vrooli.vrooli_bridge.v1.artifacts.Distribution.updated_at:type_name -> google.protobuf.Timestamp
-	0, // 3: vrooli.vrooli_bridge.v1.artifacts.DistributeArtifactResponse.status:type_name -> vrooli.vrooli_bridge.v1.artifacts.DeliveryStatus
-	1, // 4: vrooli.vrooli_bridge.v1.artifacts.GetDistributionResponse.distribution:type_name -> vrooli.vrooli_bridge.v1.artifacts.Distribution
-	1, // 5: vrooli.vrooli_bridge.v1.artifacts.ListDistributionsResponse.distributions:type_name -> vrooli.vrooli_bridge.v1.artifacts.Distribution
-	2, // 6: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.DistributeArtifact:input_type -> vrooli.vrooli_bridge.v1.artifacts.DistributeArtifactRequest
-	4, // 7: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.GetDistribution:input_type -> vrooli.vrooli_bridge.v1.artifacts.GetDistributionRequest
-	6, // 8: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.ListDistributions:input_type -> vrooli.vrooli_bridge.v1.artifacts.ListDistributionsRequest
-	3, // 9: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.DistributeArtifact:output_type -> vrooli.vrooli_bridge.v1.artifacts.DistributeArtifactResponse
-	5, // 10: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.GetDistribution:output_type -> vrooli.vrooli_bridge.v1.artifacts.GetDistributionResponse
-	7, // 11: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.ListDistributions:output_type -> vrooli.vrooli_bridge.v1.artifacts.ListDistributionsResponse
-	9, // [9:12] is the sub-list for method output_type
-	6, // [6:9] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	0,  // 0: vrooli.vrooli_bridge.v1.artifacts.Distribution.status:type_name -> vrooli.vrooli_bridge.v1.artifacts.DeliveryStatus
+	12, // 1: vrooli.vrooli_bridge.v1.artifacts.Distribution.created_at:type_name -> google.protobuf.Timestamp
+	12, // 2: vrooli.vrooli_bridge.v1.artifacts.Distribution.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 3: vrooli.vrooli_bridge.v1.artifacts.DistributeArtifactResponse.status:type_name -> vrooli.vrooli_bridge.v1.artifacts.DeliveryStatus
+	1,  // 4: vrooli.vrooli_bridge.v1.artifacts.GetDistributionResponse.distribution:type_name -> vrooli.vrooli_bridge.v1.artifacts.Distribution
+	1,  // 5: vrooli.vrooli_bridge.v1.artifacts.ListDistributionsResponse.distributions:type_name -> vrooli.vrooli_bridge.v1.artifacts.Distribution
+	2,  // 6: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.DistributeArtifact:input_type -> vrooli.vrooli_bridge.v1.artifacts.DistributeArtifactRequest
+	4,  // 7: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.GetDistribution:input_type -> vrooli.vrooli_bridge.v1.artifacts.GetDistributionRequest
+	6,  // 8: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.ListDistributions:input_type -> vrooli.vrooli_bridge.v1.artifacts.ListDistributionsRequest
+	8,  // 9: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.UploadRunArtifact:input_type -> vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactRequest
+	10, // 10: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.GetRunArtifact:input_type -> vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactRequest
+	3,  // 11: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.DistributeArtifact:output_type -> vrooli.vrooli_bridge.v1.artifacts.DistributeArtifactResponse
+	5,  // 12: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.GetDistribution:output_type -> vrooli.vrooli_bridge.v1.artifacts.GetDistributionResponse
+	7,  // 13: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.ListDistributions:output_type -> vrooli.vrooli_bridge.v1.artifacts.ListDistributionsResponse
+	9,  // 14: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.UploadRunArtifact:output_type -> vrooli.vrooli_bridge.v1.artifacts.UploadRunArtifactResponse
+	11, // 15: vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.GetRunArtifact:output_type -> vrooli.vrooli_bridge.v1.artifacts.GetRunArtifactResponse
+	11, // [11:16] is the sub-list for method output_type
+	6,  // [6:11] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_artifacts_artifacts_proto_init() }
@@ -642,7 +920,7 @@ func file_vrooli_bridge_v1_artifacts_artifacts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_artifacts_artifacts_proto_rawDesc), len(file_vrooli_bridge_v1_artifacts_artifacts_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

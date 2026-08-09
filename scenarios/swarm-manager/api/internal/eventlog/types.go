@@ -111,13 +111,6 @@ const (
 	EventWorkshopRoundCompleted EventType = "decision.workshop_round_completed"
 )
 
-// Clarification events.
-const (
-	EventClarificationStarted  EventType = "backlog.clarification_started"
-	EventClarificationResolved EventType = "backlog.clarification_resolved"
-	EventClarificationAction   EventType = "backlog.clarification_action"
-)
-
 // Review evidence events.
 const (
 	EventReviewStarted          EventType = "review.started"
@@ -432,28 +425,6 @@ type WorkshopRoundPayload struct {
 	ItemsAnswered          int    `json:"items_answered,omitempty"`
 	ItemsRecommendedChosen int    `json:"items_recommended_chosen,omitempty"`
 	ItemsFreeformChosen    int    `json:"items_freeform_chosen,omitempty"`
-}
-
-// ClarificationStartedPayload records clarification initiation.
-type ClarificationStartedPayload struct {
-	RoundNumber int    `json:"round_number"`
-	ItemID      string `json:"item_id"`
-	HasMessage  bool   `json:"has_message"`
-}
-
-// ClarificationResolvedPayload records clarification completion.
-type ClarificationResolvedPayload struct {
-	RoundNumber  int    `json:"round_number"`
-	ItemID       string `json:"item_id"`
-	MessageCount int    `json:"message_count"`
-	ImpactLevel  string `json:"impact_level"`
-}
-
-// ClarificationActionPayload records which post-clarification action was taken.
-type ClarificationActionPayload struct {
-	RoundNumber int    `json:"round_number"`
-	ItemID      string `json:"item_id"`
-	Action      string `json:"action"`
 }
 
 // ReviewStartedPayload records review agent initiation.

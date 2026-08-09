@@ -126,3 +126,59 @@ func TestEstimateTextMatchesProviderGroundTruthWithinRecordedError(t *testing.T)
 		t.Fatalf("p95 relative error = %.3f, exceeds the 50%% gate", p95)
 	}
 }
+
+func TestSegmentShareConservesTheCallTotal(t *testing.T) {
+	// The defect this guards against is a compound command multiplying its
+	// call's payload by its segment count, so the property under test is
+	// conservation across every segment count, not any single share value.
+	for _, total := range []int64{0, 1, 7, 100, 24064, 180217807} {
+		for segmentCount := 1; segmentCount <= 12; segmentCount++ {
+			var sum int64
+			for index := 0; index < segmentCount; index++ {
+				sum += SegmentShare(total, segmentCount, index)
+			}
+			if sum != total {
+				t.Fatalf("SegmentShare(%d, %d, ...) summed to %d, want %d", total, segmentCount, sum, total)
+			}
+		}
+	}
+}
+
+func TestSegmentShareSpreadsRemainderWithoutFavouringOneCommand(t *testing.T) {
+	// An even split is the declared approximation: the retained evidence
+	// cannot say which stage of a pipeline produced the bytes. Shares must
+	// therefore never differ by more than the single-token remainder, or the
+	// leading command in every `cd x && ...` line becomes a token sink.
+	shares := []int64{SegmentShare(10, 3, 0), SegmentShare(10, 3, 1), SegmentShare(10, 3, 2)}
+	if shares[0] != 4 || shares[1] != 3 || shares[2] != 3 {
+		t.Fatalf("shares = %v, want [4 3 3]", shares)
+	}
+	for _, share := range shares {
+		if share < 3 || share > 4 {
+			t.Fatalf("share %d escaped the one-token remainder band %v", share, shares)
+		}
+	}
+}
+
+func TestSegmentShareLeavesSingleSegmentCallsWhole(t *testing.T) {
+	if got := SegmentShare(4096, 1, 0); got != 4096 {
+		t.Fatalf("SegmentShare(4096, 1, 0) = %d, want 4096", got)
+	}
+	if got := SegmentShare(4096, 0, 0); got != 4096 {
+		t.Fatalf("an unsegmented fact must keep its whole total, got %d", got)
+	}
+}
+
+func TestSegmentShareRefusesToInventTokensForOutOfRangeSegments(t *testing.T) {
+	// Returning the total for a nonsensical index would inflate a SUM; zero
+	// keeps the aggregate conservative when a caller passes bad coordinates.
+	if got := SegmentShare(100, 3, 3); got != 0 {
+		t.Fatalf("SegmentShare(100, 3, 3) = %d, want 0", got)
+	}
+	if got := SegmentShare(100, 3, -1); got != 0 {
+		t.Fatalf("SegmentShare(100, 3, -1) = %d, want 0", got)
+	}
+	if got := SegmentShare(-5, 3, 0); got != 0 {
+		t.Fatalf("SegmentShare(-5, 3, 0) = %d, want 0", got)
+	}
+}

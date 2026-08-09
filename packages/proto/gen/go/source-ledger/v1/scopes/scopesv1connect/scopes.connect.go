@@ -39,12 +39,22 @@ const (
 	// ScopesServiceListScopesProcedure is the fully-qualified name of the ScopesService's ListScopes
 	// RPC.
 	ScopesServiceListScopesProcedure = "/vrooli.source_ledger.v1.scopes.ScopesService/ListScopes"
+	// ScopesServiceGetPolicyProcedure is the fully-qualified name of the ScopesService's GetPolicy RPC.
+	ScopesServiceGetPolicyProcedure = "/vrooli.source_ledger.v1.scopes.ScopesService/GetPolicy"
+	// ScopesServiceSetPolicyProcedure is the fully-qualified name of the ScopesService's SetPolicy RPC.
+	ScopesServiceSetPolicyProcedure = "/vrooli.source_ledger.v1.scopes.ScopesService/SetPolicy"
+	// ScopesServiceResetPolicyProcedure is the fully-qualified name of the ScopesService's ResetPolicy
+	// RPC.
+	ScopesServiceResetPolicyProcedure = "/vrooli.source_ledger.v1.scopes.ScopesService/ResetPolicy"
 )
 
 // ScopesServiceClient is a client for the vrooli.source_ledger.v1.scopes.ScopesService service.
 type ScopesServiceClient interface {
 	CreateScope(context.Context, *connect.Request[scopes.CreateScopeRequest]) (*connect.Response[scopes.CreateScopeResponse], error)
 	ListScopes(context.Context, *connect.Request[scopes.ListScopesRequest]) (*connect.Response[scopes.ListScopesResponse], error)
+	GetPolicy(context.Context, *connect.Request[scopes.GetPolicyRequest]) (*connect.Response[scopes.GetPolicyResponse], error)
+	SetPolicy(context.Context, *connect.Request[scopes.SetPolicyRequest]) (*connect.Response[scopes.SetPolicyResponse], error)
+	ResetPolicy(context.Context, *connect.Request[scopes.ResetPolicyRequest]) (*connect.Response[scopes.ResetPolicyResponse], error)
 }
 
 // NewScopesServiceClient constructs a client for the vrooli.source_ledger.v1.scopes.ScopesService
@@ -70,6 +80,24 @@ func NewScopesServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(scopesServiceMethods.ByName("ListScopes")),
 			connect.WithClientOptions(opts...),
 		),
+		getPolicy: connect.NewClient[scopes.GetPolicyRequest, scopes.GetPolicyResponse](
+			httpClient,
+			baseURL+ScopesServiceGetPolicyProcedure,
+			connect.WithSchema(scopesServiceMethods.ByName("GetPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		setPolicy: connect.NewClient[scopes.SetPolicyRequest, scopes.SetPolicyResponse](
+			httpClient,
+			baseURL+ScopesServiceSetPolicyProcedure,
+			connect.WithSchema(scopesServiceMethods.ByName("SetPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		resetPolicy: connect.NewClient[scopes.ResetPolicyRequest, scopes.ResetPolicyResponse](
+			httpClient,
+			baseURL+ScopesServiceResetPolicyProcedure,
+			connect.WithSchema(scopesServiceMethods.ByName("ResetPolicy")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -77,6 +105,9 @@ func NewScopesServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 type scopesServiceClient struct {
 	createScope *connect.Client[scopes.CreateScopeRequest, scopes.CreateScopeResponse]
 	listScopes  *connect.Client[scopes.ListScopesRequest, scopes.ListScopesResponse]
+	getPolicy   *connect.Client[scopes.GetPolicyRequest, scopes.GetPolicyResponse]
+	setPolicy   *connect.Client[scopes.SetPolicyRequest, scopes.SetPolicyResponse]
+	resetPolicy *connect.Client[scopes.ResetPolicyRequest, scopes.ResetPolicyResponse]
 }
 
 // CreateScope calls vrooli.source_ledger.v1.scopes.ScopesService.CreateScope.
@@ -89,11 +120,29 @@ func (c *scopesServiceClient) ListScopes(ctx context.Context, req *connect.Reque
 	return c.listScopes.CallUnary(ctx, req)
 }
 
+// GetPolicy calls vrooli.source_ledger.v1.scopes.ScopesService.GetPolicy.
+func (c *scopesServiceClient) GetPolicy(ctx context.Context, req *connect.Request[scopes.GetPolicyRequest]) (*connect.Response[scopes.GetPolicyResponse], error) {
+	return c.getPolicy.CallUnary(ctx, req)
+}
+
+// SetPolicy calls vrooli.source_ledger.v1.scopes.ScopesService.SetPolicy.
+func (c *scopesServiceClient) SetPolicy(ctx context.Context, req *connect.Request[scopes.SetPolicyRequest]) (*connect.Response[scopes.SetPolicyResponse], error) {
+	return c.setPolicy.CallUnary(ctx, req)
+}
+
+// ResetPolicy calls vrooli.source_ledger.v1.scopes.ScopesService.ResetPolicy.
+func (c *scopesServiceClient) ResetPolicy(ctx context.Context, req *connect.Request[scopes.ResetPolicyRequest]) (*connect.Response[scopes.ResetPolicyResponse], error) {
+	return c.resetPolicy.CallUnary(ctx, req)
+}
+
 // ScopesServiceHandler is an implementation of the vrooli.source_ledger.v1.scopes.ScopesService
 // service.
 type ScopesServiceHandler interface {
 	CreateScope(context.Context, *connect.Request[scopes.CreateScopeRequest]) (*connect.Response[scopes.CreateScopeResponse], error)
 	ListScopes(context.Context, *connect.Request[scopes.ListScopesRequest]) (*connect.Response[scopes.ListScopesResponse], error)
+	GetPolicy(context.Context, *connect.Request[scopes.GetPolicyRequest]) (*connect.Response[scopes.GetPolicyResponse], error)
+	SetPolicy(context.Context, *connect.Request[scopes.SetPolicyRequest]) (*connect.Response[scopes.SetPolicyResponse], error)
+	ResetPolicy(context.Context, *connect.Request[scopes.ResetPolicyRequest]) (*connect.Response[scopes.ResetPolicyResponse], error)
 }
 
 // NewScopesServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -115,12 +164,36 @@ func NewScopesServiceHandler(svc ScopesServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(scopesServiceMethods.ByName("ListScopes")),
 		connect.WithHandlerOptions(opts...),
 	)
+	scopesServiceGetPolicyHandler := connect.NewUnaryHandler(
+		ScopesServiceGetPolicyProcedure,
+		svc.GetPolicy,
+		connect.WithSchema(scopesServiceMethods.ByName("GetPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	scopesServiceSetPolicyHandler := connect.NewUnaryHandler(
+		ScopesServiceSetPolicyProcedure,
+		svc.SetPolicy,
+		connect.WithSchema(scopesServiceMethods.ByName("SetPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	scopesServiceResetPolicyHandler := connect.NewUnaryHandler(
+		ScopesServiceResetPolicyProcedure,
+		svc.ResetPolicy,
+		connect.WithSchema(scopesServiceMethods.ByName("ResetPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.source_ledger.v1.scopes.ScopesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ScopesServiceCreateScopeProcedure:
 			scopesServiceCreateScopeHandler.ServeHTTP(w, r)
 		case ScopesServiceListScopesProcedure:
 			scopesServiceListScopesHandler.ServeHTTP(w, r)
+		case ScopesServiceGetPolicyProcedure:
+			scopesServiceGetPolicyHandler.ServeHTTP(w, r)
+		case ScopesServiceSetPolicyProcedure:
+			scopesServiceSetPolicyHandler.ServeHTTP(w, r)
+		case ScopesServiceResetPolicyProcedure:
+			scopesServiceResetPolicyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -136,4 +209,16 @@ func (UnimplementedScopesServiceHandler) CreateScope(context.Context, *connect.R
 
 func (UnimplementedScopesServiceHandler) ListScopes(context.Context, *connect.Request[scopes.ListScopesRequest]) (*connect.Response[scopes.ListScopesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.scopes.ScopesService.ListScopes is not implemented"))
+}
+
+func (UnimplementedScopesServiceHandler) GetPolicy(context.Context, *connect.Request[scopes.GetPolicyRequest]) (*connect.Response[scopes.GetPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.scopes.ScopesService.GetPolicy is not implemented"))
+}
+
+func (UnimplementedScopesServiceHandler) SetPolicy(context.Context, *connect.Request[scopes.SetPolicyRequest]) (*connect.Response[scopes.SetPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.scopes.ScopesService.SetPolicy is not implemented"))
+}
+
+func (UnimplementedScopesServiceHandler) ResetPolicy(context.Context, *connect.Request[scopes.ResetPolicyRequest]) (*connect.Response[scopes.ResetPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.source_ledger.v1.scopes.ScopesService.ResetPolicy is not implemented"))
 }

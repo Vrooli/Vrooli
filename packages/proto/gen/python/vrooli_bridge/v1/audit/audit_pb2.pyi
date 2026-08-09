@@ -15,6 +15,7 @@ class AuditAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AUDIT_ACTION_UNSPECIFIED: _ClassVar[AuditAction]
     AUDIT_ACTION_DISPATCH: _ClassVar[AuditAction]
     AUDIT_ACTION_PROVISION: _ClassVar[AuditAction]
+    AUDIT_ACTION_BREAK_GLASS: _ClassVar[AuditAction]
 
 class AuditOutcome(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -26,6 +27,7 @@ class AuditOutcome(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 AUDIT_ACTION_UNSPECIFIED: AuditAction
 AUDIT_ACTION_DISPATCH: AuditAction
 AUDIT_ACTION_PROVISION: AuditAction
+AUDIT_ACTION_BREAK_GLASS: AuditAction
 AUDIT_OUTCOME_UNSPECIFIED: AuditOutcome
 AUDIT_OUTCOME_ACCEPTED: AuditOutcome
 AUDIT_OUTCOME_REJECTED: AuditOutcome

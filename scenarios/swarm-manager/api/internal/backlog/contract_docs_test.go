@@ -34,7 +34,7 @@ func TestAuthoritativeDocsRejectLegacyScopeAndBatchMilestoneFlag(t *testing.T) {
 
 	files := []string{
 		"scenarios/prompt-manager/store/skills/packs/core/swarm-manager-meta-orchestrator/SKILL.md",
-		"scenarios/prompt-manager/store/skills/packs/core/swarm-manager-backlog-tools/SKILL.md",
+		"scenarios/prompt-manager/store/skills/packs/core/swarm-manager-work-authoring/SKILL.md",
 		"scenarios/swarm-manager/docs/reference/cli-commands.md",
 	}
 
@@ -74,7 +74,7 @@ func TestAuthoritativeDocsDescribeCanonicalBacklogImport(t *testing.T) {
 		t.Fatal("meta-orchestrator skill teaches the retired top-level milestones import block; milestones are created through the goal API with acceptance criteria")
 	}
 
-	backlogTools := readRepoFile(t, root, "scenarios/prompt-manager/store/skills/packs/core/swarm-manager-backlog-tools/SKILL.md")
+	backlogTools := metaSkill
 	for _, required := range []string{
 		"acceptance_allow",
 		"acceptance_deny",

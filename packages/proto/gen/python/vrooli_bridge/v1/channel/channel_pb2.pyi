@@ -98,18 +98,32 @@ class Heartbeat(_message.Message):
     def __init__(self, node_id: _Optional[str] = ..., sequence: _Optional[int] = ..., health: _Optional[_Union[HealthSnapshot, _Mapping]] = ..., sent_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class JobPush(_message.Message):
-    __slots__ = ("run_id", "scenario", "verb", "args", "timeout_seconds")
+    __slots__ = ("run_id", "scenario", "verb", "args", "timeout_seconds", "outputs")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     VERB_FIELD_NUMBER: _ClassVar[int]
     ARGS_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUTS_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     verb: str
     args: _containers.RepeatedScalarFieldContainer[str]
     timeout_seconds: int
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., verb: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+    outputs: _containers.RepeatedCompositeFieldContainer[ArtifactOutput]
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., verb: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ..., timeout_seconds: _Optional[int] = ..., outputs: _Optional[_Iterable[_Union[ArtifactOutput, _Mapping]]] = ...) -> None: ...
+
+class ArtifactOutput(_message.Message):
+    __slots__ = ("name", "media_type", "output_flag", "max_bytes")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    MEDIA_TYPE_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_FLAG_FIELD_NUMBER: _ClassVar[int]
+    MAX_BYTES_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    media_type: str
+    output_flag: str
+    max_bytes: int
+    def __init__(self, name: _Optional[str] = ..., media_type: _Optional[str] = ..., output_flag: _Optional[str] = ..., max_bytes: _Optional[int] = ...) -> None: ...
 
 class ProvisionCommand(_message.Message):
     __slots__ = ("op_id", "target_revision", "rollback_revision")

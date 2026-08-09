@@ -233,10 +233,12 @@ of the same workflow in the verified caller chain. `maxDepth` is not valid for
 
 Agent Manager classifies a valid identity token as `agent`. A request without a
 token is `programmatic`. A trusted UI or CLI session may mark a request
-`human`. Missing or unverifiable identity fails open as programmatic and emits
-an audit entry. The policy provides accountability. It does not prevent an
-agent from clearing its environment; hard isolation needs sandbox network
-controls.
+`human`. If a request presents itself as an agent but the token is missing,
+invalid, revoked, expired, or cannot be verified, the trigger is denied and an
+audit entry records `identity_unverified`; it is never reclassified as
+programmatic. This prevents an identity-verification outage from becoming an
+authorization grant. The policy does not prevent an agent from clearing its
+environment; hard isolation needs sandbox network controls.
 
 ## Workflow run scope
 

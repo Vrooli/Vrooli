@@ -22,7 +22,12 @@ import (
 // v4 backfills bounded failure signatures into durable facts produced before
 // that field was projected, so historical failed invocations remain actionable
 // after a replay without retaining raw tool output.
-const InvocationFactVersion = "invocation-fact.v16"
+// v17 apportions per-call token quantities across the segments of a compound
+// command. Facts at v16 and earlier copied the whole call's payload onto every
+// segment, so any SUM over them overcounts a run in proportion to how compound
+// its commands were. The version bump is what makes a refresh reproject those
+// runs instead of leaving the two conventions mixed in one cohort.
+const InvocationFactVersion = "invocation-fact.v17"
 
 // FailureSignatureMaxLength bounds retained failure vocabulary. Signatures are
 // controlled class labels, never copied error text.

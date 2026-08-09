@@ -5,7 +5,7 @@
  * toggle so that deeply-nested child components can read/write them
  * without prop drilling through the page component.
  *
- * Follows the same pattern as clarification-store.ts.
+ * Keeps transient detail-page state local to this store.
  */
 
 import { create } from "zustand";

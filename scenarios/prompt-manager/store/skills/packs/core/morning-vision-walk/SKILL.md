@@ -7,7 +7,7 @@ Required reading:
 
 Optional reading:
 - `prompt-manager skill read idea-workshop` (for ideation phase technique)
-- `prompt-manager skill read swarm-manager-backlog-tools` (for creating backlog items in the action phase)
+- `prompt-manager skill read swarm-manager-work-authoring` (for creating backlog items in the action phase)
 
 ---
 

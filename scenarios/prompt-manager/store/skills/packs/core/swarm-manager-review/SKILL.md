@@ -9,7 +9,7 @@ Your job: given what was supposed to happen (spec/plan) and what actually change
 ## Required Reading
 
 ```bash
-prompt-manager skill read swarm-manager-backlog-tools
+prompt-manager skill read swarm-manager-work-authoring
 ```
 
 ## Inputs

@@ -20,13 +20,9 @@ func NewBacklogItemCreatorAdapter(store backlog.Store) *backlogItemCreatorAdapte
 	return &backlogItemCreatorAdapter{store: store}
 }
 
-func (a *backlogItemCreatorAdapter) ItemDir(kind, name string) string {
-	return a.store.ItemDir(backlog.BacklogKind(kind), name)
-}
-
-func (a *backlogItemCreatorAdapter) SaveItem(kind, name, title, description string, tags []string) error {
-	bk := backlog.BacklogKind(kind)
-	itemDir := a.store.ItemDir(bk, name)
+func (a *backlogItemCreatorAdapter) SaveItem(draft BacklogItemDraft) error {
+	bk := backlog.BacklogKind(draft.Kind)
+	itemDir := a.store.ItemDir(bk, draft.Name)
 	if err := os.MkdirAll(filepath.Dir(itemDir), 0o750); err != nil {
 		return fmt.Errorf("create parent dir: %w", err)
 	}
@@ -38,15 +34,16 @@ func (a *backlogItemCreatorAdapter) SaveItem(kind, name, title, description stri
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	item := backlog.BacklogItem{
-		Name:        name,
-		Title:       title,
-		Description: description,
+		Name:        draft.Name,
+		Title:       draft.Title,
+		Description: draft.Description,
 		Status:      backlog.StatusBacklog,
-		Priority:    5,
-		Tags:        tags,
+		Priority:    draft.Priority,
+		Tags:        draft.Tags,
 		Created:     now,
 		Updated:     now,
 		Kind:        bk,
+		SpawnedFrom: draft.SpawnedFrom,
 	}
 	if err := a.store.SaveItem(item); err != nil {
 		if rmErr := os.RemoveAll(itemDir); rmErr != nil {

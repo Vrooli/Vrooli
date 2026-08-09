@@ -108,18 +108,6 @@ class RefreshProjectionResponse(_message.Message):
     line_cap: int
     def __init__(self, path: _Optional[str] = ..., size_bytes: _Optional[int] = ..., overflow: _Optional[bool] = ..., dry_run: _Optional[bool] = ..., rendered_content: _Optional[str] = ..., size_lines: _Optional[int] = ..., byte_cap: _Optional[int] = ..., line_cap: _Optional[int] = ...) -> None: ...
 
-class InstallPromptBlockRequest(_message.Message):
-    __slots__ = ("runtime",)
-    RUNTIME_FIELD_NUMBER: _ClassVar[int]
-    runtime: str
-    def __init__(self, runtime: _Optional[str] = ...) -> None: ...
-
-class InstallPromptBlockResponse(_message.Message):
-    __slots__ = ("installed",)
-    INSTALLED_FIELD_NUMBER: _ClassVar[int]
-    installed: bool
-    def __init__(self, installed: _Optional[bool] = ...) -> None: ...
-
 class CaptureWriteRequest(_message.Message):
     __slots__ = ("runtime", "content", "source_path")
     RUNTIME_FIELD_NUMBER: _ClassVar[int]

@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n1scenario-authenticator/v1/accounts/accounts.proto\x12)vrooli.scenario_authenticator.v1.accounts\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd9\x01\n\x07\x41\x63\x63ount\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05\x65mail\x18\x02 \x01(\tR\x05\x65mail\x12\x1a\n\x08username\x18\x03 \x01(\tR\x08username\x12\x14\n\x05roles\x18\x04 \x03(\tR\x05roles\x12\x14\n\x05realm\x18\x05 \x01(\tR\x05realm\x12%\n\x0e\x65mail_verified\x18\x06 \x01(\x08R\remailVerified\x12\x39\n\ncreated_at\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\"\xa6\x01\n\tTokenPair\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\x12#\n\rrefresh_token\x18\x02 \x01(\tR\x0crefreshToken\x12Q\n\x17\x61\x63\x63\x65ss_token_expires_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x14\x61\x63\x63\x65ssTokenExpiresAt\"u\n\x0fRegisterRequest\x12\x14\n\x05\x65mail\x18\x01 \x01(\tR\x05\x65mail\x12\x1a\n\x08password\x18\x02 \x01(\tR\x08password\x12\x1a\n\x08username\x18\x03 \x01(\tR\x08username\x12\x14\n\x05realm\x18\x04 \x01(\tR\x05realm\"\xae\x01\n\x10RegisterResponse\x12L\n\x07\x61\x63\x63ount\x18\x01 \x01(\x0b\x32\x32.vrooli.scenario_authenticator.v1.accounts.AccountR\x07\x61\x63\x63ount\x12L\n\x06tokens\x18\x02 \x01(\x0b\x32\x34.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"V\n\x0cLoginRequest\x12\x14\n\x05\x65mail\x18\x01 \x01(\tR\x05\x65mail\x12\x1a\n\x08password\x18\x02 \x01(\tR\x08password\x12\x14\n\x05realm\x18\x03 \x01(\tR\x05realm\"\xab\x01\n\rLoginResponse\x12L\n\x07\x61\x63\x63ount\x18\x01 \x01(\x0b\x32\x32.vrooli.scenario_authenticator.v1.accounts.AccountR\x07\x61\x63\x63ount\x12L\n\x06tokens\x18\x02 \x01(\x0b\x32\x34.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"5\n\x0eRefreshRequest\x12#\n\rrefresh_token\x18\x01 \x01(\tR\x0crefreshToken\"_\n\x0fRefreshResponse\x12L\n\x06tokens\x18\x01 \x01(\x0b\x32\x34.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"2\n\rLogoutRequest\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\"\x10\n\x0eLogoutResponse\"4\n\x0fValidateRequest\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\"\xbe\x01\n\x10ValidateResponse\x12\x14\n\x05valid\x18\x01 \x01(\x08R\x05valid\x12\x17\n\x07user_id\x18\x02 \x01(\tR\x06userId\x12\x14\n\x05\x65mail\x18\x03 \x01(\tR\x05\x65mail\x12\x14\n\x05roles\x18\x04 \x03(\tR\x05roles\x12\x14\n\x05realm\x18\x05 \x01(\tR\x05realm\x12\x39\n\nexpires_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\texpiresAt2\x9b\x05\n\x0f\x41\x63\x63ountsService\x12\x83\x01\n\x08Register\x12:.vrooli.scenario_authenticator.v1.accounts.RegisterRequest\x1a;.vrooli.scenario_authenticator.v1.accounts.RegisterResponse\x12z\n\x05Login\x12\x37.vrooli.scenario_authenticator.v1.accounts.LoginRequest\x1a\x38.vrooli.scenario_authenticator.v1.accounts.LoginResponse\x12\x80\x01\n\x07Refresh\x12\x39.vrooli.scenario_authenticator.v1.accounts.RefreshRequest\x1a:.vrooli.scenario_authenticator.v1.accounts.RefreshResponse\x12}\n\x06Logout\x12\x38.vrooli.scenario_authenticator.v1.accounts.LogoutRequest\x1a\x39.vrooli.scenario_authenticator.v1.accounts.LogoutResponse\x12\x83\x01\n\x08Validate\x12:.vrooli.scenario_authenticator.v1.accounts.ValidateRequest\x1a;.vrooli.scenario_authenticator.v1.accounts.ValidateResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts;accounts_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n1scenario-authenticator/v1/accounts/accounts.proto\x12)vrooli.scenario_authenticator.v1.accounts\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf1\x01\n\x07\x41\x63\x63ount\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05\x65mail\x18\x02 \x01(\tR\x05\x65mail\x12\x1a\n\x08username\x18\x03 \x01(\tR\x08username\x12\x14\n\x05roles\x18\x04 \x03(\tR\x05roles\x12\x14\n\x05realm\x18\x05 \x01(\tR\x05realm\x12%\n\x0e\x65mail_verified\x18\x06 \x01(\x08R\remailVerified\x12\x39\n\ncreated_at\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x16\n\x06scopes\x18\x08 \x03(\tR\x06scopes\"\xa6\x01\n\tTokenPair\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\x12#\n\rrefresh_token\x18\x02 \x01(\tR\x0crefreshToken\x12Q\n\x17\x61\x63\x63\x65ss_token_expires_at\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x14\x61\x63\x63\x65ssTokenExpiresAt\"u\n\x0fRegisterRequest\x12\x14\n\x05\x65mail\x18\x01 \x01(\tR\x05\x65mail\x12\x1a\n\x08password\x18\x02 \x01(\tR\x08password\x12\x1a\n\x08username\x18\x03 \x01(\tR\x08username\x12\x14\n\x05realm\x18\x04 \x01(\tR\x05realm\"\xae\x01\n\x10RegisterResponse\x12L\n\x07\x61\x63\x63ount\x18\x01 \x01(\x0b\x32\x32.vrooli.scenario_authenticator.v1.accounts.AccountR\x07\x61\x63\x63ount\x12L\n\x06tokens\x18\x02 \x01(\x0b\x32\x34.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"V\n\x0cLoginRequest\x12\x14\n\x05\x65mail\x18\x01 \x01(\tR\x05\x65mail\x12\x1a\n\x08password\x18\x02 \x01(\tR\x08password\x12\x14\n\x05realm\x18\x03 \x01(\tR\x05realm\"\xab\x01\n\rLoginResponse\x12L\n\x07\x61\x63\x63ount\x18\x01 \x01(\x0b\x32\x32.vrooli.scenario_authenticator.v1.accounts.AccountR\x07\x61\x63\x63ount\x12L\n\x06tokens\x18\x02 \x01(\x0b\x32\x34.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"\x88\x01\n\x15\x43hangePasswordRequest\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\x12)\n\x10\x63urrent_password\x18\x02 \x01(\tR\x0f\x63urrentPassword\x12!\n\x0cnew_password\x18\x03 \x01(\tR\x0bnewPassword\"C\n\x16\x43hangePasswordResponse\x12)\n\x10revoked_sessions\x18\x01 \x01(\x03R\x0frevokedSessions\"5\n\x0eRefreshRequest\x12#\n\rrefresh_token\x18\x01 \x01(\tR\x0crefreshToken\"_\n\x0fRefreshResponse\x12L\n\x06tokens\x18\x01 \x01(\x0b\x32\x34.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"2\n\rLogoutRequest\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\"\x10\n\x0eLogoutResponse\"4\n\x0fValidateRequest\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\"\xd6\x01\n\x10ValidateResponse\x12\x14\n\x05valid\x18\x01 \x01(\x08R\x05valid\x12\x17\n\x07user_id\x18\x02 \x01(\tR\x06userId\x12\x14\n\x05\x65mail\x18\x03 \x01(\tR\x05\x65mail\x12\x14\n\x05roles\x18\x04 \x03(\tR\x05roles\x12\x14\n\x05realm\x18\x05 \x01(\tR\x05realm\x12\x39\n\nexpires_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\texpiresAt\x12\x16\n\x06scopes\x18\x07 \x03(\tR\x06scopes\"o\n\x11GrantScopeRequest\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\x12!\n\x0cprincipal_id\x18\x02 \x01(\tR\x0bprincipalId\x12\x14\n\x05scope\x18\x03 \x01(\tR\x05scope\"p\n\x12RevokeScopeRequest\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\x12!\n\x0cprincipal_id\x18\x02 \x01(\tR\x0bprincipalId\x12\x14\n\x05scope\x18\x03 \x01(\tR\x05scope\"Y\n\x11ListScopesRequest\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\x12!\n\x0cprincipal_id\x18\x02 \x01(\tR\x0bprincipalId\"J\n\rScopeResponse\x12!\n\x0cprincipal_id\x18\x01 \x01(\tR\x0bprincipalId\x12\x16\n\x06scopes\x18\x02 \x03(\tR\x06scopes\"O\n\x12ListScopesResponse\x12!\n\x0cprincipal_id\x18\x01 \x01(\tR\x0bprincipalId\x12\x16\n\x06scopes\x18\x02 \x03(\tR\x06scopes\"\xbb\x01\n\x19LinkMachineAccountRequest\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\x12\x1d\n\nmachine_id\x18\x02 \x01(\tR\tmachineId\x12\'\n\x0flocal_principal\x18\x03 \x01(\tR\x0elocalPrincipal\x12\x14\n\x05realm\x18\x04 \x01(\tR\x05realm\x12\x1d\n\nis_default\x18\x05 \x01(\x08R\tisDefault\"\xf1\x01\n\x1aLinkMachineAccountResponse\x12\x1d\n\nmachine_id\x18\x01 \x01(\tR\tmachineId\x12\'\n\x0flocal_principal\x18\x02 \x01(\tR\x0elocalPrincipal\x12\x1d\n\naccount_id\x18\x03 \x01(\tR\taccountId\x12\x14\n\x05realm\x18\x04 \x01(\tR\x05realm\x12\x1d\n\nis_default\x18\x05 \x01(\x08R\tisDefault\x12\x37\n\tlinked_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\x08linkedAt\"@\n\x1f\x45xchangeMachinePrincipalRequest\x12\x1d\n\nmachine_id\x18\x01 \x01(\tR\tmachineId\"S\n\x16IssueBreakGlassRequest\x12!\n\x0c\x61\x63\x63\x65ss_token\x18\x01 \x01(\tR\x0b\x61\x63\x63\x65ssToken\x12\x16\n\x06scopes\x18\x02 \x03(\tR\x06scopes\"X\n\x17IssueBreakGlassResponse\x12\x1e\n\ncredential\x18\x01 \x01(\tR\ncredential\x12\x1d\n\nexpires_at\x18\x02 \x01(\x03R\texpiresAt2\xb1\r\n\x0f\x41\x63\x63ountsService\x12\x83\x01\n\x08Register\x12:.vrooli.scenario_authenticator.v1.accounts.RegisterRequest\x1a;.vrooli.scenario_authenticator.v1.accounts.RegisterResponse\x12z\n\x05Login\x12\x37.vrooli.scenario_authenticator.v1.accounts.LoginRequest\x1a\x38.vrooli.scenario_authenticator.v1.accounts.LoginResponse\x12\x95\x01\n\x0e\x43hangePassword\x12@.vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest\x1a\x41.vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse\x12\x80\x01\n\x07Refresh\x12\x39.vrooli.scenario_authenticator.v1.accounts.RefreshRequest\x1a:.vrooli.scenario_authenticator.v1.accounts.RefreshResponse\x12}\n\x06Logout\x12\x38.vrooli.scenario_authenticator.v1.accounts.LogoutRequest\x1a\x39.vrooli.scenario_authenticator.v1.accounts.LogoutResponse\x12\x83\x01\n\x08Validate\x12:.vrooli.scenario_authenticator.v1.accounts.ValidateRequest\x1a;.vrooli.scenario_authenticator.v1.accounts.ValidateResponse\x12\x84\x01\n\nGrantScope\x12<.vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest\x1a\x38.vrooli.scenario_authenticator.v1.accounts.ScopeResponse\x12\x86\x01\n\x0bRevokeScope\x12=.vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest\x1a\x38.vrooli.scenario_authenticator.v1.accounts.ScopeResponse\x12\x89\x01\n\nListScopes\x12<.vrooli.scenario_authenticator.v1.accounts.ListScopesRequest\x1a=.vrooli.scenario_authenticator.v1.accounts.ListScopesResponse\x12\xa1\x01\n\x12LinkMachineAccount\x12\x44.vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest\x1a\x45.vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse\x12\xa0\x01\n\x18\x45xchangeMachinePrincipal\x12J.vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest\x1a\x38.vrooli.scenario_authenticator.v1.accounts.LoginResponse\x12\x98\x01\n\x0fIssueBreakGlass\x12\x41.vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest\x1a\x42.vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts;accounts_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,29 +34,53 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts;accounts_v1'
   _globals['_ACCOUNT']._serialized_start=130
-  _globals['_ACCOUNT']._serialized_end=347
-  _globals['_TOKENPAIR']._serialized_start=350
-  _globals['_TOKENPAIR']._serialized_end=516
-  _globals['_REGISTERREQUEST']._serialized_start=518
-  _globals['_REGISTERREQUEST']._serialized_end=635
-  _globals['_REGISTERRESPONSE']._serialized_start=638
-  _globals['_REGISTERRESPONSE']._serialized_end=812
-  _globals['_LOGINREQUEST']._serialized_start=814
-  _globals['_LOGINREQUEST']._serialized_end=900
-  _globals['_LOGINRESPONSE']._serialized_start=903
-  _globals['_LOGINRESPONSE']._serialized_end=1074
-  _globals['_REFRESHREQUEST']._serialized_start=1076
-  _globals['_REFRESHREQUEST']._serialized_end=1129
-  _globals['_REFRESHRESPONSE']._serialized_start=1131
-  _globals['_REFRESHRESPONSE']._serialized_end=1226
-  _globals['_LOGOUTREQUEST']._serialized_start=1228
-  _globals['_LOGOUTREQUEST']._serialized_end=1278
-  _globals['_LOGOUTRESPONSE']._serialized_start=1280
-  _globals['_LOGOUTRESPONSE']._serialized_end=1296
-  _globals['_VALIDATEREQUEST']._serialized_start=1298
-  _globals['_VALIDATEREQUEST']._serialized_end=1350
-  _globals['_VALIDATERESPONSE']._serialized_start=1353
-  _globals['_VALIDATERESPONSE']._serialized_end=1543
-  _globals['_ACCOUNTSSERVICE']._serialized_start=1546
-  _globals['_ACCOUNTSSERVICE']._serialized_end=2213
+  _globals['_ACCOUNT']._serialized_end=371
+  _globals['_TOKENPAIR']._serialized_start=374
+  _globals['_TOKENPAIR']._serialized_end=540
+  _globals['_REGISTERREQUEST']._serialized_start=542
+  _globals['_REGISTERREQUEST']._serialized_end=659
+  _globals['_REGISTERRESPONSE']._serialized_start=662
+  _globals['_REGISTERRESPONSE']._serialized_end=836
+  _globals['_LOGINREQUEST']._serialized_start=838
+  _globals['_LOGINREQUEST']._serialized_end=924
+  _globals['_LOGINRESPONSE']._serialized_start=927
+  _globals['_LOGINRESPONSE']._serialized_end=1098
+  _globals['_CHANGEPASSWORDREQUEST']._serialized_start=1101
+  _globals['_CHANGEPASSWORDREQUEST']._serialized_end=1237
+  _globals['_CHANGEPASSWORDRESPONSE']._serialized_start=1239
+  _globals['_CHANGEPASSWORDRESPONSE']._serialized_end=1306
+  _globals['_REFRESHREQUEST']._serialized_start=1308
+  _globals['_REFRESHREQUEST']._serialized_end=1361
+  _globals['_REFRESHRESPONSE']._serialized_start=1363
+  _globals['_REFRESHRESPONSE']._serialized_end=1458
+  _globals['_LOGOUTREQUEST']._serialized_start=1460
+  _globals['_LOGOUTREQUEST']._serialized_end=1510
+  _globals['_LOGOUTRESPONSE']._serialized_start=1512
+  _globals['_LOGOUTRESPONSE']._serialized_end=1528
+  _globals['_VALIDATEREQUEST']._serialized_start=1530
+  _globals['_VALIDATEREQUEST']._serialized_end=1582
+  _globals['_VALIDATERESPONSE']._serialized_start=1585
+  _globals['_VALIDATERESPONSE']._serialized_end=1799
+  _globals['_GRANTSCOPEREQUEST']._serialized_start=1801
+  _globals['_GRANTSCOPEREQUEST']._serialized_end=1912
+  _globals['_REVOKESCOPEREQUEST']._serialized_start=1914
+  _globals['_REVOKESCOPEREQUEST']._serialized_end=2026
+  _globals['_LISTSCOPESREQUEST']._serialized_start=2028
+  _globals['_LISTSCOPESREQUEST']._serialized_end=2117
+  _globals['_SCOPERESPONSE']._serialized_start=2119
+  _globals['_SCOPERESPONSE']._serialized_end=2193
+  _globals['_LISTSCOPESRESPONSE']._serialized_start=2195
+  _globals['_LISTSCOPESRESPONSE']._serialized_end=2274
+  _globals['_LINKMACHINEACCOUNTREQUEST']._serialized_start=2277
+  _globals['_LINKMACHINEACCOUNTREQUEST']._serialized_end=2464
+  _globals['_LINKMACHINEACCOUNTRESPONSE']._serialized_start=2467
+  _globals['_LINKMACHINEACCOUNTRESPONSE']._serialized_end=2708
+  _globals['_EXCHANGEMACHINEPRINCIPALREQUEST']._serialized_start=2710
+  _globals['_EXCHANGEMACHINEPRINCIPALREQUEST']._serialized_end=2774
+  _globals['_ISSUEBREAKGLASSREQUEST']._serialized_start=2776
+  _globals['_ISSUEBREAKGLASSREQUEST']._serialized_end=2859
+  _globals['_ISSUEBREAKGLASSRESPONSE']._serialized_start=2861
+  _globals['_ISSUEBREAKGLASSRESPONSE']._serialized_end=2949
+  _globals['_ACCOUNTSSERVICE']._serialized_start=2952
+  _globals['_ACCOUNTSSERVICE']._serialized_end=4665
 # @@protoc_insertion_point(module_scope)

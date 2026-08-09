@@ -38,6 +38,8 @@ const (
 	// IdentityServiceRegisterProcedure is the fully-qualified name of the IdentityService's Register
 	// RPC.
 	IdentityServiceRegisterProcedure = "/vrooli.vrooli_bridge.v1.identity.IdentityService/Register"
+	// IdentityServiceRefreshProcedure is the fully-qualified name of the IdentityService's Refresh RPC.
+	IdentityServiceRefreshProcedure = "/vrooli.vrooli_bridge.v1.identity.IdentityService/Refresh"
 )
 
 // IdentityServiceClient is a client for the vrooli.vrooli_bridge.v1.identity.IdentityService
@@ -51,6 +53,9 @@ type IdentityServiceClient interface {
 	// issued owner JWT (the account is signed in immediately). A duplicate email
 	// maps to CodeAlreadyExists; a weak or malformed input to CodeInvalidArgument.
 	Register(context.Context, *connect.Request[identity.RegisterRequest]) (*connect.Response[identity.RegisterResponse], error)
+	// Refresh rotates an authenticator refresh token and returns replacement
+	// owner access and refresh tokens. The bridge stores nothing server-side.
+	Refresh(context.Context, *connect.Request[identity.RefreshRequest]) (*connect.Response[identity.RefreshResponse], error)
 }
 
 // NewIdentityServiceClient constructs a client for the
@@ -77,6 +82,12 @@ func NewIdentityServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(identityServiceMethods.ByName("Register")),
 			connect.WithClientOptions(opts...),
 		),
+		refresh: connect.NewClient[identity.RefreshRequest, identity.RefreshResponse](
+			httpClient,
+			baseURL+IdentityServiceRefreshProcedure,
+			connect.WithSchema(identityServiceMethods.ByName("Refresh")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -84,6 +95,7 @@ func NewIdentityServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type identityServiceClient struct {
 	login    *connect.Client[identity.LoginRequest, identity.LoginResponse]
 	register *connect.Client[identity.RegisterRequest, identity.RegisterResponse]
+	refresh  *connect.Client[identity.RefreshRequest, identity.RefreshResponse]
 }
 
 // Login calls vrooli.vrooli_bridge.v1.identity.IdentityService.Login.
@@ -94,6 +106,11 @@ func (c *identityServiceClient) Login(ctx context.Context, req *connect.Request[
 // Register calls vrooli.vrooli_bridge.v1.identity.IdentityService.Register.
 func (c *identityServiceClient) Register(ctx context.Context, req *connect.Request[identity.RegisterRequest]) (*connect.Response[identity.RegisterResponse], error) {
 	return c.register.CallUnary(ctx, req)
+}
+
+// Refresh calls vrooli.vrooli_bridge.v1.identity.IdentityService.Refresh.
+func (c *identityServiceClient) Refresh(ctx context.Context, req *connect.Request[identity.RefreshRequest]) (*connect.Response[identity.RefreshResponse], error) {
+	return c.refresh.CallUnary(ctx, req)
 }
 
 // IdentityServiceHandler is an implementation of the
@@ -107,6 +124,9 @@ type IdentityServiceHandler interface {
 	// issued owner JWT (the account is signed in immediately). A duplicate email
 	// maps to CodeAlreadyExists; a weak or malformed input to CodeInvalidArgument.
 	Register(context.Context, *connect.Request[identity.RegisterRequest]) (*connect.Response[identity.RegisterResponse], error)
+	// Refresh rotates an authenticator refresh token and returns replacement
+	// owner access and refresh tokens. The bridge stores nothing server-side.
+	Refresh(context.Context, *connect.Request[identity.RefreshRequest]) (*connect.Response[identity.RefreshResponse], error)
 }
 
 // NewIdentityServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -128,12 +148,20 @@ func NewIdentityServiceHandler(svc IdentityServiceHandler, opts ...connect.Handl
 		connect.WithSchema(identityServiceMethods.ByName("Register")),
 		connect.WithHandlerOptions(opts...),
 	)
+	identityServiceRefreshHandler := connect.NewUnaryHandler(
+		IdentityServiceRefreshProcedure,
+		svc.Refresh,
+		connect.WithSchema(identityServiceMethods.ByName("Refresh")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.identity.IdentityService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case IdentityServiceLoginProcedure:
 			identityServiceLoginHandler.ServeHTTP(w, r)
 		case IdentityServiceRegisterProcedure:
 			identityServiceRegisterHandler.ServeHTTP(w, r)
+		case IdentityServiceRefreshProcedure:
+			identityServiceRefreshHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -149,4 +177,8 @@ func (UnimplementedIdentityServiceHandler) Login(context.Context, *connect.Reque
 
 func (UnimplementedIdentityServiceHandler) Register(context.Context, *connect.Request[identity.RegisterRequest]) (*connect.Response[identity.RegisterResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.identity.IdentityService.Register is not implemented"))
+}
+
+func (UnimplementedIdentityServiceHandler) Refresh(context.Context, *connect.Request[identity.RefreshRequest]) (*connect.Response[identity.RefreshResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.identity.IdentityService.Refresh is not implemented"))
 }

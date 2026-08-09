@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$source-ledger/v1/recall/recall.proto\x12\x1evrooli.source_ledger.v1.recall\"\xc8\x01\n\tRecallHit\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x02 \x01(\tR\x07\x66\x61\x63\x65tId\x12\x12\n\x04text\x18\x03 \x01(\tR\x04text\x12\x14\n\x05score\x18\x04 \x01(\x01R\x05score\x12\x14\n\x05\x64\x65pth\x18\x05 \x01(\x05R\x05\x64\x65pth\x12\x17\n\x07node_id\x18\x06 \x01(\tR\x06nodeId\x12\x18\n\x07summary\x18\x07 \x01(\x08R\x07summary\x12\x12\n\x04span\x18\x08 \x01(\x05R\x04span\"Q\n\rRecallRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x14\n\x05scope\x18\x03 \x01(\tR\x05scope\"O\n\x0eRecallResponse\x12=\n\x04hits\x18\x01 \x03(\x0b\x32).vrooli.source_ledger.v1.recall.RecallHitR\x04hits\"D\n\x0bWakeRequest\x12\x1f\n\x0bline_budget\x18\x01 \x01(\x05R\nlineBudget\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"i\n\x0cWakeResponse\x12=\n\x04hits\x18\x01 \x03(\x0b\x32).vrooli.source_ledger.v1.recall.RecallHitR\x04hits\x12\x1a\n\x08overflow\x18\x02 \x01(\x08R\x08overflow\"<\n\x0bZoomRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"]\n\x0cZoomResponse\x12M\n\x0c\x63onstituents\x18\x01 \x03(\x0b\x32).vrooli.source_ledger.v1.recall.RecallHitR\x0c\x63onstituents\"K\n\x18ListSiblingEventsRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"`\n\x19ListSiblingEventsResponse\x12\x43\n\x07\x65ntries\x18\x01 \x03(\x0b\x32).vrooli.source_ledger.v1.recall.RecallHitR\x07\x65ntries2\xc9\x03\n\rRecallService\x12g\n\x06Recall\x12-.vrooli.source_ledger.v1.recall.RecallRequest\x1a..vrooli.source_ledger.v1.recall.RecallResponse\x12\x61\n\x04Wake\x12+.vrooli.source_ledger.v1.recall.WakeRequest\x1a,.vrooli.source_ledger.v1.recall.WakeResponse\x12\x61\n\x04Zoom\x12+.vrooli.source_ledger.v1.recall.ZoomRequest\x1a,.vrooli.source_ledger.v1.recall.ZoomResponse\x12\x88\x01\n\x11ListSiblingEvents\x12\x38.vrooli.source_ledger.v1.recall.ListSiblingEventsRequest\x1a\x39.vrooli.source_ledger.v1.recall.ListSiblingEventsResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall;recall_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$source-ledger/v1/recall/recall.proto\x12\x1evrooli.source_ledger.v1.recall\"\xc8\x01\n\tRecallHit\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x19\n\x08\x66\x61\x63\x65t_id\x18\x02 \x01(\tR\x07\x66\x61\x63\x65tId\x12\x12\n\x04text\x18\x03 \x01(\tR\x04text\x12\x14\n\x05score\x18\x04 \x01(\x01R\x05score\x12\x14\n\x05\x64\x65pth\x18\x05 \x01(\x05R\x05\x64\x65pth\x12\x17\n\x07node_id\x18\x06 \x01(\tR\x06nodeId\x12\x18\n\x07summary\x18\x07 \x01(\x08R\x07summary\x12\x12\n\x04span\x18\x08 \x01(\x05R\x04span\"Q\n\rRecallRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x14\n\x05scope\x18\x03 \x01(\tR\x05scope\"O\n\x0eRecallResponse\x12=\n\x04hits\x18\x01 \x03(\x0b\x32).vrooli.source_ledger.v1.recall.RecallHitR\x04hits\"D\n\x0bWakeRequest\x12\x1f\n\x0bline_budget\x18\x01 \x01(\x05R\nlineBudget\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"\x87\x02\n\x0cWakeResponse\x12=\n\x04hits\x18\x01 \x03(\x0b\x32).vrooli.source_ledger.v1.recall.RecallHitR\x04hits\x12\x1a\n\x08overflow\x18\x02 \x01(\x08R\x08overflow\x12\x18\n\x07refused\x18\x03 \x01(\x05R\x07refused\x12\x1d\n\nlines_used\x18\x04 \x01(\x05R\tlinesUsed\x12\x1d\n\nchars_used\x18\x05 \x01(\x05R\tcharsUsed\x12!\n\x0c\x62udget_lines\x18\x06 \x01(\x05R\x0b\x62udgetLines\x12!\n\x0c\x62udget_chars\x18\x07 \x01(\x05R\x0b\x62udgetChars\"<\n\x0bZoomRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"]\n\x0cZoomResponse\x12M\n\x0c\x63onstituents\x18\x01 \x03(\x0b\x32).vrooli.source_ledger.v1.recall.RecallHitR\x0c\x63onstituents\"K\n\x18ListSiblingEventsRequest\x12\x19\n\x08\x65ntry_id\x18\x01 \x01(\tR\x07\x65ntryId\x12\x14\n\x05scope\x18\x02 \x01(\tR\x05scope\"`\n\x19ListSiblingEventsResponse\x12\x43\n\x07\x65ntries\x18\x01 \x03(\x0b\x32).vrooli.source_ledger.v1.recall.RecallHitR\x07\x65ntries2\xc9\x03\n\rRecallService\x12g\n\x06Recall\x12-.vrooli.source_ledger.v1.recall.RecallRequest\x1a..vrooli.source_ledger.v1.recall.RecallResponse\x12\x61\n\x04Wake\x12+.vrooli.source_ledger.v1.recall.WakeRequest\x1a,.vrooli.source_ledger.v1.recall.WakeResponse\x12\x61\n\x04Zoom\x12+.vrooli.source_ledger.v1.recall.ZoomRequest\x1a,.vrooli.source_ledger.v1.recall.ZoomResponse\x12\x88\x01\n\x11ListSiblingEvents\x12\x38.vrooli.source_ledger.v1.recall.ListSiblingEventsRequest\x1a\x39.vrooli.source_ledger.v1.recall.ListSiblingEventsResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall;recall_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -40,16 +40,16 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_RECALLRESPONSE']._serialized_end=437
   _globals['_WAKEREQUEST']._serialized_start=439
   _globals['_WAKEREQUEST']._serialized_end=507
-  _globals['_WAKERESPONSE']._serialized_start=509
-  _globals['_WAKERESPONSE']._serialized_end=614
-  _globals['_ZOOMREQUEST']._serialized_start=616
-  _globals['_ZOOMREQUEST']._serialized_end=676
-  _globals['_ZOOMRESPONSE']._serialized_start=678
-  _globals['_ZOOMRESPONSE']._serialized_end=771
-  _globals['_LISTSIBLINGEVENTSREQUEST']._serialized_start=773
-  _globals['_LISTSIBLINGEVENTSREQUEST']._serialized_end=848
-  _globals['_LISTSIBLINGEVENTSRESPONSE']._serialized_start=850
-  _globals['_LISTSIBLINGEVENTSRESPONSE']._serialized_end=946
-  _globals['_RECALLSERVICE']._serialized_start=949
-  _globals['_RECALLSERVICE']._serialized_end=1406
+  _globals['_WAKERESPONSE']._serialized_start=510
+  _globals['_WAKERESPONSE']._serialized_end=773
+  _globals['_ZOOMREQUEST']._serialized_start=775
+  _globals['_ZOOMREQUEST']._serialized_end=835
+  _globals['_ZOOMRESPONSE']._serialized_start=837
+  _globals['_ZOOMRESPONSE']._serialized_end=930
+  _globals['_LISTSIBLINGEVENTSREQUEST']._serialized_start=932
+  _globals['_LISTSIBLINGEVENTSREQUEST']._serialized_end=1007
+  _globals['_LISTSIBLINGEVENTSRESPONSE']._serialized_start=1009
+  _globals['_LISTSIBLINGEVENTSRESPONSE']._serialized_end=1105
+  _globals['_RECALLSERVICE']._serialized_start=1108
+  _globals['_RECALLSERVICE']._serialized_end=1565
 # @@protoc_insertion_point(module_scope)

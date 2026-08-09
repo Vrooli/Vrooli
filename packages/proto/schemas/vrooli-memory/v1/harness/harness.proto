@@ -6,7 +6,6 @@ service HarnessService {
   rpc RunImport(RunImportRequest) returns (RunImportResponse);
   rpc GetImportStatus(GetImportStatusRequest) returns (GetImportStatusResponse);
   rpc RefreshProjection(RefreshProjectionRequest) returns (RefreshProjectionResponse);
-  rpc InstallPromptBlock(InstallPromptBlockRequest) returns (InstallPromptBlockResponse);
   rpc CaptureWrite(CaptureWriteRequest) returns (CaptureWriteResponse);
   rpc GetMaintenanceStatus(GetMaintenanceStatusRequest) returns (GetMaintenanceStatusResponse);
 }
@@ -60,12 +59,6 @@ message RefreshProjectionResponse {
   int64 size_lines = 6;
   int64 byte_cap = 7;
   int64 line_cap = 8;
-}
-message InstallPromptBlockRequest {
-  string runtime = 1;
-}
-message InstallPromptBlockResponse {
-  bool installed = 1;
 }
 message CaptureWriteRequest {
   string runtime = 1;

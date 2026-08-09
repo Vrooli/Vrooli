@@ -51,12 +51,22 @@ class WakeRequest(_message.Message):
     def __init__(self, line_budget: _Optional[int] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class WakeResponse(_message.Message):
-    __slots__ = ("hits", "overflow")
+    __slots__ = ("hits", "overflow", "refused", "lines_used", "chars_used", "budget_lines", "budget_chars")
     HITS_FIELD_NUMBER: _ClassVar[int]
     OVERFLOW_FIELD_NUMBER: _ClassVar[int]
+    REFUSED_FIELD_NUMBER: _ClassVar[int]
+    LINES_USED_FIELD_NUMBER: _ClassVar[int]
+    CHARS_USED_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_LINES_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_CHARS_FIELD_NUMBER: _ClassVar[int]
     hits: _containers.RepeatedCompositeFieldContainer[RecallHit]
     overflow: bool
-    def __init__(self, hits: _Optional[_Iterable[_Union[RecallHit, _Mapping]]] = ..., overflow: _Optional[bool] = ...) -> None: ...
+    refused: int
+    lines_used: int
+    chars_used: int
+    budget_lines: int
+    budget_chars: int
+    def __init__(self, hits: _Optional[_Iterable[_Union[RecallHit, _Mapping]]] = ..., overflow: _Optional[bool] = ..., refused: _Optional[int] = ..., lines_used: _Optional[int] = ..., chars_used: _Optional[int] = ..., budget_lines: _Optional[int] = ..., budget_chars: _Optional[int] = ...) -> None: ...
 
 class ZoomRequest(_message.Message):
     __slots__ = ("node_id", "scope")

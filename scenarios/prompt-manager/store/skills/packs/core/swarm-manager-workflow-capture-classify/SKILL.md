@@ -1,6 +1,6 @@
 # Capture Classification Workflow
 
-Classify one raw operator capture into zero or more suggested backlog items. Read the capture text. Identify each distinct actionable work intent. Return only the typed result.
+Classify one raw operator capture into typed suggested work or an honest discard. Read the complete capture, including its note and attachments, and return only the typed result.
 
 ## Outcome work table
 
@@ -15,7 +15,7 @@ Edge rules: short but actionable text ("fix login") is `suggested`. Vague but in
 ## Item field rules
 
 - `kind`: `idea` = new feature or concept to build; `research` = investigation or learning task; `fix` = broken behavior to correct; `execute` = implementation task with known scope; `chore` = maintenance, cleanup, or infrastructure.
-- `priority`: 1 is most urgent. Use 3 when the text gives no urgency signal.
+- `priority`: 1 is most urgent. Use 5 when the text gives no urgency signal.
 - `title`: imperative form ("Fix tunnel reconnect in app-monitor").
 - `tags`: scenario names, technologies, and concepts taken from the text.
 - `confidence`: your certainty that this item reflects the operator's intent.

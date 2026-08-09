@@ -76,12 +76,13 @@ func (x *LoginRequest) GetPassword() string {
 type LoginResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The owner JWT to present on owner-gated calls. Returned to the caller; the
-	// control plane does not store it. Expiry means signing in again — there is
-	// deliberately no refresh flow until one actually exists end-to-end.
+	// control plane does not store it. A configured CLI may persist the separate
+	// refresh token for transparent renewal; the bridge API never stores it.
 	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
 	// Resolved owner identity, echoed for display ("signed in as ...").
 	Email         string `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
 	UserId        string `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RefreshToken  string `protobuf:"bytes,4,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -133,6 +134,13 @@ func (x *LoginResponse) GetEmail() string {
 func (x *LoginResponse) GetUserId() string {
 	if x != nil {
 		return x.UserId
+	}
+	return ""
+}
+
+func (x *LoginResponse) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
 	}
 	return ""
 }
@@ -203,6 +211,7 @@ type RegisterResponse struct {
 	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
 	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
 	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,4,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -258,6 +267,109 @@ func (x *RegisterResponse) GetUserId() string {
 	return ""
 }
 
+func (x *RegisterResponse) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+type RefreshRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RefreshToken  string                 `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshRequest) Reset() {
+	*x = RefreshRequest{}
+	mi := &file_vrooli_bridge_v1_identity_identity_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshRequest) ProtoMessage() {}
+
+func (x *RefreshRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_identity_identity_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshRequest.ProtoReflect.Descriptor instead.
+func (*RefreshRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_identity_identity_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RefreshRequest) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+type RefreshResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshResponse) Reset() {
+	*x = RefreshResponse{}
+	mi := &file_vrooli_bridge_v1_identity_identity_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshResponse) ProtoMessage() {}
+
+func (x *RefreshResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_identity_identity_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshResponse.ProtoReflect.Descriptor instead.
+func (*RefreshResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_identity_identity_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *RefreshResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *RefreshResponse) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
 var File_vrooli_bridge_v1_identity_identity_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_identity_identity_proto_rawDesc = "" +
@@ -265,22 +377,30 @@ const file_vrooli_bridge_v1_identity_identity_proto_rawDesc = "" +
 	"(vrooli-bridge/v1/identity/identity.proto\x12 vrooli.vrooli_bridge.v1.identity\"@\n" +
 	"\fLoginRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"T\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"y\n" +
 	"\rLoginResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x17\n" +
-	"\auser_id\x18\x03 \x01(\tR\x06userId\"_\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\x12#\n" +
+	"\rrefresh_token\x18\x04 \x01(\tR\frefreshToken\"_\n" +
 	"\x0fRegisterRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x1a\n" +
-	"\busername\x18\x03 \x01(\tR\busername\"W\n" +
+	"\busername\x18\x03 \x01(\tR\busername\"|\n" +
 	"\x10RegisterResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x17\n" +
-	"\auser_id\x18\x03 \x01(\tR\x06userId2\xee\x01\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\x12#\n" +
+	"\rrefresh_token\x18\x04 \x01(\tR\frefreshToken\"5\n" +
+	"\x0eRefreshRequest\x12#\n" +
+	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"L\n" +
+	"\x0fRefreshResponse\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12#\n" +
+	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken2\xde\x02\n" +
 	"\x0fIdentityService\x12h\n" +
 	"\x05Login\x12..vrooli.vrooli_bridge.v1.identity.LoginRequest\x1a/.vrooli.vrooli_bridge.v1.identity.LoginResponse\x12q\n" +
-	"\bRegister\x121.vrooli.vrooli_bridge.v1.identity.RegisterRequest\x1a2.vrooli.vrooli_bridge.v1.identity.RegisterResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity;identity_v1b\x06proto3"
+	"\bRegister\x121.vrooli.vrooli_bridge.v1.identity.RegisterRequest\x1a2.vrooli.vrooli_bridge.v1.identity.RegisterResponse\x12n\n" +
+	"\aRefresh\x120.vrooli.vrooli_bridge.v1.identity.RefreshRequest\x1a1.vrooli.vrooli_bridge.v1.identity.RefreshResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity;identity_v1b\x06proto3"
 
 var (
 	file_vrooli_bridge_v1_identity_identity_proto_rawDescOnce sync.Once
@@ -294,20 +414,24 @@ func file_vrooli_bridge_v1_identity_identity_proto_rawDescGZIP() []byte {
 	return file_vrooli_bridge_v1_identity_identity_proto_rawDescData
 }
 
-var file_vrooli_bridge_v1_identity_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_vrooli_bridge_v1_identity_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_vrooli_bridge_v1_identity_identity_proto_goTypes = []any{
 	(*LoginRequest)(nil),     // 0: vrooli.vrooli_bridge.v1.identity.LoginRequest
 	(*LoginResponse)(nil),    // 1: vrooli.vrooli_bridge.v1.identity.LoginResponse
 	(*RegisterRequest)(nil),  // 2: vrooli.vrooli_bridge.v1.identity.RegisterRequest
 	(*RegisterResponse)(nil), // 3: vrooli.vrooli_bridge.v1.identity.RegisterResponse
+	(*RefreshRequest)(nil),   // 4: vrooli.vrooli_bridge.v1.identity.RefreshRequest
+	(*RefreshResponse)(nil),  // 5: vrooli.vrooli_bridge.v1.identity.RefreshResponse
 }
 var file_vrooli_bridge_v1_identity_identity_proto_depIdxs = []int32{
 	0, // 0: vrooli.vrooli_bridge.v1.identity.IdentityService.Login:input_type -> vrooli.vrooli_bridge.v1.identity.LoginRequest
 	2, // 1: vrooli.vrooli_bridge.v1.identity.IdentityService.Register:input_type -> vrooli.vrooli_bridge.v1.identity.RegisterRequest
-	1, // 2: vrooli.vrooli_bridge.v1.identity.IdentityService.Login:output_type -> vrooli.vrooli_bridge.v1.identity.LoginResponse
-	3, // 3: vrooli.vrooli_bridge.v1.identity.IdentityService.Register:output_type -> vrooli.vrooli_bridge.v1.identity.RegisterResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	4, // 2: vrooli.vrooli_bridge.v1.identity.IdentityService.Refresh:input_type -> vrooli.vrooli_bridge.v1.identity.RefreshRequest
+	1, // 3: vrooli.vrooli_bridge.v1.identity.IdentityService.Login:output_type -> vrooli.vrooli_bridge.v1.identity.LoginResponse
+	3, // 4: vrooli.vrooli_bridge.v1.identity.IdentityService.Register:output_type -> vrooli.vrooli_bridge.v1.identity.RegisterResponse
+	5, // 5: vrooli.vrooli_bridge.v1.identity.IdentityService.Refresh:output_type -> vrooli.vrooli_bridge.v1.identity.RefreshResponse
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -324,7 +448,7 @@ func file_vrooli_bridge_v1_identity_identity_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_identity_identity_proto_rawDesc), len(file_vrooli_bridge_v1_identity_identity_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

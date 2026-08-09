@@ -79,8 +79,9 @@ type WorkflowExperimentEvaluator struct {
 }
 
 // WorkflowInitiator is the server-classified source of a workflow start.
-// A missing identity token is programmatic by design; the policy is an
-// accountability control, not a sandbox boundary.
+// A request with no identity token is programmatic by design. A request that
+// claims to be an agent but cannot verify its token is denied; it is never
+// reclassified as programmatic.
 type WorkflowInitiator string
 
 const (

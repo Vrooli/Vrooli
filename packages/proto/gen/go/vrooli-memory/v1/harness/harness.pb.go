@@ -589,94 +589,6 @@ func (x *RefreshProjectionResponse) GetLineCap() int64 {
 	return 0
 }
 
-type InstallPromptBlockRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Runtime       string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *InstallPromptBlockRequest) Reset() {
-	*x = InstallPromptBlockRequest{}
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *InstallPromptBlockRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*InstallPromptBlockRequest) ProtoMessage() {}
-
-func (x *InstallPromptBlockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use InstallPromptBlockRequest.ProtoReflect.Descriptor instead.
-func (*InstallPromptBlockRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *InstallPromptBlockRequest) GetRuntime() string {
-	if x != nil {
-		return x.Runtime
-	}
-	return ""
-}
-
-type InstallPromptBlockResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Installed     bool                   `protobuf:"varint,1,opt,name=installed,proto3" json:"installed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *InstallPromptBlockResponse) Reset() {
-	*x = InstallPromptBlockResponse{}
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *InstallPromptBlockResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*InstallPromptBlockResponse) ProtoMessage() {}
-
-func (x *InstallPromptBlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use InstallPromptBlockResponse.ProtoReflect.Descriptor instead.
-func (*InstallPromptBlockResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *InstallPromptBlockResponse) GetInstalled() bool {
-	if x != nil {
-		return x.Installed
-	}
-	return false
-}
-
 type CaptureWriteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Runtime       string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"`
@@ -688,7 +600,7 @@ type CaptureWriteRequest struct {
 
 func (x *CaptureWriteRequest) Reset() {
 	*x = CaptureWriteRequest{}
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[10]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +612,7 @@ func (x *CaptureWriteRequest) String() string {
 func (*CaptureWriteRequest) ProtoMessage() {}
 
 func (x *CaptureWriteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[10]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +625,7 @@ func (x *CaptureWriteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureWriteRequest.ProtoReflect.Descriptor instead.
 func (*CaptureWriteRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{10}
+	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CaptureWriteRequest) GetRuntime() string {
@@ -746,7 +658,7 @@ type CaptureWriteResponse struct {
 
 func (x *CaptureWriteResponse) Reset() {
 	*x = CaptureWriteResponse{}
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[11]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -758,7 +670,7 @@ func (x *CaptureWriteResponse) String() string {
 func (*CaptureWriteResponse) ProtoMessage() {}
 
 func (x *CaptureWriteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[11]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -771,7 +683,7 @@ func (x *CaptureWriteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureWriteResponse.ProtoReflect.Descriptor instead.
 func (*CaptureWriteResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{11}
+	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CaptureWriteResponse) GetEntryId() string {
@@ -789,7 +701,7 @@ type GetMaintenanceStatusRequest struct {
 
 func (x *GetMaintenanceStatusRequest) Reset() {
 	*x = GetMaintenanceStatusRequest{}
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[12]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -801,7 +713,7 @@ func (x *GetMaintenanceStatusRequest) String() string {
 func (*GetMaintenanceStatusRequest) ProtoMessage() {}
 
 func (x *GetMaintenanceStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[12]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -814,7 +726,7 @@ func (x *GetMaintenanceStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMaintenanceStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetMaintenanceStatusRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{12}
+	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{10}
 }
 
 type GetMaintenanceStatusResponse struct {
@@ -826,7 +738,7 @@ type GetMaintenanceStatusResponse struct {
 
 func (x *GetMaintenanceStatusResponse) Reset() {
 	*x = GetMaintenanceStatusResponse{}
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[13]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -838,7 +750,7 @@ func (x *GetMaintenanceStatusResponse) String() string {
 func (*GetMaintenanceStatusResponse) ProtoMessage() {}
 
 func (x *GetMaintenanceStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[13]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -851,7 +763,7 @@ func (x *GetMaintenanceStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMaintenanceStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetMaintenanceStatusResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{13}
+	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetMaintenanceStatusResponse) GetRun() *MaintenanceRun {
@@ -873,7 +785,7 @@ type MaintenanceRun struct {
 
 func (x *MaintenanceRun) Reset() {
 	*x = MaintenanceRun{}
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[14]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -885,7 +797,7 @@ func (x *MaintenanceRun) String() string {
 func (*MaintenanceRun) ProtoMessage() {}
 
 func (x *MaintenanceRun) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[14]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -898,7 +810,7 @@ func (x *MaintenanceRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaintenanceRun.ProtoReflect.Descriptor instead.
 func (*MaintenanceRun) Descriptor() ([]byte, []int) {
-	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{14}
+	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *MaintenanceRun) GetId() string {
@@ -948,7 +860,7 @@ type MaintenanceOutcome struct {
 
 func (x *MaintenanceOutcome) Reset() {
 	*x = MaintenanceOutcome{}
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[15]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -960,7 +872,7 @@ func (x *MaintenanceOutcome) String() string {
 func (*MaintenanceOutcome) ProtoMessage() {}
 
 func (x *MaintenanceOutcome) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[15]
+	mi := &file_vrooli_memory_v1_harness_harness_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -973,7 +885,7 @@ func (x *MaintenanceOutcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaintenanceOutcome.ProtoReflect.Descriptor instead.
 func (*MaintenanceOutcome) Descriptor() ([]byte, []int) {
-	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{15}
+	return file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *MaintenanceOutcome) GetRuntime() string {
@@ -1106,11 +1018,7 @@ const file_vrooli_memory_v1_harness_harness_proto_rawDesc = "" +
 	"\n" +
 	"size_lines\x18\x06 \x01(\x03R\tsizeLines\x12\x19\n" +
 	"\bbyte_cap\x18\a \x01(\x03R\abyteCap\x12\x19\n" +
-	"\bline_cap\x18\b \x01(\x03R\alineCap\"5\n" +
-	"\x19InstallPromptBlockRequest\x12\x18\n" +
-	"\aruntime\x18\x01 \x01(\tR\aruntime\":\n" +
-	"\x1aInstallPromptBlockResponse\x12\x1c\n" +
-	"\tinstalled\x18\x01 \x01(\bR\tinstalled\"j\n" +
+	"\bline_cap\x18\b \x01(\x03R\alineCap\"j\n" +
 	"\x13CaptureWriteRequest\x12\x18\n" +
 	"\aruntime\x18\x01 \x01(\tR\aruntime\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1f\n" +
@@ -1140,12 +1048,11 @@ const file_vrooli_memory_v1_harness_harness_proto_rawDesc = "" +
 	"\x15projection_size_lines\x18\t \x01(\x03R\x13projectionSizeLines\x12.\n" +
 	"\x13projection_byte_cap\x18\n" +
 	" \x01(\x03R\x11projectionByteCap\x12.\n" +
-	"\x13projection_line_cap\x18\v \x01(\x03R\x11projectionLineCap2\xbb\x06\n" +
+	"\x13projection_line_cap\x18\v \x01(\x03R\x11projectionLineCap2\xab\x05\n" +
 	"\x0eHarnessService\x12r\n" +
 	"\tRunImport\x121.vrooli.vrooli_memory.v1.harness.RunImportRequest\x1a2.vrooli.vrooli_memory.v1.harness.RunImportResponse\x12\x84\x01\n" +
 	"\x0fGetImportStatus\x127.vrooli.vrooli_memory.v1.harness.GetImportStatusRequest\x1a8.vrooli.vrooli_memory.v1.harness.GetImportStatusResponse\x12\x8a\x01\n" +
-	"\x11RefreshProjection\x129.vrooli.vrooli_memory.v1.harness.RefreshProjectionRequest\x1a:.vrooli.vrooli_memory.v1.harness.RefreshProjectionResponse\x12\x8d\x01\n" +
-	"\x12InstallPromptBlock\x12:.vrooli.vrooli_memory.v1.harness.InstallPromptBlockRequest\x1a;.vrooli.vrooli_memory.v1.harness.InstallPromptBlockResponse\x12{\n" +
+	"\x11RefreshProjection\x129.vrooli.vrooli_memory.v1.harness.RefreshProjectionRequest\x1a:.vrooli.vrooli_memory.v1.harness.RefreshProjectionResponse\x12{\n" +
 	"\fCaptureWrite\x124.vrooli.vrooli_memory.v1.harness.CaptureWriteRequest\x1a5.vrooli.vrooli_memory.v1.harness.CaptureWriteResponse\x12\x93\x01\n" +
 	"\x14GetMaintenanceStatus\x12<.vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusRequest\x1a=.vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/harness;harness_v1b\x06proto3"
 
@@ -1161,7 +1068,7 @@ func file_vrooli_memory_v1_harness_harness_proto_rawDescGZIP() []byte {
 	return file_vrooli_memory_v1_harness_harness_proto_rawDescData
 }
 
-var file_vrooli_memory_v1_harness_harness_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_vrooli_memory_v1_harness_harness_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_vrooli_memory_v1_harness_harness_proto_goTypes = []any{
 	(*RuntimeRequest)(nil),               // 0: vrooli.vrooli_memory.v1.harness.RuntimeRequest
 	(*RunImportRequest)(nil),             // 1: vrooli.vrooli_memory.v1.harness.RunImportRequest
@@ -1171,34 +1078,30 @@ var file_vrooli_memory_v1_harness_harness_proto_goTypes = []any{
 	(*ImportRun)(nil),                    // 5: vrooli.vrooli_memory.v1.harness.ImportRun
 	(*RefreshProjectionRequest)(nil),     // 6: vrooli.vrooli_memory.v1.harness.RefreshProjectionRequest
 	(*RefreshProjectionResponse)(nil),    // 7: vrooli.vrooli_memory.v1.harness.RefreshProjectionResponse
-	(*InstallPromptBlockRequest)(nil),    // 8: vrooli.vrooli_memory.v1.harness.InstallPromptBlockRequest
-	(*InstallPromptBlockResponse)(nil),   // 9: vrooli.vrooli_memory.v1.harness.InstallPromptBlockResponse
-	(*CaptureWriteRequest)(nil),          // 10: vrooli.vrooli_memory.v1.harness.CaptureWriteRequest
-	(*CaptureWriteResponse)(nil),         // 11: vrooli.vrooli_memory.v1.harness.CaptureWriteResponse
-	(*GetMaintenanceStatusRequest)(nil),  // 12: vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusRequest
-	(*GetMaintenanceStatusResponse)(nil), // 13: vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusResponse
-	(*MaintenanceRun)(nil),               // 14: vrooli.vrooli_memory.v1.harness.MaintenanceRun
-	(*MaintenanceOutcome)(nil),           // 15: vrooli.vrooli_memory.v1.harness.MaintenanceOutcome
+	(*CaptureWriteRequest)(nil),          // 8: vrooli.vrooli_memory.v1.harness.CaptureWriteRequest
+	(*CaptureWriteResponse)(nil),         // 9: vrooli.vrooli_memory.v1.harness.CaptureWriteResponse
+	(*GetMaintenanceStatusRequest)(nil),  // 10: vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusRequest
+	(*GetMaintenanceStatusResponse)(nil), // 11: vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusResponse
+	(*MaintenanceRun)(nil),               // 12: vrooli.vrooli_memory.v1.harness.MaintenanceRun
+	(*MaintenanceOutcome)(nil),           // 13: vrooli.vrooli_memory.v1.harness.MaintenanceOutcome
 }
 var file_vrooli_memory_v1_harness_harness_proto_depIdxs = []int32{
 	5,  // 0: vrooli.vrooli_memory.v1.harness.RunImportResponse.run:type_name -> vrooli.vrooli_memory.v1.harness.ImportRun
 	5,  // 1: vrooli.vrooli_memory.v1.harness.GetImportStatusResponse.run:type_name -> vrooli.vrooli_memory.v1.harness.ImportRun
-	14, // 2: vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusResponse.run:type_name -> vrooli.vrooli_memory.v1.harness.MaintenanceRun
-	15, // 3: vrooli.vrooli_memory.v1.harness.MaintenanceRun.outcomes:type_name -> vrooli.vrooli_memory.v1.harness.MaintenanceOutcome
+	12, // 2: vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusResponse.run:type_name -> vrooli.vrooli_memory.v1.harness.MaintenanceRun
+	13, // 3: vrooli.vrooli_memory.v1.harness.MaintenanceRun.outcomes:type_name -> vrooli.vrooli_memory.v1.harness.MaintenanceOutcome
 	1,  // 4: vrooli.vrooli_memory.v1.harness.HarnessService.RunImport:input_type -> vrooli.vrooli_memory.v1.harness.RunImportRequest
 	3,  // 5: vrooli.vrooli_memory.v1.harness.HarnessService.GetImportStatus:input_type -> vrooli.vrooli_memory.v1.harness.GetImportStatusRequest
 	6,  // 6: vrooli.vrooli_memory.v1.harness.HarnessService.RefreshProjection:input_type -> vrooli.vrooli_memory.v1.harness.RefreshProjectionRequest
-	8,  // 7: vrooli.vrooli_memory.v1.harness.HarnessService.InstallPromptBlock:input_type -> vrooli.vrooli_memory.v1.harness.InstallPromptBlockRequest
-	10, // 8: vrooli.vrooli_memory.v1.harness.HarnessService.CaptureWrite:input_type -> vrooli.vrooli_memory.v1.harness.CaptureWriteRequest
-	12, // 9: vrooli.vrooli_memory.v1.harness.HarnessService.GetMaintenanceStatus:input_type -> vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusRequest
-	2,  // 10: vrooli.vrooli_memory.v1.harness.HarnessService.RunImport:output_type -> vrooli.vrooli_memory.v1.harness.RunImportResponse
-	4,  // 11: vrooli.vrooli_memory.v1.harness.HarnessService.GetImportStatus:output_type -> vrooli.vrooli_memory.v1.harness.GetImportStatusResponse
-	7,  // 12: vrooli.vrooli_memory.v1.harness.HarnessService.RefreshProjection:output_type -> vrooli.vrooli_memory.v1.harness.RefreshProjectionResponse
-	9,  // 13: vrooli.vrooli_memory.v1.harness.HarnessService.InstallPromptBlock:output_type -> vrooli.vrooli_memory.v1.harness.InstallPromptBlockResponse
-	11, // 14: vrooli.vrooli_memory.v1.harness.HarnessService.CaptureWrite:output_type -> vrooli.vrooli_memory.v1.harness.CaptureWriteResponse
-	13, // 15: vrooli.vrooli_memory.v1.harness.HarnessService.GetMaintenanceStatus:output_type -> vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusResponse
-	10, // [10:16] is the sub-list for method output_type
-	4,  // [4:10] is the sub-list for method input_type
+	8,  // 7: vrooli.vrooli_memory.v1.harness.HarnessService.CaptureWrite:input_type -> vrooli.vrooli_memory.v1.harness.CaptureWriteRequest
+	10, // 8: vrooli.vrooli_memory.v1.harness.HarnessService.GetMaintenanceStatus:input_type -> vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusRequest
+	2,  // 9: vrooli.vrooli_memory.v1.harness.HarnessService.RunImport:output_type -> vrooli.vrooli_memory.v1.harness.RunImportResponse
+	4,  // 10: vrooli.vrooli_memory.v1.harness.HarnessService.GetImportStatus:output_type -> vrooli.vrooli_memory.v1.harness.GetImportStatusResponse
+	7,  // 11: vrooli.vrooli_memory.v1.harness.HarnessService.RefreshProjection:output_type -> vrooli.vrooli_memory.v1.harness.RefreshProjectionResponse
+	9,  // 12: vrooli.vrooli_memory.v1.harness.HarnessService.CaptureWrite:output_type -> vrooli.vrooli_memory.v1.harness.CaptureWriteResponse
+	11, // 13: vrooli.vrooli_memory.v1.harness.HarnessService.GetMaintenanceStatus:output_type -> vrooli.vrooli_memory.v1.harness.GetMaintenanceStatusResponse
+	9,  // [9:14] is the sub-list for method output_type
+	4,  // [4:9] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name
@@ -1215,7 +1118,7 @@ func file_vrooli_memory_v1_harness_harness_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_memory_v1_harness_harness_proto_rawDesc), len(file_vrooli_memory_v1_harness_harness_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

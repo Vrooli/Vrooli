@@ -47,6 +47,10 @@ service IdentityService {
   // issued owner JWT (the account is signed in immediately). A duplicate email
   // maps to CodeAlreadyExists; a weak or malformed input to CodeInvalidArgument.
   rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // Refresh rotates an authenticator refresh token and returns replacement
+  // owner access and refresh tokens. The bridge stores nothing server-side.
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
 }
 
 message LoginRequest {
@@ -56,13 +60,14 @@ message LoginRequest {
 
 message LoginResponse {
   // The owner JWT to present on owner-gated calls. Returned to the caller; the
-  // control plane does not store it. Expiry means signing in again — there is
-  // deliberately no refresh flow until one actually exists end-to-end.
+  // control plane does not store it. A configured CLI may persist the separate
+  // refresh token for transparent renewal; the bridge API never stores it.
   string token = 1;
 
   // Resolved owner identity, echoed for display ("signed in as ...").
   string email = 2;
   string user_id = 3;
+  string refresh_token = 4;
 }
 
 message RegisterRequest {
@@ -77,4 +82,14 @@ message RegisterResponse {
   string token = 1;
   string email = 2;
   string user_id = 3;
+  string refresh_token = 4;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message RefreshResponse {
+  string token = 1;
+  string refresh_token = 2;
 }

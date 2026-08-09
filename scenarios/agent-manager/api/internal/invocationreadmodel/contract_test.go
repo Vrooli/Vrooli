@@ -1,7 +1,9 @@
 package invocationreadmodel
 
 import (
+	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -339,5 +341,81 @@ func TestProjectErrorsRetainsOnlyAnalyticalErrorVocabulary(t *testing.T) {
 	facts := ProjectErrors(run, []*domain.RunEvent{event}, now.Add(time.Minute))
 	if len(facts) != 1 || facts[0].ErrorCode != "runner_failed" || facts[0].TimeBasis != "error_event" || facts[0].RunID != run.ID.String() || facts[0].Model != "gpt-test" {
 		t.Fatalf("error facts=%+v", facts)
+	}
+}
+
+// TestProjectApportionsCompoundCommandTokensAcrossSegments guards the defect
+// where every segment of a compound command carried the whole call's payload.
+// Each existing conservation fixture uses a single-word command, so all of them
+// pass with segment_count == 1 and none of them can observe the fan-out.
+func TestProjectApportionsCompoundCommandTokensAcrossSegments(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), CreatedAt: time.Now().UTC(), Status: domain.RunStatusComplete}
+	const compound = "cd /repo && rg pattern | head -20"
+	output := strings.Repeat("a matching line of output\n", 40)
+	call := domain.NewToolCallEvent(run.ID, "shell", "call-1", map[string]any{"command": compound})
+	result := domain.NewToolResultEvent(run.ID, "shell", "call-1", output, nil)
+	usage := &domain.RunEvent{Data: &domain.UsageEventData{InputTokens: 100, OutputTokens: 20, CacheReadTokens: 8, CacheCreationTokens: 4, TurnIndex: 1}}
+	events := []*domain.RunEvent{call, result, usage}
+
+	facts, _ := Project(run, events, time.Now().UTC())
+	if len(facts) != 3 {
+		t.Fatalf("facts=%d, want one per segment of %q", len(facts), compound)
+	}
+	for _, fact := range facts {
+		if fact.SegmentCount != 3 || fact.CallEventID != call.ID.String() {
+			t.Fatalf("segment fact does not belong to the one call: %+v", fact.InvocationFact)
+		}
+	}
+
+	encoded, err := json.Marshal(map[string]any{"command": compound})
+	if err != nil {
+		t.Fatalf("marshal call input: %v", err)
+	}
+	wantArg := tokenaccounting.EstimateText(string(encoded)).Tokens
+	wantResult := tokenaccounting.EstimateText(output).Tokens
+	if wantArg == 0 || wantResult == 0 {
+		t.Fatalf("fixture must produce a non-zero payload: arg=%d result=%d", wantArg, wantResult)
+	}
+
+	var gotArg, gotResult, gotIncurred int64
+	for _, fact := range facts {
+		gotArg += fact.ArgTokens
+		gotResult += fact.ResultTokens
+		gotIncurred += fact.IncurredInputTokens + fact.IncurredOutputTokens + fact.IncurredCacheReadTokens + fact.IncurredCacheCreationTokens
+	}
+	if gotArg != wantArg {
+		t.Fatalf("summed arg tokens = %d, want the call's %d (fan-out would give %d)", gotArg, wantArg, wantArg*3)
+	}
+	if gotResult != wantResult {
+		t.Fatalf("summed result tokens = %d, want the call's %d (fan-out would give %d)", gotResult, wantResult, wantResult*3)
+	}
+
+	// The run ledger sums the by-call attribution map rather than the fact
+	// rows, so it stayed correct while the per-command ranking was inflated.
+	// Reconciling the fact rows against it is what ties the two together.
+	runFact := ProjectRun(run, events, time.Now().UTC())
+	if runFact.PreambleInjectedTokens+runFact.PreambleFixedTokens+gotIncurred+runFact.UnattributedTokens != runFact.TotalTokens {
+		t.Fatalf("facts do not reconcile to the run: preamble=%d+%d incurred=%d residual=%d total=%d",
+			runFact.PreambleInjectedTokens, runFact.PreambleFixedTokens, gotIncurred, runFact.UnattributedTokens, runFact.TotalTokens)
+	}
+}
+
+// TestProjectDoesNotConcentrateCompoundTokensOnTheLeadingSegment pins the
+// choice of an even split. Charging the call to segment zero would send the
+// plurality of all shell token spend to `cd`, which leads every compound line.
+func TestProjectDoesNotConcentrateCompoundTokensOnTheLeadingSegment(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), CreatedAt: time.Now().UTC(), Status: domain.RunStatusComplete}
+	call := domain.NewToolCallEvent(run.ID, "shell", "call-1", map[string]any{"command": "cd /repo && rg pattern"})
+	result := domain.NewToolResultEvent(run.ID, "shell", "call-1", strings.Repeat("line\n", 100), nil)
+	facts, _ := Project(run, []*domain.RunEvent{call, result}, time.Now().UTC())
+	if len(facts) != 2 {
+		t.Fatalf("facts=%d, want two segments", len(facts))
+	}
+	leading, trailing := facts[0], facts[1]
+	if leading.Executable != "cd" {
+		t.Fatalf("fixture assumption broken: leading executable=%q", leading.Executable)
+	}
+	if leading.ResultTokens > trailing.ResultTokens+1 {
+		t.Fatalf("leading segment absorbed the payload: cd=%d rg=%d", leading.ResultTokens, trailing.ResultTokens)
 	}
 }

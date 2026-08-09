@@ -7,9 +7,8 @@ the code moves. All skills that create or edit work should defer to this
 document for the shape of `title`, `description`, and acceptance criteria.
 
 **Scope boundaries:**
-- **In scope**: what the text must say, and which layer says it
-- **Out of scope**: folder structure, artifact schemas, CLI commands (see
-  `swarm-manager-backlog-tools`)
+- **In scope**: what the text must say, how work is shaped, and how the live
+  backlog contract is used
 
 ## Writing Standard (outcome statement + Gherkin done-condition)
 
@@ -20,6 +19,15 @@ description is still true next month. That is what this section is for.
 true or false today, without knowing when the item was written.**
 
 Everything else here follows from that rule.
+
+## Runtime item and CLI contract
+
+Backlog items are read from the runtime `{{ITEM_FOLDER}}`; use the Swarm
+Manager CLI for read-only context and typed mutations rather than hand-editing
+project state. The durable item contract is `spec.json`, with optional
+`handoff/`, `research/`, and `archive/` evidence directories. Keep generated
+execution context under `handoff/`, keep research evidence supplemental, and
+use `plan_ref` as the canonical implementation-plan reference.
 
 ### Shape
 
@@ -148,4 +156,3 @@ If a split fails either test, do not split. One milestone is the right answer
 for most goals. Never copy the goal's title or description into it; title the
 milestone for the evidence ("Bridge verified on real hardware"), not for its
 parent.
-

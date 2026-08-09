@@ -408,15 +408,11 @@ type mockBacklogCreator struct {
 	}
 }
 
-func (m *mockBacklogCreator) ItemDir(kind, name string) string {
-	return "/tmp/test/" + kind + "/" + name
-}
-
-func (m *mockBacklogCreator) SaveItem(kind, name, title, description string, tags []string) error {
+func (m *mockBacklogCreator) SaveItem(draft BacklogItemDraft) error {
 	m.items = append(m.items, struct {
 		kind, name, title, description string
 		tags                           []string
-	}{kind, name, title, description, tags})
+	}{draft.Kind, draft.Name, draft.Title, draft.Description, draft.Tags})
 	return nil
 }
 
@@ -476,6 +472,9 @@ func TestCreateItem_Success(t *testing.T) {
 	if item.title == "" {
 		t.Error("expected non-empty title")
 	}
+	if item.title != "backup cron" || item.description != "" {
+		t.Errorf("classification fields were not carried through: %#v", item)
+	}
 	if len(item.tags) != 2 || item.tags[0] != "ops" || item.tags[1] != "infra" {
 		t.Errorf("unexpected tags: %v", item.tags)
 	}
@@ -487,6 +486,104 @@ func TestCreateItem_Success(t *testing.T) {
 	}
 	if loaded.Status != "classified" {
 		t.Errorf("expected status classified, got %q", loaded.Status)
+	}
+}
+
+func TestCreateItem_CreatesEveryClassificationItemWithProvenance(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	creator := &mockBacklogCreator{}
+	h.SetBacklogCreator(creator)
+	id := "cap-multiple-items"
+	dir := filepath.Join(rootDir, "captures", id)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cap := capture{ID: id, Text: "two intents", Created: time.Now().UTC().Format(time.RFC3339), Status: "classified", Classification: &classification{Items: []classificationItem{
+		{Kind: "fix", Title: "Fix login", Description: "Repair login", Priority: 2, Tags: []string{"auth"}},
+		{Kind: "research", Title: "Research backups", Description: "Compare options", Priority: 9, Tags: []string{"ops"}},
+		{Kind: "execute", Title: "Ship dashboard", Description: "Implement dashboard", Priority: 6, Tags: []string{"ui"}},
+	}}}
+	data, _ := json.Marshal(cap)
+	if err := os.WriteFile(filepath.Join(dir, "capture.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	request := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/captures/"+id+"/create-item", nil), map[string]string{"id": id})
+	recorder := httptest.NewRecorder()
+	h.CreateItem(recorder, request)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("create items = %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if len(creator.items) != 3 {
+		t.Fatalf("created %d items, want 3", len(creator.items))
+	}
+	for _, item := range creator.items {
+		if item.kind == "" || item.title == "" {
+			t.Errorf("incomplete draft: %#v", item)
+		}
+	}
+	// The mock records the shape; use the real adapter contract's explicit
+	// provenance assertion through the response payload.
+	var response struct {
+		Items []struct {
+			Priority    int    `json:"priority"`
+			SpawnedFrom string `json:"spawned_from"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Items) != 3 {
+		t.Fatalf("response items = %d, want 3", len(response.Items))
+	}
+	for _, item := range response.Items {
+		if item.SpawnedFrom != id || item.Priority < 1 || item.Priority > 10 {
+			t.Errorf("bad response provenance/priority: %#v", item)
+		}
+	}
+}
+
+func TestCaptureVersionChangesWhenNoteChanges(t *testing.T) {
+	base := &capture{ID: "cap-note", Text: "same", Attachments: []string{"attachments/a.png"}, Note: "first"}
+	first := captureVersion(base)
+	base.Note = "second"
+	second := captureVersion(base)
+	if first == second {
+		t.Fatal("capture version did not change when note changed")
+	}
+}
+
+func TestBuildClassificationInputUsesReadableAttachmentPathsAndNote(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	id := "cap-attachment-input"
+	attachment := filepath.Join(rootDir, "captures", id, "attachments", "screen.png")
+	if err := os.MkdirAll(filepath.Dir(attachment), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(attachment, []byte("image"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cap := &capture{ID: id, Text: "inspect screenshot", Note: "look at the error banner", Attachments: []string{"attachments/screen.png"}}
+	if err := h.writeCapture(cap); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := h.buildClassificationInput(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := snapshot.Input.GetStructValue().AsMap()["capture"].(map[string]any)
+	paths := root["attachments"].([]any)
+	if len(paths) != 1 {
+		t.Fatalf("attachments = %#v", paths)
+	}
+	path := paths[0].(string)
+	if !filepath.IsAbs(path) {
+		t.Fatalf("attachment path is not absolute: %q", path)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("attachment path is unreachable: %v", err)
+	}
+	if root["note"] != cap.Note {
+		t.Fatalf("note = %#v, want %q", root["note"], cap.Note)
 	}
 }
 
@@ -694,12 +791,5 @@ func TestApplyClassificationRecoversAfterHandlerRestart(t *testing.T) {
 	}
 	if stored.Status != "classified" || stored.Classification == nil {
 		t.Fatalf("recovered capture = %#v", stored)
-	}
-}
-
-func TestCaptureAsAttemptProjectsClassificationItemsAsProposals(t *testing.T) {
-	value := capture{ID: "cap-1", Created: "2026-07-29T00:00:00Z", Status: "classified", Classification: &classification{ClassifiedAt: "2026-07-29T01:00:00Z", Items: []classificationItem{{Kind: "fix", Title: "Repair", Priority: 2}}}}.asAttempt()
-	if value.SubjectKind != "capture" || value.SubjectRef != "cap-1" || value.GeneratedAt != "2026-07-29T01:00:00Z" || len(value.Proposals) != 1 || value.Proposals[0].Type != "fix" {
-		t.Fatalf("attempt = %#v", value)
 	}
 }

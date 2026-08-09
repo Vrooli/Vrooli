@@ -95,6 +95,14 @@ service ArtifactsService {
   // ListDistributions returns distributions newest-first, optionally filtered by
   // node. Owner-gated.
   rpc ListDistributions(ListDistributionsRequest) returns (ListDistributionsResponse);
+
+  // UploadRunArtifact is node-facing. A paired node uploads one bounded file
+  // produced by its own dispatched run; the node credential identifies and
+  // authorizes the source run. Owner-facing retrieval is GetRunArtifact.
+  rpc UploadRunArtifact(UploadRunArtifactRequest) returns (UploadRunArtifactResponse);
+
+  // GetRunArtifact returns one bounded produced artifact for an owner-gated run.
+  rpc GetRunArtifact(GetRunArtifactRequest) returns (GetRunArtifactResponse);
 }
 
 message DistributeArtifactRequest {
@@ -142,4 +150,29 @@ message ListDistributionsRequest {
 
 message ListDistributionsResponse {
   repeated Distribution distributions = 1;
+}
+
+message UploadRunArtifactRequest {
+  string run_id = 1;
+  string name = 2;
+  string media_type = 3;
+  bytes data = 4;
+}
+
+message UploadRunArtifactResponse {
+  string artifact_ref = 1;
+  int64 size_bytes = 2;
+}
+
+message GetRunArtifactRequest {
+  string run_id = 1;
+  string name = 2;
+}
+
+message GetRunArtifactResponse {
+  string run_id = 1;
+  string name = 2;
+  string media_type = 3;
+  bytes data = 4;
+  string artifact_ref = 5;
 }

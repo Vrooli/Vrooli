@@ -65,3 +65,38 @@ func (a TokenAccounting) Tokens() int64 {
 func (a TokenAccounting) Conserves(runTotal int64) bool {
 	return a.Tokens() == runTotal
 }
+
+// SegmentShare apportions one per-call token quantity across the segments a
+// compound invocation was split into.
+//
+// A tool call carries exactly one input payload and one result payload, but
+// the read model emits one fact per shell segment so that each command in a
+// compound line stays independently rankable. Copying the whole call quantity
+// onto every segment would make any SUM over facts overcount the run in
+// proportion to how compound its commands were, which silently inflates the
+// commands that happen to be written as pipelines.
+//
+// The split is even because the retained evidence cannot say which segment
+// produced the payload: a pipeline's bytes are shaped by every stage, and the
+// segment texts are not retained. An even split is a declared approximation,
+// not a measurement — consumers distinguish it by SegmentCount > 1 on the
+// fact. The remainder is assigned to the leading segments so the shares sum
+// back to the original total exactly for any segment count.
+//
+// Totals are non-negative by construction (payload lengths and provider
+// counts). A negative total has no apportionment and yields zero rather than
+// distributing a nonsense remainder.
+func SegmentShare(total int64, segmentCount, segmentIndex int) int64 {
+	if segmentCount <= 1 {
+		return total
+	}
+	if segmentIndex < 0 || segmentIndex >= segmentCount || total <= 0 {
+		return 0
+	}
+	count := int64(segmentCount)
+	share := total / count
+	if int64(segmentIndex) < total%count {
+		share++
+	}
+	return share
+}

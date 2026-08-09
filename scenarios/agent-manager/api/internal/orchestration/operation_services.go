@@ -122,6 +122,10 @@ type IdentityService interface {
 	VerifyIdentityToken(context.Context, string) (*IdentityVerifyResult, error)
 }
 
+type DelegationService interface {
+	MintDelegatedIdentity(context.Context, MintDelegatedIdentityRequest) (*MintDelegatedIdentityResponse, error)
+}
+
 type RunReportService interface {
 	BuildRunReport(context.Context, uuid.UUID) (*runreport.RunReport, error)
 }
@@ -171,6 +175,7 @@ type HandlerServices struct {
 	OrchestrationSettingsService
 	PathValidationService
 	IdentityService
+	DelegationService
 	RunReportService
 	InvocationFactService
 	DurabilityService
@@ -196,6 +201,7 @@ func NewHandlerServices(orchestrator *Orchestrator) HandlerServices {
 		OrchestrationSettingsService: orchestrator,
 		PathValidationService:        orchestrator,
 		IdentityService:              orchestrator,
+		DelegationService:            orchestrator,
 		RunReportService:             orchestrator,
 		InvocationFactService:        orchestrator,
 		DurabilityService:            orchestrator,

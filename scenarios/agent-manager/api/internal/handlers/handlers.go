@@ -314,6 +314,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 	// Identity verification endpoint
 	r.HandleFunc("/api/v1/identity/verify", h.VerifyIdentityToken).Methods("POST")
+	r.HandleFunc("/api/v1/identity/mint", h.MintDelegatedIdentity).Methods("POST")
 }
 
 // =============================================================================

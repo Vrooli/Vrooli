@@ -935,7 +935,7 @@ func TestCmdPromptsCatalogRequestsExpectedEndpoint(t *testing.T) {
 		if r.URL.Path != "/api/v1/prompts/catalog" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		_, _ = w.Write([]byte(`{"items":[{"id":"capture-classify","title":"Capture Classification","group":"capture","usage_type":"direct_runtime","source_type":"skill","trigger":"Capture classify action","skill_id":"swarm-manager-classify-capture","purpose":"Classify capture text."}]}`))
+		_, _ = w.Write([]byte(`{"items":[]}`))
 	}))
 
 	app, err := NewApp()
@@ -963,7 +963,7 @@ func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
 		if err := json.Unmarshal(body, &payload); err != nil {
 			t.Fatalf("decode request: %v", err)
 		}
-		if payload["skill_id"] != "swarm-manager-classify-capture" {
+		if payload["skill_id"] != "swarm-manager-review" {
 			t.Fatalf("unexpected skill_id: %v", payload["skill_id"])
 		}
 		if payload["with_scope"] != true {
@@ -976,14 +976,14 @@ func TestCmdPromptsPreviewSendsPayload(t *testing.T) {
 		if vars["ITEM_TITLE"] != "My Idea" {
 			t.Fatalf("unexpected ITEM_TITLE: %v", vars["ITEM_TITLE"])
 		}
-		_, _ = w.Write([]byte(`{"skill_id":"swarm-manager-classify-capture","with_scope":true,"variables":{"ITEM_TITLE":"My Idea"},"prompt":"preview prompt"}`))
+		_, _ = w.Write([]byte(`{"skill_id":"swarm-manager-review","with_scope":true,"variables":{"ITEM_FOLDER":"My Idea"},"prompt":"preview prompt"}`))
 	}))
 
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
-	if err := app.cmdPromptsPreview([]string{"--id", "swarm-manager-classify-capture", "--with-scope", "--vars", "ITEM_TITLE=My Idea"}); err != nil {
+	if err := app.cmdPromptsPreview([]string{"--id", "swarm-manager-review", "--with-scope", "--vars", "ITEM_FOLDER=My Idea"}); err != nil {
 		t.Fatalf("cmdPromptsPreview returned error: %v", err)
 	}
 }

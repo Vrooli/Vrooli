@@ -54,6 +54,52 @@ cost. The typed constants and invariant live in
 `api/internal/tokenaccounting`; the conservation tests include empty usage,
 terminal-only usage, per-turn usage, and two compaction boundaries.
 
+## Compound commands and segment apportionment
+
+A shell tool call carries one input payload and one result payload, but the
+read model emits one fact per shell segment so that each command in a compound
+line stays independently rankable. `cd /repo && rg pattern | head -20` becomes
+three facts from one call.
+
+Token quantities therefore have to be apportioned. Each per-call quantity —
+argument tokens, result tokens, and each incurred usage field — is divided
+evenly across the call's segments, with the remainder assigned to the leading
+segments so the shares sum back to the call total exactly. Residency turns are
+a multiplier rather than a token quantity, so they stay whole; the residency
+product apportions through the result share it multiplies.
+
+The even split is a declared approximation, not a measurement. The retained
+evidence cannot say which stage of a pipeline produced the bytes, and the
+segment texts are not retained. Consumers distinguish an apportioned fact by
+`segment_count > 1`.
+
+Two rejected alternatives are worth recording, because both look simpler:
+
+- **Charging the whole call to the leading segment** concentrates the plurality
+  of all shell token spend onto `cd`, which begins most compound lines in this
+  corpus. It produces a confidently wrong ranking.
+- **Leaving the whole call value on every segment** is what facts at
+  `invocation-fact.v16` and earlier did. Any `SUM` over those rows overcounts a
+  run in proportion to how compound its commands were, and attributes the full
+  turn cost separately to every command in the line. The run-level ledger was
+  never affected, because it sums the by-call attribution map rather than the
+  fact rows — so conservation stayed green while the per-command ranking was
+  inflated. That asymmetry is why the regression test reconciles the fact rows
+  against the run ledger rather than checking either one alone.
+
+Because a fact row is a segment, `p50`, `p95`, and `max` footprint columns
+describe segment shares rather than whole calls whenever the grouped commands
+appear in compound lines. `SUM` columns are unaffected — they conserve.
+
+## Whole-stream projection
+
+Projection reads a run's entire retained event stream, paging by sequence.
+A single capped read is not sufficient and is a defect, not a tuning choice:
+the run total is derived from the same slice as the invocation facts, so a
+truncated load still produces a ledger that reconciles — against a partial run.
+The result is that the longest and most expensive runs are measured least
+accurately, which inverts the signal the measure exists to provide.
+
 ## Compaction and preamble approximations
 
 Residency does not reset at compaction. A tool result is carried at full weight

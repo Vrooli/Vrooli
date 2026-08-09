@@ -42,6 +42,12 @@ const (
 	// ArtifactsServiceListDistributionsProcedure is the fully-qualified name of the ArtifactsService's
 	// ListDistributions RPC.
 	ArtifactsServiceListDistributionsProcedure = "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/ListDistributions"
+	// ArtifactsServiceUploadRunArtifactProcedure is the fully-qualified name of the ArtifactsService's
+	// UploadRunArtifact RPC.
+	ArtifactsServiceUploadRunArtifactProcedure = "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/UploadRunArtifact"
+	// ArtifactsServiceGetRunArtifactProcedure is the fully-qualified name of the ArtifactsService's
+	// GetRunArtifact RPC.
+	ArtifactsServiceGetRunArtifactProcedure = "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/GetRunArtifact"
 )
 
 // ArtifactsServiceClient is a client for the vrooli.vrooli_bridge.v1.artifacts.ArtifactsService
@@ -57,6 +63,12 @@ type ArtifactsServiceClient interface {
 	// ListDistributions returns distributions newest-first, optionally filtered by
 	// node. Owner-gated.
 	ListDistributions(context.Context, *connect.Request[artifacts.ListDistributionsRequest]) (*connect.Response[artifacts.ListDistributionsResponse], error)
+	// UploadRunArtifact is node-facing. A paired node uploads one bounded file
+	// produced by its own dispatched run; the node credential identifies and
+	// authorizes the source run. Owner-facing retrieval is GetRunArtifact.
+	UploadRunArtifact(context.Context, *connect.Request[artifacts.UploadRunArtifactRequest]) (*connect.Response[artifacts.UploadRunArtifactResponse], error)
+	// GetRunArtifact returns one bounded produced artifact for an owner-gated run.
+	GetRunArtifact(context.Context, *connect.Request[artifacts.GetRunArtifactRequest]) (*connect.Response[artifacts.GetRunArtifactResponse], error)
 }
 
 // NewArtifactsServiceClient constructs a client for the
@@ -89,6 +101,18 @@ func NewArtifactsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(artifactsServiceMethods.ByName("ListDistributions")),
 			connect.WithClientOptions(opts...),
 		),
+		uploadRunArtifact: connect.NewClient[artifacts.UploadRunArtifactRequest, artifacts.UploadRunArtifactResponse](
+			httpClient,
+			baseURL+ArtifactsServiceUploadRunArtifactProcedure,
+			connect.WithSchema(artifactsServiceMethods.ByName("UploadRunArtifact")),
+			connect.WithClientOptions(opts...),
+		),
+		getRunArtifact: connect.NewClient[artifacts.GetRunArtifactRequest, artifacts.GetRunArtifactResponse](
+			httpClient,
+			baseURL+ArtifactsServiceGetRunArtifactProcedure,
+			connect.WithSchema(artifactsServiceMethods.ByName("GetRunArtifact")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -97,6 +121,8 @@ type artifactsServiceClient struct {
 	distributeArtifact *connect.Client[artifacts.DistributeArtifactRequest, artifacts.DistributeArtifactResponse]
 	getDistribution    *connect.Client[artifacts.GetDistributionRequest, artifacts.GetDistributionResponse]
 	listDistributions  *connect.Client[artifacts.ListDistributionsRequest, artifacts.ListDistributionsResponse]
+	uploadRunArtifact  *connect.Client[artifacts.UploadRunArtifactRequest, artifacts.UploadRunArtifactResponse]
+	getRunArtifact     *connect.Client[artifacts.GetRunArtifactRequest, artifacts.GetRunArtifactResponse]
 }
 
 // DistributeArtifact calls vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.DistributeArtifact.
@@ -114,6 +140,16 @@ func (c *artifactsServiceClient) ListDistributions(ctx context.Context, req *con
 	return c.listDistributions.CallUnary(ctx, req)
 }
 
+// UploadRunArtifact calls vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.UploadRunArtifact.
+func (c *artifactsServiceClient) UploadRunArtifact(ctx context.Context, req *connect.Request[artifacts.UploadRunArtifactRequest]) (*connect.Response[artifacts.UploadRunArtifactResponse], error) {
+	return c.uploadRunArtifact.CallUnary(ctx, req)
+}
+
+// GetRunArtifact calls vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.GetRunArtifact.
+func (c *artifactsServiceClient) GetRunArtifact(ctx context.Context, req *connect.Request[artifacts.GetRunArtifactRequest]) (*connect.Response[artifacts.GetRunArtifactResponse], error) {
+	return c.getRunArtifact.CallUnary(ctx, req)
+}
+
 // ArtifactsServiceHandler is an implementation of the
 // vrooli.vrooli_bridge.v1.artifacts.ArtifactsService service.
 type ArtifactsServiceHandler interface {
@@ -127,6 +163,12 @@ type ArtifactsServiceHandler interface {
 	// ListDistributions returns distributions newest-first, optionally filtered by
 	// node. Owner-gated.
 	ListDistributions(context.Context, *connect.Request[artifacts.ListDistributionsRequest]) (*connect.Response[artifacts.ListDistributionsResponse], error)
+	// UploadRunArtifact is node-facing. A paired node uploads one bounded file
+	// produced by its own dispatched run; the node credential identifies and
+	// authorizes the source run. Owner-facing retrieval is GetRunArtifact.
+	UploadRunArtifact(context.Context, *connect.Request[artifacts.UploadRunArtifactRequest]) (*connect.Response[artifacts.UploadRunArtifactResponse], error)
+	// GetRunArtifact returns one bounded produced artifact for an owner-gated run.
+	GetRunArtifact(context.Context, *connect.Request[artifacts.GetRunArtifactRequest]) (*connect.Response[artifacts.GetRunArtifactResponse], error)
 }
 
 // NewArtifactsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -154,6 +196,18 @@ func NewArtifactsServiceHandler(svc ArtifactsServiceHandler, opts ...connect.Han
 		connect.WithSchema(artifactsServiceMethods.ByName("ListDistributions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	artifactsServiceUploadRunArtifactHandler := connect.NewUnaryHandler(
+		ArtifactsServiceUploadRunArtifactProcedure,
+		svc.UploadRunArtifact,
+		connect.WithSchema(artifactsServiceMethods.ByName("UploadRunArtifact")),
+		connect.WithHandlerOptions(opts...),
+	)
+	artifactsServiceGetRunArtifactHandler := connect.NewUnaryHandler(
+		ArtifactsServiceGetRunArtifactProcedure,
+		svc.GetRunArtifact,
+		connect.WithSchema(artifactsServiceMethods.ByName("GetRunArtifact")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ArtifactsServiceDistributeArtifactProcedure:
@@ -162,6 +216,10 @@ func NewArtifactsServiceHandler(svc ArtifactsServiceHandler, opts ...connect.Han
 			artifactsServiceGetDistributionHandler.ServeHTTP(w, r)
 		case ArtifactsServiceListDistributionsProcedure:
 			artifactsServiceListDistributionsHandler.ServeHTTP(w, r)
+		case ArtifactsServiceUploadRunArtifactProcedure:
+			artifactsServiceUploadRunArtifactHandler.ServeHTTP(w, r)
+		case ArtifactsServiceGetRunArtifactProcedure:
+			artifactsServiceGetRunArtifactHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -181,4 +239,12 @@ func (UnimplementedArtifactsServiceHandler) GetDistribution(context.Context, *co
 
 func (UnimplementedArtifactsServiceHandler) ListDistributions(context.Context, *connect.Request[artifacts.ListDistributionsRequest]) (*connect.Response[artifacts.ListDistributionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.ListDistributions is not implemented"))
+}
+
+func (UnimplementedArtifactsServiceHandler) UploadRunArtifact(context.Context, *connect.Request[artifacts.UploadRunArtifactRequest]) (*connect.Response[artifacts.UploadRunArtifactResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.UploadRunArtifact is not implemented"))
+}
+
+func (UnimplementedArtifactsServiceHandler) GetRunArtifact(context.Context, *connect.Request[artifacts.GetRunArtifactRequest]) (*connect.Response[artifacts.GetRunArtifactResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.artifacts.ArtifactsService.GetRunArtifact is not implemented"))
 }

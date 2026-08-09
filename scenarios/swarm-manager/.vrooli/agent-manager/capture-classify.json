@@ -20,6 +20,10 @@
             "minLength": 1,
             "maxLength": 32768
           },
+          "note": {
+            "type": "string",
+            "maxLength": 8192
+          },
           "attachments": {
             "type": "array",
             "maxItems": 20,
@@ -37,6 +41,7 @@
         "required": [
           "id",
           "text",
+          "note",
           "attachments",
           "version"
         ],
@@ -109,7 +114,7 @@
                         "priority": {
                           "type": "integer",
                           "minimum": 1,
-                          "maximum": 5
+                          "maximum": 10
                         },
                         "tags": {
                           "type": "array",

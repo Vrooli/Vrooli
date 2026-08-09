@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
     sandbox_config TEXT DEFAULT '{}',
     allowed_paths TEXT DEFAULT '[]',
     denied_paths TEXT DEFAULT '[]',
+    declared_scopes TEXT DEFAULT '[]',
     created_by TEXT,
     owner_scenario TEXT DEFAULT '',
     source_path TEXT DEFAULT '',

@@ -282,6 +282,11 @@ type WakeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hits          []*RecallHit           `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
 	Overflow      bool                   `protobuf:"varint,2,opt,name=overflow,proto3" json:"overflow,omitempty"`
+	Refused       int32                  `protobuf:"varint,3,opt,name=refused,proto3" json:"refused,omitempty"`
+	LinesUsed     int32                  `protobuf:"varint,4,opt,name=lines_used,json=linesUsed,proto3" json:"lines_used,omitempty"`
+	CharsUsed     int32                  `protobuf:"varint,5,opt,name=chars_used,json=charsUsed,proto3" json:"chars_used,omitempty"`
+	BudgetLines   int32                  `protobuf:"varint,6,opt,name=budget_lines,json=budgetLines,proto3" json:"budget_lines,omitempty"`
+	BudgetChars   int32                  `protobuf:"varint,7,opt,name=budget_chars,json=budgetChars,proto3" json:"budget_chars,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -328,6 +333,41 @@ func (x *WakeResponse) GetOverflow() bool {
 		return x.Overflow
 	}
 	return false
+}
+
+func (x *WakeResponse) GetRefused() int32 {
+	if x != nil {
+		return x.Refused
+	}
+	return 0
+}
+
+func (x *WakeResponse) GetLinesUsed() int32 {
+	if x != nil {
+		return x.LinesUsed
+	}
+	return 0
+}
+
+func (x *WakeResponse) GetCharsUsed() int32 {
+	if x != nil {
+		return x.CharsUsed
+	}
+	return 0
+}
+
+func (x *WakeResponse) GetBudgetLines() int32 {
+	if x != nil {
+		return x.BudgetLines
+	}
+	return 0
+}
+
+func (x *WakeResponse) GetBudgetChars() int32 {
+	if x != nil {
+		return x.BudgetChars
+	}
+	return 0
 }
 
 type ZoomRequest struct {
@@ -545,10 +585,17 @@ const file_source_ledger_v1_recall_recall_proto_rawDesc = "" +
 	"\vWakeRequest\x12\x1f\n" +
 	"\vline_budget\x18\x01 \x01(\x05R\n" +
 	"lineBudget\x12\x14\n" +
-	"\x05scope\x18\x02 \x01(\tR\x05scope\"i\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\"\x87\x02\n" +
 	"\fWakeResponse\x12=\n" +
 	"\x04hits\x18\x01 \x03(\v2).vrooli.source_ledger.v1.recall.RecallHitR\x04hits\x12\x1a\n" +
-	"\boverflow\x18\x02 \x01(\bR\boverflow\"<\n" +
+	"\boverflow\x18\x02 \x01(\bR\boverflow\x12\x18\n" +
+	"\arefused\x18\x03 \x01(\x05R\arefused\x12\x1d\n" +
+	"\n" +
+	"lines_used\x18\x04 \x01(\x05R\tlinesUsed\x12\x1d\n" +
+	"\n" +
+	"chars_used\x18\x05 \x01(\x05R\tcharsUsed\x12!\n" +
+	"\fbudget_lines\x18\x06 \x01(\x05R\vbudgetLines\x12!\n" +
+	"\fbudget_chars\x18\a \x01(\x05R\vbudgetChars\"<\n" +
 	"\vZoomRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n" +
 	"\x05scope\x18\x02 \x01(\tR\x05scope\"]\n" +

@@ -62,6 +62,9 @@ type AgentProfile struct {
 	// Path restrictions
 	AllowedPaths []string `json:"allowedPaths,omitempty" db:"allowed_paths"`
 	DeniedPaths  []string `json:"deniedPaths,omitempty" db:"denied_paths"`
+	// DeclaredScopes is an optional profile ceiling for delegated identity
+	// tokens. Empty/nil preserves the account's full scope by default.
+	DeclaredScopes []string `json:"declaredScopes,omitempty" db:"declared_scopes"`
 
 	// Metadata
 	CreatedBy       string    `json:"createdBy,omitempty" db:"created_by"`
@@ -793,18 +796,19 @@ type Run struct {
 
 	// Custom tag for identification (defaults to ID if not set)
 	// Used for agent tracking, log filtering, and external process identification
-	Tag         string          `json:"tag,omitempty" db:"tag"`
-	Label       string          `json:"label,omitempty" db:"label"`
-	LabelSource RunLabelSource  `json:"labelSource,omitempty" db:"label_source"`
-	Subject     []string        `json:"subject,omitempty" db:"subject"`
-	Workload    WorkloadRef     `json:"workload,omitempty" db:"workload"`
-	Billing     BillingSnapshot `json:"billing,omitempty" db:"billing"`
-
+	Tag             string          `json:"tag,omitempty" db:"tag"`
+	Label           string          `json:"label,omitempty" db:"label"`
+	LabelSource     RunLabelSource  `json:"labelSource,omitempty" db:"label_source"`
+	Subject         []string        `json:"subject,omitempty" db:"subject"`
+	OwnerSubject    string          `json:"ownerSubject,omitempty" db:"owner_subject"`
+	OwnerScopes     []string        `json:"ownerScopes,omitempty" db:"owner_scopes"`
+	RequestedScopes []string        `json:"requestedScopes,omitempty" db:"requested_scopes"`
+	Workload        WorkloadRef     `json:"workload,omitempty" db:"workload"`
+	Billing         BillingSnapshot `json:"billing,omitempty" db:"billing"`
 	// Sandbox integration
 	SandboxID     *uuid.UUID     `json:"sandboxId,omitempty" db:"sandbox_id"`
 	RunMode       RunMode        `json:"runMode" db:"run_mode"`
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
-
 	// ExecutionMode selects the CLI-driving substrate for this run
 	// (codec-pipe vs interactive web-console session). Empty is treated as
 	// ExecutionModeCodecPipe; see [ExecutionMode]. Orthogonal to RunMode.

@@ -37,6 +37,9 @@ enum AuditAction {
 
   // A provisioning operation (provision domain, Phase 4).
   AUDIT_ACTION_PROVISION = 2;
+
+  // An accepted offline break-glass capability use.
+  AUDIT_ACTION_BREAK_GLASS = 3;
 }
 
 // AuditOutcome is the result recorded for an audited operation.

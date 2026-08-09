@@ -26,6 +26,14 @@ import (
 // RUN HANDLERS
 // =============================================================================
 
+func bearerToken(value string) string {
+	parts := strings.Fields(value)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return ""
+	}
+	return parts[1]
+}
+
 // CreateRun creates a new run.
 func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	if h.denyRunInitiatedLifecycleOperation(w, r, "create-run") {
@@ -57,8 +65,9 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := orchestration.CreateRunRequest{
-		TaskID: taskID,
-		Force:  protoReq.Force,
+		TaskID:     taskID,
+		Force:      protoReq.Force,
+		OwnerToken: bearerToken(r.Header.Get("Authorization")),
 	}
 	if protoReq.AgentProfileId != nil {
 		agentProfileID, err := uuid.Parse(protoReq.GetAgentProfileId())

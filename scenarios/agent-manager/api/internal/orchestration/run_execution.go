@@ -283,11 +283,13 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 	identityToken := ""
 	if len(o.identitySecret) > 0 {
 		identityToken = phases.GenerateIdentityToken(ctx, phases.GenerateIdentityTokenInput{
-			Deps:    phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster},
-			Run:     run,
-			Profile: profile,
-			Task:    task,
-			Secret:  o.identitySecret,
+			Deps:            phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster},
+			Run:             run,
+			Profile:         profile,
+			Task:            task,
+			Secret:          o.identitySecret,
+			AccountScopes:   run.OwnerScopes,
+			RequestedScopes: run.RequestedScopes,
 		})
 	}
 	env := phases.AssembleRunEnv(phases.AssembleRunEnvInput{

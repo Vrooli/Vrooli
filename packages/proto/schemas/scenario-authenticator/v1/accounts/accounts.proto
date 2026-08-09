@@ -51,6 +51,10 @@ service AccountsService {
   // PERMISSION_DENIED.
   rpc Login(LoginRequest) returns (LoginResponse);
 
+  // ChangePassword verifies the current password, stores a new Argon2id hash,
+  // and revokes every live session for the authenticated account.
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+
   // Refresh rotates a refresh token single-use and mints a new access token.
   // Presenting an already-rotated token revokes the entire token family
   // (reuse detection) and yields UNAUTHENTICATED.
@@ -65,6 +69,29 @@ service AccountsService {
   // rejected. RPs should prefer local JWKS verification; this is for callers
   // that cannot verify locally.
   rpc Validate(ValidateRequest) returns (ValidateResponse);
+
+  // GrantScope assigns an opaque authorization scope to a principal.
+  rpc GrantScope(GrantScopeRequest) returns (ScopeResponse);
+
+  // RevokeScope removes an opaque authorization scope from a principal.
+  rpc RevokeScope(RevokeScopeRequest) returns (ScopeResponse);
+
+  // ListScopes returns the opaque scopes assigned to a principal.
+  rpc ListScopes(ListScopesRequest) returns (ListScopesResponse);
+
+  // LinkMachineAccount binds an operator's current local principal to an
+  // account. The local exchange listener supplies the peer credential; this
+  // RPC is also exposed to the signed-in CLI for explicit linking.
+  rpc LinkMachineAccount(LinkMachineAccountRequest) returns (LinkMachineAccountResponse);
+
+  // ExchangeMachinePrincipal trades a verified local-socket peer credential
+  // for a normal short-lived JWT. It is refused unless the socket listener has
+  // injected a bound principal into the request context.
+  rpc ExchangeMachinePrincipal(ExchangeMachinePrincipalRequest) returns (LoginResponse);
+
+  // Issue a short-lived offline credential from already-provisioned local
+  // break-glass material. The caller must save the response owner-only.
+  rpc IssueBreakGlass(IssueBreakGlassRequest) returns (IssueBreakGlassResponse);
 }
 
 // Account is the wire shape for a single account resource. Never carries a
@@ -85,6 +112,8 @@ message Account {
   bool email_verified = 6;
   // Server time the account was first persisted.
   google.protobuf.Timestamp created_at = 7;
+  // Opaque scopes assigned to the account.
+  repeated string scopes = 8;
 }
 
 // TokenPair is the issued access + refresh token, plus the access token's
@@ -123,6 +152,17 @@ message LoginResponse {
   TokenPair tokens = 2;
 }
 
+message ChangePasswordRequest {
+  // Access token identifying the account whose password is changing.
+  string access_token = 1;
+  string current_password = 2;
+  string new_password = 3;
+}
+
+message ChangePasswordResponse {
+  int64 revoked_sessions = 1;
+}
+
 message RefreshRequest {
   string refresh_token = 1;
 }
@@ -154,4 +194,64 @@ message ValidateResponse {
   string realm = 5;
   // Token expiry.
   google.protobuf.Timestamp expires_at = 6;
+  // Explicitly present even when the principal has no scopes.
+  repeated string scopes = 7;
+}
+
+message GrantScopeRequest {
+  string access_token = 1;
+  string principal_id = 2;
+  string scope = 3;
+}
+
+message RevokeScopeRequest {
+  string access_token = 1;
+  string principal_id = 2;
+  string scope = 3;
+}
+
+message ListScopesRequest {
+  string access_token = 1;
+  string principal_id = 2;
+}
+
+message ScopeResponse {
+  string principal_id = 1;
+  repeated string scopes = 2;
+}
+
+message ListScopesResponse {
+  string principal_id = 1;
+  repeated string scopes = 2;
+}
+
+message LinkMachineAccountRequest {
+  string access_token = 1;
+  string machine_id = 2;
+  string local_principal = 3;
+  string realm = 4;
+  bool is_default = 5;
+}
+
+message LinkMachineAccountResponse {
+  string machine_id = 1;
+  string local_principal = 2;
+  string account_id = 3;
+  string realm = 4;
+  bool is_default = 5;
+  google.protobuf.Timestamp linked_at = 6;
+}
+
+message ExchangeMachinePrincipalRequest {
+  string machine_id = 1;
+}
+
+message IssueBreakGlassRequest {
+  string access_token = 1;
+  repeated string scopes = 2;
+}
+
+message IssueBreakGlassResponse {
+  string credential = 1;
+  int64 expires_at = 2;
 }

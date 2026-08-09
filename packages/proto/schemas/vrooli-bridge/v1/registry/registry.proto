@@ -102,12 +102,14 @@ message Node {
   // off-LAN reach bookkeeping via tunnel-manager.
   string endpoint = 6;
 
-  // Self-reported capability advertisement (verb namespaces the node is
-  // willing to run). Authoritative authorization is `scopes`.
+  // Self-reported capability advertisement. It can describe what the node
+  // appears able to do, but never grants authority; registry `scopes` are
+  // authoritative.
   repeated string capabilities = 7;
 
-  // The granted verb-namespace scopes that authorize what the node may be
-  // asked to run (e.g. "scenario test*"). Enforced at dispatch (Phase 3).
+  // Registry-owned execution scopes that authorize what the node may be asked
+  // to run (for example "vrooli-bridge:write" or a narrower "scenario test*").
+  // Enforced at dispatch; an empty list is presence-only.
   repeated string scopes = 8;
 
   // Current status, with the presence overlay applied (see NodeStatus).

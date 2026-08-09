@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/identity/identity.proto.
  */
 export const file_vrooli_bridge_v1_identity_identity: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL2lkZW50aXR5L2lkZW50aXR5LnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eSIvCgxMb2dpblJlcXVlc3QSDQoFZW1haWwYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiPgoNTG9naW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRINCgVlbWFpbBgCIAEoCRIPCgd1c2VyX2lkGAMgASgJIkQKD1JlZ2lzdGVyUmVxdWVzdBINCgVlbWFpbBgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRIQCgh1c2VybmFtZRgDIAEoCSJBChBSZWdpc3RlclJlc3BvbnNlEg0KBXRva2VuGAEgASgJEg0KBWVtYWlsGAIgASgJEg8KB3VzZXJfaWQYAyABKAky7gEKD0lkZW50aXR5U2VydmljZRJoCgVMb2dpbhIuLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmlkZW50aXR5LkxvZ2luUmVxdWVzdBovLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmlkZW50aXR5LkxvZ2luUmVzcG9uc2UScQoIUmVnaXN0ZXISMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5SZWdpc3RlclJlcXVlc3QaMi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5SZWdpc3RlclJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9pZGVudGl0eTtpZGVudGl0eV92MWIGcHJvdG8z");
+  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL2lkZW50aXR5L2lkZW50aXR5LnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eSIvCgxMb2dpblJlcXVlc3QSDQoFZW1haWwYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiVQoNTG9naW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRINCgVlbWFpbBgCIAEoCRIPCgd1c2VyX2lkGAMgASgJEhUKDXJlZnJlc2hfdG9rZW4YBCABKAkiRAoPUmVnaXN0ZXJSZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJEhAKCHVzZXJuYW1lGAMgASgJIlgKEFJlZ2lzdGVyUmVzcG9uc2USDQoFdG9rZW4YASABKAkSDQoFZW1haWwYAiABKAkSDwoHdXNlcl9pZBgDIAEoCRIVCg1yZWZyZXNoX3Rva2VuGAQgASgJIicKDlJlZnJlc2hSZXF1ZXN0EhUKDXJlZnJlc2hfdG9rZW4YASABKAkiNwoPUmVmcmVzaFJlc3BvbnNlEg0KBXRva2VuGAEgASgJEhUKDXJlZnJlc2hfdG9rZW4YAiABKAky3gIKD0lkZW50aXR5U2VydmljZRJoCgVMb2dpbhIuLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmlkZW50aXR5LkxvZ2luUmVxdWVzdBovLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmlkZW50aXR5LkxvZ2luUmVzcG9uc2UScQoIUmVnaXN0ZXISMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5SZWdpc3RlclJlcXVlc3QaMi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5SZWdpc3RlclJlc3BvbnNlEm4KB1JlZnJlc2gSMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5SZWZyZXNoUmVxdWVzdBoxLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmlkZW50aXR5LlJlZnJlc2hSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvaWRlbnRpdHk7aWRlbnRpdHlfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.identity.LoginRequest
@@ -40,8 +40,8 @@ export const LoginRequestSchema: GenMessage<LoginRequest> = /*@__PURE__*/
 export type LoginResponse = Message<"vrooli.vrooli_bridge.v1.identity.LoginResponse"> & {
   /**
    * The owner JWT to present on owner-gated calls. Returned to the caller; the
-   * control plane does not store it. Expiry means signing in again — there is
-   * deliberately no refresh flow until one actually exists end-to-end.
+   * control plane does not store it. A configured CLI may persist the separate
+   * refresh token for transparent renewal; the bridge API never stores it.
    *
    * @generated from field: string token = 1;
    */
@@ -58,6 +58,11 @@ export type LoginResponse = Message<"vrooli.vrooli_bridge.v1.identity.LoginRespo
    * @generated from field: string user_id = 3;
    */
   userId: string;
+
+  /**
+   * @generated from field: string refresh_token = 4;
+   */
+  refreshToken: string;
 };
 
 /**
@@ -114,6 +119,11 @@ export type RegisterResponse = Message<"vrooli.vrooli_bridge.v1.identity.Registe
    * @generated from field: string user_id = 3;
    */
   userId: string;
+
+  /**
+   * @generated from field: string refresh_token = 4;
+   */
+  refreshToken: string;
 };
 
 /**
@@ -122,6 +132,45 @@ export type RegisterResponse = Message<"vrooli.vrooli_bridge.v1.identity.Registe
  */
 export const RegisterResponseSchema: GenMessage<RegisterResponse> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_identity_identity, 3);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.identity.RefreshRequest
+ */
+export type RefreshRequest = Message<"vrooli.vrooli_bridge.v1.identity.RefreshRequest"> & {
+  /**
+   * @generated from field: string refresh_token = 1;
+   */
+  refreshToken: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.identity.RefreshRequest.
+ * Use `create(RefreshRequestSchema)` to create a new message.
+ */
+export const RefreshRequestSchema: GenMessage<RefreshRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_identity_identity, 4);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.identity.RefreshResponse
+ */
+export type RefreshResponse = Message<"vrooli.vrooli_bridge.v1.identity.RefreshResponse"> & {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token: string;
+
+  /**
+   * @generated from field: string refresh_token = 2;
+   */
+  refreshToken: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.identity.RefreshResponse.
+ * Use `create(RefreshResponseSchema)` to create a new message.
+ */
+export const RefreshResponseSchema: GenMessage<RefreshResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_identity_identity, 5);
 
 /**
  * @generated from service vrooli.vrooli_bridge.v1.identity.IdentityService
@@ -150,6 +199,17 @@ export const IdentityService: GenService<{
     methodKind: "unary";
     input: typeof RegisterRequestSchema;
     output: typeof RegisterResponseSchema;
+  },
+  /**
+   * Refresh rotates an authenticator refresh token and returns replacement
+   * owner access and refresh tokens. The bridge stores nothing server-side.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.identity.IdentityService.Refresh
+   */
+  refresh: {
+    methodKind: "unary";
+    input: typeof RefreshRequestSchema;
+    output: typeof RefreshResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_bridge_v1_identity_identity, 0);

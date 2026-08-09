@@ -94,3 +94,45 @@ class ListDistributionsResponse(_message.Message):
     DISTRIBUTIONS_FIELD_NUMBER: _ClassVar[int]
     distributions: _containers.RepeatedCompositeFieldContainer[Distribution]
     def __init__(self, distributions: _Optional[_Iterable[_Union[Distribution, _Mapping]]] = ...) -> None: ...
+
+class UploadRunArtifactRequest(_message.Message):
+    __slots__ = ("run_id", "name", "media_type", "data")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    MEDIA_TYPE_FIELD_NUMBER: _ClassVar[int]
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    name: str
+    media_type: str
+    data: bytes
+    def __init__(self, run_id: _Optional[str] = ..., name: _Optional[str] = ..., media_type: _Optional[str] = ..., data: _Optional[bytes] = ...) -> None: ...
+
+class UploadRunArtifactResponse(_message.Message):
+    __slots__ = ("artifact_ref", "size_bytes")
+    ARTIFACT_REF_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    artifact_ref: str
+    size_bytes: int
+    def __init__(self, artifact_ref: _Optional[str] = ..., size_bytes: _Optional[int] = ...) -> None: ...
+
+class GetRunArtifactRequest(_message.Message):
+    __slots__ = ("run_id", "name")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    name: str
+    def __init__(self, run_id: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
+
+class GetRunArtifactResponse(_message.Message):
+    __slots__ = ("run_id", "name", "media_type", "data", "artifact_ref")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    MEDIA_TYPE_FIELD_NUMBER: _ClassVar[int]
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_REF_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    name: str
+    media_type: str
+    data: bytes
+    artifact_ref: str
+    def __init__(self, run_id: _Optional[str] = ..., name: _Optional[str] = ..., media_type: _Optional[str] = ..., data: _Optional[bytes] = ..., artifact_ref: _Optional[str] = ...) -> None: ...
