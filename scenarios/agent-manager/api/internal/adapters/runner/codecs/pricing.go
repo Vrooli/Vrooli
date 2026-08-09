@@ -139,6 +139,18 @@ func buildCostEvents(runID uuid.UUID, runnerType domain.RunnerType, pricing Pric
 	return events
 }
 
+func markUsageTurn(events []*domain.RunEvent, turnIndex int) []*domain.RunEvent {
+	for _, event := range events {
+		if event == nil {
+			continue
+		}
+		if usage, ok := event.Data.(*domain.UsageEventData); ok {
+			usage.TurnIndex = turnIndex
+		}
+	}
+	return events
+}
+
 func chargeBasisForCostSource(source string) domain.ChargeBasis {
 	switch strings.ToLower(strings.TrimSpace(source)) {
 	case "metered", "provider_api", "manual_override", "historical_average", "pricing_table_estimate":

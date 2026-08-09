@@ -264,7 +264,81 @@ func Register() cliapp.SubcommandGroup {
 		genericMeasure("workload-breakdown", "Show terminal run performance grouped by workload", "throughput.workload_breakdown", []cliapp.Flag{
 			{Name: "window", Description: "Analytical time window", Values: windowValues},
 		}),
+		tokenAttributionMeasure(),
 	}}
+}
+
+var tokenAttributionByValues = []string{"capability", "executable", "command-path", "scenario-operation"}
+var tokenAttributionViewValues = []string{"footprint", "residency", "incurred"}
+
+func tokenAttributionMeasure() cliapp.Command {
+	flags := []cliapp.Flag{
+		{Name: "window", Description: "Analytical time window", Values: windowValues},
+		{Name: "by", Description: "Grouping dimension", Values: tokenAttributionByValues, Default: "capability"},
+		{Name: "view", Description: "Token view", Values: tokenAttributionViewValues, Default: "footprint"},
+		{Name: "runner-type", Description: "Runner type"},
+		{Name: "model", Description: "Model"},
+		{Name: "workload-key", Description: "Declared workload key"},
+	}
+	return (cliapp.Command{
+		Name: "token-attribution", Description: "Show durable token attribution grouped by dimension and view [--window TOKEN] [--json]", NeedsAPI: true,
+		Args: cliapp.ArgSchema{Flags: flags},
+	}).WithPrimitive(cliapp.ProtoListEmitUnpopulatedJSON(
+		func(op cliapp.OperationContext) (*measurepb.TokenAttributionResponse, error) {
+			groupBy, err := normalizeTokenAttributionBy(op.Flag("by"))
+			if err != nil {
+				return nil, err
+			}
+			window, err := parseWindow(op.Flag("window"))
+			if err != nil {
+				return nil, err
+			}
+			filter := &measurepb.InvocationFilter{
+				RunnerType:  op.Flag("runner-type"),
+				Model:       op.Flag("model"),
+				WorkloadKey: op.Flag("workload-key"),
+			}
+			if filter.RunnerType == "" && filter.Model == "" && filter.WorkloadKey == "" {
+				filter = nil
+			}
+			h, base := cliapp.NewConnectHTTPClient(op.Core())
+			response, err := measureconnect.NewMeasuresServiceClient(h, base).TokenAttribution(context.Background(), connect.NewRequest(&measurepb.TokenAttributionRequest{
+				Window:  window,
+				Filter:  filter,
+				GroupBy: groupBy,
+				View:    op.Flag("view"),
+			}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, response *measurepb.TokenAttributionResponse) cliapp.ListReport {
+			if validity := response.GetValidity(); validity != nil && validity.GetState() == "unreliable" {
+				return cliapp.ListReport{Summary: []string{"Token attribution unavailable: " + validity.GetReason()}}
+			}
+			parts := make([]string, 0, len(response.GetRows()))
+			for _, row := range response.GetRows() {
+				parts = append(parts, fmt.Sprintf("%s=%d tokens (estimated share %.2f%%)", row.GetValue(), row.GetTotalTokens(), row.GetEstimatedTokenShare()*100))
+			}
+			return cliapp.ListReport{Summary: append([]string{
+				fmt.Sprintf("Token attribution by %s (%s); estimated token share %.2f%%", response.GetGroupBy(), response.GetView(), response.GetEstimatedTokenShare()*100),
+			}, parts...)}
+		},
+	))
+}
+
+func normalizeTokenAttributionBy(value string) (string, error) {
+	switch value {
+	case "capability", "executable":
+		return value, nil
+	case "command-path":
+		return "command_path", nil
+	case "scenario-operation":
+		return "target_scenario_operation", nil
+	default:
+		return "", fmt.Errorf("unsupported token attribution grouping %q; accepted values: %s", value, strings.Join(tokenAttributionByValues, ", "))
+	}
 }
 
 func genericMeasure(name, description, measure string, flags []cliapp.Flag) cliapp.Command {

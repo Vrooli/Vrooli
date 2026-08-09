@@ -4,6 +4,17 @@ These statements are **normative**: every agent making code changes is expected 
 
 Invariants are paired with the test that pins them — a regression that violates an invariant should fail that test, not just leak past code review.
 
+## I32. Token attribution conserves with an explicit residual
+
+**Statement.** The run-level token attribution buckets (`preamble_injected`,
+`preamble_fixed`, `tool_result_residency`, `assistant_output`, `compaction`,
+and `unattributed`) must sum exactly to the run's provider-reported total
+tokens. Any difference is retained in `unattributed_tokens` with a non-empty
+reason; consumers must not normalize the buckets to hide an unknown share.
+
+**Tests:** `internal/tokenaccounting/tokenaccounting_test.go` and the
+invocation read-model conservation tests.
+
 ## I1. Run-mode is a function of `SandboxConfig.Mode`
 
 **Statement.** `SandboxConfig.Mode` is the single source of truth for whether a run is sandboxed. The only function that translates `SandboxConfig` to `RunMode` is `domain.DeriveRunMode`. Callers that need to override the derived mode pass an explicit `req.RunMode` (highest priority) or `req.ForceInPlace` (only honored when policy permits). No other input may decide RunMode.

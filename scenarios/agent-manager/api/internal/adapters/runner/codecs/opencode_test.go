@@ -386,6 +386,11 @@ func TestOpenCode_DecodeStreamLine_StepFinish_NonTerminal(t *testing.T) {
 	if !hasCost {
 		t.Error("expected cost event")
 	}
+	for _, e := range events {
+		if usage, ok := e.Data.(*domain.UsageEventData); ok && usage.TurnIndex != 1 {
+			t.Errorf("turn index=%d, want 1", usage.TurnIndex)
+		}
+	}
 }
 
 func TestOpenCode_DecodeStreamLine_StepFinish_Terminal_FlagsState(t *testing.T) {

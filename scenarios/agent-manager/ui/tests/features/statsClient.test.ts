@@ -23,6 +23,7 @@ const measures = vi.hoisted(() => ({
   selectCohort: vi.fn(async () => ({ runIds: [], truncated: false, executedQuery: "SELECT durable" })),
   workloadBreakdown: vi.fn(async () => ({ rows: [], executedQuery: "SELECT durable" })),
   toolCommandBreakdown: vi.fn(async () => ({ rows: [], executedQuery: "SELECT durable" })),
+  tokenAttribution: vi.fn(async () => ({ groupBy: "capability", view: "footprint", estimatedTokenShare: 0.25, rows: [], executedQuery: "SELECT durable" })),
   allMeasureDefinitions: vi.fn(async () => ({ definitions: [] })),
 }));
 vi.mock("../../src/features/stats/api/measuresClient.js", () => ({ measuresClient: measures }));
@@ -42,6 +43,7 @@ import {
   fetchDurableToolModels,
   fetchDurableToolUsage,
   fetchDurableToolCommands,
+  fetchDurableTokenAttribution,
   fetchDurableWorkloadBreakdown,
   fetchMeasureDefinitions,
   fetchExternalToolShare,
@@ -72,7 +74,7 @@ test("durable stats adapters send the same typed filter to each analytics questi
     fetchDurableTerminalTrend(filter), fetchDurableToolUsage(filter), fetchDurableRunCost(filter), fetchDurableRunSuccess(filter),
     fetchDurableRunCycleTime(filter), fetchDurableRunDurationStatistics(filter), fetchDurableRunVolume(filter), fetchDurableRunStatusDistribution(filter),
     fetchDurableToolCohort(filter, "workspace-sandbox", 11), fetchDurableModelCohort(filter, "gpt-5", 12), fetchDurableToolModels(filter, "workspace-sandbox"),
-    fetchDurableWorkloadBreakdown(filter), fetchDurableToolCommands(filter, "workspace-sandbox", 9), fetchMeasureDefinitions(),
+    fetchDurableWorkloadBreakdown(filter), fetchDurableToolCommands(filter, "workspace-sandbox", 9), fetchDurableTokenAttribution(filter, "command_path", "residency", 13), fetchMeasureDefinitions(),
   ]);
   for (const method of [measures.runnerBreakdown, measures.profileBreakdown, measures.modelBreakdown, measures.terminalRunTrend, measures.toolUsage, measures.runCost, measures.runSuccessRate, measures.runCycleTime, measures.runDurationStatistics, measures.runVolume, measures.runStatusDistribution]) {
     const request = method.mock.calls[0]?.[0];
@@ -89,6 +91,9 @@ test("durable stats adapters send the same typed filter to each analytics questi
   assert.equal(measures.workloadBreakdown.mock.calls[0]?.[0]?.filter.workloadKey, "");
   assert.equal(measures.toolCommandBreakdown.mock.calls[0]?.[0]?.limit, 9);
   assert.equal(measures.toolCommandBreakdown.mock.calls[0]?.[0]?.filter.toolName, "workspace-sandbox");
+  assert.equal(measures.tokenAttribution.mock.calls[0]?.[0]?.groupBy, "command_path");
+  assert.equal(measures.tokenAttribution.mock.calls[0]?.[0]?.view, "residency");
+  assert.equal(measures.tokenAttribution.mock.calls[0]?.[0]?.limit, 13);
   assert.equal(measures.allMeasureDefinitions.mock.calls.length, 1);
 });
 
@@ -135,6 +140,7 @@ test("stats query keys partition requests by their meaningful inputs", () => {
   assert.deepEqual(statsQueryKeys.summary(filter), ["stats", "summary", filter]);
   assert.deepEqual(statsQueryKeys.toolModels(filter, "bash", 25), ["stats", "toolModels", filter, "bash", 25]);
   assert.deepEqual(statsQueryKeys.timeSeries(filter, "1d"), ["stats", "timeSeries", filter, "1d"]);
+  assert.deepEqual(statsQueryKeys.tokenAttribution(filter, "capability", "incurred", 20), ["stats", "tokenAttribution", filter, "capability", "incurred", 20]);
 });
 
 test("stats query keys cover every analytics surface and preserve optional time buckets", () => {

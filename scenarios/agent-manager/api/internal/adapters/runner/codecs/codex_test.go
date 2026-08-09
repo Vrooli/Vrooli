@@ -349,6 +349,9 @@ func TestCodex_DecodeStreamLine_TurnCompleted_BuildsCostEvent(t *testing.T) {
 	if usage.Model != "gpt-5.1-codex-mini" {
 		t.Errorf("model=%s", usage.Model)
 	}
+	if usage.TurnIndex != 1 {
+		t.Errorf("turn index=%d, want 1", usage.TurnIndex)
+	}
 	if charge.Basis != domain.ChargeBasisMetered {
 		t.Errorf("basis=%s", charge.Basis)
 	}

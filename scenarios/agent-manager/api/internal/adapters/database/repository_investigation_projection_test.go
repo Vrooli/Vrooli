@@ -7,6 +7,7 @@ import (
 
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/runsignal"
+	"agent-manager/internal/tokenaccounting"
 	"github.com/google/uuid"
 )
 
@@ -30,6 +31,69 @@ func TestInvocationReadModelReplaceIsAtomicAndIdempotent(t *testing.T) {
 	gotWatermark, err := repo.Watermark(context.Background(), "run-1")
 	if err != nil || gotWatermark == nil || gotWatermark.LastEventID != "event-1" {
 		t.Fatalf("watermark=%+v err=%v", gotWatermark, err)
+	}
+}
+
+func TestInvocationReadModelFactRoundTripsTokenFactors(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := &invocationReadModelRepository{db: db}
+	now := time.Now().UTC()
+	fact := invocationreadmodel.Fact{
+		InvocationFact: runsignal.InvocationFact{
+			Version: runsignal.InvocationFactVersion, CallEventID: "token-call", ToolName: "shell",
+			Ownership: "resolved", Outcome: "success", Fingerprint: "token-fingerprint",
+			Availability: "available", ArgTokens: 11, ResultTokens: 29,
+			TokenBasis: tokenaccounting.BasisEstimated, ResidencyTurns: 3, ResidencySegment: 2,
+			IncurredInputTokens: 11, IncurredOutputTokens: 13, IncurredCacheReadTokens: 3, IncurredCacheCreationTokens: 2,
+		},
+		RunID: "token-run", OccurredAt: now, TimeBasis: "call_event", ProfileID: "profile",
+		RunnerType: "claude-code", Model: "model", Tag: "token", RunStatus: "complete",
+	}
+	watermark := invocationreadmodel.Watermark{RunID: "token-run", LastEventID: "token-call", LastEventAt: now, ClassifierVersion: runsignal.InvocationFactVersion, ProjectedAt: now}
+	if err := repo.Replace(context.Background(), []invocationreadmodel.Fact{fact}, watermark); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.Facts(context.Background(), "token-run")
+	if err != nil || len(got) != 1 {
+		t.Fatalf("facts=%+v err=%v", got, err)
+	}
+	if got[0].ArgTokens != 11 || got[0].ResultTokens != 29 || got[0].TokenBasis != tokenaccounting.BasisEstimated || got[0].ResidencyTurns != 3 || got[0].ResidencySegment != 2 || got[0].IncurredInputTokens != 11 || got[0].IncurredOutputTokens != 13 || got[0].IncurredCacheReadTokens != 3 || got[0].IncurredCacheCreationTokens != 2 {
+		t.Fatalf("token factors did not round-trip: %+v", got[0].InvocationFact)
+	}
+}
+
+func TestTokenAttributionGroupsEveryDimensionAndView(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := &invocationReadModelRepository{db: db}
+	now := time.Now().UTC()
+	facts := []invocationreadmodel.Fact{
+		{InvocationFact: runsignal.InvocationFact{Version: runsignal.InvocationFactVersion, CallEventID: "receipt-1", ToolName: "read", Capability: "filesystem", Executable: "cat", CommandPath: "read", Ownership: "project", Outcome: "success", Fingerprint: "one", Availability: "available", ArgTokens: 2, ResultTokens: 8, TokenBasis: tokenaccounting.BasisEstimated, ResidencyTurns: 2, IncurredInputTokens: 2, IncurredOutputTokens: 2}, RunID: "token-attribution", OccurredAt: now, TimeBasis: "call_event", RunStatus: "complete"},
+		{InvocationFact: runsignal.InvocationFact{Version: runsignal.InvocationFactVersion, CallEventID: "call-2", ToolName: "shell", Capability: "process", Executable: "sh", CommandPath: "run", Ownership: "external", Outcome: "failure", Fingerprint: "two", Availability: "available", ArgTokens: 1, ResultTokens: 5, TokenBasis: tokenaccounting.BasisMeasured, ResidencyTurns: 1, IncurredInputTokens: 3, IncurredOutputTokens: 4}, RunID: "token-attribution", OccurredAt: now.Add(time.Second), TimeBasis: "call_event", RunStatus: "complete"},
+	}
+	if err := repo.Replace(context.Background(), facts, invocationreadmodel.Watermark{RunID: "token-attribution", LastEventID: "call-2", LastEventAt: now, ClassifierVersion: runsignal.InvocationFactVersion, ProjectedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO investigation_cross_scenario_calls (run_id,receipt_event_id,occurred_at,target_scenario,operation,outcome,status_code,duration_ms,verified,ledger_availability) VALUES (?,?,?,?,?,?,?,?,?,?)`, "token-attribution", "receipt-1", SQLiteTime(now), "scenario-a", "op", "success", 200, 1, 3, "available"); err != nil {
+		t.Fatal(err)
+	}
+	for _, groupBy := range []string{"capability", "executable", "command_path", "target_scenario_operation"} {
+		rows, err := repo.TokenAttribution(context.Background(), invocationreadmodel.Filter{}, groupBy, "footprint", 20)
+		if err != nil || len(rows) == 0 {
+			t.Fatalf("group_by=%s rows=%+v err=%v", groupBy, rows, err)
+		}
+		for _, row := range rows {
+			if row.GroupBy != groupBy || row.TotalTokens == 0 || row.EstimatedTokenShare < 0 || row.EstimatedTokenShare > 1 {
+				t.Fatalf("group_by=%s row=%+v", groupBy, row)
+			}
+		}
+	}
+	for _, view := range []string{"footprint", "residency", "incurred"} {
+		rows, err := repo.TokenAttribution(context.Background(), invocationreadmodel.Filter{}, "capability", view, 20)
+		if err != nil || len(rows) != 2 {
+			t.Fatalf("view=%s rows=%+v err=%v", view, rows, err)
+		}
 	}
 }
 

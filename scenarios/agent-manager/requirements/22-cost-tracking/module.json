@@ -15,21 +15,21 @@
         {
           "notes": "Test cost calculations",
           "phase": "unit",
-          "ref": "",
+          "ref": "api/internal/tokenaccounting/tokenaccounting_test.go::TestTokenAccountingTokensAndConservation",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify usage tracking",
+          "notes": "Reconcile per-turn usage, terminal authority, compaction residency, and conservation across retained fixtures",
           "phase": "integration",
-          "ref": "",
+          "ref": "api/internal/invocationreadmodel/contract_test.go::TestProjectAttributesPerTurnUsageAndConservesAgainstTerminalTotal",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Validate cost reporting",
+          "notes": "Validate typed token-attribution dimensions, views, estimated share, residual, and Stats UI empty state",
           "phase": "business",
-          "ref": "",
+          "ref": "cli/domains/measures/register_test.go::TestTokenAttributionCommandDeclaresSupportedDimensionsAndViews;ui/tests/components/TokenAttributionBreakdown.test.ts",
           "status": "pending",
           "type": "test"
         }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"agent-manager/internal/runsignal"
+	"agent-manager/internal/tokenaccounting"
 )
 
 // Store persists the durable analytical projection. Replace is atomic: facts
@@ -125,12 +126,14 @@ type AggregateRow struct {
 // CapabilityUsageRow is the receipt-backed efficacy population. A receipt is
 // the only evidence that a project-owned capability returned an outcome.
 type CapabilityUsageRow struct {
-	TargetScenario  string `json:"targetScenario"`
-	Operation       string `json:"operation"`
-	CallCount       int64  `json:"callCount"`
-	SuccessCount    int64  `json:"successCount"`
-	FailedCount     int64  `json:"failedCount"`
-	TotalDurationMS uint64 `json:"totalDurationMs"`
+	TargetScenario      string  `json:"targetScenario"`
+	Operation           string  `json:"operation"`
+	CallCount           int64   `json:"callCount"`
+	SuccessCount        int64   `json:"successCount"`
+	FailedCount         int64   `json:"failedCount"`
+	TotalDurationMS     uint64  `json:"totalDurationMs"`
+	TotalTokens         int64   `json:"totalTokens"`
+	EstimatedTokenShare float64 `json:"estimatedTokenShare"`
 }
 
 type CapabilityEfficacyRow struct {
@@ -295,20 +298,42 @@ type RunTimeSeriesBucket struct {
 // ToolUsageRow retains one tool's invocation population and classified
 // outcomes, so tool analytics do not need to reopen prunable event JSON.
 type ToolUsageRow struct {
-	ToolName     string
-	CallCount    int64
-	SuccessCount int64
-	FailedCount  int64
+	ToolName            string
+	CallCount           int64
+	SuccessCount        int64
+	FailedCount         int64
+	TotalTokens         int64
+	EstimatedTokenShare float64
 }
 
 type ToolCommandRow struct {
-	Executable   string
-	CommandPath  string
-	CallCount    int64
-	SuccessCount int64
-	FailedCount  int64
-	RunCount     int64
-	Truncated    bool
+	Executable          string
+	CommandPath         string
+	CallCount           int64
+	SuccessCount        int64
+	FailedCount         int64
+	RunCount            int64
+	TotalTokens         int64
+	EstimatedTokenShare float64
+	P50FootprintTokens  int64
+	P95FootprintTokens  int64
+	MaxFootprintTokens  int64
+	Truncated           bool
+}
+
+// TokenAttributionRow is the typed aggregate behind the three token views.
+// The factors remain separate in storage; TotalTokens is selected at query
+// time from footprint, residency, or incurred cost.
+type TokenAttributionRow struct {
+	GroupBy             string
+	Value               string
+	CallCount           int64
+	TotalTokens         int64
+	EstimatedTokens     int64
+	EstimatedTokenShare float64
+	P50FootprintTokens  int64
+	P95FootprintTokens  int64
+	MaxFootprintTokens  int64
 }
 
 // ErrorFact retains only safe analytical error vocabulary. Human messages,
@@ -390,41 +415,46 @@ type Fact struct {
 // cost measurements. occurred_at is terminal time when available, otherwise
 // creation time, with TimeBasis making that fallback visible to consumers.
 type RunFact struct {
-	RunID                 string
-	GoalID                string
-	GoalStatus            string
-	OccurredAt            time.Time
-	CreatedAt             time.Time
-	StartedAt             *time.Time
-	EndedAt               *time.Time
-	DurationMS            int64
-	Status                string
-	ProfileID             string
-	RunnerType            string
-	Model                 string
-	Tag                   string
-	WorkloadKind          string
-	WorkloadKey           string
-	WorkloadInstance      string
-	TotalCostUSD          float64
-	InputCostUSD          float64
-	OutputCostUSD         float64
-	CacheReadCostUSD      float64
-	CacheCreationCostUSD  float64
-	TotalTokens           int64
-	InputTokens           int64
-	OutputTokens          int64
-	CacheReadTokens       int64
-	CacheCreationTokens   int64
-	Turns                 int64
-	ToolCalls             int64
-	TotalChargeMicroUSD   int64
-	MeteredChargeMicroUSD int64
-	UnpricedTokenCount    int64
-	ReadCalls             int64
-	FileRereads           int64
-	TimeAccounting        runsignal.TimeAccounting
-	CostTimeBasis         string
+	RunID                  string
+	GoalID                 string
+	GoalStatus             string
+	OccurredAt             time.Time
+	CreatedAt              time.Time
+	StartedAt              *time.Time
+	EndedAt                *time.Time
+	DurationMS             int64
+	Status                 string
+	ProfileID              string
+	RunnerType             string
+	Model                  string
+	Tag                    string
+	WorkloadKind           string
+	WorkloadKey            string
+	WorkloadInstance       string
+	TotalCostUSD           float64
+	InputCostUSD           float64
+	OutputCostUSD          float64
+	CacheReadCostUSD       float64
+	CacheCreationCostUSD   float64
+	TotalTokens            int64
+	InputTokens            int64
+	OutputTokens           int64
+	CacheReadTokens        int64
+	CacheCreationTokens    int64
+	Turns                  int64
+	ToolCalls              int64
+	TotalChargeMicroUSD    int64
+	MeteredChargeMicroUSD  int64
+	UnpricedTokenCount     int64
+	PreambleInjectedTokens int64
+	PreambleFixedTokens    int64
+	PreambleTokenBasis     tokenaccounting.Basis
+	UnattributedTokens     int64
+	UnattributedReason     string
+	ReadCalls              int64
+	FileRereads            int64
+	TimeAccounting         runsignal.TimeAccounting
+	CostTimeBasis          string
 	// TimeBasis identifies whether lifecycle/event time came from the source
 	// transcript or was assigned while Agent Manager ingested the run.
 	TimeBasis   string

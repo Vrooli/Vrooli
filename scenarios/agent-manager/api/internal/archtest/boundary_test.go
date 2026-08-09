@@ -172,6 +172,27 @@ func TestAvailabilityVocabularyRejectsAdHocStateLiterals(t *testing.T) {
 	}
 }
 
+func TestTokenEstimationHasOneAuthority(t *testing.T) {
+	// Payload-to-token conversion belongs to internal/tokenaccounting. Keep
+	// this check intentionally narrow so unrelated integer arithmetic does not
+	// become a false positive while a new conversion site remains visible.
+	conversion := regexp.MustCompile(`(?i)(token|payload|content|body|text|bytes).{0,100}(len\([^)]*\)|runeCountInString\([^)]*\)).{0,100}/\s*[0-9]+|(?:len\([^)]*\)|runeCountInString\([^)]*\)).{0,100}(token|payload|content|body|text|bytes).{0,100}/\s*[0-9]+`)
+	root := filepath.Join(scenarioRoot(t), "api/internal")
+	for _, path := range goFiles(t, root) {
+		if strings.Contains(filepath.ToSlash(path), "/tokenaccounting/") {
+			continue
+		}
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if match := conversion.FindString(string(source)); match != "" {
+			rel, _ := filepath.Rel(scenarioRoot(t), path)
+			t.Fatalf("%s performs byte-to-token arithmetic outside internal/tokenaccounting: %q", filepath.ToSlash(rel), match)
+		}
+	}
+}
+
 func TestDurableProjectionHasOneRuntimeWriterAndNoRetiredSchema(t *testing.T) {
 	root := scenarioRoot(t)
 	writer := filepath.Join(root, "api/internal/adapters/database/repository_invocation_read_model.go")

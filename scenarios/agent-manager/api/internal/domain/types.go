@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/tokenaccounting"
+
 	"github.com/google/uuid"
 )
 
@@ -1345,6 +1347,12 @@ type RunConfig struct {
 
 	// Policy flags
 	NetworkAccess NetworkAccess `json:"networkAccess"`
+
+	// PreambleInjectedTokens is the estimator result recorded at run creation
+	// for the instructions Agent Manager injects into the provider context.
+	// It is metadata about this run, not a runner-selection input.
+	PreambleInjectedTokens int64                 `json:"preambleInjectedTokens,omitempty"`
+	PreambleTokenBasis     tokenaccounting.Basis `json:"preambleTokenBasis,omitempty"`
 
 	// Sandbox behavior settings.
 	//

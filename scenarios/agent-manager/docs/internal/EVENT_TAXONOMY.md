@@ -59,6 +59,25 @@ operator-turn kind is reserved for historical user/operator input so
 intervention and awaiting-human measures can distinguish it from assistant
 messages.
 
+## Usage events and reconciliation
+
+`UsageEventData` is a metric payload, not a charge payload. Runner codecs may
+emit one usage event for each provider turn with `turnIndex` and the observed
+input/output/cache fields. Claude's terminal `result` usage snapshot is marked
+`reconciliationAuthority: true`; when present, the invocation read model uses
+that snapshot for run totals and does not add the per-turn events again. A
+terminal snapshot remains the provider's reported total, so its token values
+are not rewritten to fit a local estimate. Codex and OpenCode usage events are
+per-turn and carry the current turn index. Replays remain idempotent by
+deduplicating identical snapshots within the same turn.
+
+Compaction events carry adjacent assistant-turn input counts when the stream
+provides them. `TokensAfter / TokensBefore` is the measured whole-context
+attenuation ratio used for later residency segments; it is an approximation
+for individual tool-result survival, not a per-item provider measurement.
+Compaction itself is represented by the `compaction` token-accounting bucket
+so its summarisation read is not silently assigned to a neighboring tool call.
+
 ## Payload schemas (v1)
 
 ### `runner.fallback.attempted`

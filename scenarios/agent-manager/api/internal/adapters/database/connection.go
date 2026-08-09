@@ -567,6 +567,11 @@ var invocationReadModelRunColumnMigrations = []columnMigration{
 	{column: "workload_key", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN workload_key TEXT NOT NULL DEFAULT ''"},
 	{column: "workload_instance", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN workload_instance TEXT NOT NULL DEFAULT ''"},
 	{column: "time_basis", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN time_basis TEXT NOT NULL DEFAULT 'ingestion'"},
+	{column: "preamble_injected_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN preamble_injected_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "preamble_fixed_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN preamble_fixed_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "preamble_token_basis", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN preamble_token_basis TEXT NOT NULL DEFAULT 'unknown'"},
+	{column: "unattributed_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN unattributed_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "unattributed_reason", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN unattributed_reason TEXT NOT NULL DEFAULT ''"},
 }
 
 var runFindingColumnMigrations = []columnMigration{
@@ -649,6 +654,9 @@ func (db *DB) removeRetiredInvocationReadModelColumns(ctx context.Context) error
             total_charge_micro_usd INTEGER NOT NULL DEFAULT 0,
             metered_charge_micro_usd INTEGER NOT NULL DEFAULT 0,
             unpriced_token_count INTEGER NOT NULL DEFAULT 0,
+            preamble_injected_tokens INTEGER NOT NULL DEFAULT 0,
+            preamble_fixed_tokens INTEGER NOT NULL DEFAULT 0,
+            preamble_token_basis TEXT NOT NULL DEFAULT 'unknown',
             cost_time_basis TEXT NOT NULL DEFAULT 'terminal_projection',
             time_basis TEXT NOT NULL DEFAULT 'ingestion',
             projected_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -688,6 +696,15 @@ var invocationReadModelFactColumnMigrations = []columnMigration{
 	{column: "wrapper", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN wrapper TEXT NOT NULL DEFAULT ''"},
 	{column: "exit_code", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN exit_code INTEGER"},
 	{column: "duration_ms", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN duration_ms INTEGER"},
+	{column: "arg_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN arg_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "result_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN result_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "token_basis", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN token_basis TEXT NOT NULL DEFAULT 'unknown'"},
+	{column: "residency_turns", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN residency_turns INTEGER NOT NULL DEFAULT 0"},
+	{column: "residency_segment", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN residency_segment INTEGER NOT NULL DEFAULT 0"},
+	{column: "incurred_input_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN incurred_input_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "incurred_output_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN incurred_output_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "incurred_cache_read_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN incurred_cache_read_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "incurred_cache_creation_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN incurred_cache_creation_tokens INTEGER NOT NULL DEFAULT 0"},
 }
 
 var invocationReadModelTimeAccountingColumnMigrations = []columnMigration{
@@ -723,6 +740,9 @@ func (db *DB) migrateInvocationReadModelFactColumns(ctx context.Context) error {
                     classifier_version TEXT NOT NULL, profile_id TEXT, runner_type TEXT NOT NULL DEFAULT 'unknown',
                     model TEXT NOT NULL DEFAULT '', tag TEXT NOT NULL DEFAULT '', run_status TEXT NOT NULL,
                     wrapper TEXT NOT NULL DEFAULT '', exit_code INTEGER, duration_ms INTEGER,
+                    arg_tokens INTEGER NOT NULL DEFAULT 0, result_tokens INTEGER NOT NULL DEFAULT 0,
+                    token_basis TEXT NOT NULL DEFAULT 'unknown', residency_turns INTEGER NOT NULL DEFAULT 0,
+                    residency_segment INTEGER NOT NULL DEFAULT 0,
                     PRIMARY KEY (run_id, call_event_id, segment_index)
                 )`,
 				`INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,capability,intent_class,executable,command_path,ownership,ownership_reason,segment_index,segment_count,catalog_snapshot,outcome,pairing_basis,failure_signature,signature_truncated,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status)

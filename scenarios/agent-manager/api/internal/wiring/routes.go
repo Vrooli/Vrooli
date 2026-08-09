@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/capabilities"
 	"agent-manager/internal/config"
 	"agent-manager/internal/conformance"
 	"agent-manager/internal/eventlog"
@@ -44,6 +45,7 @@ import (
 // registration. Keeping this composition data in wiring prevents the entry
 // point from acquiring presentation or business logic.
 type RouteDependencies struct {
+	CapabilityRegistry    *capabilities.Registry
 	DB                    *database.DB
 	Orchestrator          *orchestration.Orchestrator
 	StatsService          orchestration.StatsService
@@ -117,6 +119,19 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
 	router.PathPrefix(strings.TrimRight(episodesPath, "/")).Handler(episodesHandler)
 	router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
+	if deps.CapabilityRegistry != nil {
+		router.HandleFunc("/api/v1/capabilities/describe", func(w http.ResponseWriter, req *http.Request) {
+			data, err := deps.CapabilityRegistry.Describe(req.Context())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(data)
+		}).Methods(http.MethodGet)
+		routesLog := obs.Component("routes")
+		routesLog.Info("capability descriptor registered", "path", "/api/v1/capabilities/describe")
+	}
 
 	repoRoot := os.Getenv("PROJECT_ROOT")
 	if repoRoot == "" {

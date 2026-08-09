@@ -105,7 +105,7 @@ func TestInitSchemaMigratesExistingInvocationReadModelRunColumnsBeforeValidation
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, column := range []string{"input_cost_usd", "output_cost_usd", "cache_read_cost_usd", "cache_creation_cost_usd", "input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens"} {
+	for _, column := range []string{"input_cost_usd", "output_cost_usd", "cache_read_cost_usd", "cache_creation_cost_usd", "input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens", "preamble_injected_tokens", "preamble_fixed_tokens", "preamble_token_basis", "unattributed_tokens", "unattributed_reason"} {
 		if _, ok := columns[column]; !ok {
 			t.Fatalf("migration did not add %s; columns=%v", column, columns)
 		}

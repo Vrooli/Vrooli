@@ -1,12 +1,15 @@
 package invocationreadmodel
 
 import (
+	"encoding/json"
+	"math"
 	"sort"
 	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/runsignal"
+	"agent-manager/internal/tokenaccounting"
 )
 
 // DeriveRunSubject turns bounded invocation dimensions into a stable, human
@@ -68,8 +71,29 @@ func project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, 
 	if tag == "" {
 		tag = "unknown"
 	}
+	argTokens, resultTokens, tokenBases, residencyTurns, residencySegments := tokenFactors(events)
+	preambleInjectedTokens, preambleFixedTokens, _ := derivePreamble(run, events)
+	incurredByCall, _, _ := attributeIncurred(events, preambleInjectedTokens, preambleFixedTokens)
 	facts := make([]Fact, 0)
 	for _, fact := range runsignal.DeriveInvocationFactsWithResolver(events, capability, command) {
+		fact.ArgTokens = argTokens[fact.CallEventID]
+		fact.ResidencyTurns = residencyTurns[fact.ResultEventID]
+		if incurred, ok := incurredByCall[fact.CallEventID]; ok {
+			fact.IncurredInputTokens = incurred.Input
+			fact.IncurredOutputTokens = incurred.Output
+			fact.IncurredCacheReadTokens = incurred.CacheRead
+			fact.IncurredCacheCreationTokens = incurred.CacheCreation
+		}
+		// A result is required before an estimated footprint can be treated as
+		// a complete call footprint. Unpaired calls retain their argument count
+		// but are explicitly unknown rather than silently estimated.
+		if result, ok := resultTokens[fact.ResultEventID]; ok {
+			fact.ResultTokens = result
+			fact.TokenBasis = tokenBases[fact.ResultEventID]
+		} else {
+			fact.TokenBasis = tokenaccounting.BasisUnknown
+		}
+		fact.ResidencySegment = residencySegments[fact.ResultEventID]
 		occurredAt, ok := timestamps[fact.CallEventID]
 		timeBasis := "call_event"
 		if !ok {
@@ -87,6 +111,206 @@ func project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, 
 		watermark.LastEventAt = projectedAt
 	}
 	return facts, watermark
+}
+
+// derivePreamble returns the run-level prefix buckets from measured per-turn
+// input. The injected estimate is persisted on the resolved run config at
+// creation time; only the fixed remainder is derived during projection.
+func derivePreamble(run *domain.Run, events []*domain.RunEvent) (int64, int64, tokenaccounting.Basis) {
+	segment := int64(0)
+	segmentMinimums := map[int64]int64{}
+	hasPerTurnUsage := false
+	for _, event := range events {
+		if event == nil {
+			continue
+		}
+		if _, ok := event.Data.(*domain.CompactionEventData); ok {
+			segment++
+			continue
+		}
+		usage, ok := event.Data.(*domain.UsageEventData)
+		if !ok || usage.ReconciliationAuthority {
+			continue
+		}
+		hasPerTurnUsage = true
+		if previous, exists := segmentMinimums[segment]; !exists || int64(usage.InputTokens) < previous {
+			segmentMinimums[segment] = int64(usage.InputTokens)
+		}
+	}
+	if !hasPerTurnUsage {
+		return 0, 0, tokenaccounting.BasisUnknown
+	}
+	injected := int64(0)
+	basis := tokenaccounting.BasisUnknown
+	if run != nil && run.ResolvedConfig != nil {
+		injected = run.ResolvedConfig.PreambleInjectedTokens
+		basis = run.ResolvedConfig.PreambleTokenBasis
+		if basis == "" {
+			basis = tokenaccounting.BasisUnknown
+		}
+	}
+	var fixed int64
+	for _, minimum := range segmentMinimums {
+		if remainder := minimum - injected; remainder > 0 {
+			fixed += remainder
+		}
+	}
+	return injected, fixed, basis
+}
+
+type incurredAttribution struct {
+	Input, Output, CacheRead, CacheCreation int64
+}
+
+// attributeIncurred assigns each eligible per-turn usage event to the latest
+// tool call before it. Terminal provider usage is a reconciliation authority,
+// not a second attribution source. The returned residual is usage that had no
+// preceding tool call and therefore belongs in the run's unattributed bucket.
+func attributeIncurred(events []*domain.RunEvent, preambleInjected, preambleFixed int64) (map[string]incurredAttribution, int64, bool) {
+	type usageIdentity struct {
+		input, output, cacheRead, cacheCreation, turn, turnIndex int
+	}
+	var hasAuthority bool
+	for _, event := range events {
+		if usage, ok := eventDataUsage(event); ok && usage.ReconciliationAuthority {
+			hasAuthority = true
+		}
+	}
+	seen := map[usageIdentity]struct{}{}
+	byCall := map[string]incurredAttribution{}
+	var unattributed int64
+	var eligible bool
+	remainingPreamble := preambleInjected + preambleFixed
+	latestCall := ""
+	for _, event := range events {
+		if event == nil {
+			continue
+		}
+		if call, ok := event.Data.(*domain.ToolCallEventData); ok {
+			latestCall = event.ID.String()
+			_ = call
+			continue
+		}
+		usage, ok := eventDataUsage(event)
+		if !ok || (hasAuthority && usage.ReconciliationAuthority) {
+			continue
+		}
+		identity := usageIdentity{input: usage.InputTokens, output: usage.OutputTokens, cacheRead: usage.CacheReadTokens, cacheCreation: usage.CacheCreationTokens, turn: usage.Turns, turnIndex: usage.TurnIndex}
+		if _, duplicate := seen[identity]; duplicate {
+			continue
+		}
+		seen[identity] = struct{}{}
+		eligible = true
+		input := int64(usage.InputTokens)
+		if remainingPreamble > 0 && input > 0 {
+			deducted := input
+			if deducted > remainingPreamble {
+				deducted = remainingPreamble
+			}
+			input -= deducted
+			remainingPreamble -= deducted
+		}
+		if latestCall == "" {
+			unattributed += input + int64(usage.OutputTokens) + int64(usage.CacheReadTokens) + int64(usage.CacheCreationTokens)
+			continue
+		}
+		value := byCall[latestCall]
+		value.Input += input
+		value.Output += int64(usage.OutputTokens)
+		value.CacheRead += int64(usage.CacheReadTokens)
+		value.CacheCreation += int64(usage.CacheCreationTokens)
+		byCall[latestCall] = value
+	}
+	return byCall, unattributed, eligible
+}
+
+func eventDataUsage(event *domain.RunEvent) (*domain.UsageEventData, bool) {
+	if event == nil {
+		return nil, false
+	}
+	usage, ok := event.Data.(*domain.UsageEventData)
+	return usage, ok
+}
+
+// tokenFactors estimates bounded payload factors while the source events are
+// still available. The durable projection never needs to reopen event JSON.
+func tokenFactors(events []*domain.RunEvent) (map[string]int64, map[string]int64, map[string]tokenaccounting.Basis, map[string]int64, map[string]int64) {
+	argTokens := make(map[string]int64)
+	resultTokens := make(map[string]int64)
+	tokenBases := make(map[string]tokenaccounting.Basis)
+	residencyTurns := make(map[string]int64)
+	residencySegments := make(map[string]int64)
+	resultIndexes := make(map[string]int)
+	segments := make([]int64, len(events))
+	attenuation := []float64{1}
+	segment := int64(0)
+	hasPerTurnUsage := false
+	for index, event := range events {
+		if event == nil {
+			continue
+		}
+		segments[index] = segment
+		switch payload := event.Data.(type) {
+		case *domain.UsageEventData:
+			if !payload.ReconciliationAuthority {
+				hasPerTurnUsage = true
+			}
+		case *domain.CompactionEventData:
+			if payload.TokensBefore > 0 && payload.TokensAfter > 0 {
+				ratio := float64(payload.TokensAfter) / float64(payload.TokensBefore)
+				if ratio > 1 {
+					ratio = 1
+				}
+				attenuation = append(attenuation, attenuation[len(attenuation)-1]*ratio)
+			} else {
+				attenuation = append(attenuation, attenuation[len(attenuation)-1])
+			}
+			segment++
+		case *domain.ToolCallEventData:
+			encoded, err := json.Marshal(payload.Input)
+			if err == nil {
+				argTokens[event.ID.String()] = tokenaccounting.EstimateText(string(encoded)).Tokens
+			}
+		case *domain.ToolResultEventData:
+			resultIndexes[event.ID.String()] = index
+			output := payload.Output
+			if payload.Error != "" {
+				output += "\n" + payload.Error
+			}
+			estimate := tokenaccounting.EstimateText(output)
+			resultTokens[event.ID.String()] = estimate.Tokens
+			tokenBases[event.ID.String()] = estimate.Basis
+		}
+	}
+	for resultID, index := range resultIndexes {
+		residencySegments[resultID] = segments[index]
+		weightedTurns := 0.0
+		for laterIndex := index + 1; laterIndex < len(events); laterIndex++ {
+			event := events[laterIndex]
+			if event == nil {
+				continue
+			}
+			countsAsTurn := false
+			if usage, ok := event.Data.(*domain.UsageEventData); ok {
+				countsAsTurn = hasPerTurnUsage && !usage.ReconciliationAuthority
+			} else if message, ok := event.Data.(*domain.MessageEventData); ok {
+				countsAsTurn = !hasPerTurnUsage && message.Role == "assistant"
+			}
+			if !countsAsTurn {
+				continue
+			}
+			laterSegment := segments[laterIndex]
+			weight := 1.0
+			if laterSegment >= 0 && laterSegment < int64(len(attenuation)) && segments[index] >= 0 && segments[index] < int64(len(attenuation)) && attenuation[segments[index]] > 0 {
+				weight = attenuation[laterSegment] / attenuation[segments[index]]
+			}
+			weightedTurns += weight
+		}
+		if weightedTurns > 0 {
+			residencyTurns[resultID] = int64(math.Ceil(weightedTurns))
+		}
+	}
+	return argTokens, resultTokens, tokenBases, residencyTurns, residencySegments
 }
 
 // ProjectEpisodes folds the same retained event set as invocation facts and
@@ -207,6 +431,7 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 	var cost, inputCost, outputCost, cacheReadCost, cacheCreationCost float64
 	var tokens, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens int64
 	var turns, toolCalls, totalChargeMicroUSD, meteredChargeMicroUSD, unpricedTokenCount int64
+	preambleInjectedTokens, preambleFixedTokens, preambleBasis := derivePreamble(run, events)
 	unpriced := false
 	charged := false
 	var readCalls, rereads int64
@@ -215,11 +440,26 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 	// (live capture plus terminal recovery). Deduplicate identical snapshots so
 	// replay remains idempotent while distinct usage facts are still additive.
 	type usageIdentity struct {
-		input, output, cacheCreate, cacheRead, turns int
-		model, runner, tier                          string
-		webSearch, serverTool                        int
+		input, output, cacheCreate, cacheRead, turns, turnIndex int
+		authority                                               bool
+		model, runner, tier                                     string
+		webSearch, serverTool                                   int
 	}
 	seenUsage := map[usageIdentity]struct{}{}
+	terminalUsage := false
+	for _, event := range events {
+		if event == nil {
+			continue
+		}
+		if usage, ok := event.Data.(*domain.UsageEventData); ok && usage.ReconciliationAuthority {
+			terminalUsage = true
+		}
+	}
+	incurredByCall, noPrecedingToolCallTokens, hasEligibleUsage := attributeIncurred(events, preambleInjectedTokens, preambleFixedTokens)
+	var incurredTokens int64
+	for _, incurred := range incurredByCall {
+		incurredTokens += incurred.Input + incurred.Output + incurred.CacheRead + incurred.CacheCreation
+	}
 	addCharge := func(charge *domain.ChargeEventData) {
 		if charge == nil {
 			return
@@ -255,7 +495,10 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 			continue
 		}
 		if usage, ok := event.Data.(*domain.UsageEventData); ok {
-			identity := usageIdentity{input: usage.InputTokens, output: usage.OutputTokens, cacheCreate: usage.CacheCreationTokens, cacheRead: usage.CacheReadTokens, turns: usage.Turns, model: usage.Model, runner: usage.RunnerType, tier: usage.ServiceTier, webSearch: usage.WebSearchRequests, serverTool: usage.ServerToolUseRequests}
+			if terminalUsage && !usage.ReconciliationAuthority {
+				continue
+			}
+			identity := usageIdentity{input: usage.InputTokens, output: usage.OutputTokens, cacheCreate: usage.CacheCreationTokens, cacheRead: usage.CacheReadTokens, turns: usage.Turns, turnIndex: usage.TurnIndex, authority: usage.ReconciliationAuthority, model: usage.Model, runner: usage.RunnerType, tier: usage.ServiceTier, webSearch: usage.WebSearchRequests, serverTool: usage.ServerToolUseRequests}
 			if _, duplicate := seenUsage[identity]; duplicate {
 				continue
 			}
@@ -290,6 +533,20 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 	if unpriced {
 		unpricedTokenCount = tokens
 	}
+	accountedTokens := preambleInjectedTokens + preambleFixedTokens + incurredTokens + noPrecedingToolCallTokens
+	residual := tokens - accountedTokens
+	unattributedTokens := noPrecedingToolCallTokens + residual
+	unattributedReason := ""
+	switch {
+	case !hasEligibleUsage:
+		unattributedReason = "no provider usage events available for tool attribution"
+	case noPrecedingToolCallTokens != 0 && residual != 0:
+		unattributedReason = "usage without a preceding tool call and a run-total reconciliation residual"
+	case noPrecedingToolCallTokens != 0:
+		unattributedReason = "usage turn had no preceding tool call"
+	case residual != 0:
+		unattributedReason = "run total differed from attributed buckets"
+	}
 	duration := int64(0)
 	if run.StartedAt != nil && run.EndedAt != nil {
 		duration = run.EndedAt.Sub(*run.StartedAt).Milliseconds()
@@ -307,7 +564,7 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 		// durable so cost aggregates can exclude it or report it explicitly.
 		costBasis = "unknown"
 	}
-	return RunFact{RunID: run.ID.String(), GoalID: run.GoalID, GoalStatus: "", OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, WorkloadKind: workloadKind, WorkloadKey: workloadKey, WorkloadInstance: run.Workload.Instance, TotalCostUSD: cost, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, Turns: turns, ToolCalls: toolCalls, TotalChargeMicroUSD: totalChargeMicroUSD, MeteredChargeMicroUSD: meteredChargeMicroUSD, UnpricedTokenCount: unpricedTokenCount, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: costBasis, TimeBasis: eventTimeBasis, ProjectedAt: projectedAt}
+	return RunFact{RunID: run.ID.String(), GoalID: run.GoalID, GoalStatus: "", OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, WorkloadKind: workloadKind, WorkloadKey: workloadKey, WorkloadInstance: run.Workload.Instance, TotalCostUSD: cost, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, Turns: turns, ToolCalls: toolCalls, TotalChargeMicroUSD: totalChargeMicroUSD, MeteredChargeMicroUSD: meteredChargeMicroUSD, UnpricedTokenCount: unpricedTokenCount, PreambleInjectedTokens: preambleInjectedTokens, PreambleFixedTokens: preambleFixedTokens, PreambleTokenBasis: preambleBasis, UnattributedTokens: unattributedTokens, UnattributedReason: unattributedReason, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: costBasis, TimeBasis: eventTimeBasis, ProjectedAt: projectedAt}
 }
 
 func hasEventTimestamp(events []*domain.RunEvent) bool {

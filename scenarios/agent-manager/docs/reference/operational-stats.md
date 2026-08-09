@@ -163,6 +163,26 @@ bucket share of `0.90`. Operators may set
 at startup. These are global analytical-honesty settings, never per-measure
 tuning knobs.
 
+## Token attribution
+
+`agent-manager measures token-attribution` reports durable token rows grouped
+by `capability`, `executable`, `command_path`, or
+`target_scenario_operation`. Select one of three views:
+
+- `footprint`: estimated intrinsic result size for finding oversized command
+  output;
+- `residency`: footprint carried across turns, using observed compaction
+  attenuation as an explicit approximation; or
+- `incurred`: measured provider usage attributed to the local turn, with an
+  explicit `unattributed` residual when evidence cannot explain the run total.
+
+Every response includes estimated token share and a token basis. Footprint
+also exposes p50, p95, and maximum footprint values. These views are not
+alternate names for one cost: footprint is a payload estimate, residency is a
+context-occupancy estimate, and incurred is turn-local accounting. The durable
+bucket conservation rule and approximation bias are documented in the
+[token attribution reference](token-attribution.md).
+
 ## Cohort investigations
 
 `agent-manager run investigate` can select durable evidence without manually

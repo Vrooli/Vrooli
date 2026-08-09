@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/availability"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/tokenaccounting"
 )
 
 // InvocationFactVersion is pinned into every derivation so a rebuild can be
@@ -21,7 +22,7 @@ import (
 // v4 backfills bounded failure signatures into durable facts produced before
 // that field was projected, so historical failed invocations remain actionable
 // after a replay without retaining raw tool output.
-const InvocationFactVersion = "invocation-fact.v15"
+const InvocationFactVersion = "invocation-fact.v16"
 
 // FailureSignatureMaxLength bounds retained failure vocabulary. Signatures are
 // controlled class labels, never copied error text.
@@ -30,33 +31,42 @@ const FailureSignatureMaxLength = 64
 // InvocationFact is a bounded, redacted interpretation of one durable tool
 // call/result pair. It intentionally excludes raw input and output bodies.
 type InvocationFact struct {
-	Version            string             `json:"version"`
-	CallEventID        string             `json:"callEventId"`
-	ResultEventID      string             `json:"resultEventId,omitempty"`
-	ToolCallID         string             `json:"toolCallId,omitempty"`
-	ToolName           string             `json:"toolName"`
-	Capability         string             `json:"capability"`
-	IntentClass        string             `json:"intentClass"`
-	Executable         string             `json:"executable,omitempty"`
-	Wrapper            string             `json:"wrapper,omitempty"`
-	CommandPath        string             `json:"commandPath,omitempty"`
-	Ownership          string             `json:"ownership"`
-	OwnershipReason    string             `json:"ownershipReason,omitempty"`
-	SegmentIndex       int                `json:"segmentIndex"`
-	SegmentCount       int                `json:"segmentCount"`
-	CatalogSnapshot    string             `json:"catalogSnapshot,omitempty"`
-	Outcome            string             `json:"outcome"`
-	ExitCode           *int               `json:"exitCode,omitempty"`
-	DurationMS         *int64             `json:"durationMs,omitempty"`
-	PairingBasis       string             `json:"pairingBasis"`
-	FailureSignature   string             `json:"failureSignature,omitempty"`
-	SignatureTruncated bool               `json:"signatureTruncated"`
-	RetryOfCallEventID string             `json:"retryOfCallEventId,omitempty"`
-	HelpRecovery       bool               `json:"helpRecovery"`
-	Fingerprint        string             `json:"fingerprint"`
-	Availability       availability.State `json:"availability"`
-	SemanticsKind      string             `json:"semanticsKind,omitempty"`
-	SemanticsVerdict   string             `json:"semanticsVerdict,omitempty"`
+	Version                     string                `json:"version"`
+	CallEventID                 string                `json:"callEventId"`
+	ResultEventID               string                `json:"resultEventId,omitempty"`
+	ToolCallID                  string                `json:"toolCallId,omitempty"`
+	ToolName                    string                `json:"toolName"`
+	Capability                  string                `json:"capability"`
+	IntentClass                 string                `json:"intentClass"`
+	Executable                  string                `json:"executable,omitempty"`
+	Wrapper                     string                `json:"wrapper,omitempty"`
+	CommandPath                 string                `json:"commandPath,omitempty"`
+	Ownership                   string                `json:"ownership"`
+	OwnershipReason             string                `json:"ownershipReason,omitempty"`
+	SegmentIndex                int                   `json:"segmentIndex"`
+	SegmentCount                int                   `json:"segmentCount"`
+	CatalogSnapshot             string                `json:"catalogSnapshot,omitempty"`
+	Outcome                     string                `json:"outcome"`
+	ExitCode                    *int                  `json:"exitCode,omitempty"`
+	DurationMS                  *int64                `json:"durationMs,omitempty"`
+	PairingBasis                string                `json:"pairingBasis"`
+	FailureSignature            string                `json:"failureSignature,omitempty"`
+	SignatureTruncated          bool                  `json:"signatureTruncated"`
+	RetryOfCallEventID          string                `json:"retryOfCallEventId,omitempty"`
+	HelpRecovery                bool                  `json:"helpRecovery"`
+	Fingerprint                 string                `json:"fingerprint"`
+	Availability                availability.State    `json:"availability"`
+	SemanticsKind               string                `json:"semanticsKind,omitempty"`
+	SemanticsVerdict            string                `json:"semanticsVerdict,omitempty"`
+	ArgTokens                   int64                 `json:"argTokens"`
+	ResultTokens                int64                 `json:"resultTokens"`
+	TokenBasis                  tokenaccounting.Basis `json:"tokenBasis"`
+	ResidencyTurns              int64                 `json:"residencyTurns"`
+	ResidencySegment            int64                 `json:"residencySegment"`
+	IncurredInputTokens         int64                 `json:"incurredInputTokens"`
+	IncurredOutputTokens        int64                 `json:"incurredOutputTokens"`
+	IncurredCacheReadTokens     int64                 `json:"incurredCacheReadTokens"`
+	IncurredCacheCreationTokens int64                 `json:"incurredCacheCreationTokens"`
 }
 
 // DeriveInvocationFacts pairs durable tool calls/results by their provider
@@ -113,7 +123,7 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 				capability = "other"
 			}
 		}
-		factBase := InvocationFact{Version: InvocationFactVersion, CallEventID: event.ID.String(), ToolCallID: call.ToolCallID, ToolName: call.ToolName, Capability: capability, IntentClass: intentClass(call), Ownership: OwnershipNotACommand, OwnershipReason: "no declared command field", Outcome: "unknown", PairingBasis: "unpaired", Availability: availability.Available}
+		factBase := InvocationFact{Version: InvocationFactVersion, CallEventID: event.ID.String(), ToolCallID: call.ToolCallID, ToolName: call.ToolName, Capability: capability, IntentClass: intentClass(call), Ownership: OwnershipNotACommand, OwnershipReason: "no declared command field", Outcome: "unknown", PairingBasis: "unpaired", Availability: availability.Available, TokenBasis: tokenaccounting.BasisUnknown}
 		extraction := commandInput(call, commandResolvers...)
 		if extraction.Reason != "" {
 			factBase.OwnershipReason = extraction.Reason

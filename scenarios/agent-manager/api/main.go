@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/database"
+	capabilities "agent-manager/internal/capabilities"
 	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
@@ -42,6 +43,7 @@ import (
 
 // Server owns lifecycle sequencing around the wiring-owned service graph.
 type Server struct {
+	capabilityRegistry    *capabilities.Registry
 	db                    *database.DB
 	fileRoots             *filerouting.RoutedRoots
 	router                *mux.Router
@@ -133,7 +135,7 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("build orchestrator: %w", err)
 	}
 	srv := &Server{
-		db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
+		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
 		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter,
 		modelHealthProbe: deps.ModelHealthProbe, modelPolicyDrift: deps.ModelPolicyDrift, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
@@ -201,7 +203,7 @@ func (s *Server) startRecovery() {
 
 func (s *Server) setupRoutes() {
 	wiring.SetupRoutes(s.router, wiring.RouteDependencies{
-		DB: s.db, Orchestrator: s.orchestrator, StatsService: s.statsService, StatsRepository: s.statsRepo,
+		CapabilityRegistry: s.capabilityRegistry, DB: s.db, Orchestrator: s.orchestrator, StatsService: s.statsService, StatsRepository: s.statsRepo,
 		PricingService: s.pricingService, PricingRepository: s.pricingRepository, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
 		PermissionPolicyState: s.permissionPolicyState, PermissionPolicy: s.permissionPolicy, Storage: s.storage,
 		StatsEngine: s.statsEngine, HealthStore: s.healthStore, EventRepository: s.eventRepo, InvocationReadModel: s.invocationReadModel,

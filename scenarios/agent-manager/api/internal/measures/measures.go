@@ -39,6 +39,7 @@ const (
 	WorkloadEfficiency    = "throughput.workload_efficiency"
 	TerminalRunTrend      = "throughput.terminal_run_trend"
 	ToolUsage             = "friction.tool_usage"
+	TokenAttribution      = "friction.token_attribution"
 	ErrorPatterns         = "friction.error_patterns"
 	FileRereadRate        = "friction.file_reread_rate"
 	FindingRecurrenceRate = "friction.finding_recurrence_rate"
@@ -58,6 +59,32 @@ type Store interface {
 	FindingMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.FindingMetrics, error)
 }
 
+type tokenAttributionStore interface {
+	TokenAttribution(context.Context, invocationreadmodel.Filter, string, string, int) ([]invocationreadmodel.TokenAttributionRow, error)
+}
+
+var tokenAttributionGroupByValues = []string{"capability", "executable", "command_path", "target_scenario_operation"}
+var tokenAttributionViewValues = []string{"footprint", "residency", "incurred"}
+
+func validateTokenAttributionSelection(groupBy, view string) error {
+	if !containsString(tokenAttributionGroupByValues, groupBy) {
+		return fmt.Errorf("invalid token attribution by %q; accepted values: %s", groupBy, strings.Join(tokenAttributionGroupByValues, ", "))
+	}
+	if !containsString(tokenAttributionViewValues, view) {
+		return fmt.Errorf("invalid token attribution view %q; accepted values: %s", view, strings.Join(tokenAttributionViewValues, ", "))
+	}
+	return nil
+}
+
+func containsString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
 type metricKind string
 
 const (
@@ -72,6 +99,7 @@ const (
 	runVolume             metricKind = "run_volume"
 	fileRereadRate        metricKind = "file_reread_rate"
 	findingRecurrenceRate metricKind = "finding_recurrence_rate"
+	tokenAttribution      metricKind = "token_attribution"
 )
 
 type metricResult struct {
@@ -119,6 +147,7 @@ func definitionFor(name string) Definition {
 		TerminalRunTrend:                     {ID: TerminalRunTrend, Counts: "executed terminal runs", Numerator: "hourly terminal outcomes", Denominator: "none", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
 		ToolUsage:                            {ID: ToolUsage, Counts: "tool invocation facts", Numerator: "calls grouped by tool", Denominator: "none", SourceTable: "invocation_read_model_facts"},
 		"friction.tool_command_breakdown":    {ID: "friction.tool_command_breakdown", Counts: "tool invocation facts", Numerator: "calls grouped by executable and command path", Denominator: "none", SourceTable: "invocation_read_model_facts", Limitation: "command detail is unavailable when the source fact did not record it"},
+		TokenAttribution:                     {ID: TokenAttribution, Counts: "durable invocation token factors", Numerator: "tokens grouped by the selected dimension and view", Denominator: "none", SourceTable: "invocation_read_model_facts", Limitation: "estimated share identifies rankings that rely on payload estimates; target scenario and operation require a verified receipt join"},
 		ErrorPatterns:                        {ID: ErrorPatterns, Counts: "durable error facts", Numerator: "errors grouped by code", Denominator: "none", SourceTable: "invocation_read_model_errors"},
 		FileRereadRate:                       {ID: FileRereadRate, Counts: "file-read calls", Numerator: "files read more than once", Denominator: "file-read calls", SourceTable: "invocation_read_model_runs"},
 		FindingRecurrenceRate:                {ID: FindingRecurrenceRate, Counts: "persisted investigation findings", Numerator: "recurring findings", Denominator: "all findings", SourceTable: "run_findings"},
@@ -133,7 +162,7 @@ func definitionFor(name string) Definition {
 func allDefinitions() []Definition {
 	seen := make(map[string]struct{})
 	definitions := make([]Definition, 0, 24)
-	for _, name := range []string{ExternalToolShare, RetryRate, HelpRecoveryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort"} {
+	for _, name := range []string{ExternalToolShare, RetryRate, HelpRecoveryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort"} {
 		if _, ok := seen[name]; ok {
 			continue
 		}
@@ -196,6 +225,7 @@ func declarations() []struct {
 		{RunVolume, "RunVolume", "Number of executed terminal run summaries in the window.", "runs", "{value} agent run volume ({window})", []string{"how many agent runs completed this week", "show agent run volume"}, runVolume},
 		{FileRereadRate, "FileRereadRate", "Share of file-read calls that revisit a path already read in the same run.", "share", "{value} file reread rate ({window})", []string{"what is the agent file reread rate", "how often do agents reread files"}, fileRereadRate},
 		{FindingRecurrenceRate, "FindingRecurrenceRate", "Share of persisted investigation findings whose fingerprint recurs in the same filtered finding corpus.", "share", "{value} finding recurrence rate ({window})", []string{"what is the recurring finding rate", "which agent findings recur"}, findingRecurrenceRate},
+		{TokenAttribution, "TokenAttribution", "Durable token spend grouped by capability, executable, command path, or target scenario operation across footprint, residency, and incurred views.", "tokens", "{value} token attribution ({window})", []string{"which capabilities consume the most tokens", "which commands have the largest token footprint", "what incurred token spend follows each tool call"}, tokenAttribution},
 	}
 }
 
@@ -209,10 +239,17 @@ func declaration(spec struct {
 	if spec.kind == runSuccessRate || spec.kind == runCycleTime || spec.kind == runCost || spec.kind == runVolume {
 		domain = "run"
 	}
+	params := map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}}
+	result := measurelib.Result{Kind: measurelib.ResultScalar, ValueField: "value", Unit: spec.unit, SummaryTemplate: spec.summary}
+	if spec.kind == tokenAttribution {
+		params["group_by"] = measurelib.Param{Name: "group_by", Type: "string", Default: "capability", Description: "capability, executable, command_path, or target_scenario_operation"}
+		params["view"] = measurelib.Param{Name: "view", Type: "string", Default: "footprint", Description: "footprint, residency, or incurred"}
+		result = measurelib.Result{Kind: measurelib.ResultTable, ValueField: "value", Unit: "tokens", SummaryTemplate: spec.summary}
+	}
 	return measurelib.MeasureDeclaration{
 		Name: spec.name, Scenario: "agent-manager", Domain: domain, Intent: spec.intent, Questions: spec.questions,
-		Params: map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}},
-		Result: measurelib.Result{Kind: measurelib.ResultScalar, ValueField: "value", Unit: spec.unit, SummaryTemplate: spec.summary},
+		Params: params,
+		Result: result,
 		Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: spec.method,
 	}
 }
@@ -547,7 +584,7 @@ func (h *Handler) CapabilityUsage(ctx context.Context, req *connect.Request[meas
 	var sample int64
 	for _, row := range rows {
 		sample += row.CallCount
-		protoRows = append(protoRows, &measurepb.CapabilityUsageRow{TargetScenario: row.TargetScenario, Operation: row.Operation, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, TotalDurationMs: row.TotalDurationMS})
+		protoRows = append(protoRows, &measurepb.CapabilityUsageRow{TargetScenario: row.TargetScenario, Operation: row.Operation, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, TotalDurationMs: row.TotalDurationMS, TotalTokens: row.TotalTokens, EstimatedTokenShare: row.EstimatedTokenShare})
 	}
 	validity := assessValidity(sample, 0, h.validityConfig)
 	if sample == 0 {
@@ -842,7 +879,7 @@ func (h *Handler) ToolUsage(ctx context.Context, req *connect.Request[measurepb.
 	query := fmt.Sprintf("SELECT tool_name, classified outcomes FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q GROUP BY tool_name LIMIT 20", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
 	response := &measurepb.ToolUsageResponse{Rows: make([]*measurepb.ToolUsageRow, 0, len(rows))}
 	for _, row := range rows {
-		response.Rows = append(response.Rows, &measurepb.ToolUsageRow{ToolName: row.ToolName, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount})
+		response.Rows = append(response.Rows, &measurepb.ToolUsageRow{ToolName: row.ToolName, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, TotalTokens: row.TotalTokens, EstimatedTokenShare: row.EstimatedTokenShare})
 	}
 	var sample int64
 	for _, row := range rows {
@@ -877,12 +914,51 @@ func (h *Handler) ToolCommandBreakdown(ctx context.Context, req *connect.Request
 	var sample int64
 	for _, row := range rows {
 		sample += row.CallCount
-		response.Rows = append(response.Rows, &measurepb.ToolCommandBreakdownRow{Executable: row.Executable, CommandPath: row.CommandPath, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, RunCount: row.RunCount, Truncated: row.Truncated})
+		response.Rows = append(response.Rows, &measurepb.ToolCommandBreakdownRow{Executable: row.Executable, CommandPath: row.CommandPath, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, RunCount: row.RunCount, TotalTokens: row.TotalTokens, EstimatedTokenShare: row.EstimatedTokenShare, P50FootprintTokens: row.P50FootprintTokens, P95FootprintTokens: row.P95FootprintTokens, MaxFootprintTokens: row.MaxFootprintTokens, Truncated: row.Truncated})
 	}
 	query := fmt.Sprintf("SELECT executable, command_path, COUNT(*) FROM invocation_read_model_facts WHERE tool_name = %q GROUP BY executable, command_path LIMIT %d", filter.ToolName, limit)
 	response.Validity = h.validityForSample(sample)
 	response.Provenance = provenanceWithQuery(filter, definitionFor("friction.tool_command_breakdown").SourceTable, sample, query)
 	response.DefinitionId = definitionID("friction.tool_command_breakdown")
+	return connect.NewResponse(response), nil
+}
+
+func (h *Handler) TokenAttribution(ctx context.Context, req *connect.Request[measurepb.TokenAttributionRequest]) (*connect.Response[measurepb.TokenAttributionResponse], error) {
+	groupBy, view := strings.TrimSpace(req.Msg.GetGroupBy()), strings.TrimSpace(req.Msg.GetView())
+	if err := validateTokenAttributionSelection(groupBy, view); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	filter, err := filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	store, ok := h.store.(tokenAttributionStore)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("token attribution source is unavailable"))
+	}
+	limit := int(req.Msg.GetLimit())
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := store.TokenAttribution(ctx, filter, groupBy, view, limit)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &measurepb.TokenAttributionResponse{GroupBy: groupBy, View: view, Rows: make([]*measurepb.TokenAttributionRow, 0, len(rows))}
+	var sample, totalTokens, estimatedTokens int64
+	for _, row := range rows {
+		sample += row.CallCount
+		totalTokens += row.TotalTokens
+		estimatedTokens += row.EstimatedTokens
+		response.Rows = append(response.Rows, &measurepb.TokenAttributionRow{GroupBy: row.GroupBy, Value: row.Value, CallCount: row.CallCount, TotalTokens: row.TotalTokens, EstimatedTokens: row.EstimatedTokens, EstimatedTokenShare: row.EstimatedTokenShare, P50FootprintTokens: row.P50FootprintTokens, P95FootprintTokens: row.P95FootprintTokens, MaxFootprintTokens: row.MaxFootprintTokens})
+	}
+	if totalTokens > 0 {
+		response.EstimatedTokenShare = float64(estimatedTokens) / float64(totalTokens)
+	}
+	query := fmt.Sprintf("SELECT %s token aggregates FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q GROUP BY %s ORDER BY %s DESC LIMIT %d", view, filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano), groupBy, view, limit)
+	response.Validity = h.validityForSample(sample)
+	response.Provenance = provenanceWithQuery(filter, definitionFor(TokenAttribution).SourceTable, sample, query)
+	response.DefinitionId = definitionID(TokenAttribution)
 	return connect.NewResponse(response), nil
 }
 
@@ -936,6 +1012,25 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 				return measurelib.MeasureResult{}, err
 			}
 			filter := invocationreadmodel.Filter{From: &rangeValue.From, To: &rangeValue.To}
+			if spec.kind == tokenAttribution {
+				groupBy, view := request.Params["group_by"], request.Params["view"]
+				if err := validateTokenAttributionSelection(groupBy, view); err != nil {
+					return measurelib.MeasureResult{}, err
+				}
+				store, ok := h.store.(tokenAttributionStore)
+				if !ok {
+					return measurelib.MeasureResult{}, fmt.Errorf("token attribution source is unavailable")
+				}
+				rows, err := store.TokenAttribution(ctx, filter, groupBy, view, 20)
+				if err != nil {
+					return measurelib.MeasureResult{}, err
+				}
+				fields := make([]map[string]string, 0, len(rows))
+				for _, row := range rows {
+					fields = append(fields, map[string]string{"group_by": row.GroupBy, "value": row.Value, "call_count": strconv.FormatInt(row.CallCount, 10), "total_tokens": strconv.FormatInt(row.TotalTokens, 10), "estimated_tokens": strconv.FormatInt(row.EstimatedTokens, 10), "estimated_token_share": strconv.FormatFloat(row.EstimatedTokenShare, 'f', -1, 64), "p50_footprint_tokens": strconv.FormatInt(row.P50FootprintTokens, 10), "p95_footprint_tokens": strconv.FormatInt(row.P95FootprintTokens, 10), "max_footprint_tokens": strconv.FormatInt(row.MaxFootprintTokens, 10)})
+				}
+				return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: "SELECT token attribution aggregates from invocation_read_model_facts"}}, nil
+			}
 			result, err := execute(ctx, h.store, spec.kind, filter)
 			if err != nil {
 				return measurelib.MeasureResult{}, err

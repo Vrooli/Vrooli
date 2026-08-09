@@ -3,6 +3,7 @@ package measures
 import (
 	"context"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,17 +15,18 @@ import (
 )
 
 type fakeStore struct {
-	metrics         invocationreadmodel.Metrics
-	runMetrics      invocationreadmodel.RunMetrics
-	durationStats   invocationreadmodel.RunDurationStatistics
-	statusCounts    []invocationreadmodel.RunStatusCount
-	breakdowns      map[string][]invocationreadmodel.RunBreakdownRow
-	runTimeSeries   []invocationreadmodel.RunTimeSeriesBucket
-	toolUsage       []invocationreadmodel.ToolUsageRow
-	capabilityUsage []invocationreadmodel.CapabilityUsageRow
-	errorPatterns   []invocationreadmodel.ErrorPattern
-	findingMetrics  invocationreadmodel.FindingMetrics
-	filter          invocationreadmodel.Filter
+	metrics          invocationreadmodel.Metrics
+	runMetrics       invocationreadmodel.RunMetrics
+	durationStats    invocationreadmodel.RunDurationStatistics
+	statusCounts     []invocationreadmodel.RunStatusCount
+	breakdowns       map[string][]invocationreadmodel.RunBreakdownRow
+	runTimeSeries    []invocationreadmodel.RunTimeSeriesBucket
+	toolUsage        []invocationreadmodel.ToolUsageRow
+	capabilityUsage  []invocationreadmodel.CapabilityUsageRow
+	tokenAttribution []invocationreadmodel.TokenAttributionRow
+	errorPatterns    []invocationreadmodel.ErrorPattern
+	findingMetrics   invocationreadmodel.FindingMetrics
+	filter           invocationreadmodel.Filter
 }
 
 func TestModelBreakdownKeepsImportedAndInteractiveRunsSeparate(t *testing.T) {
@@ -71,6 +73,27 @@ func (s *fakeStore) ToolUsage(_ context.Context, filter invocationreadmodel.Filt
 func (s *fakeStore) CapabilityUsage(_ context.Context, filter invocationreadmodel.Filter, _ int) ([]invocationreadmodel.CapabilityUsageRow, error) {
 	s.filter = filter
 	return s.capabilityUsage, nil
+}
+
+func (s *fakeStore) TokenAttribution(_ context.Context, filter invocationreadmodel.Filter, groupBy, _ string, _ int) ([]invocationreadmodel.TokenAttributionRow, error) {
+	s.filter = filter
+	for index := range s.tokenAttribution {
+		s.tokenAttribution[index].GroupBy = groupBy
+	}
+	return s.tokenAttribution, nil
+}
+
+func TestTokenAttributionValidatesSelectionsAndReturnsEstimatedShare(t *testing.T) {
+	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
+	store := &fakeStore{tokenAttribution: []invocationreadmodel.TokenAttributionRow{{Value: "shell", TotalTokens: 100, EstimatedTokens: 25, EstimatedTokenShare: .25, P50FootprintTokens: 10, P95FootprintTokens: 10, MaxFootprintTokens: 20}}}
+	handler := NewHandler(store, func() time.Time { return now })
+	response, err := handler.TokenAttribution(context.Background(), connect.NewRequest(&measurepb.TokenAttributionRequest{GroupBy: "executable", View: "footprint"}))
+	if err != nil || response.Msg.GetEstimatedTokenShare() != .25 || len(response.Msg.GetRows()) != 1 || response.Msg.GetRows()[0].GetEstimatedTokenShare() != .25 {
+		t.Fatalf("response=%+v err=%v", response.Msg, err)
+	}
+	if _, err := handler.TokenAttribution(context.Background(), connect.NewRequest(&measurepb.TokenAttributionRequest{GroupBy: "bad", View: "footprint"})); err == nil || !strings.Contains(err.Error(), "capability, executable, command_path, target_scenario_operation") {
+		t.Fatalf("invalid group-by error=%v", err)
+	}
 }
 
 func (s *fakeStore) ErrorPatterns(_ context.Context, filter invocationreadmodel.Filter, _ int) ([]invocationreadmodel.ErrorPattern, error) {

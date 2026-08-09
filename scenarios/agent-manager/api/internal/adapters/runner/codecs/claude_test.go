@@ -375,8 +375,8 @@ func TestClaude_DecodeStreamLine_SystemInit(t *testing.T) {
 func TestClaude_DecodeStreamLine_AssistantText(t *testing.T) {
 	c := NewClaudeForTest()
 	events := decodeOne(t, c, claudeCodeSamples["assistant_text"])
-	if len(events) != 1 {
-		t.Fatalf("got %d events", len(events))
+	if len(events) != 2 {
+		t.Fatalf("got %d events, want message plus per-turn usage", len(events))
 	}
 	if events[0].EventType != domain.EventTypeMessage {
 		t.Errorf("type=%s want message", events[0].EventType)
@@ -388,13 +388,17 @@ func TestClaude_DecodeStreamLine_AssistantText(t *testing.T) {
 	if msg.Content != "Hello! I'm ready to help you." {
 		t.Errorf("content=%q", msg.Content)
 	}
+	usage, ok := events[1].Data.(*domain.UsageEventData)
+	if !ok || usage.TurnIndex != 1 || usage.InputTokens != 2 || usage.OutputTokens != 5 {
+		t.Errorf("usage=%#v, want turn 1 with 2 input and 5 output", events[1].Data)
+	}
 }
 
 func TestClaude_DecodeStreamLine_AssistantToolUse(t *testing.T) {
 	c := NewClaudeForTest()
 	events := decodeOne(t, c, claudeCodeSamples["assistant_tool_use"])
-	if len(events) != 1 {
-		t.Fatalf("got %d events", len(events))
+	if len(events) != 2 {
+		t.Fatalf("got %d events, want tool call plus per-turn usage", len(events))
 	}
 	if events[0].EventType != domain.EventTypeToolCall {
 		t.Errorf("type=%s want tool_call", events[0].EventType)
@@ -405,6 +409,45 @@ func TestClaude_DecodeStreamLine_AssistantToolUse(t *testing.T) {
 	}
 	if fp, ok := tool.Input["file_path"].(string); !ok || fp != "/tmp/test.txt" {
 		t.Errorf("file_path=%v", tool.Input["file_path"])
+	}
+}
+
+func TestClaudePerTurnUsageSumsToTerminalAuthority(t *testing.T) {
+	c := NewClaudeForTest()
+	state := c.NewState()
+	runID := uuid.New()
+	lines := []string{
+		`{"type":"assistant","message":{"role":"assistant","content":[],"usage":{"input_tokens":10,"output_tokens":2}}}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[],"usage":{"input_tokens":20,"output_tokens":3}}}`,
+		`{"type":"assistant","message":{"role":"assistant","content":[],"usage":{"input_tokens":30,"output_tokens":4}}}`,
+		`{"type":"result","subtype":"success","is_error":false,"num_turns":3,"result":"done","usage":{"input_tokens":60,"output_tokens":9}}`,
+	}
+	var usage []*domain.UsageEventData
+	for _, line := range lines {
+		events, err := c.DecodeStreamLine(state, runID, line)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, event := range events {
+			if data, ok := event.Data.(*domain.UsageEventData); ok {
+				usage = append(usage, data)
+			}
+		}
+	}
+	if len(usage) != 4 {
+		t.Fatalf("usage events=%d, want three turns plus terminal", len(usage))
+	}
+	input, output := 0, 0
+	for index, data := range usage[:3] {
+		if data.TurnIndex != index+1 || data.ReconciliationAuthority {
+			t.Errorf("turn %d metadata=%+v", index+1, data)
+		}
+		input += data.InputTokens
+		output += data.OutputTokens
+	}
+	terminal := usage[3]
+	if !terminal.ReconciliationAuthority || terminal.InputTokens != input || terminal.OutputTokens != output {
+		t.Errorf("terminal=%+v, per-turn sum=%d/%d", terminal, input, output)
 	}
 }
 
@@ -1028,6 +1071,33 @@ func TestDecodeStreamLine_AutoCompactSystem(t *testing.T) {
 	}
 	if cd.Trigger != "auto" {
 		t.Errorf("trigger=%s want auto", cd.Trigger)
+	}
+}
+
+func TestClaudeCompactionUsesAdjacentTurnUsage(t *testing.T) {
+	c := NewClaudeForTest()
+	state := c.NewState()
+	runID := uuid.New()
+	decode := func(line string) []*domain.RunEvent {
+		events, err := c.DecodeStreamLine(state, runID, line)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return events
+	}
+	decode(`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"before"}],"usage":{"input_tokens":100,"output_tokens":5}}}`)
+	decode(`{"type":"message","message":{"role":"user","content":"/compact focus on auth"}}`)
+	compaction := decode(`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"<summary>auth summary</summary>"}]}}`)
+	if len(compaction) != 1 {
+		t.Fatalf("compaction events=%d", len(compaction))
+	}
+	data := compaction[0].Data.(*domain.CompactionEventData)
+	if data.TokensBefore != 100 || data.TokensAfter != 0 {
+		t.Fatalf("before boundary=%+v, want before=100 and after initially zero", data)
+	}
+	decode(`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"after"}],"usage":{"input_tokens":40,"output_tokens":4}}}`)
+	if data.TokensAfter != 40 {
+		t.Fatalf("after boundary=%d, want 40", data.TokensAfter)
 	}
 }
 

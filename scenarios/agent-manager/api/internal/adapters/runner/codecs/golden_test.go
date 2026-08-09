@@ -45,14 +45,14 @@ func TestCodecGoldenTrace(t *testing.T) {
 			traceFile: "claude_trace.jsonl",
 			newCodec:  func(t *testing.T) Codec { t.Helper(); return NewClaudeForTest() },
 			// L0 system.init             → log
-			// L1 assistant text          → message
-			// L2 assistant tool_use      → tool_call
+			// L1 assistant text          → message + per-turn usage
+			// L2 assistant tool_use      → tool_call + per-turn usage
 			// L3 user tool_result        → tool_result
 			// L4 result.success          → terminal message + metric (cost/usage rollup)
 			expectedTypes: [][]domain.RunEventType{
 				{domain.EventTypeLog},
-				{domain.EventTypeMessage},
-				{domain.EventTypeToolCall},
+				{domain.EventTypeMessage, domain.EventTypeMetric},
+				{domain.EventTypeToolCall, domain.EventTypeMetric},
 				{domain.EventTypeToolResult},
 				{domain.EventTypeMessage, domain.EventTypeMetric, domain.EventTypeMetric},
 			},

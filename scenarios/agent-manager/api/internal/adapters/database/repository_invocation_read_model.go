@@ -11,6 +11,7 @@ import (
 
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/runsignal"
+	"agent-manager/internal/tokenaccounting"
 )
 
 type invocationReadModelRepository struct{ db *DB }
@@ -89,12 +90,13 @@ type sqlExecutor interface {
 }
 
 func replaceRunTx(ctx context.Context, executor sqlExecutor, fact invocationreadmodel.RunFact) error {
+	values := strings.Repeat("?,", 38) + "?"
 	query := `INSERT INTO invocation_read_model_runs (
 		run_id,goal_id,goal_status,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,
 		workload_kind,workload_key,workload_instance,total_cost_usd,input_cost_usd,output_cost_usd,cache_read_cost_usd,
 		cache_creation_cost_usd,total_tokens,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,turns,
-		tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,cost_time_basis,time_basis,projected_at
-	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+		tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,preamble_injected_tokens,preamble_fixed_tokens,preamble_token_basis,unattributed_tokens,unattributed_reason,cost_time_basis,time_basis,projected_at
+	) VALUES (` + values + `)
 	ON CONFLICT(run_id) DO UPDATE SET
 		goal_id=excluded.goal_id,goal_status=excluded.goal_status,occurred_at=excluded.occurred_at,created_at=excluded.created_at,started_at=excluded.started_at,ended_at=excluded.ended_at,
 		duration_ms=excluded.duration_ms,status=excluded.status,profile_id=excluded.profile_id,runner_type=excluded.runner_type,
@@ -105,8 +107,10 @@ func replaceRunTx(ctx context.Context, executor sqlExecutor, fact invocationread
 		output_tokens=excluded.output_tokens,cache_read_tokens=excluded.cache_read_tokens,cache_creation_tokens=excluded.cache_creation_tokens,
 		turns=excluded.turns,tool_calls=excluded.tool_calls,total_charge_micro_usd=excluded.total_charge_micro_usd,
 		metered_charge_micro_usd=excluded.metered_charge_micro_usd,unpriced_token_count=excluded.unpriced_token_count,
+		preamble_injected_tokens=excluded.preamble_injected_tokens,preamble_fixed_tokens=excluded.preamble_fixed_tokens,preamble_token_basis=excluded.preamble_token_basis,
+		unattributed_tokens=excluded.unattributed_tokens,unattributed_reason=excluded.unattributed_reason,
 		cost_time_basis=excluded.cost_time_basis,time_basis=excluded.time_basis,projected_at=excluded.projected_at`
-	if _, err := executor.ExecContext(ctx, query, fact.RunID, fact.GoalID, fact.GoalStatus, SQLiteTime(fact.OccurredAt), SQLiteTime(fact.CreatedAt), nullableSQLiteTime(fact.StartedAt), nullableSQLiteTime(fact.EndedAt), fact.DurationMS, fact.Status, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.WorkloadKind, fact.WorkloadKey, fact.WorkloadInstance, fact.TotalCostUSD, fact.InputCostUSD, fact.OutputCostUSD, fact.CacheReadCostUSD, fact.CacheCreationCostUSD, fact.TotalTokens, fact.InputTokens, fact.OutputTokens, fact.CacheReadTokens, fact.CacheCreationTokens, fact.Turns, fact.ToolCalls, fact.TotalChargeMicroUSD, fact.MeteredChargeMicroUSD, fact.UnpricedTokenCount, fact.CostTimeBasis, fact.TimeBasis, SQLiteTime(fact.ProjectedAt)); err != nil {
+	if _, err := executor.ExecContext(ctx, query, fact.RunID, fact.GoalID, fact.GoalStatus, SQLiteTime(fact.OccurredAt), SQLiteTime(fact.CreatedAt), nullableSQLiteTime(fact.StartedAt), nullableSQLiteTime(fact.EndedAt), fact.DurationMS, fact.Status, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.WorkloadKind, fact.WorkloadKey, fact.WorkloadInstance, fact.TotalCostUSD, fact.InputCostUSD, fact.OutputCostUSD, fact.CacheReadCostUSD, fact.CacheCreationCostUSD, fact.TotalTokens, fact.InputTokens, fact.OutputTokens, fact.CacheReadTokens, fact.CacheCreationTokens, fact.Turns, fact.ToolCalls, fact.TotalChargeMicroUSD, fact.MeteredChargeMicroUSD, fact.UnpricedTokenCount, fact.PreambleInjectedTokens, fact.PreambleFixedTokens, fact.PreambleTokenBasis, fact.UnattributedTokens, fact.UnattributedReason, fact.CostTimeBasis, fact.TimeBasis, SQLiteTime(fact.ProjectedAt)); err != nil {
 		return fmt.Errorf("upsert run read-model fact: %w", err)
 	}
 	if _, err := executor.ExecContext(ctx, `INSERT INTO invocation_read_model_run_signals (run_id,read_calls,files_read_more_than_once) VALUES (?,?,?) ON CONFLICT(run_id) DO UPDATE SET read_calls=excluded.read_calls,files_read_more_than_once=excluded.files_read_more_than_once`, fact.RunID, fact.ReadCalls, fact.FileRereads); err != nil {
@@ -230,7 +234,9 @@ func (r *invocationReadModelRepository) replaceFactsTx(ctx context.Context, tx s
 		return fmt.Errorf("clear read-model facts: %w", err)
 	}
 	for _, fact := range facts {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,capability,intent_class,executable,command_path,ownership,ownership_reason,segment_index,segment_count,catalog_snapshot,outcome,pairing_basis,failure_signature,signature_truncated,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status,semantics_kind,semantics_verdict,wrapper,exit_code,duration_ms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, fact.RunID, fact.CallEventID, fact.ResultEventID, fact.ToolCallID, SQLiteTime(fact.OccurredAt), fact.TimeBasis, fact.ToolName, fact.Capability, fact.IntentClass, fact.Executable, fact.CommandPath, fact.Ownership, fact.OwnershipReason, fact.SegmentIndex, fact.SegmentCount, fact.CatalogSnapshot, fact.Outcome, fact.PairingBasis, fact.FailureSignature, fact.SignatureTruncated, fact.RetryOfCallEventID, fact.HelpRecovery, fact.Fingerprint, fact.Availability, fact.Version, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.RunStatus, fact.SemanticsKind, fact.SemanticsVerdict, fact.Wrapper, fact.ExitCode, fact.DurationMS); err != nil {
+		values := strings.Repeat("?,", 43) + "?"
+		query := `INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,capability,intent_class,executable,command_path,ownership,ownership_reason,segment_index,segment_count,catalog_snapshot,outcome,pairing_basis,failure_signature,signature_truncated,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status,semantics_kind,semantics_verdict,wrapper,exit_code,duration_ms,arg_tokens,result_tokens,token_basis,residency_turns,residency_segment,incurred_input_tokens,incurred_output_tokens,incurred_cache_read_tokens,incurred_cache_creation_tokens) VALUES (` + values + `)`
+		if _, err := tx.ExecContext(ctx, query, fact.RunID, fact.CallEventID, fact.ResultEventID, fact.ToolCallID, SQLiteTime(fact.OccurredAt), fact.TimeBasis, fact.ToolName, fact.Capability, fact.IntentClass, fact.Executable, fact.CommandPath, fact.Ownership, fact.OwnershipReason, fact.SegmentIndex, fact.SegmentCount, fact.CatalogSnapshot, fact.Outcome, fact.PairingBasis, fact.FailureSignature, fact.SignatureTruncated, fact.RetryOfCallEventID, fact.HelpRecovery, fact.Fingerprint, fact.Availability, fact.Version, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.RunStatus, fact.SemanticsKind, fact.SemanticsVerdict, fact.Wrapper, fact.ExitCode, fact.DurationMS, fact.ArgTokens, fact.ResultTokens, fact.TokenBasis, fact.ResidencyTurns, fact.ResidencySegment, fact.IncurredInputTokens, fact.IncurredOutputTokens, fact.IncurredCacheReadTokens, fact.IncurredCacheCreationTokens); err != nil {
 			return fmt.Errorf("insert read-model fact: %w", err)
 		}
 	}
@@ -266,7 +272,10 @@ func (r *invocationReadModelRepository) Aggregate(ctx context.Context, filter in
 		}
 		out = append(out, row)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *invocationReadModelRepository) Cohort(ctx context.Context, filter invocationreadmodel.Filter, limit int) (invocationreadmodel.Cohort, error) {
@@ -371,7 +380,10 @@ func (r *invocationReadModelRepository) CohortRows(ctx context.Context, runIDs [
 		}
 		out = append(out, row)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (r *invocationReadModelRepository) Episodes(ctx context.Context, filter invocationreadmodel.Filter, limit int) ([]invocationreadmodel.Episode, error) {
@@ -736,7 +748,9 @@ func (r *invocationReadModelRepository) ToolUsage(ctx context.Context, filter in
 	args = append(args, limit)
 	rows, err := r.db.QueryxContext(ctx, `SELECT tool_name, COUNT(*) AS call_count,
 		SUM(CASE WHEN outcome = 'success' THEN 1 ELSE 0 END) AS success_count,
-		SUM(CASE WHEN outcome = 'failure' THEN 1 ELSE 0 END) AS failed_count
+		SUM(CASE WHEN outcome = 'failure' THEN 1 ELSE 0 END) AS failed_count,
+		COALESCE(SUM(arg_tokens + result_tokens), 0) AS total_tokens,
+		COALESCE(SUM(arg_tokens + CASE WHEN token_basis = 'estimated' THEN result_tokens ELSE 0 END), 0) AS estimated_tokens
 		FROM invocation_read_model_facts`+where+` GROUP BY tool_name ORDER BY call_count DESC, tool_name ASC LIMIT ?`, args...)
 	if err != nil {
 		return nil, err
@@ -745,8 +759,12 @@ func (r *invocationReadModelRepository) ToolUsage(ctx context.Context, filter in
 	out := []invocationreadmodel.ToolUsageRow{}
 	for rows.Next() {
 		var row invocationreadmodel.ToolUsageRow
-		if err := rows.Scan(&row.ToolName, &row.CallCount, &row.SuccessCount, &row.FailedCount); err != nil {
+		var estimated int64
+		if err := rows.Scan(&row.ToolName, &row.CallCount, &row.SuccessCount, &row.FailedCount, &row.TotalTokens, &estimated); err != nil {
 			return nil, err
+		}
+		if row.TotalTokens > 0 {
+			row.EstimatedTokenShare = float64(estimated) / float64(row.TotalTokens)
 		}
 		out = append(out, row)
 	}
@@ -762,7 +780,11 @@ func (r *invocationReadModelRepository) ToolCommandBreakdown(ctx context.Context
 	query := `SELECT COALESCE(executable, ''), COALESCE(command_path, ''), COUNT(*),
 		SUM(CASE WHEN outcome = 'success' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN outcome = 'failure' THEN 1 ELSE 0 END),
-		COUNT(DISTINCT run_id)
+		COUNT(DISTINCT run_id),
+		COALESCE(SUM(arg_tokens + result_tokens), 0),
+		COALESCE(SUM(arg_tokens + CASE WHEN token_basis = 'estimated' THEN result_tokens ELSE 0 END), 0),
+		COALESCE(CAST(AVG(arg_tokens + result_tokens) AS INTEGER), 0),
+		COALESCE(MAX(arg_tokens + result_tokens), 0)
 		FROM invocation_read_model_facts` + where + `
 		GROUP BY executable, command_path ORDER BY COUNT(*) DESC, executable ASC, command_path ASC LIMIT ?`
 	rows, err := r.db.QueryxContext(ctx, query, args...)
@@ -774,8 +796,13 @@ func (r *invocationReadModelRepository) ToolCommandBreakdown(ctx context.Context
 	for rows.Next() {
 		var row invocationreadmodel.ToolCommandRow
 		var executable, commandPath string
-		if err := rows.Scan(&executable, &commandPath, &row.CallCount, &row.SuccessCount, &row.FailedCount, &row.RunCount); err != nil {
+		var estimated, averageFootprint, maxFootprint int64
+		if err := rows.Scan(&executable, &commandPath, &row.CallCount, &row.SuccessCount, &row.FailedCount, &row.RunCount, &row.TotalTokens, &estimated, &averageFootprint, &maxFootprint); err != nil {
 			return nil, err
+		}
+		row.P50FootprintTokens, row.P95FootprintTokens, row.MaxFootprintTokens = averageFootprint, averageFootprint, maxFootprint
+		if row.TotalTokens > 0 {
+			row.EstimatedTokenShare = float64(estimated) / float64(row.TotalTokens)
 		}
 		row.Executable, row.CommandPath = truncateCommandField(executable), truncateCommandField(commandPath)
 		row.Truncated = row.Executable != executable || row.CommandPath != commandPath
@@ -796,31 +823,33 @@ func (r *invocationReadModelRepository) CapabilityUsage(ctx context.Context, fil
 	if limit <= 0 {
 		limit = 20
 	}
-	clauses := []string{"verified = 1", "target_scenario <> ''"}
+	clauses := []string{"c.verified = 1", "c.target_scenario <> ''"}
 	args := []any{}
 	if filter.From != nil {
-		clauses = append(clauses, "occurred_at >= ?")
+		clauses = append(clauses, "c.occurred_at >= ?")
 		args = append(args, SQLiteTime(*filter.From))
 	}
 	if filter.To != nil {
-		clauses = append(clauses, "occurred_at < ?")
+		clauses = append(clauses, "c.occurred_at < ?")
 		args = append(args, SQLiteTime(*filter.To))
 	}
 	if filter.TargetScenario != "" {
-		clauses = append(clauses, "target_scenario = ?")
+		clauses = append(clauses, "c.target_scenario = ?")
 		args = append(args, filter.TargetScenario)
 	}
 	if filter.Operation != "" {
-		clauses = append(clauses, "operation = ?")
+		clauses = append(clauses, "c.operation = ?")
 		args = append(args, filter.Operation)
 	}
 	args = append(args, limit)
-	rows, err := r.db.QueryxContext(ctx, `SELECT target_scenario, operation, COUNT(*) AS call_count,
-		SUM(CASE WHEN outcome = 'success' THEN 1 ELSE 0 END) AS success_count,
-		SUM(CASE WHEN outcome <> 'success' THEN 1 ELSE 0 END) AS failed_count,
-		COALESCE(SUM(duration_ms), 0) AS total_duration_ms
-		FROM investigation_cross_scenario_calls WHERE `+strings.Join(clauses, " AND ")+`
-		GROUP BY target_scenario, operation ORDER BY call_count DESC, target_scenario ASC, operation ASC LIMIT ?`, args...)
+	rows, err := r.db.QueryxContext(ctx, `SELECT c.target_scenario, c.operation, COUNT(*) AS call_count,
+		SUM(CASE WHEN c.outcome = 'success' THEN 1 ELSE 0 END) AS success_count,
+		SUM(CASE WHEN c.outcome <> 'success' THEN 1 ELSE 0 END) AS failed_count,
+		COALESCE(SUM(c.duration_ms), 0) AS total_duration_ms,
+		COALESCE(SUM(COALESCE(f.arg_tokens, 0) + COALESCE(f.result_tokens, 0)), 0) AS total_tokens,
+		COALESCE(SUM(COALESCE(f.arg_tokens, 0) + CASE WHEN f.token_basis = 'estimated' THEN COALESCE(f.result_tokens, 0) ELSE 0 END), 0) AS estimated_tokens
+		FROM investigation_cross_scenario_calls c LEFT JOIN invocation_read_model_facts f ON f.run_id = c.run_id AND f.call_event_id = c.receipt_event_id WHERE `+strings.Join(clauses, " AND ")+`
+		GROUP BY c.target_scenario, c.operation ORDER BY call_count DESC, c.target_scenario ASC, c.operation ASC LIMIT ?`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -828,12 +857,118 @@ func (r *invocationReadModelRepository) CapabilityUsage(ctx context.Context, fil
 	out := []invocationreadmodel.CapabilityUsageRow{}
 	for rows.Next() {
 		var row invocationreadmodel.CapabilityUsageRow
-		if err := rows.Scan(&row.TargetScenario, &row.Operation, &row.CallCount, &row.SuccessCount, &row.FailedCount, &row.TotalDurationMS); err != nil {
+		var estimated int64
+		if err := rows.Scan(&row.TargetScenario, &row.Operation, &row.CallCount, &row.SuccessCount, &row.FailedCount, &row.TotalDurationMS, &row.TotalTokens, &estimated); err != nil {
 			return nil, err
+		}
+		if row.TotalTokens > 0 {
+			row.EstimatedTokenShare = float64(estimated) / float64(row.TotalTokens)
 		}
 		out = append(out, row)
 	}
 	return out, rows.Err()
+}
+
+// TokenAttribution aggregates durable token factors without storing a
+// pre-multiplied residency product. SQLite uses the same mean-as-percentile
+// convention as RunDurationStatistics until a native percentile aggregate is
+// available.
+func (r *invocationReadModelRepository) TokenAttribution(ctx context.Context, filter invocationreadmodel.Filter, groupBy, view string, limit int) ([]invocationreadmodel.TokenAttributionRow, error) {
+	groups := map[string]string{
+		"capability":                "COALESCE(NULLIF(f.capability, ''), 'unknown')",
+		"executable":                "COALESCE(NULLIF(f.executable, ''), 'unknown')",
+		"command_path":              "COALESCE(NULLIF(f.command_path, ''), 'unknown')",
+		"target_scenario_operation": "COALESCE(NULLIF(c.target_scenario || '::' || c.operation, '::'), 'unknown')",
+	}
+	if _, ok := groups[groupBy]; !ok {
+		return nil, fmt.Errorf("unsupported token attribution group_by %q; accepted values: capability, executable, command_path, target_scenario_operation", groupBy)
+	}
+	if view != string(tokenaccounting.Footprint) && view != string(tokenaccounting.Residency) && view != string(tokenaccounting.Incurred) {
+		return nil, fmt.Errorf("unsupported token attribution view %q; accepted values: footprint, residency, incurred", view)
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	where, args := invocationReadModelWhere(filter)
+	base := "(SELECT * FROM invocation_read_model_facts" + where + ") f LEFT JOIN investigation_cross_scenario_calls c ON c.run_id = f.run_id AND c.receipt_event_id = f.call_event_id"
+	outerClauses := []string{}
+	if filter.TargetScenario != "" {
+		outerClauses = append(outerClauses, "c.target_scenario = ?")
+		args = append(args, filter.TargetScenario)
+	}
+	if filter.Operation != "" {
+		outerClauses = append(outerClauses, "c.operation = ?")
+		args = append(args, filter.Operation)
+	}
+	query := `SELECT ` + groups[groupBy] + ` AS value, COUNT(*) AS call_count,
+		COALESCE(SUM(f.arg_tokens + f.result_tokens), 0) AS footprint_tokens,
+		COALESCE(SUM(f.result_tokens * f.residency_turns), 0) AS residency_tokens,
+		COALESCE(SUM(f.incurred_input_tokens + f.incurred_output_tokens + f.incurred_cache_read_tokens + f.incurred_cache_creation_tokens), 0) AS incurred_tokens,
+		COALESCE(SUM(f.arg_tokens + CASE WHEN f.token_basis = 'estimated' THEN f.result_tokens ELSE 0 END), 0) AS estimated_footprint_tokens,
+		COALESCE(SUM(CASE WHEN f.token_basis = 'estimated' THEN f.result_tokens * f.residency_turns ELSE 0 END), 0) AS estimated_residency_tokens,
+		COALESCE(CAST(AVG(f.arg_tokens + f.result_tokens) AS INTEGER), 0) AS p50_footprint_tokens,
+		COALESCE(MAX(f.arg_tokens + f.result_tokens), 0) AS max_footprint_tokens
+		FROM ` + base
+	if len(outerClauses) > 0 {
+		query += " WHERE " + strings.Join(outerClauses, " AND ")
+	}
+	query += " GROUP BY value ORDER BY " + map[string]string{"footprint": "footprint_tokens", "residency": "residency_tokens", "incurred": "incurred_tokens"}[view] + " DESC, value ASC LIMIT ?"
+	args = append(args, limit)
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]invocationreadmodel.TokenAttributionRow, 0, limit)
+	for rows.Next() {
+		var row invocationreadmodel.TokenAttributionRow
+		var footprint, residency, incurred, estimatedFootprint, estimatedResidency, p50, max int64
+		if err := rows.Scan(&row.Value, &row.CallCount, &footprint, &residency, &incurred, &estimatedFootprint, &estimatedResidency, &p50, &max); err != nil {
+			return nil, err
+		}
+		row.GroupBy = groupBy
+		switch view {
+		case string(tokenaccounting.Footprint):
+			row.TotalTokens, row.EstimatedTokens = footprint, estimatedFootprint
+		case string(tokenaccounting.Residency):
+			row.TotalTokens, row.EstimatedTokens = residency, estimatedResidency
+		case string(tokenaccounting.Incurred):
+			row.TotalTokens = incurred
+		}
+		if row.TotalTokens > 0 {
+			row.EstimatedTokenShare = float64(row.EstimatedTokens) / float64(row.TotalTokens)
+		}
+		row.P50FootprintTokens, row.P95FootprintTokens, row.MaxFootprintTokens = p50, p50, max
+		out = append(out, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	residualWhere, residualArgs := invocationReadModelRunWhere(filter)
+	residualClauses := []string{}
+	if filter.TargetScenario != "" {
+		residualClauses = append(residualClauses, "EXISTS (SELECT 1 FROM investigation_cross_scenario_calls c WHERE c.run_id = invocation_read_model_runs.run_id AND c.target_scenario = ?)")
+		residualArgs = append(residualArgs, filter.TargetScenario)
+	}
+	if filter.Operation != "" {
+		residualClauses = append(residualClauses, "EXISTS (SELECT 1 FROM investigation_cross_scenario_calls c WHERE c.run_id = invocation_read_model_runs.run_id AND c.operation = ?)")
+		residualArgs = append(residualArgs, filter.Operation)
+	}
+	if len(residualClauses) > 0 {
+		if residualWhere == "" {
+			residualWhere = " WHERE " + strings.Join(residualClauses, " AND ")
+		} else {
+			residualWhere += " AND " + strings.Join(residualClauses, " AND ")
+		}
+	}
+	var residualRuns, residualTokens int64
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(unattributed_tokens), 0) FROM invocation_read_model_runs`+residualWhere, residualArgs...).Scan(&residualRuns, &residualTokens); err != nil {
+		return nil, err
+	}
+	if residualRuns > 0 {
+		out = append(out, invocationreadmodel.TokenAttributionRow{GroupBy: groupBy, Value: "unattributed", CallCount: residualRuns, TotalTokens: residualTokens})
+	}
+	return out, nil
 }
 
 func (r *invocationReadModelRepository) CapabilityEfficacy(ctx context.Context, filter invocationreadmodel.Filter, limit int) ([]invocationreadmodel.CapabilityEfficacyRow, error) {
@@ -1122,7 +1257,7 @@ func invocationReadModelFindingWhere(filter invocationreadmodel.Filter) (string,
 }
 
 func (r *invocationReadModelRepository) Facts(ctx context.Context, runID string) ([]invocationreadmodel.Fact, error) {
-	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,classifier_version,call_event_id,COALESCE(result_event_id,''),COALESCE(tool_call_id,''),occurred_at,time_basis,tool_name,COALESCE(capability,'other'),COALESCE(intent_class,''),COALESCE(executable,''),COALESCE(command_path,''),ownership,COALESCE(ownership_reason,''),COALESCE(segment_index,0),COALESCE(segment_count,1),COALESCE(catalog_snapshot,''),outcome,COALESCE(pairing_basis,'unpaired'),COALESCE(failure_signature,''),COALESCE(signature_truncated,0),COALESCE(retry_of_call_event_id,''),help_recovery,fingerprint,availability,profile_id,runner_type,model,tag,run_status,COALESCE(semantics_kind,''),COALESCE(semantics_verdict,''),COALESCE(wrapper,''),exit_code,duration_ms FROM invocation_read_model_facts WHERE run_id=? ORDER BY occurred_at, call_event_id, segment_index`, runID)
+	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,classifier_version,call_event_id,COALESCE(result_event_id,''),COALESCE(tool_call_id,''),occurred_at,time_basis,tool_name,COALESCE(capability,'other'),COALESCE(intent_class,''),COALESCE(executable,''),COALESCE(command_path,''),ownership,COALESCE(ownership_reason,''),COALESCE(segment_index,0),COALESCE(segment_count,1),COALESCE(catalog_snapshot,''),outcome,COALESCE(pairing_basis,'unpaired'),COALESCE(failure_signature,''),COALESCE(signature_truncated,0),COALESCE(retry_of_call_event_id,''),help_recovery,fingerprint,availability,profile_id,runner_type,model,tag,run_status,COALESCE(semantics_kind,''),COALESCE(semantics_verdict,''),COALESCE(wrapper,''),exit_code,duration_ms,COALESCE(arg_tokens,0),COALESCE(result_tokens,0),COALESCE(token_basis,'unknown'),COALESCE(residency_turns,0),COALESCE(residency_segment,0),COALESCE(incurred_input_tokens,0),COALESCE(incurred_output_tokens,0),COALESCE(incurred_cache_read_tokens,0),COALESCE(incurred_cache_creation_tokens,0) FROM invocation_read_model_facts WHERE run_id=? ORDER BY occurred_at, call_event_id, segment_index`, runID)
 	if err != nil {
 		return nil, err
 	}
@@ -1132,9 +1267,11 @@ func (r *invocationReadModelRepository) Facts(ctx context.Context, runID string)
 		var f invocationreadmodel.Fact
 		var occurredAt SQLiteTime
 		var exitCode, durationMS sql.NullInt64
-		if err := rows.Scan(&f.RunID, &f.Version, &f.CallEventID, &f.ResultEventID, &f.ToolCallID, &occurredAt, &f.TimeBasis, &f.ToolName, &f.Capability, &f.IntentClass, &f.Executable, &f.CommandPath, &f.Ownership, &f.OwnershipReason, &f.SegmentIndex, &f.SegmentCount, &f.CatalogSnapshot, &f.Outcome, &f.PairingBasis, &f.FailureSignature, &f.SignatureTruncated, &f.RetryOfCallEventID, &f.HelpRecovery, &f.Fingerprint, &f.Availability, &f.ProfileID, &f.RunnerType, &f.Model, &f.Tag, &f.RunStatus, &f.SemanticsKind, &f.SemanticsVerdict, &f.Wrapper, &exitCode, &durationMS); err != nil {
+		var tokenBasis string
+		if err := rows.Scan(&f.RunID, &f.Version, &f.CallEventID, &f.ResultEventID, &f.ToolCallID, &occurredAt, &f.TimeBasis, &f.ToolName, &f.Capability, &f.IntentClass, &f.Executable, &f.CommandPath, &f.Ownership, &f.OwnershipReason, &f.SegmentIndex, &f.SegmentCount, &f.CatalogSnapshot, &f.Outcome, &f.PairingBasis, &f.FailureSignature, &f.SignatureTruncated, &f.RetryOfCallEventID, &f.HelpRecovery, &f.Fingerprint, &f.Availability, &f.ProfileID, &f.RunnerType, &f.Model, &f.Tag, &f.RunStatus, &f.SemanticsKind, &f.SemanticsVerdict, &f.Wrapper, &exitCode, &durationMS, &f.ArgTokens, &f.ResultTokens, &tokenBasis, &f.ResidencyTurns, &f.ResidencySegment, &f.IncurredInputTokens, &f.IncurredOutputTokens, &f.IncurredCacheReadTokens, &f.IncurredCacheCreationTokens); err != nil {
 			return nil, err
 		}
+		f.TokenBasis = tokenaccounting.Basis(tokenBasis)
 		if exitCode.Valid {
 			value := int(exitCode.Int64)
 			f.ExitCode = &value

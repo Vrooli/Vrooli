@@ -59,6 +59,25 @@ guard `costTrackingRunnerHasChargeSource` fails when a cost-tracking runner is
 wired without a charge source. The typed measure registry owns workload
 breakdown and efficiency queries.
 
+Per-turn input usage also derives run-level preamble buckets. The injected
+instruction estimate is recorded with the run at creation; the fixed portion
+uses the minimum observed input per compaction segment minus that injected
+estimate. This minimum slightly over-counts because the shortest turn still
+contains conversation history, so it is an estimate rather than exact prefix
+measurement. Runs without per-turn usage report zero preamble tokens with an
+unknown basis.
+
+Token attribution is exposed in three deliberately distinct views; see the
+[token attribution reference](../reference/token-attribution.md). `footprint`
+answers how large a tool result was, `residency` estimates how much context it
+occupied across turns, and `incurred` attributes measured turn usage with an
+explicit residual. Invocation facts retain the independent token factors and
+their basis instead of storing a derived product as provider truth. Run facts
+retain the conservation buckets `preamble_injected`, `preamble_fixed`,
+`tool_result_residency`, `assistant_output`, `compaction`, and `unattributed`.
+The buckets sum to the run total; any unexplained difference remains visible
+in `unattributed_tokens` with a reason.
+
 `run_findings` is already durable investigation evidence. Finding-recurrence
 measures window it by `created_at` (not run terminal time), group fingerprints
 within that filtered corpus, and then apply run dimensions through the durable

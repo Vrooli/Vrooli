@@ -423,18 +423,23 @@ const (
 // UsageEventData contains provider-independent consumption. It is emitted
 // even when pricing is unavailable or the run is free under its billing mode.
 type UsageEventData struct {
-	PayloadKind           string           `json:"payloadKind"`
-	InputTokens           int              `json:"inputTokens"`
-	OutputTokens          int              `json:"outputTokens"`
-	CacheCreationTokens   int              `json:"cacheCreationTokens,omitempty"`
-	CacheReadTokens       int              `json:"cacheReadTokens,omitempty"`
-	Turns                 int              `json:"turns,omitempty"`
-	ServiceTier           string           `json:"serviceTier,omitempty"`
-	Model                 string           `json:"model,omitempty"`
-	RunnerType            string           `json:"runnerType,omitempty"`
-	WebSearchRequests     int              `json:"webSearchRequests,omitempty"`
-	ServerToolUseRequests int              `json:"serverToolUseRequests,omitempty"`
-	Charge                *ChargeEventData `json:"charge,omitempty"`
+	PayloadKind         string `json:"payloadKind"`
+	InputTokens         int    `json:"inputTokens"`
+	OutputTokens        int    `json:"outputTokens"`
+	CacheCreationTokens int    `json:"cacheCreationTokens,omitempty"`
+	CacheReadTokens     int    `json:"cacheReadTokens,omitempty"`
+	Turns               int    `json:"turns,omitempty"`
+	TurnIndex           int    `json:"turnIndex,omitempty"`
+	// ReconciliationAuthority marks the terminal provider usage snapshot as
+	// authoritative for run-total reconciliation. Per-turn usage remains
+	// available for attribution but is not added again when this is present.
+	ReconciliationAuthority bool             `json:"reconciliationAuthority,omitempty"`
+	ServiceTier             string           `json:"serviceTier,omitempty"`
+	Model                   string           `json:"model,omitempty"`
+	RunnerType              string           `json:"runnerType,omitempty"`
+	WebSearchRequests       int              `json:"webSearchRequests,omitempty"`
+	ServerToolUseRequests   int              `json:"serverToolUseRequests,omitempty"`
+	Charge                  *ChargeEventData `json:"charge,omitempty"`
 }
 
 func (d *UsageEventData) EventType() RunEventType { return EventTypeMetric }

@@ -16,7 +16,8 @@
               "required": true,
               "description": "Workflow definition JSON",
               "bind": {
-                "field": "definition"
+                "field": "definition",
+                "kind": "json_file"
               }
             }
           ],
@@ -2229,6 +2230,24 @@
           }
         },
         {
+          "name": "import-sweep",
+          "description": "Run the scheduled transcript import sweep now",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
           "name": "wake",
           "description": "Wake a parked run",
           "binding": {
@@ -3120,6 +3139,102 @@
             "permissions": [
               "network:internal"
             ]
+          }
+        },
+        {
+          "name": "token-attribution",
+          "description": "Durable token attribution grouped by dimension and view.",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Analytical time window",
+              "bind": {
+                "field": "window",
+                "kind": "json_inline"
+              }
+            },
+            {
+              "name": "by",
+              "description": "Grouping dimension",
+              "default": "capability",
+              "values": [
+                "capability",
+                "executable",
+                "command_path",
+                "target_scenario_operation"
+              ],
+              "value_aliases": {
+                "command-path": "command_path",
+                "scenario-operation": "target_scenario_operation"
+              },
+              "bind": {
+                "field": "group_by"
+              }
+            },
+            {
+              "name": "view",
+              "description": "Token view",
+              "default": "footprint",
+              "values": [
+                "footprint",
+                "residency",
+                "incurred"
+              ]
+            },
+            {
+              "name": "runner-type",
+              "description": "Runner type"
+            },
+            {
+              "name": "model",
+              "description": "Model"
+            },
+            {
+              "name": "workload-key",
+              "description": "Declared workload key"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "TokenAttribution"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "friction",
+            "intent": "Durable token spend grouped by capability, executable, command path, or target scenario operation across footprint, residency, and incurred views.",
+            "questions": [
+              "which capabilities consume the most tokens",
+              "which commands have the largest token footprint",
+              "what incurred token spend follows each tool call"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              },
+              "group_by": {
+                "default": "capability"
+              },
+              "view": {
+                "default": "footprint"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "total_tokens",
+              "unit": "tokens",
+              "summary_template": "{view} token attribution by {group_by} ({window})"
+            }
           }
         }
       ]

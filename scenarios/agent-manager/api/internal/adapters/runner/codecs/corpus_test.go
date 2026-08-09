@@ -20,7 +20,7 @@ func TestReplayCorpusParsesWithoutSecrets(t *testing.T) {
 		session                      string
 		messages, tools, costMetrics int
 	}{
-		{"claude-stdout.jsonl", func(t *testing.T) Codec { t.Helper(); return NewClaudeForTest() }, "751b5a53-bc44-4484-943d-8851ccfdfda1", 2, 2, 1},
+		{"claude-stdout.jsonl", func(t *testing.T) Codec { t.Helper(); return NewClaudeForTest() }, "751b5a53-bc44-4484-943d-8851ccfdfda1", 2, 2, 3},
 		{"claude-ondisk.jsonl", func(t *testing.T) Codec { t.Helper(); return NewClaudeForTest() }, "a94bac9c-0365-4246-9a92-2fb4f1f5b67c", 1, 2, 0},
 		{"codex-stdout.jsonl", func(t *testing.T) Codec { t.Helper(); return NewCodexForTest() }, "019b3906-b365-7403-b3d1-70d60f6f06c4", 2, 3, 1},
 		{"codex-rollout.jsonl", func(t *testing.T) Codec { t.Helper(); return NewCodexForTest() }, "019f46b3-b60d-7373-bf64-b8748b8d5992", 2, 4, 0},

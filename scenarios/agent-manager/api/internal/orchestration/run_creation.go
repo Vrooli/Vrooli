@@ -19,6 +19,7 @@ import (
 	"agent-manager/internal/policy"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/structuredresult"
+	"agent-manager/internal/tokenaccounting"
 
 	"github.com/google/uuid"
 )
@@ -293,6 +294,14 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		billing.ObservedAt = time.Now().UTC()
 	}
 	resolvedConfig.Billing = billing
+	// Split the prompt before persisting the immutable resolved config so the
+	// known injected instruction estimate survives event pruning and replay.
+	systemPrompt, userMessage := domain.BuildSplitPrompt(task.Description, task.ContextAttachments, req.Prompt)
+	if resolvedConfig != nil && strings.TrimSpace(systemPrompt) != "" {
+		estimate := tokenaccounting.EstimateText(systemPrompt)
+		resolvedConfig.PreambleInjectedTokens = estimate.Tokens
+		resolvedConfig.PreambleTokenBasis = estimate.Basis
+	}
 	run := &domain.Run{
 		ID:                       runID,
 		TaskID:                   task.ID,
@@ -390,8 +399,6 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	// Task description contains methodology/instructions → system prompt.
 	// Context attachments contain data/evidence → user message.
 	// If an override prompt is provided, it replaces the task description as system prompt.
-	systemPrompt, userMessage := domain.BuildSplitPrompt(task.Description, task.ContextAttachments, req.Prompt)
-
 	// Resolve image attachments from storage so runners receive file paths
 	var imageAttachments []runner.Attachment
 	if o.storage != nil {

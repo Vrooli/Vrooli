@@ -239,18 +239,22 @@ func (c *Claude) BuildContinueArgs(_ State, req runner.ContinueRequest) []string
 // claudeState carries per-run mutable state through the stream decode loop.
 // Implements [State].
 type claudeState struct {
-	textBuffer       strings.Builder
-	toolUseActive    bool
-	toolUseID        string
-	toolUseName      string
-	toolUsePayload   strings.Builder
-	lastAssistant    string
-	lastMessageEvent *domain.RunEvent
-	sessionID        string
-	gotResult        bool
-	resultIsError    bool
-	model            string
-	retainUser       bool
+	textBuffer           strings.Builder
+	toolUseActive        bool
+	toolUseID            string
+	toolUseName          string
+	toolUsePayload       strings.Builder
+	lastAssistant        string
+	lastMessageEvent     *domain.RunEvent
+	sessionID            string
+	gotResult            bool
+	resultIsError        bool
+	model                string
+	retainUser           bool
+	turn                 int
+	lastTurnInput        int64
+	messagesSinceCompact int64
+	lastCompaction       *domain.RunEvent
 
 	// /compact command tracking
 	pendingCompact bool
@@ -316,6 +320,7 @@ type ClaudeMessage struct {
 	ID      string          `json:"id,omitempty"`
 	Role    string          `json:"role"`
 	Content json.RawMessage `json:"content"`
+	Usage   *ClaudeUsage    `json:"usage,omitempty"`
 	// StopReason is present on assistant messages in the on-disk
 	// interactive transcript ("end_turn" marks a cleanly finished turn,
 	// "tool_use" marks mid-work). The on-disk dialect has no `result`
@@ -805,14 +810,7 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 			_ = json.Unmarshal(streamEvent.Result, &sysResult)
 		}
 		if strings.Contains(strings.ToLower(streamEvent.Subtype), "auto-compact") || isAutoCompactMarker(sysResult) {
-			return []*domain.RunEvent{domain.NewCompactionEvent(
-				runID,
-				strings.TrimSpace(sysResult),
-				"auto",
-				"",
-				0, 0, 0,
-				"",
-			)}, nil
+			return []*domain.RunEvent{newClaudeCompactionEvent(state, runID, strings.TrimSpace(sysResult), "auto", "", "")}, nil
 		}
 		// api_retry is informational — only the final `result` with
 		// is_error=true determines run outcome, so we never emit a
@@ -945,10 +943,7 @@ func parseMessageEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEven
 				if isCompactionSummary(textContent) {
 					state.pendingCompact = false
 					summary := extractSummaryContent(textContent)
-					return []*domain.RunEvent{domain.NewCompactionEvent(
-						runID, summary, "manual", state.compactFocus,
-						0, 0, 0, state.compactCommand,
-					)}
+					return []*domain.RunEvent{newClaudeCompactionEvent(state, runID, summary, "manual", state.compactFocus, state.compactCommand)}
 				}
 				state.pendingCompact = false
 			}
@@ -961,6 +956,22 @@ func parseMessageEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEven
 			}
 			events = append(events, messageEvent)
 			state.textBuffer.Reset()
+		}
+	}
+	if ev.Message.Role == "assistant" {
+		state.messagesSinceCompact++
+	}
+	if ev.Message.Role == "user" {
+		// User prompts are suppressed from the live event stream, but they
+		// still occupy a message slot in the context being compacted. The
+		// /compact control message itself is the boundary marker, not content
+		// being compacted.
+		if textContent != "" {
+			if isCompact, _ := parseCompactCommand(textContent); !isCompact {
+				state.messagesSinceCompact++
+			}
+		} else if len(ev.Message.ExtractToolResults()) > 0 {
+			state.messagesSinceCompact++
 		}
 	}
 
@@ -993,10 +1004,7 @@ func parseAssistantEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEv
 		if state.pendingCompact && isCompactionSummary(textContent) {
 			state.pendingCompact = false
 			summary := extractSummaryContent(textContent)
-			return []*domain.RunEvent{domain.NewCompactionEvent(
-				runID, summary, "manual", state.compactFocus,
-				0, 0, 0, state.compactCommand,
-			)}
+			return []*domain.RunEvent{newClaudeCompactionEvent(state, runID, summary, "manual", state.compactFocus, state.compactCommand)}
 		}
 		if state.pendingCompact {
 			state.pendingCompact = false
@@ -1007,6 +1015,7 @@ func parseAssistantEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEv
 		events = append(events, messageEvent)
 		state.textBuffer.Reset()
 	}
+	state.messagesSinceCompact++
 	toolUses := ev.Message.ExtractToolUses()
 	for _, tool := range toolUses {
 		var input map[string]interface{}
@@ -1015,10 +1024,40 @@ func parseAssistantEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEv
 		}
 		events = append(events, domain.NewToolCallEvent(runID, tool.Name, tool.ID, input))
 	}
+	if ev.Message.Usage != nil {
+		state.turn++
+		if state.lastCompaction != nil {
+			if data, ok := state.lastCompaction.Data.(*domain.CompactionEventData); ok && data.TokensAfter == 0 {
+				data.TokensAfter = int64(usageInputTokens(ev.Message.Usage))
+			}
+			state.lastCompaction = nil
+		}
+		state.lastTurnInput = int64(usageInputTokens(ev.Message.Usage))
+		events = append(events, newClaudeUsageEvent(runID, ev.Message.Usage, state.turn, state.model))
+	}
 	if len(events) > 0 {
 		return events
 	}
 	return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Assistant turn started")}
+}
+
+func newClaudeUsageEvent(runID uuid.UUID, usage *ClaudeUsage, turnIndex int, model string) *domain.RunEvent {
+	return &domain.RunEvent{
+		ID:        uuid.New(),
+		RunID:     runID,
+		EventType: domain.EventTypeMetric,
+		Timestamp: time.Now(),
+		Data: &domain.UsageEventData{
+			PayloadKind:         domain.PayloadKindUsage,
+			InputTokens:         usageInputTokens(usage),
+			OutputTokens:        usageOutputTokens(usage),
+			CacheCreationTokens: usageCacheCreation(usage),
+			CacheReadTokens:     usageCacheRead(usage),
+			TurnIndex:           turnIndex,
+			RunnerType:          string(domain.RunnerTypeClaudeCode),
+			Model:               model,
+		},
+	}
 }
 
 func newClaudeMessageEvent(runID uuid.UUID, ev *ClaudeStreamEvent, content string, terminal bool) *domain.RunEvent {
@@ -1157,14 +1196,16 @@ func parseClaudeResultEvent(runID uuid.UUID, event *ClaudeStreamEvent, model str
 			EventType: domain.EventTypeMetric,
 			Timestamp: time.Now(),
 			Data: &domain.UsageEventData{
-				PayloadKind:         domain.PayloadKindUsage,
-				InputTokens:         usageInputTokens(event.Usage),
-				OutputTokens:        usageOutputTokens(event.Usage),
-				CacheCreationTokens: usageCacheCreation(event.Usage),
-				CacheReadTokens:     usageCacheRead(event.Usage),
-				ServiceTier:         event.ServiceTier,
-				RunnerType:          string(domain.RunnerTypeClaudeCode),
-				Model:               model,
+				PayloadKind:             domain.PayloadKindUsage,
+				InputTokens:             usageInputTokens(event.Usage),
+				OutputTokens:            usageOutputTokens(event.Usage),
+				CacheCreationTokens:     usageCacheCreation(event.Usage),
+				CacheReadTokens:         usageCacheRead(event.Usage),
+				ServiceTier:             event.ServiceTier,
+				RunnerType:              string(domain.RunnerTypeClaudeCode),
+				Model:                   model,
+				ReconciliationAuthority: true,
+				TurnIndex:               event.NumTurns,
 			},
 		}
 		amount := int64(event.TotalCostUSD*1_000_000 + 0.5)
@@ -1307,6 +1348,16 @@ func detectClaudeRateLimit(resultStr string) rateLimitInfo {
 // =============================================================================
 // Compaction helpers
 // =============================================================================
+
+func newClaudeCompactionEvent(state *claudeState, runID uuid.UUID, summary, trigger, focus, originalCommand string) *domain.RunEvent {
+	event := domain.NewCompactionEvent(
+		runID, summary, trigger, focus,
+		state.messagesSinceCompact, state.lastTurnInput, 0, originalCommand,
+	)
+	state.messagesSinceCompact = 0
+	state.lastCompaction = event
+	return event
+}
 
 // parseCompactCommand extracts focus from "/compact focus on auth" → "auth".
 func parseCompactCommand(content string) (isCompact bool, focus string) {

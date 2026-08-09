@@ -8,6 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	platform "github.com/vrooli/platform-go"
 )
 
 // HostLauncher launches processes directly on the host via os/exec.
@@ -38,7 +40,9 @@ func (l *HostLauncher) Launch(ctx context.Context, req LaunchRequest) (LaunchedP
 	cmd := exec.CommandContext(ctx, req.Command, req.Args...)
 	cmd.Dir = req.WorkingDir
 	cmd.Env = req.Env
-	cmd.SysProcAttr = newProcessAttributes()
+	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
+		return nil, err
+	}
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

@@ -13,6 +13,7 @@ import { ProfileActivityTable } from "./components/tables/ProfileActivityTable";
 import { ModelUsageBreakdown } from "./components/breakdown/ModelUsageBreakdown";
 import { RunClassBreakdown } from "./components/breakdown/RunClassBreakdown";
 import { ToolUsageAnalytics } from "./components/breakdown/ToolUsageAnalytics";
+import { TokenAttributionBreakdown } from "./components/breakdown/TokenAttributionBreakdown";
 import { ErrorAnalysisSection } from "./components/errors/ErrorAnalysisSection";
 import { RecurringWorkloadPanel } from "./components/workload/RecurringWorkloadPanel";
 import { FallbackInsightsCard } from "./components/operational/FallbackInsightsCard";
@@ -99,6 +100,10 @@ function StatsPageContent() {
             <ToolUsageAnalytics />
           </ProfiledStatsSection>
         </div>
+
+        <ProfiledStatsSection id="Stats:TokenAttributionBreakdown">
+          <TokenAttributionBreakdown />
+        </ProfiledStatsSection>
 
         {/* Error Analysis Section */}
         <ProfiledStatsSection id="Stats:ErrorAnalysisSection">

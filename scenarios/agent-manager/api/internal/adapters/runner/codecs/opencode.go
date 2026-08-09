@@ -317,6 +317,7 @@ func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []
 type opencodeState struct {
 	sessionID   string
 	stepTermina bool // set by step_finish parsing when reason is terminal
+	turn        int
 	model       string
 	// workingDir is the run's pinned --dir (absolute). Stashed by
 	// BuildArgs/BuildContinueArgs so the stream decoder can reject tool
@@ -738,6 +739,7 @@ func (c *OpenCode) parseOpenCodeStreamEvent(state *opencodeState, runID uuid.UUI
 
 	switch streamEvent.Type {
 	case "step_start":
+		state.turn++
 		return []*domain.RunEvent{domain.NewLogEvent(runID, "info", "OpenCode step started")}, nil
 
 	case "text":
@@ -951,7 +953,10 @@ func parseOpenCodeToolResult(runID uuid.UUID, part *OpenCodePart, workingDir str
 func (c *OpenCode) handleStepFinish(state *opencodeState, runID uuid.UUID, part *OpenCodePart) []*domain.RunEvent {
 	events := []*domain.RunEvent{}
 
-	if costEvents := buildOpenCodeCostEvent(runID, part, state.model); len(costEvents) > 0 {
+	if state.turn == 0 {
+		state.turn = 1
+	}
+	if costEvents := markUsageTurn(buildOpenCodeCostEvent(runID, part, state.model), state.turn); len(costEvents) > 0 {
 		events = append(events, costEvents...)
 	}
 	terminal := isTerminalStepFinish(part)

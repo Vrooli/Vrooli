@@ -95,9 +95,18 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_facts (
     tag TEXT NOT NULL DEFAULT '',
     run_status TEXT NOT NULL,
     semantics_kind TEXT NOT NULL DEFAULT '',
-    semantics_verdict TEXT NOT NULL DEFAULT '',
+	semantics_verdict TEXT NOT NULL DEFAULT '',
 	exit_code INTEGER,
 	duration_ms INTEGER,
+	arg_tokens INTEGER NOT NULL DEFAULT 0,
+	result_tokens INTEGER NOT NULL DEFAULT 0,
+	token_basis TEXT NOT NULL DEFAULT 'unknown',
+	residency_turns INTEGER NOT NULL DEFAULT 0,
+	residency_segment INTEGER NOT NULL DEFAULT 0,
+	incurred_input_tokens INTEGER NOT NULL DEFAULT 0,
+	incurred_output_tokens INTEGER NOT NULL DEFAULT 0,
+	incurred_cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+	incurred_cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (run_id, call_event_id, segment_index)
 );
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_occurred_at ON invocation_read_model_facts(occurred_at);
@@ -149,7 +158,12 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_runs (
     tool_calls INTEGER NOT NULL DEFAULT 0,
     total_charge_micro_usd INTEGER NOT NULL DEFAULT 0,
     metered_charge_micro_usd INTEGER NOT NULL DEFAULT 0,
-    unpriced_token_count INTEGER NOT NULL DEFAULT 0,
+	unpriced_token_count INTEGER NOT NULL DEFAULT 0,
+	preamble_injected_tokens INTEGER NOT NULL DEFAULT 0,
+	preamble_fixed_tokens INTEGER NOT NULL DEFAULT 0,
+	preamble_token_basis TEXT NOT NULL DEFAULT 'unknown',
+	unattributed_tokens INTEGER NOT NULL DEFAULT 0,
+	unattributed_reason TEXT NOT NULL DEFAULT '',
     cost_time_basis TEXT NOT NULL DEFAULT 'terminal_projection',
     time_basis TEXT NOT NULL DEFAULT 'ingestion',
     projected_at TEXT NOT NULL DEFAULT (datetime('now'))

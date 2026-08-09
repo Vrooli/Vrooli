@@ -11,6 +11,7 @@ import type {
   TerminalRunTrendRow,
   ToolUsageRow,
   ToolCommandBreakdownRow,
+  TokenAttributionRow,
 } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import type { TimeWindow } from "@vrooli/proto-types/measures/v1/measures_pb";
 import { measuresClient } from "./measuresClient";
@@ -61,6 +62,7 @@ export const statsQueryKeys = {
     [...statsQueryKeys.all, "toolRuns", filter, toolName, limit] as const,
   workload: (filter: StatsFilter, limit: number) => [...statsQueryKeys.all, "workload", filter, limit] as const,
   toolCommands: (filter: StatsFilter, toolName: string, limit: number) => [...statsQueryKeys.all, "toolCommands", filter, toolName, limit] as const,
+  tokenAttribution: (filter: StatsFilter, groupBy: string, view: string, limit: number) => [...statsQueryKeys.all, "tokenAttribution", filter, groupBy, view, limit] as const,
   errors: (filter: StatsFilter, limit: number) => [...statsQueryKeys.all, "errors", filter, limit] as const,
   timeSeries: (filter: StatsFilter, bucket?: string) => [...statsQueryKeys.all, "timeSeries", filter, bucket] as const,
   modelCostComparison: (request: CompareModelsRequest) =>
@@ -279,7 +281,15 @@ export interface DurableToolUsage extends MeasureResponse {
   rows: Array<{ toolName: string; callCount: number; successCount: number; failedCount: number }>;
 }
 export interface DurableToolCommandBreakdown extends MeasureResponse {
-  rows: Array<{ executable: string; commandPath: string; callCount: number; successCount: number; failedCount: number; runCount: number; truncated: boolean }>;
+  rows: Array<{ executable: string; commandPath: string; callCount: number; successCount: number; failedCount: number; runCount: number; totalTokens: number; estimatedTokenShare: number; p50FootprintTokens: number; p95FootprintTokens: number; maxFootprintTokens: number; truncated: boolean }>;
+}
+export type TokenAttributionGroupBy = "capability" | "executable" | "command_path" | "target_scenario_operation";
+export type TokenAttributionView = "footprint" | "residency" | "incurred";
+export interface DurableTokenAttribution extends MeasureResponse {
+  groupBy: TokenAttributionGroupBy;
+  view: TokenAttributionView;
+  estimatedTokenShare: number;
+  rows: Array<{ groupBy: string; value: string; callCount: number; totalTokens: number; estimatedTokens: number; estimatedTokenShare: number; p50FootprintTokens: number; p95FootprintTokens: number; maxFootprintTokens: number }>;
 }
 export interface DurableCohort extends MeasureResponse {
   runIds: string[];
@@ -388,7 +398,28 @@ export async function fetchDurableWorkloadBreakdown(filter: StatsFilter): Promis
 
 export async function fetchDurableToolCommands(filter: StatsFilter, toolName: string, limit = 20): Promise<DurableToolCommandBreakdown> {
   const response = await measuresClient.toolCommandBreakdown({ ...measureRequestForTool(filter, toolName), limit });
-  return { rows: response.rows.map((row: ToolCommandBreakdownRow) => ({ executable: row.executable, commandPath: row.commandPath, callCount: numberValue(row.callCount), successCount: numberValue(row.successCount), failedCount: numberValue(row.failedCount), runCount: numberValue(row.runCount), truncated: row.truncated })), ...metadata(response) };
+  return { rows: response.rows.map((row: ToolCommandBreakdownRow) => ({ executable: row.executable, commandPath: row.commandPath, callCount: numberValue(row.callCount), successCount: numberValue(row.successCount), failedCount: numberValue(row.failedCount), runCount: numberValue(row.runCount), totalTokens: numberValue(row.totalTokens), estimatedTokenShare: row.estimatedTokenShare, p50FootprintTokens: numberValue(row.p50FootprintTokens), p95FootprintTokens: numberValue(row.p95FootprintTokens), maxFootprintTokens: numberValue(row.maxFootprintTokens), truncated: row.truncated })), ...metadata(response) };
+}
+
+export async function fetchDurableTokenAttribution(filter: StatsFilter, groupBy: TokenAttributionGroupBy, view: TokenAttributionView, limit = 20): Promise<DurableTokenAttribution> {
+  const response = await measuresClient.tokenAttribution({ ...measureRequest(filter), groupBy, view, limit });
+  return {
+    groupBy: response.groupBy as TokenAttributionGroupBy,
+    view: response.view as TokenAttributionView,
+    estimatedTokenShare: response.estimatedTokenShare,
+    rows: response.rows.map((row: TokenAttributionRow) => ({
+      groupBy: row.groupBy,
+      value: row.value,
+      callCount: numberValue(row.callCount),
+      totalTokens: numberValue(row.totalTokens),
+      estimatedTokens: numberValue(row.estimatedTokens),
+      estimatedTokenShare: row.estimatedTokenShare,
+      p50FootprintTokens: numberValue(row.p50FootprintTokens),
+      p95FootprintTokens: numberValue(row.p95FootprintTokens),
+      maxFootprintTokens: numberValue(row.maxFootprintTokens),
+    })),
+    ...metadata(response),
+  };
 }
 
 export async function fetchMeasureDefinitions(): Promise<MeasureDefinitionView[]> {

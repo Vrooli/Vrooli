@@ -632,6 +632,9 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		switch pl.Type {
 		case "token_count":
 			if pl.Info != nil && (pl.Info.TotalTokenUsage != nil || pl.Info.LastTokenUsage != nil) {
+				if p.state.turn == 0 {
+					p.state.turn = 1
+				}
 				usage := pl.Info.LastTokenUsage
 				cumulative := pl.Info.TotalTokenUsage != nil
 				if cumulative {
@@ -639,7 +642,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 				}
 				delta := rolloutUsageDelta(p.state, usage, cumulative)
 				if delta.InputTokens > 0 || delta.OutputTokens > 0 || delta.CacheReadTokens > 0 {
-					result.Events = buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, delta)
+					result.Events = markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, delta), p.state.turn)
 				}
 			}
 		case "agent_message":
@@ -789,16 +792,19 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 		return []*domain.RunEvent{domain.NewLogEvent(runID, "debug", "Turn started")}
 
 	case "turn.completed":
+		if state.turn == 0 {
+			state.turn = 1
+		}
 		if state.lastMessageEvent != nil {
 			markProviderMessageTerminal(state.lastMessageEvent, "turn_completed", "turn.completed", "codex:turn.completed")
 			events = append(events, newProviderTerminalEvidence(runID, state.lastMessageEvent, "turn_completed", "turn.completed", "codex:turn.completed"))
 		}
 		if streamEvent.Usage != nil {
-			events = append(events, buildCostEvents(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel, usageTokens{
+			events = append(events, markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel, usageTokens{
 				InputTokens:     streamEvent.Usage.InputTokens,
 				OutputTokens:    streamEvent.Usage.OutputTokens,
 				CacheReadTokens: streamEvent.Usage.CachedInputTokens,
-			}, state.billing)...)
+			}, state.billing), state.turn)...)
 		}
 		return events
 

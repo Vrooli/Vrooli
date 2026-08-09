@@ -8,7 +8,10 @@ import { renderWithProviders } from "../../src/test-utils/renderWithProviders.js
 const volume = vi.hoisted(() => vi.fn());
 vi.mock("../../src/features/stats/api/statsClient.js", () => ({
   fetchDurableRunVolume: volume,
-  statsQueryKeys: { summary: (filter: unknown) => ["stats", "summary", filter] },
+  statsQueryKeys: {
+    summary: (filter: unknown) => ["stats", "summary", filter],
+    tokenAttribution: (filter: unknown, groupBy: unknown, view: unknown, limit: unknown) => ["stats", "tokenAttribution", filter, groupBy, view, limit],
+  },
 }));
 vi.mock("../../src/features/stats/components/controls/TimeWindowSelector.js", () => ({ TimeWindowSelector: () => createElement("div", null, "time window") }));
 vi.mock("../../src/features/stats/components/controls/ExportButton.js", () => ({ ExportButton: () => createElement("div", null, "export") }));
