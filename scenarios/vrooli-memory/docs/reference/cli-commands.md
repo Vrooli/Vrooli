@@ -128,7 +128,7 @@ The shipped operator domains are:
 - `vrooli-memory facets list|correct|pin|proposals|resolve-proposal|supersede|resolve-thread`
 - `vrooli-memory forest compact|frontier|rebuild-forest`
 - `vrooli-memory rules list|create|dry-run|enable|revert`
-- `vrooli-memory harness import|import-status|project|capture|install-prompt`
+- `vrooli-memory harness import|import-status|project|capture`
 
 `facets pin <entry-id> --unpin` is the reversible unpin form. Pin requests are
 bounded by the standing-rule policy budget and return a reviewable proposal

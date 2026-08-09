@@ -15,20 +15,22 @@ operational view.
 
 **Today.** Every agent runtime keeps its own memory, in its own shape. Claude
 Code writes 392 individual memory files plus a hand-curated `MEMORY.md` index;
-Gemini CLI appends to a section of `~/.gemini/GEMINI.md`; Codex and opencode
-keep single-blob `AGENTS.md` files; agent-manager runs accumulate their own.
+Gemini CLI appends to a section of `~/.gemini/GEMINI.md`; Codex has a native
+`~/.codex/memories/` directory and OpenCode has no documented native memory
+store; agent-manager runs accumulate their own.
 None of them can read the others. Per-harness detail is in
 [`INTEGRATIONS.md`](INTEGRATIONS.md) → Harness Capability Matrix.
 
 **After.** One journal, one search space, split by direction:
 
-- **Reads are uniform.** Every harness gets a *generated projection* of
-  `memory wake`, written to the file it already loads at session start.
-- **Writes are captured or routed.** The agent keeps using its own memory tool
-  where the runtime exposes one; the harness domain captures that write via a
-  pre-write hook and recovers it through store diff. Runtimes without a native
-  memory tool get an explicit `vrooli-memory journal note` fallback in the installed
-  prompt, so the durable write still lands in the shared ledger immediately.
+- **Reads are uniform where a native memory store exists.** Each supported
+  memory store gets a *generated projection* of `memory wake`, written only to
+  that store. Curated instruction files are not projection surfaces.
+- **Writes are captured or explicitly routed.** The agent keeps using its own
+  memory tool where the runtime exposes one; the harness domain captures that
+  write via a pre-write hook and recovers it through store diff. Runtimes
+  without a native memory store use the explicit `vrooli-memory journal note`
+  command. The scenario never modifies an instruction file to teach it.
 
 **Why the projection rather than a sync.** Bidirectional sync between an
 editable file and a database is a conflict problem with no clean answer. A
@@ -38,13 +40,10 @@ own memory file is native behaviour.
 
 **Why native-first plus an explicit fallback.** Native capture remains the
 best experience because the agent keeps using the memory feature it already
-understands. But a prompt that only describes *what* to remember leaves
-runtimes with no native memory tool in an eventual store-diff window. The
-prompt block therefore marks the generated wake block read-only, prefers
-native memory, and names `vrooli-memory journal note` only as the fallback for
-runtimes that cannot provide a native write surface. This is an honest
-degraded path rather than pretending store diff is real-time. Recorded as
-D-041.
+understands. Runtimes without a native store cannot be made seamless by
+silently editing their instruction files, so their documented fallback is the
+explicit `vrooli-memory journal note` command. This is an honest degraded path
+rather than pretending store diff is real-time. Recorded as D-041 and D-042.
 
 **Hooks are load-bearing, not hardening.** Two findings moved them:
 `pretooluse-bash-deny.sh` already ships in the `claude-code` and `grok`
@@ -167,19 +166,19 @@ Recorded honestly rather than argued away.
 - **Capture coverage varies by storage shape, not by intent.** Under D-015
   adoption no longer depends on an agent obeying an instruction — but it now
   depends on the capture channel working per runtime. File-per-fact and
-  append-under-section harnesses diff cleanly. **The two single-blob runtimes
-  (Codex, opencode) do not**: a rewritten `AGENTS.md` carries no per-item
-  identity, so without a hook the best available import is whole-file
-  granularity. Their hook APIs are unverified.
+  append-under-section harnesses diff cleanly. Codex's native memory directory
+  has no verified pre-write hook, so store diff is the available floor. OpenCode
+  has no documented native memory store and therefore remains explicit-write;
+  neither runtime's curated `AGENTS.md` is used for memory.
 - **Native runtime limits are not uniform.** Codex documents a 32 KiB injection
   cap, while the other installed runtimes expose no stable numeric limit. The
   scenario therefore applies a measured 32,768-byte guard to every projection,
   emits pins first, and refuses a pinned overflow before writing. Native
   over-cap files were not written as part of validation.
-- **opencode has no native memory feature.** It reads `AGENTS.md`; memory there
-  is community plugins. "Unification" for opencode means projection-only until a
-  plugin is in play — a weaker claim than for the other runtimes, and the docs
-  should not imply otherwise.
+- **opencode has no native memory feature.** It reads curated `AGENTS.md`;
+  this scenario never projects into or imports that file. OpenCode therefore
+  uses the explicit journal command until a native memory store or plugin
+  integration is verified.
 - **Cursor is not yet in scope.** It appears in market-facing docs but has no
   `resources/cursor`, and stores rules in a SQLite BLOB rather than a file. It
   is `VMEM-P2-002`, blocked on a prerequisite outside this scenario.

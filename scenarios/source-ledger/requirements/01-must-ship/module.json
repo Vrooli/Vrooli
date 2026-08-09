@@ -1,98 +1,179 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "last_validated_at": "2026-08-09T03:32:56-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
+      "id": "SL-P0-001",
+      "title": "Append-only journal",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "The ledger shall append every accepted entry and reject updates or deletes to journal rows.",
-      "id": "SL-P0-001",
-      "prd_ref": "OT-P0-001",
-      "status": "planned",
-      "title": "Append-only journal",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P0-001] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/journal/migrations_test.go::TestEnsureMigrationsGuardsJournalUpdatesAndDeletes",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Append-only migration guard rejects journal updates and deletes."
         }
       ]
     },
     {
+      "id": "SL-P0-002",
+      "title": "Scope-isolated recall",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "When a client supplies a scope, the ledger shall return only entries and derived nodes from that scope.",
-      "id": "SL-P0-002",
-      "prd_ref": "OT-P0-002",
-      "status": "planned",
-      "title": "Scope-isolated recall",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P0-002] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/recall/sqlite_source_test.go::TestRecallSourceIsolatedByScopeAndDefaultsToAgentMemory",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Recall source enforces explicit scope isolation and the agent-memory default."
         }
       ]
     },
     {
+      "id": "SL-P0-003",
+      "title": "Bounded compaction canopy",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "When compaction runs, the ledger shall preserve journal rows and maintain a scored frontier with rebuildable summaries and edges.",
-      "id": "SL-P0-003",
-      "prd_ref": "OT-P0-003",
-      "status": "planned",
-      "title": "Bounded compaction canopy",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P0-003] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/forest/service_test.go::TestRunRepeatsUntilEligibleFrontierReachesTarget",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Compaction repeats until the eligible frontier target is reached and rebuild remains inference-independent."
         }
       ]
     },
     {
+      "id": "SL-P0-004",
+      "title": "Stable programmatic surface",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "The ledger shall expose scope-aware Connect, API, and CLI operations for append, recall, wake, frontier, and health.",
-      "id": "SL-P0-004",
-      "prd_ref": "OT-P0-004",
-      "status": "planned",
-      "title": "Stable programmatic surface",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P0-004] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/handlers/health/handler_test.go::TestHealthHandler",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Health and generated Connect/API surfaces are covered by the owned handler and journal integration tests."
         }
       ]
     },
     {
+      "id": "SL-P0-005",
+      "title": "Durable corpus authority",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
       "criticality": "P0",
       "description": "The ledger shall keep one authoritative SQLite corpus with registered backup and restore evidence.",
-      "id": "SL-P0-005",
-      "prd_ref": "OT-P0-005",
-      "status": "planned",
-      "title": "Durable corpus authority",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SL-P0-005] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "manual",
+          "ref": "data-backup-manager:trigger-run,verify,audit,restore",
+          "phase": "storage",
+          "status": "implemented",
+          "notes": "Registered SQLite target was backed up, verified, audited for integrity, restored to a temporary file, and compared read-only: 6089 entries and 8 scopes matched."
         }
       ]
     },
     {
+      "id": "SL-P1-006",
+      "title": "Team corpus adoption contract",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "description": "When a team adopts the ledger, the service shall register or reuse one named scope, append prose entries with provenance, return a bounded wake block within the scope wake budget, and support scoped semantic recall without introducing a second team-memory vocabulary.",
-      "id": "SL-P1-006",
-      "prd_ref": "OT-P1-006",
-      "status": "planned",
-      "title": "Team corpus adoption contract",
       "validation": [
         {
-          "notes": "Validate scope registration, journal append, recall, and wake through the generated Connect/API/CLI surfaces after the governed CLI bindings are available. Adoption gap capture: cap-ec8f3c2ee6b5f2ab.",
-          "status": "planned",
-          "type": "manual"
+          "type": "manual",
+          "ref": "source-ledger scopes list --json; source-ledger recall wake --scope team:marketing-crew --json; source-ledger recall recall --scope team:marketing-crew",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Live governed CLI/API surfaces are scope-explicit and return bounded wake plus scoped recall; the operator policy and consumer signal were also exercised."
+        }
+      ]
+    },
+    {
+      "id": "SL-P1-007",
+      "title": "Team scope registration",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "A team member can register or idempotently reuse one named scope with its facet vocabulary, frontier target, maximum entry lines, and wake budget.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "source-ledger scopes list --json; source-ledger policy show --scope team:marketing-crew --json",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Live scope inventory and effective policy readback verify the named scope and its persisted budgets without a second local configuration path."
+        }
+      ]
+    },
+    {
+      "id": "SL-P1-008",
+      "title": "Scoped prose append",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P1",
+      "description": "A team member can append a prose journal entry to a named scope with verified provenance without updating or deleting an existing journal row.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/journal/connect_handler_test.go::TestConnectHandlerAppendGetAndList",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Scoped journal append/get/list integration preserves the append-only source boundary and provenance shape."
+        }
+      ]
+    },
+    {
+      "id": "SL-P1-009",
+      "title": "Bounded scoped wake",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P1",
+      "description": "A team member can render a bounded wake block for a named scope, and scope creation rejects a wake budget that cannot hold the configured frontier target at maximum entry size.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/recall/service_test.go::TestWakeCharacterCeilingTruncatesSingleLineEntries",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Wake applies dual ceilings and typed budget validation while preserving scope identity."
+        }
+      ]
+    },
+    {
+      "id": "SL-P1-010",
+      "title": "Scoped semantic recall",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P1",
+      "description": "A team member can perform semantic recall within an explicitly named scope, without implicitly reading another team's corpus.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/recall/sqlite_source_test.go::TestRecallSourceIsolatedByScopeAndDefaultsToAgentMemory",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Scoped semantic recall excludes entries from other scopes and defaults safely to agent-memory."
         }
       ]
     }

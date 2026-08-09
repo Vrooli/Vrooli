@@ -95,6 +95,46 @@ func TestProjectionPreservesCuratedBytes(t *testing.T) {
 	require.NotContains(t, string(got), "old\n")
 }
 
+func TestGeminiProjectionIsScopedToNativeMemorySection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "GEMINI.md")
+	original := "# Curated instructions\n\n## Gemini Added Memories\nnative memory\n\n## Other content\npreserve this\n"
+	require.NoError(t, os.WriteFile(path, []byte(original), 0o600))
+	p, db := newProjectionTest(t, &fakeRecall{hits: []*sourcerecall.RecallHit{{Text: "generated memory"}}}, path)
+	defer db.Close()
+	p.targets["gemini"] = projectionTarget{Runtime: "gemini", Path: path, Section: "Gemini Added Memories", Cap: 4096, LineCap: 20}
+
+	result, err := p.Project(context.Background(), "gemini", false)
+	require.NoError(t, err)
+	require.Contains(t, result.Content, "native memory")
+	result, err = p.Project(context.Background(), "gemini", false)
+	require.NoError(t, err)
+	require.Contains(t, result.Content, "# Curated instructions")
+	require.Contains(t, result.Content, "## Other content\npreserve this")
+	require.Contains(t, result.Content, "native memory")
+	require.Contains(t, result.Content, "generated memory")
+	require.Equal(t, 1, strings.Count(result.Content, wakeStart))
+	sectionStart := strings.Index(result.Content, "## Gemini Added Memories")
+	otherStart := strings.Index(result.Content, "## Other content")
+	require.GreaterOrEqual(t, sectionStart, 0)
+	require.Greater(t, otherStart, sectionStart)
+	require.Less(t, strings.Index(result.Content, wakeStart), otherStart)
+}
+
+func TestProjectionTargetsExcludeCuratedInstructionFiles(t *testing.T) {
+	db := localdb.NewSQLite(t)
+	_, err := db.Exec(Schema())
+	require.NoError(t, err)
+	p := NewProjector(db, &fakeRecall{})
+	defer db.Close()
+
+	_, ok := p.Target("opencode")
+	require.False(t, ok)
+	codex, ok := p.Target("codex")
+	require.True(t, ok)
+	require.Contains(t, codex, filepath.Join(".codex", "memories"))
+	require.NotContains(t, codex, "AGENTS.md")
+}
+
 func TestProjectionMigratesLegacyWholeFileProjection(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "MEMORY.md")
 	legacy := legacyGeneratedHeader + "# Unified Vrooli Memory\n\n- stale generated entry\n"

@@ -33,9 +33,31 @@ func (h *connectHandler) ListFacets(ctx context.Context, req *connect.Request[fa
 	}
 	out := &facetsv1.ListFacetsResponse{}
 	for _, d := range items {
-		out.Facets = append(out.Facets, &facetsv1.Facet{Id: d.ID, Label: d.Label, RetentionPolicy: d.RetentionPolicy})
+		out.Facets = append(out.Facets, facetProto(d))
 	}
 	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) SetFacetPolicy(ctx context.Context, req *connect.Request[facetsv1.SetFacetPolicyRequest]) (*connect.Response[facetsv1.SetFacetPolicyResponse], error) {
+	ctx = policy.WithScope(ctx, req.Msg.GetScope())
+	definition, err := h.service.SetPolicy(ctx, internalfacets.FacetPolicy{
+		ID:                 req.Msg.GetFacetId(),
+		RetentionPolicy:    req.Msg.GetRetentionPolicy(),
+		CompactionEligible: req.Msg.GetCompactionEligible(),
+		ResidentBudget:     int(req.Msg.GetResidentBudget()),
+	})
+	if err != nil {
+		var unknown internalfacets.ErrUnknownFacet
+		if errors.As(err, &unknown) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&facetsv1.SetFacetPolicyResponse{Facet: facetProto(definition)}), nil
+}
+
+func facetProto(d internalfacets.Definition) *facetsv1.Facet {
+	return &facetsv1.Facet{Id: d.ID, Label: d.Label, RetentionPolicy: d.RetentionPolicy, Guidance: d.ClassificationGuidance, CompactionEligible: d.CompactionEligible, ResidentBudget: int32(d.ResidentBudget)}
 }
 
 func (h *connectHandler) AssignFacet(ctx context.Context, req *connect.Request[facetsv1.AssignFacetRequest]) (*connect.Response[facetsv1.AssignFacetResponse], error) {

@@ -12,8 +12,8 @@ import (
 	internalpolicy "source-ledger/internal/policy"
 )
 
-func Module(db *database.RoutedDB, registry *internalpolicy.Registry, registerProvider func(string) error, logger *log.Logger) module.Module {
-	path, handler := scopesconnect.NewScopesServiceHandler(NewConnectHandler(registry, registerProvider, logger))
+func Module(db *database.RoutedDB, registry *internalpolicy.Registry, registerProvider func(string) error, logger *log.Logger, liveness ...livenessProvider) module.Module {
+	path, handler := scopesconnect.NewScopesServiceHandler(NewConnectHandler(registry, registerProvider, logger, liveness...))
 	return module.Module{Name: "scopes", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) }, Endpoints: Endpoints}
 }
 

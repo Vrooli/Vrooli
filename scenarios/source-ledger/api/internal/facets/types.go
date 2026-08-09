@@ -11,6 +11,12 @@ type (
 		CompactionEligible                                 bool
 		ResidentBudget                                     int
 	}
+	FacetPolicy struct {
+		ID                 string
+		RetentionPolicy    string
+		CompactionEligible bool
+		ResidentBudget     int
+	}
 	Assignment struct {
 		ID, EntryID, FacetID, ActorID string
 		AssignedAt                    time.Time

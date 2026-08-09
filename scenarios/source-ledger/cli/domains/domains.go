@@ -2,6 +2,7 @@ package domains
 
 import (
 	"source-ledger/cli/domains/journal"
+	"source-ledger/cli/domains/policy"
 	"source-ledger/cli/domains/recall"
 	"source-ledger/cli/domains/scopes"
 
@@ -52,5 +53,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, scopesGroup, journalGroup, recallGroup)
+	policyGroup, err := policy.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, policyGroup)
 	return groups, nil
 }

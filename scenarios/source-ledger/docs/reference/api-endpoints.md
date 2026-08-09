@@ -104,6 +104,27 @@ source-ledger proto package.
 The health endpoint is the current lifecycle edge; future domain RPCs will
 carry scoped requests through generated Connect contracts.
 
+## Team Corpus Contract
+
+The team-adoption contract is the consumer-facing shape for the service
+contract phase. These operations use the vocabulary already proven in
+vrooli-memory and always carry an explicit `scope`:
+
+| Operation | Request shape | Response guarantee |
+|---|---|---|
+| `scopes create` | scope id, facet vocabulary, `frontier_target`, `max_entry_lines`, `wake_budget` | create or reuse one scope; reject an undersized wake budget |
+| `scopes list` | optional scope filter | registered scopes and their budgets |
+| `journal note` | scope, prose body, optional kind and provenance | append one immutable journal entry |
+| `recall wake` | scope and line budget | bounded wake block that identifies its scope |
+| `recall recall` | scope and semantic query | results restricted to the named scope |
+| `rules` / `facets` | scope policy inspection and rule operations | the configured classification vocabulary and policy |
+
+`scopes create` must fail when `wake_budget` cannot hold
+`frontier_target` entries at `max_entry_lines` each. Journal rows remain
+append-only; corrections are new entries with an explicit supersession mark.
+The missing governed RPC bindings are tracked by Swarm Manager capture
+`cap-ec8f3c2ee6b5f2ab` and belong to the active Source Ledger engine plan.
+
 ## Cross-references
 
 - [`cli-commands.md`](cli-commands.md) — CLI commands that mirror these endpoints

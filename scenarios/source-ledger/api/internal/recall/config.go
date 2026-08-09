@@ -3,21 +3,20 @@ package recall
 import "source-ledger/internal/policy"
 
 const (
-	DefaultFrontierTarget = policy.DefaultFrontierTarget
-	DefaultWakeBudget     = policy.DefaultWakeBudget
-	DefaultMaxEntryLines  = policy.DefaultMaxEntryLines
-	FrontierTargetEnv     = policy.FrontierTargetEnv
-	WakeBudgetEnv         = policy.WakeBudgetEnv
-	MaxEntryLinesEnv      = policy.MaxEntryLinesEnv
+	DefaultFrontierTarget  = policy.DefaultFrontierTarget
+	DefaultWakeBudget      = policy.DefaultWakeBudget
+	DefaultWakeBudgetChars = policy.DefaultWakeBudgetChars
+	DefaultMaxEntryLines   = policy.DefaultMaxEntryLines
+	DefaultMaxEntryChars   = policy.DefaultMaxEntryChars
 )
 
-// ConfigFromEnv loads independent compaction and prompt-size controls. A
-// malformed value is an operator error: silently falling back would make the
-// active memory budget impossible to reason about.
-func ConfigFromEnv(lookupEnv func(string) (string, bool)) (Config, error) {
-	c, err := policy.Resolve(lookupEnv)
-	if err != nil {
-		return Config{}, err
+// ConfigFromPolicy copies the engine-independent policy into recall's local
+// rendering shape. Policy is resolved per request by the registry; this helper
+// exists for composition-root defaults and tests.
+func ConfigFromPolicy(c policy.Config) Config {
+	return Config{
+		FrontierTarget: c.FrontierTarget, WakeBudget: c.WakeBudget,
+		WakeBudgetChars: c.WakeBudgetChars, MaxEntryLines: c.MaxEntryLines,
+		MaxEntryChars: c.MaxEntryChars, FacetBudgets: c.FacetBudgets,
 	}
-	return Config{FrontierTarget: c.FrontierTarget, WakeBudget: c.WakeBudget, MaxEntryLines: c.MaxEntryLines}, nil
 }

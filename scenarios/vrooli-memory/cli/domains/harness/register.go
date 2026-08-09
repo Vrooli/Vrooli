@@ -20,7 +20,6 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"HarnessService.GetImportStatus":      cliapp.ProtoList(h.statusCall, h.statusReport),
 		"HarnessService.RefreshProjection":    cliapp.ProtoMutation(h.projectCall, h.projectReport),
 		"HarnessService.CaptureWrite":         cliapp.ProtoMutation(h.captureCall, h.captureReport),
-		"HarnessService.InstallPromptBlock":   cliapp.ProtoMutation(h.promptCall, h.promptReport),
 		"HarnessService.GetMaintenanceStatus": cliapp.ProtoList(h.maintenanceCall, h.maintenanceReport),
 	})
 	if err != nil {
@@ -82,7 +81,6 @@ func Commands(core *cliapp.ScenarioApp) []cliapp.Command {
 		cliapp.Command{Name: "import-status", Description: "Show durable import progress", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "run-id", Description: "Specific import run ID"}, {Name: "runtime", Description: "Harness runtime"}}}}.WithPrimitive(cliapp.ProtoList(h.statusCall, h.statusReport)),
 		cliapp.Command{Name: "project", Description: "Project unified memory into a harness file", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "harness", Description: "Harness runtime"}, {Name: "dry-run", Description: "Render without writing", Bool: true}}}}.WithPrimitive(cliapp.ProtoMutation(h.projectCall, h.projectReport)),
 		cliapp.Command{Name: "capture", Description: "Capture a native harness memory write", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "runtime", Description: "Harness runtime"}, {Name: "source-path", Description: "Native memory source path"}, {Name: "content", Description: "Native memory content"}}}}.WithPrimitive(cliapp.ProtoMutation(h.captureCall, h.captureReport)),
-		cliapp.Command{Name: "install-prompt", Description: "Install native-memory guidance in a harness convention file", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "runtime", Description: "Harness runtime"}}}}.WithPrimitive(cliapp.ProtoMutation(h.promptCall, h.promptReport)),
 		cliapp.Command{Name: "maintenance-status", Description: "Show the last automatic import and projection run"}.WithPrimitive(cliapp.ProtoList(h.maintenanceCall, h.maintenanceReport)),
 		cliapp.Command{Name: "hook", Description: "Capture a native memory write from a harness hook", Run: h.hook},
 		cliapp.Command{Name: "hooks", Description: "Install or remove native memory capture hooks", Run: h.hooks},

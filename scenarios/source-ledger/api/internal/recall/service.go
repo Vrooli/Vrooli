@@ -6,6 +6,7 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"source-ledger/internal/policy"
 )
@@ -37,6 +38,12 @@ func NewService(source Source, embedder QueryEmbedder, config Config) *Service {
 	if config.MaxEntryLines <= 0 {
 		config.MaxEntryLines = DefaultMaxEntryLines
 	}
+	if config.WakeBudgetChars <= 0 {
+		config.WakeBudgetChars = DefaultWakeBudgetChars
+	}
+	if config.MaxEntryChars <= 0 {
+		config.MaxEntryChars = DefaultMaxEntryChars
+	}
 	return &Service{source: source, embedder: embedder, config: config}
 }
 
@@ -59,7 +66,9 @@ func (s *Service) configFor(ctx context.Context) (Config, error) {
 func configFromPolicy(config policy.Config, fallback Config) Config {
 	fallback.FrontierTarget = config.FrontierTarget
 	fallback.WakeBudget = config.WakeBudget
+	fallback.WakeBudgetChars = config.WakeBudgetChars
 	fallback.MaxEntryLines = config.MaxEntryLines
+	fallback.MaxEntryChars = config.MaxEntryChars
 	if config.FacetBudgets != nil {
 		fallback.FacetBudgets = config.FacetBudgets
 	}
@@ -112,27 +121,31 @@ func (s *Service) Wake(ctx context.Context, budget int) (Wake, error) {
 	}
 	sort.SliceStable(pinned, func(i, j int) bool { return pinned[i].CreatedAt.Before(pinned[j].CreatedAt) })
 	sort.SliceStable(frontier, func(i, j int) bool { return frontier[i].CreatedAt.After(frontier[j].CreatedAt) })
-	out := Wake{Budget: budget}
-	used := 0
-	for _, n := range pinned {
-		hit := excerpt(n, config.MaxEntryLines)
+	out := Wake{BudgetLines: budget, BudgetChars: config.WakeBudgetChars}
+	usedLines, usedChars := 0, 0
+	admit := func(n Node) {
+		hit := excerpt(n, config.MaxEntryLines, config.MaxEntryChars)
+		lineCost, charCost := lines(hit.Text), chars(hit.Text)
+		if usedLines+lineCost > budget || usedChars+charCost > config.WakeBudgetChars {
+			out.Overflow = true
+			out.Refused++
+			return
+		}
 		out.Hits = append(out.Hits, Hit{Node: hit})
-		used += lines(hit.Text)
+		usedLines += lineCost
+		usedChars += charCost
 	}
-	if used > budget {
-		out.Overflow = true
-		return out, nil
+	// Pins retain ordering privilege, but they are not exempt from the global
+	// ceilings. The oldest pin is admitted first; later pins are lower priority
+	// when the ambient view cannot contain them all.
+	for _, n := range pinned {
+		admit(n)
 	}
 	if len(config.FacetBudgets) == 0 {
 		for _, n := range frontier {
-			hit := excerpt(n, config.MaxEntryLines)
-			cost := lines(hit.Text)
-			if used+cost > budget {
-				break
-			}
-			out.Hits = append(out.Hits, Hit{Node: hit})
-			used += cost
+			admit(n)
 		}
+		out.LinesUsed, out.CharsUsed = usedLines, usedChars
 		return out, nil
 	}
 	byFacet := map[string][]Node{}
@@ -157,24 +170,23 @@ func (s *Service) Wake(ctx context.Context, budget int) (Wake, error) {
 			if taken >= ceiling {
 				break
 			}
-			hit := excerpt(n, config.MaxEntryLines)
-			cost := lines(hit.Text)
-			if used+cost > budget {
+			before := len(out.Hits)
+			admit(n)
+			if len(out.Hits) == before {
 				// Skip this memory rather than abandoning the facet: a later
 				// entry may still fit, and one oversized memory must not cost a
 				// facet its whole residency.
 				continue
 			}
-			out.Hits = append(out.Hits, Hit{Node: hit})
 			taken++
-			used += cost
 		}
 	}
+	out.LinesUsed, out.CharsUsed = usedLines, usedChars
 	return out, nil
 }
 
-// perFacetLimit is the largest residency any facet declares. Pins are exempt
-// and always returned in full.
+// perFacetLimit is the largest residency any facet declares. Pins are ordered
+// before frontier nodes but are still admitted through Wake's global bounds.
 func perFacetLimit(config Config) int {
 	limit := 0
 	for _, ceiling := range config.FacetBudgets {
@@ -195,40 +207,79 @@ func (s *Service) perFacetLimit() int { return perFacetLimit(s.config) }
 // excerpt bounds one memory's contribution to the ambient view. The journal
 // keeps the full text; recall returns it in full. Wake is a fixed-size index
 // into memory, so it shows a bounded head and marks that it did.
-func excerpt(n Node, maxEntryLines int) Node {
-	if maxEntryLines <= 0 {
+func excerpt(n Node, maxEntryLines, maxEntryChars int) Node {
+	if maxEntryLines <= 0 && maxEntryChars <= 0 {
 		return n
 	}
-	n.Text = excerptText(n.Text, maxEntryLines)
+	n.Text = excerptText(n.Text, maxEntryLines, maxEntryChars)
 	return n
 }
 
 const truncationMarker = "…"
 
-func excerptText(text string, max int) string {
+func excerptText(text string, maxLines int, charLimits ...int) string {
+	maxChars := 0
+	if len(charLimits) > 0 {
+		maxChars = charLimits[0]
+	}
 	lead, body := splitLeadingMetadata(text)
-	kept := make([]string, 0, max)
-	total := 0
+	if maxLines <= 0 {
+		maxLines = int(^uint(0) >> 1)
+	}
+	kept := make([]string, 0, maxLines)
 	if lead != "" {
 		kept = append(kept, lead)
-		total++
 	}
+	total := len(kept)
 	for _, line := range strings.Split(strings.TrimSpace(body), "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 		total++
-		if len(kept) < max {
+		if len(kept) < maxLines {
 			kept = append(kept, strings.TrimRight(line, " \t"))
 		}
 	}
 	if len(kept) == 0 {
 		return ""
 	}
-	if total > len(kept) {
-		return strings.Join(kept, "\n") + " " + truncationMarker
+	result := strings.Join(kept, "\n")
+	truncated := total > len(kept)
+	if maxChars > 0 && chars(result) > maxChars {
+		truncated = true
+		result = truncateRunes(result, maxChars)
 	}
-	return strings.Join(kept, "\n")
+	if truncated {
+		marker := " " + truncationMarker
+		if maxChars > 0 {
+			available := maxChars - chars(marker)
+			if available < 0 {
+				available = 0
+			}
+			result = truncateRunes(result, available)
+		}
+		result = strings.TrimRight(result, " \n") + marker
+		if maxChars > 0 && chars(result) > maxChars {
+			result = truncationMarker
+		}
+	}
+	return result
+}
+
+func chars(text string) int { return utf8.RuneCountInString(text) }
+
+func truncateRunes(text string, limit int) string {
+	if limit <= 0 {
+		return ""
+	}
+	count := 0
+	for index := range text {
+		if count == limit {
+			return text[:index]
+		}
+		count++
+	}
+	return text
 }
 
 // splitLeadingMetadata separates a leading `---` fenced metadata block from the

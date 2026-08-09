@@ -38,7 +38,7 @@ func TestWakeReportsOverflowAndRecallExposesZoomableNodeID(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, wake.Msg.GetOverflow())
 	require.Len(t, wake.Msg.GetHits(), 1)
-	require.Equal(t, "pinned", wake.Msg.GetHits()[0].GetNodeId())
+	require.Equal(t, "summary-1", wake.Msg.GetHits()[0].GetNodeId())
 
 	recall, err := h.Recall(context.Background(), connect.NewRequest(&recallv1.RecallRequest{Query: "summary", Limit: 1}))
 	require.NoError(t, err)

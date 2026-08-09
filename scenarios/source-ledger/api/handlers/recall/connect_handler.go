@@ -67,7 +67,15 @@ func (h *connectHandler) Wake(ctx context.Context, req *connect.Request[recallv1
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	return connect.NewResponse(&recallv1.WakeResponse{Hits: hitsProto(wake.Hits), Overflow: wake.Overflow}), nil
+	return connect.NewResponse(&recallv1.WakeResponse{
+		Hits:        hitsProto(wake.Hits),
+		Overflow:    wake.Overflow,
+		Refused:     int32(wake.Refused),
+		LinesUsed:   int32(wake.LinesUsed),
+		CharsUsed:   int32(wake.CharsUsed),
+		BudgetLines: int32(wake.BudgetLines),
+		BudgetChars: int32(wake.BudgetChars),
+	}), nil
 }
 
 func (h *connectHandler) Zoom(ctx context.Context, req *connect.Request[recallv1.ZoomRequest]) (*connect.Response[recallv1.ZoomResponse], error) {

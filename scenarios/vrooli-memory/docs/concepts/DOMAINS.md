@@ -42,7 +42,7 @@ belong in [`DATA.md`](DATA.md).
 | forest | Own the frontier, clustering, and compaction passes. | Keep ambient recall inside a fixed budget as the corpus grows without bound. | Summary nodes, parent/child edges, frontier membership. | service | scheduler | Frontier, Cluster, Summary, Span | `api/internal/forest/` |
 | recall | Own query, cross-depth ranking, and the wake budget. | Retrieval is the product; compaction only changes what is *ambient*, never what is *findable*. | No data; reads journal and forest. | query | reporting | Hit, Cover, Budget | `api/internal/recall/` |
 | federation | Own the search-hub provider descriptor and control surface. | One registry row makes memory reachable from federated query with no router change. | Descriptor config; no memory content. | integration | service | Descriptor, ResultMapping | `api/internal/federation/` |
-| harness | Own the memory-file projection, prompt-block install, native-write capture, and store import. | The integration point that makes every agent runtime share one memory. | Projection and import-key state only. | integration | service | Projection, PromptBlock, Capture, Import | `api/internal/harness/` |
+| harness | Own native-memory projection/import, native-write capture, and curated-instruction topology repair. | The integration point that makes supported agent runtimes share one memory without taking ownership of their curated instructions. | Projection, import-key, and topology state only. | integration | service | Projection, Topology, Capture, Import | `api/internal/harness/` |
 
 ## Domain Details
 
@@ -132,22 +132,25 @@ belong in [`DATA.md`](DATA.md).
 
 - Purpose: make every agent runtime read and write the same memory.
 - Primary archetype: integration.
-- Owns: the generated memory-file projection, the idempotent prompt-block
-  installer, native-write capture (hook and store-diff channels), the
+- Owns: the generated native-memory projection, startup repair of the declared
+  curated instruction symlinks, native-write capture (hook and store-diff channels), the
   declarative import adapters and their content-addressed keys, and the
   run-correlation lookup that lists sibling events.
 - Does not own: agent identity or run data. Correlation ids are stored; run
   payloads are never copied — `vrooli-events` stays the one truth about a run.
-- Does not own: coding-agent install, update, or permissions. Those belong to
-  `resources/<agent>/`. This domain **extends** that resource with projection,
-  prompt-block, and hook install; it never edits an agent binary.
+- Does not own: curated instruction content, coding-agent install, update, or
+  permissions. Those belong to the operator and `resources/<agent>`. This
+  domain only verifies the declared symlink topology and extends resources
+  with native-memory capture hooks; it never edits an agent binary or
+  instruction file.
 - Invariant: the projection is one-directional. The projected file is never read
   back as a memory source, so there is no bidirectional sync to conflict.
   Captured native writes are a *separate* input path — they read the harness's
   own store, never the projection this scenario wrote.
-- Invariant: the prompt block marks the generated wake block read-only,
-  prefers the harness-native memory tool, and names `vrooli-memory journal note` only
-  as the fallback when the runtime has no native write surface (D-041).
+- Invariant: generated wake content is written only to declared native memory
+  stores. Curated `AGENTS.md`-style instruction files are never projection or
+  import targets. Runtimes without a native memory store use the explicit
+  `vrooli-memory journal note` command; no prompt is injected to teach it.
 - Invariant: import is idempotent by content hash, so a sweep may run at any
   frequency without duplicating (D-016).
 - Requirements: `VMEM-P0-010`, `VMEM-P1-002`, `VMEM-P1-007`,

@@ -40,3 +40,15 @@ func TestAssignFacetRejectsUnknownFacetAndSetsPin(t *testing.T) { // [REQ:VMEM-P
 	_, err = h.SetPin(ctx, connect.NewRequest(&facetsv1.SetPinRequest{EntryId: entry.ID, Pinned: true}))
 	require.NoError(t, err)
 }
+
+func TestSetFacetPolicyPersistsScopedRetentionAndResidency(t *testing.T) { // [REQ:SL-P1-001]
+	h, _ := newHandler(t)
+	response, err := h.SetFacetPolicy(context.Background(), connect.NewRequest(&facetsv1.SetFacetPolicyRequest{
+		Scope: "agent-memory", FacetId: "episode", RetentionPolicy: "compact", CompactionEligible: true, ResidentBudget: 6,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "episode", response.Msg.GetFacet().GetId())
+	require.Equal(t, "compact", response.Msg.GetFacet().GetRetentionPolicy())
+	require.True(t, response.Msg.GetFacet().GetCompactionEligible())
+	require.Equal(t, int32(6), response.Msg.GetFacet().GetResidentBudget())
+}

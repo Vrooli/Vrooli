@@ -334,33 +334,6 @@
             "primitive": "proto_mutation"
           }
         },
-        {
-          "name": "install-prompt",
-          "description": "Install native-memory guidance in a harness convention file",
-          "flags": [
-            {
-              "name": "runtime",
-              "description": "Harness runtime",
-              "default": "claude-code"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "HarnessService",
-            "method": "InstallPromptBlock"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:write"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
     {
       "name": "maintenance-status",
           "description": "Show the last automatic import and projection run",
@@ -1194,11 +1167,6 @@
       "service": "HarnessService",
       "method": "RefreshProjection",
       "reason": "Projection is implemented after import to preserve the corpus source."
-    },
-    {
-      "service": "HarnessService",
-      "method": "InstallPromptBlock",
-      "reason": "Prompt-block installation is implemented with native capture integration."
     },
     {
       "service": "HarnessService",

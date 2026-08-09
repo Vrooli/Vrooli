@@ -37,7 +37,7 @@ func (h *handlers) recallCall(ctx cliapp.OperationContext) (*recallv1.RecallResp
 }
 
 func (h *handlers) wakeCall(ctx cliapp.OperationContext) (*recallv1.WakeResponse, error) {
-	response, err := h.client.Wake(context.Background(), connect.NewRequest(&recallv1.WakeRequest{Scope: ctx.Flag("scope"), LineBudget: intFlag(ctx, "budget")}))
+	response, err := h.client.Wake(context.Background(), connect.NewRequest(&recallv1.WakeRequest{Scope: ctx.Flag("scope"), LineBudget: intFlag(ctx, "line-budget")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("wake source-ledger scope", err, nil)
 	}

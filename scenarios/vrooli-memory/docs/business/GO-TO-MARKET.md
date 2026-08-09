@@ -42,7 +42,7 @@ Use this document to answer:
 
 | Channel | Hypothesis | Assets Needed | Validation Signal |
 |---|---|---|---|
-| Open-source release | This category's users adopt tools they can read and run locally before paying for anything. OptMem's reception is direct evidence for this channel. | Working repo, install script, prompt block, honest README about limits. | Installs and issues from people running more than one harness. |
+| Open-source release | This category's users adopt tools they can read and run locally before paying for anything. OptMem's reception is direct evidence for this channel. | Working repo, install script, native-memory adapters, curated-topology setup, and an honest README about limits. | Installs and issues from people running more than one harness. |
 | Architecture write-up | The frontier-agglomerative design, the facet decay-law argument, and the 1-in-200 measurement are genuinely novel and travel on technical merit. | The design record already written for this scenario. | Inbound interest in the standalone framing specifically. |
 | Coding-agent communities | Users who already feel memory fragmentation congregate around each harness. | Setup guide per harness. | Whether people ask for the *team* version unprompted — the highest-value signal available. |
 | Vrooli capability catalog | Existing internal surface; lowest-cost distribution. | Already covered by scenario docs. | Internal adoption. |

@@ -1,0 +1,8 @@
+{
+  "$schema": "./ledger-policy.schema.json",
+  "frontierTarget": 16,
+  "wakeBudgetLines": 96,
+  "wakeBudgetChars": 12000,
+  "maxEntryLines": 2,
+  "maxEntryChars": 200
+}

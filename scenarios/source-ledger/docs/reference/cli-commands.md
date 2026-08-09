@@ -123,6 +123,30 @@ The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
+### `source-ledger policy`
+
+Policy commands operate on one named scope and use the Source Ledger API as
+the authority. They never edit the policy file or compute a local fallback.
+
+```bash
+source-ledger policy show --scope team:marketing-crew
+source-ledger policy set --scope team:marketing-crew --wake-budget-lines 96 \
+  --wake-budget-chars 12000 --max-entry-lines 2 --max-entry-chars 200
+source-ledger policy reset --scope team:marketing-crew
+```
+
+`show` reports effective values, origins, inherited defaults, and compaction
+liveness: unsummarized leaf count, oldest unsummarized leaf, and most recent
+summary. `set` stores only supplied keys; `reset` restores file-default
+inheritance. Wake JSON reports overflow, refused memories, both usage counters,
+and both configured ceilings.
+
+Facet retention and residency are not duplicated as CLI flags. Operators use
+the Vocabulary page or the generated `FacetsService.SetFacetPolicy` Connect
+mutation, which is scope-checked and transactional. This keeps vocabulary
+changes on the same API authority as the UI and avoids a second local policy
+implementation.
+
 ## Output contracts
 
 Every scenario command should render through one of the supported human
@@ -213,14 +237,36 @@ For a command inside an existing domain:
 
 ## Architecture Maturity
 
-The current CLI surface is the lifecycle `status` command. Domain command
-groups are reserved for the service-contract phase and will bind to generated
-source-ledger RPCs rather than hand-written transport logic.
+The lifecycle `status` command and the governed domain groups are generated
+from the manifest. Policy commands bind to generated Source Ledger RPCs rather
+than maintaining a second local policy path.
 
 ## Contracts And Data Flow
 
 The CLI is a renderer over the API contract. It must not create a second
 business-logic path or bypass scoped service operations.
+
+## Team Corpus Contract
+
+The planned team-corpus commands mirror the API one-for-one and reuse the
+vrooli-memory vocabulary:
+
+```text
+source-ledger scopes create <scope> --facets-json <json> \
+  --frontier-target <n> --max-entry-lines <n> --max-entry-chars <n> \
+  --wake-budget <n> --wake-budget-chars <n>
+source-ledger scopes list [<scope>]
+source-ledger journal note "<prose>" --scope <scope> [--kind <kind>]
+source-ledger recall wake --scope <scope> --line-budget <n>
+source-ledger recall recall "<query>" --scope <scope>
+source-ledger rules ...
+source-ledger facets ...
+```
+
+Every command is scope-explicit where it reads or writes corpus data. The
+CLI must surface the typed wake-budget/frontier rejection from the API and
+must not implement a local fallback. The missing governed bindings are
+tracked by Swarm Manager capture `cap-ec8f3c2ee6b5f2ab`.
 
 ## Cross-references
 

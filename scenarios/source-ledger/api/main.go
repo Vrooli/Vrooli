@@ -92,7 +92,6 @@ func main() {
 	if preflight.Run(preflight.Config{ScenarioName: "source-ledger"}) {
 		return
 	}
-
 	dsn, err := sqliteDSN()
 	if err != nil {
 		log.Fatalf("sqlite configuration failed: %v", err)
@@ -118,7 +117,6 @@ func main() {
 	if err := database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
-
 	facetService := facets.NewService(facets.NewSQLiteRepository(db.Primary()))
 	if err := facetService.Seed(ctx); err != nil {
 		log.Fatalf("seed facet definitions: %v", err)
@@ -136,11 +134,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("resolve ai-gateway endpoint: %v", err)
 	}
-	policyConfig, err := policy.Resolve(os.LookupEnv)
+	policyConfig, err := policy.LoadDefaults(policy.DefaultPolicyPath())
 	if err != nil {
 		log.Fatalf("source-ledger policy configuration failed: %v", err)
 	}
-	registry := policy.NewRegistry(db.Primary())
+	registry := policy.NewRegistry(db.Primary(), policyConfig)
 	if err := registry.Ensure(ctx, policyConfig); err != nil {
 		log.Fatalf("scope registry initialization failed: %v", err)
 	}
@@ -199,7 +197,7 @@ func main() {
 	for _, definition := range definitions {
 		facetBudgets[definition.ID] = definition.ResidentBudget
 	}
-	recallConfig := internalrecall.Config{FrontierTarget: policyConfig.FrontierTarget, WakeBudget: policyConfig.WakeBudget, MaxEntryLines: policyConfig.MaxEntryLines, FacetBudgets: facetBudgets}
+	recallConfig := internalrecall.Config{FrontierTarget: policyConfig.FrontierTarget, WakeBudget: policyConfig.WakeBudget, WakeBudgetChars: policyConfig.WakeBudgetChars, MaxEntryLines: policyConfig.MaxEntryLines, MaxEntryChars: policyConfig.MaxEntryChars, FacetBudgets: facetBudgets}
 	gatewayClient := inference.NewGatewayClient(routingconnect.NewRoutingServiceClient(http.DefaultClient, gatewayURL), func(ctx context.Context) ([]inference.VocabularyEntry, error) {
 		definitions, err := resolver.Vocabulary(ctx)
 		if err != nil {
@@ -212,7 +210,6 @@ func main() {
 		return out, nil
 	})
 	forestService := forestH.NewService(db, gatewayClient, recallConfig.FrontierTarget, registry)
-
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "source-ledger-api", "1.0.0"),
@@ -222,7 +219,7 @@ func main() {
 		forestH.Module(forestService, log.Default()),
 		recallH.Module(db, gatewayClient, recallConfig, registry, log.Default()),
 		rulesH.Module(db, log.Default(), gatewayClient),
-		scopesH.Module(db, registry, registerScopeProvider, log.Default()),
+		scopesH.Module(db, registry, registerScopeProvider, log.Default(), internalrecall.NewSQLiteSource(db.Primary())),
 	)
 
 	rootMux := http.NewServeMux()

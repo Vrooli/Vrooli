@@ -79,6 +79,14 @@
       "category": "facets"
     },
     {
+      "id": "facets_set_policy",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/SetFacetPolicy",
+      "method": "POST",
+      "summary": "Update scoped facet policy",
+      "description": "",
+      "category": "facets"
+    },
+    {
       "id": "facets_assign",
       "path": "/vrooli.source_ledger.v1.facets.FacetsService/AssignFacet",
       "method": "POST",
@@ -409,6 +417,30 @@
       "path": "/vrooli.source_ledger.v1.scopes.ScopesService/ListScopes",
       "method": "POST",
       "summary": "List memory scopes",
+      "description": "",
+      "category": "scopes"
+    },
+    {
+      "id": "scopes_policy_get",
+      "path": "/vrooli.source_ledger.v1.scopes.ScopesService/GetPolicy",
+      "method": "POST",
+      "summary": "Read effective scope policy and compaction liveness",
+      "description": "",
+      "category": "scopes"
+    },
+    {
+      "id": "scopes_policy_set",
+      "path": "/vrooli.source_ledger.v1.scopes.ScopesService/SetPolicy",
+      "method": "POST",
+      "summary": "Set scope policy overrides",
+      "description": "",
+      "category": "scopes"
+    },
+    {
+      "id": "scopes_policy_reset",
+      "path": "/vrooli.source_ledger.v1.scopes.ScopesService/ResetPolicy",
+      "method": "POST",
+      "summary": "Reset scope policy overrides",
       "description": "",
       "category": "scopes"
     }

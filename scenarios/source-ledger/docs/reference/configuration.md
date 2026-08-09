@@ -1,7 +1,8 @@
 # Configuration — Source Ledger
 
-How this scenario is configured — env vars consumed by the binaries,
-the `.vrooli/service.json` manifest, and the per-user CLI config file.
+How this scenario is configured — lifecycle environment, the reviewable policy
+file, per-scope database overrides, the `.vrooli/service.json` manifest, and
+the per-user CLI config file.
 
 The lifecycle (`vrooli scenario start`, `make start`) sets every
 required variable automatically. You only need this reference when
@@ -31,6 +32,45 @@ reference](../../../docs/reference/port-allocation.md) for the full policy.
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/source-ledger.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+
+These runtime variables do not control memory policy. In particular,
+`VROOLI_MEMORY_*` variables are not read by Source Ledger; changing one cannot
+change an effective policy.
+
+## Ledger policy
+
+Policy defaults live in `scenarios/source-ledger/.vrooli/ledger-policy.json`.
+Sparse per-scope overrides live in the database `scope_policies` table. The
+resolution order is scope override → file default → compiled built-in. Every
+readback reports the effective value and its origin (`scope-override`,
+`file-default`, or `built-in`). Writes invalidate the scope cache, so the next
+wake observes a change without restarting Source Ledger.
+
+The controls are `frontierTarget`, `wakeBudgetLines`, `wakeBudgetChars`,
+`maxEntryLines`, and `maxEntryChars`. Wake enforces both units at per-entry and
+whole-view levels; the first reached ceiling governs. Pins keep ordering
+priority but remain subject to the whole-view ceilings.
+
+```bash
+source-ledger policy show --scope team:marketing-crew
+source-ledger policy set --scope team:marketing-crew --max-entry-chars 200 --wake-budget-chars 12000
+source-ledger policy reset --scope team:marketing-crew
+```
+
+Facet vocabulary policy is changed through the scoped Connect API and the
+Vocabulary page; it is deliberately not a second CLI policy path. The
+`FacetsService.SetFacetPolicy` mutation accepts an existing `facet_id`, one of
+`retain`, `compact`, `expire-on-resolution`, or `pinned-or-review`, and the
+facet's `compaction_eligible` flag and non-negative `resident_budget`. The
+mutation is transactional, scope-checked, and changes future retention and
+residency decisions without rewriting journal rows or derived history. A
+successful response returns the updated facet definition so operators can
+verify the effective value immediately.
+
+The Vocabulary page submits each edited facet through that API and reports a
+single save result. If an operator needs to automate the change, call the
+generated Connect endpoint directly rather than editing `facet_policies` or
+the SQLite file.
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

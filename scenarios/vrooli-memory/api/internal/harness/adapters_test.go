@@ -70,6 +70,14 @@ func TestEmptyStoreErrorsAreClassifiedForHonestDryRuns(t *testing.T) {
 	require.False(t, IsEmptyStoreError(fmt.Errorf("unsupported harness %q", "unknown")))
 }
 
+func TestEmptyNativeMemoryDirectoryIsHealthyZero(t *testing.T) {
+	d := AdapterDescriptor{HarnessID: "codex", Locations: []string{t.TempDir()}, Format: MarkdownPerFile, Extract: wholeMarkdown}
+	items, managedOnly, err := d.discover(nil)
+	require.NoError(t, err)
+	require.Empty(t, items)
+	require.True(t, managedOnly)
+}
+
 func TestAdapterStripsManagedWakeBlockButKeepsNativeText(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "memory.md")
 	body := "native memory before\n" + wakeStart + "\nmanaged wake\n" + wakeEnd + "\nnative memory after\n"

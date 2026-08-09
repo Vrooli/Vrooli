@@ -54,8 +54,7 @@ func defaultAdapters(claudeRoot, home string) map[string]AdapterDescriptor {
 	return map[string]AdapterDescriptor{
 		"claude-code":           {HarnessID: "claude-code", Locations: []string{claudeRoot}, Format: MarkdownPerFile, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "claude-code"}},
 		"gemini":                {HarnessID: "gemini", Locations: []string{filepath.Join(home, ".gemini", "GEMINI.md")}, Format: MarkdownSection, Extract: markdownSection("Gemini Added Memories"), Provenance: Provenance{SourceRuntime: "gemini"}},
-		"codex":                 {HarnessID: "codex", Locations: []string{filepath.Join(home, ".codex", "AGENTS.md")}, Format: MarkdownBlob, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "codex"}},
-		"opencode":              {HarnessID: "opencode", Locations: []string{filepath.Join(home, ".config", "opencode", "AGENTS.md")}, Format: MarkdownBlob, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "opencode"}},
+		"codex":                 {HarnessID: "codex", Locations: []string{filepath.Join(home, ".codex", "memories")}, Format: MarkdownPerFile, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "codex"}},
 		"grok":                  {HarnessID: "grok", Locations: []string{filepath.Join(home, ".grok", "memory")}, Format: MarkdownPerFile, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "grok"}},
 		"antigravity":           {HarnessID: "antigravity", Locations: []string{filepath.Join(home, ".gemini", "antigravity", "brain")}, Format: MarkdownPerFile, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "antigravity"}},
 		"swarm-manager-records": {HarnessID: "swarm-manager-records", Locations: []string{filepath.Join(home, ".vrooli", "data", "vrooli", "swarm-manager", "records")}, Format: JSONL, Extract: swarmRecord, Provenance: Provenance{SourceRuntime: "swarm-manager"}},
@@ -136,6 +135,12 @@ func (d AdapterDescriptor) discover(projectionTargets map[string]struct{}) (item
 	if !found {
 		return nil, false, fmt.Errorf("harness %q store is not present", d.HarnessID)
 	}
+	if !sawSource {
+		// An existing native memory directory can legitimately be empty on a
+		// fresh harness install. Treat that as a healthy zero rather than
+		// manufacturing a maintenance failure before the first native write.
+		return nil, true, nil
+	}
 	if len(items) == 0 {
 		if sawSource && sawManaged {
 			return nil, true, nil
@@ -161,7 +166,7 @@ func (d AdapterDescriptor) extractPath(path string) (items []sourceItem, managed
 	// Older whole-file projections predate managed markers. Keep their
 	// generated-only guard for relocated stores; current projections are
 	// removed by stripManagedWakeBlock below.
-	if strings.HasPrefix(string(b), generatedHeader) || strings.HasPrefix(string(b), legacyGeneratedHeader) {
+	if strings.HasPrefix(string(b), generatedHeader) || strings.HasPrefix(string(b), legacyGeneratedHeader) || generatedOnly(string(b)) {
 		return nil, true, nil
 	}
 	extracted, err := d.Extract(path, b)

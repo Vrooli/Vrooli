@@ -19,6 +19,8 @@ Use this document to answer:
 | UI build | 5-10 minutes accepted for current Vite module graph | lifecycle/test-genie build logs | inherited |
 | API health | responsive under lifecycle health timeout | `/health` check | active |
 | UI health | responsive under lifecycle health timeout | `/health` check | active |
+| Wake per-entry excerpt | first of line or character ceiling | wake response counters | active |
+| Wake whole view | first of line or character ceiling | `lines_used`, `chars_used` | active |
 
 ## Current Measurements
 
@@ -56,6 +58,18 @@ empty-forest measurements.
 |---|---:|---|
 | Warm wake p95 | 1.20 s | Allows a bounded cached discovery/network hop over the 0.93 s baseline. |
 | Warm recall p95 | 1.50 s | Allows a bounded cached discovery/network hop over the 1.16 s baseline. |
+
+## Context ceilings
+
+The default bounded-view policy is 96 lines / 12,000 characters for the whole
+wake and 2 lines / 200 characters for each entry. Both ceilings are enforced
+at excerpt time and again at admission time. The first reached unit governs;
+the response records both counters and the number refused. Pins are ordered
+first but are subject to the same whole-view backstop.
+
+The character ceiling is necessary because journal entries are commonly
+single-line JSON: line counting alone would treat a 5,000-character entry as
+one line and would not bound prompt cost.
 
 The ceiling is a regression gate, not a promise that the first cold request is
 warm. Cold-start and provider enrichment timings remain separately observable.

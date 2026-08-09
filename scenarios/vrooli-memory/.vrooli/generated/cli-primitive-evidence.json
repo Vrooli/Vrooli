@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "vrooli-memory",
   "generator": "v1.0.0",
-  "manifest_hash": "bb2bf036470e94ab72f1590623c9cfb0a24d1d9665d5fe177808929736a043e4",
+  "manifest_hash": "1e4046c2f4d9c59eeadf8ab93cfbf107ef5c9e2ba3342072557dded9d4132b6b",
   "commands": [
     {
       "path": "facets candidates",
@@ -129,14 +129,6 @@
       "binding": "HarnessService.GetImportStatus",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
-    },
-    {
-      "path": "harness install-prompt",
-      "group": "harness",
-      "command": "install-prompt",
-      "binding": "HarnessService.InstallPromptBlock",
-      "declared_primitive": "proto_mutation",
-      "observed_primitive": "proto_mutation"
     },
     {
       "path": "harness maintenance-status",

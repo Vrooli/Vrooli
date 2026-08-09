@@ -5,6 +5,7 @@ import "context"
 type Repository interface {
 	Seed(context.Context) error
 	List(context.Context) ([]Definition, error)
+	SetPolicy(context.Context, FacetPolicy) (Definition, error)
 	ListCorpus(context.Context, string) ([]CorpusEntry, error)
 	Validate(context.Context, string) error
 	CompactionEligible(context.Context, string) (bool, error)

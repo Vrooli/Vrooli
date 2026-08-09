@@ -1,0 +1,12 @@
+{
+  "canonical": "AGENTS.md",
+  "workspace_aliases": [
+    "CLAUDE.md",
+    "GEMINI.md"
+  ],
+  "home_aliases": [
+    ".claude/CLAUDE.md",
+    ".codex/AGENTS.md",
+    ".config/opencode/AGENTS.md"
+  ]
+}

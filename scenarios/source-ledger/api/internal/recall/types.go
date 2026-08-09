@@ -16,24 +16,35 @@ type Node struct {
 }
 
 type (
+	CompactionLiveness struct {
+		UnsummarizedLeafCount    int
+		OldestUnsummarizedLeafAt string
+		LastSummaryAt            string
+	}
+
 	Hit struct {
 		Node        Node
 		Score       float64
 		Descendants []Node
 	}
 	Wake struct {
-		Hits     []Hit
-		Overflow bool
-		Budget   int
+		Hits        []Hit
+		Overflow    bool
+		Refused     int
+		LinesUsed   int
+		CharsUsed   int
+		BudgetLines int
+		BudgetChars int
 	}
 	// Config carries resolved policy values. FacetBudgets counts ENTRIES per
 	// facet — it is a residency ceiling, not a size ceiling. WakeBudget and
-	// MaxEntryLines are the two size ceilings: the first bounds the whole
-	// ambient view, the second bounds any single memory's contribution to it so
-	// one verbose entry cannot crowd out an entire facet.
+	// WakeBudgetChars bound the whole ambient view; MaxEntryLines and
+	// MaxEntryChars bound one memory's contribution so one verbose entry cannot
+	// crowd out an entire facet.
 	Config struct {
-		FrontierTarget, WakeBudget int
-		MaxEntryLines              int
-		FacetBudgets               map[string]int
+		FrontierTarget               int
+		WakeBudget, WakeBudgetChars  int
+		MaxEntryLines, MaxEntryChars int
+		FacetBudgets                 map[string]int
 	}
 )

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"os"
 	"time"
 
 	"connectrpc.com/connect"
@@ -77,17 +76,6 @@ func (h *connectHandler) RefreshProjection(ctx context.Context, req *connect.Req
 		content = result.Content
 	}
 	return connect.NewResponse(&harnessv1.RefreshProjectionResponse{Path: result.Path, SizeBytes: result.SizeBytes, Overflow: result.Overflow, DryRun: result.DryRun, RenderedContent: content, SizeLines: result.SizeLines, ByteCap: result.ByteCap, LineCap: result.LineCap}), nil
-}
-
-func (h *connectHandler) InstallPromptBlock(_ context.Context, req *connect.Request[harnessv1.InstallPromptBlockRequest]) (*connect.Response[harnessv1.InstallPromptBlockResponse], error) {
-	path, err := internalharness.PromptTarget(req.Msg.GetRuntime(), os.Getenv("VROOLI_MEMORY_WORKSPACE_ROOT"))
-	if err == nil {
-		err = internalharness.InstallPromptBlock(path)
-	}
-	if err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-	}
-	return connect.NewResponse(&harnessv1.InstallPromptBlockResponse{Installed: true}), nil
 }
 
 func (h *connectHandler) CaptureWrite(ctx context.Context, req *connect.Request[harnessv1.CaptureWriteRequest]) (*connect.Response[harnessv1.CaptureWriteResponse], error) {

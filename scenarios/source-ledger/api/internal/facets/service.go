@@ -27,6 +27,10 @@ func (s *Service) Seed(ctx context.Context) error {
 func (s *Service) SeedExamples(ctx context.Context) error         { return s.repo.SeedExamples(ctx) }
 func (s *Service) Validate(ctx context.Context, id string) error  { return s.repo.Validate(ctx, id) }
 func (s *Service) List(ctx context.Context) ([]Definition, error) { return s.repo.List(ctx) }
+func (s *Service) SetPolicy(ctx context.Context, policy FacetPolicy) (Definition, error) {
+	return s.repo.SetPolicy(ctx, policy)
+}
+
 func (s *Service) ReFacet(ctx context.Context, a Assignment) (Assignment, error) {
 	return s.repo.Assign(ctx, a)
 }

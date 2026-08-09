@@ -29,6 +29,13 @@ var seeds = []Definition{
 	{ID: "entity-record", Label: "Entity record", ClassificationGuidance: "A durable record describing the identity, ownership, or stable reference of a named system, scenario, person, or artifact; it is not a completed implementation work record.", RetentionPolicy: "retain", ResidentBudget: 4},
 }
 
+var retentionPolicies = map[string]struct{}{
+	"retain":               {},
+	"compact":              {},
+	"expire-on-resolution": {},
+	"pinned-or-review":     {},
+}
+
 func (r *SQLiteRepository) Seed(ctx context.Context) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -107,6 +114,58 @@ func (r *SQLiteRepository) List(ctx context.Context) ([]Definition, error) {
 		out[i].ClassificationExamples = examples
 	}
 	return out, nil
+}
+
+// SetPolicy changes only the mutable policy attached to an existing facet.
+// Facet definitions and journal assignments remain historical data; changing
+// a retention or residency rule never rewrites either one.
+func (r *SQLiteRepository) SetPolicy(ctx context.Context, requested FacetPolicy) (Definition, error) {
+	requested.ID = strings.TrimSpace(requested.ID)
+	requested.RetentionPolicy = strings.TrimSpace(requested.RetentionPolicy)
+	if requested.ID == "" {
+		return Definition{}, errors.New("facet_id is required")
+	}
+	if _, ok := retentionPolicies[requested.RetentionPolicy]; !ok {
+		return Definition{}, errors.New("retention_policy must be one of retain, compact, expire-on-resolution, or pinned-or-review")
+	}
+	if requested.ResidentBudget < 0 {
+		return Definition{}, errors.New("resident_budget cannot be negative")
+	}
+	scope := policy.ScopeFromContext(ctx)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Definition{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var exists int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM facet_definitions WHERE id=? AND scope=?`, requested.ID, scope).Scan(&exists); err != nil {
+		return Definition{}, err
+	}
+	if exists == 0 {
+		return Definition{}, ErrUnknownFacet{ID: requested.ID}
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE facet_policies SET retention_policy=?,compaction_eligible=?,resident_budget=? WHERE facet_id=? AND scope=?`, requested.RetentionPolicy, requested.CompactionEligible, requested.ResidentBudget, requested.ID, scope)
+	if err != nil {
+		return Definition{}, err
+	}
+	if affected, err := result.RowsAffected(); err != nil {
+		return Definition{}, err
+	} else if affected != 1 {
+		return Definition{}, ErrUnknownFacet{ID: requested.ID}
+	}
+	if err := tx.Commit(); err != nil {
+		return Definition{}, err
+	}
+	items, err := r.List(ctx)
+	if err != nil {
+		return Definition{}, err
+	}
+	for _, item := range items {
+		if item.ID == requested.ID {
+			return item, nil
+		}
+	}
+	return Definition{}, ErrUnknownFacet{ID: requested.ID}
 }
 
 func (r *SQLiteRepository) examples(ctx context.Context, facetID string) ([]string, error) {

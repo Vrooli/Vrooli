@@ -42,7 +42,7 @@ import (
 // when the endpoint's wire shape lives in packages/proto/, decode
 // through protojson; when it doesn't yet, MustDecodeJSON is the
 // fallback (but adding the proto first is the right move).
-func TestHealthHandler(t *testing.T) {
+func TestHealthHandler(t *testing.T) { // [REQ:SL-P0-004]
 	cases := []struct {
 		name           string
 		pingErr        error

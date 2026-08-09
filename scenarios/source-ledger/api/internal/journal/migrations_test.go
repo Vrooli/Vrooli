@@ -40,7 +40,7 @@ func TestEnsureMigrationsIsNoopBeforeEntriesExists(t *testing.T) {
 	require.NoError(t, EnsureMigrations(context.Background(), db))
 }
 
-func TestEnsureMigrationsGuardsJournalUpdatesAndDeletes(t *testing.T) {
+func TestEnsureMigrationsGuardsJournalUpdatesAndDeletes(t *testing.T) { // [REQ:SL-P0-001]
 	db, err := sql.Open("sqlite", "file:journal-append-only?mode=memory&cache=shared")
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })

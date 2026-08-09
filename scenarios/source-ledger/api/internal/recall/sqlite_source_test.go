@@ -3,6 +3,7 @@ package recall
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
@@ -15,7 +16,7 @@ import (
 	"source-ledger/internal/policy"
 )
 
-func TestRecallSourceIsolatedByScopeAndDefaultsToAgentMemory(t *testing.T) {
+func TestRecallSourceIsolatedByScopeAndDefaultsToAgentMemory(t *testing.T) { // [REQ:SL-P0-002]
 	ctx := context.Background()
 	db, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:recall-scope?mode=memory&cache=shared"})
 	require.NoError(t, err)
@@ -164,4 +165,25 @@ func TestAmbientNodesSkipsVectorsAndAbsorbedLeaves(t *testing.T) { // [REQ:VMEM-
 	require.Contains(t, ids, free.ID)
 	require.Contains(t, ids, "summary")
 	require.True(t, ids[free.ID].Frontier)
+}
+
+func TestLivenessCountsUnabsorbedLeavesAndReportsSummaryTimes(t *testing.T) { // [REQ:SL-P0-003]
+	ctx := context.Background()
+	db, err := apidb.Open(ctx, apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:recall-liveness?mode=memory&cache=shared"})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, apidb.EnsureSchemas(ctx, db, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(forest.Schema)))
+	repo := journal.NewSQLiteRepository(db.Primary())
+	older, err := repo.Append(ctx, journal.Entry{ID: "older-leaf", Body: "older", FacetID: "episode", CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}, nil)
+	require.NoError(t, err)
+	_, err = repo.Append(ctx, journal.Entry{ID: "newer-leaf", Body: "newer", FacetID: "episode", CreatedAt: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)}, nil)
+	require.NoError(t, err)
+	_, err = forest.NewSQLiteRepository(db.Primary()).CreateSummary(ctx, forest.Summary{ID: "summary", Scope: "agent-memory", Body: "summary", FacetID: "episode", CreatedAt: time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC)}, []forest.Edge{{ParentID: "summary", ChildID: older.ID, ChildKind: "entry"}})
+	require.NoError(t, err)
+
+	liveness, err := NewSQLiteSource(db.Primary()).Liveness(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, liveness.UnsummarizedLeafCount)
+	require.Equal(t, "2026-01-02T00:00:00Z", liveness.OldestUnsummarizedLeafAt)
+	require.Equal(t, "2026-01-03T00:00:00Z", liveness.LastSummaryAt)
 }

@@ -38,7 +38,7 @@ func TestRecallKeepsAbsorbedLeafAndCollapsesDescendants(t *testing.T) { // [REQ:
 	require.Equal(t, "leaf", hits[0].Node.ID)
 }
 
-func TestWakePinsFirstAndNeverSilentlyTruncatesPins(t *testing.T) { // [REQ:VMEM-P0-006] [REQ:VMEM-P0-008]
+func TestWakePinsFirstAndSubjectsPinsToWholeViewBudget(t *testing.T) { // [REQ:VMEM-P0-006] [REQ:VMEM-P0-008]
 	now := time.Now()
 	svc := NewService(source{{ID: "p1", Pinned: true, Text: "one\ntwo", CreatedAt: now}, {ID: "p2", Pinned: true, Text: "three\nfour", CreatedAt: now}, {ID: "frontier", Frontier: true, Text: "later", CreatedAt: now}}, embedder{}, Config{WakeBudget: 3})
 	wake, err := svc.Wake(context.Background(), 0)
@@ -46,6 +46,8 @@ func TestWakePinsFirstAndNeverSilentlyTruncatesPins(t *testing.T) { // [REQ:VMEM
 	require.True(t, wake.Overflow)
 	require.Len(t, wake.Hits, 2)
 	require.Equal(t, "p1", wake.Hits[0].Node.ID)
+	require.Equal(t, 3, wake.LinesUsed)
+	require.Equal(t, 1, wake.Refused)
 }
 
 func TestRecallCollapsesDescendantsWhenAncestorWins(t *testing.T) {
@@ -107,6 +109,33 @@ func TestWakeExcerptsLongEntriesAndMarksTheTruncation(t *testing.T) { // [REQ:VM
 	require.Len(t, wake.Hits, 1)
 	require.Equal(t, "headline\ndetail "+truncationMarker, wake.Hits[0].Node.Text)
 	require.Equal(t, 2, lines(wake.Hits[0].Node.Text), "an excerpt costs at most MaxEntryLines against the wake budget")
+}
+
+func TestWakeCharacterCeilingTruncatesSingleLineEntries(t *testing.T) {
+	now := time.Now()
+	svc := NewService(source{{ID: "long", Frontier: true, Text: "0123456789abcdef", CreatedAt: now}}, embedder{}, Config{
+		WakeBudget: 10, WakeBudgetChars: 10, MaxEntryLines: 2, MaxEntryChars: 6,
+	})
+	wake, err := svc.Wake(context.Background(), 0)
+	require.NoError(t, err)
+	require.Len(t, wake.Hits, 1)
+	require.Equal(t, "0123 "+truncationMarker, wake.Hits[0].Node.Text)
+	require.LessOrEqual(t, wake.CharsUsed, 10)
+	require.LessOrEqual(t, chars(wake.Hits[0].Node.Text), 6)
+}
+
+func TestWakeWholeViewCharacterCeilingRefusesLaterEntries(t *testing.T) {
+	now := time.Now()
+	svc := NewService(source{
+		{ID: "new", Frontier: true, Text: "1234567890", CreatedAt: now},
+		{ID: "old", Frontier: true, Text: "abcdefghij", CreatedAt: now.Add(-time.Minute)},
+	}, embedder{}, Config{WakeBudget: 20, WakeBudgetChars: 10, MaxEntryLines: 2, MaxEntryChars: 10})
+	wake, err := svc.Wake(context.Background(), 0)
+	require.NoError(t, err)
+	require.Len(t, wake.Hits, 1)
+	require.True(t, wake.Overflow)
+	require.Equal(t, 1, wake.Refused)
+	require.Equal(t, 10, wake.CharsUsed)
 }
 
 func TestWorkRecordExcerptsIdentifyTheirSubjectWithinMaxEntryLines(t *testing.T) { // [REQ:VMEM-P0-008]

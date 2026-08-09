@@ -21,6 +21,9 @@ import (
 
 func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client *ledgerclient.Client, logger *log.Logger, compactor maintenance.Compactor, clocks ...clock.Clock) module.Module {
 	home, _ := os.UserHomeDir()
+	if _, err := internalharness.EnsureCuratedTopology("", home); err != nil {
+		panic(err)
+	}
 	root := os.Getenv("VROOLI_MEMORY_CLAUDE_ROOT")
 	if root == "" {
 		root = filepath.Join(home, ".claude", "projects", "-home-matthalloran8-Vrooli", "memory")

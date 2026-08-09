@@ -241,12 +241,12 @@
     },
     {
       "id": "VMEM-P1-007",
-      "title": "Harness prompt-block install",
+      "title": "Curated instruction topology repair",
       "status": "complete",
       "prd_ref": "OT-P1-007",
       "category": "harness",
       "criticality": "P1",
-      "description": "A command installs and updates the prompt block in each harness convention file (CLAUDE.md, AGENTS.md, and equivalents). The block distinguishes the read-only generated wake block from native memory, tells agents never to edit or compact generated projections, prefers the harness native memory tool where it exists, and supplies `vrooli-memory journal note` as the direct ledger fallback where it does not. The block is idempotent and delimited so re-running updates in place rather than appending duplicates.",
+      "description": "Scenario startup treats the project-level AGENTS.md as the canonical curated instruction file, recovers it from a surviving non-generated peer when missing, and repairs declared workspace and home aliases as symlinks to it. It removes only the retired vrooli-memory prompt block during migration; it never writes generated wake content into AGENTS.md, CLAUDE.md, GEMINI.md, or any other curated instruction alias.",
       "tags": [
         "harness",
         "adoption",
@@ -255,24 +255,24 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/harness/prompt_test.go::TestPromptBlockIsIdempotentAndExplainsTheManagedWriteBoundary",
+          "ref": "api/internal/harness/topology_test.go::TestEnsureCuratedTopologyUsesProjectAgentsAsCanonicalAndRepairsLinks",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Installing twice leaves exactly one delimited block with the current content."
+          "notes": "Startup repairs workspace and home aliases to the project-level AGENTS.md canonical file."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/projection_test.go::TestProjectionPreservesCuratedBytes",
+          "ref": "api/internal/harness/topology_test.go::TestEnsureCuratedTopologyRecoversMissingCanonicalWithoutImportingGeneratedProjection",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Installing into a file with unrelated content preserves that content outside the delimiters."
+          "notes": "Recovery ignores generated projection content and preserves surviving curated content."
         },
         {
           "type": "test",
-          "ref": "api/internal/harness/prompt_test.go::TestPromptBlockIsIdempotentAndExplainsTheManagedWriteBoundary",
+          "ref": "api/internal/harness/topology_test.go::TestEnsureCuratedTopologyRejectsNoSurvivingCandidate",
           "phase": "unit",
           "status": "implemented",
-          "notes": "The rendered block explicitly protects the generated wake block and names the direct ledger fallback for runtimes without a native memory tool."
+          "notes": "Startup fails closed when no canonical or surviving curated candidate exists."
         }
       ]
     },

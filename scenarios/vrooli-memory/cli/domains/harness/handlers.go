@@ -66,14 +66,6 @@ func (h *handlers) captureCall(ctx cliapp.OperationContext) (*harnessv1.CaptureW
 	return resp.Msg, nil
 }
 
-func (h *handlers) promptCall(ctx cliapp.OperationContext) (*harnessv1.InstallPromptBlockResponse, error) {
-	resp, err := h.client.InstallPromptBlock(context.Background(), connect.NewRequest(&harnessv1.InstallPromptBlockRequest{Runtime: runtime(ctx)}))
-	if err != nil {
-		return nil, cliapp.WrapAPIError("install memory prompt", err, nil)
-	}
-	return resp.Msg, nil
-}
-
 func (h *handlers) maintenanceCall(ctx cliapp.OperationContext) (*harnessv1.GetMaintenanceStatusResponse, error) {
 	resp, err := h.client.GetMaintenanceStatus(context.Background(), connect.NewRequest(&harnessv1.GetMaintenanceStatusRequest{}))
 	if err != nil {
@@ -140,10 +132,6 @@ func (h *handlers) projectReport(_ cliapp.OperationContext, msg *harnessv1.Refre
 
 func (h *handlers) captureReport(_ cliapp.OperationContext, msg *harnessv1.CaptureWriteResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Captured native memory as %s.", msg.EntryId)}}
-}
-
-func (h *handlers) promptReport(_ cliapp.OperationContext, msg *harnessv1.InstallPromptBlockResponse) cliapp.MutationReport {
-	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Memory prompt installed: %t.", msg.Installed)}}
 }
 
 func (h *handlers) maintenanceReport(_ cliapp.OperationContext, msg *harnessv1.GetMaintenanceStatusResponse) cliapp.ListReport {

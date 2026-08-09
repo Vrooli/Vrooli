@@ -15,6 +15,22 @@ import (
 type SQLiteSource struct{ db *sql.DB }
 
 func NewSQLiteSource(db *sql.DB) *SQLiteSource { return &SQLiteSource{db: db} }
+
+// Liveness reports the portion of a scope's journal that has not yet been
+// absorbed into a forest parent. It is deliberately observational: compaction
+// owns the write path, while operators need a stable signal for stale scopes.
+func (s *SQLiteSource) Liveness(ctx context.Context) (CompactionLiveness, error) {
+	scope := policy.ScopeFromContext(ctx)
+	var result CompactionLiveness
+	err := s.db.QueryRowContext(ctx, `
+SELECT COUNT(*), COALESCE(MIN(e.created_at), ''),
+       COALESCE((SELECT MAX(created_at) FROM summaries WHERE scope=?), '')
+FROM entries e
+WHERE e.scope=?
+  AND NOT EXISTS (SELECT 1 FROM tree_edges WHERE child_id=e.id AND child_kind='entry')`, scope, scope).
+		Scan(&result.UnsummarizedLeafCount, &result.OldestUnsummarizedLeafAt, &result.LastSummaryAt)
+	return result, err
+}
 func (s *SQLiteSource) Nodes(ctx context.Context) ([]Node, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	scope := policy.ScopeFromContext(ctx)

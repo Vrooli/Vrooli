@@ -4,7 +4,7 @@
 >
 > An earlier revision of this document marked the scenario `not-applicable`
 > on the grounds that it is internal infrastructure. That was wrong. The
-> harness-agnostic design — prompt block, CLI, and generated file projection —
+> harness-agnostic design — native-memory adapters, CLI, and bounded projection —
 > means this capability **works without Vrooli**, for anyone running more than
 > one coding agent. That is a product, and there is a market for it.
 
@@ -110,7 +110,7 @@ than assumed.
 
 | Packaging Option | Status | Details |
 |---|---|---|
-| Free standalone app + hosted inference fallback | **primary plan** | Local-first install: a binary plus the prompt-block installer. Works with any harness that reads a memory file, which is all of them. Fully functional and free on local models or BYOK; revenue only when a user falls through to hosted inference. Requires decoupling from the Vrooli lifecycle — see Preconditions. |
+| Free standalone app + hosted inference fallback | **primary plan** | Local-first install: a binary plus native-memory adapters and curated-topology setup. Works across supported harness stores; runtimes without a native store use the explicit journal fallback. Fully functional and free on local models or BYOK; revenue only when a user falls through to hosted inference. Requires decoupling from the Vrooli lifecycle — see Preconditions. |
 | Bundle component | plausible | Component of a broader developer-tooling SKU. |
 | Add-on | unlikely | The capability is more foundational than an add-on to something else. |
 | Team / shared memory | **speculative expansion — may never be built** | See below. Deliberately *not* the revenue case. |

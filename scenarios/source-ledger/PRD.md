@@ -18,15 +18,15 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Append-only journal | The ledger shall append every accepted entry and reject updates or deletes to journal rows.
-- [ ] OT-P0-002 | Scope-isolated recall | When a client supplies a scope, the ledger shall return only entries and derived nodes from that scope.
-- [ ] OT-P0-003 | Bounded compaction canopy | When compaction runs, the ledger shall preserve journal rows and maintain a scored frontier with rebuildable summaries and edges.
-- [ ] OT-P0-004 | Stable programmatic surface | The ledger shall expose scope-aware Connect, API, and CLI operations for append, recall, wake, frontier, and health.
-- [ ] OT-P0-005 | Durable corpus authority | The ledger shall keep one authoritative SQLite corpus with registered backup and restore evidence.
+- [x] OT-P0-001 | Append-only journal | The ledger shall append every accepted entry and reject updates or deletes to journal rows.
+- [x] OT-P0-002 | Scope-isolated recall | When a client supplies a scope, the ledger shall return only entries and derived nodes from that scope.
+- [x] OT-P0-003 | Bounded compaction canopy | When compaction runs, the ledger shall preserve journal rows and maintain a scored frontier with rebuildable summaries and edges.
+- [x] OT-P0-004 | Stable programmatic surface | The ledger shall expose scope-aware Connect, API, and CLI operations for append, recall, wake, frontier, and health.
+- [x] OT-P0-005 | Durable corpus authority | The ledger shall keep one authoritative SQLite corpus with registered backup and restore evidence.
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Per-scope vocabulary | Operators should create and update each scope's facet vocabulary, retention rules, residency budgets, and frontier target.
+- [x] OT-P1-001 | Per-scope vocabulary | Operators should create and update each scope's facet vocabulary, retention rules, residency budgets, and frontier target.
 - [ ] OT-P1-002 | Federated scope discovery | Search clients should discover one provider per scope and receive scope-labelled results without duplicate corpus answers.
 - [x] OT-P1-003 | Corpus-first operator surface | The operator UI should provide a ledger list, scope detail, journal timeline, frontier explorer, vocabulary editor, and cross-scope search.
 - [ ] OT-P1-004 | Append-only migration seam | The ledger should support a verified migration that preserves entry bodies and dependent derived data without deleting source rows.

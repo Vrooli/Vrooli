@@ -150,7 +150,7 @@ func TestRunRetriesTransientSummaryEOFBeforeWriting(t *testing.T) {
 	require.Equal(t, 1, result.CompactedCount)
 }
 
-func TestRunRepeatsUntilEligibleFrontierReachesTarget(t *testing.T) { // [REQ:VMEM-P0-007]
+func TestRunRepeatsUntilEligibleFrontierReachesTarget(t *testing.T) { // [REQ:VMEM-P0-007] [REQ:SL-P0-003]
 	now := time.Now().UTC()
 	source := &memorySource{candidates: []Candidate{
 		{ID: "a", FacetID: "episode", Compactable: true, Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
@@ -262,7 +262,7 @@ func TestClusteringGroupsOnASecondaryFacetSpace(t *testing.T) { // [REQ:VMEM-P1-
 		"a and b agree perfectly on the entities space and must cluster there, even though c is closer to a on topic")
 }
 
-func TestRebuildRestoresLeafFrontierWithoutCallingInference(t *testing.T) {
+func TestRebuildRestoresLeafFrontierWithoutCallingInference(t *testing.T) { // [REQ:SL-P0-003]
 	now := time.Now().UTC()
 	source := &memorySource{candidates: []Candidate{{ID: "entry-1", Kind: "entry", FacetID: "episode", Compactable: true, Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour)}}}
 	repo := &memoryRepo{source: source}

@@ -33,15 +33,18 @@ Use this document to answer:
 | SQLite (embedded) | active | Journal, facet, and tree tables are single-writer, local, and modest in size. No shared resource is warranted. | If memory becomes multi-host or the vector index outgrows embedded storage. |
 | ollama | indirect | Reached **through ai-gateway**, never directly. Embedding and summarization are inference calls, and ai-gateway owns model policy, routing, and capacity. | Never call ollama directly from this scenario — that would duplicate policy the gateway owns. |
 | qdrant | not-applicable | Vector storage goes through the shared `aisearch-go` package used by every existing search provider, keeping this scenario's index shape identical to the rest of the fleet. | If corpus size makes an embedded index untenable. |
-| claude-code, codex, gemini, grok, opencode, antigravity | active (integration target) | The six coding-agent harnesses this scenario unifies. Each already owns install/update and a unified allow/deny permissions layer under `resources/<agent>/cli/internal/permissions/`, which is the correct home for projection writes, prompt-block install, and hook install. **This scenario never edits agent binaries** — it extends the resource that already configures them. | If a new coding-agent resource is added, or Cursor gains one. |
+| claude-code, codex, gemini, grok, opencode, antigravity | active (integration target) | The six coding-agent harnesses this scenario observes and integrates with. Curated instruction files remain operator-owned; only declared native memory stores are imported or projected. **This scenario never edits agent binaries or instruction files.** | If a new coding-agent resource is added, or Cursor gains one. |
 
 ## Harness Capability Matrix
 
 The harness domain integrates with coding-agent runtimes, each of which is a
-Vrooli resource under `resources/<agent>/`. **Reads are uniform** — every
-harness gets the generated projection written to the file it already loads.
-**Writes are not**, because each runtime stores memory differently. This matrix
-is the contract the import adapters and the capture strategy are built from.
+Vrooli resource under `resources/<agent>`. Instruction files and memory stores
+are different classes. `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` instruction
+surfaces are curated and are never projection targets. The project-level
+`AGENTS.md` is the canonical curated file; the topology manifest embedded in
+`api/internal/harness/curated-files.json` repairs its declared aliases as
+symlinks at startup. Only the native memory stores in the matrix below may be
+imported or projected.
 
 Measured 2026-07-27 by inspecting the installed runtime, its local manual, and
 the resource-owned integration source. A runtime is never treated as supported
@@ -51,9 +54,9 @@ the runtime has no documented hook that identifies a native-memory write.
 | Harness | Memory location | Storage shape | Native write tool | Hook API | Capture channel | Evidence |
 |---|---|---|---|---|---|---|
 | Claude Code | `~/.claude/projects/<slug>/memory/MEMORY.md` and fact files | file-per-fact plus index | native memory tool | `PreToolUse` and `PostToolUse` | installed `vrooli-memory` PreToolUse hook, then diff recovery | `vrooli-memory hooks --action install --runtime claude-code` reconciles one managed entry in `~/.claude/settings.json`; the Go-native `vrooli-memory hook --runtime claude-code` filters structured payloads and swallows capture failures. |
-| Gemini CLI | `~/.gemini/GEMINI.md`, `## Gemini Added Memories` | append-under-section | `save_memory`, `/memory add` | no hook command or hook surface appeared in the installed CLI help or resource | store diff | Live file exists. |
-| Codex | global `~/.codex/AGENTS.md`/`AGENTS.override.md`, project `AGENTS.md`; internal memories also exist at `~/.codex/memories/` | instruction file is a single blob; internal memory is runtime-owned | no dedicated durable-memory write command | none: current installed CLI help exposes no hook surface and the resource adapter's `RenderHook` is explicitly a no-op | store diff | Current installed runtime exposes `~/.codex/memories/`; `AGENTS.md` injection defaults to 32,768 bytes and clips supplied context without rewriting the source file. |
-| opencode | `~/.config/opencode/AGENTS.md` and project `AGENTS.md` | single blob | none native | no hook surface in installed CLI help; resource states no hook backstop | store diff | Resource config defaults `instructions` to `AGENTS.md`. |
+| Gemini CLI | `~/.gemini/GEMINI.md`, `## Gemini Added Memories` | append-under-section | `save_memory`, `/memory add` | no hook command or hook surface appeared in the installed CLI help or resource | section-scoped projection and store diff | The projector changes only the native memory section; instruction content in the same file is preserved. |
+| Codex | `~/.codex/memories/` | runtime-owned Markdown memory files | no dedicated durable-memory write command | none: current installed CLI help exposes no hook surface and the resource adapter's `RenderHook` is explicitly a no-op | store diff plus the dedicated projection file | `AGENTS.md` is never used as memory. The curated instruction topology links it to the project `AGENTS.md`; memory projection uses `~/.codex/memories/vrooli-memory.md`. |
+| opencode | no documented native memory store | none | none native | no hook surface in installed CLI help; resource states no hook backstop | explicit `vrooli-memory journal note` only | `AGENTS.md` is curated and never projected or imported. OpenCode remains an explicit-write integration until it exposes a native memory store. |
 | grok | `~/.grok/memory/MEMORY.md` and `<workspace>/MEMORY.md` | Markdown files plus SQLite FTS5/vec0 index | `/remember`, `/flush`, and natural-language remember | `PreToolUse` and `PostToolUse` | installed `vrooli-memory` PreToolUse hook, then diff recovery | `vrooli-memory hooks --action install --runtime grok` writes the resource-native hook document under `~/.grok/hooks/`; failures remain non-blocking. |
 | antigravity | `~/.gemini/antigravity/brain/` | per-task Markdown and metadata files; conversation protobufs | none exposed | no user-writable hook contract | store diff | Live `brain/` contains task and plan Markdown; resource documentation records compiled-in hooks only. |
 | Cursor | `state.vscdb` SQLite, `ItemTable` key `aicontext.personalContext`; project `.cursor/rules/` | SQLite BLOB | yes | n/a (IDE, not CLI) | out of scope | No Vrooli resource exists, so this plan does not support it. |
@@ -108,14 +111,13 @@ exercised by writing oversized production files.
 
 | Harness | Byte ceiling | Rendered-line ceiling | At-ceiling behavior | Projection rule |
 |---|---|---|---|---|
-| Codex | 32,768 bytes by default for `AGENTS.md` injection; configurable | 200 | Codex clips instruction bytes supplied to the first turn. It does not alter the file. | Emit pins first; keep the complete file at or below both scenario ceilings. |
+| Codex | 32,768 bytes scenario guard for the native memory file | 200 | Native instruction injection is separate and never modified by this scenario. | Emit pins first; keep the memory projection at or below both scenario ceilings. |
 | Claude Code | 32,768 bytes (scenario guard); live dry-run 20,241 bytes | 200 | Scenario returns overflow before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
-| Gemini CLI | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | 200 | Scenario returns overflow before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
-| opencode | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | 200 | Scenario returns overflow before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
+| Gemini CLI | 32,768 bytes (scenario guard); live projection is section-scoped | 200 | Scenario returns overflow before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated; preserve all non-memory sections. |
 | grok | 32,768 bytes (scenario guard); live dry-run 13,686 bytes | 200 | Scenario returns overflow before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
 | antigravity | 32,768 bytes (scenario guard); live dry-run 9,532 bytes | 200 | Scenario returns overflow before writing; native over-cap behavior was not invoked. | Emit pins first and fail closed before a pinned item would be truncated. |
 
-No live harness memory file was modified for this measurement. Codex's native
+No curated instruction file is modified for this measurement. Codex's native
 injection clipping remains documented separately; the other installed runtimes
 expose no stable, user-configurable numeric limit. The scenario-owned guard is
 therefore the authoritative safety boundary used by projection code.
@@ -127,8 +129,9 @@ Recorded rather than guessed:
 - **Cursor is named across product docs but has no `resources/cursor`.** Until a
   resource exists, Cursor is out of operational scope; the SQLite row above is
   research, not an integration.
-- **OpenCode has no native memory feature.** It remains projection-only until a
-  plugin supplies a governed native-memory contract.
+- **OpenCode has no native memory feature.** It remains explicit-write until a
+  plugin supplies a governed native-memory contract; its curated `AGENTS.md`
+  is never projected or imported.
 
 ## Scenario Dependencies
 

@@ -56,12 +56,12 @@ Use this shape so entries are scannable. Append newest at the bottom.
 | Classifier calibration was below the unattended-use bar in the legacy 17/50 review (34%). | That historical sample is superseded by the repeatable live fixture: 432/432 held-out work records correct (100.00%) and 558/558 fall-through triples unanimous (100.00%) through the normal gateway role, with no provider changes. | Keep the repeatable fixture current; do not treat the legacy human sample as the current calibration gate. See `CALIBRATION-REVIEW.md`. |
 | Facet embedding-space count is a guess (3: topic, rule/implication, entities). | Too few loses clustering recall; too many wastes inference. | `VMEM-P1-005` — needs real clustering output to settle. |
 | `run_id` is nullable for heartbeat-spawned agents. | Memory→run backlink is absent for those writes. Documented upstream in `docs/agent-system/RUNTIME_ATTRIBUTION.md` with the token-claim overlay listed as future strengthening. | `VMEM-P1-002` — write path must tolerate absent correlation. |
-| Adoption depends on the harness prompt block being installed and kept current. | A runtime with a stale or missing block silently keeps its private store, so the unification claim stops being true for it without any error. | `VMEM-P1-007`. |
+| Curated instruction topology can drift when an alias is deleted or replaced. | A coding-agent harness may stop loading the operator-owned project instructions even though native memory projection remains healthy. | **Resolved in the startup repair path:** project-level `AGENTS.md` is recovered from surviving curated peers and declared aliases are recreated as symlinks. See `VMEM-P1-007`. |
 | Deliberate-write path assumes agents notice what is worth remembering. | Untested. The 1-in-200 records measurement is evidence about *flags*, not about *noticing*. | `VMEM-P2-001` is the fallback if this proves false. |
 | Summarization drift (fact mutation vs. intended fact dropping) is uninstrumented. | Quality-only: `forest` is rebuildable, so drift never costs data. | `VMEM-P2-003`, deferred by decision D-012. |
 | Live local summarization previously returned `unavailable: unexpected EOF` through ai-gateway after 28–43 seconds. | The provider timeout was separated from classification and the live compaction pass now completed 31 summaries atomically; the old failure is retained only as historical context in the progress log. | Keep the five-minute summary timeout and atomic forest write; do not bypass ai-gateway or write summaries directly. |
 | Native behavior beyond the scenario's projection ceiling is not uniform or documented for every runtime. | **Resolved for the P0 guarantee:** all six configured targets use a measured 32,768-byte scenario guard, emit pins first, and refuse pinned overflow before writing; native oversized files are not needed for the safety proof. | `VMEM-P0-010`; see the projection ceiling table in `INTEGRATIONS.md` and `TestProjectionRefusesPinnedOverflowForEveryConfiguredRuntime`. |
-| **The two single-blob harnesses (Codex, opencode) expose no usable pre-write hook in the installed runtime.** `pretooluse-bash-deny.sh` proves the mechanism exists in `claude-code` and `grok`; the per-runtime matrix records the negative result for Codex/opencode and the other no-hook harnesses. | Store diff is the universal floor, but D-015 records that single-blob stores cannot be diffed reliably into discrete memories. Capture therefore remains precise for hook-capable runtimes and best-effort via governed store-diff recovery elsewhere; the limitation is explicit rather than guessed. | `VMEM-P1-008` — retain the verified capability matrix and add a native hook when a resource exposes one. |
+| Codex exposes no usable pre-write hook in the installed runtime, while OpenCode has no documented native memory store. | Codex uses store-diff recovery plus a dedicated native projection file; OpenCode uses the explicit journal command. Neither runtime's curated `AGENTS.md` is edited or imported. | `VMEM-P1-008` — retain the verified capability matrix and add a native hook/store contract when a resource exposes one. |
 
 ### 2026-08-05 — Two of the three facet embedding spaces have no reader
 
@@ -97,11 +97,11 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-08-07 — Four runtimes reported a false import failure every tick (RESOLVED)
 
-**Symptom:** codex, gemini, grok and opencode each failed with `non-empty harness store yielded zero importable items` on every maintenance run.
+**Symptom:** codex, gemini, grok and opencode previously failed with `non-empty harness store yielded zero importable items` on every maintenance run.
 
 **Root cause:** their entire store is this service's projection — all four files byte-identical at 17,037 bytes. The one-directional projection fix correctly strips the managed block, leaving nothing, and the importer reported that empty result as an error.
 
-**Real fix (done):** `extractPath` drops sources that are empty after marker removal and reports that it did so; that case returns a completed import with zero items. See D-038.
+**Real fix (done):** `extractPath` drops sources that are empty after marker removal and reports that it did so; empty native directories are also healthy zero stores. That case returns a completed import with zero items. Curated instruction files are no longer import targets. See D-038 and D-042.
 
 ### 2026-08-05 — The journal database carries about 60% dead pages
 
