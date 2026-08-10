@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
-	"scenario-to-desktop-api/validationmatrix"
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 )
 
 type URLResolver interface {

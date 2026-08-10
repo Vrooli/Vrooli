@@ -58,6 +58,15 @@ Preferred stacks and architectural intent:
 - **Integration**: Secure IPC between Electron main/renderer processes; scenario API communication via bundled runtime or thin-client proxy
 - **Non-goals**: Mobile targets, web-only deployment (those belong in other scenarios)
 
+### Delivery validation ownership
+
+The provider-neutral delivery contract is implemented once in
+`packages/delivery-ramp-go`, including target inventory, immutable validation
+matrices, local/bridge transports, journey evidence, and fail-closed
+dispositions. This scenario is the desktop ramp and supplies only the four
+platform adapters—Prober, Builder, Driver, and Distributor—plus its Electron,
+X11, capture, and public API/CLI/UI adapters.
+
 ## 🤝 Dependencies & Launch Plan
 
 **Required resources**: None mandatory; optional dependencies include browser-automation-studio (UI testing), postgres (template/build history), and redis (build cache)

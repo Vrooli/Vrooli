@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/smoketest"
 )
 
@@ -48,7 +49,7 @@ func baselineSample(id string, class MeasurementClass, duration int64) Performan
 	return PerformanceSample{
 		RunID: id, Class: class, HostFingerprint: "host-a", ArtifactDigest: "artifact-a",
 		Display: "1920x1080", DeploymentMode: "bundled", ProfilerMode: "disabled",
-		Phases: []PhaseDuration{{Name: "process_to_splash_first_paint", Available: true, DurationMs: duration}},
+		Phases: []deliveryramp.PhaseDuration{{Name: "process_to_splash_first_paint", Available: true, DurationMs: duration}},
 	}
 }
 

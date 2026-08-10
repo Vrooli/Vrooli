@@ -33,6 +33,7 @@ var Known = []Def{
 		ActionKind: ActionKindScenarioStart, ActionLabel: "Start Audio Tools",
 		OperatorCommand: "vrooli scenario start audio-tools --json",
 		Features:        []string{"voice-input", "voice-output"},
+		Platform:        capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformDegraded, Reason: "voice capability depends on the declared audio provider and host media path"},
 	},
 }
 

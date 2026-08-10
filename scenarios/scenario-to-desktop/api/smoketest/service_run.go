@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
@@ -85,14 +86,14 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 	// Demo launch for screen recording if smoke test passed. The journey is
 	// returned so reporting can happen only after finalizeRecording has moved
 	// the producer-owned recording into the captures ledger.
-	var journey *JourneyResult
+	var journey *deliveryramp.JourneyResult
 	var evidenceErr error
 	if rec.captureID != "" && rec.displayID != "" && execErr == nil && execResult != nil {
 		if strings.Contains(execResult.Combined, s.config.SuccessMarker) {
 			journey = s.executeDemoLaunch(ctx, smokeTestID, scenarioName, artifactPath, platform, rec)
 			if journey == nil {
 				evidenceErr = fmt.Errorf("desktop evidence demo launch did not produce a journey")
-			} else if journey.Disposition != journeyPass {
+			} else if journey.Disposition != deliveryramp.Disposition(journeyPass) {
 				reason := journey.DegradedReason
 				if reason == "" {
 					reason = "journey_validation_failed"
@@ -429,7 +430,7 @@ func telemetryIngestURL(port int) string {
 // gate for the recording. A normal demo process may remain alive until the
 // configured hold expires, but an absent/invalid application window must fail
 // the smoke test when evidence was requested.
-func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string, rec recordingState) *JourneyResult {
+func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string, rec recordingState) *deliveryramp.JourneyResult {
 	s.logger.Info("demo_launch_starting", "smoke_test_id", smokeTestID, "display", rec.displayID)
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.Logs = append(status.Logs, "Starting demo launch for screen recording...")
@@ -481,7 +482,7 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 	journeyID := s.persistJourney(journey)
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.JourneyCaptureID = journeyID
-		status.JourneyDisposition = journey.Disposition
+		status.JourneyDisposition = string(journey.Disposition)
 		status.JourneyDegradedReason = journey.DegradedReason
 		status.EvidenceReview = reviewFromJourney(journey)
 		status.Logs = append(status.Logs, fmt.Sprintf("Desktop journey %s", journey.Disposition))
@@ -514,7 +515,7 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 // the semantic workflow owner. The desktop runner does not discover or run a
 // provider; it only binds an optional reference to the target/cell identity
 // supplied by the validation orchestrator.
-func attachWorkflowReference(journey *JourneyResult) {
+func attachWorkflowReference(journey *deliveryramp.JourneyResult) {
 	if journey == nil {
 		return
 	}
@@ -527,14 +528,14 @@ func attachWorkflowReference(journey *JourneyResult) {
 	journey.WorkflowRequired = true
 	data, err := os.ReadFile(path)
 	if err != nil {
-		journey.Disposition = JourneyDispositionFailed
+		journey.Disposition = deliveryramp.DispositionFailed
 		journey.DegradedReason = fmt.Sprintf("workflow evidence reference unavailable: %v", err)
 		appendWorkflowChapter(journey, nil, journey.DegradedReason)
 		return
 	}
-	var reference WorkflowExecutionReference
+	var reference deliveryramp.WorkflowExecutionReference
 	if err := json.Unmarshal(data, &reference); err != nil {
-		journey.Disposition = JourneyDispositionFailed
+		journey.Disposition = deliveryramp.DispositionFailed
 		journey.DegradedReason = fmt.Sprintf("workflow evidence reference is invalid: %v", err)
 		appendWorkflowChapter(journey, nil, journey.DegradedReason)
 		return
@@ -553,13 +554,13 @@ func attachWorkflowReference(journey *JourneyResult) {
 		reference.CellID = journey.CellID
 	}
 	journey.WorkflowReference = &reference
-	if !strings.EqualFold(reference.Disposition, JourneyDispositionPass) && !strings.EqualFold(reference.Disposition, "passed") {
-		journey.Disposition = JourneyDispositionFailed
+	if !strings.EqualFold(reference.Disposition, string(deliveryramp.DispositionPass)) && !strings.EqualFold(reference.Disposition, "passed") {
+		journey.Disposition = deliveryramp.DispositionFailed
 	}
 	appendWorkflowChapter(journey, &reference, "")
 }
 
-func appendWorkflowChapter(journey *JourneyResult, reference *WorkflowExecutionReference, reason string) {
+func appendWorkflowChapter(journey *deliveryramp.JourneyResult, reference *deliveryramp.WorkflowExecutionReference, reason string) {
 	if journey == nil {
 		return
 	}
@@ -573,22 +574,22 @@ func appendWorkflowChapter(journey *JourneyResult, reference *WorkflowExecutionR
 	}
 	end := start.Add(time.Millisecond)
 	monotonicEnd := monotonicStart + 1
-	disposition := JourneyStepFailed
+	disposition := deliveryramp.StepFailed
 	observed := "unavailable"
 	assertionID := "workflow-reference"
 	if reference != nil {
 		observed = reference.Disposition
 		assertionID = "workflow-execution:" + reference.ExecutionID
 		switch strings.ToLower(strings.TrimSpace(reference.Disposition)) {
-		case JourneyDispositionPass, "passed":
-			disposition = JourneyStepPassed
-		case JourneyDispositionDegraded:
-			disposition = JourneyStepDegraded
-		case JourneyDispositionUnavailable, JourneyDispositionUnsupported, JourneyDispositionNotRun:
-			disposition = JourneyStepUnavailable
+		case string(deliveryramp.DispositionPass), "passed":
+			disposition = deliveryramp.StepPassed
+		case string(deliveryramp.DispositionDegraded):
+			disposition = deliveryramp.StepDegraded
+		case string(deliveryramp.DispositionUnavailable), string(deliveryramp.DispositionUnsupported), string(deliveryramp.DispositionNotRun):
+			disposition = deliveryramp.StepUnavailable
 		}
 	}
-	step := JourneyStep{
+	step := deliveryramp.JourneyStep{
 		ID: "workflow", Name: "semantic_workflow", Purpose: "Prove the provider-owned scenario workflow passes in the generated desktop target.",
 		Action: "workflow_execution", Disposition: disposition, AssertionID: assertionID,
 		ExpectedState: "provider workflow passed", ObservedState: observed, Error: reason,
@@ -598,7 +599,7 @@ func appendWorkflowChapter(journey *JourneyResult, reference *WorkflowExecutionR
 		step.Evidence = append(step.Evidence, reference.Artifacts...)
 	}
 	journey.Steps = append(journey.Steps, step)
-	journey.Events = append(journey.Events, JourneyEvent{Type: "workflow_completed", StepID: step.ID, Observed: observed, StartedAt: start, CompletedAt: end, MonotonicStartMs: monotonicStart, MonotonicEndMs: monotonicEnd, Reason: reason})
+	journey.Events = append(journey.Events, deliveryramp.JourneyEvent{Type: "workflow_completed", StepID: step.ID, Observed: observed, StartedAt: start, CompletedAt: end, MonotonicStartMs: monotonicStart, MonotonicEndMs: monotonicEnd, Reason: reason})
 	journey.CompletedAt = end
 }
 
@@ -606,7 +607,7 @@ func appendWorkflowChapter(journey *JourneyResult, reference *WorkflowExecutionR
 // verdict is not useful if it references the journey but omits the recording
 // that a reviewer must inspect. Reporting remains non-fatal to the local
 // smoke-test result, but its failure is recorded explicitly in status.
-func (s *DefaultService) reportJourneyEvidence(ctx context.Context, smokeTestID, platform string, journey *JourneyResult) {
+func (s *DefaultService) reportJourneyEvidence(ctx context.Context, smokeTestID, platform string, journey *deliveryramp.JourneyResult) {
 	if s.evidenceReporter == nil || journey == nil {
 		return
 	}
@@ -626,7 +627,7 @@ func (s *DefaultService) reportJourneyEvidence(ctx context.Context, smokeTestID,
 	}
 	reportErr := s.evidenceReporter.ReportJourney(ctx, EvidenceReportInput{
 		ProfileID: profileID, GitCommit: gitCommit, ScenarioName: status.ScenarioName,
-		Platform: platform, RunID: smokeTestID, Disposition: journey.Disposition,
+		Platform: platform, RunID: smokeTestID, Disposition: string(journey.Disposition),
 		Target: &domainv1.EvidenceTarget{Kind: domainv1.EvidenceTarget_KIND_LOCAL}, Captures: items,
 		Journey: journey, ProducerBaseURL: os.Getenv("SCENARIO_TO_DESKTOP_URL"),
 	})
@@ -649,7 +650,7 @@ func (s *DefaultService) recordEvidenceReportFailure(smokeTestID string, err err
 	})
 }
 
-func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID, artifactPath, platform string, journey *JourneyResult) error {
+func (s *DefaultService) writeEvidenceManifest(ctx context.Context, smokeTestID, artifactPath, platform string, journey *deliveryramp.JourneyResult) error {
 	if s.manifestWriter == nil || journey == nil || s.captures == nil {
 		return nil
 	}

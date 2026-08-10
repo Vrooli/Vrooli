@@ -1,6 +1,7 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-09T16:47:23-04:00"
+    "last_validated_at": "2026-08-10T10:56:58-04:00",
+    "shared_contract_owner": "packages/delivery-ramp-go"
   },
   "requirements": [
     {
@@ -68,7 +69,7 @@
       "title": "Provider and communication journeys report honest routes",
       "status": "complete",
       "prd_ref": "OT-P0-005",
-      "description": "Bundled-private, Tier 2 to Tier 1 thin-client, shared-resource, and private-fallback capabilities have dedicated machine contracts and credential-free provider observations; native release evidence remains environment-gated.",
+      "description": "Bundled-private, Tier 2 to Tier 1 thin-client, shared-resource, and private-fallback capabilities have dedicated machine contracts and credential-free provider observations; provider-neutral journey and release-gate semantics are owned by packages/delivery-ramp-go, while native release evidence remains environment-gated.",
       "validation": [
         {
           "type": "test",

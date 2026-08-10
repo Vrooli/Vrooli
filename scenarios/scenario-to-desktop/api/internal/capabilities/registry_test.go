@@ -2,24 +2,28 @@ package capabilities
 
 import (
 	"context"
-	"strings"
+	"encoding/json"
 	"testing"
 	"time"
 
 	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 )
 
-func TestRegistryDescribesDeclaredDependencies(t *testing.T) {
+func TestRegistryDoesNotDescribeManifestDependencies(t *testing.T) {
 	registry := capabilityRegistryForTest()
 	data, err := registry.Describe(context.Background())
 	if err != nil {
 		t.Fatalf("Describe() error = %v", err)
 	}
-	body := string(data)
-	for _, slug := range []string{"agent-manager", "deployment-manager", "vrooli-bridge"} {
-		if !strings.Contains(body, `"dependencySlug":"`+slug+`"`) {
-			t.Fatalf("description does not contain %q: %s", slug, body)
-		}
+	var payload struct {
+		Definitions []Def   `json:"definitions"`
+		States      []State `json:"states"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Definitions) != 0 || len(payload.States) != 0 {
+		t.Fatalf("description duplicates manifest dependencies: %s", data)
 	}
 }
 

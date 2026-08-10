@@ -4,6 +4,11 @@ Deployment Tier 2 is a portable desktop application for Windows, macOS, or
 Linux. It is a target, not a commercial subscription level. See the [Deployment
 Hub](../../../../docs/deployment/README.md) for the distinction.
 
+The shared delivery validation contract is owned by
+`packages/delivery-ramp-go`. Tier 2 documentation describes the desktop
+target and its routes; the spine owns target capability, matrix, transport,
+journey evidence, disposition, and reference-only verdict semantics.
+
 ## Target contract
 
 A desktop release must make its runtime shape explicit:

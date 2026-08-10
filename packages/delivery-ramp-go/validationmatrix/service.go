@@ -416,17 +416,9 @@ func (s *Service) executeCell(ctx context.Context, runID string, record *CellRec
 		var result CellResult
 		switch record.TargetKind {
 		case TargetLocal:
-			if s.executors.Local == nil {
-				result = unavailableResult("local target adapter is unavailable")
-			} else {
-				result = s.executors.Local.ExecuteLocal(ctx, request)
-			}
+			result = s.executors.Execute(ctx, TargetLocal, request)
 		case TargetBridge:
-			if s.executors.Bridge == nil {
-				result = unavailableResult("bridge target adapter is unavailable")
-			} else {
-				result = s.executors.Bridge.ExecuteBridge(ctx, request)
-			}
+			result = s.executors.Execute(ctx, TargetBridge, request)
 		default:
 			result = unavailableResult("target adapter kind is unavailable")
 		}
@@ -473,8 +465,7 @@ func journeySelection(journeys []JourneySelection, id string) JourneySelection {
 func targetSelection(targets []TargetSelection, id string) *domainv1.ValidationTargetDescriptor {
 	for _, target := range targets {
 		if target.Descriptor != nil && target.Descriptor.GetTargetId() == id {
-			clone := *target.Descriptor
-			return &clone
+			return proto.Clone(target.Descriptor).(*domainv1.ValidationTargetDescriptor)
 		}
 	}
 	return nil
@@ -561,10 +552,6 @@ func initialCellState(cell *domainv1.ValidationCell) CellState {
 		return CellFailed
 	}
 	return CellQueued
-}
-
-func hasCapabilities(have, required []domainv1.ValidationTargetCapability) bool {
-	return firstMissingCapability(have, required) == domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_UNSPECIFIED
 }
 
 func firstMissingCapability(have, required []domainv1.ValidationTargetCapability) domainv1.ValidationTargetCapability {

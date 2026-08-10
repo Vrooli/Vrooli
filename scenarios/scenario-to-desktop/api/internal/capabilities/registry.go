@@ -26,41 +26,15 @@ const (
 	StatusUnavailable       = capabilityregistry.StatusUnavailable
 )
 
-// Known is the public integration contract for scenario-to-desktop's declared
-// scenario dependencies. It is also the source fallback used when the API is
-// not running, so keep each declared dependency represented here.
-var Known = []Def{
-	{
-		ID:              "agent-manager",
-		Name:            "Agent Manager",
-		Description:     "Agent orchestration for pipeline investigations.",
-		DependencyKind:  DependencyScenario,
-		DependencySlug:  "agent-manager",
-		ActionKind:      ActionKindScenarioStart,
-		ActionLabel:     "Start Agent Manager",
-		OperatorCommand: "vrooli scenario start agent-manager --json",
-	},
-	{
-		ID:              "deployment-manager",
-		Name:            "Deployment Manager",
-		Description:     "Bundle manifest generation for bundled desktop runtimes.",
-		DependencyKind:  DependencyScenario,
-		DependencySlug:  "deployment-manager",
-		ActionKind:      ActionKindScenarioStart,
-		ActionLabel:     "Start Deployment Manager",
-		OperatorCommand: "vrooli scenario start deployment-manager --json",
-	},
-	{
-		ID:              "vrooli-bridge",
-		Name:            "Vrooli Bridge",
-		Description:     "Trusted dispatch and target identity for optional remote desktop validation.",
-		DependencyKind:  DependencyScenario,
-		DependencySlug:  "vrooli-bridge",
-		ActionKind:      ActionKindScenarioStart,
-		ActionLabel:     "Start Vrooli Bridge",
-		OperatorCommand: "vrooli scenario start vrooli-bridge --json",
-	},
+type RegistryMetadata struct {
+	Platform capabilityregistry.PlatformVerdict `json:"platform"`
 }
+
+var Metadata = RegistryMetadata{Platform: capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformDegraded, Reason: "Desktop generation is host-neutral, but bundled artifacts and remote validation depend on the selected host OS and delivery path."}}
+
+// Known contains optional capabilities only. service.json is the source of
+// truth for declared dependencies.
+var Known = []Def{}
 
 // NewRegistry is the single construction seam for the API capability
 // description. The control plane is the authority for dependency reachability;

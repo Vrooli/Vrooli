@@ -10,6 +10,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.11.1
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
@@ -45,8 +46,8 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
-	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
+	github.com/vrooli/vrooli/packages/delivery-ramp-go v0.0.0
 	golang.org/x/sys v0.46.0 // indirect
 	modernc.org/libc v1.74.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -60,6 +61,8 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
+
+replace github.com/vrooli/vrooli/packages/delivery-ramp-go => ../../../packages/delivery-ramp-go
 
 replace github.com/vrooli/vrooli => ../../..
 

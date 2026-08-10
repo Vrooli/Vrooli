@@ -73,7 +73,8 @@ type TargetSelection struct {
 }
 
 // CatalogResolver is the provider-neutral discovery seam. Implementations
-// may be backed by workflow-health, scenario-to-desktop, or a bridge target
+// may be backed by a workflow catalog, a ramp target inventory, or a bridge
+// target
 // inventory; the matrix service only consumes the normalized records.
 type CatalogResolver interface {
 	Resolve(context.Context, string) (CatalogSnapshot, error)
@@ -116,7 +117,7 @@ func (s MatrixSelection) WithCatalog(ctx context.Context, catalog CatalogResolve
 
 // CellRecord wraps the proto cell with durable execution metadata. The proto
 // remains the cross-scenario evidence contract; this metadata is owned by the
-// scenario-to-desktop orchestration service.
+// ramp orchestration service.
 type CellRecord struct {
 	Cell       *domainv1.ValidationCell `json:"cell"`
 	RowID      string                   `json:"row_id"`
@@ -182,22 +183,43 @@ type CellResult struct {
 	Reason      string
 	Evidence    []*domainv1.LayeredEvidence
 	Retryable   bool
+	Identity    ExecutionIdentity
 }
 
-// LocalExecutor and BridgeExecutor are intentionally typed separately. The
-// bridge contract dispatches jobs and returns evidence; it does not expose a
-// remote desktop stream or make Test Genie aware of a provider.
-type LocalExecutor interface {
-	ExecuteLocal(context.Context, CellRequest) CellResult
+type ExecutionIdentity struct {
+	NodeID         string `json:"node_id,omitempty"`
+	JobID          string `json:"job_id,omitempty"`
+	RunID          string `json:"run_id,omitempty"`
+	ArtifactDigest string `json:"artifact_digest,omitempty"`
 }
 
-type BridgeExecutor interface {
-	ExecuteBridge(context.Context, CellRequest) CellResult
+// CellTransport is the single execution seam for local and bridge cells. The
+// transport owns reachability; the ramp-owned driver remains responsible for
+// producing target evidence. A bridge dispatch therefore cannot become a
+// desktop pass without evidence from the target.
+type CellTransport interface {
+	Execute(context.Context, CellRequest) CellResult
 }
 
 type Executors struct {
-	Local  LocalExecutor
-	Bridge BridgeExecutor
+	Local  CellTransport
+	Bridge CellTransport
+}
+
+func (e Executors) Execute(ctx context.Context, kind TargetKind, request CellRequest) CellResult {
+	var transport CellTransport
+	switch kind {
+	case TargetLocal:
+		transport = e.Local
+	case TargetBridge:
+		transport = e.Bridge
+	default:
+		return unavailableResult("cell target transport is unspecified")
+	}
+	if transport == nil {
+		return unavailableResult(fmt.Sprintf("%s cell transport is unavailable", kind))
+	}
+	return transport.Execute(ctx, request)
 }
 
 // ReleaseReporter is the deployment-manager integration seam. The reporter

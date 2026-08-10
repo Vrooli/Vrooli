@@ -15,9 +15,10 @@ import (
 	"scenario-to-desktop-api/livedesktop"
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/target"
-	"scenario-to-desktop-api/validationmatrix"
 	"scenario-to-desktop-api/validationprovider"
 
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 )
 
@@ -51,10 +52,11 @@ type validationMatrixLocalExecutor struct {
 	captures     *captures.Service
 	desktop      validationDesktopOwner
 	workflow     validationWorkflowExecutor
+	builder      deliveryramp.Builder
 	scenarioRoot string
 }
 
-func (e validationMatrixLocalExecutor) ExecuteLocal(ctx context.Context, request validationmatrix.CellRequest) validationmatrix.CellResult {
+func (e validationMatrixLocalExecutor) Execute(ctx context.Context, request validationmatrix.CellRequest) validationmatrix.CellResult {
 	if e.smokeService == nil || e.smokeStore == nil || e.findArtifact == nil || request.Cell == nil {
 		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "local desktop validation adapter is unavailable"}
 	}
@@ -110,6 +112,15 @@ func (e validationMatrixLocalExecutor) ExecuteLocal(ctx context.Context, request
 
 func (e validationMatrixLocalExecutor) findValidationArtifact(request validationmatrix.CellRequest) (string, error) {
 	scenarioName := request.Cell.GetScenarioName()
+	if e.builder != nil {
+		artifact, err := e.builder.Build(context.Background(), deliveryramp.BuildRequest{SourceRef: scenarioName})
+		if err == nil && strings.TrimSpace(artifact.LocalPath) != "" {
+			return artifact.LocalPath, nil
+		}
+		if err != nil {
+			return "", err
+		}
+	}
 	if finder, ok := e.findArtifact.(validationArtifactByDigestFinder); ok && strings.TrimSpace(request.ArtifactDigest) != "" {
 		return finder.FindArtifactByDigest(scenarioName, request.ArtifactDigest)
 	}

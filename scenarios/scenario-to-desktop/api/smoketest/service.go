@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/procmetrics"
@@ -222,8 +223,8 @@ type EvidenceManifestInput struct {
 	Profile                 string
 	StartedAt               time.Time
 	CompletedAt             time.Time
-	Journey                 *JourneyResult
-	WorkflowReference       *WorkflowExecutionReference
+	Journey                 *deliveryramp.JourneyResult
+	WorkflowReference       *deliveryramp.WorkflowExecutionReference
 	Captures                []captures.Capture
 	GovernanceReported      bool
 	ProtocolTracePath       string
@@ -259,7 +260,7 @@ type EvidenceReportInput struct {
 	Disposition     string
 	Target          *domainv1.EvidenceTarget
 	Captures        []captures.Capture
-	Journey         *JourneyResult
+	Journey         *deliveryramp.JourneyResult
 	ProducerBaseURL string
 }
 

@@ -13,14 +13,33 @@ import (
 
 type localFunc func(context.Context, CellRequest) CellResult
 
-func (f localFunc) ExecuteLocal(ctx context.Context, request CellRequest) CellResult {
+func (f localFunc) Execute(ctx context.Context, request CellRequest) CellResult {
 	return f(ctx, request)
 }
 
-type bridgeFunc func(context.Context, CellRequest) CellResult
+type recordingTransport struct {
+	calls int
+}
 
-func (f bridgeFunc) ExecuteBridge(ctx context.Context, request CellRequest) CellResult {
-	return f(ctx, request)
+const referenceCDPCapability = domainv1.ValidationTargetCapability(1)
+
+func (t *recordingTransport) Execute(context.Context, CellRequest) CellResult {
+	t.calls++
+	return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS, Reason: "fake transport executed"}
+}
+
+func TestLocalAndBridgeCellsUseTheSameTransportEntryPoint(t *testing.T) {
+	transport := &recordingTransport{}
+	executors := Executors{Local: transport, Bridge: transport}
+	for _, kind := range []TargetKind{TargetLocal, TargetBridge} {
+		result := executors.Execute(context.Background(), kind, CellRequest{})
+		if result.Disposition != domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS {
+			t.Fatalf("%s result = %+v", kind, result)
+		}
+	}
+	if transport.calls != 2 {
+		t.Fatalf("transport calls = %d, want 2 through one Execute method", transport.calls)
+	}
 }
 
 type recordingReporter struct {
@@ -98,9 +117,9 @@ func TestCreatePersistsImmutableMatrixSelectionAndPreflightDispositions(t *testi
 	selection := MatrixSelection{
 		ScenarioName:   "hello-desktop",
 		ArtifactDigest: "sha256:artifact",
-		Journeys:       []JourneySelection{{JourneyID: "journey", DisplayName: "Journey", Required: true, RequiredCapabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_ELECTRON_CDP}}},
+		Journeys:       []JourneySelection{{JourneyID: "journey", DisplayName: "Journey", Required: true, RequiredCapabilities: []domainv1.ValidationTargetCapability{referenceCDPCapability}}},
 		Targets: []TargetSelection{
-			{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "local", DisplayName: "Local", Available: true, Capabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_ELECTRON_CDP}}},
+			{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "local", DisplayName: "Local", Available: true, Capabilities: []domainv1.ValidationTargetCapability{referenceCDPCapability}}},
 			{Kind: TargetBridge, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "offline", DisplayName: "Offline", Available: false}},
 		},
 		EnvironmentProfiles: []domainv1.ValidationEnvironmentProfile{domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL},
@@ -219,7 +238,7 @@ func TestServiceFailsClosedForUnsupportedAndUnavailableCells(t *testing.T) {
 }
 
 func TestComputeApplicabilityTruthTable(t *testing.T) {
-	capability := domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_ELECTRON_CDP
+	capability := referenceCDPCapability
 	target := &domainv1.ValidationTargetDescriptor{TargetId: "local", Available: true, Capabilities: []domainv1.ValidationTargetCapability{capability, domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_OFFLINE_NETWORK}}
 	tests := []struct {
 		name        string
@@ -298,9 +317,9 @@ func TestServicePersistsMixedTerminalDispositionsWithoutFalsePass(t *testing.T) 
 	}
 	selection := baseSelection()
 	selection.Targets = []TargetSelection{
-		{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "pass", Available: true, Capabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_ELECTRON_CDP}}},
-		{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "failed", Available: true, Capabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_ELECTRON_CDP}}},
-		{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "refused", Available: true, Capabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_ELECTRON_CDP}}},
+		{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "pass", Available: true, Capabilities: []domainv1.ValidationTargetCapability{referenceCDPCapability}}},
+		{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "failed", Available: true, Capabilities: []domainv1.ValidationTargetCapability{referenceCDPCapability}}},
+		{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "refused", Available: true, Capabilities: []domainv1.ValidationTargetCapability{referenceCDPCapability}}},
 		{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "unsupported", Available: true}},
 		{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "unavailable", Available: false}},
 	}
@@ -546,8 +565,8 @@ func baseSelection() MatrixSelection {
 	return MatrixSelection{
 		ScenarioName:        "hello-desktop",
 		ArtifactDigest:      "sha256:artifact",
-		Journeys:            []JourneySelection{{JourneyID: "journey", DisplayName: "Journey", Required: true, RequiredCapabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_ELECTRON_CDP}}},
-		Targets:             []TargetSelection{{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "local", DisplayName: "Local", Available: true, Capabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_ELECTRON_CDP}}}},
+		Journeys:            []JourneySelection{{JourneyID: "journey", DisplayName: "Journey", Required: true, RequiredCapabilities: []domainv1.ValidationTargetCapability{referenceCDPCapability}}},
+		Targets:             []TargetSelection{{Kind: TargetLocal, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "local", DisplayName: "Local", Available: true, Capabilities: []domainv1.ValidationTargetCapability{referenceCDPCapability}}}},
 		EnvironmentProfiles: []domainv1.ValidationEnvironmentProfile{domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL},
 	}
 }

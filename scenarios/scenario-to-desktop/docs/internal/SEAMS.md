@@ -16,6 +16,13 @@ contributors where to place code and tests.
 | Deployment handoff | `api/deploy/` | Call deployment-manager or LPBS with a typed target request. |
 | Preflight | `api/preflight/` | Start a staged runtime and verify readiness before packaging. |
 | Smoke evidence | `api/smoketest/` and `api/captures/` | Run the desktop journey, persist assertions, and retain capture references. |
+
+The provider-neutral delivery contract is owned by
+`packages/delivery-ramp-go`. This scenario is its desktop ramp: it supplies
+the Prober, Builder, Driver, and Distributor adapters and keeps Electron,
+display management, xdotool, ffmpeg, capture storage, and public endpoint
+serialization at the scenario edge. New validation semantics belong in the
+shared package; new desktop mechanics belong here behind an exported seam.
 | Records | `api/records/` | Persist generated-app and pipeline records. |
 | Signing | `api/signing/` | Validate signing configuration and generate signing inputs. It does not own release authority. |
 | Telemetry | `api/telemetry/` and `runtime/telemetry/` | Record local lifecycle events and expose redacted operational metadata. |
@@ -89,4 +96,3 @@ contract can express the expectation.
 - [Telemetry](../reference/telemetry.md)
 - [Security posture](SECURITY-POSTURE.md)
 - [Invariants](INVARIANTS.md)
-

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"runtime"
 	"strings"
 	"time"
 
@@ -27,18 +26,34 @@ type DeploymentReporter struct {
 	client   DeploymentEvidenceClient
 	profile  string
 	commit   string
+	producer string
+	ramp     string
 	platform string
+	os       string
 }
 
 func NewDeploymentReporter(client DeploymentEvidenceClient, profileID, gitCommit string) *DeploymentReporter {
-	return &DeploymentReporter{client: client, profile: profileID, commit: gitCommit, platform: runtime.GOOS}
+	return &DeploymentReporter{client: client, profile: profileID, commit: gitCommit, producer: "delivery-ramp", ramp: "delivery-ramp", platform: "unknown", os: "unknown"}
 }
 
-func NewDeploymentReporterFromURL(baseURL, profileID, gitCommit string, httpClient *http.Client) *DeploymentReporter {
+func WithDeploymentIdentity(producer, ramp, platform, operatingSystem string) func(*DeploymentReporter) {
+	return func(reporter *DeploymentReporter) {
+		reporter.producer, reporter.ramp = strings.TrimSpace(producer), strings.TrimSpace(ramp)
+		reporter.platform, reporter.os = strings.TrimSpace(platform), strings.TrimSpace(operatingSystem)
+	}
+}
+
+func NewDeploymentReporterFromURL(baseURL, profileID, gitCommit string, httpClient *http.Client, options ...func(*DeploymentReporter)) *DeploymentReporter {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 30 * time.Second}
 	}
-	return NewDeploymentReporter(evidencev1connect.NewEvidenceServiceClient(httpClient, strings.TrimRight(baseURL, "/")), profileID, gitCommit)
+	reporter := NewDeploymentReporter(evidencev1connect.NewEvidenceServiceClient(httpClient, strings.TrimRight(baseURL, "/")), profileID, gitCommit)
+	for _, option := range options {
+		if option != nil {
+			option(reporter)
+		}
+	}
+	return reporter
 }
 
 func (r *DeploymentReporter) ReportValidationGate(ctx context.Context, verdict ReleaseVerdict) error {
@@ -59,7 +74,7 @@ func (r *DeploymentReporter) ReportValidationGate(ctx context.Context, verdict R
 		ArtifactDigest string           `json:"artifact_digest"`
 		Gate           *ReleaseGateView `json:"gate"`
 	}{
-		Producer:       "scenario-to-desktop",
+		Producer:       r.producer,
 		MatrixID:       verdict.MatrixID,
 		ScenarioName:   verdict.ScenarioName,
 		ArtifactDigest: verdict.ArtifactDigest,
@@ -73,9 +88,9 @@ func (r *DeploymentReporter) ReportValidationGate(ctx context.Context, verdict R
 		if evidence == nil {
 			continue
 		}
-		refs = append(refs, &commonv1.EvidenceRef{Producer: "scenario-to-desktop", ArtifactId: evidence.GetEvidenceId(), Kind: evidence.GetKind().String(), Checksum: evidence.GetSha256()})
+		refs = append(refs, &commonv1.EvidenceRef{Producer: r.producer, ArtifactId: evidence.GetEvidenceId(), Kind: evidence.GetKind().String(), Checksum: evidence.GetSha256()})
 	}
-	target := &commonv1.EvidenceTarget{Ramp: "scenario-to-desktop", Platform: r.platform, Os: r.platform, DeviceKind: commonv1.DeviceKind_DEVICE_KIND_HOST}
+	target := &commonv1.EvidenceTarget{Ramp: r.ramp, Platform: r.platform, Os: r.os, DeviceKind: commonv1.DeviceKind_DEVICE_KIND_HOST}
 	_, err = r.client.ReportTargetVerdict(ctx, connect.NewRequest(&evidencev1.ReportTargetVerdictRequest{ProfileId: r.profile, GitCommitHash: r.commit, Verdict: &commonv1.TargetVerdict{Target: target, Disposition: disposition, Refs: refs, RunId: verdict.RunID, Detail: string(detail)}}))
 	if err != nil {
 		return fmt.Errorf("report matrix release verdict: %w", err)

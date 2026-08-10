@@ -7,14 +7,9 @@ import (
 	"testing"
 )
 
-func TestKnownCapabilitiesHaveOperatorContracts(t *testing.T) {
-	if len(Known) < 3 {
-		t.Fatalf("known capabilities = %d", len(Known))
-	}
-	for _, definition := range Known {
-		if definition.ID == "" || definition.DependencySlug == "" || definition.ActionKind == "" || definition.OperatorCommand == "" {
-			t.Errorf("incomplete capability: %#v", definition)
-		}
+func TestKnownCapabilitiesDoNotDuplicateManifestDependencies(t *testing.T) {
+	if len(Known) != 0 {
+		t.Fatalf("manifest dependencies must not be repeated in Known: %#v", Known)
 	}
 }
 

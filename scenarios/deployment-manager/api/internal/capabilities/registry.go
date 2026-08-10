@@ -10,6 +10,19 @@ import (
 	"strings"
 )
 
+type PlatformVerdict struct {
+	Support string `json:"support,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+}
+
+// RegistryMetadata describes deployment planning itself. Manifest
+// dependencies remain in service.json and are not repeated in Known.
+type RegistryMetadata struct {
+	Platform PlatformVerdict `json:"platform"`
+}
+
+var Metadata = RegistryMetadata{Platform: PlatformVerdict{Support: "supported", Reason: "Deployment planning is host-neutral; the resolver evaluates the selected delivery tier and host OS."}}
+
 type Definition struct {
 	ID              string
 	Description     string
@@ -18,37 +31,12 @@ type Definition struct {
 	ActionKind      string
 	ActionLabel     string
 	OperatorCommand string
+	Platform        PlatformVerdict
 }
 
-var Known = []Definition{
-	{
-		ID:              "scenario-dependency-analyzer",
-		Description:     "Dependency graph facts used for deployment analysis and target fitness.",
-		DependencyKind:  "scenario",
-		DependencySlug:  "scenario-dependency-analyzer",
-		ActionKind:      "scenario_start",
-		ActionLabel:     "Start Scenario Dependency Analyzer",
-		OperatorCommand: "vrooli scenario start scenario-dependency-analyzer --json",
-	},
-	{
-		ID:              "secrets-manager",
-		Description:     "Secret classification and template support for deployment planning and bundle assembly.",
-		DependencyKind:  "scenario",
-		DependencySlug:  "secrets-manager",
-		ActionKind:      "scenario_start",
-		ActionLabel:     "Start Secrets Manager",
-		OperatorCommand: "vrooli scenario start secrets-manager --json",
-	},
-	{
-		ID:              "swarm-manager",
-		Description:     "Optional backlog and review task integration for approved migration work.",
-		DependencyKind:  "scenario",
-		DependencySlug:  "swarm-manager",
-		ActionKind:      "scenario_start",
-		ActionLabel:     "Start Swarm Manager",
-		OperatorCommand: "vrooli scenario start swarm-manager --json",
-	},
-}
+// Known contains optional capabilities only. service.json is the source of
+// truth for declared dependencies.
+var Known = []Definition{}
 
 type Status string
 

@@ -4,11 +4,56 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+// TestDirectoryScenarioListerRequiresScenarioManifest pins the rule that makes a
+// directory under scenarios/ a scenario. scenarios/ also collects directories
+// that were never scenarios — leftover coverage/ trees from deleted scenarios,
+// and artifact roots earlier tooling created for resource and package names.
+// Listing those produced permanent 0/100 rows and kept the strays looking alive.
+func TestDirectoryScenarioListerRequiresScenarioManifest(t *testing.T) {
+	root := t.TempDir()
+
+	writeScenario := func(name string) {
+		t.Helper()
+		dir := filepath.Join(root, name, ".vrooli")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "service.json"), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeScenario("real-one")
+	writeScenario("real-two")
+
+	// A stray with only the coverage tree a run index leaves behind.
+	if err := os.MkdirAll(filepath.Join(root, "minio", "coverage"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A stray with no contents at all.
+	if err := os.MkdirAll(filepath.Join(root, "maturity-go"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	refs, err := DirectoryScenarioLister{}.ListScenarios(root)
+	if err != nil {
+		t.Fatalf("ListScenarios: %v", err)
+	}
+	var names []string
+	for _, ref := range refs {
+		names = append(names, ref.Name)
+	}
+	if got, want := strings.Join(names, ","), "real-one,real-two"; got != want {
+		t.Fatalf("ListScenarios = [%s], want [%s]", got, want)
+	}
+}
 
 func TestSweeperDigestSkipAvoidsScoring(t *testing.T) {
 	repo := newFakeSnapshotRepo()

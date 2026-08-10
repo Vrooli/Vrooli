@@ -1,7 +1,8 @@
-package bridgevalidation
+package validationmatrix
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -9,7 +10,6 @@ import (
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
-	"scenario-to-desktop-api/validationmatrix"
 )
 
 type fakeRegistry struct {
@@ -37,9 +37,22 @@ func (f fakeRuns) WaitRun(_ context.Context, request *connect.Request[runsv1.Wai
 	return connect.NewResponse(&runsv1.WaitRunResponse{Run: &runsv1.Run{Id: request.Msg.Id, Status: f.status}}), nil
 }
 
+type blockingDispatcher struct{}
+
+func (blockingDispatcher) DispatchJob(ctx context.Context, _ *connect.Request[dispatchv1.DispatchJobRequest]) (*connect.Response[dispatchv1.DispatchJobResponse], error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+type timeoutRuns struct{}
+
+func (timeoutRuns) WaitRun(context.Context, *connect.Request[runsv1.WaitRunRequest]) (*connect.Response[runsv1.WaitRunResponse], error) {
+	return nil, context.DeadlineExceeded
+}
+
 func TestDiscoverMapsBridgeIdentityAndCapabilities(t *testing.T) {
 	client := NewClientForTesting(fakeRegistry{nodes: []*registryv1.Node{
-		{Id: "node-1", Name: "Linux runner", Os: "linux", Arch: "amd64", Online: true, Status: registryv1.NodeStatus_NODE_STATUS_ONLINE, Capabilities: []string{"electron-cdp", "native-window", "process-metrics"}, Scopes: []string{"scenario test*"}},
+		{Id: "node-1", Name: "Linux runner", Os: "linux", Arch: "amd64", Online: true, Status: registryv1.NodeStatus_NODE_STATUS_ONLINE, Capabilities: []string{"cdp", "native-window", "process-metrics"}, Scopes: []string{"scenario test*"}},
 		{Id: "node-2", Name: "Offline runner", Online: false, Status: registryv1.NodeStatus_NODE_STATUS_OFFLINE},
 	}}, nil, nil)
 
@@ -50,16 +63,16 @@ func TestDiscoverMapsBridgeIdentityAndCapabilities(t *testing.T) {
 	if len(targets) != 2 {
 		t.Fatalf("targets = %d, want 2", len(targets))
 	}
-	if got := targets[0].Descriptor.GetTargetId(); got != "bridge:node-1" {
+	if got := targets[0].ID; got != "bridge:node-1" {
 		t.Fatalf("target id = %q", got)
 	}
-	if !targets[0].Descriptor.GetAvailable() || targets[0].NodeID != "node-1" {
+	if !targets[0].Available || targets[0].NodeID != "node-1" {
 		t.Fatalf("online node was not available: %#v", targets[0])
 	}
 	if targets[0].Health.Status != "healthy" || targets[0].BridgeTrust == nil || !targets[0].BridgeTrust.DispatchAuthorized {
 		t.Fatalf("online node health/trust = %#v/%#v", targets[0].Health, targets[0].BridgeTrust)
 	}
-	if targets[1].Descriptor.GetAvailable() {
+	if targets[1].Available {
 		t.Fatal("offline node was reported available")
 	}
 	if targets[1].Health.Status != "offline" || targets[1].BridgeTrust == nil || targets[1].BridgeTrust.DispatchAuthorized {
@@ -67,10 +80,10 @@ func TestDiscoverMapsBridgeIdentityAndCapabilities(t *testing.T) {
 	}
 }
 
-func TestExecuteBridgeNeverClaimsDesktopPassWithoutTargetEvidence(t *testing.T) {
+func TestExecuteNeverClaimsDesktopPassWithoutTargetEvidence(t *testing.T) {
 	dispatcher := &fakeDispatcher{}
 	client := NewClientForTesting(nil, dispatcher, fakeRuns{status: runsv1.RunStatus_RUN_STATUS_PASSED})
-	result := client.ExecuteBridge(context.Background(), validationmatrix.CellRequest{RunID: "matrix-run", Cell: &domainv1.ValidationCell{ScenarioName: "demo", TargetId: "bridge:node-1"}})
+	result := client.Execute(context.Background(), CellRequest{RunID: "matrix-run", ArtifactDigest: "sha256:artifact", Cell: &domainv1.ValidationCell{ScenarioName: "demo", TargetId: "bridge:node-1"}})
 
 	if result.Disposition != domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED {
 		t.Fatalf("disposition = %s, want degraded", result.Disposition)
@@ -78,12 +91,18 @@ func TestExecuteBridgeNeverClaimsDesktopPassWithoutTargetEvidence(t *testing.T) 
 	if len(result.Evidence) != 1 || result.Evidence[0].GetKind() != domainv1.LayeredEvidence_KIND_TARGET {
 		t.Fatalf("bridge evidence = %#v", result.Evidence)
 	}
+	if result.Identity.NodeID != "node-1" || result.Identity.JobID != "run-1" || result.Identity.RunID != "run-1" || result.Identity.ArtifactDigest != "sha256:artifact" {
+		t.Fatalf("bridge identity = %+v", result.Identity)
+	}
+	if !strings.Contains(result.Evidence[0].GetUri(), "artifact=sha256%3Aartifact") {
+		t.Fatalf("bridge evidence lost artifact identity: %q", result.Evidence[0].GetUri())
+	}
 	if dispatcher.request.GetVerb() != "scenario test" || dispatcher.request.GetScenario() != "demo" {
 		t.Fatalf("typed dispatch request = %#v", dispatcher.request)
 	}
 }
 
-func TestExecuteBridgeMapsFailedAndAbortedRuns(t *testing.T) {
+func TestExecuteMapsFailedAndAbortedRuns(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		status runsv1.RunStatus
@@ -94,10 +113,28 @@ func TestExecuteBridgeMapsFailedAndAbortedRuns(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			client := NewClientForTesting(nil, &fakeDispatcher{}, fakeRuns{status: tc.status})
-			result := client.ExecuteBridge(context.Background(), validationmatrix.CellRequest{Cell: &domainv1.ValidationCell{ScenarioName: "demo", TargetId: "bridge:node-1"}})
+			result := client.Execute(context.Background(), CellRequest{Cell: &domainv1.ValidationCell{ScenarioName: "demo", TargetId: "bridge:node-1"}})
 			if result.Disposition != tc.want {
 				t.Fatalf("disposition = %s, want %s", result.Disposition, tc.want)
 			}
 		})
+	}
+}
+
+func TestExecuteConvertsDispatchCancellationToUnavailable(t *testing.T) {
+	client := NewClientForTesting(nil, blockingDispatcher{}, fakeRuns{})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	result := client.Execute(ctx, CellRequest{Cell: &domainv1.ValidationCell{ScenarioName: "demo", TargetId: "bridge:node-1"}})
+	if result.Disposition != domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE || !result.Retryable {
+		t.Fatalf("cancelled dispatch result = %+v", result)
+	}
+}
+
+func TestExecuteConvertsBridgeWaitTimeoutToDegraded(t *testing.T) {
+	client := NewClientForTesting(nil, &fakeDispatcher{}, timeoutRuns{})
+	result := client.Execute(context.Background(), CellRequest{Cell: &domainv1.ValidationCell{ScenarioName: "demo", TargetId: "bridge:node-1"}})
+	if result.Disposition != domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED || !result.Retryable {
+		t.Fatalf("timed out bridge result = %+v", result)
 	}
 }

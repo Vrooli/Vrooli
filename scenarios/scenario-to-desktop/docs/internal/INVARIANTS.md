@@ -17,6 +17,8 @@
 
 ## Important Invariants
 
+| Provider-neutral journey, evidence, target, matrix, transport, and disposition semantics are defined once in `packages/delivery-ramp-go` | Cross-ramp contract ownership | Shared package tests and the reference-ramp conformance test | Scenario adapter and baseline validation |
+
 | Invariant | Domain Concept | Enforcement |
 |-----------|----------------|-------------|
 | CORS origins default to localhost-only if misconfigured | Security default-deny | `CORSMiddleware` falls back to `http://localhost:{UI_PORT}` |

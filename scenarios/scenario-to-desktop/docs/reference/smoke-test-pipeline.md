@@ -19,6 +19,12 @@ The smoke test stage:
 
 ## Journey evidence contract
 
+The provider-neutral journey and evidence contract is owned by
+`packages/delivery-ramp-go`. This scenario supplies the desktop Driver and
+the capture/process/display adapters; the public smoke-test endpoints remain
+scenario-owned projections over the shared result. The shared runner is the
+release-gate seam used by future deployment ramps.
+
 When visual evidence is enabled, the normal run launches a second, non-smoke
 demo process on the recording display and executes the registered capability
 plan. Hello Desktop is registered as `hello-desktop`; the generic runner has no

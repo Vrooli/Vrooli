@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/smoketest"
 )
@@ -23,15 +24,15 @@ const (
 // Raw traces remain producer artifacts; a baseline stores only their stable
 // phase and role projections.
 type PerformanceSample struct {
-	RunID           string                    `json:"run_id"`
-	Class           MeasurementClass          `json:"class"`
-	HostFingerprint string                    `json:"host_fingerprint"`
-	ArtifactDigest  string                    `json:"artifact_digest"`
-	Display         string                    `json:"display"`
-	DeploymentMode  string                    `json:"deployment_mode"`
-	ProfilerMode    string                    `json:"profiler_mode"`
-	Phases          []PhaseDuration           `json:"phases"`
-	Roles           []procmetrics.RoleSummary `json:"roles,omitempty"`
+	RunID           string                       `json:"run_id"`
+	Class           MeasurementClass             `json:"class"`
+	HostFingerprint string                       `json:"host_fingerprint"`
+	ArtifactDigest  string                       `json:"artifact_digest"`
+	Display         string                       `json:"display"`
+	DeploymentMode  string                       `json:"deployment_mode"`
+	ProfilerMode    string                       `json:"profiler_mode"`
+	Phases          []deliveryramp.PhaseDuration `json:"phases"`
+	Roles           []procmetrics.RoleSummary    `json:"roles,omitempty"`
 }
 
 type PerformanceBaseline struct {
@@ -201,18 +202,9 @@ func slowestRole(samples []PerformanceSample) string {
 	return name
 }
 
-// PhaseDuration is a bounded, review-friendly projection of a launch trace.
-// The complete event stream remains available through the trace artifact.
-type PhaseDuration struct {
-	Name       string `json:"name"`
-	Available  bool   `json:"available"`
-	DurationMs int64  `json:"duration_ms,omitempty"`
-	Reason     string `json:"reason,omitempty"`
-}
-
 // LaunchPhaseDurations derives named segments without inferring missing
 // events as zero. This is the stable input to later cold/warm aggregation.
-func LaunchPhaseDurations(trace smoketest.LaunchTrace) []PhaseDuration {
+func LaunchPhaseDurations(trace smoketest.LaunchTrace) []deliveryramp.PhaseDuration {
 	segments := []struct {
 		name       string
 		start, end smoketest.LaunchEventName
@@ -222,14 +214,14 @@ func LaunchPhaseDurations(trace smoketest.LaunchTrace) []PhaseDuration {
 		{"runtime_spawn_to_ready", smoketest.EventRuntimeSpawned, smoketest.EventRuntimeReady},
 		{"server_to_app_ready", smoketest.EventServerReady, smoketest.EventAppReady},
 	}
-	result := make([]PhaseDuration, 0, len(segments))
+	result := make([]deliveryramp.PhaseDuration, 0, len(segments))
 	for _, segment := range segments {
 		duration, err := trace.Segment(segment.start, segment.end)
 		if err != nil {
-			result = append(result, PhaseDuration{Name: segment.name, Reason: err.Error()})
+			result = append(result, deliveryramp.PhaseDuration{Name: segment.name, Reason: err.Error()})
 			continue
 		}
-		result = append(result, PhaseDuration{Name: segment.name, Available: true, DurationMs: duration.Milliseconds()})
+		result = append(result, deliveryramp.PhaseDuration{Name: segment.name, Available: true, DurationMs: duration.Milliseconds()})
 	}
 	return result
 }

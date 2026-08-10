@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/smoketest"
@@ -39,9 +40,9 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 		return fmt.Errorf("run ID and scenario name are required")
 	}
 
-	profile := Profile(strings.TrimSpace(input.Profile))
+	profile := deliveryramp.Profile(strings.TrimSpace(input.Profile))
 	if profile == "" {
-		profile = ProfileVisual
+		profile = deliveryramp.ProfileVisual
 	}
 	startedAt := input.StartedAt
 	if startedAt.IsZero() {
@@ -64,12 +65,12 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 		return fmt.Errorf("no persisted captures found for run %q", input.RunID)
 	}
 
-	manifest := Manifest{
-		SchemaVersion: ManifestSchemaVersion,
+	manifest := deliveryramp.Manifest{
+		SchemaVersion: deliveryramp.ManifestSchemaVersion,
 		RunID:         input.RunID,
 		Profile:       profile,
-		State:         StateFailed,
-		Target: Target{
+		State:         deliveryramp.StateFailed,
+		Target: deliveryramp.EvidenceTarget{
 			ID:         input.Journey.TargetID,
 			Ramp:       "scenario-to-desktop",
 			Platform:   strings.ToLower(strings.TrimSpace(input.Platform)),
@@ -77,7 +78,7 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 			DeviceKind: "host",
 		},
 		CellID: input.Journey.CellID,
-		Runner: Runner{
+		Runner: deliveryramp.Runner{
 			ID:           "linux-xvfb-openbox",
 			Kind:         "native",
 			HostOS:       "linux",
@@ -85,7 +86,7 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 			Isolation:    "xvfb",
 			Capabilities: []string{"xvfb", "openbox", "xdotool", "ffmpeg", "electron"},
 		},
-		Provenance: Provenance{
+		Provenance: deliveryramp.Provenance{
 			ArtifactDigest: artifactDigest,
 			GitCommit:      gitCommit(),
 			StartedAt:      startedAt,
@@ -95,7 +96,7 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 	if err := smoketest.ValidateJourneyTimeline(*input.Journey); err != nil {
 		return fmt.Errorf("validate journey timeline: %w", err)
 	}
-	manifest.Timeline = TimelineSummary{
+	manifest.Timeline = deliveryramp.TimelineSummary{
 		Version:          input.Journey.EvidenceVersion,
 		Capability:       input.Journey.Capability,
 		EventCount:       len(input.Journey.Events),
@@ -108,14 +109,14 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 		workflowReference = input.Journey.WorkflowReference
 	}
 	if workflowReference != nil {
-		manifest.Timeline.Workflow = &WorkflowReference{
+		manifest.Timeline.Workflow = &deliveryramp.WorkflowManifestReference{
 			Provider: workflowReference.Provider, AssetID: workflowReference.AssetID,
 			ExecutionID: workflowReference.ExecutionID, RunID: workflowReference.RunID,
 			ArtifactDigest: workflowReference.ArtifactDigest, TargetID: workflowReference.TargetID,
 			CellID: workflowReference.CellID, Disposition: workflowReference.Disposition,
 		}
 		for _, artifact := range workflowReference.Artifacts {
-			manifest.Timeline.Workflow.Artifacts = append(manifest.Timeline.Workflow.Artifacts, WorkflowArtifactReference{ID: artifact.ID, Kind: artifact.Kind, URI: artifact.URI, MediaType: artifact.MediaType, Checksum: artifact.Checksum, Redacted: artifact.Redacted})
+			manifest.Timeline.Workflow.Artifacts = append(manifest.Timeline.Workflow.Artifacts, deliveryramp.WorkflowManifestArtifact{ID: artifact.ID, Kind: artifact.Kind, URI: artifact.URI, MediaType: artifact.MediaType, Checksum: artifact.Checksum, Redacted: artifact.Redacted})
 		}
 	}
 	if input.Journey.ProviderObservation != nil {
@@ -241,21 +242,21 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 		}
 	}
 	persistenceOK = true
-	governanceOK := profile != ProfileReleaseVisual || input.GovernanceReported
+	governanceOK := profile != deliveryramp.ProfileReleaseVisual || input.GovernanceReported
 	protocolOK := true // this writer is invoked only after the protocol smoke succeeded.
 	visualOK := input.Journey.Disposition == "pass"
-	manifest.Gates = []GateResult{
-		gate(GateProtocol, protocolOK, "protocol smoke completed", startedAt, completedAt),
-		gate(GateVisual, visualOK, "usable application window and visual launch", startedAt, completedAt),
-		gate(GateJourney, journeyOK, "semantic desktop journey", startedAt, completedAt),
-		gate(GateCapture, recordingOK, "MP4 decoded with useful frames", startedAt, completedAt),
-		gate(GatePersistence, persistenceOK, "journey and recording captures persisted", startedAt, completedAt),
+	manifest.Gates = []deliveryramp.GateResult{
+		gate(deliveryramp.GateProtocol, protocolOK, "protocol smoke completed", startedAt, completedAt),
+		gate(deliveryramp.GateVisual, visualOK, "usable application window and visual launch", startedAt, completedAt),
+		gate(deliveryramp.GateJourney, journeyOK, "semantic desktop journey", startedAt, completedAt),
+		gate(deliveryramp.GateCapture, recordingOK, "MP4 decoded with useful frames", startedAt, completedAt),
+		gate(deliveryramp.GatePersistence, persistenceOK, "journey and recording captures persisted", startedAt, completedAt),
 	}
-	if profile == ProfileReleaseVisual {
-		manifest.Gates = append(manifest.Gates, gate(GateGovernance, governanceOK, "deployment-manager evidence report", startedAt, completedAt))
+	if profile == deliveryramp.ProfileReleaseVisual {
+		manifest.Gates = append(manifest.Gates, gate(deliveryramp.GateGovernance, governanceOK, "deployment-manager evidence report", startedAt, completedAt))
 	}
 	if allRequiredGatesPassed(manifest) {
-		manifest.State = StatePassed
+		manifest.State = deliveryramp.StatePassed
 	}
 	if err := manifest.Validate(); err != nil {
 		return fmt.Errorf("validate evidence manifest: %w", err)
@@ -316,8 +317,8 @@ func capturesForRun(items []captures.Capture, runID string) []captures.Capture {
 	return result
 }
 
-func artifactFromCapture(item captures.Capture, path string, inspection screenrecording.MediaInspection) Artifact {
-	return Artifact{
+func artifactFromCapture(item captures.Capture, path string, inspection screenrecording.MediaInspection) deliveryramp.Artifact {
+	return deliveryramp.Artifact{
 		ImmutableRef: "capture:" + item.ID,
 		LocalPath:    path,
 		Kind:         string(item.Type),
@@ -333,7 +334,7 @@ func artifactFromCapture(item captures.Capture, path string, inspection screenre
 	}
 }
 
-func recordingPathFor(artifacts []Artifact) string {
+func recordingPathFor(artifacts []deliveryramp.Artifact) string {
 	for _, artifact := range artifacts {
 		if artifact.Kind == string(captures.CaptureRecording) {
 			return artifact.LocalPath
@@ -342,13 +343,13 @@ func recordingPathFor(artifacts []Artifact) string {
 	return ""
 }
 
-func performanceArtifact(sourcePath, recordingPath string) (Artifact, error) {
+func performanceArtifact(sourcePath, recordingPath string) (deliveryramp.Artifact, error) {
 	data, err := os.ReadFile(sourcePath)
 	if err != nil {
-		return Artifact{}, fmt.Errorf("read performance artifact %q: %w", sourcePath, err)
+		return deliveryramp.Artifact{}, fmt.Errorf("read performance artifact %q: %w", sourcePath, err)
 	}
 	if len(data) == 0 {
-		return Artifact{}, fmt.Errorf("performance artifact %q is empty", sourcePath)
+		return deliveryramp.Artifact{}, fmt.Errorf("performance artifact %q is empty", sourcePath)
 	}
 	digest := sha256.Sum256(data)
 	checksum := "sha256:" + hex.EncodeToString(digest[:])
@@ -356,10 +357,10 @@ func performanceArtifact(sourcePath, recordingPath string) (Artifact, error) {
 	if recordingPath != "" {
 		destination = recordingPath + "." + filepath.Base(filepath.Dir(sourcePath)) + "." + filepath.Base(sourcePath)
 		if err := os.WriteFile(destination, data, 0o600); err != nil {
-			return Artifact{}, fmt.Errorf("persist performance artifact: %w", err)
+			return deliveryramp.Artifact{}, fmt.Errorf("persist performance artifact: %w", err)
 		}
 	}
-	return Artifact{
+	return deliveryramp.Artifact{
 		ImmutableRef: "performance:" + checksum,
 		LocalPath:    destination,
 		Kind:         "performance",
@@ -386,21 +387,21 @@ func gitCommit() string {
 	return "working-tree"
 }
 
-func gate(name GateName, passed bool, reason string, startedAt, completedAt time.Time) GateResult {
-	disposition := GateFailed
+func gate(name deliveryramp.GateName, passed bool, reason string, startedAt, completedAt time.Time) deliveryramp.GateResult {
+	disposition := deliveryramp.GateFailed
 	if passed {
-		disposition = GatePassed
+		disposition = deliveryramp.GatePassed
 	}
-	return GateResult{Name: name, Disposition: disposition, Required: true, Reason: reason, StartedAt: startedAt, CompletedAt: completedAt}
+	return deliveryramp.GateResult{Name: name, Disposition: disposition, Required: true, Reason: reason, StartedAt: startedAt, CompletedAt: completedAt}
 }
 
-func allRequiredGatesPassed(manifest Manifest) bool {
-	byName := make(map[GateName]GateResult, len(manifest.Gates))
+func allRequiredGatesPassed(manifest deliveryramp.Manifest) bool {
+	byName := make(map[deliveryramp.GateName]deliveryramp.GateResult, len(manifest.Gates))
 	for _, item := range manifest.Gates {
 		byName[item.Name] = item
 	}
-	for _, name := range RequiredGates(manifest.Profile) {
-		if byName[name].Disposition != GatePassed {
+	for _, name := range deliveryramp.RequiredGates(manifest.Profile) {
+		if byName[name].Disposition != deliveryramp.GatePassed {
 			return false
 		}
 	}

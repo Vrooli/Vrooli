@@ -31,7 +31,17 @@ type ScenarioLister interface {
 	ListScenarios(root string) ([]ScenarioRef, error)
 }
 
-// DirectoryScenarioLister lists first-level directories under scenariosRoot.
+// scenarioMarker is the manifest that makes a directory under scenarios/ a
+// scenario. It matches the `scenario` target marker in .vrooli/repo-contract.json;
+// the two must stay in step.
+const scenarioMarker = ".vrooli/service.json"
+
+// DirectoryScenarioLister lists first-level directories under scenariosRoot
+// that carry a scenario manifest. The manifest check is load-bearing, not
+// defensive: scenarios/ also accumulates directories that were never scenarios
+// (leftover coverage/ trees from deleted scenarios, and artifact roots created
+// by earlier tooling for resource and package names). Scoring those produced
+// permanent 0/100 rows and kept the stray directories looking alive.
 type DirectoryScenarioLister struct{}
 
 var _ ScenarioLister = DirectoryScenarioLister{}
@@ -50,9 +60,13 @@ func (DirectoryScenarioLister) ListScenarios(root string) ([]ScenarioRef, error)
 		if name == "" || strings.HasPrefix(name, ".") {
 			continue
 		}
+		scenarioRoot := filepath.Join(root, name)
+		if _, statErr := os.Stat(filepath.Join(scenarioRoot, filepath.FromSlash(scenarioMarker))); statErr != nil {
+			continue
+		}
 		scenarios = append(scenarios, ScenarioRef{
 			Name: name,
-			Root: filepath.Join(root, name),
+			Root: scenarioRoot,
 		})
 	}
 	sort.Slice(scenarios, func(i, j int) bool {

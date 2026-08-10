@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"scenario-to-desktop-api/validationmatrix"
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 )
 
 type staticResolver string

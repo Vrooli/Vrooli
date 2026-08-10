@@ -4,7 +4,7 @@
 // Bridge owns reachability, authorization, and durable remote job identity. It
 // does not own a desktop stream or BAS semantics; a dispatched job therefore
 // cannot become a desktop PASS without target-owned evidence.
-package bridgevalidation
+package validationmatrix
 
 import (
 	"context"
@@ -12,10 +12,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
 	"connectrpc.com/connect"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	dispatchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch/dispatch_v1connect"
@@ -23,8 +25,6 @@ import (
 	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry/registry_v1connect"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs/runs_v1connect"
-	"scenario-to-desktop-api/targetinventory"
-	"scenario-to-desktop-api/validationmatrix"
 )
 
 type Registry interface {
@@ -88,9 +88,9 @@ func NewClientForTesting(registry Registry, dispatcher Dispatcher, runs Runs) *C
 	return &Client{registry: registry, dispatcher: dispatcher, runs: runs}
 }
 
-func (c *Client) Discover(ctx context.Context) ([]targetinventory.Target, error) {
+func (c *Client) Discover(ctx context.Context) ([]deliveryramp.Target, error) {
 	if c == nil || c.registry == nil {
-		return []targetinventory.Target{unavailableTarget("bridge client is not configured")}, nil
+		return []deliveryramp.Target{unavailableTarget("bridge client is not configured")}, nil
 	}
 	response, err := c.registry.ListNodes(ctx, connect.NewRequest(&registryv1.ListNodesRequest{}))
 	if err != nil {
@@ -99,7 +99,7 @@ func (c *Client) Discover(ctx context.Context) ([]targetinventory.Target, error)
 	if response == nil || response.Msg == nil {
 		return nil, fmt.Errorf("bridge returned no node inventory")
 	}
-	targets := make([]targetinventory.Target, 0, len(response.Msg.Nodes))
+	targets := make([]deliveryramp.Target, 0, len(response.Msg.Nodes))
 	for _, node := range response.Msg.Nodes {
 		if node == nil {
 			continue
@@ -112,16 +112,16 @@ func (c *Client) Discover(ctx context.Context) ([]targetinventory.Target, error)
 	return targets, nil
 }
 
-func (c *Client) ExecuteBridge(ctx context.Context, request validationmatrix.CellRequest) validationmatrix.CellResult {
+func (c *Client) Execute(ctx context.Context, request CellRequest) CellResult {
 	if c == nil || c.dispatcher == nil || c.runs == nil {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "bridge durable dispatch is not configured"}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "bridge durable dispatch is not configured"}
 	}
 	if request.Cell == nil || strings.TrimSpace(request.Cell.GetTargetId()) == "" {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED, Reason: "bridge cell has no target identity"}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED, Reason: "bridge cell has no target identity"}
 	}
 	nodeID := strings.TrimPrefix(request.Cell.GetTargetId(), "bridge:")
 	if nodeID == "" {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED, Reason: "bridge target identity is malformed"}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED, Reason: "bridge target identity is malformed"}
 	}
 	dispatched, err := c.dispatcher.DispatchJob(ctx, connect.NewRequest(&dispatchv1.DispatchJobRequest{
 		NodeId:   nodeID,
@@ -130,45 +130,49 @@ func (c *Client) ExecuteBridge(ctx context.Context, request validationmatrix.Cel
 		Args:     nil,
 	}))
 	if err != nil {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: fmt.Sprintf("bridge dispatch unavailable: %v", err), Retryable: true}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: fmt.Sprintf("bridge dispatch unavailable: %v", err), Retryable: true}
 	}
 	if dispatched == nil || dispatched.Msg == nil || strings.TrimSpace(dispatched.Msg.RunId) == "" {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge accepted no durable run identity; desktop evidence was not claimed"}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge accepted no durable run identity; desktop evidence was not claimed"}
 	}
 	runID := dispatched.Msg.RunId
 	waited, err := c.runs.WaitRun(ctx, connect.NewRequest(&runsv1.WaitRunRequest{Id: runID, TimeoutSeconds: 900}))
 	if err != nil {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: fmt.Sprintf("bridge run %s could not be reattached: %v", runID, err), Retryable: true}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: fmt.Sprintf("bridge run %s could not be reattached: %v", runID, err), Retryable: true}
 	}
 	if waited == nil || waited.Msg == nil || waited.Msg.Run == nil {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: fmt.Sprintf("bridge run %s returned no durable result", runID)}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: fmt.Sprintf("bridge run %s returned no durable result", runID)}
 	}
 	run := waited.Msg.Run
-	evidence := bridgeEvidence(nodeID, runID)
+	evidence := bridgeEvidence(nodeID, runID, request.ArtifactDigest)
+	identity := ExecutionIdentity{NodeID: nodeID, JobID: runID, RunID: runID, ArtifactDigest: request.ArtifactDigest}
 	switch run.Status {
 	case runsv1.RunStatus_RUN_STATUS_PASSED:
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge job passed, but bridge does not provide desktop evidence; target-owned evidence is required", Evidence: []*domainv1.LayeredEvidence{evidence}}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge job passed, but bridge does not provide desktop evidence; target-owned evidence is required", Evidence: []*domainv1.LayeredEvidence{evidence}, Identity: identity}
 	case runsv1.RunStatus_RUN_STATUS_FAILED:
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: fmt.Sprintf("bridge validation job failed (exit %d)", run.ExitCode), Evidence: []*domainv1.LayeredEvidence{evidence}}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: fmt.Sprintf("bridge validation job failed (exit %d)", run.ExitCode), Evidence: []*domainv1.LayeredEvidence{evidence}, Identity: identity}
 	case runsv1.RunStatus_RUN_STATUS_ABORTED:
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_NOT_RUN, Reason: "bridge validation job was aborted", Evidence: []*domainv1.LayeredEvidence{evidence}}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_NOT_RUN, Reason: "bridge validation job was aborted", Evidence: []*domainv1.LayeredEvidence{evidence}, Identity: identity}
 	default:
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge wait returned a non-terminal run", Evidence: []*domainv1.LayeredEvidence{evidence}, Retryable: true}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: "bridge wait returned a non-terminal run", Evidence: []*domainv1.LayeredEvidence{evidence}, Retryable: true, Identity: identity}
 	}
 }
 
-func nodeTarget(node *registryv1.Node) targetinventory.Target {
-	capabilities := make([]domainv1.ValidationTargetCapability, 0, len(node.Capabilities))
+func nodeTarget(node *registryv1.Node) deliveryramp.Target {
+	capabilities := make([]string, 0, len(node.Capabilities))
 	for _, raw := range node.Capabilities {
-		switch strings.ToLower(strings.TrimSpace(raw)) {
-		case "electron-cdp", "desktop", "desktop.electron-cdp":
-			capabilities = append(capabilities, domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_ELECTRON_CDP)
+		normalized := strings.ToLower(strings.TrimSpace(raw))
+		if strings.HasSuffix(normalized, "cdp") || normalized == "desktop" {
+			capabilities = append(capabilities, deliveryramp.CapabilityCDP)
+			continue
+		}
+		switch normalized {
 		case "native-window", "desktop.native-window":
-			capabilities = append(capabilities, domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_NATIVE_WINDOW)
+			capabilities = append(capabilities, deliveryramp.CapabilityNativeWindow)
 		case "process-metrics", "desktop.process-metrics":
-			capabilities = append(capabilities, domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_PROCESS_METRICS)
+			capabilities = append(capabilities, deliveryramp.CapabilityProcessMetrics)
 		case "offline-network", "desktop.offline-network":
-			capabilities = append(capabilities, domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_OFFLINE_NETWORK)
+			capabilities = append(capabilities, deliveryramp.CapabilityOfflineNetwork)
 		}
 	}
 	available := node.Online && node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE
@@ -179,11 +183,13 @@ func nodeTarget(node *registryv1.Node) targetinventory.Target {
 	} else if available {
 		reason = "bridge node is online; desktop evidence remains target-owned"
 	}
-	return targetinventory.Target{
-		Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "bridge:" + node.Id, DisplayName: node.Name, Capabilities: capabilities, Available: available, Reason: stringPtr(reason)},
-		Kind:       "bridge", NodeID: node.Id, OS: node.Os, Architecture: node.Arch, Mode: "remote", Reason: reason,
-		Health: targetinventory.TargetHealth{Status: bridgeHealth(node, available), Reason: reason},
-		BridgeTrust: &targetinventory.BridgeTrust{
+	return deliveryramp.Target{
+		ID: "bridge:" + node.Id, Label: node.Name, Platform: "desktop", DeviceKind: "desktop", Capabilities: capabilities,
+		NodeID: node.Id, OS: node.Os, Architecture: node.Arch, Mode: "remote", Reason: reason,
+		Available: available, MissingCapability: "bridge desktop capability", NextAction: "register a bridge node with the required desktop capability",
+		Transport: deliveryramp.Transport{Kind: deliveryramp.TransportBridge, ID: node.Id, Trust: "bridge", Available: available, Reason: reason},
+		Health:    deliveryramp.TargetHealth{Status: bridgeHealth(node, available), Reason: reason},
+		BridgeTrust: &deliveryramp.BridgeTrust{
 			Registered:         node.Status != registryv1.NodeStatus_NODE_STATUS_REVOKED,
 			Online:             node.Online,
 			DispatchAuthorized: hasDispatchScope(node.Scopes),
@@ -192,19 +198,17 @@ func nodeTarget(node *registryv1.Node) targetinventory.Target {
 	}
 }
 
-func bridgeEvidence(nodeID, runID string) *domainv1.LayeredEvidence {
+func bridgeEvidence(nodeID, runID, artifactDigest string) *domainv1.LayeredEvidence {
 	uri := fmt.Sprintf("bridge://%s/runs/%s", nodeID, runID)
+	if strings.TrimSpace(artifactDigest) != "" {
+		uri += "?artifact=" + url.QueryEscape(artifactDigest)
+	}
 	digest := sha256.Sum256([]byte(uri))
 	return &domainv1.LayeredEvidence{Kind: domainv1.LayeredEvidence_KIND_TARGET, EvidenceId: "bridge-run-" + runID, Uri: uri, Sha256: "sha256:" + hex.EncodeToString(digest[:]), Redacted: true}
 }
 
-func unavailableTarget(reason string) targetinventory.Target {
-	return targetinventory.Target{
-		Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "bridge:unavailable", DisplayName: "Bridge fleet", Available: false, Reason: stringPtr(reason)},
-		Kind:       "bridge", Mode: "remote", Reason: reason,
-		Health:      targetinventory.TargetHealth{Status: "unavailable", Reason: reason},
-		BridgeTrust: &targetinventory.BridgeTrust{Reason: "bridge node identity was not verified"},
-	}
+func unavailableTarget(reason string) deliveryramp.Target {
+	return deliveryramp.UnavailableTarget(reason, "bridge inventory")
 }
 
 func bridgeHealth(node *registryv1.Node, available bool) string {
@@ -239,5 +243,3 @@ func bridgeTrustReason(node *registryv1.Node) string {
 	}
 	return "registered identity and scenario-test dispatch scope verified"
 }
-
-func stringPtr(value string) *string { return &value }

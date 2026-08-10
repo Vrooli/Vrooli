@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	evidencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence/evidencev1connect"
@@ -124,11 +125,11 @@ func (r *ConnectReporter) ReportJourney(ctx context.Context, input smoketest.Evi
 
 func journeyDetail(input smoketest.EvidenceReportInput) string {
 	type detail struct {
-		Producer         string                   `json:"producer"`
-		RecordingURL     string                   `json:"recording_url,omitempty"`
-		JourneyCaptureID string                   `json:"journey_capture_id,omitempty"`
-		RecordingID      string                   `json:"recording_id,omitempty"`
-		Journey          *smoketest.JourneyResult `json:"journey,omitempty"`
+		Producer         string                      `json:"producer"`
+		RecordingURL     string                      `json:"recording_url,omitempty"`
+		JourneyCaptureID string                      `json:"journey_capture_id,omitempty"`
+		RecordingID      string                      `json:"recording_id,omitempty"`
+		Journey          *deliveryramp.JourneyResult `json:"journey,omitempty"`
 	}
 	value := detail{Producer: "scenario-to-desktop", Journey: input.Journey}
 	for _, item := range input.Captures {

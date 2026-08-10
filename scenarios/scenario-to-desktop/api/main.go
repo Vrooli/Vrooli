@@ -15,12 +15,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"scenario-to-desktop-api/agentmanager"
-	"scenario-to-desktop-api/bridgevalidation"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/captures"
@@ -41,11 +41,9 @@ import (
 	"scenario-to-desktop-api/storagemigrate"
 	"scenario-to-desktop-api/storagepaths"
 	"scenario-to-desktop-api/system"
-	"scenario-to-desktop-api/targetinventory"
 	"scenario-to-desktop-api/tasks"
 	"scenario-to-desktop-api/telemetry"
 	"scenario-to-desktop-api/validationcatalog"
-	"scenario-to-desktop-api/validationmatrix"
 	"scenario-to-desktop-api/validationprovider"
 
 	"github.com/gorilla/handlers"
@@ -57,8 +55,11 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 	_ "modernc.org/sqlite"
 
+	desktopprobe "scenario-to-desktop-api/internal/desktopprobe"
 	preflightdomain "scenario-to-desktop-api/preflight"
 
 	httputil "scenario-to-desktop-api/shared/http"
@@ -92,7 +93,7 @@ type Server struct {
 	systemHandler           *system.Handler
 	pipelineHandler         *pipeline.Handler
 	validationMatrixHandler *validationmatrix.Handler
-	targetInventoryHandler  *targetinventory.Handler
+	targetInventoryHandler  http.Handler
 	stateHandler            *state.Handler
 	stateService            *state.Service
 	deployHandler           *deploy.Handler
@@ -336,13 +337,9 @@ func NewServer(port int) *Server {
 		smokeTestStore:       smokeTestStore,
 	}
 	pipelineOrchestrator, pipelineHandler, deployHandler := initPipelineStack(pipelineDeps)
-	bridgeClient := bridgevalidation.NewClientFromEnv()
+	bridgeClient := validationmatrix.NewClientFromEnv()
 	validationMatrixHandler := initValidationMatrixDomain(storePaths, logger, smokeTestService, smokeTestStore, liveDesktopService, capturesService, liveDesktopService, validationprovider.NewWorkflowHealthClient(), bridgeClient, scenarioRoot)
-	bridgeSources := make([]targetinventory.BridgeSource, 0, 1)
-	if bridgeClient != nil {
-		bridgeSources = append(bridgeSources, bridgeClient)
-	}
-	targetInventoryHandler := targetinventory.NewHandler(targetinventory.LocalProbe{}, bridgeSources...)
+	targetInventoryHandler := deliveryramp.NewTargetInventoryHandler(desktopprobe.Prober{}, bridgeClient)
 
 	// ===== Task Orchestration Service =====
 	dataRoot, err := storePaths.DataRoot()
@@ -519,7 +516,7 @@ func newPipelineFileStore(storePaths *storagepaths.Locator, logger *slog.Logger)
 	return store
 }
 
-func initValidationMatrixDomain(storePaths *storagepaths.Locator, logger *slog.Logger, smokeService smoketest.Service, smokeStore smoketest.Store, artifactFinder validationArtifactFinder, captureService *captures.Service, desktopOwner validationDesktopOwner, workflowExecutor validationWorkflowExecutor, bridgeExecutor validationmatrix.BridgeExecutor, scenarioRoot string) *validationmatrix.Handler {
+func initValidationMatrixDomain(storePaths *storagepaths.Locator, logger *slog.Logger, smokeService smoketest.Service, smokeStore smoketest.Store, artifactFinder validationArtifactFinder, captureService *captures.Service, desktopOwner validationDesktopOwner, workflowExecutor validationWorkflowExecutor, bridgeExecutor validationmatrix.CellTransport, scenarioRoot string) *validationmatrix.Handler {
 	dataDir, err := storePaths.EnsureValidationMatrixDir()
 	if err != nil {
 		logger.Warn("validation matrix storage directory unavailable", "error", err)
@@ -536,10 +533,10 @@ func initValidationMatrixDomain(storePaths *storagepaths.Locator, logger *slog.L
 		profileID := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_PROFILE_ID"))
 		gitCommit := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_GIT_COMMIT"))
 		if profileID != "" && gitCommit != "" {
-			options = append(options, validationmatrix.WithReleaseReporter(validationmatrix.NewDeploymentReporterFromURL(deploymentURL, profileID, gitCommit, nil)))
+			options = append(options, validationmatrix.WithReleaseReporter(validationmatrix.NewDeploymentReporterFromURL(deploymentURL, profileID, gitCommit, nil, validationmatrix.WithDeploymentIdentity("scenario-to-desktop", "scenario-to-desktop", "desktop", runtime.GOOS))))
 		}
 	}
-	service := validationmatrix.NewService(store, validationmatrix.Executors{Local: validationMatrixLocalExecutor{smokeService: smokeService, smokeStore: smokeStore, findArtifact: artifactFinder, captures: captureService, desktop: desktopOwner, workflow: workflowExecutor, scenarioRoot: scenarioRoot}, Bridge: bridgeExecutor}, options...)
+	service := validationmatrix.NewService(store, validationmatrix.Executors{Local: validationMatrixLocalExecutor{smokeService: smokeService, smokeStore: smokeStore, findArtifact: artifactFinder, captures: captureService, desktop: desktopOwner, workflow: workflowExecutor, builder: desktopRampBuilder{finder: artifactFinder}, scenarioRoot: scenarioRoot}, Bridge: bridgeExecutor}, options...)
 	if recovered := service.RecoverStale(); recovered > 0 {
 		logger.Info("recovered stale validation matrix runs", "count", recovered)
 	}
@@ -624,7 +621,7 @@ func (s *Server) registerDomainHandlers() {
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 	capabilities.NewHandler(capabilities.NewRegistry()).RegisterRoutes(s.router)
 	if s.targetInventoryHandler != nil {
-		s.targetInventoryHandler.RegisterRoutes(s.router)
+		s.router.Handle("/api/v1/validation/targets", s.targetInventoryHandler).Methods(http.MethodGet)
 	}
 	s.registerConnectHandlers()
 
