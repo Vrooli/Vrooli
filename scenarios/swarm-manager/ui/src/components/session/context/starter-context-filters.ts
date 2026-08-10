@@ -9,15 +9,29 @@
  *
  * If a card has no filter key, its count is simply the full type list length.
  */
-import type { AgentSessionContextType, ExecutionRecord } from "../../../types";
+import type { AgentSessionContextType, BacklogItem, ExecutionRecord } from "../../../types";
 import type { SessionContextOption } from "./session-context-refs";
 
-export type StarterContextFilterKey = "execution_failed_or_stale";
+export type StarterContextFilterKey = "execution_failed_or_stale" | "backlog_item_stale";
 
 /** Context type each filter key narrows. Lets the picker apply a filter to the right tab. */
 export const STARTER_FILTER_TARGET_TYPE: Record<StarterContextFilterKey, AgentSessionContextType> = {
   execution_failed_or_stale: "execution",
+  backlog_item_stale: "backlog_item",
 };
+
+/**
+ * Backlog staleness is the server's verdict, not the client's.
+ *
+ * `internal/backlog/staleness.go` folds together update age, last accepted
+ * review, plan-reference integrity, and acceptance-path validity. Re-deriving
+ * any of that from `updated` alone would give the operator a second, quieter
+ * definition of "stale" that disagrees with the one the rest of the product
+ * enforces — so this reads the projected flag and nothing else.
+ */
+export function backlogItemIsStale(item: BacklogItem): boolean {
+  return item.stale === true;
+}
 
 /** Terminal execution states that count as "failed" for recovery purposes. */
 const FAILED_STATUSES = new Set(["failed", "canceled"]);
@@ -53,13 +67,17 @@ export function executionIsFailedOrStale(execution: ExecutionRecord, now: number
 export function countForStarterCard(params: {
   optionsByType: Record<AgentSessionContextType, SessionContextOption[]>;
   executions: ExecutionRecord[];
+  backlogItems?: BacklogItem[];
   type: AgentSessionContextType;
   filterKey?: StarterContextFilterKey;
   now?: number;
 }): number {
-  const { optionsByType, executions, type, filterKey, now } = params;
+  const { optionsByType, executions, backlogItems = [], type, filterKey, now } = params;
   if (filterKey === "execution_failed_or_stale") {
     return executions.filter((execution) => executionIsFailedOrStale(execution, now)).length;
+  }
+  if (filterKey === "backlog_item_stale") {
+    return backlogItems.filter(backlogItemIsStale).length;
   }
   return optionsByType[type]?.length ?? 0;
 }

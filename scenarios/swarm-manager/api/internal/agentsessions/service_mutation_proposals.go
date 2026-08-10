@@ -79,7 +79,7 @@ func isNoChangeMutationProposal(payloadJSON string) bool {
 // mutation to the API-composed processor, whose ApplyFlow revalidates current
 // graph state immediately before changing anything.
 func (s *Service) DecideMutationListProposal(ctx context.Context, sessionID, proposalID string, acceptedMutationIDs []string, note string) (Session, error) {
-	session, proposal, err := s.loadMutationProposal(sessionID, proposalID)
+	session, proposal, err := s.loadMutationProposal(ctx, sessionID, proposalID)
 	if err != nil {
 		return Session{}, err
 	}
@@ -98,7 +98,7 @@ func (s *Service) DecideMutationListProposal(ctx context.Context, sessionID, pro
 		if saveErr := s.saveProposal(ctx, session.ID, proposal); saveErr != nil {
 			return Session{}, saveErr
 		}
-		return s.store.LoadSession(session.ID)
+		return s.loadSession(ctx, session.ID)
 	}
 	proposal.Status = ProposalStatusApplied
 	proposal.NeedsRevision = false
@@ -114,14 +114,14 @@ func (s *Service) DecideMutationListProposal(ctx context.Context, sessionID, pro
 	if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
 		return Session{}, err
 	}
-	return s.store.LoadSession(session.ID)
+	return s.loadSession(ctx, session.ID)
 }
 
 // AcceptNoChangeRecommendation records an explicit operator acceptance of a
 // keep-as-is conclusion. Unlike Apply, this does not mutate item content; the
 // composed processor records a separate review freshness signal instead.
 func (s *Service) AcceptNoChangeRecommendation(ctx context.Context, sessionID, proposalID, note string) (Session, error) {
-	session, proposal, err := s.loadNoChangeRecommendation(sessionID, proposalID)
+	session, proposal, err := s.loadNoChangeRecommendation(ctx, sessionID, proposalID)
 	if err != nil {
 		return Session{}, err
 	}
@@ -141,7 +141,7 @@ func (s *Service) AcceptNoChangeRecommendation(ctx context.Context, sessionID, p
 	if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
 		return Session{}, err
 	}
-	return s.store.LoadSession(session.ID)
+	return s.loadSession(ctx, session.ID)
 }
 
 func rejectedMutationIDs(payloadJSON string, accepted []string) []string {
@@ -171,7 +171,7 @@ func rejectedMutationIDs(payloadJSON string, accepted []string) []string {
 }
 
 func (s *Service) RequestMutationProposalRevision(ctx context.Context, sessionID, proposalID, note string) (Session, error) {
-	session, proposal, err := s.loadRevisableProposal(sessionID, proposalID)
+	session, proposal, err := s.loadRevisableProposal(ctx, sessionID, proposalID)
 	if err != nil {
 		return Session{}, err
 	}
@@ -184,7 +184,11 @@ func (s *Service) RequestMutationProposalRevision(ctx context.Context, sessionID
 	prompt := revisionPrompt(proposal, note)
 	now := nowRFC3339()
 	message := Message{ID: "msg_" + idgen.Generate(), Role: MessageRoleUser, Content: prompt, CreatedAt: now}
-	if err := s.store.AppendMessage(session.ID, message); err != nil {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+	if err := store.AppendMessage(session.ID, message); err != nil {
 		return Session{}, err
 	}
 	proposal.Status, proposal.UpdatedAt = ProposalStatusSuperseded, now
@@ -192,18 +196,22 @@ func (s *Service) RequestMutationProposalRevision(ctx context.Context, sessionID
 		return Session{}, err
 	}
 	session.Status, session.UpdatedAt, session.FailureReason = StatusRunning, now, ""
-	if err := s.store.SaveSession(session); err != nil {
+	if err := store.SaveSession(session); err != nil {
 		return Session{}, err
 	}
 	activityCtx := agentactivity.WithSpec(ctx, sessionActivitySpec(session, agentactivity.InteractionContinue))
 	if err := s.spawner.ContinueRun(activityCtx, session.RunID, prompt); err != nil {
 		return Session{}, mapSpawnError(err)
 	}
-	return s.store.LoadSession(session.ID)
+	return s.loadSession(ctx, session.ID)
 }
 
-func (s *Service) loadMutationProposal(sessionID, proposalID string) (Session, Proposal, error) {
-	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
+func (s *Service) loadMutationProposal(ctx context.Context, sessionID, proposalID string) (Session, Proposal, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, Proposal{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
 	if err != nil {
 		return Session{}, Proposal{}, mapStoreError(err)
 	}
@@ -217,14 +225,18 @@ func (s *Service) loadMutationProposal(sessionID, proposalID string) (Session, P
 	return session, proposal, nil
 }
 
-func (s *Service) loadRevisableProposal(sessionID, proposalID string) (Session, Proposal, error) {
-	session, proposal, err := s.loadMutationProposal(sessionID, proposalID)
+func (s *Service) loadRevisableProposal(ctx context.Context, sessionID, proposalID string) (Session, Proposal, error) {
+	session, proposal, err := s.loadMutationProposal(ctx, sessionID, proposalID)
 	if err == nil {
 		return session, proposal, nil
 	}
 	// A no-change recommendation has the same target and revision lifecycle as
 	// a mutation proposal, but is intentionally excluded from the Apply path.
-	session, loadErr := s.store.LoadSession(strings.TrimSpace(sessionID))
+	store, storeErr := s.storeFor(ctx)
+	if storeErr != nil {
+		return Session{}, Proposal{}, storeErr
+	}
+	session, loadErr := store.LoadSession(strings.TrimSpace(sessionID))
 	if loadErr != nil {
 		return Session{}, Proposal{}, mapStoreError(loadErr)
 	}
@@ -235,8 +247,12 @@ func (s *Service) loadRevisableProposal(sessionID, proposalID string) (Session, 
 	return session, proposal, nil
 }
 
-func (s *Service) loadNoChangeRecommendation(sessionID, proposalID string) (Session, Proposal, error) {
-	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
+func (s *Service) loadNoChangeRecommendation(ctx context.Context, sessionID, proposalID string) (Session, Proposal, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, Proposal{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
 	if err != nil {
 		return Session{}, Proposal{}, mapStoreError(err)
 	}

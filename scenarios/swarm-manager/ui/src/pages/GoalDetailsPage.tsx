@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Activity,
@@ -16,7 +16,6 @@ import {
   Files,
   GitPullRequestArrow,
   ListChecks,
-  Loader2,
   Network,
   Plus,
   ShieldAlert,
@@ -44,9 +43,14 @@ import type { ActionMenuItem } from "../components/ui/action-menu";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
+import { actionTargetSuffix } from "../lib/next-action-target";
+import { ActionButton } from "../components/ui/action-button";
+import { useTransitionKind } from "../hooks/useTransitionCatalog";
+import { useActionMutation } from "../hooks/useActionMutation";
+import { useToast } from "../hooks/useToast";
 import { goalsService } from "../services/goals-service";
 import { transitionService } from "../services/transition-service";
-import { nextActionService } from "../services/next-action-service";
+import { nextActionService, type NextActionEffect } from "../services/next-action-service";
 import { createGoalFileServiceAdapter } from "../services/goals-file-service-adapter";
 import { GOALS_QUERY_KEY } from "../surfaces/plan/hooks/useGoals";
 import type { BacklogFile } from "../types/backlog";
@@ -63,6 +67,14 @@ import { useBacklogStore } from "../stores";
 
 const MAX_PRIORITY = 10;
 const MIN_PRIORITY = 0;
+
+/** Confirmation wording for file operations, so the toast reports what happened. */
+const FILE_ACTION_PAST_TENSE: Record<FileActionType, string> = {
+  rename: "Renamed",
+  move: "Moved",
+  copy: "Copied",
+  delete: "Deleted",
+};
 const GOAL_TABS = ["overview", "milestones", "decide", "files", "activity", "related"] as const;
 type GoalTab = typeof GOAL_TABS[number];
 
@@ -251,7 +263,13 @@ function MilestoneGroups({ milestones, entities, highlightMilestone, onEdit, onA
   // the operator on that milestone rather than the top of the goal.
   useEffect(() => {
     if (!highlightMilestone) return;
-    highlightRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    const node = highlightRef.current;
+    // Feature-detected: this app ships to embedded browsers old enough to
+    // need runtime polyfills (see main.tsx). An unguarded call throws inside
+    // the effect and unmounts the whole milestones tab — losing the view to
+    // save a scroll is the wrong trade.
+    if (typeof node?.scrollIntoView !== "function") return;
+    node.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [highlightMilestone, active.length]);
   if (active.length === 0) {
     return <p className="text-sm text-slate-500">This goal does not have milestone groups yet.</p>;
@@ -290,6 +308,7 @@ export function GoalDetailsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const { notify } = useToast();
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<GoalTab>(() => isGoalTab(searchParams.get("tab")) ? searchParams.get("tab") as GoalTab : "overview");
@@ -326,55 +345,140 @@ export function GoalDetailsPage() {
     staleTime: 15_000,
   });
 
-  const invalidateGoal = () => {
-    void queryClient.invalidateQueries({ queryKey: ["goal", decodedName] });
-    void queryClient.invalidateQueries({ queryKey: GOALS_QUERY_KEY });
-  };
+  const goalKeys = useMemo(
+    () => [["goal", decodedName], GOALS_QUERY_KEY, ["next-actions-feed", "goal", decodedName]] as const,
+    [decodedName],
+  );
+  // Both are declared `workflow` transitions, so their buttons carry the agent
+  // marker. Read from the registry rather than asserted here, so a transition
+  // reclassified server-side updates the affordance without a UI change.
+  // Resolved above the loading/error returns to keep hook order stable.
+  const goalPlanKind = useTransitionKind("goal.plan");
+  const goalDiscoverKind = useTransitionKind("goal.discover");
 
-  const priorityMutation = useMutation({
+  const priorityMutation = useActionMutation({
     mutationFn: (priority: number) => goalsService.setPriority(decodedName, priority),
-    onSuccess: invalidateGoal,
+    errorMessage: "Couldn't change the goal priority",
+    invalidateKeys: goalKeys,
+    source: "GoalDetailsPage.priority",
   });
 
-  const archiveMutation = useMutation({
+  const archiveMutation = useActionMutation({
     mutationFn: () => goalsService.archive(decodedName),
-    onSuccess: () => {
-      invalidateGoal();
-      setConfirmArchive(false);
-    },
+    errorMessage: "Couldn't archive this goal",
+    successMessage: "Goal archived",
+    invalidateKeys: goalKeys,
+    // The dialog owns the failure display and must stay open on error.
+    silentError: true,
+    source: "GoalDetailsPage.archive",
+    onSuccess: () => setConfirmArchive(false),
   });
 
-  const deleteMutation = useMutation({
+  const deleteMutation = useActionMutation({
     mutationFn: () => goalsService.remove(decodedName),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: GOALS_QUERY_KEY });
-      navigate("/plan", { replace: true });
-    },
+    errorMessage: "Couldn't delete this goal",
+    successMessage: `Deleted goal ${decodedName}`,
+    invalidateKeys: [GOALS_QUERY_KEY],
+    silentError: true,
+    source: "GoalDetailsPage.delete",
+    onSuccess: () => navigate("/plan", { replace: true }),
   });
-  const planMutation = useMutation({ mutationFn: () => transitionService.start("goal.plan", decodedName), onSuccess: invalidateGoal });
-  const closeOutMutation = useMutation({ mutationFn: () => transitionService.start("goal.close_out", decodedName), onSuccess: invalidateGoal });
-  const discoverMutation = useMutation({ mutationFn: () => transitionService.start("goal.discover", decodedName), onSuccess: invalidateGoal });
-  const saveMilestoneMutation = useMutation({
+
+  // Workflow starters return once the run is queued, so their feedback says
+  // "started" rather than claiming the work is finished.
+  const planMutation = useActionMutation({
+    mutationFn: () => transitionService.start("goal.plan", decodedName),
+    errorMessage: "Couldn't start goal planning",
+    successMessage: "Goal planning started",
+    successDescription: "An agent is drafting milestones. This page updates as it reports back.",
+    successKind: "progress",
+    invalidateKeys: goalKeys,
+    source: "GoalDetailsPage.plan",
+  });
+  const closeOutMutation = useActionMutation({
+    mutationFn: () => transitionService.start("goal.close_out", decodedName),
+    errorMessage: "Couldn't close out this goal",
+    successMessage: "Close-out started",
+    successKind: "progress",
+    invalidateKeys: goalKeys,
+    source: "GoalDetailsPage.closeOut",
+  });
+  const discoverMutation = useActionMutation({
+    mutationFn: () => transitionService.start("goal.discover", decodedName),
+    errorMessage: "Couldn't start discovery",
+    successMessage: "Discovery started",
+    successKind: "progress",
+    invalidateKeys: goalKeys,
+    source: "GoalDetailsPage.discover",
+  });
+
+  // The goal funnel's `review` action. Its absence from runGoalAction is what
+  // made the header's Review button a no-op: the switch fell through to a
+  // navigate() carrying a query param nothing reads.
+  const milestoneReviewMutation = useActionMutation({
+    mutationFn: (milestone: string) => goalsService.startMilestoneReview(decodedName, milestone),
+    errorMessage: "Couldn't start the milestone review",
+    successMessage: (_data, milestone) => `Review started for ${milestone}`,
+    successDescription: "An agent is gathering evidence against the milestone's acceptance criteria. You decide on that evidence when it reports back.",
+    successKind: "progress",
+    invalidateKeys: goalKeys,
+    source: "GoalDetailsPage.milestoneReview",
+  });
+
+  const saveMilestoneMutation = useActionMutation({
     mutationFn: (milestone: GoalMilestone) => milestoneEditor ? goalsService.updateMilestone(decodedName, milestone) : goalsService.createMilestone(decodedName, milestone),
-    onSuccess: () => { invalidateGoal(); setMilestoneEditor(null); setMilestoneDraft(null); },
+    errorMessage: milestoneEditor ? "Couldn't save this milestone" : "Couldn't create this milestone",
+    invalidateKeys: goalKeys,
+    // Shown inline in the drawer footer so the operator keeps their edits.
+    silentError: true,
+    source: "GoalDetailsPage.saveMilestone",
+    onSuccess: () => { setMilestoneEditor(null); setMilestoneDraft(null); },
   });
-  const archiveMilestoneMutation = useMutation({ mutationFn: (milestone: string) => goalsService.archiveMilestone(decodedName, milestone), onSuccess: invalidateGoal });
-  const updateMilestoneItemsMutation = useMutation({
+  const archiveMilestoneMutation = useActionMutation({
+    mutationFn: (milestone: string) => goalsService.archiveMilestone(decodedName, milestone),
+    errorMessage: "Couldn't archive that milestone",
+    successMessage: (_data, milestone) => `Archived milestone ${milestone}`,
+    invalidateKeys: goalKeys,
+    source: "GoalDetailsPage.archiveMilestone",
+  });
+  const updateMilestoneItemsMutation = useActionMutation({
     mutationFn: async ({ milestone, items }: { milestone: GoalMilestone; items: string[] }) => {
       const add = items.filter((item) => !milestone.items.includes(item));
       const remove = milestone.items.filter((item) => !items.includes(item));
       if (add.length > 0) await goalsService.assignMilestoneItems(decodedName, milestone.name, add);
       if (remove.length > 0) await goalsService.unassignMilestoneItems(decodedName, milestone.name, remove);
     },
-    onSuccess: () => { invalidateGoal(); setMilestoneItemEditor(null); },
+    errorMessage: "Couldn't update the milestone's items",
+    invalidateKeys: goalKeys,
+    silentError: true,
+    source: "GoalDetailsPage.milestoneItems",
+    onSuccess: () => setMilestoneItemEditor(null),
   });
-  const updateGoalMutation = useMutation({ mutationFn: (input: { title: string; description: string; priority: number }) => goalsService.update(decodedName, input), onSuccess: () => { invalidateGoal(); setGoalEditorOpen(false); } });
-  const addGoalTargetMutation = useMutation({ mutationFn: (target: string) => goalsService.addTargets(decodedName, [target]), onSuccess: invalidateGoal });
-  const removeGoalTargetMutation = useMutation({ mutationFn: (target: string) => goalsService.removeTargets(decodedName, [target]), onSuccess: invalidateGoal });
+  const updateGoalMutation = useActionMutation({
+    mutationFn: (input: { title: string; description: string; priority: number }) => goalsService.update(decodedName, input),
+    errorMessage: "Couldn't save this goal",
+    invalidateKeys: goalKeys,
+    silentError: true,
+    source: "GoalDetailsPage.updateGoal",
+    onSuccess: () => setGoalEditorOpen(false),
+  });
+  const addGoalTargetMutation = useActionMutation({
+    mutationFn: (target: string) => goalsService.addTargets(decodedName, [target]),
+    errorMessage: "Couldn't add that target",
+    invalidateKeys: goalKeys,
+    silentError: true,
+    source: "GoalDetailsPage.addTarget",
+  });
+  const removeGoalTargetMutation = useActionMutation({
+    mutationFn: (target: string) => goalsService.removeTargets(decodedName, [target]),
+    errorMessage: "Couldn't remove that target",
+    invalidateKeys: goalKeys,
+    source: "GoalDetailsPage.removeTarget",
+  });
   const backlogItems = useBacklogStore((state) => state.items);
   const fetchBacklog = useBacklogStore((state) => state.fetchBacklog);
   const goalFileService = useMemo(() => createGoalFileServiceAdapter(decodedName), [decodedName]);
-  const fileActionMutation = useMutation({
+  const fileActionMutation = useActionMutation({
     mutationFn: ({ action, target, destinationPath }: { action: FileActionType; target: BacklogFile; destinationPath?: string }) => {
       switch (action) {
         case "rename": return goalsService.renameFile(decodedName, target.path, destinationPath ?? "");
@@ -383,9 +487,12 @@ export function GoalDetailsPage() {
         case "delete": return goalsService.deleteFile(decodedName, target.path);
       }
     },
+    errorMessage: "Couldn't complete that file action",
+    successMessage: (_result, { action, target }) => `${FILE_ACTION_PAST_TENSE[action]} ${target.path}`,
+    invalidateKeys: [["goal", decodedName, "files"]],
+    source: "GoalDetailsPage.fileAction",
     onSuccess: (result, variables) => {
       setSelectedFile(result.file ?? (variables.action === "delete" ? null : selectedFile));
-      void queryClient.invalidateQueries({ queryKey: ["goal", decodedName, "files"] });
     },
   });
 
@@ -418,14 +525,63 @@ export function GoalDetailsPage() {
   const eta = query.data.eta;
   const busy = priorityMutation.isPending || archiveMutation.isPending || deleteMutation.isPending;
   const goalAction = nextActionsQuery.data?.entries.find((entry) => entry.entity_kind === "goal" && entry.entity_ref === decodedName);
+  const actionPending = closeOutMutation.isPending
+    || planMutation.isPending
+    || milestoneReviewMutation.isPending;
+
+  /**
+   * Opens the milestone editor on a specific milestone.
+   *
+   * `define_criteria` names a milestone that has no acceptance criteria; the
+   * operator's move is to write them, which is this drawer.
+   */
+  const editMilestone = (milestoneName: string) => {
+    const milestone = goal.milestones.find((candidate) => candidate.name === milestoneName);
+    if (!milestone) return false;
+    setActiveTab("milestones");
+    setSearchParams({ tab: "milestones", milestone: milestoneName }, { replace: true });
+    setMilestoneEditor(milestone);
+    setMilestoneDraft({ ...milestone });
+    return true;
+  };
+
   const runGoalAction = () => {
     if (!goalAction) return;
+    // Every branch must either start work or move the operator somewhere they
+    // can act. A branch that silently does neither is indistinguishable from
+    // an unwired button — which is exactly what `review` used to be.
     switch (goalAction.action.id) {
-      case "close_out": closeOutMutation.mutate(); break;
-      case "plan_goal": planMutation.mutate(); break;
-      case "decide": setActiveTab("decide"); setSearchParams({ tab: "decide" }, { replace: true }); break;
-      default: navigate(`/goals/${encodeURIComponent(decodedName)}?drawer=decisions`);
+      case "close_out":
+        closeOutMutation.run();
+        return;
+      case "plan_goal":
+        planMutation.run();
+        return;
+      case "review": {
+        const milestone = actionTargetSuffix(goalAction.action.target, "milestone_review:");
+        if (milestone) { milestoneReviewMutation.run(milestone); return; }
+        break;
+      }
+      case "define_criteria": {
+        const milestone = actionTargetSuffix(goalAction.action.target, "milestone_criteria:");
+        if (milestone && editMilestone(milestone)) return;
+        break;
+      }
+      case "decide":
+        setActiveTab("decide");
+        setSearchParams({ tab: "decide" }, { replace: true });
+        return;
     }
+    // Fallback: the action named a target this page cannot resolve (a
+    // milestone that was renamed or archived between the feed and this
+    // click). Say so instead of navigating nowhere.
+    notify({
+      kind: "info",
+      message: "That action can't be completed from this page",
+      description: goalAction.action.reason || "Open the decision queue to act on it.",
+      key: "goal-action-unresolved",
+      action: { label: "Open decision queue", onClick: () => navigate("/plan?drawer=decisions") },
+    });
   };
 
   const changePriority = (delta: number) => {
@@ -479,7 +635,7 @@ export function GoalDetailsPage() {
           nodeId={nodeId}
           lenses={GOAL_LENSES}
           onDrillToLens={() => navigate(graphPath({ lens: "plan", goal: goal.name }))}
-          primaryAction={goalAction ? <GoalPrimaryAction actionId={goalAction.action.id} label={goalAction.action.compact_label} pending={closeOutMutation.isPending || planMutation.isPending} onRun={runGoalAction} /> : undefined}
+          primaryAction={goalAction ? <GoalPrimaryAction actionId={goalAction.action.id} transitionKey={goalAction.action.transition_key} effect={goalAction.action.effect} destructive={goalAction.action.destructive} label={goalAction.action.compact_label} pending={actionPending} onRun={runGoalAction} /> : undefined}
           menuActions={menuActions}
           showLenses={activeTab === "overview"}
           tabBar={
@@ -627,9 +783,35 @@ export function GoalDetailsPage() {
           <section className="space-y-4" data-testid="goal-decide">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div><h2 className="text-lg font-semibold text-slate-100">Goal decisions</h2><p className="text-sm text-slate-400">Plan the goal or discover bounded work, then approve typed proposals here.</p></div>
-              <div className="flex gap-2"><Button disabled={planMutation.isPending || discoverMutation.isPending} title="Starts a goal-plan workflow from the current immutable snapshot" onClick={() => planMutation.mutate()}>{planMutation.isPending ? "Planning…" : "Plan goal"}</Button><Button variant="outline" disabled={planMutation.isPending || discoverMutation.isPending} title="Starts a goal-discover workflow from the current immutable snapshot" onClick={() => discoverMutation.mutate()}>{discoverMutation.isPending ? "Discovering…" : "Discover"}</Button></div>
+              <div className="flex gap-2">
+                <ActionButton
+                  actionId="plan_goal"
+                  transitionKind={goalPlanKind}
+                  label="Plan goal"
+                  pendingLabel="Planning…"
+                  pending={planMutation.isPending}
+                  disabled={discoverMutation.isPending}
+                  title="Starts a goal-plan agent workflow from the current immutable snapshot"
+                  onClick={() => planMutation.run()}
+                  data-testid="goal-plan-action"
+                />
+                <ActionButton
+                  actionId="goal_discover"
+                  transitionKind={goalDiscoverKind}
+                  label="Discover"
+                  pendingLabel="Discovering…"
+                  pending={discoverMutation.isPending}
+                  disabled={planMutation.isPending}
+                  title="Starts a goal-discover agent workflow from the current immutable snapshot"
+                  onClick={() => discoverMutation.run()}
+                  data-testid="goal-discover-action"
+                />
+              </div>
             </div>
-            {(planMutation.error || discoverMutation.error) && <p className="text-sm text-red-300">{(planMutation.error ?? discoverMutation.error) instanceof Error ? ((planMutation.error ?? discoverMutation.error) as Error).message : "Unable to start goal workflow."}</p>}
+            {/* Failures here surface as a sticky error toast. Restating them
+                inline would report the same event twice in two wordings; the
+                inline channel is reserved for forms, where the operator must
+                not lose their edits while reading the reason. */}
             <ProposalSessionsPanel target={{ type: "goal", ref: goal.name, name: goal.title || goal.name }} />
           </section>
         )}
@@ -656,11 +838,12 @@ export function GoalDetailsPage() {
       <ConfirmDialog
         isOpen={confirmArchive}
         onClose={() => setConfirmArchive(false)}
-        onConfirm={() => archiveMutation.mutate()}
+        onConfirm={() => archiveMutation.run()}
         title="Archive goal"
         description={`Archive "${goal.title || goal.name}"? It will stop appearing in active goal lists.`}
         confirmLabel="Archive"
         isLoading={archiveMutation.isPending}
+        errorMessage={archiveMutation.errorDescription?.message}
         testIds={{ dialog: "goal-archive-confirm", confirmButton: "goal-archive-confirm-submit" }}
       />
       <Drawer
@@ -670,13 +853,13 @@ export function GoalDetailsPage() {
         description="Milestones group goal work without changing the goal's target scope."
         footer={<div className="flex justify-end gap-3"><Button variant="outline" onClick={() => { setMilestoneEditor(null); setMilestoneDraft(null); }} disabled={saveMilestoneMutation.isPending}>Cancel</Button><Button onClick={() => milestoneDraft && saveMilestoneMutation.mutate(milestoneDraft)} disabled={saveMilestoneMutation.isPending || !milestoneDraft?.name.trim() || !milestoneDraft?.title.trim()}>{saveMilestoneMutation.isPending ? "Saving..." : "Save milestone"}</Button></div>}
       >
-        {milestoneDraft && <div className="space-y-4 p-4"><div><label htmlFor="milestone-name" className="text-sm text-slate-200">Name</label><Input id="milestone-name" value={milestoneDraft.name} disabled={Boolean(milestoneEditor)} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, name: event.target.value })} className="mt-2" /></div><div><label htmlFor="milestone-title" className="text-sm text-slate-200">Title</label><Input id="milestone-title" value={milestoneDraft.title} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, title: event.target.value })} className="mt-2" /></div><div><label htmlFor="milestone-description" className="text-sm text-slate-200">Description</label><textarea id="milestone-description" value={milestoneDraft.description ?? ""} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, description: event.target.value })} className="mt-2 w-full rounded-lg border border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-slate-100" rows={5} /></div>{saveMilestoneMutation.error && <p role="alert" className="text-sm text-red-300">{saveMilestoneMutation.error instanceof Error ? saveMilestoneMutation.error.message : "Could not save milestone."}</p>}</div>}
+        {milestoneDraft && <div className="space-y-4 p-4"><div><label htmlFor="milestone-name" className="text-sm text-slate-200">Name</label><Input id="milestone-name" value={milestoneDraft.name} disabled={Boolean(milestoneEditor)} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, name: event.target.value })} className="mt-2" /></div><div><label htmlFor="milestone-title" className="text-sm text-slate-200">Title</label><Input id="milestone-title" value={milestoneDraft.title} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, title: event.target.value })} className="mt-2" /></div><div><label htmlFor="milestone-description" className="text-sm text-slate-200">Description</label><textarea id="milestone-description" value={milestoneDraft.description ?? ""} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, description: event.target.value })} className="mt-2 w-full rounded-lg border border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-slate-100" rows={5} /></div>{saveMilestoneMutation.errorDescription && <p role="alert" className="text-sm text-red-300">{saveMilestoneMutation.errorDescription.message}</p>}</div>}
       </Drawer>
       <Drawer isOpen={goalEditorOpen} onClose={() => !updateGoalMutation.isPending && setGoalEditorOpen(false)} title="Edit goal" description="Update the goal's outcome, description, and priority." footer={<div className="flex justify-end gap-3"><Button variant="outline" onClick={() => setGoalEditorOpen(false)} disabled={updateGoalMutation.isPending}>Cancel</Button><Button onClick={() => updateGoalMutation.mutate(goalDraft)} disabled={updateGoalMutation.isPending || !goalDraft.title.trim()}>{updateGoalMutation.isPending ? "Saving..." : "Save goal"}</Button></div>}>
-        <div className="space-y-4 p-4"><div><label htmlFor="goal-title" className="text-sm text-slate-200">Title</label><Input id="goal-title" value={goalDraft.title} onChange={(event) => setGoalDraft({ ...goalDraft, title: event.target.value })} className="mt-2" /></div><div><label htmlFor="goal-description" className="text-sm text-slate-200">Description</label><textarea id="goal-description" value={goalDraft.description} onChange={(event) => setGoalDraft({ ...goalDraft, description: event.target.value })} rows={8} className="mt-2 w-full rounded-lg border border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-slate-100" /></div><div><label htmlFor="goal-priority" className="text-sm text-slate-200">Priority</label><Input id="goal-priority" type="number" min={MIN_PRIORITY} max={MAX_PRIORITY} value={goalDraft.priority} onChange={(event) => setGoalDraft({ ...goalDraft, priority: Number(event.target.value) })} className="mt-2" /></div>{updateGoalMutation.error && <p role="alert" className="text-sm text-red-300">{updateGoalMutation.error instanceof Error ? updateGoalMutation.error.message : "Could not update goal."}</p>}</div>
+        <div className="space-y-4 p-4"><div><label htmlFor="goal-title" className="text-sm text-slate-200">Title</label><Input id="goal-title" value={goalDraft.title} onChange={(event) => setGoalDraft({ ...goalDraft, title: event.target.value })} className="mt-2" /></div><div><label htmlFor="goal-description" className="text-sm text-slate-200">Description</label><textarea id="goal-description" value={goalDraft.description} onChange={(event) => setGoalDraft({ ...goalDraft, description: event.target.value })} rows={8} className="mt-2 w-full rounded-lg border border-white/10 bg-slate-800/50 px-3 py-2 text-sm text-slate-100" /></div><div><label htmlFor="goal-priority" className="text-sm text-slate-200">Priority</label><Input id="goal-priority" type="number" min={MIN_PRIORITY} max={MAX_PRIORITY} value={goalDraft.priority} onChange={(event) => setGoalDraft({ ...goalDraft, priority: Number(event.target.value) })} className="mt-2" /></div>{updateGoalMutation.errorDescription && <p role="alert" className="text-sm text-red-300">{updateGoalMutation.errorDescription.message}</p>}</div>
       </Drawer>
       <Drawer isOpen={targetEditorOpen} onClose={() => setTargetEditorOpen(false)} title="Add target" description="Choose an explicit backlog item for this goal.">
-        <div className="space-y-2 p-4">{backlogItems.filter((item) => !item.archivedAt && !goal.targets.includes(`${item.kind}/${item.name}`)).map((item) => <button key={`${item.kind}/${item.name}`} type="button" onClick={() => addGoalTargetMutation.mutate(`${item.kind}/${item.name}`, { onSuccess: () => setTargetEditorOpen(false) })} disabled={addGoalTargetMutation.isPending} className="flex w-full items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-left text-sm text-slate-200 hover:border-cyan-500/40 hover:bg-slate-800"><span className="truncate">{item.title || item.name}</span><span className="ml-3 text-xs text-slate-500">{item.kind}/{item.name}</span></button>)}{backlogItems.length === 0 && <p className="text-sm text-slate-500">Loading backlog items…</p>}{addGoalTargetMutation.error && <p role="alert" className="text-sm text-red-300">Unable to add target.</p>}</div>
+        <div className="space-y-2 p-4">{backlogItems.filter((item) => !item.archivedAt && !goal.targets.includes(`${item.kind}/${item.name}`)).map((item) => <button key={`${item.kind}/${item.name}`} type="button" onClick={() => addGoalTargetMutation.mutate(`${item.kind}/${item.name}`, { onSuccess: () => setTargetEditorOpen(false) })} disabled={addGoalTargetMutation.isPending} className="flex w-full items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-left text-sm text-slate-200 hover:border-cyan-500/40 hover:bg-slate-800"><span className="truncate">{item.title || item.name}</span><span className="ml-3 text-xs text-slate-500">{item.kind}/{item.name}</span></button>)}{backlogItems.length === 0 && <p className="text-sm text-slate-500">Loading backlog items…</p>}{addGoalTargetMutation.errorDescription && <p role="alert" className="text-sm text-red-300">{addGoalTargetMutation.errorDescription.message}</p>}</div>
       </Drawer>
       <Drawer isOpen={Boolean(milestoneItemEditor)} onClose={() => !updateMilestoneItemsMutation.isPending && setMilestoneItemEditor(null)} title="Manage milestone items" description="Assign goal-scope items to this milestone.">
         <div className="space-y-2 p-4">{scope.closure.map((ref) => <label key={ref} className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-200"><input type="checkbox" checked={milestoneItemDraft.includes(ref)} onChange={() => setMilestoneItemDraft((current) => current.includes(ref) ? current.filter((item) => item !== ref) : [...current, ref])} /><span>{ref}</span></label>)}</div>
@@ -685,12 +868,13 @@ export function GoalDetailsPage() {
       <ConfirmDialog
         isOpen={confirmDelete}
         onClose={() => setConfirmDelete(false)}
-        onConfirm={() => deleteMutation.mutate()}
+        onConfirm={() => deleteMutation.run()}
         title="Delete goal"
         description={`Permanently delete "${goal.title || goal.name}"? This does not delete the target work items.`}
         confirmationText={goal.name}
         confirmLabel="Delete"
         isLoading={deleteMutation.isPending}
+        errorMessage={deleteMutation.errorDescription?.message}
         testIds={{ dialog: "goal-delete-confirm", confirmButton: "goal-delete-confirm-submit" }}
       />
     </DetailPageLayout>
@@ -698,16 +882,33 @@ export function GoalDetailsPage() {
 }
 
 /**
- * The goal's single header action. Its label arrives from the API per goal, so
- * the icon is resolved from the shared next-action registry rather than being
- * hardcoded — otherwise this button ships as bare text.
+ * The goal's single header action. Its label and id arrive from the API per
+ * goal, so both the icon and the consequence marker are resolved at render
+ * time — this button is "Start review" (an agent run) on one goal and "Close
+ * out" (an immediate state change) on the next.
  */
-function GoalPrimaryAction({ actionId, label, pending, onRun }: { actionId: string; label: string; pending: boolean; onRun: () => void }) {
-  const ActionIcon = nextActionIcon(actionId);
+function GoalPrimaryAction({ actionId, transitionKey, effect, destructive, label, pending, onRun }: {
+  actionId: string;
+  transitionKey?: string;
+  effect?: NextActionEffect;
+  destructive?: boolean;
+  label: string;
+  pending: boolean;
+  onRun: () => void;
+}) {
+  const transitionKind = useTransitionKind(transitionKey);
   return (
-    <Button size="sm" onClick={onRun} disabled={pending}>
-      {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <ActionIcon className="h-4 w-4" aria-hidden />}
-      {pending ? "Working…" : label}
-    </Button>
+    <ActionButton
+      size="sm"
+      actionId={actionId}
+      effect={effect}
+      destructive={destructive}
+      transitionKind={transitionKind}
+      icon={nextActionIcon(actionId)}
+      label={label}
+      pending={pending}
+      onClick={onRun}
+      data-testid="goal-primary-action"
+    />
   );
 }

@@ -37,7 +37,11 @@ func (s *Service) AttachArtifacts(ctx context.Context, artifacts []Artifact) ([]
 	if s == nil {
 		return nil, apierr.Unavailable("agent session service is unavailable")
 	}
-	if err := s.store.AppendArtifacts(artifacts[0].SessionID, artifacts); err != nil {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := store.AppendArtifacts(artifacts[0].SessionID, artifacts); err != nil {
 		return nil, mapStoreError(err)
 	}
 	for _, artifact := range artifacts {
@@ -47,7 +51,11 @@ func (s *Service) AttachArtifacts(ctx context.Context, artifacts []Artifact) ([]
 }
 
 func (s *Service) ListArtifacts(ctx context.Context, sessionID string) ([]Artifact, error) {
-	artifacts, err := s.store.ListArtifacts(strings.TrimSpace(sessionID))
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	artifacts, err := store.ListArtifacts(strings.TrimSpace(sessionID))
 	if err != nil {
 		return nil, mapStoreError(err)
 	}
@@ -61,5 +69,9 @@ func (s *Service) ListArtifactsByEntity(ctx context.Context, artifactType Artifa
 	if strings.TrimSpace(entityRef) == "" {
 		return nil, apierr.BadRequest("entity_ref is required")
 	}
-	return s.store.ListArtifactsByEntity(artifactType, entityRef)
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return store.ListArtifactsByEntity(artifactType, entityRef)
 }

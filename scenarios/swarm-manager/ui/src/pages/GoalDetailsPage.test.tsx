@@ -4,6 +4,8 @@ import { Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test-utils";
 import { goalsService } from "../services/goals-service";
+import { nextActionService } from "../services/next-action-service";
+import { ApiError } from "../lib/api-client";
 import type { GoalWithScope } from "../types/goal";
 import { GoalDetailsPage } from "./GoalDetailsPage";
 
@@ -117,6 +119,89 @@ describe("GoalDetailsPage", () => {
     const dialog = screen.getByTestId("goal-delete-confirm");
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText("workspace")).toBeInTheDocument();
+  });
+
+  // The header's primary action is projected by the server, so the page has to
+  // handle every action id it can emit. `review` and `define_criteria` had no
+  // branch and fell through to a navigate() carrying a query param nothing
+  // reads — pressing the button did nothing at all, with no error to see.
+  describe("primary action dispatch", () => {
+    function feedEntry(id: string, target: string) {
+      return {
+        entries: [{
+          entity_kind: "goal" as const,
+          entity_ref: "workspace",
+          entity_title: "Workspace goal",
+          action: { id, compact_label: "Start review", expanded_label: "Start milestone review", enabled: true, target },
+          tier: 1,
+        }],
+      };
+    }
+
+    it("starts the milestone review when the projected action is review", async () => {
+      vi.spyOn(goalsService, "get").mockResolvedValue(makeGoal());
+      vi.spyOn(goalsService, "getFiles").mockResolvedValue([]);
+      const startReview = vi.spyOn(goalsService, "startMilestoneReview")
+        .mockResolvedValue({ execution_id: "exec-1", definition_digest: "digest" });
+      vi.spyOn(nextActionService, "getFeed")
+        .mockResolvedValue(feedEntry("review", "milestone_review:delivery") as never);
+
+      renderPage();
+
+      const button = await screen.findByRole("button", { name: /Start review/ });
+      await userEvent.click(button);
+
+      await waitFor(() => expect(startReview).toHaveBeenCalledWith("workspace", "delivery"));
+      // Starting a review only queues the run, so the confirmation must not
+      // claim the review is finished.
+      expect(await screen.findByText("Review started for delivery")).toBeInTheDocument();
+    });
+
+    it("reports the failure instead of going quiet when the review cannot start", async () => {
+      vi.spyOn(goalsService, "get").mockResolvedValue(makeGoal());
+      vi.spyOn(goalsService, "getFiles").mockResolvedValue([]);
+      vi.spyOn(goalsService, "startMilestoneReview")
+        .mockRejectedValue(new ApiError("http", "milestone has no acceptance criteria", { status: 400 }));
+      vi.spyOn(nextActionService, "getFeed")
+        .mockResolvedValue(feedEntry("review", "milestone_review:delivery") as never);
+
+      renderPage();
+
+      await userEvent.click(await screen.findByRole("button", { name: /Start review/ }));
+
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("Couldn't start the milestone review");
+      // The server's own 4xx explanation is the useful part and must survive.
+      expect(alert).toHaveTextContent("milestone has no acceptance criteria");
+    });
+
+    it("opens the milestone editor when the projected action is define_criteria", async () => {
+      vi.spyOn(goalsService, "get").mockResolvedValue(makeGoal());
+      vi.spyOn(goalsService, "getFiles").mockResolvedValue([]);
+      vi.spyOn(nextActionService, "getFeed")
+        .mockResolvedValue(feedEntry("define_criteria", "milestone_criteria:foundation") as never);
+
+      renderPage();
+
+      await userEvent.click(await screen.findByRole("button", { name: /Start review/ }));
+
+      // The operator lands on the milestone that needs criteria, not the goal.
+      const drawer = await screen.findByRole("dialog");
+      expect(within(drawer).getByDisplayValue("Foundation")).toBeInTheDocument();
+    });
+
+    it("says so when the action names a milestone this goal no longer has", async () => {
+      vi.spyOn(goalsService, "get").mockResolvedValue(makeGoal());
+      vi.spyOn(goalsService, "getFiles").mockResolvedValue([]);
+      vi.spyOn(nextActionService, "getFeed")
+        .mockResolvedValue(feedEntry("define_criteria", "milestone_criteria:renamed-away") as never);
+
+      renderPage();
+
+      await userEvent.click(await screen.findByRole("button", { name: /Start review/ }));
+
+      expect(await screen.findByText("That action can't be completed from this page")).toBeInTheDocument();
+    });
   });
 
   it("uses the editable shared file workspace for goal files", async () => {

@@ -26,7 +26,7 @@ type nextActionFeed struct {
 // projection depends on exactly one call per request, so the seam exists to
 // let a test assert that count rather than infer it from latency.
 type decisionCounter interface {
-	countReadyDecisions() (readyDecisionCounts, error)
+	countReadyDecisions(context.Context) (readyDecisionCounts, error)
 }
 
 type nextActionFeedEntry struct {
@@ -122,7 +122,7 @@ func (f nextActionFeed) project(ctx context.Context) (nextActionProjection, erro
 	// one pass over the review archives answers every item.
 	decisions := readyDecisionCounts{items: map[string]int{}, goals: map[string]int{}}
 	if f.decisions != nil {
-		decisions, err = f.decisions.countReadyDecisions()
+		decisions, err = f.decisions.countReadyDecisions(ctx)
 		if err != nil {
 			return nextActionProjection{}, err
 		}

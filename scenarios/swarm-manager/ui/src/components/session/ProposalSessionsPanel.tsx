@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../../hooks/useActionMutation";
 import { CheckCircle2, ChevronDown, FileSearch, GitPullRequestArrow, ListChecks, MessageSquarePlus, RefreshCw, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { sessionDetailPath } from "../../app/routes/route-paths";
@@ -54,19 +55,29 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
     queryFn: () => proposalSessionService.list(target ? { type: target.type, ref: target.ref } : undefined),
   });
   const invalidate = () => void queryClient.invalidateQueries({ queryKey });
-  const decide = useMutation({
+  const decide = useActionMutation({
     mutationFn: ({ sessionId, proposalId, ids, note }: { sessionId: string; proposalId: string; ids: string[]; note: string }) =>
       proposalSessionService.decide(sessionId, proposalId, ids, note),
+    errorMessage: "Couldn't save that proposal decision",
+    successMessage: (_session, { ids }) =>
+      ids.length === 0 ? "Proposal rejected" : ids.length === 1 ? "1 change applied" : `${ids.length} changes applied`,
+    source: "ProposalSessionsPanel.decide",
     onSuccess: invalidate,
   });
-  const acceptKeep = useMutation({
+  const acceptKeep = useActionMutation({
     mutationFn: ({ sessionId, proposalId, note }: { sessionId: string; proposalId: string; note: string }) =>
       proposalSessionService.acceptKeep(sessionId, proposalId, note),
+    errorMessage: "Couldn't accept the keep recommendation",
+    successMessage: "Kept as is",
+    source: "ProposalSessionsPanel.acceptKeep",
     onSuccess: invalidate,
   });
-  const revise = useMutation({
+  const revise = useActionMutation({
     mutationFn: ({ sessionId, proposalId, note }: { sessionId: string; proposalId: string; note: string }) =>
       proposalSessionService.revise(sessionId, proposalId, note),
+    errorMessage: "Couldn't request a revision",
+    // Navigating to the session is the visible confirmation.
+    source: "ProposalSessionsPanel.revise",
     onSuccess: (session) => {
       invalidate();
       navigate(sessionDetailPath(session.id));

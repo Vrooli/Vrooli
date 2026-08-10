@@ -52,7 +52,15 @@ type NextActionProjection struct {
 	Blockers      []BlockingReason `json:"blockers,omitempty"`
 	Target        string           `json:"target,omitempty"`
 	TransitionKey string           `json:"transition_key,omitempty"`
-	FollowUp      *FollowUp        `json:"follow_up,omitempty"`
+	// Effect declares what performing this action does to the system, so the
+	// client can warn before spending agent time. TransitionKey cannot carry
+	// that: actions like `run` and `review` start transitions whose subject
+	// the client does not hold, so their key is empty by design.
+	Effect NextActionEffect `json:"effect"`
+	// Destructive marks actions that remove or interrupt state. Orthogonal to
+	// Effect — an agent run is expensive but not destructive.
+	Destructive bool      `json:"destructive,omitempty"`
+	FollowUp    *FollowUp `json:"follow_up,omitempty"`
 }
 
 type nextActionBatchRequest struct {
@@ -228,7 +236,7 @@ func hasCanonicalExecutionPlan(item BacklogItem) bool {
 }
 
 func nextAction(id NextActionID, compact, expanded string, enabled bool, reason string, blockers []BlockingReason, target string) NextActionProjection {
-	return NextActionProjection{ID: id, CompactLabel: compact, ExpandedLabel: expanded, Enabled: enabled, Reason: reason, Blockers: blockers, Target: target, TransitionKey: TransitionKeyForNextAction(id)}
+	return NextActionProjection{ID: id, CompactLabel: compact, ExpandedLabel: expanded, Enabled: enabled, Reason: reason, Blockers: blockers, Target: target, TransitionKey: TransitionKeyForNextAction(id), Effect: EffectForNextAction(id), Destructive: NextActionIsDestructive(id)}
 }
 
 // TransitionKeyForNextAction is the one server-owned bridge from a next-action
@@ -236,6 +244,20 @@ func nextAction(id NextActionID, compact, expanded string, enabled bool, reason 
 // projection and never duplicate this capability mapping.
 func TransitionKeyForNextAction(id NextActionID) string {
 	return nextaction.TransitionKey(id)
+}
+
+// NextActionEffect re-exports the vocabulary's effect type so clients of this
+// package need not import nextaction directly.
+type NextActionEffect = nextaction.Effect
+
+// EffectForNextAction declares what performing the action does to the system.
+func EffectForNextAction(id NextActionID) NextActionEffect {
+	return nextaction.EffectFor(id)
+}
+
+// NextActionIsDestructive reports whether the action removes or interrupts state.
+func NextActionIsDestructive(id NextActionID) bool {
+	return nextaction.IsDestructive(id)
 }
 
 func validateBlockerCodes(blockers []BlockingReason) error {

@@ -103,11 +103,9 @@ export function SetAsGoalDialog({ isOpen, onClose, targetRef, targetTitle }: Set
           />
         </div>
 
-        {(create.isError || addTargets.isError) && (
+        {(create.errorDescription ?? addTargets.errorDescription) && (
           <p className="text-xs text-rose-400" data-testid="set-as-goal-error">
-            {(create.error ?? addTargets.error) instanceof Error
-              ? (create.error ?? addTargets.error)?.message
-              : "Failed to update goal"}
+            {(create.errorDescription ?? addTargets.errorDescription)?.message}
           </p>
         )}
 

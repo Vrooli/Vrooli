@@ -7,7 +7,8 @@
  * QueueBacklog path (lane caps, preflight, circuit breaker, cost caps).
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../../hooks/useActionMutation";
 import { Card } from "../ui/card";
 import { defaultQueryOptions } from "../../lib";
 import { autoDrainService } from "../../services/auto-drain-service";
@@ -22,8 +23,13 @@ export function GoalDrainToggle() {
     queryFn: () => autoDrainService.get(),
     ...defaultQueryOptions,
   });
-  const mutation = useMutation({
+  const mutation = useActionMutation({
     mutationFn: (enabled: boolean) => autoDrainService.set(enabled),
+    errorMessage: "Couldn't change goal-directed execution",
+    // A toggle that silently snaps back is the classic unexplained failure:
+    // the switch reverts and the operator assumes they mis-tapped.
+    successMessage: (_next, enabled) => enabled ? "Goal-directed execution on" : "Goal-directed execution off",
+    source: "GoalDrainToggle.set",
     onSuccess: (next) => queryClient.setQueryData(AUTO_DRAIN_QUERY_KEY, next),
   });
 

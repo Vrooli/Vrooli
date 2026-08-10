@@ -36,6 +36,8 @@ function mapNextAction(raw: Record<string, unknown>): BacklogNextAction {
     reason: typeof raw.reason === "string" ? raw.reason : undefined,
     blockers: Array.isArray(raw.blockers) ? raw.blockers as BacklogNextAction["blockers"] : [],
     target: typeof raw.target === "string" ? raw.target : undefined,
+    effect: typeof raw.effect === "string" ? raw.effect as BacklogNextAction["effect"] : undefined,
+    destructive: raw.destructive === true,
 	followUp: typeof followUp === "object" && followUp !== null ? followUp as BacklogNextAction["followUp"] : undefined,
   };
 }

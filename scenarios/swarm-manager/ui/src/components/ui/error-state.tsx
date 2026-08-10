@@ -23,8 +23,13 @@ import { categorizeError, type ErrorCategory } from "../../lib/error-utils";
 export type ErrorVariant = "network" | "timeout" | "server" | "notFound" | "generic";
 
 interface ErrorStateProps {
-  /** The error to display - can be an ApiError or a generic Error */
-  error?: Error | null;
+  /**
+   * The error to display. Typed `unknown` because that is what a rejected
+   * promise actually gives you — `categorizeError` and `isApiError` below
+   * both already accept it, and narrowing the prop to `Error` only forced
+   * casts at the call sites.
+   */
+  error?: unknown;
   /** Override the automatic variant detection */
   variant?: ErrorVariant;
   /** Custom title to override the default */
@@ -65,7 +70,7 @@ const CATEGORY_TO_VARIANT: Record<ErrorCategory, ErrorVariant> = {
 /**
  * Determines the error variant using the centralized categorizeError function.
  */
-function getVariantFromError(error: Error | null | undefined): ErrorVariant {
+function getVariantFromError(error: unknown): ErrorVariant {
   if (!error) return "generic";
   const category = categorizeError(error);
   return CATEGORY_TO_VARIANT[category];
@@ -74,7 +79,7 @@ function getVariantFromError(error: Error | null | undefined): ErrorVariant {
 /**
  * Returns display configuration for each error variant.
  */
-function getErrorDisplay(variant: ErrorVariant, error?: Error | null): ErrorDisplay {
+function getErrorDisplay(variant: ErrorVariant, error?: unknown): ErrorDisplay {
   switch (variant) {
     case "network":
       return {

@@ -8,7 +8,10 @@
 
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../../../hooks/useActionMutation";
+import { useTransitionKind } from "../../../hooks/useTransitionCatalog";
+import { ActionButton } from "../../../components/ui/action-button";
 import {
   Play,
   Wrench,
@@ -17,6 +20,7 @@ import {
   RefreshCw,
   ClipboardCheck,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { defaultApiClient } from "../../../lib/api-client";
 import { backlogService, transitionService } from "../../../services";
@@ -38,7 +42,7 @@ import type {
 // CTA icon/label map
 // ---------------------------------------------------------------------------
 
-const CTA_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
+const CTA_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
   run: { label: "Run", icon: Play },
   followUp: { label: "Follow Up", icon: Wrench },
   archive: { label: "Archive", icon: Eye },
@@ -68,14 +72,21 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
     void queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
   }, [fetchBacklog, queryClient]);
 
-  const archiveMutation = useMutation({
+  const archiveMutation = useActionMutation({
     mutationFn: () => defaultApiClient.patch(API_ENDPOINTS.backlogArchiveItem(nodeData.kind, nodeData.name), {}),
+    errorMessage: `Couldn't archive ${nodeData.kind}/${nodeData.name}`,
+    successMessage: `Archived ${nodeData.kind}/${nodeData.name}`,
+    source: "FocusActions.archive",
     onSuccess: invalidateAfterAction,
   });
 
-  const followUpMutation = useMutation({
+  const followUpMutation = useActionMutation({
     mutationFn: (executionId: string) =>
       defaultApiClient.post(API_ENDPOINTS.executionFollowUp(executionId), {}),
+    errorMessage: "Couldn't start the follow-up run",
+    successMessage: "Follow-up run started",
+    successKind: "progress",
+    source: "FocusActions.followUp",
     onSuccess: invalidateAfterAction,
   });
 
@@ -111,16 +122,19 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
     <>
       {/* Primary CTA */}
       {ctaConfig && (
-        <button
-          type="button"
+        <ActionButton
+          actionId={displayedAction.id}
+          effect={displayedAction.effect}
+          destructive={displayedAction.destructive}
+          icon={ctaConfig.icon}
+          label={ctaConfig.label}
+          pending={isMutating}
+          pendingLabel="Working..."
+          disabled={!nextAction?.enabled}
           onClick={handleCtaClick}
-          disabled={isMutating || !nextAction?.enabled}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600 disabled:opacity-50"
+          className="w-full rounded-lg px-3 py-1.5 text-xs h-auto"
           data-testid="focus-cta-button"
-        >
-          <ctaConfig.icon className="h-3 w-3" />
-          {isMutating ? "Working..." : ctaConfig.label}
-        </button>
+        />
       )}
 
       {/* Collapsible pending decisions */}
@@ -183,13 +197,21 @@ function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
     void queryClient.invalidateQueries({ queryKey: ["execution", nodeData.executionId] });
   }, [fetchBacklog, nodeData.executionId, queryClient]);
 
-  const retryMutation = useMutation({
+  const retryMutation = useActionMutation({
     mutationFn: () => defaultApiClient.post(API_ENDPOINTS.executionRetry(nodeData.executionId), {}),
+    errorMessage: "Couldn't retry this execution",
+    successMessage: "Retry started",
+    successKind: "progress",
+    source: "FocusActions.retry",
     onSuccess: invalidateAfterAction,
   });
 
-  const triggerReviewMutation = useMutation({
+  const triggerReviewMutation = useActionMutation({
     mutationFn: () => defaultApiClient.post(API_ENDPOINTS.executionTriggerReview(nodeData.executionId), {}),
+    errorMessage: "Couldn't run the checks",
+    successMessage: "Checks started",
+    successKind: "progress",
+    source: "FocusActions.triggerReview",
     onSuccess: invalidateAfterAction,
   });
 
@@ -209,31 +231,31 @@ function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
 
   if (nodeData.status === "completed" || nodeData.status === "needs_fixup") {
     return (
-      <button
-        type="button"
-        onClick={() => triggerReviewMutation.mutate()}
-        disabled={triggerReviewMutation.isPending}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600 disabled:opacity-50"
+      <ActionButton
+        actionId="review"
+        icon={Eye}
+        label="Run Checks"
+        pendingLabel="Running..."
+        pending={triggerReviewMutation.isPending}
+        onClick={() => triggerReviewMutation.run()}
+        className="w-full rounded-lg px-3 py-1.5 text-xs h-auto"
         data-testid="focus-run-checks-button"
-      >
-        <Eye className="h-3 w-3" />
-        {triggerReviewMutation.isPending ? "Running..." : "Run Checks"}
-      </button>
+      />
     );
   }
 
   if (nodeData.status === "failed") {
     return (
-      <button
-        type="button"
-        onClick={() => retryMutation.mutate()}
-        disabled={retryMutation.isPending}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600 disabled:opacity-50"
+      <ActionButton
+        actionId="retry"
+        icon={RefreshCw}
+        label="Retry"
+        pendingLabel="Retrying..."
+        pending={retryMutation.isPending}
+        onClick={() => retryMutation.run()}
+        className="w-full rounded-lg px-3 py-1.5 text-xs h-auto"
         data-testid="focus-retry-button"
-      >
-        <RefreshCw className="h-3 w-3" />
-        {retryMutation.isPending ? "Retrying..." : "Retry"}
-      </button>
+      />
     );
   }
 
@@ -245,28 +267,30 @@ function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
 // ---------------------------------------------------------------------------
 
 function CaptureActions({ nodeData }: { nodeData: CaptureGraphNodeData }) {
-  const queryClient = useQueryClient();
-
-  const classifyMutation = useMutation({
+  const captureClassifyKind = useTransitionKind("capture.classify");
+  const classifyMutation = useActionMutation({
     mutationFn: () => transitionService.start("capture.classify", nodeData.id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
-    },
+    errorMessage: "Couldn't classify this capture",
+    successMessage: "Classification started",
+    successKind: "progress",
+    invalidateKeys: [["backlog-summary"]],
+    source: "CaptureActions.classify",
   });
 
   if (nodeData.status !== "classifying") return null;
 
   return (
-    <button
-      type="button"
-      onClick={() => classifyMutation.mutate()}
-      disabled={classifyMutation.isPending}
-      className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600 disabled:opacity-50"
+    <ActionButton
+      actionId="classify"
+      transitionKind={captureClassifyKind}
+      icon={ClipboardCheck}
+      label="Classify"
+      pendingLabel="Classifying..."
+      pending={classifyMutation.isPending}
+      onClick={() => classifyMutation.run()}
+      className="w-full rounded-lg px-3 py-1.5 text-xs h-auto"
       data-testid="focus-classify-button"
-    >
-      <ClipboardCheck className="h-3 w-3" />
-      {classifyMutation.isPending ? "Classifying..." : "Classify"}
-    </button>
+    />
   );
 }
 

@@ -36,13 +36,17 @@ func (s *Service) RecordWorkflowMutationProposals(ctx context.Context, title, su
 	if strings.TrimSpace(title) == "" {
 		title = "Workflow proposals for " + target.Name
 	}
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, nil, err
+	}
 	session, err := s.Create(ctx, CreateRequest{Kind: KindSwarmOperations, Title: title, ProposalTarget: &target})
 	if err != nil {
 		return Session{}, nil, err
 	}
 	session.Status = StatusProposalReady
 	session.UpdatedAt = nowRFC3339()
-	if err := s.store.SaveSession(session); err != nil {
+	if err := store.SaveSession(session); err != nil {
 		return Session{}, nil, err
 	}
 	if len(payloads) == 0 {
@@ -64,7 +68,7 @@ func (s *Service) RecordWorkflowMutationProposals(ctx context.Context, title, su
 		}
 		proposals = append(proposals, proposal)
 	}
-	stored, err := s.store.LoadSession(session.ID)
+	stored, err := store.LoadSession(session.ID)
 	return stored, proposals, err
 }
 
@@ -72,7 +76,11 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 	if strings.TrimSpace(sessionID) == "" || strings.TrimSpace(proposalID) == "" {
 		return Session{}, nil, apierr.BadRequest("session_id and proposal_id are required")
 	}
-	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, nil, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
 	if err != nil {
 		return Session{}, nil, mapStoreError(err)
 	}
@@ -92,7 +100,7 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 
 	session.Status = StatusApplying
 	session.UpdatedAt = nowRFC3339()
-	if err := s.store.SaveSession(session); err != nil {
+	if err := store.SaveSession(session); err != nil {
 		return Session{}, nil, err
 	}
 
@@ -110,11 +118,11 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 	if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
 		return Session{}, nil, err
 	}
-	if err := s.store.SaveSession(session); err != nil {
+	if err := store.SaveSession(session); err != nil {
 		return Session{}, nil, err
 	}
 	s.emitProposalApplied(session, proposal, len(artifacts))
-	applied, err := s.store.LoadSession(session.ID)
+	applied, err := store.LoadSession(session.ID)
 	if err != nil {
 		return Session{}, nil, err
 	}
@@ -166,7 +174,9 @@ func (s *Service) failProposalApply(ctx context.Context, session *Session, propo
 	if err := s.saveProposal(ctx, session.ID, *proposal); err != nil {
 		slog.Warn("agentsessions: persist proposal failed", "session", session.ID, "proposal", proposal.ID, "err", err)
 	}
-	if err := s.store.SaveSession(*session); err != nil {
+	if store, err := s.storeFor(ctx); err != nil {
+		slog.Warn("agentsessions: resolve session store failed", "session", session.ID, "err", err)
+	} else if err := store.SaveSession(*session); err != nil {
 		slog.Warn("agentsessions: persist session failed", "session", session.ID, "err", err)
 	}
 	return applyErr

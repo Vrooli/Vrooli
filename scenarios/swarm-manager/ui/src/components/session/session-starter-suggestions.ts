@@ -9,6 +9,7 @@ import {
   Activity,
   Gauge,
   GitPullRequestArrow,
+  History,
   Image,
   Layers,
   ListTodo,
@@ -35,6 +36,12 @@ export interface StarterSuggestion {
    * context (e.g. "12 active goals"). Never disables the card.
    */
   softCountType?: AgentSessionContextType;
+  /**
+   * Narrows the soft count to the subset the card's wording promises, so a
+   * card that offers to sweep stale work previews the stale count rather than
+   * the whole backlog.
+   */
+  softCountFilterKey?: StarterContextFilterKey;
   /**
    * Variant of `text` that speaks about a specific attached entity by title —
    * used by the attach-to-session sheet where exactly one entity is in hand.
@@ -64,7 +71,7 @@ export function starterCardBadgeSpec(suggestion: StarterSuggestion): StarterCard
     return { type: required.type, filterKey: required.filterKey, gating: true };
   }
   if (suggestion.softCountType) {
-    return { type: suggestion.softCountType, gating: false };
+    return { type: suggestion.softCountType, filterKey: suggestion.softCountFilterKey, gating: false };
   }
   return undefined;
 }
@@ -113,15 +120,36 @@ export function starterSuggestionsForKind(kind: AgentSessionKind): StarterSugges
           contextText: (title) => `Assess "${title}" and recommend its next registered transition.`,
           requirements: [{ kind: "context", type: "goal" }],
         },
+        // Two staleness cards, because they are two different jobs.
+        //
+        // The scoped card promises to work on "the attached items", so its
+        // backlog requirement is hard: with every requirement optional the
+        // card dropped its text into the composer and never opened the
+        // picker, producing a prompt that referred to an attachment set that
+        // did not exist. A hard requirement makes the click open the picker,
+        // and earns the card a count badge.
         {
           id: "operations-triage-staleness",
           icon: GitPullRequestArrow,
-          text: "Triage the attached items for staleness.",
-          detail: "Attach a few items or goals; you control token spend. The agent proposes changes and never applies them.",
+          text: "Triage specific items for staleness.",
+          contextText: (title) => `Triage "${title}" for staleness.`,
+          detail: "Pick the items or goals yourself when you already know what to look at. The agent proposes changes and never applies them.",
           requirements: [
-            { kind: "context", type: "backlog_item", optional: true },
+            { kind: "context", type: "backlog_item" },
             { kind: "context", type: "goal", optional: true },
           ],
+        },
+        // The unscoped card is the one that answers "the backlog is stale and
+        // I don't want to select every item by hand". Nothing is attached: the
+        // agent resolves the set itself from the server's staleness verdict,
+        // and the badge previews how much work that is.
+        {
+          id: "operations-sweep-staleness",
+          icon: History,
+          text: "Find the stalest work and walk me through it.",
+          detail: "The agent picks the set itself from Swarm Manager's staleness signal, then triages it with you one item at a time.",
+          softCountType: "backlog_item",
+          softCountFilterKey: "backlog_item_stale",
         },
       ];
     case "operating_mode_authoring":

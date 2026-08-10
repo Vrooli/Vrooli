@@ -49,7 +49,7 @@ func MilestoneMissingCriteria(goal Goal) string {
 // member's resolved action and records its ref for the caller.
 func ResolveNextAction(goal Goal, input NextActionInput) (backlog.NextActionProjection, string) {
 	if goal.Status != StatusActive {
-		return backlog.NextActionProjection{ID: backlog.NextActionNone, Enabled: false}, ""
+		return backlog.NextActionProjection{ID: backlog.NextActionNone, Enabled: false, Effect: backlog.EffectForNextAction(backlog.NextActionNone)}, ""
 	}
 	if input.ReadyProposalCount > 0 {
 		return goalAction(backlog.NextActionDecide, "Decide", "Review goal proposal", "A proposed goal change is waiting for an operator decision.", "proposal_decision"), ""
@@ -84,5 +84,5 @@ func ResolveNextAction(goal Goal, input NextActionInput) (backlog.NextActionProj
 }
 
 func goalAction(id backlog.NextActionID, compact, expanded, reason, target string) backlog.NextActionProjection {
-	return backlog.NextActionProjection{ID: id, CompactLabel: compact, ExpandedLabel: expanded, Enabled: true, Reason: reason, Target: target, TransitionKey: backlog.TransitionKeyForNextAction(id)}
+	return backlog.NextActionProjection{ID: id, CompactLabel: compact, ExpandedLabel: expanded, Enabled: true, Reason: reason, Target: target, TransitionKey: backlog.TransitionKeyForNextAction(id), Effect: backlog.EffectForNextAction(id), Destructive: backlog.NextActionIsDestructive(id)}
 }

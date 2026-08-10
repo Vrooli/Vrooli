@@ -24,14 +24,14 @@ type readyDecisionCounts struct {
 // target reference in a single pass over the session store. The seam is
 // batch-shaped on purpose: the answer is a property of the whole store, so a
 // per-entity variant would rescan every session once per entity.
-func (p sessionDecisionProvider) countReadyDecisions() (readyDecisionCounts, error) {
+func (p sessionDecisionProvider) countReadyDecisions(ctx context.Context) (readyDecisionCounts, error) {
 	counts := readyDecisionCounts{items: map[string]int{}, goals: map[string]int{}, captures: map[string]int{}}
 	if p.sessions == nil {
 		return counts, nil
 	}
 	// Artifacts are never read while counting proposals, and hydrating them
 	// per session is what made this scan expensive enough to matter.
-	sessions, err := p.sessions.ListWithoutArtifacts(agentsessions.ListFilters{})
+	sessions, err := p.sessions.ListWithoutArtifacts(ctx, agentsessions.ListFilters{})
 	if err != nil {
 		return readyDecisionCounts{}, err
 	}
@@ -55,8 +55,8 @@ func (p sessionDecisionProvider) countReadyDecisions() (readyDecisionCounts, err
 
 // PendingDecisionCounts satisfies the backlog decision seam for callers that
 // resolve actions outside the feed projection.
-func (p sessionDecisionProvider) PendingDecisionCounts(context.Context) (map[string]int, error) {
-	counts, err := p.countReadyDecisions()
+func (p sessionDecisionProvider) PendingDecisionCounts(ctx context.Context) (map[string]int, error) {
+	counts, err := p.countReadyDecisions(ctx)
 	if err != nil {
 		return nil, err
 	}

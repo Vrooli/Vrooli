@@ -74,7 +74,7 @@ export function BacklogDetailsPanel({
   const { addTargets, removeTargets } = useGoalMutations();
   const targetRef = `${item.kind}/${item.name}`;
   const owningGoals = goals.filter(({ goal }) => goal.targets.includes(targetRef));
-  const goalMutationError = addTargets.error ?? removeTargets.error;
+  const goalMutationError = addTargets.errorDescription ?? removeTargets.errorDescription;
 
   useEffect(() => {
     const desc = item.description ?? "";
@@ -206,9 +206,7 @@ export function BacklogDetailsPanel({
           )}
           {goalMutationError && (
             <p role="alert" className="text-xs text-red-300">
-              {goalMutationError instanceof Error
-                ? goalMutationError.message
-                : "Unable to update goal membership."}
+              {goalMutationError.message}
             </p>
           )}
         </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import type { AgentSession } from "../types";
@@ -356,7 +356,28 @@ describe("SessionDetailsPage", () => {
     expect(screen.getByTestId("session-context-tab-backlog_item")).toHaveAttribute("data-state", "active");
   });
 
-  it("restores the composer draft and shows an alert when send fails", async () => {
+  it("renders the message optimistically while the send is in flight", async () => {
+    let release: (value: AgentSession) => void = () => {};
+    const continueSession = vi.fn().mockReturnValue(new Promise<AgentSession>((resolve) => { release = resolve; }));
+    storeMock.useAgentSessionStore.setState({ continueSession });
+
+    renderPage();
+
+    const composer = screen.getByTestId("agent-session-composer");
+    fireEvent.change(composer, { target: { value: "Optimistic hello" } });
+    fireEvent.keyDown(composer, { key: "Enter", ctrlKey: true });
+
+    // The point of the optimistic render: the turn is on screen before the
+    // round trip resolves, instead of a blank pane.
+    const thread = await screen.findByTestId("agent-session-messages");
+    await waitFor(() => expect(thread).toHaveTextContent("Optimistic hello"));
+    expect(within(thread).getByText("Sending")).toBeInTheDocument();
+
+    release(SESSION);
+    await waitFor(() => expect(within(thread).queryByText("Sending")).not.toBeInTheDocument());
+  });
+
+  it("keeps a failed message visible with retry and edit instead of dropping it", async () => {
     const continueSession = vi.fn().mockRejectedValue(new Error("agent offline"));
     storeMock.useAgentSessionStore.setState({ continueSession });
 
@@ -367,7 +388,52 @@ describe("SessionDetailsPage", () => {
     fireEvent.keyDown(composer, { key: "Enter", ctrlKey: true });
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("agent offline"));
+    const thread = screen.getByTestId("agent-session-messages");
+    expect(thread).toHaveTextContent("Retry this");
+    expect(within(thread).getByText("Not sent")).toBeInTheDocument();
+    expect(screen.getByTestId("agent-session-message-retry")).toBeInTheDocument();
+
+    // Edit hands the text back to the composer so it can be reworded.
+    await userEvent.click(screen.getByTestId("agent-session-message-edit"));
     expect(screen.getByTestId("agent-session-composer")).toHaveValue("Retry this");
+    expect(within(thread).queryByText("Not sent")).not.toBeInTheDocument();
+  });
+
+  it("resends the same message when a failed send is retried", async () => {
+    const continueSession = vi.fn().mockRejectedValueOnce(new Error("agent offline")).mockResolvedValue(SESSION);
+    storeMock.useAgentSessionStore.setState({ continueSession });
+
+    renderPage();
+
+    const composer = screen.getByTestId("agent-session-composer");
+    fireEvent.change(composer, { target: { value: "Retry this" } });
+    fireEvent.keyDown(composer, { key: "Enter", ctrlKey: true });
+
+    await screen.findByTestId("agent-session-message-retry");
+    await userEvent.click(screen.getByTestId("agent-session-message-retry"));
+
+    await waitFor(() => expect(continueSession).toHaveBeenCalledTimes(2));
+    expect(continueSession.mock.calls[1]?.[0]).toMatchObject({ sessionId: SESSION.id, message: "Retry this" });
+  });
+
+  it("switches the transcript between bubble and compact density and remembers it", async () => {
+    renderPage();
+
+    const thread = screen.getByTestId("agent-session-messages");
+    expect(thread).toHaveAttribute("data-density", "comfortable");
+
+    await userEvent.click(screen.getByTestId("agent-session-density-compact"));
+
+    expect(screen.getByTestId("agent-session-messages")).toHaveAttribute("data-density", "compact");
+    expect(window.localStorage.getItem("swarm-manager:chat-density:v1")).toBe("compact");
+  });
+
+  it("shows the agent profile driving the session on the conversation itself", () => {
+    renderPage();
+
+    // Previously only reachable through the inspector's third tab, so there
+    // was no way to tell what you were talking to while reading.
+    expect(screen.getByTestId("agent-session-conversation-profile")).toHaveTextContent(SESSION.profileKey ?? "");
   });
 
   it("invokes refresh (from the menu) and cancel (inline primary) actions", async () => {

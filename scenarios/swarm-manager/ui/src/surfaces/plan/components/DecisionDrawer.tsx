@@ -34,18 +34,14 @@ import { useSnoozeStore, useSnoozedKeys } from "../../../stores/snooze-store";
 import { nextActionIcon } from "../../../types/constants";
 import type { BacklogKind } from "../../../types";
 import type { GoalMilestone } from "../../../types/goal";
+import { actionTargetSuffix, milestoneTargetOf } from "../../../lib/next-action-target";
+import { useAsyncAction } from "../../../hooks/useAsyncAction";
+import { useTransitionCatalog } from "../../../hooks/useTransitionCatalog";
+import { ActionButton, ConsequenceBadge } from "../../../components/ui/action-button";
 
 const SNOOZE_MS = 3_600_000;
 /** Rows rendered in the jump list before asking the operator to filter. */
 const NAVIGATOR_VISIBLE_LIMIT = 100;
-
-/** Milestone name carried by a milestone-scoped action target, if any. */
-function milestoneTargetOf(actionTarget: string | undefined): string {
-  for (const prefix of ["milestone_review:", "milestone_criteria:"]) {
-    if (actionTarget?.startsWith(prefix)) return actionTarget.slice(prefix.length);
-  }
-  return "";
-}
 
 /**
  * Detects the auto-generated milestone criterion that names nothing checkable
@@ -550,21 +546,17 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, reviewMilestone, on
   onOpen: () => void;
   onFeedback: () => Promise<void>;
 }) {
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Inline-only: this card stays on screen after a failure and shows the
+  // reason in place, so a toast would report the same event twice.
+  const { pending, error, run: runAction } = useAsyncAction({ toastOnError: false, source: "DecisionDrawer.ActionCard" });
   const [runTarget, setRunTarget] = useState<RunSheetTarget | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const isGoalPlan = entry.entity_kind === "goal" && entry.action.id === "plan_goal";
-  const goalMilestone = entry.action.target?.startsWith("milestone_review:") ? entry.action.target.slice("milestone_review:".length) : "";
+  const goalMilestone = actionTargetSuffix(entry.action.target, "milestone_review:");
   const direct = Boolean(entry.action.transition_key) || ["retry", "archive", "accept_suggestion", "accept_plan"].includes(entry.action.id);
   const transitionKey = entry.action.transition_key ?? (goalMilestone ? "milestone.review" : undefined);
-  const transitionQuery = useQuery({
-    queryKey: ["transition-catalog"],
-    queryFn: () => transitionService.list(),
-    staleTime: 60_000,
-    enabled: Boolean(transitionKey),
-  });
+  const transitionQuery = useTransitionCatalog(Boolean(transitionKey));
   const integrationQuery = useQuery({
     queryKey: ["integration-status"],
     queryFn: () => integrationStatusService.get(),
@@ -581,9 +573,12 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, reviewMilestone, on
     : undefined;
 
   const run = async () => {
-    setPending(true);
-    setError(null);
-    try {
+    // Two branches below deliberately return *before* doing async work: "run"
+    // hands off to the run sheet and the default falls through to Open. They
+    // must not be reported as completed actions, so the flag distinguishes
+    // "handed off" from "finished".
+    let handedOff = false;
+    const completed = await runAction(async () => {
       const transitionKey = entry.action.transition_key;
       if (transitionKey && entry.entity_kind === "goal") {
         await transitionService.start(transitionKey, entry.entity_ref);
@@ -592,62 +587,54 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, reviewMilestone, on
         if (transitionKey) {
           await transitionService.start(transitionKey, `${kind}/${name}`);
         } else switch (entry.action.id) {
-          case "run": setRunTarget({ kind, name, title: entry.entity_title }); return;
+          case "run": setRunTarget({ kind, name, title: entry.entity_title }); handedOff = true; return;
           case "retry": await backlogService.retry(kind, name, "Retried from decision stream"); break;
           case "archive": await backlogService.archiveItem(kind, name); break;
           case "accept_suggestion": await backlogService.update(kind, name, { status: "backlog" }); break;
           case "accept_plan": await defaultApiClient.post(API_ENDPOINTS.backlogPlanAccept(kind, name), {}); break;
-          default: onOpen(); return;
+          default: onOpen(); handedOff = true; return;
         }
       } else {
         onOpen();
+        handedOff = true;
         return;
       }
-      onChanged();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to complete this action.");
-    } finally {
-      setPending(false);
-    }
+    }, { errorMessage: "Unable to complete this action." });
+    if (completed && !handedOff) onChanged();
   };
 
   const completeGoalPlan = async () => {
-    setPending(true);
-    setError(null);
-    try {
-      await transitionService.start(entry.action.transition_key ?? "", entry.entity_ref);
-      onChanged();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to start goal planning.");
-    } finally {
-      setPending(false);
-    }
+    const ok = await runAction(
+      () => transitionService.start(entry.action.transition_key ?? "", entry.entity_ref),
+      { errorMessage: "Unable to start goal planning." },
+    );
+    if (ok) onChanged();
   };
 
   const startMilestoneReview = async () => {
-    setPending(true);
-    setError(null);
-    try {
-      await transitionService.start("milestone.review", `${entry.entity_ref}/${goalMilestone}`);
-      onChanged();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to start milestone review.");
-    } finally {
-      setPending(false);
-    }
+    const ok = await runAction(
+      () => transitionService.start("milestone.review", `${entry.entity_ref}/${goalMilestone}`),
+      { errorMessage: "Unable to start milestone review." },
+    );
+    if (ok) onChanged();
   };
 
-  const PrimaryIcon = nextActionIcon(entry.action.id);
   // The queue is built for rapid sequential taps on a phone, so an action that
   // removes state must not be one tap away from the same spot as "Open".
-  const destructive = DESTRUCTIVE_ACTION_IDS.has(entry.action.id);
-  const primaryLabel = pending
-    ? "Working…"
-    : entry.action.id === "run"
-      ? "Choose run"
-      : direct || isGoalPlan || goalMilestone
-        ? `${entry.action.compact_label}${destructive ? "…" : ""}`
-        : "Open";
+  // The server declares this now; the local set remains only as the fallback
+  // for a feed older than the field.
+  const destructive = entry.action.destructive ?? DESTRUCTIVE_ACTION_IDS.has(entry.action.id);
+  // ActionButton appends the ellipsis for destructive actions itself.
+  const primaryLabel = entry.action.id === "run"
+    ? "Choose run"
+    : direct || isGoalPlan || goalMilestone
+      ? entry.action.compact_label
+      : "Open";
+  // "Open" only navigates; anything else acts, and the consequence class tells
+  // the operator which kind of acting it is before they tap.
+  const primaryConsequence = primaryLabel === "Open"
+    ? { effect: "none" as const }
+    : { actionId: entry.action.id, effect: entry.action.effect, transitionKind: transition?.kind, destructive };
 
   const startPrimary = () => {
     if (destructive) { setConfirmOpen(true); return; }
@@ -673,7 +660,12 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, reviewMilestone, on
       <p className="text-xs text-slate-500">{entry.entity_ref} · Tier {entry.tier}</p>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">{entry.action.expanded_label}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">{entry.action.expanded_label}</p>
+          {/* Names the cost in the card body, not only on the button, so the
+              operator reading the reason already knows an agent is involved. */}
+          <ConsequenceBadge {...primaryConsequence} />
+        </div>
         <p className="mt-2 text-sm leading-6 text-slate-300">{entry.action.reason || "This item is ready for an operator action."}</p>
 
         {entry.action.id === "resolve_dependencies" && entry.action.blockers?.length ? (
@@ -759,13 +751,13 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, reviewMilestone, on
         {entry.chained_ref ? <p className="mt-3 text-xs text-slate-500">Acts on {entry.chained_ref}</p> : null}
       </div>
 
-      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+      {error ? <p role="alert" className="text-sm text-rose-300">{error}</p> : null}
       {transitionUnavailableReason ? <p className="text-sm text-amber-300">Transition unavailable: {transitionUnavailableReason}</p> : null}
 
       <div className="flex flex-wrap justify-end gap-2">
         <button
           type="button"
-          onClick={() => void onFeedback().catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to start feedback."))}
+          onClick={() => void runAction(onFeedback, { errorMessage: "Unable to start feedback." })}
           className="flex items-center gap-1.5 rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
         >
           <MessageSquarePlus className="h-4 w-4" aria-hidden />
@@ -775,19 +767,17 @@ function ActionCard({ entry, backlogRef, closeOutMilestones, reviewMilestone, on
           <ExternalLink className="h-4 w-4" aria-hidden />
           Open
         </button>
-        <button
-          type="button"
-          disabled={pending || Boolean(transitionUnavailableReason)}
+        <ActionButton
+          {...primaryConsequence}
+          icon={nextActionIcon(entry.action.id)}
+          label={primaryLabel}
+          pending={pending}
+          disabled={Boolean(transitionUnavailableReason)}
           onClick={startPrimary}
-          className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
-            destructive
-              ? "border border-rose-400/40 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
-              : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"
-          }`}
-        >
-          <PrimaryIcon className="h-4 w-4" aria-hidden />
-          {primaryLabel}
-        </button>
+          size="sm"
+          className="h-auto rounded px-3 py-1.5"
+          data-testid="next-action-primary"
+        />
       </div>
     </section>
   );
@@ -799,22 +789,18 @@ function AuthorFollowUpCard({ kind, name, onChanged, onOpen }: { kind: BacklogKi
   const [childKind, setChildKind] = useState<BacklogKind>("execute");
   const [childName, setChildName] = useState("");
   const [childTitle, setChildTitle] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Inline-only: this is a form, and the operator must be able to read the
+  // reason without losing the steering text they just typed.
+  const { pending, error, run: runAction } = useAsyncAction({ toastOnError: false, source: "DecisionDrawer.FollowUpCard" });
   const needsChild = disposition === "new_items";
 
   const submit = async () => {
-    setPending(true);
-    setError(null);
-    try {
-      const followUp = { steering, disposition, ...(needsChild ? { items: [{ kind: childKind, name: childName.trim(), title: childTitle.trim() }] } : {}) };
-      await defaultApiClient.post(API_ENDPOINTS.backlogAuthorFollowUp(kind, name), { follow_up: followUp });
-      onChanged();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to save follow-up.");
-    } finally {
-      setPending(false);
-    }
+    const followUp = { steering, disposition, ...(needsChild ? { items: [{ kind: childKind, name: childName.trim(), title: childTitle.trim() }] } : {}) };
+    const ok = await runAction(
+      () => defaultApiClient.post(API_ENDPOINTS.backlogAuthorFollowUp(kind, name), { follow_up: followUp }),
+      { errorMessage: "Unable to save follow-up." },
+    );
+    if (ok) onChanged();
   };
 
   const canSubmit = steering.trim() && (!needsChild || (childName.trim() && childTitle.trim()));
@@ -865,7 +851,7 @@ function AuthorFollowUpCard({ kind, name, onChanged, onOpen }: { kind: BacklogKi
           {pending ? "Saving…" : "Save follow-up"}
         </button>
       </div>
-      {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+      {error ? <p role="alert" className="text-sm text-rose-300">{error}</p> : null}
     </section>
   );
 }

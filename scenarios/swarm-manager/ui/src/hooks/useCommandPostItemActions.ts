@@ -7,7 +7,8 @@
  */
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "./useActionMutation";
 import { useAgentActivitiesStore, useBacklogStore } from "../stores";
 import { backlogService } from "../services";
 import { defaultApiClient } from "../lib/api-client";
@@ -166,17 +167,24 @@ export function useCommandPostItemActions(
   }, [items, feedbackItems]);
 
   // ── Mutations ────────────────────────────────────────────────────────
-  const archiveMutation = useMutation({
+  const archiveMutation = useActionMutation({
     mutationFn: ({ kind, name: itemName }: { kind: BacklogKind; name: string }) =>
       defaultApiClient.patch(API_ENDPOINTS.backlogArchiveItem(kind, itemName), {}),
+    errorMessage: "Couldn't archive that item",
+    successMessage: (_result, { kind, name: itemName }) => `Archived ${kind}/${itemName}`,
+    source: "useCommandPostItemActions.archive",
     onSuccess: () => {
       void fetchBacklog({ force: true });
     },
   });
 
-  const statusMutation = useMutation({
+  const statusMutation = useActionMutation({
     mutationFn: ({ kind, name: itemName, newStatus }: { kind: BacklogKind; name: string; newStatus: BacklogStatus }) =>
       backlogService.update(kind, itemName, { status: newStatus }),
+    errorMessage: "Couldn't change that item's status",
+    successMessage: (_item, { name: itemName, newStatus }) =>
+      `${itemName} set to ${newStatus.replaceAll("_", " ")}`,
+    source: "useCommandPostItemActions.status",
     onSuccess: () => {
       void fetchBacklog({ force: true });
     },

@@ -31,6 +31,8 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
 import { API_BASE } from "./lib/api-client";
+import { describeError } from "./lib/error-utils";
+import { ToastProvider } from "./components/ui/toast-provider";
 import { AudioToolsProvider, createAudioToolsClient, registerVoiceTransport, useHydrateVoiceConfig } from "./audio-integration";
 import { fetchAudioToolsDiscovery } from "./api/discovery";
 import "./styles.css";
@@ -40,7 +42,22 @@ import "./styles.css";
 // next navigation. This guard reloads once (rate-limited) instead.
 installChunkReloadGuard();
 
-const queryClient = new QueryClient();
+// Retry policy is a correctness concern, not a tuning knob: the default
+// blind 3x retry turns a 404 or a validation refusal into three identical
+// round-trips and delays the error the operator needs to see by seconds.
+// Only genuinely transient failures are worth repeating.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => failureCount < 2 && describeError(error).canRetry,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+    },
+    // Mutations are not retried automatically. Many are non-idempotent
+    // (start a run, add a target) and a silent repeat could double-apply;
+    // useActionMutation offers the operator an explicit Retry instead.
+    mutations: { retry: false },
+  },
+});
 
 // ╔══════════════════════════════════════════════════════════════╗
 // ║  INTEROP-CRITICAL: Iframe bridge initialization              ║
@@ -152,11 +169,13 @@ void bootstrapAudioTools().then(({ unavailableReason }) => {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
-        <AudioToolsProvider client={audioToolsClient} unavailableReason={unavailableReason || undefined}>
-          <VoiceConfigHydrator>
-            <App />
-          </VoiceConfigHydrator>
-        </AudioToolsProvider>
+        <ToastProvider>
+          <AudioToolsProvider client={audioToolsClient} unavailableReason={unavailableReason || undefined}>
+            <VoiceConfigHydrator>
+              <App />
+            </VoiceConfigHydrator>
+          </AudioToolsProvider>
+        </ToastProvider>
       </QueryClientProvider>
     </React.StrictMode>
   );

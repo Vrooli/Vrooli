@@ -57,7 +57,7 @@ import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { EvidenceRequestPanel } from "../components/backlog/evidence-request-panel";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMutation } from "@tanstack/react-query";
+import { useActionMutation } from "../hooks/useActionMutation";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { formatRelativeTime } from "../lib";
@@ -141,11 +141,18 @@ export function BacklogDetailsPage() {
   const [resetScope, setResetScope] = useState<string[]>(["review"]);
   const [lifecyclePending, setLifecyclePending] = useState(false);
   const [lifecycleError, setLifecycleError] = useState<string | undefined>();
-  const planAuthorMutation = useMutation({
+  const planAuthorMutation = useActionMutation({
     mutationFn: () => {
       if (!backlogKind || !name) throw new Error("Backlog item is required to author a plan.");
       return transitionService.start("plan.author", `${backlogKind}/${name}`);
     },
+    errorMessage: "Couldn't start plan authoring",
+    // A declared `workflow` transition: the call returns once the agent run is
+    // queued, so the confirmation says "started", not "done".
+    successMessage: "Plan authoring started",
+    successDescription: "An agent is drafting the plan. Its progress appears under Activity.",
+    successKind: "progress",
+    source: "BacklogDetailsPage.planAuthor",
     onSuccess: () => {
       setActiveTab("activity");
       void refreshActivities(true);

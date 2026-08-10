@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../../hooks/useActionMutation";
+import { errorMessageOf } from "../../lib/error-utils";
 import { Check, Copy, ExternalLink, FileText, List, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { defaultQueryOptions } from "../../lib";
@@ -75,23 +77,34 @@ export function PlanPanel({
     void itemQuery.refetch();
     void queryClient.invalidateQueries({ queryKey: ["backlog-item", backlogKind, backlogName] });
   };
-  const accept = useMutation({
+  // These report through the panel's own status line, which stays visible
+  // beside the plan; a toast would restate the same event out of context.
+  const accept = useActionMutation({
     mutationFn: () => planWorkshopService.acceptPlan(backlogKind, backlogName),
+    errorMessage: "Unable to accept this plan.",
+    silentError: true,
+    source: "PlanPanel.accept",
     onSuccess: () => { setActionMessage("Plan accepted. Queueing will recheck this exact revision and scope."); refreshAcceptance(); },
-    onError: (cause: unknown) => setActionMessage(cause instanceof Error ? cause.message : "Unable to accept this plan."),
+    onError: (cause) => setActionMessage(errorMessageOf(cause, "Unable to accept this plan.")),
   });
-  const unaccept = useMutation({
+  const unaccept = useActionMutation({
     mutationFn: () => planWorkshopService.unacceptPlan(backlogKind, backlogName),
+    errorMessage: "Unable to clear plan acceptance.",
+    silentError: true,
+    source: "PlanPanel.unaccept",
     onSuccess: () => { setActionMessage("Plan acceptance cleared."); refreshAcceptance(); },
-    onError: (cause: unknown) => setActionMessage(cause instanceof Error ? cause.message : "Unable to clear plan acceptance."),
+    onError: (cause) => setActionMessage(errorMessageOf(cause, "Unable to clear plan acceptance.")),
   });
-  const runReview = useMutation({
+  const runReview = useActionMutation({
     mutationFn: async () => {
       const opened = await planWorkshopService.open({ kind: "backlog_item", ref: `${backlogKind}/${backlogName}` });
       return planWorkshopService.startReview(opened.id);
     },
+    errorMessage: "Unable to start plan review.",
+    silentError: true,
+    source: "PlanPanel.runReview",
     onSuccess: () => setActionMessage("Plan review started. Its findings and proposals will appear in Decide."),
-    onError: (cause: unknown) => setActionMessage(cause instanceof Error ? cause.message : "Unable to start plan review."),
+    onError: (cause) => setActionMessage(errorMessageOf(cause, "Unable to start plan review.")),
   });
   const accepted = itemQuery.data?.planAcceptance;
 

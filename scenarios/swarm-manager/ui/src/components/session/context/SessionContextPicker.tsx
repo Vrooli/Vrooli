@@ -24,7 +24,7 @@ import { PickModeRow } from "./selectable-card";
 import type { CardSelection } from "./selectable";
 import { allowedContextTypesForKind, CONTEXT_TYPE_CAPS, CONTEXT_TYPE_LABELS, totalContextCapForKind } from "./session-context-config";
 import { buildContextOptionsByType } from "./session-context-options";
-import { executionIsFailedOrStale, STARTER_FILTER_TARGET_TYPE, type StarterContextFilterKey } from "./starter-context-filters";
+import { backlogItemIsStale, executionIsFailedOrStale, STARTER_FILTER_TARGET_TYPE, type StarterContextFilterKey } from "./starter-context-filters";
 import {
   activityOption,
   backlogOption,
@@ -110,8 +110,17 @@ function SessionContextPickerContent({
     void fetchSessions({ limit: 100 });
 	}, [allowedTypes, fetchBacklog, fetchCaptures, fetchExecutions, fetchScenarios, fetchSessions, initialType, isOpen, refreshActivities, selected]);
 
+  // Narrowing is applied to the source records, not the built options, so the
+  // tab list and its count come from one filtered set — the option shape has
+  // no staleness of its own to filter on.
+  const filterStaleBacklog = initialFilterKey === "backlog_item_stale";
+  const visibleBacklogItems = useMemo(
+    () => (filterStaleBacklog ? backlogItems.filter(backlogItemIsStale) : backlogItems),
+    [backlogItems, filterStaleBacklog],
+  );
+
   const optionsByType = useMemo<Record<AgentSessionContextType, SessionContextOption[]>>(() => buildContextOptionsByType({
-    backlogItems,
+    backlogItems: visibleBacklogItems,
 		goals,
     captures,
     executions,
@@ -120,7 +129,7 @@ function SessionContextPickerContent({
     sessions,
     sessionKind,
     currentSessionId,
-	}), [activities, backlogItems, captures, currentSessionId, executions, goals, scenarios, sessionKind, sessions]);
+	}), [activities, visibleBacklogItems, captures, currentSessionId, executions, goals, scenarios, sessionKind, sessions]);
 
   // Phase-3 narrowing: when opened from a starter card carrying a filter key,
   // the targeted type's list (and its tab count) shrink to the actionable subset,

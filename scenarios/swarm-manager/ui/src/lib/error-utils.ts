@@ -163,17 +163,17 @@ export function createErrorLogEntry(
   const category = categorizeError(error);
   const correlationId = generateCorrelationId();
 
-  let message = "An unexpected error occurred";
+  // Same derivation the UI shows the operator. A log that says "The request
+  // failed. Please try again." while the toast says "milestone has no
+  // acceptance criteria" makes a bug report impossible to act on.
+  const message = describeError(error).message;
   let status: number | undefined;
   let retryable = false;
 
   if (isApiError(error)) {
-    message = error.userMessage;
     status = error.status;
     retryable = error.isRetryable;
   } else if (error instanceof Error) {
-    // Sanitize error message - don't include full technical details
-    message = sanitizeErrorMessage(error.message);
     retryable = category === "NETWORK" || category === "TIMEOUT" || category === "SERVER";
   }
 
@@ -190,19 +190,53 @@ export function createErrorLogEntry(
 }
 
 /**
+ * Absolute POSIX path, anchored so it cannot start mid-token.
+ *
+ * The anchor is the whole point. The previous pattern was `(?:\/[\w.-]+)+`,
+ * which matches any run of `/segment` *wherever it appears* — so the domain
+ * refs this app is built on (`goal/release-1`, `execute/ship-workspace`) came
+ * out as `goal[PATH]`, destroying the most actionable part of a message.
+ *
+ * Requiring a leading boundary (start of string, whitespace, or an opening
+ * delimiter) plus at least two segments keeps `/home/op/.ssh/id_rsa` matched
+ * and `kind/name` untouched. Written with an explicit captured prefix rather
+ * than a lookbehind: this bundle ships to embedded WebViews old enough to
+ * need the runtime polyfills in main.tsx, and lookbehind is not universal
+ * there.
+ */
+const ABSOLUTE_POSIX_PATH = /(^|[\s"'`([{<,;:])(\/(?:[\w.-]+\/)+[\w.-]*)/g;
+
+/**
+ * Windows drive-letter path.
+ *
+ * The previous class was `[\w.-\\]`, in which `.-\` is read as a character
+ * *range* spanning 0x2E–0x5C — quietly including digits, `/`, `:`, `?`, `@`
+ * and every uppercase letter. Putting the dash last makes it a literal, which
+ * confines the class to the three characters that were intended.
+ */
+const WINDOWS_PATH = /[A-Za-z]:\\(?:[\w.-]+\\)*[\w.-]*/g;
+
+/** Longest sanitized message we keep; the tail of a stack adds nothing. */
+const MAX_SANITIZED_LENGTH = 200;
+
+/**
  * Sanitizes an error message to remove potentially sensitive information.
  * - Removes URLs (may contain tokens or internal paths)
- * - Removes file paths
+ * - Removes absolute filesystem paths, which can leak a home directory layout
  * - Truncates long messages
+ *
+ * It deliberately does NOT touch relative `kind/name` entity refs. Those are
+ * domain identifiers, not filesystem locations, and they carry no secret —
+ * redacting them only makes the message useless.
  */
 export function sanitizeErrorMessage(message: string): string {
-  // Remove URLs
+  // URLs first: they contain slashes that would otherwise be partly matched
+  // by the path patterns below.
   let sanitized = message.replace(/https?:\/\/[^\s]+/gi, "[URL]");
-  // Remove file paths (Unix and Windows)
-  sanitized = sanitized.replace(/(?:\/[\w.-]+)+|(?:[A-Z]:\\[\w.-\\]+)/gi, "[PATH]");
-  // Truncate if too long
-  if (sanitized.length > 200) {
-    sanitized = sanitized.slice(0, 197) + "...";
+  sanitized = sanitized.replace(ABSOLUTE_POSIX_PATH, "$1[PATH]");
+  sanitized = sanitized.replace(WINDOWS_PATH, "[PATH]");
+  if (sanitized.length > MAX_SANITIZED_LENGTH) {
+    sanitized = sanitized.slice(0, MAX_SANITIZED_LENGTH - 3) + "...";
   }
   return sanitized;
 }
@@ -293,6 +327,131 @@ export function getRecoveryGuidance(error: unknown) {
     category,
     ...RECOVERY_PATHS[category],
   };
+}
+
+// ============================================================================
+// User-Facing Error Description (the one derivation every surface shares)
+// ============================================================================
+
+/** Longest server message we will place in a toast before eliding. */
+const MAX_DESCRIBED_MESSAGE = 240;
+
+/**
+ * A failed operation, described for a human, in one shape.
+ *
+ * Every async surface in the app derives its wording from this so a 404 reads
+ * the same in a toast, a banner, and a dialog.
+ */
+export interface ErrorDescription {
+  category: ErrorCategory;
+  /** What went wrong, as one user-safe sentence. Never a stack or a URL. */
+  message: string;
+  /** What the operator can do about it. */
+  recovery: string;
+  /** Whether repeating the identical request could plausibly succeed. */
+  canRetry: boolean;
+  /** Server's machine-readable code ("plan_stale") when present, else "". */
+  code: string;
+  /** HTTP status when the failure reached the server, else undefined. */
+  status?: number;
+}
+
+/**
+ * True when a server-authored message is worth showing verbatim.
+ *
+ * The API's own 4xx bodies carry the actual reason ("milestone has no
+ * acceptance criteria"), which is far more useful than a generic retry
+ * prompt. But `normalizeErrorDetail` also synthesizes placeholder text for
+ * empty and HTML bodies, and those say nothing — they must not reach a user.
+ */
+function isMeaningfulServerMessage(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed) return false;
+  if (/^Request failed with status \d+$/i.test(trimmed)) return false;
+  if (/^The server returned an HTML error page/i.test(trimmed)) return false;
+  return true;
+}
+
+/**
+ * Derives the single user-facing description of any thrown value.
+ *
+ * Precedence is deliberate:
+ *  1. A meaningful server message on a *client* error (4xx). These are our own
+ *     validation refusals and they name the actual problem. Note this is the
+ *     one case where `ApiError.userMessage` is the wrong choice — it collapses
+ *     every 4xx that isn't 401/403/404 into "The request failed."
+ *  2. `ApiError.userMessage` for transport-shaped failures, where the server
+ *     text is either absent or an implementation detail.
+ *  3. A sanitized `Error.message` for non-API throws, since those can carry
+ *     internal paths.
+ *
+ * Server-authored text is NOT run through `sanitizeErrorMessage`, and it is
+ * worth being precise about why. The helper's job is to keep incidental
+ * filesystem detail out of logs from arbitrary JS throws. Our own 4xx bodies
+ * are the opposite: written for this operator, on this machine, and when they
+ * name a path ("config at /etc/vrooli/service.json is invalid") that path is
+ * the actionable content. Redacting it would leave a sentence that says
+ * something is wrong somewhere. It is length-capped instead.
+ */
+export function describeError(error: unknown): ErrorDescription {
+  const category = categorizeError(error);
+  const guidance = RECOVERY_PATHS[category];
+
+  if (isApiError(error)) {
+    const serverMessage = error.message;
+    const preferServer = error.isClientError
+      && error.status !== 401
+      && error.status !== 403
+      && isMeaningfulServerMessage(serverMessage);
+    const message = preferServer ? elide(serverMessage) : error.userMessage;
+    return {
+      category,
+      message,
+      recovery: guidance.action,
+      canRetry: guidance.canRetry && error.isRetryable,
+      code: error.code,
+      status: error.status,
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      category,
+      message: sanitizeErrorMessage(error.message) || "An unexpected error occurred.",
+      recovery: guidance.action,
+      canRetry: guidance.canRetry,
+      code: "",
+    };
+  }
+
+  return {
+    category,
+    message: "An unexpected error occurred.",
+    recovery: guidance.action,
+    canRetry: guidance.canRetry,
+    code: "",
+  };
+}
+
+/**
+ * Convenience for call sites that only need the sentence.
+ *
+ * `fallback` covers the case where an operation failed with no usable detail
+ * and the caller knows a better domain-specific phrasing.
+ */
+export function errorMessageOf(error: unknown, fallback?: string): string {
+  const described = describeError(error);
+  if (fallback && described.category === "RUNTIME" && !(error instanceof Error)) {
+    return fallback;
+  }
+  return described.message;
+}
+
+function elide(message: string): string {
+  const trimmed = message.trim();
+  return trimmed.length > MAX_DESCRIBED_MESSAGE
+    ? `${trimmed.slice(0, MAX_DESCRIBED_MESSAGE - 1)}…`
+    : trimmed;
 }
 
 // ============================================================================

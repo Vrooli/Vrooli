@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   attachStarterSuggestions,
+  starterCardBadgeSpec,
   starterSuggestionsForKind,
 } from "./session-starter-suggestions";
 
@@ -50,5 +51,36 @@ describe("attachStarterSuggestions (attach-sheet view of the starter cards)", ()
 
     const long = attachStarterSuggestions("meta_orchestration", { type: "backlog_item", ref: "x", title: "y".repeat(90) });
     expect(long.find((suggestion) => suggestion.id === "meta-backlog")?.text).toContain(`${"y".repeat(67)}...`);
+  });
+});
+
+describe("staleness starter cards", () => {
+  const cards = starterSuggestionsForKind("swarm_operations");
+  const scoped = cards.find((card) => card.id === "operations-triage-staleness");
+  const sweep = cards.find((card) => card.id === "operations-sweep-staleness");
+
+  it("gates the scoped card on attached items so clicking it opens the picker", () => {
+    // Previously every requirement was optional, so the card dropped text
+    // referring to "the attached items" into the composer while nothing was
+    // attached, and never offered a way to attach anything.
+    expect(scoped?.requirements).toContainEqual({ kind: "context", type: "backlog_item" });
+    expect(starterCardBadgeSpec(scoped!)).toEqual({ type: "backlog_item", filterKey: undefined, gating: true });
+  });
+
+  it("does not word the scoped card as if something were already attached", () => {
+    expect(scoped?.text).not.toMatch(/the attached/i);
+  });
+
+  it("offers an unscoped sweep that needs no attachments and previews the stale count", () => {
+    expect(sweep?.requirements).toBeUndefined();
+    expect(starterCardBadgeSpec(sweep!)).toEqual({
+      type: "backlog_item",
+      filterKey: "backlog_item_stale",
+      gating: false,
+    });
+  });
+
+  it("never disables the sweep card, because a zero count is still a valid answer", () => {
+    expect(starterCardBadgeSpec(sweep!)?.gating).toBe(false);
   });
 });

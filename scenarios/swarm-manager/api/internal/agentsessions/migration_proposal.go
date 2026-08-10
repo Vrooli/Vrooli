@@ -20,9 +20,9 @@ func (s *Service) CreateDecisionProposal(ctx context.Context, title, summary, pa
 	}
 	session.Status = StatusProposalReady
 	session.UpdatedAt = nowRFC3339()
-	if err := s.store.SaveSession(session); err != nil {
+	if err := s.saveSession(ctx, session); err != nil {
 		return Session{}, Proposal{}, fmt.Errorf("persist migration proposal session: %w", err)
 	}
-	updated, err := s.store.LoadSession(session.ID)
+	updated, err := s.loadSession(ctx, session.ID)
 	return updated, proposal, err
 }

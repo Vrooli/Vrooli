@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useResizablePanel } from "../hooks/useResizablePanel";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../hooks/useActionMutation";
 import { BottomSheet } from "../components/ui/bottom-sheet";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
@@ -114,9 +115,12 @@ export function PromptsPage() {
   }, [skillQuery.data?.current_content]);
 
   // --- Mutations ---
-  const updateMutation = useMutation({
+  const updateMutation = useActionMutation({
     mutationFn: ({ draft, nextContent }: { draft: boolean; nextContent: string }) =>
       promptService.updateSkill(selectedSkillId, { content: nextContent, draft }),
+    errorMessage: "Couldn't save this skill",
+    successMessage: (_result, { draft }) => draft ? "Draft saved" : "Skill published",
+    source: "PromptsPage.update",
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["prompts", "skills"] });
       void queryClient.invalidateQueries({ queryKey: ["prompts", "skill", selectedSkillId] });
@@ -124,8 +128,11 @@ export function PromptsPage() {
     },
   });
 
-  const revertMutation = useMutation({
+  const revertMutation = useActionMutation({
     mutationFn: (version: number) => promptService.revertSkillVersion(selectedSkillId, version),
+    errorMessage: "Couldn't revert to that version",
+    successMessage: (_result, version) => `Reverted to version ${version}`,
+    source: "PromptsPage.revert",
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["prompts", "skills"] });
       void queryClient.invalidateQueries({ queryKey: ["prompts", "skill", selectedSkillId] });

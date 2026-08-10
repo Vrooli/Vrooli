@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   EXECUTION_STALE_MS,
+  backlogItemIsStale,
   countForStarterCard,
   executionIsFailedOrStale,
 } from "./starter-context-filters";
-import type { AgentSessionContextType, ExecutionRecord } from "../../../types";
+import type { AgentSessionContextType, BacklogItem, ExecutionRecord } from "../../../types";
 import type { SessionContextOption } from "./session-context-refs";
 
 const NOW = new Date("2026-05-31T12:00:00Z").getTime();
@@ -62,6 +63,34 @@ describe("countForStarterCard", () => {
         type: "execution",
         filterKey: "execution_failed_or_stale",
         now: NOW,
+      }),
+    ).toBe(2);
+  });
+});
+
+describe("backlogItemIsStale", () => {
+  const item = (stale?: boolean) => ({ kind: "fix", name: "demo", stale } as unknown as BacklogItem);
+
+  it("takes the server's staleness verdict verbatim", () => {
+    // The server folds update age, last accepted review, plan-ref integrity,
+    // and acceptance-path validity into this flag. Re-deriving any of it here
+    // would give the operator a second definition that quietly disagrees.
+    expect(backlogItemIsStale(item(true))).toBe(true);
+    expect(backlogItemIsStale(item(false))).toBe(false);
+  });
+
+  it("treats an unprojected flag as not stale rather than guessing", () => {
+    expect(backlogItemIsStale(item(undefined))).toBe(false);
+  });
+
+  it("counts only stale items for a stale-filtered card", () => {
+    expect(
+      countForStarterCard({
+        optionsByType: {} as Record<AgentSessionContextType, SessionContextOption[]>,
+        executions: [],
+        backlogItems: [item(true), item(false), item(true), item(undefined)],
+        type: "backlog_item",
+        filterKey: "backlog_item_stale",
       }),
     ).toBe(2);
   });

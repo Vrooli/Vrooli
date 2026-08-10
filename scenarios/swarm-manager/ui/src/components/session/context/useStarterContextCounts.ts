@@ -8,7 +8,7 @@
  */
 import { useEffect, useMemo } from "react";
 import { useBacklogStore, useExecutionStore } from "../../../stores";
-import type { AgentSessionContextType, AgentSessionKind, ExecutionRecord } from "../../../types";
+import type { AgentSessionContextType, AgentSessionKind, BacklogItem, ExecutionRecord } from "../../../types";
 import { buildContextOptionsByType } from "./session-context-options";
 import type { SessionContextOption } from "./session-context-refs";
 import { countableTypesForKind } from "../session-starter-suggestions";
@@ -18,6 +18,8 @@ export interface StarterContextCounts {
   optionsByType: Record<AgentSessionContextType, SessionContextOption[]>;
   /** Raw executions, for failed/stale narrowing that needs entity timestamps. */
   executions: ExecutionRecord[];
+  /** Raw backlog items, for narrowing that needs the server's staleness flag. */
+  backlogItems: BacklogItem[];
   /** True while a countable type's backing fetch is still resolving (show skeleton, not "0"). */
   loading: Partial<Record<AgentSessionContextType, boolean>>;
 }
@@ -71,5 +73,5 @@ export function useStarterContextCounts(sessionKind: AgentSessionKind): StarterC
     executions.length,
   ]);
 
-  return { optionsByType, executions, loading };
+  return { optionsByType, executions, backlogItems, loading };
 }

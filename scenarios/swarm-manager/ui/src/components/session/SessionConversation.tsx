@@ -1,11 +1,14 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ExternalLink, Pencil, RotateCcw } from "lucide-react";
 import { ChatThread } from "../chat/ChatThread";
 import { MessageComposer, type MessageComposerHandle } from "../composer/MessageComposer";
 import { ContextChipTray } from "../composer/ContextChipTray";
 import { formatRelativeTime } from "../../lib/format-utils";
 import { cn } from "../../lib/utils";
 import { selectors } from "../../consts/selectors";
+import { CHAT_DENSITIES, CHAT_DENSITY_LABELS, type ChatDensity } from "../../lib/chat-density";
+import { useAgentProfileUrl, useAgentRunUrl } from "../../services/external-links";
 import type { CaptureAttachment } from "../../hooks/useIndexedDBAttachments";
 import type { AgentSessionAttachment, AgentSessionContextType, AgentSessionKind, AgentSessionMessage, AgentSessionStatus } from "../../types";
 import type { ChatMessageView } from "../chat/chat-types";
@@ -38,6 +41,15 @@ interface SessionConversationProps {
   onPendingContextChange: (items: SessionContextOption[]) => void;
   variant?: "desktop" | "mobile";
   desktopPresentation?: "card" | "pane";
+  density: ChatDensity;
+  onDensityChange: (density: ChatDensity) => void;
+  /** Agent-manager profile driving this session's run, when one is attributed. */
+  profileKey?: string;
+  runId?: string;
+  /** Locally-composed message awaiting (or failed) delivery. */
+  pendingMessage?: ChatMessageView;
+  onRetryPendingMessage?: () => void;
+  onEditPendingMessage?: () => void;
 }
 
 export function SessionConversation({
@@ -58,6 +70,13 @@ export function SessionConversation({
   onPendingContextChange,
   variant = "desktop",
   desktopPresentation = "card",
+  density,
+  onDensityChange,
+  profileKey,
+  runId,
+  pendingMessage,
+  onRetryPendingMessage,
+  onEditPendingMessage,
 }: SessionConversationProps) {
   const navigate = useNavigate();
   const composerRef = useRef<MessageComposerHandle>(null);
@@ -76,18 +95,19 @@ export function SessionConversation({
     [messages],
   );
 
-  const chatMessages: ChatMessageView[] = useMemo(
-    () =>
-      sortedMessages.map((message) => ({
-        id: message.id,
-        role: message.role,
-        content: message.content,
-        createdAt: message.createdAt,
-        attachmentIds: message.attachmentIds,
-        context: message.context,
-      })),
-    [sortedMessages],
-  );
+  const chatMessages: ChatMessageView[] = useMemo(() => {
+    const confirmed = sortedMessages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      createdAt: message.createdAt,
+      attachmentIds: message.attachmentIds,
+      context: message.context,
+    }));
+    // The optimistic message always tails the transcript: it is newer than
+    // anything the server has confirmed, by construction.
+    return pendingMessage ? [...confirmed, pendingMessage] : confirmed;
+  }, [sortedMessages, pendingMessage]);
 
   const openContextPicker = (
     initialType: AgentSessionContextType | null = null,
@@ -107,7 +127,12 @@ export function SessionConversation({
       )}
       data-testid="agent-session-conversation"
     >
-      {variant === "desktop" && <div className="border-b border-white/10 px-3 py-2 text-xs font-medium text-slate-300">Conversation</div>}
+      <ConversationToolbar
+        profileKey={profileKey}
+        runId={runId}
+        density={density}
+        onDensityChange={onDensityChange}
+      />
       {showStarterSuggestions ? (
         <SessionStarterSuggestions
           sessionKind={sessionKind}
@@ -129,7 +154,8 @@ export function SessionConversation({
           isWaiting={!isDraft && isWaitingForAgent}
           emptyLabel={isDraft ? "Start with the real context you want the agent to use." : "No messages recorded yet."}
           accent="cyan"
-          className={cn("p-3", variant === "mobile" && "px-3 pb-40")}
+          density={density}
+          className={cn(density === "comfortable" && "p-3", variant === "mobile" && "pb-40")}
           testId="agent-session-messages"
           onReferenceNavigate={(href) => navigate(href)}
           getMessageMeta={(message) => (
@@ -141,6 +167,11 @@ export function SessionConversation({
           renderAttachmentPreview={(message) => (
             <SessionMessageExtras message={message} attachments={attachments} onOpenContext={(path) => navigate(path)} />
           )}
+          renderMessageActions={(message) =>
+            message.delivery === "failed" ? (
+              <PendingMessageActions onRetry={onRetryPendingMessage} onEdit={onEditPendingMessage} />
+            ) : null
+          }
         />
       )}
       <div
@@ -184,6 +215,148 @@ export function SessionConversation({
         />
       </div>
     </section>
+  );
+}
+
+/**
+ * The conversation's own header: who you are talking to, and how the
+ * transcript is displayed.
+ *
+ * The profile was previously only visible in the inspector's third tab, so
+ * there was no way to tell which agent configuration a session was running
+ * under while reading it. The profile key is what Swarm Manager actually
+ * knows; the model itself is defined on the profile in agent-manager, which is
+ * where the link goes.
+ */
+function ConversationToolbar({
+  profileKey,
+  runId,
+  density,
+  onDensityChange,
+}: {
+  profileKey?: string;
+  runId?: string;
+  density: ChatDensity;
+  onDensityChange: (density: ChatDensity) => void;
+}) {
+  const profileUrl = useAgentProfileUrl(profileKey);
+  const runUrl = useAgentRunUrl(runId);
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2" data-testid="agent-session-conversation-toolbar">
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs">
+        <span className="font-medium text-slate-300">Conversation</span>
+        {profileKey && (
+          <ToolbarLink
+            href={profileUrl}
+            label="Profile"
+            value={profileKey}
+            testId="agent-session-conversation-profile"
+          />
+        )}
+        {runId && (
+          <ToolbarLink href={runUrl} label="Run" value={runId} testId="agent-session-conversation-run" />
+        )}
+      </div>
+      <div
+        className="flex shrink-0 items-center rounded-md border border-white/10 bg-slate-950/50 p-0.5"
+        role="group"
+        aria-label="Conversation display density"
+      >
+        {CHAT_DENSITIES.map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => onDensityChange(option)}
+            aria-pressed={density === option}
+            className={cn(
+              "rounded px-2 py-0.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50",
+              density === option ? "bg-cyan-500/15 text-cyan-200" : "text-slate-400 hover:text-slate-200",
+            )}
+            data-testid={`agent-session-density-${option}`}
+          >
+            {CHAT_DENSITY_LABELS[option]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** A labelled metadata chip that becomes a deep link once its target URL
+ * resolves; cross-scenario URLs load asynchronously and can be unavailable. */
+function ToolbarLink({
+  href,
+  label,
+  value,
+  testId,
+}: {
+  href: string | null;
+  label: string;
+  value: string;
+  testId: string;
+}) {
+  const content = (
+    <>
+      <span className="text-slate-500">{label}</span>
+      <span className="min-w-0 truncate font-medium">{value}</span>
+      {href && <ExternalLink className="h-3 w-3 shrink-0" aria-hidden />}
+    </>
+  );
+  const className = "inline-flex min-w-0 max-w-[16rem] items-center gap-1 rounded border px-1.5 py-0.5 text-[11px]";
+  if (!href) {
+    return (
+      <span className={cn(className, "border-white/10 bg-slate-900/60 text-slate-300")} data-testid={testId}>
+        {content}
+      </span>
+    );
+  }
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`Open ${label.toLowerCase()} ${value} in a new tab`}
+      className={cn(
+        className,
+        "border-cyan-500/20 bg-cyan-500/5 text-cyan-300 transition-colors hover:border-cyan-400/40 hover:bg-cyan-500/10 hover:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50",
+      )}
+      data-testid={testId}
+    >
+      {content}
+    </a>
+  );
+}
+
+/** Recovery controls on a message the server never accepted. Retry re-sends it
+ * verbatim; Edit returns it to the composer so it can be reworded. */
+function PendingMessageActions({ onRetry, onEdit }: { onRetry?: () => void; onEdit?: () => void }) {
+  if (!onRetry && !onEdit) return null;
+  return (
+    <span className="mt-1 inline-flex items-center gap-1">
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex items-center gap-1 rounded border border-rose-400/30 px-1.5 py-0.5 text-[11px] font-medium text-rose-200 transition-colors hover:border-rose-300/50 hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50"
+          data-testid="agent-session-message-retry"
+        >
+          <RotateCcw className="h-3 w-3" />
+          Retry
+        </button>
+      )}
+      {onEdit && (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="inline-flex items-center gap-1 rounded border border-white/10 px-1.5 py-0.5 text-[11px] font-medium text-slate-300 transition-colors hover:border-white/20 hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50"
+          data-testid="agent-session-message-edit"
+        >
+          <Pencil className="h-3 w-3" />
+          Edit
+        </button>
+      )}
+    </span>
   );
 }
 
@@ -256,7 +429,7 @@ export function SessionStarterSuggestions({
   className?: string;
 }) {
   const suggestions = starterSuggestionsForKind(sessionKind);
-  const { optionsByType, executions, loading } = useStarterContextCounts(sessionKind);
+  const { optionsByType, executions, backlogItems, loading } = useStarterContextCounts(sessionKind);
 
   return (
     <div className={cn("min-h-0 overflow-y-auto", className)} data-testid={selectors.agentSessions.starterSuggestions}>
@@ -269,7 +442,7 @@ export function SessionStarterSuggestions({
           const badge = starterCardBadgeSpec(suggestion);
           const badgeLoading = badge ? Boolean(loading[badge.type]) : false;
           const badgeCount = badge && !badgeLoading
-            ? countForStarterCard({ optionsByType, executions, type: badge.type, filterKey: badge.filterKey })
+            ? countForStarterCard({ optionsByType, executions, backlogItems, type: badge.type, filterKey: badge.filterKey })
             : null;
           // A required-context card whose backing set resolved to zero is a
           // dead-end click (empty picker) — disable it. Never disable while the

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "./useActionMutation";
 import { defaultQueryOptions } from "../lib";
 import { scenariosService, executionService } from "../services";
 import { useScenariosStore } from "../stores";
@@ -52,23 +53,27 @@ export function useScenarioDetailData(name: string | undefined, closeDetail: () 
 
   // Update metadata mutation
   // [REQ:REQ-P0-007] PATCH endpoint for toggling metadata
-  const updateMutation = useMutation({
+  const updateMutation = useActionMutation({
     mutationFn: (updates: { isGreenfield?: boolean }) => {
       if (!name) throw new Error("Name is required");
       return scenariosService.updateMetadata(name, updates);
     },
+    errorMessage: "Couldn't update this scenario",
+    source: "ScenarioDetail.updateMetadata",
     onSuccess: (updatedScenario) => {
       queryClient.setQueryData(["scenarios", name], updatedScenario);
       upsertScenario(updatedScenario);
     },
     onError: () => {
+      // The toggle was flipped optimistically; put it back so the switch
+      // matches the server rather than the operator's intent.
       if (scenario) {
         setLocalGreenfield(scenario.isGreenfield);
       }
     },
   });
 
-  const actionMutation = useMutation({
+  const actionMutation = useActionMutation({
     mutationFn: async (action: "start" | "stop" | "restart") => {
       if (!name) throw new Error("Name is required");
       if (action === "start") {
@@ -79,6 +84,12 @@ export function useScenarioDetailData(name: string | undefined, closeDetail: () 
       }
       return scenariosService.restart(name);
     },
+    errorMessage: "Couldn't change this scenario's state",
+    successMessage: (_scenario, action) => `Scenario ${action === "stop" ? "stopped" : action === "start" ? "started" : "restarted"}`,
+    // Lifecycle calls are slow and non-idempotent; a blind retry could
+    // interleave a second start with the first.
+    allowRetry: false,
+    source: "ScenarioDetail.lifecycle",
     onSuccess: (updatedScenario) => {
       queryClient.setQueryData(["scenarios", name], updatedScenario);
       upsertScenario(updatedScenario);
@@ -93,7 +104,7 @@ export function useScenarioDetailData(name: string | undefined, closeDetail: () 
 
   // Delete mutation
   // [REQ:REQ-P0-008] DELETE endpoint for scenario deletion with archive option
-  const deleteMutationInternal = useMutation({
+  const deleteMutationInternal = useActionMutation({
     mutationFn: (params: {
       archiveOnDelete: boolean;
       effectiveArchiveMode: "preset" | "custom";
@@ -111,6 +122,10 @@ export function useScenarioDetailData(name: string | undefined, closeDetail: () 
         preserveFiles,
       });
     },
+    errorMessage: "Couldn't delete this scenario",
+    successMessage: `Deleted scenario ${name ?? ""}`.trim(),
+    allowRetry: false,
+    source: "ScenarioDetail.delete",
     onSuccess: () => {
       if (name) {
         removeScenario(name);

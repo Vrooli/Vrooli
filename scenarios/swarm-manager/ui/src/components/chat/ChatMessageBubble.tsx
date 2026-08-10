@@ -1,9 +1,9 @@
 import { useMemo } from "react";
-import { Loader2, Volume2, VolumeX } from "lucide-react";
+import { AlertTriangle, Loader2, Volume2, VolumeX } from "lucide-react";
 import { detailPathFromNodeId } from "../../app/routes/route-paths";
 import { MarkdownRenderer, type InlineTokenResolution } from "../markdown/MarkdownRenderer";
 import { cn } from "../../lib/utils";
-import type { ChatAccent, ChatMessageRenderSlot, ChatMessageView } from "./chat-types";
+import type { ChatAccent, ChatDensity, ChatMessageRenderSlot, ChatMessageView } from "./chat-types";
 
 // REFERENCE_MARKERS maps the stored context-item type to the marker the agent
 // emits in `type:name` spans, so a resolved Context entry can be matched back
@@ -44,6 +44,14 @@ const assistantAccentClasses: Record<ChatAccent, string> = {
   slate: "border-white/10 bg-slate-900/70",
 };
 
+/** Left rule colour for compact rows — the only role signal a full-width row
+ * has, since alignment no longer carries it. */
+const compactRoleRule: Record<"user" | "assistant" | "system", string> = {
+  user: "border-l-slate-500/70",
+  assistant: "border-l-cyan-500/60",
+  system: "border-l-amber-500/60",
+};
+
 export interface ChatMessageSpeakController {
   speakingMessageId: string | null;
   loadingMessageId: string | null;
@@ -55,8 +63,10 @@ export interface ChatMessageSpeakController {
 interface ChatMessageBubbleProps {
   message: ChatMessageView;
   accent?: ChatAccent;
+  density?: ChatDensity;
   getMessageMeta?: ChatMessageRenderSlot;
   renderAttachmentPreview?: ChatMessageRenderSlot;
+  renderMessageActions?: ChatMessageRenderSlot;
   speak?: ChatMessageSpeakController;
   /** Called when a linkified entity reference is clicked. When provided, the
    * click is intercepted for client-side routing; when absent, the anchor's
@@ -67,8 +77,10 @@ interface ChatMessageBubbleProps {
 export function ChatMessageBubble({
   message,
   accent = "cyan",
+  density = "comfortable",
   getMessageMeta,
   renderAttachmentPreview,
+  renderMessageActions,
   speak,
   onReferenceNavigate,
 }: ChatMessageBubbleProps) {
@@ -77,6 +89,9 @@ export function ChatMessageBubble({
   const isAssistant = !isUser && !isSystem;
   const isSpeaking = speak?.speakingMessageId === message.id;
   const isLoadingAudio = speak?.loadingMessageId === message.id;
+  const isCompact = density === "compact";
+  const isSending = message.delivery === "sending";
+  const hasFailed = message.delivery === "failed";
 
   const references = useMemo(() => referencesFromContext(message.context), [message.context]);
 
@@ -85,32 +100,37 @@ export function ChatMessageBubble({
     return reference ? { ...reference, kind: "entity" } : null;
   };
 
-  return (
-    <article className={cn("flex", isUser ? "justify-end" : "justify-start")} data-role={message.role}>
-      <div
-        className={cn(
-          "max-w-[88%] rounded-lg border px-3 py-2 text-sm text-slate-200",
-          isUser && "border-slate-700/70 bg-slate-700/60",
-          isAssistant && assistantAccentClasses[accent],
-          isSystem && "border-amber-500/20 bg-amber-500/10",
+  const body = (
+    <>
+      {getMessageMeta && (
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-wide text-slate-500">
+          {getMessageMeta(message)}
+        </div>
+      )}
+      <MarkdownRenderer
+        content={message.content}
+        className="prose-sm-slate break-words"
+        resolveInlineToken={resolveInlineToken}
+        onLinkClick={(href, event) => {
+          if (!references.some((reference) => reference.href === href) || !onReferenceNavigate) return;
+          event.preventDefault();
+          onReferenceNavigate(href);
+        }}
+      />
+      {renderAttachmentPreview?.(message)}
+      <div className="flex flex-wrap items-center gap-2">
+        {isSending && (
+          <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-400" data-testid={`chat-message-sending-${message.id}`}>
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Sending
+          </span>
         )}
-      >
-        {getMessageMeta && (
-          <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-wide text-slate-500">
-            {getMessageMeta(message)}
-          </div>
+        {hasFailed && (
+          <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-rose-300" data-testid={`chat-message-failed-${message.id}`}>
+            <AlertTriangle className="h-3 w-3" />
+            Not sent
+          </span>
         )}
-        <MarkdownRenderer
-          content={message.content}
-          className="prose-sm-slate break-words"
-          resolveInlineToken={resolveInlineToken}
-          onLinkClick={(href, event) => {
-            if (!references.some((reference) => reference.href === href) || !onReferenceNavigate) return;
-            event.preventDefault();
-            onReferenceNavigate(href);
-          }}
-        />
-        {renderAttachmentPreview?.(message)}
         {isAssistant && speak && !speak.unavailable && message.content.trim() && (
           <button
             type="button"
@@ -133,6 +153,46 @@ export function ChatMessageBubble({
             <span className="sr-only">{isLoadingAudio ? "Preparing audio" : isSpeaking ? "Stop speaking" : "Speak message"}</span>
           </button>
         )}
+        {renderMessageActions?.(message)}
+      </div>
+    </>
+  );
+
+  // Compact: a full-width log row. Alignment no longer distinguishes speakers,
+  // so a coloured left rule does, and long agent output gets the whole pane
+  // instead of a narrow column.
+  if (isCompact) {
+    return (
+      <article
+        className={cn(
+          "border-b border-l-2 border-b-white/5 px-3 py-2.5 text-sm text-slate-200",
+          compactRoleRule[isUser ? "user" : isSystem ? "system" : "assistant"],
+          isSystem && "bg-amber-500/[0.04]",
+          hasFailed && "bg-rose-500/[0.06]",
+          isSending && "opacity-70",
+        )}
+        data-role={message.role}
+        data-density="compact"
+        data-delivery={message.delivery}
+      >
+        {body}
+      </article>
+    );
+  }
+
+  return (
+    <article className={cn("flex", isUser ? "justify-end" : "justify-start")} data-role={message.role} data-density="comfortable" data-delivery={message.delivery}>
+      <div
+        className={cn(
+          "max-w-[min(46rem,85%)] rounded-lg border px-3 py-2 text-sm text-slate-200",
+          isUser && "border-slate-700/70 bg-slate-700/60",
+          isAssistant && assistantAccentClasses[accent],
+          isSystem && "border-amber-500/20 bg-amber-500/10",
+          hasFailed && "border-rose-500/40 bg-rose-500/10",
+          isSending && "opacity-70",
+        )}
+      >
+        {body}
       </div>
     </article>
   );

@@ -12,7 +12,11 @@ type StartupBriefResolver interface {
 }
 
 func (s *Service) StartupBrief(ctx context.Context, sessionID string) (ContextItem, error) {
-	session, err := s.store.LoadSession(strings.TrimSpace(sessionID))
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return ContextItem{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
 	if err != nil {
 		return ContextItem{}, mapStoreError(err)
 	}

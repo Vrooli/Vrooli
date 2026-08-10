@@ -50,7 +50,11 @@ type RunEvent struct {
 }
 
 func (s *Service) ListEvents(ctx context.Context, req ListEventsRequest) (ListEventsResult, error) {
-	session, err := s.store.LoadSession(strings.TrimSpace(req.SessionID))
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return ListEventsResult{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(req.SessionID))
 	if err != nil {
 		return ListEventsResult{}, mapStoreError(err)
 	}

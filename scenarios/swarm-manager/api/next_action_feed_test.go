@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -46,7 +47,7 @@ type countingDecisionCounter struct {
 	counts readyDecisionCounts
 }
 
-func (c *countingDecisionCounter) countReadyDecisions() (readyDecisionCounts, error) {
+func (c *countingDecisionCounter) countReadyDecisions(context.Context) (readyDecisionCounts, error) {
 	c.scans++
 	return c.counts, nil
 }

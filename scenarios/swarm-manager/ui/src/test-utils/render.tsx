@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactElement, ReactNode } from "react";
 import { createTestQueryClient } from "./query";
+import { ToastProvider } from "../components/ui/toast-provider";
 
 type ProviderOptions = {
   queryClient?: QueryClient;
@@ -25,8 +26,13 @@ function createProviderWrapper({
   withRouter = true,
 }: ProviderOptions = {}) {
   return function ProviderWrapper({ children }: { children: ReactNode }) {
+    // ToastProvider is part of the harness, not opt-in: it is how every
+    // mutation reports failure, so a test that renders without it would be
+    // asserting against a quieter app than the one that ships.
     const content = (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>{children}</ToastProvider>
+      </QueryClientProvider>
     );
     if (!withRouter) {
       return content;

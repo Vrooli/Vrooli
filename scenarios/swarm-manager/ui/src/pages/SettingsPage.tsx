@@ -11,7 +11,8 @@
  */
 
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../hooks/useActionMutation";
 import { Info } from "lucide-react";
 import { UNSAFE_NavigationContext } from "react-router-dom";
 import { Button } from "../components/ui/button";
@@ -121,8 +122,12 @@ export function SettingsPage() {
     }
   }, [settings]);
 
-  const updateMutation = useMutation({
+  const updateMutation = useActionMutation({
     mutationFn: settingsService.update,
+    errorMessage: "Couldn't save settings",
+    // The page prints its own "Settings saved." line; a toast on top of it
+    // would say the same thing twice. Failures still toast.
+    source: "SettingsPage.update",
     onSuccess: (updated) => {
       queryClient.setQueryData(["settings"], updated);
       setForm(updated);

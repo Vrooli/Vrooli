@@ -74,7 +74,7 @@ func (h *Handler) ListProposalSessions(w http.ResponseWriter, r *http.Request) {
 	targetType, targetRef := ContextType(strings.TrimSpace(r.URL.Query().Get("target_type"))), strings.TrimSpace(r.URL.Query().Get("target_ref"))
 	// Proposals are session-level state, so the per-session artifact hydration
 	// List performs is pure cost here — and it dominates a whole-store scan.
-	sessions, err := h.service.ListWithoutArtifacts(ListFilters{})
+	sessions, err := h.service.ListWithoutArtifacts(r.Context(), ListFilters{})
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] list proposal sessions", err)
 		return
@@ -313,7 +313,7 @@ func (h *Handler) UploadAttachments(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetAttachment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	path, attachment, err := h.service.AttachmentPath(vars["session_id"], vars["attachment_id"])
+	path, attachment, err := h.service.AttachmentPath(r.Context(), vars["session_id"], vars["attachment_id"])
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] attachment", err)
 		return

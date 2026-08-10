@@ -4,6 +4,8 @@
  * Shared type definitions used across backlog service modules.
  */
 
+import type { NextActionEffect } from "../next-action-service";
+
 import type { BacklogFile, BacklogItem, BacklogKind, BlockingReason, ItemBlockingInfo, PlanRef } from "../../types";
 
 /**
@@ -59,6 +61,14 @@ export interface BacklogNextAction {
   reason?: string;
   blockers: BlockingReason[];
   target?: string;
+  /**
+   * What performing this action does to the system, declared by the server so
+   * a control can warn before spending agent time. Optional on the wire: a UI
+   * build newer than its API treats absence as unknown, never as harmless.
+   */
+  effect?: NextActionEffect;
+  /** Server's marker for actions that remove or interrupt state. */
+  destructive?: boolean;
   followUp?: { steering: string; disposition: "follow_up_run" | "replan" | "new_items"; items?: Array<{ kind: string; name: string; title: string }> };
 }
 

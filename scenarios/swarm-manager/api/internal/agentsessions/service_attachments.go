@@ -16,14 +16,18 @@ var allowedSessionImageTypes = map[string]bool{
 	"image/webp": true,
 }
 
-func (s *Service) UploadAttachments(_ context.Context, sessionID string, uploads []AttachmentUpload) ([]Attachment, error) {
+func (s *Service) UploadAttachments(ctx context.Context, sessionID string, uploads []AttachmentUpload) ([]Attachment, error) {
 	if len(uploads) == 0 {
 		return []Attachment{}, nil
 	}
 	if len(uploads) > 6 {
 		return nil, apierr.BadRequest("no more than 6 image attachments are allowed per message")
 	}
-	if _, err := s.store.LoadSession(strings.TrimSpace(sessionID)); err != nil {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := store.LoadSession(strings.TrimSpace(sessionID)); err != nil {
 		return nil, mapStoreError(err)
 	}
 	attachments := make([]Attachment, 0, len(uploads))
@@ -45,7 +49,7 @@ func (s *Service) UploadAttachments(_ context.Context, sessionID string, uploads
 		if attachment.Filename == "" {
 			attachment.Filename = "unnamed"
 		}
-		if err := s.store.SaveAttachment(sessionID, attachment, upload.Reader); err != nil {
+		if err := store.SaveAttachment(sessionID, attachment, upload.Reader); err != nil {
 			return nil, err
 		}
 		attachments = append(attachments, attachment)
@@ -53,8 +57,12 @@ func (s *Service) UploadAttachments(_ context.Context, sessionID string, uploads
 	return attachments, nil
 }
 
-func (s *Service) AttachmentPath(sessionID string, attachmentID string) (string, Attachment, error) {
-	path, attachment, err := s.store.AttachmentPath(strings.TrimSpace(sessionID), strings.TrimSpace(attachmentID))
+func (s *Service) AttachmentPath(ctx context.Context, sessionID string, attachmentID string) (string, Attachment, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return "", Attachment{}, err
+	}
+	path, attachment, err := store.AttachmentPath(strings.TrimSpace(sessionID), strings.TrimSpace(attachmentID))
 	if err != nil {
 		return "", Attachment{}, mapStoreError(err)
 	}

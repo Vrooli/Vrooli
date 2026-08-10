@@ -124,21 +124,40 @@ type ListFilters struct {
 }
 
 type FileStore struct {
-	root     string
-	mu       sync.Mutex
+	root string
+	// mu is shared by pointer with every ForContext view of this store, so
+	// concurrent requests against the same routed root still serialize.
+	mu       *sync.Mutex
 	roots    *filerouting.RoutedRoots
 	writeCtx context.Context
 }
 
 func NewFileStore(root string) *FileStore {
-	return &FileStore{root: filepath.Join(root, "agent-sessions")}
+	return &FileStore{root: filepath.Join(root, "agent-sessions"), mu: &sync.Mutex{}}
 }
 
 // NewRoutedFileStore selects the data-class root for each request. This is the
 // store used by the production server; tests that construct NewFileStore keep
 // the small, deterministic primary-root implementation.
+//
+// The returned store deliberately has no root of its own: only ForContext can
+// supply one. Calling a data method on it directly is a programming error, not
+// an empty result — see errUnroutedStore.
 func NewRoutedFileStore(roots *filerouting.RoutedRoots) *FileStore {
-	return &FileStore{roots: roots}
+	return &FileStore{roots: roots, mu: &sync.Mutex{}}
+}
+
+// ErrUnrouted reports a routed store used outside a request scope. Without the
+// guard, filepath.Join("", id) resolves against the process working directory
+// and every read reports ErrNotFound while every list reports zero sessions —
+// a silent, total data outage that looks like an empty store.
+var ErrUnrouted = errors.New("agent session store used without a routed request scope; call ForContext first")
+
+func (s *FileStore) errUnroutedStore() error {
+	if s.roots != nil && s.root == "" {
+		return ErrUnrouted
+	}
+	return nil
 }
 
 func (s *FileStore) ForContext(ctx context.Context) (Store, error) {
@@ -149,11 +168,13 @@ func (s *FileStore) ForContext(ctx context.Context) (Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve routed agent-session data root: %w", err)
 	}
-	scoped := *s
-	scoped.root = filepath.Join(root, "agent-sessions")
-	scoped.roots = s.roots
-	scoped.writeCtx = ctx
-	return &scoped, nil
+	scoped := &FileStore{
+		root:     filepath.Join(root, "agent-sessions"),
+		mu:       s.mu,
+		roots:    s.roots,
+		writeCtx: ctx,
+	}
+	return scoped, nil
 }
 
 func (s *FileStore) recordWrite() {
@@ -163,6 +184,9 @@ func (s *FileStore) recordWrite() {
 }
 
 func (s *FileStore) CreateSession(session Session) error {
+	if err := s.errUnroutedStore(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -184,12 +208,18 @@ func (s *FileStore) CreateSession(session Session) error {
 }
 
 func (s *FileStore) SaveSession(session Session) error {
+	if err := s.errUnroutedStore(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.saveSessionLocked(session)
 }
 
 func (s *FileStore) DeleteSession(sessionID string) error {
+	if err := s.errUnroutedStore(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -205,12 +235,18 @@ func (s *FileStore) DeleteSession(sessionID string) error {
 }
 
 func (s *FileStore) LoadSession(sessionID string) (Session, error) {
+	if err := s.errUnroutedStore(); err != nil {
+		return Session{}, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.loadSessionLocked(sessionID)
 }
 
 func (s *FileStore) ListSessions(filters ListFilters) ([]Session, error) {
+	if err := s.errUnroutedStore(); err != nil {
+		return nil, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -258,6 +294,9 @@ func (s *FileStore) ListSessions(filters ListFilters) ([]Session, error) {
 }
 
 func (s *FileStore) AppendMessage(sessionID string, message Message) error {
+	if err := s.errUnroutedStore(); err != nil {
+		return err
+	}
 	if err := message.Validate(); err != nil {
 		return err
 	}
@@ -277,6 +316,9 @@ func (s *FileStore) AppendMessage(sessionID string, message Message) error {
 }
 
 func (s *FileStore) SaveProposal(sessionID string, proposal Proposal) error {
+	if err := s.errUnroutedStore(); err != nil {
+		return err
+	}
 	if err := proposal.Validate(); err != nil {
 		return err
 	}
@@ -300,6 +342,9 @@ func (s *FileStore) SaveProposal(sessionID string, proposal Proposal) error {
 }
 
 func (s *FileStore) ListArtifacts(sessionID string) ([]Artifact, error) {
+	if err := s.errUnroutedStore(); err != nil {
+		return nil, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -313,6 +358,9 @@ func (s *FileStore) ListArtifacts(sessionID string) ([]Artifact, error) {
 // own durable record. These are domain handoff material, not transport
 // evidence, and must remain available after the shared receipt migration.
 func (s *FileStore) AppendArtifacts(sessionID string, artifacts []Artifact) error {
+	if err := s.errUnroutedStore(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, err := s.loadSessionLocked(sessionID); err != nil {
@@ -329,6 +377,9 @@ func (s *FileStore) AppendArtifacts(sessionID string, artifacts []Artifact) erro
 }
 
 func (s *FileStore) ListArtifactsByEntity(artifactType ArtifactType, entityRef string) ([]Artifact, error) {
+	if err := s.errUnroutedStore(); err != nil {
+		return nil, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -364,6 +415,9 @@ func (s *FileStore) ListArtifactsByEntity(artifactType ArtifactType, entityRef s
 }
 
 func (s *FileStore) SaveAttachment(sessionID string, attachment Attachment, reader io.Reader) error {
+	if err := s.errUnroutedStore(); err != nil {
+		return err
+	}
 	if err := attachment.Validate(); err != nil {
 		return err
 	}
@@ -404,6 +458,9 @@ func (s *FileStore) SaveAttachment(sessionID string, attachment Attachment, read
 }
 
 func (s *FileStore) AttachmentPath(sessionID string, attachmentID string) (string, Attachment, error) {
+	if err := s.errUnroutedStore(); err != nil {
+		return "", Attachment{}, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

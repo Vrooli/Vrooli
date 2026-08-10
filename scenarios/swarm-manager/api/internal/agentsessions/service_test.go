@@ -778,7 +778,7 @@ func TestServiceUploadAttachmentsStoresSessionOwnedImages(t *testing.T) {
 	if len(loaded.Attachments) != 1 || loaded.Attachments[0].Filename != "screenshot.png" {
 		t.Fatalf("stored attachments = %+v", loaded.Attachments)
 	}
-	path, _, err := svc.AttachmentPath(draft.ID, attachments[0].ID)
+	path, _, err := svc.AttachmentPath(context.Background(), draft.ID, attachments[0].ID)
 	if err != nil {
 		t.Fatalf("AttachmentPath() error = %v", err)
 	}

@@ -96,11 +96,39 @@ type Service struct {
 	eventDispatcher           dispatch.Invalidator
 }
 
+// storeFor is the only sanctioned way to reach session storage. The production
+// store is routed: it carries no root of its own until the request's storage
+// lease supplies one, so a method that reaches past this into s.store resolves
+// paths against the process working directory and silently reports every
+// session as missing. TestServiceMethodsNeverBypassStoreFor enforces that.
 func (s *Service) storeFor(ctx context.Context) (Store, error) {
 	if routed, ok := s.store.(ContextStore); ok {
 		return routed.ForContext(ctx)
 	}
 	return s.store, nil
+}
+
+// loadSession is the request-scoped session read, with store errors already
+// mapped to their transport equivalents.
+func (s *Service) loadSession(ctx context.Context, sessionID string) (Session, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
+	if err != nil {
+		return Session{}, mapStoreError(err)
+	}
+	return session, nil
+}
+
+// saveSession is the request-scoped session write.
+func (s *Service) saveSession(ctx context.Context, session Session) error {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return err
+	}
+	return store.SaveSession(session)
 }
 
 // SetEventDispatcher installs the graph invalidation seam. Proposal state is
@@ -353,8 +381,12 @@ func (s *Service) List(ctx context.Context, filters ListFilters) ([]Session, err
 // the per-session artifact JSONL hydration List performs. Callers that read
 // session-level state such as proposals never touch artifacts, and hydrating
 // them is the dominant cost of a whole-store scan.
-func (s *Service) ListWithoutArtifacts(filters ListFilters) ([]Session, error) {
-	return s.store.ListSessions(filters)
+func (s *Service) ListWithoutArtifacts(ctx context.Context, filters ListFilters) ([]Session, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return store.ListSessions(filters)
 }
 
 func (s *Service) ResolveSessionForRun(ctx context.Context, runID string) (identity.SessionReference, bool, error) {

@@ -36,6 +36,8 @@ import {
   TERMINAL_SESSION_STATUSES,
 } from "../components/session/session-view-model";
 import { formatDisplayText, formatRelativeTime } from "../lib/format-utils";
+import { readChatDensity, rememberChatDensity, type ChatDensity } from "../lib/chat-density";
+import type { ChatMessageView } from "../components/chat/chat-types";
 import { useAgentSessionStore } from "../stores";
 import { useAgentSessionEvents } from "../hooks/useAgentSessionEvents";
 import { useAgentSessionPolling } from "../hooks/useAgentSessionPolling";
@@ -43,6 +45,22 @@ import { useAppBack } from "../app/routes/useAppBack";
 import { backlogDetailPath, detailPathFromNodeId, goalDetailPath } from "../app/routes/route-paths";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import type { AgentSession, AgentSessionArtifact } from "../types";
+
+/**
+ * A message the operator has composed and the server has not yet confirmed.
+ *
+ * Without this the composer emptied on submit and nothing appeared until the
+ * round trip finished, so a slow send read as a dropped one — and a failed
+ * send left the operator with no record of what they had written.
+ */
+interface PendingSend {
+  id: string;
+  content: string;
+  createdAt: string;
+  context: SessionContextOption[];
+  delivery: "sending" | "failed";
+  baselineUserMessages: number;
+}
 
 export function SessionDetailsPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -90,6 +108,8 @@ export function SessionDetailsPage() {
   const [draft, setDraft] = useState("");
   const [pendingContext, setPendingContext] = useState<SessionContextOption[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [pendingSend, setPendingSend] = useState<PendingSend | null>(null);
+  const [density, setDensity] = useState<ChatDensity>(readChatDensity);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const { requestDelete: requestDeleteSession, dialogProps: deleteDialogProps } =
     useDeleteConfirm("session");
@@ -100,6 +120,7 @@ export function SessionDetailsPage() {
   useEffect(() => {
     setDraft(readSessionDraft(draftSessionId));
     setPendingContext(session?.status === "draft" ? [startupBriefOption(session.kind)] : []);
+    setPendingSend(null);
   }, [session?.id, session?.kind, session?.status, draftSessionId]);
 
   useEffect(() => {
@@ -128,45 +149,92 @@ export function SessionDetailsPage() {
     });
   }, [session, startupBriefQuery.data]);
 
+  // While a send is outstanding the composer is empty but the text is not
+  // lost — it lives in pendingSend, and the failure branch persists it under
+  // the same draft key. Writing the (empty) composer value here would clobber
+  // that, so the debounce stands down until the send resolves.
   useEffect(() => {
+    if (pendingSend) return undefined;
     const timer = window.setTimeout(() => {
       writeSessionDraft(draftSessionId, draft);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [draft, draftSessionId]);
+  }, [draft, draftSessionId, pendingSend]);
 
-  const handleSend = useCallback(async () => {
-    if (!session || (!draft.trim() && sessionAttachments.attachments.length === 0 && pendingContext.length === 0)) return;
+  const handleDensityChange = useCallback((next: ChatDensity) => {
+    setDensity(next);
+    rememberChatDensity(next);
+  }, []);
+
+  const deliverMessage = useCallback(
+    async (send: PendingSend) => {
+      if (!session) return;
+      setLocalError(null);
+      try {
+        const uploaded = await uploadSessionAttachments(session.id, sessionAttachments.getFiles());
+        const attachmentIds = uploaded.map((attachment) => attachment.id);
+        const contextRefs = optionsToRefs(send.context);
+        const hasAutoStartupContext = contextRefs.some((ref) => ref.type === "startup_brief" || ref.type === "operations_briefing");
+        const sendArgs = {
+          sessionId: session.id,
+          message: send.content,
+          ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
+          ...(contextRefs.length > 0 ? { contextRefs } : {}),
+          ...(session.status === "draft" && hasAutoStartupContext ? { autoContextPolicy: "none" as const } : {}),
+        };
+        if (session.status === "draft") {
+          await startSession(sendArgs);
+        } else {
+          await continueSession(sendArgs);
+        }
+        sessionAttachments.clearAll();
+        setPendingSend(null);
+        writeSessionDraft(draftSessionId, "");
+      } catch (err) {
+        // Keep the message visible and recoverable rather than silently
+        // dropping it, and persist the text so a refresh cannot lose it.
+        setPendingSend((current) => (current && current.id === send.id ? { ...current, delivery: "failed" } : current));
+        writeSessionDraft(draftSessionId, send.content);
+        setLocalError(err instanceof Error ? err.message : "Unable to send session message.");
+      }
+    },
+    [continueSession, draftSessionId, session, sessionAttachments, startSession, uploadSessionAttachments],
+  );
+
+  const handleSend = useCallback(() => {
+    if (!session || pendingSend) return;
     const message = draft.trim();
-    const context = pendingContext;
+    if (!message && sessionAttachments.attachments.length === 0 && pendingContext.length === 0) return;
+    const send: PendingSend = {
+      id: `pending-${session.id}-${session.messages.length}`,
+      content: message,
+      createdAt: new Date().toISOString(),
+      context: pendingContext,
+      delivery: "sending",
+      // Snapshot of what the server had confirmed before this send. The
+      // optimistic message retires the moment that count grows, which is a
+      // fact about the transcript rather than a race with our own setState.
+      baselineUserMessages: session.messages.filter((entry) => entry.role === "user").length,
+    };
     setDraft("");
     setPendingContext([]);
-    setLocalError(null);
-    try {
-      const uploaded = await uploadSessionAttachments(session.id, sessionAttachments.getFiles());
-      const attachmentIds = uploaded.map((attachment) => attachment.id);
-      const contextRefs = optionsToRefs(context);
-      const hasAutoStartupContext = contextRefs.some((ref) => ref.type === "startup_brief" || ref.type === "operations_briefing");
-      const sendArgs = {
-        sessionId: session.id,
-        message,
-        ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
-        ...(contextRefs.length > 0 ? { contextRefs } : {}),
-        ...(session.status === "draft" && hasAutoStartupContext ? { autoContextPolicy: "none" as const } : {}),
-      };
-      if (session.status === "draft") {
-        await startSession(sendArgs);
-      } else {
-        await continueSession(sendArgs);
-      }
-      sessionAttachments.clearAll();
-      writeSessionDraft(draftSessionId, "");
-    } catch (err) {
-      setDraft(message);
-      setPendingContext(context);
-      setLocalError(err instanceof Error ? err.message : "Unable to send session message.");
-    }
-  }, [continueSession, draft, draftSessionId, pendingContext, session, sessionAttachments, startSession, uploadSessionAttachments]);
+    setPendingSend(send);
+    void deliverMessage(send);
+  }, [deliverMessage, draft, pendingContext, pendingSend, session, sessionAttachments]);
+
+  const handleRetrySend = useCallback(() => {
+    if (!pendingSend) return;
+    const retry: PendingSend = { ...pendingSend, delivery: "sending" };
+    setPendingSend(retry);
+    void deliverMessage(retry);
+  }, [deliverMessage, pendingSend]);
+
+  const handleEditPendingSend = useCallback(() => {
+    if (!pendingSend) return;
+    setDraft(pendingSend.content);
+    setPendingContext(pendingSend.context);
+    setPendingSend(null);
+  }, [pendingSend]);
 
   const handleRefresh = useCallback(async () => {
     if (!session) return;
@@ -269,6 +337,45 @@ export function SessionDetailsPage() {
   const cancelDisabled = isMutating || TERMINAL_SESSION_STATUSES.has(session.status);
   const deleteDisabled = isMutating;
   const isWaitingForAgent = isSessionWaitingForAgent(session);
+
+  // Retire the optimistic message as soon as the server's own copy lands, so
+  // the transcript never shows the same turn twice even for one frame.
+  const confirmedUserMessages = session.messages.filter((entry) => entry.role === "user").length;
+  const pendingMessageView: ChatMessageView | undefined =
+    pendingSend && !(pendingSend.delivery === "sending" && confirmedUserMessages > pendingSend.baselineUserMessages)
+      ? {
+          id: pendingSend.id,
+          role: "user",
+          content: pendingSend.content,
+          createdAt: pendingSend.createdAt,
+          delivery: pendingSend.delivery,
+        }
+      : undefined;
+
+  const conversationProps = {
+    messages: session.messages,
+    draft,
+    onDraftChange: setDraft,
+    onSend: handleSend,
+    isMutating,
+    isWaitingForAgent,
+    sessionKind: session.kind,
+    sessionStatus: session.status,
+    sessionId: session.id,
+    attachments: session.attachments ?? [],
+    pendingAttachments: sessionAttachments.attachments,
+    onAttachFiles: (files: File[]) => files.forEach(sessionAttachments.addFile),
+    onRemovePendingAttachment: sessionAttachments.removeFile,
+    pendingContext,
+    onPendingContextChange: setPendingContext,
+    density,
+    onDensityChange: handleDensityChange,
+    profileKey: session.profileKey,
+    runId: session.runId,
+    pendingMessage: pendingMessageView,
+    onRetryPendingMessage: handleRetrySend,
+    onEditPendingMessage: handleEditPendingSend,
+  };
 
   const artifactContent = (variant: "panel" | "plain") => (
     <SessionArtifactList
@@ -391,51 +498,22 @@ export function SessionDetailsPage() {
         )}
 
         {isMobile ? (
-          <div className="min-h-[calc(100vh-11rem)]">
-            {mobileSection === "conversation" && (
-              <SessionConversation
-                messages={session.messages}
-                draft={draft}
-                onDraftChange={setDraft}
-                onSend={() => void handleSend()}
-                isMutating={isMutating}
-                isWaitingForAgent={isWaitingForAgent}
-                sessionKind={session.kind}
-                sessionStatus={session.status}
-                sessionId={session.id}
-                attachments={session.attachments ?? []}
-                pendingAttachments={sessionAttachments.attachments}
-                onAttachFiles={(files) => files.forEach(sessionAttachments.addFile)}
-                onRemovePendingAttachment={sessionAttachments.removeFile}
-                pendingContext={pendingContext}
-                onPendingContextChange={setPendingContext}
-                variant="mobile"
-              />
+          // Bounded height, not min-height: the conversation owns its own
+          // scrolling, and a pane that can only grow pushes the page instead
+          // of scrolling inside itself. 100dvh tracks the mobile URL bar.
+          <div className="flex h-[calc(100dvh-11rem)] min-h-0 flex-col overflow-hidden">
+            {mobileSection === "conversation" && <SessionConversation {...conversationProps} variant="mobile" />}
+            {mobileSection !== "conversation" && (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {mobileSection === "events" && eventsContent("plain")}
+                {mobileSection === "artifacts" && artifactContent("plain")}
+                {mobileSection === "details" && detailContent("plain")}
+              </div>
             )}
-            {mobileSection === "events" && eventsContent("plain")}
-            {mobileSection === "artifacts" && artifactContent("plain")}
-            {mobileSection === "details" && detailContent("plain")}
           </div>
         ) : (
           <div ref={desktopLayoutRef} className="flex min-h-0 flex-1" data-testid="session-desktop-layout">
-            <SessionConversation
-              messages={session.messages}
-              draft={draft}
-              onDraftChange={setDraft}
-              onSend={() => void handleSend()}
-              isMutating={isMutating}
-              isWaitingForAgent={isWaitingForAgent}
-              sessionKind={session.kind}
-              sessionStatus={session.status}
-              sessionId={session.id}
-              attachments={session.attachments ?? []}
-              pendingAttachments={sessionAttachments.attachments}
-              onAttachFiles={(files) => files.forEach(sessionAttachments.addFile)}
-              onRemovePendingAttachment={sessionAttachments.removeFile}
-              pendingContext={pendingContext}
-              onPendingContextChange={setPendingContext}
-              desktopPresentation="pane"
-            />
+            <SessionConversation {...conversationProps} desktopPresentation="pane" />
             <SessionInspector
               containerRef={desktopLayoutRef}
               sections={inspectorSections}

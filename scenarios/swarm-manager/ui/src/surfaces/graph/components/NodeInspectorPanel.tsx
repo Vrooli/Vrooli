@@ -11,7 +11,8 @@
 
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../../../hooks/useActionMutation";
 import { AlertCircle, ExternalLink, Play, Target } from "lucide-react";
 import { FocusActionsSection } from "./FocusActionsSection";
 import { SetAsGoalDialog } from "../../../components/goals/SetAsGoalDialog";
@@ -170,9 +171,12 @@ export function NodeInspectorPanel() {
   const queryClient = useQueryClient();
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
 
-  const statusMutation = useMutation({
+  const statusMutation = useActionMutation({
     mutationFn: ({ kind, name: itemName, newStatus }: { kind: BacklogKind; name: string; newStatus: BacklogStatus }) =>
       backlogService.update(kind, itemName, { status: newStatus }),
+    errorMessage: "Couldn't change that item's status",
+    successMessage: (_item, { name: itemName, newStatus }) => `${itemName} set to ${newStatus.replaceAll("_", " ")}`,
+    source: "NodeInspectorPanel.status",
     onSuccess: () => {
       void fetchBacklog({ force: true });
       void queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
@@ -221,9 +225,14 @@ export function NodeInspectorPanel() {
     navigate(graphPath({ lens, focus: selectedNodeId, select: selectedNodeId }));
   };
 
-  const queueMutation = useMutation({
+  const queueMutation = useActionMutation({
     mutationFn: ({ kind, name: itemName }: { kind: BacklogKind; name: string }) =>
       defaultApiClient.post(API_ENDPOINTS.backlogQueue(kind, itemName), {}),
+    errorMessage: "Couldn't queue that item",
+    // Queueing hands the item to an agent lane; it has not run yet.
+    successMessage: (_result, { name: itemName }) => `${itemName} queued for an agent run`,
+    successKind: "progress",
+    source: "NodeInspectorPanel.queue",
     onSuccess: () => {
       void fetchBacklog({ force: true });
       void queryClient.invalidateQueries({ queryKey: ["backlog-list"] });

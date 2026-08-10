@@ -8,6 +8,7 @@ import { proposalSessionService, type ProposalSessionProposal } from "../../serv
 import type { BacklogItem, BacklogKind } from "../../types";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { ProposalReview } from "../session/ProposalSessionsPanel";
+import { useAsyncAction } from "../../hooks/useAsyncAction";
 
 /**
  * A read-only inspection older than this is worth flagging: the proposals in
@@ -74,8 +75,9 @@ export function ProposalDecisionStreamView({ proposals, onComplete, onBack, onSn
   const [snoozed, setSnoozed] = useState<Set<string>>(() => new Set());
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [note, setNote] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Inline-only: the card stays on screen after a failure and shows the
+  // reason next to the controls that produced it.
+  const { pending, error, reset: clearError, fail, run } = useAsyncAction({ toastOnError: false, source: "ProposalDecisionStreamView" });
   const [archiveOpen, setArchiveOpen] = useState(false);
   const active = useMemo(() => proposals.filter(({ proposal }) => !resolved.has(proposal.id) && !snoozed.has(proposal.id)), [proposals, resolved, snoozed]);
   const safeIndex = Math.min(index, Math.max(active.length - 1, 0));
@@ -85,9 +87,9 @@ export function ProposalDecisionStreamView({ proposals, onComplete, onBack, onSn
     if (!current) { onComplete(); return; }
     setSelected(new Set(proposalMutations(current.proposal.payload_json).map((mutation) => mutation.id)));
     setNote("");
-    setError(null);
+    clearError();
     setArchiveOpen(false);
-  }, [current?.proposal.id]);
+  }, [current?.proposal.id, clearError]);
 
   const advance = useCallback(() => {
     if (safeIndex < active.length - 1) setIndex(safeIndex + 1); else onComplete();
@@ -99,13 +101,8 @@ export function ProposalDecisionStreamView({ proposals, onComplete, onBack, onSn
 
   const runAction = useCallback(async (action: () => Promise<unknown>, failure: string) => {
     if (!current) return;
-    setPending(true); setError(null);
-    try {
-      await action();
-      resolve(current.proposal.id);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : failure); }
-    finally { setPending(false); }
-  }, [current, resolve]);
+    if (await run(action, { errorMessage: failure })) resolve(current.proposal.id);
+  }, [current, resolve, run]);
 
   const decide = useCallback((accept: boolean) => {
     if (!current) return;
@@ -137,13 +134,13 @@ export function ProposalDecisionStreamView({ proposals, onComplete, onBack, onSn
   const archiveItem = useCallback(() => {
     if (!current?.target) return;
     const [kind, name] = current.target.ref.split("/");
-    if (!kind || !name) { setError("This proposal's target is not an archivable item."); return; }
+    if (!kind || !name) { fail("This proposal's target is not an archivable item."); return; }
     void runAction(async () => {
       await backlogService.archiveItem(kind as BacklogKind, name);
       setArchiveOpen(false);
       onItemChanged?.();
     }, "Unable to archive this item.");
-  }, [current, runAction, onItemChanged]);
+  }, [current, runAction, onItemChanged, fail]);
 
   if (!current) return null;
 
