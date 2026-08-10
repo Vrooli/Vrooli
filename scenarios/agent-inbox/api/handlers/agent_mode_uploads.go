@@ -3,13 +3,14 @@
 package handlers
 
 import (
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
-	"agent-inbox/middleware"
 	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
+
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
+	"agent-inbox/middleware"
 )
 
 // AttachAgentRunRequest is the request body for attaching an existing run to a chat.

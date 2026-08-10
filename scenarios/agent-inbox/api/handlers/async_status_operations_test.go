@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"agent-inbox/services"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -9,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"agent-inbox/services"
 
 	"github.com/gorilla/mux"
 )

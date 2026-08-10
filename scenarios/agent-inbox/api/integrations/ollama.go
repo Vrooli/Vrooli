@@ -1,13 +1,14 @@
 package integrations
 
 import (
-	"agent-inbox/config"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"agent-inbox/config"
 )
 
 // OllamaClient generates short text via the resource-ollama gateway CLI. All

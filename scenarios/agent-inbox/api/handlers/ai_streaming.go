@@ -1,12 +1,13 @@
 package handlers
 
 import (
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
-	"agent-inbox/services"
 	"context"
 	"log"
 	"net/http"
+
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
+	"agent-inbox/services"
 )
 
 // handleStreamingResponse processes a streaming AI response with auto-continue.

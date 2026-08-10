@@ -126,7 +126,10 @@ type resourceBlueprint struct {
 	SuggestedTemplate string `json:"suggested_template"`
 	Status            string `json:"status"`
 	PlatformSupport   struct {
-		PortabilityTier string `json:"portability_tier"`
+		Notes   string `json:"notes"`
+		Linux   string `json:"linux"`
+		MacOS   string `json:"macos"`
+		Windows string `json:"windows"`
 	} `json:"platform_support"`
 }
 
@@ -487,7 +490,6 @@ func seedResourceTemplateValues(values map[string]string, info ResourceTemplateI
 	setTemplateValueIfBlank(values, "RESOURCE_DISPLAY_NAME", blueprint.DisplayName)
 	setTemplateValueIfBlank(values, "RESOURCE_DESCRIPTION", blueprint.Summary)
 	setTemplateValueIfBlank(values, "RESOURCE_CATEGORY", blueprint.Category)
-	setTemplateValueIfBlank(values, "RESOURCE_PORTABILITY_TIER", blueprint.PlatformSupport.PortabilityTier)
 	setTemplateValueIfBlank(values, "RESOURCE_BLUEPRINT_NAME", blueprint.Name)
 	setTemplateValueIfBlank(values, "RESOURCE_BLUEPRINT_STATUS", blueprint.Status)
 	setTemplateValueIfBlank(values, "RESOURCE_BLUEPRINT_INTEGRATION_KIND", blueprint.IntegrationKind)

@@ -1,12 +1,13 @@
 package handlers
 
 import (
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
 	"context"
 	"fmt"
 	"net/http"
 	"testing"
+
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
 )
 
 func TestSendAgentMessage_NotInAgentMode(t *testing.T) {

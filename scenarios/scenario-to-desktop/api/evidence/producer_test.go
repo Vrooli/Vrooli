@@ -70,7 +70,7 @@ func TestReporterUnreachableFailsClosed(t *testing.T) {
 
 func TestReporterRequiresJourneyAndRecording(t *testing.T) {
 	for name, items := range map[string][]captures.Capture{
-		"journey only": {{ID: "j", Type: captures.CaptureJourney}},
+		"journey only":   {{ID: "j", Type: captures.CaptureJourney}},
 		"recording only": {{ID: "r", Type: captures.CaptureRecording}},
 	} {
 		t.Run(name, func(t *testing.T) {

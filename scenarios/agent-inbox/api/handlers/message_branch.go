@@ -3,11 +3,12 @@
 package handlers
 
 import (
-	"agent-inbox/domain"
 	"encoding/json"
 	"log"
 	"net/http"
 	"strings"
+
+	"agent-inbox/domain"
 )
 
 // RegenerateMessage regenerates an assistant response, creating a new sibling.

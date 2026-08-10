@@ -19,8 +19,8 @@ import (
 
 	"github.com/google/uuid"
 
-	coredb "github.com/vrooli/api-core/database"
 	core "agent-inbox/internal/core"
+	coredb "github.com/vrooli/api-core/database"
 )
 
 // =============================================================================

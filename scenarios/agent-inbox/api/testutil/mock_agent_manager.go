@@ -2,10 +2,11 @@
 package testutil
 
 import (
-	"agent-inbox/integrations"
 	"context"
 	"mime/multipart"
 	"sync"
+
+	"agent-inbox/integrations"
 )
 
 // StartAgentChatCall records a call to StartAgentChat.

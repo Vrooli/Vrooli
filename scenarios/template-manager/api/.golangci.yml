@@ -14,7 +14,7 @@ linters:
 
 linters-settings:
   gofumpt:
-    module-path: "template-manager"
+    module-path: "github.com/vrooli/vrooli/scenarios/template-manager/api"
   revive:
     rules:
       - name: blank-imports

@@ -2,8 +2,9 @@ package docs
 
 import (
 	"context"
-	"scenario-to-desktop/cli/internal/support"
 	"testing"
+
+	"scenario-to-desktop/cli/internal/support"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"

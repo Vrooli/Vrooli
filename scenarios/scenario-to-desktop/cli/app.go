@@ -1,9 +1,10 @@
 package main
 
 import (
+	"time"
+
 	"scenario-to-desktop/cli/domains"
 	"scenario-to-desktop/cli/internal/support"
-	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

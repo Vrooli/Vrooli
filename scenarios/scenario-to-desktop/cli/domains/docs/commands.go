@@ -4,6 +4,7 @@ package docs
 import (
 	"context"
 	"fmt"
+
 	"scenario-to-desktop/cli/internal/support"
 
 	"connectrpc.com/connect"

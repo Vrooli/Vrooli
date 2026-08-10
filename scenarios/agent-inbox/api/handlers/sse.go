@@ -9,12 +9,13 @@
 package handlers
 
 import (
-	"agent-inbox/domain"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
+
+	"agent-inbox/domain"
 )
 
 // StreamWriter wraps http.ResponseWriter for SSE event emission.

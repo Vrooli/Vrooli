@@ -6,6 +6,19 @@ package capabilities
 
 import "context"
 
+type PlatformVerdict struct {
+	Support string `json:"support,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+}
+
+// RegistryMetadata describes memory operations themselves. Manifest
+// dependencies remain in service.json and are not repeated in Known.
+type RegistryMetadata struct {
+	Platform PlatformVerdict `json:"platform"`
+}
+
+var Metadata = RegistryMetadata{Platform: PlatformVerdict{Support: "supported", Reason: "Durable local memory operations are host-neutral; optional correlation providers are declared in service.json."}}
+
 type Definition struct {
 	ID              string
 	Description     string
@@ -14,41 +27,16 @@ type Definition struct {
 	ActionKind      string
 	ActionLabel     string
 	OperatorCommand string
+	Platform        PlatformVerdict
 }
 
 type Checker interface {
 	Check(context.Context) (string, string)
 }
 
-var Known = []Definition{
-	{
-		ID:              "source-ledger",
-		Description:     "Source of truth for the append-only journal and all derived semantic memory engines.",
-		DependencyKind:  "scenario",
-		DependencySlug:  "source-ledger",
-		ActionKind:      "scenario_start",
-		ActionLabel:     "Start Source Ledger",
-		OperatorCommand: "vrooli scenario start source-ledger --json",
-	},
-	{
-		ID:              "vrooli-events",
-		Description:     "Optional runtime receipt correlation source for durable memory entries.",
-		DependencyKind:  "scenario",
-		DependencySlug:  "vrooli-events",
-		ActionKind:      "scenario_start",
-		ActionLabel:     "Start Vrooli Events",
-		OperatorCommand: "vrooli scenario start vrooli-events --json",
-	},
-	{
-		ID:              "swarm-manager",
-		Description:     "Optional work-record source for importing durable agent execution history into shared memory.",
-		DependencyKind:  "scenario",
-		DependencySlug:  "swarm-manager",
-		ActionKind:      "scenario_start",
-		ActionLabel:     "Start Swarm Manager",
-		OperatorCommand: "vrooli scenario start swarm-manager --json",
-	},
-}
+// Known contains optional capabilities only. service.json is the source of
+// truth for declared dependencies.
+var Known = []Definition{}
 
 type ScenarioChecker struct{ Slug string }
 

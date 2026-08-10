@@ -1,11 +1,12 @@
 package main
 
 import (
-	"agent-inbox/persistence"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"agent-inbox/persistence"
 )
 
 func TestSearchChats_MultipleResultsPerChat(t *testing.T) {

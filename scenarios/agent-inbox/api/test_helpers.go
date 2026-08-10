@@ -1,13 +1,6 @@
 package main
 
 import (
-	"agent-inbox/config"
-	"agent-inbox/domain"
-	"agent-inbox/handlers"
-	"agent-inbox/integrations"
-	"agent-inbox/middleware"
-	"agent-inbox/persistence"
-	"agent-inbox/services"
 	"bytes"
 	"context"
 	"database/sql"
@@ -15,6 +8,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"agent-inbox/config"
+	"agent-inbox/domain"
+	"agent-inbox/handlers"
+	"agent-inbox/integrations"
+	"agent-inbox/middleware"
+	"agent-inbox/persistence"
+	"agent-inbox/services"
 
 	"github.com/gorilla/mux"
 	_ "modernc.org/sqlite"

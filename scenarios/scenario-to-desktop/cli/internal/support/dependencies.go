@@ -2,6 +2,7 @@ package support
 
 import (
 	"fmt"
+
 	"scenario-to-desktop/cli/internal/cmdutil"
 
 	"github.com/vrooli/cli-core/cliapp"

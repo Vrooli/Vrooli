@@ -19,8 +19,10 @@ const packageGovernanceRuleID = "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION"
 
 var structureHealthTimeout = 2 * time.Minute
 
-var resolveStructureHealthURL = discovery.ResolveScenarioURLDefault
-var structureHealthHTTPClient = http.DefaultClient
+var (
+	resolveStructureHealthURL = discovery.ResolveScenarioURLDefault
+	structureHealthHTTPClient = http.DefaultClient
+)
 
 type packageGovernanceIssue struct {
 	Severity string `json:"severity"`

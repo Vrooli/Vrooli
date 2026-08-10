@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	schema "fall-foliage-explorer/internal/foliage"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"time"
+
+	schema "fall-foliage-explorer/internal/foliage"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"

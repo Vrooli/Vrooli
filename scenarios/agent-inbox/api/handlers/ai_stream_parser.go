@@ -1,13 +1,14 @@
 package handlers
 
 import (
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
-	"agent-inbox/services"
 	"bufio"
 	"encoding/json"
 	"log"
 	"strings"
+
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
+	"agent-inbox/services"
 )
 
 // parseStreamingChunks reads and accumulates SSE chunks into a CompletionResult.

@@ -1,13 +1,14 @@
 package handlers
 
 import (
-	"agent-inbox/domain"
-	"agent-inbox/testutil"
 	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"agent-inbox/domain"
+	"agent-inbox/testutil"
 )
 
 func TestClearAgentMode_WithActiveRun(t *testing.T) {

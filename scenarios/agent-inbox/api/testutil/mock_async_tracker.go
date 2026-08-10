@@ -2,8 +2,9 @@
 package testutil
 
 import (
-	"agent-inbox/services"
 	"sync"
+
+	"agent-inbox/services"
 )
 
 // FakeAsyncTracker provides a controllable async tracker for testing.

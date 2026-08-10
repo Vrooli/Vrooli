@@ -1,12 +1,13 @@
 package main
 
 import (
-	"agent-inbox/domain"
 	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"agent-inbox/domain"
 )
 
 // [REQ:PERSIST-005] Test export chat as markdown

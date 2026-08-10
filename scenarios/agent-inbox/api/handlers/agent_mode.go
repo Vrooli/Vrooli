@@ -3,12 +3,13 @@
 package handlers
 
 import (
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
-	"agent-inbox/middleware"
 	"log"
 	"net/http"
 	"os"
+
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
+	"agent-inbox/middleware"
 )
 
 // StartAgentModeRequest is the request body for starting agent mode.

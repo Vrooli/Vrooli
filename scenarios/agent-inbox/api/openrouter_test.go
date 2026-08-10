@@ -1,12 +1,13 @@
 package main
 
 import (
-	"agent-inbox/integrations"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"agent-inbox/integrations"
 )
 
 // [REQ:BUBBLE-005] Test list available models

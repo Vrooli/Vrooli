@@ -3,10 +3,11 @@
 package handlers
 
 import (
-	"agent-inbox/services"
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"agent-inbox/services"
 )
 
 // SuggestSkills handles POST /api/v1/skills/suggest.

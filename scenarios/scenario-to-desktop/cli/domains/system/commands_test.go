@@ -7,9 +7,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop/cli/internal/support"
 	"strings"
 	"testing"
+
+	"scenario-to-desktop/cli/internal/support"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"

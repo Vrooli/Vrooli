@@ -29,6 +29,7 @@ type MediaInspection struct {
 // large absolute brightness cutoff rejects real application frames. A small
 // measured delta still rejects an otherwise uniform desktop.
 const minimumUsefulApplicationLuma = 52
+
 const (
 	minimumUsefulApplicationPeak       = 96
 	minimumUsefulApplicationLumaSpread = 24
@@ -133,7 +134,7 @@ func firstPositiveFloat(values ...string) (float64, error) {
 func usefulFrames(output string) bool {
 	var maxAverage float64
 	var maxPeak float64
-	var minLuma = 255.0
+	minLuma := 255.0
 	for _, line := range strings.Split(output, "\n") {
 		for key, destination := range map[string]*float64{
 			"lavfi.signalstats.YAVG=": &maxAverage,

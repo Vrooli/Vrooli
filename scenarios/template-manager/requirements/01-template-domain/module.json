@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Operational requirements for Template Manager's accountable ownership of Vrooli template handling.",
-    "last_validated_at": "2026-08-04T18:03:10-04:00",
+    "last_validated_at": "2026-08-10T09:19:23-04:00",
     "module": "template-domain",
     "prd_ref": "PRD.md",
     "priority": "P0",

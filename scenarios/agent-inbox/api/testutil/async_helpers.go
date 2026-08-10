@@ -2,9 +2,10 @@
 package testutil
 
 import (
-	"agent-inbox/services"
 	"testing"
 	"time"
+
+	"agent-inbox/services"
 )
 
 // WaitForUpdate waits for an AsyncStatusUpdate on the channel with a timeout.

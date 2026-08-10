@@ -1,12 +1,13 @@
 package main
 
 import (
-	"agent-inbox/domain"
 	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"agent-inbox/domain"
 )
 
 // [REQ:LABEL-005] Test update label (edit name and color)

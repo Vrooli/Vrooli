@@ -2,9 +2,10 @@
 package testutil
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"sync"
+
+	"agent-inbox/domain"
 )
 
 // MockStreamWriter records SSE events for testing.

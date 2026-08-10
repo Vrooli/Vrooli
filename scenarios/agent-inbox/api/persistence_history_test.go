@@ -1,11 +1,12 @@
 package main
 
 import (
-	"agent-inbox/domain"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"agent-inbox/domain"
 )
 
 // [REQ:PERSIST-003] Test messages ordered by created_at

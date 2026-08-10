@@ -1,10 +1,6 @@
 package handlers
 
 import (
-	"agent-inbox/config"
-	"agent-inbox/integrations"
-	"agent-inbox/persistence"
-	"agent-inbox/testutil"
 	"bytes"
 	"context"
 	"database/sql"
@@ -13,6 +9,11 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"agent-inbox/config"
+	"agent-inbox/integrations"
+	"agent-inbox/persistence"
+	"agent-inbox/testutil"
 
 	"github.com/gorilla/mux"
 	_ "modernc.org/sqlite"

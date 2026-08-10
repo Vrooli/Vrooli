@@ -9,9 +9,10 @@
 package handlers
 
 import (
+	"net/http"
+
 	"agent-inbox/domain"
 	"agent-inbox/middleware"
-	"net/http"
 )
 
 // APIErrorResponse is the standard error response format.

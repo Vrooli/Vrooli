@@ -3,15 +3,16 @@
 package handlers
 
 import (
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
-	"agent-inbox/middleware"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
+	"agent-inbox/middleware"
 
 	"github.com/gorilla/mux"
 	repocontract "github.com/vrooli/repo-contract-go"

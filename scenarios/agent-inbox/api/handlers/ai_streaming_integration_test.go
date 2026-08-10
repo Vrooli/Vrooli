@@ -1,13 +1,14 @@
 package handlers
 
 import (
-	"agent-inbox/domain"
 	"context"
 	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"agent-inbox/domain"
 )
 
 // =============================================================================

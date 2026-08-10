@@ -1,11 +1,12 @@
 package resilience_test
 
 import (
-	"agent-inbox/resilience"
 	"context"
 	"errors"
 	"testing"
 	"time"
+
+	"agent-inbox/resilience"
 )
 
 func TestRetry_SuccessOnFirstAttempt(t *testing.T) {

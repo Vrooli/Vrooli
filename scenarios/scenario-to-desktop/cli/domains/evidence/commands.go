@@ -5,8 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"scenario-to-desktop/cli/internal/support"
 	"strings"
+
+	"scenario-to-desktop/cli/internal/support"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"

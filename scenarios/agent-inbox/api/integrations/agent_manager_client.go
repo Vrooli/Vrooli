@@ -1,8 +1,6 @@
 package integrations
 
 import (
-	"agent-inbox/config"
-	"agent-inbox/resilience"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -12,6 +10,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"agent-inbox/config"
+	"agent-inbox/resilience"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	vroolicli "github.com/vrooli/vrooli-cli-go"

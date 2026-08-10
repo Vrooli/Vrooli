@@ -10,18 +10,19 @@
 package main
 
 import (
-	"agent-inbox/config"
-	"agent-inbox/handlers"
-	"agent-inbox/integrations"
-	schema "agent-inbox/internal/core"
-	"agent-inbox/persistence"
-	"agent-inbox/services"
 	"context"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"agent-inbox/config"
+	"agent-inbox/handlers"
+	"agent-inbox/integrations"
+	schema "agent-inbox/internal/core"
+	"agent-inbox/persistence"
+	"agent-inbox/services"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/vrooli/api-core/database"
