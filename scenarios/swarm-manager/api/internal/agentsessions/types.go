@@ -419,8 +419,25 @@ func (p Proposal) Validate() error {
 	return nil
 }
 
+// ProposalTargetTypes is the authoritative set of entities a session proposal
+// may target. It is exported because the wire contract must agree with it:
+// the client validates responses against the proto's buf.validate rules, and
+// one target this set allows but the proto omits rejects the entire list
+// response, not just the offending record.
+// TestProposalTargetTypesMatchProtoContract pins the two together.
+var ProposalTargetTypes = []ContextType{ContextBacklogItem, ContextGoal, ContextCapture}
+
+func isProposalTargetType(candidate ContextType) bool {
+	for _, allowed := range ProposalTargetTypes {
+		if candidate == allowed {
+			return true
+		}
+	}
+	return false
+}
+
 func (t ProposalTarget) Validate() error {
-	if t.Type != ContextGoal && t.Type != ContextBacklogItem && t.Type != ContextCapture {
+	if !isProposalTargetType(t.Type) {
 		return validationError("proposal target type must be goal, backlog_item, or capture")
 	}
 	if strings.TrimSpace(t.Ref) == "" {
