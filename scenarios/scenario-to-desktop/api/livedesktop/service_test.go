@@ -2,10 +2,14 @@ package livedesktop
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -136,6 +140,26 @@ func newTestLogger() *slog.Logger {
 
 func newTestService(store Store, backend PlatformBackend) *Service {
 	return NewService(store, backend, newTestLogger(), "")
+}
+
+func TestFindArtifactByDigestSearchesStaging(t *testing.T) {
+	root := t.TempDir()
+	stagingRoot := filepath.Join(root, "cache", "staging")
+	artifact := filepath.Join(stagingRoot, "demo", "pipeline-1", "platforms", "electron", "dist-electron", "Demo.AppImage")
+	require.NoError(t, os.MkdirAll(filepath.Dir(artifact), 0o755))
+	payload := []byte("exact validation artifact")
+	require.NoError(t, os.WriteFile(artifact, payload, 0o755))
+	digest := sha256.Sum256(payload)
+
+	service := NewService(NewInMemoryStore(), newMockBackend(), newTestLogger(), root)
+	service.WithArtifactStagingRoot(stagingRoot)
+	resolved, err := service.FindArtifactByDigest("demo", "sha256:"+hex.EncodeToString(digest[:]))
+
+	require.NoError(t, err)
+	assert.Equal(t, artifact, resolved)
+
+	_, err = service.FindArtifactByDigest("demo", "sha256:"+strings.Repeat("0", 64))
+	assert.Error(t, err)
 }
 
 // --- Tests ---

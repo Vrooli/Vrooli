@@ -25,6 +25,10 @@ type validationArtifactFinder interface {
 	FindArtifact(string) (string, error)
 }
 
+type validationArtifactByDigestFinder interface {
+	FindArtifactByDigest(string, string) (string, error)
+}
+
 type validationDesktopOwner interface {
 	StartSession(context.Context, livedesktop.SessionConfig) (*livedesktop.Session, error)
 	ExecuteAction(context.Context, string, string, json.RawMessage) (*livedesktop.ActionResult, error)
@@ -47,13 +51,14 @@ type validationMatrixLocalExecutor struct {
 	captures     *captures.Service
 	desktop      validationDesktopOwner
 	workflow     validationWorkflowExecutor
+	scenarioRoot string
 }
 
 func (e validationMatrixLocalExecutor) ExecuteLocal(ctx context.Context, request validationmatrix.CellRequest) validationmatrix.CellResult {
 	if e.smokeService == nil || e.smokeStore == nil || e.findArtifact == nil || request.Cell == nil {
 		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "local desktop validation adapter is unavailable"}
 	}
-	artifactPath, err := e.findArtifact.FindArtifact(request.Cell.GetScenarioName())
+	artifactPath, err := e.findValidationArtifact(request)
 	if err != nil {
 		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: fmt.Sprintf("resolve desktop artifact: %v", err)}
 	}
@@ -101,6 +106,14 @@ func (e validationMatrixLocalExecutor) ExecuteLocal(ctx context.Context, request
 		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: firstNonEmpty(status.JourneyDegradedReason, status.PerformanceReason, "desktop evidence degraded"), Evidence: smokeEvidence(status, e.captures, request)}
 	}
 	return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS, Reason: "desktop smoke and evidence completed", Evidence: smokeEvidence(status, e.captures, request)}
+}
+
+func (e validationMatrixLocalExecutor) findValidationArtifact(request validationmatrix.CellRequest) (string, error) {
+	scenarioName := request.Cell.GetScenarioName()
+	if finder, ok := e.findArtifact.(validationArtifactByDigestFinder); ok && strings.TrimSpace(request.ArtifactDigest) != "" {
+		return finder.FindArtifactByDigest(scenarioName, request.ArtifactDigest)
+	}
+	return e.findArtifact.FindArtifact(scenarioName)
 }
 
 func (e validationMatrixLocalExecutor) executeProviderJourney(ctx context.Context, request validationmatrix.CellRequest, artifactPath string) validationmatrix.CellResult {
@@ -157,7 +170,7 @@ func (e validationMatrixLocalExecutor) executeProviderJourney(ctx context.Contex
 		MatrixRunID:    request.RunID,
 		CellID:         request.Cell.GetCellId(),
 		ScenarioName:   request.Cell.GetScenarioName(),
-		ScenarioPath:   scenarioPathFromArtifact(artifactPath),
+		ScenarioPath:   scenarioPathForRequest(e.scenarioRoot, request.Cell.GetScenarioName(), artifactPath),
 		WorkflowPath:   request.Journey.SourcePath,
 		WorkflowID:     request.Journey.JourneyID,
 		Target:         targetInfo,
@@ -213,7 +226,10 @@ func findCapture(service *captures.Service, scenario, id string) *captures.Captu
 	return nil
 }
 
-func scenarioPathFromArtifact(artifactPath string) string {
+func scenarioPathForRequest(scenarioRoot, scenarioName, artifactPath string) string {
+	if strings.TrimSpace(scenarioRoot) != "" && strings.TrimSpace(scenarioName) != "" {
+		return filepath.Join(scenarioRoot, scenarioName)
+	}
 	return filepath.Clean(filepath.Join(filepath.Dir(artifactPath), "..", "..", ".."))
 }
 
@@ -252,13 +268,14 @@ func smokeEvidence(status *smoketest.Status, captureService *captures.Service, r
 				mediaType := "application/octet-stream"
 				switch capture.Type {
 				case captures.CaptureRecording:
-					mediaType = "video/webm"
+					mediaType = "video/mp4"
 				case captures.CaptureScreenshot:
 					mediaType = "image/png"
 				case captures.CaptureJourney:
 					mediaType = "application/json"
 				}
-				evidence = append(evidence, &domainv1.LayeredEvidence{Kind: domainv1.LayeredEvidence_KIND_DESKTOP_RUNTIME, EvidenceId: capture.ID, Uri: "/api/v1/captures/" + capture.ID, Sha256: capture.Checksum, MediaType: &mediaType, Redacted: true})
+				uri := "/api/v1/captures/" + status.ScenarioName + "/" + capture.ID + "/file"
+				evidence = append(evidence, &domainv1.LayeredEvidence{Kind: domainv1.LayeredEvidence_KIND_DESKTOP_RUNTIME, EvidenceId: capture.ID, Uri: uri, Sha256: capture.Checksum, MediaType: &mediaType, Redacted: true})
 			}
 		}
 	}

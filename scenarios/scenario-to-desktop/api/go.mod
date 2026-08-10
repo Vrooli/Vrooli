@@ -46,6 +46,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/platform-go v0.0.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	modernc.org/libc v1.74.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -63,3 +64,5 @@ replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../pac
 replace github.com/vrooli/vrooli => ../../..
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go

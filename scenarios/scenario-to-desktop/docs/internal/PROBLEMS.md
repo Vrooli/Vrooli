@@ -44,15 +44,17 @@ appropriate, and an update to this record.
 
 ## Current Issues
 
-### Per-target BAS desktop-console evidence (PARTIALLY RESOLVED)
+### Per-target BAS desktop-console evidence (PRODUCER EVIDENCE RESOLVED)
 
 **Severity**: High
 **Date Discovered**: 2026-07-30
 
-**Problem**: The signed desktop-evidence manifest still does not contain
-separate Hello Desktop and Secrets Manager console journeys through inventory,
-generation, build, smoke, and launch. Those remain required for release-level
-per-target evidence.
+**Problem**: The signed desktop-evidence manifest still cannot be published
+because the release-authority trust anchor is not configured. The underlying
+producer-owned per-target evidence is now present: fresh Secrets Manager and
+scenario-to-desktop manifests were produced through the canonical generation,
+build, smoke, and launch path, and Hello Desktop has an existing passed native
+manifest from pipeline `cb9b96a2-3830-064a-ae6d-748a9a0d5b00`.
 
 The earlier fixture POST 404 is resolved. Workflow Health run
 `b585ca68-05f8-4857-89a9-65181630d9ad` executed all nine existing BAS cases
@@ -60,12 +62,43 @@ through a real Electron renderer; the leased fixture POST reached the host API
 with HTTP 200, and the target artifact, authenticated CDP identity, and
 renderer-to-host propagation were recorded in the BAS timeline.
 
-**Current state**: The representative local Linux matrix cell now persists the
+**Current state**: The representative local Linux matrix cell persists the
 provider-neutral workflow execution reference beside the platform journey and
-recording. The reference binds the validation run, artifact digest, target, and
-cell; missing or mismatched provider artifacts fail closed. Keep `OT-P0-010`
-scoped to the remaining per-target signed-manifest journeys until those
-separate release-level captures exist.
+recording. The fresh canonical producer manifests bind the validation run,
+artifact digest, target, and cell; all five required evidence gates pass. The
+remaining release limitation is signing/trust-anchor configuration, not video
+production or target launch evidence.
+
+The final linked matrix proof is `run-d9ca84cdc491292e9def58ab`: one required
+local Linux cell passed with the exact Secrets Manager artifact digest, three
+checksummed BAS artifacts, and playable MP4 capture
+`36df2d6a-47eb-45df-8c37-63cf941370a3`. Its evidence URI is the persisted
+`/api/v1/captures/secrets-manager/36df2d6a-47eb-45df-8c37-63cf941370a3/file`
+route.
+
+The certification matrix superseding that single-cell proof is
+`run-63a9781eaacc421f49fabd83`: both the required platform desktop smoke cell
+and the required Secrets Manager BAS cell passed (2/2), with separate
+persisted platform and BAS MP4 recordings linked to the same artifact and
+target.
+
+The current matrix executor also revalidated the mutating representative:
+`run-ca34229709796ab4ef200722` passed both required cells, and its leased BAS
+cell produced persisted MP4 `660ae988-baa8-4466-9e93-5752f2179afe` after the
+provider isolation validator confirmed routed isolation and no primary-storage
+leakage.
+
+**Typed residual disposition**: `UNAVAILABLE` for signed release submission
+only; producer validation and reviewable video evidence are `PASS`. **Owner**:
+release-authority/deployment-manager operator. **Revisit trigger**: configure
+the approved release trust anchor, then rerun the release-evidence sign/submit
+step against the already durable matrix artifacts. No new desktop or BAS
+implementation is required for this residual.
+
+The profile boundary is also fail-closed in the live matrix: offline profile
+run `run-f537d9079f4687fa4c12d034` returned `UNSUPPORTED` with the explicit
+missing `VALIDATION_TARGET_CAPABILITY_OFFLINE_NETWORK` reason, and the release
+gate failed the required cell rather than promoting it to pass.
 
 Test Genie is not part of this handoff: it remains a generic validation runner,
 while the semantic workflow provider owns execution and artifact production.

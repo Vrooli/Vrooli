@@ -105,7 +105,12 @@ func (c *ConnectClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 		}
 	}
 	request := connect.NewRequest(basReq)
-	applyRequestHeaders(request.Header(), req.Parameters.ExtraHeaders)
+	// ExtraHeaders are primarily browser-profile headers for the target app.
+	// Do not send the target's routed-test marker to BAS itself: BAS is the
+	// durable execution provider, and its status RPCs must remain in the
+	// provider's control-plane database while the browser carries the marker
+	// to the isolated target scenario.
+	applyRequestHeaders(request.Header(), controlPlaneHeaders(req.Parameters.ExtraHeaders))
 	resp, err := c.workflows.ExecuteAdhocWorkflow(ctx, request)
 	if err != nil {
 		return nil, err
@@ -114,11 +119,11 @@ func (c *ConnectClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 	if executionID == "" {
 		return nil, fmt.Errorf("BAS started an adhoc workflow without an execution id")
 	}
-	return c.waitForExecution(ctx, executionID, req.Parameters.ExtraHeaders)
+	return c.waitForExecution(ctx, executionID, controlPlaneHeaders(req.Parameters.ExtraHeaders), workflowTimeout(req.Definition, c.timeout))
 }
 
-func (c *ConnectClient) waitForExecution(ctx context.Context, executionID string, headers map[string]string) (*ExecuteResult, error) {
-	waitCtx, cancel := context.WithTimeout(ctx, c.timeout)
+func (c *ConnectClient) waitForExecution(ctx context.Context, executionID string, headers map[string]string, timeout time.Duration) (*ExecuteResult, error) {
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	ticker := time.NewTicker(250 * time.Millisecond)
@@ -144,10 +149,45 @@ func (c *ConnectClient) waitForExecution(ctx context.Context, executionID string
 		}
 		select {
 		case <-waitCtx.Done():
-			return nil, fmt.Errorf("BAS execution %s did not complete within %s: %w", executionID, c.timeout, waitCtx.Err())
+			return nil, fmt.Errorf("BAS execution %s did not complete within %s: %w", executionID, timeout, waitCtx.Err())
 		case <-ticker.C:
 		}
 	}
+}
+
+// workflowTimeout lets an explicitly authored long-form flow own its durable
+// completion budget. The client default remains five minutes for ordinary
+// catalog assets; a larger BAS settings.timeout_ms is bounded to two hours so
+// a malformed asset cannot create an unbounded provider wait.
+func workflowTimeout(definition map[string]any, fallback time.Duration) time.Duration {
+	settings, ok := definition["settings"].(map[string]any)
+	if !ok {
+		return fallback
+	}
+	raw, ok := settings["timeout_ms"]
+	if !ok {
+		return fallback
+	}
+	var millis int64
+	switch value := raw.(type) {
+	case float64:
+		millis = int64(value)
+	case int:
+		millis = int64(value)
+	case int64:
+		millis = value
+	}
+	if millis <= 0 {
+		return fallback
+	}
+	timeout := time.Duration(millis) * time.Millisecond
+	if timeout > 2*time.Hour {
+		return 2 * time.Hour
+	}
+	if timeout > fallback {
+		return timeout
+	}
+	return fallback
 }
 
 func applyRequestHeaders(dst http.Header, headers map[string]string) {
@@ -158,9 +198,23 @@ func applyRequestHeaders(dst http.Header, headers map[string]string) {
 	}
 }
 
+func controlPlaneHeaders(headers map[string]string) map[string]string {
+	if len(headers) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(headers))
+	for key, value := range headers {
+		if strings.EqualFold(strings.TrimSpace(key), "X-Vrooli-Test-Mode") {
+			continue
+		}
+		out[key] = value
+	}
+	return out
+}
+
 func (c *ConnectClient) Timeline(ctx context.Context, executionID string, headers map[string]string) (*bastimeline.ExecutionTimeline, error) {
 	request := connect.NewRequest(&basapi.GetExecutionTimelineRequest{ExecutionId: executionID})
-	applyRequestHeaders(request.Header(), headers)
+	applyRequestHeaders(request.Header(), controlPlaneHeaders(headers))
 	resp, err := c.executions.GetExecutionTimeline(ctx, request)
 	if err != nil {
 		return nil, err

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-07T22:29:49-04:00"
+    "last_validated_at": "2026-08-09T16:47:23-04:00"
   },
   "requirements": [
     {
       "id": "STD-INTEGRATION-PICKER-WHEEL",
       "title": "Picker-wheel desktop generation and validation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "description": "Picker-wheel serves as the canonical reference implementation for basic desktop generation",
       "validation": [
@@ -14,14 +14,14 @@
           "type": "test",
           "ref": "api/generation/service_test.go::TestGenerateRecordsTemplateGeneratorSuccessAndFailure",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "STD-INTEGRATION-SYSTEM-MONITOR",
       "title": "System-monitor advanced desktop generation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "description": "System-monitor demonstrates advanced template with system tray and background operation",
       "validation": [
@@ -29,14 +29,14 @@
           "type": "test",
           "ref": "api/generation/connect_handler_test.go::TestConnectServiceSynthesizesDesktopConfig",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "STD-INTEGRATION-API-CONNECTIVITY",
       "title": "Desktop apps connect to scenario APIs",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "description": "Generated desktop apps successfully connect to and communicate with scenario backend APIs",
       "validation": [
@@ -44,14 +44,14 @@
           "type": "test",
           "ref": "api/generation/analyzer_test.go::TestCreateDesktopConfigFromMetadata_ExternalServer",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "STD-INTEGRATION-UI-LOADING",
       "title": "Desktop apps load React UI from scenario ui/dist/",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "description": "Generated desktop apps correctly load and display the scenario's built React UI",
       "validation": [
@@ -59,14 +59,14 @@
           "type": "test",
           "ref": "api/generation/analyzer_test.go::TestAnalyzeScenario_WithBuiltUI",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "STD-EVIDENCE-PROVIDER-JOURNEYS",
       "title": "Provider and communication journeys report honest routes",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "description": "Bundled-private, Tier 2 to Tier 1 thin-client, shared-resource, and private-fallback capabilities have dedicated machine contracts and credential-free provider observations; native release evidence remains environment-gated.",
       "validation": [
@@ -74,20 +74,20 @@
           "type": "test",
           "ref": "api/smoketest/journey_test.go::TestDesktopJourney_CommunicationFixturesHaveDedicatedMachineContracts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "runtime/resources/service_supervisor_test.go::TestServiceSupervisorProviderObservationIsCredentialFree",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "STD-EVIDENCE-PEER-GATE",
       "title": "Tier 2 peer communication is fail-closed",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "description": "The typed desktop-peer candidate cannot produce a pass verdict until discovery, authentication, scoped authority, routing, cancellation, and lifecycle semantics are implemented.",
       "validation": [
@@ -95,7 +95,7 @@
           "type": "test",
           "ref": "api/smoketest/journey_test.go::TestDesktopJourney_PeerCapabilityIsExplicitlyUnsupported",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     }

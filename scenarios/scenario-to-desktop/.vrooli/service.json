@@ -64,6 +64,15 @@
         "runtime_only_rationale": "Scenario-to-desktop requests bundled-runtime manifests from Deployment Manager through its external CLI/service boundary; it does not import Deployment Manager code.",
         "version": "1.0.0",
         "versionRange": ">=1.0.0"
+      },
+      "vrooli-bridge": {
+        "degraded_behavior": "Local desktop validation remains available; remote bridge targets are unavailable until Vrooli Bridge is healthy and configured.",
+        "purpose": "Discover and dispatch validation cells to trusted remote bridge targets",
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Scenario-to-desktop uses Vrooli Bridge through its typed service transport for optional remote target inventory and dispatch; it does not import bridge implementation code.",
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0"
       }
     }
   },

@@ -5,12 +5,15 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // DefaultService is the default implementation of Service.
@@ -39,17 +42,18 @@ type DefaultService struct {
 	captures   *captures.Service
 
 	// Optional process monitoring (nil = monitoring disabled)
-	monitorFactory    procmetrics.MonitorFactory
-	windowDetector    *procmetrics.XdotoolDetector
-	journeyDriver     DesktopDriver
-	journeyClock      Clock
-	journeyWaiter     JourneyWaiter
-	journeyCapture    JourneyCapture
-	journeyAPI        JourneyAPIProbe
-	journeyProcess    JourneyProcessObserver
-	journeyCapability string
-	evidenceReporter  EvidenceReporter
-	manifestWriter    EvidenceManifestWriter
+	monitorFactory      procmetrics.MonitorFactory
+	windowDetector      *procmetrics.XdotoolDetector
+	journeyDriver       DesktopDriver
+	journeyClock        Clock
+	journeyWaiter       JourneyWaiter
+	journeyCapture      JourneyCapture
+	journeyAPI          JourneyAPIProbe
+	journeyProcess      JourneyProcessObserver
+	journeyCapability   string
+	evidenceReporter    EvidenceReporter
+	manifestWriter      EvidenceManifestWriter
+	rendererURLResolver func(context.Context, string) (string, error)
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -68,19 +72,47 @@ func NewService(
 	telemetryExtractor TelemetryErrorExtractor,
 ) *DefaultService {
 	return &DefaultService{
-		store:              store,
-		cancelManager:      cancelManager,
-		telemetryIngestor:  telemetryIngestor,
-		config:             config,
-		executor:           executor,
-		platformResolver:   platformResolver,
-		telemetryResolver:  telemetryResolver,
-		outputParser:       outputParser,
-		fileSystem:         fileSystem,
-		logger:             logger,
-		port:               port,
-		telemetryExtractor: telemetryExtractor,
+		store:               store,
+		cancelManager:       cancelManager,
+		telemetryIngestor:   telemetryIngestor,
+		config:              config,
+		executor:            executor,
+		platformResolver:    platformResolver,
+		telemetryResolver:   telemetryResolver,
+		outputParser:        outputParser,
+		fileSystem:          fileSystem,
+		logger:              logger,
+		port:                port,
+		telemetryExtractor:  telemetryExtractor,
+		rendererURLResolver: resolveScenarioRendererURL,
 	}
+}
+
+func resolveScenarioRendererURL(ctx context.Context, scenarioName string) (string, error) {
+	_ = ctx
+	portText := cliutil.DetectPortFromVrooli(scenarioName, "UI_PORT")()
+	port, err := strconv.Atoi(portText)
+	if err != nil || port <= 0 {
+		if err == nil {
+			err = fmt.Errorf("port detector returned %q", portText)
+		}
+		return "", fmt.Errorf("resolve UI_PORT for %q: %w", scenarioName, err)
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d", port), nil
+}
+
+func (s *DefaultService) validationRendererEnv(ctx context.Context, scenarioName string) []string {
+	if s == nil || s.rendererURLResolver == nil || scenarioName == "" {
+		return nil
+	}
+	url, err := s.rendererURLResolver(ctx, scenarioName)
+	if err != nil || url == "" {
+		if err != nil && s.logger != nil {
+			s.logger.Warn("validation_renderer_url_unavailable", "scenario", scenarioName, "error", err)
+		}
+		return nil
+	}
+	return []string{"VROOLI_VALIDATION_RENDERER_URL=" + url}
 }
 
 // NewDefaultSmokeTestService creates a new smoke test service with default implementations.
@@ -103,20 +135,21 @@ func NewDefaultSmokeTestService(
 	telemetryExtractor := NewTelemetryErrorExtractor(fs)
 
 	return &DefaultService{
-		store:              store,
-		cancelManager:      cancelManager,
-		telemetryIngestor:  telemetryIngestor,
-		config:             config,
-		executor:           executor,
-		platformResolver:   platformResolver,
-		telemetryResolver:  telemetryResolver,
-		outputParser:       outputParser,
-		fileSystem:         fs,
-		logger:             logger,
-		port:               port,
-		prereqChecker:      prereqChecker,
-		envReader:          envReader,
-		telemetryExtractor: telemetryExtractor,
+		store:               store,
+		cancelManager:       cancelManager,
+		telemetryIngestor:   telemetryIngestor,
+		config:              config,
+		executor:            executor,
+		platformResolver:    platformResolver,
+		telemetryResolver:   telemetryResolver,
+		outputParser:        outputParser,
+		fileSystem:          fs,
+		logger:              logger,
+		port:                port,
+		prereqChecker:       prereqChecker,
+		envReader:           envReader,
+		telemetryExtractor:  telemetryExtractor,
+		rendererURLResolver: resolveScenarioRendererURL,
 	}
 }
 

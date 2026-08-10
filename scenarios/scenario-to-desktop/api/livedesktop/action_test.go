@@ -61,6 +61,9 @@ func newTestServiceForActions() *Service {
 	backend := newMockBackend()
 	svc := NewService(store, backend, newTestLogger(), "")
 	svc.dataDir = os.TempDir()
+	svc.WithVideoInspector(func(context.Context, string) (screenrecording.MediaInspection, error) {
+		return screenrecording.MediaInspection{Container: "mp4", Codec: "h264", Width: 1280, Height: 720, DurationMs: 5000, UsefulFrame: true}, nil
+	})
 	return svc
 }
 
@@ -207,6 +210,22 @@ func TestStopRecordingAction_NotRecording(t *testing.T) {
 	_, err := action.Execute(context.Background(), session, svc, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not recording")
+}
+
+func TestStopRecordingAction_RejectsInvalidVideo(t *testing.T) {
+	svc := newTestServiceForActions()
+	svc.WithVideoInspector(func(context.Context, string) (screenrecording.MediaInspection, error) {
+		return screenrecording.MediaInspection{}, fmt.Errorf("recording has no useful application frames")
+	})
+	svc.recorder = &mockRecorder{result: &screenrecording.CaptureResult{VideoPath: "/tmp/invalid.mp4"}}
+	session := newTestSession()
+	session.IsRecording = true
+	session.CaptureID = "cap-invalid"
+
+	_, err := (&StopRecordingAction{}).Execute(context.Background(), session, svc, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "validating recorded video")
+	assert.False(t, session.IsRecording)
 }
 
 // ===================== OfflineModeAction Tests =====================

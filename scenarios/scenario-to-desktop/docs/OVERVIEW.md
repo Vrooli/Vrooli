@@ -70,8 +70,10 @@ argv-safe loopback CDP launch arguments, an ephemeral port, an isolated
 user-data directory, scoped validation environment variables, exact renderer
 selection from `/json/list`, process-group cleanup, and the explicit
 `launch-electron-validation` live-desktop endpoint. It never falls back to the
-first renderer. Existing scenario BAS execution, matrix orchestration, and
-remote bridge desktop transport remain implementation work.
+first renderer. Existing scenario BAS execution and local Linux matrix
+orchestration are implemented. Remote bridge desktop transport remains
+implementation work: bridge dispatch is typed, but it does not claim remote
+desktop streaming or video evidence.
 
 ### Phase 1 target inventory
 

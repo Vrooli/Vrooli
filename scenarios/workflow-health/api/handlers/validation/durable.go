@@ -129,6 +129,12 @@ func (h *connectHandler) launch(id string) {
 		opts := execution.Options{IncludeExecution: true, RunID: id, Isolation: execution.NewRoutingIsolation(), ElectronTarget: electronTarget(record.ExecutionBinding), ValidationContext: electronValidationContext(record.ExecutionBinding, id)}
 		if workflowPath := strings.TrimSpace(record.ExecutionBinding.GetWorkflowPath()); workflowPath != "" {
 			opts.Selector.CasePaths = []string{workflowPath}
+			// Desktop bindings may point at a BAS flow as well as a validation
+			// case. Keep both selectors narrow and enable flow execution only for
+			// this explicit governed binding; the default catalog remains
+			// case-only and therefore fail-closed for agent flows.
+			opts.Selector.FlowPaths = []string{workflowPath}
+			opts.AllowFlowExecution = true
 		}
 		report, err := h.run(ctx, record.Run.Target.Scenario, record.Run.Target.Path, opts)
 		if err != nil {
@@ -145,7 +151,7 @@ func (h *connectHandler) launch(id string) {
 }
 
 func electronTarget(binding *scenariovalidationv1.DesktopValidationBinding) *execution.ElectronTarget {
-	if binding == nil {
+	if binding == nil || strings.TrimSpace(binding.GetTargetId()) == "" || strings.TrimSpace(binding.GetCdpEndpoint()) == "" || strings.TrimSpace(binding.GetRendererId()) == "" || strings.TrimSpace(binding.GetScenarioName()) == "" || strings.TrimSpace(binding.GetArtifactDigest()) == "" || strings.TrimSpace(binding.GetContextId()) == "" || strings.TrimSpace(binding.GetCdpTransport()) == "" {
 		return nil
 	}
 	return &execution.ElectronTarget{

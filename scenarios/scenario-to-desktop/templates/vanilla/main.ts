@@ -213,6 +213,12 @@ const SERVER_URL = APP_CONFIG.SERVER_TYPE === "external"
 const desktopValidationContext = readDesktopValidationContext(process.env);
 const desktopValidationAPIURL = process.env.VROOLI_VALIDATION_API_URL?.trim() ?? "";
 const desktopValidationRendererURL = process.env.VROOLI_VALIDATION_RENDERER_URL?.trim() ?? "";
+// Validation launches may point the generated renderer at the live scenario
+// UI port. The baked-in template URL is only a build-time default and is not
+// necessarily the port assigned to the scenario instance under test.
+const desktopValidationTargetURL = desktopValidationRendererURL
+    ? desktopValidationRendererURL
+    : SERVER_URL;
 // Chromium may expose the local renderer as 127.0.0.1 even when the generated
 // app configuration names localhost. Treat that loopback alias as the same
 // target-owned renderer origin; do not broaden this to arbitrary hosts.
@@ -1258,9 +1264,9 @@ async function runSmokeTest(): Promise<void> {
             const staticPath = path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH);
             if (!(await pathExists(staticPath))) { SmokeTestProtocol.error("config", `Static UI missing at ${staticPath}`); throw new Error(`Static UI missing at ${staticPath}`); }
         } else {
-            runtimeUrl = SERVER_URL;
+            runtimeUrl = desktopValidationTargetURL;
             SmokeTestProtocol.stage.uiServerCheck();
-            await checkServerReady(SERVER_URL, smokeTestTimeoutMs);
+            await checkServerReady(desktopValidationTargetURL, smokeTestTimeoutMs);
         }
         if (isBundledMode && exitTracker?.hasExitedUnexpectedly()) { const exitInfo = exitTracker.info; const errorMsg = exitInfo.stderr.trim() ? `Runtime crashed before completion (exit ${exitInfo.code}): ${exitInfo.stderr.slice(0, 200)}` : `Runtime crashed before completion with exit code ${exitInfo.code}`; SmokeTestProtocol.error("runtime", errorMsg); throw new Error(errorMsg); }
         SmokeTestProtocol.ready();
@@ -1346,7 +1352,7 @@ app.whenReady().then(async () => {
 
         appSessionStartedAt = new Date().toISOString();
         await recordTelemetry("app_start", { deploymentMode: APP_CONFIG.DEPLOYMENT_MODE, appVersion: APP_CONFIG.APP_VERSION });
-        let targetUrl = SERVER_URL;
+        let targetUrl = desktopValidationTargetURL;
 
         if (isBundledMode) {
             if (!BUNDLED_RUNTIME.SUPPORTED) {

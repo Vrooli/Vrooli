@@ -2,11 +2,15 @@ package livedesktop
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,35 +22,67 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/cli-core/cliutil"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 )
 
 // Service orchestrates live desktop session lifecycle.
 type Service struct {
-	store            Store
-	backend          PlatformBackend
-	logger           *slog.Logger
-	vrooliRoot       string
-	recorder         screenrecording.Recorder
-	captures         *captures.Service
-	windowController *procmetrics.XdotoolDetector
-	dataDir          string
+	store               Store
+	backend             PlatformBackend
+	logger              *slog.Logger
+	vrooliRoot          string
+	artifactStagingRoot string
+	recorder            screenrecording.Recorder
+	videoInspector      func(context.Context, string) (screenrecording.MediaInspection, error)
+	captures            *captures.Service
+	windowController    *procmetrics.XdotoolDetector
+	dataDir             string
+	rendererURLResolver func(context.Context, string) (string, error)
 }
 
 // NewService creates a new live desktop service.
 func NewService(store Store, backend PlatformBackend, logger *slog.Logger, vrooliRoot string) *Service {
 	return &Service{
-		store:      store,
-		backend:    backend,
-		logger:     logger,
-		vrooliRoot: vrooliRoot,
-		dataDir:    filepath.Join(vrooliRoot, "scenarios", "scenario-to-desktop", "data", "livedesktop"),
+		store:               store,
+		backend:             backend,
+		logger:              logger,
+		vrooliRoot:          vrooliRoot,
+		dataDir:             filepath.Join(vrooliRoot, "scenarios", "scenario-to-desktop", "data", "livedesktop"),
+		rendererURLResolver: resolveScenarioRendererURL,
 	}
+}
+
+func resolveScenarioRendererURL(ctx context.Context, scenarioName string) (string, error) {
+	_ = ctx
+	portText := cliutil.DetectPortFromVrooli(scenarioName, "UI_PORT")()
+	port, err := strconv.Atoi(portText)
+	if err != nil || port <= 0 {
+		if err == nil {
+			err = fmt.Errorf("port detector returned %q", portText)
+		}
+		return "", fmt.Errorf("resolve UI_PORT for %q: %w", scenarioName, err)
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d", port), nil
+}
+
+// WithRendererURLResolver overrides the live UI-port resolver used by the
+// validation launch seam. Tests can keep this boundary deterministic without
+// weakening the production target identity contract.
+func (s *Service) WithRendererURLResolver(resolver func(context.Context, string) (string, error)) {
+	s.rendererURLResolver = resolver
 }
 
 // WithRecorder sets the screen recorder on the service.
 func (s *Service) WithRecorder(r screenrecording.Recorder) {
 	s.recorder = r
+}
+
+// WithVideoInspector overrides the producer-side recording integrity check.
+// Production uses screenrecording.InspectVideo; the seam keeps action tests
+// deterministic without weakening the runtime check.
+func (s *Service) WithVideoInspector(inspector func(context.Context, string) (screenrecording.MediaInspection, error)) {
+	s.videoInspector = inspector
 }
 
 // WithCaptures sets the captures service for persistent capture storage.
@@ -64,6 +100,14 @@ func (s *Service) WithWindowController(detector *procmetrics.XdotoolDetector) {
 // WithDataDir overrides the data directory for screenshots and recordings.
 func (s *Service) WithDataDir(dir string) {
 	s.dataDir = dir
+}
+
+// WithArtifactStagingRoot adds the canonical pipeline staging directory to
+// exact artifact lookup. Validation cells bind to a digest, so a staged
+// artifact must remain selectable even when the pipeline intentionally uses a
+// temporary output location.
+func (s *Service) WithArtifactStagingRoot(root string) {
+	s.artifactStagingRoot = strings.TrimSpace(root)
 }
 
 // StartSession creates a new live desktop session with remote access.
@@ -298,6 +342,19 @@ func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPa
 	if strings.TrimSpace(opts.ScenarioName) == "" {
 		return nil, fmt.Errorf("Electron validation scenario name is required")
 	}
+	if renderer.URLPrefix == "http://127.0.0.1:" {
+		if s.rendererURLResolver == nil {
+			return nil, fmt.Errorf("Electron validation renderer URL resolver is unavailable")
+		}
+		resolved, resolveErr := s.rendererURLResolver(ctx, opts.ScenarioName)
+		if resolveErr != nil {
+			return nil, fmt.Errorf("resolve Electron validation renderer: %w", resolveErr)
+		}
+		renderer.URLPrefix = strings.TrimSpace(resolved)
+		if renderer.URLPrefix == "" {
+			return nil, fmt.Errorf("resolve Electron validation renderer returned an empty URL")
+		}
+	}
 	apiPort, err := discovery.ResolveScenarioPort(ctx, opts.ScenarioName, "API_PORT")
 	if err != nil {
 		return nil, fmt.Errorf("resolve Electron validation scenario API: %w", err)
@@ -397,6 +454,71 @@ func (s *Service) killAppProcess(session *Session) {
 // FindArtifact finds the latest build artifact for a scenario.
 func (s *Service) FindArtifact(scenarioName string) (string, error) {
 	return s.findArtifact(scenarioName)
+}
+
+// FindArtifactByDigest resolves the exact artifact selected by a validation
+// cell. It searches both the scenario's durable output and pipeline staging;
+// temporary pipeline outputs are valid validation inputs until their evidence
+// is handed off, and must not be replaced with an unrelated older build.
+func (s *Service) FindArtifactByDigest(scenarioName, digest string) (string, error) {
+	if s == nil || s.vrooliRoot == "" {
+		return "", fmt.Errorf("vrooliRoot not configured")
+	}
+	want := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(digest)), "sha256:")
+	if want == "" {
+		return "", fmt.Errorf("artifact digest is required")
+	}
+	roots := []string{
+		filepath.Join(s.vrooliRoot, "scenarios", scenarioName, "platforms", "electron", "dist-electron"),
+	}
+	if s.artifactStagingRoot != "" {
+		roots = append(roots, filepath.Join(s.artifactStagingRoot, scenarioName))
+	}
+	var matches []string
+	for _, root := range roots {
+		if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				if os.IsNotExist(walkErr) {
+					return nil
+				}
+				return walkErr
+			}
+			if entry.IsDir() {
+				return nil
+			}
+			info, err := entry.Info()
+			if err != nil || !info.Mode().IsRegular() {
+				return nil
+			}
+			actual, err := digestFile(path)
+			if err != nil {
+				return err
+			}
+			if actual == want {
+				matches = append(matches, path)
+			}
+			return nil
+		}); err != nil {
+			return "", fmt.Errorf("search artifact root %q: %w", root, err)
+		}
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no artifact for scenario %q matches digest sha256:%s", scenarioName, want)
+	}
+	return matches[0], nil
+}
+
+func digestFile(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func (s *Service) findArtifact(scenarioName string) (string, error) {

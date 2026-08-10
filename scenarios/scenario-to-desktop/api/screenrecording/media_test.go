@@ -20,6 +20,18 @@ func TestUsefulFramesAcceptsVisibleApplication(t *testing.T) {
 	}
 }
 
+func TestUsefulFramesAcceptsDarkApplicationWithContrast(t *testing.T) {
+	if !usefulFrames("lavfi.signalstats.YMIN=29\nlavfi.signalstats.YAVG=50.6038\nlavfi.signalstats.YMAX=235\n") {
+		t.Fatal("dark application with visible content should be useful evidence")
+	}
+}
+
+func TestUsefulFramesRejectsUniformDarkDesktopWithPeak(t *testing.T) {
+	if usefulFrames("lavfi.signalstats.YMIN=29\nlavfi.signalstats.YAVG=29\nlavfi.signalstats.YMAX=29\n") {
+		t.Fatal("uniform dark desktop must not be useful evidence")
+	}
+}
+
 func TestInspectVideoRejectsEmptyFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "empty.mp4")
 	if err := os.WriteFile(path, nil, 0o600); err != nil {

@@ -50,6 +50,16 @@ var Known = []Def{
 		ActionLabel:     "Start Deployment Manager",
 		OperatorCommand: "vrooli scenario start deployment-manager --json",
 	},
+	{
+		ID:              "vrooli-bridge",
+		Name:            "Vrooli Bridge",
+		Description:     "Trusted dispatch and target identity for optional remote desktop validation.",
+		DependencyKind:  DependencyScenario,
+		DependencySlug:  "vrooli-bridge",
+		ActionKind:      ActionKindScenarioStart,
+		ActionLabel:     "Start Vrooli Bridge",
+		OperatorCommand: "vrooli scenario start vrooli-bridge --json",
+	},
 }
 
 // NewRegistry is the single construction seam for the API capability

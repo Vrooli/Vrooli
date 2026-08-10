@@ -17,6 +17,16 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func TestWorkflowTimeoutHonorsLongFormSettingsWithBound(t *testing.T) {
+	fallback := 5 * time.Minute
+	if got := workflowTimeout(map[string]any{"settings": map[string]any{"timeout_ms": float64(3900000)}}, fallback); got != 65*time.Minute {
+		t.Fatalf("workflowTimeout = %s, want 65m", got)
+	}
+	if got := workflowTimeout(map[string]any{"settings": map[string]any{"timeout_ms": float64(3 * 60 * 60 * 1000)}}, fallback); got != 2*time.Hour {
+		t.Fatalf("workflowTimeout cap = %s, want 2h", got)
+	}
+}
+
 func TestDefinitionToProtoPreservesNestedActionParams(t *testing.T) {
 	def := map[string]any{
 		"metadata": map[string]any{
@@ -80,8 +90,11 @@ func TestExecuteAdhocStartsAsyncThenReturnsTerminalExecutionDetails(t *testing.T
 			if req.Msg.GetWaitForCompletion() {
 				t.Fatal("workflow-health must use BAS asynchronous execution")
 			}
-			if got := req.Header().Get("X-Vrooli-Test-Mode"); got != "1" {
-				t.Fatalf("execution header = %q, want 1", got)
+			if got := req.Header().Get("X-Vrooli-Test-Mode"); got != "" {
+				t.Fatalf("execution control-plane header = %q, want it omitted", got)
+			}
+			if got := req.Msg.GetParameters().GetBrowserProfile().GetExtraHeaders()["X-Vrooli-Test-Mode"]; got != "1" {
+				t.Fatalf("browser profile test-mode header = %q, want 1", got)
 			}
 			return connect.NewResponse(&basexecution.ExecuteAdhocResponse{ExecutionId: "execution-1", Status: basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING}), nil
 		},
@@ -89,8 +102,8 @@ func TestExecuteAdhocStartsAsyncThenReturnsTerminalExecutionDetails(t *testing.T
 	mux.Handle(apiconnect.ExecutionsServiceGetExecutionProcedure, connect.NewUnaryHandler(
 		apiconnect.ExecutionsServiceGetExecutionProcedure,
 		func(_ context.Context, req *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
-			if got := req.Header().Get("X-Vrooli-Test-Mode"); got != "1" {
-				t.Fatalf("status header = %q, want 1", got)
+			if got := req.Header().Get("X-Vrooli-Test-Mode"); got != "" {
+				t.Fatalf("status control-plane header = %q, want it omitted", got)
 			}
 			if req.Msg.GetExecutionId() != "execution-1" {
 				t.Fatalf("execution id = %q", req.Msg.GetExecutionId())
@@ -169,8 +182,8 @@ func TestTimelinePropagatesIsolationHeaders(t *testing.T) {
 	mux.Handle(apiconnect.ExecutionsServiceGetExecutionTimelineProcedure, connect.NewUnaryHandler(
 		apiconnect.ExecutionsServiceGetExecutionTimelineProcedure,
 		func(_ context.Context, req *connect.Request[basapi.GetExecutionTimelineRequest]) (*connect.Response[bastimeline.ExecutionTimeline], error) {
-			if got := req.Header().Get("X-Vrooli-Test-Mode"); got != "1" {
-				t.Fatalf("timeline header = %q, want 1", got)
+			if got := req.Header().Get("X-Vrooli-Test-Mode"); got != "" {
+				t.Fatalf("timeline control-plane header = %q, want it omitted", got)
 			}
 			return connect.NewResponse(&bastimeline.ExecutionTimeline{}), nil
 		},

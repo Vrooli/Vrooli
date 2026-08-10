@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"scenario-to-desktop-api/captures"
@@ -163,19 +164,29 @@ func (a *StopRecordingAction) Execute(ctx context.Context, session *Session, svc
 	if err != nil {
 		return nil, fmt.Errorf("stopping recording: %w", err)
 	}
-
 	session.SetRecording(false, "")
+	if result == nil || strings.TrimSpace(result.VideoPath) == "" {
+		return nil, fmt.Errorf("stopping recording returned no video")
+	}
+	inspect := svc.videoInspector
+	if inspect == nil {
+		inspect = screenrecording.InspectVideo
+	}
+	media, err := inspect(ctx, result.VideoPath)
+	if err != nil {
+		return nil, fmt.Errorf("validating recorded video: %w", err)
+	}
 
 	// Persist to captures service if available
 	if svc.captures != nil {
-		cap, err := svc.captures.SaveCapture(session.ScenarioName, captures.CaptureRecording, session.ID, result.VideoPath, session.Width, session.Height, result.DurationMs)
+		cap, err := svc.captures.SaveCapture(session.ScenarioName, captures.CaptureRecording, session.ID, result.VideoPath, media.Width, media.Height, media.DurationMs)
 		if err == nil {
 			videoURL := fmt.Sprintf("/api/v1/captures/%s/%s/file", session.ScenarioName, cap.ID)
 			return &ActionResult{
 				Status: "ok",
 				Data: map[string]any{
 					"video_url":   videoURL,
-					"duration_ms": result.DurationMs,
+					"duration_ms": media.DurationMs,
 					"size_bytes":  result.FileSizeBytes,
 					"capture_id":  cap.ID,
 				},

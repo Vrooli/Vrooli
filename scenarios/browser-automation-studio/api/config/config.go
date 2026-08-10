@@ -678,9 +678,13 @@ func loadFromEnv() *Config {
 			DefaultBackoffFactor:   parseFloat("BAS_EXECUTION_DEFAULT_BACKOFF_FACTOR", 1.5),
 			CompletionPollInterval: parseDurationMs("BAS_EXECUTION_COMPLETION_POLL_INTERVAL_MS", 250),
 			AdhocCleanupInterval:   parseDurationMs("BAS_EXECUTION_ADHOC_CLEANUP_INTERVAL_MS", 5000),
-			AdhocRetentionPeriod:   parseDurationMs("BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS", 600000),
-			SeedCleanupTimeout:     parseDurationMs("BAS_EXECUTION_SEED_CLEANUP_TIMEOUT_MS", 900000),
-			HeartbeatInterval:      parseDurationMs("BAS_EXECUTION_HEARTBEAT_INTERVAL_MS", 2000),
+			// Long-running governed workflows must remain queryable until the
+			// owning validation provider has collected terminal evidence. Keep
+			// the default retention above the explicit two-hour execution cap;
+			// operators can still lower it deliberately through the env override.
+			AdhocRetentionPeriod: parseDurationMs("BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS", 7200000),
+			SeedCleanupTimeout:   parseDurationMs("BAS_EXECUTION_SEED_CLEANUP_TIMEOUT_MS", 900000),
+			HeartbeatInterval:    parseDurationMs("BAS_EXECUTION_HEARTBEAT_INTERVAL_MS", 2000),
 		},
 		WebSocket: WebSocketConfig{
 			ClientSendBufferSize:   parseInt("BAS_WS_CLIENT_SEND_BUFFER_SIZE", 256),

@@ -383,6 +383,9 @@ func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, arti
 		fmt.Sprintf("S2D_PROFILE_MODE=%s", configuredProfileMode()),
 		fmt.Sprintf("S2D_PROFILE_DIR=%s", profileDirPath(smokeTestID, "protocol")),
 	}
+	if status, ok := s.store.Get(smokeTestID); ok {
+		env = append(env, s.validationRendererEnv(ctx, status.ScenarioName)...)
+	}
 
 	// When screen recording manages the display, tell Electron to render on it.
 	if displayID != "" {
@@ -453,6 +456,7 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, sce
 		fmt.Sprintf("S2D_PROFILE_MODE=%s", configuredProfileMode()),
 		fmt.Sprintf("S2D_PROFILE_DIR=%s", profileDirPath(smokeTestID, "demo")),
 	}
+	env = append(env, s.validationRendererEnv(ctx, scenarioName)...)
 	var monitor procmetrics.Monitor
 	s.installMonitorHook(rec.displayID, rec.displayWidth, rec.displayHeight, func(m procmetrics.Monitor) { monitor = m })
 

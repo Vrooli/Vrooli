@@ -270,6 +270,11 @@ func NewServer(port int) *Server {
 	linuxBackend := livedesktop.NewBackend(logger)
 	liveDesktopStore := livedesktop.NewInMemoryStore()
 	liveDesktopService := livedesktop.NewService(liveDesktopStore, linuxBackend, logger, vrooliRoot)
+	if stagingRoot, stagingErr := storePaths.StagingRoot(); stagingErr == nil {
+		liveDesktopService.WithArtifactStagingRoot(stagingRoot)
+	} else {
+		logger.Warn("desktop artifact staging lookup unavailable", "error", stagingErr)
+	}
 	liveDesktopDataDir, err := storePaths.EnsureLiveDesktopDir()
 	if err != nil {
 		logger.Warn("live desktop directory unavailable", "error", err)
@@ -332,7 +337,7 @@ func NewServer(port int) *Server {
 	}
 	pipelineOrchestrator, pipelineHandler, deployHandler := initPipelineStack(pipelineDeps)
 	bridgeClient := bridgevalidation.NewClientFromEnv()
-	validationMatrixHandler := initValidationMatrixDomain(storePaths, logger, smokeTestService, smokeTestStore, liveDesktopService, capturesService, liveDesktopService, validationprovider.NewWorkflowHealthClient(), bridgeClient)
+	validationMatrixHandler := initValidationMatrixDomain(storePaths, logger, smokeTestService, smokeTestStore, liveDesktopService, capturesService, liveDesktopService, validationprovider.NewWorkflowHealthClient(), bridgeClient, scenarioRoot)
 	bridgeSources := make([]targetinventory.BridgeSource, 0, 1)
 	if bridgeClient != nil {
 		bridgeSources = append(bridgeSources, bridgeClient)
@@ -514,7 +519,7 @@ func newPipelineFileStore(storePaths *storagepaths.Locator, logger *slog.Logger)
 	return store
 }
 
-func initValidationMatrixDomain(storePaths *storagepaths.Locator, logger *slog.Logger, smokeService smoketest.Service, smokeStore smoketest.Store, artifactFinder validationArtifactFinder, captureService *captures.Service, desktopOwner validationDesktopOwner, workflowExecutor validationWorkflowExecutor, bridgeExecutor validationmatrix.BridgeExecutor) *validationmatrix.Handler {
+func initValidationMatrixDomain(storePaths *storagepaths.Locator, logger *slog.Logger, smokeService smoketest.Service, smokeStore smoketest.Store, artifactFinder validationArtifactFinder, captureService *captures.Service, desktopOwner validationDesktopOwner, workflowExecutor validationWorkflowExecutor, bridgeExecutor validationmatrix.BridgeExecutor, scenarioRoot string) *validationmatrix.Handler {
 	dataDir, err := storePaths.EnsureValidationMatrixDir()
 	if err != nil {
 		logger.Warn("validation matrix storage directory unavailable", "error", err)
@@ -534,7 +539,7 @@ func initValidationMatrixDomain(storePaths *storagepaths.Locator, logger *slog.L
 			options = append(options, validationmatrix.WithReleaseReporter(validationmatrix.NewDeploymentReporterFromURL(deploymentURL, profileID, gitCommit, nil)))
 		}
 	}
-	service := validationmatrix.NewService(store, validationmatrix.Executors{Local: validationMatrixLocalExecutor{smokeService: smokeService, smokeStore: smokeStore, findArtifact: artifactFinder, captures: captureService, desktop: desktopOwner, workflow: workflowExecutor}, Bridge: bridgeExecutor}, options...)
+	service := validationmatrix.NewService(store, validationmatrix.Executors{Local: validationMatrixLocalExecutor{smokeService: smokeService, smokeStore: smokeStore, findArtifact: artifactFinder, captures: captureService, desktop: desktopOwner, workflow: workflowExecutor, scenarioRoot: scenarioRoot}, Bridge: bridgeExecutor}, options...)
 	if recovered := service.RecoverStale(); recovered > 0 {
 		logger.Info("recovered stale validation matrix runs", "count", recovered)
 	}

@@ -16,7 +16,7 @@ func TestRegistryDescribesDeclaredDependencies(t *testing.T) {
 		t.Fatalf("Describe() error = %v", err)
 	}
 	body := string(data)
-	for _, slug := range []string{"agent-manager", "deployment-manager"} {
+	for _, slug := range []string{"agent-manager", "deployment-manager", "vrooli-bridge"} {
 		if !strings.Contains(body, `"dependencySlug":"`+slug+`"`) {
 			t.Fatalf("description does not contain %q: %s", slug, body)
 		}
