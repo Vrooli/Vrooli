@@ -14,16 +14,30 @@ const (
 	StatusUnknown           = "unknown"
 )
 
+type PlatformVerdict struct {
+	Support string `json:"support,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+}
+
+// RegistryMetadata describes Agent Manager itself. It is separate from
+// Known, because service.json is the sole source of declared dependencies.
+type RegistryMetadata struct {
+	Platform PlatformVerdict `json:"platform"`
+}
+
+var Metadata = RegistryMetadata{Platform: PlatformVerdict{Support: "supported", Reason: "Agent Manager's orchestration API is host-neutral; runner adapters declare their own platform boundaries."}}
+
 type Definition struct {
-	ID              string   `json:"id"`
-	Name            string   `json:"name"`
-	Description     string   `json:"description"`
-	DependencyKind  string   `json:"dependencyKind"`
-	DependencySlug  string   `json:"dependencySlug"`
-	Features        []string `json:"features,omitempty"`
-	ActionKind      string   `json:"actionKind,omitempty"`
-	ActionLabel     string   `json:"actionLabel,omitempty"`
-	OperatorCommand string   `json:"operatorCommand,omitempty"`
+	ID              string          `json:"id"`
+	Name            string          `json:"name"`
+	Description     string          `json:"description"`
+	DependencyKind  string          `json:"dependencyKind"`
+	DependencySlug  string          `json:"dependencySlug"`
+	Features        []string        `json:"features,omitempty"`
+	ActionKind      string          `json:"actionKind,omitempty"`
+	ActionLabel     string          `json:"actionLabel,omitempty"`
+	OperatorCommand string          `json:"operatorCommand,omitempty"`
+	Platform        PlatformVerdict `json:"platform,omitempty"`
 }
 
 type State struct {
@@ -36,23 +50,9 @@ type Registry struct {
 	definitions []Definition
 }
 
-var knownDefinitions = []Definition{
-	{
-		ID: "workspace-sandbox", Name: "Workspace Sandbox",
-		Description:    "Sandbox creation, diff generation, and patch application for isolated agent execution.",
-		DependencyKind: DependencyScenario, DependencySlug: "workspace-sandbox",
-		ActionKind: ActionKindScenarioStart, ActionLabel: "Start Workspace Sandbox",
-		OperatorCommand: "vrooli scenario start workspace-sandbox --json",
-	},
-	{
-		ID: "vrooli-events", Name: "Vrooli Events",
-		Description:    "Non-blocking observed receipts for declared Agent Manager operations.",
-		DependencyKind: DependencyScenario, DependencySlug: "vrooli-events",
-		ActionKind: ActionKindScenarioStart, ActionLabel: "Start Vrooli Events",
-		OperatorCommand: "vrooli scenario start vrooli-events --json",
-		Features:        []string{"receipt-capture"},
-	},
-}
+// knownDefinitions contains optional capabilities only. service.json is the
+// source of truth for declared dependencies.
+var knownDefinitions = []Definition{}
 
 func NewRegistry() *Registry {
 	definitions := make([]Definition, len(knownDefinitions))

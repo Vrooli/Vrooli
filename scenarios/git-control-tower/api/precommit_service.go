@@ -5,10 +5,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -55,24 +53,14 @@ const shellCommandWaitDelay = 2 * time.Second
 // exec.CommandContext's default cancellation only SIGKILLs the direct child
 // (bash). The linters/tests bash spawns are grandchildren; they would orphan
 // and keep the stdout/stderr pipes open, blocking the reader in RunStream from
-// ever seeing EOF. Placing the command in its own process group (Setpgid) and
-// signalling the whole group on cancel kills those grandchildren too.
+// ever seeing EOF. Placing the command in its own process group and signalling
+// the whole group on cancel kills those grandchildren too. The group mechanism
+// is POSIX-only, so it lives in applyProcessGroupContainment, which each
+// platform file supplies.
 func newShellCommand(ctx context.Context, req CommandRunRequest) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "bash", "-lc", req.Command)
 	cmd.Dir = req.WorkingDirectory
-	// Setpgid makes bash the leader of a new process group whose pgid equals its
-	// pid, so every descendant shares that group unless it deliberately escapes.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	// On ctx cancel, SIGKILL the whole group (negative pid == the group).
-	cmd.Cancel = func() error {
-		if cmd.Process == nil {
-			return nil
-		}
-		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil && err != syscall.ESRCH {
-			return err
-		}
-		return os.ErrProcessDone
-	}
+	applyProcessGroupContainment(cmd)
 	cmd.WaitDelay = shellCommandWaitDelay
 	return cmd
 }

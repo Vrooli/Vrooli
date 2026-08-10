@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestDescribeIncludesDeclaredScenarioDependenciesAndRecoveryActions(t *testing.T) {
+func TestDescribeDoesNotDuplicateManifestDependencies(t *testing.T) {
 	data, err := NewRegistry().Describe(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -18,22 +18,8 @@ func TestDescribeIncludesDeclaredScenarioDependenciesAndRecoveryActions(t *testi
 	if err := json.Unmarshal(data, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if len(payload.Definitions) != 2 || len(payload.States) != 2 {
-		t.Fatalf("descriptor counts = %d definitions, %d states; want 2 and 2", len(payload.Definitions), len(payload.States))
-	}
-	for _, slug := range []string{"workspace-sandbox", "vrooli-events"} {
-		found := false
-		for _, definition := range payload.Definitions {
-			if definition.DependencySlug == slug {
-				found = true
-				if definition.Description == "" || definition.ActionKind == "" || definition.OperatorCommand == "" {
-					t.Fatalf("%s definition is incomplete: %#v", slug, definition)
-				}
-			}
-		}
-		if !found {
-			t.Fatalf("missing dependency definition %q", slug)
-		}
+	if len(payload.Definitions) != 0 || len(payload.States) != 0 {
+		t.Fatalf("descriptor duplicates manifest dependencies: %#v", payload)
 	}
 }
 
