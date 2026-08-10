@@ -26,6 +26,7 @@ type Service struct {
 	backlogStore  VectorStore
 	goalStore     VectorStore
 	recordStore   VectorStore
+	captureStore  VectorStore
 	backlogReader BacklogReader
 	goalReader    GoalReader
 	textSearcher  TextSearcher
@@ -39,6 +40,10 @@ type Service struct {
 func (s *Service) SetRecordStore(store VectorStore) {
 	s.recordStore = store
 }
+
+// SetCaptureStore wires the ephemeral capture collection without changing the
+// stable constructor used by existing callers.
+func (s *Service) SetCaptureStore(store VectorStore) { s.captureStore = store }
 
 // NewService creates a new AI search service. Any of backlogStore,
 // goalStore, backlogReader, goalReader may be nil to disable
@@ -88,7 +93,7 @@ func (s *Service) Search(ctx context.Context, req AISearchRequest) (*AISearchRes
 		entity = EntityBoth
 	}
 	if !entity.Valid() {
-		return nil, fmt.Errorf("invalid entity %q: must be backlog, goal, record, or both", req.Entity)
+		return nil, fmt.Errorf("invalid entity %q: must be backlog, goal, record, capture, or both", req.Entity)
 	}
 
 	limit := normalizeLimit(req.Limit)
@@ -210,6 +215,10 @@ func (s *Service) searchStores(ctx context.Context, entity EntityType, vector []
 		{EntityBacklog, s.backlogStore},
 		{EntityGoal, s.goalStore},
 		{EntityRecord, s.recordStore},
+		// Captures are ephemeral searchable projections, not a fourth public
+		// entity type. They share the record result contract while living in
+		// their own collection so record searches can still include them.
+		{EntityRecord, s.captureStore},
 	}
 	for _, st := range stores {
 		if entity != st.entity && entity != EntityBoth {

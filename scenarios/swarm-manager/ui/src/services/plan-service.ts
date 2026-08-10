@@ -93,10 +93,9 @@ const CARD_ACTIONS = new Set<PlanCardAction>([
   "finalize",
   "decide",
   "review",
-  "classify",
   "none",
 ]);
-const GATE_KINDS = new Set<PlanGateKind>(["decide", "review", "classify", "workshop"]);
+const GATE_KINDS = new Set<PlanGateKind>(["decide", "proposal", "review", "workshop"]);
 const BLOCKER_KINDS = new Set<PlanBlockerKind>(["none", "gate", "items", "cycle"]);
 const OUTCOMES = new Set<PlanOutcome>(["ok", "failed", "needs_review", "needs_followup"]);
 

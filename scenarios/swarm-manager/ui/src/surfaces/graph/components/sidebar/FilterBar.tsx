@@ -89,7 +89,7 @@ function SortControls({ sort, tab, dispatch }: { sort: SortConfig; tab: SidebarT
 // Per-Tab Filters
 // ============================================================================
 
-const BACKLOG_STATUSES = ["backlog", "researching", "ready", "queued", "in_progress", "completed", "failed"] as const;
+const BACKLOG_STATUSES = ["suggested", "backlog", "researching", "ready", "queued", "in_progress", "completed", "failed"] as const;
 const BACKLOG_KINDS = ["idea", "research", "fix", "execute", "chore"] as const;
 const CAPTURE_STATUSES = ["classifying", "classified", "failed"] as const;
 const EXECUTION_STATUSES = ["pending", "starting", "running", "needs_review", "validating", "needs_fixup", "completed", "failed", "canceled"] as const;

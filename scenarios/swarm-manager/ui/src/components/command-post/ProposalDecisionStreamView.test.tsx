@@ -20,4 +20,13 @@ describe("ProposalDecisionStreamView", () => {
     fireEvent.click(screen.getByRole("button", { name: /snooze/i }));
     expect(onSnooze).toHaveBeenCalledWith("p2");
   });
+
+  it("renders capture proposals as first-class decision-stream work", () => {
+    render(<ProposalDecisionStreamView
+      proposals={[{ ...proposal("capture-p1", "Capture proposal"), target: { type: "capture", ref: "cap-1", name: "A captured idea" } }]}
+      onComplete={vi.fn()} onBack={vi.fn()} onSnooze={vi.fn()}
+    />);
+    expect(screen.getByText("A captured idea")).toBeInTheDocument();
+    expect(screen.getByText("Capture proposal")).toBeInTheDocument();
+  });
 });

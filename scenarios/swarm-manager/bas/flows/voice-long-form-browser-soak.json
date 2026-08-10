@@ -4,6 +4,15 @@
   "name": "swarm-manager-voice-long-form-browser-soak",
   "folder_path": "/bas/flows",
   "description": "Drive the shared composer microphone for one real-time hour and record terminal/recovery UI evidence.",
+  "metadata": {
+    "name": "swarm-manager-voice-long-form-browser-soak",
+    "description": "Drive the shared composer microphone for one real-time hour and record terminal/recovery UI evidence.",
+    "execution_mode": "EXECUTION_MODE_MUTATING",
+    "labels": {
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    }
+  },
   "tags": [
     "requires_confirmation:true",
     "routed_isolation:true"
@@ -15,7 +24,11 @@
     "metadata": {
       "name": "swarm-manager-voice-long-form-browser-soak",
       "description": "Drive the shared composer microphone for one real-time hour and record terminal/recovery UI evidence.",
-      "execution_mode": "EXECUTION_MODE_MUTATING"
+      "execution_mode": "EXECUTION_MODE_MUTATING",
+      "labels": {
+        "requires_confirmation": "true",
+        "routed_isolation": "true"
+      }
     },
     "settings": {
       "timeout_ms": 3900000,
@@ -59,7 +72,7 @@
         "action": {
           "type": "ACTION_TYPE_WAIT",
           "wait": {
-            "selector": "[data-testid=agent-session-composer]",
+            "selector": "@selector/agentSessions.composer",
             "state": "WAIT_STATE_UNSPECIFIED",
             "timeout_ms": 30000
           },
@@ -73,7 +86,7 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid=agent-session-composer-mic]"
+            "selector": "@selector/agentSessions.composerMic"
           },
           "metadata": {
             "label": "Start real-time shared PCM capture"
@@ -85,7 +98,7 @@
         "action": {
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
-            "selector": "[data-testid=agent-session-composer-mic]",
+            "selector": "@selector/agentSessions.composerMic",
             "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
             "expected": {
               "string_value": "true"
@@ -823,7 +836,7 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid=agent-session-composer-mic]"
+            "selector": "@selector/agentSessions.composerMic"
           },
           "metadata": {
             "label": "Stop the one-hour capture"

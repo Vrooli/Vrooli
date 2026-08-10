@@ -127,7 +127,7 @@ execute/
 
 ### Optional Scenarios (P1)
 - knowledge-observatory, visited-tracker, scenario-completeness-scoring
-- app-issue-tracker, test-genie
+- test-genie
 
 ## Environment Variables
 

@@ -1,7 +1,7 @@
 // Package planview provides a read-model over existing swarm state that
 // enumerates decision points ("gates") requiring a human or agent action
-// before dependent work can proceed: review-pending items and runs, captures
-// awaiting classification, accepted-plan checks, and pending proposals.
+// before dependent work can proceed: review-pending items and runs,
+// accepted-plan checks, and pending proposals.
 //
 // The package owns no storage and no policy — it only projects sources
 // that already exist. Sources sit behind the Source interface so a future
@@ -25,8 +25,6 @@ const (
 	// KindReview — a human review is pending (review_pending item or a
 	// needs_review / needs_fixup execution).
 	KindReview Kind = "review"
-	// KindClassify — a capture is awaiting classification review.
-	KindClassify Kind = "classify"
 	// KindWorkshop — a queueable item whose canonical plan needs validation or
 	// fresh operator acceptance (agent-actionable, not a human gate).
 	KindWorkshop Kind = "workshop"

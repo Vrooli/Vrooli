@@ -13,7 +13,6 @@
 | knowledge-observatory | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 | visited-tracker | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 | scenario-completeness-scoring | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
-| app-issue-tracker | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 | test-genie | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 | prompt-manager | Yes (`service.json`, disabled) | Not used | Optional (P1) | N/A |
 

@@ -6,58 +6,32 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"swarm-manager/internal/planworkshop"
 )
 
-func TestBuildIdeaPackage(t *testing.T) {
+func TestBuildIdeaPackage_UsesPlanWorkshopResponses(t *testing.T) {
 	itemDir := filepath.Join(t.TempDir(), "ideas", "alpha")
-	if err := os.MkdirAll(filepath.Join(itemDir, "workshop"), 0o755); err != nil {
-		t.Fatalf("mkdir workshop: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(itemDir, "research"), 0o755); err != nil {
-		t.Fatalf("mkdir research: %v", err)
-	}
 	if err := os.MkdirAll(filepath.Join(itemDir, "archive"), 0o755); err != nil {
 		t.Fatalf("mkdir archive: %v", err)
 	}
 
 	writeFile(t, filepath.Join(itemDir, "spec.json"), `{"kind":"idea","name":"alpha"}`)
-	writeFile(t, filepath.Join(itemDir, "research", "summary.md"), "research summary")
 	writeFile(t, filepath.Join(itemDir, "notes.md"), "processing notes")
-	writeFile(t, filepath.Join(itemDir, "workshop", "round-001.json"), `{
-  "round": 1,
-  "generated_at": "2026-03-27T18:00:00Z",
-  "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
-    "approach_solid": 3,
-    "testable": 3,
-    "risk_awareness": 3
-  },
-  "items": [
-    {
-      "id": "d1",
-      "type": "decision",
-      "topic": "Database",
-      "context": "Pick the persistence layer",
-      "options": [
-        {"key":"A","label":"SQLite","rationale":"simple"},
-        {"key":"B","label":"Postgres","rationale":"heavier"}
-      ],
-      "selected": "A",
-      "notes": "single-user server"
-    },
-    {
-      "id": "d2",
-      "type": "decision",
-      "topic": "Deferred",
-      "context": "Still open",
-      "options": [
-        {"key":"A","label":"Now","rationale":"ship it"},
-        {"key":"B","label":"Later","rationale":"reduce scope"}
-      ]
-    }
-  ]
-}`)
+	dataRoot := filepath.Dir(filepath.Dir(itemDir))
+	subject := planworkshop.Subject{Kind: planworkshop.SubjectBacklog, Ref: "idea/alpha"}
+	if err := planworkshop.NewStore(dataRoot).Save(planworkshop.Session{
+		ID:             planworkshop.WorkshopID(subject),
+		Subject:        subject,
+		SubjectVersion: "v1",
+		Packet: planworkshop.ReviewPacket{Questions: []planworkshop.DecisionQuestion{
+			{ID: "d1", Question: "Database", Options: []string{"SQLite", "Postgres"}},
+			{ID: "d2", Question: "Deferred"},
+		}},
+		Responses: []planworkshop.Response{{ID: "response-1", Answers: map[string]string{"d1": "SQLite"}}},
+	}); err != nil {
+		t.Fatalf("save plan workshop session: %v", err)
+	}
 
 	pkg, err := BuildIdeaPackage(BuildRequest{
 		BacklogKind:             "idea",
@@ -124,6 +98,35 @@ func TestBuildIdeaPackage(t *testing.T) {
 	}
 	if len(manifest.ValidationCommands) != 3 {
 		t.Fatalf("validation commands = %#v", manifest.ValidationCommands)
+	}
+}
+
+func TestBuildIdeaPackage_DoesNotReferenceLegacyRoundPaths(t *testing.T) {
+	itemDir := filepath.Join(t.TempDir(), "ideas", "alpha")
+	if err := os.MkdirAll(itemDir, 0o755); err != nil {
+		t.Fatalf("mkdir item: %v", err)
+	}
+	writeFile(t, filepath.Join(itemDir, "spec.json"), `{"kind":"idea","name":"alpha"}`)
+
+	pkg, err := BuildIdeaPackage(BuildRequest{
+		BacklogKind:     "idea",
+		BacklogName:     "alpha",
+		ItemFolder:      itemDir,
+		DeliverablePath: "plan-manager:alpha",
+	})
+	if err != nil {
+		t.Fatalf("BuildIdeaPackage() error = %v", err)
+	}
+	if strings.Contains(pkg.BriefMarkdown, "round-") || strings.Contains(pkg.BriefMarkdown, "research/summary.md") {
+		t.Fatalf("brief references deleted legacy paths:\n%s", pkg.BriefMarkdown)
+	}
+	var source SourceIndex
+	data, err := os.ReadFile(pkg.SourceIndexPath)
+	if err != nil {
+		t.Fatalf("read source index: %v", err)
+	}
+	if err := json.Unmarshal(data, &source); err != nil {
+		t.Fatalf("decode source index: %v", err)
 	}
 }
 

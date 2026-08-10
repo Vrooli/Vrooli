@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
+	"net/textproto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -98,7 +100,14 @@ func (a *App) cmdCapturesCreate(args []string) error {
 		if err != nil {
 			return fmt.Errorf("open file %s: %w", filePath, err)
 		}
-		part, err := writer.CreateFormFile("files", filepath.Base(filePath))
+		header := make(textproto.MIMEHeader)
+		header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="files"; filename="%s"`, filepath.Base(filePath)))
+		contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(filePath)))
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		header.Set("Content-Type", contentType)
+		part, err := writer.CreatePart(header)
 		if err != nil {
 			file.Close()
 			return fmt.Errorf("create form file: %w", err)

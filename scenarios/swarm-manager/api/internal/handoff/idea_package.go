@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/pathredact"
-	"swarm-manager/internal/workshop"
+	"swarm-manager/internal/planworkshop"
 )
 
 const (
@@ -40,6 +40,7 @@ type BuildRequest struct {
 	AcceptanceAllow         []string
 	AcceptanceDeny          []string
 	GeneratedAt             time.Time
+	PlanWorkshopDataRoot    string
 }
 
 // Package represents the generated idea handoff package and its primary
@@ -102,13 +103,11 @@ type OpenDecision struct {
 // SourceIndex enumerates the authoritative source artifacts that were used to
 // derive the package.
 type SourceIndex struct {
-	ItemFolder          string   `json:"item_folder"`
-	PlanPath            string   `json:"plan_path"`
-	SpecPath            string   `json:"spec_path"`
-	NotesPath           string   `json:"notes_path,omitempty"`
-	ResearchSummaryPath string   `json:"research_summary_path,omitempty"`
-	ArchiveDir          string   `json:"archive_dir,omitempty"`
-	WorkshopRoundPaths  []string `json:"workshop_round_paths,omitempty"`
+	ItemFolder string `json:"item_folder"`
+	PlanPath   string `json:"plan_path"`
+	SpecPath   string `json:"spec_path"`
+	NotesPath  string `json:"notes_path,omitempty"`
+	ArchiveDir string `json:"archive_dir,omitempty"`
 }
 
 // BuildIdeaPackage derives and writes the authoritative handoff package for an
@@ -131,11 +130,15 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 		generatedAt = time.Now()
 	}
 
-	rounds, err := workshop.ReadRounds(itemFolder)
-	if err != nil {
-		return nil, fmt.Errorf("load workshop rounds: %w", err)
+	workshopDataRoot := strings.TrimSpace(req.PlanWorkshopDataRoot)
+	if workshopDataRoot == "" {
+		workshopDataRoot = filepath.Dir(filepath.Dir(itemFolder))
 	}
-	locked, open := summarizeDecisions(rounds)
+	session, err := loadPlanWorkshopSession(workshopDataRoot, req.BacklogKind, req.BacklogName)
+	if err != nil {
+		return nil, fmt.Errorf("load plan workshop session: %w", err)
+	}
+	locked, open := summarizeDecisions(session)
 
 	handoffDir := filepath.Join(itemFolder, handoffDirName)
 	if err := os.MkdirAll(handoffDir, 0o750); err != nil {
@@ -154,13 +157,11 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 	}
 
 	sourceIndex := SourceIndex{
-		ItemFolder:          ref(itemFolder),
-		PlanPath:            deliverablePath,
-		SpecPath:            ref(filepath.Join(itemFolder, "spec.json")),
-		NotesPath:           ref(fileIfExists(filepath.Join(itemFolder, "notes.md"))),
-		ResearchSummaryPath: ref(fileIfExists(filepath.Join(itemFolder, "research", "summary.md"))),
-		ArchiveDir:          ref(dirIfExists(filepath.Join(itemFolder, "archive"))),
-		WorkshopRoundPaths:  redactPaths(ref, buildRoundPaths(itemFolder, rounds)),
+		ItemFolder: ref(itemFolder),
+		PlanPath:   deliverablePath,
+		SpecPath:   ref(filepath.Join(itemFolder, "spec.json")),
+		NotesPath:  ref(fileIfExists(filepath.Join(itemFolder, "notes.md"))),
+		ArchiveDir: ref(dirIfExists(filepath.Join(itemFolder, "archive"))),
 	}
 
 	manifest := Manifest{
@@ -339,19 +340,19 @@ func writeBriefSupportingSources(b *strings.Builder, sourceIndex SourceIndex) {
 	if sourceIndex.NotesPath != "" {
 		b.WriteString(fmt.Sprintf("- Processing notes: `%s`\n", sourceIndex.NotesPath))
 	}
-	if sourceIndex.ResearchSummaryPath != "" {
-		b.WriteString(fmt.Sprintf("- Research summary: `%s`\n", sourceIndex.ResearchSummaryPath))
-	}
 	if sourceIndex.ArchiveDir != "" {
 		b.WriteString(fmt.Sprintf("- Archive dir: `%s`\n", sourceIndex.ArchiveDir))
 	}
-	if len(sourceIndex.WorkshopRoundPaths) > 0 {
-		b.WriteString("- Workshop rounds:\n")
-		for _, path := range sourceIndex.WorkshopRoundPaths {
-			b.WriteString(fmt.Sprintf("  - `%s`\n", path))
-		}
-	}
 	b.WriteString("\n")
+}
+
+func loadPlanWorkshopSession(dataRoot, kind, name string) (planworkshop.Session, error) {
+	subject := planworkshop.Subject{Kind: planworkshop.SubjectBacklog, Ref: strings.TrimSpace(kind) + "/" + strings.TrimSpace(name)}
+	session, err := planworkshop.NewStore(dataRoot).Load(planworkshop.WorkshopID(subject))
+	if os.IsNotExist(err) {
+		return planworkshop.Session{}, nil
+	}
+	return session, err
 }
 
 func validationCommands(target string) []string {

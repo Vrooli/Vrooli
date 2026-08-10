@@ -7,7 +7,7 @@
   "roleReason": "Workflow classification and acceptance review require deep reasoning over durable evidence and competing outcomes.",
   "maxTurns": 450,
   "timeout": "2700s",
-  "allowedTools": ["read", "glob", "grep", "shell"],
+  "allowedTools": ["read", "glob", "grep", "shell", "web_search", "web_fetch"],
   "toolRestrictionPolicy": "advisory",
   "skipPermissionPrompt": false,
   "sandboxConfig": {

@@ -40,7 +40,7 @@ describe("getActionsForNode", () => {
   // Full graph mode: actions for capture, backlog, goal, scenario.
   it("returns capture actions for topology/capture", () => {
     const actions = getActionsForNode("topology", "capture");
-    expect(actions.map((a) => a.id)).toEqual(["classify", "create-item", "delete-capture"]);
+    expect(actions.map((a) => a.id)).toEqual(["classify", "delete-capture"]);
   });
 
   it("returns backlog actions for topology/backlog", () => {

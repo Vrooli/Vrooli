@@ -23,6 +23,7 @@ const (
 	EnvAISearchBacklogColl = "AI_SEARCH_BACKLOG_COLLECTION"
 	EnvAISearchGoalColl    = "AI_SEARCH_GOAL_COLLECTION"
 	EnvAISearchRecordColl  = "AI_SEARCH_RECORD_COLLECTION"
+	EnvAISearchCaptureColl = "AI_SEARCH_CAPTURE_COLLECTION"
 
 	// EnvAISearchSyncInterval overrides the SyncLoop tick interval (e.g.
 	// "30m", "24h"). Default DefaultSyncInterval. Invalid values fall back to
@@ -53,6 +54,7 @@ const (
 	CollectionDomainBacklog = "backlog"
 	CollectionDomainGoal    = "goals"
 	CollectionDomainRecord  = "records"
+	CollectionDomainCapture = "captures"
 
 	// scenarioSlug is this scenario's own identity, used ONLY to compose a
 	// variant-safe fallback collection name when no identity environment is
@@ -156,6 +158,7 @@ type Config struct {
 	BacklogCollection string
 	GoalCollection    string
 	RecordCollection  string
+	CaptureCollection string
 }
 
 // LoadConfigFromEnv reads the full aisearch configuration from the process
@@ -171,6 +174,7 @@ func LoadConfigFromEnv() Config {
 		BacklogCollection: resolveCollection(EnvAISearchBacklogColl, CollectionDomainBacklog),
 		GoalCollection:    resolveCollection(EnvAISearchGoalColl, CollectionDomainGoal),
 		RecordCollection:  resolveCollection(EnvAISearchRecordColl, CollectionDomainRecord),
+		CaptureCollection: resolveCollection(EnvAISearchCaptureColl, CollectionDomainCapture),
 	}
 	if v := strings.TrimSpace(os.Getenv(EnvAISearchThreshold)); v != "" {
 		if parsed, err := strconv.ParseFloat(v, 64); err == nil && parsed > 0 {

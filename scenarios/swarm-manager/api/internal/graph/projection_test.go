@@ -80,10 +80,7 @@ func TestProjectTopology(t *testing.T) {
 			{Name: "init-archived", Title: "Archived", Status: "completed", ArchivedAt: ptrStr("2026-01-01T00:00:00Z")}, // excluded
 		}},
 		Capture: &mockCaptureLister{caps: []CaptureEntry{
-			{ID: "cap-1", Text: "fix login", Status: "classified", Items: []CaptureClassificationItem{
-				{Kind: "execute", Title: "task-a"},  // matches existing item
-				{Kind: "fix", Title: "nonexistent"}, // no match, no edge
-			}},
+			{ID: "cap-1", Text: "fix login", Status: "classifying"},
 			{ID: "cap-2", Text: "empty", Status: "pending"}, // no items, excluded
 		}},
 		Scenario: &mockScenarioLister{scens: []ScenarioEntry{
@@ -110,8 +107,8 @@ func TestProjectTopology(t *testing.T) {
 	if nodeTypes["Goal"] != 1 {
 		t.Errorf("expected 1 Goal node, got %d", nodeTypes["Goal"])
 	}
-	if nodeTypes["Capture"] != 1 {
-		t.Errorf("expected 1 Capture node, got %d", nodeTypes["Capture"])
+	if nodeTypes["Capture"] != 2 {
+		t.Errorf("expected 2 Capture nodes, got %d", nodeTypes["Capture"])
 	}
 	if nodeTypes["Scenario"] != 1 {
 		t.Errorf("expected 1 Scenario node, got %d", nodeTypes["Scenario"])
@@ -128,8 +125,8 @@ func TestProjectTopology(t *testing.T) {
 	if edgeTypes["member_of"] != 1 {
 		t.Errorf("expected 1 member_of edge, got %d", edgeTypes["member_of"])
 	}
-	if edgeTypes["classified_as"] != 1 {
-		t.Errorf("expected 1 classified_as edge, got %d", edgeTypes["classified_as"])
+	if edgeTypes["classified_as"] != 0 {
+		t.Errorf("expected no classified_as edges, got %d", edgeTypes["classified_as"])
 	}
 
 	assertEdgeEndpointsPresent(t, resp)
@@ -201,16 +198,13 @@ func TestMemberOfEdges(t *testing.T) {
 	}
 }
 
-func TestClassifiedAsEdges(t *testing.T) {
+func TestCaptureNodesDoNotInventClassificationEdges(t *testing.T) {
 	svc := NewProjectionService(ProjectionConfig{
 		Backlog: &mockBacklogLister{items: []backlog.BacklogItem{
 			{Kind: "execute", Name: "deploy", Title: "deploy", Status: "ready"},
 		}},
 		Capture: &mockCaptureLister{caps: []CaptureEntry{
-			{ID: "cap-1", Text: "deploy", Status: "classified", Items: []CaptureClassificationItem{
-				{Kind: "execute", Title: "deploy"},  // matches
-				{Kind: "fix", Title: "no-such-bug"}, // no match
-			}},
+			{ID: "cap-1", Text: "deploy", Status: "classifying"},
 		}},
 	})
 
@@ -225,8 +219,8 @@ func TestClassifiedAsEdges(t *testing.T) {
 			classifiedCount++
 		}
 	}
-	if classifiedCount != 1 {
-		t.Errorf("expected 1 classified_as edge, got %d", classifiedCount)
+	if classifiedCount != 0 {
+		t.Errorf("expected no classified_as edges, got %d", classifiedCount)
 	}
 }
 

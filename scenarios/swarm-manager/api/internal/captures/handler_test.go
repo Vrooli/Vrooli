@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/goals"
 	"swarm-manager/internal/transitions"
 
 	"github.com/gorilla/mux"
@@ -27,6 +28,17 @@ type classificationWorkflowStub struct {
 	start      agentmanager.WorkflowStart
 	completion agentmanager.InvocationCompletion
 	invocation agentmanager.Invocation
+}
+
+type proposalRecorderStub struct {
+	calls    int
+	payloads [][]byte
+}
+
+func (s *proposalRecorderStub) RecordCaptureProposals(_ context.Context, _ string, _ string, _ string, _ string, _ string, _ string, payload []byte) error {
+	s.calls++
+	s.payloads = append(s.payloads, append([]byte(nil), payload...))
+	return nil
 }
 
 func (s *classificationWorkflowStub) StartWorkflow(_ context.Context, invocation agentmanager.Invocation) (agentmanager.WorkflowStart, error) {
@@ -46,6 +58,7 @@ func setupTestHandler(t *testing.T) (*Handler, string) {
 		t.Fatalf("load transition registry: %v", err)
 	}
 	h := NewHandler(rootDir, rootDir, registry)
+	h.SetProposalRecorder(&proposalRecorderStub{})
 	return h, rootDir
 }
 
@@ -347,201 +360,6 @@ func TestList_WithCaptures(t *testing.T) {
 	}
 }
 
-func TestLoadCapture_MergesClassification(t *testing.T) {
-	h, rootDir := setupTestHandler(t)
-
-	id := "cap-test-classify"
-	dir := filepath.Join(rootDir, "captures", id)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	// Write capture.
-	cap := capture{
-		ID:          id,
-		Text:        "test with classification",
-		Attachments: []string{},
-		Created:     time.Now().UTC().Format(time.RFC3339),
-		Status:      "classifying",
-	}
-	data, _ := json.Marshal(cap)
-	if err := os.WriteFile(filepath.Join(dir, "capture.json"), data, 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Write classification.
-	cls := classification{
-		Items: []classificationItem{
-			{Kind: "idea", Title: "Test idea", Priority: 3, Tags: []string{"test"}, Confidence: 0.9},
-		},
-		ClassifiedAt: time.Now().UTC().Format(time.RFC3339),
-	}
-	clsData, _ := json.Marshal(cls)
-	if err := os.WriteFile(filepath.Join(dir, "classification.json"), clsData, 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Load and verify merge.
-	loaded, err := h.loadCapture(id)
-	if err != nil {
-		t.Fatalf("loadCapture: %v", err)
-	}
-	if loaded.Status != "classified" {
-		t.Errorf("expected status classified, got %q", loaded.Status)
-	}
-	if loaded.Classification == nil {
-		t.Fatal("classification not merged")
-	}
-	if len(loaded.Classification.Items) != 1 {
-		t.Errorf("expected 1 classification item, got %d", len(loaded.Classification.Items))
-	}
-	if loaded.Classification.Items[0].Kind != "idea" {
-		t.Errorf("expected kind idea, got %q", loaded.Classification.Items[0].Kind)
-	}
-}
-
-// mockBacklogCreator implements BacklogItemCreator for tests.
-type mockBacklogCreator struct {
-	items []struct {
-		kind, name, title, description string
-		tags                           []string
-	}
-}
-
-func (m *mockBacklogCreator) SaveItem(draft BacklogItemDraft) error {
-	m.items = append(m.items, struct {
-		kind, name, title, description string
-		tags                           []string
-	}{draft.Kind, draft.Name, draft.Title, draft.Description, draft.Tags})
-	return nil
-}
-
-// [REQ:SWM-P0-001] backlog work intake: item from classified capture
-func TestCreateItem_Success(t *testing.T) {
-	h, rootDir := setupTestHandler(t)
-	creator := &mockBacklogCreator{}
-	h.SetBacklogCreator(creator)
-
-	// Create a classified capture.
-	id := "cap-create-item"
-	dir := filepath.Join(rootDir, "captures", id)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	cap := capture{
-		ID:          id,
-		Text:        "we should add a backup cron job",
-		Attachments: []string{},
-		Created:     time.Now().UTC().Format(time.RFC3339),
-		Status:      "classified",
-		Classification: &classification{
-			Items: []classificationItem{
-				{Kind: "execute", Title: "backup cron", Tags: []string{"ops", "infra"}, Priority: 3, Confidence: 0.9},
-			},
-			ClassifiedAt: time.Now().UTC().Format(time.RFC3339),
-		},
-	}
-	data, _ := json.Marshal(cap)
-	if err := os.WriteFile(filepath.Join(dir, "capture.json"), data, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	// Also write classification.json so loadCapture merges it.
-	clsData, _ := json.Marshal(cap.Classification)
-	if err := os.WriteFile(filepath.Join(dir, "classification.json"), clsData, 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	body := bytes.NewBufferString(`{"kind": "execute"}`)
-	req := httptest.NewRequest("POST", "/api/v1/captures/"+id+"/create-item", body)
-	req = mux.SetURLVars(req, map[string]string{"id": id})
-	w := httptest.NewRecorder()
-
-	h.CreateItem(w, req)
-
-	if w.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
-	}
-
-	if len(creator.items) != 1 {
-		t.Fatalf("expected 1 item created, got %d", len(creator.items))
-	}
-	item := creator.items[0]
-	if item.kind != "execute" {
-		t.Errorf("expected kind execute, got %q", item.kind)
-	}
-	if item.title == "" {
-		t.Error("expected non-empty title")
-	}
-	if item.title != "backup cron" || item.description != "" {
-		t.Errorf("classification fields were not carried through: %#v", item)
-	}
-	if len(item.tags) != 2 || item.tags[0] != "ops" || item.tags[1] != "infra" {
-		t.Errorf("unexpected tags: %v", item.tags)
-	}
-
-	// Verify capture status was updated.
-	loaded, err := h.loadCapture(id)
-	if err != nil {
-		t.Fatalf("loadCapture: %v", err)
-	}
-	if loaded.Status != "classified" {
-		t.Errorf("expected status classified, got %q", loaded.Status)
-	}
-}
-
-func TestCreateItem_CreatesEveryClassificationItemWithProvenance(t *testing.T) {
-	h, rootDir := setupTestHandler(t)
-	creator := &mockBacklogCreator{}
-	h.SetBacklogCreator(creator)
-	id := "cap-multiple-items"
-	dir := filepath.Join(rootDir, "captures", id)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	cap := capture{ID: id, Text: "two intents", Created: time.Now().UTC().Format(time.RFC3339), Status: "classified", Classification: &classification{Items: []classificationItem{
-		{Kind: "fix", Title: "Fix login", Description: "Repair login", Priority: 2, Tags: []string{"auth"}},
-		{Kind: "research", Title: "Research backups", Description: "Compare options", Priority: 9, Tags: []string{"ops"}},
-		{Kind: "execute", Title: "Ship dashboard", Description: "Implement dashboard", Priority: 6, Tags: []string{"ui"}},
-	}}}
-	data, _ := json.Marshal(cap)
-	if err := os.WriteFile(filepath.Join(dir, "capture.json"), data, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	request := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/captures/"+id+"/create-item", nil), map[string]string{"id": id})
-	recorder := httptest.NewRecorder()
-	h.CreateItem(recorder, request)
-	if recorder.Code != http.StatusCreated {
-		t.Fatalf("create items = %d: %s", recorder.Code, recorder.Body.String())
-	}
-	if len(creator.items) != 3 {
-		t.Fatalf("created %d items, want 3", len(creator.items))
-	}
-	for _, item := range creator.items {
-		if item.kind == "" || item.title == "" {
-			t.Errorf("incomplete draft: %#v", item)
-		}
-	}
-	// The mock records the shape; use the real adapter contract's explicit
-	// provenance assertion through the response payload.
-	var response struct {
-		Items []struct {
-			Priority    int    `json:"priority"`
-			SpawnedFrom string `json:"spawned_from"`
-		} `json:"items"`
-	}
-	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
-		t.Fatal(err)
-	}
-	if len(response.Items) != 3 {
-		t.Fatalf("response items = %d, want 3", len(response.Items))
-	}
-	for _, item := range response.Items {
-		if item.SpawnedFrom != id || item.Priority < 1 || item.Priority > 10 {
-			t.Errorf("bad response provenance/priority: %#v", item)
-		}
-	}
-}
-
 func TestCaptureVersionChangesWhenNoteChanges(t *testing.T) {
 	base := &capture{ID: "cap-note", Text: "same", Attachments: []string{"attachments/a.png"}, Note: "first"}
 	first := captureVersion(base)
@@ -587,48 +405,52 @@ func TestBuildClassificationInputUsesReadableAttachmentPathsAndNote(t *testing.T
 	}
 }
 
-func TestCreateItem_NotFound(t *testing.T) {
-	h, _ := setupTestHandler(t)
-	creator := &mockBacklogCreator{}
-	h.SetBacklogCreator(creator)
-
-	req := httptest.NewRequest("POST", "/api/v1/captures/nonexistent/create-item", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
-	w := httptest.NewRecorder()
-
-	h.CreateItem(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected 404, got %d", w.Code)
+func TestNormalizeStructValueAcceptsTypedGroundingCollections(t *testing.T) {
+	value, err := normalizeStructValue(map[string]any{
+		"targets":    []string{"execute/example"},
+		"milestones": []goals.Milestone{{Name: "ship", Items: []string{"execute/example"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := structpb.NewValue(map[string]any{"grounding": value}); err != nil {
+		t.Fatalf("normalized grounding is not structpb-safe: %v", err)
 	}
 }
 
-func TestCreateItem_NoCreator(t *testing.T) {
-	h, rootDir := setupTestHandler(t)
-	// Don't set backlog creator.
-
-	id := "cap-no-creator"
-	dir := filepath.Join(rootDir, "captures", id)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+func TestBoundedStructValueCompactsOversizedGrounding(t *testing.T) {
+	value, err := boundedStructValue(map[string]any{"description": strings.Repeat("context ", 12000)})
+	if err != nil {
 		t.Fatal(err)
 	}
-	cap := capture{
-		ID:      id,
-		Text:    "test",
-		Created: time.Now().UTC().Format(time.RFC3339),
-		Status:  "classified",
+	if _, err := structpb.NewValue(map[string]any{"grounding": value}); err != nil {
+		t.Fatalf("bounded grounding is not structpb-safe: %v", err)
 	}
-	data, _ := json.Marshal(cap)
-	_ = os.WriteFile(filepath.Join(dir, "capture.json"), data, 0o644)
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(encoded) > maxGroundingBytes {
+		t.Fatalf("grounding size = %d, want <= %d", len(encoded), maxGroundingBytes)
+	}
+}
 
-	req := httptest.NewRequest("POST", "/api/v1/captures/"+id+"/create-item", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": id})
-	w := httptest.NewRecorder()
-
-	h.CreateItem(w, req)
-
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("expected 500, got %d", w.Code)
+func TestNormalizeClassificationResultResearchIsExactlyOneItem(t *testing.T) {
+	result := classificationResult{
+		Outcome: "research",
+		Items: []classificationItem{
+			{Kind: "research", Title: "first"},
+			{Kind: "research", Title: "duplicate"},
+		},
+	}
+	if err := normalizeClassificationResult(&result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Items) != 1 || result.Items[0].Title != "first" || result.Items[0].Kind != "research" {
+		t.Fatalf("normalized research items = %#v, want exactly the first research item", result.Items)
+	}
+	if result.ResearchItem != nil {
+		t.Fatal("normalized result retained a separate research_item")
 	}
 }
 
@@ -701,16 +523,12 @@ func TestApplyClassification_OnlyAppliesMatchingTerminalSnapshot(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	stored, err := h.loadCapture(cap.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if stored.Status != "classified" || stored.Classification == nil || len(stored.Classification.Items) != 1 {
-		t.Fatalf("expected applied classification, got %#v", stored)
+	if _, err := os.Stat(h.captureDir(cap.ID)); !os.IsNotExist(err) {
+		t.Fatalf("capture directory still exists after proposal recording: %v", err)
 	}
 	second := httptest.NewRecorder()
 	h.ApplyClassification(second, req)
-	if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), `"already_applied":true`) {
+	if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), `"capture_deleted":true`) {
 		t.Fatalf("expected idempotent apply response, got %d: %s", second.Code, second.Body.String())
 	}
 }
@@ -746,7 +564,7 @@ func TestApplyClassificationRejectsCaptureChangedAfterStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.Text != cap.Text || stored.Classification != nil {
+	if stored.Text != cap.Text {
 		t.Fatalf("stale completion mutated capture: %#v", stored)
 	}
 }
@@ -779,17 +597,14 @@ func TestApplyClassificationRecoversAfterHandlerRestart(t *testing.T) {
 	}
 	restarted := NewHandler(rootDir, rootDir, registry)
 	restarted.SetClassificationWorkflow(stub)
+	restarted.SetProposalRecorder(&proposalRecorderStub{})
 	apply := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/captures/cap-recover/classify/execution-recover/apply", nil), map[string]string{"id": cap.ID, "executionID": "execution-recover"})
 	recorder := httptest.NewRecorder()
 	restarted.ApplyClassification(recorder, apply)
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("recovered apply = %d: %s", recorder.Code, recorder.Body.String())
 	}
-	stored, err := restarted.loadCapture(cap.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if stored.Status != "classified" || stored.Classification == nil {
-		t.Fatalf("recovered capture = %#v", stored)
+	if _, err := os.Stat(restarted.captureDir(cap.ID)); !os.IsNotExist(err) {
+		t.Fatalf("recovered capture directory still exists: %v", err)
 	}
 }

@@ -11,6 +11,8 @@
       "stub",
       "draft",
       "active",
+      "historical",
+      "validated",
       "not-applicable",
       "deferred",
       "retired"
@@ -460,6 +462,23 @@
           "maturity": "active",
           "requiredBy": [
             "oriented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/CAPTURE-INTAKE-DESIGN-RECORD.md",
+          "docType": "design-record",
+          "title": "Capture Intake Design Record",
+          "description": "Evidence, settled decisions, and corrections governing capture grounding and research intake",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "validated",
+          "requiredBy": [
+            "oriented",
+            "implemented",
+            "validated"
           ],
           "completion": "required"
         },

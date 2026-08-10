@@ -7,7 +7,7 @@
   "roleReason": "Goal investigation, planning, and repository edits are explicitly multi-file deep-work tasks.",
   "maxTurns": 900,
   "timeout": "5400s",
-  "allowedTools": ["read", "write", "edit", "glob", "grep", "shell"],
+  "allowedTools": ["read", "write", "edit", "glob", "grep", "shell", "web_search", "web_fetch"],
   "toolRestrictionPolicy": "advisory",
   "skipPermissionPrompt": false,
   "sandboxConfig": {

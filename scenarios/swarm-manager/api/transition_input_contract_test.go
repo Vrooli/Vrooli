@@ -84,7 +84,7 @@ func TestRegisteredBuildersCoverTheirDeclaredInputContract(t *testing.T) {
 	// emits. Keep it in sync with the builder when you change its input shape;
 	// the test fails when a declaration requires a key no builder produces.
 	producedTopLevelKeys := map[string][]string{
-		"capture.classify":        {"capture"},
+		"capture.classify":        {"capture", "grounding"},
 		"plan.author":             {"entity", "snapshot"},
 		"plan.repair":             {"entity", "plan", "validation", "constraints"},
 		"plan.execute":            {"plan", "planExecutionId", "consumer", "constraints"},

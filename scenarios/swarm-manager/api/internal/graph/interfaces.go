@@ -27,21 +27,14 @@ type GoalLister interface {
 	List() ([]GoalEntry, error)
 }
 
-// CaptureEntry represents a capture with its classification data.
+// CaptureEntry represents a durable raw capture awaiting workflow completion.
 type CaptureEntry struct {
 	ID     string
 	Text   string
 	Status string
-	Items  []CaptureClassificationItem
 }
 
-// CaptureClassificationItem is a classified backlog suggestion from a capture.
-type CaptureClassificationItem struct {
-	Kind  string
-	Title string
-}
-
-// CaptureLister lists captures with their classification data.
+// CaptureLister lists durable captures.
 type CaptureLister interface {
 	ListCaptures() ([]CaptureEntry, error)
 }

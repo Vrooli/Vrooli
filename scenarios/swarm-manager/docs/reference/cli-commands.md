@@ -218,15 +218,14 @@ scoped to one goal.
 
 ```bash
 swarm-manager backlog recreate --kind execute --name stale-plan
-swarm-manager backlog reset-artifacts --kind execute --name stale-plan --scope workshop,plan_unbind
+swarm-manager backlog reset-artifacts --kind execute --name stale-plan --scope review,plan_unbind
 swarm-manager milestones archive --goal desktop-release --milestone release-governance
 ```
 
 `backlog recreate` preserves history by archiving the source and creating a
 fresh backlog clone with `spawned_from` lineage. `reset-artifacts` keeps the
 item specification and removes only the selected derived artifact scopes:
-`workshop`, `clarifications`, `review`, `handoff_executions`, and
-`plan_unbind`. All actions refuse to run when an affected item has an active
+`review`, `handoff_executions`, and `plan_unbind`. All actions refuse to run when an affected item has an active
 agent.
 
 

@@ -8,7 +8,7 @@ export interface ProposalDecisionStreamItem {
   sessionId: string;
   sessionTitle: string;
   proposal: ProposalSessionProposal;
-  target?: { type: "goal" | "backlog_item"; ref: string; name: string };
+  target?: { type: "goal" | "backlog_item" | "capture"; ref: string; name: string };
 }
 
 interface Props {

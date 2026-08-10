@@ -18,7 +18,7 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Backlog work intake | The system shall let operators and agents create backlog items (idea, research, fix, execute, chore) directly, from classified captures, and from accepted proposals
+- [ ] OT-P0-001 | Backlog work intake | The system shall let operators and agents create backlog items (idea, research, fix, execute, chore) directly, from grounded capture proposals at `suggested`, and from accepted proposals; captures may also propose a goal or milestone through the same decision rail
 - [ ] OT-P0-002 | One evolving plan per item | Each backlog item shall carry exactly one evolving implementation plan that is authored and revised in place through workshop rounds
 - [ ] OT-P0-003 | Plan workshop loop | When a workshop round runs, the system shall present typed proposals and open decisions and shall change the plan only through operator-approved responses
 - [ ] OT-P0-004 | Explicit plan acceptance gate | The system shall block execution queueing until the operator accepts the current plan revision, and shall clear acceptance whenever the plan changes

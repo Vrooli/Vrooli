@@ -156,6 +156,8 @@ func isKnownOp(op Op) bool {
 // outputs so later mutations can reference them.
 func validateMutation(m Mutation, idx int, state CurrentState, newItems map[string]int) error {
 	switch m.Op {
+	case OpCreateGoal:
+		return validateCreateGoal(m)
 	case OpAddItem:
 		return validateAddItem(m, idx, state, newItems)
 	case OpUpdateItem:
@@ -198,6 +200,45 @@ func validateMutation(m Mutation, idx int, state CurrentState, newItems map[stri
 		return nil
 	}
 	return fmt.Errorf("%w: %s", ErrUnknownOp, m.Op)
+}
+
+func validateCreateGoal(m Mutation) error {
+	if strings.TrimSpace(m.Target) != "" {
+		return fmt.Errorf("op %s must not have a target", m.Op)
+	}
+	if m.Goal == nil {
+		return fmt.Errorf("op %s requires goal spec", m.Op)
+	}
+	if strings.TrimSpace(m.Goal.Name) == "" || strings.TrimSpace(m.Goal.Title) == "" {
+		return fmt.Errorf("op %s requires goal name and title", m.Op)
+	}
+	if m.Goal.Priority < MinItemPriority || m.Goal.Priority > MaxItemPriority {
+		return fmt.Errorf("goal priority must be between %d and %d", MinItemPriority, MaxItemPriority)
+	}
+	seenTargets := map[string]struct{}{}
+	for _, target := range m.Goal.Targets {
+		if err := validateRef(strings.TrimSpace(target)); err != nil {
+			return fmt.Errorf("invalid goal target: %w", err)
+		}
+		if _, duplicate := seenTargets[target]; duplicate {
+			return fmt.Errorf("duplicate goal target %q", target)
+		}
+		seenTargets[target] = struct{}{}
+	}
+	seenMilestones := map[string]struct{}{}
+	for _, milestone := range m.Goal.Milestones {
+		if strings.TrimSpace(milestone.Name) == "" || strings.TrimSpace(milestone.Title) == "" {
+			return fmt.Errorf("create_goal milestones require name and title")
+		}
+		if !hasAcceptanceCriteria(&milestone) {
+			return fmt.Errorf("create_goal milestones require acceptance_criteria")
+		}
+		if _, duplicate := seenMilestones[milestone.Name]; duplicate {
+			return fmt.Errorf("duplicate goal milestone %q", milestone.Name)
+		}
+		seenMilestones[milestone.Name] = struct{}{}
+	}
+	return nil
 }
 
 func validateResetArtifactScopes(scopes []ResetArtifactScope) error {

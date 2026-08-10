@@ -69,17 +69,22 @@ authorization check.
 ### Intake
 
 Swarm must make it easy to enter work before the operator knows its final
-shape. There are two complementary entry paths:
+shape. There are two complementary entry paths, with capture offering three possible landings:
 
 ```text
-Quick Capture: observation → classification → suggested backlog work or discard
+Quick Capture: observation → ground-and-shape workflow → typed proposals at `suggested`, one research item, or recorded discard
 Agent Session: human conversation → typed proposal → explicit Swarm apply
 ```
 
 Captures are the fastest path for a discrete note, bug report, screenshot, or
-idea. Sessions are for exploratory, high-context, or conversational work. A
-session agent may propose changes, but it never mutates the work ledger
-directly; Swarm validates and applies a typed proposal.
+idea. The workflow may propose multiple items, a goal, and milestones through
+the same decision rail used by sessions; those items land at `suggested` with
+capture provenance. When the thought is under-defined or grounding is
+incomplete, it produces exactly one `research` item instead of guessing. A
+non-actionable thought is discarded with its reason. Sessions are for
+exploratory, high-context, or conversational work. An agent may propose
+changes, but it never mutates the work ledger directly; Swarm validates and
+applies a typed proposal.
 
 The session kinds remain explicit rather than becoming an untyped chat bucket:
 
@@ -184,14 +189,15 @@ stateDiagram-v2
 ```
 
 The diagram is a conceptual map, not a claim that every kind shares identical
-persisted status names. Research, maintenance, and milestone work may have
-different deliverables, but must fit the same authority model.
+persisted status names. Research, maintenance, and milestone work use the same
+canonical plan deliverable and authority model; research differs only in how
+the investigation plan is conceived.
 
 ### Required transition contracts
 
 | Transition family | Authoritative action | Agent interaction |
 | --- | --- | --- |
-| Capture → suggestion / discard | Swarm validates classification and stores the result. | Classification workflow, unless a human handles it in a session. |
+| Capture → suggested work / research / discard | Swarm validates the typed result, records proposals on the decision rail, lands accepted shape at `suggested`, or records the discard. | Ground-and-shape workflow; incomplete grounding takes the conservative research branch. |
 | Session proposal → ledger change | Swarm validates and applies an explicit proposal. | Session Run; never autonomous mutation. |
 | Backlog → plan-ready | Swarm binds a valid Plan Manager `plan_ref`. | Plan-authoring or plan-repair workflow. |
 | Ready → engaged | Swarm checks dependencies, policy, approvals, snapshot/version, and idempotency. | Starts the selected workflow. |

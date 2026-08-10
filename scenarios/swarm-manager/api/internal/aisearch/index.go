@@ -63,6 +63,39 @@ func goalPointID(name string) string {
 	return uuidV5(qdrantNamespace, "swarm-manager:goal/"+n)
 }
 
+func capturePointID(id string) string {
+	n := strings.TrimSpace(id)
+	if n == "" {
+		n = "unknown"
+	}
+	return uuidV5(qdrantNamespace, "swarm-manager:capture/"+n)
+}
+
+func composeCaptureText(capture CaptureDocument) string {
+	parts := []string{}
+	if text := strings.TrimSpace(capture.Text); text != "" {
+		parts = append(parts, text)
+	}
+	if note := strings.TrimSpace(capture.Note); note != "" {
+		parts = append(parts, "Note: "+note)
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+func buildCapturePayload(capture CaptureDocument, payloadHash string) map[string]interface{} {
+	out := map[string]interface{}{
+		"id":         capture.ID,
+		"capture_id": capture.ID,
+		"text":       capture.Text,
+		"note":       capture.Note,
+		"status":     "capture",
+	}
+	if payloadHash != "" {
+		out["payload_hash"] = payloadHash
+	}
+	return out
+}
+
 func uuidV5(namespace [16]byte, name string) string {
 	hash := sha1.New()
 	_, _ = hash.Write(namespace[:])
@@ -291,4 +324,31 @@ func (s *Service) DeleteGoal(ctx context.Context, name string) error {
 	}
 	slog.Debug("[aisearch] deleted goal from index", "name", name, "id", id)
 	return nil
+}
+
+// IndexCapture embeds the raw capture text for semantic deduplication and
+// grounding. It is safe to call asynchronously from the capture write path.
+func (s *Service) IndexCapture(ctx context.Context, id, text, note string) error {
+	if s.embedder == nil || s.captureStore == nil {
+		return fmt.Errorf("aisearch not configured for capture indexing")
+	}
+	doc := CaptureDocument{ID: id, Text: text, Note: note}
+	content := composeCaptureText(doc)
+	payload := buildCapturePayload(doc, "")
+	payload["payload_hash"] = composePayloadHash(content, payload)
+	vector, err := s.embedder.Embed(ctx, content)
+	if err != nil {
+		return fmt.Errorf("embed capture %s: %w", id, err)
+	}
+	if err := s.captureStore.Upsert(ctx, capturePointID(id), vector, payload); err != nil {
+		return fmt.Errorf("upsert capture %s: %w", id, err)
+	}
+	return nil
+}
+
+func (s *Service) DeleteCapture(ctx context.Context, id string) error {
+	if s.captureStore == nil {
+		return fmt.Errorf("aisearch not configured for capture indexing")
+	}
+	return s.captureStore.Delete(ctx, capturePointID(id))
 }

@@ -32,7 +32,7 @@ Swarm Manager fills a specific role in Vrooli as the **staging layer** between a
 | agent-manager | Execution engine | Runs spawned from backlog research/execution operations |
 | swarm-manager | Historical optional integration | Not required for active Swarm workflows; scenario templates and Test Genie provide the preferred validation path. |
 | visited-tracker | Integration | Context cleanup campaigns |
-| app-issue-tracker | Integration | Issue tracking per scenario |
+| swarm-manager | Native capability | Intake, research planning, and scenario work tracking |
 
 ## Boundaries (Non-Goals)
 

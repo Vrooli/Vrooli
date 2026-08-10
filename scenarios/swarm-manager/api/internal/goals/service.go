@@ -153,6 +153,7 @@ func (s *Service) Create(req CreateRequest) (*GoalWithScope, error) {
 		Priority:    req.Priority,
 		Targets:     targets,
 		Seeded:      req.Seeded,
+		SpawnedFrom: req.SpawnedFrom,
 		Created:     now,
 		Updated:     now,
 	}

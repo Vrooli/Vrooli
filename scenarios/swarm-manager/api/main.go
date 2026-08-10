@@ -373,12 +373,17 @@ func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler) {
 	backlogVS := aisearch.NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.BacklogCollection, embeddingPolicy)
 	goalVS := aisearch.NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.GoalCollection, embeddingPolicy)
 	recordVS := aisearch.NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.RecordCollection, embeddingPolicy)
+	captureVS := aisearch.NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.CaptureCollection, embeddingPolicy)
 
 	backlogReader := aisearch.NewBacklogStoreAdapter(backlogHandler.Store())
 	goalReader := aisearch.NewGoalServiceAdapter(s.goalService)
 
 	svc := aisearch.NewService(embedder, backlogVS, goalVS, backlogReader, goalReader, cfg.Threshold)
 	svc.SetRecordStore(recordVS)
+	svc.SetCaptureStore(captureVS)
+	if s.capturesHandler != nil {
+		s.capturesHandler.SetAIIndexer(svc)
+	}
 
 	// The Reconciler is the single owner of the "make qdrant match disk"
 	// decision. The Service handles search + status; the Reconciler handles
@@ -736,9 +741,17 @@ func (s *Server) registerOverviewRoutes(backlogHandler *backlog.Handler) *overvi
 	return overviewSvc
 }
 
-func (s *Server) registerCapturesRoutes(cacheRoot string, backlogHandler *backlog.Handler) {
+func (s *Server) registerCapturesRoutes(cacheRoot string, _ *backlog.Handler) {
 	capturesHandler := captures.NewHandler(cacheRoot, s.dataRoot, s.transitionRegistry)
-	capturesHandler.SetBacklogCreator(captures.NewBacklogItemCreatorAdapter(backlogHandler.Store()))
+	if s.aiSearchSvc != nil {
+		capturesHandler.SetAIIndexer(s.aiSearchSvc)
+	}
+	capturesHandler.SetGroundingProvider(captureGroundingProvider{
+		search:    s.aiSearchSvc,
+		goals:     s.goalService,
+		scenarios: scenarios.NewDirectoryProvider(filepath.Dir(s.scenarioRoot)),
+	})
+	capturesHandler.SetProposalRecorder(captureProposalRecorder{sessions: s.agentSessionSvc})
 	capturesHandler.RegisterRoutes(s.router)
 	s.capturesHandler = capturesHandler
 }

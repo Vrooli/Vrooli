@@ -3,7 +3,7 @@ import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { buildQueryString } from "../lib/query-utils";
 import { createAttemptDecisionService, type IAttemptDecisionService } from "./review-decision-service";
 
-export type ProposalSessionTargetType = "goal" | "backlog_item";
+export type ProposalSessionTargetType = "goal" | "backlog_item" | "capture";
 
 export interface ProposalMutationOutcome {
   mutation_id: string;

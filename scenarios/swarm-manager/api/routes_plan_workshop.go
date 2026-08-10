@@ -30,13 +30,6 @@ func (s *Server) registerPlanWorkshopRoutes(dataRoot string) *planworkshop.Servi
 	if s.backlogHandler == nil {
 		return nil
 	}
-	if _, err := planworkshop.MigrateLegacyHistory(dataRoot, time.Now()); err != nil {
-		// The migration is additive. Refusing to start the new operator surface
-		// because historical metadata is malformed would preserve the retired
-		// workflow as the only escape hatch, so retain the error for operators
-		// while still serving new workshops.
-		log.Printf("plan workshop legacy history migration: %v", err)
-	}
 	plans := planclient.NewConnectClient(nil, nil)
 	service := planworkshop.NewService(planworkshop.NewStore(dataRoot), func(subject planworkshop.Subject) (string, string, string, error) {
 		switch subject.Kind {

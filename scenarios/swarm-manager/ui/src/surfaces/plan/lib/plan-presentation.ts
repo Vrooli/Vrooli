@@ -70,8 +70,6 @@ export function gateActionLabel(gate: PlanGateData): string {
       return gate.count === 1 ? "Review 1 proposal" : `Review ${gate.count} proposals`;
     case "review":
       return "Review";
-    case "classify":
-      return gate.count > 0 ? `Classify (${gate.count})` : "Classify";
     case "workshop":
       // The server sends author-plan / accept-plan / validate-plan here; say
       // which one rather than repeating the generic gate name.

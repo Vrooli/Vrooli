@@ -69,7 +69,7 @@ func TestValidate_RejectsUnknownOp(t *testing.T) {
 func TestValidate_LifecycleOperations(t *testing.T) {
 	p := Proposal{Form: FormMutationList, Mutations: []Mutation{
 		{ID: "recreate", Op: OpRecreateItem, Target: "execute/foo"},
-		{ID: "reset", Op: OpResetArtifacts, Target: "execute/foo", ResetScope: []ResetArtifactScope{ResetScopeWorkshop, ResetScopePlanUnbind}},
+		{ID: "reset", Op: OpResetArtifacts, Target: "execute/foo", ResetScope: []ResetArtifactScope{ResetScopeReview, ResetScopePlanUnbind}},
 		{ID: "recreate-milestone", Op: OpRecreateMilestone, Target: "ui-rewrite"},
 	}}
 	if err := Validate(p, baseState(t)); err != nil {
@@ -89,7 +89,7 @@ func TestValidate_ResetArtifactsRejectsEmptyAndUnknownScope(t *testing.T) {
 func TestValidate_StandaloneScopeRestrictsGraphOperations(t *testing.T) {
 	state := baseState(t)
 	state.Standalone = true
-	allowed := Proposal{Form: FormMutationList, Mutations: []Mutation{{ID: "update", Op: OpUpdateItem, Target: "execute/foo", Patch: &ItemPatch{Title: stringPtr("renewed")}}, {ID: "reset", Op: OpResetArtifacts, Target: "execute/foo", ResetScope: []ResetArtifactScope{ResetScopeWorkshop}}}}
+	allowed := Proposal{Form: FormMutationList, Mutations: []Mutation{{ID: "update", Op: OpUpdateItem, Target: "execute/foo", Patch: &ItemPatch{Title: stringPtr("renewed")}}, {ID: "reset", Op: OpResetArtifacts, Target: "execute/foo", ResetScope: []ResetArtifactScope{ResetScopeReview}}}}
 	if err := Validate(allowed, state); err != nil {
 		t.Fatalf("Validate standalone allowed operations: %v", err)
 	}

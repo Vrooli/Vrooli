@@ -39,6 +39,14 @@ func (s ProposalSource) Enumerate(_ context.Context) ([]Gate, error) {
 				titles[key] = proposal.Target.Name
 				continue
 			}
+			if proposal.Target.Type == agentsessions.ContextCapture {
+				ref := strings.TrimSpace(proposal.Target.Ref)
+				if ref == "" { continue }
+				key := "capture/" + ref
+				counts[key]++
+				titles[key] = proposal.Target.Name
+				continue
+			}
 			if proposal.Target.Type != agentsessions.ContextBacklogItem {
 				continue
 			}
@@ -55,6 +63,11 @@ func (s ProposalSource) Enumerate(_ context.Context) ([]Gate, error) {
 		if strings.HasPrefix(ref, "goal/") {
 			name := strings.TrimPrefix(ref, "goal/")
 			out = append(out, Gate{ID: GateID(KindProposal, "goal", name), Kind: KindProposal, OwnerType: "goal", OwnerName: name, OwnerTitle: titles[ref], Count: count})
+			continue
+		}
+		if strings.HasPrefix(ref, "capture/") {
+			name := strings.TrimPrefix(ref, "capture/")
+			out = append(out, Gate{ID: GateID(KindProposal, "capture", name), Kind: KindProposal, OwnerType: "capture", OwnerName: name, OwnerTitle: titles[ref], Count: count})
 			continue
 		}
 		parts := strings.SplitN(ref, "/", 2)

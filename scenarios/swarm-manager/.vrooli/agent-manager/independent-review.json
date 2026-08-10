@@ -83,7 +83,6 @@
                     "attempted_producer": {"type": "string", "minLength": 1, "maxLength": 256}
                   },
                   "required": ["id", "criterion_id", "type", "title", "description", "producer", "trust", "settlement"],
-                  "allOf": [{"if": {"properties": {"settlement": {"const": "unavailable"}}, "required": ["settlement"]}, "then": {"required": ["unavailable_reason", "attempted_producer"]}}],
                   "additionalProperties": true
                 }
               },
@@ -221,7 +220,6 @@
                         "attempted_producer": {"type": "string", "minLength": 1, "maxLength": 256}
                       },
                       "required": ["id", "criterion_id", "type", "title", "description", "producer", "trust", "settlement"],
-                      "allOf": [{"if": {"properties": {"settlement": {"const": "unavailable"}}, "required": ["settlement"]}, "then": {"required": ["unavailable_reason", "attempted_producer"]}}],
                       "additionalProperties": true
                     }
                   },
@@ -363,7 +361,7 @@
     "wallTimeSeconds": 3600,
     "maxTurns": 18,
     "maxTokens": 900000,
-    "maxCostUsd": 5,
+    "maxChargeMicroUsd": 5,
     "maxNodeAttempts": 3,
     "maxChildren": 1,
     "maxConcurrency": 1,

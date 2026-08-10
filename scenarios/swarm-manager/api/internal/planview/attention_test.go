@@ -199,34 +199,6 @@ func TestReviewSource_SkipsArchivedOwnerExecution(t *testing.T) {
 	}
 }
 
-// --- ClassifySource ---------------------------------------------------------
-
-type fakeCaptures struct {
-	entries []CaptureEntry
-	err     error
-}
-
-func (f fakeCaptures) ListCaptures() ([]CaptureEntry, error) { return f.entries, f.err }
-
-func TestClassifySource_ClassifiedWithItems(t *testing.T) {
-	src := ClassifySource{Captures: fakeCaptures{entries: []CaptureEntry{
-		{ID: "c1", Text: "do the thing", Status: "classified", ClassifiedItems: 2, CreatedAt: "2026-07-01T10:00:00Z"},
-		{ID: "c2", Text: "still working", Status: "classifying", ClassifiedItems: 0},
-		{ID: "c3", Text: "empty", Status: "classified", ClassifiedItems: 0},
-	}}}
-	got, err := src.Enumerate(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 1 {
-		t.Fatalf("expected 1 gate, got %+v", got)
-	}
-	g := got[0]
-	if g.Kind != KindClassify || g.OwnerName != "c1" || g.Count != 2 {
-		t.Errorf("unexpected gate: %+v", g)
-	}
-}
-
 // --- Service ----------------------------------------------------------------
 
 type stubSource struct {

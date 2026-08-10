@@ -5,7 +5,7 @@
 // Column semantics (plan decision D2) are actionability, not agent-vs-human:
 // Now is in flight (summary counts only — cards come from /api/v1/operations),
 // Next is actionable immediately by agent (run/workshop) or human
-// (decide/review/classify), Later is not yet actionable grouped by nearest
+// (decide/review), Later is not yet actionable grouped by nearest
 // blocker, Done is recent outcomes. Wave membership is ordinal (dependency
 // layers from runnable), never fabricated clock time (D3).
 package planview
@@ -34,7 +34,6 @@ const (
 	ActionFinalize = "finalize"
 	ActionDecide   = "decide"
 	ActionReview   = "review"
-	ActionClassify = "classify"
 	ActionNone     = "none"
 )
 

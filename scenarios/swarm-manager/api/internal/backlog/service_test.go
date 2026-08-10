@@ -448,7 +448,6 @@ func TestService_ResetArtifacts_RemovesOnlySelectedArtifactScope(t *testing.T) {
 		scope   ResetArtifactScope
 		removed []string
 	}{
-		{name: "clarifications", scope: ResetScopeClarifications, removed: []string{"clarifications"}},
 		{name: "review", scope: ResetScopeReview, removed: []string{"review"}},
 		{name: "handoff and executions", scope: ResetScopeHandoffExecutions, removed: []string{"handoff", "executions"}},
 	}
@@ -460,7 +459,7 @@ func TestService_ResetArtifacts_RemovesOnlySelectedArtifactScope(t *testing.T) {
 				t.Fatalf("create: %v", err)
 			}
 			itemDir := env.store.ItemDir(item.Kind, item.Name)
-			for _, dir := range []string{"clarifications", "review", "handoff", "executions", "untouched"} {
+			for _, dir := range []string{"review", "handoff", "executions", "untouched"} {
 				if err := os.MkdirAll(filepath.Join(itemDir, dir), 0o755); err != nil {
 					t.Fatalf("create %s: %v", dir, err)
 				}

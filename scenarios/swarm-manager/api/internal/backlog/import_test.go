@@ -568,7 +568,7 @@ Original description
 }
 
 // TestRoundTrip_ExportEditImport is the main round-trip test:
-// 1. Create items with questions and suggestions
+// 1. Create items
 // 2. Export them to markdown
 // 3. Edit the markdown (answer questions, accept suggestions, modify description, add new item)
 // 4. Import with dry-run -> verify change list
@@ -586,18 +586,6 @@ func TestRoundTrip_ExportEditImport(t *testing.T) {
 		Tags:        []string{"saas", "tools"},
 		Created:     "2026-02-10T00:00:00Z",
 		Updated:     "2026-02-15T00:00:00Z",
-	})
-
-	createWorkshopRound(t, tmpDir, KindIdea, "my-app", WorkshopRound{
-		RoundNum:    1,
-		GeneratedAt: "2026-01-01T00:00:00Z",
-		Readiness:   map[string]int{"problem_clarity": 2, "scope_defined": 2, "approach_solid": 1, "testable": 0, "risk_awareness": 0},
-		Items: []WorkshopItem{
-			{ID: "w1", Type: "decision", Topic: "What auth method?", Options: []WorkshopOption{{Key: "A", Label: "OAuth 2.0", Rationale: "Industry standard"}, {Key: "B", Label: "JWT tokens", Rationale: "Stateless auth"}, {Key: "C", Label: "Session-based", Rationale: "Traditional approach"}}},
-			{ID: "w2", Type: "decision", Topic: "Target platform?", Options: []WorkshopOption{{Key: "A", Label: "Web", Rationale: "Broad reach"}, {Key: "B", Label: "Mobile", Rationale: "On the go"}, {Key: "C", Label: "Both", Rationale: "Maximum coverage"}}},
-			{ID: "w3", Type: "decision", Topic: "Use WebSocket", Context: "Reduces latency by 10x", Options: []WorkshopOption{{Key: "A", Label: "Yes", Rationale: "Real-time benefits"}, {Key: "B", Label: "No", Rationale: "Added complexity"}}},
-			{ID: "w4", Type: "decision", Topic: "Add caching", Context: "Improves mobile experience", Options: []WorkshopOption{{Key: "A", Label: "Yes", Rationale: "Performance boost"}, {Key: "B", Label: "No", Rationale: "Simplicity"}}},
-		},
 	})
 
 	createTestItem(t, tmpDir, KindFix, BacklogItem{

@@ -11,12 +11,19 @@ import (
 	"swarm-manager/internal/attempt"
 )
 
+// SubjectKind is the persisted discriminator for a Plan Workshop subject.
+// Plan Workshop is currently intentionally scoped to backlog items; adding a
+// second subject kind requires a corresponding loader, route, proposal target,
+// and acceptance contract rather than silently widening this type.
 type SubjectKind string
 
 const (
 	SubjectBacklog SubjectKind = "backlog_item"
 )
 
+// Subject is a backlog-item-scoped Plan Workshop subject. The short name is
+// retained because it is part of the persisted session JSON, but this type is
+// not a generic subject abstraction.
 type Subject struct {
 	Kind SubjectKind `json:"kind"`
 	Ref  string      `json:"ref"`
@@ -134,16 +141,6 @@ type ReviewPacketVersion struct {
 	PlanContentHash string       `json:"plan_content_hash,omitempty"`
 	CreatedAt       string       `json:"created_at"`
 	Packet          ReviewPacket `json:"packet"`
-}
-
-// LegacyHistoryReference keeps pre-cutover workshop material inspectable
-// without treating its readiness/finalization fields as live state.
-type LegacyHistoryReference struct {
-	SourcePath         string `json:"source_path"`
-	RoundCount         int    `json:"round_count"`
-	ArchivedAt         string `json:"archived_at"`
-	BackupPath         string `json:"backup_path,omitempty"`
-	ArchivedUnaccepted bool   `json:"archived_unaccepted,omitempty"`
 }
 
 type Response struct {
@@ -391,19 +388,18 @@ func (r ReconciliationResult) Validate() error {
 }
 
 type Session struct {
-	ID              string                  `json:"id"`
-	Subject         Subject                 `json:"subject"`
-	SubjectVersion  string                  `json:"subject_version"`
-	PlanID          string                  `json:"plan_id,omitempty"`
-	PlanContentHash string                  `json:"plan_content_hash,omitempty"`
-	Packet          ReviewPacket            `json:"packet"`
-	PacketHistory   []ReviewPacketVersion   `json:"packet_history,omitempty"`
-	LegacyHistory   *LegacyHistoryReference `json:"legacy_history,omitempty"`
-	Review          *ReviewRun              `json:"review,omitempty"`
-	Responses       []Response              `json:"responses,omitempty"`
-	Resolutions     []Resolution            `json:"resolutions,omitempty"`
-	CreatedAt       string                  `json:"created_at"`
-	UpdatedAt       string                  `json:"updated_at"`
+	ID              string                `json:"id"`
+	Subject         Subject               `json:"subject"`
+	SubjectVersion  string                `json:"subject_version"`
+	PlanID          string                `json:"plan_id,omitempty"`
+	PlanContentHash string                `json:"plan_content_hash,omitempty"`
+	Packet          ReviewPacket          `json:"packet"`
+	PacketHistory   []ReviewPacketVersion `json:"packet_history,omitempty"`
+	Review          *ReviewRun            `json:"review,omitempty"`
+	Responses       []Response            `json:"responses,omitempty"`
+	Resolutions     []Resolution          `json:"resolutions,omitempty"`
+	CreatedAt       string                `json:"created_at"`
+	UpdatedAt       string                `json:"updated_at"`
 }
 
 func (s Session) Validate() error {

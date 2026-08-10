@@ -93,10 +93,6 @@ func (s *Service) Open(subject Subject, packet ReviewPacket) (Session, error) {
 		return Session{}, err
 	}
 	id := WorkshopID(subject)
-	legacyHistory, err := s.store.LegacyHistory(subject)
-	if err != nil {
-		return Session{}, err
-	}
 	if current, err := s.store.Load(id); err == nil {
 		if current.SubjectVersion == version && current.PlanContentHash == planHash && reviewPacketsEqual(current.Packet, packet) {
 			return current, nil
@@ -106,9 +102,6 @@ func (s *Service) Open(subject Subject, packet ReviewPacket) (Session, error) {
 		current.SubjectVersion = version
 		current.PlanID = planID
 		current.PlanContentHash = planHash
-		if current.LegacyHistory == nil {
-			current.LegacyHistory = legacyHistory
-		}
 		current.PacketHistory = append(current.PacketHistory, ReviewPacketVersion{ID: packetID(id, len(current.PacketHistory)+1), SubjectVersion: version, PlanContentHash: planHash, CreatedAt: now, Packet: packet})
 		current.UpdatedAt = now
 		return current, s.store.Save(current)
@@ -116,7 +109,7 @@ func (s *Service) Open(subject Subject, packet ReviewPacket) (Session, error) {
 		return Session{}, err
 	}
 	now := s.now().UTC().Format(time.RFC3339Nano)
-	session := Session{ID: id, Subject: subject, SubjectVersion: version, PlanID: planID, PlanContentHash: planHash, Packet: packet, PacketHistory: []ReviewPacketVersion{{ID: packetID(id, 1), SubjectVersion: version, PlanContentHash: planHash, CreatedAt: now, Packet: packet}}, LegacyHistory: legacyHistory, CreatedAt: now, UpdatedAt: now}
+	session := Session{ID: id, Subject: subject, SubjectVersion: version, PlanID: planID, PlanContentHash: planHash, Packet: packet, PacketHistory: []ReviewPacketVersion{{ID: packetID(id, 1), SubjectVersion: version, PlanContentHash: planHash, CreatedAt: now, Packet: packet}}, CreatedAt: now, UpdatedAt: now}
 	return session, s.store.Save(session)
 }
 

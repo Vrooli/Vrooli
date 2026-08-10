@@ -299,7 +299,6 @@ export const PLAN_GATE_LABELS: Record<PlanGateKind, string> = {
   decide: "Decide",
   proposal: "Proposal",
   review: "Review",
-  classify: "Classify",
   workshop: "Plan",
 };
 

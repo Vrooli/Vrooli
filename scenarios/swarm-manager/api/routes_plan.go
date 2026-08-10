@@ -29,7 +29,7 @@ func (s *Server) registerPlanRoutes(scenarioRoot string) {
 	}
 	attentionSvc := planview.NewAttentionService(
 		reviewSource,
-		planview.ClassifySource{Captures: planCaptureAdapter{inner: graph.NewCaptureAdapter(scenarioRoot)}},
+		planview.ProposalSource{Store: s.agentSessionStore},
 	)
 
 	cfg := planview.Config{
@@ -67,27 +67,4 @@ func (s *Server) registerPlanRoutes(scenarioRoot string) {
 		log.Fatalf("plan: failed to build projection service: %v", err)
 	}
 	planview.NewHandler(svc).RegisterRoutes(s.router)
-}
-
-// planCaptureAdapter converts the graph capture adapter's entries into the
-// planview attention-source shape.
-type planCaptureAdapter struct {
-	inner graph.CaptureLister
-}
-
-func (a planCaptureAdapter) ListCaptures() ([]planview.CaptureEntry, error) {
-	caps, err := a.inner.ListCaptures()
-	if err != nil {
-		return nil, err
-	}
-	out := make([]planview.CaptureEntry, 0, len(caps))
-	for _, c := range caps {
-		out = append(out, planview.CaptureEntry{
-			ID:              c.ID,
-			Text:            c.Text,
-			Status:          c.Status,
-			ClassifiedItems: len(c.Items),
-		})
-	}
-	return out, nil
 }

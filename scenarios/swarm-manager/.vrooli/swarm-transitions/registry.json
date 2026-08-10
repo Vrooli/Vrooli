@@ -76,6 +76,7 @@
     "inputContract": "capture-classification-input/v1",
     "terminalOutcomes": [
       "suggested",
+      "research",
       "discarded",
       "abstained",
       "failed"

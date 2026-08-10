@@ -45,7 +45,7 @@ func (p *ProjectionService) buildTopology(ctx context.Context) (GraphResponse, e
 	edges = appendTopologyMemberOfEdges(edges, items, goals)
 
 	// Capture nodes and classified_as edges.
-	nodes, edges = p.appendTopologyCaptureNodes(nodes, edges, itemIndex)
+	nodes, edges = p.appendTopologyCaptureNodes(nodes, edges)
 
 	// Scenario nodes and targets edges.
 	nodes, edges = p.appendTopologyScenarioNodes(ctx, nodes, edges, items)
@@ -166,12 +166,12 @@ func appendTopologyMemberOfEdges(edges []Edge, items []backlog.BacklogItem, goal
 	return edges
 }
 
-// appendTopologyCaptureNodes appends capture nodes and classified_as edges to
-// active backlog items.
+// appendTopologyCaptureNodes appends durable raw capture nodes. Classification
+// results are proposal records, not capture files, so the topology never
+// invents classified_as edges from transient workflow output.
 func (p *ProjectionService) appendTopologyCaptureNodes(
 	nodes []Node,
 	edges []Edge,
-	itemIndex map[string]bool,
 ) ([]Node, []Edge) {
 	if p.capture == nil {
 		return nodes, edges
@@ -182,9 +182,6 @@ func (p *ProjectionService) appendTopologyCaptureNodes(
 		return nodes, edges
 	}
 	for _, cap := range caps {
-		if len(cap.Items) == 0 {
-			continue
-		}
 		capNodeID := "capture/" + cap.ID
 		nodes = append(nodes, Node{
 			ID:   capNodeID,
@@ -195,17 +192,6 @@ func (p *ProjectionService) appendTopologyCaptureNodes(
 				Status: cap.Status,
 			},
 		})
-		for _, ci := range cap.Items {
-			targetKey := backlogItemKey(ci.Kind, ci.Title)
-			if itemIndex[targetKey] {
-				edges = append(edges, Edge{
-					ID:     fmt.Sprintf("classified_as:%s->%s", cap.ID, targetKey),
-					Source: capNodeID,
-					Target: backlogItemNodeIDFromKey(targetKey),
-					Type:   "classified_as",
-				})
-			}
-		}
 	}
 	return nodes, edges
 }

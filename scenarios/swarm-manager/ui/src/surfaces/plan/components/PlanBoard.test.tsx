@@ -83,7 +83,7 @@ function itemCard(id: string, overrides?: Partial<PlanCardData>): PlanCardData {
   };
 }
 
-function gateCard(id: string, kind: "decide" | "review" | "classify", count: number): PlanCardData {
+function gateCard(id: string, kind: "decide" | "review" | "proposal", count: number): PlanCardData {
   return itemCard(id, {
     cardType: "gate",
     action: kind,

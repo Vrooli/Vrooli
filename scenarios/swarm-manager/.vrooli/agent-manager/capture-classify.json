@@ -46,10 +46,15 @@
           "version"
         ],
         "additionalProperties": false
+      },
+      "grounding": {
+        "type": "object",
+        "additionalProperties": true
       }
     },
     "required": [
-      "capture"
+      "capture",
+      "grounding"
     ],
     "additionalProperties": false
   },
@@ -92,7 +97,7 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "kind": {
+                    "kind": {
                           "type": "string",
                           "enum": [
                             "idea",
@@ -100,9 +105,14 @@
                             "fix",
                             "execute",
                             "chore"
-                          ]
-                        },
-                        "title": {
+                      ]
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "title": {
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 512
@@ -124,28 +134,136 @@
                             "maxLength": 64
                           }
                         },
+                        "depends_on": {
+                          "type": "array",
+                          "maxItems": 50,
+                          "items": { "type": "string", "minLength": 3, "maxLength": 256 }
+                        },
+                        "milestone": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "effort": {
+                          "type": "string",
+                          "enum": ["XS", "S", "M", "L", "XL"]
+                        },
+                        "acceptance_allow": {
+                          "type": "array",
+                          "maxItems": 50,
+                          "items": { "type": "string", "maxLength": 512 }
+                        },
+                        "acceptance_deny": {
+                          "type": "array",
+                          "maxItems": 50,
+                          "items": { "type": "string", "maxLength": 512 }
+                        },
                         "confidence": {
                           "type": "number",
                           "minimum": 0,
                           "maximum": 1
                         }
                       },
-                      "required": [
-                        "kind",
+                  "required": [
+                    "kind",
                         "title",
                         "description",
                         "priority",
                         "tags",
                         "confidence"
                       ],
-                      "additionalProperties": false
+                  "additionalProperties": false
                     }
+                  },
+                  "goal": {
+                    "type": "object",
+                    "properties": {
+                      "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+                      "title": { "type": "string", "minLength": 1, "maxLength": 512 },
+                      "description": { "type": "string", "maxLength": 8192 },
+                      "priority": { "type": "integer", "minimum": 1, "maximum": 10 },
+                      "targets": {
+                        "type": "array",
+                        "maxItems": 50,
+                        "items": { "type": "string", "minLength": 3, "maxLength": 256 }
+                      },
+                      "milestones": {
+                        "type": "array",
+                        "maxItems": 20,
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+                            "title": { "type": "string", "minLength": 1, "maxLength": 512 },
+                            "description": { "type": "string", "maxLength": 8192 },
+                            "acceptance_criteria": {
+                              "type": "array",
+                              "minItems": 1,
+                              "maxItems": 20,
+                              "items": { "type": "string", "maxLength": 1024 }
+                            },
+                            "depends_on": {
+                              "type": "array",
+                              "maxItems": 20,
+                              "items": { "type": "string", "maxLength": 128 }
+                            }
+                          },
+                          "required": ["name", "title", "acceptance_criteria"],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": ["name", "title", "description", "priority", "targets", "milestones"],
+                    "additionalProperties": false
+                  },
+                  "research_item": {
+                    "type": "object",
+                    "properties": {
+                  "kind": { "const": "research" },
+                  "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+                  "title": { "type": "string", "minLength": 1, "maxLength": 512 },
+                      "description": { "type": "string", "maxLength": 8192 },
+                      "priority": { "type": "integer", "minimum": 1, "maximum": 10 },
+                      "tags": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 64 } },
+                      "depends_on": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 256 } },
+                      "effort": { "type": "string", "enum": ["XS", "S", "M", "L", "XL"] },
+                      "acceptance_allow": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 512 } },
+                      "acceptance_deny": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 512 } },
+                      "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+                    },
+                    "required": ["kind", "title", "description", "priority", "tags", "confidence"],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
                   "outcome",
                   "items"
                 ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "outcome": { "const": "research" },
+                  "research_item": {
+                    "type": "object",
+                    "properties": {
+                  "kind": { "const": "research" },
+                  "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+                  "title": { "type": "string", "minLength": 1, "maxLength": 512 },
+                      "description": { "type": "string", "maxLength": 8192 },
+                      "priority": { "type": "integer", "minimum": 1, "maximum": 10 },
+                      "tags": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 64 } },
+                      "depends_on": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 256 } },
+                      "effort": { "type": "string", "enum": ["XS", "S", "M", "L", "XL"] },
+                      "acceptance_allow": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 512 } },
+                      "acceptance_deny": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 512 } },
+                      "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+                    },
+                    "required": ["kind", "title", "description", "priority", "tags", "confidence"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["outcome", "research_item"],
                 "additionalProperties": false
               },
               {
@@ -196,10 +314,19 @@
             "maxBytes": 65536,
             "renderAs": "json",
             "missingPolicy": "error"
+          },
+          {
+            "name": "grounding",
+            "source": "workflow_input",
+            "selector": "$.grounding",
+            "limit": 1,
+            "maxBytes": 65536,
+            "renderAs": "json",
+            "missingPolicy": "error"
           }
         ],
-        "maxTurns": 8,
-        "timeoutSeconds": 600,
+        "maxTurns": 24,
+        "timeoutSeconds": 1800,
         "promptRef": {
           "skillId": "swarm-manager-workflow-capture-classify"
         }
@@ -231,10 +358,10 @@
     }
   ],
   "budgets": {
-    "wallTimeSeconds": 720,
-    "maxTurns": 8,
-    "maxTokens": 400000,
-    "maxCostUsd": 2,
+    "wallTimeSeconds": 2100,
+    "maxTurns": 24,
+    "maxTokens": 900000,
+    "maxChargeMicroUsd": 2,
     "maxNodeAttempts": 2,
     "maxChildren": 1,
     "maxConcurrency": 1,

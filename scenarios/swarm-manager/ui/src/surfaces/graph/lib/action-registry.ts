@@ -11,7 +11,6 @@ import {
   ClipboardCheck,
   Pencil,
   Trash2,
-  PlusCircle,
   FolderOpen,
   Link,
   Target,
@@ -81,24 +80,6 @@ function makeCaptureClassifyAction(): InspectorAction {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine capture identity");
       await transitionService.start("capture.classify", parsed.identifier);
-    },
-  };
-}
-
-function makeCaptureCreateItemAction(): InspectorAction {
-  return {
-    id: "create-item",
-    label: "Create Item",
-    icon: PlusCircle,
-    variant: "default",
-    enabled(node: GraphNode) {
-      const status = getGraphNodeStatus(node);
-      return status === "classified";
-    },
-    async handler(node: GraphNode) {
-      const parsed = parseNodeId(node.id);
-      if (!parsed) throw new Error("Cannot determine capture identity");
-      await defaultApiClient.post(API_ENDPOINTS.captureCreateItem(parsed.identifier), {});
     },
   };
 }
@@ -267,7 +248,6 @@ export const actionRegistry: ActionRegistry = {
   focus: {
     capture: [
       makeCaptureClassifyAction(),
-      makeCaptureCreateItemAction(),
       makeCaptureDeleteAction(),
     ],
     backlog: [
@@ -290,7 +270,6 @@ export const actionRegistry: ActionRegistry = {
   topology: {
     capture: [
       makeCaptureClassifyAction(),
-      makeCaptureCreateItemAction(),
       makeCaptureDeleteAction(),
     ],
     backlog: [

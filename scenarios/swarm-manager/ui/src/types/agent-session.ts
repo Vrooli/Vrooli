@@ -57,7 +57,7 @@ export type AgentSessionProposalKind = string;
 export type AgentSessionProposalStatus = string;
 
 export interface AgentSessionProposalTarget {
-  type: "backlog_item" | "goal";
+  type: "backlog_item" | "goal" | "capture";
   ref: string;
   name: string;
 }

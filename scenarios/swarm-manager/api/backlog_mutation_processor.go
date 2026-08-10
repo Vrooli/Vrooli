@@ -17,6 +17,7 @@ import (
 type compositeMutationProcessor struct {
 	goal    *goalMutationProcessor
 	backlog *backlogMutationProcessor
+	capture *captureMutationProcessor
 }
 
 func newCompositeMutationProcessor(goalService *goals.Service, store backlog.Store, assigner *goals.BacklogMilestoneAssigner, lifecycle *backlog.Service) (*compositeMutationProcessor, error) {
@@ -25,6 +26,7 @@ func newCompositeMutationProcessor(goalService *goals.Service, store backlog.Sto
 		Assigner:      assigner,
 		Creator:       lifecycle,
 		ItemLifecycle: lifecycle,
+		GoalCreator:   goalProposalCreator{service: goalService},
 	})
 	if err != nil {
 		return nil, err
@@ -32,6 +34,7 @@ func newCompositeMutationProcessor(goalService *goals.Service, store backlog.Sto
 	return &compositeMutationProcessor{
 		goal:    newGoalMutationProcessor(goalService, lifecycle),
 		backlog: &backlogMutationProcessor{store: store, goals: goalService, applier: applier},
+		capture: &captureMutationProcessor{store: store, applier: applier},
 	}, nil
 }
 
@@ -41,6 +44,8 @@ func (p *compositeMutationProcessor) processor(target agentsessions.ProposalTarg
 		return p.goal, nil
 	case agentsessions.ContextBacklogItem:
 		return p.backlog, nil
+	case agentsessions.ContextCapture:
+		return p.capture, nil
 	default:
 		return nil, fmt.Errorf("mutation proposal target %q is not supported", target.Type)
 	}

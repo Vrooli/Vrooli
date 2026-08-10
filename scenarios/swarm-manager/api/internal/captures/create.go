@@ -106,6 +106,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[captures] create", apierr.Internal("failed to write capture"))
 		return
 	}
+	h.indexCapture(&cap)
 
 	// Auto-trigger the declared classification workflow. Its typed output is
 	// applied separately, so the workflow never receives filesystem authority.

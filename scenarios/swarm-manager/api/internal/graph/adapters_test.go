@@ -83,7 +83,7 @@ func TestCaptureAdapter_ListCaptures_ReadsCaptures(t *testing.T) {
 	}
 }
 
-func TestCaptureAdapter_ListCaptures_WithClassification(t *testing.T) {
+func TestCaptureAdapter_ListCaptures_DoesNotReadTransientClassification(t *testing.T) {
 	rootDir := t.TempDir()
 	capDir := filepath.Join(rootDir, "captures", "cap-cls")
 	if err := os.MkdirAll(capDir, 0o755); err != nil {
@@ -100,7 +100,7 @@ func TestCaptureAdapter_ListCaptures_WithClassification(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Write classification.json.
+	// A stale classification file must not be projected as durable capture data.
 	clsData, _ := json.Marshal(map[string]any{
 		"items": []map[string]string{
 			{"kind": "execute", "title": "deploy task"},
@@ -122,14 +122,8 @@ func TestCaptureAdapter_ListCaptures_WithClassification(t *testing.T) {
 	}
 
 	cap := caps[0]
-	if len(cap.Items) != 2 {
-		t.Fatalf("expected 2 classification items, got %d", len(cap.Items))
-	}
-	if cap.Items[0].Kind != "execute" || cap.Items[0].Title != "deploy task" {
-		t.Errorf("unexpected first item: %+v", cap.Items[0])
-	}
-	if cap.Items[1].Kind != "fix" || cap.Items[1].Title != "fix login" {
-		t.Errorf("unexpected second item: %+v", cap.Items[1])
+	if cap.ID != "cap-cls" || cap.Status != "classified" {
+		t.Errorf("unexpected capture: %+v", cap)
 	}
 }
 

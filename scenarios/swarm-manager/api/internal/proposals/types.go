@@ -110,6 +110,7 @@ const (
 	// envelope as backlog operations.  They are only valid when the proposal
 	// target is a goal; the goal mutation processor validates and applies them
 	// through goals.Service after explicit operator approval.
+	OpCreateGoal             Op = "create_goal"
 	OpCreateMilestone        Op = "create_milestone"
 	OpUpdateMilestone        Op = "update_milestone"
 	OpArchiveMilestone       Op = "archive_milestone"
@@ -158,6 +159,7 @@ func AllOps() []Op {
 		OpRecreateItem,
 		OpResetArtifacts,
 		OpRecreateMilestone,
+		OpCreateGoal,
 		OpCreateMilestone,
 		OpUpdateMilestone,
 		OpArchiveMilestone,
@@ -245,6 +247,7 @@ type Mutation struct {
 	// is used by add_goal_target and remove_goal_target. DetachOpen makes an
 	// archive explicit when an active milestone still has member items.
 	GoalMilestone *GoalMilestone `json:"goal_milestone,omitempty"`
+	Goal          *GoalSpec      `json:"goal,omitempty"`
 	MilestoneName string         `json:"milestone_name,omitempty"`
 	Items         []string       `json:"items,omitempty"`
 	Targets       []string       `json:"targets,omitempty"`
@@ -255,11 +258,26 @@ type Mutation struct {
 // It deliberately lives here to keep proposals independent of the goals
 // package and avoid an import cycle.
 type GoalMilestone struct {
+	Items              []string `json:"items,omitempty"`
 	Name               string   `json:"name"`
 	Title              string   `json:"title"`
 	Description        string   `json:"description,omitempty"`
 	AcceptanceCriteria []string `json:"acceptance_criteria,omitempty"`
 	DependsOn          []string `json:"depends_on,omitempty"`
+	SpawnedFrom        string   `json:"spawned_from,omitempty"`
+}
+
+// GoalSpec is the proposal-safe representation of a new goal. Milestones are
+// included so one approved mutation can create the goal and its initial
+// structure through the goals service.
+type GoalSpec struct {
+	Name        string          `json:"name"`
+	Title       string          `json:"title"`
+	Description string          `json:"description,omitempty"`
+	Priority    int             `json:"priority,omitempty"`
+	Targets     []string        `json:"targets,omitempty"`
+	Milestones  []GoalMilestone `json:"milestones,omitempty"`
+	SpawnedFrom string          `json:"spawned_from,omitempty"`
 }
 
 // ResetArtifactScope identifies a derived-artifact group that may be removed
@@ -267,8 +285,6 @@ type GoalMilestone struct {
 type ResetArtifactScope string
 
 const (
-	ResetScopeWorkshop          ResetArtifactScope = "workshop"
-	ResetScopeClarifications    ResetArtifactScope = "clarifications"
 	ResetScopeReview            ResetArtifactScope = "review"
 	ResetScopeHandoffExecutions ResetArtifactScope = "handoff_executions"
 	ResetScopePlanUnbind        ResetArtifactScope = "plan_unbind"
@@ -276,8 +292,6 @@ const (
 
 func AllResetArtifactScopes() []ResetArtifactScope {
 	return []ResetArtifactScope{
-		ResetScopeWorkshop,
-		ResetScopeClarifications,
 		ResetScopeReview,
 		ResetScopeHandoffExecutions,
 		ResetScopePlanUnbind,

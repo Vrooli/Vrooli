@@ -122,7 +122,7 @@ func (s *Service) processPreflightForItem(ctx context.Context, item backlogItem,
 	// deliberately not a release gate.
 	hasDeliverable := hasExecutionPlanRef(item)
 	if !hasDeliverable {
-		appendPreflightBlocker(&preflight, "plan_invalid", missingDeliverableReason(item.Kind, ""), false)
+		appendPreflightBlocker(&preflight, "plan_invalid", missingDeliverableReason(), false)
 	}
 	if hasDeliverable {
 		acceptanceBlocker := s.planAcceptanceBlockingReason(ctx, item)

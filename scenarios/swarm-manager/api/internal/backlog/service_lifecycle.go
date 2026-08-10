@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"swarm-manager/internal/workshop"
 )
 
 // ResetArtifactScope is the service-owned representation of a derived
@@ -16,8 +14,6 @@ import (
 type ResetArtifactScope string
 
 const (
-	ResetScopeWorkshop          ResetArtifactScope = "workshop"
-	ResetScopeClarifications    ResetArtifactScope = "clarifications"
 	ResetScopeReview            ResetArtifactScope = "review"
 	ResetScopeHandoffExecutions ResetArtifactScope = "handoff_executions"
 	ResetScopePlanUnbind        ResetArtifactScope = "plan_unbind"
@@ -27,13 +23,12 @@ const (
 type ResetArtifactsResult struct {
 	Item           BacklogItem          `json:"item"`
 	Scopes         []ResetArtifactScope `json:"scopes"`
-	DeletedRounds  int                  `json:"deleted_rounds,omitempty"`
 	StatusReverted bool                 `json:"status_reverted"`
 }
 
 func validResetArtifactScope(scope ResetArtifactScope) bool {
 	switch scope {
-	case ResetScopeWorkshop, ResetScopeClarifications, ResetScopeReview, ResetScopeHandoffExecutions, ResetScopePlanUnbind:
+	case ResetScopeReview, ResetScopeHandoffExecutions, ResetScopePlanUnbind:
 		return true
 	default:
 		return false
@@ -68,16 +63,6 @@ func (s *Service) ResetArtifacts(ctx context.Context, kind BacklogKind, name str
 	result := ResetArtifactsResult{Scopes: append([]ResetArtifactScope(nil), scopes...)}
 	for _, scope := range scopes {
 		switch scope {
-		case ResetScopeWorkshop:
-			deleted, resetErr := workshop.ResetWorkshop(itemDir, "")
-			if resetErr != nil {
-				return ResetArtifactsResult{}, fmt.Errorf("reset workshop: %w", resetErr)
-			}
-			result.DeletedRounds += deleted
-		case ResetScopeClarifications:
-			if err := removeArtifactDir(itemDir, "clarifications"); err != nil {
-				return ResetArtifactsResult{}, err
-			}
 		case ResetScopeReview:
 			if err := removeArtifactDir(itemDir, "review"); err != nil {
 				return ResetArtifactsResult{}, err

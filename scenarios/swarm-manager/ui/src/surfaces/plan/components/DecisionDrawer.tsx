@@ -113,6 +113,7 @@ export function DecisionDrawer({ isOpen, onClose, scopeItemKey, currentQuestionI
 
   const openEntry = useCallback((target: NextActionFeedEntry) => {
     const suffix = `?drawer=decisions&decisionPosition=${boundedPosition}`;
+    if (target.entity_kind === "capture") return;
     if (target.entity_kind === "backlog_item") {
       const [kind, name] = target.entity_ref.split("/");
       if (kind && name) navigate(`${backlogDetailPath(kind as BacklogKind, name)}${suffix}`);

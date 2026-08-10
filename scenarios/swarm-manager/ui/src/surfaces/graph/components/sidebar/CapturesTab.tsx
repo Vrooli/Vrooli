@@ -1,8 +1,7 @@
 /**
- * CapturesTab - Lists captures with inline triage via CaptureCard.
+ * CapturesTab - Lists disposable capture events while they classify.
  *
- * Users can accept, edit, dismiss, and retry classification directly
- * from the sidebar without leaving the graph view.
+ * Classification decisions are reviewed on the proposal rail.
  */
 
 import { memo, useEffect, useMemo, useState } from "react";
@@ -11,12 +10,9 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { SIDEBAR_TAB_ICONS } from "../../../../types/constants";
 import { useCaptureStore } from "../../../../stores";
 import { CaptureCard } from "../../../../components/capture/capture-card";
-import { BacklogFormDialog } from "../../../../components/backlog/backlog-form-dialog";
-import { backlogService } from "../../../../services/backlog-service";
 import { captureService } from "../../../../services/capture-service";
-import { useBacklogStore } from "../../../../stores";
 import { matchesSearch } from "./useSidebarSearch";
-import type { Capture, BacklogFormValues } from "../../../../types";
+import type { Capture } from "../../../../types";
 import type { CaptureFilters, SortConfig } from "./types";
 import { captureDetailPath } from "../../../../app/routes/route-paths";
 import { SidebarEmptyState } from "./SidebarEmptyState";
@@ -81,12 +77,6 @@ function CapturesTabImpl({
 }: CapturesTabProps) {
   const navigate = useNavigate();
   const captures = useCaptureStore((s) => s.captures);
-  const upsertBacklogItem = useBacklogStore((s) => s.upsertItem);
-
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [editPrefill, setEditPrefill] = useState<BacklogFormValues | undefined>();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   let filtered = applyFilters(captures, filters);
   if (searchQuery) {
@@ -100,27 +90,6 @@ function CapturesTabImpl({
     () => sorted.filter((capture) => selectedIds.has(captureSelectionId(capture))),
     [selectedIds, sorted],
   );
-
-  const handleEditItem = (prefill: BacklogFormValues) => {
-    setEditPrefill(prefill);
-    setSubmitError(null);
-    setShowEditDialog(true);
-  };
-
-  const handleEditSubmit = async (values: BacklogFormValues) => {
-    setIsSubmitting(true);
-    setSubmitError(null);
-    try {
-      const created = await backlogService.create({ ...values, suggestedSkills: [] });
-      upsertBacklogItem(created);
-      setShowEditDialog(false);
-      setEditPrefill(undefined);
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to create backlog item");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   if (sorted.length === 0) {
     const filtersActive = filters.statuses.length > 0;
@@ -185,7 +154,6 @@ function CapturesTabImpl({
               )}
               <CaptureCard
                 capture={capture}
-                onEditItem={handleEditItem}
                 onClick={() => navigate(captureDetailPath(capture.id))}
                 className="min-w-0 flex-1 border-0 bg-transparent p-0"
               />
@@ -194,18 +162,6 @@ function CapturesTabImpl({
         ))}
       </div>
 
-      <BacklogFormDialog
-        isOpen={showEditDialog}
-        mode="create"
-        initialValues={editPrefill}
-        isSubmitting={isSubmitting}
-        submitError={submitError}
-        onClose={() => {
-          setShowEditDialog(false);
-          setEditPrefill(undefined);
-        }}
-        onSubmit={handleEditSubmit}
-      />
     </>
   );
 }

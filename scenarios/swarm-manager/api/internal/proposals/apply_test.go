@@ -22,6 +22,7 @@ type applyEnv struct {
 	backlog    *backlog.FileStore
 	initSvc    *goals.BacklogMilestoneAssigner
 	creator    *backlog.Service
+	goal       *goals.Service
 	applier    *Applier
 	cancelFake *fakeCanceller
 	schedFake  *fakeScheduler
@@ -108,6 +109,20 @@ func newApplyEnv(t *testing.T) *applyEnv {
 		Canceller:   cancelFake,
 		Invalidator: schedFake,
 		Events:      &fakeEvents{},
+		GoalCreator: goalCreatorFunc(func(spec GoalSpec) error {
+			if _, err := goalSvc.Create(goals.CreateRequest{Name: spec.Name, Title: spec.Title, Description: spec.Description, Priority: spec.Priority, Targets: spec.Targets}); err != nil {
+				return err
+			}
+			if _, err := goalSvc.AddTargets(spec.Name, spec.Targets); err != nil {
+				return err
+			}
+			for _, milestone := range spec.Milestones {
+				if _, err := goalSvc.CreateMilestone(spec.Name, goals.Milestone{Name: milestone.Name, Title: milestone.Title, AcceptanceCriteria: milestone.AcceptanceCriteria, DependsOn: milestone.DependsOn}); err != nil {
+					return err
+				}
+			}
+			return nil
+		}),
 	})
 	if err != nil {
 		t.Fatalf("NewApplier: %v", err)
@@ -130,11 +145,16 @@ func newApplyEnv(t *testing.T) *applyEnv {
 		backlog:    store,
 		initSvc:    initSvc,
 		creator:    creator,
+		goal:       goalSvc,
 		applier:    applier,
 		cancelFake: cancelFake,
 		schedFake:  schedFake,
 	}
 }
+
+type goalCreatorFunc func(GoalSpec) error
+
+func (f goalCreatorFunc) CreateGoal(spec GoalSpec) error { return f(spec) }
 
 func assignItems(t *testing.T, store *backlog.FileStore, assigner *goals.BacklogMilestoneAssigner, milestone string, refs []string) error {
 	t.Helper()
@@ -151,6 +171,30 @@ func assignItems(t *testing.T, store *backlog.FileStore, assigner *goals.Backlog
 		}
 	}
 	return nil
+}
+
+func TestApply_CreateGoal_UsesGoalServiceForTargetsAndMilestones(t *testing.T) {
+	env := newApplyEnv(t)
+	p := Proposal{Form: FormMutationList, Mutations: []Mutation{{
+		ID: "goal-1", Op: OpCreateGoal, Goal: &GoalSpec{
+			Name: "capture-goal", Title: "Capture goal", Description: "Created from intake", Priority: 3,
+			Targets:    []string{"execute/foo"},
+			Milestones: []GoalMilestone{{Name: "first-step", Title: "First step", AcceptanceCriteria: []string{"The first step is verified."}}},
+		},
+	}}}
+	if _, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{MilestoneName: "work/ui-rewrite"}); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	created, err := env.goal.Get("capture-goal")
+	if err != nil {
+		t.Fatalf("goal was not created: %v", err)
+	}
+	if len(created.Goal.Targets) != 1 || created.Goal.Targets[0] != "execute/foo" {
+		t.Fatalf("targets = %v, want execute/foo", created.Goal.Targets)
+	}
+	if len(created.Goal.Milestones) != 1 || created.Goal.Milestones[0].Name != "first-step" {
+		t.Fatalf("milestones = %+v", created.Goal.Milestones)
+	}
 }
 
 func TestApply_DeniedMutationLeavesItemDirectoryByteIdentical(t *testing.T) {

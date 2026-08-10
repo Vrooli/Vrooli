@@ -264,7 +264,6 @@ type projection struct {
 	reviewByKey        map[string]Gate
 	workshopByKey      map[string]Gate
 	execReview         []Gate
-	classify           []Gate
 	milestoneProposals []Gate
 	nextActions        map[string]backlog.NextActionProjection
 	etaInput           eta.GoalClosureInput
@@ -319,14 +318,11 @@ func newProjection(items []backlog.BacklogItem, gateList []Gate, nextActions map
 			p.execReview = append(p.execReview, g)
 		case g.Kind == KindWorkshop && g.OwnerType == "backlog":
 			p.workshopByKey[g.OwnerKind+"/"+g.OwnerName] = g
-		case g.Kind == KindClassify:
-			p.classify = append(p.classify, g)
 		}
 	}
 	// Backlog attention is derived from the same resolver that powers the
-	// operator inbox. The remaining source list supplies only execution review
-	// and capture-classification markers, which have no backlog next-action
-	// entity of their own.
+	// operator inbox. The remaining source list supplies execution review and
+	// proposal markers, including capture proposals.
 	for key, action := range nextActions {
 		item, ok := p.itemsByKey[key]
 		if !ok || backlog.IsArchived(item) {
@@ -499,8 +495,8 @@ func (p *projection) actionFor(key string) string {
 	return ActionRun
 }
 
-// buildNext assembles the Next column: the gates band (decide / review /
-// classify — human-actionable now regardless of wave) followed by runnable
+// buildNext assembles the Next column: the gates band (decide / review —
+// human-actionable now regardless of wave) followed by runnable
 // and workshop item cards at wave 0.
 func (p *projection) buildNext() Column {
 	var gateCards []Card
@@ -515,9 +511,6 @@ func (p *projection) buildNext() Column {
 	}
 	for _, g := range p.execReview {
 		gateCards = append(gateCards, p.gateCard(g, ActionReview))
-	}
-	for _, g := range p.classify {
-		gateCards = append(gateCards, p.gateCard(g, ActionClassify))
 	}
 	for _, g := range p.milestoneProposals {
 		gateCards = append(gateCards, p.gateCard(g, ActionDecide))
@@ -595,9 +588,8 @@ func (p *projection) itemCards(items []backlog.BacklogItem) []Card {
 
 // gateKindOrder ranks gate kinds for the Next gates band.
 var gateKindOrder = map[Kind]int{
-	KindDecide:   0,
-	KindReview:   1,
-	KindClassify: 2,
+	KindDecide: 0,
+	KindReview: 1,
 }
 
 func sortGateCards(cards []Card) {

@@ -28,7 +28,7 @@ scenario `swarm-manager`, namespace-aware):
 |---|---|---|
 | data | `~/.vrooli/data/vrooli/swarm-manager/` | backlog items (`ideas/ research/ fix/ execute/ chore/<name>/spec.json` + per-item `workshop/`, `review/`, `evidence/`, `clarify/`, `.swarm/`, `acceptance-validation.json`), `initiatives/<name>/{initiative.json,graph.json,review/,.feedback-lock,modes/}`, `goals/<name>/goal.json`, `records/<scenario>/<kind>/<id>.json`, `mode-targets/<targetType>/<id>/modes/<mode>/{executions/,run-owners.json,rounds/}`, `operating-mode-run-owners/run-owners.json`, `events.db` (+`-wal`/`-shm`), `plan-ref-sweep-manifest.jsonl`, `autofiler/`, `auto-drain.json` |
 | state | `~/.vrooli/state/vrooli/swarm-manager/` | `agent-activities.json`, `execution-runs.json`, `engagement-owners.json`, `circuit-breaker.json`, `queue.json` |
-| cache | `~/.vrooli/cache/vrooli/swarm-manager/` | `captures/<id>/{capture.json,classification.json,attachments/}` (disposable) |
+| cache | `~/.vrooli/cache/vrooli/swarm-manager/` | `captures/<id>/{capture.json,attachments/}` while intake is running (disposable; capture is deleted after proposal recording) |
 | config | `scenarios/swarm-manager/config/settings.json` | scenario settings (repo, not runtime) |
 
 Notes carried from Phase 1:

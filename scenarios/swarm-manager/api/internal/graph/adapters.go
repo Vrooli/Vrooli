@@ -55,26 +55,6 @@ func (a *captureAdapter) ListCaptures() ([]CaptureEntry, error) {
 			Status: raw.Status,
 		}
 
-		// Load classification if it exists.
-		classPath := filepath.Join(capturesRoot, entry.Name(), "classification.json")
-		classData, err := os.ReadFile(classPath)
-		if err == nil {
-			var cls struct {
-				Items []struct {
-					Kind  string `json:"kind"`
-					Title string `json:"title"`
-				} `json:"items"`
-			}
-			if json.Unmarshal(classData, &cls) == nil {
-				for _, item := range cls.Items {
-					ce.Items = append(ce.Items, CaptureClassificationItem{
-						Kind:  item.Kind,
-						Title: item.Title,
-					})
-				}
-			}
-		}
-
 		result = append(result, ce)
 	}
 	return result, nil

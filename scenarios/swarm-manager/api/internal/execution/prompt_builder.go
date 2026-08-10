@@ -63,7 +63,7 @@ func buildExecutionPrompt(p executionPromptParams) string {
 
 	// Primary workshop deliverable — always present when available.
 	if strings.TrimSpace(p.DeliverableContent) != "" {
-		tag := deliverablePromptTag(p.Kind)
+		tag := deliverablePromptTag()
 		b.WriteString(fmt.Sprintf("\n<%s path=\"%s\">\n", tag, p.DeliverablePath))
 		b.WriteString(p.DeliverableContent)
 		b.WriteString(fmt.Sprintf("\n</%s>\n", tag))
@@ -152,10 +152,10 @@ func appendScenarioFeedback(b *strings.Builder, scenario ScenarioFinalization) {
 	}
 }
 
-func deliverablePromptTag(kind string) string {
+func deliverablePromptTag() string {
 	return "implementation-plan"
 }
 
-func missingDeliverableReason(kind, deliverablePath string) string {
+func missingDeliverableReason() string {
 	return "no implementation plan_ref exists — author a plan through plan.author before queueing"
 }

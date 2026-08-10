@@ -111,7 +111,6 @@ export const API_ENDPOINTS = {
   promptExperimentResults: (experimentId: string) => `/prompts/experiments/${experimentId}/results`,
   captures: "/captures",
   captureById: (id: string) => `/captures/${id}`,
-  captureCreateItem: (id: string) => `/captures/${id}/create-item`,
   records: "/records",
   recordsCapture: "/records/capture",
   recordById: (id: string) => `/records/${id}`,

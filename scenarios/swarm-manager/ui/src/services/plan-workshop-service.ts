@@ -67,7 +67,6 @@ export type PlanWorkshopSession = {
   subject_version: string;
   plan_id?: string;
   plan_content_hash?: string;
-  legacy_history?: { source_path: string; round_count: number; archived_at: string };
   packet: PlanWorkshopPacket;
   packet_history?: Array<{ id: string; subject_version: string; plan_content_hash?: string; created_at: string; packet: PlanWorkshopPacket }>;
   review?: PlanWorkshopReviewRun;

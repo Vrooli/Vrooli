@@ -53,7 +53,7 @@ registered function; an incomplete dispatch table fails closed. The Connect
 and execution surfaces. Session transitions remain catalog-visible but stay on
 the Agent Session path.
 
-Swarm Manager is the **operator command center for autonomous change work**. A backlog item moves through one arc — create → workshop one evolving plan → explicit operator acceptance → strategy-selected execution → evidence-backed review → operator decision → follow-up proposals — and Goals sit above the items as intent statements with milestones and acceptance criteria. The narrative version of both arcs lives in [OPERATOR-JOURNEYS.md](./OPERATOR-JOURNEYS.md); the authority model lives in [TARGET-OPERATING-MODEL.md](./TARGET-OPERATING-MODEL.md).
+Swarm Manager is the **operator command center for autonomous change work**. A backlog item moves through one arc — intake → Plan Workshop authoring → explicit operator acceptance → strategy-selected execution → evidence-backed review → operator decision → follow-up proposals — and Goals sit above the items as intent statements with milestones and acceptance criteria. Captures are ephemeral intake events: the ground-and-shape workflow may propose items, goals, and milestones, lands work at `suggested`, or emits one `research` item when evidence is incomplete; the capture is then deleted. The narrative version of both arcs lives in [OPERATOR-JOURNEYS.md](./OPERATOR-JOURNEYS.md); the authority model lives in [TARGET-OPERATING-MODEL.md](./TARGET-OPERATING-MODEL.md).
 
 The primary operator surface is the **Plan board** at `/plan`; the **Graph workspace** at `/graph` is the secondary, topology-first navigation surface (see "Operator Surfaces" below).
 
@@ -61,7 +61,7 @@ The primary operator surface is the **Plan board** at `/plan`; the **Graph works
    intake                    swarm-manager                     substrate
 ┌───────────────┐   ┌────────────────────────────────┐   ┌─────────────────┐
 │ operator      │──▶│ BACKLOG ITEM                   │   │ plan-manager    │
-│ captures      │──▶│  workshop → accept → run       │◀─▶│ (canonical plan)│
+│ captures      │──▶│ Plan Workshop → accept → run  │◀─▶│ (canonical plan)│
 │ session/goal  │──▶│  → review → decide → follow-up │   ├─────────────────┤
 │ proposals     │   ├────────────────────────────────┤   │ agent-manager   │
 └───────────────┘   │ GOALS + MILESTONES             │◀─▶│ (declared       │
@@ -73,7 +73,7 @@ The primary operator surface is the **Plan board** at `/plan`; the **Graph works
                                                          └─────────────────┘
 ```
 
-**Why this matters:** agents (sessions, workshop rounds, reviews, goal workflows) analyze and propose, but they never mutate project work directly. Swarm Manager is the single place where proposals are decided, plan references are accepted, execution is authorized, evidence is retained, and terminal statuses are written — the project-work equivalent of a pull-request review boundary.
+**Why this matters:** agents (sessions, Plan Workshop, reviews, goal workflows, and capture grounding) analyze and propose, but they never mutate project work directly. Swarm Manager is the single place where proposals are decided, plan references are accepted, execution is authorized, evidence is retained, and terminal statuses are written — the project-work equivalent of a pull-request review boundary.
 
 ## Domain Concepts
 
@@ -86,7 +86,7 @@ The primary operator surface is the **Plan board** at `/plan`; the **Graph works
 | **Agent Activity** | Durable record for one tracked AgentManager interaction (`spawn` or `continue`) across backlog, scenario, capture, and session flows | `pending` -> `starting`/`running`/`needs_review` -> `complete`/`failed`/`cancelled` | [CODE: ui/src/types/domain.ts#AgentActivity] |
 | **Agent Session** | Durable human-led conversation for meta-orchestration and Swarm operations, with proposals, artifacts, and verified attribution | `starting` -> `running` -> `waiting_for_user`/`proposal_ready` -> `complete`/`failed`/`canceled` | [DOC: docs/internal/AGENT-SESSIONS.md] |
 | **Scenario** | Runtime scenario in the Vrooli ecosystem | `running`, `stopped`, `error`, `unknown` | [CODE: ui/src/types/domain.ts#Scenario] |
-| **Capture** | Raw operator/agent observation (text + optional images) classified into a candidate kind | `pending` -> `classified` -> consumed (converted to backlog or discarded) | [CODE: api/internal/captures/io.go] |
+| **Capture** | Ephemeral raw operator/agent observation (text + optional images) grounded into proposals, one research item, or discard | `pending` -> `classifying` -> deleted after proposal/discard recording | [CODE: api/internal/captures/io.go] |
 | **Record** | Immutable narrative artifact of completed work (`trigger`, `approach`, `ruled_out`, `commit`, `files_changed`, `outcome`); mirrors `BacklogKind`; supports `supersedes` chains for amendments | Stub (auto-created on backlog completion) -> filled (one-shot via `records edit`) -> immutable (further changes require supersedes) | [CODE: api/internal/records/types.go] |
 | **Event** | Append-only audit entry for entity state deltas (backlog status, record created/superseded, etc.); queried by named measures | N/A (immutable) | [CODE: api/internal/eventlog/types.go] |
 
@@ -214,7 +214,7 @@ Swarm Manager exposes two operator navigation surfaces: **Plan** and **Graph**. 
 Four columns computed by the server plan projection (`GET /api/v1/plan`, `internal/planview`):
 
 - **Now** — in-flight agent runs (cards from `GET /api/v1/operations` via the proven polling path) with lane utilization bars, queue chip, group-by milestone/phase, select-mode bulk stop, spawn and refresh actions.
-- **Next** — actionable immediately: server-owned next-action cards (decide / review / plan / run) at dependency wave 0, plus capture classification markers. Header bulk actions: Run all ready (threshold-confirmed) and Answer all (decision drawer).
+- **Next** — actionable immediately: server-owned next-action cards (decide / review / plan / run) at dependency wave 0, plus capture proposal gates in the decision stream. Suggested work is visibly distinct and filterable. Header bulk actions: Run all ready (threshold-confirmed) and Answer all (decision drawer).
 - **Later** — not yet actionable, grouped by nearest blocker (gate-blocked groups sort above item-blocked), with honest ordinal wave badges from `depgraph.Waves` frontier peeling. Waves deeper than 5 collapse into a "beyond horizon" rollup; dependency cycles surface as diagnostics.
 - **Done** — window-capped recent outcomes (1h–24h picker on the column header).
 
@@ -229,7 +229,7 @@ The default graph mode renders the topology projection (`GET /api/v1/graph?lens=
 
 **Navigation:** Graph tab at `/graph`; the board's per-card "Focus on graph" action and detail-page focus links navigate to `/graph?mode=focus&select=<node>`. Keyboard shortcut: `2`.
 
-**Edges:** `depends_on`, `member_of`, `classified_as`, `targets`
+**Edges:** `depends_on`, `member_of`, `targets`
 
 10. **Scenario lifecycle control**
    ```
@@ -269,7 +269,7 @@ The default graph mode renders the topology projection (`GET /api/v1/graph?lens=
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |
 | Persistence | Filesystem-first | Backlog items and execution/agent-activity/settings/queue JSON persisted on disk |
 
-## Historical Workshop Readiness Model
+## Historical workshop readiness model
 
 The previous workshop system used a 5-dimension readiness model to measure how prepared a backlog item was for execution. This is retained only to explain historical round records and migration data; it is not an active orchestration contract or a replacement for Plan Manager validation.
 
@@ -288,7 +288,7 @@ acceptance. A backlog item queues only while its accepted canonical plan hash
 and work-contract version remain current. Research evidence is stored as normal
 item artifacts and never replaces the implementation plan.
 
-See [DOC: docs/guides/workshop-workflow.md] for the active operator contract.
+See [DOC: docs/guides/workshop-workflow.md] for the active Plan Workshop operator contract.
 
 ## Physical Structure
 
@@ -324,9 +324,9 @@ api/internal/
 │   └── graph.go       # Cycle detection, topological sort
 ├── milestones/       # Milestone CRUD + rollup status
 ├── overview/          # Aggregation endpoint (backlog + milestones + graph)
-├── captures/          # Capture CRUD and classification
+├── captures/          # Capture intake, grounding, and proposal recording
 ├── promptcatalog/     # Canonical runtime prompt inventory and resolvers
-├── workshop/          # Legacy round I/O helpers (readiness scoring retired; active loop lives in planworkshop/)
+├── planworkshop/      # Active Plan Workshop session and response model
 ├── execution/         # Execution run lifecycle
 ├── graph/             # Graph projection + websocket invalidation
 ├── scenarios/         # Scenario CRUD and lifecycle
@@ -339,7 +339,7 @@ api/internal/
 ## API Boundaries
 
 - `/health`, `/api/v1/health` - health and readiness
-- `/api/v1/backlog/*` - backlog CRUD, queue, research (workshop)
+- `/api/v1/backlog/*` - backlog CRUD, queue, and research work
 - `/api/v1/backlog/batch` - batch create (all-or-nothing with dependency validation)
 - `/api/v1/backlog/batch/queue` - batch queue (topologically sorted, dependency-aware)
 - `/api/v1/milestones/*` - milestone CRUD with rollup status from member items
@@ -352,7 +352,7 @@ api/internal/
 - `/api/v1/graph?lens=topology` - the topology projection (Graph focus mode filters it client-side)
 - `/api/v1/plan?window_seconds=...` - the Plan board projection (waves + next-action markers)
 - `/ws/graph` - graph invalidation and node pulse websocket
-- `/api/v1/captures/*` - capture CRUD and AI classification
+- `/api/v1/captures/*` - capture creation, attachment storage, workflow launch, proposal apply, and deletion
 - `/api/v1/scenarios/*` - scenario list/detail/lifecycle/delete/archive
 - `/api/v1/settings/*` - settings persistence
 - `/api/v1/queue/*` - queue state operations

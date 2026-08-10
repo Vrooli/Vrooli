@@ -284,6 +284,10 @@
       "testId": "agent-session-composer",
       "selector": "[data-testid=\"agent-session-composer\"]"
     },
+    "agentSessions.composerMic": {
+      "testId": "agent-session-composer-mic",
+      "selector": "[data-testid=\"agent-session-composer-mic\"]"
+    },
     "agentSessions.composerImageAttach": {
       "testId": "agent-session-composer-attach",
       "selector": "[data-testid=\"agent-session-composer-attach\"]"

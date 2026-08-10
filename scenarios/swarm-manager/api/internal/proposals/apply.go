@@ -88,6 +88,14 @@ type MilestoneLifecycle interface {
 	RecreateMilestone(ctx context.Context, name string) error
 }
 
+// GoalCreator is the narrow adapter for creating a goal proposal. The API
+// composition layer implements this with goals.Service.Create,
+// goals.Service.AddTargets, and goals.Service.CreateMilestone. Keeping the
+// service calls behind this interface avoids a second persistence path here.
+type GoalCreator interface {
+	CreateGoal(spec GoalSpec) error
+}
+
 // Applier executes accepted mutations against the underlying services.
 //
 // Correct use: normalize → validate → filter to accepted IDs → Apply. The
@@ -99,6 +107,7 @@ type Applier struct {
 	creator            ItemCreator
 	itemLifecycle      ItemLifecycle
 	milestoneLifecycle MilestoneLifecycle
+	goalCreator        GoalCreator
 	cancel             ExecutionCanceller
 	invalidator        GraphInvalidator
 	events             EventEmitter
@@ -113,6 +122,7 @@ type Config struct {
 	Creator            ItemCreator
 	ItemLifecycle      ItemLifecycle
 	MilestoneLifecycle MilestoneLifecycle
+	GoalCreator        GoalCreator
 	Canceller          ExecutionCanceller
 	Invalidator        GraphInvalidator
 	Events             EventEmitter
@@ -146,6 +156,7 @@ func NewApplier(cfg Config) (*Applier, error) {
 		creator:            cfg.Creator,
 		itemLifecycle:      cfg.ItemLifecycle,
 		milestoneLifecycle: cfg.MilestoneLifecycle,
+		goalCreator:        cfg.GoalCreator,
 		cancel:             cfg.Canceller,
 		invalidator:        cfg.Invalidator,
 		events:             cfg.Events,
@@ -382,6 +393,11 @@ func (a *Applier) applyOneSafe(ctx context.Context, m Mutation, current CurrentS
 
 func (a *Applier) applyOne(ctx context.Context, m Mutation, current CurrentState, source Source) error {
 	switch m.Op {
+	case OpCreateGoal:
+		if a.goalCreator == nil || m.Goal == nil {
+			return fmt.Errorf("create_goal: goal creator and goal spec are required")
+		}
+		return a.goalCreator.CreateGoal(*m.Goal)
 	case OpAddItem:
 		return a.applyAddItem(ctx, *m.Item, source)
 	case OpUpdateItem:

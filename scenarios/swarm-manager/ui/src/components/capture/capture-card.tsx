@@ -16,10 +16,8 @@ import { captureService } from "../../services/capture-service";
 import { useCaptureStore } from "../../stores/capture-store";
 import { formatRelativeTime } from "../../lib";
 import { selectors } from "../../consts/selectors";
-import { CaptureTriage } from "./capture-triage";
 import type { Capture, CaptureFailureReason } from "../../types";
 import { NoteIndicator } from "../ui/note-indicator";
-import type { BacklogFormValues } from "../../types";
 
 /** User-facing failure messages keyed by categorized failure reason. */
 const FAILURE_MESSAGES: Record<CaptureFailureReason, { label: string; hint: string }> = {
@@ -47,12 +45,11 @@ const FAILURE_MESSAGES: Record<CaptureFailureReason, { label: string; hint: stri
 
 interface CaptureCardProps {
   capture: Capture;
-  onEditItem?: (prefill: BacklogFormValues) => void;
   onClick?: () => void;
   className?: string;
 }
 
-export function CaptureCard({ capture, onEditItem, onClick, className }: CaptureCardProps) {
+export function CaptureCard({ capture, onClick, className }: CaptureCardProps) {
   const [isRetrying, setIsRetrying] = useState(false);
   const removeCapture = useCaptureStore((s) => s.removeCapture);
   const updateCapture = useCaptureStore((s) => s.updateCapture);
@@ -162,14 +159,9 @@ export function CaptureCard({ capture, onEditItem, onClick, className }: Capture
         </div>
       )}
 
-      {/* Suggestions via shared CaptureTriage */}
+      {/* Classification is reviewed on the proposal decision rail. */}
       {capture.status === "classified" && items.length > 0 && (
-        <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
-          <CaptureTriage
-            capture={capture}
-            onEditItem={onEditItem}
-          />
-        </div>
+        <p className="mt-1.5 text-xs text-violet-300">Proposals sent to Decide</p>
       )}
     </div>
   );

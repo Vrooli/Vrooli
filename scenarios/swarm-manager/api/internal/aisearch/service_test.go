@@ -183,6 +183,26 @@ func TestService_Search_Both_Success(t *testing.T) {
 	}
 }
 
+func TestService_Search_CaptureEntityReturnsCaptureResults(t *testing.T) {
+	qStub := &qdrantStub{searchResult: []struct {
+		ID      interface{}
+		Score   float64
+		Payload map[string]interface{}
+	}{{ID: "capture-point", Score: 0.93, Payload: map[string]interface{}{"id": "cap-1", "text": "semantic capture"}}}}
+	qServer := httptest.NewServer(qStub.handler(t))
+	defer qServer.Close()
+
+	svc := NewService(fakeEmbedderOK(), nil, nil, nil, nil, 0)
+	svc.SetCaptureStore(NewVectorStore(qServer.URL, "", "captures", 3))
+	response, err := svc.Search(context.Background(), AISearchRequest{Query: "semantic capture", Entity: EntityRecord})
+	if err != nil {
+		t.Fatalf("search: %v", err)
+	}
+	if len(response.Results) != 1 || response.Results[0].Entity != EntityRecord {
+		t.Fatalf("capture results = %+v", response.Results)
+	}
+}
+
 func TestService_Search_FallbackToTextSearcher(t *testing.T) {
 	// Broken embedder → embed fails → fallback path.
 	embedder := fakeEmbedderErr()
@@ -469,6 +489,21 @@ func TestService_IndexBacklogItem_Upserts(t *testing.T) {
 	}
 	if atomic.LoadInt32(&qStub.upsertCalls) != 1 {
 		t.Errorf("expected 1 upsert, got %d", qStub.upsertCalls)
+	}
+}
+
+func TestService_IndexCapture_Upserts(t *testing.T) {
+	qStub := &qdrantStub{}
+	qServer := httptest.NewServer(qStub.handler(t))
+	defer qServer.Close()
+
+	svc := NewService(fakeEmbedderOK(), nil, nil, nil, nil, 0)
+	svc.SetCaptureStore(NewVectorStore(qServer.URL, "", "captures", 3))
+	if err := svc.IndexCapture(context.Background(), "cap-1", "Investigate semantic capture search", "deduplicate ideas"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if atomic.LoadInt32(&qStub.upsertCalls) != 1 {
+		t.Errorf("expected 1 capture upsert, got %d", qStub.upsertCalls)
 	}
 }
 

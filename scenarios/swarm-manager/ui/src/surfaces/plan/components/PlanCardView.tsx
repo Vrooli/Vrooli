@@ -25,7 +25,6 @@ const GATE_TONE: Record<string, BoardCardTone> = {
   decide: "attention",
   proposal: "attention",
   review: "attention",
-  classify: "attention",
   workshop: "neutral",
 };
 

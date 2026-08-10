@@ -448,10 +448,6 @@ func TestBuild_GateCardOrdering(t *testing.T) {
 		bItem("fix", "r-item", backlog.StatusReviewPending),
 		bItem("fix", "big-child-1", backlog.StatusBacklog, "fix/d-big"),
 	}
-	classifyGate := Gate{
-		ID: "classify:capture/c1", Kind: KindClassify,
-		OwnerType: "capture", OwnerName: "c1", OwnerTitle: "capture text", Count: 2,
-	}
 	reviewGate := Gate{
 		ID: "review:backlog/fix/r-item", Kind: KindReview,
 		OwnerType: "backlog", OwnerKind: "fix", OwnerName: "r-item", OwnerTitle: "r title", Count: 1,
@@ -459,7 +455,6 @@ func TestBuild_GateCardOrdering(t *testing.T) {
 	svc := newTestService(t, Config{
 		Backlog: stubBacklog{items: items},
 		Gates: stubGates{gates: []Gate{
-			classifyGate,
 			reviewGate,
 			decideGate("fix", "d-small", 1),
 			decideGate("fix", "d-big", 1, "fix/big-child-1"),
@@ -470,18 +465,15 @@ func TestBuild_GateCardOrdering(t *testing.T) {
 		t.Fatal(err)
 	}
 	cards := findGroup(t, board.Next, "gates").Cards
-	if len(cards) != 4 {
+	if len(cards) != 3 {
 		t.Fatalf("expected 4 gate cards, got %+v", cards)
 	}
-	// decide gates first (higher unblocks first), then review, then classify.
+	// decide gates first (higher unblocks first), then review.
 	if cards[0].Gate.OwnerName != "d-big" || cards[1].Gate.OwnerName != "d-small" {
 		t.Errorf("decide ordering wrong: %v, %v", cards[0].Gate.OwnerName, cards[1].Gate.OwnerName)
 	}
-	if cards[2].Action != ActionReview || cards[3].Action != ActionClassify {
-		t.Errorf("expected review then classify, got %+v", cardIDs(cards))
-	}
-	if cards[3].ID != "capture/c1" {
-		t.Errorf("classify card id: %s", cards[3].ID)
+	if cards[2].Action != ActionReview {
+		t.Errorf("expected review after decide gates, got %+v", cardIDs(cards))
 	}
 }
 

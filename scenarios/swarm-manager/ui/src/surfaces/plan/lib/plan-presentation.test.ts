@@ -92,7 +92,6 @@ describe("gateActionLabel", () => {
     expect(gateActionLabel(gate("decide", 3))).toBe("Answer 3 questions");
     expect(gateActionLabel(gate("decide", 1))).toBe("Answer 1 question");
     expect(gateActionLabel(gate("review"))).toBe("Review");
-    expect(gateActionLabel(gate("classify", 2))).toBe("Classify (2)");
     // The server's actual suggestions, not the never-emitted "finalize" the
     // old branch tested for.
     expect(gateActionLabel(gate("workshop", 1, "author-plan"))).toBe("Author plan");
@@ -110,7 +109,6 @@ describe("gateBadgeLabel", () => {
     expect(gateBadgeLabel(gate("decide"))).toBe("Decide");
     expect(gateBadgeLabel(gate("proposal"))).toBe("Proposal");
     expect(gateBadgeLabel(gate("review"))).toBe("Review");
-    expect(gateBadgeLabel(gate("classify"))).toBe("Classify");
   });
 });
 

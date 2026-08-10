@@ -15,10 +15,9 @@ export type PlanCardAction =
   | "decide"
   | "proposal"
   | "review"
-  | "classify"
   | "none";
 
-export type PlanGateKind = "decide" | "proposal" | "review" | "classify" | "workshop";
+export type PlanGateKind = "decide" | "proposal" | "review" | "workshop";
 
 export type PlanBlockerKind = "none" | "gate" | "items" | "cycle";
 

@@ -4,10 +4,28 @@
   "name": "swarm-manager-voice-long-form-browser-soak",
   "folder_path": "/bas/actions",
   "description": "Drive the shared composer microphone for one real-time hour and record terminal/recovery UI evidence.",
+  "metadata": {
+    "name": "swarm-manager-voice-long-form-browser-soak",
+    "description": "Drive the shared composer microphone for one real-time hour and record terminal/recovery UI evidence.",
+    "execution_mode": "EXECUTION_MODE_MUTATING",
+    "labels": {
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    }
+  },
   "version": 1,
   "created_at": "2026-08-09T11:26:50.611367626Z",
   "updated_at": "2026-08-09T11:26:50.611367626Z",
   "flow_definition": {
+    "metadata": {
+      "name": "swarm-manager-voice-long-form-browser-soak",
+      "description": "Drive the shared composer microphone for one real-time hour and record terminal/recovery UI evidence.",
+      "execution_mode": "EXECUTION_MODE_MUTATING",
+      "labels": {
+        "requires_confirmation": "true",
+        "routed_isolation": "true"
+      }
+    },
     "settings": {
       "timeout_ms": 3900000,
       "viewport_width": 1440,
@@ -39,34 +57,37 @@
           "type": "ACTION_TYPE_EVALUATE",
           "evaluate": {
             "expression": "fetch('/api/v1/agent-sessions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'swarm_operations', title: 'Audio reliability long-form soak' }) }).then((response) => response.json()).then((body) => { const session = body.session || body; const id = session.id || session.sessionId || session.session_id; if (!id) throw new Error('session create response omitted id'); window.location.assign('/sessions/' + encodeURIComponent(id)); return id; })"
-          }
-        }
       },
-      {
-        "id": "wait-composer",
+      "metadata": { "label": "Create a disposable swarm session through the public API" }
+    }
+  },
+  {
+    "id": "wait-composer",
         "action": {
           "type": "ACTION_TYPE_WAIT",
           "wait": {
-            "selector": "[data-testid=agent-session-composer]",
+            "selector": "@selector/agentSessions.composer",
             "timeout_ms": 30000
-          }
-        }
       },
-      {
-        "id": "start-recording",
+      "metadata": { "label": "Wait for the session composer" }
+    }
+  },
+  {
+    "id": "start-recording",
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid=agent-session-composer-mic]"
-          }
-        }
+            "selector": "@selector/agentSessions.composerMic"
       },
+      "metadata": { "label": "Start real-time shared PCM capture" }
+    }
+  },
       {
         "id": "assert-recording",
         "action": {
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
-            "selector": "[data-testid=agent-session-composer-mic]",
+            "selector": "@selector/agentSessions.composerMic",
             "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
             "expected": {
               "string_value": "true"
@@ -74,6 +95,7 @@
             "attribute_name": "aria-pressed",
             "timeout_ms": 10000
           }
+          ,"metadata": { "label": "Confirm the real browser microphone is recording" }
         }
       },
       {
@@ -801,8 +823,9 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid=agent-session-composer-mic]"
-          }
+            "selector": "@selector/agentSessions.composerMic"
+          },
+          "metadata": { "label": "Stop the one-hour capture" }
         }
       },
       {
@@ -811,7 +834,8 @@
           "type": "ACTION_TYPE_WAIT",
           "wait": {
             "duration_ms": 30000
-          }
+          },
+          "metadata": { "label": "Allow streaming or retained-audio recovery to reach a terminal state" }
         }
       },
       {
@@ -820,7 +844,8 @@
           "type": "ACTION_TYPE_EVALUATE",
           "evaluate": {
             "expression": "(() => { const mic = document.querySelector('[data-testid=agent-session-composer-mic]'); const composer = document.querySelector('[data-testid=agent-session-composer]'); const body = document.body.innerText; return Boolean(mic && composer && mic.getAttribute('aria-pressed') === 'false' && !/voice input error|microphone access was lost|streaming transcription and retained-audio recovery failed/i.test(body)); })()"
-          }
+          },
+          "metadata": { "label": "Assert the composer reached a non-error terminal state" }
         }
       },
       {
@@ -829,7 +854,8 @@
           "type": "ACTION_TYPE_SCREENSHOT",
           "screenshot": {
             "full_page": true
-          }
+          },
+          "metadata": { "label": "Capture the one-hour composer result surface" }
         }
       }
     ],

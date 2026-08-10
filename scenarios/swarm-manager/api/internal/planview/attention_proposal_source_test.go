@@ -55,3 +55,17 @@ func TestProposalSourceAggregatesReadyGoalTargets(t *testing.T) {
 		t.Fatalf("unexpected goal proposal gate: %#v", got[0])
 	}
 }
+
+func TestProposalSourceAggregatesReadyCaptureTargets(t *testing.T) {
+	target := &agentsessions.ProposalTarget{Type: agentsessions.ContextCapture, Ref: "cap-1", Name: "A capture"}
+	source := ProposalSource{Store: proposalStore{sessions: []agentsessions.Session{{Proposals: []agentsessions.Proposal{
+		{Kind: agentsessions.ProposalMutationList, Status: agentsessions.ProposalStatusReady, Target: target},
+	}}}}}
+	got, err := source.Enumerate(context.Background())
+	if err != nil || len(got) != 1 {
+		t.Fatalf("Enumerate() = %#v, %v", got, err)
+	}
+	if got[0].Kind != KindProposal || got[0].OwnerType != "capture" || got[0].OwnerName != "cap-1" || got[0].Count != 1 {
+		t.Fatalf("unexpected capture proposal gate: %#v", got[0])
+	}
+}

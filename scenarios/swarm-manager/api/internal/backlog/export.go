@@ -289,11 +289,6 @@ func renderItem(b *strings.Builder, h *Handler, item BacklogItem, includePRD, in
 		renderRequirements(b, itemDir)
 	}
 
-	// Workshop items section (replaces old clarify/suggest sections).
-	if includeClarify || includeSuggestions {
-		renderWorkshopItems(b, itemDir, item.Kind, item.Name)
-	}
-
 	// Notes section placeholder.
 	if includeNotes {
 		b.WriteString("### Notes\n\n")
@@ -349,53 +344,6 @@ func renderRequirementGroups(b *strings.Builder, groups []ArchiveRequirementGrou
 			renderRequirementGroups(b, g.Children, depth+1)
 		}
 	}
-}
-
-// renderWorkshopItems reads the latest workshop round and renders questions/proposals.
-func renderWorkshopItems(b *strings.Builder, itemDir string, kind BacklogKind, name string) {
-	latestRound, roundCount, err := LoadLatestWorkshopRound(itemDir)
-	if err != nil || latestRound == nil {
-		return
-	}
-
-	fmt.Fprintf(b, "<!-- workshop:%s/%s round:%d -->\n", kind, name, roundCount)
-	b.WriteString("### Workshop Items\n\n")
-
-	for i, item := range latestRound.Items {
-		switch item.Type {
-		case "decision":
-			resolved := item.Selected != nil && strings.TrimSpace(*item.Selected) != ""
-			topic := item.Topic
-			if topic == "" {
-				topic = item.Text
-			}
-			fmt.Fprintf(b, "**D%d: %s**\n", i+1, topic)
-			if item.Context != "" {
-				fmt.Fprintf(b, "> %s\n", item.Context)
-			}
-			for _, opt := range item.Options {
-				optCheck := " "
-				if resolved && *item.Selected == opt.Key {
-					optCheck = "x"
-				}
-				fmt.Fprintf(b, "- [%s] **%s**: %s — %s\n", optCheck, opt.Key, opt.Label, opt.Rationale)
-			}
-			if resolved && *item.Selected == "__other__" && item.Freeform != nil && *item.Freeform != "" {
-				fmt.Fprintf(b, "\n> **Other:** %s\n", *item.Freeform)
-			}
-			if item.Notes != nil && *item.Notes != "" {
-				fmt.Fprintf(b, "\n> **Notes:** %s\n", *item.Notes)
-			}
-			b.WriteString("\n")
-		case "info":
-			text := item.Text
-			if text == "" {
-				text = item.Topic
-			}
-			fmt.Fprintf(b, "**Info:** %s\n\n", text)
-		}
-	}
-	fmt.Fprintf(b, "<!-- /workshop -->\n\n")
 }
 
 // renderNewItemTemplate appends a template for adding new items to the export.

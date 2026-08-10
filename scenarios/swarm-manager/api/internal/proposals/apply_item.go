@@ -33,6 +33,7 @@ func ItemFromSpec(spec ItemSpec, milestone, nowRFC3339 string) (backlog.BacklogI
 		AcceptanceAllow: append([]string(nil), spec.AcceptanceAllow...),
 		AcceptanceDeny:  append([]string(nil), spec.AcceptanceDeny...),
 		Note:            spec.Note,
+		SpawnedFrom:     spec.SpawnedFrom,
 		Created:         nowRFC3339,
 		Updated:         nowRFC3339,
 	}
@@ -46,10 +47,19 @@ func (a *Applier) applyAddItem(ctx context.Context, spec ItemSpec, source Source
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	item, err := ItemFromSpec(spec, source.MilestoneName, a.clock().UTC().Format(time.RFC3339))
+	milestone := source.MilestoneName
+	status := backlog.StatusBacklog
+	if source.Entrypoint == "capture.intake" {
+		// A capture is an event, not a milestone. Intake items are unattached
+		// until the operator accepts the suggestion.
+		milestone = ""
+		status = backlog.StatusSuggested
+	}
+	item, err := ItemFromSpec(spec, milestone, a.clock().UTC().Format(time.RFC3339))
 	if err != nil {
 		return err
 	}
+	item.Status = status
 
 	cc := backlog.CreationContext{
 		Source:          backlog.SourceProposal,

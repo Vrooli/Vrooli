@@ -1,17 +1,15 @@
 package handoff
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
 	"swarm-manager/internal/jsonutil"
-	"swarm-manager/internal/workshop"
+	"swarm-manager/internal/planworkshop"
 )
 
-func summarizeDecisions(rounds []workshop.Round) ([]DecisionSummary, []OpenDecision) {
+func summarizeDecisions(session planworkshop.Session) ([]DecisionSummary, []OpenDecision) {
 	type decisionState struct {
 		key    string
 		locked DecisionSummary
@@ -22,44 +20,41 @@ func summarizeDecisions(rounds []workshop.Round) ([]DecisionSummary, []OpenDecis
 
 	decisions := make(map[string]decisionState)
 
-	for _, round := range rounds {
-		for _, item := range round.Items {
-			if item.Type != "decision" {
-				continue
-			}
-
-			key := decisionKey(item)
-			if item.Selected != nil && strings.TrimSpace(*item.Selected) != "" {
-				decisions[key] = decisionState{
-					key: key,
-					locked: DecisionSummary{
-						Round:         round.RoundNum,
-						ID:            strings.TrimSpace(item.ID),
-						Topic:         strings.TrimSpace(item.Topic),
-						SelectedKey:   strings.TrimSpace(*item.Selected),
-						SelectedLabel: selectedLabel(item),
-						Freeform:      trimmedPtr(item.Freeform),
-						Notes:         trimmedPtr(item.Notes),
-					},
-					round: round.RoundNum,
-				}
-				continue
-			}
-
-			if existing, ok := decisions[key]; ok && existing.round >= round.RoundNum {
-				continue
-			}
-			decisions[key] = decisionState{
-				key: key,
-				open: OpenDecision{
-					Round:   round.RoundNum,
-					ID:      strings.TrimSpace(item.ID),
-					Topic:   strings.TrimSpace(item.Topic),
-					Context: strings.TrimSpace(item.Context),
+	answers := make(map[string]string)
+	for _, response := range session.Responses {
+		for id, answer := range response.Answers {
+			answers[strings.TrimSpace(id)] = strings.TrimSpace(answer)
+		}
+	}
+	for _, question := range session.Packet.Questions {
+		id := strings.TrimSpace(question.ID)
+		if id == "" {
+			continue
+		}
+		answer := strings.TrimSpace(answers[id])
+		if answer != "" {
+			decisions[id] = decisionState{
+				key: id,
+				locked: DecisionSummary{
+					Round:         1,
+					ID:            id,
+					Topic:         strings.TrimSpace(question.Question),
+					SelectedKey:   answer,
+					SelectedLabel: planWorkshopAnswerLabel(question, answer),
 				},
-				isOpen: true,
-				round:  round.RoundNum,
+				round: 1,
 			}
+			continue
+		}
+		decisions[id] = decisionState{
+			key: id,
+			open: OpenDecision{
+				Round: 1,
+				ID:    id,
+				Topic: strings.TrimSpace(question.Question),
+			},
+			isOpen: true,
+			round:  1,
 		}
 	}
 
@@ -89,48 +84,13 @@ func summarizeDecisions(rounds []workshop.Round) ([]DecisionSummary, []OpenDecis
 	return locked, open
 }
 
-func buildRoundPaths(itemFolder string, rounds []workshop.Round) []string {
-	paths := make([]string, 0, len(rounds))
-	for _, round := range rounds {
-		paths = append(paths, filepath.Join(itemFolder, "workshop", fmt.Sprintf("round-%03d.json", round.RoundNum)))
-	}
-	return paths
-}
-
-func redactPaths(redact func(string) string, paths []string) []string {
-	if len(paths) == 0 {
-		return nil
-	}
-	out := make([]string, 0, len(paths))
-	for _, path := range paths {
-		out = append(out, redact(path))
-	}
-	return out
-}
-
-func selectedLabel(item workshop.Item) string {
-	selected := trimmedPtr(item.Selected)
-	for _, option := range item.Options {
-		if strings.TrimSpace(option.Key) == selected {
-			return strings.TrimSpace(option.Label)
+func planWorkshopAnswerLabel(question planworkshop.DecisionQuestion, answer string) string {
+	for _, option := range question.Options {
+		if strings.EqualFold(strings.TrimSpace(option), answer) {
+			return strings.TrimSpace(option)
 		}
 	}
 	return ""
-}
-
-func decisionKey(item workshop.Item) string {
-	topic := strings.ToLower(strings.TrimSpace(item.Topic))
-	if topic != "" {
-		return topic
-	}
-	return strings.ToLower(strings.TrimSpace(item.ID))
-}
-
-func trimmedPtr(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return strings.TrimSpace(*value)
 }
 
 func fileIfExists(path string) string {

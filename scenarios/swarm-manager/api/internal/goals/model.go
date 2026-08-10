@@ -34,7 +34,8 @@ type Goal struct {
 	Targets []string `json:"targets"`
 	// Seeded marks goals auto-created from de-facto goal tags so the UI can
 	// distinguish them from operator-authored goals.
-	Seeded bool `json:"seeded,omitempty"`
+	Seeded      bool   `json:"seeded,omitempty"`
+	SpawnedFrom string `json:"spawned_from,omitempty"`
 	// ScopeHistory records closure-size snapshots over time so scope growth
 	// (creep) is surfaced, not hidden. The first entry is the baseline.
 	ScopeHistory []ScopeSnapshot `json:"scope_history,omitempty"`
@@ -55,6 +56,7 @@ type Milestone struct {
 	Items              []string `json:"items,omitempty"`
 	AcceptanceCriteria []string `json:"acceptance_criteria,omitempty"`
 	DependsOn          []string `json:"depends_on,omitempty"`
+	SpawnedFrom        string   `json:"spawned_from,omitempty"`
 	ArchivedAt         *string  `json:"archived_at,omitempty"`
 	// VerifiedDeliveredAt is written only when the milestone-review workflow
 	// returns the delivered verdict. Item terminal statuses are not evidence.
@@ -95,6 +97,7 @@ type CreateRequest struct {
 	Priority    int      `json:"priority,omitempty"`
 	Targets     []string `json:"targets,omitempty"`
 	Seeded      bool     `json:"seeded,omitempty"`
+	SpawnedFrom string   `json:"spawned_from,omitempty"`
 }
 
 // UpdateRequest holds optional fields for updating a goal.

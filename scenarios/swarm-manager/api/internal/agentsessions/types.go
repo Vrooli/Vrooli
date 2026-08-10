@@ -420,8 +420,8 @@ func (p Proposal) Validate() error {
 }
 
 func (t ProposalTarget) Validate() error {
-	if t.Type != ContextGoal && t.Type != ContextBacklogItem {
-		return validationError("proposal target type must be goal or backlog_item")
+	if t.Type != ContextGoal && t.Type != ContextBacklogItem && t.Type != ContextCapture {
+		return validationError("proposal target type must be goal, backlog_item, or capture")
 	}
 	if strings.TrimSpace(t.Ref) == "" {
 		return validationError("proposal target ref is required")

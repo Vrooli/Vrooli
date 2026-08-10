@@ -146,7 +146,7 @@
     "wallTimeSeconds": 3600,
     "maxTurns": 18,
     "maxTokens": 900000,
-    "maxCostUsd": 6,
+    "maxChargeMicroUsd": 6,
     "maxNodeAttempts": 3,
     "maxChildren": 1,
     "maxConcurrency": 1,

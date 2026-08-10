@@ -344,15 +344,15 @@ uses compensating rollback if a later write fails.
 `POST /api/v1/backlog/{kind}/{name}/reset-artifacts`
 
 Removes only the requested derived artifact groups. The body requires a
-non-empty `scope` list containing one or more of `workshop`,
-`clarifications`, `review`, `handoff_executions`, or `plan_unbind`.
+non-empty `scope` list containing one or more of `review`,
+`handoff_executions`, or `plan_unbind`.
 
 ```json
-{ "scope": ["workshop", "plan_unbind"] }
+{ "scope": ["review", "plan_unbind"] }
 ```
 
-The item specification is retained. Resetting workshop data moves a `ready`
-item back to `backlog`; `plan_unbind` clears only `plan_ref`.
+The item specification is retained. Resetting review artifacts removes only
+review-derived files; `plan_unbind` clears only `plan_ref`.
 
 ## Milestones Create
 
@@ -444,7 +444,7 @@ synthesis (server diffs and emits the equivalent mutation_list).
 | `split_item` | `target`, `into: [ItemSpec]` (≥2) | Atomic: creates children, archives source. **Dependents are not auto-retargeted** — emit explicit `add_edge`/`remove_edge` mutations alongside the split if you need to repoint dependents. |
 | `merge_items` | `sources: [ref]` (≥2), `item: ItemSpec` | Atomic: creates the merged item, retargets external edges (to/from sources) onto the merged item, drops intra-source edges, archives sources. Validation rejects if any source is `in_progress` — emit `interrupt_in_progress` as a prior mutation if interruption is intended. The merged item enters as `backlog`. |
 | `recreate_item` | `target` | Archives the source and creates a fresh lineage-preserving backlog clone; inbound dependencies and milestone membership move to the clone. |
-| `reset_artifacts` | `target`, non-empty `reset_scope` | Removes only the selected derived artifact groups: `workshop`, `clarifications`, `review`, `handoff_executions`, or `plan_unbind`. |
+| `reset_artifacts` | `target`, non-empty `reset_scope` | Removes only the selected derived artifact groups: `review`, `handoff_executions`, or `plan_unbind`. |
 | `recreate_milestone` | milestone-name `target` | Archives the source milestone and creates a fresh active successor; member items move to it and the successor records lineage. |
 
 The **Triage the attached items for staleness** session starter is proposal-only:
@@ -524,7 +524,7 @@ their session endpoints as domain review handoffs.
 
 ## Agent Activities
 
-`AgentActivity` is the durable telemetry/audit record for tracked AgentManager usage. Unlike execution records, activities are created for workshop/research/classify/follow-up/spec-sync flows in addition to governed backlog processing.
+`AgentActivity` is the durable telemetry/audit record for tracked AgentManager usage. Unlike execution records, activities are created for Plan Workshop, research, follow-up, and spec-sync flows in addition to governed backlog processing.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|

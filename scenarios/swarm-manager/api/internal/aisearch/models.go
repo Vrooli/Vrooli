@@ -138,6 +138,16 @@ type ItemRef struct {
 	Goal        *goals.Goal          // set when Kind == KindGoal
 }
 
+// CaptureDocument is the searchable projection of an ephemeral capture. It
+// intentionally contains no lifecycle or graph semantics; captures are
+// indexed for deduplication and grounding, not promoted to work entities.
+type CaptureDocument struct {
+	ID          string
+	Text        string
+	Note        string
+	Attachments []string
+}
+
 // DriftReport is the structured "what work needs doing?" decision returned by
 // Reconciler.Plan. Apply consumes this verbatim — no second comparison pass.
 //

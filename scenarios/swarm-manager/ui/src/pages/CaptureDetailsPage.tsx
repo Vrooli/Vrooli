@@ -11,7 +11,6 @@ import { useParams } from "react-router-dom";
 import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
-import { CaptureTriage } from "../components/capture/capture-triage";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Button } from "../components/ui/button";
 import { ErrorState } from "../components/ui/error-state";
@@ -22,10 +21,6 @@ import { useCaptureStore } from "../stores/capture-store";
 import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
 import { formatRelativeTime } from "../lib";
 import type { Capture } from "../types";
-import type { BacklogFormValues } from "../types";
-import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
-import { backlogService } from "../services/backlog-service";
-import { useBacklogStore } from "../stores";
 import { useAppBack } from "../app/routes/useAppBack";
 import { useGlobalKeyDown } from "../hooks/useGlobalKeyDown";
 import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
@@ -54,16 +49,11 @@ export function CaptureDetailsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const removeCapture = useCaptureStore((s) => s.removeCapture);
   const updateCapture = useCaptureStore((s) => s.updateCapture);
-  const upsertBacklogItem = useBacklogStore((s) => s.upsertItem);
 
   // Delete confirmation state
   const { requestDelete, dialogProps: deleteDialogProps } = useDeleteConfirm("capture");
 
   // Edit dialog state
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [editPrefill, setEditPrefill] = useState<BacklogFormValues | undefined>();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Lightbox state
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
@@ -100,31 +90,6 @@ export function CaptureDetailsPage() {
       },
     });
   }, [captureId, requestDelete, removeCapture, closeDetail]);
-
-  const handleEditItem = useCallback((prefill: BacklogFormValues) => {
-    setEditPrefill(prefill);
-    setSubmitError(null);
-    setShowEditDialog(true);
-  }, []);
-
-  const handleEditSubmit = useCallback(async (values: BacklogFormValues) => {
-    setIsSubmitting(true);
-    setSubmitError(null);
-    try {
-      const created = await backlogService.create({ ...values, suggestedSkills: [] });
-      upsertBacklogItem(created);
-      setShowEditDialog(false);
-      setEditPrefill(undefined);
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Failed to create backlog item");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [upsertBacklogItem]);
-
-  const handleCaptureResolved = useCallback(() => {
-    closeDetail();
-  }, [closeDetail]);
 
   const handleLightboxKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") setLightboxSrc(null);
@@ -281,20 +246,9 @@ export function CaptureDetailsPage() {
           </section>
         )}
 
-        {/* Triage suggestions */}
+        {/* Classification is reviewed on the proposal decision rail. */}
         {capture.status === "classified" && items.length > 0 && (
-          <section>
-            <h2 className="mb-2 text-sm font-medium uppercase tracking-wider text-slate-500">
-              Suggested Items
-            </h2>
-            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-              <CaptureTriage
-                capture={capture}
-                onEditItem={handleEditItem}
-                onCaptureResolved={handleCaptureResolved}
-              />
-            </div>
-          </section>
+          <p className="text-sm text-violet-300">Proposals sent to the Decide stream.</p>
         )}
 
         {/* Metadata */}
@@ -347,19 +301,6 @@ export function CaptureDetailsPage() {
       {/* Delete confirmation dialog */}
       <ConfirmDialog {...deleteDialogProps} />
 
-      {/* Edit before adding dialog */}
-      <BacklogFormDialog
-        isOpen={showEditDialog}
-        mode="create"
-        initialValues={editPrefill}
-        isSubmitting={isSubmitting}
-        submitError={submitError}
-        onClose={() => {
-          setShowEditDialog(false);
-          setEditPrefill(undefined);
-        }}
-        onSubmit={handleEditSubmit}
-      />
     </DetailPageLayout>
   );
 }

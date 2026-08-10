@@ -15,8 +15,9 @@ type sessionDecisionProvider struct{ sessions *agentsessions.Service }
 // target. Both halves of the operator inbox — backlog items and goals — ask
 // the same store the same question, so one pass answers both.
 type readyDecisionCounts struct {
-	items map[string]int
-	goals map[string]int
+	items    map[string]int
+	goals    map[string]int
+	captures map[string]int
 }
 
 // countReadyDecisions counts ready, revision-free mutation proposals per
@@ -24,7 +25,7 @@ type readyDecisionCounts struct {
 // batch-shaped on purpose: the answer is a property of the whole store, so a
 // per-entity variant would rescan every session once per entity.
 func (p sessionDecisionProvider) countReadyDecisions() (readyDecisionCounts, error) {
-	counts := readyDecisionCounts{items: map[string]int{}, goals: map[string]int{}}
+	counts := readyDecisionCounts{items: map[string]int{}, goals: map[string]int{}, captures: map[string]int{}}
 	if p.sessions == nil {
 		return counts, nil
 	}
@@ -44,6 +45,8 @@ func (p sessionDecisionProvider) countReadyDecisions() (readyDecisionCounts, err
 				counts.items[proposal.Target.Ref]++
 			case agentsessions.ContextGoal:
 				counts.goals[proposal.Target.Ref]++
+			case agentsessions.ContextCapture:
+				counts.captures[proposal.Target.Ref]++
 			}
 		}
 	}

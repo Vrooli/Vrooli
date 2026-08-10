@@ -157,6 +157,7 @@ export const literalSelectors = {
   },
   agentSessions: {
     composer: "agent-session-composer",
+    composerMic: "agent-session-composer-mic",
     composerImageAttach: "agent-session-composer-attach",
     composerContextAttach: "agent-session-composer-context",
     composerImagePreviewRemove: "attachment-preview-remove",

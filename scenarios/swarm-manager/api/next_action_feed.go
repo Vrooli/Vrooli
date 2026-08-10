@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sort"
 
@@ -152,6 +153,16 @@ func (f nextActionFeed) project(ctx context.Context) (nextActionProjection, erro
 		if entry, ok := goalEntry(listed, itemByRef, actions, decisions.goals[listed.Goal.Name]); ok {
 			entries = append(entries, entry)
 		}
+	}
+	for ref, count := range decisions.captures {
+		if count < 1 {
+			continue
+		}
+		entries = append(entries, nextActionFeedEntry{
+			EntityKind: "capture", EntityRef: ref, EntityTitle: "Capture " + ref,
+			Action: backlog.NextActionProjection{ID: backlog.NextActionDecide, CompactLabel: "Decide", ExpandedLabel: "Review capture proposals", Enabled: true, Reason: fmt.Sprintf("%d capture proposal(s) are waiting for an operator decision.", count), Target: "decision_stream"},
+			Tier:   1,
+		})
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
 		left, right := entries[i], entries[j]

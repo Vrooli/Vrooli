@@ -10,7 +10,7 @@
 package captures
 
 import (
-	"fmt"
+	"context"
 	"log/slog"
 	"net/http"
 	"os"
@@ -30,28 +30,32 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// BacklogItemDraft is the complete capture-derived item contract handed to the
-// backlog adapter. Keeping the draft here prevents the capture endpoint from
-// silently discarding classification fields before the domain adapter sees
-// them.
-type BacklogItemDraft struct {
-	Kind        string
-	Name        string
-	Title       string
-	Description string
-	Priority    int
-	Tags        []string
-	SpawnedFrom string
-}
-
-// BacklogItemCreator abstracts backlog item creation for capture-derived items.
-type BacklogItemCreator interface {
-	SaveItem(draft BacklogItemDraft) error
-}
-
 // EventLogger records view events for analytics.
 type EventLogger interface {
 	EmitCaptureViewed(captureID string)
+}
+
+// CaptureIndexer is an optional write-through semantic projection. The
+// capture domain remains independent of aisearch; composition supplies the
+// implementation when the embedding stack is configured.
+type CaptureIndexer interface {
+	IndexCapture(context.Context, string, string, string) error
+	DeleteCapture(context.Context, string) error
+}
+
+// GroundingProvider builds read-only context for the classify workflow. A
+// provider failure is deliberately non-fatal: the input still carries an
+// explicit degraded marker so the contract skill can choose the conservative
+// research landing.
+type GroundingProvider interface {
+	BuildCaptureGrounding(context.Context, string) (map[string]any, error)
+}
+
+// ProposalRecorder is the durable handoff from the disposable capture event
+// to the agent-session decision rail. Composition supplies the recorder so
+// capture intake does not own session storage.
+type ProposalRecorder interface {
+	RecordCaptureProposals(context.Context, string, string, string, string, string, string, []byte) error
 }
 
 // Handler provides HTTP handlers for capture operations.
@@ -66,9 +70,28 @@ type Handler struct {
 	transitionRegistry     transitions.Registry
 	transitionRunner       *transitionrunner.Runner
 	classificationMu       sync.Mutex
-	backlogCreator         BacklogItemCreator
 	eventDispatcher        dispatch.Invalidator
 	eventLogger            EventLogger
+	aiIndexer              CaptureIndexer
+	groundingProvider      GroundingProvider
+	proposalRecorder       ProposalRecorder
+}
+
+func (h *Handler) SetAIIndexer(indexer CaptureIndexer) { h.aiIndexer = indexer }
+
+func (h *Handler) SetGroundingProvider(provider GroundingProvider) { h.groundingProvider = provider }
+
+func (h *Handler) SetProposalRecorder(recorder ProposalRecorder) { h.proposalRecorder = recorder }
+
+func (h *Handler) indexCapture(cap *capture) {
+	if h.aiIndexer == nil {
+		return
+	}
+	go func(id, text, note string) {
+		if err := h.aiIndexer.IndexCapture(context.Background(), id, text, note); err != nil {
+			slog.Debug("captures: semantic index upsert failed", "capture_id", id, "err", err)
+		}
+	}(cap.ID, cap.Text, cap.Note)
 }
 
 // NewHandler creates a new captures handler. transitionRoot is where the
@@ -136,11 +159,6 @@ func (h *Handler) SetWorkflowActivityRecorder(recorder agentmanager.WorkflowActi
 	}
 }
 
-// SetBacklogCreator sets the backlog item creator for capture-derived items.
-func (h *Handler) SetBacklogCreator(creator BacklogItemCreator) {
-	h.backlogCreator = creator
-}
-
 // SetEventLogger injects an optional event logger for analytics tracking.
 func (h *Handler) SetEventLogger(l EventLogger) {
 	h.eventLogger = l
@@ -172,7 +190,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/captures/{id}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/captures/{id}", h.Update).Methods("PATCH")
 	r.HandleFunc("/api/v1/captures/{id}", h.Delete).Methods("DELETE")
-	r.HandleFunc("/api/v1/captures/{id}/create-item", h.CreateItem).Methods("POST")
 }
 
 // List returns all captures, newest first.
@@ -261,6 +278,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[captures] update", apierr.Internal("failed to save capture"))
 		return
 	}
+	h.indexCapture(cap)
 	_ = httputil.JSON(w, map[string]any{"capture": cap})
 }
 
@@ -277,101 +295,13 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[captures] delete", apierr.Internal("failed to delete capture"))
 		return
 	}
+	if h.aiIndexer != nil {
+		if err := h.aiIndexer.DeleteCapture(r.Context(), id); err != nil {
+			slog.Debug("captures: semantic index delete failed", "capture_id", id, "err", err)
+		}
+	}
 	h.invalidateTopologyGraph()
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// CreateItem creates a backlog item from a classified capture.
-// Each classified item becomes one backlog item and carries the capture ID as
-// provenance. The endpoint remains temporarily available for compatibility;
-// the proposal-rail migration removes it in the later intake phase.
-func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
-	if h.backlogCreator == nil {
-		apierr.MapError(w, "[captures] create-item", apierr.Internal("backlog creator not configured"))
-		return
-	}
-
-	id := mux.Vars(r)["id"]
-	cap, err := h.loadCapture(id)
-	if err != nil {
-		if os.IsNotExist(err) {
-			apierr.MapError(w, "[captures] create-item", apierr.NotFound("capture not found"))
-			return
-		}
-		apierr.MapError(w, "[captures] create-item", apierr.Internal("failed to load capture"))
-		return
-	}
-
-	if cap.Classification == nil || len(cap.Classification.Items) == 0 {
-		apierr.MapError(w, "[captures] create-item", apierr.Conflict("capture has no classified items"))
-		return
-	}
-
-	created := make([]map[string]any, 0, len(cap.Classification.Items))
-	for index, classificationItem := range cap.Classification.Items {
-		kind := strings.ToLower(strings.TrimSpace(classificationItem.Kind))
-		title := strings.TrimSpace(classificationItem.Title)
-		if title == "" {
-			title = truncate(cap.Text, 80)
-		}
-		name := sanitizeCaptureItemName(title)
-		if name == "" {
-			name = "capture-item-" + id
-		}
-		if index > 0 {
-			name = fmt.Sprintf("%s-%d", name, index+1)
-		}
-		priority := classificationItem.Priority
-		if priority < 1 || priority > 10 {
-			priority = 5
-		}
-		if err := h.backlogCreator.SaveItem(BacklogItemDraft{
-			Kind:        kind,
-			Name:        name,
-			Title:       title,
-			Description: classificationItem.Description,
-			Priority:    priority,
-			Tags:        deduplicateTags(classificationItem.Tags),
-			SpawnedFrom: id,
-		}); err != nil {
-			if strings.Contains(err.Error(), "already exists") {
-				apierr.MapError(w, "[captures] create-item", apierr.Conflict("backlog item already exists"))
-				return
-			}
-			slog.Error("failed to create backlog item from capture", "error", err, "capture_id", id, "item_index", index)
-			apierr.MapError(w, "[captures] create-item", apierr.Internal("failed to create backlog item"))
-			return
-		}
-		created = append(created, map[string]any{"kind": kind, "name": name, "priority": priority, "spawned_from": id})
-	}
-
-	// Mark capture as classified.
-	cap.Status = "classified"
-	_ = h.writeCapture(cap)
-
-	slog.Info("created backlog items from capture", "count", len(created), "capture_id", id)
-	h.invalidateAllGraphLenses()
-	_ = httputil.JSONWithStatus(w, http.StatusCreated, map[string]any{
-		"items": created,
-		"count": len(created),
-	})
-}
-
-func deduplicateTags(tags []string) []string {
-	result := make([]string, 0, len(tags))
-	seen := make(map[string]struct{}, len(tags))
-	for _, tag := range tags {
-		tag = strings.TrimSpace(tag)
-		if tag == "" {
-			continue
-		}
-		if _, ok := seen[tag]; ok {
-			continue
-		}
-		seen[tag] = struct{}{}
-		result = append(result, tag)
-	}
-	return result
 }
 
 // sanitizeCaptureItemName converts a title to a folder-safe name.

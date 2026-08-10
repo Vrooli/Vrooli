@@ -54,28 +54,3 @@ func (s *Store) Save(session Session) error {
 	}
 	return storage.WriteJSONAtomic(path, session)
 }
-
-// LegacyHistory returns the immutable migration reference for a backlog
-// subject. Initiative workshops have no legacy round directory model.
-func (s *Store) LegacyHistory(subject Subject) (*LegacyHistoryReference, error) {
-	if subject.Kind != SubjectBacklog {
-		return nil, nil
-	}
-	parts := strings.SplitN(subject.Ref, "/", 2)
-	if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
-		return nil, fmt.Errorf("backlog workshop subject ref must be kind/name")
-	}
-	var report LegacyMigrationReport
-	found, err := storage.ReadJSON(filepath.Join(s.root, legacyMigrationMarker), &report)
-	if err != nil || !found {
-		return nil, err
-	}
-	want := filepath.ToSlash(filepath.Join(parts[0], parts[1], "workshop"))
-	for _, entry := range report.Entries {
-		if entry.SourcePath == want {
-			value := entry
-			return &value, nil
-		}
-	}
-	return nil, nil
-}
