@@ -8,7 +8,7 @@
     "routes": [
       "/"
     ],
-    "purpose": "Answer the operator's first question \u2014 which devices do I control, what can each actually do right now, and what is running on them.",
+    "purpose": "Answer the operator's first question — which devices do I control, what can each actually do right now, and what is running on them.",
     "prd_refs": [
       "OT-P0-003",
       "OT-P0-001"
@@ -30,24 +30,317 @@
   ],
   "states": [
     {
+      "id": "default",
+      "description": "The fleet as the live system reports it.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
       "id": "loading",
-      "description": "Inventory is being fetched; no device rows are asserted yet."
+      "description": "Inventory is being fetched; no device rows are asserted yet.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
     },
     {
       "id": "empty",
-      "description": "Bridge is reachable but no devices are attached. Explains how to attach one."
+      "description": "Bridge is reachable but no devices are attached. Explains how to attach one.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "empty"
+        }
+      }
     },
     {
-      "id": "bridge-unavailable",
-      "description": "Bridge cannot be reached; every device reports unreachable with that reason rather than vanishing."
-    },
-    {
-      "id": "populated",
-      "description": "One or more devices with probed capability tiers."
+      "id": "partial",
+      "description": "Devices are listed and at least one capability is unavailable or unsupported. The normal working state, not a degraded one.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "partial"
+        }
+      }
     },
     {
       "id": "stale",
-      "description": "The newest capability snapshot is older than the probe interval; shown as stale rather than silently trusted."
+      "description": "The newest capability snapshot is older than the probe interval; shown as stale rather than silently trusted.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The inventory request failed. Devices already known are still listed with their reachability unknown rather than removed.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "populated",
+      "description": "One or more devices with fresh probed capability tiers and no outstanding gaps.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "populated"
+        }
+      }
+    },
+    {
+      "id": "bridge-unavailable",
+      "description": "The specific form of request-error where the reach plane itself is unreachable. Every device reports unreachable carrying that reason rather than vanishing.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "bridge-unavailable"
+        }
+      }
+    },
+    {
+      "id": "session-active",
+      "description": "At least one device is under a held lease. The lease bar is present and the holding row is distinguished.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "session-active"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "lease-bar",
+      "role": "status",
+      "name": "Live session",
+      "description": "Global alarm shown whenever any device is under a held lease. Carries holder, elapsed time, and expiry countdown."
+    },
+    {
+      "id": "kill-session",
+      "role": "button",
+      "name": "Kill session",
+      "description": "Immediate session termination. Lives in the lease bar so its position is identical on every route."
+    },
+    {
+      "id": "unavailable-count",
+      "role": "status",
+      "name": "Unavailable",
+      "description": "Fleet-wide count of capabilities that are probed-and-absent. The page's most important negative signal."
+    },
+    {
+      "id": "fleet-summary",
+      "role": "region",
+      "name": "Fleet summary",
+      "description": "Counts band: devices, reachable, live sessions, unavailable capabilities, stale probes."
+    },
+    {
+      "id": "device-table",
+      "role": "table",
+      "name": "Devices",
+      "description": "One row per device-and-strategy pair, because a device is only meaningful through a strategy."
+    },
+    {
+      "id": "capability-strip",
+      "role": "img",
+      "name": "capabilities",
+      "description": "Ten-cell graphic summary of the probed capability set. Its text alternative states the available, unavailable, and not-probed counts so the distinction survives without color."
+    },
+    {
+      "id": "reach-status",
+      "role": "status",
+      "description": "Per-device reachability disposition, rendered as a disposition chip."
+    },
+    {
+      "id": "next-action",
+      "role": "note",
+      "description": "The missing prerequisite and the next action for an unavailable capability, shown inline rather than behind a drill-in."
+    },
+    {
+      "id": "probe-freshness",
+      "role": "status",
+      "description": "When the capability snapshot was taken, and whether it is past the probe interval."
+    },
+    {
+      "id": "attach-guidance",
+      "role": "note",
+      "description": "Empty-state instructions for attaching a device through the bridge fleet."
+    },
+    {
+      "id": "bridge-error",
+      "role": "alert",
+      "description": "Assertive notice that the reach plane is unreachable, naming bridge as the cause."
+    }
+  ],
+  "claims": [
+    {
+      "id": "unavailable-names-next-action",
+      "type": "element-present",
+      "statement": "When a capability is unavailable, its missing prerequisite and next action are perceivable on this page without opening a detail view.",
+      "tier": "machine",
+      "elements": [
+        "next-action"
+      ],
+      "states": [
+        "partial"
+      ],
+      "rationale": "Priority 2. An unavailable disposition with no reason forces the operator into the CLI, which defeats the point of the console."
+    },
+    {
+      "id": "capability-is-probed-not-assumed",
+      "type": "element-present",
+      "statement": "Each device's capability summary is accompanied by the freshness of the probe that produced it.",
+      "tier": "machine",
+      "elements": [
+        "capability-strip",
+        "probe-freshness"
+      ],
+      "states": [
+        "partial",
+        "populated"
+      ],
+      "rationale": "Priority 1 and D-002. A capability summary with no probe timestamp is indistinguishable from an assumption."
+    },
+    {
+      "id": "stale-is-distinct-from-fresh",
+      "type": "state-distinct",
+      "statement": "A fleet whose newest snapshot is past the probe interval is perceivably different from one that is current.",
+      "tier": "machine",
+      "states": [
+        "populated",
+        "stale"
+      ],
+      "elements": [
+        "probe-freshness"
+      ],
+      "rationale": "D-002 forbids silently trusting an old probe; the UI must therefore show the difference rather than rendering both identically."
+    },
+    {
+      "id": "not-probed-differs-from-probed-absent",
+      "type": "custom",
+      "statement": "A capability that has never been probed is presented differently from one that was probed and found absent.",
+      "tier": "manual",
+      "elements": [
+        "capability-strip"
+      ],
+      "rationale": "The core honesty property of D-002 at the smallest scale. Collapsing the two into one 'missing' rendering is the exact inference this scenario exists to refuse. Manual because it is a perceptual distinction across two encodings within one element rather than a presence check."
+    },
+    {
+      "id": "live-session-visible-from-fleet",
+      "type": "element-present",
+      "statement": "While any device is under a held lease, the holder and expiry are perceivable without opening that device.",
+      "tier": "machine",
+      "elements": [
+        "lease-bar"
+      ],
+      "states": [
+        "session-active"
+      ],
+      "rationale": "Priority 3 and D-006. Discovering a live session should never require navigation."
+    },
+    {
+      "id": "kill-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The kill control is operable from the keyboard whenever a session is live.",
+      "tier": "machine",
+      "elements": [
+        "kill-session"
+      ],
+      "states": [
+        "session-active"
+      ],
+      "rationale": "A safety control that requires a pointer is not always available. SECURITY.md requires kill to be one action away from CLI or UI."
+    },
+    {
+      "id": "problems-read-before-inventory",
+      "type": "reading-order",
+      "statement": "The count of unavailable capabilities reads before the device inventory; bookkeeping is never the first thing communicated.",
+      "tier": "machine",
+      "elements": [
+        "unavailable-count",
+        "device-table"
+      ],
+      "states": [
+        "partial"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "Absence is the page's product. Direction-aware so the order holds in RTL."
+    },
+    {
+      "id": "bridge-failure-keeps-devices-listed",
+      "type": "element-present",
+      "statement": "When the reach plane is unreachable, known devices remain listed alongside an assertive notice rather than disappearing.",
+      "tier": "machine",
+      "elements": [
+        "bridge-error",
+        "device-table"
+      ],
+      "states": [
+        "bridge-unavailable"
+      ],
+      "rationale": "DVC-P0-003. A device that vanishes reads as 'not controlled'; the truth is 'controlled, currently unreachable, for this reason'."
+    },
+    {
+      "id": "empty-explains-how-to-attach",
+      "type": "state-covered",
+      "statement": "The empty state renders guidance for attaching a device rather than a blank table.",
+      "tier": "machine",
+      "states": [
+        "empty"
+      ],
+      "elements": [
+        "attach-guidance"
+      ],
+      "rationale": "First-run is the most likely empty state, and the next action is not guessable — it involves pairing through another scenario."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "lease-bar": {
+        "testid": "lease-bar"
+      },
+      "kill-session": {
+        "testid": "lease-bar-kill"
+      },
+      "unavailable-count": {
+        "testid": "fleet-summary-unavailable"
+      },
+      "fleet-summary": {
+        "testid": "fleet-summary"
+      },
+      "device-table": {
+        "testid": "fleet-device-table"
+      },
+      "capability-strip": {
+        "testid": "capability-strip"
+      },
+      "reach-status": {
+        "testid": "device-reach-status"
+      },
+      "next-action": {
+        "testid": "device-next-action"
+      },
+      "probe-freshness": {
+        "testid": "probe-freshness"
+      },
+      "attach-guidance": {
+        "testid": "fleet-attach-guidance"
+      },
+      "bridge-error": {
+        "testid": "fleet-bridge-error"
+      }
+    }
+  }
 }

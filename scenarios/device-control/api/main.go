@@ -2,25 +2,30 @@ package main
 
 import (
 	"context"
+	"device-control/internal/capabilities"
+	"device-control/internal/clock"
+	"device-control/internal/modules"
+	"device-control/internal/server"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"device-control/internal/capabilities"
-	"device-control/internal/clock"
-	"device-control/internal/modules"
-	"device-control/internal/server"
+	"time"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
+
+	flowsH "device-control/handlers/flows"
+	internalflows "device-control/internal/flows"
 
 	capsH "device-control/handlers/capabilities"
 	healthH "device-control/handlers/health"
@@ -148,11 +153,14 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	gatewayClient := internalflows.NewGateway(http.DefaultClient, discovery.ResolveScenarioURLDefault)
+	flowResolver := internalflows.NewResolver(gatewayClient)
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "device-control-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
+		flowsH.Module(flowResolver),
 		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
 	)
 
@@ -183,8 +191,10 @@ func main() {
 	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Handler:      handler,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 2 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

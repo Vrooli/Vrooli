@@ -49,7 +49,7 @@ The shipped worked-example `notes` domain carries placeholder data only
 | A secret is captured in a frame and then distributed | Redaction verified before a capture leaves the producer; consumers receive `common/v1` `EvidenceRef` (checksum, size, kind) and never bytes or filesystem paths. | Designed; `DVC-P0-008`. |
 | An agent run goes further than intended | Bounds on step count, cost, and lease scope; abort at any moment; every action audited as a flow step. | Designed; `DVC-P1-005`. |
 | A session is left running unnoticed | Live sessions are persistently visible with holder and expiry, leases expire on their own, and kill is one action from CLI or UI. | Designed; `DVC-P0-009`. |
-| Screen content leaks to an inference provider | All inference routes through `ai-gateway`, which owns provider policy, privacy class, and route evidence. This scenario holds no provider client and cannot exfiltrate directly. | **Blocked** — `ai-gateway` has no visual-understanding request kind yet. `ai.*` steps stay `unavailable` until it exists; see `INTEGRATIONS.md`. |
+| Screen content leaks to an inference provider | All inference routes through `ai-gateway`, which owns provider policy, privacy class, and route evidence. This scenario holds no provider client and cannot exfiltrate directly. | **Mitigated** — the vision rung uses the generated Connect client and caller-owned downscaling; unavailable routes are typed and never bypass the boundary. |
 | Provider secrets leak from this scenario | This scenario stores no provider credential of any kind. Enforced by an AST check, mirroring `ai-gateway`'s conformance rule. | Designed; `DVC-P0-007`. |
 
 ## Auth And Authorization

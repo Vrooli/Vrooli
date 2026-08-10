@@ -49,7 +49,66 @@
       "path": "/api/v1/capabilities/describe",
       "method": "GET",
       "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operational capability inventory is a plain JSON probe for lifecycle tooling."
+      }
+    },
+    {
+      "id": "flows_resolve_target",
+      "path": "/api/v1/flows/resolve-target",
+      "method": "POST",
+      "summary": "Resolve a target through the device-control ladder.",
+      "description": "Downscales a caller-owned frame, resolves locate.visual through ai-gateway, and records provider-neutral rung evidence.",
+      "category": "flows",
+      "request": {
+        "type": "object",
+        "properties": {
+          "confidence_threshold": "number 0..1",
+          "fallback_bounds": "array<number> (optional normalized anchor)",
+          "frame_base64": "base64 image (required)",
+          "media_type": "image/png or image/jpeg",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "confidence": "number 0..1",
+          "evidence": "array<EvidenceEvent>",
+          "rung": "vision | visual-anchor",
+          "status": "resolved | unavailable | unresolved"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Malformed frame, target, or threshold"
+        },
+        {
+          "status": 503,
+          "code": "vision_route_unavailable",
+          "description": "No ai-gateway vision route is available; no provider fallback is attempted"
+        },
+        {
+          "status": 422,
+          "code": "unresolved",
+          "description": "Vision confidence was below the caller threshold and no anchor fallback resolved the target"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Resolve a screenshot target",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/flows/resolve-target -H 'Content-Type: application/json' -d '{\"target\":\"settings\",\"frame_base64\":\"...\",\"media_type\":\"image/png\"}'"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Caller-owned frame execution uses a JSON transport until the device-control flow envelope is proto-typed."
+      }
     },
     {
       "id": "notes_list",

@@ -49,7 +49,7 @@ dependency exists.
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
 | `vrooli-bridge` | required | Owns the **reach plane**: which devices exist, whether they are online, and whether this caller may send them anything. A phone is modelled as an *attached device* — a fleet member that does not run the bridge agent and is reachable only through a host node. Putting that registry here instead would split the single answer to "what do I control." | Node and attached-device registry, per-node scopes, allowlisted dispatch verbs, durable runs, audit records. |
-| `ai-gateway` | required for `ai.*` steps | Owns **all inference**. This scenario holds no provider client, model slug, or provider secret. See the blocking gap below. | Provider-neutral request by intent, role, profile, and constraints; route evidence returned with the result. |
+| `ai-gateway` | required for `ai.*` steps | Owns **all inference**. This scenario holds no provider client, model slug, or provider secret. The `flows` domain uses the generated Connect client and the `locate.visual` role. | Provider-neutral request with a caller-owned, downscaled frame; the resolver records the rung, confidence, submitted dimensions, and local device-coordinate conversion. |
 | `agent-manager` | required for agent mode | Owns the **agent runtime**. This scenario supplies the goal, the bounds, and the device lease; it does not implement a reasoning loop. | Run spawn with bounds, transcript, terminal state, abort. |
 | `prompt-manager` | required for agent mode | Owns the **operator skill** that teaches an agent this scenario's CLI. Keeping the skill there rather than here means the agent-facing instructions are versioned and discoverable with every other skill. | Skill read by slug; the skill's content is the CLI contract. |
 | `browser-automation-studio` | optional | Owns **web-content automation**. Because generated apps wrap the same web bundle everywhere, a scenario's real UX flows are BAS's domain on every surface; this scenario drives only the native shell around them. | Named flow execution against an attached WebView; result merged into one evidence timeline. |
@@ -79,26 +79,24 @@ nothing about why they were called. That is also why `manager` is the
 profile the ramps actually need — a `driver`-only strategy can validate
 a running app but cannot run a conformance journey.
 
-### Blocking gap — `ai-gateway` has no visual-understanding request kind
+### Working vision integration
 
-`ai-gateway`'s request kinds are `TEXT_GENERATION`, `TEXT_EMBEDDING`,
-`STRUCTURED_EXTRACTION`, `IMAGE_GENERATION`, and `VIDEO_GENERATION`. Every
-one of them takes text *in*; `IMAGE_GENERATION` produces an image rather
-than interpreting one. There is currently **no way to ask the gateway to
-look at a screenshot**.
+The `flows` domain posts a caller-owned frame to
+`/api/v1/flows/resolve-target`. The resolver decodes and downsizes the frame
+before creating an `ai-gateway` `InferenceService.Run` request for role
+`locate.visual`. The generated Connect client is the only inference transport
+in this scenario; there is no provider SDK, model slug, provider URL, or
+provider secret here.
 
-This blocks the `ai.*` step kinds and the `vision` rung of the target
-resolution ladder. It does not block the rest of the scenario: the floor,
-strategies, sessions, flows, and both deterministic resolution rungs are
-independent of it.
-
-The tempting shortcut is the one `browser-automation-studio` already took —
-its vision agent calls OpenRouter, Anthropic, and Ollama directly from
-`playwright-driver/src/ai/vision-client/`, bypassing the gateway entirely.
-That is precisely the direct-provider coupling `ai-gateway`'s own
-conformance phase exists to flag. **This scenario must not repeat it.** The
-gateway capability is a declared prerequisite, and until it exists the
-`ai.*` steps report `unavailable` naming exactly that.
+The gateway returns canonical normalized bounds. Device-control converts them
+to the original capture dimensions locally, so downscaling cannot change the
+device coordinate space. Evidence emits `attempt_vision`, then `resolved` or
+`unresolved`, and records the selected rung and confidence without recording
+frame bytes or screen text. If confidence is below the caller threshold, a
+caller-supplied visual anchor may resolve the target at the lower rung and
+the evidence includes `fallback`. If no route exists, the response is the
+typed `vision_route_unavailable` disposition; no direct provider fallback is
+attempted.
 
 ## Third-Party Services
 

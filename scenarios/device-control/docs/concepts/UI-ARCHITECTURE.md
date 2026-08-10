@@ -2,10 +2,86 @@
 
 ## Purpose Of This Document
 
-Describe the canonical layout of the `ui/` source tree for scenarios generated
-from the `react-vite` template, and the **slot taxonomy** that lets external
-tools (notably `react-component-library`'s adoption resolver) place components
-without asking the user for a path.
+Describe two things: the **operator surface** this scenario builds — its
+information architecture, design principles, and shared primitives — and the
+canonical layout of the `ui/` source tree inherited from the `react-vite`
+template, including the **slot taxonomy** that lets external tools (notably
+`react-component-library`'s adoption resolver) place components without asking
+the user for a path.
+
+## The Operator Surface
+
+### The design problem
+
+Most consoles are built to show what worked. This one's primary content is
+what **cannot be proven** — `unavailable`, `unsupported`, `not-run` — plus one
+safety fact that must never be missed: something is driving a device right now.
+Every decision below follows from that inversion.
+
+### Design principles
+
+1. **The disposition chip is the atom.** Six values —`available`,
+   `unavailable`, `unsupported`, `failed`, `degraded`, `not-run` — rendered
+   verbatim from the backend. Never a checkmark, never a boolean, never a
+   synonym. It is the most repeated element in the product, so it is designed
+   first and everything composes from it.
+2. **Absence is a layout element, not an error state.** An unavailable
+   capability carries the same visual weight as an available one, plus its
+   missing prerequisite and next action inline. Greying it out reads as
+   "broken"; the truth is "not yet, and here is how" (`D-002`).
+3. **A live session changes the chrome of the whole app.** The lease bar is
+   global, not a per-page badge, because `D-006`'s safety property cannot
+   depend on which route the operator happens to be on.
+4. **The frame is evidence, not the interface.** Every session control is
+   operable and every state perceivable with the video pane hidden. This is
+   simultaneously the accessibility floor and what keeps a frameless transport
+   such as `ios-mirror` usable.
+5. **Declared and verified are always two columns.** `D-002`'s honesty property
+   must be *visible*, not merely modelled. Never-probed is visually distinct
+   from probed-and-absent.
+6. **Provenance travels with the artifact.** A recording renders as
+   `native · 60fps` or `synthesized · 2fps`, never as "video". A resolved target
+   carries its rung and confidence. `D-009` made these structural fields
+   precisely so the UI could not drop them.
+
+### Information architecture
+
+| Surface | Route | Answers | Kind |
+|---|---|---|---|
+| Fleet | `/` | What do I control, and what can each prove right now? | destination |
+| Flows | `/flows` | What should be done, and can this device do it? | destination |
+| Runs | `/runs` | What happened, and what is the evidence? | destination |
+| Strategies | `/strategies` | What can each control mechanism actually prove? | destination |
+| Settings | `/settings` | Redaction, retention, grants, reach connection. | destination |
+| Device | `/devices/:deviceId` | This device's capability matrix and strategy selection. | context |
+| Live session | `/devices/:deviceId/session` | Drive it now, under an explicit lease. | context, takeover |
+| Agent mode | `/devices/:deviceId/agent` | Work a goal out under bounds, then promote it. | context |
+| Run review | `/runs/:runId` | Chapter-by-chapter evidence with dispositions. | context |
+| **Lease bar** | — | Is something driving a device right now? | **persistent** |
+
+Two placements are deliberate and should not drift:
+
+- **Agent mode is device-scoped, not a destination.** Its bounds are
+  lease-scoped, so a top-level `/agent` route would imply it exists
+  independently of a device — the opposite of what the safety model needs.
+- **The live session is a takeover with no left nav.** Navigating away while
+  holding a lease is the interaction that most deserves friction.
+
+### Shared primitives
+
+Four components carry most of the product. They belong in the
+`ui-primitive` slot and should be built before any page.
+
+| Primitive | Renders | Rule |
+|---|---|---|
+| Disposition chip | One of six values | Verbatim from the backend; reason and next action on expand. |
+| Capability strip | Ten cells, fixed order, one per optional capability | Neutral = never probed, amber = probed and absent. The two must never look alike. |
+| Provenance chip | Capture method + effective rate, or rung + confidence | Structural. A capture with no method chip is a bug. |
+| Lease bar | Holder, elapsed, expiry countdown, renew, kill | Global, identical position on every route, present whenever *any* lease is held. |
+
+The kill control lives in the lease bar rather than on the session page so the
+distance between noticing an unexpected session and stopping it is zero. It
+must be reachable without scrolling and operable from the keyboard.
 
 ## Source Layout
 
@@ -88,6 +164,43 @@ table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
 Run `experience-manager spec validate device-control --json` after route or
 selector changes. The generated notes page spec is example-domain content and
 is removed by `template-manager detemplate device-control`.
+
+**Current depth.** All eight product pages are specced through L2 — identity,
+priorities, states, elements, claims, and bindings — plus two journeys. The
+`bindings` blocks are the selector SSOT: build each page against the
+`data-testid` values already declared there rather than inventing new ones, and
+the machine claims start reconciling the moment the markup exists.
+
+### Deterministic state capture
+
+A machine claim scoped to a non-default state needs that state to be reachable
+deterministically, or it is reported `claim_unverifiable` and checks nothing.
+Most of this scenario's states are data-dependent — a fleet is `empty`,
+`stale`, or `session-active` because of backend state, not because of a URL.
+
+The contract is therefore a reserved `fixture` query parameter naming the
+state id:
+
+```
+/                      → the live system
+/?fixture=empty        → the fleet-empty fixture
+/?fixture=stale        → snapshots past the probe interval
+/devices/:id/session?fixture=frame-unavailable
+```
+
+Two rules make this safe to ship:
+
+- **Test-mode gated.** The parameter is honoured only under an active routed
+  test lease, the same boundary `X-Vrooli-Test-Mode` establishes elsewhere in
+  the fleet. In normal operation it is ignored, so it is not a way to make the
+  console lie about a real device.
+- **Fixtures are named, not synthesised.** Each fixture corresponds to a
+  declared state id in the page spec. A fixture with no state, or a state whose
+  machine claims have no fixture, is drift.
+
+Every non-default state in `experience/pages/*.json` already declares its
+`setup`. Implementing this parameter is what turns those declarations from
+intent into checks.
 
 ## Extending The Manifest
 

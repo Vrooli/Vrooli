@@ -34,6 +34,27 @@ outcome, statefulness, and validation level.
 | Agent run | agent | `device-control agent run --goal`. | A terminal goal outcome plus a recorded step sequence eligible for promotion. | Bounded: step count, cost ceiling, lease scope. Abortable at any point. | Level 4 — bounds are the safety property. |
 | Agent-run promotion | agent | Operator promotes a successful agent run. | A deterministic flow whose replay contains no `ai.*` step. | Stateless transform over a completed run's step record. | Level 3 — replay equivalence. |
 
+### Target resolution
+
+The target resolver is exposed through `POST /api/v1/flows/resolve-target`
+for the flow executor and CLI surfaces. The caller submits a frame and target
+intent; device-control decodes and downsizes the frame before sending it to
+ai-gateway with role `locate.visual`. The gateway response is canonical
+normalized bounds. Device-control converts those bounds against the original
+capture dimensions, preserving device coordinates even when the submission
+was downscaled.
+
+The evidence sequence is ordered and redaction-safe:
+
+1. `attempt_vision` records the vision rung and submitted dimensions.
+2. `resolved` records the selected rung and confidence, or `fallback` records
+   the reason for selecting the lower `visual-anchor` rung.
+3. `unresolved` records a typed reason when neither the gateway route nor a
+   caller-owned anchor can resolve the target.
+
+No event contains frame bytes, screen text, provider URLs, model slugs, or
+credentials.
+
 ## Flow Details
 
 Document each real flow here with its owner domain, trigger, inputs,

@@ -20,6 +20,7 @@ import (
 	"device-control/internal/module"
 
 	capsH "device-control/handlers/capabilities"
+	flowsH "device-control/handlers/flows"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -39,6 +40,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
+	out = append(out, flowsH.Endpoints...)
 	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	return out
 }

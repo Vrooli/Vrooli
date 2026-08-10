@@ -21,7 +21,7 @@
     },
     {
       "page": "device-detail",
-      "state": "reachable",
+      "state": "default",
       "intent": "Confirm which strategy would be selected and which capabilities are proven.",
       "via": "device row"
     },
@@ -33,7 +33,7 @@
     },
     {
       "page": "session",
-      "state": "live",
+      "state": "default",
       "intent": "Acquire the lease and execute, with holder, expiry and kill visible throughout.",
       "via": "start run"
     },
@@ -42,6 +42,22 @@
       "state": "passed",
       "intent": "Review the chapter timeline, the rung used per step, and the redacted evidence references.",
       "via": "run completion"
+    }
+  ],
+  "claims": [
+    {
+      "id": "capability-known-before-device-time-spent",
+      "type": "custom",
+      "statement": "The operator learns whether the flow can run before any lease is acquired, so a capability gap never costs device time.",
+      "tier": "manual",
+      "rationale": "OT-P0-005. The gap report sits between device selection and lease acquisition precisely so the expensive step is last."
+    },
+    {
+      "id": "lease-visible-across-every-step",
+      "type": "custom",
+      "statement": "From the moment a lease is acquired, its holder and expiry remain perceivable on every page the operator visits.",
+      "tier": "manual",
+      "rationale": "D-006. The lease bar is global rather than per-page, so this holds across navigation rather than only on the session screen."
     }
   ]
 }

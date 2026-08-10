@@ -6,7 +6,7 @@
     "id": "agent",
     "title": "Agent mode",
     "routes": [
-      "/agent"
+      "/devices/:deviceId/agent"
     ],
     "purpose": "Give a goal to an agent, watch it act under explicit bounds, and promote a successful run into a deterministic flow.",
     "prd_refs": [
@@ -25,33 +25,348 @@
     },
     {
       "statement": "A successful run offers promotion into a flow with the AI steps resolved away.",
-      "notes": "Infer once, replay free \u2014 the promotion path is the reason agent mode earns its cost."
+      "notes": "Infer once, replay free — the promotion path is the reason agent mode earns its cost."
     }
   ],
   "states": [
     {
+      "id": "default",
+      "description": "A device is selected and a goal can be entered under stated bounds.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Agent runtime availability and lease state are being resolved.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No agent run has been performed on this device; the goal entry and its bounds are the whole page.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "The run reached its goal partially — some recorded steps succeeded and the goal was not confirmed. Promotion is not offered.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "A prior run's transcript is shown after the device's capability snapshot changed, so its steps may no longer be executable.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The agent runtime call failed mid-run; the partial step record is retained and the failure is stated.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
       "id": "idle",
-      "description": "No agent run in progress; goal entry available."
+      "description": "No agent run in progress; goal entry available.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent",
+        "query": {
+          "fixture": "idle"
+        }
+      }
     },
     {
       "id": "bounded-running",
-      "description": "Run active with remaining step and cost budget displayed."
+      "description": "Run active with remaining step and cost budget displayed.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent",
+        "query": {
+          "fixture": "bounded-running"
+        }
+      }
     },
     {
       "id": "bound-exhausted",
-      "description": "A bound was reached; the run stopped and says which bound."
+      "description": "A bound was reached; the run stopped and says which bound.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent",
+        "query": {
+          "fixture": "bound-exhausted"
+        }
+      }
     },
     {
       "id": "aborted",
-      "description": "Operator cancelled; partial step record retained."
+      "description": "Operator cancelled; partial step record retained.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent",
+        "query": {
+          "fixture": "aborted"
+        }
+      }
     },
     {
       "id": "succeeded",
-      "description": "Goal reached; promotion to a deterministic flow offered."
+      "description": "Goal reached; promotion to a deterministic flow offered.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent",
+        "query": {
+          "fixture": "succeeded"
+        }
+      }
     },
     {
       "id": "unavailable",
-      "description": "agent-manager or the operator skill is unreachable; the missing dependency is named."
+      "description": "agent-manager or the operator skill is unreachable; the missing dependency is named.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/agent",
+        "query": {
+          "fixture": "unavailable"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "goal-entry",
+      "role": "textbox",
+      "name": "Goal",
+      "description": "The natural-language goal handed to the agent runtime."
+    },
+    {
+      "id": "bounds-panel",
+      "role": "group",
+      "name": "Bounds",
+      "description": "Step ceiling, cost ceiling, and lease duration — set before the run and enforced during it."
+    },
+    {
+      "id": "bounds-remaining",
+      "role": "status",
+      "description": "Live countdown of remaining steps, remaining cost budget, and lease time."
+    },
+    {
+      "id": "abort-run",
+      "role": "button",
+      "name": "Abort",
+      "description": "Stops the run immediately, retaining the partial step record."
+    },
+    {
+      "id": "step-transcript",
+      "role": "log",
+      "name": "Steps",
+      "description": "Each agent action recorded as a flow step, which is what makes promotion possible."
+    },
+    {
+      "id": "bound-stop-reason",
+      "role": "note",
+      "description": "Names which bound stopped the run, distinguishing exhaustion from failure."
+    },
+    {
+      "id": "promote-to-flow",
+      "role": "button",
+      "name": "Promote to flow",
+      "description": "Exports the recorded steps as a deterministic flow that replays without inference cost."
+    },
+    {
+      "id": "lease-bar",
+      "role": "status",
+      "name": "Lease held",
+      "description": "The global lease alarm. An agent run always holds a lease for its duration."
+    },
+    {
+      "id": "dependency-unavailable",
+      "role": "alert",
+      "description": "Names which dependency — the agent runtime or the operator skill — is unreachable."
+    }
+  ],
+  "claims": [
+    {
+      "id": "bounds-visible-before-start",
+      "type": "element-present",
+      "statement": "Step, cost, and lease bounds are perceivable before a run can be started.",
+      "tier": "machine",
+      "elements": [
+        "bounds-panel"
+      ],
+      "states": [
+        "idle",
+        "empty"
+      ],
+      "rationale": "Priority 1. An unbounded agent holding a lease on a personal phone is the failure this surface exists to prevent, and bounds set after the fact are not bounds."
+    },
+    {
+      "id": "bounds-counted-down-during-run",
+      "type": "element-present",
+      "statement": "Remaining step, cost, and lease budget are perceivable throughout an active run.",
+      "tier": "machine",
+      "elements": [
+        "bounds-remaining"
+      ],
+      "states": [
+        "bounded-running"
+      ],
+      "rationale": "Priority 1. A bound the operator cannot watch approaching gives no opportunity to intervene early."
+    },
+    {
+      "id": "abort-visible-without-scroll",
+      "type": "visible-without-scroll",
+      "statement": "Abort is reachable without scrolling at every moment of an active run.",
+      "tier": "machine",
+      "elements": [
+        "abort-run"
+      ],
+      "states": [
+        "bounded-running"
+      ],
+      "rationale": "Priority 2. Bounds handle the expected case; abort handles the rest, and it must not require hunting."
+    },
+    {
+      "id": "abort-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Abort is operable from the keyboard during an active run.",
+      "tier": "machine",
+      "elements": [
+        "abort-run"
+      ],
+      "states": [
+        "bounded-running"
+      ],
+      "rationale": "Consistent with the kill control: a safety affordance that needs a pointer is not always available."
+    },
+    {
+      "id": "exhaustion-names-its-bound",
+      "type": "state-covered",
+      "statement": "A run stopped by a bound states which bound stopped it.",
+      "tier": "machine",
+      "states": [
+        "bound-exhausted"
+      ],
+      "elements": [
+        "bound-stop-reason"
+      ],
+      "rationale": "'Stopped' without a cause is indistinguishable from a crash, and the remedy differs per bound."
+    },
+    {
+      "id": "exhausted-is-not-failed",
+      "type": "state-distinct",
+      "statement": "A run that exhausted a bound is perceivably different from one the operator aborted.",
+      "tier": "machine",
+      "states": [
+        "bound-exhausted",
+        "aborted"
+      ],
+      "elements": [
+        "bound-stop-reason"
+      ],
+      "rationale": "One says the task was larger than its budget; the other says a human intervened. They lead to different next actions."
+    },
+    {
+      "id": "promotion-offered-on-success",
+      "type": "element-present",
+      "statement": "A successful run offers promotion into a deterministic flow.",
+      "tier": "machine",
+      "elements": [
+        "promote-to-flow"
+      ],
+      "states": [
+        "succeeded"
+      ],
+      "rationale": "Priority 3 and OT-P1-006. Promotion is the compounding loop that justifies agent mode's cost; if it is not offered at the moment of success it will not be discovered."
+    },
+    {
+      "id": "promotion-withheld-when-unproven",
+      "type": "element-absent",
+      "statement": "Promotion is not offered for a run that did not reach its goal.",
+      "tier": "machine",
+      "elements": [
+        "promote-to-flow"
+      ],
+      "states": [
+        "partial",
+        "aborted"
+      ],
+      "rationale": "Promoting an unproven sequence would mint a deterministic flow that never worked, which is worse than no flow."
+    },
+    {
+      "id": "transcript-survives-every-terminal-state",
+      "type": "element-present",
+      "statement": "The recorded step transcript remains readable after abort, exhaustion, and runtime failure.",
+      "tier": "machine",
+      "elements": [
+        "step-transcript"
+      ],
+      "states": [
+        "aborted",
+        "bound-exhausted",
+        "request-error"
+      ],
+      "rationale": "The transcript is both the audit record and the promotion source; discarding it on an unhappy path destroys both."
+    },
+    {
+      "id": "missing-dependency-is-named",
+      "type": "state-covered",
+      "statement": "When agent mode cannot start, the unreachable dependency is named rather than reported generically.",
+      "tier": "machine",
+      "states": [
+        "unavailable"
+      ],
+      "elements": [
+        "dependency-unavailable"
+      ],
+      "rationale": "INTEGRATIONS.md commits to agent mode refusing rather than improvising without the skill; the refusal must say which of the two is missing."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "goal-entry": {
+        "testid": "agent-goal"
+      },
+      "bounds-panel": {
+        "testid": "agent-bounds"
+      },
+      "bounds-remaining": {
+        "testid": "agent-bounds-remaining"
+      },
+      "abort-run": {
+        "testid": "agent-abort"
+      },
+      "step-transcript": {
+        "testid": "agent-transcript"
+      },
+      "bound-stop-reason": {
+        "testid": "agent-stop-reason"
+      },
+      "promote-to-flow": {
+        "testid": "agent-promote"
+      },
+      "lease-bar": {
+        "testid": "lease-bar"
+      },
+      "dependency-unavailable": {
+        "testid": "agent-dependency-unavailable"
+      }
+    }
+  }
 }

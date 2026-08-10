@@ -17,33 +17,293 @@
   "priorities": [
     {
       "statement": "Declared capability and verified capability are shown as separate columns.",
-      "notes": "The gap between them is the whole point of the conformance suite."
+      "notes": "Collapsing them makes every strategy self-certifying, which is exactly what the two-seam design exists to prevent."
     },
     {
       "statement": "A strategy that has never been verified is marked unverified, not assumed passing.",
-      "notes": "An unrun suite is missing evidence, not a pass."
+      "notes": "Never-probed and probed-to-zero are different findings and must never render alike."
     },
     {
       "statement": "Each strategy shows which flow step kinds it can execute.",
-      "notes": "That is what an author needs to know before writing a flow against it."
+      "notes": "The capability set is the input; the executable step vocabulary is what an author actually needs."
     }
   ],
   "states": [
     {
+      "id": "default",
+      "description": "The registry with at least one verified strategy.",
+      "setup": {
+        "route": "/strategies"
+      }
+    },
+    {
       "id": "loading",
-      "description": "Registry loading."
+      "description": "Registry and conformance results loading.",
+      "setup": {
+        "route": "/strategies",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No strategies registered; explains that a strategy is added by implementing the floor and passing the suite.",
+      "setup": {
+        "route": "/strategies",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some strategies are verified and others have never been run; the mixture is the normal state.",
+      "setup": {
+        "route": "/strategies",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "A conformance result predates the current strategy registration; shown as stale rather than current.",
+      "setup": {
+        "route": "/strategies",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The registry request failed; the page says so rather than presenting an empty registry.",
+      "setup": {
+        "route": "/strategies",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
     },
     {
       "id": "verified",
-      "description": "Conformance results current for every registered strategy."
+      "description": "A strategy whose declaration was fully proven by probing, with an empty delta.",
+      "setup": {
+        "route": "/strategies",
+        "query": {
+          "fixture": "verified"
+        }
+      }
     },
     {
       "id": "unverified",
-      "description": "One or more strategies have no conformance result yet."
+      "description": "A registered strategy that has never been run through the conformance suite. Not a passing state.",
+      "setup": {
+        "route": "/strategies",
+        "query": {
+          "fixture": "unverified"
+        }
+      }
     },
     {
       "id": "degraded",
-      "description": "A strategy's verified tier is lower than its declaration; the difference is called out."
+      "description": "A non-empty delta: the strategy declared a capability the probe could not prove.",
+      "setup": {
+        "route": "/strategies",
+        "query": {
+          "fixture": "degraded"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "conformance-matrix",
+      "role": "table",
+      "name": "Conformance",
+      "description": "One row per strategy with floor conformance, declared count, probed count, and delta."
+    },
+    {
+      "id": "declared-column",
+      "role": "columnheader",
+      "name": "Declared",
+      "description": "What the strategy's describe() claimed."
+    },
+    {
+      "id": "probed-column",
+      "role": "columnheader",
+      "name": "Probed",
+      "description": "What verification actually proved. Never merged with the declared column."
+    },
+    {
+      "id": "delta-detail",
+      "role": "note",
+      "description": "Per-capability explanation of what was declared but unprovable, including the missing prerequisite."
+    },
+    {
+      "id": "floor-status",
+      "role": "status",
+      "description": "Floor conformance — the only hard gate. Pass or fail, with no partial value."
+    },
+    {
+      "id": "unverified-marker",
+      "role": "status",
+      "description": "Marks a strategy that has never been run through the suite. Renders as an em dash, never a zero."
+    },
+    {
+      "id": "executable-steps",
+      "role": "list",
+      "name": "Executable steps",
+      "description": "The flow step kinds this strategy can run, derived from its probed capability set."
+    },
+    {
+      "id": "profile-label",
+      "role": "status",
+      "description": "Matched profiles. Informational only — the capability set is the authority."
+    },
+    {
+      "id": "verify-strategy",
+      "role": "button",
+      "name": "Verify",
+      "description": "Run the conformance suite against a strategy."
+    },
+    {
+      "id": "registry-guidance",
+      "role": "note",
+      "description": "Empty-state explanation of how a strategy joins the registry."
+    }
+  ],
+  "claims": [
+    {
+      "id": "declared-and-probed-never-merge",
+      "type": "element-present",
+      "statement": "Declared capability and probed capability are presented as separate columns.",
+      "tier": "machine",
+      "elements": [
+        "conformance-matrix",
+        "declared-column",
+        "probed-column"
+      ],
+      "states": [
+        "partial",
+        "verified"
+      ],
+      "rationale": "Priority 1 and D-002. Merging them makes every strategy self-certifying, which is the failure the two-seam design exists to prevent."
+    },
+    {
+      "id": "unverified-is-not-zero",
+      "type": "state-distinct",
+      "statement": "A strategy that has never been verified is perceivably different from one verified to have no optional capabilities.",
+      "tier": "machine",
+      "states": [
+        "unverified",
+        "verified"
+      ],
+      "elements": [
+        "unverified-marker",
+        "probed-column"
+      ],
+      "rationale": "Priority 2. ios-mirror legitimately probes to zero optional capabilities; that is a finding. A never-run suite is an absence of data. Rendering both as 0 destroys the distinction."
+    },
+    {
+      "id": "delta-is-its-own-column",
+      "type": "element-present",
+      "statement": "The declared-but-unprovable delta is presented directly rather than left for the reader to derive.",
+      "tier": "machine",
+      "elements": [
+        "delta-detail"
+      ],
+      "states": [
+        "degraded"
+      ],
+      "rationale": "The delta is the finding the conformance suite exists to produce. Requiring subtraction to see it buries the page's whole output."
+    },
+    {
+      "id": "floor-is-a-hard-gate",
+      "type": "element-present",
+      "statement": "Floor conformance is shown as a pass-or-fail outcome with no intermediate value.",
+      "tier": "machine",
+      "elements": [
+        "floor-status"
+      ],
+      "states": [
+        "verified",
+        "partial"
+      ],
+      "rationale": "D-001. A component that does not implement all three floor operations is not a strategy; a partial floor is not a meaningful state."
+    },
+    {
+      "id": "executable-steps-are-derived-and-shown",
+      "type": "element-present",
+      "statement": "Each strategy shows which flow step kinds it can execute.",
+      "tier": "machine",
+      "elements": [
+        "executable-steps"
+      ],
+      "states": [
+        "verified"
+      ],
+      "rationale": "Priority 3. The capability set is the input a flow author cannot use directly; the executable step vocabulary is what they actually need."
+    },
+    {
+      "id": "profile-is-not-a-claim",
+      "type": "custom",
+      "statement": "A matched profile is presented as a summary of probe results rather than as an authority in its own right.",
+      "tier": "manual",
+      "elements": [
+        "profile-label",
+        "probed-column"
+      ],
+      "rationale": "capabilities.md is explicit that profiles carry no authority and that matching none is not a failure. A profile badge given more visual weight than the capability set would invert that."
+    },
+    {
+      "id": "empty-explains-registration",
+      "type": "state-covered",
+      "statement": "The empty state explains that a strategy joins the registry by implementing the floor and passing the suite.",
+      "tier": "machine",
+      "states": [
+        "empty"
+      ],
+      "elements": [
+        "registry-guidance"
+      ],
+      "rationale": "OT-P0-002 promises that adding a strategy requires no engine change; the empty state is where that promise is discoverable."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "conformance-matrix": {
+        "testid": "conformance-matrix"
+      },
+      "declared-column": {
+        "testid": "conformance-declared-col"
+      },
+      "probed-column": {
+        "testid": "conformance-probed-col"
+      },
+      "delta-detail": {
+        "testid": "conformance-delta"
+      },
+      "floor-status": {
+        "testid": "conformance-floor"
+      },
+      "unverified-marker": {
+        "testid": "conformance-unverified"
+      },
+      "executable-steps": {
+        "testid": "strategy-executable-steps"
+      },
+      "profile-label": {
+        "testid": "strategy-profile"
+      },
+      "verify-strategy": {
+        "testid": "strategy-verify"
+      },
+      "registry-guidance": {
+        "testid": "strategies-guidance"
+      }
+    }
+  }
 }

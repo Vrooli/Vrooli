@@ -173,32 +173,72 @@ conformance chapters most sensitive to this.
 
 ---
 
-### 2026-08-10 — `ai-gateway` has no visual-understanding request kind
+### 2026-08-10 — Experience floor errors are inherited from the template shell
 
-**Symptom:** `ai.see`, `ai.extract`, `ai.verify`, and the `vision`
-resolution rung cannot be implemented. `ai-gateway`'s request kinds are
-all text-in; `IMAGE_GENERATION` produces an image rather than
-interpreting one.
+**Symptom:** `experience-manager spec validate device-control` reports FAILED.
+The only SEVERITY_ERROR findings are two floor claims, on every page that has a
+live capture:
 
-**Root cause:** The gateway capability does not exist yet. Recorded here
-so a future agent does not rediscover it and reach for the shortcut.
+- `floor_tap_target_size` — the Theme control measures 29px tall at 390×844,
+  under the 44px minimum.
+- `floor_safe_area_tap_targets` — the bottom-nav Dashboard item sits flush at
+  y=790 h=54 in an 844px viewport, overlapping the mobile unsafe bottom area.
 
-**Workaround:** None, deliberately. `ai.*` steps report `unavailable`
-naming the missing gateway capability. The floor, strategies, sessions,
-flows, and both deterministic resolution rungs are unaffected. Do **not**
-add a direct provider client — that is the coupling
-`browser-automation-studio` already has in
-`playwright-driver/src/ai/vision-client/`, and taking it a second time
-would make the gateway boundary fictional (`D-005`).
+**Root cause:** Not this scenario's code. `ui/src/layout/AppShell.tsx` and
+`ui/src/layout/BottomNav.tsx` are byte-identical to the `react-vite` template,
+and the nav delegates to the canonical `ui/src/components/ui/bottom-nav.tsx`,
+which already applies `pb-safe` and `touch-target`. The safe-area finding looks
+like `env(safe-area-inset-bottom)` resolving to 0 in the headless capture
+browser rather than a CSS defect; the 29px Theme control is a genuine
+tap-target defect. Both surfaces are shared, so every scenario generated from
+this template inherits them.
 
-**Real fix:** Owned outside this scenario — a separate plan is adding
-visual support to `ai-gateway`. This entry closes when that request kind
-exists and the `ai.*` steps probe `available`.
+**Workaround:** None needed for spec work — the warnings-only findings
+(`state_missing`, `capture_unavailable`) are unaffected and the specs are
+complete regardless. But the experience phase gate stays red until these are
+fixed.
 
-**Owner:** tracked by the `ai-gateway` vision plan, not this scenario.
+**Real fix:** Owned by the template and the component canon, not here. Patching
+`ui/src/layout/*` locally would fix one scenario, leave every other generated
+scenario broken, and register as template drift.
 
-**Refs:** `DECISIONS.md` `D-005`, `../concepts/INTEGRATIONS.md`
-(Blocking gap), `SECURITY.md` (Security Gaps), `DVC-P0-007`.
+**Owner:** template-manager / react-component-library. Filed to scenario-qa as
+`knw-1786386038390145690`
+(`bug-inbox/code-defect/react-vite-template-shell-fails-experience-floor-tap`),
+flagged `speculative-cause` because the safe-area half is a hypothesis about
+the capture environment rather than a confirmed CSS defect.
+
+**Refs:** `ui/src/components/ui/bottom-nav.tsx`,
+`templates/scenarios/react-vite/ui/src/layout/`, `experience/pages/fleet.json`.
+
+---
+
+### 2026-08-10 — `ai-gateway` visual-understanding route (resolved)
+
+**Symptom:** The `vision` resolution rung was blocked while `ai-gateway`
+accepted only text-oriented inference requests.
+
+**Resolution:** ai-gateway now accepts image attachments on the
+provider-neutral inference contract and exposes the `locate.visual` role.
+device-control calls that role through the generated Connect client and
+normalizes the result into flow evidence.
+
+**Unavailable behavior:** A missing route returns typed
+`vision_route_unavailable` evidence. If a caller has an existing visual
+anchor, the resolver may fall back to that lower rung. **Do not** add a
+direct provider client — that is the coupling `browser-automation-studio`
+already has in `playwright-driver/src/ai/vision-client/`, and taking it a
+second time would make the gateway boundary fictional (`D-005`).
+
+**Evidence:** Unit fixtures cover normalized responses, fallback, typed
+unavailability, and caller-owned downscaling. The live flow proof is recorded
+in the multimodal inference plan log.
+
+**Owner:** ai-gateway owns the inference route; device-control owns the
+caller contract and ladder behavior.
+
+**Refs:** `DECISIONS.md` `D-005`, `../concepts/INTEGRATIONS.md`,
+`SECURITY.md` (Security Gaps), `DVC-P0-007`.
 
 ## Architecture Drift
 

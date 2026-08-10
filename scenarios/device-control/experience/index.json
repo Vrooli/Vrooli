@@ -70,6 +70,12 @@
       "path": "journeys/prove-a-device-can-run-a-flow.json",
       "title": "Prove a device can run a flow, then run it",
       "status": "active"
+    },
+    {
+      "id": "notice-and-stop-an-unexpected-session",
+      "path": "journeys/notice-and-stop-an-unexpected-session.json",
+      "title": "Notice a session you did not start, and stop it",
+      "status": "active"
     }
   ]
 }

@@ -32,24 +32,331 @@
   ],
   "states": [
     {
+      "id": "default",
+      "description": "A saved flow opened against a device that satisfies every step.",
+      "setup": {
+        "route": "/flows/fixture-onboarding-smoke"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Flow definition and capability check in flight.",
+      "setup": {
+        "route": "/flows/fixture-onboarding-smoke",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
       "id": "empty",
-      "description": "No flows authored yet; explains how to create one or promote an agent run."
+      "description": "No flows authored yet; explains how to create one or promote an agent run.",
+      "setup": {
+        "route": "/flows",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "The flow is valid and the selected device satisfies some but not all steps — the gap report is the page's primary content.",
+      "setup": {
+        "route": "/flows/fixture-onboarding-smoke",
+        "query": {
+          "fixture": "gap"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "The capability snapshot behind the gap report predates the probe interval; the report is labelled as computed from an old probe.",
+      "setup": {
+        "route": "/flows/fixture-onboarding-smoke",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The flow or capability request failed; the page says so rather than presenting an empty gap report as a clean bill.",
+      "setup": {
+        "route": "/flows/fixture-onboarding-smoke",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
     },
     {
       "id": "editing",
-      "description": "Flow under edit; validation runs continuously."
+      "description": "Flow under edit; validation runs continuously.",
+      "setup": {
+        "route": "/flows/fixture-onboarding-smoke",
+        "query": {
+          "fixture": "editing"
+        }
+      }
     },
     {
       "id": "invalid",
-      "description": "Validation errors shown per step, blocking run."
+      "description": "Validation errors shown per step, blocking run.",
+      "setup": {
+        "route": "/flows/fixture-onboarding-smoke",
+        "query": {
+          "fixture": "invalid"
+        }
+      }
     },
     {
       "id": "gap",
-      "description": "Flow is valid but the selected device cannot satisfy some required capability; the gap is enumerated."
+      "description": "Flow is valid but the selected device cannot satisfy some required capability; the gap is enumerated with its cause and whether it is fixable.",
+      "setup": {
+        "route": "/flows/fixture-onboarding-smoke",
+        "query": {
+          "fixture": "gap"
+        }
+      }
     },
     {
       "id": "runnable",
-      "description": "Valid and fully satisfied by the selected device."
+      "description": "Valid and fully satisfied by the selected device.",
+      "setup": {
+        "route": "/flows/fixture-onboarding-smoke",
+        "query": {
+          "fixture": "runnable"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "device-selector",
+      "role": "combobox",
+      "name": "Device",
+      "description": "Which device the flow is being checked against. The gap report is meaningless without it."
+    },
+    {
+      "id": "gap-report",
+      "role": "region",
+      "name": "Gaps",
+      "description": "The enumerated capabilities that block steps, each with its cause and whether another strategy would satisfy it."
+    },
+    {
+      "id": "gap-summary",
+      "role": "status",
+      "description": "Runnable and blocked step counts plus the overall verdict."
+    },
+    {
+      "id": "step-list",
+      "role": "list",
+      "name": "Plan",
+      "description": "The flow's steps in order, each annotated with the rung or capability it will use on the selected device."
+    },
+    {
+      "id": "step-rung",
+      "role": "status",
+      "description": "Per-step resolution rung — semantic, visual-anchor, vision — or the capability that blocks it."
+    },
+    {
+      "id": "wait-bound",
+      "role": "status",
+      "description": "The named bounded policy and its upper bound for each wait step."
+    },
+    {
+      "id": "run-flow",
+      "role": "button",
+      "name": "Run flow",
+      "description": "Dispatch. Unavailable while a known gap exists, because dispatching despite one is the only error state here."
+    },
+    {
+      "id": "run-runnable-subset",
+      "role": "button",
+      "description": "Run only the steps the selected device satisfies, as an explicit partial choice rather than a silent skip."
+    },
+    {
+      "id": "recheck-elsewhere",
+      "role": "button",
+      "description": "Re-evaluate the same flow against a different device or strategy."
+    },
+    {
+      "id": "validation-errors",
+      "role": "alert",
+      "description": "Per-step authoring errors, distinct from capability gaps."
+    },
+    {
+      "id": "authoring-guidance",
+      "role": "note",
+      "description": "Empty-state guidance covering both authoring a flow and promoting a successful agent run."
+    }
+  ],
+  "claims": [
+    {
+      "id": "gap-report-precedes-dispatch",
+      "type": "element-present",
+      "statement": "The capability gap report is perceivable before the flow can be dispatched.",
+      "tier": "machine",
+      "elements": [
+        "gap-report",
+        "gap-summary"
+      ],
+      "states": [
+        "gap",
+        "partial"
+      ],
+      "rationale": "Priority 1 and OT-P0-005. A mid-run capability failure wastes device time and produces evidence nobody can interpret."
+    },
+    {
+      "id": "gap-is-not-an-error-presentation",
+      "type": "custom",
+      "statement": "A gap report is presented as a successful, structured answer rather than as a failure state.",
+      "tier": "manual",
+      "elements": [
+        "gap-report",
+        "gap-summary"
+      ],
+      "states": [
+        "gap"
+      ],
+      "rationale": "D-010 makes the gap report a successful response; the visual treatment has to match, or the most common honest answer this scenario gives will read as breakage. Manual because it is a tone judgement rather than a presence check."
+    },
+    {
+      "id": "gap-and-validation-are-distinct",
+      "type": "state-distinct",
+      "statement": "A capability gap is perceivably different from an authoring validation error.",
+      "tier": "machine",
+      "states": [
+        "gap",
+        "invalid"
+      ],
+      "elements": [
+        "gap-report",
+        "validation-errors"
+      ],
+      "rationale": "One means the flow is wrong; the other means the device is not equipped. Conflating them sends the operator to fix the wrong thing."
+    },
+    {
+      "id": "dispatch-blocked-while-gap-known",
+      "type": "element-absent",
+      "statement": "The unqualified run control is not offered while a known gap exists.",
+      "tier": "machine",
+      "elements": [
+        "run-flow"
+      ],
+      "states": [
+        "gap"
+      ],
+      "rationale": "D-010: dispatching despite a known gap is the only error in this flow, so the UI should not make it the default affordance."
+    },
+    {
+      "id": "partial-run-is-explicit",
+      "type": "element-present",
+      "statement": "Running only the satisfied subset is offered as an explicit, separately labelled choice.",
+      "tier": "machine",
+      "elements": [
+        "run-runnable-subset"
+      ],
+      "states": [
+        "gap"
+      ],
+      "rationale": "Silently skipping blocked steps would produce evidence that looks complete. Making the partial run a deliberate act keeps the resulting record honest."
+    },
+    {
+      "id": "each-step-shows-its-rung",
+      "type": "element-present",
+      "statement": "Every step shows the resolution rung it will use on the selected device, or the capability that blocks it.",
+      "tier": "machine",
+      "elements": [
+        "step-list",
+        "step-rung"
+      ],
+      "states": [
+        "runnable",
+        "gap"
+      ],
+      "rationale": "Priority 2 and D-004. The deterministic-versus-inferred distinction is what a reviewer most needs, and it is cheapest to show before the run."
+    },
+    {
+      "id": "waits-show-their-bounds",
+      "type": "element-present",
+      "statement": "Each wait step shows its named policy and upper bound.",
+      "tier": "machine",
+      "elements": [
+        "wait-bound"
+      ],
+      "states": [
+        "runnable"
+      ],
+      "rationale": "Priority 3 and OT-P0-005. An unlabelled wait is indistinguishable from a sleep, and an exceeded bound must be an evidence-visible failure rather than a longer wait."
+    },
+    {
+      "id": "device-selection-is-required-context",
+      "type": "reading-order",
+      "statement": "The device the flow is being checked against reads before the gap verdict it produced.",
+      "tier": "machine",
+      "elements": [
+        "device-selector",
+        "gap-summary"
+      ],
+      "states": [
+        "gap"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "A verdict without its subject is unreadable — the same flow is runnable on one device and blocked on another."
+    },
+    {
+      "id": "empty-covers-both-authoring-paths",
+      "type": "state-covered",
+      "statement": "The empty state explains both authoring a flow and promoting a successful agent run.",
+      "tier": "machine",
+      "states": [
+        "empty"
+      ],
+      "elements": [
+        "authoring-guidance"
+      ],
+      "rationale": "Promotion is the compounding path in OT-P1-006, and it is not discoverable from a blank list."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "device-selector": {
+        "testid": "flow-device-selector"
+      },
+      "gap-report": {
+        "testid": "flow-gap-report"
+      },
+      "gap-summary": {
+        "testid": "flow-gap-summary"
+      },
+      "step-list": {
+        "testid": "flow-step-list"
+      },
+      "step-rung": {
+        "testid": "flow-step-rung"
+      },
+      "wait-bound": {
+        "testid": "flow-wait-bound"
+      },
+      "run-flow": {
+        "testid": "flow-run"
+      },
+      "run-runnable-subset": {
+        "testid": "flow-run-subset"
+      },
+      "recheck-elsewhere": {
+        "testid": "flow-recheck"
+      },
+      "validation-errors": {
+        "testid": "flow-validation-errors"
+      },
+      "authoring-guidance": {
+        "testid": "flow-authoring-guidance"
+      }
+    }
+  }
 }

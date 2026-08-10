@@ -605,18 +605,21 @@
           "aliases": [
             "ui-layout",
             "ui-slots",
-            "slot-taxonomy"
+            "slot-taxonomy",
+            "operator-surface",
+            "ux-design"
           ],
-          "description": "Canonical ui/ source layout and the slot taxonomy consumed by the adoption resolver",
+          "description": "The operator surface — design principles, information architecture, and shared primitives — plus the canonical ui/ source layout and the slot taxonomy consumed by the adoption resolver",
           "audience": [
             "developers",
             "agents"
           ],
           "canonicalFor": [
             "ui-architecture",
-            "ui-slot-taxonomy"
+            "ui-slot-taxonomy",
+            "operator-surface-design"
           ],
-          "maturity": "draft",
+          "maturity": "active",
           "requiredBy": [
             "generated"
           ],

@@ -25,7 +25,7 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 | D-002 | 2026-08-10 | Capabilities are probed, never inferred from device kind. | Never — this is the scenario's core honesty property. |
 | D-003 | 2026-08-10 | One flow envelope, several step vocabularies. | A vocabulary needs semantics the shared envelope cannot express. |
 | D-004 | 2026-08-10 | Target resolution is a ladder, not a strategy choice. | A fourth rung appears, or rung ordering stops holding. |
-| D-005 | 2026-08-10 | All inference goes through `ai-gateway`, even though it blocks us. | `ai-gateway` ships a visual-understanding request kind (unblocks; does not reverse). |
+| D-005 | 2026-08-10 | All inference goes through `ai-gateway`; the generated `locate.visual` role unblocks the vision rung without reversing the boundary. | A fourth inference transport or a change to the gateway's provider-neutral contract. |
 | D-006 | 2026-08-10 | Leases are P0, not a later refinement. | Never while any single-session strategy exists. |
 | D-007 | 2026-08-10 | The CLI is the contract, because the agent drives it. | Agent mode stops driving the CLI. |
 | D-008 | 2026-08-10 | `vrooli-bridge` owns reach; this scenario owns operation. | Bridge changes its fleet model, or a device class fits neither side. |
@@ -96,17 +96,22 @@ intent once and does not choose — the strategy's declared capabilities
 decide. Recording the rung is what lets a reviewer tell a proven result
 from an inferred one.
 
-### D-005 — All inference goes through `ai-gateway`, even though it blocks us
+### D-005 — All inference goes through `ai-gateway`
 
-`ai-gateway` has no visual-understanding request kind today, so `ai.*` steps
-start `unavailable`.
+The `flows` domain sends visual understanding through the generated
+`InferenceService` Connect client using role `locate.visual`. The caller
+owns frame downscaling and the conversion from canonical normalized bounds
+back to device coordinates. If the route is unavailable, the flow reports a
+typed unavailable disposition or uses an existing visual anchor; it never
+reaches for a provider client.
 
-*Why accept the block:* the alternative is the shortcut
+*Why preserve the boundary:* the alternative is the shortcut
 `browser-automation-studio` already took — a direct OpenRouter/Anthropic/
 Ollama client in `playwright-driver/src/ai/vision-client/` — which is
 exactly the coupling `ai-gateway`'s conformance phase exists to flag. Taking
-it twice would make the gateway boundary fictional. The gap is declared as a
-prerequisite instead.
+it twice would make the gateway boundary fictional. The device-control
+caller therefore names an intent and role, never a provider, model, URL, or
+credential.
 
 ### D-006 — Leases are P0, not a later refinement
 

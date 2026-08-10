@@ -6,53 +6,354 @@
     "id": "run-review",
     "title": "Run review",
     "routes": [
+      "/runs",
       "/runs/:runId"
     ],
     "purpose": "Review a completed run as an ordered chapter timeline with its disposition, evidence references, and the resolution rung used at each step.",
     "prd_refs": [
-      "OT-P0-005",
+      "OT-P0-008",
       "OT-P0-006",
-      "OT-P0-008"
+      "OT-P0-012"
     ]
   },
   "priorities": [
     {
       "statement": "The terminal disposition is shown verbatim and never softened.",
-      "notes": "Passed, failed, aborted and unavailable are different outcomes; collapsing them destroys the signal."
+      "notes": "The backend vocabulary is the contract. A UI that renders failed as 'needs attention' breaks the release gate's meaning."
     },
     {
       "statement": "Each chapter shows expected versus observed, plus the rung and confidence used to resolve its target.",
-      "notes": "This is how a reviewer tells a proven result from an inferred one."
+      "notes": "A reviewer must be able to tell a proven result from an inferred one without leaving the page."
     },
     {
       "statement": "Captures are presented as redacted references with checksums, never raw bytes.",
-      "notes": "Screen frames can contain secrets; redaction status is part of the evidence, not an afterthought."
+      "notes": "An unverified capture is withheld rather than displayed — the producer boundary is also a UI boundary."
     }
   ],
   "states": [
     {
+      "id": "default",
+      "description": "A completed run with an ordered chapter timeline and verified evidence.",
+      "setup": {
+        "route": "/runs/fixture-run-passed"
+      }
+    },
+    {
       "id": "loading",
-      "description": "Run record loading."
+      "description": "Run record and chapter timeline loading.",
+      "setup": {
+        "route": "/runs/fixture-run-passed",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No runs recorded yet; explains what produces one.",
+      "setup": {
+        "route": "/runs",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "The run stopped part-way: earlier chapters carry dispositions and later ones are explicitly not-run rather than absent.",
+      "setup": {
+        "route": "/runs/fixture-run-failed",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "The run references an artifact whose retention window has closed; the reference and checksum remain while the bytes do not.",
+      "setup": {
+        "route": "/runs/fixture-run-passed",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The run record could not be loaded. The page says so rather than rendering an empty timeline that reads as a clean run.",
+      "setup": {
+        "route": "/runs/fixture-run-passed",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
     },
     {
       "id": "passed",
-      "description": "All chapters asserted; evidence complete."
+      "description": "Every required chapter asserted successfully.",
+      "setup": {
+        "route": "/runs/fixture-run-passed",
+        "query": {
+          "fixture": "passed"
+        }
+      }
     },
     {
       "id": "failed",
-      "description": "One or more chapters failed; the first failing chapter is anchored."
+      "description": "A chapter assertion did not hold; the failing chapter names its measurement.",
+      "setup": {
+        "route": "/runs/fixture-run-failed",
+        "query": {
+          "fixture": "failed"
+        }
+      }
     },
     {
       "id": "aborted",
-      "description": "Run cancelled; completed chapters retained."
+      "description": "The operator or a bound stopped the run; completed chapters are retained.",
+      "setup": {
+        "route": "/runs/fixture-run-aborted",
+        "query": {
+          "fixture": "aborted"
+        }
+      }
     },
     {
       "id": "unavailable",
-      "description": "Run could not execute; the missing capability and next action are shown."
+      "description": "The run could not execute because a required capability was missing; the run is not a failure and does not read as one.",
+      "setup": {
+        "route": "/runs/fixture-run-unavailable",
+        "query": {
+          "fixture": "unavailable"
+        }
+      }
     },
     {
       "id": "redaction-pending",
-      "description": "Captures exist but redaction is unverified; they are withheld rather than displayed."
+      "description": "Captures exist but redaction is unverified, so they are withheld rather than rendered.",
+      "setup": {
+        "route": "/runs/fixture-run-passed",
+        "query": {
+          "fixture": "redaction-pending"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "run-disposition",
+      "role": "status",
+      "description": "The run's terminal disposition, rendered verbatim from the backend vocabulary."
+    },
+    {
+      "id": "chapter-timeline",
+      "role": "list",
+      "name": "Chapters",
+      "description": "Ordered chapters, each with purpose, expected versus observed, and its own disposition."
+    },
+    {
+      "id": "chapter-expected-observed",
+      "role": "status",
+      "description": "The measurement behind a chapter's disposition, stated as expected against observed."
+    },
+    {
+      "id": "chapter-rung",
+      "role": "status",
+      "description": "The resolution rung and confidence used to resolve the chapter's target."
+    },
+    {
+      "id": "evidence-refs",
+      "role": "list",
+      "name": "Evidence",
+      "description": "Capture references with kind, checksum, and size. Never raw bytes and never a filesystem path."
+    },
+    {
+      "id": "recording-provenance",
+      "role": "status",
+      "description": "Capture method and effective frame rate for the run's recording."
+    },
+    {
+      "id": "redaction-status",
+      "role": "status",
+      "description": "Whether redaction was verified before the capture left the producer."
+    },
+    {
+      "id": "withheld-notice",
+      "role": "note",
+      "description": "Explains that captures are withheld pending redaction verification, rather than showing an empty evidence list."
+    },
+    {
+      "id": "unavailable-cause",
+      "role": "note",
+      "description": "The capability that prevented execution, distinguishing an unavailable run from a failed one."
+    },
+    {
+      "id": "runs-guidance",
+      "role": "note",
+      "description": "Empty-state explanation of what produces a run record."
+    }
+  ],
+  "claims": [
+    {
+      "id": "disposition-rendered-verbatim",
+      "type": "custom",
+      "statement": "The run's disposition is rendered using the backend vocabulary without substitution or softening.",
+      "tier": "manual",
+      "elements": [
+        "run-disposition"
+      ],
+      "rationale": "Priority 1. The delivery ramps compute release gates from these words; a UI synonym silently changes what a reviewer believes was proven. Manual because it is a wording-fidelity judgement across six values."
+    },
+    {
+      "id": "failed-and-unavailable-are-distinct",
+      "type": "state-distinct",
+      "statement": "A run that failed an assertion is perceivably different from one that could not execute for lack of a capability.",
+      "tier": "machine",
+      "states": [
+        "failed",
+        "unavailable"
+      ],
+      "elements": [
+        "run-disposition",
+        "unavailable-cause"
+      ],
+      "rationale": "Terminal states with different meanings. Merging them turns 'this device cannot do it' into 'the app is broken'."
+    },
+    {
+      "id": "chapters-carry-measurements",
+      "type": "element-present",
+      "statement": "Each chapter shows the expected and observed values behind its disposition.",
+      "tier": "machine",
+      "elements": [
+        "chapter-timeline",
+        "chapter-expected-observed"
+      ],
+      "states": [
+        "passed",
+        "failed"
+      ],
+      "rationale": "Priority 2. A chapter that says only 'failed' forces the reviewer into the raw journey sidecar."
+    },
+    {
+      "id": "chapters-carry-rung-and-confidence",
+      "type": "element-present",
+      "statement": "Each chapter shows the resolution rung and confidence used to resolve its target.",
+      "tier": "machine",
+      "elements": [
+        "chapter-rung"
+      ],
+      "states": [
+        "passed",
+        "failed"
+      ],
+      "rationale": "D-004 puts the rung in the result so the UI cannot lose it. A deterministic pass and an inferred one support different claims."
+    },
+    {
+      "id": "recording-shows-method-and-rate",
+      "type": "element-present",
+      "statement": "The recording is presented with its capture method and effective frame rate.",
+      "tier": "machine",
+      "elements": [
+        "recording-provenance"
+      ],
+      "states": [
+        "passed",
+        "failed"
+      ],
+      "rationale": "D-009. A reviewer must be able to tell a 2 fps reconstruction from a native capture without opening the file."
+    },
+    {
+      "id": "evidence-is-reference-only",
+      "type": "element-present",
+      "statement": "Evidence is presented as references carrying checksum and size, with its redaction status.",
+      "tier": "machine",
+      "elements": [
+        "evidence-refs",
+        "redaction-status"
+      ],
+      "states": [
+        "passed"
+      ],
+      "rationale": "Priority 3 and DVC-P0-008. The producer boundary is a UI boundary too — consumers see references, never bytes or paths."
+    },
+    {
+      "id": "unverified-captures-are-withheld",
+      "type": "state-covered",
+      "statement": "When redaction is unverified, the page states that captures are withheld rather than rendering them or showing an empty list.",
+      "tier": "machine",
+      "states": [
+        "redaction-pending"
+      ],
+      "elements": [
+        "withheld-notice"
+      ],
+      "rationale": "An empty evidence list reads as 'nothing was captured'. The truth is 'captured, not yet safe to show', and that difference is a privacy boundary."
+    },
+    {
+      "id": "not-run-chapters-remain-listed",
+      "type": "element-present",
+      "statement": "Chapters that never executed remain listed as not-run rather than being omitted from the timeline.",
+      "tier": "machine",
+      "elements": [
+        "chapter-timeline"
+      ],
+      "states": [
+        "partial"
+      ],
+      "rationale": "An omitted chapter makes a truncated run look like a shorter complete one."
+    },
+    {
+      "id": "verdict-reads-before-chapters",
+      "type": "reading-order",
+      "statement": "The run's terminal disposition reads before the chapter detail.",
+      "tier": "machine",
+      "elements": [
+        "run-disposition",
+        "chapter-timeline"
+      ],
+      "states": [
+        "failed"
+      ],
+      "locales": [
+        "en",
+        "ar"
+      ],
+      "rationale": "The reviewer's first question is whether it passed. Detail is the second question."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "run-disposition": {
+        "testid": "run-disposition"
+      },
+      "chapter-timeline": {
+        "testid": "run-chapter-timeline"
+      },
+      "chapter-expected-observed": {
+        "testid": "chapter-measurement"
+      },
+      "chapter-rung": {
+        "testid": "chapter-rung"
+      },
+      "evidence-refs": {
+        "testid": "run-evidence-refs"
+      },
+      "recording-provenance": {
+        "testid": "run-recording-provenance"
+      },
+      "redaction-status": {
+        "testid": "run-redaction-status"
+      },
+      "withheld-notice": {
+        "testid": "run-withheld-notice"
+      },
+      "unavailable-cause": {
+        "testid": "run-unavailable-cause"
+      },
+      "runs-guidance": {
+        "testid": "runs-guidance"
+      }
+    }
+  }
 }

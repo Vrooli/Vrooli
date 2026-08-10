@@ -6,53 +6,405 @@
     "id": "session",
     "title": "Live session",
     "routes": [
-      "/sessions/:sessionId"
+      "/devices/:deviceId/session"
     ],
     "purpose": "Operate a device under an explicit lease, with the holder, the expiry, and the kill control always visible.",
     "prd_refs": [
       "OT-P0-004",
-      "OT-P0-009",
-      "OT-P0-010"
+      "OT-P0-009"
     ]
   },
   "priorities": [
     {
       "statement": "The lease holder, its expiry, and a one-click kill are always visible while the session is live.",
-      "notes": "This scenario can drive a personal device. Session visibility is a safety property, not a convenience."
+      "notes": "A live control session on a personal device must never be discoverable only by navigating to it."
     },
     {
       "statement": "Every control is operable and every state perceivable without the video frame.",
-      "notes": "The frame is evidence, not the interface. A failed or unloaded frame must not disable control."
+      "notes": "The frame is evidence, not the interface. It is also absent entirely on strategies whose transport cannot stream."
     },
     {
       "statement": "Each dispatched verb appears in a running audit list with its outcome.",
-      "notes": "The operator should never wonder whether an action reached the device."
+      "notes": "The audit is the accountability record; a verb that executed without a visible entry is unaccounted for."
     }
   ],
   "states": [
     {
+      "id": "default",
+      "description": "A live session with a held lease and a streaming frame.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/session"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "The lease request is in flight; no controls are enabled yet.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/session",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No lease has been acquired yet; the page explains what acquiring one will do and who else may currently hold it.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/session",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "The session is live but a declared capability is unavailable, so some controls are absent with a stated reason rather than inert.",
+      "setup": {
+        "route": "/devices/fixture-iphone-14/session",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "The frame stream has stopped advancing while the lease remains held; the last frame is labelled with its age rather than presented as live.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/session",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "A dispatched verb failed at the transport. The session survives and the failure is recorded in the audit list.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/session",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
       "id": "acquiring",
-      "description": "Lease requested, not yet granted."
+      "description": "Lease acquisition in progress; controls remain disabled until it is held.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/session",
+        "query": {
+          "fixture": "acquiring"
+        }
+      }
     },
     {
       "id": "refused",
-      "description": "Another consumer holds the lease; the holder and expiry are named."
-    },
-    {
-      "id": "live",
-      "description": "Lease held; verbs dispatchable; frame streaming."
+      "description": "Another consumer holds the lease. The refusal names the holder and the expiry rather than queueing silently.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/session",
+        "query": {
+          "fixture": "refused"
+        }
+      }
     },
     {
       "id": "frame-unavailable",
-      "description": "Lease held but no frame; all controls and state remain operable."
+      "description": "The strategy cannot supply a frame. Every control and the semantic tree remain fully operable.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/session",
+        "query": {
+          "fixture": "frame-unavailable"
+        }
+      }
     },
     {
       "id": "expiring",
-      "description": "Lease within its renewal window."
+      "description": "The lease is close to expiry; renewal is offered before control is lost mid-action.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/session",
+        "query": {
+          "fixture": "expiring"
+        }
+      }
     },
     {
       "id": "killed",
-      "description": "Session terminated; further verbs refused with that reason."
+      "description": "The session was terminated. Controls are gone, the audit list is retained, and the reason for termination is stated.",
+      "setup": {
+        "route": "/devices/fixture-pixel-7/session",
+        "query": {
+          "fixture": "killed"
+        }
+      }
     }
-  ]
+  ],
+  "elements": [
+    {
+      "id": "lease-bar",
+      "role": "status",
+      "name": "Lease held",
+      "description": "Holder, elapsed time, and expiry countdown. Occupies the same position as on every other route."
+    },
+    {
+      "id": "kill-session",
+      "role": "button",
+      "name": "Kill session",
+      "description": "Immediate termination, styled as destructive and never behind a menu."
+    },
+    {
+      "id": "renew-lease",
+      "role": "button",
+      "name": "Renew",
+      "description": "Extends the lease before expiry interrupts an action in progress."
+    },
+    {
+      "id": "frame-region",
+      "role": "region",
+      "name": "Screen",
+      "description": "The live frame pane. Evidence rather than interface — hiding it must not reduce operability."
+    },
+    {
+      "id": "frame-provenance",
+      "role": "status",
+      "description": "Capture method and effective frame rate, so a synthesized reconstruction is never mistaken for a native stream."
+    },
+    {
+      "id": "semantic-tree",
+      "role": "tree",
+      "name": "Semantic tree",
+      "description": "Addressable element hierarchy for deterministic targeting. Present only when the strategy declares semantic-tree."
+    },
+    {
+      "id": "resolution-rung",
+      "role": "status",
+      "description": "Which rung the current targeting is using — semantic, visual-anchor, or vision — and its confidence."
+    },
+    {
+      "id": "dispatch-controls",
+      "role": "group",
+      "name": "Dispatch",
+      "description": "Tap, type, swipe, key, and navigation verbs. The complete control surface independent of the frame."
+    },
+    {
+      "id": "verb-audit",
+      "role": "log",
+      "name": "Verb audit",
+      "description": "Append-only list of dispatched verbs with timing and outcome."
+    },
+    {
+      "id": "refusal-notice",
+      "role": "alert",
+      "description": "Names the current holder and expiry when a lease claim is refused."
+    },
+    {
+      "id": "capability-absence-note",
+      "role": "note",
+      "description": "Explains why a control is absent on this strategy rather than rendering it disabled."
+    }
+  ],
+  "claims": [
+    {
+      "id": "lease-identity-always-visible",
+      "type": "element-present",
+      "statement": "While a lease is held, the holder and its expiry are perceivable at all times.",
+      "tier": "machine",
+      "elements": [
+        "lease-bar"
+      ],
+      "states": [
+        "default",
+        "partial",
+        "stale",
+        "expiring",
+        "frame-unavailable"
+      ],
+      "rationale": "Priority 1 and D-006. This is the scenario's central safety property."
+    },
+    {
+      "id": "kill-visible-without-scroll",
+      "type": "visible-without-scroll",
+      "statement": "The kill control is reachable without scrolling for the entire duration of a live session.",
+      "tier": "machine",
+      "elements": [
+        "kill-session"
+      ],
+      "states": [
+        "default",
+        "expiring"
+      ],
+      "rationale": "A safety control below the fold is not a safety control."
+    },
+    {
+      "id": "kill-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The kill control is operable from the keyboard throughout a live session.",
+      "tier": "machine",
+      "elements": [
+        "kill-session"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "SECURITY.md requires kill to be one action away; a pointer-only control fails that for keyboard and assistive-technology users alike."
+    },
+    {
+      "id": "operable-without-frame",
+      "type": "element-present",
+      "statement": "With no frame available, the dispatch controls and the verb audit remain present and operable.",
+      "tier": "machine",
+      "elements": [
+        "dispatch-controls",
+        "verb-audit"
+      ],
+      "states": [
+        "frame-unavailable"
+      ],
+      "rationale": "Priority 2. This is simultaneously the accessibility floor and what keeps a frameless transport usable."
+    },
+    {
+      "id": "frame-absence-is-covered",
+      "type": "state-covered",
+      "statement": "The frame-unavailable state renders a stated explanation rather than a blank pane.",
+      "tier": "machine",
+      "states": [
+        "frame-unavailable"
+      ],
+      "elements": [
+        "frame-region"
+      ],
+      "rationale": "A blank region reads as a broken stream; the truth is that this transport has no stream."
+    },
+    {
+      "id": "frame-carries-provenance",
+      "type": "element-present",
+      "statement": "Whenever a frame is shown, its capture method and effective frame rate are shown with it.",
+      "tier": "machine",
+      "elements": [
+        "frame-region",
+        "frame-provenance"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "D-009. A synthesized low-rate reconstruction and a native capture support different claims and must never look identical."
+    },
+    {
+      "id": "stale-frame-is-not-live",
+      "type": "state-distinct",
+      "statement": "A frame that has stopped advancing is perceivably different from a live one.",
+      "tier": "machine",
+      "states": [
+        "default",
+        "stale"
+      ],
+      "elements": [
+        "frame-region",
+        "frame-provenance"
+      ],
+      "rationale": "Acting on a stale frame is how an operator taps the wrong thing. The difference must be visible before the tap."
+    },
+    {
+      "id": "every-verb-is-audited",
+      "type": "element-present",
+      "statement": "Each dispatched verb appears in the audit list with its outcome, including failures.",
+      "tier": "machine",
+      "elements": [
+        "verb-audit"
+      ],
+      "states": [
+        "default",
+        "request-error"
+      ],
+      "rationale": "Priority 3 and DVC-P0-009. A verb with no visible entry is unaccounted for."
+    },
+    {
+      "id": "refusal-names-the-holder",
+      "type": "state-covered",
+      "statement": "A refused lease claim states who holds the device and when it expires, rather than failing generically.",
+      "tier": "machine",
+      "states": [
+        "refused"
+      ],
+      "elements": [
+        "refusal-notice"
+      ],
+      "rationale": "D-006 refuses rather than queues, so the refusal has to carry enough information for the operator to decide what to do next."
+    },
+    {
+      "id": "missing-capability-explained-not-disabled",
+      "type": "element-present",
+      "statement": "A control unavailable on this strategy is explained rather than rendered as an inert button.",
+      "tier": "machine",
+      "elements": [
+        "capability-absence-note"
+      ],
+      "states": [
+        "partial"
+      ],
+      "rationale": "A disabled control invites repeated clicking and implies a temporary condition; unsupported is terminal on that transport."
+    },
+    {
+      "id": "targeting-rung-is-visible",
+      "type": "element-present",
+      "statement": "The resolution rung in use, and its confidence, are perceivable while targeting.",
+      "tier": "machine",
+      "elements": [
+        "resolution-rung"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "D-004. A reviewer must be able to tell a deterministic match from an inferred one at the moment it happens, not only afterwards."
+    },
+    {
+      "id": "killed-retains-audit",
+      "type": "state-covered",
+      "statement": "After termination the verb audit remains readable and the reason for termination is stated.",
+      "tier": "machine",
+      "states": [
+        "killed"
+      ],
+      "elements": [
+        "verb-audit"
+      ],
+      "rationale": "Killing a session must not destroy the accountability record it produced."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "lease-bar": {
+        "testid": "lease-bar"
+      },
+      "kill-session": {
+        "testid": "lease-bar-kill"
+      },
+      "renew-lease": {
+        "testid": "lease-bar-renew"
+      },
+      "frame-region": {
+        "testid": "session-frame"
+      },
+      "frame-provenance": {
+        "testid": "session-frame-provenance"
+      },
+      "semantic-tree": {
+        "testid": "session-semantic-tree"
+      },
+      "resolution-rung": {
+        "testid": "session-resolution-rung"
+      },
+      "dispatch-controls": {
+        "testid": "session-dispatch"
+      },
+      "verb-audit": {
+        "testid": "session-verb-audit"
+      },
+      "refusal-notice": {
+        "testid": "session-refusal"
+      },
+      "capability-absence-note": {
+        "testid": "session-capability-absence"
+      }
+    }
+  }
 }

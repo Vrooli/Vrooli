@@ -98,7 +98,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Every AI-assisted step routes through ai-gateway. No direct provider HTTP client, no concrete model slug, and no provider secret exists in this scenario. Visual understanding requires an ai-gateway request kind that does not yet exist; this scenario declares that dependency rather than working around it.",
+      "description": "Every AI-assisted step routes through ai-gateway. No direct provider HTTP client, no concrete model slug, and no provider secret exists in this scenario. Visual understanding uses the locate.visual role through the generated Connect client, with typed unavailable behavior and no provider bypass.",
       "id": "DVC-P0-007",
       "prd_ref": "OT-P0-007",
       "status": "planned",
